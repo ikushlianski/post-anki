@@ -1,5 +1,8 @@
 # Decisions
 
+## [2026-04-19] — vocabulary
+- Atom and Concept are the same construct — "atom" is informal shorthand; "concept" is the canonical term.
+
 ## [2026-04-19]
 - Both ingestion paths ship in Phase 1 — article is the core loop, docs path is structurally parallel.
 - One atom store, two parent types — same Socratic mechanics for both; splitting stores doubles the codepath.

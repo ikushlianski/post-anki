@@ -1,0 +1,5 @@
+- adaptive
+    - speed
+    - detail level
+    - hinting on/off
+    - this should all be saved as current settings for the current "deck" or concept

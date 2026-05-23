@@ -1,19 +1,15 @@
 # Glossary
 
-## Atom
-A discrete unit of knowledge extracted from an ingested article or doc — a candidate before it becomes a real gap or concept. Has no maturity tracking; maturity begins only after a user Fail creates a gap.
-**Not:** a gap or a concept. An atom is pre-interaction.
-
-## Concept *(see Open Questions: "Atom" vs "Concept")*
-A living knowledge cluster within a Tool. Has one maturity score that only moves on interaction. Examples: "Next.js Caching Model", "SQS Queue Design."
-**Not:** an atom (pre-interaction) or a gap (a demonstrated unknown).
+## Concept *(also called "atom" informally)*
+A living knowledge cluster within a Tool or cross-cutting category. Has one maturity score that only moves on interaction. Examples: "Next.js Caching Model", "SQS Queue Design."
+**Not:** a gap (a demonstrated unknown). "Atom" is informal shorthand for the same construct.
 
 ## Cross-cutting concern
 A theme that spans multiple tools: Security, Performance, Observability, Cost, Reliability, Developer Experience. Gaps tagged with a concern category accumulate across tools and trigger pattern-level Socratic sessions.
 **Not:** a tool-specific concept. Cross-cutting concerns have no single tool parent.
 
 ## Daily push
-The system-initiated Socratic question that fires once per day at a scheduled time. Sources from the atom/concept store across all tools.
+The system-initiated Socratic question that fires once per day at a scheduled time. Sources from the concept store across all tools.
 **Not:** a notification or reminder. It IS the session opener.
 
 ## Depth calibration
@@ -22,7 +18,7 @@ The system's running estimate of how deeply the user has internalized a specific
 
 ## Gap
 What the user demonstrably does not know, surfaced during a Socratic session. Created only by user Fail tap or explicit "I don't know." Has a triage state: important / deferred / dismissed.
-**Not:** an atom (a candidate) or a concept (a growing knowledge cluster).
+**Not:** a concept (a growing knowledge cluster).
 
 ## Maturity
 Four-level scale per concept: 0–25 Familiar → 26–50 Understood → 51–75 Competent → 76–100 Architect. Only changes on interaction; never decays passively.
