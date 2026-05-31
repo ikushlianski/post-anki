@@ -1,0 +1,6 @@
+name: post-anki-infra
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: GCP infrastructure for post-anki bot

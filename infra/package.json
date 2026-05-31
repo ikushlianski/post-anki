@@ -1,0 +1,20 @@
+{
+  "name": "post-anki-infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "up": "pulumi up",
+    "preview": "pulumi preview",
+    "destroy": "pulumi destroy"
+  },
+  "dependencies": {
+    "@pulumi/gcp": "^8.0.0",
+    "@pulumi/pulumi": "^3.183.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
