@@ -41,7 +41,7 @@ Maps every product doc to what the backend (`packages/shared`, `packages/core`, 
 - File is empty (only a header). Nothing to cover; **N/A**.
 
 ## INBOX.md
-- "adaptive: speed / detail level / hinting on/off, saved per deck/concept" → **Partially covered.** "Detail level" = the per-topic depth ceiling (`awareness/working/deep`), persisted and settable. Speed and hinting toggles are not modeled — the only remaining INBOX item, and a UI-preference concern more than a domain one.
+- "adaptive: speed / detail level / hinting on/off, saved per deck/concept" → **Covered (2026-06-01).** `speed` (slow/normal/fast = probing pace) + `hinting` (on/off) live on the curriculum (deck), settable via `PATCH /curricula/:id`, and both feed the mentor-ask prompt. "Detail level" = depth: per-topic ceiling (the 3-level slider) via `PATCH /topics/:id` + a deck-level `defaultDepth`. Migration `0001`.
 
 ## OPEN-QUESTIONS.md
 - The api-curriculum-slice section already enumerates every deferred item (probing endpoint, gaps-in-detail, re-parse/merge, conversational depth-asking, web BFF wiring, bot rejoin). Kept in sync with this audit.

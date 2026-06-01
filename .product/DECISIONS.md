@@ -1,5 +1,17 @@
 # Decisions
 
+## [2026-06-01] — adaptive settings + probe grounding (backend, implemented)
+- **Adaptive settings** on the curriculum (deck): `speed` (slow|normal|fast), `hinting` (bool), `defaultDepth`. Migration `0001`. `PATCH /curricula/:id` now sets any of learningStatus/speed/hinting/defaultDepth. speed = probing pace/difficulty ramp; hinting = mentor adds a one-line hint — both threaded into the mentor-ask prompt. Depth stays per-topic (the 3-level slider, FE) via existing `PATCH /topics/:id`.
+- **Probe grounding** (Principle 1): sources-first → web fallback. Pasted TEXT sources (≥200 chars) ground the mentor with no web; otherwise openrouter:web_search grounds it (two-pass, never raw training data). Applied to both ask + eval.
+- **Contract change** (`@post-anki/shared`, FE-consumed, additive): `curriculumSchema` += speed/hinting/defaultDepth; `updateCurriculumInput` accepts them.
+- Live-verified (real Neon+OpenRouter): settings persist + 400 on bad enum; depth slider per topic; `source=pasted` (0 web) vs `source=web` (2731 chars). typecheck clean, 67 core tests. Migration ledger healthy (`drizzle.drizzle_migrations_api`, 2 applied).
+- Limits flagged in `.inbox`: text-source grounding only (link bodies not retained); web fallback latency ~21s on source-less; presence-based not per-gap coverage.
+
+## [2026-06-01] — Principle 1 relaxed: probe-time grounding hierarchy
+- Real-source grounding is no longer strict. At PROBE time the mentor grounds in this order: (1) pasted articles (curriculum sources), (2) accumulated knowledge (existing topics/gaps), (3) general knowledge.
+- General knowledge is allowed *for now* but ONLY via the **web search tool** — never raw training-data hallucination. Web search stays out of capture (still paste-first); it belongs to the learning/probe phase.
+- Implication: probe-time mentor needs the stored sources threaded into its prompt AND a web_search path for general knowledge. web_search + structured output can't share one call → two-pass where structure is needed (see [[project_openrouter_websearch_no_structured]]).
+
 ## [2026-06-01] — probe cold-start + lifecycle deletes (backend)
 - **Probe cold-start** (closes the learning loop after gaps were removed from capture): zero-gap topic → `startProbe` returns a topic-level OPENER (gapId=null); mentor-eval discovers the first gaps from the answer; next question anchors on a discovered gap. Removed `no_open_gaps`. learningStatus = `reviewing` when no open gaps remain, else `probing`.
 - **Contract change** (`@post-anki/shared`, FE-consumed): `ProbeQuestion.gapId`/`gapLabel` + `SubmitProbeInput.gapId` now nullable. FE flagged in `.inbox`.

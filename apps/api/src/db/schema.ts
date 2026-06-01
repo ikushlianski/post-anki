@@ -19,6 +19,9 @@ export const curricula = pgTable("curricula", {
   description: text("description"),
   status: text("status").notNull().default("draft"),
   learningStatus: text("learning_status").notNull().default("not_started"),
+  speed: text("speed").notNull().default("normal"),
+  hinting: boolean("hinting").notNull().default(true),
+  defaultDepth: text("default_depth").notNull().default("working"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

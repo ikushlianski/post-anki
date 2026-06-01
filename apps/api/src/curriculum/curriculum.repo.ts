@@ -10,6 +10,7 @@ import type {
   Module,
   Source,
   SourceDraft,
+  Speed,
   Topic,
   TopicProgressStatus,
   UpdateCurriculumInput,
@@ -48,6 +49,9 @@ export async function createCurriculum(
     description: input.description ?? null,
     status: "curating" as const,
     learningStatus: "not_started" as const,
+    speed: "normal" as const,
+    hinting: true,
+    defaultDepth: "working" as const,
   };
 
   await getDb().insert(curricula).values(row);
@@ -67,6 +71,42 @@ export async function createCurriculum(
   }
 
   return toCurriculum(row);
+}
+
+export interface CurriculumProbeContext {
+  curriculumId: string;
+  status: CurriculumStatus;
+  speed: Speed;
+  hinting: boolean;
+}
+
+export async function getCurriculumContextForTopic(
+  topicId: string,
+): Promise<CurriculumProbeContext | null> {
+  const db = getDb();
+
+  const topicRow = (
+    await db.select().from(topics).where(eq(topics.id, topicId))
+  )[0];
+
+  if (!topicRow) {
+    return null;
+  }
+
+  const curriculumRow = (
+    await db.select().from(curricula).where(eq(curricula.id, topicRow.curriculumId))
+  )[0];
+
+  if (!curriculumRow) {
+    return null;
+  }
+
+  return {
+    curriculumId: curriculumRow.id,
+    status: curriculumRow.status as CurriculumStatus,
+    speed: curriculumRow.speed as Speed,
+    hinting: curriculumRow.hinting,
+  };
 }
 
 export async function setCurriculumStatus(
@@ -218,34 +258,41 @@ export async function confirmCurriculum(
   return toCurriculum(rows[0]!);
 }
 
-export async function getCurriculumStatusForTopic(
-  topicId: string,
-): Promise<CurriculumStatus | null> {
-  const db = getDb();
 
-  const topicRow = (
-    await db.select().from(topics).where(eq(topics.id, topicId))
-  )[0];
-
-  if (!topicRow) {
-    return null;
-  }
-
-  const curriculumRow = (
-    await db.select().from(curricula).where(eq(curricula.id, topicRow.curriculumId))
-  )[0];
-
-  return curriculumRow ? (curriculumRow.status as CurriculumStatus) : null;
-}
-
-export async function setCurriculumLearningStatus(
+export async function updateCurriculum(
   input: UpdateCurriculumInput,
 ): Promise<Curriculum | null> {
   const db = getDb();
 
+  const patch: Partial<typeof curricula.$inferInsert> = {};
+
+  if (input.learningStatus !== undefined) {
+    patch.learningStatus = input.learningStatus;
+  }
+
+  if (input.speed !== undefined) {
+    patch.speed = input.speed;
+  }
+
+  if (input.hinting !== undefined) {
+    patch.hinting = input.hinting;
+  }
+
+  if (input.defaultDepth !== undefined) {
+    patch.defaultDepth = input.defaultDepth;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    const existing = (
+      await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
+    )[0];
+
+    return existing ? toCurriculum(existing) : null;
+  }
+
   const rows = await db
     .update(curricula)
-    .set({ learningStatus: input.learningStatus })
+    .set(patch)
     .where(eq(curricula.id, input.curriculumId))
     .returning();
 
@@ -346,6 +393,9 @@ function toCurriculum(row: {
   description: string | null;
   status: string;
   learningStatus: string;
+  speed: string;
+  hinting: boolean;
+  defaultDepth: string;
 }): Curriculum {
   return {
     id: row.id,
@@ -354,6 +404,9 @@ function toCurriculum(row: {
     description: row.description ?? undefined,
     status: row.status as CurriculumStatus,
     learningStatus: row.learningStatus as LearningStatus,
+    speed: row.speed as Speed,
+    hinting: row.hinting,
+    defaultDepth: row.defaultDepth as DepthLevel,
   };
 }
 

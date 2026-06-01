@@ -13,7 +13,7 @@ import {
   getCurriculumBasics,
   getCurriculumDetail,
   listCurricula,
-  setCurriculumLearningStatus,
+  updateCurriculum,
 } from "./curriculum.repo.js";
 import {
   mergeSourcesIntoCurriculum,
@@ -168,7 +168,7 @@ export async function handleUpdateCurriculum(
     return;
   }
 
-  const result = await setCurriculumLearningStatus({ ...body.data, curriculumId });
+  const result = await updateCurriculum({ ...body.data, curriculumId });
 
   if (!result) {
     sendError(res, 404, "not_found");

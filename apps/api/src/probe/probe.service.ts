@@ -4,6 +4,7 @@ import {
   type ProbeQuestion,
   type ProbeResult,
   type QuestionKind,
+  type Speed,
   type StartProbeInput,
   type SubmitProbeInput,
 } from "@post-anki/shared";
@@ -26,12 +27,19 @@ import {
   listGapsForTopic,
   persistGaps,
 } from "../gap/gap.repo.js";
-import { getCurriculumStatusForTopic } from "../curriculum/curriculum.repo.js";
+import { getCurriculumContextForTopic } from "../curriculum/curriculum.repo.js";
+import { gatherProbeGrounding } from "./probe-grounding.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
 
 const MAX_QUICK_TEST_OPTIONS = 4;
 
 export type ProbeError = "not_found" | "not_confirmed" | "gap_not_open";
+
+interface AskContext {
+  speed: Speed;
+  hinting: boolean;
+  grounding: string;
+}
 
 export async function startProbe(
   input: StartProbeInput,
@@ -42,16 +50,21 @@ export async function startProbe(
     return { error: "not_found" };
   }
 
-  const status = await getCurriculumStatusForTopic(input.topicId);
+  const ctx = await getCurriculumContextForTopic(input.topicId);
 
-  if (status !== "confirmed") {
+  if (!ctx || ctx.status !== "confirmed") {
     return { error: "not_confirmed" };
   }
 
   const gaps = await listGapsForTopic(input.topicId);
   const gap = nextGapToProbe(gaps, rowDepth(topic));
+  const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
 
-  return buildQuestion(topic, gap, input.mode);
+  return buildQuestion(topic, gap, input.mode, {
+    speed: ctx.speed,
+    hinting: ctx.hinting,
+    grounding: grounding.text,
+  });
 }
 
 export async function submitProbe(
@@ -64,9 +77,9 @@ export async function submitProbe(
     return { error: "not_found" };
   }
 
-  const status = await getCurriculumStatusForTopic(input.topicId);
+  const ctx = await getCurriculumContextForTopic(input.topicId);
 
-  if (status !== "confirmed") {
+  if (!ctx || ctx.status !== "confirmed") {
     return { error: "not_confirmed" };
   }
 
@@ -77,7 +90,8 @@ export async function submitProbe(
     return { error: "gap_not_open" };
   }
 
-  const evaluation = await evaluateAnswer(topic, probed, gaps, input);
+  const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
+  const evaluation = await evaluateAnswer(topic, probed, gaps, input, grounding.text);
 
   const updated = applyGapVerdicts(gaps, evaluation.verdicts, now);
   const coveredGapLabels = updated
@@ -110,7 +124,11 @@ export async function submitProbe(
 
   const nextQuestion =
     nextGap && remaining.length > 0
-      ? await buildQuestion(topic, nextGap, input.mode)
+      ? await buildQuestion(topic, nextGap, input.mode, {
+          speed: ctx.speed,
+          hinting: ctx.hinting,
+          grounding: grounding.text,
+        })
       : null;
 
   return {
@@ -127,8 +145,9 @@ async function buildQuestion(
   topic: TopicRow,
   gap: Gap | null,
   mode: QuestionKind,
+  ask: AskContext,
 ): Promise<ProbeQuestion> {
-  const generated = await generateQuestion(topic, gap, mode);
+  const generated = await generateQuestion(topic, gap, mode, ask);
 
   return {
     gapId: gap?.id ?? null,
@@ -142,35 +161,51 @@ async function buildQuestion(
   };
 }
 
+function paceHint(speed: Speed): string {
+  if (speed === "slow") {
+    return "take a smaller step, scaffold the question, keep it gentle";
+  }
+
+  if (speed === "fast") {
+    return "assume competence — ask a harder, higher-leverage question and move on quickly";
+  }
+
+  return "standard difficulty for the target depth";
+}
+
 async function generateQuestion(
   topic: TopicRow,
   gap: Gap | null,
   mode: QuestionKind,
+  ask: AskContext,
 ): Promise<GeneratedQuestion> {
   const agent = createMentorAskAgent();
 
-  const prompt = gap
-    ? [
-        `Topic: ${topic.title}`,
-        topic.summary ? `Why it matters: ${topic.summary}` : "",
-        `Target depth: ${gap.depth}`,
-        `Gap to probe: ${gap.label}`,
-        `Question kind: ${mode}`,
-      ]
-        .filter(Boolean)
-        .join("\n")
+  const focus = gap
+    ? [`Gap to probe: ${gap.label}`, `Target depth: ${gap.depth}`]
     : [
-        `Topic: ${topic.title}`,
-        topic.summary ? `Why it matters: ${topic.summary}` : "",
         `Target depth: ${rowDepth(topic)}`,
         "This is the OPENING question — the learner has not been probed on this topic yet,",
         "and no specific gap has been identified. Ask ONE question that gets them to explain",
         "and reason about the core of this topic at the target depth, so their answer reveals",
         "what they do and do not yet grasp.",
-        `Question kind: ${mode}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
+      ];
+
+  const prompt = [
+    `Topic: ${topic.title}`,
+    topic.summary ? `Why it matters: ${topic.summary}` : "",
+    ...focus,
+    `Probing pace: ${ask.speed} — ${paceHint(ask.speed)}`,
+    ask.hinting
+      ? "Hinting is ON: after the question, add one short hint on its own line."
+      : "Hinting is OFF: no hints.",
+    ask.grounding
+      ? `Ground the question in this material (prefer it over general knowledge):\n${ask.grounding}`
+      : "",
+    `Question kind: ${mode}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   try {
     const result = await agent.generate(prompt, {
@@ -192,6 +227,7 @@ async function evaluateAnswer(
   probed: Gap | null,
   gaps: Gap[],
   input: SubmitProbeInput,
+  grounding: string,
 ) {
   const open = gaps.filter((g) => g.state === "open");
 
@@ -205,6 +241,9 @@ async function evaluateAnswer(
     "Open gaps on this topic:",
     ...open.map((g) => `- id ${g.id} [${g.depth}]: ${g.label}`),
     open.length === 0 ? "(none yet — discover the gaps this answer reveals)" : "",
+    grounding
+      ? `\nGround truth to judge against (prefer this over general knowledge):\n${grounding}`
+      : "",
     "",
     `Question kind: ${input.mode}`,
     `Learner's answer: ${input.answer}`,

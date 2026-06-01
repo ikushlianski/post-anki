@@ -3,6 +3,8 @@ import { sourceSchema, sourceDraftSchema } from "./source";
 import { moduleSchema } from "./module";
 import { curriculumProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
+import { speedSchema } from "./adaptive";
+import { depthLevelSchema } from "./depth";
 
 export const curriculumStatusSchema = z.enum([
   "draft",
@@ -21,6 +23,9 @@ export const curriculumSchema = z.object({
   description: z.string().optional(),
   status: curriculumStatusSchema,
   learningStatus: learningStatusSchema,
+  speed: speedSchema,
+  hinting: z.boolean(),
+  defaultDepth: depthLevelSchema,
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -43,7 +48,10 @@ export type AddSourcesInput = z.infer<typeof addSourcesInput>;
 
 export const updateCurriculumInput = z.object({
   curriculumId: z.string(),
-  learningStatus: learningStatusSchema,
+  learningStatus: learningStatusSchema.optional(),
+  speed: speedSchema.optional(),
+  hinting: z.boolean().optional(),
+  defaultDepth: depthLevelSchema.optional(),
 });
 
 export type UpdateCurriculumInput = z.infer<typeof updateCurriculumInput>;
