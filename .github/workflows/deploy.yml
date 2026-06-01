@@ -131,3 +131,75 @@ jobs:
           done
           echo "Health check failed after 60s"
           exit 1
+
+  deploy-api:
+    name: Deploy API
+    needs: [test, infra]
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.PROD_WIF_PROVIDER }}
+          service_account: ${{ vars.PROD_CI_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run API database migrations
+        run: npm run db:migrate -w @post-anki/api
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.PROD_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push API image
+        run: |
+          IMAGE=${{ vars.PROD_REGISTRY }}/api:${{ github.sha }}
+          docker build -f apps/api/Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "API_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy API to Cloud Run
+        run: |
+          gcloud run deploy post-anki-api \
+            --image "$API_IMAGE" \
+            --project ${{ vars.PROD_PROJECT_ID }} \
+            --region ${{ vars.PROD_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 1 \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 60s \
+            --port 8030 \
+            --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
+            --set-env-vars "OPENROUTER_API_KEY=${{ secrets.PROD_OPENROUTER_API_KEY }}" \
+            --set-env-vars "CURRICULUM_MODEL=${{ vars.PROD_OPENROUTER_MODEL || 'openrouter/google/gemini-2.5-flash' }}" \
+            --set-env-vars "API_SHARED_SECRET=${{ secrets.PROD_API_SHARED_SECRET }}" \
+            --set-env-vars "PORT=8030" \
+            --set-env-vars "LOG_LEVEL=info" \
+            --quiet
+
+      - name: Verify API health
+        run: |
+          URL="https://${{ vars.PROD_API_DOMAIN }}"
+          echo "Health check: $URL/healthz"
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/healthz")
+            if [ "$STATUS" = "200" ]; then
+              echo "API health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 5s"
+            sleep 5
+          done
+          echo "API health check failed after 60s"
+          exit 1

@@ -1,0 +1,24 @@
+{
+  "name": "post-anki",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/shared",
+    "packages/core",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:web": "npm run dev -w @post-anki/web",
+    "dev:api": "npm run dev -w @post-anki/api",
+    "dev:bot": "npm run dev -w @post-anki/bot",
+    "db:generate:api": "npm run db:generate -w @post-anki/api",
+    "db:migrate:api": "npm run db:migrate -w @post-anki/api"
+  }
+}
