@@ -1,10 +1,18 @@
 # Open Questions
 
+## API hardening + first API-layer tests (BE, 2026-06-02)
+- [x] **Body-size cap (1MB)** on `readJsonBody` → clean `400 "request body too large"` (was unbounded buffering / OOM risk). No FE impact (normal payloads are KBs).
+- [x] **Route resolver extracted** to pure `apps/api/src/router.ts` (`resolveRoute`); `server.ts` dispatches on the route name. Behaviour identical — full e2e still green through it. No contract change.
+- [x] **vitest set up for `apps/api`** (was none): `router.test.ts` (11) + `shared/http.test.ts` (6). Root `npm run test --workspaces` now covers api too.
+- Verified: 17 api + 39 bot + 67 core tests; oversized body → 400 live; create→confirm→probe e2e passes through the new router.
+
 ## Telegram bot rejoin + grounding citations (BE, 2026-06-02)
 - [x] **Bot rejoined as a thin API client** — stripped Mastra/Drizzle-domain/study-profile from `apps/bot`; it now drives the daily loop over HTTP: `/push` (scheduler trigger, bearer-gated) sends the owner today's question; `/telegram` webhook handles replies → `POST /probe/answer`; `/today` on demand. Removed broken `@mastra/*` deps; re-added `apps/bot` to root `workspaces`. Session state in a `pending_probe` table (migration `0000`, bot's own ledger). Bot tsconfig aligned to Bundler resolution (was NodeNext) to resolve `@post-anki/shared`; runs via tsx; Dockerfile now root-context.
   - **Verified live:** bot api-client (`getDailyPush`/`submitAnswer`) + session repo round-trip against real Neon+API; 39 bot unit tests (reply routing, probe-flow, formatting).
   - **NOT verified / still needed for delivery:** the Telegram I/O itself (grammY send + webhook) — needs a **BotFather token** (G3), deploy, a **Cloud Scheduler → POST /push** job, and `db:migrate:bot` in prod. The API stays client-agnostic; delivery is entirely in the bot.
 - [x] **Grounding citations** — web-grounded probe questions now carry `sources[]` (Exa citation URLs). `@post-anki/shared` `probeQuestionSchema.sources?: string[]` (FE-additive — render source links under a web-grounded question). Verified live: source-less Rust topic → question with 5 source URLs. (Pasted-source questions have no `sources` — they're your own material.)
+  - **✅ FE DONE + live-verified (2026-06-02):** FE `questionSchema.sources?: string[]` + `mapProbeQuestion` passes it through. `ProbeAnswer` renders a "grounded in" row of citation links under the question prompt (hostname labels, truncated, open in new tab) when `sources` is present; source-backed questions show nothing. Shown in both the topic `ProbePanel` and the `/today` card (shared `ProbeAnswer`). Verified live via `verify-sources.ts`: a confirmed source-less topic → web-grounded question with **5 citation URLs**, FE-mapped + shape-checked. Web typecheck clean.
+  - **Bot rejoin (apps/bot):** no FE impact — it's a separate HTTP client of the same API; FE and bot are peers. Nothing to wire on the web side.
   - **Deferred:** true per-gap coverage detection (currently presence-based: has-text-sources vs not). Needs a cost/shape decision (model-decides-via-tool vs extra LLM judgment call).
 
 ## mobile (iPhone 13 / 390px) responsive pass (2026-06-01)

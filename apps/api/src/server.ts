@@ -38,6 +38,7 @@ import { handleCurateGap, handleDeclareGap } from "./gap/gap.controller.js";
 import { handleDailyPush } from "./push/push.controller.js";
 import { handleDecide } from "./decide/decide.controller.js";
 import { handleCrossCutting } from "./concern/concern.controller.js";
+import { resolveRoute } from "./router.js";
 
 const env = loadEnv();
 
@@ -80,145 +81,71 @@ async function route(
   path: string,
   url: URL,
 ): Promise<void> {
-  if (method === "GET" && path === "/subjects") {
-    return handleListSubjects(res);
+  const resolved = resolveRoute(method, path);
+
+  if (!resolved) {
+    sendError(res, 404, "not_found");
+    return;
   }
 
-  if (method === "POST" && path === "/subjects") {
-    return handleCreateSubject(req, res);
+  const id = resolved.params.id ?? "";
+
+  switch (resolved.name) {
+    case "listSubjects":
+      return handleListSubjects(res);
+    case "createSubject":
+      return handleCreateSubject(req, res);
+    case "deleteSubject":
+      return handleDeleteSubject(res, id);
+    case "listCurricula":
+      return handleListCurricula(res, url.searchParams.get("subjectId"));
+    case "createCurriculum":
+      return handleCreateCurriculum(req, res);
+    case "getCurriculum":
+      return handleGetCurriculum(res, id);
+    case "updateCurriculum":
+      return handleUpdateCurriculum(req, res, id);
+    case "deleteCurriculum":
+      return handleDeleteCurriculum(res, id);
+    case "confirmCurriculum":
+      return handleConfirmCurriculum(res, id);
+    case "addSources":
+      return handleAddSources(req, res, id);
+    case "reparse":
+      return handleReparse(res, id);
+    case "reorderModules":
+      return handleReorderModules(req, res);
+    case "createModule":
+      return handleCreateModule(req, res, id);
+    case "reorderTopics":
+      return handleReorderTopics(req, res);
+    case "createTopic":
+      return handleCreateTopic(req, res, id);
+    case "updateModule":
+      return handleUpdateModule(req, res, id);
+    case "deleteModule":
+      return handleDeleteModule(res, id);
+    case "updateTopic":
+      return handleUpdateTopic(req, res, id);
+    case "deleteTopic":
+      return handleDeleteTopic(res, id);
+    case "listTopicGaps":
+      return handleListTopicGaps(res, id);
+    case "startProbe":
+      return handleStartProbe(req, res, id);
+    case "submitProbe":
+      return handleSubmitProbe(req, res, id);
+    case "declareGap":
+      return handleDeclareGap(req, res);
+    case "curateGap":
+      return handleCurateGap(req, res, id);
+    case "dailyPush":
+      return handleDailyPush(res, url.searchParams.get("mode"));
+    case "decide":
+      return handleDecide(req, res);
+    case "crossCutting":
+      return handleCrossCutting(res);
   }
-
-  const subjectMatch = path.match(/^\/subjects\/([^/]+)$/);
-
-  if (method === "DELETE" && subjectMatch) {
-    return handleDeleteSubject(res, subjectMatch[1]!);
-  }
-
-  if (method === "GET" && path === "/curricula") {
-    return handleListCurricula(res, url.searchParams.get("subjectId"));
-  }
-
-  if (method === "POST" && path === "/curricula") {
-    return handleCreateCurriculum(req, res);
-  }
-
-  const detailMatch = path.match(/^\/curricula\/([^/]+)$/);
-
-  if (method === "GET" && detailMatch) {
-    return handleGetCurriculum(res, detailMatch[1]!);
-  }
-
-  if (method === "PATCH" && detailMatch) {
-    return handleUpdateCurriculum(req, res, detailMatch[1]!);
-  }
-
-  if (method === "DELETE" && detailMatch) {
-    return handleDeleteCurriculum(res, detailMatch[1]!);
-  }
-
-  const confirmMatch = path.match(/^\/curricula\/([^/]+)\/confirm$/);
-
-  if (method === "POST" && confirmMatch) {
-    return handleConfirmCurriculum(res, confirmMatch[1]!);
-  }
-
-  const sourcesMatch = path.match(/^\/curricula\/([^/]+)\/sources$/);
-
-  if (method === "POST" && sourcesMatch) {
-    return handleAddSources(req, res, sourcesMatch[1]!);
-  }
-
-  const reparseMatch = path.match(/^\/curricula\/([^/]+)\/reparse$/);
-
-  if (method === "POST" && reparseMatch) {
-    return handleReparse(res, reparseMatch[1]!);
-  }
-
-  const modulesReorderMatch = path.match(/^\/curricula\/([^/]+)\/modules\/order$/);
-
-  if (method === "PATCH" && modulesReorderMatch) {
-    return handleReorderModules(req, res);
-  }
-
-  const modulesMatch = path.match(/^\/curricula\/([^/]+)\/modules$/);
-
-  if (method === "POST" && modulesMatch) {
-    return handleCreateModule(req, res, modulesMatch[1]!);
-  }
-
-  const topicsReorderMatch = path.match(/^\/modules\/([^/]+)\/topics\/order$/);
-
-  if (method === "PATCH" && topicsReorderMatch) {
-    return handleReorderTopics(req, res);
-  }
-
-  const topicsCreateMatch = path.match(/^\/modules\/([^/]+)\/topics$/);
-
-  if (method === "POST" && topicsCreateMatch) {
-    return handleCreateTopic(req, res, topicsCreateMatch[1]!);
-  }
-
-  const moduleMatch = path.match(/^\/modules\/([^/]+)$/);
-
-  if (method === "PATCH" && moduleMatch) {
-    return handleUpdateModule(req, res, moduleMatch[1]!);
-  }
-
-  if (method === "DELETE" && moduleMatch) {
-    return handleDeleteModule(res, moduleMatch[1]!);
-  }
-
-  const topicMatch = path.match(/^\/topics\/([^/]+)$/);
-
-  if (method === "PATCH" && topicMatch) {
-    return handleUpdateTopic(req, res, topicMatch[1]!);
-  }
-
-  if (method === "DELETE" && topicMatch) {
-    return handleDeleteTopic(res, topicMatch[1]!);
-  }
-
-  const gapsListMatch = path.match(/^\/topics\/([^/]+)\/gaps$/);
-
-  if (method === "GET" && gapsListMatch) {
-    return handleListTopicGaps(res, gapsListMatch[1]!);
-  }
-
-  const probeMatch = path.match(/^\/topics\/([^/]+)\/probe$/);
-
-  if (method === "POST" && probeMatch) {
-    return handleStartProbe(req, res, probeMatch[1]!);
-  }
-
-  const answerMatch = path.match(/^\/topics\/([^/]+)\/probe\/answer$/);
-
-  if (method === "POST" && answerMatch) {
-    return handleSubmitProbe(req, res, answerMatch[1]!);
-  }
-
-  if (method === "POST" && path === "/gaps") {
-    return handleDeclareGap(req, res);
-  }
-
-  const gapMatch = path.match(/^\/gaps\/([^/]+)$/);
-
-  if (method === "PATCH" && gapMatch) {
-    return handleCurateGap(req, res, gapMatch[1]!);
-  }
-
-  if (method === "GET" && path === "/daily-push") {
-    return handleDailyPush(res, url.searchParams.get("mode"));
-  }
-
-  if (method === "POST" && path === "/decide") {
-    return handleDecide(req, res);
-  }
-
-  if (method === "GET" && path === "/cross-cutting") {
-    return handleCrossCutting(res);
-  }
-
-  sendError(res, 404, "not_found");
 }
 
 server.listen(env.PORT, () => {

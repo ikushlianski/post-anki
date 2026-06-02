@@ -1,5 +1,11 @@
 # Decisions
 
+## [2026-06-02] — API hardening + first API-layer tests
+- **Body-size cap (1MB)** in `readJsonBody`: was unbounded buffering (OOM risk on a huge paste); now stops buffering at the cap and returns a clean `400 {error:invalid_input, message:"request body too large"}` (no socket destroy, so the client gets the response). Memory bounded.
+- **Route matching extracted** to a pure `resolveRoute` (`apps/api/src/router.ts`); `server.ts` now switches on the resolved route name. The dispatch table (path→route, id params, method mismatch, anchored-pattern specificity, 404s) is now unit-tested instead of being untestable inline regex.
+- **vitest stood up for `apps/api`** (first tests in that package): `router.test.ts` (11) + `shared/http.test.ts` (6).
+- Verified: full create→confirm→probe e2e passes through the refactored router; oversized body → 400; 17 api + 39 bot + 67 core tests; all workspaces typecheck.
+
 ## [2026-06-02] — Telegram bot rejoin (thin client) + grounding citations
 - **Bot is a thin API client now.** Stripped Mastra + Drizzle-domain + study-profile from `apps/bot`; it drives the daily loop over HTTP against the API (`getDailyPush` → send → owner replies → `submitAnswer`). Removes the broken `@mastra/*` deps entirely (no migration). Rejoined to root `workspaces`.
 - **Session state**: a single `pending_probe` table (chatId → topicId, gapId, mode), bot-owned (own ledger, migration `0000`). Needed because Cloud Run min=0 loses in-memory between the scheduler push and the user's reply; re-deriving the gap from `selectDailyPush` would answer the wrong gap (it ranks over live gap state) — that's client/session state, not a domain leak.

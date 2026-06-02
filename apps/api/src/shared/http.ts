@@ -1,6 +1,8 @@
 import type http from "node:http";
 import { z } from "zod";
 
+export const MAX_BODY_BYTES = 1_000_000;
+
 export function sendJson(
   res: http.ServerResponse,
   status: number,
@@ -23,7 +25,18 @@ export async function readJsonBody<T>(
   req: http.IncomingMessage,
   schema: z.ZodType<T>,
 ): Promise<{ ok: true; data: T } | { ok: false; issues: string }> {
-  const raw = await readRaw(req);
+  let raw: string;
+
+  try {
+    raw = await readRaw(req);
+  } catch (err) {
+    const tooLarge = err instanceof Error && err.message === "body_too_large";
+
+    return {
+      ok: false,
+      issues: tooLarge ? "request body too large" : "could not read request body",
+    };
+  }
 
   let parsed: unknown;
 
@@ -49,11 +62,29 @@ export async function readJsonBody<T>(
 function readRaw(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let raw = "";
+    let bytes = 0;
+    let aborted = false;
 
     req.on("data", (chunk) => {
+      if (aborted) {
+        return;
+      }
+
+      bytes += chunk.length;
+
+      if (bytes > MAX_BODY_BYTES) {
+        aborted = true;
+        reject(new Error("body_too_large"));
+        return;
+      }
+
       raw += chunk;
     });
-    req.on("end", () => resolve(raw));
+    req.on("end", () => {
+      if (!aborted) {
+        resolve(raw);
+      }
+    });
     req.on("error", reject);
   });
 }
