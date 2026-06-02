@@ -1,22 +1,15 @@
-import type { SourceDraft } from "@post-anki/shared";
-
 const MAX_CHARS_PER_SOURCE = 20_000;
 const FETCH_TIMEOUT_MS = 15_000;
 
-export async function gatherSourceText(sources: SourceDraft[]): Promise<string> {
-  const parts = await Promise.all(sources.map(resolveSource));
-
-  return parts.filter((p) => p.trim().length > 0).join("\n\n---\n\n");
-}
-
-async function resolveSource(source: SourceDraft): Promise<string> {
-  if (source.kind === "text") {
-    return label(source.title) + truncate(source.value);
+export async function resolveSourceText(
+  kind: string,
+  value: string,
+): Promise<string> {
+  if (kind === "text") {
+    return truncate(value);
   }
 
-  const fetched = await fetchLink(source.value);
-
-  return label(source.title ?? source.value) + truncate(fetched);
+  return truncate(await fetchLink(value));
 }
 
 async function fetchLink(url: string): Promise<string> {
@@ -52,8 +45,4 @@ function truncate(text: string): string {
   return text.length > MAX_CHARS_PER_SOURCE
     ? text.slice(0, MAX_CHARS_PER_SOURCE)
     : text;
-}
-
-function label(title?: string): string {
-  return title ? `# ${title}\n` : "";
 }

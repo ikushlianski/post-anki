@@ -2,24 +2,41 @@ import type { SourceDraft } from "@post-anki/shared";
 import { createCurriculumArchitect } from "../mastra/curriculum-architect.agent.js";
 import { log } from "../shared/log.js";
 import { curriculumPlanSchema, curriculumMergePlanSchema } from "./curriculum-plan.js";
-import { gatherSourceText } from "./source-fetch.js";
+import { resolveSourceText } from "./source-fetch.js";
 import {
   addCurriculumSources,
   clearCurriculumStructure,
   countModules,
   existingStructureTitles,
-  getCurriculumSourceDrafts,
+  getCurriculumSourceRows,
+  getUnresolvedSourceRows,
   saveCurriculumPlan,
   setCurriculumStatus,
+  storeFetchedText,
+  type SourceRow,
 } from "./curriculum.repo.js";
+
+async function resolveAndStore(rows: SourceRow[]): Promise<string> {
+  const parts = await Promise.all(
+    rows.map(async (row) => {
+      const text = await resolveSourceText(row.kind, row.value);
+
+      await storeFetchedText(row.id, text);
+
+      return row.title ? `# ${row.title}\n${text}` : text;
+    }),
+  );
+
+  return parts.filter((p) => p.trim().length > 0).join("\n\n---\n\n");
+}
 
 export async function parseCurriculum(
   curriculumId: string,
   name: string,
-  sources: SourceDraft[],
 ): Promise<void> {
   try {
-    const sourceText = await gatherSourceText(sources);
+    const rows = await getCurriculumSourceRows(curriculumId);
+    const sourceText = await resolveAndStore(rows);
     const agent = createCurriculumArchitect();
 
     const prompt = [
@@ -57,9 +74,8 @@ export async function reparseCurriculum(
   name: string,
 ): Promise<void> {
   try {
-    const drafts = await getCurriculumSourceDrafts(curriculumId);
     await clearCurriculumStructure(curriculumId);
-    await parseCurriculum(curriculumId, name, drafts);
+    await parseCurriculum(curriculumId, name);
   } catch (err) {
     log.error({ err, curriculumId }, "curriculum_reparse_failed");
     await setCurriculumStatus(curriculumId, "failed");
@@ -75,7 +91,8 @@ export async function mergeSourcesIntoCurriculum(
     await addCurriculumSources(curriculumId, newDrafts);
     await setCurriculumStatus(curriculumId, "curating");
 
-    const sourceText = await gatherSourceText(newDrafts);
+    const newRows = await getUnresolvedSourceRows(curriculumId);
+    const sourceText = await resolveAndStore(newRows);
     const existing = await existingStructureTitles(curriculumId);
     const agent = createCurriculumArchitect();
 
@@ -103,6 +120,7 @@ export async function mergeSourcesIntoCurriculum(
 
     if (result.object && result.object.modules.length > 0) {
       const offset = await countModules(curriculumId);
+
       await saveCurriculumPlan(curriculumId, result.object, offset);
     }
 

@@ -10,7 +10,7 @@ Maps every product doc to what the backend (`packages/shared`, `packages/core`, 
 ## VISION.md
 - "Tracks what you don't know through gaps" → **Covered** (gap model in `shared/gap.ts`, derivers in `core/curriculum/gap.ts`).
 - "Discovered in Socratic conversation" → **Covered** — `POST /topics/:id/probe` + `/probe/answer` run the live loop: mentor-ask generates one question, mentor-eval judges the answer, gaps move covered/open, new gaps get discovered, progress + learningStatus advance. Both modes (socratic / quick_test) supported.
-- "Daily push of a question on your own tools/reading" → **Covered (selection).** `GET /daily-push` picks the day's gap across all *confirmed* curricula (wanted-first, then weakest, then a stale ≥90-day refresh) via `selectDailyPush`. The cron trigger itself is infra (Cloud Scheduler → this endpoint); the selection logic + endpoint are done.
+- "Daily push of a question on your own tools/reading" → **Covered (answerable, 2026-06-02).** `GET /daily-push?mode=socratic|quick_test` selects the day's gap (wanted → weakest → ≥90-day refresh via `selectDailyPush`) AND returns a ready probe `question` for it (mentor + grounding). Answered via `POST /topics/:id/probe/answer`. Drivable by web or a Telegram bot end-to-end. Only the cron trigger + TG delivery (bot app) remain infra.
 - "Architectural judgment, not recall" → **Covered** at the data level (topics/gaps are judgment-framed; architect prompt forbids syntax/trivia).
 
 ## PRINCIPLES.md

@@ -10,7 +10,7 @@ import {
   confirmCurriculum,
   createCurriculum,
   deleteCurriculum,
-  getCurriculumBasics,
+  getCurriculum,
   getCurriculumDetail,
   listCurricula,
   updateCurriculum,
@@ -44,7 +44,7 @@ export async function handleCreateCurriculum(
 
   sendJson(res, 202, curriculum);
 
-  void parseCurriculum(curriculum.id, curriculum.name, sources).catch((err) =>
+  void parseCurriculum(curriculum.id, curriculum.name).catch((err) =>
     log.error({ err, curriculumId: curriculum.id }, "parse_dispatch_failed"),
   );
 }
@@ -116,16 +116,16 @@ export async function handleAddSources(
     return;
   }
 
-  const basics = await getCurriculumBasics(curriculumId);
+  const curriculum = await getCurriculum(curriculumId);
 
-  if (!basics) {
+  if (!curriculum) {
     sendError(res, 404, "not_found");
     return;
   }
 
-  sendJson(res, 202, { ...basics, status: "curating" });
+  sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void mergeSourcesIntoCurriculum(curriculumId, basics.name, body.data.sources).catch(
+  void mergeSourcesIntoCurriculum(curriculumId, curriculum.name, body.data.sources).catch(
     (err) => log.error({ err, curriculumId }, "merge_dispatch_failed"),
   );
 }
@@ -134,21 +134,21 @@ export async function handleReparse(
   res: http.ServerResponse,
   curriculumId: string,
 ): Promise<void> {
-  const basics = await getCurriculumBasics(curriculumId);
+  const curriculum = await getCurriculum(curriculumId);
 
-  if (!basics) {
+  if (!curriculum) {
     sendError(res, 404, "not_found");
     return;
   }
 
-  if (basics.status === "curating") {
+  if (curriculum.status === "curating") {
     sendError(res, 409, "already_curating");
     return;
   }
 
-  sendJson(res, 202, { ...basics, status: "curating" });
+  sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void reparseCurriculum(curriculumId, basics.name).catch((err) =>
+  void reparseCurriculum(curriculumId, curriculum.name).catch((err) =>
     log.error({ err, curriculumId }, "reparse_dispatch_failed"),
   );
 }

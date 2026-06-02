@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
@@ -119,31 +119,77 @@ export async function setCurriculumStatus(
     .where(eq(curricula.id, curriculumId));
 }
 
-export async function getCurriculumBasics(
+export async function getCurriculum(
   curriculumId: string,
-): Promise<{ id: string; name: string; status: CurriculumStatus } | null> {
+): Promise<Curriculum | null> {
   const row = (
     await getDb().select().from(curricula).where(eq(curricula.id, curriculumId))
   )[0];
 
-  return row
-    ? { id: row.id, name: row.name, status: row.status as CurriculumStatus }
-    : null;
+  return row ? toCurriculum(row) : null;
 }
 
-export async function getCurriculumSourceDrafts(
+export interface SourceRow {
+  id: string;
+  kind: string;
+  value: string;
+  title: string | null;
+  fetchedText: string | null;
+}
+
+export async function getCurriculumSourceRows(
   curriculumId: string,
-): Promise<SourceDraft[]> {
+): Promise<SourceRow[]> {
   const rows = await getDb()
     .select()
     .from(sources)
     .where(eq(sources.curriculumId, curriculumId));
 
   return rows.map((r) => ({
-    kind: r.kind as SourceDraft["kind"],
+    id: r.id,
+    kind: r.kind,
     value: r.value,
-    title: r.title ?? undefined,
+    title: r.title,
+    fetchedText: r.fetchedText,
   }));
+}
+
+export async function getUnresolvedSourceRows(
+  curriculumId: string,
+): Promise<SourceRow[]> {
+  const rows = await getDb()
+    .select()
+    .from(sources)
+    .where(and(eq(sources.curriculumId, curriculumId), isNull(sources.fetchedText)));
+
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    value: r.value,
+    title: r.title,
+    fetchedText: r.fetchedText,
+  }));
+}
+
+export async function storeFetchedText(
+  sourceId: string,
+  text: string,
+): Promise<void> {
+  await getDb()
+    .update(sources)
+    .set({ fetchedText: text })
+    .where(eq(sources.id, sourceId));
+}
+
+export async function getCurriculumGroundingText(
+  curriculumId: string,
+): Promise<string> {
+  const rows = await getCurriculumSourceRows(curriculumId);
+
+  return rows
+    .map((r) => r.fetchedText ?? (r.kind === "text" ? r.value : ""))
+    .filter((t) => t.trim().length > 0)
+    .join("\n\n---\n\n");
 }
 
 export async function addCurriculumSources(
@@ -351,7 +397,14 @@ export async function getCurriculumDetail(
     db.select().from(topics).where(eq(topics.curriculumId, curriculumId)),
   ]);
 
-  const assembledModules = buildModules(moduleRows, topicRows);
+  const gapRows =
+    topicRows.length > 0
+      ? await db.select().from(gaps).where(
+          inArray(gaps.topicId, topicRows.map((t) => t.id)),
+        )
+      : [];
+
+  const assembledModules = buildModules(moduleRows, topicRows, gapRows);
 
   return {
     curriculum: toCurriculum(curriculumRow),
@@ -365,6 +418,7 @@ export async function getCurriculumDetail(
 function buildModules(
   moduleRows: (typeof modules.$inferSelect)[],
   topicRows: (typeof topics.$inferSelect)[],
+  gapRows: (typeof gaps.$inferSelect)[],
 ): Module[] {
   return [...moduleRows]
     .sort((a, b) => a.order - b.order)
@@ -372,7 +426,10 @@ function buildModules(
       const moduleTopics = topicRows
         .filter((t) => t.moduleId === m.id)
         .sort((a, b) => a.order - b.order)
-        .map(toTopic);
+        .map((t) => ({
+          ...toTopic(t),
+          gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
+        }));
 
       return {
         id: m.id,

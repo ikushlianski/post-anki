@@ -1,5 +1,12 @@
 # Decisions
 
+## [2026-06-02] — source-text persistence, answerable daily-push, gaps-inline; Telegram-ready
+- **Persist fetched source text** (`sources.fetched_text`, migration `0002`): parse/merge resolves each source (link→fetched+stripped) and stores it; probe grounding reads it for ALL kinds, so pasted **links/articles** now ground probing (were previously discarded). Sources-first preference is now real for links, not just text.
+- **Answerable daily-push**: `GET /daily-push?mode=socratic|quick_test` returns `{push, question}` — a ready probe question for the selected gap (reuses mentor+grounding). Answer via existing `POST /topics/:id/probe/answer`. Closes the vision's daily loop at the API level.
+- **Gaps inline in curriculum detail**: `GET /curricula/:id` topics carry an optional `gaps[]` (removes the FE's N×M per-topic gap fetches). `/sources` + `/reparse` now return a full `Curriculum` (consistency).
+- **Telegram client**: confirmed the API is client-agnostic (HTTP + shared-secret, single-owner). Web and a future Telegram bot consume the same endpoints; the daily loop is now bot-drivable. Actual TG delivery still needs the bot app rejoin (Mastra 1.x) + scheduler — separate from the API.
+- Contract changes (FE, additive): `topicSchema.gaps?`, `dailyPushResponseSchema.question`, full-Curriculum from /sources & /reparse. Live-verified (real Neon+OpenRouter): link grounding (20k chars), gaps inline, daily-push both modes, full-curriculum responses. typecheck clean, 67 core tests, migration ledger 3 applied.
+
 ## [2026-06-01] — adaptive settings + probe grounding (backend, implemented)
 - **Adaptive settings** on the curriculum (deck): `speed` (slow|normal|fast), `hinting` (bool), `defaultDepth`. Migration `0001`. `PATCH /curricula/:id` now sets any of learningStatus/speed/hinting/defaultDepth. speed = probing pace/difficulty ramp; hinting = mentor adds a one-line hint — both threaded into the mentor-ask prompt. Depth stays per-topic (the 3-level slider, FE) via existing `PATCH /topics/:id`.
 - **Probe grounding** (Principle 1): sources-first → web fallback. Pasted TEXT sources (≥200 chars) ground the mentor with no web; otherwise openrouter:web_search grounds it (two-pass, never raw training data). Applied to both ask + eval.

@@ -31,6 +31,7 @@ export const sources = pgTable("sources", {
   kind: text("kind").notNull(),
   value: text("value").notNull(),
   title: text("title"),
+  fetchedText: text("fetched_text"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -207,7 +207,7 @@ async function route(
   }
 
   if (method === "GET" && path === "/daily-push") {
-    return handleDailyPush(res);
+    return handleDailyPush(res, url.searchParams.get("mode"));
   }
 
   if (method === "POST" && path === "/decide") {

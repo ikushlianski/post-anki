@@ -67,6 +67,32 @@ export async function startProbe(
   });
 }
 
+export async function buildProbeQuestionForGap(
+  topicId: string,
+  gap: Gap,
+  mode: QuestionKind,
+): Promise<ProbeQuestion | null> {
+  const topic = await getTopicRow(topicId);
+
+  if (!topic) {
+    return null;
+  }
+
+  const ctx = await getCurriculumContextForTopic(topicId);
+
+  if (!ctx) {
+    return null;
+  }
+
+  const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, gap.label);
+
+  return buildQuestion(topic, gap, mode, {
+    speed: ctx.speed,
+    hinting: ctx.hinting,
+    grounding: grounding.text,
+  });
+}
+
 export async function submitProbe(
   input: SubmitProbeInput,
   now: string,

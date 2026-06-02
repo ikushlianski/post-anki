@@ -3,6 +3,7 @@ import { questionSchema } from "./question";
 import { topicProgressSchema } from "./progress";
 import { depthLevelSchema } from "./depth";
 import { learningStatusSchema } from "./learning-status";
+import { gapSchema } from "./gap";
 
 export const selfGradeSchema = z.number().int().min(1).max(5);
 
@@ -19,6 +20,7 @@ export const topicSchema = z.object({
   depth: depthLevelSchema,
   learningStatus: learningStatusSchema,
   questions: z.array(questionSchema),
+  gaps: z.array(gapSchema).optional(),
   progress: topicProgressSchema,
 });
 

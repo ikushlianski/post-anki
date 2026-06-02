@@ -1,6 +1,6 @@
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
-import { getCurriculumSourceDrafts } from "../curriculum/curriculum.repo.js";
+import { getCurriculumGroundingText } from "../curriculum/curriculum.repo.js";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const TIMEOUT_MS = 45_000;
@@ -27,12 +27,7 @@ export async function gatherProbeGrounding(
   topicTitle: string,
   focus: string,
 ): Promise<ProbeGrounding> {
-  const drafts = await getCurriculumSourceDrafts(curriculumId);
-  const pasted = drafts
-    .filter((d) => d.kind === "text")
-    .map((d) => d.value)
-    .join("\n\n---\n\n")
-    .trim();
+  const pasted = (await getCurriculumGroundingText(curriculumId)).trim();
 
   if (pasted.length >= MIN_SOURCE_CHARS) {
     log.info({ curriculumId, source: "pasted", chars: pasted.length }, "probe_grounding");
