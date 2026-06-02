@@ -11,10 +11,19 @@ const MIN_SOURCE_CHARS = 200;
 export interface ProbeGrounding {
   text: string;
   fromWeb: boolean;
+  citations: string[];
+}
+
+interface UrlCitation {
+  url?: string;
+}
+
+interface Annotation {
+  url_citation?: UrlCitation;
 }
 
 interface ChatResponse {
-  choices?: { message?: { content?: string } }[];
+  choices?: { message?: { content?: string; annotations?: Annotation[] } }[];
   error?: { message?: string };
 }
 
@@ -32,20 +41,28 @@ export async function gatherProbeGrounding(
   if (pasted.length >= MIN_SOURCE_CHARS) {
     log.info({ curriculumId, source: "pasted", chars: pasted.length }, "probe_grounding");
 
-    return { text: truncate(pasted), fromWeb: false };
+    return { text: truncate(pasted), fromWeb: false, citations: [] };
   }
 
   const web = await webGround(topicTitle, focus);
 
   log.info(
-    { curriculumId, source: web.length > 0 ? "web" : "none", chars: web.length },
+    {
+      curriculumId,
+      source: web.text.length > 0 ? "web" : "none",
+      chars: web.text.length,
+      citations: web.citations.length,
+    },
     "probe_grounding",
   );
 
-  return { text: web, fromWeb: web.length > 0 };
+  return { text: web.text, fromWeb: web.text.length > 0, citations: web.citations };
 }
 
-async function webGround(topicTitle: string, focus: string): Promise<string> {
+async function webGround(
+  topicTitle: string,
+  focus: string,
+): Promise<{ text: string; citations: string[] }> {
   const env = loadEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -77,23 +94,34 @@ async function webGround(topicTitle: string, focus: string): Promise<string> {
 
     if (!res.ok) {
       log.warn({ status: res.status, focus }, "probe_web_ground_http_error");
-      return "";
+      return { text: "", citations: [] };
     }
 
     const data = (await res.json()) as ChatResponse;
-    const body = data.choices?.[0]?.message?.content?.trim() ?? "";
+    const message = data.choices?.[0]?.message;
+    const body = message?.content?.trim() ?? "";
 
     if (body.length === 0) {
       log.warn({ focus, error: data.error?.message }, "probe_web_ground_empty");
     }
 
-    return truncate(body);
+    return { text: truncate(body), citations: collectCitations(message?.annotations) };
   } catch (err) {
     log.warn({ err, focus }, "probe_web_ground_failed");
-    return "";
+    return { text: "", citations: [] };
   } finally {
     clearTimeout(timer);
   }
+}
+
+function collectCitations(annotations?: Annotation[]): string[] {
+  if (!annotations) {
+    return [];
+  }
+
+  return annotations
+    .map((a) => a.url_citation?.url)
+    .filter((u): u is string => Boolean(u));
 }
 
 function truncate(text: string): string {

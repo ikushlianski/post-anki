@@ -9,6 +9,7 @@ export const probeQuestionSchema = z.object({
   kind: questionKindSchema,
   prompt: z.string(),
   options: z.array(z.string()).optional(),
+  sources: z.array(z.string()).optional(),
 });
 
 export type ProbeQuestion = z.infer<typeof probeQuestionSchema>;

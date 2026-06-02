@@ -1,5 +1,12 @@
 # Decisions
 
+## [2026-06-02] — Telegram bot rejoin (thin client) + grounding citations
+- **Bot is a thin API client now.** Stripped Mastra + Drizzle-domain + study-profile from `apps/bot`; it drives the daily loop over HTTP against the API (`getDailyPush` → send → owner replies → `submitAnswer`). Removes the broken `@mastra/*` deps entirely (no migration). Rejoined to root `workspaces`.
+- **Session state**: a single `pending_probe` table (chatId → topicId, gapId, mode), bot-owned (own ledger, migration `0000`). Needed because Cloud Run min=0 loses in-memory between the scheduler push and the user's reply; re-deriving the gap from `selectDailyPush` would answer the wrong gap (it ranks over live gap state) — that's client/session state, not a domain leak.
+- **Trigger**: `POST /push` (bearer-gated) sends the owner today's question; `/telegram` webhook handles replies; `/today` command on demand. API stays client-agnostic (TG delivery lives in the bot, not the API).
+- **Grounding citations**: web-grounded probe questions now carry `sources[]` (the Exa citation URLs); `probeQuestionSchema.sources?` (FE-additive). Eval-side grounding was already wired; per-gap coverage detection deferred (needs a cost/shape decision).
+- Verified live (real Neon+OpenRouter): bot api-client + session repo round-trip; citations on a source-less question (5 URLs). 4 workspaces typecheck, 39 bot tests + 67 core tests. **Unverified (no bot token / not deployed):** the Telegram I/O itself + the `/push` cron wiring. Bot still needs: a BotFather token, deploy, scheduler→/push, and `db:migrate:bot` in prod.
+
 ## [2026-06-02] — source-text persistence, answerable daily-push, gaps-inline; Telegram-ready
 - **Persist fetched source text** (`sources.fetched_text`, migration `0002`): parse/merge resolves each source (link→fetched+stripped) and stores it; probe grounding reads it for ALL kinds, so pasted **links/articles** now ground probing (were previously discarded). Sources-first preference is now real for links, not just text.
 - **Answerable daily-push**: `GET /daily-push?mode=socratic|quick_test` returns `{push, question}` — a ready probe question for the selected gap (reuses mentor+grounding). Answer via existing `POST /topics/:id/probe/answer`. Closes the vision's daily loop at the API level.

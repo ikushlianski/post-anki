@@ -10,7 +10,8 @@
     "packages/shared",
     "packages/core",
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "apps/bot"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -19,6 +20,8 @@
     "dev:api": "npm run dev -w @post-anki/api",
     "dev:bot": "npm run dev -w @post-anki/bot",
     "db:generate:api": "npm run db:generate -w @post-anki/api",
-    "db:migrate:api": "npm run db:migrate -w @post-anki/api"
+    "db:migrate:api": "npm run db:migrate -w @post-anki/api",
+    "db:generate:bot": "npm run db:generate -w @post-anki/bot",
+    "db:migrate:bot": "npm run db:migrate -w @post-anki/bot"
   }
 }

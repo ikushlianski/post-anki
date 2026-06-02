@@ -39,6 +39,7 @@ interface AskContext {
   speed: Speed;
   hinting: boolean;
   grounding: string;
+  citations: string[];
 }
 
 export async function startProbe(
@@ -64,6 +65,7 @@ export async function startProbe(
     speed: ctx.speed,
     hinting: ctx.hinting,
     grounding: grounding.text,
+    citations: grounding.citations,
   });
 }
 
@@ -90,6 +92,7 @@ export async function buildProbeQuestionForGap(
     speed: ctx.speed,
     hinting: ctx.hinting,
     grounding: grounding.text,
+    citations: grounding.citations,
   });
 }
 
@@ -154,6 +157,7 @@ export async function submitProbe(
           speed: ctx.speed,
           hinting: ctx.hinting,
           grounding: grounding.text,
+          citations: grounding.citations,
         })
       : null;
 
@@ -184,6 +188,7 @@ async function buildQuestion(
       mode === "quick_test" && generated.options.length > 0
         ? generated.options.slice(0, MAX_QUICK_TEST_OPTIONS)
         : undefined,
+    sources: ask.citations.length > 0 ? ask.citations : undefined,
   };
 }
 

@@ -1,0 +1,15 @@
+node_modules
+dist
+.bmad
+.product
+.planning
+.project-manager-logs
+.inbox
+.claude
+.git
+.github
+.env
+.env.local
+.DS_Store
+docs
+*.tsbuildinfo
