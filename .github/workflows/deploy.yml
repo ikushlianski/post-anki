@@ -79,8 +79,8 @@ jobs:
           service_account: ${{ vars.PROD_CI_SA_EMAIL }}
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Run database migrations
-        run: npm run db:migrate
+      - name: Run bot database migrations
+        run: npm run db:migrate:bot
         env:
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
@@ -90,7 +90,7 @@ jobs:
       - name: Build and push image
         run: |
           IMAGE=${{ vars.PROD_REGISTRY }}/bot:${{ github.sha }}
-          docker build -t "$IMAGE" .
+          docker build -f apps/bot/Dockerfile -t "$IMAGE" .
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
@@ -107,18 +107,19 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --timeout 60s \
+            --port 8080 \
             --set-env-vars "TELEGRAM_BOT_TOKEN=${{ secrets.PROD_TELEGRAM_BOT_TOKEN }}" \
             --set-env-vars "TELEGRAM_WEBHOOK_SECRET=${{ secrets.PROD_TELEGRAM_WEBHOOK_SECRET }}" \
             --set-env-vars "OWNER_TELEGRAM_CHAT_ID=${{ secrets.PROD_OWNER_TELEGRAM_CHAT_ID }}" \
-            --set-env-vars "OPENROUTER_API_KEY=${{ secrets.PROD_OPENROUTER_API_KEY }}" \
-            --set-env-vars "OPENROUTER_MODEL=${{ vars.PROD_OPENROUTER_MODEL || 'openrouter/google/gemini-2.5-flash' }}" \
+            --set-env-vars "API_BASE_URL=https://${{ vars.PROD_API_DOMAIN }}" \
+            --set-env-vars "API_SHARED_SECRET=${{ secrets.PROD_API_SHARED_SECRET }}" \
             --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars "LOG_LEVEL=info" \
             --quiet
 
       - name: Verify deployment health
         run: |
-          URL="https://${{ vars.PROD_APP_DOMAIN }}"
+          URL="https://${{ vars.PROD_BOT_DOMAIN }}"
           echo "Health check: $URL/healthz"
           for i in $(seq 1 12); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/healthz")
@@ -202,4 +203,69 @@ jobs:
             sleep 5
           done
           echo "API health check failed after 60s"
+          exit 1
+
+  deploy-web:
+    name: Deploy Web
+    needs: [test, infra]
+    # Dormant until the web Dockerfile exists and the var is set (see .inbox/TODOS.md).
+    if: ${{ vars.PROD_WEB_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.PROD_WIF_PROVIDER }}
+          service_account: ${{ vars.PROD_CI_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.PROD_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push web image
+        run: |
+          IMAGE=${{ vars.PROD_REGISTRY }}/web:${{ github.sha }}
+          docker build -f apps/web/Dockerfile --build-arg API_BASE_URL="https://${{ vars.PROD_API_DOMAIN }}" -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "WEB_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy Web to Cloud Run
+        run: |
+          gcloud run deploy post-anki-web \
+            --image "$WEB_IMAGE" \
+            --project ${{ vars.PROD_PROJECT_ID }} \
+            --region ${{ vars.PROD_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 1 \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 60s \
+            --port 8080 \
+            --set-env-vars "API_BASE_URL=https://${{ vars.PROD_API_DOMAIN }}" \
+            --set-env-vars "API_SHARED_SECRET=${{ secrets.PROD_API_SHARED_SECRET }}" \
+            --set-env-vars "LOG_LEVEL=info" \
+            --quiet
+
+      - name: Verify web health
+        run: |
+          URL="https://${{ vars.PROD_APP_DOMAIN }}"
+          echo "Health check: $URL/"
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/")
+            if [ "$STATUS" = "200" ]; then
+              echo "Web health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 5s"
+            sleep 5
+          done
+          echo "Web health check failed after 60s"
           exit 1

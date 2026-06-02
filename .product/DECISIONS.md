@@ -1,5 +1,12 @@
 # Decisions
 
+## [2026-06-02] — deployment IaC: web service, bot subdomain, scheduler → bot
+- **Web Cloud Run service added** (`post-anki-web`) at the **root domain** `postanki.ilya.online`; the **bot moved** to `bot.postanki.ilya.online` (it used to own root); API stays at `api.`. Pulumi factored into `runService`/`publicInvoker`/`domainMapping` helpers; each service is a shell (placeholder image, `ignoreChanges: template`) with CI owning the real image/env.
+- **Daily scheduler repointed**: was `GET api/daily-push` (which only *returns* a question, never delivers); now `POST bot/push` (the bot fetches from the API and sends to Telegram). New Pulumi secret `telegramWebhookSecret` (the bearer the bot's `/push` checks — must equal the bot's `TELEGRAM_WEBHOOK_SECRET`).
+- **`deploy.yml` fixed + extended**: bot job had real bugs (ran nonexistent `db:migrate`, `docker build .` with no root Dockerfile, stale OpenRouter env for the now-thin bot) → corrected to `db:migrate:bot`, `-f apps/bot/Dockerfile`, and the thin-bot env (`API_BASE_URL`/`API_SHARED_SECRET`, no OpenRouter). Added a **gated `deploy-web`** job (`if vars.PROD_WEB_ENABLED == 'true'`) — dormant until the web Dockerfile exists.
+- **Migrate scripts decoupled from full env**: `api`/`bot` `migrate.ts` now read `process.env.DATABASE_URL` directly instead of `loadEnv()` (which validated the whole app env) — the CI migration steps only set `DATABASE_URL`, so they'd have thrown. Verified: bot migrate runs with only `DATABASE_URL`.
+- Operational steps (tokens, secrets, DNS, web Dockerfile, set-webhook, first deploy) left for the human in `.inbox/TODOS.md`. infra TS + deploy.yml validated (esbuild / js-yaml).
+
 ## [2026-06-02] — API hardening + first API-layer tests
 - **Body-size cap (1MB)** in `readJsonBody`: was unbounded buffering (OOM risk on a huge paste); now stops buffering at the cap and returns a clean `400 {error:invalid_input, message:"request body too large"}` (no socket destroy, so the client gets the response). Memory bounded.
 - **Route matching extracted** to a pure `resolveRoute` (`apps/api/src/router.ts`); `server.ts` now switches on the resolved route name. The dispatch table (path→route, id params, method mismatch, anchored-pattern specificity, 404s) is now unit-tested instead of being untestable inline regex.

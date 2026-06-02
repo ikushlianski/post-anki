@@ -5,10 +5,12 @@ const config = new pulumi.Config();
 const projectId = config.require("projectId");
 const region = config.get("region") ?? "europe-west1";
 const domain = config.get("domain") ?? "postanki.ilya.online";
+const botDomain = config.get("botDomain") ?? "bot.postanki.ilya.online";
 const apiDomain = config.get("apiDomain") ?? "api.postanki.ilya.online";
 const dailyPushSchedule = config.get("dailyPushSchedule") ?? "0 8 * * *";
 const dailyPushTimeZone = config.get("dailyPushTimeZone") ?? "Europe/Warsaw";
-const apiSharedSecret = config.getSecret("apiSharedSecret");
+// Secret the bot's POST /push checks (must equal the bot's TELEGRAM_WEBHOOK_SECRET).
+const telegramWebhookSecret = config.getSecret("telegramWebhookSecret");
 
 const requiredApis = [
   "run.googleapis.com",
@@ -36,138 +38,127 @@ const registry = new gcp.artifactregistry.Repository(
     location: region,
     repositoryId: "post-anki",
     format: "DOCKER",
-    description: "Docker images for post-anki bot",
+    description: "Docker images for post-anki services",
   },
   { dependsOn: enabledApis },
 );
 
+const PLACEHOLDER_IMAGE = "us-docker.pkg.dev/cloudrun/container/hello:latest";
+
+// Each Cloud Run service is a shell: Pulumi owns the service/SA/domain/invoker,
+// while `gcloud run deploy` (CI) owns the real image + env vars. Hence the
+// placeholder image and ignoreChanges: ["template"].
+function runService(
+  resource: string,
+  name: string,
+  saEmail: pulumi.Output<string>,
+  port: number,
+  deps: pulumi.Resource[],
+): gcp.cloudrun.Service {
+  return new gcp.cloudrun.Service(
+    resource,
+    {
+      project: projectId,
+      location: region,
+      name,
+      template: {
+        spec: {
+          serviceAccountName: saEmail,
+          containers: [
+            {
+              image: PLACEHOLDER_IMAGE,
+              ports: [{ containerPort: port }],
+              resources: { limits: { memory: "512Mi", cpu: "1" } },
+            },
+          ],
+        },
+        metadata: {
+          annotations: {
+            "autoscaling.knative.dev/minScale": "0",
+            "autoscaling.knative.dev/maxScale": "1",
+          },
+        },
+      },
+    },
+    { dependsOn: deps, ignoreChanges: ["template"] },
+  );
+}
+
+function publicInvoker(resource: string, service: gcp.cloudrun.Service): void {
+  new gcp.cloudrun.IamMember(resource, {
+    project: projectId,
+    location: region,
+    service: service.name,
+    role: "roles/run.invoker",
+    member: "allUsers",
+  });
+}
+
+function domainMapping(
+  resource: string,
+  host: string,
+  service: gcp.cloudrun.Service,
+): gcp.cloudrun.DomainMapping {
+  return new gcp.cloudrun.DomainMapping(
+    resource,
+    {
+      project: projectId,
+      location: region,
+      name: host,
+      metadata: { namespace: projectId },
+      spec: { routeName: service.name },
+    },
+    { dependsOn: [service] },
+  );
+}
+
+// --- Web (TanStack Start SSR) — the primary face, at the root domain. ---
+const webSa = new gcp.serviceaccount.Account(
+  "web-sa",
+  { project: projectId, accountId: "post-anki-web", displayName: "post-anki Web Cloud Run SA" },
+  { dependsOn: enabledApis },
+);
+const webService = runService("web", "post-anki-web", webSa.email, 8080, [
+  registry,
+  webSa,
+  ...enabledApis,
+]);
+publicInvoker("web-public-invoker", webService);
+const webDomainMapping = domainMapping("web-domain", domain, webService);
+
+// --- Bot (Telegram webhook + daily /push), at the bot subdomain. ---
 const botSa = new gcp.serviceaccount.Account(
   "bot-sa",
-  {
-    project: projectId,
-    accountId: "post-anki-bot",
-    displayName: "post-anki Cloud Run SA",
-  },
+  { project: projectId, accountId: "post-anki-bot", displayName: "post-anki Bot Cloud Run SA" },
   { dependsOn: enabledApis },
 );
+const botService = runService("bot", "post-anki-bot", botSa.email, 8080, [
+  registry,
+  botSa,
+  ...enabledApis,
+]);
+publicInvoker("bot-public-invoker", botService);
+const botDomainMapping = domainMapping("bot-domain", botDomain, botService);
 
-const service = new gcp.cloudrun.Service(
-  "bot",
-  {
-    project: projectId,
-    location: region,
-    name: "post-anki-bot",
-    template: {
-      spec: {
-        serviceAccountName: botSa.email,
-        containers: [
-          {
-            image: "us-docker.pkg.dev/cloudrun/container/hello:latest",
-            ports: [{ containerPort: 8080 }],
-            resources: { limits: { memory: "512Mi", cpu: "1" } },
-          },
-        ],
-      },
-      metadata: {
-        annotations: {
-          "autoscaling.knative.dev/minScale": "0",
-          "autoscaling.knative.dev/maxScale": "1",
-        },
-      },
-    },
-  },
-  {
-    dependsOn: [registry, botSa, ...enabledApis],
-    ignoreChanges: ["template"],
-  },
-);
-
-new gcp.cloudrun.IamMember("bot-public-invoker", {
-  project: projectId,
-  location: region,
-  service: service.name,
-  role: "roles/run.invoker",
-  member: "allUsers",
-});
-
-const domainMapping = new gcp.cloudrun.DomainMapping(
-  "bot-domain",
-  {
-    project: projectId,
-    location: region,
-    name: domain,
-    metadata: { namespace: projectId },
-    spec: { routeName: service.name },
-  },
-  { dependsOn: [service] },
-);
-
+// --- API (domain service), at the api subdomain. ---
 const apiSa = new gcp.serviceaccount.Account(
   "api-sa",
-  {
-    project: projectId,
-    accountId: "post-anki-api",
-    displayName: "post-anki API Cloud Run SA",
-  },
+  { project: projectId, accountId: "post-anki-api", displayName: "post-anki API Cloud Run SA" },
   { dependsOn: enabledApis },
 );
+const apiService = runService("api", "post-anki-api", apiSa.email, 8030, [
+  registry,
+  apiSa,
+  ...enabledApis,
+]);
+// Internet-facing but every route is gated on the API_SHARED_SECRET bearer
+// (apps/api/src/server.ts): allUsers invoker + app-level auth.
+publicInvoker("api-public-invoker", apiService);
+const apiDomainMapping = domainMapping("api-domain", apiDomain, apiService);
 
-const apiService = new gcp.cloudrun.Service(
-  "api",
-  {
-    project: projectId,
-    location: region,
-    name: "post-anki-api",
-    template: {
-      spec: {
-        serviceAccountName: apiSa.email,
-        containers: [
-          {
-            image: "us-docker.pkg.dev/cloudrun/container/hello:latest",
-            ports: [{ containerPort: 8030 }],
-            resources: { limits: { memory: "512Mi", cpu: "1" } },
-          },
-        ],
-      },
-      metadata: {
-        annotations: {
-          "autoscaling.knative.dev/minScale": "0",
-          "autoscaling.knative.dev/maxScale": "1",
-        },
-      },
-    },
-  },
-  {
-    dependsOn: [registry, apiSa, ...enabledApis],
-    ignoreChanges: ["template"],
-  },
-);
-
-// The API is internet-facing but gates every route on the API_SHARED_SECRET
-// bearer (see apps/api/src/server.ts); allUsers invoker + app-level auth.
-new gcp.cloudrun.IamMember("api-public-invoker", {
-  project: projectId,
-  location: region,
-  service: apiService.name,
-  role: "roles/run.invoker",
-  member: "allUsers",
-});
-
-const apiDomainMapping = new gcp.cloudrun.DomainMapping(
-  "api-domain",
-  {
-    project: projectId,
-    location: region,
-    name: apiDomain,
-    metadata: { namespace: projectId },
-    spec: { routeName: apiService.name },
-  },
-  { dependsOn: [apiService] },
-);
-
-// Daily push: fire GET /daily-push once a day. The endpoint selects the day's
-// gap across confirmed curricula (selectDailyPush); delivery to the client is a
-// later concern. Auth = the same API_SHARED_SECRET bearer the app enforces.
+// Daily push: fire the BOT's POST /push once a day. The bot fetches the day's
+// question from the API and sends it to the owner on Telegram. Gated by the
+// bot's TELEGRAM_WEBHOOK_SECRET (sent as a bearer).
 const dailyPushJob = new gcp.cloudscheduler.Job(
   "daily-push",
   {
@@ -178,20 +169,23 @@ const dailyPushJob = new gcp.cloudscheduler.Job(
     timeZone: dailyPushTimeZone,
     attemptDeadline: "60s",
     httpTarget: {
-      httpMethod: "GET",
-      uri: pulumi.interpolate`https://${apiDomain}/daily-push`,
-      headers: apiSharedSecret
-        ? { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` }
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${botDomain}/push`,
+      headers: telegramWebhookSecret
+        ? { Authorization: pulumi.interpolate`Bearer ${telegramWebhookSecret}` }
         : undefined,
     },
   },
-  { dependsOn: [apiService, ...enabledApis] },
+  { dependsOn: [botService, ...enabledApis] },
 );
 
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
-export const serviceUrl = service.statuses[0].url;
+export const webServiceUrl = webService.statuses[0].url;
+export const webSaEmail = webSa.email;
+export const webDomainMappingRecords = webDomainMapping.statuses;
+export const botServiceUrl = botService.statuses[0].url;
 export const botSaEmail = botSa.email;
-export const domainMappingRecords = domainMapping.statuses;
+export const botDomainMappingRecords = botDomainMapping.statuses;
 export const apiServiceUrl = apiService.statuses[0].url;
 export const apiSaEmail = apiSa.email;
 export const apiDomainMappingRecords = apiDomainMapping.statuses;
