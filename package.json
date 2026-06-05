@@ -16,6 +16,7 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:web": "npm run dev -w @post-anki/web",
     "dev:api": "npm run dev -w @post-anki/api",
     "dev:bot": "npm run dev -w @post-anki/bot",
@@ -23,5 +24,8 @@
     "db:migrate:api": "npm run db:migrate -w @post-anki/api",
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
     "db:migrate:bot": "npm run db:migrate -w @post-anki/bot"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }
