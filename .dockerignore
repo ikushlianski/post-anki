@@ -1,0 +1,13 @@
+**/node_modules
+**/.output
+**/dist
+**/.git
+**/*.log
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+.github
+.inbox
+.product
+.claude
+docs
