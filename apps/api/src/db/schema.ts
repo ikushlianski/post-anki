@@ -62,6 +62,14 @@ export const topics = pgTable("topics", {
   }),
 });
 
+export const appSettings = pgTable("app_settings", {
+  id: text("id").primaryKey(),
+  testToggle: boolean("test_toggle").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const gaps = pgTable("gaps", {
   id: text("id").primaryKey(),
   topicId: text("topic_id").notNull(),

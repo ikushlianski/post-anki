@@ -13,6 +13,7 @@ import { Route as TodayRouteImport } from './routes/today'
 import { Route as DecideRouteImport } from './routes/decide'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConcernsRouteImport } from './routes/concerns'
+import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 
@@ -36,6 +37,11 @@ const ConcernsRoute = ConcernsRouteImport.update({
   path: '/concerns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin-settings',
+  path: '/admin-settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -49,6 +55,7 @@ const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin-settings': typeof AdminSettingsRoute
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin-settings': typeof AdminSettingsRoute
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin-settings': typeof AdminSettingsRoute
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin-settings'
     | '/concerns'
     | '/dashboard'
     | '/decide'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin-settings'
     | '/concerns'
     | '/dashboard'
     | '/decide'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin-settings'
     | '/concerns'
     | '/dashboard'
     | '/decide'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   ConcernsRoute: typeof ConcernsRoute
   DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConcernsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-settings': {
+      id: '/admin-settings'
+      path: '/admin-settings'
+      fullPath: '/admin-settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   ConcernsRoute: ConcernsRoute,
   DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,

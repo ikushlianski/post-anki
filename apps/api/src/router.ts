@@ -25,7 +25,9 @@ export type RouteName =
   | "curateGap"
   | "dailyPush"
   | "decide"
-  | "crossCutting";
+  | "crossCutting"
+  | "getAdminSettings"
+  | "updateAdminSettings";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -67,6 +69,8 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/daily-push", name: "dailyPush" },
   { method: "POST", pattern: "/decide", name: "decide" },
   { method: "GET", pattern: "/cross-cutting", name: "crossCutting" },
+  { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
+  { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {

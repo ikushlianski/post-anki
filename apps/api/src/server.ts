@@ -38,6 +38,10 @@ import { handleCurateGap, handleDeclareGap } from "./gap/gap.controller.js";
 import { handleDailyPush } from "./push/push.controller.js";
 import { handleDecide } from "./decide/decide.controller.js";
 import { handleCrossCutting } from "./concern/concern.controller.js";
+import {
+  handleGetAdminSettings,
+  handleUpdateAdminSettings,
+} from "./admin-settings/admin-settings.controller.js";
 import { resolveRoute } from "./router.js";
 
 const env = loadEnv();
@@ -145,6 +149,10 @@ async function route(
       return handleDecide(req, res);
     case "crossCutting":
       return handleCrossCutting(res);
+    case "getAdminSettings":
+      return handleGetAdminSettings(res);
+    case "updateAdminSettings":
+      return handleUpdateAdminSettings(req, res);
   }
 }
 

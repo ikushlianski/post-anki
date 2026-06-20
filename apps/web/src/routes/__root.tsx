@@ -74,6 +74,12 @@ function RootDocument({ children }: { children: ReactNode }) {
               >
                 Decide
               </Link>
+              <Link
+                to="/admin-settings"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Admin
+              </Link>
             </div>
           </nav>
           {children}
