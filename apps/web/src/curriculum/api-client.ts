@@ -551,3 +551,16 @@ export async function getCrossCutting(): Promise<ConcernSummary[]> {
 export async function decide(input: DecideInput): Promise<DecideResult> {
   return request<be.DecideResult>('/decide', { method: 'POST', body: input })
 }
+
+export async function getAdminSettings(): Promise<be.AdminSettings> {
+  return request<be.AdminSettings>('/admin/settings')
+}
+
+export async function updateAdminSettings(
+  input: be.UpdateAdminSettingsInput,
+): Promise<be.AdminSettings> {
+  return request<be.AdminSettings>('/admin/settings', {
+    method: 'PATCH',
+    body: input,
+  })
+}

@@ -22,6 +22,13 @@
       "when": 1780350472383,
       "tag": "0002_old_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781981200353,
+      "tag": "0003_petite_pestilence",
+      "breakpoints": true
     }
   ]
 }

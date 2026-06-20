@@ -11,6 +11,12 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/daily-push")?.name).toBe("dailyPush");
       expect(resolveRoute("POST", "/decide")?.name).toBe("decide");
       expect(resolveRoute("GET", "/cross-cutting")?.name).toBe("crossCutting");
+      expect(resolveRoute("GET", "/admin/settings")?.name).toBe(
+        "getAdminSettings",
+      );
+      expect(resolveRoute("PATCH", "/admin/settings")?.name).toBe(
+        "updateAdminSettings",
+      );
     });
   });
 
