@@ -39,6 +39,18 @@ const registry = new gcp.artifactregistry.Repository(
     repositoryId: "post-anki",
     format: "DOCKER",
     description: "Docker images for post-anki services",
+    cleanupPolicies: [
+      {
+        id: "keep-recent",
+        action: "KEEP",
+        mostRecentVersions: { keepCount: 2 },
+      },
+      {
+        id: "delete-old",
+        action: "DELETE",
+        condition: { olderThan: "14d" },
+      },
+    ],
   },
   { dependsOn: enabledApis },
 );
