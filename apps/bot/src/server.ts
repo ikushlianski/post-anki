@@ -25,7 +25,7 @@ function main() {
   const lru = createUpdateLru(256);
 
   const server = http.createServer((req, res) => {
-    if (req.method === "GET" && req.url === "/healthz") {
+    if (req.method === "GET" && req.url === "/_healthz") {
       res.writeHead(200);
       res.end("ok");
       return;

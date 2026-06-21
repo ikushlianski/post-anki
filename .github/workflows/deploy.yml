@@ -121,9 +121,9 @@ jobs:
       - name: Verify deployment health
         run: |
           URL=$(gcloud run services describe post-anki-bot --region ${{ vars.PROD_REGION }} --project ${{ vars.PROD_PROJECT_ID }} --format='value(status.url)')
-          echo "Health check: $URL/healthz"
+          echo "Health check: $URL/_healthz"
           for i in $(seq 1 12); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/healthz")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/_healthz")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed"
               exit 0
@@ -192,9 +192,9 @@ jobs:
       - name: Verify API health
         run: |
           URL=$(gcloud run services describe post-anki-api --region ${{ vars.PROD_REGION }} --project ${{ vars.PROD_PROJECT_ID }} --format='value(status.url)')
-          echo "Health check: $URL/healthz"
+          echo "Health check: $URL/_healthz"
           for i in $(seq 1 12); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/healthz")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/_healthz")
             if [ "$STATUS" = "200" ]; then
               echo "API health check passed"
               exit 0

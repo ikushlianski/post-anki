@@ -55,7 +55,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   const path = url.pathname;
 
-  if (method === "GET" && path === "/healthz") {
+  if (method === "GET" && path === "/_healthz") {
     sendJson(res, 200, { ok: true });
     return;
   }
