@@ -4,11 +4,14 @@ import {
   integer,
   boolean,
   timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  description: text("description"),
+  requireSources: boolean("require_sources").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -72,4 +75,56 @@ export const gaps = pgTable("gaps", {
   wanted: boolean("wanted").notNull().default(false),
   concern: text("concern"),
   lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
+});
+
+export const probeSessions = pgTable("probe_sessions", {
+  id: text("id").primaryKey(),
+  scope: text("scope").notNull(),
+  scopeId: text("scope_id").notNull(),
+  curriculumId: text("curriculum_id").notNull(),
+  status: text("status").notNull().default("active"),
+  total: integer("total").notNull().default(0),
+  correct: integer("correct").notNull().default(0),
+  answered: integer("answered").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const probeSessionQuestions = pgTable("probe_session_questions", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  order: integer("order").notNull(),
+  topicId: text("topic_id"),
+  gapId: text("gap_id"),
+  prompt: text("prompt").notNull(),
+  options: jsonb("options").$type<string[]>().notNull(),
+  correctAnswerIndex: integer("correct_answer_index").notNull(),
+  difficulty: text("difficulty").notNull().default("medium"),
+  kind: text("kind").notNull().default("mcq"),
+  answeredIndex: integer("answered_index"),
+  outcome: text("outcome"),
+  answeredAt: timestamp("answered_at", { withTimezone: true }),
+});
+
+export const socraticSessions = pgTable("socratic_sessions", {
+  id: text("id").primaryKey(),
+  topicId: text("topic_id").notNull(),
+  curriculumId: text("curriculum_id").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const socraticTurns = pgTable("socratic_turns", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  gapId: text("gap_id"),
+  conceptLabel: text("concept_label").notNull(),
+  order: integer("order").notNull(),
+  prompt: text("prompt").notNull(),
+  answer: text("answer"),
+  degree: text("degree"),
+  action: text("action"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  answeredAt: timestamp("answered_at", { withTimezone: true }),
 });

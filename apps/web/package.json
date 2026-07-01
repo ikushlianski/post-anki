@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
+    "dev:e2e": "vite dev --port 3100",
     "build": "vite build",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
@@ -28,7 +29,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.18",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@tanstack/react-query": "latest"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",

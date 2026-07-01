@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
@@ -26,6 +26,7 @@ import {
   gaps,
   modules,
   sources,
+  subjects,
   topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -129,6 +130,101 @@ export async function getCurriculum(
   return row ? toCurriculum(row) : null;
 }
 
+export interface CurriculumPromptContext {
+  curriculumName: string;
+  curriculumDescription: string | null;
+  subjectName: string;
+  subjectDescription: string | null;
+}
+
+export async function getCurriculumPromptContext(
+  curriculumId: string,
+): Promise<CurriculumPromptContext | null> {
+  const db = getDb();
+
+  const curriculumRow = (
+    await db.select().from(curricula).where(eq(curricula.id, curriculumId))
+  )[0];
+
+  if (!curriculumRow) {
+    return null;
+  }
+
+  const subjectRow = (
+    await db.select().from(subjects).where(eq(subjects.id, curriculumRow.subjectId))
+  )[0];
+
+  return {
+    curriculumName: curriculumRow.name,
+    curriculumDescription: curriculumRow.description ?? null,
+    subjectName: subjectRow?.name ?? "",
+    subjectDescription: subjectRow?.description ?? null,
+  };
+}
+
+export interface MergeTopicSnapshot {
+  title: string;
+  progressStatus: string;
+  progressAttempts: number;
+  learningStatus: string;
+  selfGrade: number | null;
+  included: boolean;
+}
+
+export interface MergeModuleSnapshot {
+  moduleId: string;
+  title: string;
+  learningStatus: string;
+  topics: MergeTopicSnapshot[];
+}
+
+export async function getModuleProgressSnapshots(
+  curriculumId: string,
+): Promise<MergeModuleSnapshot[]> {
+  const db = getDb();
+
+  const [moduleRows, topicRows] = await Promise.all([
+    db.select().from(modules).where(eq(modules.curriculumId, curriculumId)),
+    db.select().from(topics).where(eq(topics.curriculumId, curriculumId)),
+  ]);
+
+  return moduleRows.map((m) => ({
+    moduleId: m.id,
+    title: m.title,
+    learningStatus: m.learningStatus,
+    topics: topicRows
+      .filter((t) => t.moduleId === m.id)
+      .map((t) => ({
+        title: t.title,
+        progressStatus: t.progressStatus,
+        progressAttempts: t.progressAttempts,
+        learningStatus: t.learningStatus,
+        selfGrade: t.selfGrade,
+        included: t.included,
+      })),
+  }));
+}
+
+export async function deleteModules(moduleIds: string[]): Promise<void> {
+  if (moduleIds.length === 0) {
+    return;
+  }
+
+  const db = getDb();
+
+  const topicRows = await db
+    .select()
+    .from(topics)
+    .where(inArray(topics.moduleId, moduleIds));
+
+  for (const t of topicRows) {
+    await db.delete(gaps).where(eq(gaps.topicId, t.id));
+  }
+
+  await db.delete(topics).where(inArray(topics.moduleId, moduleIds));
+  await db.delete(modules).where(inArray(modules.id, moduleIds));
+}
+
 export interface SourceRow {
   id: string;
   kind: string;
@@ -144,23 +240,6 @@ export async function getCurriculumSourceRows(
     .select()
     .from(sources)
     .where(eq(sources.curriculumId, curriculumId));
-
-  return rows.map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    value: r.value,
-    title: r.title,
-    fetchedText: r.fetchedText,
-  }));
-}
-
-export async function getUnresolvedSourceRows(
-  curriculumId: string,
-): Promise<SourceRow[]> {
-  const rows = await getDb()
-    .select()
-    .from(sources)
-    .where(and(eq(sources.curriculumId, curriculumId), isNull(sources.fetchedText)));
 
   return rows.map((r) => ({
     id: r.id,
@@ -211,22 +290,6 @@ export async function addCurriculumSources(
         title: s.title ?? null,
       })),
     );
-}
-
-export async function existingStructureTitles(
-  curriculumId: string,
-): Promise<{ modules: string[]; topics: string[] }> {
-  const db = getDb();
-
-  const [moduleRows, topicRows] = await Promise.all([
-    db.select().from(modules).where(eq(modules.curriculumId, curriculumId)),
-    db.select().from(topics).where(eq(topics.curriculumId, curriculumId)),
-  ]);
-
-  return {
-    modules: moduleRows.map((m) => m.title),
-    topics: topicRows.map((t) => t.title),
-  };
 }
 
 export async function clearCurriculumStructure(

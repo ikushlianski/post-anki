@@ -21,6 +21,11 @@ export type RouteName =
   | "listTopicGaps"
   | "startProbe"
   | "submitProbe"
+  | "prepareProbeSession"
+  | "activeProbeSession"
+  | "answerProbeSession"
+  | "startSocratic"
+  | "answerSocratic"
   | "declareGap"
   | "curateGap"
   | "dailyPush"
@@ -60,6 +65,11 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: /^\/topics\/([^/]+)\/gaps$/, name: "listTopicGaps", param: "id" },
   { method: "POST", pattern: /^\/topics\/([^/]+)\/probe\/answer$/, name: "submitProbe", param: "id" },
   { method: "POST", pattern: /^\/topics\/([^/]+)\/probe$/, name: "startProbe", param: "id" },
+  { method: "GET", pattern: "/probe-sessions/active", name: "activeProbeSession" },
+  { method: "POST", pattern: "/probe-sessions", name: "prepareProbeSession" },
+  { method: "POST", pattern: /^\/probe-sessions\/([^/]+)\/answer$/, name: "answerProbeSession", param: "id" },
+  { method: "POST", pattern: "/socratic-sessions", name: "startSocratic" },
+  { method: "POST", pattern: /^\/socratic-sessions\/([^/]+)\/answer$/, name: "answerSocratic", param: "id" },
   { method: "PATCH", pattern: /^\/topics\/([^/]+)$/, name: "updateTopic", param: "id" },
   { method: "DELETE", pattern: /^\/topics\/([^/]+)$/, name: "deleteTopic", param: "id" },
   { method: "POST", pattern: "/gaps", name: "declareGap" },

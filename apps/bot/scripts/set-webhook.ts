@@ -14,7 +14,7 @@ async function main() {
     body: JSON.stringify({
       url,
       secret_token: env.TELEGRAM_WEBHOOK_SECRET,
-      allowed_updates: ["message", "edited_message"],
+      allowed_updates: ["message", "edited_message", "callback_query"],
       drop_pending_updates: true,
     }),
   });

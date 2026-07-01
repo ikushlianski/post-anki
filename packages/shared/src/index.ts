@@ -13,5 +13,7 @@ export * from "./module";
 export * from "./curriculum";
 export * from "./attempt";
 export * from "./probe";
+export * from "./probe-session";
+export * from "./socratic";
 export * from "./daily-push";
 export * from "./decide";

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { handleUpdate, type HandlerDeps } from "./webhook.handler.js";
 import { createUpdateLru } from "./update-lru.js";
-import { START_REPLY, DECLINE_REPLY, ERROR_REPLY } from "../conversation/reply.js";
+import { DECLINE_REPLY, ERROR_REPLY } from "../conversation/reply.js";
 import type { FlowDeps } from "../conversation/probe-flow.js";
 import type { Update } from "grammy/types";
 
@@ -47,13 +47,20 @@ function makeFlow(): FlowDeps {
   };
 }
 
-function makeDeps(flow: FlowDeps): HandlerDeps & { sendMessage: ReturnType<typeof vi.fn> } {
+function makeDeps(
+  flow: FlowDeps,
+): HandlerDeps & {
+  sendMessage: ReturnType<typeof vi.fn>;
+  onStart: ReturnType<typeof vi.fn>;
+} {
   return {
     ownerChatId: OWNER,
     lru: createUpdateLru(8),
     flow,
     defaultMode: "socratic",
     sendMessage: vi.fn().mockResolvedValue(undefined),
+    onStart: vi.fn().mockResolvedValue(undefined),
+    getChatContext: vi.fn().mockResolvedValue(null),
   };
 }
 
@@ -74,12 +81,12 @@ describe("handleUpdate", () => {
     expect(flow.submitAnswer).toHaveBeenCalledTimes(1);
   });
 
-  it("answers /start without touching the API", async () => {
+  it("opens the subject menu on /start without touching the API", async () => {
     const flow = makeFlow();
     const deps = makeDeps(flow);
     await handleUpdate(update({ text: "/start" }), deps);
     expect(flow.getDailyPush).not.toHaveBeenCalled();
-    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, START_REPLY);
+    expect(deps.onStart).toHaveBeenCalledWith(OWNER);
   });
 
   it("declines a voice message", async () => {
@@ -109,6 +116,97 @@ describe("handleUpdate", () => {
       answer: "keys dedupe retried writes",
     });
     expect((deps.sendMessage.mock.calls[0]![1] as string)).toContain("Solid.");
+  });
+
+  it("routes free text to the daily probe when no session is active", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi
+      .fn()
+      .mockResolvedValue({ mode: "idle", sessionId: null, currentItemId: null, scopeKind: null, scopeId: null, navCurriculumId: null, label: null, messageId: null });
+    await handleUpdate(update({ text: "an answer" }), deps);
+    expect(flow.submitAnswer).toHaveBeenCalled();
+  });
+
+  it("routes free text to the socratic handler when a socratic session is active", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onSocraticText = vi.fn().mockResolvedValue(undefined);
+    deps.onSocraticText = onSocraticText;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "my explanation" }), deps);
+    expect(onSocraticText).toHaveBeenCalledOnce();
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("nudges to tap a button when a quiz is active and text arrives", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "quiz",
+      sessionId: "ps1",
+      currentItemId: "q1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "B" }), deps);
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+    expect((deps.sendMessage.mock.calls[0]![1] as string)).toContain("answer buttons");
+  });
+
+  it("clears a stale interactive mode before issuing the daily question", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const clearChatContext = vi.fn().mockResolvedValue(undefined);
+    deps.clearChatContext = clearChatContext;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "/today" }), deps);
+    expect(clearChatContext).toHaveBeenCalledWith(OWNER);
+    expect(flow.getDailyPush).toHaveBeenCalledOnce();
+  });
+
+  it("dispatches callback queries to onCallback", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onCallback = vi.fn().mockResolvedValue(undefined);
+    deps.onCallback = onCallback;
+    const cbUpdate: Update = {
+      update_id: 50,
+      callback_query: {
+        id: "cb1",
+        from: { id: OWNER, is_bot: false, first_name: "x" },
+        chat_instance: "ci",
+        data: "home",
+        message: {
+          message_id: 9,
+          date: 0,
+          chat: { id: OWNER, type: "private", first_name: "x" },
+        },
+      } as Update["callback_query"],
+    };
+    await handleUpdate(cbUpdate, deps);
+    expect(onCallback).toHaveBeenCalledOnce();
   });
 
   it("falls back to the fixed apology when the flow throws", async () => {

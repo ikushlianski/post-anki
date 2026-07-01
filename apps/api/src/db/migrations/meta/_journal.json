@@ -22,6 +22,27 @@
       "when": 1780350472383,
       "tag": "0002_old_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781363294025,
+      "tag": "0003_careless_princess_powerful",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782318590173,
+      "tag": "0004_living_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782769428752,
+      "tag": "0005_public_supernaut",
+      "breakpoints": true
     }
   ]
 }

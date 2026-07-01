@@ -1,10 +1,9 @@
-import type { Update } from "grammy/types";
+import type { Message, Update } from "grammy/types";
 import type { QuestionKind } from "@post-anki/shared";
 import { isAuthorizedChat } from "../auth/owner.js";
 import {
   selectReply,
   formatErrorReply,
-  START_REPLY,
   DECLINE_REPLY,
 } from "../conversation/reply.js";
 import {
@@ -15,16 +14,39 @@ import {
 import { isDuplicateUpdate, type UpdateLru } from "./update-lru.js";
 import { log } from "./log.js";
 
+export type ChatMode = "idle" | "quiz" | "socratic";
+
+export interface ChatContextLike {
+  mode: ChatMode;
+  sessionId: string | null;
+  currentItemId: string | null;
+  scopeKind: string | null;
+  scopeId: string | null;
+  navCurriculumId: string | null;
+  label: string | null;
+  messageId: number | null;
+}
+
 export type HandlerDeps = {
   ownerChatId: number;
   lru: UpdateLru;
   flow: FlowDeps;
   defaultMode: QuestionKind;
   sendMessage: (chatId: number, text: string) => Promise<void>;
+  getChatContext?: (chatId: number) => Promise<ChatContextLike | null>;
+  onStart?: (chatId: number) => Promise<void>;
+  onCallback?: (update: Update) => Promise<void>;
+  onSocraticText?: (
+    chatId: number,
+    context: ChatContextLike,
+    text: string,
+  ) => Promise<void>;
+  onQuizText?: (chatId: number) => Promise<void>;
+  clearChatContext?: (chatId: number) => Promise<void>;
 };
 
 export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<void> {
-  const { ownerChatId, lru, flow, defaultMode, sendMessage } = deps;
+  const { ownerChatId, lru } = deps;
 
   if (!isAuthorizedChat(update, ownerChatId)) {
     log.warn({ update_id: update.update_id }, "unauthorised_update");
@@ -36,6 +58,14 @@ export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<v
     return;
   }
 
+  if (update.callback_query) {
+    if (deps.onCallback) {
+      await deps.onCallback(update);
+    }
+
+    return;
+  }
+
   const message = update.message ?? update.edited_message;
 
   if (!message) {
@@ -43,11 +73,21 @@ export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<v
     return;
   }
 
+  await handleMessage(message, deps);
+}
+
+async function handleMessage(message: Message, deps: HandlerDeps): Promise<void> {
+  const { flow, defaultMode, sendMessage } = deps;
   const chatId = message.chat.id;
   const decision = selectReply(message);
 
   if (decision.kind === "start") {
-    await sendMessage(chatId, START_REPLY);
+    if (deps.onStart) {
+      await deps.onStart(chatId);
+    } else {
+      await sendMessage(chatId, DECLINE_REPLY);
+    }
+
     return;
   }
 
@@ -59,11 +99,36 @@ export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<v
   const started = Date.now();
 
   try {
-    const reply =
-      decision.kind === "today"
-        ? await sendTodaysQuestion(chatId, defaultMode, flow)
-        : await answerPending(chatId, decision.text, flow);
+    if (decision.kind === "today") {
+      if (deps.clearChatContext) {
+        await deps.clearChatContext(chatId);
+      }
 
+      const reply = await sendTodaysQuestion(chatId, defaultMode, flow);
+      await sendMessage(chatId, reply);
+      return;
+    }
+
+    const context = deps.getChatContext
+      ? await deps.getChatContext(chatId)
+      : null;
+
+    if (context && context.mode === "socratic" && deps.onSocraticText) {
+      await deps.onSocraticText(chatId, context, decision.text);
+      return;
+    }
+
+    if (context && context.mode === "quiz") {
+      if (deps.onQuizText) {
+        await deps.onQuizText(chatId);
+      } else {
+        await sendMessage(chatId, "Tap one of the answer buttons above.");
+      }
+
+      return;
+    }
+
+    const reply = await answerPending(chatId, decision.text, flow);
     await sendMessage(chatId, reply);
     log.info(
       { chat_id: chatId, kind: decision.kind, latency_ms: Date.now() - started },

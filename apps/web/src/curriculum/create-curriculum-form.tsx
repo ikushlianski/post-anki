@@ -6,7 +6,13 @@ import { createCurriculum } from './curriculum.api'
 import { SourceRowsEditor } from './source-rows-editor'
 import { useSourceRows } from './use-source-rows'
 
-export function CreateCurriculumForm({ subjectId }: { subjectId: string }) {
+export function CreateCurriculumForm({
+  subjectId,
+  requireSources = false,
+}: {
+  subjectId: string
+  requireSources?: boolean
+}) {
   const router = useRouter()
   const sourceRows = useSourceRows()
   const [open, setOpen] = useState(false)
@@ -19,16 +25,19 @@ export function CreateCurriculumForm({ subjectId }: { subjectId: string }) {
     setOpen(false)
   }
 
+  const drafts = sourceRows.toDrafts()
+  const sourceMandateUnmet = requireSources && drafts.length === 0
+
   async function submit(event: FormEvent) {
     event.preventDefault()
 
-    if (!name.trim()) {
+    if (!name.trim() || sourceMandateUnmet) {
       return
     }
 
     setBusy(true)
     await createCurriculum({
-      data: { subjectId, name: name.trim(), sources: sourceRows.toDrafts() },
+      data: { subjectId, name: name.trim(), sources: drafts },
     })
     setBusy(false)
     reset()
@@ -67,10 +76,16 @@ export function CreateCurriculumForm({ subjectId }: { subjectId: string }) {
         onRemove={sourceRows.removeRow}
       />
 
+      {sourceMandateUnmet ? (
+        <p className="text-xs text-amber-700" data-testid="curriculum-sources-required">
+          This subject requires at least one source before a curriculum can be created.
+        </p>
+      ) : null}
+
       <div className="flex gap-2 pt-1">
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || sourceMandateUnmet}
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           Create curriculum

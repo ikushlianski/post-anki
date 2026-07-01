@@ -1,11 +1,14 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
+import { resolveAgentModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You CAPTURE a curriculum from the learner's pasted material for an architecture-judgment learning system.",
   "",
   "The learner is a senior developer moving into an architect role who generates a lot of code with AI.",
-  "You are given a curriculum name and pasted source material (articles, links, or the learner's own notes).",
+  "You are given the subject and curriculum (each with an optional description giving you context on",
+  "what the learner is after) plus pasted source material (articles, links, or the learner's own notes).",
+  "Let the subject and curriculum context steer scope, depth, and ordering — it tells you what they need.",
   "Your job: capture the points the learner wants to learn as a small, well-ordered set of MODULES,",
   "and OPTIONALLY divide a module into TOPICS (sections) when the material clearly has sub-areas.",
   "",
@@ -36,6 +39,6 @@ export function createCurriculumArchitect(): Agent {
     id: "curriculum-architect",
     name: "Curriculum Architect",
     instructions: INSTRUCTIONS,
-    model: env.CURRICULUM_MODEL,
+    model: resolveAgentModel(env),
   });
 }

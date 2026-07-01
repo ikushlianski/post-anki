@@ -8,6 +8,11 @@ import { log } from "./telegram/log.js";
 import { getDailyPush, submitAnswer } from "./api/client.js";
 import { getPending, setPending, clearPending } from "./session/pending.repo.js";
 import { sendTodaysQuestion, type FlowDeps } from "./conversation/probe-flow.js";
+import { getChatContext, clearChatContext } from "./session/chat-context.repo.js";
+import { handleCallback } from "./nav/dispatcher.js";
+import { showSubjects, sendScreen } from "./nav/menu.js";
+import { answerSocratic } from "./socratic/socratic-flow.js";
+import type { ChatContextLike } from "./telegram/webhook.handler.js";
 
 const SECRET_HEADER = "x-telegram-bot-api-secret-token";
 const DEFAULT_MODE = "socratic" as const;
@@ -41,7 +46,8 @@ function main() {
       res.writeHead(200);
       res.end();
 
-      void sendTodaysQuestion(env.OWNER_TELEGRAM_CHAT_ID, DEFAULT_MODE, flow)
+      void clearChatContext(env.OWNER_TELEGRAM_CHAT_ID)
+        .then(() => sendTodaysQuestion(env.OWNER_TELEGRAM_CHAT_ID, DEFAULT_MODE, flow))
         .then((text) => sendMessage(env.OWNER_TELEGRAM_CHAT_ID, text))
         .catch((err) => log.error({ err }, "daily_push_failed"));
 
@@ -86,6 +92,21 @@ function main() {
         flow,
         defaultMode: DEFAULT_MODE,
         sendMessage,
+        getChatContext,
+        clearChatContext,
+        onStart: async (chatId) => {
+          await sendScreen(chatId, await showSubjects(chatId));
+        },
+        onCallback: async (u) => {
+          if (u.callback_query) await handleCallback(u.callback_query);
+        },
+        onSocraticText: async (
+          chatId: number,
+          context: ChatContextLike,
+          text: string,
+        ) => {
+          await answerSocratic(chatId, context, text);
+        },
       }).catch((err) => log.error({ err }, "handler_failed"));
     });
   });

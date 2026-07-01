@@ -11,7 +11,7 @@ export function ProbePanel({
 }: {
   topicId: string
   mode: QuestionKind
-  onClose: () => void
+  onClose?: () => void
 }) {
   const [question, setQuestion] = useState<Question | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,13 +41,15 @@ export function ProbePanel({
         <span className="min-w-0 truncate text-xs font-medium uppercase tracking-wide text-neutral-400">
           {mode === 'socratic' ? 'Socratic probe' : 'Quick test'}
         </span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 text-xs text-neutral-400 hover:text-neutral-700"
-        >
-          Close
-        </button>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-xs text-neutral-400 hover:text-neutral-700"
+          >
+            Close
+          </button>
+        ) : null}
       </div>
 
       {loading ? (

@@ -187,6 +187,10 @@ jobs:
             --set-env-vars "CURRICULUM_MODEL=${{ vars.PROD_OPENROUTER_MODEL || 'openrouter/google/gemini-2.5-flash' }}" \
             --set-env-vars "API_SHARED_SECRET=${{ secrets.PROD_API_SHARED_SECRET }}" \
             --set-env-vars "LOG_LEVEL=info" \
+            --set-env-vars "NODE_ENV=production" \
+            --set-env-vars "LANGFUSE_PUBLIC_KEY=${{ secrets.PROD_LANGFUSE_PUBLIC_KEY }}" \
+            --set-env-vars "LANGFUSE_SECRET_KEY=${{ secrets.PROD_LANGFUSE_SECRET_KEY }}" \
+            --set-env-vars "LANGFUSE_HOST=${{ vars.PROD_LANGFUSE_HOST || 'https://cloud.langfuse.com' }}" \
             --quiet
 
       - name: Verify API health
