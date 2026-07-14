@@ -14,6 +14,7 @@ try {
 const apiPort = process.env.E2E_API_PORT ?? '8031'
 const webPort = process.env.E2E_WEB_PORT ?? '3100'
 const mockLlmPort = process.env.E2E_MOCK_LLM_PORT ?? '4999'
+const mockDocsPort = process.env.E2E_MOCK_DOCS_PORT ?? '4998'
 const baseURL =
   process.env.PROJECT_DEV_SERVER_URL ?? `http://localhost:${webPort}`
 const sharedSecret = process.env.API_SHARED_SECRET ?? 'e2e-local-secret'
@@ -52,6 +53,16 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       env: {
         PORT: mockLlmPort,
+      },
+    },
+    {
+      command: 'npx tsx e2e/mock-docs-site/server.ts',
+      cwd: repoRoot,
+      url: `http://localhost:${mockDocsPort}/healthz`,
+      timeout: 30_000,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        PORT: mockDocsPort,
       },
     },
     {

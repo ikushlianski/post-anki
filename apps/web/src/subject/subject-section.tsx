@@ -41,7 +41,10 @@ export function SubjectSection({
                 params={{ curriculumId: curriculum.id }}
                 className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
               >
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                <span
+                  data-testid="curriculum-name"
+                  className="min-w-0 flex-1 truncate text-sm font-medium"
+                >
                   {curriculum.name}
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
