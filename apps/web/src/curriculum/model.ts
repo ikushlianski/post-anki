@@ -38,6 +38,14 @@ export const depthSchema = z.enum(['aware', 'working', 'deep'])
 
 export type Depth = z.infer<typeof depthSchema>
 
+export const levelSchema = z.enum(['basic', 'medium', 'advanced'])
+
+export type Level = z.infer<typeof levelSchema>
+
+export const curriculumOriginSchema = z.enum(['sources', 'research'])
+
+export type CurriculumOrigin = z.infer<typeof curriculumOriginSchema>
+
 export const curriculumSchema = z.object({
   id: z.string(),
   subjectId: z.string(),
@@ -48,11 +56,12 @@ export const curriculumSchema = z.object({
   speed: speedSchema,
   hinting: z.boolean(),
   defaultDepth: depthSchema,
+  origin: curriculumOriginSchema,
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
 
-export const sourceKindSchema = z.enum(['link', 'text'])
+export const sourceKindSchema = z.enum(['link', 'text', 'web_research'])
 
 export type SourceKind = z.infer<typeof sourceKindSchema>
 
@@ -213,6 +222,7 @@ export const moduleSchema = z.object({
   title: z.string(),
   order: z.number().int(),
   learningStatus: learningStatusSchema,
+  level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
 })
@@ -246,6 +256,7 @@ export const createCurriculumInput = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   sources: z.array(sourceDraftSchema).default([]),
+  researchTopic: z.string().min(1).nullable().optional(),
 })
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>

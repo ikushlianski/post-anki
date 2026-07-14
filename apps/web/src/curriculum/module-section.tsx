@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import type { Module } from './model'
+import { levelBadgeLabel } from './level-badge'
 import { ProgressBar } from './progress-bar'
 import { TopicRow } from './topic-row'
 import {
@@ -81,6 +82,11 @@ export function ModuleSection({
               module.title
             )}
           </h3>
+          {levelBadgeLabel(module.level) ? (
+            <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600">
+              {levelBadgeLabel(module.level)}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-400">

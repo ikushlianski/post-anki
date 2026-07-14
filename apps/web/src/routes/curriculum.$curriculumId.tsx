@@ -53,6 +53,10 @@ function CurriculumPage() {
   const recommended = modules
     .flatMap((module) => module.topics)
     .find((topic) => topic.id === recommendedTopicId)
+  const studyable = modules.some(
+    (module) =>
+      module.topics.length === 0 || module.topics.some((topic) => topic.included),
+  )
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -61,9 +65,16 @@ function CurriculumPage() {
       </Link>
 
       <header className="mb-6 mt-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {curriculum.name}
-        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {curriculum.name}
+          </h1>
+          {curriculum.origin === 'research' ? (
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+              🔎 Researched
+            </span>
+          ) : null}
+        </div>
         {curriculum.description ? (
           <p className="mt-1 text-sm text-neutral-500">
             {curriculum.description}
@@ -115,11 +126,11 @@ function CurriculumPage() {
       {isCurating ? (
         <CuratingBanner />
       ) : curriculum.status === 'failed' ? (
-        <FailedBanner curriculumId={curriculum.id} />
+        <FailedBanner curriculumId={curriculum.id} origin={curriculum.origin} />
       ) : (
         <>
           {curriculum.status === 'ready' ? (
-            <ConfirmBar curriculumId={curriculum.id} />
+            <ConfirmBar curriculumId={curriculum.id} studyable={studyable} />
           ) : null}
           {modules.length === 0 ? (
             <p className="mb-4 rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
@@ -186,6 +197,14 @@ function SourceRow({ source }: { source: Source }) {
         >
           {source.title ?? source.value}
         </a>
+      </li>
+    )
+  }
+
+  if (source.kind === 'web_research') {
+    return (
+      <li className="text-neutral-600">
+        🔎 {source.title ?? `Auto-researched: ${source.value}`}
       </li>
     )
   }

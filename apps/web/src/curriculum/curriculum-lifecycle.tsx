@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import { confirmCurriculum, reparseCurriculum } from './curriculum.api'
+import type { CurriculumOrigin } from './model'
+import { confirmCurriculum, reparseCurriculum, retryResearch } from './curriculum.api'
 
 export function CuratingBanner() {
   const router = useRouter()
@@ -27,15 +28,49 @@ export function CuratingBanner() {
   )
 }
 
-export function FailedBanner({ curriculumId }: { curriculumId: string }) {
+export function FailedBanner({
+  curriculumId,
+  origin,
+}: {
+  curriculumId: string
+  origin: CurriculumOrigin
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
 
-  async function reparse() {
+  async function retry() {
     setBusy(true)
-    await reparseCurriculum({ data: curriculumId })
+
+    if (origin === 'research') {
+      await retryResearch({ data: curriculumId })
+    } else {
+      await reparseCurriculum({ data: curriculumId })
+    }
+
     setBusy(false)
     await router.invalidate()
+  }
+
+  if (origin === 'research') {
+    return (
+      <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-center">
+        <p className="text-sm font-medium text-amber-800">
+          The mentor couldn’t research this technology.
+        </p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-amber-700">
+          The web search may have failed or turned up nothing usable. Retry to
+          run the research again.
+        </p>
+        <button
+          type="button"
+          onClick={retry}
+          disabled={busy}
+          className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {busy ? 'Retrying…' : 'Retry research'}
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -49,7 +84,7 @@ export function FailedBanner({ curriculumId }: { curriculumId: string }) {
       </p>
       <button
         type="button"
-        onClick={reparse}
+        onClick={retry}
         disabled={busy}
         className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
       >
@@ -59,7 +94,13 @@ export function FailedBanner({ curriculumId }: { curriculumId: string }) {
   )
 }
 
-export function ConfirmBar({ curriculumId }: { curriculumId: string }) {
+export function ConfirmBar({
+  curriculumId,
+  studyable,
+}: {
+  curriculumId: string
+  studyable: boolean
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
 
@@ -75,14 +116,15 @@ export function ConfirmBar({ curriculumId }: { curriculumId: string }) {
       <div>
         <p className="font-medium">Curate, then confirm to start probing.</p>
         <p className="text-neutral-400">
-          Include the topics you care about and set each one’s depth. Probing
-          unlocks once you confirm.
+          {studyable
+            ? 'Include the topics you care about and set each one’s depth. Probing unlocks once you confirm.'
+            : 'Include at least one topic before you can confirm.'}
         </p>
       </div>
       <button
         type="button"
         onClick={confirm}
-        disabled={busy}
+        disabled={busy || !studyable}
         className="shrink-0 rounded-md bg-white px-4 py-2 font-medium text-neutral-900 disabled:opacity-50"
       >
         {busy ? 'Confirming…' : 'Confirm curriculum'}

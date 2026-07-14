@@ -137,6 +137,7 @@ function mapModule(module: be.Module): Module {
     title: module.title,
     order: module.order,
     learningStatus: module.learningStatus,
+    level: module.level,
     topics: module.topics.map(mapTopic),
     progress: module.progress,
   }
@@ -161,6 +162,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     speed: curriculum.speed,
     hinting: curriculum.hinting,
     defaultDepth: mapDepth(curriculum.defaultDepth),
+    origin: curriculum.origin,
   }
 }
 
@@ -290,6 +292,10 @@ export async function addSources(
 
 export async function reparseCurriculum(curriculumId: string): Promise<void> {
   await request(`/curricula/${curriculumId}/reparse`, { method: 'POST' })
+}
+
+export async function retryResearch(curriculumId: string): Promise<void> {
+  await request(`/curricula/${curriculumId}/retry-research`, { method: 'POST' })
 }
 
 export async function setModuleLearningStatus(

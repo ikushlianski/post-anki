@@ -85,6 +85,14 @@ export const reparseCurriculum = createServerFn({ method: 'POST' })
     return null
   })
 
+export const retryResearch = createServerFn({ method: 'POST' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(async ({ data }) => {
+    await api.retryResearch(data)
+
+    return null
+  })
+
 export const getCurriculum = createServerFn({ method: 'GET' })
   .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
   .handler(({ data }) => api.getCurriculumDetail(data))
