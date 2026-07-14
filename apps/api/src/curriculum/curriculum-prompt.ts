@@ -86,3 +86,22 @@ export function buildMergePrompt(
     "Rebuild the REST of the curriculum from this material: revise and extend the not-yet-studied areas, and add any new modules/topics the material now warrants. Produce ONLY modules that are NOT in the locked list above. If the material adds nothing beyond what is locked, return an empty modules array.",
   ].join("\n");
 }
+
+export function buildResearchPrompt(
+  technologyName: string,
+  groundingText: string,
+  ctx?: PromptContext | null,
+): string {
+  const header = ctx ? contextHeader(ctx) : [`Technology: ${technologyName}`];
+
+  return [
+    ...header,
+    "",
+    "Web research gathered on this technology (current version numbers, recent API changes, canonical terminology, common pitfalls):",
+    groundingText.length > 0
+      ? groundingText
+      : "(the web search returned nothing usable — rely on your own knowledge of this technology)",
+    "",
+    "Combine this grounding with your own trained knowledge of the technology to propose a full learning map, organized as modules tiered basic/medium/advanced.",
+  ].join("\n");
+}

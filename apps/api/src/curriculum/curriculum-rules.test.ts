@@ -5,8 +5,12 @@ import {
   isModuleTouched,
   partitionModulesForMerge,
   filterOutLockedModules,
+  hasStudyableContent,
+  isResearchAndSourcesConflict,
+  resolveCurriculumOrigin,
   type ModuleTouchState,
   type TopicTouchState,
+  type StudyableModule,
 } from "./curriculum-rules.js";
 
 const PRISTINE_TOPIC: TopicTouchState = {
@@ -130,5 +134,96 @@ describe("filterOutLockedModules", () => {
     );
 
     expect(result.map((m) => m.title)).toEqual(["New Topic"]);
+  });
+});
+
+describe("hasStudyableContent", () => {
+  describe("a curriculum where every topic is excluded", () => {
+    it("is not studyable when every module has at least one topic and none are included", () => {
+      const modules: StudyableModule[] = [
+        { topics: [{ included: false }, { included: false }] },
+        { topics: [{ included: false }] },
+      ];
+
+      expect(hasStudyableContent(modules)).toBe(false);
+    });
+  });
+
+  describe("a curriculum with one included topic anywhere", () => {
+    it("is studyable, matching today's common case", () => {
+      const modules: StudyableModule[] = [
+        { topics: [{ included: false }] },
+        { topics: [{ included: true }] },
+      ];
+
+      expect(hasStudyableContent(modules)).toBe(true);
+    });
+  });
+
+  describe("a curriculum containing a topic-less module", () => {
+    it("is studyable on the topic-less module alone, regardless of other modules' topics", () => {
+      const modules: StudyableModule[] = [
+        { topics: [] },
+        { topics: [{ included: false }] },
+      ];
+
+      expect(hasStudyableContent(modules)).toBe(true);
+    });
+  });
+
+  describe("a curriculum with no modules at all", () => {
+    it("is not studyable", () => {
+      expect(hasStudyableContent([])).toBe(false);
+    });
+  });
+});
+
+describe("isResearchAndSourcesConflict", () => {
+  describe("a request with a research topic and pasted sources", () => {
+    it("is a conflict", () => {
+      expect(isResearchAndSourcesConflict("Temporal", 1)).toBe(true);
+    });
+  });
+
+  describe("a request with only a research topic", () => {
+    it("is not a conflict", () => {
+      expect(isResearchAndSourcesConflict("Temporal", 0)).toBe(false);
+    });
+  });
+
+  describe("a request with only sources", () => {
+    it("is not a conflict", () => {
+      expect(isResearchAndSourcesConflict(null, 2)).toBe(false);
+      expect(isResearchAndSourcesConflict(undefined, 2)).toBe(false);
+      expect(isResearchAndSourcesConflict("", 2)).toBe(false);
+      expect(isResearchAndSourcesConflict("   ", 2)).toBe(false);
+    });
+  });
+
+  describe("a request with neither", () => {
+    it("is not a conflict", () => {
+      expect(isResearchAndSourcesConflict(null, 0)).toBe(false);
+    });
+  });
+});
+
+describe("resolveCurriculumOrigin", () => {
+  describe("a curriculum with a web_research source", () => {
+    it("is research-origin regardless of what else is present", () => {
+      expect(resolveCurriculumOrigin(["web_research"])).toBe("research");
+      expect(resolveCurriculumOrigin(["link", "web_research"])).toBe("research");
+    });
+  });
+
+  describe("a curriculum with only hand-authored sources", () => {
+    it("is sources-origin", () => {
+      expect(resolveCurriculumOrigin(["link", "text"])).toBe("sources");
+    });
+  });
+
+  describe("a curriculum with no sources at all", () => {
+    it("defaults to sources-origin", () => {
+      expect(resolveCurriculumOrigin([])).toBe("sources");
+    });
   });
 });

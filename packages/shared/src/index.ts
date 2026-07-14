@@ -1,6 +1,7 @@
 export * from "./subject";
 export * from "./source";
 export * from "./depth";
+export * from "./level";
 export * from "./adaptive";
 export * from "./concern";
 export * from "./concern";

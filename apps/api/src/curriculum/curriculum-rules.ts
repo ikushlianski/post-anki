@@ -69,3 +69,30 @@ export function filterOutLockedModules<T extends { title: string }>(
 
   return planModules.filter((m) => !locked.has(m.title.trim().toLowerCase()));
 }
+
+export interface StudyableTopic {
+  included: boolean;
+}
+
+export interface StudyableModule {
+  topics: StudyableTopic[];
+}
+
+export function hasStudyableContent(modules: StudyableModule[]): boolean {
+  return modules.some(
+    (m) => m.topics.length === 0 || m.topics.some((t) => t.included),
+  );
+}
+
+export function isResearchAndSourcesConflict(
+  researchTopic: string | null | undefined,
+  incomingSourceCount: number,
+): boolean {
+  return Boolean(researchTopic && researchTopic.trim().length > 0) && incomingSourceCount > 0;
+}
+
+export type CurriculumOrigin = "sources" | "research";
+
+export function resolveCurriculumOrigin(sourceKinds: string[]): CurriculumOrigin {
+  return sourceKinds.includes("web_research") ? "research" : "sources";
+}

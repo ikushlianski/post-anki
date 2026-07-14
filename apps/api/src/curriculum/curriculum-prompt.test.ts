@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildParsePrompt,
   buildMergePrompt,
+  buildResearchPrompt,
   type PromptContext,
 } from "./curriculum-prompt.js";
 
@@ -79,6 +80,38 @@ describe("buildMergePrompt", () => {
       const prompt = buildMergePrompt(FULL_CONTEXT, [], "text");
 
       expect(prompt).toContain("nothing locked yet");
+    });
+  });
+});
+
+describe("buildResearchPrompt", () => {
+  describe("with grounding text and curriculum context", () => {
+    it("includes the technology name, the grounding, and asks for a tiered map", () => {
+      const prompt = buildResearchPrompt(
+        "Temporal",
+        "Temporal is a durable execution platform...",
+        FULL_CONTEXT,
+      );
+
+      expect(prompt).toContain("Curriculum: Event-Driven Systems");
+      expect(prompt).toContain("Temporal is a durable execution platform");
+      expect(prompt).toContain("basic/medium/advanced");
+    });
+  });
+
+  describe("without curriculum context", () => {
+    it("falls back to naming the technology directly", () => {
+      const prompt = buildResearchPrompt("Temporal", "some grounding", null);
+
+      expect(prompt).toContain("Technology: Temporal");
+    });
+  });
+
+  describe("when the web search returned nothing", () => {
+    it("tells the agent to rely on its own knowledge", () => {
+      const prompt = buildResearchPrompt("Temporal", "", FULL_CONTEXT);
+
+      expect(prompt).toContain("rely on your own knowledge");
     });
   });
 });
