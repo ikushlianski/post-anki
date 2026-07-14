@@ -2,7 +2,7 @@
 type: architecture
 branch: doc-link-technology-intake
 task: Doc-link technology intake — paste a docs URL instead of a name, prefer llms.txt as the study map, pick a level at creation
-state: confirmed
+state: shipped
 updated: 2026-07-15
 ---
 
