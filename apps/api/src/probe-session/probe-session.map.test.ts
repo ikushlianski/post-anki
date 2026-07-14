@@ -9,6 +9,8 @@ function generated(
     prompt: "Q",
     options: ["a", "b", "c"],
     correctAnswerIndex: 0,
+    correctAnswerIndexes: null,
+    type: null,
     difficulty: "medium",
     format: "mcq",
     gapLabel: null,

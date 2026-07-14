@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { answerSocraticSession, startSocraticSession } from './socratic.api'
@@ -10,6 +11,7 @@ interface ChatMessage {
 }
 
 export function SocraticChat({ topicId }: { topicId: string }) {
+  const router = useRouter()
   const { data: session, isLoading } = useQuery({
     queryKey: ['socratic-session', topicId],
     queryFn: () => startSocraticSession({ data: { topicId } }),
@@ -68,6 +70,10 @@ export function SocraticChat({ topicId }: { topicId: string }) {
         if (result.status === 'completed') {
           setCompleted(true)
         }
+      }
+
+      if (result.covered) {
+        void router.invalidate()
       }
     },
   })

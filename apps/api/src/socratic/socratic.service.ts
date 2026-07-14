@@ -317,13 +317,23 @@ async function refreshTopicProgress(
   await writeTopicProgress(topicRow.id, progress, learningStatus);
 }
 
+function cleanFragment(fragment: string): string {
+  return fragment
+    .trim()
+    .replace(/^(but|however|although)\b[,:]?\s*/i, "")
+    .replace(/[.!]+$/, "");
+}
+
 function feedbackFor(action: SocraticAction, evaluation: SocraticEval): string {
   if (action === "advance") {
     return "Right — that holds up.";
   }
 
   if (action === "point_out") {
-    return `Yes, that's partially correct — ${evaluation.whatWasRight}, but ${evaluation.pointOut}`;
+    const right = cleanFragment(evaluation.whatWasRight);
+    const flaw = cleanFragment(evaluation.pointOut);
+
+    return `Yes, that's partially correct — ${right}, but ${flaw}.`;
   }
 
   if (action === "explain_hint") {

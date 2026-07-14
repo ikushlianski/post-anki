@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProbeSession, ProbeSessionQuestion } from '@post-anki/shared'
 
@@ -23,6 +24,7 @@ function nextQuestion(
 }
 
 export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const queryKey = probeSessionQueryKey(topicId)
 
@@ -91,6 +93,10 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
           ),
         }
       })
+
+      if (result.coveredGapLabels.length > 0) {
+        void router.invalidate()
+      }
     },
   })
 
