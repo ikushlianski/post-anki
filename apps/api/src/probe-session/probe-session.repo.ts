@@ -5,6 +5,7 @@ import type {
   ProbeDifficulty,
   ProbeFormat,
   ProbeOutcome,
+  ProbeQuestionType,
   ProbeScope,
   ProbeSession,
   ProbeSessionQuestion,
@@ -43,6 +44,8 @@ export interface ScopeContext {
 export function rowToSessionQuestion(
   row: ProbeSessionQuestionRow,
 ): ProbeSessionQuestion {
+  const answered = row.answeredIndex !== null;
+
   return {
     id: row.id,
     order: row.order,
@@ -52,10 +55,12 @@ export function rowToSessionQuestion(
     options: row.options,
     difficulty: row.difficulty as ProbeDifficulty,
     format: row.kind as ProbeFormat,
+    type: row.type as ProbeQuestionType,
     answeredIndex: row.answeredIndex,
+    answeredIndexes: row.answeredIndexes ?? null,
     outcome: (row.outcome as ProbeOutcome | null) ?? null,
-    correctAnswerIndex:
-      row.answeredIndex !== null ? row.correctAnswerIndex : null,
+    correctAnswerIndex: answered ? row.correctAnswerIndex : null,
+    correctAnswerIndexes: answered ? (row.correctAnswerIndexes ?? null) : null,
   };
 }
 
@@ -151,14 +156,15 @@ export async function createSessionWithQuestions(
 
 export async function recordAnswer(
   questionId: string,
-  selectedIndex: number,
+  selection: { selectedIndex: number; selectedIndices: number[] | null },
   outcome: ProbeOutcome,
   now: string,
 ): Promise<void> {
   await getDb()
     .update(probeSessionQuestions)
     .set({
-      answeredIndex: selectedIndex,
+      answeredIndex: selection.selectedIndex,
+      answeredIndexes: selection.selectedIndices,
       outcome,
       answeredAt: new Date(now),
     })

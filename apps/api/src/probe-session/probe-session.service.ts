@@ -8,9 +8,11 @@ import type {
   ProbeSessionStatus,
 } from "@post-anki/shared";
 import {
+  deriveMultiQuizOutcome,
   deriveQuizOutcome,
   openGaps,
   progressFromGaps,
+  randomPermutation,
 } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import { listGapsForTopic, persistGaps } from "../gap/gap.repo.js";
@@ -29,6 +31,7 @@ import {
   loadSession,
   recordAnswer,
   syncSessionCounters,
+  type ProbeSessionQuestionRow,
 } from "./probe-session.repo.js";
 import { generateProbeBatch } from "./probe-session.generate.js";
 import { buildQuestionRows } from "./probe-session.map.js";
@@ -67,7 +70,11 @@ export async function prepareProbeSession(
     }
   }
 
-  const batch = await generateProbeBatch(input.scope, ctx);
+  const batch = await generateProbeBatch(
+    input.scope,
+    ctx,
+    input.allowMultiSelect ?? false,
+  );
 
   if (batch.questions.length === 0) {
     return { error: "generation_failed" };
@@ -81,6 +88,8 @@ export async function prepareProbeSession(
     topicIdByTitle: batch.topicIdByTitle,
     gapIdByKey: batch.gapIdByKey,
     makeId: () => newId("psq"),
+    allowMultiSelect: input.allowMultiSelect ?? false,
+    makePermutation: randomPermutation,
   });
 
   const created = await createSessionWithQuestions(
@@ -131,15 +140,26 @@ export async function answerProbeSession(
     return { error: "question_not_found" };
   }
 
+  const isMulti = question.type === "multi";
+
   let outcome: ProbeOutcome;
 
   if (question.answeredIndex !== null) {
-    outcome =
-      (question.outcome as ProbeOutcome | null) ??
-      deriveQuizOutcome(question.answeredIndex, question.correctAnswerIndex);
+    outcome = (question.outcome as ProbeOutcome | null) ?? computeOutcome(question, input);
   } else {
-    outcome = deriveQuizOutcome(input.selectedIndex, question.correctAnswerIndex);
-    await recordAnswer(input.questionId, input.selectedIndex, outcome, now);
+    outcome = computeOutcome(question, input);
+
+    const selectedIndices = isMulti ? (input.selectedIndices ?? []) : null;
+    const selectedIndex = isMulti
+      ? (selectedIndices!.length > 0 ? Math.min(...selectedIndices!) : -1)
+      : (input.selectedIndex ?? -1);
+
+    await recordAnswer(
+      input.questionId,
+      { selectedIndex, selectedIndices },
+      outcome,
+      now,
+    );
   }
 
   let coveredGapLabels: string[] = [];
@@ -164,12 +184,32 @@ export async function answerProbeSession(
     questionId: input.questionId,
     outcome,
     correctAnswerIndex: question.correctAnswerIndex,
+    correctAnswerIndexes: isMulti ? (question.correctAnswerIndexes ?? null) : null,
     correct: progress.correct,
     answered: progress.answered,
     total: progress.total,
     status: progress.status as ProbeSessionStatus,
     coveredGapLabels,
   };
+}
+
+function computeOutcome(
+  question: ProbeSessionQuestionRow,
+  input: AnswerProbeSessionInput,
+): ProbeOutcome {
+  if (question.type === "multi") {
+    const selected =
+      question.answeredIndex !== null
+        ? (question.answeredIndexes ?? [])
+        : (input.selectedIndices ?? []);
+
+    return deriveMultiQuizOutcome(selected, question.correctAnswerIndexes ?? []);
+  }
+
+  const selected =
+    question.answeredIndex !== null ? question.answeredIndex : (input.selectedIndex ?? -1);
+
+  return deriveQuizOutcome(selected, question.correctAnswerIndex);
 }
 
 async function refreshTopicProgress(

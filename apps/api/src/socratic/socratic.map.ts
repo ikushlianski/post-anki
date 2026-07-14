@@ -10,14 +10,3 @@ export function rowToTurn(row: SocraticTurnRow): SocraticTurn {
     order: row.order,
   };
 }
-
-export function countPriorWrong(
-  turns: { gapId: string | null; degree: string | null }[],
-  gapId: string | null,
-): number {
-  return turns.filter(
-    (t) =>
-      t.gapId === gapId &&
-      (t.degree === "slightly_wrong" || t.degree === "mostly_wrong"),
-  ).length;
-}

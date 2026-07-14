@@ -56,7 +56,7 @@ export type StartSocraticSessionInput = z.infer<typeof startSocraticSessionInput
 export const answerSocraticInput = z.object({
   sessionId: z.string(),
   turnId: z.string(),
-  answer: z.string().min(1),
+  answer: z.string(),
 });
 
 export type AnswerSocraticInput = z.infer<typeof answerSocraticInput>;

@@ -17,9 +17,12 @@ function question(
     options: ["a", "b"],
     difficulty: "medium",
     format: "mcq",
+    type: "single",
     answeredIndex: null,
+    answeredIndexes: null,
     outcome: null,
     correctAnswerIndex: null,
+    correctAnswerIndexes: null,
     ...overrides,
   };
 }

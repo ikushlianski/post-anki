@@ -61,12 +61,26 @@ function topicBlock(
     .join("\n");
 }
 
+function multiSelectLine(allowMultiSelect: boolean): string {
+  if (!allowMultiSelect) {
+    return "Every question has exactly one correct option — never produce a \"select all that apply\" question.";
+  }
+
+  return [
+    "Most questions still have exactly one correct option (type \"single\").",
+    "Where it fits naturally, you may produce a small number of \"select all that apply\" questions:",
+    "set type to \"multi\", list every correct option's index in correctAnswerIndexes (2+ correct options),",
+    "and still set correctAnswerIndex to any one of the correct options as a fallback.",
+  ].join("\n");
+}
+
 async function buildPrompt(
   scope: ProbeScope,
   ctx: ScopeContext,
   gapsByTopic: Map<string, string[]>,
   total: number,
   grounding: string,
+  allowMultiSelect: boolean,
 ): Promise<string> {
   const header = [
     `Produce exactly ${total} quiz questions that TEST the learner's knowledge.`,
@@ -75,6 +89,7 @@ async function buildPrompt(
     "For multiple-choice use format \"mcq\" with 3-4 options.",
     "Always set correctAnswerIndex to the single correct option.",
     "Each question must be answerable deterministically and have exactly one correct option.",
+    multiSelectLine(allowMultiSelect),
     difficultyLine(ctx, total),
   ].join("\n");
 
@@ -130,6 +145,7 @@ export interface GeneratedBatch {
 export async function generateProbeBatch(
   scope: ProbeScope,
   ctx: ScopeContext,
+  allowMultiSelect = false,
 ): Promise<GeneratedBatch> {
   const total = targetTotal(scope, ctx);
 
@@ -165,6 +181,7 @@ export async function generateProbeBatch(
     gapsByTopic,
     total,
     grounding.text,
+    allowMultiSelect,
   );
 
   try {

@@ -9,9 +9,12 @@ import type {
 } from "@post-anki/shared";
 import { socraticEvalSchema } from "@post-anki/shared";
 import {
+  countPriorWrong,
   deriveSocraticAction,
   gapMaturity,
+  hasPriorPartial,
   inScopeGaps,
+  isBlankAnswer,
   nextGapToProbe,
   progressFromGaps,
 } from "@post-anki/core";
@@ -41,7 +44,7 @@ import {
   type SocraticSessionRow,
   type SocraticTurnRow,
 } from "./socratic.repo.js";
-import { countPriorWrong, rowToTurn } from "./socratic.map.js";
+import { rowToTurn } from "./socratic.map.js";
 
 export type SocraticError = "not_found" | "not_confirmed" | "turn_not_found";
 
@@ -134,6 +137,10 @@ export async function answerSocraticSession(
     return { error: "not_found" };
   }
 
+  if (isBlankAnswer(input.answer)) {
+    return retryResult(topicRow, turn);
+  }
+
   const depth = rowDepth(topicRow);
   const gaps = await listGapsForTopic(session.topicId);
   const gap = turn.gapId ? gaps.find((g) => g.id === turn.gapId) ?? null : null;
@@ -153,15 +160,20 @@ export async function answerSocraticSession(
     grounding,
   );
 
-  const priorWrong = countPriorWrong(await listTurnRows(session.id), turn.gapId);
+  const priorTurns = await listTurnRows(session.id);
+  const priorWrong = countPriorWrong(priorTurns, turn.gapId);
+  const priorEverPartial = hasPriorPartial(priorTurns, turn.gapId);
   const action = deriveSocraticAction({
     degree: evaluation.degree,
     priorWrongCount: priorWrong,
+    priorEverPartial,
+    depth,
   });
 
   await recordTurnAnswer(turn.id, input.answer, evaluation.degree, action, now);
 
-  const covered = action === "advance" || action === "give_answer";
+  const covered =
+    action === "advance" || action === "give_answer" || action === "move_on";
 
   if (covered && gap && gap.state === "open") {
     await persistGaps([{ ...gap, state: "covered", lastEvaluatedAt: now }]);
@@ -197,6 +209,28 @@ export async function answerSocraticSession(
     conceptsCovered: inScope.filter((g) => g.state === "covered").length,
     conceptsTotal: inScope.length,
     topicMaturity: gapMaturity(after, depth),
+  };
+}
+
+async function retryResult(
+  topicRow: TopicRow,
+  turn: SocraticTurnRow,
+): Promise<AnswerSocraticResult> {
+  const depth = rowDepth(topicRow);
+  const gaps = await listGapsForTopic(topicRow.id);
+  const inScope = inScopeGaps(gaps, depth);
+
+  return {
+    action: "retry",
+    degree: null,
+    feedback: "I didn't catch an answer there — give it another go:",
+    conceptLabel: turn.conceptLabel,
+    covered: false,
+    next: rowToTurn(turn),
+    status: "active",
+    conceptsCovered: inScope.filter((g) => g.state === "covered").length,
+    conceptsTotal: inScope.length,
+    topicMaturity: gapMaturity(gaps, depth),
   };
 }
 
@@ -289,11 +323,15 @@ function feedbackFor(action: SocraticAction, evaluation: SocraticEval): string {
   }
 
   if (action === "point_out") {
-    return evaluation.pointOut;
+    return `Yes, that's partially correct — ${evaluation.whatWasRight}, but ${evaluation.pointOut}`;
   }
 
   if (action === "explain_hint") {
     return evaluation.explanation;
+  }
+
+  if (action === "move_on") {
+    return "Let's move on for now — we'll come back to this one later.";
   }
 
   return `Here's the answer: ${evaluation.correctAnswer}`;
@@ -331,6 +369,7 @@ async function evaluateSocratic(
 
   return {
     degree: "mostly_wrong",
+    whatWasRight: "",
     pointOut: "Let's tighten that up.",
     explanation: `Reconsider ${conceptLabel} and what actually drives the tradeoff.`,
     correctAnswer: `The key idea behind ${conceptLabel} is worth revisiting in the source material.`,

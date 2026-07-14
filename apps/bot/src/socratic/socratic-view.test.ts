@@ -60,6 +60,41 @@ describe("formatSocraticAnswer", () => {
     expect(text).toContain("What about retries?");
   });
 
+  it("renders the move_on action generically, with no next-turn assumption baked in", () => {
+    const result: AnswerSocraticResult = {
+      action: "move_on",
+      degree: "mostly_wrong",
+      feedback: "Let's move on for now — we'll come back to this one later.",
+      conceptLabel: "Idempotency keys",
+      covered: true,
+      next: turn({ id: "turn2", conceptLabel: "Retries", prompt: "What about retries?" }),
+      status: "active",
+      conceptsCovered: 1,
+      conceptsTotal: 3,
+      topicMaturity: 45,
+    };
+    const text = formatSocraticAnswer(result);
+    expect(text).toContain("Let's move on for now");
+    expect(text).toContain("Retries");
+  });
+
+  it("renders the retry action (nullable degree) without crashing on the new enum value", () => {
+    const result: AnswerSocraticResult = {
+      action: "retry",
+      degree: null,
+      feedback: "I didn't catch an answer there — give it another go:",
+      conceptLabel: "Idempotency keys",
+      covered: false,
+      next: turn(),
+      status: "active",
+      conceptsCovered: 0,
+      conceptsTotal: 3,
+      topicMaturity: 20,
+    };
+    const text = formatSocraticAnswer(result);
+    expect(text).toContain("I didn't catch an answer there");
+  });
+
   it("announces completion when there is no next turn", () => {
     const result: AnswerSocraticResult = {
       action: "advance",
