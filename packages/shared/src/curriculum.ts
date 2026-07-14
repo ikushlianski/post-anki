@@ -16,6 +16,10 @@ export const curriculumStatusSchema = z.enum([
 
 export type CurriculumStatus = z.infer<typeof curriculumStatusSchema>;
 
+export const curriculumOriginSchema = z.enum(["sources", "research"]);
+
+export type CurriculumOrigin = z.infer<typeof curriculumOriginSchema>;
+
 export const curriculumSchema = z.object({
   id: z.string(),
   subjectId: z.string(),
@@ -26,6 +30,7 @@ export const curriculumSchema = z.object({
   speed: speedSchema,
   hinting: z.boolean(),
   defaultDepth: depthLevelSchema,
+  origin: curriculumOriginSchema,
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -35,6 +40,7 @@ export const createCurriculumInput = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   sources: z.array(sourceDraftSchema).default([]),
+  researchTopic: z.string().min(1).nullable().optional(),
 });
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>;

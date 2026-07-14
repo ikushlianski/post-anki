@@ -16,11 +16,13 @@ import {
   listCurricula,
   updateCurriculum,
 } from "./curriculum.repo.js";
-import { isSourceMandateUnmet } from "./curriculum-rules.js";
+import { isResearchAndSourcesConflict, isSourceMandateUnmet } from "./curriculum-rules.js";
 import {
   mergeSourcesIntoCurriculum,
   parseCurriculum,
   reparseCurriculum,
+  researchCurriculum,
+  retryResearch,
 } from "./curriculum-parse.orchestrator.js";
 
 export async function handleListCurricula(
@@ -42,6 +44,7 @@ export async function handleCreateCurriculum(
   }
 
   const sources = body.data.sources ?? [];
+  const researchTopic = body.data.researchTopic ?? null;
   const subject = await getSubject(body.data.subjectId);
 
   if (!subject) {
@@ -49,7 +52,20 @@ export async function handleCreateCurriculum(
     return;
   }
 
-  if (isSourceMandateUnmet(subject.requireSources, sources.length)) {
+  if (isResearchAndSourcesConflict(researchTopic, sources.length)) {
+    sendError(
+      res,
+      400,
+      "research_and_sources_conflict",
+      "a curriculum cannot be created with both a research topic and pasted sources",
+    );
+    return;
+  }
+
+  if (
+    !researchTopic &&
+    isSourceMandateUnmet(subject.requireSources, sources.length)
+  ) {
     sendError(
       res,
       400,
@@ -63,8 +79,39 @@ export async function handleCreateCurriculum(
 
   sendJson(res, 202, curriculum);
 
+  if (researchTopic) {
+    void researchCurriculum(curriculum.id, researchTopic).catch((err) =>
+      log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
+    );
+
+    return;
+  }
+
   void parseCurriculum(curriculum.id).catch((err) =>
     log.error({ err, curriculumId: curriculum.id }, "parse_dispatch_failed"),
+  );
+}
+
+export async function handleRetryResearch(
+  res: http.ServerResponse,
+  curriculumId: string,
+): Promise<void> {
+  const curriculum = await getCurriculum(curriculumId);
+
+  if (!curriculum) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  if (curriculum.status === "curating") {
+    sendError(res, 409, "already_curating");
+    return;
+  }
+
+  sendJson(res, 202, { ...curriculum, status: "curating" });
+
+  void retryResearch(curriculumId).catch((err) =>
+    log.error({ err, curriculumId }, "retry_research_dispatch_failed"),
   );
 }
 
@@ -113,6 +160,16 @@ export async function handleConfirmCurriculum(
       409,
       "not_ready",
       "curriculum must be curated (status ready) before it can be confirmed",
+    );
+    return;
+  }
+
+  if (result === "not_studyable") {
+    sendError(
+      res,
+      409,
+      "not_studyable",
+      "include at least one topic, or leave a module topic-less, before confirming",
     );
     return;
   }

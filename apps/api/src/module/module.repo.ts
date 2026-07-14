@@ -34,6 +34,7 @@ export async function createModule(input: CreateModuleInput): Promise<Module> {
     title: input.title,
     order,
     learningStatus: "not_started",
+    level: null,
     topics: [],
     progress: moduleProgress([]),
   };

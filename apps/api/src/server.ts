@@ -15,6 +15,7 @@ import {
   handleGetCurriculum,
   handleListCurricula,
   handleReparse,
+  handleRetryResearch,
   handleUpdateCurriculum,
 } from "./curriculum/curriculum.controller.js";
 import {
@@ -128,6 +129,8 @@ async function route(
       return handleAddSources(req, res, id);
     case "reparse":
       return handleReparse(res, id);
+    case "retryResearch":
+      return handleRetryResearch(res, id);
     case "reorderModules":
       return handleReorderModules(req, res);
     case "createModule":

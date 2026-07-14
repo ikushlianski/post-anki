@@ -2,7 +2,9 @@ import type { SourceDraft } from "@post-anki/shared";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { curriculumPlanSchema, curriculumMergePlanSchema } from "./curriculum-plan.js";
-import { buildParsePrompt, buildMergePrompt } from "./curriculum-prompt.js";
+import { docResearchPlanSchema } from "./curriculum-research-plan.js";
+import { gatherTechResearchGrounding } from "./tech-research-grounding.js";
+import { buildParsePrompt, buildMergePrompt, buildResearchPrompt } from "./curriculum-prompt.js";
 import { partitionModulesForMerge, filterOutLockedModules } from "./curriculum-rules.js";
 import { resolveSourceText } from "./source-fetch.js";
 import {
@@ -10,9 +12,11 @@ import {
   clearCurriculumStructure,
   countModules,
   deleteModules,
+  getCurriculum,
   getCurriculumPromptContext,
   getCurriculumSourceRows,
   getModuleProgressSnapshots,
+  insertResearchSource,
   saveCurriculumPlan,
   setCurriculumStatus,
   storeFetchedText,
@@ -92,6 +96,54 @@ export async function reparseCurriculum(curriculumId: string): Promise<void> {
     await parseCurriculum(curriculumId);
   } catch (err) {
     log.error({ err, curriculumId }, "curriculum_reparse_failed");
+    await setCurriculumStatus(curriculumId, "failed");
+  }
+}
+
+export async function researchCurriculum(
+  curriculumId: string,
+  technologyName: string,
+): Promise<void> {
+  try {
+    const ctx = await getCurriculumPromptContext(curriculumId);
+    const grounding = await gatherTechResearchGrounding(technologyName);
+    const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
+    const prompt = buildResearchPrompt(technologyName, grounding.text, ctx);
+
+    const result = await agent.generate(prompt, {
+      structuredOutput: { schema: docResearchPlanSchema },
+    });
+
+    if (!result.object) {
+      throw new Error("doc-research architect returned no structured plan");
+    }
+
+    await saveCurriculumPlan(curriculumId, result.object, 0, { defaultIncluded: false });
+    await insertResearchSource(curriculumId, technologyName, grounding.text);
+    await setCurriculumStatus(curriculumId, "ready");
+
+    log.info(
+      { curriculumId, modules: result.object.modules.length },
+      "curriculum_researched",
+    );
+  } catch (err) {
+    log.error({ err, curriculumId }, "curriculum_research_failed");
+    await setCurriculumStatus(curriculumId, "failed");
+  }
+}
+
+export async function retryResearch(curriculumId: string): Promise<void> {
+  try {
+    const curriculum = await getCurriculum(curriculumId);
+
+    if (!curriculum) {
+      throw new Error("curriculum not found for retry research");
+    }
+
+    await clearCurriculumStructure(curriculumId);
+    await researchCurriculum(curriculumId, curriculum.name);
+  } catch (err) {
+    log.error({ err, curriculumId }, "curriculum_retry_research_failed");
     await setCurriculumStatus(curriculumId, "failed");
   }
 }

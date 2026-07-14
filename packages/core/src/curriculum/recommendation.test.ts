@@ -29,6 +29,7 @@ function moduleOf(topics: Topic[]): Module {
     title: "M",
     order: 1,
     learningStatus: "not_started",
+    level: null,
     progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
     topics,
   };

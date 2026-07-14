@@ -3,10 +3,12 @@ import type {
   CreateCurriculumInput,
   Curriculum,
   CurriculumDetail,
+  CurriculumOrigin,
   CurriculumStatus,
   DepthLevel,
   Gap,
   LearningStatus,
+  Level,
   Module,
   Source,
   SourceDraft,
@@ -30,14 +32,49 @@ import {
   topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { resolveCurriculumOrigin, hasStudyableContent } from "./curriculum-rules.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
 
-export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
-  const rows = await getDb().select().from(curricula);
+interface PlanModule {
+  title: string;
+  level?: Level | null;
+  topics: {
+    title: string;
+    summary: string | null;
+    suggestedDepth: DepthLevel;
+  }[];
+}
 
-  return rows
-    .filter((r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId)
-    .map(toCurriculum);
+interface Plan {
+  modules: PlanModule[];
+}
+
+export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
+  const rows = (await getDb().select().from(curricula)).filter(
+    (r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId,
+  );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const sourceRows = await getDb()
+    .select()
+    .from(sources)
+    .where(inArray(sources.curriculumId, rows.map((r) => r.id)));
+
+  const kindsByCurriculum = new Map<string, string[]>();
+
+  for (const s of sourceRows) {
+    const list = kindsByCurriculum.get(s.curriculumId) ?? [];
+
+    list.push(s.kind);
+    kindsByCurriculum.set(s.curriculumId, list);
+  }
+
+  return rows.map((r) =>
+    toCurriculum(r, resolveCurriculumOrigin(kindsByCurriculum.get(r.id) ?? [])),
+  );
 }
 
 export async function createCurriculum(
@@ -71,7 +108,16 @@ export async function createCurriculum(
       );
   }
 
-  return toCurriculum(row);
+  return toCurriculum(row, "sources");
+}
+
+async function originFor(curriculumId: string): Promise<CurriculumOrigin> {
+  const rows = await getDb()
+    .select()
+    .from(sources)
+    .where(eq(sources.curriculumId, curriculumId));
+
+  return resolveCurriculumOrigin(rows.map((r) => r.kind));
 }
 
 export interface CurriculumProbeContext {
@@ -127,7 +173,11 @@ export async function getCurriculum(
     await getDb().select().from(curricula).where(eq(curricula.id, curriculumId))
   )[0];
 
-  return row ? toCurriculum(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  return toCurriculum(row, await originFor(curriculumId));
 }
 
 export interface CurriculumPromptContext {
@@ -339,7 +389,7 @@ export async function countModules(curriculumId: string): Promise<number> {
 
 export async function confirmCurriculum(
   curriculumId: string,
-): Promise<Curriculum | "not_found" | "not_ready"> {
+): Promise<Curriculum | "not_found" | "not_ready" | "not_studyable"> {
   const db = getDb();
 
   const existing = (
@@ -351,11 +401,32 @@ export async function confirmCurriculum(
   }
 
   if (existing.status === "confirmed") {
-    return toCurriculum(existing);
+    return toCurriculum(existing, await originFor(curriculumId));
   }
 
   if (existing.status !== "ready") {
     return "not_ready";
+  }
+
+  const moduleRows = await db
+    .select()
+    .from(modules)
+    .where(eq(modules.curriculumId, curriculumId));
+  const topicRows = await db
+    .select()
+    .from(topics)
+    .where(eq(topics.curriculumId, curriculumId));
+
+  const studyable = hasStudyableContent(
+    moduleRows.map((m) => ({
+      topics: topicRows
+        .filter((t) => t.moduleId === m.id)
+        .map((t) => ({ included: t.included })),
+    })),
+  );
+
+  if (!studyable) {
+    return "not_studyable";
   }
 
   const rows = await db
@@ -364,7 +435,7 @@ export async function confirmCurriculum(
     .where(eq(curricula.id, curriculumId))
     .returning();
 
-  return toCurriculum(rows[0]!);
+  return toCurriculum(rows[0]!, await originFor(curriculumId));
 }
 
 
@@ -396,7 +467,7 @@ export async function updateCurriculum(
       await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
     )[0];
 
-    return existing ? toCurriculum(existing) : null;
+    return existing ? toCurriculum(existing, await originFor(input.curriculumId)) : null;
   }
 
   const rows = await db
@@ -407,15 +478,17 @@ export async function updateCurriculum(
 
   const row = rows[0];
 
-  return row ? toCurriculum(row) : null;
+  return row ? toCurriculum(row, await originFor(input.curriculumId)) : null;
 }
 
 export async function saveCurriculumPlan(
   curriculumId: string,
-  plan: CurriculumPlan,
+  plan: CurriculumPlan | Plan,
   orderOffset = 0,
+  options?: { defaultIncluded?: boolean },
 ): Promise<void> {
   const db = getDb();
+  const defaultIncluded = options?.defaultIncluded ?? true;
 
   for (const [moduleIndex, mod] of plan.modules.entries()) {
     const moduleId = newId("mod");
@@ -425,6 +498,7 @@ export async function saveCurriculumPlan(
       curriculumId,
       title: mod.title,
       order: orderOffset + moduleIndex + 1,
+      level: (mod as PlanModule).level ?? null,
     });
 
     for (const [topicIndex, top] of mod.topics.entries()) {
@@ -436,9 +510,27 @@ export async function saveCurriculumPlan(
         summary: top.summary ?? null,
         order: topicIndex + 1,
         depth: top.suggestedDepth,
+        included: defaultIncluded,
       });
     }
   }
+}
+
+export async function insertResearchSource(
+  curriculumId: string,
+  technologyName: string,
+  groundingText: string,
+): Promise<void> {
+  await getDb()
+    .insert(sources)
+    .values({
+      id: newId("src"),
+      curriculumId,
+      kind: "web_research",
+      value: technologyName,
+      title: `Auto-researched: ${technologyName}`,
+      fetchedText: groundingText,
+    });
 }
 
 export async function getCurriculumDetail(
@@ -470,7 +562,10 @@ export async function getCurriculumDetail(
   const assembledModules = buildModules(moduleRows, topicRows, gapRows);
 
   return {
-    curriculum: toCurriculum(curriculumRow),
+    curriculum: toCurriculum(
+      curriculumRow,
+      resolveCurriculumOrigin(sourceRows.map((s) => s.kind)),
+    ),
     sources: sourceRows.map(toSource),
     modules: assembledModules,
     progress: curriculumProgress(assembledModules),
@@ -500,23 +595,27 @@ function buildModules(
         title: m.title,
         order: m.order,
         learningStatus: m.learningStatus as LearningStatus,
+        level: (m.level as Level | null) ?? null,
         topics: moduleTopics,
         progress: moduleProgress(moduleTopics),
       };
     });
 }
 
-function toCurriculum(row: {
-  id: string;
-  subjectId: string;
-  name: string;
-  description: string | null;
-  status: string;
-  learningStatus: string;
-  speed: string;
-  hinting: boolean;
-  defaultDepth: string;
-}): Curriculum {
+function toCurriculum(
+  row: {
+    id: string;
+    subjectId: string;
+    name: string;
+    description: string | null;
+    status: string;
+    learningStatus: string;
+    speed: string;
+    hinting: boolean;
+    defaultDepth: string;
+  },
+  origin: CurriculumOrigin,
+): Curriculum {
   return {
     id: row.id,
     subjectId: row.subjectId,
@@ -527,6 +626,7 @@ function toCurriculum(row: {
     speed: row.speed as Speed,
     hinting: row.hinting,
     defaultDepth: row.defaultDepth as DepthLevel,
+    origin,
   };
 }
 

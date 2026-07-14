@@ -2,6 +2,7 @@ import { z } from "zod";
 import { topicSchema } from "./topic";
 import { moduleProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
+import { levelSchema } from "./level";
 
 export const moduleSchema = z.object({
   id: z.string(),
@@ -9,6 +10,7 @@ export const moduleSchema = z.object({
   title: z.string(),
   order: z.number().int(),
   learningStatus: learningStatusSchema,
+  level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
 });

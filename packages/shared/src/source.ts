@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const sourceKindSchema = z.enum(["link", "text"]);
+export const sourceKindSchema = z.enum(["link", "text", "web_research"]);
 
 export type SourceKind = z.infer<typeof sourceKindSchema>;
 

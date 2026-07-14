@@ -10,6 +10,7 @@ export type RouteName =
   | "confirmCurriculum"
   | "addSources"
   | "reparse"
+  | "retryResearch"
   | "reorderModules"
   | "createModule"
   | "reorderTopics"
@@ -55,6 +56,7 @@ const ROUTES: RouteDef[] = [
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/confirm$/, name: "confirmCurriculum", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/sources$/, name: "addSources", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/reparse$/, name: "reparse", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/retry-research$/, name: "retryResearch", param: "id" },
   { method: "PATCH", pattern: /^\/curricula\/([^/]+)\/modules\/order$/, name: "reorderModules", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/modules$/, name: "createModule", param: "id" },
   { method: "GET", pattern: /^\/curricula\/([^/]+)$/, name: "getCurriculum", param: "id" },
