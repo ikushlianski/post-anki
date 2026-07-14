@@ -110,7 +110,10 @@ export const probeSessionQuestions = pgTable("probe_session_questions", {
   correctAnswerIndex: integer("correct_answer_index").notNull(),
   difficulty: text("difficulty").notNull().default("medium"),
   kind: text("kind").notNull().default("mcq"),
+  type: text("type").notNull().default("single"),
+  correctAnswerIndexes: jsonb("correct_answer_indexes").$type<number[]>(),
   answeredIndex: integer("answered_index"),
+  answeredIndexes: jsonb("answered_indexes").$type<number[]>(),
   outcome: text("outcome"),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
 });
