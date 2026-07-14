@@ -9,6 +9,8 @@ function generated(
     prompt: "Q",
     options: ["a", "b", "c"],
     correctAnswerIndex: 0,
+    correctAnswerIndexes: null,
+    type: null,
     difficulty: "medium",
     format: "mcq",
     gapLabel: null,
@@ -90,5 +92,105 @@ describe("buildQuestionRows", () => {
     });
 
     expect(rows[0]!.options).toEqual(["True", "False"]);
+  });
+
+  it("defaults every question to type single with no correct-answer-indexes array", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [generated({})],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+    });
+
+    expect(rows[0]!.type).toBe("single");
+    expect(rows[0]!.correctAnswerIndexes).toBeNull();
+    expect(rows[0]!.answeredIndex).toBeNull();
+    expect(rows[0]!.answeredIndexes).toBeNull();
+  });
+
+  it("applies the injected permutation, keeping the correct answer index pointed at the right option", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [
+        generated({ options: ["a", "b", "c"], correctAnswerIndex: 0 }),
+      ],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+      makePermutation: () => [2, 0, 1],
+    });
+
+    expect(rows[0]!.options).toEqual(["c", "a", "b"]);
+    expect(rows[0]!.options[rows[0]!.correctAnswerIndex]).toBe("a");
+  });
+
+  it("persists a multi-select question with its full correct set when allowMultiSelect is set", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [
+        generated({
+          options: ["a", "b", "c", "d"],
+          type: "multi",
+          correctAnswerIndexes: [0, 2],
+        }),
+      ],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+      allowMultiSelect: true,
+    });
+
+    expect(rows[0]!.type).toBe("multi");
+    expect(rows[0]!.correctAnswerIndexes).toEqual([0, 2]);
+    expect(rows[0]!.correctAnswerIndex).toBe(0);
+  });
+
+  it("never persists a multi-select question when allowMultiSelect is not set, even if the model returned one", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [
+        generated({
+          options: ["a", "b", "c"],
+          type: "multi",
+          correctAnswerIndexes: [0, 1],
+          correctAnswerIndex: 0,
+        }),
+      ],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+      allowMultiSelect: false,
+    });
+
+    expect(rows[0]!.type).toBe("single");
+    expect(rows[0]!.correctAnswerIndexes).toBeNull();
+  });
+
+  it("downgrades a multi-select question to single when correctAnswerIndexes is empty or invalid after clamping", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [
+        generated({
+          options: ["a", "b"],
+          type: "multi",
+          correctAnswerIndexes: [],
+          correctAnswerIndex: 1,
+        }),
+      ],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+      allowMultiSelect: true,
+    });
+
+    expect(rows[0]!.type).toBe("single");
+    expect(rows[0]!.correctAnswerIndexes).toBeNull();
+    expect(rows[0]!.correctAnswerIndex).toBe(1);
   });
 });

@@ -50,7 +50,16 @@ const server = http.createServer((req, res) => {
       body = {}
     }
 
-    send(res, 200, completion(resolveContent(body)))
+    // A real OpenRouter call takes long enough for a UI's in-flight/typing
+    // indicator to be observable. This mock resolves near-instantly, which
+    // makes that indicator flash faster than a test's assertion can catch it
+    // — a small deliberate delay keeps the mock deterministic while leaving
+    // enough of an async gap for loading-state tests to be meaningful.
+    const artificialDelayMs = Number(process.env.MOCK_LLM_DELAY_MS ?? 400)
+
+    setTimeout(() => {
+      send(res, 200, completion(resolveContent(body)))
+    }, artificialDelayMs)
   })
 })
 
