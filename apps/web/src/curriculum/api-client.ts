@@ -560,6 +560,77 @@ export async function decide(input: DecideInput): Promise<DecideResult> {
   return request<be.DecideResult>('/decide', { method: 'POST', body: input })
 }
 
+export async function prepareProbeSession(input: {
+  scope: be.ProbeScope
+  scopeId: string
+  regenerate?: boolean
+  allowMultiSelect?: boolean
+}): Promise<be.ProbeSession | null> {
+  try {
+    return await request<be.ProbeSession>('/probe-sessions', {
+      method: 'POST',
+      body: input,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function answerProbeSession(input: {
+  sessionId: string
+  questionId: string
+  selectedIndex?: number
+  selectedIndices?: number[]
+}): Promise<be.AnswerProbeSessionResult | null> {
+  try {
+    return await request<be.AnswerProbeSessionResult>(
+      `/probe-sessions/${input.sessionId}/answer`,
+      {
+        method: 'POST',
+        body: {
+          questionId: input.questionId,
+          selectedIndex: input.selectedIndex,
+          selectedIndices: input.selectedIndices,
+        },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function startSocraticSession(input: {
+  topicId: string
+  regenerate?: boolean
+}): Promise<be.SocraticSession | null> {
+  try {
+    return await request<be.SocraticSession>('/socratic-sessions', {
+      method: 'POST',
+      body: input,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function answerSocraticSession(input: {
+  sessionId: string
+  turnId: string
+  answer: string
+}): Promise<be.AnswerSocraticResult | null> {
+  try {
+    return await request<be.AnswerSocraticResult>(
+      `/socratic-sessions/${input.sessionId}/answer`,
+      {
+        method: 'POST',
+        body: { turnId: input.turnId, answer: input.answer },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
 export async function getAdminSettings(): Promise<be.AdminSettings> {
   return request<be.AdminSettings>('/admin/settings')
 }

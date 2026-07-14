@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 
 import type { QuestionKind } from '../curriculum/model'
 import { curriculumDetailQuery } from '../curriculum/curriculum.queries'
-import { ProbePanel } from '../curriculum/probe-panel'
+import { ProbeSessionQuiz } from '../curriculum/probe-session-quiz'
 import { ProbeRoomDrawer } from '../curriculum/probe-room-drawer'
+import { SocraticChat } from '../curriculum/socratic-chat'
 
 export const Route = createFileRoute('/probe/$topicId')({
   validateSearch: (
@@ -70,7 +71,11 @@ function ProbeRoom() {
         </p>
       </header>
 
-      <ProbePanel key={mode} topicId={topic.id} mode={mode} />
+      {mode === 'socratic' ? (
+        <SocraticChat key={topic.id} topicId={topic.id} />
+      ) : (
+        <ProbeSessionQuiz key={topic.id} topicId={topic.id} />
+      )}
     </main>
   )
 }
