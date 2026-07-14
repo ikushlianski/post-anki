@@ -43,6 +43,13 @@
       "when": 1782769428752,
       "tag": "0005_public_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784057457270,
+      "tag": "0006_add_app_settings",
+      "breakpoints": true
     }
   ]
 }
