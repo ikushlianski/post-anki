@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
@@ -531,6 +531,12 @@ export async function insertResearchSource(
       title: `Auto-researched: ${technologyName}`,
       fetchedText: groundingText,
     });
+}
+
+export async function deleteResearchSources(curriculumId: string): Promise<void> {
+  await getDb()
+    .delete(sources)
+    .where(and(eq(sources.curriculumId, curriculumId), eq(sources.kind, "web_research")));
 }
 
 export async function getCurriculumDetail(

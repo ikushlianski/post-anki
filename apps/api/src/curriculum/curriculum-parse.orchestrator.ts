@@ -12,6 +12,7 @@ import {
   clearCurriculumStructure,
   countModules,
   deleteModules,
+  deleteResearchSources,
   getCurriculum,
   getCurriculumPromptContext,
   getCurriculumSourceRows,
@@ -107,6 +108,13 @@ export async function researchCurriculum(
   try {
     const ctx = await getCurriculumPromptContext(curriculumId);
     const grounding = await gatherTechResearchGrounding(technologyName);
+
+    // Recorded before the throw-prone synthesis call below: if synthesis
+    // fails, this row must already exist so the curriculum still resolves
+    // to research-origin and the "Retry research" (not "Re-parse sources")
+    // recovery banner renders on the failed curriculum.
+    await insertResearchSource(curriculumId, technologyName, grounding.text);
+
     const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
     const prompt = buildResearchPrompt(technologyName, grounding.text, ctx);
 
@@ -119,7 +127,6 @@ export async function researchCurriculum(
     }
 
     await saveCurriculumPlan(curriculumId, result.object, 0, { defaultIncluded: false });
-    await insertResearchSource(curriculumId, technologyName, grounding.text);
     await setCurriculumStatus(curriculumId, "ready");
 
     log.info(
@@ -141,6 +148,7 @@ export async function retryResearch(curriculumId: string): Promise<void> {
     }
 
     await clearCurriculumStructure(curriculumId);
+    await deleteResearchSources(curriculumId);
     await researchCurriculum(curriculumId, curriculum.name);
   } catch (err) {
     log.error({ err, curriculumId }, "curriculum_retry_research_failed");
