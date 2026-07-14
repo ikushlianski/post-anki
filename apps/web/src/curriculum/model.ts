@@ -61,7 +61,7 @@ export const curriculumSchema = z.object({
 
 export type Curriculum = z.infer<typeof curriculumSchema>
 
-export const sourceKindSchema = z.enum(['link', 'text', 'web_research'])
+export const sourceKindSchema = z.enum(['link', 'text', 'web_research', 'llms_txt'])
 
 export type SourceKind = z.infer<typeof sourceKindSchema>
 
@@ -251,12 +251,21 @@ export const createSubjectInput = z.object({
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>
 
+const docUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: 'docUrl must be an absolute http(s) URL',
+  })
+
 export const createCurriculumInput = z.object({
   subjectId: z.string(),
   name: z.string().min(1),
   description: z.string().optional(),
   sources: z.array(sourceDraftSchema).default([]),
   researchTopic: z.string().min(1).nullable().optional(),
+  docUrl: docUrlSchema.nullable().optional(),
+  preferredLevel: levelSchema.nullable().optional(),
 })
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>

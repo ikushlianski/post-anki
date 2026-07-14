@@ -201,9 +201,17 @@ function SourceRow({ source }: { source: Source }) {
     )
   }
 
+  if (source.kind === 'llms_txt') {
+    return (
+      <li data-testid="source-row-llms-txt" className="text-neutral-600">
+        📖 {source.title ?? `Site-published map: ${source.value}`}
+      </li>
+    )
+  }
+
   if (source.kind === 'web_research') {
     return (
-      <li className="text-neutral-600">
+      <li data-testid="source-row-web-research" className="text-neutral-600">
         🔎 {source.title ?? `Auto-researched: ${source.value}`}
       </li>
     )
