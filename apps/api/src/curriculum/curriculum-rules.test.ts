@@ -8,6 +8,10 @@ import {
   hasStudyableContent,
   isResearchAndSourcesConflict,
   resolveCurriculumOrigin,
+  looksLikeLlmsTxtContent,
+  shouldIncludeTopicByDefault,
+  isDocUrlAndResearchTopicConflict,
+  resolveRetryResearchSource,
   type ModuleTouchState,
   type TopicTouchState,
   type StudyableModule,
@@ -179,30 +183,27 @@ describe("hasStudyableContent", () => {
 });
 
 describe("isResearchAndSourcesConflict", () => {
-  describe("a request with a research topic and pasted sources", () => {
+  describe("a request where research was triggered and sources were pasted", () => {
     it("is a conflict", () => {
-      expect(isResearchAndSourcesConflict("Temporal", 1)).toBe(true);
+      expect(isResearchAndSourcesConflict(true, 1)).toBe(true);
     });
   });
 
-  describe("a request with only a research topic", () => {
+  describe("a request where research was triggered with no pasted sources", () => {
     it("is not a conflict", () => {
-      expect(isResearchAndSourcesConflict("Temporal", 0)).toBe(false);
+      expect(isResearchAndSourcesConflict(true, 0)).toBe(false);
     });
   });
 
-  describe("a request with only sources", () => {
+  describe("a request with only sources, research not triggered", () => {
     it("is not a conflict", () => {
-      expect(isResearchAndSourcesConflict(null, 2)).toBe(false);
-      expect(isResearchAndSourcesConflict(undefined, 2)).toBe(false);
-      expect(isResearchAndSourcesConflict("", 2)).toBe(false);
-      expect(isResearchAndSourcesConflict("   ", 2)).toBe(false);
+      expect(isResearchAndSourcesConflict(false, 2)).toBe(false);
     });
   });
 
   describe("a request with neither", () => {
     it("is not a conflict", () => {
-      expect(isResearchAndSourcesConflict(null, 0)).toBe(false);
+      expect(isResearchAndSourcesConflict(false, 0)).toBe(false);
     });
   });
 });
@@ -215,6 +216,13 @@ describe("resolveCurriculumOrigin", () => {
     });
   });
 
+  describe("a curriculum with an llms_txt source", () => {
+    it("is research-origin, same as a web_research source", () => {
+      expect(resolveCurriculumOrigin(["llms_txt"])).toBe("research");
+      expect(resolveCurriculumOrigin(["link", "llms_txt"])).toBe("research");
+    });
+  });
+
   describe("a curriculum with only hand-authored sources", () => {
     it("is sources-origin", () => {
       expect(resolveCurriculumOrigin(["link", "text"])).toBe("sources");
@@ -224,6 +232,155 @@ describe("resolveCurriculumOrigin", () => {
   describe("a curriculum with no sources at all", () => {
     it("defaults to sources-origin", () => {
       expect(resolveCurriculumOrigin([])).toBe("sources");
+    });
+  });
+});
+
+describe("looksLikeLlmsTxtContent", () => {
+  describe("a real llms.txt-shaped body", () => {
+    it("is trusted when it has enough plain-text content", () => {
+      const body = [
+        "# Temporal",
+        "",
+        "> Temporal is a durable execution platform.",
+        "",
+        "## Docs",
+        "- [Getting started](https://docs.temporal.io/getting-started): intro guide",
+        "- [Workflows](https://docs.temporal.io/workflows): core concepts",
+      ].join("\n");
+
+      expect(looksLikeLlmsTxtContent(body)).toBe(true);
+    });
+  });
+
+  describe("a soft-404 that 200s with the site's normal HTML shell", () => {
+    it("is rejected because it looks like an HTML document", () => {
+      const body = `<!doctype html><html><head><title>Docs</title></head><body>${"x".repeat(500)}</body></html>`;
+
+      expect(looksLikeLlmsTxtContent(body)).toBe(false);
+    });
+
+    it("is rejected for an uppercase or spaced-out doctype too", () => {
+      const body = `<!DOCTYPE HTML><html>${"x".repeat(500)}</html>`;
+
+      expect(looksLikeLlmsTxtContent(body)).toBe(false);
+    });
+  });
+
+  describe("an empty or near-empty file", () => {
+    it("is rejected for being too short to be a real map", () => {
+      expect(looksLikeLlmsTxtContent("")).toBe(false);
+      expect(looksLikeLlmsTxtContent("Not found")).toBe(false);
+    });
+  });
+});
+
+describe("shouldIncludeTopicByDefault", () => {
+  describe("a module whose level matches the preferred level", () => {
+    it("pre-includes its topics", () => {
+      expect(shouldIncludeTopicByDefault("medium", "medium")).toBe(true);
+    });
+  });
+
+  describe("a module whose level does not match the preferred level", () => {
+    it("does not pre-include its topics", () => {
+      expect(shouldIncludeTopicByDefault("basic", "medium")).toBe(false);
+      expect(shouldIncludeTopicByDefault("advanced", "medium")).toBe(false);
+    });
+  });
+
+  describe("no preference given", () => {
+    it("never pre-includes, matching the shipped all-excluded default", () => {
+      expect(shouldIncludeTopicByDefault("medium", null)).toBe(false);
+      expect(shouldIncludeTopicByDefault("medium", undefined)).toBe(false);
+    });
+  });
+
+  describe("a module with no level tag", () => {
+    it("never pre-includes, even if a preference was given", () => {
+      expect(shouldIncludeTopicByDefault(null, "medium")).toBe(false);
+      expect(shouldIncludeTopicByDefault(undefined, "medium")).toBe(false);
+    });
+  });
+});
+
+describe("isDocUrlAndResearchTopicConflict", () => {
+  describe("both a docUrl and a legacy researchTopic are set", () => {
+    it("is a conflict", () => {
+      expect(
+        isDocUrlAndResearchTopicConflict("https://docs.temporal.io", "Temporal"),
+      ).toBe(true);
+    });
+  });
+
+  describe("only a docUrl is set", () => {
+    it("is not a conflict", () => {
+      expect(isDocUrlAndResearchTopicConflict("https://docs.temporal.io", null)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("only a researchTopic is set", () => {
+    it("is not a conflict", () => {
+      expect(isDocUrlAndResearchTopicConflict(null, "Temporal")).toBe(false);
+    });
+  });
+
+  describe("neither is set", () => {
+    it("is not a conflict", () => {
+      expect(isDocUrlAndResearchTopicConflict(null, null)).toBe(false);
+      expect(isDocUrlAndResearchTopicConflict(undefined, undefined)).toBe(false);
+    });
+  });
+});
+
+describe("resolveRetryResearchSource", () => {
+  describe("a docs-URL-driven curriculum's prior research source", () => {
+    it("re-derives the original docUrl from the stored value", () => {
+      const result = resolveRetryResearchSource(
+        [{ kind: "llms_txt", value: "https://docs.temporal.io/dev-guide" }],
+        "Temporal",
+      );
+
+      expect(result).toEqual({
+        mode: "url",
+        docUrl: "https://docs.temporal.io/dev-guide",
+        name: "Temporal",
+      });
+    });
+
+    it("also recognizes a docUrl-anchored web_research row as URL-shaped", () => {
+      const result = resolveRetryResearchSource(
+        [{ kind: "web_research", value: "https://docs.temporal.io" }],
+        "Temporal",
+      );
+
+      expect(result).toEqual({
+        mode: "url",
+        docUrl: "https://docs.temporal.io",
+        name: "Temporal",
+      });
+    });
+  });
+
+  describe("a legacy bare-name curriculum's prior research source", () => {
+    it("falls back to today's exact name-based retry", () => {
+      const result = resolveRetryResearchSource(
+        [{ kind: "web_research", value: "Temporal" }],
+        "Temporal",
+      );
+
+      expect(result).toEqual({ mode: "name", name: "Temporal" });
+    });
+  });
+
+  describe("no prior research source rows at all", () => {
+    it("falls back to name-based retry", () => {
+      expect(resolveRetryResearchSource([], "Temporal")).toEqual({
+        mode: "name",
+        name: "Temporal",
+      });
     });
   });
 });

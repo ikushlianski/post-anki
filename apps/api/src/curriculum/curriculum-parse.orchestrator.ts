@@ -1,11 +1,16 @@
-import type { SourceDraft } from "@post-anki/shared";
+import type { Level, SourceDraft } from "@post-anki/shared";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { curriculumPlanSchema, curriculumMergePlanSchema } from "./curriculum-plan.js";
 import { docResearchPlanSchema } from "./curriculum-research-plan.js";
 import { gatherTechResearchGrounding } from "./tech-research-grounding.js";
+import { gatherDocLinkGrounding } from "./doc-link-grounding.js";
 import { buildParsePrompt, buildMergePrompt, buildResearchPrompt } from "./curriculum-prompt.js";
-import { partitionModulesForMerge, filterOutLockedModules } from "./curriculum-rules.js";
+import {
+  partitionModulesForMerge,
+  filterOutLockedModules,
+  resolveRetryResearchSource,
+} from "./curriculum-rules.js";
 import { resolveSourceText } from "./source-fetch.js";
 import {
   addCurriculumSources,
@@ -101,22 +106,48 @@ export async function reparseCurriculum(curriculumId: string): Promise<void> {
   }
 }
 
+export interface ResearchCurriculumInput {
+  name: string;
+  docUrl?: string | null;
+}
+
 export async function researchCurriculum(
   curriculumId: string,
-  technologyName: string,
+  input: ResearchCurriculumInput,
+  preferredLevel?: Level | null,
 ): Promise<void> {
   try {
     const ctx = await getCurriculumPromptContext(curriculumId);
-    const grounding = await gatherTechResearchGrounding(technologyName);
+
+    const grounding = input.docUrl
+      ? await gatherDocLinkGrounding(input.docUrl, input.name)
+      : {
+          text: (await gatherTechResearchGrounding(input.name)).text,
+          kind: "web_research" as const,
+          title: `Auto-researched: ${input.name}`,
+        };
 
     // Recorded before the throw-prone synthesis call below: if synthesis
     // fails, this row must already exist so the curriculum still resolves
     // to research-origin and the "Retry research" (not "Re-parse sources")
-    // recovery banner renders on the failed curriculum.
-    await insertResearchSource(curriculumId, technologyName, grounding.text);
+    // recovery banner renders on the failed curriculum. `value` is always
+    // the original docUrl (never the sub-path actually fetched) so a later
+    // retry can tell a URL-driven curriculum apart from a legacy one.
+    await insertResearchSource(
+      curriculumId,
+      {
+        kind: grounding.kind,
+        value: input.docUrl ?? input.name,
+        title: grounding.title,
+      },
+      grounding.text,
+    );
 
     const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
-    const prompt = buildResearchPrompt(technologyName, grounding.text, ctx);
+    const prompt = buildResearchPrompt(input.name, grounding.text, ctx, {
+      groundingKind: grounding.kind,
+      preferredLevel,
+    });
 
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: docResearchPlanSchema },
@@ -126,7 +157,10 @@ export async function researchCurriculum(
       throw new Error("doc-research architect returned no structured plan");
     }
 
-    await saveCurriculumPlan(curriculumId, result.object, 0, { defaultIncluded: false });
+    await saveCurriculumPlan(curriculumId, result.object, 0, {
+      defaultIncluded: false,
+      preferredLevel,
+    });
     await setCurriculumStatus(curriculumId, "ready");
 
     log.info(
@@ -147,9 +181,25 @@ export async function retryResearch(curriculumId: string): Promise<void> {
       throw new Error("curriculum not found for retry research");
     }
 
+    const priorSourceRows = await getCurriculumSourceRows(curriculumId);
+    const resolved = resolveRetryResearchSource(
+      priorSourceRows
+        .filter((row) => row.kind === "web_research" || row.kind === "llms_txt")
+        .map((row) => ({ kind: row.kind, value: row.value })),
+      curriculum.name,
+    );
+
     await clearCurriculumStructure(curriculumId);
     await deleteResearchSources(curriculumId);
-    await researchCurriculum(curriculumId, curriculum.name);
+
+    // The chosen level from the original creation is not recovered on
+    // retry — the same accepted limitation as reparse already has for
+    // pasted-material curricula.
+    if (resolved.mode === "url") {
+      await researchCurriculum(curriculumId, { name: resolved.name, docUrl: resolved.docUrl });
+    } else {
+      await researchCurriculum(curriculumId, { name: resolved.name });
+    }
   } catch (err) {
     log.error({ err, curriculumId }, "curriculum_retry_research_failed");
     await setCurriculumStatus(curriculumId, "failed");

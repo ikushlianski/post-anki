@@ -114,4 +114,49 @@ describe("buildResearchPrompt", () => {
       expect(prompt).toContain("rely on your own knowledge");
     });
   });
+
+  describe("grounded via the site's own llms.txt", () => {
+    it("frames the grounding as the site's own curated map", () => {
+      const prompt = buildResearchPrompt(
+        "Temporal",
+        "# Temporal docs index...",
+        FULL_CONTEXT,
+        { groundingKind: "llms_txt" },
+      );
+
+      expect(prompt).toContain("site's own");
+    });
+  });
+
+  describe("grounded via anchored web search", () => {
+    it("does not claim the grounding is the site's own curated map", () => {
+      const prompt = buildResearchPrompt(
+        "Temporal",
+        "search results...",
+        FULL_CONTEXT,
+        { groundingKind: "web_research" },
+      );
+
+      expect(prompt).not.toContain("site's own");
+    });
+  });
+
+  describe("with a preferred level", () => {
+    it("tells the agent which tier the learner wants fuller treatment for", () => {
+      const prompt = buildResearchPrompt("Temporal", "grounding", FULL_CONTEXT, {
+        preferredLevel: "advanced",
+      });
+
+      expect(prompt).toContain("advanced");
+      expect(prompt.toLowerCase()).toContain("fuller");
+    });
+  });
+
+  describe("with no preferred level", () => {
+    it("does not mention a level preference", () => {
+      const prompt = buildResearchPrompt("Temporal", "grounding", FULL_CONTEXT);
+
+      expect(prompt.toLowerCase()).not.toContain("fuller");
+    });
+  });
 });

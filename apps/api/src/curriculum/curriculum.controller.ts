@@ -16,7 +16,11 @@ import {
   listCurricula,
   updateCurriculum,
 } from "./curriculum.repo.js";
-import { isResearchAndSourcesConflict, isSourceMandateUnmet } from "./curriculum-rules.js";
+import {
+  isDocUrlAndResearchTopicConflict,
+  isResearchAndSourcesConflict,
+  isSourceMandateUnmet,
+} from "./curriculum-rules.js";
 import {
   mergeSourcesIntoCurriculum,
   parseCurriculum,
@@ -45,6 +49,9 @@ export async function handleCreateCurriculum(
 
   const sources = body.data.sources ?? [];
   const researchTopic = body.data.researchTopic ?? null;
+  const docUrl = body.data.docUrl ?? null;
+  const preferredLevel = body.data.preferredLevel ?? null;
+  const researchTriggered = Boolean(researchTopic) || Boolean(docUrl);
   const subject = await getSubject(body.data.subjectId);
 
   if (!subject) {
@@ -52,18 +59,28 @@ export async function handleCreateCurriculum(
     return;
   }
 
-  if (isResearchAndSourcesConflict(researchTopic, sources.length)) {
+  if (isDocUrlAndResearchTopicConflict(docUrl, researchTopic)) {
+    sendError(
+      res,
+      400,
+      "doc_url_and_research_topic_conflict",
+      "a curriculum cannot be created with both a documentation URL and a legacy research topic",
+    );
+    return;
+  }
+
+  if (isResearchAndSourcesConflict(researchTriggered, sources.length)) {
     sendError(
       res,
       400,
       "research_and_sources_conflict",
-      "a curriculum cannot be created with both a research topic and pasted sources",
+      "a curriculum cannot be created with both research (a research topic or a documentation URL) and pasted sources",
     );
     return;
   }
 
   if (
-    !researchTopic &&
+    !researchTriggered &&
     isSourceMandateUnmet(subject.requireSources, sources.length)
   ) {
     sendError(
@@ -79,8 +96,16 @@ export async function handleCreateCurriculum(
 
   sendJson(res, 202, curriculum);
 
+  if (docUrl) {
+    void researchCurriculum(curriculum.id, { name: curriculum.name, docUrl }, preferredLevel).catch(
+      (err) => log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
+    );
+
+    return;
+  }
+
   if (researchTopic) {
-    void researchCurriculum(curriculum.id, researchTopic).catch((err) =>
+    void researchCurriculum(curriculum.id, { name: researchTopic }).catch((err) =>
       log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
     );
 

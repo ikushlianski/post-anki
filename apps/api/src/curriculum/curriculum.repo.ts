@@ -32,7 +32,11 @@ import {
   topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { resolveCurriculumOrigin, hasStudyableContent } from "./curriculum-rules.js";
+import {
+  resolveCurriculumOrigin,
+  hasStudyableContent,
+  shouldIncludeTopicByDefault,
+} from "./curriculum-rules.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
 
 interface PlanModule {
@@ -485,21 +489,27 @@ export async function saveCurriculumPlan(
   curriculumId: string,
   plan: CurriculumPlan | Plan,
   orderOffset = 0,
-  options?: { defaultIncluded?: boolean },
+  options?: { defaultIncluded?: boolean; preferredLevel?: Level | null },
 ): Promise<void> {
   const db = getDb();
   const defaultIncluded = options?.defaultIncluded ?? true;
+  const preferredLevel = options?.preferredLevel ?? null;
 
   for (const [moduleIndex, mod] of plan.modules.entries()) {
     const moduleId = newId("mod");
+    const moduleLevel = (mod as PlanModule).level ?? null;
 
     await db.insert(modules).values({
       id: moduleId,
       curriculumId,
       title: mod.title,
       order: orderOffset + moduleIndex + 1,
-      level: (mod as PlanModule).level ?? null,
+      level: moduleLevel,
     });
+
+    const included = preferredLevel
+      ? shouldIncludeTopicByDefault(moduleLevel, preferredLevel)
+      : defaultIncluded;
 
     for (const [topicIndex, top] of mod.topics.entries()) {
       await db.insert(topics).values({
@@ -510,15 +520,21 @@ export async function saveCurriculumPlan(
         summary: top.summary ?? null,
         order: topicIndex + 1,
         depth: top.suggestedDepth,
-        included: defaultIncluded,
+        included,
       });
     }
   }
 }
 
+export interface ResearchSourceInput {
+  kind: "web_research" | "llms_txt";
+  value: string;
+  title: string;
+}
+
 export async function insertResearchSource(
   curriculumId: string,
-  technologyName: string,
+  source: ResearchSourceInput,
   groundingText: string,
 ): Promise<void> {
   await getDb()
@@ -526,17 +542,24 @@ export async function insertResearchSource(
     .values({
       id: newId("src"),
       curriculumId,
-      kind: "web_research",
-      value: technologyName,
-      title: `Auto-researched: ${technologyName}`,
+      kind: source.kind,
+      value: source.value,
+      title: source.title,
       fetchedText: groundingText,
     });
 }
 
+const RESEARCH_ORIGIN_SOURCE_KINDS = ["web_research", "llms_txt"] as const;
+
 export async function deleteResearchSources(curriculumId: string): Promise<void> {
   await getDb()
     .delete(sources)
-    .where(and(eq(sources.curriculumId, curriculumId), eq(sources.kind, "web_research")));
+    .where(
+      and(
+        eq(sources.curriculumId, curriculumId),
+        inArray(sources.kind, [...RESEARCH_ORIGIN_SOURCE_KINDS]),
+      ),
+    );
 }
 
 export async function getCurriculumDetail(

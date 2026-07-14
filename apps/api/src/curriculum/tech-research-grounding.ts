@@ -30,12 +30,17 @@ function restModel(): string {
 
 export async function gatherTechResearchGrounding(
   technologyName: string,
+  siteHost?: string,
 ): Promise<TechResearchGrounding> {
   const env = loadEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
+    const searchInstruction = siteHost
+      ? `Search site:${siteHost} for current, authoritative information about the technology: ${technologyName}. Restrict results to that site.`
+      : `Search the web for current, authoritative information about the technology: ${technologyName}.`;
+
     const res = await fetch(ENDPOINT, {
       method: "POST",
       signal: controller.signal,
@@ -50,7 +55,7 @@ export async function gatherTechResearchGrounding(
           {
             role: "user",
             content: [
-              `Search the web for current, authoritative information about the technology: ${technologyName}.`,
+              searchInstruction,
               `Return concise grounding notes covering: current version and recent API/behavior changes,`,
               `canonical terminology, core concepts a learner would need at a basic/medium/advanced tier,`,
               `and common pitfalls. Favour judgment over syntax.`,

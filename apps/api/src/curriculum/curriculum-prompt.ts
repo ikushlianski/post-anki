@@ -87,21 +87,42 @@ export function buildMergePrompt(
   ].join("\n");
 }
 
+export type ResearchGroundingKind = "llms_txt" | "web_research";
+
+export interface BuildResearchPromptOptions {
+  groundingKind?: ResearchGroundingKind;
+  preferredLevel?: string | null;
+}
+
 export function buildResearchPrompt(
   technologyName: string,
   groundingText: string,
   ctx?: PromptContext | null,
+  options?: BuildResearchPromptOptions,
 ): string {
   const header = ctx ? contextHeader(ctx) : [`Technology: ${technologyName}`];
+  const groundingIntro =
+    options?.groundingKind === "llms_txt"
+      ? "This is the site's own published map of its documentation (llms.txt / llms-full.txt) — treat it as the primary, authoritative outline of what this technology covers:"
+      : "Web research gathered on this technology (current version numbers, recent API changes, canonical terminology, common pitfalls):";
 
-  return [
+  const lines = [
     ...header,
     "",
-    "Web research gathered on this technology (current version numbers, recent API changes, canonical terminology, common pitfalls):",
+    groundingIntro,
     groundingText.length > 0
       ? groundingText
       : "(the web search returned nothing usable — rely on your own knowledge of this technology)",
     "",
     "Combine this grounding with your own trained knowledge of the technology to propose a full learning map, organized as modules tiered basic/medium/advanced.",
-  ].join("\n");
+  ];
+
+  if (options?.preferredLevel) {
+    lines.push(
+      "",
+      `The learner most wants to study the "${options.preferredLevel}" tier right now — give that tier fuller treatment (more modules/topics) than the others, without leaving the other tiers empty.`,
+    );
+  }
+
+  return lines.join("\n");
 }

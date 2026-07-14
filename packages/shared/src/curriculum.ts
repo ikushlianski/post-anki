@@ -5,6 +5,14 @@ import { curriculumProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
 import { speedSchema } from "./adaptive";
 import { depthLevelSchema } from "./depth";
+import { levelSchema } from "./level";
+
+const docUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "docUrl must be an absolute http(s) URL",
+  });
 
 export const curriculumStatusSchema = z.enum([
   "draft",
@@ -41,6 +49,8 @@ export const createCurriculumInput = z.object({
   description: z.string().optional(),
   sources: z.array(sourceDraftSchema).default([]),
   researchTopic: z.string().min(1).nullable().optional(),
+  docUrl: docUrlSchema.nullable().optional(),
+  preferredLevel: levelSchema.nullable().optional(),
 });
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>;
