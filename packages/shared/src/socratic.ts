@@ -13,6 +13,8 @@ export const socraticActionSchema = z.enum([
   "point_out",
   "explain_hint",
   "give_answer",
+  "move_on",
+  "retry",
 ]);
 
 export type SocraticAction = z.infer<typeof socraticActionSchema>;
@@ -61,7 +63,7 @@ export type AnswerSocraticInput = z.infer<typeof answerSocraticInput>;
 
 export const answerSocraticResultSchema = z.object({
   action: socraticActionSchema,
-  degree: socraticDegreeSchema,
+  degree: socraticDegreeSchema.nullable(),
   feedback: z.string(),
   conceptLabel: z.string(),
   covered: z.boolean(),
@@ -76,6 +78,7 @@ export type AnswerSocraticResult = z.infer<typeof answerSocraticResultSchema>;
 
 export const socraticEvalSchema = z.object({
   degree: socraticDegreeSchema,
+  whatWasRight: z.string(),
   pointOut: z.string(),
   explanation: z.string(),
   correctAnswer: z.string(),
