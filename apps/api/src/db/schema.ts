@@ -44,6 +44,7 @@ export const modules = pgTable("modules", {
   title: text("title").notNull(),
   order: integer("order").notNull(),
   learningStatus: text("learning_status").notNull().default("not_started"),
+  level: text("level"),
 });
 
 export const topics = pgTable("topics", {
