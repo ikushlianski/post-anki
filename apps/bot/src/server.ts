@@ -12,6 +12,7 @@ import { getChatContext, clearChatContext } from "./session/chat-context.repo.js
 import { handleCallback } from "./nav/dispatcher.js";
 import { showSubjects, sendScreen } from "./nav/menu.js";
 import { answerSocratic } from "./socratic/socratic-flow.js";
+import { startStudy } from "./conversation/study-flow.js";
 import type { ChatContextLike } from "./telegram/webhook.handler.js";
 
 const SECRET_HEADER = "x-telegram-bot-api-secret-token";
@@ -106,6 +107,9 @@ function main() {
           text: string,
         ) => {
           await answerSocratic(chatId, context, text);
+        },
+        onStudy: async (chatId: number, name: string | null) => {
+          await startStudy(chatId, name);
         },
       }).catch((err) => log.error({ err }, "handler_failed"));
     });

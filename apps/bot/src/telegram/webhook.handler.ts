@@ -43,6 +43,7 @@ export type HandlerDeps = {
   ) => Promise<void>;
   onQuizText?: (chatId: number) => Promise<void>;
   clearChatContext?: (chatId: number) => Promise<void>;
+  onStudy?: (chatId: number, name: string | null) => Promise<void>;
 };
 
 export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<void> {
@@ -99,6 +100,16 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
   const started = Date.now();
 
   try {
+    if (decision.kind === "study") {
+      if (deps.onStudy) {
+        await deps.onStudy(chatId, decision.name);
+      } else {
+        await sendMessage(chatId, DECLINE_REPLY);
+      }
+
+      return;
+    }
+
     if (decision.kind === "today") {
       if (deps.clearChatContext) {
         await deps.clearChatContext(chatId);

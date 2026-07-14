@@ -7,6 +7,7 @@ import {
   getSubjects,
 } from "../api/client.js";
 import { getChatContext } from "../session/chat-context.repo.js";
+import { levelBadgeLabel } from "./level-badge.js";
 
 async function requireNavCurriculum(chatId: number): Promise<string> {
   const context = await getChatContext(chatId);
@@ -83,9 +84,12 @@ export async function showCurriculum(curriculumId: string): Promise<Screen> {
   const rows: InlineKeyboard = [];
 
   detail.modules.forEach((m: Module) => {
+    const badge = levelBadgeLabel(m.level);
+    const label = badge ? `${badge} ${m.title}` : m.title;
+
     rows.push([
       {
-        text: `${m.title} · ${formatProgressLabel(m.progress.percent)}`,
+        text: `${label} · ${formatProgressLabel(m.progress.percent)}`,
         callback_data: buildCallback("module", m.id),
       },
     ]);
@@ -143,8 +147,11 @@ export async function showModule(
     { text: "⬅️ Back", callback_data: buildCallback("curriculum", curriculumId) },
   ]);
 
+  const moduleBadge = levelBadgeLabel(mod.level);
+  const moduleHeader = moduleBadge ? `${moduleBadge} ${mod.title}` : mod.title;
+
   return {
-    text: `${mod.title} · ${formatProgressLabel(mod.progress.percent)}`,
+    text: `${moduleHeader} · ${formatProgressLabel(mod.progress.percent)}`,
     keyboard: rows,
   };
 }

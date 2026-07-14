@@ -186,6 +186,48 @@ describe("handleUpdate", () => {
     expect(flow.getDailyPush).toHaveBeenCalledOnce();
   });
 
+  it("/study <name> hands off to onStudy with the parsed name", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onStudy = onStudy;
+    await handleUpdate(update({ text: "/study Temporal" }), deps);
+    expect(onStudy).toHaveBeenCalledWith(OWNER, "Temporal");
+    expect(flow.getDailyPush).not.toHaveBeenCalled();
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("bare /study hands off to onStudy with a null name", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onStudy = onStudy;
+    await handleUpdate(update({ text: "/study" }), deps);
+    expect(onStudy).toHaveBeenCalledWith(OWNER, null);
+  });
+
+  it("/study runs even mid-socratic session, without touching the socratic handler", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    const onSocraticText = vi.fn().mockResolvedValue(undefined);
+    deps.onStudy = onStudy;
+    deps.onSocraticText = onSocraticText;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "/study Temporal" }), deps);
+    expect(onStudy).toHaveBeenCalledWith(OWNER, "Temporal");
+    expect(onSocraticText).not.toHaveBeenCalled();
+  });
+
   it("dispatches callback queries to onCallback", async () => {
     const flow = makeFlow();
     const deps = makeDeps(flow);

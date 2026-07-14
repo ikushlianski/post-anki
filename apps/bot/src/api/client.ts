@@ -11,6 +11,8 @@ import type {
   SocraticSession,
   Subject,
 } from "@post-anki/shared";
+
+const QUICK_STUDIES_SUBJECT_NAME = "Quick Studies";
 import type { SubmitAnswerInput } from "../conversation/flow-types.js";
 import { loadEnv } from "../env.js";
 
@@ -93,6 +95,35 @@ export function getCurricula(subjectId: string): Promise<Curriculum[]> {
 
 export function getCurriculumDetail(id: string): Promise<CurriculumDetail> {
   return apiFetch<CurriculumDetail>(`/curricula/${encodeURIComponent(id)}`);
+}
+
+export async function getOrCreateQuickStudiesSubject(): Promise<Subject> {
+  const subjects = await getSubjects();
+  const existing = subjects.find((s) => s.name === QUICK_STUDIES_SUBJECT_NAME);
+
+  if (existing) {
+    return existing;
+  }
+
+  return apiFetch<Subject>("/subjects", {
+    method: "POST",
+    body: { name: QUICK_STUDIES_SUBJECT_NAME },
+  });
+}
+
+export async function createStudyCurriculum(
+  subjectId: string,
+  technologyName: string,
+): Promise<void> {
+  await apiFetch<Curriculum>("/curricula", {
+    method: "POST",
+    body: {
+      subjectId,
+      name: technologyName,
+      sources: [],
+      researchTopic: technologyName,
+    },
+  });
 }
 
 export function prepareProbeSession(input: {
