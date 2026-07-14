@@ -18,6 +18,26 @@ export function deriveQuizOutcome(
   return selectedIndex === correctAnswerIndex ? "pass" : "fail";
 }
 
+export function deriveMultiQuizOutcome(
+  selected: number[],
+  correct: number[],
+): ProbeOutcome {
+  const selectedSet = new Set(selected);
+  const correctSet = new Set(correct);
+
+  if (selectedSet.size !== correctSet.size) {
+    return "fail";
+  }
+
+  for (const index of selectedSet) {
+    if (!correctSet.has(index)) {
+      return "fail";
+    }
+  }
+
+  return "pass";
+}
+
 export function deriveSessionProgress(
   questions: ProbeSessionQuestion[],
 ): ProbeSessionProgress {

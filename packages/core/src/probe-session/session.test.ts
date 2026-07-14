@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { ProbeSessionQuestion } from "@post-anki/shared";
 import {
+  deriveMultiQuizOutcome,
   deriveQuizOutcome,
   deriveSessionProgress,
   nextUnansweredQuestion,
@@ -30,6 +31,28 @@ describe("deriveQuizOutcome", () => {
 
   it("fails when the chosen option differs from the stored answer", () => {
     expect(deriveQuizOutcome(0, 2)).toBe("fail");
+  });
+});
+
+describe("deriveMultiQuizOutcome", () => {
+  it("passes when the selected set exactly matches the correct set, order-independent", () => {
+    expect(deriveMultiQuizOutcome([2, 0], [0, 2])).toBe("pass");
+  });
+
+  it("fails when the learner selects only a subset of the correct answers", () => {
+    expect(deriveMultiQuizOutcome([0], [0, 2])).toBe("fail");
+  });
+
+  it("fails when the learner includes an extra wrong option alongside the correct ones", () => {
+    expect(deriveMultiQuizOutcome([0, 1, 2], [0, 2])).toBe("fail");
+  });
+
+  it("fails when nothing was selected but there are correct answers", () => {
+    expect(deriveMultiQuizOutcome([], [0, 2])).toBe("fail");
+  });
+
+  it("passes when there are no correct answers and nothing was selected", () => {
+    expect(deriveMultiQuizOutcome([], [])).toBe("pass");
   });
 });
 
