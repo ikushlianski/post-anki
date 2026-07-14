@@ -57,7 +57,7 @@ export default defineConfig({
     {
       command: 'npm run start -w @post-anki/api',
       cwd: repoRoot,
-      url: `http://localhost:${apiPort}/healthz`,
+      url: `http://localhost:${apiPort}/_healthz`,
       timeout: 60_000,
       reuseExistingServer: !process.env.CI,
       env: {

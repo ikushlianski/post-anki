@@ -100,6 +100,7 @@ function ModeToggle({
         params={{ topicId }}
         search={{ mode: 'socratic', curriculumId }}
         className={`${base} ${mode === 'socratic' ? on : off}`}
+        data-testid="mode-toggle-socratic"
       >
         Socratic
       </Link>
@@ -108,6 +109,7 @@ function ModeToggle({
         params={{ topicId }}
         search={{ mode: 'quick_test', curriculumId }}
         className={`${base} ${mode === 'quick_test' ? on : off}`}
+        data-testid="mode-toggle-quick-test"
       >
         Quick test
       </Link>
