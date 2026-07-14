@@ -1,8 +1,9 @@
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
+import { startTracingSpan } from "../mastra/mastra.js";
 import { getCurriculumGroundingText } from "../curriculum/curriculum.repo.js";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const TIMEOUT_MS = 45_000;
 const MAX_RESULTS = 4;
 const MAX_CHARS = 8_000;
@@ -64,11 +65,14 @@ async function webGround(
   focus: string,
 ): Promise<{ text: string; citations: string[] }> {
   const env = loadEnv();
+  const model = restModel();
+  const endpoint = `${env.OPENROUTER_BASE_URL ?? DEFAULT_BASE_URL}/chat/completions`;
+  const span = startTracingSpan("probe.web_grounding", { topicTitle, focus, model });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(endpoint, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -76,7 +80,7 @@ async function webGround(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: restModel(),
+        model,
         tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
         messages: [
           {
@@ -94,6 +98,8 @@ async function webGround(
 
     if (!res.ok) {
       log.warn({ status: res.status, focus }, "probe_web_ground_http_error");
+      span?.end({ output: { outcome: "http_error", status: res.status } });
+
       return { text: "", citations: [] };
     }
 
@@ -105,9 +111,18 @@ async function webGround(
       log.warn({ focus, error: data.error?.message }, "probe_web_ground_empty");
     }
 
-    return { text: truncate(body), citations: collectCitations(message?.annotations) };
+    const text = truncate(body);
+    const citations = collectCitations(message?.annotations);
+
+    span?.end({
+      output: { outcome: body.length === 0 ? "empty" : "ok", chars: text.length, citations: citations.length },
+    });
+
+    return { text, citations };
   } catch (err) {
     log.warn({ err, focus }, "probe_web_ground_failed");
+    span?.error({ error: err instanceof Error ? err : new Error(String(err)) });
+
     return { text: "", citations: [] };
   } finally {
     clearTimeout(timer);

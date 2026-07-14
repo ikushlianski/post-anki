@@ -437,6 +437,7 @@ function mapProbeQuestion(
     kind: question.kind,
     prompt: question.prompt,
     options: question.options,
+    correctAnswerIndex: question.correctAnswerIndex ?? undefined,
     sources: question.sources,
   }
 }
@@ -462,6 +463,7 @@ export async function submitProbe(input: {
   gapId: string | null
   mode: QuestionKind
   answer: string
+  selfOutcome?: 'pass' | 'fail'
 }): Promise<AttemptResult | null> {
   try {
     const result = await request<be.ProbeResult>(

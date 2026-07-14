@@ -16,16 +16,25 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev": "bash scripts/dev.sh",
+    "dev:apps": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:web": "npm run dev -w @post-anki/web",
     "dev:api": "npm run dev -w @post-anki/api",
     "dev:bot": "npm run dev -w @post-anki/bot",
+    "dev:pw": "bash e2e/scripts/run.sh",
+    "db:dev:up": "docker compose up -d",
+    "db:dev:down": "docker compose down",
+    "e2e:db:up": "docker compose -f e2e/docker-compose.yml up -d",
+    "e2e:db:down": "docker compose -f e2e/docker-compose.yml down",
     "db:generate:api": "npm run db:generate -w @post-anki/api",
     "db:migrate:api": "npm run db:migrate -w @post-anki/api",
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
     "db:migrate:bot": "npm run db:migrate -w @post-anki/bot"
   },
   "devDependencies": {
-    "concurrently": "^10.0.3"
+    "@playwright/test": "^1.60.0",
+    "@types/pg": "^8.20.0",
+    "concurrently": "^10.0.3",
+    "pg": "^8.21.0"
   }
 }

@@ -8,6 +8,13 @@
       "when": 1780400137260,
       "tag": "0000_round_wolfsbane",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782770096298,
+      "tag": "0001_hot_the_liberteens",
+      "breakpoints": true
     }
   ]
 }

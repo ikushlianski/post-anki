@@ -109,6 +109,7 @@ export function ModuleSection({
             editable={editable}
             topicOrder={topicOrder}
             moduleId={module.id}
+            curriculumId={curriculumId}
             allModules={allModules}
           />
         ))}

@@ -10,6 +10,7 @@ export const probeQuestionSchema = z.object({
   prompt: z.string(),
   options: z.array(z.string()).optional(),
   sources: z.array(z.string()).optional(),
+  correctAnswerIndex: z.number().int().nullable().optional(),
 });
 
 export type ProbeQuestion = z.infer<typeof probeQuestionSchema>;
@@ -26,6 +27,7 @@ export const submitProbeInput = z.object({
   gapId: z.string().nullable(),
   mode: questionKindSchema,
   answer: z.string(),
+  selfOutcome: z.enum(["pass", "fail"]).optional(),
 });
 
 export type SubmitProbeInput = z.infer<typeof submitProbeInput>;

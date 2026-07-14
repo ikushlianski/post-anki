@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { useSuspenseQuery } from '@tanstack/react-query'
 
 import type { Source } from '../curriculum/model'
-import { createModule, getCurriculum } from '../curriculum/curriculum.api'
+import { createModule } from '../curriculum/curriculum.api'
+import { curriculumDetailQuery } from '../curriculum/curriculum.queries'
 import { AddSourcesForm } from '../curriculum/add-sources-form'
 import {
   ConfirmBar,
@@ -16,11 +18,15 @@ import { AdaptiveSettings } from '../curriculum/adaptive-settings'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
-  loader: ({ params }) => getCurriculum({ data: params.curriculumId }),
+  loader: ({ params, context }) =>
+    context.queryClient.ensureQueryData(
+      curriculumDetailQuery(params.curriculumId),
+    ),
 })
 
 function CurriculumPage() {
-  const detail = Route.useLoaderData()
+  const { curriculumId } = Route.useParams()
+  const { data: detail } = useSuspenseQuery(curriculumDetailQuery(curriculumId))
 
   if (!detail) {
     return (

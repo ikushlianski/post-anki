@@ -1,21 +1,20 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 
 import {
   DEPTH_ORDER,
   type Concern,
   type Depth,
   type Gap,
-  type QuestionKind,
   type SelfGrade as SelfGradeValue,
   type Topic,
   type TopicProgressStatus,
 } from './model'
-import { curateGap, declareGap, setTopicState } from './curriculum.api'
+import { declareGap, setTopicState } from './curriculum.api'
+import { useCurateGap, useToggleTopicIncluded } from './curriculum.mutations'
 import { CONCERN_LABEL, CONCERN_OPTIONS } from './concern-labels'
 import { SelfGrade } from './self-grade'
-import { ProbePanel } from './probe-panel'
 import { TopicShapeBar } from './topic-shape-bar'
 import { InlineRename } from './shape-controls'
 import { DepthSlider } from './depth-slider'
@@ -43,6 +42,7 @@ export function TopicRow({
   editable,
   topicOrder,
   moduleId,
+  curriculumId,
   allModules,
 }: {
   topic: Topic
@@ -51,15 +51,16 @@ export function TopicRow({
   editable: boolean
   topicOrder: string[]
   moduleId: string
+  curriculumId: string
   allModules: { id: string; title: string }[]
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
-  const [probe, setProbe] = useState<QuestionKind | null>(null)
+  const toggleIncludedMutation = useToggleTopicIncluded(curriculumId)
+  const included = topic.included
 
   async function patch(data: {
     title?: string
-    included?: boolean
     selfGrade?: SelfGradeValue | null
     targetDepth?: Depth
   }) {
@@ -69,10 +70,14 @@ export function TopicRow({
     await router.invalidate()
   }
 
+  function toggleIncluded() {
+    toggleIncludedMutation.mutate({ topicId: topic.id, included: !included })
+  }
+
   return (
     <article
       className={`rounded-lg border p-4 ${
-        topic.included
+        included
           ? recommended
             ? 'border-neutral-900 bg-white'
             : 'border-neutral-200 bg-white'
@@ -93,7 +98,7 @@ export function TopicRow({
                 topic.title
               )}
             </h4>
-            {recommended && topic.included ? (
+            {recommended && included ? (
               <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
                 Suggested next
               </span>
@@ -102,7 +107,7 @@ export function TopicRow({
           {topic.summary ? (
             <p className="mt-0.5 text-sm text-neutral-500">{topic.summary}</p>
           ) : null}
-          {topic.included ? (
+          {included ? (
             <div className="mt-2 flex items-center gap-2">
               <span
                 className={`rounded-full px-2 py-0.5 text-xs ${STATUS_CLASS[topic.progress.status]}`}
@@ -121,15 +126,14 @@ export function TopicRow({
         </div>
         <button
           type="button"
-          onClick={() => patch({ included: !topic.included })}
-          disabled={busy}
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 ${
-            topic.included
+          onClick={toggleIncluded}
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+            included
               ? 'bg-neutral-900 text-white'
               : 'bg-neutral-200 text-neutral-600'
           }`}
         >
-          {topic.included ? 'Included' : 'Skipped'}
+          {included ? 'Included' : 'Skipped'}
         </button>
       </div>
 
@@ -142,7 +146,7 @@ export function TopicRow({
         />
       ) : null}
 
-      {topic.included ? (
+      {included ? (
         <div className="mt-3 space-y-4">
           <div>
             <span className="text-xs text-neutral-400">
@@ -176,60 +180,57 @@ export function TopicRow({
             </p>
           ) : null}
 
-          <GapChecklist topic={topic} />
+          <GapChecklist topic={topic} curriculumId={curriculumId} />
 
           {canProbe ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-neutral-400">Poke me:</span>
-              <button
-                type="button"
-                onClick={() => setProbe((p) => (p === 'socratic' ? null : 'socratic'))}
-                className={probeButtonClass(probe === 'socratic')}
+              <Link
+                to="/probe/$topicId"
+                params={{ topicId: topic.id }}
+                search={{ mode: 'socratic', curriculumId }}
+                className={probeButtonClass(false)}
               >
-                Socratic question
-              </button>
-              <button
-                type="button"
-                onClick={() => setProbe((p) => (p === 'quick_test' ? null : 'quick_test'))}
-                className={probeButtonClass(probe === 'quick_test')}
+                Socratic question →
+              </Link>
+              <Link
+                to="/probe/$topicId"
+                params={{ topicId: topic.id }}
+                search={{ mode: 'quick_test', curriculumId }}
+                className={probeButtonClass(false)}
               >
-                Quick test
-              </button>
+                Quick test →
+              </Link>
             </div>
           ) : (
             <p className="text-xs text-neutral-400">
               Confirm the curriculum to start probing this topic.
             </p>
           )}
-
-          {canProbe && probe ? (
-            <ProbePanel
-              key={probe}
-              topicId={topic.id}
-              mode={probe}
-              onClose={() => setProbe(null)}
-            />
-          ) : null}
         </div>
       ) : null}
     </article>
   )
 }
 
-function GapChecklist({ topic }: { topic: Topic }) {
+function GapChecklist({
+  topic,
+  curriculumId,
+}: {
+  topic: Topic
+  curriculumId: string
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [label, setLabel] = useState('')
   const [concern, setConcern] = useState<Concern | ''>('')
+  const curateGapMutation = useCurateGap(curriculumId)
 
-  async function curate(
+  function curate(
     gapId: string,
     data: { status?: 'skipped'; wanted?: boolean },
   ) {
-    setBusy(true)
-    await curateGap({ data: { gapId, ...data } })
-    setBusy(false)
-    await router.invalidate()
+    curateGapMutation.mutate({ gapId, ...data })
   }
 
   async function addGap(event: FormEvent) {

@@ -34,6 +34,15 @@ import {
   handleStartProbe,
   handleSubmitProbe,
 } from "./probe/probe.controller.js";
+import {
+  handleActiveProbeSession,
+  handleAnswerProbeSession,
+  handlePrepareProbeSession,
+} from "./probe-session/probe-session.controller.js";
+import {
+  handleAnswerSocratic,
+  handleStartSocratic,
+} from "./socratic/socratic.controller.js";
 import { handleCurateGap, handleDeclareGap } from "./gap/gap.controller.js";
 import { handleDailyPush } from "./push/push.controller.js";
 import { handleDecide } from "./decide/decide.controller.js";
@@ -43,6 +52,8 @@ import {
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
 import { resolveRoute } from "./router.js";
+import { flushTracing } from "./mastra/mastra.js";
+import { closeDb } from "./db/client.js";
 
 const env = loadEnv();
 
@@ -59,7 +70,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   const path = url.pathname;
 
-  if (method === "GET" && path === "/healthz") {
+  if (method === "GET" && path === "/_healthz") {
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -139,6 +150,20 @@ async function route(
       return handleStartProbe(req, res, id);
     case "submitProbe":
       return handleSubmitProbe(req, res, id);
+    case "prepareProbeSession":
+      return handlePrepareProbeSession(req, res);
+    case "activeProbeSession":
+      return handleActiveProbeSession(
+        res,
+        url.searchParams.get("scope"),
+        url.searchParams.get("scopeId"),
+      );
+    case "answerProbeSession":
+      return handleAnswerProbeSession(req, res, id);
+    case "startSocratic":
+      return handleStartSocratic(req, res);
+    case "answerSocratic":
+      return handleAnswerSocratic(req, res, id);
     case "declareGap":
       return handleDeclareGap(req, res);
     case "curateGap":
@@ -159,3 +184,21 @@ async function route(
 server.listen(env.PORT, () => {
   log.info({ port: env.PORT }, "api_listening");
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  log.info({ signal }, "api_shutting_down");
+  server.close();
+  await flushTracing();
+  await closeDb();
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

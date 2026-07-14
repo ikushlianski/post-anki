@@ -6,6 +6,7 @@ import {
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
+import { getSubject } from "../subject/subject.repo.js";
 import {
   confirmCurriculum,
   createCurriculum,
@@ -15,6 +16,7 @@ import {
   listCurricula,
   updateCurriculum,
 } from "./curriculum.repo.js";
+import { isSourceMandateUnmet } from "./curriculum-rules.js";
 import {
   mergeSourcesIntoCurriculum,
   parseCurriculum,
@@ -40,11 +42,28 @@ export async function handleCreateCurriculum(
   }
 
   const sources = body.data.sources ?? [];
+  const subject = await getSubject(body.data.subjectId);
+
+  if (!subject) {
+    sendError(res, 404, "subject_not_found");
+    return;
+  }
+
+  if (isSourceMandateUnmet(subject.requireSources, sources.length)) {
+    sendError(
+      res,
+      400,
+      "sources_required",
+      "this subject requires at least one source for every curriculum",
+    );
+    return;
+  }
+
   const curriculum = await createCurriculum({ ...body.data, sources });
 
   sendJson(res, 202, curriculum);
 
-  void parseCurriculum(curriculum.id, curriculum.name).catch((err) =>
+  void parseCurriculum(curriculum.id).catch((err) =>
     log.error({ err, curriculumId: curriculum.id }, "parse_dispatch_failed"),
   );
 }
@@ -125,8 +144,8 @@ export async function handleAddSources(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void mergeSourcesIntoCurriculum(curriculumId, curriculum.name, body.data.sources).catch(
-    (err) => log.error({ err, curriculumId }, "merge_dispatch_failed"),
+  void mergeSourcesIntoCurriculum(curriculumId, body.data.sources).catch((err) =>
+    log.error({ err, curriculumId }, "merge_dispatch_failed"),
   );
 }
 
@@ -148,7 +167,7 @@ export async function handleReparse(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void reparseCurriculum(curriculumId, curriculum.name).catch((err) =>
+  void reparseCurriculum(curriculumId).catch((err) =>
     log.error({ err, curriculumId }, "reparse_dispatch_failed"),
   );
 }

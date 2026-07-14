@@ -15,9 +15,12 @@ export function SubjectSection({
   curricula: Curriculum[]
 }) {
   return (
-    <section>
+    <section data-testid="subject-card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h2 className="min-w-0 truncate text-lg font-medium tracking-tight">
+        <h2
+          data-testid="subject-name"
+          className="min-w-0 truncate text-lg font-medium tracking-tight"
+        >
           {subject.name}
         </h2>
         <DeleteSubjectButton
@@ -48,7 +51,10 @@ export function SubjectSection({
         )}
       </ul>
 
-      <CreateCurriculumForm subjectId={subject.id} />
+      <CreateCurriculumForm
+        subjectId={subject.id}
+        requireSources={subject.requireSources}
+      />
     </section>
   )
 }

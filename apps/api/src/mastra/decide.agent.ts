@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
+import { resolveAgentModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You are a senior architect helping a peer pressure-test a real architectural decision.",
@@ -26,6 +27,6 @@ export function createDecideAgent(): Agent {
     id: "decide",
     name: "Decision Mentor",
     instructions: INSTRUCTIONS,
-    model: env.CURRICULUM_MODEL,
+    model: resolveAgentModel(env),
   });
 }
