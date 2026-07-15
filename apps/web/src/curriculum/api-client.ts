@@ -720,6 +720,37 @@ export async function askStudyChat(input: {
   }
 }
 
+export async function getCurriculumStats(
+  curriculumId: string,
+): Promise<be.CurriculumStats | null> {
+  try {
+    return await request<be.CurriculumStats>(`/curricula/${curriculumId}/stats`)
+  } catch {
+    return null
+  }
+}
+
+export async function generateRecommendations(
+  curriculumId: string,
+): Promise<be.GenerateRecommendationsResult | null> {
+  try {
+    return await request<be.GenerateRecommendationsResult>(
+      `/curricula/${curriculumId}/stats/recommendations`,
+      { method: 'POST' },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function getStreak(): Promise<be.Streak | null> {
+  try {
+    return await request<be.Streak>('/streak')
+  } catch {
+    return null
+  }
+}
+
 export async function getAdminSettings(): Promise<be.AdminSettings> {
   return request<be.AdminSettings>('/admin/settings')
 }

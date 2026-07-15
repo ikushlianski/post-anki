@@ -74,6 +74,14 @@ function CurriculumPage() {
               🔎 Researched
             </span>
           ) : null}
+          <Link
+            to="/curriculum/$curriculumId/stats"
+            params={{ curriculumId: curriculum.id }}
+            data-testid="stats-page-link"
+            className="ml-auto text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+          >
+            View stats
+          </Link>
         </div>
         {curriculum.description ? (
           <p className="mt-1 text-sm text-neutral-500">
