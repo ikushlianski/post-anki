@@ -20,6 +20,8 @@ export type RouteName =
   | "updateTopic"
   | "deleteTopic"
   | "listTopicGaps"
+  | "addModuleComment"
+  | "addTopicComment"
   | "startProbe"
   | "submitProbe"
   | "prepareProbeSession"
@@ -66,7 +68,9 @@ const ROUTES: RouteDef[] = [
   { method: "POST", pattern: /^\/modules\/([^/]+)\/topics$/, name: "createTopic", param: "id" },
   { method: "PATCH", pattern: /^\/modules\/([^/]+)$/, name: "updateModule", param: "id" },
   { method: "DELETE", pattern: /^\/modules\/([^/]+)$/, name: "deleteModule", param: "id" },
+  { method: "POST", pattern: /^\/modules\/([^/]+)\/comments$/, name: "addModuleComment", param: "id" },
   { method: "GET", pattern: /^\/topics\/([^/]+)\/gaps$/, name: "listTopicGaps", param: "id" },
+  { method: "POST", pattern: /^\/topics\/([^/]+)\/comments$/, name: "addTopicComment", param: "id" },
   { method: "POST", pattern: /^\/topics\/([^/]+)\/probe\/answer$/, name: "submitProbe", param: "id" },
   { method: "POST", pattern: /^\/topics\/([^/]+)\/probe$/, name: "startProbe", param: "id" },
   { method: "GET", pattern: "/probe-sessions/active", name: "activeProbeSession" },

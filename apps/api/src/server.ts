@@ -32,6 +32,10 @@ import {
   handleUpdateTopic,
 } from "./topic/topic.controller.js";
 import {
+  handleAddModuleComment,
+  handleAddTopicComment,
+} from "./node-feedback/node-feedback.controller.js";
+import {
   handleStartProbe,
   handleSubmitProbe,
 } from "./probe/probe.controller.js";
@@ -149,6 +153,10 @@ async function route(
       return handleDeleteTopic(res, id);
     case "listTopicGaps":
       return handleListTopicGaps(res, id);
+    case "addModuleComment":
+      return handleAddModuleComment(req, res, id);
+    case "addTopicComment":
+      return handleAddTopicComment(req, res, id);
     case "startProbe":
       return handleStartProbe(req, res, id);
     case "submitProbe":
