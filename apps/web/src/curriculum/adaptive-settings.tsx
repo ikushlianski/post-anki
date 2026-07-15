@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 
 import type { Curriculum, Depth, Speed } from './model'
 import { updateCurriculumSettings } from './curriculum.api'
+import { curriculumDetailQuery } from './curriculum.queries'
 import { DepthSlider } from './depth-slider'
 
 const SPEEDS: Speed[] = ['slow', 'normal', 'fast']
@@ -21,6 +23,7 @@ const DEPTH_LABEL: Record<Depth, string> = {
 
 export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -35,6 +38,9 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
       data: { curriculumId: curriculum.id, ...patch },
     })
     setBusy(false)
+    await queryClient.invalidateQueries({
+      queryKey: curriculumDetailQuery(curriculum.id).queryKey,
+    })
     await router.invalidate()
   }
 
