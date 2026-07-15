@@ -28,6 +28,7 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
     speed?: Speed
     hinting?: boolean
     defaultDepth?: Depth
+    strictOrder?: boolean
   }) {
     setBusy(true)
     await updateCurriculumSettings({
@@ -114,6 +115,26 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
           onChange={(defaultDepth) => update({ defaultDepth })}
           disabled={busy}
         />
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-xs text-neutral-400">
+          Strict document order — display follows the source documentation's
+          sequence; promotions and demotions are still recorded but won't
+          reorder topics while this is on
+        </p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => update({ strictOrder: !curriculum.strictOrder })}
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 ${
+            curriculum.strictOrder
+              ? 'bg-amber-600 text-white'
+              : 'bg-neutral-200 text-neutral-600'
+          }`}
+        >
+          {curriculum.strictOrder ? 'On' : 'Off'}
+        </button>
       </div>
     </div>
   )

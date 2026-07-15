@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
+import type { Priority } from './model'
+
 export function moveInOrder(
   ids: string[],
   id: string,
@@ -56,6 +58,60 @@ export function ReorderButtons({
       >
         ▼
       </button>
+    </span>
+  )
+}
+
+export function PromoteDemoteButtons({
+  priority,
+  busy,
+  onToggle,
+}: {
+  priority: Priority
+  busy: boolean
+  onToggle: (direction: 'up' | 'down') => void
+}) {
+  return (
+    <span className="flex flex-col leading-none">
+      <button
+        type="button"
+        aria-label="Promote"
+        title="Promote"
+        disabled={busy}
+        onClick={() => onToggle('up')}
+        className={`text-[10px] disabled:opacity-30 ${
+          priority === 1
+            ? 'font-bold text-emerald-600'
+            : 'text-neutral-400 hover:text-neutral-800'
+        }`}
+      >
+        ▲
+      </button>
+      <button
+        type="button"
+        aria-label="Demote"
+        title="Demote"
+        disabled={busy}
+        onClick={() => onToggle('down')}
+        className={`text-[10px] disabled:opacity-30 ${
+          priority === -1
+            ? 'font-bold text-red-500'
+            : 'text-neutral-400 hover:text-neutral-800'
+        }`}
+      >
+        ▼
+      </button>
+    </span>
+  )
+}
+
+export function StrictOrderNote() {
+  return (
+    <span
+      className="text-[10px] text-amber-600"
+      title="This curriculum follows the documentation's own sequence. Promotions and demotions are still recorded, but won't reorder topics until you turn strict order off."
+    >
+      strict order — promotions won't reorder until you turn this off
     </span>
   )
 }

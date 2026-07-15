@@ -121,6 +121,7 @@ function mapTopic(topic: be.Topic): Topic {
     title: topic.title,
     summary: topic.summary,
     order: topic.order,
+    priority: topic.priority,
     included: topic.included,
     selfGrade: topic.selfGrade as Topic['selfGrade'],
     targetDepth: mapDepth(topic.depth),
@@ -136,6 +137,7 @@ function mapModule(module: be.Module): Module {
     curriculumId: module.curriculumId,
     title: module.title,
     order: module.order,
+    priority: module.priority,
     learningStatus: module.learningStatus,
     level: module.level,
     topics: module.topics.map(mapTopic),
@@ -163,6 +165,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     hinting: curriculum.hinting,
     defaultDepth: mapDepth(curriculum.defaultDepth),
     origin: curriculum.origin,
+    strictOrder: curriculum.strictOrder,
   }
 }
 
@@ -242,6 +245,7 @@ export async function updateCurriculumSettings(input: {
   speed?: Speed
   hinting?: boolean
   defaultDepth?: Depth
+  strictOrder?: boolean
 }): Promise<Curriculum> {
   const body: Record<string, unknown> = {}
 
@@ -255,6 +259,10 @@ export async function updateCurriculumSettings(input: {
 
   if (input.defaultDepth !== undefined) {
     body.defaultDepth = DEPTH_TO_BE[input.defaultDepth]
+  }
+
+  if (input.strictOrder !== undefined) {
+    body.strictOrder = input.strictOrder
   }
 
   const updated = await request<be.Curriculum>(`/curricula/${input.curriculumId}`, {
@@ -314,6 +322,7 @@ export async function updateTopic(input: {
   summary?: string | null
   moduleId?: string
   order?: number
+  priority?: Topic['priority']
   included?: boolean
   selfGrade?: number | null
   targetDepth?: Depth
@@ -335,6 +344,10 @@ export async function updateTopic(input: {
 
   if (input.order !== undefined) {
     body.order = input.order
+  }
+
+  if (input.priority !== undefined) {
+    body.priority = input.priority
   }
 
   if (input.included !== undefined) {
@@ -370,6 +383,7 @@ export async function updateModule(input: {
   moduleId: string
   title?: string
   order?: number
+  priority?: Module['priority']
 }): Promise<void> {
   const body: Record<string, unknown> = {}
 
@@ -381,7 +395,31 @@ export async function updateModule(input: {
     body.order = input.order
   }
 
+  if (input.priority !== undefined) {
+    body.priority = input.priority
+  }
+
   await request(`/modules/${input.moduleId}`, { method: 'PATCH', body })
+}
+
+export async function addModuleComment(
+  moduleId: string,
+  comment: string,
+): Promise<void> {
+  await request(`/modules/${moduleId}/comments`, {
+    method: 'POST',
+    body: { comment },
+  })
+}
+
+export async function addTopicComment(
+  topicId: string,
+  comment: string,
+): Promise<void> {
+  await request(`/topics/${topicId}/comments`, {
+    method: 'POST',
+    body: { comment },
+  })
 }
 
 export async function deleteModule(moduleId: string): Promise<void> {

@@ -46,6 +46,10 @@ export const curriculumOriginSchema = z.enum(['sources', 'research'])
 
 export type CurriculumOrigin = z.infer<typeof curriculumOriginSchema>
 
+export const prioritySchema = z.union([z.literal(-1), z.literal(0), z.literal(1)])
+
+export type Priority = z.infer<typeof prioritySchema>
+
 export const curriculumSchema = z.object({
   id: z.string(),
   subjectId: z.string(),
@@ -57,6 +61,7 @@ export const curriculumSchema = z.object({
   hinting: z.boolean(),
   defaultDepth: depthSchema,
   origin: curriculumOriginSchema,
+  strictOrder: z.boolean(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
@@ -198,6 +203,7 @@ export const topicSchema = z.object({
   title: z.string(),
   summary: z.string().optional(),
   order: z.number().int(),
+  priority: prioritySchema,
   included: z.boolean(),
   selfGrade: selfGradeSchema.nullable(),
   targetDepth: depthSchema,
@@ -221,6 +227,7 @@ export const moduleSchema = z.object({
   curriculumId: z.string(),
   title: z.string(),
   order: z.number().int(),
+  priority: prioritySchema,
   learningStatus: learningStatusSchema,
   level: levelSchema.nullable(),
   topics: z.array(topicSchema),
@@ -283,6 +290,7 @@ export const updateTopicInput = z.object({
   summary: z.string().nullable().optional(),
   moduleId: z.string().optional(),
   order: z.number().int().optional(),
+  priority: prioritySchema.optional(),
   included: z.boolean().optional(),
   selfGrade: selfGradeSchema.nullable().optional(),
   targetDepth: depthSchema.optional(),
@@ -309,6 +317,7 @@ export const updateModuleInput = z.object({
   moduleId: z.string(),
   title: z.string().min(1).optional(),
   order: z.number().int().optional(),
+  priority: prioritySchema.optional(),
   learningStatus: learningStatusSchema.optional(),
 })
 
@@ -342,6 +351,7 @@ export const updateAdaptiveInput = z.object({
   speed: speedSchema.optional(),
   hinting: z.boolean().optional(),
   defaultDepth: depthSchema.optional(),
+  strictOrder: z.boolean().optional(),
 })
 
 export type UpdateAdaptiveInput = z.infer<typeof updateAdaptiveInput>
@@ -411,6 +421,20 @@ export type DailyPushResult = {
   push: DailyPush | null
   question: Question | null
 }
+
+export const addModuleCommentInput = z.object({
+  moduleId: z.string(),
+  comment: z.string().min(1),
+})
+
+export type AddModuleCommentInput = z.infer<typeof addModuleCommentInput>
+
+export const addTopicCommentInput = z.object({
+  topicId: z.string(),
+  comment: z.string().min(1),
+})
+
+export type AddTopicCommentInput = z.infer<typeof addTopicCommentInput>
 
 export const decideInput = z.object({
   decision: z.string().min(1),

@@ -149,6 +149,7 @@ function CurriculumPage() {
                   curriculumId={curriculum.id}
                   moduleOrder={moduleOrder}
                   allModules={allModules}
+                  strictOrder={curriculum.strictOrder}
                 />
               ))}
             </div>

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import type { CurriculumDetail, Gap, GapStatus, Topic } from './model'
-import { curateGap, setTopicState } from './curriculum.api'
+import type { CurriculumDetail, Gap, GapStatus, Module, Priority, Topic } from './model'
+import { curateGap, setTopicState, updateModule } from './curriculum.api'
 import { curriculumDetailQuery } from './curriculum.queries'
 
 type Detail = CurriculumDetail
@@ -19,6 +19,19 @@ function patchTopic(
         topic.id === topicId ? fn(topic) : topic,
       ),
     })),
+  }
+}
+
+function patchModule(
+  detail: Detail,
+  moduleId: string,
+  fn: (module: Module) => Module,
+): Detail {
+  return {
+    ...detail,
+    modules: detail.modules.map((module) =>
+      module.id === moduleId ? fn(module) : module,
+    ),
   }
 }
 
@@ -59,6 +72,76 @@ export function useToggleTopicIncluded(curriculumId: string) {
           patchTopic(prev, vars.topicId, (topic) => ({
             ...topic,
             included: vars.included,
+          })),
+        )
+      }
+
+      return { prev }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(queryKey, context.prev)
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey })
+    },
+  })
+}
+
+export function usePromoteDemoteTopic(curriculumId: string) {
+  const queryClient = useQueryClient()
+  const queryKey = curriculumDetailQuery(curriculumId).queryKey
+
+  return useMutation({
+    mutationFn: (vars: { topicId: string; priority: Priority }) =>
+      setTopicState({ data: { topicId: vars.topicId, priority: vars.priority } }),
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey })
+
+      const prev = queryClient.getQueryData<Detail | null>(queryKey)
+
+      if (prev) {
+        queryClient.setQueryData<Detail | null>(
+          queryKey,
+          patchTopic(prev, vars.topicId, (topic) => ({
+            ...topic,
+            priority: vars.priority,
+          })),
+        )
+      }
+
+      return { prev }
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(queryKey, context.prev)
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey })
+    },
+  })
+}
+
+export function usePromoteDemoteModule(curriculumId: string) {
+  const queryClient = useQueryClient()
+  const queryKey = curriculumDetailQuery(curriculumId).queryKey
+
+  return useMutation({
+    mutationFn: (vars: { moduleId: string; priority: Priority }) =>
+      updateModule({ data: { moduleId: vars.moduleId, priority: vars.priority } }),
+    onMutate: async (vars) => {
+      await queryClient.cancelQueries({ queryKey })
+
+      const prev = queryClient.getQueryData<Detail | null>(queryKey)
+
+      if (prev) {
+        queryClient.setQueryData<Detail | null>(
+          queryKey,
+          patchModule(prev, vars.moduleId, (module) => ({
+            ...module,
+            priority: vars.priority,
           })),
         )
       }

@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
+import { nextPriority } from '@post-anki/core'
 
 import type { Module } from './model'
 import { levelBadgeLabel } from './level-badge'
 import { ProgressBar } from './progress-bar'
 import { TopicRow } from './topic-row'
+import { NodeCommentControl } from './node-comment-control'
+import { usePromoteDemoteModule } from './curriculum.mutations'
 import {
+  addModuleComment,
   createTopic,
   deleteModule,
   reorderModules,
@@ -15,7 +19,9 @@ import {
   AddInline,
   ConfirmDelete,
   InlineRename,
+  PromoteDemoteButtons,
   ReorderButtons,
+  StrictOrderNote,
   moveInOrder,
 } from './shape-controls'
 
@@ -27,6 +33,7 @@ export function ModuleSection({
   curriculumId,
   moduleOrder,
   allModules,
+  strictOrder,
 }: {
   module: Module
   recommendedTopicId: string | null
@@ -35,11 +42,13 @@ export function ModuleSection({
   curriculumId: string
   moduleOrder: string[]
   allModules: { id: string; title: string }[]
+  strictOrder: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const index = moduleOrder.indexOf(module.id)
   const topicOrder = module.topics.map((topic) => topic.id)
+  const promoteDemoteMutation = usePromoteDemoteModule(curriculumId)
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true)
@@ -69,6 +78,18 @@ export function ModuleSection({
               }
             />
           ) : null}
+          {editable ? (
+            <PromoteDemoteButtons
+              priority={module.priority}
+              busy={promoteDemoteMutation.isPending}
+              onToggle={(direction) =>
+                promoteDemoteMutation.mutate({
+                  moduleId: module.id,
+                  priority: nextPriority(module.priority, direction),
+                })
+              }
+            />
+          ) : null}
           <h3 className="text-base font-semibold tracking-tight">
             {editable ? (
               <InlineRename
@@ -87,6 +108,7 @@ export function ModuleSection({
               {levelBadgeLabel(module.level)}
             </span>
           ) : null}
+          {editable && strictOrder ? <StrictOrderNote /> : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-400">
@@ -103,6 +125,17 @@ export function ModuleSection({
         </div>
       </div>
 
+      {editable ? (
+        <div className="mb-3">
+          <NodeCommentControl
+            busy={busy}
+            onSubmit={(comment) =>
+              run(() => addModuleComment({ data: { moduleId: module.id, comment } }))
+            }
+          />
+        </div>
+      ) : null}
+
       <ProgressBar percent={module.progress.percent} />
 
       <div className="mt-4 space-y-3">
@@ -117,6 +150,7 @@ export function ModuleSection({
             moduleId={module.id}
             curriculumId={curriculumId}
             allModules={allModules}
+            strictOrder={strictOrder}
           />
         ))}
         {module.topics.length === 0 ? (

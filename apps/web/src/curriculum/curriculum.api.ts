@@ -2,7 +2,9 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
 import {
+  addModuleCommentInput,
   addSourcesInput,
+  addTopicCommentInput,
   createCurriculumInput,
   createModuleInput,
   createTopicInput,
@@ -105,6 +107,22 @@ export const setTopicState = createServerFn({ method: 'POST' })
     return null
   })
 
+export const addModuleComment = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => addModuleCommentInput.parse(data))
+  .handler(async ({ data }) => {
+    await api.addModuleComment(data.moduleId, data.comment)
+
+    return null
+  })
+
+export const addTopicComment = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => addTopicCommentInput.parse(data))
+  .handler(async ({ data }) => {
+    await api.addTopicComment(data.topicId, data.comment)
+
+    return null
+  })
+
 export const setModuleStatus = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => setModuleStatusInput.parse(data))
   .handler(async ({ data }) => {
@@ -128,6 +146,7 @@ export const updateModule = createServerFn({ method: 'POST' })
       moduleId: data.moduleId,
       title: data.title,
       order: data.order,
+      priority: data.priority,
     })
 
     return null
@@ -191,6 +210,7 @@ export const updateCurriculumSettings = createServerFn({ method: 'POST' })
       speed: data.speed,
       hinting: data.hinting,
       defaultDepth: data.defaultDepth,
+      strictOrder: data.strictOrder,
     }),
   )
 

@@ -11,12 +11,13 @@ import {
   type Topic,
   type TopicProgressStatus,
 } from './model'
-import { declareGap, setTopicState } from './curriculum.api'
+import { addTopicComment, declareGap, setTopicState } from './curriculum.api'
 import { useCurateGap, useToggleTopicIncluded } from './curriculum.mutations'
 import { CONCERN_LABEL, CONCERN_OPTIONS } from './concern-labels'
 import { SelfGrade } from './self-grade'
 import { TopicShapeBar } from './topic-shape-bar'
-import { InlineRename } from './shape-controls'
+import { InlineRename, StrictOrderNote } from './shape-controls'
+import { NodeCommentControl } from './node-comment-control'
 import { DepthSlider } from './depth-slider'
 
 const STATUS_LABEL: Record<TopicProgressStatus, string> = {
@@ -44,6 +45,7 @@ export function TopicRow({
   moduleId,
   curriculumId,
   allModules,
+  strictOrder,
 }: {
   topic: Topic
   recommended: boolean
@@ -53,6 +55,7 @@ export function TopicRow({
   moduleId: string
   curriculumId: string
   allModules: { id: string; title: string }[]
+  strictOrder: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -66,6 +69,13 @@ export function TopicRow({
   }) {
     setBusy(true)
     await setTopicState({ data: { topicId: topic.id, ...data } })
+    setBusy(false)
+    await router.invalidate()
+  }
+
+  async function submitComment(comment: string) {
+    setBusy(true)
+    await addTopicComment({ data: { topicId: topic.id, comment } })
     setBusy(false)
     await router.invalidate()
   }
@@ -103,6 +113,7 @@ export function TopicRow({
                 Suggested next
               </span>
             ) : null}
+            {editable && strictOrder ? <StrictOrderNote /> : null}
           </div>
           {topic.summary ? (
             <p className="mt-0.5 text-sm text-neutral-500">{topic.summary}</p>
@@ -142,8 +153,15 @@ export function TopicRow({
           topic={topic}
           topicOrder={topicOrder}
           moduleId={moduleId}
+          curriculumId={curriculumId}
           allModules={allModules}
         />
+      ) : null}
+
+      {editable ? (
+        <div className="mt-2">
+          <NodeCommentControl busy={busy} onSubmit={submitComment} />
+        </div>
       ) : null}
 
       {included ? (
