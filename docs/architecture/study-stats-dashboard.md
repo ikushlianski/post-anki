@@ -2,7 +2,7 @@
 type: architecture
 branch: study-stats-dashboard
 task: Per-curriculum stats page, next-step recommendation, and streaks
-state: confirmed
+state: shipped
 updated: 2026-07-15
 ---
 # Architecture: Study stats dashboard
@@ -68,6 +68,56 @@ to one curriculum — it belongs on `/dashboard` (the app's daily landing surfac
 banner using the existing loader pattern (`getTree()` already runs there; the streak fetch is
 a second, parallel, cheap read added to that same loader), not on the new per-curriculum stats
 page.
+
+## Flow
+
+```mermaid
+sequenceDiagram
+    participant Learner
+    participant WebUI as Stats/Dashboard page
+    participant StatsAPI as stats.controller
+    participant StatsSvc as stats.service
+    participant StatsRepo as stats.repo
+    participant CurrRepo as curriculum.repo
+    participant Core as core derivers
+    participant Search as probe-grounding.webSearch
+    participant StreakSvc as streak.service
+    participant StreakRepo as streak.repo
+
+    Learner->>WebUI: open curriculum stats page
+    WebUI->>StatsAPI: GET curricula/id/stats
+    StatsAPI->>StatsSvc: getCurriculumStats(curriculumId)
+    StatsSvc->>StatsRepo: getCurriculumDetail + weak/strong
+    StatsSvc->>CurrRepo: getLearningMapSnapshots()
+    StatsSvc->>Core: nextStepRecommendation(snapshots, topicId)
+    Core-->>StatsSvc: next-level or different-topic suggestion
+    StatsSvc-->>StatsAPI: weak spots, strong points, cached recs, next step
+    StatsAPI-->>WebUI: 200 curriculum stats
+
+    Learner->>WebUI: click Get recommendations
+    WebUI->>StatsAPI: POST stats/recommendations
+    StatsAPI->>StatsSvc: generateRecommendations(curriculumId, now)
+    StatsSvc->>Search: webSearch(prompt, spanName)
+    Search-->>StatsSvc: text plus real citation urls or failure
+    StatsSvc->>StatsRepo: saveRecommendation(topicId, text, citations)
+    StatsSvc-->>WebUI: recommendations or failed state
+
+    Note over Search: same OpenRouter web_search call proven by quiz grounding, reused for a new purpose
+
+    Learner->>WebUI: answer a quiz or Socratic turn
+    WebUI->>StreakSvc: answerProbeSession/answerSocraticSession grading completes
+    StreakSvc->>StreakRepo: readOrCreateStreak()
+    StreakSvc->>Core: updateStreak(lastActiveDate, today, streaks)
+    Core-->>StreakSvc: updated current and longest streak
+    StreakSvc->>StreakRepo: writeStreak(next)
+
+    Learner->>WebUI: open dashboard next
+    WebUI->>StreakSvc: GET streak
+    StreakSvc-->>WebUI: current and longest streak
+    WebUI-->>Learner: streak banner rendered alongside study tree
+```
+
+![architecture diagram](./assets/study-stats-dashboard.png)
 
 ## New infrastructure
 
