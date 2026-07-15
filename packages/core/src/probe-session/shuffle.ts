@@ -17,6 +17,10 @@ export function reindexOptions(
   return { options: newOptions, correctIndexes: newCorrectIndexes };
 }
 
+export function reindexParallelArray<T>(items: T[], permutation: number[]): T[] {
+  return permutation.map((originalIndex) => items[originalIndex]!);
+}
+
 export function randomPermutation(length: number): number[] {
   const indexes = Array.from({ length }, (_, i) => i);
 
