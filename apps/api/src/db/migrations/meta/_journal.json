@@ -64,6 +64,13 @@
       "when": 1784069717471,
       "tag": "0008_silky_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784075747551,
+      "tag": "0009_steep_wiccan",
+      "breakpoints": true
     }
   ]
 }

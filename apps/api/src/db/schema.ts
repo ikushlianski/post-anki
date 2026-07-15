@@ -25,6 +25,7 @@ export const curricula = pgTable("curricula", {
   speed: text("speed").notNull().default("normal"),
   hinting: boolean("hinting").notNull().default(true),
   defaultDepth: text("default_depth").notNull().default("working"),
+  strictOrder: boolean("strict_order").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -43,6 +44,7 @@ export const modules = pgTable("modules", {
   curriculumId: text("curriculum_id").notNull(),
   title: text("title").notNull(),
   order: integer("order").notNull(),
+  priority: integer("priority").notNull().default(0),
   learningStatus: text("learning_status").notNull().default("not_started"),
   level: text("level"),
 });
@@ -54,6 +56,7 @@ export const topics = pgTable("topics", {
   title: text("title").notNull(),
   summary: text("summary"),
   order: integer("order").notNull(),
+  priority: integer("priority").notNull().default(0),
   included: boolean("included").notNull().default(true),
   selfGrade: integer("self_grade"),
   depth: text("depth").notNull().default("working"),
@@ -139,4 +142,12 @@ export const socraticTurns = pgTable("socratic_turns", {
   action: text("action"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
+});
+
+export const nodeFeedback = pgTable("node_feedback", {
+  id: text("id").primaryKey(),
+  nodeType: text("node_type").notNull(),
+  nodeId: text("node_id").notNull(),
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
