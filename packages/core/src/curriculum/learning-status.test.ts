@@ -12,6 +12,7 @@ function topic(id: string, learningStatus: LearningStatus, included = true): Top
     moduleId: "m",
     title: "T",
     order: 1,
+    priority: 0,
     included,
     selfGrade: null,
     depth: "working",
@@ -73,8 +74,8 @@ describe("moduleLearningStatus", () => {
 describe("curriculumLearningStatus", () => {
   it("rolls module statuses into one curriculum-level headline", () => {
     const modules: Module[] = [
-      { id: "m1", curriculumId: "c", title: "M1", order: 1, learningStatus: "done", level: null, topics: [], progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 } },
-      { id: "m2", curriculumId: "c", title: "M2", order: 2, learningStatus: "probing", level: null, topics: [], progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 } },
+      { id: "m1", curriculumId: "c", title: "M1", order: 1, priority: 0, learningStatus: "done", level: null, topics: [], progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 } },
+      { id: "m2", curriculumId: "c", title: "M2", order: 2, priority: 0, learningStatus: "probing", level: null, topics: [], progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 } },
     ];
 
     expect(curriculumLearningStatus(modules)).toBe("probing");
