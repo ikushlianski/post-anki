@@ -39,6 +39,7 @@ export const curriculumSchema = z.object({
   hinting: z.boolean(),
   defaultDepth: depthLevelSchema,
   origin: curriculumOriginSchema,
+  strictOrder: z.boolean(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -68,6 +69,7 @@ export const updateCurriculumInput = z.object({
   speed: speedSchema.optional(),
   hinting: z.boolean().optional(),
   defaultDepth: depthLevelSchema.optional(),
+  strictOrder: z.boolean().optional(),
 });
 
 export type UpdateCurriculumInput = z.infer<typeof updateCurriculumInput>;

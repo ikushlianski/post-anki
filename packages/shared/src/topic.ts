@@ -4,6 +4,7 @@ import { topicProgressSchema } from "./progress";
 import { depthLevelSchema } from "./depth";
 import { learningStatusSchema } from "./learning-status";
 import { gapSchema } from "./gap";
+import { prioritySchema } from "./priority";
 
 export const selfGradeSchema = z.number().int().min(1).max(5);
 
@@ -15,6 +16,7 @@ export const topicSchema = z.object({
   title: z.string(),
   summary: z.string().optional(),
   order: z.number().int(),
+  priority: prioritySchema,
   included: z.boolean(),
   selfGrade: selfGradeSchema.nullable(),
   depth: depthLevelSchema,
@@ -41,6 +43,7 @@ export const updateTopicInput = z.object({
   summary: z.string().nullable().optional(),
   moduleId: z.string().optional(),
   order: z.number().int().optional(),
+  priority: prioritySchema.optional(),
   included: z.boolean().optional(),
   selfGrade: selfGradeSchema.nullable().optional(),
   depth: depthLevelSchema.optional(),

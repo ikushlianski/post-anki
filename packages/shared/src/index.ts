@@ -19,3 +19,4 @@ export * from "./socratic";
 export * from "./daily-push";
 export * from "./decide";
 export * from "./admin-settings";
+export * from "./priority";

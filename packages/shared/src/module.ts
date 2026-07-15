@@ -3,12 +3,14 @@ import { topicSchema } from "./topic";
 import { moduleProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
 import { levelSchema } from "./level";
+import { prioritySchema } from "./priority";
 
 export const moduleSchema = z.object({
   id: z.string(),
   curriculumId: z.string(),
   title: z.string(),
   order: z.number().int(),
+  priority: prioritySchema,
   learningStatus: learningStatusSchema,
   level: levelSchema.nullable(),
   topics: z.array(topicSchema),
@@ -34,6 +36,7 @@ export const updateModuleInput = z.object({
   moduleId: z.string(),
   title: z.string().min(1).optional(),
   order: z.number().int().optional(),
+  priority: prioritySchema.optional(),
   learningStatus: learningStatusSchema.optional(),
 });
 
