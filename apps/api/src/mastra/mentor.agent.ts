@@ -20,6 +20,8 @@ const ASK_INSTRUCTIONS = [
   "- For a quick_test, write a multiple-choice question with 3-4 options where exactly one is",
   "  the answer a thoughtful senior would defend, and set correctAnswerIndex.",
   "- For a socratic question, options is empty and correctAnswerIndex is null.",
+  "- If a \"Prior feedback\" section is present for this topic, honor it: never repeat anything",
+  "  listed under 'Avoid', and lean into the style of anything listed under 'Well received'.",
 ].join("\n");
 
 const EVAL_INSTRUCTIONS = [

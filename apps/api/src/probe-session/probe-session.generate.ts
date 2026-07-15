@@ -4,16 +4,19 @@ import {
   type ProbeScope,
 } from "@post-anki/shared";
 import {
+  buildFeedbackDigest,
   planModuleQuizDistribution,
   sanitizeOptionExplanations,
   scaleTopicQuizTotal,
   selectQuizDifficultyMix,
+  selectRecentFeedback,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
 import { getCurriculumSourceRows } from "../curriculum/curriculum.repo.js";
+import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
 import type { ScopeContext } from "./probe-session.repo.js";
 import { normalize } from "./probe-session.map.js";
 
@@ -85,6 +88,7 @@ function topicBlock(
   topicTitle: string,
   summary: string | null,
   gapLabels: string[],
+  feedbackDigest: string | null,
 ): string {
   return [
     `Topic: ${topicTitle}`,
@@ -94,6 +98,7 @@ function topicBlock(
           .map((l) => `- ${l}`)
           .join("\n")}`
       : "No concept list yet — infer the core concepts of this topic.",
+    feedbackDigest ?? "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -127,6 +132,7 @@ async function buildPrompt(
   scope: ProbeScope,
   ctx: ScopeContext,
   gapsByTopic: Map<string, string[]>,
+  feedbackByTopic: Map<string, string | null>,
   total: number,
   grounding: string,
   allowMultiSelect: boolean,
@@ -151,7 +157,12 @@ async function buildPrompt(
     return [
       header,
       "",
-      topicBlock(topic.title, topic.summary, gapsByTopic.get(topic.id) ?? []),
+      topicBlock(
+        topic.title,
+        topic.summary,
+        gapsByTopic.get(topic.id) ?? [],
+        feedbackByTopic.get(topic.id) ?? null,
+      ),
       `Set topicTitle to "${topic.title}" on every question.`,
       grounding
         ? `\nGround the questions in this material (prefer it over general knowledge):\n${grounding}`
@@ -171,7 +182,12 @@ async function buildPrompt(
     .map((t) => {
       const count = countByTopicId.get(t.id) ?? 1;
 
-      return `${topicBlock(t.title, t.summary, gapsByTopic.get(t.id) ?? [])}\nAsk about ${count} question(s) for this topic; set topicTitle to "${t.title}".`;
+      return `${topicBlock(
+        t.title,
+        t.summary,
+        gapsByTopic.get(t.id) ?? [],
+        feedbackByTopic.get(t.id) ?? null,
+      )}\nAsk about ${count} question(s) for this topic; set topicTitle to "${t.title}".`;
     })
     .join("\n\n");
 
@@ -199,13 +215,15 @@ export async function generateProbeBatch(
   ctx: ScopeContext,
   allowMultiSelect = false,
 ): Promise<GeneratedBatch> {
-  const gapLists = await Promise.all(
-    ctx.topics.map((t) => listGapsForTopic(t.id)),
-  );
+  const [gapLists, feedbackLists] = await Promise.all([
+    Promise.all(ctx.topics.map((t) => listGapsForTopic(t.id))),
+    Promise.all(ctx.topics.map((t) => getFeedbackForTopic(t.id))),
+  ]);
 
   const gapsByTopic = new Map<string, string[]>();
   const gapIdByKey = new Map<string, string>();
   const topicIdByTitle = new Map<string, string>();
+  const feedbackByTopic = new Map<string, string | null>();
 
   ctx.topics.forEach((t, i) => {
     topicIdByTitle.set(normalize(t.title), t.id);
@@ -217,6 +235,7 @@ export async function generateProbeBatch(
     usable.forEach((g) => {
       gapIdByKey.set(`${t.id}::${normalize(g.label)}`, g.id);
     });
+    feedbackByTopic.set(t.id, buildFeedbackDigest(selectRecentFeedback(feedbackLists[i]!)));
   });
 
   const total = targetTotal(scope, ctx, gapsByTopic.get(ctx.topics[0]?.id ?? "")?.length ?? 0);
@@ -237,6 +256,7 @@ export async function generateProbeBatch(
     scope,
     ctx,
     gapsByTopic,
+    feedbackByTopic,
     total,
     grounding.text,
     allowMultiSelect,

@@ -5,6 +5,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
@@ -154,3 +155,19 @@ export const nodeFeedback = pgTable("node_feedback", {
   comment: text("comment").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const studyItemFeedback = pgTable(
+  "study_item_feedback",
+  {
+    id: text("id").primaryKey(),
+    itemType: text("item_type").notNull(),
+    itemId: text("item_id").notNull(),
+    topicId: text("topic_id"),
+    itemText: text("item_text").notNull(),
+    rating: text("rating").notNull(),
+    comment: text("comment"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("study_item_feedback_item_unique").on(table.itemType, table.itemId)],
+);

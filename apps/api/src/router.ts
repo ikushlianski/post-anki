@@ -35,7 +35,9 @@ export type RouteName =
   | "decide"
   | "crossCutting"
   | "getAdminSettings"
-  | "updateAdminSettings";
+  | "updateAdminSettings"
+  | "submitProbeQuestionFeedback"
+  | "submitSocraticTurnFeedback";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -87,6 +89,18 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/cross-cutting", name: "crossCutting" },
   { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
   { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },
+  {
+    method: "POST",
+    pattern: /^\/probe-session-questions\/([^/]+)\/feedback$/,
+    name: "submitProbeQuestionFeedback",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/socratic-turns\/([^/]+)\/feedback$/,
+    name: "submitSocraticTurnFeedback",
+    param: "id",
+  },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {

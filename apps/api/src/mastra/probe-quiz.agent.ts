@@ -37,6 +37,8 @@ const INSTRUCTIONS = [
   "  otherwise. NEVER invent a URL, NEVER paraphrase or modify one from the allowlist, and NEVER",
   "  cite a URL that isn't on that exact list — a missing citation (null) is always preferred",
   "  over a fabricated or guessed one.",
+  "- If a \"Prior feedback\" section is present for a topic, honor it: never repeat anything",
+  "  listed under 'Avoid', and lean into the style of anything listed under 'Well received'.",
 ].join("\n");
 
 export function createProbeQuizAgent(): Agent {

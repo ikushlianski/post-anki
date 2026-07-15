@@ -42,6 +42,10 @@ vi.mock("./probe-grounding.js", () => ({
   gatherProbeGrounding: vi.fn(async () => ({ text: "", citations: [] })),
 }));
 
+vi.mock("../feedback/feedback.repo.js", () => ({
+  getFeedbackForTopic: vi.fn(async () => []),
+}));
+
 vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));

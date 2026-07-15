@@ -10,9 +10,11 @@ import {
 } from "@post-anki/shared";
 import {
   applyGapVerdicts,
+  buildFeedbackDigest,
   nextGapToProbe,
   openGaps,
   progressFromGaps,
+  selectRecentFeedback,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
@@ -28,6 +30,7 @@ import {
   persistGaps,
 } from "../gap/gap.repo.js";
 import { getCurriculumContextForTopic } from "../curriculum/curriculum.repo.js";
+import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
 import { localEvaluation, shouldScoreLocally } from "./probe-evaluation.js";
@@ -219,6 +222,9 @@ async function generateQuestion(
         "what they do and do not yet grasp.",
       ];
 
+  const feedbackRows = await getFeedbackForTopic(topic.id);
+  const feedbackDigest = buildFeedbackDigest(selectRecentFeedback(feedbackRows));
+
   const prompt = [
     `Topic: ${topic.title}`,
     topic.summary ? `Why it matters: ${topic.summary}` : "",
@@ -230,6 +236,7 @@ async function generateQuestion(
     ask.grounding
       ? `Ground the question in this material (prefer it over general knowledge):\n${ask.grounding}`
       : "",
+    feedbackDigest ?? "",
     `Question kind: ${mode}`,
   ]
     .filter(Boolean)

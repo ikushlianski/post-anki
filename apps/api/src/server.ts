@@ -56,6 +56,10 @@ import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
+import {
+  handleSubmitProbeQuestionFeedback,
+  handleSubmitSocraticTurnFeedback,
+} from "./feedback/feedback.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -189,6 +193,10 @@ async function route(
       return handleGetAdminSettings(res);
     case "updateAdminSettings":
       return handleUpdateAdminSettings(req, res);
+    case "submitProbeQuestionFeedback":
+      return handleSubmitProbeQuestionFeedback(req, res, id);
+    case "submitSocraticTurnFeedback":
+      return handleSubmitSocraticTurnFeedback(req, res, id);
   }
 }
 

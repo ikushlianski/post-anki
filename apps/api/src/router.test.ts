@@ -50,6 +50,17 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/curricula/c1/modules")?.name).toBe("createModule");
       expect(resolveRoute("PATCH", "/curricula/c1/modules/order")?.name).toBe("reorderModules");
     });
+
+    it("captures the item id on both feedback sub-resource routes", () => {
+      expect(resolveRoute("POST", "/probe-session-questions/q1/feedback")).toEqual({
+        name: "submitProbeQuestionFeedback",
+        params: { id: "q1" },
+      });
+      expect(resolveRoute("POST", "/socratic-turns/t1/feedback")).toEqual({
+        name: "submitSocraticTurnFeedback",
+        params: { id: "t1" },
+      });
+    });
   });
 
   describe("misses", () => {
