@@ -35,4 +35,10 @@ echo "▸ migrating schema into the local e2e DB…"
 npm run db:migrate -w @post-anki/api
 
 echo "▸ running Playwright (it boots the e2e api + web on :$E2E_API_PORT / :$E2E_WEB_PORT)…"
-npx playwright test -c e2e/playwright.config.ts "$@"
+VERIFICATION_REPO="${VERIFICATION_REPO:-/Users/ikushlianski/work/verification-repo}"
+# Invoke verification-repo's OWN installed @playwright/test binary (not `npx
+# playwright`, which would resolve this repo's local copy by cwd) — the test
+# files and the config both live in verification-repo and import its copy of
+# @playwright/test, so the runner process must be that same copy or Playwright
+# refuses to run ("two different versions of @playwright/test").
+"$VERIFICATION_REPO/node_modules/.bin/playwright" test -c "$VERIFICATION_REPO/playwright.post-anki.config.ts" "$@"

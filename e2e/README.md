@@ -1,96 +1,84 @@
-# post-anki e2e — collocated, verification-repo principles
+# post-anki e2e — registered in verification-repo
 
-Playwright e2e suite living **inside this repo** (`e2e/`), authored by the rules of the
-`/e2e` skill but self-contained (no verification-repo project registration).
+**post-anki is registered in `verification-repo`** as `projects/post-anki/post-anki/`
+(see that repo's `projects/post-anki/post-anki/docs/runbook.md` for the full app
+runbook). The test content — `lib/`, `db/` (renamed from this repo's old
+`lib/db.ts` + `forbidden-targets.ts`), `global-setup.ts`, `mock-openrouter/`,
+`mock-docs-site/`, `features/`, and `playwright.post-anki.config.ts` — lives
+there now, not in this folder.
 
-## Status: foundation + first test GREEN ✅
+**What stays here, and why:** `docker-compose.yml`, `scripts/run.sh`, `.env`,
+and `.env.example` stay in this repo because `scripts/run.sh` drives `npm run
+db:migrate -w @post-anki/api`, which only resolves inside this repo's own npm
+workspaces — it can't be moved without re-deriving cross-repo workspace
+resolution for no behavioral gain. `npm run dev:pw` (this repo's own
+`package.json` script) is still the real, working entrypoint; it now hands off
+to verification-repo's own installed Playwright binary pointed at
+`playwright.post-anki.config.ts` there.
+
+## Status: registered, suite GREEN
 
 ```bash
-npm run dev:pw                    # whole suite (docker up → migrate → boot e2e stack → run)
-npm run dev:pw -- add-subject     # filter by path/name
+npm run dev:pw                              # whole suite (docker up → migrate → boot e2e stack → run)
+npm run dev:pw -- add-subject               # filter by path/name
 HEADED=true npm run dev:pw -- add-subject   # watch it
-npm run e2e:db:down               # stop the local Postgres
+npm run e2e:db:down                         # stop the local Postgres
 ```
 
 `dev:pw` (`e2e/scripts/run.sh`): brings up local Postgres (docker, host **:5436**, ephemeral
-tmpfs), migrates the api schema into it, then Playwright's `webServer` boots an **e2e api on
-:8031** (pointed at local Postgres) and **web on :3100**, runs the tests, tears the servers down.
-Config in `e2e/.env` (copy from `.env.example`). No collision with normal dev (:8030/:3000).
+tmpfs), migrates the api schema into it, then hands off to verification-repo's Playwright config,
+whose `webServer` entries boot an **e2e api on :8031** (pointed at local Postgres), **web on
+:3100**, the local mock OpenRouter server on **:4999**, and the local mock docs site on **:4998**,
+run the tests, and tear the servers down. Local config in `e2e/.env` (copy from `.env.example`).
+No collision with normal dev (:8030/:3000).
 
 **Cold-start gotcha (solved):** vite dev compiles modules on first hit, and `window.__TSR_ROUTER__`
-(the hydration signal we wait on) is set slightly before the form's React handlers attach — so a
-cold first click raced into a no-op native submit. Fixed by a Playwright **`global-setup.ts`** that
-opens a browser and warms the client bundle + the create server-fn before any test, plus
-`waitForHydration` in actions. Three consecutive cold runs pass.
+(the hydration signal actions wait on) is set slightly before the form's React handlers attach — so
+a cold first click raced into a no-op native submit. Fixed by a Playwright **`global-setup.ts`**
+(now in verification-repo) that opens a browser and warms the client bundle + the create server-fn
+before any test runs, plus `waitForHydration` in actions. Preserved verbatim across the migration —
+do not simplify it away.
 
 ## Principles preserved → post-anki adaptation
 
 | /e2e principle | Here |
 |---|---|
-| Run against the regular dev stack, URL from env (not hard-coded) | `PROJECT_DEV_SERVER_URL ?? http://localhost:3000`; stack = `npm run dev` |
+| Run against a dedicated e2e stack, URL from env (not hard-coded) | `PROJECT_DEV_SERVER_URL ?? http://localhost:3100`; stack = webServer entries in verification-repo's `playwright.post-anki.config.ts` |
 | Stage discovered from `.sst/stage` | No SST → URL from env; no stage concept |
-| **Local DB only**, `assertTargetAllowed` + `FORBIDDEN_TARGETS`, never the shared DB | Persistence layer connects to **local Docker Postgres only**; forbidden list contains the **Neon host** — refuses if `DATABASE_URL` points at cloud |
+| **Local DB only**, `assertTargetAllowed` + `FORBIDDEN_TARGETS`, never the shared DB | Persistence layer connects to **local Docker Postgres only**; forbidden list contains the Neon/Supabase/RDS hosts — refuses if `E2E_DATABASE_URL` points at cloud |
 | Two-layer assertions: UI (`getByTestId`) + persistence | UI `getByTestId` + **Postgres row asserts** (local pg client) |
-| Stateless feature → UI-only asserts | Read-only pages (concerns/decide nav) assert UI only |
-| testids in the source component, drive via `getByTestId` only | Add `data-testid` to `apps/web/src` components as each action needs them (FE has **zero** today) |
-| Synthetic fixtures only | `e2e/fixtures/mock-data/*` — fake subjects/sources |
+| Stateless feature → UI-only asserts | Read-only pages (concerns/decide nav, not yet built) would assert UI only |
+| testids in the source component, drive via `getByTestId` only | `data-testid` already present on subject + curriculum forms (`apps/web/src/subject/*`, `apps/web/src/curriculum/create-curriculum-form.tsx`); add more per action as needed |
+| Synthetic fixtures only | `features/*/fixtures/mock-data/*` in verification-repo — fake subjects/sources |
 | Auth: setup-project storageState **or** cookie-mint | **Neither** — web is single-owner, no browser login; BFF→API bearer is server-side env. Tests just load the app |
-| `captureProof` after each `expect`; `pauseForHuman` headed-only | Ported into `e2e/lib` |
-| Actions: typed, one flow, block on real signals, throw `ActionFailure` | Ported; `e2e/features/<feature>/actions/*.action.ts` + barrel |
+| `captureProof` after each `expect`; `pauseForHuman` headed-only | In verification-repo's project `lib/` (project-local) + `@verify-core/actions/*` (shared framework code, no local duplicate) |
+| Actions: typed, one flow, block on real signals, throw `ActionFailure` | `features/<feature>/actions/*.action.ts` + barrel, in verification-repo |
 | `@<TICKET>` title tag; organized by behavior; **never** `test.skip` | Tag `@e2e` + a per-scenario id (no Linear/MAT tickets here); no skips |
 
-## Folder structure (proposed — top-level `e2e/`)
+## What's actually registered
 
-```
-e2e/
-  playwright.config.ts          baseURL from env, workers=1, trace on, screenshot on failure
-  docker-compose.yml            local Postgres for the e2e stack
-  lib/
-    action-failure.ts           ported verbatim
-    pause-for-human.ts          ported verbatim
-    capture-proof.ts            framed success screenshot → proof/<feature>/<scenario>.png
-    forbidden-targets.ts        FORBIDDEN = Neon host(s); local-only allowlist
-    assert-target-allowed.ts    refuses cloud DB before any pg connection
-    db.ts                       local pg client + assert helpers (rowExists, countWhere)
-  features/
-    curriculum/
-      actions/                  createSubject, createCurriculum, confirmCurriculum, probeTopic…
-      fixtures/mock-data/       synthetic subject + pasted-source fixtures
-      tests/<scenario-slug>/    test.ts + scenario.md
-  proof/                        gitignored success screenshots
-```
+- **subject** (`features/subject/` in verification-repo) — `createSubject` action,
+  `add-subject` test: UI card appears + `subjects` row persisted.
+- **curriculum** (`features/curriculum/` in verification-repo):
+  - `parse-curriculum` test, API-driven: stubbed architect reaches `status: ready`
+    with the mock's module titles, `modules` rows persist. No UI action.
+  - `study-technology-doc-url` test — `studyTechnology` action drives the doc-URL
+    + level form; asserts the curriculum grounds on a `llms_txt` source (never
+    `web_research`), and that the picked level's tier starts pre-included while
+    the other two start excluded.
+
+Scenarios from the original build plan covering curriculum lifecycle/confirm,
+module/topic shape, probe cold-start, read-only nav, and daily push are **not
+yet built** — this is an honest gap, not a silent one.
 
 ## Local-DB safety wiring (the core adaptation)
 
 The app's normal DB is **cloud Neon** — the framework must never mutate it. So the e2e stack runs
 its **own local Postgres**:
-- `docker compose -f e2e/docker-compose.yml up -d` → Postgres on `localhost:5433`.
-- API booted with `DATABASE_URL=postgres://…localhost:5433…` + `db:migrate` against it.
-- Web `npm run dev` → talks to that API. UI writes land in **local** Postgres.
+- `docker compose -f e2e/docker-compose.yml up -d` → Postgres on `localhost:5436`.
+- API booted with `DATABASE_URL=<local Postgres>` + `db:migrate` against it.
+- Web talks to that API. UI writes land in **local** Postgres.
 - Test persistence layer connects to the same local DB; `assertTargetAllowed` refuses if the host
-  matches a `FORBIDDEN_TARGETS` Neon entry. So a misconfig that points e2e at Neon **fails closed**.
-
-## Basic suite (happy-path, behavior-organized)
-
-1. **Subject create** — create a subject → it appears in the list + **row in `subjects`**.
-2. **Curriculum from sources** — create curriculum with pasted text → appears `curating`/`ready` + **row in `curricula`** (status asserted).
-3. **Lifecycle** — `ready` curriculum → Confirm → badge `confirmed` + **status persisted**.
-4. **Shape** — add a module / add a topic → visible + **rows persisted**.
-5. **Probe (cold-start)** — confirmed zero-gap topic → opener question renders; answer → a gap is discovered/closed (UI chip + **gap row** asserts).
-6. **Read-only nav** — `/concerns` and `/decide` load with their headings (UI-only; stateless).
-7. **Daily push** — `/today` renders the push card or the empty state.
-
-Each becomes one `@e2e` test under `features/curriculum/tests/`. LLM-dependent steps (parse, probe
-eval) block on real UI signals with generous timeouts; no fixed sleeps.
-
-## Build order
-
-- **P0 Foundation**: install Playwright; `lib/` (port helpers + pg); `docker-compose.yml`; `playwright.config.ts`; npm scripts (`e2e`, `e2e:view`); orchestration (compose up → migrate → ready).
-- **P1 First feature**: `curriculum` actions + fixtures + scenarios 1–3 + the `data-testid`s they need in `apps/web/src`. Run headed, then headless.
-- **P2 Broaden**: scenarios 4–7.
-
-## Open decisions (confirm before P0)
-
-- **Location**: top-level `e2e/` (proposed) vs `apps/web/e2e/`.
-- **Local Postgres now** (enables two-layer persistence asserts) vs UI-only first.
-- **Ticket tag** scheme (no Linear/MAT here): `@e2e` + scenario id, or tie to GitHub issues.
+  matches a `FORBIDDEN_TARGETS` entry (`neon.tech`, `aws.neon.tech`, `pooler.supabase.com`,
+  `rds.amazonaws.com`) or isn't in the local allowlist. So a misconfig that points e2e at Neon
+  **fails closed**.
