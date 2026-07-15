@@ -702,6 +702,24 @@ export async function submitSocraticTurnFeedback(
   })
 }
 
+export async function askStudyChat(input: {
+  topicId: string
+  message: string
+  transcript?: be.ChatMessage[]
+}): Promise<be.AskStudyChatResult | null> {
+  try {
+    return await request<be.AskStudyChatResult>(
+      `/topics/${input.topicId}/study-chat`,
+      {
+        method: 'POST',
+        body: { message: input.message, transcript: input.transcript },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
 export async function getAdminSettings(): Promise<be.AdminSettings> {
   return request<be.AdminSettings>('/admin/settings')
 }

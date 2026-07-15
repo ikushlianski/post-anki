@@ -32,7 +32,33 @@ function nextQuestion(
   return pending[0] ?? null
 }
 
-export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
+function buildAskAboutThisSeed(question: ProbeSessionQuestion): string {
+  const correctIndexes =
+    question.correctAnswerIndexes ?? (question.correctAnswerIndex !== null
+      ? [question.correctAnswerIndex]
+      : [])
+  const correctAnswers = correctIndexes
+    .map((i) => question.options[i])
+    .filter((option): option is string => Boolean(option))
+    .join(', ')
+
+  return [
+    `About this question: "${question.prompt}"`,
+    `Options: ${question.options.join(' / ')}`,
+    correctAnswers ? `Correct answer: ${correctAnswers}` : '',
+    'Can you explain why?',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+export function ProbeSessionQuiz({
+  topicId,
+  onAskAboutThis,
+}: {
+  topicId: string
+  onAskAboutThis?: (seed: string) => void
+}) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const queryKey = probeSessionQueryKey(topicId)
@@ -289,14 +315,26 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
           >
             {isPass ? 'Correct.' : 'Not quite.'}
           </p>
-          <button
-            type="button"
-            data-testid="quiz-next"
-            onClick={goNext}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500"
-          >
-            Next question
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              data-testid="quiz-next"
+              onClick={goNext}
+              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500"
+            >
+              Next question
+            </button>
+            {onAskAboutThis ? (
+              <button
+                type="button"
+                data-testid="quiz-ask-about-this"
+                onClick={() => onAskAboutThis(buildAskAboutThisSeed(current))}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500"
+              >
+                Ask about this
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>

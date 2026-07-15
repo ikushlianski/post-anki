@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
@@ -6,6 +7,7 @@ import { curriculumDetailQuery } from '../curriculum/curriculum.queries'
 import { ProbeSessionQuiz } from '../curriculum/probe-session-quiz'
 import { ProbeRoomDrawer } from '../curriculum/probe-room-drawer'
 import { SocraticChat } from '../curriculum/socratic-chat'
+import { StudyChatSidebar } from '../curriculum/study-chat-sidebar'
 
 export const Route = createFileRoute('/probe/$topicId')({
   validateSearch: (
@@ -32,6 +34,7 @@ function ProbeRoom() {
     ...curriculumDetailQuery(curriculumId),
     enabled: curriculumId !== '',
   })
+  const [chatSeed, setChatSeed] = useState<string | null>(null)
 
   const topic = detail?.modules
     .flatMap((module) => module.topics)
@@ -49,7 +52,7 @@ function ProbeRoom() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-5 py-8 sm:px-8">
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-5 py-8 sm:px-8">
       <div className="mb-6 flex items-center justify-between gap-3">
         <ProbeRoomDrawer detail={detail} currentTopicId={topic.id} mode={mode} />
         <ModeToggle topicId={topic.id} curriculumId={curriculumId} mode={mode} />
@@ -71,11 +74,26 @@ function ProbeRoom() {
         </p>
       </header>
 
-      {mode === 'socratic' ? (
-        <SocraticChat key={topic.id} topicId={topic.id} />
-      ) : (
-        <ProbeSessionQuiz key={topic.id} topicId={topic.id} />
-      )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="min-w-0 flex-1">
+          {mode === 'socratic' ? (
+            <SocraticChat key={topic.id} topicId={topic.id} />
+          ) : (
+            <ProbeSessionQuiz
+              key={topic.id}
+              topicId={topic.id}
+              onAskAboutThis={setChatSeed}
+            />
+          )}
+        </div>
+
+        <StudyChatSidebar
+          key={topic.id}
+          topicId={topic.id}
+          seed={chatSeed}
+          onSeedConsumed={() => setChatSeed(null)}
+        />
+      </div>
     </main>
   )
 }
