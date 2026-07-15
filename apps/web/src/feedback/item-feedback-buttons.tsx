@@ -17,7 +17,6 @@ export function ItemFeedbackButtons({
   const [rating, setRating] = useState<Rating | null>(null)
   const [comment, setComment] = useState('')
   const [popoverOpen, setPopoverOpen] = useState(false)
-  const [saved, setSaved] = useState(false)
 
   const mutation = useMutation({
     mutationFn: (vars: { rating: Rating; comment?: string }) =>
@@ -33,7 +32,6 @@ export function ItemFeedbackButtons({
   function vote(next: Rating) {
     setRating(next)
     setPopoverOpen(true)
-    setSaved(false)
     mutation.mutate({ rating: next, comment: comment.trim() || undefined })
   }
 
@@ -44,17 +42,14 @@ export function ItemFeedbackButtons({
       return
     }
 
-    mutation.mutate({ rating, comment: comment.trim() || undefined })
-    setPopoverOpen(false)
-    setSaved(true)
+    mutation.mutate(
+      { rating, comment: comment.trim() || undefined },
+      { onSuccess: () => setPopoverOpen(false) },
+    )
   }
 
   function closePopover() {
     setPopoverOpen(false)
-
-    if (rating) {
-      setSaved(true)
-    }
   }
 
   return (
@@ -110,7 +105,7 @@ export function ItemFeedbackButtons({
             Close
           </button>
         </form>
-      ) : saved ? (
+      ) : mutation.isSuccess ? (
         <span className="text-xs text-emerald-600" data-testid={`feedback-saved-${itemId}`}>
           Feedback saved
         </span>

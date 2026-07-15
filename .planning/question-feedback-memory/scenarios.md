@@ -19,11 +19,11 @@ What to verify:
 - The button reflects the saved state after the click (optimistic or refetched).
 
 Acceptance: [x]
-- `apps/web/src/feedback/item-feedback-buttons.tsx:33-38` — `vote()` fires immediately on click with `comment: undefined` when the box is empty.
+- `apps/web/src/feedback/item-feedback-buttons.tsx:32-36` — `vote()` fires immediately on click with `comment: undefined` when the box is empty.
 - `apps/api/src/feedback/feedback.controller.ts:76` — `comment: body.data.comment ?? null` persists `null` when omitted.
 - `apps/api/src/feedback/feedback.repo.ts:36-81` — `upsertItemFeedback` inserts with `itemType: "probe_question"`, `rating: "up"`, `comment: null`.
 - `packages/core/src/feedback/feedback-digest.test.ts:60-65` — "drops an up vote with no comment — it carries no actionable text".
-- `apps/web/src/feedback/item-feedback-buttons.tsx:69-77` — `aria-pressed={rating === 'up'}` reflects local optimistic state right after the click.
+- `apps/web/src/feedback/item-feedback-buttons.tsx:62-70` — `aria-pressed={rating === 'up'}` reflects local optimistic state right after the click.
 
 SCENARIO 2: Thumbs-up with a comment
 
@@ -34,7 +34,7 @@ What to verify:
 - This comment becomes a "keep doing this" signal available to the digest (SCENARIO 7/8).
 
 Acceptance: [x]
-- `apps/web/src/feedback/item-feedback-buttons.tsx:33-51` — `vote()` opens the popover; `submitComment()` re-submits `{ rating, comment }` on explicit save.
+- `apps/web/src/feedback/item-feedback-buttons.tsx:32-49` — `vote()` opens the popover; `submitComment()` re-submits `{ rating, comment }` on explicit save.
 - `apps/api/src/feedback/feedback.repo.ts:64-70` — insert row carries `comment`, `createdAt`/`updatedAt` set to `now`.
 - `packages/core/src/feedback/feedback-digest.test.ts:47-58` — "renders an up vote with a comment as a well-received instruction".
 
@@ -78,7 +78,7 @@ What to verify:
 Acceptance: [x]
 - `apps/api/src/db/schema.ts:171-172` — `uniqueIndex("study_item_feedback_item_unique").on(table.itemType, table.itemId)`.
 - `apps/api/src/feedback/feedback.repo.ts:45,52-70` — `upsertItemFeedback` looks up `existing` first; if found, runs an `UPDATE` (not insert), setting only `rating`/`comment`/`topicId`/`itemText`/`updatedAt` — `createdAt` is never touched on the update path.
-- `apps/web/src/feedback/item-feedback-buttons.tsx:33-38` — clicking the opposite thumb re-submits with the currently-held `comment`, so an in-session rating change doesn't silently wipe a prior comment.
+- `apps/web/src/feedback/item-feedback-buttons.tsx:32-36` — clicking the opposite thumb re-submits with the currently-held `comment`, so an in-session rating change doesn't silently wipe a prior comment.
 
 SCENARIO 6: Feedback on a Socratic turn works the same as on a quiz question
 
