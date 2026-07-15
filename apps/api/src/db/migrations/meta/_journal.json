@@ -85,6 +85,13 @@
       "when": 1784082258038,
       "tag": "0011_shocking_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784087438763,
+      "tag": "0012_wooden_silver_samurai",
+      "breakpoints": true
     }
   ]
 }

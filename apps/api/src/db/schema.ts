@@ -171,3 +171,18 @@ export const studyItemFeedback = pgTable(
   },
   (table) => [uniqueIndex("study_item_feedback_item_unique").on(table.itemType, table.itemId)],
 );
+
+export const topicRecommendations = pgTable("topic_recommendations", {
+  id: text("id").primaryKey(),
+  topicId: text("topic_id").notNull(),
+  text: text("text").notNull(),
+  citations: jsonb("citations").$type<string[]>().notNull().default([]),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+});
+
+export const userStreaks = pgTable("user_streaks", {
+  id: text("id").primaryKey(),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastActiveDate: text("last_active_date"),
+});

@@ -24,3 +24,6 @@ export * from "./node-feedback";
 export * from "./feedback";
 export * from "./learning-map";
 export * from "./study-chat";
+export * from "./next-step";
+export * from "./streak";
+export * from "./stats";
