@@ -97,7 +97,7 @@ export function TopicRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h4 className="font-medium">
+            <h4 data-testid="topic-title" className="font-medium">
               {editable ? (
                 <InlineRename
                   value={topic.title}

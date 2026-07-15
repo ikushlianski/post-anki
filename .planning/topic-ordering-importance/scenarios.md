@@ -1,0 +1,136 @@
+---
+type: scenarios
+branch: topic-ordering-importance
+task: Promote/demote modules and topics, per-node comments, and AI-decided strict document order
+state: confirmed
+updated: 2026-07-15
+---
+# Scenarios: Topic ordering & importance
+
+## Business Scenarios
+
+SCENARIO 1: Promote a topic
+
+The learner clicks the ▲ (promote) control next to a topic in `TopicRow`.
+
+What to verify:
+- `topics.priority` moves from `0` to `1`.
+- On a curriculum that is not in strict-order mode, the topic now displays above its
+  priority-`0`/`-1` siblings within the same module (SCENARIO 6).
+- On a strict-order curriculum, the vote is still stored but display order is unchanged
+  (SCENARIO 7) — no silent reshuffle.
+
+SCENARIO 2: Demote a topic
+
+Same mechanics as SCENARIO 1 with the ▼ control, moving `priority` to `-1` and (non-strict only)
+sinking the topic below its siblings.
+
+SCENARIO 3: Un-promote / un-demote
+
+The learner clicks ▲ on an already-promoted topic (or ▼ on an already-demoted one).
+
+What to verify:
+- `priority` returns to `0` (neutral) — promote/demote is a toggle, not an accumulating counter.
+  Clicking ▲ on a demoted topic moves it directly to `1` in one click (not two), and vice versa.
+
+SCENARIO 4: Promote or demote a module
+
+Same mechanics as SCENARIO 1/2, applied to `modules.priority`, affecting the module's position
+among its siblings within the curriculum.
+
+SCENARIO 5: Leave a comment on a module or topic
+
+The learner opens a small feedback control on a topic/module and types a note ("this section felt
+too shallow, want more on X") without necessarily promoting or demoting.
+
+What to verify:
+- The comment is stored in a new append-only log (`node_feedback`), with the node's type, id, and
+  a timestamp.
+- This comment is never injected into any LLM generation prompt — it is a personal note for the
+  learner's own later reference (or a future stats/dashboard surface owned by a different plan),
+  not a signal the doc-research or quiz agents read. This is a deliberate scope cut: the task's
+  "goes to the memory of the agent" language was stated only for per-question/turn feedback
+  (the sibling `question-feedback-memory` plan), not for per-node commentary.
+
+SCENARIO 6: Non-strict display order composes priority with manual order
+
+A module has topics with priorities `[0, 1, -1, 0]` in `order` positions `[0, 1, 2, 3]`.
+
+What to verify:
+- Display groups by priority descending first (`1` topics, then `0` topics, then `-1` topics),
+  and within each priority group, orders by the existing `order` column ascending — a stable,
+  predictable composition, not a full re-sort that discards the user's manual arrangement within
+  a tier.
+- The same composition rule applies to modules within a curriculum.
+
+SCENARIO 7: Strict-order curriculum ignores priority for display
+
+A curriculum has `strictOrder: true` (set at doc-research synthesis time, SCENARIO 9).
+
+What to verify:
+- Display order for both modules and topics follows the `order` column only — `priority` is
+  ignored for sorting purposes even if some topics have been promoted/demoted.
+- Promote/demote controls remain visible and usable (the vote itself is still meaningful data,
+  e.g. for a future recommender) — they're not hidden, their *display* effect is just suppressed.
+
+SCENARIO 8: Turning off strict mode is the explicit override
+
+The learner flips a "Strict document order" toggle to off on a strict-origin curriculum.
+
+What to verify:
+- `curricula.strict_order` becomes `false`.
+- Display order for that curriculum immediately starts composing priority as in SCENARIO 6 — this
+  toggle IS the "I can still override it if I want to" mechanism the task asked for; no separate
+  drag-and-drop or new reordering UI is built for this purpose.
+
+SCENARIO 9: Doc-research synthesis decides strict-order per curriculum
+
+Researching "Temporal" (a step-by-step "getting started" style doc set) yields `strictOrder: true`;
+researching a technology whose docs are reference-style (no natural sequence) yields `false`.
+
+What to verify:
+- `doc-research-architect.agent.ts`'s structured output gains a `strictOrder: boolean` field,
+  described in its instructions with concrete guidance on when true vs false applies.
+- `researchCurriculum` persists this flag onto the new `curricula` row at creation time.
+
+SCENARIO 10: Pasted-material curricula never default to strict
+
+A curriculum created via the existing paste-sources flow (not doc-research).
+
+What to verify:
+- `strict_order` defaults to `false` at the table level and the pasted-material
+  `curriculum-architect.agent.ts` is not modified to reason about sequencing — this plan does not
+  touch that agent's contract, only the doc-research agent's.
+- The learner can still manually flip `strict_order` to `true` later via the same toggle from
+  SCENARIO 8 if they want strict behavior on a hand-authored curriculum too (the toggle isn't
+  origin-gated).
+
+SCENARIO 11: Manual reorder still works regardless of strict/priority state
+
+The learner uses the existing `ReorderButtons` (▲/▼ position controls, distinct from
+promote/demote) to move a topic or module.
+
+What to verify:
+- This writes directly to the `order` column exactly as it does today — completely unchanged
+  behavior, works identically whether `strict_order` is true or false and regardless of any
+  node's `priority`.
+- Because `order` is what strict-mode display sorts by, a manual reorder on a strict curriculum
+  IS a real, persistent override of the doc-research sequence — satisfying "I can still override
+  it if I want to."
+
+SCENARIO 12: Priority is a consumable signal, not a rebuilt recommender
+
+A topic has been promoted.
+
+What to verify:
+- `Topic.priority` (and `Module.priority`) are present on the shared types and hydrated by
+  `curriculum.repo.ts`, so any reader (including a future recommendation engine) can access them.
+- `recommendedTopicId` (`packages/core/src/curriculum/recommendation.ts`) itself is NOT modified by
+  this plan — confirmed by direct diff-scope check during implementation. The signal exists; a
+  parallel, separately-owned plan is responsible for teaching the recommender to read it.
+
+## Technical/Architectural Scenarios
+
+None beyond what's covered above — no new async boundary, no new service, no infrastructure
+change. The new sort deriver replaces two inline `.sort()` calls already present in
+`curriculum.repo.ts` with equivalent-or-richer behavior.

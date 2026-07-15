@@ -42,12 +42,14 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
     return (
       <button
         type="button"
+        data-testid="adaptive-settings-toggle"
         onClick={() => setOpen(true)}
         className="text-xs text-neutral-500 hover:text-neutral-900"
       >
         ⚙ Adaptive settings · {SPEED_LABEL[curriculum.speed]} ·{' '}
         {curriculum.hinting ? 'hints on' : 'hints off'} · default depth{' '}
-        {DEPTH_LABEL[curriculum.defaultDepth]}
+        {DEPTH_LABEL[curriculum.defaultDepth]} · strict order{' '}
+        {curriculum.strictOrder ? 'on' : 'off'}
       </button>
     )
   }
@@ -125,6 +127,7 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
         </p>
         <button
           type="button"
+          data-testid="strict-order-toggle"
           disabled={busy}
           onClick={() => update({ strictOrder: !curriculum.strictOrder })}
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 ${

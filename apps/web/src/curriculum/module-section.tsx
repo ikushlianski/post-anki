@@ -82,6 +82,8 @@ export function ModuleSection({
             <PromoteDemoteButtons
               priority={module.priority}
               busy={promoteDemoteMutation.isPending}
+              promoteTestId={`module-promote-${module.id}`}
+              demoteTestId={`module-demote-${module.id}`}
               onToggle={(direction) =>
                 promoteDemoteMutation.mutate({
                   moduleId: module.id,
@@ -90,7 +92,7 @@ export function ModuleSection({
               }
             />
           ) : null}
-          <h3 className="text-base font-semibold tracking-tight">
+          <h3 data-testid="module-title" className="text-base font-semibold tracking-tight">
             {editable ? (
               <InlineRename
                 value={module.title}

@@ -58,6 +58,8 @@ export function TopicShapeBar({
       <PromoteDemoteButtons
         priority={topic.priority}
         busy={promoteDemoteMutation.isPending}
+        promoteTestId={`topic-promote-${topic.id}`}
+        demoteTestId={`topic-demote-${topic.id}`}
         onToggle={(direction) =>
           promoteDemoteMutation.mutate({
             topicId: topic.id,

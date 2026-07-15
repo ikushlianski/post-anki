@@ -66,10 +66,14 @@ export function PromoteDemoteButtons({
   priority,
   busy,
   onToggle,
+  promoteTestId,
+  demoteTestId,
 }: {
   priority: Priority
   busy: boolean
   onToggle: (direction: 'up' | 'down') => void
+  promoteTestId?: string
+  demoteTestId?: string
 }) {
   return (
     <span className="flex flex-col leading-none">
@@ -78,6 +82,7 @@ export function PromoteDemoteButtons({
         aria-label="Promote"
         title="Promote"
         disabled={busy}
+        data-testid={promoteTestId}
         onClick={() => onToggle('up')}
         className={`text-[10px] disabled:opacity-30 ${
           priority === 1
@@ -92,6 +97,7 @@ export function PromoteDemoteButtons({
         aria-label="Demote"
         title="Demote"
         disabled={busy}
+        data-testid={demoteTestId}
         onClick={() => onToggle('down')}
         className={`text-[10px] disabled:opacity-30 ${
           priority === -1
