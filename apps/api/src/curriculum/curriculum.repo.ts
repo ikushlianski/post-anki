@@ -7,6 +7,8 @@ import type {
   CurriculumStatus,
   DepthLevel,
   Gap,
+  LearningMapModuleSnapshot,
+  LearningMapSnapshot,
   LearningStatus,
   Level,
   Module,
@@ -21,6 +23,7 @@ import {
   curriculumProgress,
   extractUrls,
   moduleProgress,
+  priorLevelCoverageLabels,
   recommendedTopicId,
   sortForDisplay,
 } from "@post-anki/core";
@@ -655,6 +658,131 @@ export async function getCurriculumDetail(
     progress: curriculumProgress(assembledModules),
     recommendedTopicId: recommendedTopicId(assembledModules),
   };
+}
+
+export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> {
+  const db = getDb();
+
+  const curriculumRows = await db
+    .select()
+    .from(curricula)
+    .where(eq(curricula.status, "confirmed"));
+
+  if (curriculumRows.length === 0) {
+    return [];
+  }
+
+  const curriculumIds = curriculumRows.map((c) => c.id);
+  const subjectIds = Array.from(new Set(curriculumRows.map((c) => c.subjectId)));
+
+  const [subjectRows, moduleRows, topicRows] = await Promise.all([
+    db.select().from(subjects).where(inArray(subjects.id, subjectIds)),
+    db.select().from(modules).where(inArray(modules.curriculumId, curriculumIds)),
+    db.select().from(topics).where(inArray(topics.curriculumId, curriculumIds)),
+  ]);
+
+  const subjectNameById = new Map(subjectRows.map((s) => [s.id, s.name]));
+
+  return curriculumRows.map((c) => {
+    const curriculumModules = moduleRows.filter((m) => m.curriculumId === c.id);
+    const curriculumTopics = topicRows
+      .filter((t) => t.curriculumId === c.id)
+      .map(toTopic);
+
+    const topicsByModuleId = new Map<string, Topic[]>();
+
+    for (const t of curriculumTopics) {
+      const list = topicsByModuleId.get(t.moduleId) ?? [];
+      list.push(t);
+      topicsByModuleId.set(t.moduleId, list);
+    }
+
+    const moduleSnapshots: LearningMapModuleSnapshot[] = curriculumModules.map((m) => {
+      const moduleTopics = topicsByModuleId.get(m.id) ?? [];
+
+      return {
+        level: (m.level as Level | null) ?? null,
+        progress: moduleProgress(moduleTopics),
+        topics: moduleTopics.map((t) => ({
+          id: t.id,
+          title: t.title,
+          progress: t.progress,
+        })),
+      };
+    });
+
+    const overallProgress = moduleProgress(curriculumTopics);
+    const lastInteractedAt = curriculumTopics.reduce<string | null>((latest, t) => {
+      if (!t.progress.lastInteractedAt) {
+        return latest;
+      }
+
+      return !latest || t.progress.lastInteractedAt > latest
+        ? t.progress.lastInteractedAt
+        : latest;
+    }, null);
+
+    return {
+      curriculumId: c.id,
+      curriculumName: c.name,
+      subjectName: subjectNameById.get(c.subjectId) ?? "",
+      learningStatus: c.learningStatus as LearningStatus,
+      percent: overallProgress.percent,
+      lastInteractedAt,
+      modules: moduleSnapshots,
+    };
+  });
+}
+
+export async function getLowerLevelCoverage(topicId: string): Promise<string[]> {
+  const db = getDb();
+
+  const topicRow = (
+    await db.select().from(topics).where(eq(topics.id, topicId))
+  )[0];
+
+  if (!topicRow) {
+    return [];
+  }
+
+  const moduleRow = (
+    await db.select().from(modules).where(eq(modules.id, topicRow.moduleId))
+  )[0];
+  const currentLevel = (moduleRow?.level as Level | null) ?? null;
+
+  if (currentLevel === null) {
+    return [];
+  }
+
+  const rows = await db
+    .select({ level: modules.level, label: gaps.label })
+    .from(gaps)
+    .innerJoin(topics, eq(gaps.topicId, topics.id))
+    .innerJoin(modules, eq(topics.moduleId, modules.id))
+    .where(
+      and(
+        eq(modules.curriculumId, topicRow.curriculumId),
+        eq(gaps.state, "covered"),
+      ),
+    );
+
+  const coverageByLevel = new Map<string, string[]>();
+
+  for (const row of rows) {
+    if (!row.level) {
+      continue;
+    }
+
+    const list = coverageByLevel.get(row.level) ?? [];
+    list.push(row.label);
+    coverageByLevel.set(row.level, list);
+  }
+
+  const moduleCoverages = Array.from(coverageByLevel.entries()).map(
+    ([level, coveredLabels]) => ({ level: level as Level, coveredLabels }),
+  );
+
+  return priorLevelCoverageLabels(currentLevel, moduleCoverages);
 }
 
 function buildModules(

@@ -36,6 +36,7 @@ vi.mock("../curriculum/curriculum.repo.js", () => ({
     speed: "normal",
     hinting: false,
   })),
+  getLowerLevelCoverage: vi.fn(async () => []),
 }));
 
 vi.mock("./probe-grounding.js", () => ({

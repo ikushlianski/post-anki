@@ -29,7 +29,10 @@ import {
   listGapsForTopic,
   persistGaps,
 } from "../gap/gap.repo.js";
-import { getCurriculumContextForTopic } from "../curriculum/curriculum.repo.js";
+import {
+  getCurriculumContextForTopic,
+  getLowerLevelCoverage,
+} from "../curriculum/curriculum.repo.js";
 import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
@@ -44,6 +47,7 @@ interface AskContext {
   hinting: boolean;
   grounding: string;
   citations: string[];
+  priorLevelCoverage?: string[];
 }
 
 export async function startProbe(
@@ -64,12 +68,14 @@ export async function startProbe(
   const gaps = await listGapsForTopic(input.topicId);
   const gap = nextGapToProbe(gaps, rowDepth(topic));
   const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
+  const priorLevelCoverage = await getLowerLevelCoverage(input.topicId);
 
   return buildQuestion(topic, gap, input.mode, {
     speed: ctx.speed,
     hinting: ctx.hinting,
     grounding: grounding.text,
     citations: grounding.citations,
+    priorLevelCoverage,
   });
 }
 
@@ -91,12 +97,14 @@ export async function buildProbeQuestionForGap(
   }
 
   const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, gap.label);
+  const priorLevelCoverage = await getLowerLevelCoverage(topicId);
 
   return buildQuestion(topic, gap, mode, {
     speed: ctx.speed,
     hinting: ctx.hinting,
     grounding: grounding.text,
     citations: grounding.citations,
+    priorLevelCoverage,
   });
 }
 
@@ -237,6 +245,9 @@ async function generateQuestion(
       ? `Ground the question in this material (prefer it over general knowledge):\n${ask.grounding}`
       : "",
     feedbackDigest ?? "",
+    ask.priorLevelCoverage && ask.priorLevelCoverage.length > 0
+      ? `Already covered at a lower level: ${ask.priorLevelCoverage.join(", ")} — build on these, don't re-teach them.`
+      : "",
     `Question kind: ${mode}`,
   ]
     .filter(Boolean)

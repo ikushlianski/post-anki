@@ -15,7 +15,10 @@ import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
-import { getCurriculumSourceRows } from "../curriculum/curriculum.repo.js";
+import {
+  getCurriculumSourceRows,
+  getLowerLevelCoverage,
+} from "../curriculum/curriculum.repo.js";
 import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
 import type { ScopeContext } from "./probe-session.repo.js";
 import { normalize } from "./probe-session.map.js";
@@ -84,11 +87,20 @@ function difficultyLine(ctx: ScopeContext, total: number): string {
   }`;
 }
 
+function priorLevelCoverageLine(priorLevelCoverage: string[]): string {
+  if (priorLevelCoverage.length === 0) {
+    return "";
+  }
+
+  return `Already covered at a lower level: ${priorLevelCoverage.join(", ")} — build on these, don't re-teach them.`;
+}
+
 function topicBlock(
   topicTitle: string,
   summary: string | null,
   gapLabels: string[],
   feedbackDigest: string | null,
+  priorLevelCoverage: string[],
 ): string {
   return [
     `Topic: ${topicTitle}`,
@@ -99,6 +111,7 @@ function topicBlock(
           .join("\n")}`
       : "No concept list yet — infer the core concepts of this topic.",
     feedbackDigest ?? "",
+    priorLevelCoverageLine(priorLevelCoverage),
   ]
     .filter(Boolean)
     .join("\n");
@@ -133,6 +146,7 @@ async function buildPrompt(
   ctx: ScopeContext,
   gapsByTopic: Map<string, string[]>,
   feedbackByTopic: Map<string, string | null>,
+  priorLevelCoverageByTopic: Map<string, string[]>,
   total: number,
   grounding: string,
   allowMultiSelect: boolean,
@@ -162,6 +176,7 @@ async function buildPrompt(
         topic.summary,
         gapsByTopic.get(topic.id) ?? [],
         feedbackByTopic.get(topic.id) ?? null,
+        priorLevelCoverageByTopic.get(topic.id) ?? [],
       ),
       `Set topicTitle to "${topic.title}" on every question.`,
       grounding
@@ -187,6 +202,7 @@ async function buildPrompt(
         t.summary,
         gapsByTopic.get(t.id) ?? [],
         feedbackByTopic.get(t.id) ?? null,
+        priorLevelCoverageByTopic.get(t.id) ?? [],
       )}\nAsk about ${count} question(s) for this topic; set topicTitle to "${t.title}".`;
     })
     .join("\n\n");
@@ -215,15 +231,17 @@ export async function generateProbeBatch(
   ctx: ScopeContext,
   allowMultiSelect = false,
 ): Promise<GeneratedBatch> {
-  const [gapLists, feedbackLists] = await Promise.all([
+  const [gapLists, feedbackLists, priorLevelCoverageLists] = await Promise.all([
     Promise.all(ctx.topics.map((t) => listGapsForTopic(t.id))),
     Promise.all(ctx.topics.map((t) => getFeedbackForTopic(t.id))),
+    Promise.all(ctx.topics.map((t) => getLowerLevelCoverage(t.id))),
   ]);
 
   const gapsByTopic = new Map<string, string[]>();
   const gapIdByKey = new Map<string, string>();
   const topicIdByTitle = new Map<string, string>();
   const feedbackByTopic = new Map<string, string | null>();
+  const priorLevelCoverageByTopic = new Map<string, string[]>();
 
   ctx.topics.forEach((t, i) => {
     topicIdByTitle.set(normalize(t.title), t.id);
@@ -236,6 +254,7 @@ export async function generateProbeBatch(
       gapIdByKey.set(`${t.id}::${normalize(g.label)}`, g.id);
     });
     feedbackByTopic.set(t.id, buildFeedbackDigest(selectRecentFeedback(feedbackLists[i]!)));
+    priorLevelCoverageByTopic.set(t.id, priorLevelCoverageLists[i]!);
   });
 
   const total = targetTotal(scope, ctx, gapsByTopic.get(ctx.topics[0]?.id ?? "")?.length ?? 0);
@@ -257,6 +276,7 @@ export async function generateProbeBatch(
     ctx,
     gapsByTopic,
     feedbackByTopic,
+    priorLevelCoverageByTopic,
     total,
     grounding.text,
     allowMultiSelect,
