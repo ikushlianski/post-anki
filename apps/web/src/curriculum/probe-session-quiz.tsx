@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ProbeSession, ProbeSessionQuestion } from '@post-anki/shared'
+import type {
+  OptionExplanation,
+  ProbeSession,
+  ProbeSessionQuestion,
+} from '@post-anki/shared'
 
-import { answerProbeSession, prepareProbeSession } from './probe-session.api'
+import {
+  answerProbeSession,
+  getActiveProbeSession,
+  prepareProbeSession,
+} from './probe-session.api'
 
 function probeSessionQueryKey(topicId: string) {
   return ['probe-session', topicId] as const
@@ -31,9 +39,17 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
   const { data: session, isLoading } = useQuery({
     queryKey,
     queryFn: () =>
+      getActiveProbeSession({ data: { scope: 'topic', scopeId: topicId } }),
+  })
+
+  const generateMutation = useMutation({
+    mutationFn: () =>
       prepareProbeSession({
         data: { scope: 'topic', scopeId: topicId, allowMultiSelect: true },
       }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(queryKey, result)
+    },
   })
 
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null)
@@ -88,6 +104,7 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
                   outcome: result.outcome,
                   correctAnswerIndex: result.correctAnswerIndex,
                   correctAnswerIndexes: result.correctAnswerIndexes,
+                  optionExplanations: result.optionExplanations,
                 }
               : q,
           ),
@@ -134,17 +151,41 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
   if (isLoading) {
     return (
       <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-sm text-neutral-400">Preparing the quiz…</p>
+        <p className="text-sm text-neutral-400">Checking for an active quiz…</p>
       </div>
     )
   }
 
   if (!session) {
     return (
-      <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-sm text-neutral-500">
-          Couldn’t prepare a quiz right now. Try reloading.
-        </p>
+      <div
+        className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4"
+        data-testid="quiz-empty-state"
+      >
+        {generateMutation.isPending ? (
+          <p className="text-sm text-neutral-400" data-testid="quiz-generating">
+            Generating probing questions…
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-neutral-600">
+              No quiz has been generated for this topic yet.
+            </p>
+            <button
+              type="button"
+              data-testid="generate-quiz"
+              onClick={() => generateMutation.mutate()}
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
+            >
+              Generate Probing Questions
+            </button>
+            {generateMutation.isError || generateMutation.data === null ? (
+              <p className="mt-2 text-sm text-neutral-500">
+                Couldn’t generate a quiz right now. Try again.
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
     )
   }
@@ -216,6 +257,12 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
                 {option}
               </button>
             )}
+            {answered ? (
+              <OptionExplanationText
+                explanation={current.optionExplanations?.[index] ?? null}
+                index={index}
+              />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -250,6 +297,41 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function OptionExplanationText({
+  explanation,
+  index,
+}: {
+  explanation: OptionExplanation | null
+  index: number
+}) {
+  if (!explanation) {
+    return null
+  }
+
+  return (
+    <p
+      className="mt-1 pl-1 text-xs text-neutral-500"
+      data-testid={`quiz-option-explanation-${index}`}
+    >
+      {explanation.text}
+      {explanation.citationUrl ? (
+        <>
+          {' '}
+          <a
+            href={explanation.citationUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-neutral-700 underline"
+            data-testid={`quiz-option-citation-${index}`}
+          >
+            source
+          </a>
+        </>
+      ) : null}
+    </p>
   )
 }
 

@@ -560,6 +560,19 @@ export async function decide(input: DecideInput): Promise<DecideResult> {
   return request<be.DecideResult>('/decide', { method: 'POST', body: input })
 }
 
+export async function getActiveProbeSession(input: {
+  scope: be.ProbeScope
+  scopeId: string
+}): Promise<be.ProbeSession | null> {
+  try {
+    return await request<be.ProbeSession | null>(
+      `/probe-sessions/active?scope=${encodeURIComponent(input.scope)}&scopeId=${encodeURIComponent(input.scopeId)}`,
+    )
+  } catch {
+    return null
+  }
+}
+
 export async function prepareProbeSession(input: {
   scope: be.ProbeScope
   scopeId: string
