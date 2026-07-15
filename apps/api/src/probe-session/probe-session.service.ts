@@ -15,6 +15,7 @@ import {
   randomPermutation,
 } from "@post-anki/core";
 import { newId } from "../shared/id.js";
+import { recordActivityToday } from "../streak/streak.service.js";
 import { listGapsForTopic, persistGaps } from "../gap/gap.repo.js";
 import {
   getTopicRow,
@@ -179,6 +180,8 @@ export async function answerProbeSession(
   }
 
   const progress = await syncSessionCounters(input.sessionId, now);
+
+  await recordActivityToday(now);
 
   return {
     questionId: input.questionId,

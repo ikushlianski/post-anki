@@ -61,6 +61,11 @@ import {
   handleSubmitSocraticTurnFeedback,
 } from "./feedback/feedback.controller.js";
 import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
+import {
+  handleGenerateRecommendations,
+  handleGetCurriculumStats,
+} from "./stats/stats.controller.js";
+import { handleGetStreak } from "./streak/streak.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -200,6 +205,12 @@ async function route(
       return handleSubmitSocraticTurnFeedback(req, res, id);
     case "askStudyChat":
       return handleAskStudyChat(req, res, id);
+    case "getCurriculumStats":
+      return handleGetCurriculumStats(res, id);
+    case "generateRecommendations":
+      return handleGenerateRecommendations(res, id);
+    case "getStreak":
+      return handleGetStreak(res);
   }
 }
 

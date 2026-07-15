@@ -21,6 +21,7 @@ import {
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
+import { recordActivityToday } from "../streak/streak.service.js";
 import { listGapsForTopic, persistGaps } from "../gap/gap.repo.js";
 import {
   getTopicRow,
@@ -197,6 +198,8 @@ export async function answerSocraticSession(
 
   const after = await listGapsForTopic(session.topicId);
   const inScope = inScopeGaps(after, depth);
+
+  await recordActivityToday(now);
 
   return {
     action,

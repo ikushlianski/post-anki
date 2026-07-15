@@ -38,7 +38,10 @@ export type RouteName =
   | "updateAdminSettings"
   | "submitProbeQuestionFeedback"
   | "submitSocraticTurnFeedback"
-  | "askStudyChat";
+  | "askStudyChat"
+  | "getCurriculumStats"
+  | "generateRecommendations"
+  | "getStreak";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -108,6 +111,19 @@ const ROUTES: RouteDef[] = [
     name: "askStudyChat",
     param: "id",
   },
+  {
+    method: "GET",
+    pattern: /^\/curricula\/([^/]+)\/stats$/,
+    name: "getCurriculumStats",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/curricula\/([^/]+)\/stats\/recommendations$/,
+    name: "generateRecommendations",
+    param: "id",
+  },
+  { method: "GET", pattern: "/streak", name: "getStreak" },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {
