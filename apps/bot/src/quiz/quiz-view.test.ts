@@ -28,6 +28,7 @@ function question(over: Partial<ProbeSessionQuestion> = {}): ProbeSessionQuestio
     outcome: null,
     correctAnswerIndex: null,
     correctAnswerIndexes: null,
+    optionExplanations: null,
     ...over,
   };
 }
@@ -72,6 +73,7 @@ describe("formatAnswerReveal", () => {
       total: 2,
       status: "active",
       coveredGapLabels: ["keys"],
+      optionExplanations: null,
     };
     const text = formatAnswerReveal(result, question());
     expect(text).toContain("✅ Correct");
@@ -91,6 +93,7 @@ describe("formatAnswerReveal", () => {
       total: 2,
       status: "active",
       coveredGapLabels: [],
+      optionExplanations: null,
     };
     const text = formatAnswerReveal(result, question());
     expect(text).toContain("❌ Not quite");
@@ -110,6 +113,7 @@ describe("formatQuizComplete", () => {
       total: 4,
       status: "completed",
       coveredGapLabels: [],
+      optionExplanations: null,
     };
     const text = formatQuizComplete(result, "Backend › Module › Topic");
     expect(text).toContain("3/4 (75%)");

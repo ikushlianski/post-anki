@@ -15,6 +15,7 @@ function generated(
     format: "mcq",
     gapLabel: null,
     topicTitle: null,
+    optionExplanations: null,
     ...overrides,
   };
 }
@@ -192,5 +193,56 @@ describe("buildQuestionRows", () => {
     expect(rows[0]!.type).toBe("single");
     expect(rows[0]!.correctAnswerIndexes).toBeNull();
     expect(rows[0]!.correctAnswerIndex).toBe(1);
+  });
+
+  it("keeps each option's explanation attached to that option after shuffling", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [
+        generated({
+          options: ["a", "b", "c"],
+          correctAnswerIndex: 0,
+          optionExplanations: [
+            { text: "why a", citationUrl: null },
+            { text: "why b", citationUrl: null },
+            { text: "why c", citationUrl: null },
+          ],
+        }),
+      ],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+      makePermutation: () => [2, 0, 1],
+    });
+
+    expect(rows[0]!.options).toEqual(["c", "a", "b"]);
+    expect(rows[0]!.optionExplanations).toEqual([
+      { text: "why c", citationUrl: null },
+      { text: "why a", citationUrl: null },
+      { text: "why b", citationUrl: null },
+    ]);
+  });
+
+  it("pads missing explanations with a neutral placeholder before persisting", () => {
+    const rows = buildQuestionRows({
+      sessionId: "s1",
+      generated: [
+        generated({
+          options: ["a", "b", "c"],
+          optionExplanations: [{ text: "why a", citationUrl: null }],
+        }),
+      ],
+      defaultTopicId: "t",
+      topicIdByTitle: new Map(),
+      gapIdByKey: new Map(),
+      makeId: (i) => `q${i}`,
+    });
+
+    expect(rows[0]!.optionExplanations).toHaveLength(3);
+    expect(rows[0]!.optionExplanations![1]).toEqual({
+      text: "No explanation available.",
+      citationUrl: null,
+    });
   });
 });

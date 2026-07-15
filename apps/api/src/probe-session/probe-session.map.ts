@@ -1,5 +1,9 @@
 import type { GeneratedProbeQuestion, ProbeQuestionType } from "@post-anki/shared";
-import { reindexOptions } from "@post-anki/core";
+import {
+  alignOptionExplanations,
+  reindexOptions,
+  reindexParallelArray,
+} from "@post-anki/core";
 import type { ProbeSessionQuestionInsert } from "./probe-session.repo.js";
 
 export function normalize(value: string): string {
@@ -51,6 +55,9 @@ export function buildQuestionRows(
     const reindexed = reindexOptions(options, permutation, rawCorrectIndexes);
     const correctAnswerIndex = Math.min(...reindexed.correctIndexes);
 
+    const aligned = alignOptionExplanations(options, q.optionExplanations ?? []);
+    const optionExplanations = reindexParallelArray(aligned, permutation);
+
     return {
       id: params.makeId(index),
       sessionId: params.sessionId,
@@ -68,6 +75,7 @@ export function buildQuestionRows(
       answeredIndexes: null,
       outcome: null,
       answeredAt: null,
+      optionExplanations,
     };
   });
 }

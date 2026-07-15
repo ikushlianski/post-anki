@@ -5,23 +5,28 @@ import {
 } from "@post-anki/shared";
 import {
   planModuleQuizDistribution,
+  sanitizeOptionExplanations,
+  scaleTopicQuizTotal,
   selectQuizDifficultyMix,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
+import { getCurriculumSourceRows } from "../curriculum/curriculum.repo.js";
 import type { ScopeContext } from "./probe-session.repo.js";
-import { clamp, normalize } from "./probe-session.map.js";
+import { normalize } from "./probe-session.map.js";
 
-const TOPIC_TARGET = 12;
 const MODULE_TARGET = 16;
 const MIN_TOTAL = 10;
-const MAX_TOTAL = 20;
 
-function targetTotal(scope: ProbeScope, ctx: ScopeContext): number {
+function targetTotal(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  topicGapCount: number,
+): number {
   if (scope === "topic") {
-    return TOPIC_TARGET;
+    return scaleTopicQuizTotal(topicGapCount, MIN_TOTAL);
   }
 
   const plan = planModuleQuizDistribution(
@@ -29,7 +34,40 @@ function targetTotal(scope: ProbeScope, ctx: ScopeContext): number {
     MODULE_TARGET,
   );
 
-  return clamp(plan.total, MIN_TOTAL, MAX_TOTAL);
+  return Math.max(plan.total, MIN_TOTAL);
+}
+
+async function knownUrlAllowlistBlock(
+  curriculumId: string,
+  citations: string[],
+  fromWeb: boolean,
+): Promise<string> {
+  if (citations.length === 0) {
+    return "No known documentation URLs are available for this material — leave every citationUrl null.";
+  }
+
+  if (fromWeb) {
+    return [
+      "Known documentation URLs (cite ONLY from this exact list, copied verbatim, or use null):",
+      ...citations.map((url) => `- ${url}`),
+    ].join("\n");
+  }
+
+  const sourceRows = await getCurriculumSourceRows(curriculumId);
+  const titleByUrl = new Map<string, string | null>();
+
+  for (const row of sourceRows) {
+    titleByUrl.set(row.value, row.title);
+  }
+
+  return [
+    "Known documentation URLs (cite ONLY from this exact list, copied verbatim, or use null):",
+    ...citations.map((url) => {
+      const title = titleByUrl.get(url);
+
+      return title ? `- ${url} — ${title}` : `- ${url}`;
+    }),
+  ].join("\n");
 }
 
 function difficultyLine(ctx: ScopeContext, total: number): string {
@@ -74,6 +112,17 @@ function multiSelectLine(allowMultiSelect: boolean): string {
   ].join("\n");
 }
 
+function optionExplanationsLine(): string {
+  return [
+    "For every question, set optionExplanations to exactly one entry per option, in the same",
+    "order as options — { text, citationUrl }. text must state briefly and specifically why",
+    "THAT option is right or wrong (grounded in the material below when material is supplied,",
+    "otherwise general knowledge) — never a generic \"that's wrong\" repeated across options.",
+    "citationUrl must be copied verbatim from the known-URL list below when a specific passage",
+    "supports that option's explanation, or null otherwise — never invent or paraphrase a URL.",
+  ].join("\n");
+}
+
 async function buildPrompt(
   scope: ProbeScope,
   ctx: ScopeContext,
@@ -81,6 +130,7 @@ async function buildPrompt(
   total: number,
   grounding: string,
   allowMultiSelect: boolean,
+  knownUrlBlock: string,
 ): Promise<string> {
   const header = [
     `Produce exactly ${total} quiz questions that TEST the learner's knowledge.`,
@@ -91,6 +141,8 @@ async function buildPrompt(
     "Each question must be answerable deterministically and have exactly one correct option.",
     multiSelectLine(allowMultiSelect),
     difficultyLine(ctx, total),
+    optionExplanationsLine(),
+    knownUrlBlock,
   ].join("\n");
 
   if (scope === "topic") {
@@ -147,8 +199,6 @@ export async function generateProbeBatch(
   ctx: ScopeContext,
   allowMultiSelect = false,
 ): Promise<GeneratedBatch> {
-  const total = targetTotal(scope, ctx);
-
   const gapLists = await Promise.all(
     ctx.topics.map((t) => listGapsForTopic(t.id)),
   );
@@ -169,10 +219,18 @@ export async function generateProbeBatch(
     });
   });
 
+  const total = targetTotal(scope, ctx, gapsByTopic.get(ctx.topics[0]?.id ?? "")?.length ?? 0);
+
   const grounding = await gatherProbeGrounding(
     ctx.curriculumId,
     ctx.title,
     ctx.title,
+  );
+
+  const knownUrlBlock = await knownUrlAllowlistBlock(
+    ctx.curriculumId,
+    grounding.citations,
+    grounding.fromWeb,
   );
 
   const prompt = await buildPrompt(
@@ -182,6 +240,7 @@ export async function generateProbeBatch(
     total,
     grounding.text,
     allowMultiSelect,
+    knownUrlBlock,
   );
 
   try {
@@ -192,7 +251,13 @@ export async function generateProbeBatch(
 
     if (result.object) {
       return {
-        questions: result.object.questions,
+        questions: result.object.questions.map((q) => ({
+          ...q,
+          optionExplanations: sanitizeOptionExplanations(
+            q.optionExplanations ?? [],
+            grounding.citations,
+          ),
+        })),
         gapIdByKey,
         topicIdByTitle,
       };

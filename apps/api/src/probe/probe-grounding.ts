@@ -1,7 +1,10 @@
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
 import { startTracingSpan } from "../mastra/mastra.js";
-import { getCurriculumGroundingText } from "../curriculum/curriculum.repo.js";
+import {
+  getCurriculumCitableUrls,
+  getCurriculumGroundingText,
+} from "../curriculum/curriculum.repo.js";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const TIMEOUT_MS = 45_000;
@@ -40,9 +43,14 @@ export async function gatherProbeGrounding(
   const pasted = (await getCurriculumGroundingText(curriculumId)).trim();
 
   if (pasted.length >= MIN_SOURCE_CHARS) {
-    log.info({ curriculumId, source: "pasted", chars: pasted.length }, "probe_grounding");
+    const citations = await getCurriculumCitableUrls(curriculumId);
 
-    return { text: truncate(pasted), fromWeb: false, citations: [] };
+    log.info(
+      { curriculumId, source: "pasted", chars: pasted.length, citations: citations.length },
+      "probe_grounding",
+    );
+
+    return { text: truncate(pasted), fromWeb: false, citations };
   }
 
   const web = await webGround(topicTitle, focus);

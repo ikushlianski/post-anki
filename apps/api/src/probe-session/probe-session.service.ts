@@ -190,6 +190,7 @@ export async function answerProbeSession(
     total: progress.total,
     status: progress.status as ProbeSessionStatus,
     coveredGapLabels,
+    optionExplanations: question.optionExplanations ?? null,
   };
 }
 

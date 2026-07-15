@@ -19,6 +19,7 @@ import type {
 } from "@post-anki/shared";
 import {
   curriculumProgress,
+  extractUrls,
   moduleProgress,
   recommendedTopicId,
   sortForDisplay,
@@ -335,6 +336,39 @@ export async function getCurriculumGroundingText(
     .map((r) => r.fetchedText ?? (r.kind === "text" ? r.value : ""))
     .filter((t) => t.trim().length > 0)
     .join("\n\n---\n\n");
+}
+
+const FETCHED_TEXT_URL_KINDS = new Set(["llms_txt", "link", "text"]);
+
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export async function getCurriculumCitableUrls(
+  curriculumId: string,
+): Promise<string[]> {
+  const rows = await getCurriculumSourceRows(curriculumId);
+  const urls = new Set<string>();
+
+  for (const row of rows) {
+    if (isAbsoluteHttpUrl(row.value)) {
+      urls.add(row.value);
+    }
+
+    if (row.fetchedText && FETCHED_TEXT_URL_KINDS.has(row.kind)) {
+      for (const url of extractUrls(row.fetchedText)) {
+        urls.add(url);
+      }
+    }
+  }
+
+  return Array.from(urls);
 }
 
 export async function addCurriculumSources(

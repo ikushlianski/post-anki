@@ -61,6 +61,7 @@ export function rowToSessionQuestion(
     outcome: (row.outcome as ProbeOutcome | null) ?? null,
     correctAnswerIndex: answered ? row.correctAnswerIndex : null,
     correctAnswerIndexes: answered ? (row.correctAnswerIndexes ?? null) : null,
+    optionExplanations: row.outcome !== null ? (row.optionExplanations ?? null) : null,
   };
 }
 
