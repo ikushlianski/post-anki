@@ -135,22 +135,28 @@ describe("summarizeLearningMap", () => {
     expect(result.length).toBeLessThanOrEqual(MAX_CHARS);
   });
 
-  it("drops lowest-ranked entries rather than truncating mid-sentence when over budget", () => {
-    const snapshots = Array.from({ length: 50 }, (_, i) =>
+  it("drops the lowest-ranked entries once the char budget is exceeded within the first MAX_CURRICULA, rather than truncating mid-sentence", () => {
+    const longName = "A".repeat(200);
+    const snapshots = Array.from({ length: MAX_CURRICULA }, (_, i) =>
       snapshot({
         curriculumId: `cur-${i}`,
-        curriculumName: `A very long curriculum name for course number ${i}`,
+        curriculumName: `${longName} ${i}`,
         learningStatus: "probing",
         percent: 50,
-        lastInteractedAt: new Date(2026, 0, i + 1).toISOString(),
+        lastInteractedAt: new Date(2026, 0, MAX_CURRICULA - i).toISOString(),
       }),
     );
 
     const result = summarizeLearningMap(snapshots);
     const lines = result.split("\n");
 
+    expect(lines.length).toBeLessThan(MAX_CURRICULA);
+    expect(result.length).toBeLessThanOrEqual(MAX_CHARS);
+
     for (const line of lines) {
       expect(line.endsWith("mastered") || /level$/.test(line)).toBe(true);
     }
+
+    expect(lines[0]).toContain(`${longName} 0`);
   });
 });
