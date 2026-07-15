@@ -22,3 +22,5 @@ export * from "./admin-settings";
 export * from "./priority";
 export * from "./node-feedback";
 export * from "./feedback";
+export * from "./learning-map";
+export * from "./study-chat";
