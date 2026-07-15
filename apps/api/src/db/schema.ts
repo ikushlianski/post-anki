@@ -116,6 +116,9 @@ export const probeSessionQuestions = pgTable("probe_session_questions", {
   answeredIndexes: jsonb("answered_indexes").$type<number[]>(),
   outcome: text("outcome"),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
+  optionExplanations: jsonb("option_explanations").$type<
+    { text: string; citationUrl: string | null }[]
+  >(),
 });
 
 export const socraticSessions = pgTable("socratic_sessions", {

@@ -24,6 +24,13 @@ export const probeQuestionTypeSchema = z.enum(["single", "multi"]);
 
 export type ProbeQuestionType = z.infer<typeof probeQuestionTypeSchema>;
 
+export const optionExplanationSchema = z.object({
+  text: z.string(),
+  citationUrl: z.string().nullable(),
+});
+
+export type OptionExplanation = z.infer<typeof optionExplanationSchema>;
+
 export const probeSessionQuestionSchema = z.object({
   id: z.string(),
   order: z.number().int(),
@@ -39,6 +46,7 @@ export const probeSessionQuestionSchema = z.object({
   outcome: probeOutcomeSchema.nullable(),
   correctAnswerIndex: z.number().int().nullable(),
   correctAnswerIndexes: z.array(z.number().int()).nullable(),
+  optionExplanations: z.array(optionExplanationSchema).nullable(),
 });
 
 export type ProbeSessionQuestion = z.infer<typeof probeSessionQuestionSchema>;
@@ -85,6 +93,7 @@ export const answerProbeSessionResultSchema = z.object({
   total: z.number().int(),
   status: probeSessionStatusSchema,
   coveredGapLabels: z.array(z.string()),
+  optionExplanations: z.array(optionExplanationSchema).nullable(),
 });
 
 export type AnswerProbeSessionResult = z.infer<
@@ -101,6 +110,7 @@ export const generatedProbeQuestionSchema = z.object({
   format: probeFormatSchema,
   gapLabel: z.string().nullable(),
   topicTitle: z.string().nullable(),
+  optionExplanations: z.array(optionExplanationSchema).nullable(),
 });
 
 export type GeneratedProbeQuestion = z.infer<
