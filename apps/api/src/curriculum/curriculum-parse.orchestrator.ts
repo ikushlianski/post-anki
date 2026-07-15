@@ -25,6 +25,7 @@ import {
   insertResearchSource,
   saveCurriculumPlan,
   setCurriculumStatus,
+  setCurriculumStrictOrder,
   storeFetchedText,
   type SourceRow,
 } from "./curriculum.repo.js";
@@ -161,6 +162,7 @@ export async function researchCurriculum(
       defaultIncluded: false,
       preferredLevel,
     });
+    await setCurriculumStrictOrder(curriculumId, result.object.strictOrder ?? false);
     await setCurriculumStatus(curriculumId, "ready");
 
     log.info(

@@ -31,6 +31,16 @@ const INSTRUCTIONS = [
   "- Do NOT generate gaps, quizzes, or discussion questions. Those emerge later, during learning.",
   "- Do NOT browse the web yourself — the grounding notes you're given are the only research; lean on your",
   "  own trained knowledge to fill out the rest of the map.",
+  "",
+  "Decide strictOrder for the WHOLE learning map (a single true/false, not per-module):",
+  "- Set strictOrder to true when the documentation is a step-building tutorial or 'getting started'",
+  "  walkthrough, where a later step assumes and depends on an earlier one (e.g. 'install the CLI' before",
+  "  'write your first workflow' before 'deploy it') — reshuffling the map by importance would break the",
+  "  learner's mental model of the sequence.",
+  "- Set strictOrder to false when the documentation is reference-style, with modules/topics that are",
+  "  independently useful and have no required reading order (e.g. a library's API surface organized by",
+  "  feature area) — this is the default for most technologies.",
+  "- When genuinely unsure, prefer false — it is the safer, less restrictive default.",
 ].join("\n");
 
 export function createDocResearchArchitect(): Agent {

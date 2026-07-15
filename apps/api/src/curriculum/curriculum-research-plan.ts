@@ -15,6 +15,7 @@ const docResearchModuleSchema = z.object({
 
 export const docResearchPlanSchema = z.object({
   modules: z.array(docResearchModuleSchema).min(1),
+  strictOrder: z.boolean(),
 });
 
 export type DocResearchPlan = z.infer<typeof docResearchPlanSchema>;
