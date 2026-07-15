@@ -28,6 +28,15 @@ const INSTRUCTIONS = [
   "- If, and only if, the per-request instructions explicitly allow it, a question may instead",
   "  be type \"multi\" (select all that apply, 2+ correct options in correctAnswerIndexes) —",
   "  never produce type \"multi\" otherwise.",
+  "- Every question also carries optionExplanations: exactly one entry per option, same order",
+  "  as options, each a short { text, citationUrl } pair. text explains specifically why THAT",
+  "  option is right or wrong — never a generic line repeated across options — grounded in the",
+  "  supplied material when material is supplied, otherwise your own general knowledge.",
+  "- citationUrl must be copied VERBATIM from the known-URL allowlist given in the per-request",
+  "  instructions when a specific passage genuinely supports that option's explanation, or null",
+  "  otherwise. NEVER invent a URL, NEVER paraphrase or modify one from the allowlist, and NEVER",
+  "  cite a URL that isn't on that exact list — a missing citation (null) is always preferred",
+  "  over a fabricated or guessed one.",
 ].join("\n");
 
 export function createProbeQuizAgent(): Agent {

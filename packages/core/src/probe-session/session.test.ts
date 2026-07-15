@@ -23,6 +23,7 @@ function question(
     outcome: null,
     correctAnswerIndex: null,
     correctAnswerIndexes: null,
+    optionExplanations: null,
     ...overrides,
   };
 }
