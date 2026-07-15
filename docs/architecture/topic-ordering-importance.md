@@ -2,10 +2,59 @@
 type: architecture
 branch: topic-ordering-importance
 task: Promote/demote modules and topics, per-node comments, and AI-decided strict document order
-state: confirmed
+state: shipped
 updated: 2026-07-15
 ---
 # Architecture: Topic ordering & importance
+
+## Diagram
+
+```mermaid
+flowchart TD
+    subgraph Learner_Actions["Learner actions (web UI)"]
+        Promote["Promote / demote button<br/>(module or topic)"]
+        Comment["Node comment control"]
+        Toggle["Strict document order toggle"]
+    end
+
+    subgraph Derivers["packages/core — pure derivers"]
+        NextPriority["nextPriority(current, direction)<br/>tri-state toggle"]
+        SortForDisplay["sortForDisplay(items, strict)<br/>priority desc, then order asc"]
+    end
+
+    subgraph API["apps/api"]
+        UpdateModule["updateModule / updateTopic<br/>(module.repo.ts / topic.repo.ts)"]
+        NodeFeedback["node-feedback.repo.ts<br/>insertNodeComment"]
+        UpdateCurriculum["updateCurriculum<br/>(curriculum.repo.ts)"]
+        BuildModules["buildModules<br/>(curriculum.repo.ts)"]
+        DocResearch["doc-research-architect.agent.ts<br/>+ strictOrder guidance"]
+        ResearchCurriculum["researchCurriculum<br/>(curriculum-parse.orchestrator.ts)"]
+    end
+
+    subgraph DB["Postgres"]
+        ModulesTopics["modules.priority<br/>topics.priority"]
+        Curricula["curricula.strict_order"]
+        NodeFeedbackTable["node_feedback<br/>(dead-end log)"]
+    end
+
+    Promote -->|"click"| NextPriority --> UpdateModule --> ModulesTopics
+    Comment -->|"submit"| NodeFeedback --> NodeFeedbackTable
+    Toggle -->|"flip"| UpdateCurriculum --> Curricula
+
+    ModulesTopics --> BuildModules
+    Curricula --> BuildModules
+    BuildModules --> SortForDisplay --> DisplayOrder["Modules/topics rendered<br/>in display order"]
+
+    DocResearch -->|"strictOrder: boolean"| ResearchCurriculum --> Curricula
+
+    style NodeFeedbackTable fill:#fce8e6,stroke:#c5221f
+    style DisplayOrder fill:#e6f4ea,stroke:#137333
+```
+
+`node_feedback` is intentionally a dead end — the diagram shows no arrow back out of it into any
+LLM prompt, matching the "deliberately a dead-end log" decision below.
+
+![architecture diagram](./assets/topic-ordering-importance.png)
 
 ## What changes structurally
 
