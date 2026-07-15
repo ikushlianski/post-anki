@@ -3,11 +3,13 @@ import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { answerSocraticSession, startSocraticSession } from './socratic.api'
+import { ItemFeedbackButtons } from '../feedback/item-feedback-buttons'
 
 interface ChatMessage {
   id: string
   role: 'mentor' | 'learner'
   text: string
+  turnId?: string
 }
 
 export function SocraticChat({ topicId }: { topicId: string }) {
@@ -31,7 +33,12 @@ export function SocraticChat({ topicId }: { topicId: string }) {
       if (session.current) {
         setTurnId(session.current.id)
         setMessages([
-          { id: session.current.id, role: 'mentor', text: session.current.prompt },
+          {
+            id: session.current.id,
+            role: 'mentor',
+            text: session.current.prompt,
+            turnId: session.current.id,
+          },
         ])
       } else if (session.status === 'completed') {
         setCompleted(true)
@@ -62,7 +69,12 @@ export function SocraticChat({ topicId }: { topicId: string }) {
         setTurnId(result.next.id)
         setMessages((prev) => [
           ...prev,
-          { id: result.next!.id, role: 'mentor', text: result.next!.prompt },
+          {
+            id: result.next!.id,
+            role: 'mentor',
+            text: result.next!.prompt,
+            turnId: result.next!.id,
+          },
         ])
       } else if (!result.next) {
         setTurnId(null)
@@ -120,16 +132,20 @@ export function SocraticChat({ topicId }: { topicId: string }) {
         data-testid="socratic-messages"
       >
         {messages.map((message) => (
-          <div
-            key={message.id}
-            data-testid={`socratic-message-${message.role}`}
-            className={
-              message.role === 'mentor'
-                ? 'mr-auto max-w-[85%] rounded-lg rounded-bl-none bg-white px-3 py-2 text-sm text-neutral-800 shadow-sm'
-                : 'ml-auto max-w-[85%] rounded-lg rounded-br-none bg-neutral-900 px-3 py-2 text-sm text-white'
-            }
-          >
-            {message.text}
+          <div key={message.id} className={message.role === 'mentor' ? 'mr-auto max-w-[85%]' : 'ml-auto max-w-[85%]'}>
+            <div
+              data-testid={`socratic-message-${message.role}`}
+              className={
+                message.role === 'mentor'
+                  ? 'rounded-lg rounded-bl-none bg-white px-3 py-2 text-sm text-neutral-800 shadow-sm'
+                  : 'rounded-lg rounded-br-none bg-neutral-900 px-3 py-2 text-sm text-white'
+              }
+            >
+              {message.text}
+            </div>
+            {message.turnId ? (
+              <ItemFeedbackButtons itemType="socratic_turn" itemId={message.turnId} />
+            ) : null}
           </div>
         ))}
 

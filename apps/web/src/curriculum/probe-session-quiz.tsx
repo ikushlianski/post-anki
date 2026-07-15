@@ -12,6 +12,7 @@ import {
   getActiveProbeSession,
   prepareProbeSession,
 } from './probe-session.api'
+import { ItemFeedbackButtons } from '../feedback/item-feedback-buttons'
 
 function probeSessionQueryKey(topicId: string) {
   return ['probe-session', topicId] as const
@@ -222,6 +223,8 @@ export function ProbeSessionQuiz({ topicId }: { topicId: string }) {
       <p className="text-sm text-neutral-800" data-testid="quiz-prompt">
         {current.prompt}
       </p>
+
+      <ItemFeedbackButtons itemType="probe_question" itemId={current.id} />
 
       {current.type === 'multi' ? (
         <p className="mt-1 text-xs text-neutral-400">

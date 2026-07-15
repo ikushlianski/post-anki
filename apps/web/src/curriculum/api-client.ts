@@ -682,6 +682,26 @@ export async function answerSocraticSession(input: {
   }
 }
 
+export async function submitProbeQuestionFeedback(
+  questionId: string,
+  input: be.SubmitItemFeedbackInput,
+): Promise<be.ItemFeedback> {
+  return request<be.ItemFeedback>(`/probe-session-questions/${questionId}/feedback`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function submitSocraticTurnFeedback(
+  turnId: string,
+  input: be.SubmitItemFeedbackInput,
+): Promise<be.ItemFeedback> {
+  return request<be.ItemFeedback>(`/socratic-turns/${turnId}/feedback`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
 export async function getAdminSettings(): Promise<be.AdminSettings> {
   return request<be.AdminSettings>('/admin/settings')
 }
