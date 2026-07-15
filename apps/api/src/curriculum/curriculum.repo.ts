@@ -21,6 +21,7 @@ import {
   curriculumProgress,
   moduleProgress,
   recommendedTopicId,
+  sortForDisplay,
 } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import {
@@ -94,6 +95,7 @@ export async function createCurriculum(
     speed: "normal" as const,
     hinting: true,
     defaultDepth: "working" as const,
+    strictOrder: false,
   };
 
   await getDb().insert(curricula).values(row);
@@ -167,6 +169,16 @@ export async function setCurriculumStatus(
   await getDb()
     .update(curricula)
     .set({ status })
+    .where(eq(curricula.id, curriculumId));
+}
+
+export async function setCurriculumStrictOrder(
+  curriculumId: string,
+  strictOrder: boolean,
+): Promise<void> {
+  await getDb()
+    .update(curricula)
+    .set({ strictOrder })
     .where(eq(curricula.id, curriculumId));
 }
 
@@ -466,6 +478,10 @@ export async function updateCurriculum(
     patch.defaultDepth = input.defaultDepth;
   }
 
+  if (input.strictOrder !== undefined) {
+    patch.strictOrder = input.strictOrder;
+  }
+
   if (Object.keys(patch).length === 0) {
     const existing = (
       await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
@@ -588,7 +604,12 @@ export async function getCurriculumDetail(
         )
       : [];
 
-  const assembledModules = buildModules(moduleRows, topicRows, gapRows);
+  const assembledModules = buildModules(
+    moduleRows,
+    topicRows,
+    gapRows,
+    curriculumRow.strictOrder,
+  );
 
   return {
     curriculum: toCurriculum(
@@ -606,29 +627,29 @@ function buildModules(
   moduleRows: (typeof modules.$inferSelect)[],
   topicRows: (typeof topics.$inferSelect)[],
   gapRows: (typeof gaps.$inferSelect)[],
+  strictOrder: boolean,
 ): Module[] {
-  return [...moduleRows]
-    .sort((a, b) => a.order - b.order)
-    .map((m) => {
-      const moduleTopics = topicRows
-        .filter((t) => t.moduleId === m.id)
-        .sort((a, b) => a.order - b.order)
-        .map((t) => ({
-          ...toTopic(t),
-          gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
-        }));
+  return sortForDisplay(moduleRows, strictOrder).map((m) => {
+    const moduleTopics = sortForDisplay(
+      topicRows.filter((t) => t.moduleId === m.id),
+      strictOrder,
+    ).map((t) => ({
+      ...toTopic(t),
+      gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
+    }));
 
-      return {
-        id: m.id,
-        curriculumId: m.curriculumId,
-        title: m.title,
-        order: m.order,
-        learningStatus: m.learningStatus as LearningStatus,
-        level: (m.level as Level | null) ?? null,
-        topics: moduleTopics,
-        progress: moduleProgress(moduleTopics),
-      };
-    });
+    return {
+      id: m.id,
+      curriculumId: m.curriculumId,
+      title: m.title,
+      order: m.order,
+      priority: m.priority as Module["priority"],
+      learningStatus: m.learningStatus as LearningStatus,
+      level: (m.level as Level | null) ?? null,
+      topics: moduleTopics,
+      progress: moduleProgress(moduleTopics),
+    };
+  });
 }
 
 function toCurriculum(
@@ -642,6 +663,7 @@ function toCurriculum(
     speed: string;
     hinting: boolean;
     defaultDepth: string;
+    strictOrder: boolean;
   },
   origin: CurriculumOrigin,
 ): Curriculum {
@@ -656,6 +678,7 @@ function toCurriculum(
     hinting: row.hinting,
     defaultDepth: row.defaultDepth as DepthLevel,
     origin,
+    strictOrder: row.strictOrder,
   };
 }
 
@@ -676,6 +699,7 @@ function toTopic(row: typeof topics.$inferSelect): Topic {
     title: row.title,
     summary: row.summary ?? undefined,
     order: row.order,
+    priority: row.priority as Topic["priority"],
     included: row.included,
     selfGrade: (row.selfGrade as Topic["selfGrade"]) ?? null,
     depth: row.depth as DepthLevel,

@@ -33,6 +33,7 @@ export async function createModule(input: CreateModuleInput): Promise<Module> {
     curriculumId: input.curriculumId,
     title: input.title,
     order,
+    priority: 0,
     learningStatus: "not_started",
     level: null,
     topics: [],
@@ -42,7 +43,13 @@ export async function createModule(input: CreateModuleInput): Promise<Module> {
 
 export async function updateModule(
   input: UpdateModuleInput,
-): Promise<{ id: string; title: string; order: number; learningStatus: LearningStatus } | null> {
+): Promise<{
+  id: string;
+  title: string;
+  order: number;
+  priority: number;
+  learningStatus: LearningStatus;
+} | null> {
   const db = getDb();
 
   const existing = (
@@ -63,6 +70,10 @@ export async function updateModule(
     patch.order = input.order;
   }
 
+  if (input.priority !== undefined) {
+    patch.priority = input.priority;
+  }
+
   if (input.learningStatus !== undefined) {
     patch.learningStatus = input.learningStatus;
   }
@@ -77,6 +88,7 @@ export async function updateModule(
     id: row.id,
     title: row.title,
     order: row.order,
+    priority: row.priority,
     learningStatus: row.learningStatus as LearningStatus,
   };
 }
