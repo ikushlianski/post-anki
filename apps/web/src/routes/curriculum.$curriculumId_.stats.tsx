@@ -10,7 +10,7 @@ import {
 import { WeakStrongList } from '../curriculum/weak-strong-list'
 import { RecommendationPanel } from '../curriculum/recommendation-panel'
 
-export const Route = createFileRoute('/curriculum/$curriculumId/stats')({
+export const Route = createFileRoute('/curriculum/$curriculumId_/stats')({
   component: CurriculumStatsPage,
   loader: ({ params, context }) =>
     Promise.all([

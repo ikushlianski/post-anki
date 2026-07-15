@@ -17,7 +17,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
-import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId.stats'
+import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
 
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
@@ -61,9 +61,9 @@ const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
 } as any)
 const CurriculumCurriculumIdStatsRoute =
   CurriculumCurriculumIdStatsRouteImport.update({
-    id: '/stats',
-    path: '/stats',
-    getParentRoute: () => CurriculumCurriculumIdRoute,
+    id: '/curriculum/$curriculumId_/stats',
+    path: '/curriculum/$curriculumId/stats',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -73,7 +73,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
-  '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRouteWithChildren
+  '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
 }
@@ -84,7 +84,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
-  '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRouteWithChildren
+  '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
 }
@@ -96,9 +96,9 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
-  '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRouteWithChildren
+  '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
-  '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -133,7 +133,7 @@ export interface FileRouteTypes {
     | '/today'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
-    | '/curriculum/$curriculumId/stats'
+    | '/curriculum/$curriculumId_/stats'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,8 +143,9 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
   TodayRoute: typeof TodayRoute
-  CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRouteWithChildren
+  CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   ProbeTopicIdRoute: typeof ProbeTopicIdRoute
+  CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,29 +206,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/curriculum/$curriculumId/stats': {
-      id: '/curriculum/$curriculumId/stats'
-      path: '/stats'
+    '/curriculum/$curriculumId_/stats': {
+      id: '/curriculum/$curriculumId_/stats'
+      path: '/curriculum/$curriculumId/stats'
       fullPath: '/curriculum/$curriculumId/stats'
       preLoaderRoute: typeof CurriculumCurriculumIdStatsRouteImport
-      parentRoute: typeof CurriculumCurriculumIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface CurriculumCurriculumIdRouteChildren {
-  CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
-}
-
-const CurriculumCurriculumIdRouteChildren: CurriculumCurriculumIdRouteChildren =
-  {
-    CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
-  }
-
-const CurriculumCurriculumIdRouteWithChildren =
-  CurriculumCurriculumIdRoute._addFileChildren(
-    CurriculumCurriculumIdRouteChildren,
-  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -236,8 +223,9 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,
   TodayRoute: TodayRoute,
-  CurriculumCurriculumIdRoute: CurriculumCurriculumIdRouteWithChildren,
+  CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   ProbeTopicIdRoute: ProbeTopicIdRoute,
+  CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
