@@ -10,7 +10,7 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export const askStudyChatInput = z.object({
   topicId: z.string(),
   message: z.string().min(1),
-  transcript: z.array(chatMessageSchema).default([]),
+  transcript: z.array(chatMessageSchema).optional(),
 });
 
 export type AskStudyChatInput = z.infer<typeof askStudyChatInput>;

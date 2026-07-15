@@ -10,6 +10,7 @@ import { createDecideAgent } from "./decide.agent.js";
 import { createProbeQuizAgent } from "./probe-quiz.agent.js";
 import { createSocraticEvalAgent } from "./socratic.agent.js";
 import { createDocResearchArchitect } from "./doc-research-architect.agent.js";
+import { createStudyChatAgent } from "./study-chat.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -19,6 +20,7 @@ export const AGENT_KEYS = {
   probeQuizBatch: "probeQuizBatch",
   socraticEval: "socraticEval",
   docResearchArchitect: "docResearchArchitect",
+  studyChat: "studyChat",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -68,6 +70,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.probeQuizBatch]: createProbeQuizAgent(),
         [AGENT_KEYS.socraticEval]: createSocraticEvalAgent(),
         [AGENT_KEYS.docResearchArchitect]: createDocResearchArchitect(),
+        [AGENT_KEYS.studyChat]: createStudyChatAgent(),
       },
       ...(observability ? { observability } : {}),
     });

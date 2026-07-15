@@ -60,6 +60,7 @@ import {
   handleSubmitProbeQuestionFeedback,
   handleSubmitSocraticTurnFeedback,
 } from "./feedback/feedback.controller.js";
+import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -197,6 +198,8 @@ async function route(
       return handleSubmitProbeQuestionFeedback(req, res, id);
     case "submitSocraticTurnFeedback":
       return handleSubmitSocraticTurnFeedback(req, res, id);
+    case "askStudyChat":
+      return handleAskStudyChat(req, res, id);
   }
 }
 

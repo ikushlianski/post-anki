@@ -37,7 +37,8 @@ export type RouteName =
   | "getAdminSettings"
   | "updateAdminSettings"
   | "submitProbeQuestionFeedback"
-  | "submitSocraticTurnFeedback";
+  | "submitSocraticTurnFeedback"
+  | "askStudyChat";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -99,6 +100,12 @@ const ROUTES: RouteDef[] = [
     method: "POST",
     pattern: /^\/socratic-turns\/([^/]+)\/feedback$/,
     name: "submitSocraticTurnFeedback",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/study-chat$/,
+    name: "askStudyChat",
     param: "id",
   },
 ];

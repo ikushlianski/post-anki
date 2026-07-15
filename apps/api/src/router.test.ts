@@ -31,6 +31,7 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/curricula/c1/confirm")).toEqual({ name: "confirmCurriculum", params: { id: "c1" } });
       expect(resolveRoute("POST", "/topics/t1/probe/answer")).toEqual({ name: "submitProbe", params: { id: "t1" } });
       expect(resolveRoute("GET", "/topics/t1/gaps")).toEqual({ name: "listTopicGaps", params: { id: "t1" } });
+      expect(resolveRoute("POST", "/topics/t1/study-chat")).toEqual({ name: "askStudyChat", params: { id: "t1" } });
     });
   });
 
@@ -44,6 +45,11 @@ describe("resolveRoute", () => {
     it("distinguishes /topics/:id/probe from /topics/:id/probe/answer", () => {
       expect(resolveRoute("POST", "/topics/t1/probe")?.name).toBe("startProbe");
       expect(resolveRoute("POST", "/topics/t1/probe/answer")?.name).toBe("submitProbe");
+    });
+
+    it("distinguishes /topics/:id/probe from /topics/:id/study-chat", () => {
+      expect(resolveRoute("POST", "/topics/t1/probe")?.name).toBe("startProbe");
+      expect(resolveRoute("POST", "/topics/t1/study-chat")?.name).toBe("askStudyChat");
     });
 
     it("distinguishes /curricula/:id/modules from /curricula/:id/modules/order", () => {
