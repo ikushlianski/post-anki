@@ -21,6 +21,7 @@
     "@post-anki/core": "*",
     "@post-anki/shared": "*",
     "drizzle-orm": "^0.36.0",
+    "google-auth-library": "^10.9.0",
     "pg": "^8.13.0",
     "pino": "^9.5.0",
     "zod": "^3.23.0"

@@ -11,6 +11,10 @@ const dailyPushSchedule = config.get("dailyPushSchedule") ?? "0 8 * * *";
 const dailyPushTimeZone = config.get("dailyPushTimeZone") ?? "Europe/Warsaw";
 // Secret the bot's POST /push checks (must equal the bot's TELEGRAM_WEBHOOK_SECRET).
 const telegramWebhookSecret = config.getSecret("telegramWebhookSecret");
+// Neon DIRECT (non-pooled) connection string — Electric's logical-replication
+// connection can't go through a connection pooler, unlike apps/api and apps/bot's
+// pooled Neon connection. Set via `pulumi config set --secret electricDatabaseUrl <value>`.
+const electricDatabaseUrl = config.getSecret("electricDatabaseUrl");
 
 const requiredApis = [
   "run.googleapis.com",
@@ -106,6 +110,69 @@ function publicInvoker(resource: string, service: gcp.cloudrun.Service): void {
   });
 }
 
+// Official electric-sql/electric sync engine image — unlike the other 3 services,
+// Electric has no CI build/push step, so Pulumi owns its image directly instead of
+// deferring to `gcloud run deploy` with a placeholder. See:
+// https://hub.docker.com/r/electricsql/electric
+const ELECTRIC_IMAGE = "electricsql/electric:1.7.7";
+
+// Electric's own shape: minScale 1 (it must stay warm for its persistent Postgres
+// logical-replication connection — the other services can scale to zero) and Pulumi
+// sets its env vars directly (DATABASE_URL) since there's no CI deploy step for it.
+// Structure otherwise mirrors runService()'s container/autoscaling shape.
+function electricService(
+  resource: string,
+  name: string,
+  saEmail: pulumi.Output<string>,
+  port: number,
+  databaseUrl: pulumi.Output<string> | undefined,
+  deps: pulumi.Resource[],
+): gcp.cloudrun.Service {
+  return new gcp.cloudrun.Service(
+    resource,
+    {
+      project: projectId,
+      location: region,
+      name,
+      template: {
+        spec: {
+          serviceAccountName: saEmail,
+          containers: [
+            {
+              image: ELECTRIC_IMAGE,
+              ports: [{ containerPort: port }],
+              resources: { limits: { memory: "512Mi", cpu: "1" } },
+              envs: [
+                ...(databaseUrl ? [{ name: "DATABASE_URL", value: databaseUrl }] : []),
+                { name: "ELECTRIC_PORT", value: `${port}` },
+                // Electric's shape API needs either ELECTRIC_SECRET or
+                // ELECTRIC_INSECURE=true. We rely on Cloud Run IAM (only apiSa
+                // can invoke, see electric-invoker below) rather than an
+                // app-level secret — this matches Electric's own guidance to
+                // only skip ELECTRIC_SECRET "in development or if you've
+                // otherwise secured the Electric API":
+                // https://electric.ax/docs/api/config
+                { name: "ELECTRIC_INSECURE", value: "true" },
+              ],
+            },
+          ],
+        },
+        metadata: {
+          annotations: {
+            "autoscaling.knative.dev/minScale": "1",
+            "autoscaling.knative.dev/maxScale": "1",
+            // Electric's replication connection does background WAL consumption
+            // between HTTP requests — default Cloud Run CPU throttling would
+            // starve that work even with minScale: 1, so CPU stays allocated.
+            "run.googleapis.com/cpu-throttling": "false",
+          },
+        },
+      },
+    },
+    { dependsOn: deps },
+  );
+}
+
 function domainMapping(
   resource: string,
   host: string,
@@ -168,6 +235,34 @@ const apiService = runService("api", "post-anki-api", apiSa.email, 8030, [
 publicInvoker("api-public-invoker", apiService);
 const apiDomainMapping = domainMapping("api-domain", apiDomain, apiService);
 
+// --- Electric (sync engine) — internal-only, no domain mapping, no public invoker. ---
+const electricSa = new gcp.serviceaccount.Account(
+  "electric-sa",
+  {
+    project: projectId,
+    accountId: "post-anki-electric",
+    displayName: "post-anki Electric Cloud Run SA",
+  },
+  { dependsOn: enabledApis },
+);
+const electricServiceInstance = electricService(
+  "electric",
+  "post-anki-electric",
+  electricSa.email,
+  3000,
+  electricDatabaseUrl,
+  [electricSa, ...enabledApis],
+);
+// Private: only apps/api's SA may invoke Electric directly (apps/api proxies
+// shape requests to it with a GCP ID token — no allUsers invoker here).
+new gcp.cloudrun.IamMember("electric-invoker", {
+  project: projectId,
+  location: region,
+  service: electricServiceInstance.name,
+  role: "roles/run.invoker",
+  member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
+});
+
 // Daily push: fire the BOT's POST /push once a day. The bot fetches the day's
 // question from the API and sends it to the owner on Telegram. Gated by the
 // bot's TELEGRAM_WEBHOOK_SECRET (sent as a bearer).
@@ -201,4 +296,9 @@ export const botDomainMappingRecords = botDomainMapping.statuses;
 export const apiServiceUrl = apiService.statuses[0].url;
 export const apiSaEmail = apiSa.email;
 export const apiDomainMappingRecords = apiDomainMapping.statuses;
+// Internal Cloud Run URL — apps/api's deploy workflow wires this in as its own
+// ELECTRIC_SERVICE_URL env var (that wiring happens in .github/workflows/deploy.yml,
+// not here).
+export const electricServiceUrl = electricServiceInstance.statuses[0].url;
+export const electricSaEmail = electricSa.email;
 export const dailyPushJobName = dailyPushJob.name;

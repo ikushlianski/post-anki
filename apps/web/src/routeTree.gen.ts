@@ -17,6 +17,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
+import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
 import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
 
 const TodayRoute = TodayRouteImport.update({
@@ -59,6 +60,11 @@ const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
   path: '/curriculum/$curriculumId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
+  id: '/api/electric-shape',
+  path: '/api/electric-shape',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CurriculumCurriculumIdStatsRoute =
   CurriculumCurriculumIdStatsRouteImport.update({
     id: '/curriculum/$curriculumId_/stats',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
+  '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
+  '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
+  '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/decide'
     | '/today'
+    | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
     | '/curriculum/$curriculumId/stats'
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/decide'
     | '/today'
+    | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
     | '/curriculum/$curriculumId/stats'
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/decide'
     | '/today'
+    | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
     | '/curriculum/$curriculumId_/stats'
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
   TodayRoute: typeof TodayRoute
+  ApiElectricShapeRoute: typeof ApiElectricShapeRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   ProbeTopicIdRoute: typeof ProbeTopicIdRoute
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
@@ -206,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/electric-shape': {
+      id: '/api/electric-shape'
+      path: '/api/electric-shape'
+      fullPath: '/api/electric-shape'
+      preLoaderRoute: typeof ApiElectricShapeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/curriculum/$curriculumId_/stats': {
       id: '/curriculum/$curriculumId_/stats'
       path: '/curriculum/$curriculumId/stats'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,
   TodayRoute: TodayRoute,
+  ApiElectricShapeRoute: ApiElectricShapeRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   ProbeTopicIdRoute: ProbeTopicIdRoute,
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,

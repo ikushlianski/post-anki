@@ -32,7 +32,7 @@ export function apiBaseUrl(): string {
   return (url && url.trim() !== '' ? url : DEFAULT_API_BASE_URL).replace(/\/$/, '')
 }
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const secret = process.env.API_SHARED_SECRET
   const headers: Record<string, string> = { 'content-type': 'application/json' }
 

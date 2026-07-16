@@ -6,6 +6,8 @@ const envSchema = z.object({
   CURRICULUM_MODEL: z.string().min(1).default("openrouter/google/gemini-2.5-flash"),
   OPENROUTER_BASE_URL: z.string().min(1).optional(),
   API_SHARED_SECRET: z.string().min(1).optional(),
+  ELECTRIC_SERVICE_URL: z.string().min(1).optional(),
+  ELECTRIC_AUTH_MODE: z.enum(["iam", "none"]).default("iam"),
   PORT: z.coerce.number().int().positive().default(8030),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   NODE_ENV: z.string().optional(),

@@ -1,4 +1,13 @@
 services:
+  electric:
+    image: electricsql/electric:1.7.7
+    container_name: post-anki-dev-electric
+    environment:
+      DATABASE_URL: ${ELECTRIC_DATABASE_URL}
+      ELECTRIC_INSECURE: 'true'
+    ports:
+      - '3010:3000'
+
   postgres:
     image: postgres:16-alpine
     container_name: post-anki-dev-db

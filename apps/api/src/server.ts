@@ -66,6 +66,7 @@ import {
   handleGetCurriculumStats,
 } from "./stats/stats.controller.js";
 import { handleGetStreak } from "./streak/streak.controller.js";
+import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -211,6 +212,8 @@ async function route(
       return handleGenerateRecommendations(res, id);
     case "getStreak":
       return handleGetStreak(res);
+    case "getElectricShape":
+      return handleGetElectricShape(res, url.search);
   }
 }
 

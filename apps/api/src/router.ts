@@ -41,7 +41,8 @@ export type RouteName =
   | "askStudyChat"
   | "getCurriculumStats"
   | "generateRecommendations"
-  | "getStreak";
+  | "getStreak"
+  | "getElectricShape";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -124,6 +125,7 @@ const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "GET", pattern: "/streak", name: "getStreak" },
+  { method: "GET", pattern: "/electric/v1/shape", name: "getElectricShape" },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {
