@@ -92,63 +92,48 @@ level is not persisted — it only affects the prompt bias and the initial
 
 ```mermaid
 flowchart TB
-  subgraph Entry["Entry points"]
-    WebForm["apps/web: Study a technology form<br/>name + docUrl + level<br/>(researchTopic field retired from UI)"]
-    BotCmd["apps/bot: /study &lt;name&gt; command<br/>UNCHANGED — legacy bare-name only"]
+  subgraph Entry["How a technology gets started"]
+    WebForm["Study a technology — web form<br/>name, optional docs link, experience level"]
+    BotCmd["Study a technology — bot command<br/>name only"]
   end
 
-  subgraph API["apps/api — curriculum creation"]
-    Controller["curriculum.controller.ts<br/>handleCreateCurriculum"]
-    Conflict{"docUrl + researchTopic?<br/>or research + sources?"}
-    Precedence{"docUrl set?"}
-    Legacy{"researchTopic set?"}
-    Parse["parseCurriculum() — existing,<br/>pasted-material, unchanged"]
+  Create["Create curriculum"]
+  ConflictCheck{"Conflicting or<br/>missing input?"}
+  Reject["Rejected"]
+  HasDocsLink{"Docs link<br/>provided?"}
+
+  subgraph DocsPath["Docs-link path — prefer the site's own map"]
+    OwnIndex{"Site publishes its own<br/>curated index?"}
+    SiteSearch["Search the web,<br/>scoped to that site"]
+    FetchPage["Fetch the given<br/>page directly"]
   end
 
-  subgraph UrlPath["docUrl path — researchCurriculum({ name, docUrl }, preferredLevel)"]
-    Probe1["GET origin/llms.txt"]
-    Check1{"looksLikeLlmsTxtContent?"}
-    Probe2["GET origin/llms-full.txt"]
-    Check2{"looksLikeLlmsTxtContent?"}
-    SiteSearch["site-anchored openrouter:web_search<br/>(tech-research-grounding.ts, siteHost param)"]
-    PageFetch["direct GET of the given docUrl<br/>(source-fetch.ts, reused)"]
-  end
+  NameSearch["Open web search<br/>on the technology name"]
+  PastedMaterial["Build from pasted material<br/>(unchanged path)"]
 
-  LegacyGround["tech-research-grounding.ts<br/>plain openrouter:web_search on bare name<br/>NO llms.txt probe, NO site anchor —<br/>unchanged from shipped behavior<br/>researchCurriculum({ name }, null)"]
+  Synthesize["AI builds the curriculum —<br/>modules & topics, biased toward<br/>the chosen experience level"]
+  Save["Save the plan —<br/>topics at the chosen level<br/>start pre-selected"]
+  Review["Review & confirm<br/>(unchanged)"]
+  Study["Study the confirmed curriculum<br/>(unchanged)"]
 
-  Architect["doc-research-architect.agent.ts<br/>Pass 2 — structuredOutput<br/>prompt level-biased only on the docUrl path"]
-  Repo["curriculum.repo.ts<br/>saveCurriculumPlan<br/>+ shouldIncludeTopicByDefault(level, preferredLevel)<br/>+ insert sources row<br/>(kind: llms_txt | web_research, value = original docUrl or name)"]
-  Ready["status: ready<br/>docUrl path: chosen tier pre-included, rest excluded<br/>legacy path: all excluded, unchanged"]
-  Confirm["existing curate/confirm UI — unchanged"]
-  Confirmed["status: confirmed"]
-  Existing["existing probe-session /<br/>Socratic study mechanics<br/>(fully unchanged)"]
+  WebForm --> Create
+  BotCmd --> Create
+  Create --> ConflictCheck
+  ConflictCheck -->|"yes"| Reject
+  ConflictCheck -->|"no"| HasDocsLink
+  HasDocsLink -->|"yes"| OwnIndex
+  HasDocsLink -->|"no, name only"| NameSearch
+  HasDocsLink -->|"no, pasted material"| PastedMaterial
 
-  WebForm -->|"POST /curricula { docUrl, preferredLevel }"| Controller
-  BotCmd -->|"POST /curricula { researchTopic }"| Controller
-  Controller --> Conflict
-  Conflict -->|"conflict"| Reject["400"]
-  Conflict -->|"ok"| Precedence
-  Precedence -->|"yes — docUrl"| Probe1
-  Precedence -->|"no"| Legacy
-  Legacy -->|"yes — bot's bare name"| LegacyGround
-  Legacy -->|"no"| Parse
+  OwnIndex -->|"yes"| Synthesize
+  OwnIndex -->|"no"| SiteSearch
+  SiteSearch --> FetchPage
+  FetchPage --> Synthesize
+  NameSearch --> Synthesize
 
-  Probe1 --> Check1
-  Check1 -->|"found"| Architect
-  Check1 -->|"absent/soft-404"| Probe2
-  Probe2 --> Check2
-  Check2 -->|"found"| Architect
-  Check2 -->|"absent"| SiteSearch
-  SiteSearch --> PageFetch
-  PageFetch --> Architect
-
-  LegacyGround --> Architect
-
-  Architect --> Repo
-  Repo --> Ready
-  Ready --> Confirm
-  Confirm --> Confirmed
-  Confirmed -->|"start topic/module"| Existing
+  Synthesize --> Save
+  Save --> Review
+  Review --> Study
 ```
 
 ![architecture diagram](./assets/use-case-study-mode.png)
