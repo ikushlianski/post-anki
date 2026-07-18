@@ -13,3 +13,4 @@ e2e/playwright-report/
 e2e/.auth/
 /test-results/
 /playwright-report/
+docker-compose.override.yml
