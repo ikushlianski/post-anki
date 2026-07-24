@@ -5,6 +5,7 @@ import { depthLevelSchema } from "./depth";
 import { learningStatusSchema } from "./learning-status";
 import { gapSchema } from "./gap";
 import { prioritySchema } from "./priority";
+import { tagChipSchema } from "./tag";
 
 export const selfGradeSchema = z.number().int().min(1).max(5);
 
@@ -24,6 +25,7 @@ export const topicSchema = z.object({
   questions: z.array(questionSchema),
   gaps: z.array(gapSchema).optional(),
   progress: topicProgressSchema,
+  tags: z.array(tagChipSchema).optional(),
 });
 
 export type Topic = z.infer<typeof topicSchema>;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const probeScopeSchema = z.enum(["module", "topic"]);
+export const probeScopeSchema = z.enum(["module", "topic", "tag"]);
 
 export type ProbeScope = z.infer<typeof probeScopeSchema>;
 
@@ -55,7 +55,7 @@ export const probeSessionSchema = z.object({
   id: z.string(),
   scope: probeScopeSchema,
   scopeId: z.string(),
-  curriculumId: z.string(),
+  curriculumId: z.string().nullable(),
   status: probeSessionStatusSchema,
   total: z.number().int(),
   correct: z.number().int(),

@@ -1,0 +1,1 @@
+ALTER TABLE "sources" ADD COLUMN "approval_status" text DEFAULT 'approved' NOT NULL;

@@ -1,0 +1,1 @@
+ALTER TABLE "probe_sessions" ADD COLUMN "replenishing" boolean DEFAULT false NOT NULL;

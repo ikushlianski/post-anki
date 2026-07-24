@@ -1,0 +1,1 @@
+ALTER TABLE "curricula" ADD COLUMN "pre_assessment_completed_at" timestamp with time zone;

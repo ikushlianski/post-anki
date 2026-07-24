@@ -33,6 +33,7 @@ interface CurriculumRow {
   hinting: boolean
   default_depth: string
   strict_order: boolean
+  pre_assessment_completed_at: string | null
 }
 
 interface CurriculumSourceRow {
@@ -121,5 +122,6 @@ export function mapCurriculumRow(
     defaultDepth: DEPTH_FROM_DB[row.default_depth] ?? 'working',
     origin: resolveCurriculumOrigin(kinds),
     strictOrder: row.strict_order,
+    preAssessmentCompletedAt: row.pre_assessment_completed_at,
   }
 }

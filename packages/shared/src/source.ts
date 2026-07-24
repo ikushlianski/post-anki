@@ -4,12 +4,17 @@ export const sourceKindSchema = z.enum(["link", "text", "web_research", "llms_tx
 
 export type SourceKind = z.infer<typeof sourceKindSchema>;
 
+export const sourceApprovalStatusSchema = z.enum(["pending", "approved"]);
+
+export type SourceApprovalStatus = z.infer<typeof sourceApprovalStatusSchema>;
+
 export const sourceSchema = z.object({
   id: z.string(),
   curriculumId: z.string(),
   kind: sourceKindSchema,
   value: z.string().min(1),
   title: z.string().optional(),
+  approvalStatus: sourceApprovalStatusSchema,
 });
 
 export type Source = z.infer<typeof sourceSchema>;

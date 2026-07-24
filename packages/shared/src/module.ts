@@ -4,6 +4,7 @@ import { moduleProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
 import { levelSchema } from "./level";
 import { prioritySchema } from "./priority";
+import { tagChipSchema } from "./tag";
 
 export const moduleSchema = z.object({
   id: z.string(),
@@ -15,6 +16,7 @@ export const moduleSchema = z.object({
   level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
+  tags: z.array(tagChipSchema).optional(),
 });
 
 export type Module = z.infer<typeof moduleSchema>;

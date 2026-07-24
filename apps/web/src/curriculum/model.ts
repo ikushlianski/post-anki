@@ -12,6 +12,8 @@ export type Subject = z.infer<typeof subjectSchema>
 export const curriculumStatusSchema = z.enum([
   'draft',
   'curating',
+  'awaiting_source_approval',
+  'shaping_structure',
   'ready',
   'confirmed',
   'failed',
@@ -62,6 +64,7 @@ export const curriculumSchema = z.object({
   defaultDepth: depthSchema,
   origin: curriculumOriginSchema,
   strictOrder: z.boolean(),
+  preAssessmentCompletedAt: z.string().nullable(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
@@ -70,15 +73,34 @@ export const sourceKindSchema = z.enum(['link', 'text', 'web_research', 'llms_tx
 
 export type SourceKind = z.infer<typeof sourceKindSchema>
 
+export const sourceApprovalStatusSchema = z.enum(['pending', 'approved'])
+
+export type SourceApprovalStatus = z.infer<typeof sourceApprovalStatusSchema>
+
 export const sourceSchema = z.object({
   id: z.string(),
   curriculumId: z.string(),
   kind: sourceKindSchema,
   value: z.string().min(1),
   title: z.string().optional(),
+  approvalStatus: sourceApprovalStatusSchema,
 })
 
 export type Source = z.infer<typeof sourceSchema>
+
+export const tagSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  normalizedName: z.string().min(1),
+})
+
+export type Tag = z.infer<typeof tagSchema>
+
+export const tagChipSchema = tagSchema.extend({
+  assignmentId: z.string(),
+})
+
+export type TagChip = z.infer<typeof tagChipSchema>
 
 export const sourceDraftSchema = z.object({
   kind: sourceKindSchema,
@@ -210,6 +232,7 @@ export const topicSchema = z.object({
   learningStatus: learningStatusSchema,
   gaps: z.array(gapSchema),
   progress: topicProgressSchema,
+  tags: z.array(tagChipSchema).optional(),
 })
 
 export type Topic = z.infer<typeof topicSchema>
@@ -232,6 +255,7 @@ export const moduleSchema = z.object({
   level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
+  tags: z.array(tagChipSchema).optional(),
 })
 
 export type Module = z.infer<typeof moduleSchema>
@@ -246,6 +270,8 @@ export const curriculumDetailSchema = z.object({
   modules: z.array(moduleSchema),
   progress: curriculumProgressSchema,
   recommendedTopicId: z.string().nullable(),
+  hasCitableSources: z.boolean(),
+  hasStructureDraftAttempt: z.boolean(),
 })
 
 export type CurriculumDetail = z.infer<typeof curriculumDetailSchema>
@@ -272,6 +298,7 @@ export const createCurriculumInput = z.object({
   sources: z.array(sourceDraftSchema).default([]),
   researchTopic: z.string().min(1).nullable().optional(),
   docUrl: docUrlSchema.nullable().optional(),
+  pastedMaterial: z.string().min(1).nullable().optional(),
   preferredLevel: levelSchema.nullable().optional(),
 })
 
@@ -435,6 +462,31 @@ export const addTopicCommentInput = z.object({
 })
 
 export type AddTopicCommentInput = z.infer<typeof addTopicCommentInput>
+
+export const nodeTypeSchema = z.enum(['module', 'topic'])
+
+export type NodeType = z.infer<typeof nodeTypeSchema>
+
+export const createTagInput = z.object({
+  name: z.string().min(1),
+})
+
+export type CreateTagInput = z.infer<typeof createTagInput>
+
+export const assignTagInput = z.object({
+  tagId: z.string(),
+  nodeType: nodeTypeSchema,
+  nodeId: z.string(),
+})
+
+export type AssignTagInput = z.infer<typeof assignTagInput>
+
+export const removeTagAssignmentInput = z.object({
+  tagId: z.string(),
+  assignmentId: z.string(),
+})
+
+export type RemoveTagAssignmentInput = z.infer<typeof removeTagAssignmentInput>
 
 export const decideInput = z.object({
   decision: z.string().min(1),

@@ -69,6 +69,7 @@ describe('mapCurriculumRow', () => {
     hinting: true,
     default_depth: 'awareness',
     strict_order: false,
+    pre_assessment_completed_at: null,
   }
 
   it('maps a curriculum with no research sources to sources-origin', () => {
@@ -107,5 +108,16 @@ describe('mapCurriculumRow', () => {
     expect(curriculum.subjectId).toBe('subj-1')
     expect(curriculum.status).toBe('confirmed')
     expect(curriculum.strictOrder).toBe(false)
+  })
+
+  it('carries preAssessmentCompletedAt through unchanged', () => {
+    const graded = mapCurriculumRow(
+      { ...baseRow, pre_assessment_completed_at: '2026-07-18T00:00:00.000Z' },
+      [],
+    )
+    const ungraded = mapCurriculumRow(baseRow, [])
+
+    expect(graded.preAssessmentCompletedAt).toBe('2026-07-18T00:00:00.000Z')
+    expect(ungraded.preAssessmentCompletedAt).toBeNull()
   })
 })
