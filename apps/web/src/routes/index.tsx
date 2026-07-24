@@ -52,26 +52,38 @@ function TagList() {
   )
 }
 
+interface LiveBoardData {
+  subjects: Subject[]
+  curricula: Curriculum[]
+}
+
 function Home() {
   const initial = Route.useLoaderData()
   const [isClient, setIsClient] = useState(false)
+  const [live, setLive] = useState<LiveBoardData | null>(null)
 
   useEffect(() => {
     setIsClient(true)
   }, [])
 
-  const subjectsQuery = useLiveQuery(
-    (q) => (isClient ? q.from({ subject: subjectsCollection }) : null),
-    [isClient],
+  // HomeView stays mounted at the same tree position across the isClient
+  // flip — LiveDataBridge is a SIBLING, not a wrapper, so it can mount only
+  // client-side (useLiveQuery calls useSyncExternalStore with no
+  // getServerSnapshot, which errors out SSR entirely if called there) without
+  // ever remounting HomeView and wiping out CreateSubjectForm's in-progress
+  // input state.
+  return (
+    <>
+      {isClient && <LiveDataBridge onData={setLive} />}
+      <HomeView subjects={live?.subjects ?? initial.subjects} curricula={live?.curricula ?? initial.curricula} />
+    </>
   )
-  const curriculaQuery = useLiveQuery(
-    (q) => (isClient ? q.from({ curriculum: curriculaCollection }) : null),
-    [isClient],
-  )
-  const sourcesQuery = useLiveQuery(
-    (q) => (isClient ? q.from({ source: curriculumSourcesCollection }) : null),
-    [isClient],
-  )
+}
+
+function LiveDataBridge({ onData }: { onData: (data: LiveBoardData) => void }) {
+  const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
+  const curriculaQuery = useLiveQuery((q) => q.from({ curriculum: curriculaCollection }), [])
+  const sourcesQuery = useLiveQuery((q) => q.from({ source: curriculumSourcesCollection }), [])
 
   // Live collections stay on the SSR/loader snapshot until Electric has
   // finished its initial sync, so the board never flashes empty while
@@ -86,14 +98,25 @@ function Home() {
   const curriculumRows = curriculaQuery.data
   const sourceRows = sourcesQuery.data
 
-  const subjects: Subject[] =
-    liveReady && subjectRows ? subjectRows.map(mapSubjectRow) : initial.subjects
+  useEffect(() => {
+    if (liveReady && subjectRows && curriculumRows && sourceRows) {
+      onData({
+        subjects: subjectRows.map(mapSubjectRow),
+        curricula: curriculumRows.map((row) => mapCurriculumRow(row, sourceRows)),
+      })
+    }
+  }, [liveReady, subjectRows, curriculumRows, sourceRows, onData])
 
-  const curricula: Curriculum[] =
-    liveReady && curriculumRows && sourceRows
-      ? curriculumRows.map((row) => mapCurriculumRow(row, sourceRows))
-      : initial.curricula
+  return null
+}
 
+function HomeView({
+  subjects,
+  curricula,
+}: {
+  subjects: Subject[]
+  curricula: Curriculum[]
+}) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-8">

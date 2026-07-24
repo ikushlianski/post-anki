@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX IF NOT EXISTS "curriculum_structure_turns_pending_assistant_unique" ON "curriculum_structure_turns" USING btree ("curriculum_id") WHERE "curriculum_structure_turns"."role" = 'assistant' AND "curriculum_structure_turns"."status" = 'pending';

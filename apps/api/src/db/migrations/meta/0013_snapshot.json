@@ -1,5 +1,5 @@
 {
-  "id": "d9729179-1d34-42be-b7b1-f862db2f64c9",
+  "id": "81722da0-f758-4a70-889e-6a102e9deb47",
   "prevId": "dba0e29a-7c1e-4bb1-98d5-55417fe06d3a",
   "version": "7",
   "dialect": "postgresql",
@@ -662,13 +662,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "approval_status": {
-          "name": "approval_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'approved'"
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -804,6 +797,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'architecture-mentor'"
         },
         "created_at": {
           "name": "created_at",

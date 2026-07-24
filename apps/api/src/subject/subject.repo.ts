@@ -11,6 +11,7 @@ function toSubject(r: typeof subjects.$inferSelect): Subject {
     name: r.name,
     description: r.description ?? undefined,
     requireSources: r.requireSources,
+    kind: r.kind as Subject["kind"],
   };
 }
 
@@ -37,6 +38,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     name: input.name,
     description: input.description ?? null,
     requireSources: input.requireSources ?? false,
+    kind: input.kind,
   };
 
   await getDb().insert(subjects).values(row);

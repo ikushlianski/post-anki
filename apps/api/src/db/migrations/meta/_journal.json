@@ -96,71 +96,8 @@
     {
       "idx": 13,
       "version": "7",
-      "when": 1784394434244,
-      "tag": "0013_wooden_lake",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1784397923959,
-      "tag": "0014_burly_night_nurse",
-      "breakpoints": true
-    },
-    {
-      "idx": 15,
-      "version": "7",
-      "when": 1784400985450,
-      "tag": "0015_loving_doctor_faustus",
-      "breakpoints": true
-    },
-    {
-      "idx": 16,
-      "version": "7",
-      "when": 1784403341621,
-      "tag": "0016_dusty_cassandra_nova",
-      "breakpoints": true
-    },
-    {
-      "idx": 17,
-      "version": "7",
-      "when": 1784455544667,
-      "tag": "0017_real_master_chief",
-      "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1784456986707,
-      "tag": "0018_heavy_ironclad",
-      "breakpoints": true
-    },
-    {
-      "idx": 19,
-      "version": "7",
-      "when": 1784465515752,
-      "tag": "0019_add_structure_turn_status",
-      "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1784583283068,
-      "tag": "0020_right_cannonball",
-      "breakpoints": true
-    },
-    {
-      "idx": 21,
-      "version": "7",
-      "when": 1784584524102,
-      "tag": "0021_striped_tomorrow_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1784585683237,
-      "tag": "0022_right_typhoid_mary",
+      "when": 1784673622991,
+      "tag": "0013_strong_shotgun",
       "breakpoints": true
     }
   ]

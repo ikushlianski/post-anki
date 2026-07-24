@@ -1,1 +1,0 @@
-ALTER TABLE "curriculum_structure_turns" ADD COLUMN "status" text DEFAULT 'complete' NOT NULL;

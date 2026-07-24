@@ -28,6 +28,7 @@
     "e2e:db:down": "docker compose -f e2e/docker-compose.yml down",
     "db:generate:api": "npm run db:generate -w @post-anki/api",
     "db:migrate:api": "npm run db:migrate -w @post-anki/api",
+    "db:seed:subjects": "npm run db:seed:subjects -w @post-anki/api",
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
     "db:migrate:bot": "npm run db:migrate -w @post-anki/bot"
   },
