@@ -174,8 +174,9 @@ Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]
       app, with existing children/assignments correctly reassigned, not orphaned or duplicated.
       Needs real product/architecture planning first — this entry queues the idea, it does not
       spec it. (#56)
-- [ ] Lecture mode — short, curated background material per topic, compiled from respected
+- [x] Lecture mode — short, curated background material per topic, compiled from respected
       external sources.
+      [→ done: .bmad/lecture-mode/, verified 2026-07-25, e2e S1-S4 all pass.]
       Why: today the only inputs to a curriculum are the learner's own pasted text/doc links and
       the probe/study-chat agents' own generated explanations — there's no step that hands the
       learner a short, pre-written briefing stressing the important points before they get probed
