@@ -9,6 +9,9 @@ export function CreateSubjectForm() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [requireSources, setRequireSources] = useState(false)
+  const [kind, setKind] = useState<'architecture-mentor' | 'language-practice'>(
+    'architecture-mentor',
+  )
   const [busy, setBusy] = useState(false)
 
   async function submit(event: FormEvent) {
@@ -24,11 +27,13 @@ export function CreateSubjectForm() {
         name: name.trim(),
         description: description.trim() || undefined,
         requireSources,
+        kind,
       },
     })
     setName('')
     setDescription('')
     setRequireSources(false)
+    setKind('architecture-mentor')
     setBusy(false)
     await router.invalidate()
   }
@@ -75,6 +80,18 @@ export function CreateSubjectForm() {
         />
         Require sources for every curriculum in this subject
       </label>
+
+      <select
+        value={kind}
+        onChange={(event) =>
+          setKind(event.target.value as 'architecture-mentor' | 'language-practice')
+        }
+        data-testid="subject-kind-select"
+        className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-500"
+      >
+        <option value="architecture-mentor">Architecture mentor</option>
+        <option value="language-practice">Language practice</option>
+      </select>
     </form>
   )
 }

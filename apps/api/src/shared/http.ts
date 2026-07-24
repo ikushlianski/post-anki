@@ -23,7 +23,7 @@ export function sendError(
 
 export async function readJsonBody<T>(
   req: http.IncomingMessage,
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
 ): Promise<{ ok: true; data: T } | { ok: false; issues: string }> {
   let raw: string;
 

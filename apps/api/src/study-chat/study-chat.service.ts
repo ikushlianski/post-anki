@@ -8,6 +8,7 @@ import {
   getCurriculumPromptContext,
   getLearningMapSnapshots,
 } from "../curriculum/curriculum.repo.js";
+import { languageChatReplySchema } from "./language-chat-reply.schema.js";
 
 export type StudyChatError = "not_found";
 
@@ -60,12 +61,24 @@ export async function askStudyChat(
     .join("\n");
 
   try {
-    const agent = getMastra().getAgent(AGENT_KEYS.studyChat);
-    const result = await agent.generate(prompt);
-    const reply = result.text?.trim();
+    if (promptContext?.subjectKind === "language-practice") {
+      const agent = getMastra().getAgent(AGENT_KEYS.languageChat);
+      const result = await agent.generate(prompt, {
+        structuredOutput: { schema: languageChatReplySchema },
+      });
+      const reply = result.object?.languagePracticeReply?.trim();
 
-    if (reply) {
-      return { reply };
+      if (reply) {
+        return { reply };
+      }
+    } else {
+      const agent = getMastra().getAgent(AGENT_KEYS.studyChat);
+      const result = await agent.generate(prompt);
+      const reply = result.text?.trim();
+
+      if (reply) {
+        return { reply };
+      }
     }
   } catch (err) {
     log.error({ err, topicId: input.topicId }, "study_chat_failed");

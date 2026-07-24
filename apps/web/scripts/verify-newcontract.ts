@@ -26,7 +26,7 @@ async function detailOf(id: string) {
 }
 
 async function main() {
-  const created = await createSubject({ name: 'ZZ Delete Me' })
+  const created = await createSubject({ name: 'ZZ Delete Me', kind: 'architecture-mentor' })
   let subs = await listSubjects()
   ok('createSubject appears', subs.some((s) => s.id === created.id))
 

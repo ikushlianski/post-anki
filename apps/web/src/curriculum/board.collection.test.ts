@@ -35,6 +35,7 @@ describe('mapSubjectRow', () => {
       name: 'Networking',
       description: 'TCP/IP and friends',
       require_sources: true,
+      kind: 'architecture-mentor',
     })
 
     expect(subject).toEqual({
@@ -42,6 +43,7 @@ describe('mapSubjectRow', () => {
       name: 'Networking',
       description: 'TCP/IP and friends',
       requireSources: true,
+      kind: 'architecture-mentor',
     })
   })
 
@@ -51,6 +53,7 @@ describe('mapSubjectRow', () => {
       name: 'Databases',
       description: null,
       require_sources: false,
+      kind: 'language-practice',
     })
 
     expect(subject.description).toBeUndefined()

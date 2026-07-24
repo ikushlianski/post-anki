@@ -11,7 +11,10 @@ import type {
   Subject,
 } from './model'
 
-const SHAPE_URL = '/api/electric-shape'
+const SHAPE_URL =
+  typeof window !== 'undefined'
+    ? `${window.location.origin}/api/electric-shape`
+    : '/api/electric-shape'
 
 interface SubjectRow {
   [key: string]: unknown
@@ -19,6 +22,7 @@ interface SubjectRow {
   name: string
   description: string | null
   require_sources: boolean
+  kind: string
 }
 
 interface CurriculumRow {
@@ -92,6 +96,7 @@ export function mapSubjectRow(row: SubjectRow): Subject {
     name: row.name,
     description: row.description ?? undefined,
     requireSources: row.require_sources,
+    kind: row.kind as Subject['kind'],
   }
 }
 

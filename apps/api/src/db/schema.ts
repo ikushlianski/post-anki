@@ -13,6 +13,7 @@ export const subjects = pgTable("subjects", {
   name: text("name").notNull(),
   description: text("description"),
   requireSources: boolean("require_sources").notNull().default(false),
+  kind: text("kind").notNull().default("architecture-mentor"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

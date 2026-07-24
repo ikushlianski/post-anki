@@ -205,6 +205,7 @@ export interface CurriculumPromptContext {
   curriculumDescription: string | null;
   subjectName: string;
   subjectDescription: string | null;
+  subjectKind: string;
 }
 
 export async function getCurriculumPromptContext(
@@ -229,6 +230,7 @@ export async function getCurriculumPromptContext(
     curriculumDescription: curriculumRow.description ?? null,
     subjectName: subjectRow?.name ?? "",
     subjectDescription: subjectRow?.description ?? null,
+    subjectKind: subjectRow?.kind ?? "architecture-mentor",
   };
 }
 
