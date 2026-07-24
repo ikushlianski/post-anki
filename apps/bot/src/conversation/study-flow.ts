@@ -6,9 +6,9 @@ export const STUDY_USAGE_REPLY =
 
 export function formatStudyStarted(name: string): string {
   return [
-    `🔎 Researching ${name}…`,
+    `🔎 Looking for trusted sources on ${name}…`,
     "",
-    "Once the map is ready, open the web app to review it and pick the slice you want to start with — this bot only kicks off the research.",
+    "Once candidates are found, open the web app to review and approve them — the course isn't generated until you do. If nothing solid turns up, you'll get a chance to generate anyway, clearly marked as ungrounded.",
   ].join("\n");
 }
 

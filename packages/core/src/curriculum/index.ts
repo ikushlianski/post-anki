@@ -9,3 +9,6 @@ export * from "./ordering";
 export * from "./learning-map";
 export * from "./level-context";
 export * from "./next-step";
+export * from "./source-candidates";
+export * from "./structure-time-budget";
+export * from "./structure-editor";

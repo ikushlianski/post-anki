@@ -1,17 +1,17 @@
+import { extractSameSiteLinks } from "@post-anki/core";
 import { looksLikeLlmsTxtContent } from "./curriculum-rules.js";
-import { gatherTechResearchGrounding } from "./tech-research-grounding.js";
-import { resolveSourceText } from "./source-fetch.js";
 import { log } from "../shared/log.js";
 
 const PROBE_TIMEOUT_MS = 8_000;
 const MAX_LLMS_TXT_CHARS = 30_000;
+const CRAWL_LINK_CAP = 8;
 
-export type DocLinkGroundingKind = "llms_txt" | "web_research";
-
-export interface DocLinkGrounding {
-  text: string;
-  kind: DocLinkGroundingKind;
+export interface DocSiteCandidate {
+  url: string;
   title: string;
+  discoveryTier: "llms_txt" | "docs_crawl";
+  kind: "llms_txt" | "link";
+  fetchedText: string | null;
 }
 
 async function probe(url: string): Promise<string | null> {
@@ -33,14 +33,30 @@ async function probe(url: string): Promise<string | null> {
   }
 }
 
+const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
+  "[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]",
+  "g",
+);
+
 function truncate(text: string): string {
-  return text.length > MAX_LLMS_TXT_CHARS ? text.slice(0, MAX_LLMS_TXT_CHARS) : text;
+  const sanitized = text.replace(CONTROL_CHARS_EXCEPT_WHITESPACE, " ");
+
+  return sanitized.length > MAX_LLMS_TXT_CHARS
+    ? sanitized.slice(0, MAX_LLMS_TXT_CHARS)
+    : sanitized;
 }
 
-export async function gatherDocLinkGrounding(
-  docUrl: string,
-  technologyName: string,
-): Promise<DocLinkGrounding> {
+/**
+ * Candidate gathering's docs-site chain: llms.txt, then llms-full.txt (each
+ * candidate's content is already in hand from the existence probe, so it's
+ * stored immediately rather than deferred), then — new — a bounded
+ * single-hop crawl of the entry page's own same-site links when neither
+ * well-known file exists. Crawl-tier candidates are NOT fetched in full
+ * here; only their URLs are collected, deferring the cost of a full fetch
+ * until the learner actually approves one (see architecture.md's decision
+ * on why crawl/search candidates stay unfetched until approval).
+ */
+export async function gatherDocSiteCandidates(docUrl: string): Promise<DocSiteCandidate[]> {
   const origin = new URL(docUrl).origin;
 
   const llmsTxt = await probe(`${origin}/llms.txt`);
@@ -48,7 +64,15 @@ export async function gatherDocLinkGrounding(
   if (llmsTxt && looksLikeLlmsTxtContent(llmsTxt)) {
     log.info({ docUrl }, "doc_link_grounding_llms_txt_found");
 
-    return { text: truncate(llmsTxt), kind: "llms_txt", title: `llms.txt: ${docUrl}` };
+    return [
+      {
+        url: docUrl,
+        title: `llms.txt: ${docUrl}`,
+        discoveryTier: "llms_txt",
+        kind: "llms_txt",
+        fetchedText: truncate(llmsTxt),
+      },
+    ];
   }
 
   const llmsFullTxt = await probe(`${origin}/llms-full.txt`);
@@ -56,29 +80,44 @@ export async function gatherDocLinkGrounding(
   if (llmsFullTxt && looksLikeLlmsTxtContent(llmsFullTxt)) {
     log.info({ docUrl }, "doc_link_grounding_llms_full_txt_found");
 
-    return {
-      text: truncate(llmsFullTxt),
-      kind: "llms_txt",
-      title: `llms-full.txt: ${docUrl}`,
-    };
+    return [
+      {
+        url: docUrl,
+        title: `llms-full.txt: ${docUrl}`,
+        discoveryTier: "llms_txt",
+        kind: "llms_txt",
+        fetchedText: truncate(llmsFullTxt),
+      },
+    ];
   }
 
-  log.info({ docUrl }, "doc_link_grounding_anchored_fallback");
+  log.info({ docUrl }, "doc_link_grounding_crawl_fallback");
 
-  const siteHost = new URL(docUrl).host;
-
-  const [siteSearch, pageText] = await Promise.all([
-    gatherTechResearchGrounding(technologyName, siteHost),
-    resolveSourceText("link", docUrl),
-  ]);
-
-  const combined = [siteSearch.text, pageText]
-    .filter((part) => part.trim().length > 0)
-    .join("\n\n---\n\n");
-
-  return {
-    text: combined,
-    kind: "web_research",
-    title: `Auto-researched (site-anchored): ${docUrl}`,
+  const entry: DocSiteCandidate = {
+    url: docUrl,
+    title: `Official docs: ${docUrl}`,
+    discoveryTier: "docs_crawl",
+    kind: "link",
+    fetchedText: null,
   };
+
+  const html = await probe(docUrl);
+
+  if (!html) {
+    return [entry];
+  }
+
+  const links = extractSameSiteLinks(html, origin, CRAWL_LINK_CAP).filter(
+    (url) => url !== docUrl,
+  );
+
+  const crawled: DocSiteCandidate[] = links.map((url) => ({
+    url,
+    title: `Official docs: ${url}`,
+    discoveryTier: "docs_crawl",
+    kind: "link",
+    fetchedText: null,
+  }));
+
+  return [entry, ...crawled];
 }
