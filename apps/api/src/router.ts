@@ -42,7 +42,12 @@ export type RouteName =
   | "getCurriculumStats"
   | "generateRecommendations"
   | "getStreak"
-  | "getElectricShape";
+  | "getElectricShape"
+  | "gatherLectureSources"
+  | "listLectureSourceCandidates"
+  | "reviewLectureSourceCandidate"
+  | "compileLecture"
+  | "getLecture";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -126,6 +131,36 @@ const ROUTES: RouteDef[] = [
   },
   { method: "GET", pattern: "/streak", name: "getStreak" },
   { method: "GET", pattern: "/electric/v1/shape", name: "getElectricShape" },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/lecture\/sources$/,
+    name: "gatherLectureSources",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/topics\/([^/]+)\/lecture\/sources$/,
+    name: "listLectureSourceCandidates",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/lecture-source-candidates\/([^/]+)$/,
+    name: "reviewLectureSourceCandidate",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/lecture$/,
+    name: "compileLecture",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/topics\/([^/]+)\/lecture$/,
+    name: "getLecture",
+    param: "id",
+  },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {

@@ -14,6 +14,8 @@ import type {
   Depth,
   Gap,
   LearningStatus,
+  Lecture,
+  LectureSourceCandidate,
   Module,
   Question,
   QuestionKind,
@@ -746,6 +748,43 @@ export async function generateRecommendations(
 export async function getStreak(): Promise<be.Streak | null> {
   try {
     return await request<be.Streak>('/streak')
+  } catch {
+    return null
+  }
+}
+
+export async function gatherLectureSources(
+  topicId: string,
+): Promise<LectureSourceCandidate[]> {
+  return request<be.LectureSourceCandidate[]>(
+    `/topics/${topicId}/lecture/sources`,
+    { method: 'POST' },
+  )
+}
+
+export async function listLectureSourceCandidates(
+  topicId: string,
+): Promise<LectureSourceCandidate[]> {
+  return request<be.LectureSourceCandidate[]>(`/topics/${topicId}/lecture/sources`)
+}
+
+export async function reviewLectureSourceCandidate(input: {
+  candidateId: string
+  reviewStatus: 'approved' | 'rejected'
+}): Promise<void> {
+  await request(`/lecture-source-candidates/${input.candidateId}`, {
+    method: 'PATCH',
+    body: { reviewStatus: input.reviewStatus },
+  })
+}
+
+export async function compileLecture(topicId: string): Promise<Lecture> {
+  return request<be.Lecture>(`/topics/${topicId}/lecture`, { method: 'POST' })
+}
+
+export async function getLecture(topicId: string): Promise<Lecture | null> {
+  try {
+    return await request<be.Lecture>(`/topics/${topicId}/lecture`)
   } catch {
     return null
   }

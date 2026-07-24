@@ -67,6 +67,13 @@ import {
 } from "./stats/stats.controller.js";
 import { handleGetStreak } from "./streak/streak.controller.js";
 import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
+import {
+  handleCompileLecture,
+  handleGatherLectureSources,
+  handleGetLecture,
+  handleListLectureSourceCandidates,
+  handleReviewLectureSourceCandidate,
+} from "./lecture/lecture.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -214,6 +221,16 @@ async function route(
       return handleGetStreak(res);
     case "getElectricShape":
       return handleGetElectricShape(res, url.search);
+    case "gatherLectureSources":
+      return handleGatherLectureSources(res, id);
+    case "listLectureSourceCandidates":
+      return handleListLectureSourceCandidates(res, id);
+    case "reviewLectureSourceCandidate":
+      return handleReviewLectureSourceCandidate(req, res, id);
+    case "compileLecture":
+      return handleCompileLecture(res, id);
+    case "getLecture":
+      return handleGetLecture(res, id);
   }
 }
 
