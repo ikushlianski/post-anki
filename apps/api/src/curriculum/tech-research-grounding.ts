@@ -1,7 +1,17 @@
-import { loadEnv } from "../shared/env.js";
+import { loadEnv, type Env } from "../shared/env.js";
 import { log } from "../shared/log.js";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+// This module calls OpenRouter directly via fetch() rather than through
+// Mastra's Agent (which resolves OPENROUTER_BASE_URL itself via
+// resolveAgentModel) — so it must apply the same override manually, or e2e's
+// mock server never gets hit and every call here silently 401s and returns
+// empty results instead of routing to the mock.
+function endpointUrl(env: Env): string {
+  return env.OPENROUTER_BASE_URL
+    ? `${env.OPENROUTER_BASE_URL.replace(/\/$/, "")}/chat/completions`
+    : "https://openrouter.ai/api/v1/chat/completions";
+}
+
 const TIMEOUT_MS = 45_000;
 const MAX_RESULTS = 4;
 const MAX_CHARS = 8_000;
@@ -37,7 +47,7 @@ async function gatherGrounding(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(endpointUrl(env), {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -163,7 +173,7 @@ export async function resolveOfficialDocsUrl(technologyName: string): Promise<st
   const timer = setTimeout(() => controller.abort(), RESOLVE_DOCS_URL_TIMEOUT_MS);
 
   try {
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(endpointUrl(env), {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -225,7 +235,7 @@ export async function gatherTrustedSourceCandidates(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(endpointUrl(env), {
       method: "POST",
       signal: controller.signal,
       headers: {

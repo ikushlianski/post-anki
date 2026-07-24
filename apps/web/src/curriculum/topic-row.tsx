@@ -209,17 +209,6 @@ export function TopicRow({
 
           <GapChecklist topic={topic} curriculumId={curriculumId} />
 
-          <div>
-            <Link
-              to="/lecture/$topicId"
-              params={{ topicId: topic.id }}
-              data-testid="lecture-link"
-              className="text-xs font-medium text-neutral-600 hover:text-neutral-900"
-            >
-              Read the lecture (~2 min) →
-            </Link>
-          </div>
-
           {canProbe ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-neutral-400">Poke me:</span>
@@ -247,6 +236,17 @@ export function TopicRow({
           )}
         </div>
       ) : null}
+
+      <div className="mt-3">
+        <Link
+          to="/lecture/$topicId"
+          params={{ topicId: topic.id }}
+          data-testid="lecture-link"
+          className="text-xs font-medium text-neutral-600 hover:text-neutral-900"
+        >
+          Read the lecture (~2 min) →
+        </Link>
+      </div>
     </article>
   )
 }
