@@ -5,6 +5,14 @@ import { curriculumProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
 import { speedSchema } from "./adaptive";
 import { depthLevelSchema } from "./depth";
+import { levelSchema } from "./level";
+
+const docUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "docUrl must be an absolute http(s) URL",
+  });
 
 export const curriculumStatusSchema = z.enum([
   "draft",
@@ -16,6 +24,10 @@ export const curriculumStatusSchema = z.enum([
 
 export type CurriculumStatus = z.infer<typeof curriculumStatusSchema>;
 
+export const curriculumOriginSchema = z.enum(["sources", "research"]);
+
+export type CurriculumOrigin = z.infer<typeof curriculumOriginSchema>;
+
 export const curriculumSchema = z.object({
   id: z.string(),
   subjectId: z.string(),
@@ -26,6 +38,8 @@ export const curriculumSchema = z.object({
   speed: speedSchema,
   hinting: z.boolean(),
   defaultDepth: depthLevelSchema,
+  origin: curriculumOriginSchema,
+  strictOrder: z.boolean(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -35,6 +49,9 @@ export const createCurriculumInput = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   sources: z.array(sourceDraftSchema).default([]),
+  researchTopic: z.string().min(1).nullable().optional(),
+  docUrl: docUrlSchema.nullable().optional(),
+  preferredLevel: levelSchema.nullable().optional(),
 });
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>;
@@ -52,6 +69,7 @@ export const updateCurriculumInput = z.object({
   speed: speedSchema.optional(),
   hinting: z.boolean().optional(),
   defaultDepth: depthLevelSchema.optional(),
+  strictOrder: z.boolean().optional(),
 });
 
 export type UpdateCurriculumInput = z.infer<typeof updateCurriculumInput>;

@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
+import { resolveAgentModel } from "./model.js";
 
 const ASK_INSTRUCTIONS = [
   "You are a senior architecture mentor running a Socratic probing session.",
@@ -9,13 +10,18 @@ const ASK_INSTRUCTIONS = [
   "Produce a single probing question that tests whether the learner truly holds THAT gap.",
   "",
   "Rules:",
-  "- Probe WHY and HOW THINGS FIT TOGETHER — tradeoffs and judgment, never syntax or trivia.",
+  "- Probe WHY and HOW THINGS FIT TOGETHER — tradeoffs, judgment, performance and DX",
+  "  implications, and why this technology or approach over the alternatives. Never syntax",
+  "  or trivia, and never a coding challenge — no 'write the code that...' prompts.",
+  "- Keep the question SHORT — one or two sentences, no multi-paragraph setup.",
   "- Calibrate difficulty to the depth: 'awareness' = can they place it; 'working' = can they",
   "  use it and defend everyday tradeoffs; 'deep' = internals and edge cases.",
   "- Exactly ONE question. No preamble, no answer, no hints.",
   "- For a quick_test, write a multiple-choice question with 3-4 options where exactly one is",
   "  the answer a thoughtful senior would defend, and set correctAnswerIndex.",
   "- For a socratic question, options is empty and correctAnswerIndex is null.",
+  "- If a \"Prior feedback\" section is present for this topic, honor it: never repeat anything",
+  "  listed under 'Avoid', and lean into the style of anything listed under 'Well received'.",
 ].join("\n");
 
 const EVAL_INSTRUCTIONS = [
@@ -44,7 +50,7 @@ export function createMentorAskAgent(): Agent {
     id: "mentor-ask",
     name: "Mentor (ask)",
     instructions: ASK_INSTRUCTIONS,
-    model: env.CURRICULUM_MODEL,
+    model: resolveAgentModel(env),
   });
 }
 
@@ -55,6 +61,6 @@ export function createMentorEvalAgent(): Agent {
     id: "mentor-eval",
     name: "Mentor (evaluate)",
     instructions: EVAL_INSTRUCTIONS,
-    model: env.CURRICULUM_MODEL,
+    model: resolveAgentModel(env),
   });
 }

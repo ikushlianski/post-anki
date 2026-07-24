@@ -19,6 +19,7 @@ function rowToTopic(row: typeof topics.$inferSelect): Topic {
     title: row.title,
     summary: row.summary ?? undefined,
     order: row.order,
+    priority: row.priority as Topic["priority"],
     included: row.included,
     selfGrade: (row.selfGrade as Topic["selfGrade"]) ?? null,
     depth: row.depth as DepthLevel,
@@ -58,6 +59,7 @@ export async function createTopic(input: CreateTopicInput): Promise<Topic | null
     title: input.title,
     summary: input.summary ?? null,
     order: nextOrder(existing.map((t) => t.order)),
+    priority: 0,
     included: true,
     selfGrade: null,
     depth: input.suggestedDepth ?? "working",
@@ -96,6 +98,10 @@ export async function updateTopic(input: UpdateTopicInput): Promise<Topic | null
 
   if (input.order !== undefined) {
     patch.order = input.order;
+  }
+
+  if (input.priority !== undefined) {
+    patch.priority = input.priority;
   }
 
   if (input.included !== undefined) {

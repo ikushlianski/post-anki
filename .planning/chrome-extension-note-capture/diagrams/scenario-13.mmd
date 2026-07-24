@@ -1,0 +1,10 @@
+flowchart LR
+  Ext["Chrome extension"] -->|"Bearer: extension token"| API["apps/api server.ts"]
+  API -->|"token valid + route allow-listed"| Allowed["capture/hierarchy routes"]
+  API -->|"token valid, route NOT allow-listed"| Reject403["403 Forbidden"]
+  API -->|"token invalid/revoked"| Reject401["401 Unauthorized"]
+  Web["apps/web BFF"] -->|"Bearer: API_SHARED_SECRET"| API
+  API -->|"shared secret: full access, unchanged"| AllRoutes["every existing route"]
+
+  classDef default fill:#f5f5f5,stroke:#333,stroke-width:1px,color:#000
+  linkStyle default stroke:#333,stroke-width:1px

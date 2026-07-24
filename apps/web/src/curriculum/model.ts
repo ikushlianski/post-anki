@@ -3,6 +3,9 @@ import { z } from 'zod'
 export const subjectSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
+  description: z.string().optional(),
+  requireSources: z.boolean(),
+  kind: z.enum(['architecture-mentor', 'language-practice']).default('architecture-mentor'),
 })
 
 export type Subject = z.infer<typeof subjectSchema>
@@ -36,6 +39,18 @@ export const depthSchema = z.enum(['aware', 'working', 'deep'])
 
 export type Depth = z.infer<typeof depthSchema>
 
+export const levelSchema = z.enum(['basic', 'medium', 'advanced'])
+
+export type Level = z.infer<typeof levelSchema>
+
+export const curriculumOriginSchema = z.enum(['sources', 'research'])
+
+export type CurriculumOrigin = z.infer<typeof curriculumOriginSchema>
+
+export const prioritySchema = z.union([z.literal(-1), z.literal(0), z.literal(1)])
+
+export type Priority = z.infer<typeof prioritySchema>
+
 export const curriculumSchema = z.object({
   id: z.string(),
   subjectId: z.string(),
@@ -46,11 +61,13 @@ export const curriculumSchema = z.object({
   speed: speedSchema,
   hinting: z.boolean(),
   defaultDepth: depthSchema,
+  origin: curriculumOriginSchema,
+  strictOrder: z.boolean(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
 
-export const sourceKindSchema = z.enum(['link', 'text'])
+export const sourceKindSchema = z.enum(['link', 'text', 'web_research', 'llms_txt'])
 
 export type SourceKind = z.infer<typeof sourceKindSchema>
 
@@ -187,6 +204,7 @@ export const topicSchema = z.object({
   title: z.string(),
   summary: z.string().optional(),
   order: z.number().int(),
+  priority: prioritySchema,
   included: z.boolean(),
   selfGrade: selfGradeSchema.nullable(),
   targetDepth: depthSchema,
@@ -210,7 +228,9 @@ export const moduleSchema = z.object({
   curriculumId: z.string(),
   title: z.string(),
   order: z.number().int(),
+  priority: prioritySchema,
   learningStatus: learningStatusSchema,
+  level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
 })
@@ -231,15 +251,30 @@ export const curriculumDetailSchema = z.object({
 
 export type CurriculumDetail = z.infer<typeof curriculumDetailSchema>
 
-export const createSubjectInput = z.object({ name: z.string().min(1) })
+export const createSubjectInput = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  requireSources: z.boolean().optional(),
+  kind: z.enum(['architecture-mentor', 'language-practice']).default('architecture-mentor'),
+})
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>
+
+const docUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: 'docUrl must be an absolute http(s) URL',
+  })
 
 export const createCurriculumInput = z.object({
   subjectId: z.string(),
   name: z.string().min(1),
   description: z.string().optional(),
   sources: z.array(sourceDraftSchema).default([]),
+  researchTopic: z.string().min(1).nullable().optional(),
+  docUrl: docUrlSchema.nullable().optional(),
+  preferredLevel: levelSchema.nullable().optional(),
 })
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>
@@ -257,6 +292,7 @@ export const updateTopicInput = z.object({
   summary: z.string().nullable().optional(),
   moduleId: z.string().optional(),
   order: z.number().int().optional(),
+  priority: prioritySchema.optional(),
   included: z.boolean().optional(),
   selfGrade: selfGradeSchema.nullable().optional(),
   targetDepth: depthSchema.optional(),
@@ -283,6 +319,7 @@ export const updateModuleInput = z.object({
   moduleId: z.string(),
   title: z.string().min(1).optional(),
   order: z.number().int().optional(),
+  priority: prioritySchema.optional(),
   learningStatus: learningStatusSchema.optional(),
 })
 
@@ -316,6 +353,7 @@ export const updateAdaptiveInput = z.object({
   speed: speedSchema.optional(),
   hinting: z.boolean().optional(),
   defaultDepth: depthSchema.optional(),
+  strictOrder: z.boolean().optional(),
 })
 
 export type UpdateAdaptiveInput = z.infer<typeof updateAdaptiveInput>
@@ -385,6 +423,20 @@ export type DailyPushResult = {
   push: DailyPush | null
   question: Question | null
 }
+
+export const addModuleCommentInput = z.object({
+  moduleId: z.string(),
+  comment: z.string().min(1),
+})
+
+export type AddModuleCommentInput = z.infer<typeof addModuleCommentInput>
+
+export const addTopicCommentInput = z.object({
+  topicId: z.string(),
+  comment: z.string().min(1),
+})
+
+export type AddTopicCommentInput = z.infer<typeof addTopicCommentInput>
 
 export const decideInput = z.object({
   decision: z.string().min(1),

@@ -8,6 +8,7 @@ export const ERROR_REPLY = "Had a hiccup — try again in a moment.";
 export type ReplyDecision =
   | { kind: "start" }
   | { kind: "today" }
+  | { kind: "study"; name: string | null }
   | { kind: "process"; text: string }
   | { kind: "decline" };
 
@@ -22,6 +23,12 @@ export function selectReply(message: Message): ReplyDecision {
   if (command === "/start") return { kind: "start" };
 
   if (command === "/today" || command === "/push") return { kind: "today" };
+
+  if (command === "/study") {
+    const name = text.slice(firstWord.length).trim();
+
+    return { kind: "study", name: name.length > 0 ? name : null };
+  }
 
   return { kind: "process", text };
 }

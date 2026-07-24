@@ -7,17 +7,24 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
+    "dev:e2e": "vite dev --port 3100",
     "build": "vite build",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@electric-sql/client": "^1.5.24",
     "@post-anki/api": "*",
+    "@post-anki/core": "*",
     "@post-anki/shared": "*",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/db": "^0.6.14",
+    "@tanstack/electric-db-collection": "^0.3.12",
+    "@tanstack/react-db": "^0.1.92",
     "@tanstack/react-devtools": "latest",
+    "@tanstack/react-query": "latest",
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-router-ssr-query": "latest",

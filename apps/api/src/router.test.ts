@@ -31,6 +31,7 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/curricula/c1/confirm")).toEqual({ name: "confirmCurriculum", params: { id: "c1" } });
       expect(resolveRoute("POST", "/topics/t1/probe/answer")).toEqual({ name: "submitProbe", params: { id: "t1" } });
       expect(resolveRoute("GET", "/topics/t1/gaps")).toEqual({ name: "listTopicGaps", params: { id: "t1" } });
+      expect(resolveRoute("POST", "/topics/t1/study-chat")).toEqual({ name: "askStudyChat", params: { id: "t1" } });
     });
   });
 
@@ -46,9 +47,25 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/topics/t1/probe/answer")?.name).toBe("submitProbe");
     });
 
+    it("distinguishes /topics/:id/probe from /topics/:id/study-chat", () => {
+      expect(resolveRoute("POST", "/topics/t1/probe")?.name).toBe("startProbe");
+      expect(resolveRoute("POST", "/topics/t1/study-chat")?.name).toBe("askStudyChat");
+    });
+
     it("distinguishes /curricula/:id/modules from /curricula/:id/modules/order", () => {
       expect(resolveRoute("POST", "/curricula/c1/modules")?.name).toBe("createModule");
       expect(resolveRoute("PATCH", "/curricula/c1/modules/order")?.name).toBe("reorderModules");
+    });
+
+    it("captures the item id on both feedback sub-resource routes", () => {
+      expect(resolveRoute("POST", "/probe-session-questions/q1/feedback")).toEqual({
+        name: "submitProbeQuestionFeedback",
+        params: { id: "q1" },
+      });
+      expect(resolveRoute("POST", "/socratic-turns/t1/feedback")).toEqual({
+        name: "submitSocraticTurnFeedback",
+        params: { id: "t1" },
+      });
     });
   });
 

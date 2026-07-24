@@ -3,6 +3,7 @@ import { Link, useRouter } from '@tanstack/react-router'
 
 import type { Curriculum, CurriculumStatus, Subject } from '../curriculum/model'
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
+import { StudyTechnologyForm } from '../curriculum/study-technology-form'
 import { deleteCurriculum } from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { deleteSubject } from './subject.api'
@@ -15,9 +16,12 @@ export function SubjectSection({
   curricula: Curriculum[]
 }) {
   return (
-    <section>
+    <section data-testid="subject-card">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h2 className="min-w-0 truncate text-lg font-medium tracking-tight">
+        <h2
+          data-testid="subject-name"
+          className="min-w-0 truncate text-lg font-medium tracking-tight"
+        >
           {subject.name}
         </h2>
         <DeleteSubjectButton
@@ -37,10 +41,16 @@ export function SubjectSection({
                 params={{ curriculumId: curriculum.id }}
                 className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
               >
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                <span
+                  data-testid="curriculum-name"
+                  className="min-w-0 flex-1 truncate text-sm font-medium"
+                >
                   {curriculum.name}
                 </span>
-                <StatusBadge status={curriculum.status} />
+                <span className="flex shrink-0 items-center gap-2">
+                  {curriculum.origin === 'research' ? <OriginBadge /> : null}
+                  <StatusBadge status={curriculum.status} />
+                </span>
               </Link>
               <DeleteCurriculumButton curriculumId={curriculum.id} />
             </li>
@@ -48,8 +58,22 @@ export function SubjectSection({
         )}
       </ul>
 
-      <CreateCurriculumForm subjectId={subject.id} />
+      <div className="flex flex-wrap items-center gap-3">
+        <CreateCurriculumForm
+          subjectId={subject.id}
+          requireSources={subject.requireSources}
+        />
+        <StudyTechnologyForm subjectId={subject.id} />
+      </div>
     </section>
+  )
+}
+
+function OriginBadge() {
+  return (
+    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+      🔎 Researched
+    </span>
   )
 }
 

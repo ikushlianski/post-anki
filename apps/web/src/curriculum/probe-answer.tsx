@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import type { AttemptResult, Question, QuestionKind } from './model'
-import { submitAttempt } from './curriculum.api'
+import { nextQuestion, submitAttempt } from './curriculum.api'
 
 export function ProbeAnswer({
   topicId,
@@ -21,6 +21,8 @@ export function ProbeAnswer({
   const [selected, setSelected] = useState<number | null>(null)
   const [result, setResult] = useState<AttemptResult | null>(null)
   const [busy, setBusy] = useState(false)
+  const [loadingNext, setLoadingNext] = useState(false)
+  const [noMore, setNoMore] = useState(false)
 
   useEffect(() => {
     setCurrent(question)
@@ -36,7 +38,10 @@ export function ProbeAnswer({
     setCurrent(next)
   }
 
-  async function record(payload: { answer: string; selfOutcome?: 'pass' | 'fail' }) {
+  async function persist(payload: {
+    answer: string
+    selfOutcome?: 'pass' | 'fail'
+  }) {
     setBusy(true)
 
     const res = await submitAttempt({
@@ -49,11 +54,62 @@ export function ProbeAnswer({
       },
     })
 
-    setResult(res)
     setBusy(false)
-    if (autoInvalidate) {
-      await router.invalidate()
+
+    if (res) {
+      setResult(res)
     }
+
+    if (autoInvalidate) {
+      void router.invalidate()
+    }
+  }
+
+  function chooseOption(index: number) {
+    if (result !== null || busy) {
+      return
+    }
+
+    setSelected(index)
+
+    if (!current.gapId) {
+      void persist({ answer: String(index) })
+
+      return
+    }
+
+    const outcome =
+      current.correctAnswerIndex !== undefined &&
+      index === current.correctAnswerIndex
+        ? 'pass'
+        : 'fail'
+
+    setResult({
+      outcome,
+      coveredGapLabels:
+        outcome === 'pass' && current.gapLabel ? [current.gapLabel] : [],
+      nextQuestion: null,
+      feedback: localFeedback(outcome),
+    })
+
+    void persist({ answer: String(index), selfOutcome: outcome })
+  }
+
+  async function loadNext() {
+    setLoadingNext(true)
+    setNoMore(false)
+
+    const next = await nextQuestion({ data: { topicId, mode } })
+
+    setLoadingNext(false)
+
+    if (next) {
+      advanceTo(next)
+
+      return
+    }
+
+    setNoMore(true)
   }
 
   return (
@@ -101,7 +157,7 @@ export function ProbeAnswer({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => record({ answer, selfOutcome: 'pass' })}
+                onClick={() => persist({ answer, selfOutcome: 'pass' })}
                 className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               >
                 I answered it well
@@ -109,7 +165,7 @@ export function ProbeAnswer({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => record({ answer, selfOutcome: 'fail' })}
+                onClick={() => persist({ answer, selfOutcome: 'fail' })}
                 className="rounded-md bg-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-700 disabled:opacity-50"
               >
                 I struggled
@@ -124,10 +180,7 @@ export function ProbeAnswer({
               <button
                 type="button"
                 disabled={result !== null || busy}
-                onClick={() => {
-                  setSelected(index)
-                  record({ answer: String(index) })
-                }}
+                onClick={() => chooseOption(index)}
                 className={optionClass(result, current.correctAnswerIndex, selected, index)}
               >
                 {option}
@@ -136,6 +189,12 @@ export function ProbeAnswer({
           ))}
         </ul>
       )}
+
+      {!current.gapId && busy && result === null ? (
+        <p className="mt-3 text-sm text-neutral-500">
+          Checking your answer and mapping the gaps it reveals…
+        </p>
+      ) : null}
 
       {result ? (
         <div className="mt-3 space-y-2">
@@ -159,19 +218,30 @@ export function ProbeAnswer({
               ))}
             </div>
           ) : null}
-          {result.nextQuestion ? (
-            <button
-              type="button"
-              onClick={() => advanceTo(result.nextQuestion!)}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500"
-            >
-              Probe the next gap
-            </button>
+          <button
+            type="button"
+            disabled={loadingNext}
+            onClick={() => void loadNext()}
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
+          >
+            {loadingNext ? 'Loading next…' : 'Probe the next gap'}
+          </button>
+          {noMore ? (
+            <p className="text-xs text-neutral-500">
+              Nothing left to probe here right now — every in-scope gap is
+              covered. Try another topic from the menu.
+            </p>
           ) : null}
         </div>
       ) : null}
     </>
   )
+}
+
+function localFeedback(outcome: 'pass' | 'fail'): string {
+  return outcome === 'pass'
+    ? 'Solid — that holds up. We’ll move to what’s still open.'
+    : 'Not yet — this one stays open so we can come back to it.'
 }
 
 function sourceLabel(url: string): string {

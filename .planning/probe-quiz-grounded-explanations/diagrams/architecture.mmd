@@ -1,0 +1,36 @@
+flowchart TB
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+  Button["Web: 'Generate Probing Questions' button<br/>(no auto-generate on mount)"]
+  Peek["GET active session<br/>(existing handleActiveProbeSession — unchanged)"]
+  Prepare["POST prepareProbeSession<br/>(existing endpoint — unchanged)"]
+
+  Button --> Peek
+  Peek -->|"exists"| Render["Render questions immediately"]
+  Peek -->|"none"| WaitClick["Show button, wait for click"]
+  WaitClick -->|"click"| Prepare
+
+  subgraph Generate["probe-session.generate.ts — generateProbeBatch"]
+    Ground["gatherProbeGrounding(curriculumId)<br/>— UNCHANGED fetch, extended return shape"]
+    Urls["+ citations: string[] = source-row value URLs<br/>UNION extractUrls over llms_txt/link/text rows only<br/>UNION webGround's own citations<br/>NEVER extractUrls over web_research prose<br/>(new, packages/core)"]
+    Size["scaleTopicQuizTotal(gapCount, floor=10)<br/>replaces flat TOPIC_TARGET=12<br/>(new deriver, packages/core)"]
+    Prompt["buildPrompt — adds known-URL allowlist<br/>+ per-option explanation instructions"]
+    Agent["probe-quiz.agent.ts<br/>(sibling's rewritten instructions, THIS PLAN adds:<br/>grounded-only explanations, cite-from-allowlist-or-null)"]
+    Sanitize["sanitizeOptionExplanations(explanations, knownUrls)<br/>fail-closed per option — nulls bad citationUrl only<br/>(new deriver, packages/core)"]
+  end
+
+  Prepare --> Ground --> Urls --> Size --> Prompt --> Agent --> Sanitize
+
+  subgraph Insert["probe-session.map.ts — buildQuestionRows"]
+    Shuffle["reindexOptions(options, permutation, correctIndexes)<br/>— sibling's existing deriver, unmodified"]
+    ShuffleExpl["reindexParallelArray(optionExplanations, permutation)<br/>— SAME permutation, new deriver"]
+  end
+
+  Sanitize --> Shuffle
+  Sanitize --> ShuffleExpl
+  Shuffle --> Persist["INSERT probe_session_questions<br/>+ option_explanations jsonb (new column)"]
+  ShuffleExpl --> Persist
+
+  Persist --> Gate["probe-session.repo.ts — rowToSessionQuestion<br/>optionExplanations gated on outcome not null<br/>(same gate sibling adds for correctAnswerIndex(es))"]
+  Gate --> Answer["answerProbeSession result<br/>+ optionExplanations (nullable, for legacy rows)"]
+  Answer --> Render

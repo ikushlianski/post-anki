@@ -15,7 +15,10 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
+import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
+import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
 
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
@@ -47,11 +50,27 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProbeTopicIdRoute = ProbeTopicIdRouteImport.update({
+  id: '/probe/$topicId',
+  path: '/probe/$topicId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
   id: '/curriculum/$curriculumId',
   path: '/curriculum/$curriculumId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
+  id: '/api/electric-shape',
+  path: '/api/electric-shape',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CurriculumCurriculumIdStatsRoute =
+  CurriculumCurriculumIdStatsRouteImport.update({
+    id: '/curriculum/$curriculumId_/stats',
+    path: '/curriculum/$curriculumId/stats',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,7 +79,10 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
+  '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
+  '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,7 +91,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
+  '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
+  '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -79,7 +104,10 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/today': typeof TodayRoute
+  '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
+  '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,7 +118,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/decide'
     | '/today'
+    | '/api/electric-shape'
     | '/curriculum/$curriculumId'
+    | '/probe/$topicId'
+    | '/curriculum/$curriculumId/stats'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -99,7 +130,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/decide'
     | '/today'
+    | '/api/electric-shape'
     | '/curriculum/$curriculumId'
+    | '/probe/$topicId'
+    | '/curriculum/$curriculumId/stats'
   id:
     | '__root__'
     | '/'
@@ -108,7 +142,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/decide'
     | '/today'
+    | '/api/electric-shape'
     | '/curriculum/$curriculumId'
+    | '/probe/$topicId'
+    | '/curriculum/$curriculumId_/stats'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -118,7 +155,10 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
   TodayRoute: typeof TodayRoute
+  ApiElectricShapeRoute: typeof ApiElectricShapeRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
+  ProbeTopicIdRoute: typeof ProbeTopicIdRoute
+  CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -165,11 +205,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/probe/$topicId': {
+      id: '/probe/$topicId'
+      path: '/probe/$topicId'
+      fullPath: '/probe/$topicId'
+      preLoaderRoute: typeof ProbeTopicIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/curriculum/$curriculumId': {
       id: '/curriculum/$curriculumId'
       path: '/curriculum/$curriculumId'
       fullPath: '/curriculum/$curriculumId'
       preLoaderRoute: typeof CurriculumCurriculumIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/electric-shape': {
+      id: '/api/electric-shape'
+      path: '/api/electric-shape'
+      fullPath: '/api/electric-shape'
+      preLoaderRoute: typeof ApiElectricShapeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/curriculum/$curriculumId_/stats': {
+      id: '/curriculum/$curriculumId_/stats'
+      path: '/curriculum/$curriculumId/stats'
+      fullPath: '/curriculum/$curriculumId/stats'
+      preLoaderRoute: typeof CurriculumCurriculumIdStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -182,7 +243,10 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,
   TodayRoute: TodayRoute,
+  ApiElectricShapeRoute: ApiElectricShapeRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
+  ProbeTopicIdRoute: ProbeTopicIdRoute,
+  CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

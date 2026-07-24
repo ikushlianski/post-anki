@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
+import { nextPriority } from '@post-anki/core'
 
 import type { Module } from './model'
+import { levelBadgeLabel } from './level-badge'
 import { ProgressBar } from './progress-bar'
 import { TopicRow } from './topic-row'
+import { NodeCommentControl } from './node-comment-control'
+import { usePromoteDemoteModule } from './curriculum.mutations'
 import {
+  addModuleComment,
   createTopic,
   deleteModule,
   reorderModules,
@@ -14,7 +19,9 @@ import {
   AddInline,
   ConfirmDelete,
   InlineRename,
+  PromoteDemoteButtons,
   ReorderButtons,
+  StrictOrderNote,
   moveInOrder,
 } from './shape-controls'
 
@@ -26,6 +33,7 @@ export function ModuleSection({
   curriculumId,
   moduleOrder,
   allModules,
+  strictOrder,
 }: {
   module: Module
   recommendedTopicId: string | null
@@ -34,11 +42,13 @@ export function ModuleSection({
   curriculumId: string
   moduleOrder: string[]
   allModules: { id: string; title: string }[]
+  strictOrder: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const index = moduleOrder.indexOf(module.id)
   const topicOrder = module.topics.map((topic) => topic.id)
+  const promoteDemoteMutation = usePromoteDemoteModule(curriculumId)
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true)
@@ -68,7 +78,21 @@ export function ModuleSection({
               }
             />
           ) : null}
-          <h3 className="text-base font-semibold tracking-tight">
+          {editable ? (
+            <PromoteDemoteButtons
+              priority={module.priority}
+              busy={promoteDemoteMutation.isPending}
+              promoteTestId={`module-promote-${module.id}`}
+              demoteTestId={`module-demote-${module.id}`}
+              onToggle={(direction) =>
+                promoteDemoteMutation.mutate({
+                  moduleId: module.id,
+                  priority: nextPriority(module.priority, direction),
+                })
+              }
+            />
+          ) : null}
+          <h3 data-testid="module-title" className="text-base font-semibold tracking-tight">
             {editable ? (
               <InlineRename
                 value={module.title}
@@ -81,6 +105,12 @@ export function ModuleSection({
               module.title
             )}
           </h3>
+          {levelBadgeLabel(module.level) ? (
+            <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600">
+              {levelBadgeLabel(module.level)}
+            </span>
+          ) : null}
+          {editable && strictOrder ? <StrictOrderNote /> : null}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-400">
@@ -97,6 +127,17 @@ export function ModuleSection({
         </div>
       </div>
 
+      {editable ? (
+        <div className="mb-3">
+          <NodeCommentControl
+            busy={busy}
+            onSubmit={(comment) =>
+              run(() => addModuleComment({ data: { moduleId: module.id, comment } }))
+            }
+          />
+        </div>
+      ) : null}
+
       <ProgressBar percent={module.progress.percent} />
 
       <div className="mt-4 space-y-3">
@@ -109,7 +150,9 @@ export function ModuleSection({
             editable={editable}
             topicOrder={topicOrder}
             moduleId={module.id}
+            curriculumId={curriculumId}
             allModules={allModules}
+            strictOrder={strictOrder}
           />
         ))}
         {module.topics.length === 0 ? (

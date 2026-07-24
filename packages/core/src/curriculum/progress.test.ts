@@ -7,6 +7,7 @@ function topic(overrides: Partial<Topic> & { id: string }): Topic {
     moduleId: "mod-1",
     title: "T",
     order: 1,
+    priority: 0,
     included: true,
     selfGrade: null,
     depth: "working",
@@ -80,7 +81,9 @@ describe("curriculumProgress", () => {
         curriculumId: "c1",
         title: "M1",
         order: 1,
+        priority: 0,
         learningStatus: "not_started",
+        level: null,
         progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
         topics: [
           topic({ id: "a", moduleId: "m1", progress: { status: "mastered", maturity: 100, attempts: 4, lastInteractedAt: "t" } }),
@@ -91,7 +94,9 @@ describe("curriculumProgress", () => {
         curriculumId: "c1",
         title: "M2",
         order: 2,
+        priority: 0,
         learningStatus: "not_started",
+        level: null,
         progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
         topics: [
           topic({ id: "b", moduleId: "m2", progress: { status: "not_started", maturity: 0, attempts: 0, lastInteractedAt: null } }),

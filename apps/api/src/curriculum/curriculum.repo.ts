@@ -1,12 +1,16 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
   CurriculumDetail,
+  CurriculumOrigin,
   CurriculumStatus,
   DepthLevel,
   Gap,
+  LearningMapModuleSnapshot,
+  LearningMapSnapshot,
   LearningStatus,
+  Level,
   Module,
   Source,
   SourceDraft,
@@ -17,8 +21,11 @@ import type {
 } from "@post-anki/shared";
 import {
   curriculumProgress,
+  extractUrls,
   moduleProgress,
+  priorLevelCoverageLabels,
   recommendedTopicId,
+  sortForDisplay,
 } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import {
@@ -26,17 +33,57 @@ import {
   gaps,
   modules,
   sources,
+  subjects,
   topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import {
+  resolveCurriculumOrigin,
+  hasStudyableContent,
+  shouldIncludeTopicByDefault,
+} from "./curriculum-rules.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
 
-export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
-  const rows = await getDb().select().from(curricula);
+interface PlanModule {
+  title: string;
+  level?: Level | null;
+  topics: {
+    title: string;
+    summary: string | null;
+    suggestedDepth: DepthLevel;
+  }[];
+}
 
-  return rows
-    .filter((r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId)
-    .map(toCurriculum);
+interface Plan {
+  modules: PlanModule[];
+}
+
+export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
+  const rows = (await getDb().select().from(curricula)).filter(
+    (r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId,
+  );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const sourceRows = await getDb()
+    .select()
+    .from(sources)
+    .where(inArray(sources.curriculumId, rows.map((r) => r.id)));
+
+  const kindsByCurriculum = new Map<string, string[]>();
+
+  for (const s of sourceRows) {
+    const list = kindsByCurriculum.get(s.curriculumId) ?? [];
+
+    list.push(s.kind);
+    kindsByCurriculum.set(s.curriculumId, list);
+  }
+
+  return rows.map((r) =>
+    toCurriculum(r, resolveCurriculumOrigin(kindsByCurriculum.get(r.id) ?? [])),
+  );
 }
 
 export async function createCurriculum(
@@ -52,6 +99,7 @@ export async function createCurriculum(
     speed: "normal" as const,
     hinting: true,
     defaultDepth: "working" as const,
+    strictOrder: false,
   };
 
   await getDb().insert(curricula).values(row);
@@ -70,7 +118,16 @@ export async function createCurriculum(
       );
   }
 
-  return toCurriculum(row);
+  return toCurriculum(row, "sources");
+}
+
+async function originFor(curriculumId: string): Promise<CurriculumOrigin> {
+  const rows = await getDb()
+    .select()
+    .from(sources)
+    .where(eq(sources.curriculumId, curriculumId));
+
+  return resolveCurriculumOrigin(rows.map((r) => r.kind));
 }
 
 export interface CurriculumProbeContext {
@@ -119,6 +176,16 @@ export async function setCurriculumStatus(
     .where(eq(curricula.id, curriculumId));
 }
 
+export async function setCurriculumStrictOrder(
+  curriculumId: string,
+  strictOrder: boolean,
+): Promise<void> {
+  await getDb()
+    .update(curricula)
+    .set({ strictOrder })
+    .where(eq(curricula.id, curriculumId));
+}
+
 export async function getCurriculum(
   curriculumId: string,
 ): Promise<Curriculum | null> {
@@ -126,7 +193,108 @@ export async function getCurriculum(
     await getDb().select().from(curricula).where(eq(curricula.id, curriculumId))
   )[0];
 
-  return row ? toCurriculum(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  return toCurriculum(row, await originFor(curriculumId));
+}
+
+export interface CurriculumPromptContext {
+  curriculumName: string;
+  curriculumDescription: string | null;
+  subjectName: string;
+  subjectDescription: string | null;
+  subjectKind: string;
+}
+
+export async function getCurriculumPromptContext(
+  curriculumId: string,
+): Promise<CurriculumPromptContext | null> {
+  const db = getDb();
+
+  const curriculumRow = (
+    await db.select().from(curricula).where(eq(curricula.id, curriculumId))
+  )[0];
+
+  if (!curriculumRow) {
+    return null;
+  }
+
+  const subjectRow = (
+    await db.select().from(subjects).where(eq(subjects.id, curriculumRow.subjectId))
+  )[0];
+
+  return {
+    curriculumName: curriculumRow.name,
+    curriculumDescription: curriculumRow.description ?? null,
+    subjectName: subjectRow?.name ?? "",
+    subjectDescription: subjectRow?.description ?? null,
+    subjectKind: subjectRow?.kind ?? "architecture-mentor",
+  };
+}
+
+export interface MergeTopicSnapshot {
+  title: string;
+  progressStatus: string;
+  progressAttempts: number;
+  learningStatus: string;
+  selfGrade: number | null;
+  included: boolean;
+}
+
+export interface MergeModuleSnapshot {
+  moduleId: string;
+  title: string;
+  learningStatus: string;
+  topics: MergeTopicSnapshot[];
+}
+
+export async function getModuleProgressSnapshots(
+  curriculumId: string,
+): Promise<MergeModuleSnapshot[]> {
+  const db = getDb();
+
+  const [moduleRows, topicRows] = await Promise.all([
+    db.select().from(modules).where(eq(modules.curriculumId, curriculumId)),
+    db.select().from(topics).where(eq(topics.curriculumId, curriculumId)),
+  ]);
+
+  return moduleRows.map((m) => ({
+    moduleId: m.id,
+    title: m.title,
+    learningStatus: m.learningStatus,
+    topics: topicRows
+      .filter((t) => t.moduleId === m.id)
+      .map((t) => ({
+        title: t.title,
+        progressStatus: t.progressStatus,
+        progressAttempts: t.progressAttempts,
+        learningStatus: t.learningStatus,
+        selfGrade: t.selfGrade,
+        included: t.included,
+      })),
+  }));
+}
+
+export async function deleteModules(moduleIds: string[]): Promise<void> {
+  if (moduleIds.length === 0) {
+    return;
+  }
+
+  const db = getDb();
+
+  const topicRows = await db
+    .select()
+    .from(topics)
+    .where(inArray(topics.moduleId, moduleIds));
+
+  for (const t of topicRows) {
+    await db.delete(gaps).where(eq(gaps.topicId, t.id));
+  }
+
+  await db.delete(topics).where(inArray(topics.moduleId, moduleIds));
+  await db.delete(modules).where(inArray(modules.id, moduleIds));
 }
 
 export interface SourceRow {
@@ -144,23 +312,6 @@ export async function getCurriculumSourceRows(
     .select()
     .from(sources)
     .where(eq(sources.curriculumId, curriculumId));
-
-  return rows.map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    value: r.value,
-    title: r.title,
-    fetchedText: r.fetchedText,
-  }));
-}
-
-export async function getUnresolvedSourceRows(
-  curriculumId: string,
-): Promise<SourceRow[]> {
-  const rows = await getDb()
-    .select()
-    .from(sources)
-    .where(and(eq(sources.curriculumId, curriculumId), isNull(sources.fetchedText)));
 
   return rows.map((r) => ({
     id: r.id,
@@ -192,6 +343,39 @@ export async function getCurriculumGroundingText(
     .join("\n\n---\n\n");
 }
 
+const FETCHED_TEXT_URL_KINDS = new Set(["llms_txt", "link", "text"]);
+
+function isAbsoluteHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export async function getCurriculumCitableUrls(
+  curriculumId: string,
+): Promise<string[]> {
+  const rows = await getCurriculumSourceRows(curriculumId);
+  const urls = new Set<string>();
+
+  for (const row of rows) {
+    if (isAbsoluteHttpUrl(row.value)) {
+      urls.add(row.value);
+    }
+
+    if (row.fetchedText && FETCHED_TEXT_URL_KINDS.has(row.kind)) {
+      for (const url of extractUrls(row.fetchedText)) {
+        urls.add(url);
+      }
+    }
+  }
+
+  return Array.from(urls);
+}
+
 export async function addCurriculumSources(
   curriculumId: string,
   drafts: SourceDraft[],
@@ -211,22 +395,6 @@ export async function addCurriculumSources(
         title: s.title ?? null,
       })),
     );
-}
-
-export async function existingStructureTitles(
-  curriculumId: string,
-): Promise<{ modules: string[]; topics: string[] }> {
-  const db = getDb();
-
-  const [moduleRows, topicRows] = await Promise.all([
-    db.select().from(modules).where(eq(modules.curriculumId, curriculumId)),
-    db.select().from(topics).where(eq(topics.curriculumId, curriculumId)),
-  ]);
-
-  return {
-    modules: moduleRows.map((m) => m.title),
-    topics: topicRows.map((t) => t.title),
-  };
 }
 
 export async function clearCurriculumStructure(
@@ -276,7 +444,7 @@ export async function countModules(curriculumId: string): Promise<number> {
 
 export async function confirmCurriculum(
   curriculumId: string,
-): Promise<Curriculum | "not_found" | "not_ready"> {
+): Promise<Curriculum | "not_found" | "not_ready" | "not_studyable"> {
   const db = getDb();
 
   const existing = (
@@ -288,11 +456,32 @@ export async function confirmCurriculum(
   }
 
   if (existing.status === "confirmed") {
-    return toCurriculum(existing);
+    return toCurriculum(existing, await originFor(curriculumId));
   }
 
   if (existing.status !== "ready") {
     return "not_ready";
+  }
+
+  const moduleRows = await db
+    .select()
+    .from(modules)
+    .where(eq(modules.curriculumId, curriculumId));
+  const topicRows = await db
+    .select()
+    .from(topics)
+    .where(eq(topics.curriculumId, curriculumId));
+
+  const studyable = hasStudyableContent(
+    moduleRows.map((m) => ({
+      topics: topicRows
+        .filter((t) => t.moduleId === m.id)
+        .map((t) => ({ included: t.included })),
+    })),
+  );
+
+  if (!studyable) {
+    return "not_studyable";
   }
 
   const rows = await db
@@ -301,7 +490,7 @@ export async function confirmCurriculum(
     .where(eq(curricula.id, curriculumId))
     .returning();
 
-  return toCurriculum(rows[0]!);
+  return toCurriculum(rows[0]!, await originFor(curriculumId));
 }
 
 
@@ -328,12 +517,16 @@ export async function updateCurriculum(
     patch.defaultDepth = input.defaultDepth;
   }
 
+  if (input.strictOrder !== undefined) {
+    patch.strictOrder = input.strictOrder;
+  }
+
   if (Object.keys(patch).length === 0) {
     const existing = (
       await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
     )[0];
 
-    return existing ? toCurriculum(existing) : null;
+    return existing ? toCurriculum(existing, await originFor(input.curriculumId)) : null;
   }
 
   const rows = await db
@@ -344,25 +537,34 @@ export async function updateCurriculum(
 
   const row = rows[0];
 
-  return row ? toCurriculum(row) : null;
+  return row ? toCurriculum(row, await originFor(input.curriculumId)) : null;
 }
 
 export async function saveCurriculumPlan(
   curriculumId: string,
-  plan: CurriculumPlan,
+  plan: CurriculumPlan | Plan,
   orderOffset = 0,
+  options?: { defaultIncluded?: boolean; preferredLevel?: Level | null },
 ): Promise<void> {
   const db = getDb();
+  const defaultIncluded = options?.defaultIncluded ?? true;
+  const preferredLevel = options?.preferredLevel ?? null;
 
   for (const [moduleIndex, mod] of plan.modules.entries()) {
     const moduleId = newId("mod");
+    const moduleLevel = (mod as PlanModule).level ?? null;
 
     await db.insert(modules).values({
       id: moduleId,
       curriculumId,
       title: mod.title,
       order: orderOffset + moduleIndex + 1,
+      level: moduleLevel,
     });
+
+    const included = preferredLevel
+      ? shouldIncludeTopicByDefault(moduleLevel, preferredLevel)
+      : defaultIncluded;
 
     for (const [topicIndex, top] of mod.topics.entries()) {
       await db.insert(topics).values({
@@ -373,9 +575,46 @@ export async function saveCurriculumPlan(
         summary: top.summary ?? null,
         order: topicIndex + 1,
         depth: top.suggestedDepth,
+        included,
       });
     }
   }
+}
+
+export interface ResearchSourceInput {
+  kind: "web_research" | "llms_txt";
+  value: string;
+  title: string;
+}
+
+export async function insertResearchSource(
+  curriculumId: string,
+  source: ResearchSourceInput,
+  groundingText: string,
+): Promise<void> {
+  await getDb()
+    .insert(sources)
+    .values({
+      id: newId("src"),
+      curriculumId,
+      kind: source.kind,
+      value: source.value,
+      title: source.title,
+      fetchedText: groundingText,
+    });
+}
+
+const RESEARCH_ORIGIN_SOURCE_KINDS = ["web_research", "llms_txt"] as const;
+
+export async function deleteResearchSources(curriculumId: string): Promise<void> {
+  await getDb()
+    .delete(sources)
+    .where(
+      and(
+        eq(sources.curriculumId, curriculumId),
+        inArray(sources.kind, [...RESEARCH_ORIGIN_SOURCE_KINDS]),
+      ),
+    );
 }
 
 export async function getCurriculumDetail(
@@ -404,10 +643,18 @@ export async function getCurriculumDetail(
         )
       : [];
 
-  const assembledModules = buildModules(moduleRows, topicRows, gapRows);
+  const assembledModules = buildModules(
+    moduleRows,
+    topicRows,
+    gapRows,
+    curriculumRow.strictOrder,
+  );
 
   return {
-    curriculum: toCurriculum(curriculumRow),
+    curriculum: toCurriculum(
+      curriculumRow,
+      resolveCurriculumOrigin(sourceRows.map((s) => s.kind)),
+    ),
     sources: sourceRows.map(toSource),
     modules: assembledModules,
     progress: curriculumProgress(assembledModules),
@@ -415,45 +662,175 @@ export async function getCurriculumDetail(
   };
 }
 
+export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> {
+  const db = getDb();
+
+  const curriculumRows = await db
+    .select()
+    .from(curricula)
+    .where(eq(curricula.status, "confirmed"));
+
+  if (curriculumRows.length === 0) {
+    return [];
+  }
+
+  const curriculumIds = curriculumRows.map((c) => c.id);
+  const subjectIds = Array.from(new Set(curriculumRows.map((c) => c.subjectId)));
+
+  const [subjectRows, moduleRows, topicRows] = await Promise.all([
+    db.select().from(subjects).where(inArray(subjects.id, subjectIds)),
+    db.select().from(modules).where(inArray(modules.curriculumId, curriculumIds)),
+    db.select().from(topics).where(inArray(topics.curriculumId, curriculumIds)),
+  ]);
+
+  const subjectNameById = new Map(subjectRows.map((s) => [s.id, s.name]));
+
+  return curriculumRows.map((c) => {
+    const curriculumModules = moduleRows.filter((m) => m.curriculumId === c.id);
+    const curriculumTopics = topicRows
+      .filter((t) => t.curriculumId === c.id)
+      .map(toTopic);
+
+    const topicsByModuleId = new Map<string, Topic[]>();
+
+    for (const t of curriculumTopics) {
+      const list = topicsByModuleId.get(t.moduleId) ?? [];
+      list.push(t);
+      topicsByModuleId.set(t.moduleId, list);
+    }
+
+    const moduleSnapshots: LearningMapModuleSnapshot[] = curriculumModules.map((m) => {
+      const moduleTopics = topicsByModuleId.get(m.id) ?? [];
+
+      return {
+        level: (m.level as Level | null) ?? null,
+        progress: moduleProgress(moduleTopics),
+        topics: moduleTopics.map((t) => ({
+          id: t.id,
+          title: t.title,
+          progress: t.progress,
+        })),
+      };
+    });
+
+    const overallProgress = moduleProgress(curriculumTopics);
+    const lastInteractedAt = curriculumTopics.reduce<string | null>((latest, t) => {
+      if (!t.progress.lastInteractedAt) {
+        return latest;
+      }
+
+      return !latest || t.progress.lastInteractedAt > latest
+        ? t.progress.lastInteractedAt
+        : latest;
+    }, null);
+
+    return {
+      curriculumId: c.id,
+      curriculumName: c.name,
+      subjectName: subjectNameById.get(c.subjectId) ?? "",
+      learningStatus: c.learningStatus as LearningStatus,
+      percent: overallProgress.percent,
+      lastInteractedAt,
+      modules: moduleSnapshots,
+    };
+  });
+}
+
+export async function getLowerLevelCoverage(topicId: string): Promise<string[]> {
+  const db = getDb();
+
+  const topicRow = (
+    await db.select().from(topics).where(eq(topics.id, topicId))
+  )[0];
+
+  if (!topicRow) {
+    return [];
+  }
+
+  const moduleRow = (
+    await db.select().from(modules).where(eq(modules.id, topicRow.moduleId))
+  )[0];
+  const currentLevel = (moduleRow?.level as Level | null) ?? null;
+
+  if (currentLevel === null) {
+    return [];
+  }
+
+  const rows = await db
+    .select({ level: modules.level, label: gaps.label })
+    .from(gaps)
+    .innerJoin(topics, eq(gaps.topicId, topics.id))
+    .innerJoin(modules, eq(topics.moduleId, modules.id))
+    .where(
+      and(
+        eq(modules.curriculumId, topicRow.curriculumId),
+        eq(gaps.state, "covered"),
+      ),
+    );
+
+  const coverageByLevel = new Map<string, string[]>();
+
+  for (const row of rows) {
+    if (!row.level) {
+      continue;
+    }
+
+    const list = coverageByLevel.get(row.level) ?? [];
+    list.push(row.label);
+    coverageByLevel.set(row.level, list);
+  }
+
+  const moduleCoverages = Array.from(coverageByLevel.entries()).map(
+    ([level, coveredLabels]) => ({ level: level as Level, coveredLabels }),
+  );
+
+  return priorLevelCoverageLabels(currentLevel, moduleCoverages);
+}
+
 function buildModules(
   moduleRows: (typeof modules.$inferSelect)[],
   topicRows: (typeof topics.$inferSelect)[],
   gapRows: (typeof gaps.$inferSelect)[],
+  strictOrder: boolean,
 ): Module[] {
-  return [...moduleRows]
-    .sort((a, b) => a.order - b.order)
-    .map((m) => {
-      const moduleTopics = topicRows
-        .filter((t) => t.moduleId === m.id)
-        .sort((a, b) => a.order - b.order)
-        .map((t) => ({
-          ...toTopic(t),
-          gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
-        }));
+  return sortForDisplay(moduleRows, strictOrder).map((m) => {
+    const moduleTopics = sortForDisplay(
+      topicRows.filter((t) => t.moduleId === m.id),
+      strictOrder,
+    ).map((t) => ({
+      ...toTopic(t),
+      gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
+    }));
 
-      return {
-        id: m.id,
-        curriculumId: m.curriculumId,
-        title: m.title,
-        order: m.order,
-        learningStatus: m.learningStatus as LearningStatus,
-        topics: moduleTopics,
-        progress: moduleProgress(moduleTopics),
-      };
-    });
+    return {
+      id: m.id,
+      curriculumId: m.curriculumId,
+      title: m.title,
+      order: m.order,
+      priority: m.priority as Module["priority"],
+      learningStatus: m.learningStatus as LearningStatus,
+      level: (m.level as Level | null) ?? null,
+      topics: moduleTopics,
+      progress: moduleProgress(moduleTopics),
+    };
+  });
 }
 
-function toCurriculum(row: {
-  id: string;
-  subjectId: string;
-  name: string;
-  description: string | null;
-  status: string;
-  learningStatus: string;
-  speed: string;
-  hinting: boolean;
-  defaultDepth: string;
-}): Curriculum {
+function toCurriculum(
+  row: {
+    id: string;
+    subjectId: string;
+    name: string;
+    description: string | null;
+    status: string;
+    learningStatus: string;
+    speed: string;
+    hinting: boolean;
+    defaultDepth: string;
+    strictOrder: boolean;
+  },
+  origin: CurriculumOrigin,
+): Curriculum {
   return {
     id: row.id,
     subjectId: row.subjectId,
@@ -464,6 +841,8 @@ function toCurriculum(row: {
     speed: row.speed as Speed,
     hinting: row.hinting,
     defaultDepth: row.defaultDepth as DepthLevel,
+    origin,
+    strictOrder: row.strictOrder,
   };
 }
 
@@ -484,6 +863,7 @@ function toTopic(row: typeof topics.$inferSelect): Topic {
     title: row.title,
     summary: row.summary ?? undefined,
     order: row.order,
+    priority: row.priority as Topic["priority"],
     included: row.included,
     selfGrade: (row.selfGrade as Topic["selfGrade"]) ?? null,
     depth: row.depth as DepthLevel,

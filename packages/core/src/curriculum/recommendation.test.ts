@@ -7,6 +7,7 @@ function topic(overrides: Partial<Topic> & { id: string }): Topic {
     moduleId: "mod-1",
     title: "T",
     order: 1,
+    priority: 0,
     included: true,
     selfGrade: null,
     depth: "working",
@@ -28,7 +29,9 @@ function moduleOf(topics: Topic[]): Module {
     curriculumId: "c1",
     title: "M",
     order: 1,
+    priority: 0,
     learningStatus: "not_started",
+    level: null,
     progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
     topics,
   };

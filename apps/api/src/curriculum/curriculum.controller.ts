@@ -6,6 +6,7 @@ import {
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
+import { getSubject } from "../subject/subject.repo.js";
 import {
   confirmCurriculum,
   createCurriculum,
@@ -16,9 +17,16 @@ import {
   updateCurriculum,
 } from "./curriculum.repo.js";
 import {
+  isDocUrlAndResearchTopicConflict,
+  isResearchAndSourcesConflict,
+  isSourceMandateUnmet,
+} from "./curriculum-rules.js";
+import {
   mergeSourcesIntoCurriculum,
   parseCurriculum,
   reparseCurriculum,
+  researchCurriculum,
+  retryResearch,
 } from "./curriculum-parse.orchestrator.js";
 
 export async function handleListCurricula(
@@ -40,12 +48,95 @@ export async function handleCreateCurriculum(
   }
 
   const sources = body.data.sources ?? [];
+  const researchTopic = body.data.researchTopic ?? null;
+  const docUrl = body.data.docUrl ?? null;
+  const preferredLevel = body.data.preferredLevel ?? null;
+  const researchTriggered = Boolean(researchTopic) || Boolean(docUrl);
+  const subject = await getSubject(body.data.subjectId);
+
+  if (!subject) {
+    sendError(res, 404, "subject_not_found");
+    return;
+  }
+
+  if (isDocUrlAndResearchTopicConflict(docUrl, researchTopic)) {
+    sendError(
+      res,
+      400,
+      "doc_url_and_research_topic_conflict",
+      "a curriculum cannot be created with both a documentation URL and a legacy research topic",
+    );
+    return;
+  }
+
+  if (isResearchAndSourcesConflict(researchTriggered, sources.length)) {
+    sendError(
+      res,
+      400,
+      "research_and_sources_conflict",
+      "a curriculum cannot be created with both research (a research topic or a documentation URL) and pasted sources",
+    );
+    return;
+  }
+
+  if (
+    !researchTriggered &&
+    isSourceMandateUnmet(subject.requireSources, sources.length)
+  ) {
+    sendError(
+      res,
+      400,
+      "sources_required",
+      "this subject requires at least one source for every curriculum",
+    );
+    return;
+  }
+
   const curriculum = await createCurriculum({ ...body.data, sources });
 
   sendJson(res, 202, curriculum);
 
-  void parseCurriculum(curriculum.id, curriculum.name).catch((err) =>
+  if (docUrl) {
+    void researchCurriculum(curriculum.id, { name: curriculum.name, docUrl }, preferredLevel).catch(
+      (err) => log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
+    );
+
+    return;
+  }
+
+  if (researchTopic) {
+    void researchCurriculum(curriculum.id, { name: researchTopic }).catch((err) =>
+      log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
+    );
+
+    return;
+  }
+
+  void parseCurriculum(curriculum.id).catch((err) =>
     log.error({ err, curriculumId: curriculum.id }, "parse_dispatch_failed"),
+  );
+}
+
+export async function handleRetryResearch(
+  res: http.ServerResponse,
+  curriculumId: string,
+): Promise<void> {
+  const curriculum = await getCurriculum(curriculumId);
+
+  if (!curriculum) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  if (curriculum.status === "curating") {
+    sendError(res, 409, "already_curating");
+    return;
+  }
+
+  sendJson(res, 202, { ...curriculum, status: "curating" });
+
+  void retryResearch(curriculumId).catch((err) =>
+    log.error({ err, curriculumId }, "retry_research_dispatch_failed"),
   );
 }
 
@@ -98,6 +189,16 @@ export async function handleConfirmCurriculum(
     return;
   }
 
+  if (result === "not_studyable") {
+    sendError(
+      res,
+      409,
+      "not_studyable",
+      "include at least one topic, or leave a module topic-less, before confirming",
+    );
+    return;
+  }
+
   sendJson(res, 200, result);
 }
 
@@ -125,8 +226,8 @@ export async function handleAddSources(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void mergeSourcesIntoCurriculum(curriculumId, curriculum.name, body.data.sources).catch(
-    (err) => log.error({ err, curriculumId }, "merge_dispatch_failed"),
+  void mergeSourcesIntoCurriculum(curriculumId, body.data.sources).catch((err) =>
+    log.error({ err, curriculumId }, "merge_dispatch_failed"),
   );
 }
 
@@ -148,7 +249,7 @@ export async function handleReparse(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void reparseCurriculum(curriculumId, curriculum.name).catch((err) =>
+  void reparseCurriculum(curriculumId).catch((err) =>
     log.error({ err, curriculumId }, "reparse_dispatch_failed"),
   );
 }

@@ -1,7 +1,7 @@
 import type http from "node:http";
 import { decideInput, decideResultSchema, type DecideResult } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
-import { createDecideAgent } from "../mastra/decide.agent.js";
+import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 
 const FALLBACK: DecideResult = {
@@ -34,7 +34,7 @@ export async function handleDecide(
   ].join("\n");
 
   try {
-    const agent = createDecideAgent();
+    const agent = getMastra().getAgent(AGENT_KEYS.decide);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: decideResultSchema },
     });

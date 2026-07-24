@@ -14,15 +14,21 @@ import {
   setModuleStatus,
   setTopicState,
 } from '../curriculum/curriculum.api'
+import { getStreak } from '../curriculum/stats.api'
 import { LearningStatusSelect } from '../curriculum/learning-status'
+import { StreakBanner } from '../curriculum/streak-banner'
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
-  loader: () => getTree(),
+  loader: async () => {
+    const [tree, streak] = await Promise.all([getTree(), getStreak()])
+
+    return { tree, streak }
+  },
 })
 
 function DashboardPage() {
-  const tree = Route.useLoaderData()
+  const { tree, streak } = Route.useLoaderData()
   const focus = findFocus(tree)
 
   return (
@@ -35,6 +41,8 @@ function DashboardPage() {
           deeper, or mark it Done.
         </p>
       </header>
+
+      {streak ? <StreakBanner streak={streak} /> : null}
 
       {focus ? (
         <div className="mb-6 rounded-lg border border-blue-600 bg-blue-600 px-4 py-3 text-sm text-white">

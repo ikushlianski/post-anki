@@ -1,8 +1,12 @@
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
-import { getCurriculumGroundingText } from "../curriculum/curriculum.repo.js";
+import { startTracingSpan } from "../mastra/mastra.js";
+import {
+  getCurriculumCitableUrls,
+  getCurriculumGroundingText,
+} from "../curriculum/curriculum.repo.js";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const TIMEOUT_MS = 45_000;
 const MAX_RESULTS = 4;
 const MAX_CHARS = 8_000;
@@ -27,6 +31,10 @@ interface ChatResponse {
   error?: { message?: string };
 }
 
+export type WebSearchOutcome =
+  | { ok: true; text: string; citations: string[]; emptyErrorMessage?: string }
+  | { ok: false; status?: number; error?: unknown };
+
 function restModel(): string {
   return loadEnv().CURRICULUM_MODEL.replace(/^openrouter\//, "");
 }
@@ -39,9 +47,14 @@ export async function gatherProbeGrounding(
   const pasted = (await getCurriculumGroundingText(curriculumId)).trim();
 
   if (pasted.length >= MIN_SOURCE_CHARS) {
-    log.info({ curriculumId, source: "pasted", chars: pasted.length }, "probe_grounding");
+    const citations = await getCurriculumCitableUrls(curriculumId);
 
-    return { text: truncate(pasted), fromWeb: false, citations: [] };
+    log.info(
+      { curriculumId, source: "pasted", chars: pasted.length, citations: citations.length },
+      "probe_grounding",
+    );
+
+    return { text: truncate(pasted), fromWeb: false, citations };
   }
 
   const web = await webGround(topicTitle, focus);
@@ -59,16 +72,27 @@ export async function gatherProbeGrounding(
   return { text: web.text, fromWeb: web.text.length > 0, citations: web.citations };
 }
 
-async function webGround(
-  topicTitle: string,
-  focus: string,
-): Promise<{ text: string; citations: string[] }> {
+/**
+ * Runs an OpenRouter `web_search`-grounded chat completion for the given
+ * prompt and returns the reply text plus any real citation URLs. Shared by
+ * `webGround` (quiz/Socratic grounding) and the stats module's recommendation
+ * generator — the HTTP call and citation-collection contract are identical,
+ * only the prompt and caller-side logging differ.
+ */
+export async function webSearch(
+  prompt: string,
+  spanName: string,
+  spanAttrs: Record<string, unknown> = {},
+): Promise<WebSearchOutcome> {
   const env = loadEnv();
+  const model = restModel();
+  const endpoint = `${env.OPENROUTER_BASE_URL ?? DEFAULT_BASE_URL}/chat/completions`;
+  const span = startTracingSpan(spanName, { ...spanAttrs, model });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(ENDPOINT, {
+    const res = await fetch(endpoint, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -76,42 +100,66 @@ async function webGround(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: restModel(),
+        model,
         tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
-        messages: [
-          {
-            role: "user",
-            content: [
-              `Search the web for current, authoritative information to ground a senior-level`,
-              `architecture question about: ${focus} (topic: ${topicTitle}).`,
-              `Return concise grounding notes — key facts, tradeoffs, and current best practices.`,
-              `Favour judgment over syntax. Do not write the question itself.`,
-            ].join(" "),
-          },
-        ],
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 
     if (!res.ok) {
-      log.warn({ status: res.status, focus }, "probe_web_ground_http_error");
-      return { text: "", citations: [] };
+      span?.end({ output: { outcome: "http_error", status: res.status } });
+
+      return { ok: false, status: res.status };
     }
 
     const data = (await res.json()) as ChatResponse;
     const message = data.choices?.[0]?.message;
     const body = message?.content?.trim() ?? "";
+    const text = truncate(body);
+    const citations = collectCitations(message?.annotations);
 
-    if (body.length === 0) {
-      log.warn({ focus, error: data.error?.message }, "probe_web_ground_empty");
-    }
+    span?.end({
+      output: { outcome: body.length === 0 ? "empty" : "ok", chars: text.length, citations: citations.length },
+    });
 
-    return { text: truncate(body), citations: collectCitations(message?.annotations) };
+    return { ok: true, text, citations, emptyErrorMessage: data.error?.message };
   } catch (err) {
-    log.warn({ err, focus }, "probe_web_ground_failed");
-    return { text: "", citations: [] };
+    span?.error({ error: err instanceof Error ? err : new Error(String(err)) });
+
+    return { ok: false, error: err };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function webGround(
+  topicTitle: string,
+  focus: string,
+): Promise<{ text: string; citations: string[] }> {
+  const prompt = [
+    `Search the web for current, authoritative information to ground a senior-level`,
+    `architecture question about: ${focus} (topic: ${topicTitle}).`,
+    `Return concise grounding notes — key facts, tradeoffs, and current best practices.`,
+    `Favour judgment over syntax. Do not write the question itself.`,
+  ].join(" ");
+
+  const outcome = await webSearch(prompt, "probe.web_grounding", { topicTitle, focus });
+
+  if (!outcome.ok) {
+    if (outcome.status !== undefined) {
+      log.warn({ status: outcome.status, focus }, "probe_web_ground_http_error");
+    } else {
+      log.warn({ err: outcome.error, focus }, "probe_web_ground_failed");
+    }
+
+    return { text: "", citations: [] };
+  }
+
+  if (outcome.text.length === 0) {
+    log.warn({ focus, error: outcome.emptyErrorMessage }, "probe_web_ground_empty");
+  }
+
+  return { text: outcome.text, citations: outcome.citations };
 }
 
 function collectCitations(annotations?: Annotation[]): string[] {

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { useSuspenseQuery } from '@tanstack/react-query'
 
 import type { Source } from '../curriculum/model'
-import { createModule, getCurriculum } from '../curriculum/curriculum.api'
+import { createModule } from '../curriculum/curriculum.api'
+import { curriculumDetailQuery } from '../curriculum/curriculum.queries'
 import { AddSourcesForm } from '../curriculum/add-sources-form'
 import {
   ConfirmBar,
@@ -16,11 +18,15 @@ import { AdaptiveSettings } from '../curriculum/adaptive-settings'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
-  loader: ({ params }) => getCurriculum({ data: params.curriculumId }),
+  loader: ({ params, context }) =>
+    context.queryClient.ensureQueryData(
+      curriculumDetailQuery(params.curriculumId),
+    ),
 })
 
 function CurriculumPage() {
-  const detail = Route.useLoaderData()
+  const { curriculumId } = Route.useParams()
+  const { data: detail } = useSuspenseQuery(curriculumDetailQuery(curriculumId))
 
   if (!detail) {
     return (
@@ -47,6 +53,10 @@ function CurriculumPage() {
   const recommended = modules
     .flatMap((module) => module.topics)
     .find((topic) => topic.id === recommendedTopicId)
+  const studyable = modules.some(
+    (module) =>
+      module.topics.length === 0 || module.topics.some((topic) => topic.included),
+  )
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -55,9 +65,24 @@ function CurriculumPage() {
       </Link>
 
       <header className="mb-6 mt-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {curriculum.name}
-        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {curriculum.name}
+          </h1>
+          {curriculum.origin === 'research' ? (
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+              🔎 Researched
+            </span>
+          ) : null}
+          <Link
+            to="/curriculum/$curriculumId/stats"
+            params={{ curriculumId: curriculum.id }}
+            data-testid="stats-page-link"
+            className="ml-auto text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+          >
+            View stats
+          </Link>
+        </div>
         {curriculum.description ? (
           <p className="mt-1 text-sm text-neutral-500">
             {curriculum.description}
@@ -109,11 +134,11 @@ function CurriculumPage() {
       {isCurating ? (
         <CuratingBanner />
       ) : curriculum.status === 'failed' ? (
-        <FailedBanner curriculumId={curriculum.id} />
+        <FailedBanner curriculumId={curriculum.id} origin={curriculum.origin} />
       ) : (
         <>
           {curriculum.status === 'ready' ? (
-            <ConfirmBar curriculumId={curriculum.id} />
+            <ConfirmBar curriculumId={curriculum.id} studyable={studyable} />
           ) : null}
           {modules.length === 0 ? (
             <p className="mb-4 rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
@@ -132,6 +157,7 @@ function CurriculumPage() {
                   curriculumId={curriculum.id}
                   moduleOrder={moduleOrder}
                   allModules={allModules}
+                  strictOrder={curriculum.strictOrder}
                 />
               ))}
             </div>
@@ -180,6 +206,22 @@ function SourceRow({ source }: { source: Source }) {
         >
           {source.title ?? source.value}
         </a>
+      </li>
+    )
+  }
+
+  if (source.kind === 'llms_txt') {
+    return (
+      <li data-testid="source-row-llms-txt" className="text-neutral-600">
+        📖 {source.title ?? `Site-published map: ${source.value}`}
+      </li>
+    )
+  }
+
+  if (source.kind === 'web_research') {
+    return (
+      <li data-testid="source-row-web-research" className="text-neutral-600">
+        🔎 {source.title ?? `Auto-researched: ${source.value}`}
       </li>
     )
   }

@@ -4,11 +4,16 @@ import {
   integer,
   boolean,
   timestamp,
+  jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  description: text("description"),
+  requireSources: boolean("require_sources").notNull().default(false),
+  kind: text("kind").notNull().default("architecture-mentor"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -22,6 +27,7 @@ export const curricula = pgTable("curricula", {
   speed: text("speed").notNull().default("normal"),
   hinting: boolean("hinting").notNull().default(true),
   defaultDepth: text("default_depth").notNull().default("working"),
+  strictOrder: boolean("strict_order").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -40,7 +46,9 @@ export const modules = pgTable("modules", {
   curriculumId: text("curriculum_id").notNull(),
   title: text("title").notNull(),
   order: integer("order").notNull(),
+  priority: integer("priority").notNull().default(0),
   learningStatus: text("learning_status").notNull().default("not_started"),
+  level: text("level"),
 });
 
 export const topics = pgTable("topics", {
@@ -50,6 +58,7 @@ export const topics = pgTable("topics", {
   title: text("title").notNull(),
   summary: text("summary"),
   order: integer("order").notNull(),
+  priority: integer("priority").notNull().default(0),
   included: boolean("included").notNull().default(true),
   selfGrade: integer("self_grade"),
   depth: text("depth").notNull().default("working"),
@@ -89,4 +98,101 @@ export const apiTokens = pgTable("api_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
+export const probeSessions = pgTable("probe_sessions", {
+  id: text("id").primaryKey(),
+  scope: text("scope").notNull(),
+  scopeId: text("scope_id").notNull(),
+  curriculumId: text("curriculum_id").notNull(),
+  status: text("status").notNull().default("active"),
+  total: integer("total").notNull().default(0),
+  correct: integer("correct").notNull().default(0),
+  answered: integer("answered").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const probeSessionQuestions = pgTable("probe_session_questions", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  order: integer("order").notNull(),
+  topicId: text("topic_id"),
+  gapId: text("gap_id"),
+  prompt: text("prompt").notNull(),
+  options: jsonb("options").$type<string[]>().notNull(),
+  correctAnswerIndex: integer("correct_answer_index").notNull(),
+  difficulty: text("difficulty").notNull().default("medium"),
+  kind: text("kind").notNull().default("mcq"),
+  type: text("type").notNull().default("single"),
+  correctAnswerIndexes: jsonb("correct_answer_indexes").$type<number[]>(),
+  answeredIndex: integer("answered_index"),
+  answeredIndexes: jsonb("answered_indexes").$type<number[]>(),
+  outcome: text("outcome"),
+  answeredAt: timestamp("answered_at", { withTimezone: true }),
+  optionExplanations: jsonb("option_explanations").$type<
+    { text: string; citationUrl: string | null }[]
+  >(),
+});
+
+export const socraticSessions = pgTable("socratic_sessions", {
+  id: text("id").primaryKey(),
+  topicId: text("topic_id").notNull(),
+  curriculumId: text("curriculum_id").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+export const socraticTurns = pgTable("socratic_turns", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull(),
+  gapId: text("gap_id"),
+  conceptLabel: text("concept_label").notNull(),
+  order: integer("order").notNull(),
+  prompt: text("prompt").notNull(),
+  answer: text("answer"),
+  degree: text("degree"),
+  action: text("action"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  answeredAt: timestamp("answered_at", { withTimezone: true }),
+});
+
+export const nodeFeedback = pgTable("node_feedback", {
+  id: text("id").primaryKey(),
+  nodeType: text("node_type").notNull(),
+  nodeId: text("node_id").notNull(),
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const studyItemFeedback = pgTable(
+  "study_item_feedback",
+  {
+    id: text("id").primaryKey(),
+    itemType: text("item_type").notNull(),
+    itemId: text("item_id").notNull(),
+    topicId: text("topic_id"),
+    itemText: text("item_text").notNull(),
+    rating: text("rating").notNull(),
+    comment: text("comment"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("study_item_feedback_item_unique").on(table.itemType, table.itemId)],
+);
+
+export const topicRecommendations = pgTable("topic_recommendations", {
+  id: text("id").primaryKey(),
+  topicId: text("topic_id").notNull(),
+  text: text("text").notNull(),
+  citations: jsonb("citations").$type<string[]>().notNull().default([]),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
+});
+
+export const userStreaks = pgTable("user_streaks", {
+  id: text("id").primaryKey(),
+  currentStreak: integer("current_streak").notNull().default(0),
+  longestStreak: integer("longest_streak").notNull().default(0),
+  lastActiveDate: text("last_active_date"),
 });

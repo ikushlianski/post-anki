@@ -1,0 +1,1 @@
+ALTER TABLE "probe_session_questions" ADD COLUMN "option_explanations" jsonb;

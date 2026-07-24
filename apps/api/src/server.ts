@@ -15,6 +15,7 @@ import {
   handleGetCurriculum,
   handleListCurricula,
   handleReparse,
+  handleRetryResearch,
   handleUpdateCurriculum,
 } from "./curriculum/curriculum.controller.js";
 import {
@@ -31,9 +32,22 @@ import {
   handleUpdateTopic,
 } from "./topic/topic.controller.js";
 import {
+  handleAddModuleComment,
+  handleAddTopicComment,
+} from "./node-feedback/node-feedback.controller.js";
+import {
   handleStartProbe,
   handleSubmitProbe,
 } from "./probe/probe.controller.js";
+import {
+  handleActiveProbeSession,
+  handleAnswerProbeSession,
+  handlePrepareProbeSession,
+} from "./probe-session/probe-session.controller.js";
+import {
+  handleAnswerSocratic,
+  handleStartSocratic,
+} from "./socratic/socratic.controller.js";
 import { handleCurateGap, handleDeclareGap } from "./gap/gap.controller.js";
 import { handleDailyPush } from "./push/push.controller.js";
 import { handleDecide } from "./decide/decide.controller.js";
@@ -42,9 +56,22 @@ import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
+import {
+  handleSubmitProbeQuestionFeedback,
+  handleSubmitSocraticTurnFeedback,
+} from "./feedback/feedback.controller.js";
+import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
+import {
+  handleGenerateRecommendations,
+  handleGetCurriculumStats,
+} from "./stats/stats.controller.js";
+import { handleGetStreak } from "./streak/streak.controller.js";
+import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
+import { flushTracing } from "./mastra/mastra.js";
+import { closeDb } from "./db/client.js";
 
 const env = loadEnv();
 
@@ -80,7 +107,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   const path = url.pathname;
 
-  if (method === "GET" && path === "/healthz") {
+  if (method === "GET" && path === "/_healthz") {
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -150,6 +177,8 @@ async function route(
       return handleAddSources(req, res, id);
     case "reparse":
       return handleReparse(res, id);
+    case "retryResearch":
+      return handleRetryResearch(res, id);
     case "reorderModules":
       return handleReorderModules(req, res);
     case "createModule":
@@ -168,10 +197,28 @@ async function route(
       return handleDeleteTopic(res, id);
     case "listTopicGaps":
       return handleListTopicGaps(res, id);
+    case "addModuleComment":
+      return handleAddModuleComment(req, res, id);
+    case "addTopicComment":
+      return handleAddTopicComment(req, res, id);
     case "startProbe":
       return handleStartProbe(req, res, id);
     case "submitProbe":
       return handleSubmitProbe(req, res, id);
+    case "prepareProbeSession":
+      return handlePrepareProbeSession(req, res);
+    case "activeProbeSession":
+      return handleActiveProbeSession(
+        res,
+        url.searchParams.get("scope"),
+        url.searchParams.get("scopeId"),
+      );
+    case "answerProbeSession":
+      return handleAnswerProbeSession(req, res, id);
+    case "startSocratic":
+      return handleStartSocratic(req, res);
+    case "answerSocratic":
+      return handleAnswerSocratic(req, res, id);
     case "declareGap":
       return handleDeclareGap(req, res);
     case "curateGap":
@@ -186,9 +233,41 @@ async function route(
       return handleGetAdminSettings(res);
     case "updateAdminSettings":
       return handleUpdateAdminSettings(req, res);
+    case "submitProbeQuestionFeedback":
+      return handleSubmitProbeQuestionFeedback(req, res, id);
+    case "submitSocraticTurnFeedback":
+      return handleSubmitSocraticTurnFeedback(req, res, id);
+    case "askStudyChat":
+      return handleAskStudyChat(req, res, id);
+    case "getCurriculumStats":
+      return handleGetCurriculumStats(res, id);
+    case "generateRecommendations":
+      return handleGenerateRecommendations(res, id);
+    case "getStreak":
+      return handleGetStreak(res);
+    case "getElectricShape":
+      return handleGetElectricShape(res, url.search);
   }
 }
 
 server.listen(env.PORT, () => {
   log.info({ port: env.PORT }, "api_listening");
 });
+
+let shuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  log.info({ signal }, "api_shutting_down");
+  server.close();
+  await flushTracing();
+  await closeDb();
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

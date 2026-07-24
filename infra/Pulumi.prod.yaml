@@ -1,0 +1,8 @@
+encryptionsalt: v1:JI5oMDezq2M=:v1:2I8XpmEJO3WuGjQB:KgQzyFWPz1Ciq0ohW1h968QVa9pKWg==
+config:
+  post-anki-infra:projectId: post-anki
+  post-anki-infra:region: europe-west1
+  post-anki-infra:domain: postanki.ilya.online
+  gcp:project: post-anki
+  post-anki-infra:telegramWebhookSecret:
+    secure: v1:dEv+Uxp7wxyCGmHV:Ncx0nLox8b/YIEZvUoYH/5LCZneUIrhDKUdTJP3TjUpXGw78NpezaGNQdYo1bdEyKzr4KwhQbK2/tQYfWeCiWg==

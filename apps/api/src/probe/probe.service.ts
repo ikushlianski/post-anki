@@ -10,11 +10,13 @@ import {
 } from "@post-anki/shared";
 import {
   applyGapVerdicts,
+  buildFeedbackDigest,
   nextGapToProbe,
   openGaps,
   progressFromGaps,
+  selectRecentFeedback,
 } from "@post-anki/core";
-import { createMentorAskAgent, createMentorEvalAgent } from "../mastra/mentor.agent.js";
+import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import {
   getTopicRow,
@@ -27,9 +29,14 @@ import {
   listGapsForTopic,
   persistGaps,
 } from "../gap/gap.repo.js";
-import { getCurriculumContextForTopic } from "../curriculum/curriculum.repo.js";
+import {
+  getCurriculumContextForTopic,
+  getLowerLevelCoverage,
+} from "../curriculum/curriculum.repo.js";
+import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
+import { localEvaluation, shouldScoreLocally } from "./probe-evaluation.js";
 
 const MAX_QUICK_TEST_OPTIONS = 4;
 
@@ -40,6 +47,7 @@ interface AskContext {
   hinting: boolean;
   grounding: string;
   citations: string[];
+  priorLevelCoverage?: string[];
 }
 
 export async function startProbe(
@@ -60,12 +68,14 @@ export async function startProbe(
   const gaps = await listGapsForTopic(input.topicId);
   const gap = nextGapToProbe(gaps, rowDepth(topic));
   const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
+  const priorLevelCoverage = await getLowerLevelCoverage(input.topicId);
 
   return buildQuestion(topic, gap, input.mode, {
     speed: ctx.speed,
     hinting: ctx.hinting,
     grounding: grounding.text,
     citations: grounding.citations,
+    priorLevelCoverage,
   });
 }
 
@@ -87,12 +97,14 @@ export async function buildProbeQuestionForGap(
   }
 
   const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, gap.label);
+  const priorLevelCoverage = await getLowerLevelCoverage(topicId);
 
   return buildQuestion(topic, gap, mode, {
     speed: ctx.speed,
     hinting: ctx.hinting,
     grounding: grounding.text,
     citations: grounding.citations,
+    priorLevelCoverage,
   });
 }
 
@@ -119,8 +131,15 @@ export async function submitProbe(
     return { error: "gap_not_open" };
   }
 
-  const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
-  const evaluation = await evaluateAnswer(topic, probed, gaps, input, grounding.text);
+  const evaluation = shouldScoreLocally(input.mode, probed)
+    ? localEvaluation(probed as Gap, input.selfOutcome)
+    : await evaluateAnswer(
+        topic,
+        probed,
+        gaps,
+        input,
+        (await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title)).text,
+      );
 
   const updated = applyGapVerdicts(gaps, evaluation.verdicts, now);
   const coveredGapLabels = updated
@@ -149,25 +168,13 @@ export async function submitProbe(
       : "fail"
     : "pass";
 
-  const nextGap = nextGapToProbe(allGaps, rowDepth(topic));
-
-  const nextQuestion =
-    nextGap && remaining.length > 0
-      ? await buildQuestion(topic, nextGap, input.mode, {
-          speed: ctx.speed,
-          hinting: ctx.hinting,
-          grounding: grounding.text,
-          citations: grounding.citations,
-        })
-      : null;
-
   return {
     outcome,
     coveredGapLabels,
     feedback: evaluation.nextPrompt ?? feedbackFor(outcome, Boolean(probed)),
     progress,
     learningStatus,
-    nextQuestion,
+    nextQuestion: null,
   };
 }
 
@@ -189,6 +196,7 @@ async function buildQuestion(
         ? generated.options.slice(0, MAX_QUICK_TEST_OPTIONS)
         : undefined,
     sources: ask.citations.length > 0 ? ask.citations : undefined,
+    correctAnswerIndex: mode === "quick_test" ? generated.correctAnswerIndex : null,
   };
 }
 
@@ -210,7 +218,7 @@ async function generateQuestion(
   mode: QuestionKind,
   ask: AskContext,
 ): Promise<GeneratedQuestion> {
-  const agent = createMentorAskAgent();
+  const agent = getMastra().getAgent(AGENT_KEYS.mentorAsk);
 
   const focus = gap
     ? [`Gap to probe: ${gap.label}`, `Target depth: ${gap.depth}`]
@@ -222,6 +230,9 @@ async function generateQuestion(
         "what they do and do not yet grasp.",
       ];
 
+  const feedbackRows = await getFeedbackForTopic(topic.id);
+  const feedbackDigest = buildFeedbackDigest(selectRecentFeedback(feedbackRows));
+
   const prompt = [
     `Topic: ${topic.title}`,
     topic.summary ? `Why it matters: ${topic.summary}` : "",
@@ -232,6 +243,10 @@ async function generateQuestion(
       : "Hinting is OFF: no hints.",
     ask.grounding
       ? `Ground the question in this material (prefer it over general knowledge):\n${ask.grounding}`
+      : "",
+    feedbackDigest ?? "",
+    ask.priorLevelCoverage && ask.priorLevelCoverage.length > 0
+      ? `Already covered at a lower level: ${ask.priorLevelCoverage.join(", ")} — build on these, don't re-teach them.`
       : "",
     `Question kind: ${mode}`,
   ]
@@ -283,7 +298,7 @@ async function evaluateAnswer(
     .join("\n");
 
   try {
-    const agent = createMentorEvalAgent();
+    const agent = getMastra().getAgent(AGENT_KEYS.mentorEval);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: probeEvaluationSchema },
     });

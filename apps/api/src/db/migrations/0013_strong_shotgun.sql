@@ -1,0 +1,1 @@
+ALTER TABLE "subjects" ADD COLUMN "kind" text DEFAULT 'architecture-mentor' NOT NULL;

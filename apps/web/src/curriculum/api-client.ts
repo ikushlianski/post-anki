@@ -32,7 +32,7 @@ export function apiBaseUrl(): string {
   return (url && url.trim() !== '' ? url : DEFAULT_API_BASE_URL).replace(/\/$/, '')
 }
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const secret = process.env.API_SHARED_SECRET
   const headers: Record<string, string> = { 'content-type': 'application/json' }
 
@@ -121,6 +121,7 @@ function mapTopic(topic: be.Topic): Topic {
     title: topic.title,
     summary: topic.summary,
     order: topic.order,
+    priority: topic.priority,
     included: topic.included,
     selfGrade: topic.selfGrade as Topic['selfGrade'],
     targetDepth: mapDepth(topic.depth),
@@ -136,7 +137,9 @@ function mapModule(module: be.Module): Module {
     curriculumId: module.curriculumId,
     title: module.title,
     order: module.order,
+    priority: module.priority,
     learningStatus: module.learningStatus,
+    level: module.level,
     topics: module.topics.map(mapTopic),
     progress: module.progress,
   }
@@ -161,6 +164,8 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     speed: curriculum.speed,
     hinting: curriculum.hinting,
     defaultDepth: mapDepth(curriculum.defaultDepth),
+    origin: curriculum.origin,
+    strictOrder: curriculum.strictOrder,
   }
 }
 
@@ -240,6 +245,7 @@ export async function updateCurriculumSettings(input: {
   speed?: Speed
   hinting?: boolean
   defaultDepth?: Depth
+  strictOrder?: boolean
 }): Promise<Curriculum> {
   const body: Record<string, unknown> = {}
 
@@ -253,6 +259,10 @@ export async function updateCurriculumSettings(input: {
 
   if (input.defaultDepth !== undefined) {
     body.defaultDepth = DEPTH_TO_BE[input.defaultDepth]
+  }
+
+  if (input.strictOrder !== undefined) {
+    body.strictOrder = input.strictOrder
   }
 
   const updated = await request<be.Curriculum>(`/curricula/${input.curriculumId}`, {
@@ -292,6 +302,10 @@ export async function reparseCurriculum(curriculumId: string): Promise<void> {
   await request(`/curricula/${curriculumId}/reparse`, { method: 'POST' })
 }
 
+export async function retryResearch(curriculumId: string): Promise<void> {
+  await request(`/curricula/${curriculumId}/retry-research`, { method: 'POST' })
+}
+
 export async function setModuleLearningStatus(
   moduleId: string,
   learningStatus: LearningStatus,
@@ -308,6 +322,7 @@ export async function updateTopic(input: {
   summary?: string | null
   moduleId?: string
   order?: number
+  priority?: Topic['priority']
   included?: boolean
   selfGrade?: number | null
   targetDepth?: Depth
@@ -329,6 +344,10 @@ export async function updateTopic(input: {
 
   if (input.order !== undefined) {
     body.order = input.order
+  }
+
+  if (input.priority !== undefined) {
+    body.priority = input.priority
   }
 
   if (input.included !== undefined) {
@@ -364,6 +383,7 @@ export async function updateModule(input: {
   moduleId: string
   title?: string
   order?: number
+  priority?: Module['priority']
 }): Promise<void> {
   const body: Record<string, unknown> = {}
 
@@ -375,7 +395,31 @@ export async function updateModule(input: {
     body.order = input.order
   }
 
+  if (input.priority !== undefined) {
+    body.priority = input.priority
+  }
+
   await request(`/modules/${input.moduleId}`, { method: 'PATCH', body })
+}
+
+export async function addModuleComment(
+  moduleId: string,
+  comment: string,
+): Promise<void> {
+  await request(`/modules/${moduleId}/comments`, {
+    method: 'POST',
+    body: { comment },
+  })
+}
+
+export async function addTopicComment(
+  topicId: string,
+  comment: string,
+): Promise<void> {
+  await request(`/topics/${topicId}/comments`, {
+    method: 'POST',
+    body: { comment },
+  })
 }
 
 export async function deleteModule(moduleId: string): Promise<void> {
@@ -437,6 +481,7 @@ function mapProbeQuestion(
     kind: question.kind,
     prompt: question.prompt,
     options: question.options,
+    correctAnswerIndex: question.correctAnswerIndex ?? undefined,
     sources: question.sources,
   }
 }
@@ -462,6 +507,7 @@ export async function submitProbe(input: {
   gapId: string | null
   mode: QuestionKind
   answer: string
+  selfOutcome?: 'pass' | 'fail'
 }): Promise<AttemptResult | null> {
   try {
     const result = await request<be.ProbeResult>(
@@ -550,6 +596,159 @@ export async function getCrossCutting(): Promise<ConcernSummary[]> {
 
 export async function decide(input: DecideInput): Promise<DecideResult> {
   return request<be.DecideResult>('/decide', { method: 'POST', body: input })
+}
+
+export async function getActiveProbeSession(input: {
+  scope: be.ProbeScope
+  scopeId: string
+}): Promise<be.ProbeSession | null> {
+  try {
+    return await request<be.ProbeSession | null>(
+      `/probe-sessions/active?scope=${encodeURIComponent(input.scope)}&scopeId=${encodeURIComponent(input.scopeId)}`,
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function prepareProbeSession(input: {
+  scope: be.ProbeScope
+  scopeId: string
+  regenerate?: boolean
+  allowMultiSelect?: boolean
+}): Promise<be.ProbeSession | null> {
+  try {
+    return await request<be.ProbeSession>('/probe-sessions', {
+      method: 'POST',
+      body: input,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function answerProbeSession(input: {
+  sessionId: string
+  questionId: string
+  selectedIndex?: number
+  selectedIndices?: number[]
+}): Promise<be.AnswerProbeSessionResult | null> {
+  try {
+    return await request<be.AnswerProbeSessionResult>(
+      `/probe-sessions/${input.sessionId}/answer`,
+      {
+        method: 'POST',
+        body: {
+          questionId: input.questionId,
+          selectedIndex: input.selectedIndex,
+          selectedIndices: input.selectedIndices,
+        },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function startSocraticSession(input: {
+  topicId: string
+  regenerate?: boolean
+}): Promise<be.SocraticSession | null> {
+  try {
+    return await request<be.SocraticSession>('/socratic-sessions', {
+      method: 'POST',
+      body: input,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function answerSocraticSession(input: {
+  sessionId: string
+  turnId: string
+  answer: string
+}): Promise<be.AnswerSocraticResult | null> {
+  try {
+    return await request<be.AnswerSocraticResult>(
+      `/socratic-sessions/${input.sessionId}/answer`,
+      {
+        method: 'POST',
+        body: { turnId: input.turnId, answer: input.answer },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function submitProbeQuestionFeedback(
+  questionId: string,
+  input: be.SubmitItemFeedbackInput,
+): Promise<be.ItemFeedback> {
+  return request<be.ItemFeedback>(`/probe-session-questions/${questionId}/feedback`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function submitSocraticTurnFeedback(
+  turnId: string,
+  input: be.SubmitItemFeedbackInput,
+): Promise<be.ItemFeedback> {
+  return request<be.ItemFeedback>(`/socratic-turns/${turnId}/feedback`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function askStudyChat(input: {
+  topicId: string
+  message: string
+  transcript?: be.ChatMessage[]
+}): Promise<be.AskStudyChatResult | null> {
+  try {
+    return await request<be.AskStudyChatResult>(
+      `/topics/${input.topicId}/study-chat`,
+      {
+        method: 'POST',
+        body: { message: input.message, transcript: input.transcript },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function getCurriculumStats(
+  curriculumId: string,
+): Promise<be.CurriculumStats | null> {
+  try {
+    return await request<be.CurriculumStats>(`/curricula/${curriculumId}/stats`)
+  } catch {
+    return null
+  }
+}
+
+export async function generateRecommendations(
+  curriculumId: string,
+): Promise<be.GenerateRecommendationsResult | null> {
+  try {
+    return await request<be.GenerateRecommendationsResult>(
+      `/curricula/${curriculumId}/stats/recommendations`,
+      { method: 'POST' },
+    )
+  } catch {
+    return null
+  }
+}
+
+export async function getStreak(): Promise<be.Streak | null> {
+  try {
+    return await request<be.Streak>('/streak')
+  } catch {
+    return null
+  }
 }
 
 export async function getAdminSettings(): Promise<be.AdminSettings> {

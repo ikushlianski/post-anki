@@ -1,0 +1,310 @@
+import {
+  generatedProbeBatchSchema,
+  type GeneratedProbeQuestion,
+  type ProbeScope,
+} from "@post-anki/shared";
+import {
+  buildFeedbackDigest,
+  planModuleQuizDistribution,
+  sanitizeOptionExplanations,
+  scaleTopicQuizTotal,
+  selectQuizDifficultyMix,
+  selectRecentFeedback,
+} from "@post-anki/core";
+import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { log } from "../shared/log.js";
+import { listGapsForTopic } from "../gap/gap.repo.js";
+import { gatherProbeGrounding } from "../probe/probe-grounding.js";
+import {
+  getCurriculumSourceRows,
+  getLowerLevelCoverage,
+} from "../curriculum/curriculum.repo.js";
+import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
+import type { ScopeContext } from "./probe-session.repo.js";
+import { normalize } from "./probe-session.map.js";
+
+const MODULE_TARGET = 16;
+const MIN_TOTAL = 10;
+
+function targetTotal(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  topicGapCount: number,
+): number {
+  if (scope === "topic") {
+    return scaleTopicQuizTotal(topicGapCount, MIN_TOTAL);
+  }
+
+  const plan = planModuleQuizDistribution(
+    ctx.topics.map((t) => t.id),
+    MODULE_TARGET,
+  );
+
+  return Math.max(plan.total, MIN_TOTAL);
+}
+
+async function knownUrlAllowlistBlock(
+  curriculumId: string,
+  citations: string[],
+  fromWeb: boolean,
+): Promise<string> {
+  if (citations.length === 0) {
+    return "No known documentation URLs are available for this material — leave every citationUrl null.";
+  }
+
+  if (fromWeb) {
+    return [
+      "Known documentation URLs (cite ONLY from this exact list, copied verbatim, or use null):",
+      ...citations.map((url) => `- ${url}`),
+    ].join("\n");
+  }
+
+  const sourceRows = await getCurriculumSourceRows(curriculumId);
+  const titleByUrl = new Map<string, string | null>();
+
+  for (const row of sourceRows) {
+    titleByUrl.set(row.value, row.title);
+  }
+
+  return [
+    "Known documentation URLs (cite ONLY from this exact list, copied verbatim, or use null):",
+    ...citations.map((url) => {
+      const title = titleByUrl.get(url);
+
+      return title ? `- ${url} — ${title}` : `- ${url}`;
+    }),
+  ].join("\n");
+}
+
+function difficultyLine(ctx: ScopeContext, total: number): string {
+  const priorMaturity = ctx.priorMaturity > 0 ? ctx.priorMaturity : null;
+  const mix = selectQuizDifficultyMix(priorMaturity, total);
+
+  return `Aim for roughly ${mix.easy} easy, ${mix.medium} medium, and ${mix.hard} hard questions${
+    priorMaturity === null
+      ? " (this is a fresh topic — start gentle and build up)."
+      : ` (prior score ${ctx.priorMaturity}% — push harder where the basics are solid).`
+  }`;
+}
+
+function priorLevelCoverageLine(priorLevelCoverage: string[]): string {
+  if (priorLevelCoverage.length === 0) {
+    return "";
+  }
+
+  return `Already covered at a lower level: ${priorLevelCoverage.join(", ")} — build on these, don't re-teach them.`;
+}
+
+function topicBlock(
+  topicTitle: string,
+  summary: string | null,
+  gapLabels: string[],
+  feedbackDigest: string | null,
+  priorLevelCoverage: string[],
+): string {
+  return [
+    `Topic: ${topicTitle}`,
+    summary ? `Why it matters: ${summary}` : "",
+    gapLabels.length > 0
+      ? `Concepts the learner must demonstrate (tag each question with the closest one as gapLabel, verbatim):\n${gapLabels
+          .map((l) => `- ${l}`)
+          .join("\n")}`
+      : "No concept list yet — infer the core concepts of this topic.",
+    feedbackDigest ?? "",
+    priorLevelCoverageLine(priorLevelCoverage),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function multiSelectLine(allowMultiSelect: boolean): string {
+  if (!allowMultiSelect) {
+    return "Every question has exactly one correct option — never produce a \"select all that apply\" question.";
+  }
+
+  return [
+    "Most questions still have exactly one correct option (type \"single\").",
+    "Where it fits naturally, you may produce a small number of \"select all that apply\" questions:",
+    "set type to \"multi\", list every correct option's index in correctAnswerIndexes (2+ correct options),",
+    "and still set correctAnswerIndex to any one of the correct options as a fallback.",
+  ].join("\n");
+}
+
+function optionExplanationsLine(): string {
+  return [
+    "For every question, set optionExplanations to exactly one entry per option, in the same",
+    "order as options — { text, citationUrl }. text must state briefly and specifically why",
+    "THAT option is right or wrong (grounded in the material below when material is supplied,",
+    "otherwise general knowledge) — never a generic \"that's wrong\" repeated across options.",
+    "citationUrl must be copied verbatim from the known-URL list below when a specific passage",
+    "supports that option's explanation, or null otherwise — never invent or paraphrase a URL.",
+  ].join("\n");
+}
+
+async function buildPrompt(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  gapsByTopic: Map<string, string[]>,
+  feedbackByTopic: Map<string, string | null>,
+  priorLevelCoverageByTopic: Map<string, string[]>,
+  total: number,
+  grounding: string,
+  allowMultiSelect: boolean,
+  knownUrlBlock: string,
+): Promise<string> {
+  const header = [
+    `Produce exactly ${total} quiz questions that TEST the learner's knowledge.`,
+    "Span difficulty from simple true/false up to harder multiple-choice.",
+    "For true_false use format \"true_false\" with options [\"True\",\"False\"].",
+    "For multiple-choice use format \"mcq\" with 3-4 options.",
+    "Always set correctAnswerIndex to the single correct option.",
+    "Each question must be answerable deterministically and have exactly one correct option.",
+    multiSelectLine(allowMultiSelect),
+    difficultyLine(ctx, total),
+    optionExplanationsLine(),
+    knownUrlBlock,
+  ].join("\n");
+
+  if (scope === "topic") {
+    const topic = ctx.topics[0]!;
+
+    return [
+      header,
+      "",
+      topicBlock(
+        topic.title,
+        topic.summary,
+        gapsByTopic.get(topic.id) ?? [],
+        feedbackByTopic.get(topic.id) ?? null,
+        priorLevelCoverageByTopic.get(topic.id) ?? [],
+      ),
+      `Set topicTitle to "${topic.title}" on every question.`,
+      grounding
+        ? `\nGround the questions in this material (prefer it over general knowledge):\n${grounding}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const plan = planModuleQuizDistribution(
+    ctx.topics.map((t) => t.id),
+    MODULE_TARGET,
+  );
+  const countByTopicId = new Map(plan.perTopic.map((p) => [p.topicId, p.count]));
+
+  const topicBlocks = ctx.topics
+    .map((t) => {
+      const count = countByTopicId.get(t.id) ?? 1;
+
+      return `${topicBlock(
+        t.title,
+        t.summary,
+        gapsByTopic.get(t.id) ?? [],
+        feedbackByTopic.get(t.id) ?? null,
+        priorLevelCoverageByTopic.get(t.id) ?? [],
+      )}\nAsk about ${count} question(s) for this topic; set topicTitle to "${t.title}".`;
+    })
+    .join("\n\n");
+
+  return [
+    header,
+    `This is a BROAD module quiz spanning ${ctx.topics.length} topics. Also add ${plan.integrative} integrative question(s) that connect two or more topics (set topicTitle to the most relevant topic).`,
+    "",
+    topicBlocks,
+    grounding
+      ? `\nGround the questions in this material (prefer it over general knowledge):\n${grounding}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export interface GeneratedBatch {
+  questions: GeneratedProbeQuestion[];
+  gapIdByKey: Map<string, string>;
+  topicIdByTitle: Map<string, string>;
+}
+
+export async function generateProbeBatch(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  allowMultiSelect = false,
+): Promise<GeneratedBatch> {
+  const [gapLists, feedbackLists, priorLevelCoverageLists] = await Promise.all([
+    Promise.all(ctx.topics.map((t) => listGapsForTopic(t.id))),
+    Promise.all(ctx.topics.map((t) => getFeedbackForTopic(t.id))),
+    Promise.all(ctx.topics.map((t) => getLowerLevelCoverage(t.id))),
+  ]);
+
+  const gapsByTopic = new Map<string, string[]>();
+  const gapIdByKey = new Map<string, string>();
+  const topicIdByTitle = new Map<string, string>();
+  const feedbackByTopic = new Map<string, string | null>();
+  const priorLevelCoverageByTopic = new Map<string, string[]>();
+
+  ctx.topics.forEach((t, i) => {
+    topicIdByTitle.set(normalize(t.title), t.id);
+    const usable = gapLists[i]!.filter((g) => g.state !== "skipped");
+    gapsByTopic.set(
+      t.id,
+      usable.map((g) => g.label),
+    );
+    usable.forEach((g) => {
+      gapIdByKey.set(`${t.id}::${normalize(g.label)}`, g.id);
+    });
+    feedbackByTopic.set(t.id, buildFeedbackDigest(selectRecentFeedback(feedbackLists[i]!)));
+    priorLevelCoverageByTopic.set(t.id, priorLevelCoverageLists[i]!);
+  });
+
+  const total = targetTotal(scope, ctx, gapsByTopic.get(ctx.topics[0]?.id ?? "")?.length ?? 0);
+
+  const grounding = await gatherProbeGrounding(
+    ctx.curriculumId,
+    ctx.title,
+    ctx.title,
+  );
+
+  const knownUrlBlock = await knownUrlAllowlistBlock(
+    ctx.curriculumId,
+    grounding.citations,
+    grounding.fromWeb,
+  );
+
+  const prompt = await buildPrompt(
+    scope,
+    ctx,
+    gapsByTopic,
+    feedbackByTopic,
+    priorLevelCoverageByTopic,
+    total,
+    grounding.text,
+    allowMultiSelect,
+    knownUrlBlock,
+  );
+
+  try {
+    const agent = getMastra().getAgent(AGENT_KEYS.probeQuizBatch);
+    const result = await agent.generate(prompt, {
+      structuredOutput: { schema: generatedProbeBatchSchema },
+    });
+
+    if (result.object) {
+      return {
+        questions: result.object.questions.map((q) => ({
+          ...q,
+          optionExplanations: sanitizeOptionExplanations(
+            q.optionExplanations ?? [],
+            grounding.citations,
+          ),
+        })),
+        gapIdByKey,
+        topicIdByTitle,
+      };
+    }
+  } catch (err) {
+    log.error({ err, scope, scopeId: ctx.scopeId }, "probe_batch_failed");
+  }
+
+  return { questions: [], gapIdByKey, topicIdByTitle };
+}

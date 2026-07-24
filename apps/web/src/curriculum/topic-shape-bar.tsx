@@ -1,25 +1,35 @@
 import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
+import { nextPriority } from '@post-anki/core'
 
 import type { Topic } from './model'
 import { deleteTopic, reorderTopics, setTopicState } from './curriculum.api'
-import { ConfirmDelete, ReorderButtons, moveInOrder } from './shape-controls'
+import { usePromoteDemoteTopic } from './curriculum.mutations'
+import {
+  ConfirmDelete,
+  PromoteDemoteButtons,
+  ReorderButtons,
+  moveInOrder,
+} from './shape-controls'
 
 export function TopicShapeBar({
   topic,
   topicOrder,
   moduleId,
+  curriculumId,
   allModules,
 }: {
   topic: Topic
   topicOrder: string[]
   moduleId: string
+  curriculumId: string
   allModules: { id: string; title: string }[]
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const index = topicOrder.indexOf(topic.id)
   const otherModules = allModules.filter((module) => module.id !== moduleId)
+  const promoteDemoteMutation = usePromoteDemoteTopic(curriculumId)
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true)
@@ -43,6 +53,18 @@ export function TopicShapeBar({
               },
             }),
           )
+        }
+      />
+      <PromoteDemoteButtons
+        priority={topic.priority}
+        busy={promoteDemoteMutation.isPending}
+        promoteTestId={`topic-promote-${topic.id}`}
+        demoteTestId={`topic-demote-${topic.id}`}
+        onToggle={(direction) =>
+          promoteDemoteMutation.mutate({
+            topicId: topic.id,
+            priority: nextPriority(topic.priority, direction),
+          })
         }
       />
       {otherModules.length > 0 ? (

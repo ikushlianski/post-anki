@@ -10,6 +10,7 @@ export type RouteName =
   | "confirmCurriculum"
   | "addSources"
   | "reparse"
+  | "retryResearch"
   | "reorderModules"
   | "createModule"
   | "reorderTopics"
@@ -19,15 +20,29 @@ export type RouteName =
   | "updateTopic"
   | "deleteTopic"
   | "listTopicGaps"
+  | "addModuleComment"
+  | "addTopicComment"
   | "startProbe"
   | "submitProbe"
+  | "prepareProbeSession"
+  | "activeProbeSession"
+  | "answerProbeSession"
+  | "startSocratic"
+  | "answerSocratic"
   | "declareGap"
   | "curateGap"
   | "dailyPush"
   | "decide"
   | "crossCutting"
   | "getAdminSettings"
-  | "updateAdminSettings";
+  | "updateAdminSettings"
+  | "submitProbeQuestionFeedback"
+  | "submitSocraticTurnFeedback"
+  | "askStudyChat"
+  | "getCurriculumStats"
+  | "generateRecommendations"
+  | "getStreak"
+  | "getElectricShape";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -50,6 +65,7 @@ const ROUTES: RouteDef[] = [
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/confirm$/, name: "confirmCurriculum", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/sources$/, name: "addSources", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/reparse$/, name: "reparse", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/retry-research$/, name: "retryResearch", param: "id" },
   { method: "PATCH", pattern: /^\/curricula\/([^/]+)\/modules\/order$/, name: "reorderModules", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/modules$/, name: "createModule", param: "id" },
   { method: "GET", pattern: /^\/curricula\/([^/]+)$/, name: "getCurriculum", param: "id" },
@@ -59,9 +75,16 @@ const ROUTES: RouteDef[] = [
   { method: "POST", pattern: /^\/modules\/([^/]+)\/topics$/, name: "createTopic", param: "id" },
   { method: "PATCH", pattern: /^\/modules\/([^/]+)$/, name: "updateModule", param: "id" },
   { method: "DELETE", pattern: /^\/modules\/([^/]+)$/, name: "deleteModule", param: "id" },
+  { method: "POST", pattern: /^\/modules\/([^/]+)\/comments$/, name: "addModuleComment", param: "id" },
   { method: "GET", pattern: /^\/topics\/([^/]+)\/gaps$/, name: "listTopicGaps", param: "id" },
+  { method: "POST", pattern: /^\/topics\/([^/]+)\/comments$/, name: "addTopicComment", param: "id" },
   { method: "POST", pattern: /^\/topics\/([^/]+)\/probe\/answer$/, name: "submitProbe", param: "id" },
   { method: "POST", pattern: /^\/topics\/([^/]+)\/probe$/, name: "startProbe", param: "id" },
+  { method: "GET", pattern: "/probe-sessions/active", name: "activeProbeSession" },
+  { method: "POST", pattern: "/probe-sessions", name: "prepareProbeSession" },
+  { method: "POST", pattern: /^\/probe-sessions\/([^/]+)\/answer$/, name: "answerProbeSession", param: "id" },
+  { method: "POST", pattern: "/socratic-sessions", name: "startSocratic" },
+  { method: "POST", pattern: /^\/socratic-sessions\/([^/]+)\/answer$/, name: "answerSocratic", param: "id" },
   { method: "PATCH", pattern: /^\/topics\/([^/]+)$/, name: "updateTopic", param: "id" },
   { method: "DELETE", pattern: /^\/topics\/([^/]+)$/, name: "deleteTopic", param: "id" },
   { method: "POST", pattern: "/gaps", name: "declareGap" },
@@ -71,6 +94,38 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/cross-cutting", name: "crossCutting" },
   { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
   { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },
+  {
+    method: "POST",
+    pattern: /^\/probe-session-questions\/([^/]+)\/feedback$/,
+    name: "submitProbeQuestionFeedback",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/socratic-turns\/([^/]+)\/feedback$/,
+    name: "submitSocraticTurnFeedback",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/study-chat$/,
+    name: "askStudyChat",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/curricula\/([^/]+)\/stats$/,
+    name: "getCurriculumStats",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/curricula\/([^/]+)\/stats\/recommendations$/,
+    name: "generateRecommendations",
+    param: "id",
+  },
+  { method: "GET", pattern: "/streak", name: "getStreak" },
+  { method: "GET", pattern: "/electric/v1/shape", name: "getElectricShape" },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {

@@ -25,6 +25,29 @@ describe("selectReply", () => {
       expect(selectReply(msg({ text: "/today" }))).toEqual({ kind: "today" });
       expect(selectReply(msg({ text: "/push@post_anki_bot" }))).toEqual({ kind: "today" });
     });
+
+    it("routes /study <name> to the study branch with the name", () => {
+      expect(selectReply(msg({ text: "/study Temporal" }))).toEqual({
+        kind: "study",
+        name: "Temporal",
+      });
+      expect(selectReply(msg({ text: "/study@post_anki_bot Kubernetes" }))).toEqual({
+        kind: "study",
+        name: "Kubernetes",
+      });
+    });
+
+    it("routes /study with a multi-word name, trimmed", () => {
+      expect(selectReply(msg({ text: "/study  Temporal Workflows  " }))).toEqual({
+        kind: "study",
+        name: "Temporal Workflows",
+      });
+    });
+
+    it("routes bare /study with no name to the study branch with a null name", () => {
+      expect(selectReply(msg({ text: "/study" }))).toEqual({ kind: "study", name: null });
+      expect(selectReply(msg({ text: "/study   " }))).toEqual({ kind: "study", name: null });
+    });
   });
 
   describe("free text", () => {
