@@ -1,15 +1,19 @@
 import {
   generatedProbeBatchSchema,
   type GeneratedProbeQuestion,
+  type Gap,
   type ProbeScope,
 } from "@post-anki/shared";
 import {
   buildFeedbackDigest,
+  openGaps,
   planModuleQuizDistribution,
+  rankGapsForReplenish,
   sanitizeOptionExplanations,
   scaleTopicQuizTotal,
   selectQuizDifficultyMix,
   selectRecentFeedback,
+  type FeedbackRow,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
@@ -20,11 +24,19 @@ import {
   getLowerLevelCoverage,
 } from "../curriculum/curriculum.repo.js";
 import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
-import type { ScopeContext } from "./probe-session.repo.js";
+import type { ScopeContext, ScopeTopic } from "./probe-session.repo.js";
 import { normalize } from "./probe-session.map.js";
 
 const MODULE_TARGET = 16;
 const MIN_TOTAL = 10;
+// The replenish floor and batch size are deliberately the same number
+// (SCENARIO 17/18: keep at least 10 ready). A fixed size — rather than
+// reusing targetTotal's gap-count-scaled formula — keeps a top-up batch a
+// small, predictable, fast top-up rather than another full-sized initial
+// batch; the gap list it draws from is already narrowed to this session's
+// own currently-open gaps (see generateReplenishBatch), so it doesn't need
+// to be as large as the first batch to still be useful.
+const REPLENISH_BATCH_SIZE = MIN_TOTAL;
 
 function targetTotal(
   scope: ProbeScope,
@@ -226,50 +238,213 @@ export interface GeneratedBatch {
   topicIdByTitle: Map<string, string>;
 }
 
-export async function generateProbeBatch(
-  scope: ProbeScope,
-  ctx: ScopeContext,
-  allowMultiSelect = false,
-): Promise<GeneratedBatch> {
+interface TopicContext {
+  gapLists: Gap[][];
+  feedbackLists: FeedbackRow[][];
+  priorLevelCoverageLists: string[][];
+}
+
+async function loadTopicContext(ctx: ScopeContext): Promise<TopicContext> {
   const [gapLists, feedbackLists, priorLevelCoverageLists] = await Promise.all([
     Promise.all(ctx.topics.map((t) => listGapsForTopic(t.id))),
     Promise.all(ctx.topics.map((t) => getFeedbackForTopic(t.id))),
     Promise.all(ctx.topics.map((t) => getLowerLevelCoverage(t.id))),
   ]);
 
+  return { gapLists, feedbackLists, priorLevelCoverageLists };
+}
+
+interface GapSelection {
+  gapsByTopic: Map<string, string[]>;
+  gapIdByKey: Map<string, string>;
+  topicIdByTitle: Map<string, string>;
+  feedbackByTopic: Map<string, string | null>;
+  priorLevelCoverageByTopic: Map<string, string[]>;
+}
+
+/**
+ * Selects and orders which gap labels each topic's block in the prompt
+ * lists. The initial batch (`selectGapLabels: "all"`) keeps today's
+ * behavior — every non-skipped gap, unordered — since a fresh batch has no
+ * "this session" history yet to prioritize by. A replenish batch
+ * (`"open-ranked"`) narrows to this session's own topics' currently-open
+ * gaps and orders them via `rankGapsForReplenish` (SCENARIO 19), so the
+ * prompt's gap list itself surfaces what the learner hasn't demonstrated
+ * yet first, without needing any change to `buildPrompt` — it already just
+ * renders whatever order `gapsByTopic` hands it.
+ */
+function selectGaps(
+  ctx: ScopeContext,
+  topicCtx: TopicContext,
+  mode: "all" | "open-ranked",
+): GapSelection {
   const gapsByTopic = new Map<string, string[]>();
   const gapIdByKey = new Map<string, string>();
   const topicIdByTitle = new Map<string, string>();
   const feedbackByTopic = new Map<string, string | null>();
   const priorLevelCoverageByTopic = new Map<string, string[]>();
 
-  ctx.topics.forEach((t, i) => {
+  ctx.topics.forEach((t: ScopeTopic, i: number) => {
     topicIdByTitle.set(normalize(t.title), t.id);
-    const usable = gapLists[i]!.filter((g) => g.state !== "skipped");
+
+    const selected =
+      mode === "all"
+        ? topicCtx.gapLists[i]!.filter((g) => g.state !== "skipped")
+        : rankGapsForReplenish(openGaps(topicCtx.gapLists[i]!, t.depth));
+
     gapsByTopic.set(
       t.id,
-      usable.map((g) => g.label),
+      selected.map((g) => g.label),
     );
-    usable.forEach((g) => {
+    selected.forEach((g) => {
       gapIdByKey.set(`${t.id}::${normalize(g.label)}`, g.id);
     });
-    feedbackByTopic.set(t.id, buildFeedbackDigest(selectRecentFeedback(feedbackLists[i]!)));
-    priorLevelCoverageByTopic.set(t.id, priorLevelCoverageLists[i]!);
+    feedbackByTopic.set(
+      t.id,
+      buildFeedbackDigest(selectRecentFeedback(topicCtx.feedbackLists[i]!)),
+    );
+    priorLevelCoverageByTopic.set(t.id, topicCtx.priorLevelCoverageLists[i]!);
   });
+
+  return { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic };
+}
+
+export async function generateProbeBatch(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  allowMultiSelect = false,
+): Promise<GeneratedBatch> {
+  const topicCtx = await loadTopicContext(ctx);
+  const { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic } =
+    selectGaps(ctx, topicCtx, "all");
 
   const total = targetTotal(scope, ctx, gapsByTopic.get(ctx.topics[0]?.id ?? "")?.length ?? 0);
 
-  const grounding = await gatherProbeGrounding(
-    ctx.curriculumId,
-    ctx.title,
-    ctx.title,
+  return runGeneration(
+    scope,
+    ctx,
+    allowMultiSelect,
+    total,
+    gapsByTopic,
+    gapIdByKey,
+    topicIdByTitle,
+    feedbackByTopic,
+    priorLevelCoverageByTopic,
+  );
+}
+
+/**
+ * A mid-session top-up batch, triggered once a session's remaining
+ * unanswered questions drops to the replenish floor (SCENARIO 17, 18). Uses
+ * the exact same per-curriculum grounding/citation logic as the initial
+ * batch (critical for a "tag" scope session spanning multiple curricula —
+ * SCENARIO 14's grounding correctness must hold for replenish batches too,
+ * not just the first one), but narrows and ranks each topic's gap list via
+ * `rankGapsForReplenish` so the new questions are biased toward concepts
+ * this learner is actually still missing (SCENARIO 19), rather than
+ * uniformly resampling the topic's whole original gap list.
+ */
+export async function generateReplenishBatch(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  allowMultiSelect = false,
+): Promise<GeneratedBatch> {
+  const topicCtx = await loadTopicContext(ctx);
+  const { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic } =
+    selectGaps(ctx, topicCtx, "open-ranked");
+
+  return runGeneration(
+    scope,
+    ctx,
+    allowMultiSelect,
+    REPLENISH_BATCH_SIZE,
+    gapsByTopic,
+    gapIdByKey,
+    topicIdByTitle,
+    feedbackByTopic,
+    priorLevelCoverageByTopic,
+  );
+}
+
+async function runGeneration(
+  scope: ProbeScope,
+  ctx: ScopeContext,
+  allowMultiSelect: boolean,
+  total: number,
+  gapsByTopic: Map<string, string[]>,
+  gapIdByKey: Map<string, string>,
+  topicIdByTitle: Map<string, string>,
+  feedbackByTopic: Map<string, string | null>,
+  priorLevelCoverageByTopic: Map<string, string[]>,
+): Promise<GeneratedBatch> {
+  // Grounding is gathered per distinct curriculum, not once per ctx —
+  // ctx.curriculumId is only a single value for module/topic scope. For a
+  // "tag" scope session, ctx.topics can each belong to a different
+  // curriculum, and each question must stay grounded in (and only cite)
+  // its own topic's own curriculum's material (SCENARIO 14). Module/topic
+  // scope always has exactly one distinct curriculumId, so this collapses
+  // back to today's single grounding call with no behavior change.
+  const firstTopicByCurriculumId = new Map<string, string>();
+
+  for (const t of ctx.topics) {
+    if (!firstTopicByCurriculumId.has(t.curriculumId)) {
+      firstTopicByCurriculumId.set(t.curriculumId, t.title);
+    }
+  }
+
+  const curriculumIds = Array.from(firstTopicByCurriculumId.keys());
+  const singleCurriculum = curriculumIds.length <= 1;
+
+  const groundingByCurriculumId = new Map<
+    string,
+    Awaited<ReturnType<typeof gatherProbeGrounding>>
+  >();
+
+  await Promise.all(
+    curriculumIds.map(async (curriculumId) => {
+      const focus = singleCurriculum
+        ? ctx.title
+        : (firstTopicByCurriculumId.get(curriculumId) ?? ctx.title);
+      const grounding = await gatherProbeGrounding(curriculumId, focus, focus);
+
+      groundingByCurriculumId.set(curriculumId, grounding);
+    }),
   );
 
-  const knownUrlBlock = await knownUrlAllowlistBlock(
-    ctx.curriculumId,
-    grounding.citations,
-    grounding.fromWeb,
+  const citationsByTopicId = new Map<string, string[]>();
+
+  for (const t of ctx.topics) {
+    citationsByTopicId.set(
+      t.id,
+      groundingByCurriculumId.get(t.curriculumId)?.citations ?? [],
+    );
+  }
+
+  const groundingTextBlocks = await Promise.all(
+    curriculumIds.map(async (curriculumId) => {
+      const grounding = groundingByCurriculumId.get(curriculumId)!;
+
+      if (grounding.text.trim().length === 0) {
+        return "";
+      }
+
+      const label = singleCurriculum
+        ? ""
+        : `Material for "${firstTopicByCurriculumId.get(curriculumId)}" and its curriculum:\n`;
+
+      return `${label}${grounding.text}`;
+    }),
   );
+  const combinedGroundingText = groundingTextBlocks.filter(Boolean).join("\n\n---\n\n");
+
+  const knownUrlBlocks = await Promise.all(
+    curriculumIds.map((curriculumId) => {
+      const grounding = groundingByCurriculumId.get(curriculumId)!;
+
+      return knownUrlAllowlistBlock(curriculumId, grounding.citations, grounding.fromWeb);
+    }),
+  );
+  const combinedKnownUrlBlock = knownUrlBlocks.join("\n\n");
 
   const prompt = await buildPrompt(
     scope,
@@ -278,9 +453,9 @@ export async function generateProbeBatch(
     feedbackByTopic,
     priorLevelCoverageByTopic,
     total,
-    grounding.text,
+    combinedGroundingText,
     allowMultiSelect,
-    knownUrlBlock,
+    combinedKnownUrlBlock,
   );
 
   try {
@@ -291,13 +466,29 @@ export async function generateProbeBatch(
 
     if (result.object) {
       return {
-        questions: result.object.questions.map((q) => ({
-          ...q,
-          optionExplanations: sanitizeOptionExplanations(
-            q.optionExplanations ?? [],
-            grounding.citations,
-          ),
-        })),
+        questions: result.object.questions.map((q) => {
+          const topicId = q.topicTitle ? topicIdByTitle.get(normalize(q.topicTitle)) : undefined;
+          // A single-curriculum batch (module/topic scope, always) has one
+          // citation list regardless of which topic a question resolves
+          // to — fall back to it even when topicTitle didn't cleanly match
+          // one of ctx.topics (e.g. an integrative question). Only a
+          // genuinely multi-curriculum "tag" batch needs the stricter
+          // per-topic match, since a wrong fallback there could leak one
+          // curriculum's URL onto another curriculum's question.
+          const citations = topicId
+            ? (citationsByTopicId.get(topicId) ?? [])
+            : singleCurriculum
+              ? (groundingByCurriculumId.get(curriculumIds[0]!)?.citations ?? [])
+              : [];
+
+          return {
+            ...q,
+            optionExplanations: sanitizeOptionExplanations(
+              q.optionExplanations ?? [],
+              citations,
+            ),
+          };
+        }),
         gapIdByKey,
         topicIdByTitle,
       };

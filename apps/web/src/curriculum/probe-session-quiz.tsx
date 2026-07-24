@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { shouldReplenish } from '@post-anki/core'
 import type {
   OptionExplanation,
+  ProbeScope,
   ProbeSession,
   ProbeSessionQuestion,
 } from '@post-anki/shared'
+
+// Kept in sync with the server's own floor (apps/api/src/probe-session/probe-session.service.ts,
+// REPLENISH_FLOOR) — SCENARIO 17's "at least 10 ready" invariant is checked
+// identically on both sides, so the client's refetch-on-low check fires at
+// the same moment the server's own background generation does.
+const REPLENISH_FLOOR = 10
 
 import {
   answerProbeSession,
@@ -14,8 +22,8 @@ import {
 } from './probe-session.api'
 import { ItemFeedbackButtons } from '../feedback/item-feedback-buttons'
 
-function probeSessionQueryKey(topicId: string) {
-  return ['probe-session', topicId] as const
+function probeSessionQueryKey(scope: ProbeScope, scopeId: string) {
+  return ['probe-session', scope, scopeId] as const
 }
 
 function nextQuestion(
@@ -52,27 +60,46 @@ function buildAskAboutThisSeed(question: ProbeSessionQuestion): string {
     .join(' ')
 }
 
+function UngroundedNotice() {
+  return (
+    <p
+      data-testid="quiz-ungrounded-notice"
+      className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800"
+    >
+      This course's material isn't citation-verified — treat explanations as
+      unverified.
+    </p>
+  )
+}
+
 export function ProbeSessionQuiz({
   topicId,
+  scope = 'topic',
+  scopeId,
+  hasCitableSources = true,
   onAskAboutThis,
 }: {
-  topicId: string
+  topicId?: string
+  scope?: ProbeScope
+  scopeId?: string
+  hasCitableSources?: boolean
   onAskAboutThis?: (seed: string) => void
 }) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const queryKey = probeSessionQueryKey(topicId)
+  const resolvedScopeId = scopeId ?? topicId ?? ''
+  const queryKey = probeSessionQueryKey(scope, resolvedScopeId)
 
   const { data: session, isLoading } = useQuery({
     queryKey,
     queryFn: () =>
-      getActiveProbeSession({ data: { scope: 'topic', scopeId: topicId } }),
+      getActiveProbeSession({ data: { scope, scopeId: resolvedScopeId } }),
   })
 
   const generateMutation = useMutation({
     mutationFn: () =>
       prepareProbeSession({
-        data: { scope: 'topic', scopeId: topicId, allowMultiSelect: true },
+        data: { scope, scopeId: resolvedScopeId, allowMultiSelect: true },
       }),
     onSuccess: (result) => {
       queryClient.setQueryData(queryKey, result)
@@ -141,6 +168,19 @@ export function ProbeSessionQuiz({
       if (result.coveredGapLabels.length > 0) {
         void router.invalidate()
       }
+
+      // Refetch-on-low (SCENARIO 17, 18): the server fires its own
+      // background top-up once remaining unanswered questions crosses the
+      // same floor (probe-session.service.ts's REPLENISH_FLOOR) — this is
+      // the client picking up whatever that generation has produced so far
+      // by re-querying the already-existing active-session endpoint, no new
+      // polling loop. If the refetch lands before generation finishes, the
+      // learner simply doesn't see the new questions until they answer past
+      // this point again (an accepted staleness window, not a bug — see
+      // architecture.md's Phase 4 notes).
+      if (shouldReplenish(result.total, result.answered, REPLENISH_FLOOR)) {
+        void queryClient.invalidateQueries({ queryKey })
+      }
     },
   })
 
@@ -189,6 +229,7 @@ export function ProbeSessionQuiz({
         className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4"
         data-testid="quiz-empty-state"
       >
+        {!hasCitableSources ? <UngroundedNotice /> : null}
         {generateMutation.isPending ? (
           <p className="text-sm text-neutral-400" data-testid="quiz-generating">
             Generating probing questions…
@@ -223,6 +264,7 @@ export function ProbeSessionQuiz({
         className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4"
         data-testid="quiz-complete"
       >
+        {!hasCitableSources ? <UngroundedNotice /> : null}
         <p className="text-sm font-medium text-emerald-700">
           Quiz complete — {session.correct}/{session.total} correct.
         </p>
@@ -237,6 +279,7 @@ export function ProbeSessionQuiz({
       className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4"
       data-testid="quiz-question"
     >
+      {!hasCitableSources ? <UngroundedNotice /> : null}
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           Question {session.answered + (answered ? 0 : 1)}/{session.total}

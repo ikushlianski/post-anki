@@ -13,8 +13,10 @@ import {
   openGaps,
   progressFromGaps,
   randomPermutation,
+  shouldReplenish,
 } from "@post-anki/core";
 import { newId } from "../shared/id.js";
+import { log } from "../shared/log.js";
 import { recordActivityToday } from "../streak/streak.service.js";
 import { listGapsForTopic, persistGaps } from "../gap/gap.repo.js";
 import {
@@ -23,6 +25,7 @@ import {
   writeTopicProgress,
 } from "../topic/topic-progress.repo.js";
 import {
+  appendQuestions,
   createSessionWithQuestions,
   deleteSessionsForScope,
   getActiveSessionRow,
@@ -31,11 +34,20 @@ import {
   getSessionRow,
   loadSession,
   recordAnswer,
+  releaseReplenish,
   syncSessionCounters,
+  tryClaimReplenish,
   type ProbeSessionQuestionRow,
+  type ProbeSessionRow,
 } from "./probe-session.repo.js";
-import { generateProbeBatch } from "./probe-session.generate.js";
+import { generateProbeBatch, generateReplenishBatch } from "./probe-session.generate.js";
 import { buildQuestionRows } from "./probe-session.map.js";
+
+// Kept equal to the initial batch's own MIN_TOTAL floor
+// (probe-session.generate.ts) — SCENARIO 17's invariant is "at least 10
+// ready", the same number both sides of this app already agree is a
+// sensible minimum viable batch.
+const REPLENISH_FLOOR = 10;
 
 export type ProbeSessionError =
   | "not_found"
@@ -183,6 +195,15 @@ export async function answerProbeSession(
 
   await recordActivityToday(now);
 
+  // Fire-and-forget, same pattern the curriculum orchestrator already uses
+  // for research: the learner keeps answering the questions already loaded
+  // (SCENARIO 18) while this runs. `tryClaimReplenish` inside is what
+  // guarantees only one of these is ever actually in flight per session
+  // (SCENARIO 20), even if two answers cross the floor in quick succession.
+  void maybeReplenish(session, progress).catch((err) => {
+    log.error({ err, sessionId: session.id }, "probe_session_replenish_failed");
+  });
+
   return {
     questionId: input.questionId,
     outcome,
@@ -195,6 +216,76 @@ export async function answerProbeSession(
     coveredGapLabels,
     optionExplanations: question.optionExplanations ?? null,
   };
+}
+
+/**
+ * Checks the replenish threshold and, if crossed and no replenish is
+ * already running for this session, generates and appends a top-up batch in
+ * the background. Safe to call after every answer — `tryClaimReplenish`'s
+ * atomic guard means only the first caller past the threshold actually does
+ * anything; every later answer while a top-up is in flight is a no-op here.
+ */
+async function maybeReplenish(
+  session: ProbeSessionRow,
+  progress: { total: number; answered: number },
+): Promise<void> {
+  if (!shouldReplenish(progress.total, progress.answered, REPLENISH_FLOOR)) {
+    return;
+  }
+
+  const claimed = await tryClaimReplenish(session.id);
+
+  if (!claimed) {
+    return;
+  }
+
+  const orderOffset = progress.total;
+
+  try {
+    const scope = session.scope as ProbeScope;
+    const ctx = await getScopeContext(scope, session.scopeId);
+
+    if (!ctx) {
+      return;
+    }
+
+    // The per-session multi-select setting isn't persisted on the session
+    // row — infer it from whether any question already loaded for this
+    // session is a "multi" type. The bot never requests multi-select
+    // (SCENARIO 20's guard aside, its inline-keyboard flow can't submit
+    // more than one selected index at a time), so a bot-only session will
+    // always infer false here; the web quiz always requests true, so a web
+    // session's replenish batch stays consistent with its own first batch.
+    const existing = await loadSession(session.id);
+    const allowMultiSelect = existing?.questions.some((q) => q.type === "multi") ?? false;
+
+    const batch = await generateReplenishBatch(scope, ctx, allowMultiSelect);
+
+    if (batch.questions.length > 0) {
+      const rows = buildQuestionRows({
+        sessionId: session.id,
+        generated: batch.questions,
+        defaultTopicId: ctx.topics[0]?.id ?? "",
+        topicIdByTitle: batch.topicIdByTitle,
+        gapIdByKey: batch.gapIdByKey,
+        makeId: () => newId("psq"),
+        allowMultiSelect,
+        makePermutation: randomPermutation,
+        orderOffset,
+      });
+
+      await appendQuestions(rows);
+      await syncSessionCounters(session.id, new Date().toISOString());
+    }
+  } catch (err) {
+    log.error({ err, sessionId: session.id }, "probe_session_replenish_failed");
+  } finally {
+    // Degrade-gracefully posture matching the existing initial-batch
+    // generation_failed handling (architecture.md's Failure modes): the
+    // session simply doesn't grow this time, but the guard always clears so
+    // a later answer can retry.
+    await releaseReplenish(session.id);
+  }
 }
 
 function computeOutcome(

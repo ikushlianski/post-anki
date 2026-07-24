@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type {
   CurriculumStatus,
   DepthLevel,
@@ -19,6 +19,7 @@ import {
   probeSessions,
   topics,
 } from "../db/schema.js";
+import { getTag, listTopicsForTag } from "../tag/tag.repo.js";
 
 export type ProbeSessionRow = typeof probeSessions.$inferSelect;
 export type ProbeSessionQuestionRow = typeof probeSessionQuestions.$inferSelect;
@@ -29,12 +30,17 @@ export interface ScopeTopic {
   title: string;
   summary: string | null;
   depth: DepthLevel;
+  curriculumId: string;
 }
 
 export interface ScopeContext {
   scope: ProbeScope;
   scopeId: string;
-  curriculumId: string;
+  // Only ever null for scope "tag" — a cross-cutting session has no single
+  // owning curriculum, since its topics can span several. Every ScopeTopic
+  // still carries its own curriculumId (below), which is what grounding
+  // and citation lookups actually key off.
+  curriculumId: string | null;
   status: CurriculumStatus;
   title: string;
   priorMaturity: number;
@@ -76,7 +82,15 @@ export async function getActiveSessionRow(
       and(
         eq(probeSessions.scope, scope),
         eq(probeSessions.scopeId, scopeId),
-        eq(probeSessions.status, "active"),
+        // A session's `status` is derived purely from its currently-persisted
+        // question rows (deriveSessionProgress) and can read "completed" for
+        // the moment between the learner's last loaded answer and a
+        // still-in-flight replenish appending more rows (SCENARIO 17/18) —
+        // `replenishing` is the signal that more questions are genuinely on
+        // the way, so a session in that state must still count as "active"
+        // for lookup purposes, or the client's/bot's refetch-on-low would
+        // find nothing and wrongly conclude the quiz vanished.
+        or(eq(probeSessions.status, "active"), eq(probeSessions.replenishing, true)),
       ),
     )
     .orderBy(desc(probeSessions.createdAt));
@@ -153,6 +167,42 @@ export async function createSessionWithQuestions(
   }
 
   return loadSession(session.id);
+}
+
+export async function appendQuestions(
+  questions: ProbeSessionQuestionInsert[],
+): Promise<void> {
+  if (questions.length === 0) {
+    return;
+  }
+
+  await getDb().insert(probeSessionQuestions).values(questions);
+}
+
+/**
+ * Atomically claims the replenish lock for a session: flips `replenishing`
+ * from false to true and reports whether *this* call is the one that made
+ * the flip (`true`) or the lock was already held by another in-flight
+ * replenish (`false`). The `WHERE replenishing = false` clause is what makes
+ * this safe under two answers landing in quick succession (SCENARIO 20) —
+ * a read-then-write check in application code would race, but Postgres
+ * evaluates the WHERE clause and the UPDATE as a single atomic step per row.
+ */
+export async function tryClaimReplenish(sessionId: string): Promise<boolean> {
+  const rows = await getDb()
+    .update(probeSessions)
+    .set({ replenishing: true })
+    .where(and(eq(probeSessions.id, sessionId), eq(probeSessions.replenishing, false)))
+    .returning({ id: probeSessions.id });
+
+  return rows.length > 0;
+}
+
+export async function releaseReplenish(sessionId: string): Promise<void> {
+  await getDb()
+    .update(probeSessions)
+    .set({ replenishing: false })
+    .where(eq(probeSessions.id, sessionId));
 }
 
 export async function recordAnswer(
@@ -256,9 +306,14 @@ export async function getScopeContext(
           title: topicRow.title,
           summary: topicRow.summary,
           depth: topicRow.depth as DepthLevel,
+          curriculumId: topicRow.curriculumId,
         },
       ],
     };
+  }
+
+  if (scope === "tag") {
+    return getTagScopeContext(scopeId);
   }
 
   const moduleRow = (
@@ -306,6 +361,77 @@ export async function getScopeContext(
       title: t.title,
       summary: t.summary,
       depth: t.depth as DepthLevel,
+      curriculumId: t.curriculumId,
+    })),
+  };
+}
+
+/**
+ * A tag-scoped session's topic set is the union of directly tag-assigned
+ * topics and every included topic under a tag-assigned module, spanning as
+ * many curricula as the tag touches (SCENARIO 14). Only topics belonging to
+ * a `confirmed` curriculum are eligible — `prepareProbeSession` hard-guards
+ * `ctx.status !== "confirmed"`, and a tag has no single curriculum status of
+ * its own to report, so this synthesizes "confirmed" once at least one
+ * eligible topic exists, mirroring what a real confirmed curriculum would
+ * report for module/topic scope.
+ */
+async function getTagScopeContext(tagId: string): Promise<ScopeContext | null> {
+  const db = getDb();
+  const tag = await getTag(tagId);
+
+  if (!tag) {
+    return null;
+  }
+
+  const topicRows = await listTopicsForTag(tagId);
+
+  if (topicRows.length === 0) {
+    return null;
+  }
+
+  const curriculumIds = Array.from(new Set(topicRows.map((t) => t.curriculumId)));
+  const curriculumRows = await db
+    .select()
+    .from(curricula)
+    .where(inArray(curricula.id, curriculumIds));
+  const confirmedIds = new Set(
+    curriculumRows.filter((c) => c.status === "confirmed").map((c) => c.id),
+  );
+
+  const eligibleTopics = topicRows.filter((t) => confirmedIds.has(t.curriculumId));
+
+  if (eligibleTopics.length === 0) {
+    return null;
+  }
+
+  const topicIds = eligibleTopics.map((t) => t.id);
+  const topicProgressRows = await db
+    .select({ progressMaturity: topics.progressMaturity })
+    .from(topics)
+    .where(inArray(topics.id, topicIds));
+
+  const priorMaturity =
+    topicProgressRows.length === 0
+      ? 0
+      : Math.round(
+          topicProgressRows.reduce((sum, t) => sum + t.progressMaturity, 0) /
+            topicProgressRows.length,
+        );
+
+  return {
+    scope: "tag",
+    scopeId: tagId,
+    curriculumId: null,
+    status: "confirmed",
+    title: tag.name,
+    priorMaturity,
+    topics: eligibleTopics.map((t) => ({
+      id: t.id,
+      title: t.title,
+      summary: t.summary,
+      depth: t.depth as DepthLevel,
+      curriculumId: t.curriculumId,
     })),
   };
 }

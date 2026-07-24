@@ -60,32 +60,51 @@ export async function renderSession(
   session: ProbeSession,
   label: string,
 ): Promise<void> {
-  const next = firstUnanswered(session);
+  let current = session;
+  let next = firstUnanswered(current);
+
+  // Equivalent of the web quiz's refetch-on-low: a session can look
+  // finished purely because the last-loaded batch is exhausted while a
+  // server-side replenish (triggered once remaining crossed the floor,
+  // probe-session.service.ts) is still generating in the background.
+  // One extra, bounded re-fetch here — never a timer/polling loop — is
+  // enough to catch a top-up that already landed between whichever earlier
+  // answer crossed the floor and this render, so the bot doesn't declare
+  // "all done" and strand the learner while more questions are still on
+  // the way (SCENARIO 17, 18).
+  if (!next) {
+    const refetched = await getActiveProbeSession(session.scope, session.scopeId);
+
+    if (refetched) {
+      current = refetched;
+      next = firstUnanswered(current);
+    }
+  }
 
   if (!next) {
     await editMessageText(
       chatId,
       messageId,
-      `✅ All questions answered for ${label}. ${session.correct}/${session.total} correct.`,
+      `✅ All questions answered for ${label}. ${current.correct}/${current.total} correct.`,
     );
 
     return;
   }
 
-  await persist(chatId, session, next.id, label, messageId);
+  await persist(chatId, current, next.id, label, messageId);
 
   const keyboard = [
     ...optionKeyboard(next.options.length),
-    ...regenerateButton(session.scope),
+    ...regenerateButton(current.scope),
   ];
 
   await editMessageText(
     chatId,
     messageId,
     formatQuestion(next, {
-      answered: session.answered,
-      total: session.total,
-      correct: session.correct,
+      answered: current.answered,
+      total: current.total,
+      correct: current.correct,
     }),
     keyboard,
   );
@@ -130,7 +149,17 @@ export async function submitQuizAnswer(
   const question = session ? findQuestion(session, result.questionId) : null;
   const label = context.label ?? "this topic";
 
-  if (result.status === "completed") {
+  // `result.status` reflects the state at the instant this answer was
+  // recorded — the same request that may have just triggered a background
+  // replenish (probe-session.service.ts). Prefer the freshly re-fetched
+  // `session` (queried a moment later, above) when it disagrees: if an
+  // earlier answer's replenish already landed by now, `session` will show
+  // more unanswered questions even though this answer's own `result.status`
+  // still says "completed" — using the fresher signal is what keeps the bot
+  // from ending the chat context prematurely (SCENARIO 17, 18).
+  const stillHasQuestions = session ? firstUnanswered(session) !== null : false;
+
+  if (result.status === "completed" && !stillHasQuestions) {
     await setChatContext(chatId, {
       ...context,
       mode: "idle",
