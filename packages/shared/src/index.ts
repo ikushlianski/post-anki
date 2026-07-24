@@ -29,3 +29,4 @@ export * from "./next-step";
 export * from "./streak";
 export * from "./stats";
 export * from "./tag";
+export * from "./lecture";

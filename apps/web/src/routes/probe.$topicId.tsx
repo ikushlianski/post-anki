@@ -55,7 +55,17 @@ function ProbeRoom() {
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-5 py-8 sm:px-8">
       <div className="mb-6 flex items-center justify-between gap-3">
         <ProbeRoomDrawer detail={detail} currentTopicId={topic.id} mode={mode} />
-        <ModeToggle topicId={topic.id} curriculumId={curriculumId} mode={mode} />
+        <div className="flex items-center gap-3">
+          <Link
+            to="/lecture/$topicId"
+            params={{ topicId: topic.id }}
+            data-testid="lecture-link"
+            className="text-xs font-medium text-neutral-500 underline hover:text-neutral-900"
+          >
+            Lecture
+          </Link>
+          <ModeToggle topicId={topic.id} curriculumId={curriculumId} mode={mode} />
+        </div>
       </div>
 
       <header className="mb-2">

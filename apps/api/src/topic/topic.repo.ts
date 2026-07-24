@@ -11,6 +11,8 @@ import { nextOrder, assignOrders } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { gaps, modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { deleteLectureForTopic } from "../lecture/lecture.repo.js";
+import { deleteLectureSourceCandidatesForTopic } from "../lecture/lecture-source-candidate.repo.js";
 
 function rowToTopic(row: typeof topics.$inferSelect): Topic {
   return {
@@ -177,6 +179,8 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
   }
 
   await db.delete(gaps).where(eq(gaps.topicId, topicId));
+  await deleteLectureForTopic(topicId);
+  await deleteLectureSourceCandidatesForTopic(topicId);
   await db.delete(topics).where(eq(topics.id, topicId));
 
   return true;

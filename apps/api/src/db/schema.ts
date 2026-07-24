@@ -324,3 +324,41 @@ export const userStreaks = pgTable("user_streaks", {
   longestStreak: integer("longest_streak").notNull().default(0),
   lastActiveDate: text("last_active_date"),
 });
+
+export const lectures = pgTable(
+  "lectures",
+  {
+    id: text("id").primaryKey(),
+    topicId: text("topic_id").notNull(),
+    title: text("title").notNull(),
+    status: text("status").notNull().default("generating"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("lectures_topic_id_unique").on(table.topicId)],
+);
+
+export const lectureSections = pgTable("lecture_sections", {
+  id: text("id").primaryKey(),
+  lectureId: text("lecture_id").notNull(),
+  order: integer("order").notNull(),
+  heading: text("heading").notNull(),
+  body: text("body").notNull(),
+});
+
+export const lectureCitations = pgTable("lecture_citations", {
+  id: text("id").primaryKey(),
+  lectureId: text("lecture_id").notNull(),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+});
+
+export const lectureSourceCandidates = pgTable("lecture_source_candidates", {
+  id: text("id").primaryKey(),
+  topicId: text("topic_id").notNull(),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  whySelected: text("why_selected").notNull(),
+  reviewStatus: text("review_status").notNull().default("pending"),
+  fetchedText: text("fetched_text"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

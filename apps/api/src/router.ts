@@ -55,7 +55,12 @@ export type RouteName =
   | "listTags"
   | "createTag"
   | "assignTag"
-  | "removeTagAssignment";
+  | "removeTagAssignment"
+  | "gatherLectureSources"
+  | "listLectureSourceCandidates"
+  | "reviewLectureSourceCandidate"
+  | "compileLecture"
+  | "getLecture";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -162,6 +167,36 @@ const ROUTES: RouteDef[] = [
     pattern: /^\/tags\/([^/]+)\/assignments\/([^/]+)$/,
     name: "removeTagAssignment",
     params: ["id", "assignmentId"],
+  },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/lecture\/sources$/,
+    name: "gatherLectureSources",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/topics\/([^/]+)\/lecture\/sources$/,
+    name: "listLectureSourceCandidates",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/lecture-source-candidates\/([^/]+)$/,
+    name: "reviewLectureSourceCandidate",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/lecture$/,
+    name: "compileLecture",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/topics\/([^/]+)\/lecture$/,
+    name: "getLecture",
+    param: "id",
   },
 ];
 
