@@ -12,6 +12,7 @@ import { createSocraticEvalAgent } from "./socratic.agent.js";
 import { createDocResearchArchitect } from "./doc-research-architect.agent.js";
 import { createStudyChatAgent } from "./study-chat.agent.js";
 import { createLanguageChatAgent } from "./language-chat.agent.js";
+import { createPhraseBatchAgent, createGradeBatchAgent } from "./language-practice.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -23,6 +24,8 @@ export const AGENT_KEYS = {
   docResearchArchitect: "docResearchArchitect",
   studyChat: "studyChat",
   languageChat: "languageChat",
+  phraseBatchGenerate: "phraseBatchGenerate",
+  gradeBatch: "gradeBatch",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -74,6 +77,8 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.docResearchArchitect]: createDocResearchArchitect(),
         [AGENT_KEYS.studyChat]: createStudyChatAgent(),
         [AGENT_KEYS.languageChat]: createLanguageChatAgent(),
+        [AGENT_KEYS.phraseBatchGenerate]: createPhraseBatchAgent(),
+        [AGENT_KEYS.gradeBatch]: createGradeBatchAgent(),
       },
       ...(observability ? { observability } : {}),
     });
