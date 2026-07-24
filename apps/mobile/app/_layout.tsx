@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { getStoredToken } from "../src/api/token-storage";
+import { getStoredToken, subscribeToStoredToken } from "../src/api/token-storage";
 
 export default function RootLayout() {
   const [checked, setChecked] = useState(false);
@@ -21,8 +21,13 @@ export default function RootLayout() {
       setChecked(true);
     });
 
+    const unsubscribe = subscribeToStoredToken((token) => {
+      setHasToken(token !== null);
+    });
+
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
