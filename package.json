@@ -11,7 +11,8 @@
     "packages/core",
     "apps/api",
     "apps/web",
-    "apps/bot"
+    "apps/bot",
+    "apps/mobile"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -20,6 +21,7 @@
     "dev:web": "npm run dev -w @post-anki/web",
     "dev:api": "npm run dev -w @post-anki/api",
     "dev:bot": "npm run dev -w @post-anki/bot",
+    "dev:mobile": "npm run start -w @post-anki/mobile",
     "db:generate:api": "npm run db:generate -w @post-anki/api",
     "db:migrate:api": "npm run db:migrate -w @post-anki/api",
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
