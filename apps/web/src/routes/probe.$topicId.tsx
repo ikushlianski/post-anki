@@ -82,6 +82,7 @@ function ProbeRoom() {
             <ProbeSessionQuiz
               key={topic.id}
               topicId={topic.id}
+              hasCitableSources={detail.hasCitableSources}
               onAskAboutThis={setChatSeed}
             />
           )}

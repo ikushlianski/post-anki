@@ -12,6 +12,9 @@ import {
   shouldIncludeTopicByDefault,
   isDocUrlAndResearchTopicConflict,
   resolveRetryResearchSource,
+  isApproveSourcesBlocked,
+  isPastedMaterialAndResearchConflict,
+  isPastedMaterialAndSourcesConflict,
   type ModuleTouchState,
   type TopicTouchState,
   type StudyableModule,
@@ -381,6 +384,73 @@ describe("resolveRetryResearchSource", () => {
         mode: "name",
         name: "Temporal",
       });
+    });
+  });
+});
+
+describe("isApproveSourcesBlocked", () => {
+  describe("with zero approvable sources", () => {
+    it("blocks generation without an explicit override", () => {
+      expect(isApproveSourcesBlocked(0, false)).toBe(true);
+    });
+
+    it("lets the learner proceed once they explicitly override", () => {
+      expect(isApproveSourcesBlocked(0, true)).toBe(false);
+    });
+  });
+
+  describe("with at least one approvable source", () => {
+    it("never blocks, override or not", () => {
+      expect(isApproveSourcesBlocked(1, false)).toBe(false);
+      expect(isApproveSourcesBlocked(3, true)).toBe(false);
+    });
+  });
+});
+
+describe("isPastedMaterialAndResearchConflict", () => {
+  describe("pasted material alongside a triggered research path", () => {
+    it("is a conflict", () => {
+      expect(isPastedMaterialAndResearchConflict("some article text", true)).toBe(true);
+    });
+  });
+
+  describe("pasted material with no research triggered", () => {
+    it("is not a conflict", () => {
+      expect(isPastedMaterialAndResearchConflict("some article text", false)).toBe(false);
+    });
+  });
+
+  describe("whitespace-only pasted material", () => {
+    it("does not count as pasted material at all", () => {
+      expect(isPastedMaterialAndResearchConflict("   ", true)).toBe(false);
+    });
+  });
+
+  describe("no pasted material", () => {
+    it("is never a conflict, research triggered or not", () => {
+      expect(isPastedMaterialAndResearchConflict(null, true)).toBe(false);
+      expect(isPastedMaterialAndResearchConflict(undefined, false)).toBe(false);
+    });
+  });
+});
+
+describe("isPastedMaterialAndSourcesConflict", () => {
+  describe("pasted material alongside explicit pasted sources", () => {
+    it("is a conflict", () => {
+      expect(isPastedMaterialAndSourcesConflict("some article text", 1)).toBe(true);
+    });
+  });
+
+  describe("pasted material with zero sources", () => {
+    it("is not a conflict", () => {
+      expect(isPastedMaterialAndSourcesConflict("some article text", 0)).toBe(false);
+    });
+  });
+
+  describe("no pasted material", () => {
+    it("is never a conflict, regardless of source count", () => {
+      expect(isPastedMaterialAndSourcesConflict(null, 2)).toBe(false);
+      expect(isPastedMaterialAndSourcesConflict(undefined, 0)).toBe(false);
     });
   });
 });

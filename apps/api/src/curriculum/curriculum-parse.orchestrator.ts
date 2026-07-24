@@ -1,34 +1,37 @@
-import type { Level, SourceDraft } from "@post-anki/shared";
+import type { SourceDraft } from "@post-anki/shared";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { curriculumPlanSchema, curriculumMergePlanSchema } from "./curriculum-plan.js";
-import { docResearchPlanSchema } from "./curriculum-research-plan.js";
-import { gatherTechResearchGrounding } from "./tech-research-grounding.js";
-import { gatherDocLinkGrounding } from "./doc-link-grounding.js";
-import { buildParsePrompt, buildMergePrompt, buildResearchPrompt } from "./curriculum-prompt.js";
+import { gatherSourceCandidates } from "./source-candidates.js";
+import { buildParsePrompt, buildMergePrompt } from "./curriculum-prompt.js";
 import {
   partitionModulesForMerge,
   filterOutLockedModules,
   resolveRetryResearchSource,
 } from "./curriculum-rules.js";
 import { resolveSourceText } from "./source-fetch.js";
+import { assembleAllSourceText } from "./source-text.js";
+import { generateDraftStructure } from "./curriculum-structure.js";
 import {
   addCurriculumSources,
+  approveAllPendingSources,
   clearCurriculumStructure,
   countModules,
+  deleteAllCurriculumSources,
   deleteModules,
-  deleteResearchSources,
   getCurriculum,
   getCurriculumPromptContext,
   getCurriculumSourceRows,
   getModuleProgressSnapshots,
+  insertPendingSources,
   insertResearchSource,
   saveCurriculumPlan,
   setCurriculumStatus,
-  setCurriculumStrictOrder,
   storeFetchedText,
   type SourceRow,
 } from "./curriculum.repo.js";
+
+export { assembleAllSourceText };
 
 async function resolveAndStore(rows: SourceRow[]): Promise<string> {
   const parts = await Promise.all(
@@ -36,25 +39,6 @@ async function resolveAndStore(rows: SourceRow[]): Promise<string> {
       const text = await resolveSourceText(row.kind, row.value);
 
       await storeFetchedText(row.id, text);
-
-      return row.title ? `# ${row.title}\n${text}` : text;
-    }),
-  );
-
-  return parts.filter((p) => p.trim().length > 0).join("\n\n---\n\n");
-}
-
-async function assembleAllSourceText(curriculumId: string): Promise<string> {
-  const rows = await getCurriculumSourceRows(curriculumId);
-
-  const parts = await Promise.all(
-    rows.map(async (row) => {
-      let text = row.fetchedText;
-
-      if (text === null) {
-        text = await resolveSourceText(row.kind, row.value);
-        await storeFetchedText(row.id, text);
-      }
 
       return row.title ? `# ${row.title}\n${text}` : text;
     }),
@@ -112,67 +96,75 @@ export interface ResearchCurriculumInput {
   docUrl?: string | null;
 }
 
+/**
+ * Candidate gathering only — the first half of what used to be a single
+ * research-to-synthesis call. Resolves an entry point (the given docUrl, or
+ * a bare name's likely official docs URL), runs the docs-site chain and the
+ * general trusted-source search, and lands the curriculum at
+ * "awaiting_source_approval" with every candidate stored as a pending
+ * source row. No architect-agent call happens here — that only happens
+ * once the learner approves (see `generateCurriculumFromApprovedSources`).
+ */
 export async function researchCurriculum(
   curriculumId: string,
   input: ResearchCurriculumInput,
-  preferredLevel?: Level | null,
 ): Promise<void> {
   try {
-    const ctx = await getCurriculumPromptContext(curriculumId);
-
-    const grounding = input.docUrl
-      ? await gatherDocLinkGrounding(input.docUrl, input.name)
-      : {
-          text: (await gatherTechResearchGrounding(input.name)).text,
-          kind: "web_research" as const,
-          title: `Auto-researched: ${input.name}`,
-        };
-
-    // Recorded before the throw-prone synthesis call below: if synthesis
-    // fails, this row must already exist so the curriculum still resolves
-    // to research-origin and the "Retry research" (not "Re-parse sources")
-    // recovery banner renders on the failed curriculum. `value` is always
-    // the original docUrl (never the sub-path actually fetched) so a later
-    // retry can tell a URL-driven curriculum apart from a legacy one.
+    // Recorded before candidate gathering: an origin-tracking marker, not a
+    // reviewable candidate — always approved immediately, so
+    // `resolveCurriculumOrigin` and "Retry research" keep working even for
+    // a curriculum whose real candidates end up all deleted or none found
+    // (see architecture.md's origin-tracking note). It carries no grounding
+    // text of its own; real grounding now lives on the individual
+    // candidate rows below.
     await insertResearchSource(
       curriculumId,
       {
-        kind: grounding.kind,
+        kind: "web_research",
         value: input.docUrl ?? input.name,
-        title: grounding.title,
+        title: `Auto-researched: ${input.name}`,
       },
-      grounding.text,
+      "",
     );
 
-    const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
-    const prompt = buildResearchPrompt(input.name, grounding.text, ctx, {
-      groundingKind: grounding.kind,
-      preferredLevel,
-    });
+    const candidates = await gatherSourceCandidates(input);
 
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: docResearchPlanSchema },
-    });
+    await insertPendingSources(
+      curriculumId,
+      candidates.map((c) => ({
+        kind: c.kind,
+        url: c.url,
+        title: c.title,
+        fetchedText: c.fetchedText,
+      })),
+    );
 
-    if (!result.object) {
-      throw new Error("doc-research architect returned no structured plan");
-    }
-
-    await saveCurriculumPlan(curriculumId, result.object, 0, {
-      defaultIncluded: false,
-      preferredLevel,
-    });
-    await setCurriculumStrictOrder(curriculumId, result.object.strictOrder ?? false);
-    await setCurriculumStatus(curriculumId, "ready");
+    await setCurriculumStatus(curriculumId, "awaiting_source_approval");
 
     log.info(
-      { curriculumId, modules: result.object.modules.length },
-      "curriculum_researched",
+      { curriculumId, candidates: candidates.length },
+      "source_candidates_gathered",
     );
   } catch (err) {
-    log.error({ err, curriculumId }, "curriculum_research_failed");
+    log.error({ err, curriculumId }, "source_candidate_gathering_failed");
     await setCurriculumStatus(curriculumId, "failed");
   }
+}
+
+/**
+ * The second half of the gate: called only once the learner has approved
+ * (or explicitly overridden with zero sources). Flips any still-pending
+ * rows to approved, then — instead of a single one-shot synthesis straight
+ * to "ready" — hands off to `generateDraftStructure` (Phase 5), which
+ * produces a first draft and lands the curriculum on "shaping_structure"
+ * for conversational review instead. Reaching "ready" now always means a
+ * human confirmed the structure in that chat, for every entry point alike.
+ */
+export async function generateCurriculumFromApprovedSources(
+  curriculumId: string,
+): Promise<void> {
+  await approveAllPendingSources(curriculumId);
+  await generateDraftStructure(curriculumId);
 }
 
 export async function retryResearch(curriculumId: string): Promise<void> {
@@ -192,11 +184,8 @@ export async function retryResearch(curriculumId: string): Promise<void> {
     );
 
     await clearCurriculumStructure(curriculumId);
-    await deleteResearchSources(curriculumId);
+    await deleteAllCurriculumSources(curriculumId);
 
-    // The chosen level from the original creation is not recovered on
-    // retry — the same accepted limitation as reparse already has for
-    // pasted-material curricula.
     if (resolved.mode === "url") {
       await researchCurriculum(curriculumId, { name: resolved.name, docUrl: resolved.docUrl });
     } else {

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
@@ -12,9 +12,16 @@ import type {
   LearningStatus,
   Level,
   Module,
+  ResearchCandidateApprovalStatus,
   Source,
   SourceDraft,
   Speed,
+  SplitSuggestion,
+  StructureResearchCandidate,
+  StructureTurn,
+  StructureTurnRole,
+  StructureTurnStatus,
+  TagChip,
   Topic,
   TopicProgressStatus,
   UpdateCurriculumInput,
@@ -30,9 +37,11 @@ import {
 import { getDb } from "../db/client.js";
 import {
   curricula,
+  curriculumStructureTurns,
   gaps,
   modules,
   sources,
+  structureResearchCandidates,
   subjects,
   topics,
 } from "../db/schema.js";
@@ -42,7 +51,14 @@ import {
   hasStudyableContent,
   shouldIncludeTopicByDefault,
 } from "./curriculum-rules.js";
+import {
+  getTagsByIds,
+  listAssignmentsForNodes,
+  resolveOrCreateTag,
+  assignTag,
+} from "../tag/tag.repo.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
+import type { DocResearchPlan } from "./curriculum-research-plan.js";
 
 interface PlanModule {
   title: string;
@@ -52,6 +68,7 @@ interface PlanModule {
     summary: string | null;
     suggestedDepth: DepthLevel;
   }[];
+  tags?: string[] | null;
 }
 
 interface Plan {
@@ -100,6 +117,7 @@ export async function createCurriculum(
     hinting: true,
     defaultDepth: "working" as const,
     strictOrder: false,
+    preAssessmentCompletedAt: null,
   };
 
   await getDb().insert(curricula).values(row);
@@ -184,6 +202,27 @@ export async function setCurriculumStrictOrder(
     .update(curricula)
     .set({ strictOrder })
     .where(eq(curricula.id, curriculumId));
+}
+
+/**
+ * Bulk id-to-name lookup for read-only views that need to display a
+ * curriculum's name alongside data keyed by id but don't need the full
+ * `Curriculum` shape — e.g. the admin observability view's recent
+ * `llm_call_events` list.
+ */
+export async function getCurriculumNamesByIds(
+  curriculumIds: string[],
+): Promise<Map<string, string>> {
+  if (curriculumIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await getDb()
+    .select({ id: curricula.id, name: curricula.name })
+    .from(curricula)
+    .where(inArray(curricula.id, curriculumIds));
+
+  return new Map(rows.map((r) => [r.id, r.name]));
 }
 
 export async function getCurriculum(
@@ -491,6 +530,24 @@ export async function confirmCurriculum(
   return toCurriculum(rows[0]!, await originFor(curriculumId));
 }
 
+export async function markPreAssessmentCompleted(
+  curriculumId: string,
+): Promise<Curriculum | "not_found"> {
+  const db = getDb();
+
+  const rows = await db
+    .update(curricula)
+    .set({ preAssessmentCompletedAt: new Date() })
+    .where(eq(curricula.id, curriculumId))
+    .returning();
+
+  if (!rows[0]) {
+    return "not_found";
+  }
+
+  return toCurriculum(rows[0], await originFor(curriculumId));
+}
+
 
 export async function updateCurriculum(
   input: UpdateCurriculumInput,
@@ -560,6 +617,18 @@ export async function saveCurriculumPlan(
       level: moduleLevel,
     });
 
+    const proposedTags = (mod as PlanModule).tags ?? [];
+
+    for (const tagName of proposedTags) {
+      if (!tagName.trim()) {
+        continue;
+      }
+
+      const tag = await resolveOrCreateTag(tagName);
+
+      await assignTag(tag.id, "module", moduleId);
+    }
+
     const included = preferredLevel
       ? shouldIncludeTopicByDefault(moduleLevel, preferredLevel)
       : defaultIncluded;
@@ -602,17 +671,418 @@ export async function insertResearchSource(
     });
 }
 
-const RESEARCH_ORIGIN_SOURCE_KINDS = ["web_research", "llms_txt"] as const;
-
-export async function deleteResearchSources(curriculumId: string): Promise<void> {
+/**
+ * The pasted-material entry point (Phase 5, SCENARIO: "paste what you
+ * already have"): stored immediately as an approved `text`-kind source, the
+ * same way a hand-authored source row already works — no candidate-
+ * gathering/approval round for material the learner already brought in
+ * themselves.
+ */
+export async function insertApprovedTextSource(
+  curriculumId: string,
+  text: string,
+): Promise<void> {
   await getDb()
-    .delete(sources)
+    .insert(sources)
+    .values({
+      id: newId("src"),
+      curriculumId,
+      kind: "text",
+      value: text,
+      title: "Pasted material",
+      fetchedText: text,
+      approvalStatus: "approved",
+    });
+}
+
+/**
+ * Wipes every source row (candidates, manually-added links, and the
+ * origin-tracking marker alike) for a curriculum — used when retrying
+ * research from scratch, since the whole sources table for a
+ * research-triggered curriculum is candidate-gathering machinery, not
+ * user-pasted material (that path is `parseCurriculum`, untouched here).
+ */
+export async function deleteAllCurriculumSources(curriculumId: string): Promise<void> {
+  await getDb().delete(sources).where(eq(sources.curriculumId, curriculumId));
+}
+
+export interface PendingSourceDraft {
+  kind: string;
+  url: string;
+  title: string;
+  fetchedText: string | null;
+}
+
+export async function insertPendingSources(
+  curriculumId: string,
+  drafts: PendingSourceDraft[],
+): Promise<void> {
+  if (drafts.length === 0) {
+    return;
+  }
+
+  await getDb()
+    .insert(sources)
+    .values(
+      drafts.map((d) => ({
+        id: newId("src"),
+        curriculumId,
+        kind: d.kind,
+        value: d.url,
+        title: d.title,
+        fetchedText: d.fetchedText,
+        approvalStatus: "pending",
+      })),
+    );
+}
+
+/**
+ * A curriculum's real, reviewable candidate/approved sources — excludes the
+ * `web_research`-kind origin-tracking marker row that `insertResearchSource`
+ * always inserts for a research-triggered curriculum, which is never a
+ * candidate for the learner to approve or reject.
+ */
+export async function getApprovableSourceCount(curriculumId: string): Promise<number> {
+  const rows = await getDb()
+    .select()
+    .from(sources)
+    .where(eq(sources.curriculumId, curriculumId));
+
+  return rows.filter((r) => r.kind !== "web_research").length;
+}
+
+export async function approveAllPendingSources(curriculumId: string): Promise<void> {
+  await getDb()
+    .update(sources)
+    .set({ approvalStatus: "approved" })
+    .where(and(eq(sources.curriculumId, curriculumId), eq(sources.approvalStatus, "pending")));
+}
+
+export async function deleteSource(sourceId: string): Promise<boolean> {
+  const db = getDb();
+
+  const existing = (await db.select().from(sources).where(eq(sources.id, sourceId)))[0];
+
+  if (!existing) {
+    return false;
+  }
+
+  await db.delete(sources).where(eq(sources.id, sourceId));
+
+  return true;
+}
+
+export interface StructureTurnDraft {
+  role: StructureTurnRole;
+  message: string;
+  structureSnapshot: DocResearchPlan | null;
+  splitSuggestion?: SplitSuggestion | null;
+  toolActions?: string[];
+  status?: StructureTurnStatus;
+}
+
+/**
+ * Appends one turn to a curriculum's structure-shaping chat (Phase 5).
+ * `order` is a monotonic sequence column, not `createdAt` — two turns
+ * inserted within the same `submitStructureTurn` call (the user's message,
+ * then the regenerated assistant reply) can otherwise land on the exact
+ * same millisecond and render out of order. Returns the new row's id so a
+ * caller that inserted a "pending" placeholder can later finalize the SAME
+ * row via `updateStructureTurn` rather than appending a second one.
+ */
+export async function insertStructureTurn(
+  curriculumId: string,
+  draft: StructureTurnDraft,
+): Promise<string> {
+  const db = getDb();
+
+  const existing = await db
+    .select()
+    .from(curriculumStructureTurns)
+    .where(eq(curriculumStructureTurns.curriculumId, curriculumId));
+
+  const nextOrder = existing.reduce((max, row) => Math.max(max, row.order), 0) + 1;
+  const id = newId("turn");
+
+  await db.insert(curriculumStructureTurns).values({
+    id,
+    curriculumId,
+    role: draft.role,
+    message: draft.message,
+    structureSnapshot: draft.structureSnapshot,
+    splitSuggestion: draft.splitSuggestion ?? null,
+    toolActions: draft.toolActions ?? [],
+    status: draft.status ?? "complete",
+    order: nextOrder,
+  });
+
+  return id;
+}
+
+export interface StructureTurnUpdate {
+  message?: string;
+  structureSnapshot?: DocResearchPlan | null;
+  splitSuggestion?: SplitSuggestion | null;
+  toolActions?: string[];
+  status: StructureTurnStatus;
+}
+
+/**
+ * Finalizes a turn written earlier as a "pending" placeholder (see
+ * `insertStructureTurn`) in place — used once the agent call it was
+ * waiting on resolves, either into a real result or into the existing
+ * fallback failure message. Never inserts a second row for the same turn.
+ */
+export async function updateStructureTurn(
+  turnId: string,
+  patch: StructureTurnUpdate,
+): Promise<void> {
+  const values: Partial<typeof curriculumStructureTurns.$inferInsert> = {
+    status: patch.status,
+  };
+
+  if (patch.message !== undefined) {
+    values.message = patch.message;
+  }
+
+  if (patch.structureSnapshot !== undefined) {
+    values.structureSnapshot = patch.structureSnapshot;
+  }
+
+  if (patch.splitSuggestion !== undefined) {
+    values.splitSuggestion = patch.splitSuggestion;
+  }
+
+  if (patch.toolActions !== undefined) {
+    values.toolActions = patch.toolActions;
+  }
+
+  await getDb()
+    .update(curriculumStructureTurns)
+    .set(values)
+    .where(eq(curriculumStructureTurns.id, turnId));
+}
+
+/**
+ * Whether Phase 5's draft-generation stage was ever reached for this
+ * curriculum — `generateDraftStructure` always writes a placeholder turn
+ * before calling the agent (see that function), so this stays accurate
+ * even for a curriculum whose very first draft attempt failed outright.
+ * Used to tell a Phase 5 draft-generation failure apart from an old
+ * pre-Phase-5 research/parse failure, which never writes to this table at
+ * all — see `FailedBanner` on the frontend.
+ */
+export async function hasAnyStructureTurns(curriculumId: string): Promise<boolean> {
+  const rows = await getDb()
+    .select({ id: curriculumStructureTurns.id })
+    .from(curriculumStructureTurns)
+    .where(eq(curriculumStructureTurns.curriculumId, curriculumId))
+    .limit(1);
+
+  return rows.length > 0;
+}
+
+/**
+ * The one DB side effect any structure-editor tool is allowed beyond the
+ * current curriculum's own snapshot: `splitModuleIntoNewCourse` creates a
+ * brand-new, additive-only `curricula` row seeded directly at
+ * "shaping_structure" (no candidate-gathering or draft-generation LLM call
+ * needed — the split-out module's content already exists).
+ */
+export async function createSplitOutCurriculum(
+  subjectId: string,
+  name: string,
+): Promise<Curriculum> {
+  const row = {
+    id: newId("cur"),
+    subjectId,
+    name,
+    description: null,
+    status: "shaping_structure" as const,
+    learningStatus: "not_started" as const,
+    speed: "normal" as const,
+    hinting: true,
+    defaultDepth: "working" as const,
+    strictOrder: false,
+    preAssessmentCompletedAt: null,
+  };
+
+  await getDb().insert(curricula).values(row);
+
+  return toCurriculum(row, "sources");
+}
+
+export async function getStructureTurns(curriculumId: string): Promise<StructureTurn[]> {
+  const db = getDb();
+
+  const [rows, candidateRows] = await Promise.all([
+    db
+      .select()
+      .from(curriculumStructureTurns)
+      .where(eq(curriculumStructureTurns.curriculumId, curriculumId))
+      .orderBy(asc(curriculumStructureTurns.order)),
+    db
+      .select()
+      .from(structureResearchCandidates)
+      .where(
+        and(
+          eq(structureResearchCandidates.curriculumId, curriculumId),
+          eq(structureResearchCandidates.approvalStatus, "pending"),
+        ),
+      ),
+  ]);
+
+  const pendingByTurnId = new Map<string, StructureResearchCandidate[]>();
+
+  for (const row of candidateRows) {
+    if (!row.structureTurnId) {
+      continue;
+    }
+
+    const list = pendingByTurnId.get(row.structureTurnId) ?? [];
+
+    list.push(toResearchCandidate(row));
+    pendingByTurnId.set(row.structureTurnId, list);
+  }
+
+  return rows.map((row) => toStructureTurn(row, pendingByTurnId.get(row.id) ?? []));
+}
+
+/**
+ * Persists one batch of SUPPLEMENTAL (research-gap-triggered) trusted-source
+ * candidates against the assistant turn that surfaced them — held here for
+ * explicit learner approval before `resolveSupplementalResearch` ever hands
+ * them to the structure-editor agent. `label` is the joined gap-label string
+ * for the whole batch (the underlying `gatherTrustedSourceCandidates` call
+ * runs once across every flagged label together, so per-candidate
+ * attribution to a single label isn't recoverable from its result).
+ */
+export async function insertStructureResearchCandidates(
+  curriculumId: string,
+  structureTurnId: string,
+  label: string,
+  candidates: { url: string; title: string }[],
+): Promise<void> {
+  if (candidates.length === 0) {
+    return;
+  }
+
+  await getDb()
+    .insert(structureResearchCandidates)
+    .values(
+      candidates.map((c) => ({
+        id: newId("resc"),
+        curriculumId,
+        structureTurnId,
+        label,
+        title: c.title,
+        value: c.url,
+      })),
+    );
+}
+
+/**
+ * The most recently surfaced batch of still-`pending` supplemental research
+ * candidates for a curriculum — identified by whichever `structureTurnId`
+ * owns the freshest pending row, since batches from an earlier, un-resolved
+ * research request (the learner ignored it and kept chatting) may still
+ * have rows sitting at `pending` alongside a newer batch. Used by
+ * `resolveSupplementalResearch`, which is never told a turn id explicitly.
+ */
+export async function getLatestPendingResearchCandidates(
+  curriculumId: string,
+): Promise<StructureResearchCandidate[]> {
+  const rows = await getDb()
+    .select()
+    .from(structureResearchCandidates)
     .where(
       and(
-        eq(sources.curriculumId, curriculumId),
-        inArray(sources.kind, [...RESEARCH_ORIGIN_SOURCE_KINDS]),
+        eq(structureResearchCandidates.curriculumId, curriculumId),
+        eq(structureResearchCandidates.approvalStatus, "pending"),
       ),
     );
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const latest = rows.reduce((latest, row) =>
+    row.createdAt > latest.createdAt ? row : latest,
+  );
+
+  return rows
+    .filter((row) => row.structureTurnId === latest.structureTurnId)
+    .map(toResearchCandidate);
+}
+
+/**
+ * Finalizes a batch of supplemental research candidates once the learner
+ * resolves them (`resolveSupplementalResearch`) — approved ones feed the
+ * structure-editor prompt as `supplementalSources`, rejected ones are kept
+ * (not deleted) purely as the conversation's own audit trail.
+ */
+export async function setResearchCandidateStatuses(
+  candidateIds: string[],
+  approvalStatus: ResearchCandidateApprovalStatus,
+): Promise<void> {
+  if (candidateIds.length === 0) {
+    return;
+  }
+
+  await getDb()
+    .update(structureResearchCandidates)
+    .set({ approvalStatus })
+    .where(inArray(structureResearchCandidates.id, candidateIds));
+}
+
+function toResearchCandidate(
+  row: typeof structureResearchCandidates.$inferSelect,
+): StructureResearchCandidate {
+  return {
+    id: row.id,
+    label: row.label,
+    title: row.title,
+    value: row.value,
+    approvalStatus: row.approvalStatus as ResearchCandidateApprovalStatus,
+  };
+}
+
+/**
+ * The most recent assistant turn's snapshot — the "current draft" every
+ * regeneration and the confirm step both build from. Skips over the always-
+ * snapshot-less user turns rather than assuming the last row is the one
+ * that matters.
+ */
+export async function getLatestStructureSnapshot(
+  curriculumId: string,
+): Promise<DocResearchPlan | null> {
+  const turns = await getStructureTurns(curriculumId);
+
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    if (turns[i]!.structureSnapshot) {
+      return turns[i]!.structureSnapshot as DocResearchPlan;
+    }
+  }
+
+  return null;
+}
+
+function toStructureTurn(
+  row: typeof curriculumStructureTurns.$inferSelect,
+  pendingResearchCandidates: StructureResearchCandidate[] = [],
+): StructureTurn {
+  return {
+    id: row.id,
+    curriculumId: row.curriculumId,
+    role: row.role as StructureTurnRole,
+    message: row.message,
+    structureSnapshot: (row.structureSnapshot as DocResearchPlan | null) ?? null,
+    splitSuggestion: (row.splitSuggestion as SplitSuggestion | null) ?? null,
+    toolActions: (row.toolActions as string[] | null) ?? [],
+    status: row.status as StructureTurnStatus,
+    pendingResearchCandidates,
+    createdAt: row.createdAt.toISOString(),
+  };
 }
 
 export async function getCurriculumDetail(
@@ -641,12 +1111,23 @@ export async function getCurriculumDetail(
         )
       : [];
 
+  const tagsByNode = await loadTagsByNode([
+    ...moduleRows.map((m) => m.id),
+    ...topicRows.map((t) => t.id),
+  ]);
+
   const assembledModules = buildModules(
     moduleRows,
     topicRows,
     gapRows,
     curriculumRow.strictOrder,
+    tagsByNode,
   );
+
+  const [citableUrls, hasStructureDraftAttempt] = await Promise.all([
+    getCurriculumCitableUrls(curriculumId),
+    hasAnyStructureTurns(curriculumId),
+  ]);
 
   return {
     curriculum: toCurriculum(
@@ -657,6 +1138,8 @@ export async function getCurriculumDetail(
     modules: assembledModules,
     progress: curriculumProgress(assembledModules),
     recommendedTopicId: recommendedTopicId(assembledModules),
+    hasCitableSources: citableUrls.length > 0,
+    hasStructureDraftAttempt,
   };
 }
 
@@ -687,7 +1170,7 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
     const curriculumModules = moduleRows.filter((m) => m.curriculumId === c.id);
     const curriculumTopics = topicRows
       .filter((t) => t.curriculumId === c.id)
-      .map(toTopic);
+      .map((t) => toTopic(t));
 
     const topicsByModuleId = new Map<string, Topic[]>();
 
@@ -790,13 +1273,14 @@ function buildModules(
   topicRows: (typeof topics.$inferSelect)[],
   gapRows: (typeof gaps.$inferSelect)[],
   strictOrder: boolean,
+  tagsByNode: Map<string, TagChip[]> = new Map(),
 ): Module[] {
   return sortForDisplay(moduleRows, strictOrder).map((m) => {
     const moduleTopics = sortForDisplay(
       topicRows.filter((t) => t.moduleId === m.id),
       strictOrder,
     ).map((t) => ({
-      ...toTopic(t),
+      ...toTopic(t, tagsByNode.get(`topic:${t.id}`) ?? []),
       gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
     }));
 
@@ -810,6 +1294,7 @@ function buildModules(
       level: (m.level as Level | null) ?? null,
       topics: moduleTopics,
       progress: moduleProgress(moduleTopics),
+      tags: tagsByNode.get(`module:${m.id}`) ?? [],
     };
   });
 }
@@ -826,6 +1311,7 @@ function toCurriculum(
     hinting: boolean;
     defaultDepth: string;
     strictOrder: boolean;
+    preAssessmentCompletedAt: Date | null;
   },
   origin: CurriculumOrigin,
 ): Curriculum {
@@ -841,6 +1327,9 @@ function toCurriculum(
     defaultDepth: row.defaultDepth as DepthLevel,
     origin,
     strictOrder: row.strictOrder,
+    preAssessmentCompletedAt: row.preAssessmentCompletedAt
+      ? row.preAssessmentCompletedAt.toISOString()
+      : null,
   };
 }
 
@@ -851,10 +1340,11 @@ function toSource(row: typeof sources.$inferSelect): Source {
     kind: row.kind as Source["kind"],
     value: row.value,
     title: row.title ?? undefined,
+    approvalStatus: row.approvalStatus as Source["approvalStatus"],
   };
 }
 
-function toTopic(row: typeof topics.$inferSelect): Topic {
+function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
   return {
     id: row.id,
     moduleId: row.moduleId,
@@ -875,7 +1365,41 @@ function toTopic(row: typeof topics.$inferSelect): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    tags,
   };
+}
+
+/**
+ * Loads every tag attached to a set of module/topic node ids in two batch
+ * queries (assignments, then the tag rows they point at) and returns a
+ * lookup keyed by `${nodeType}:${nodeId}` — used by `getCurriculumDetail` so
+ * `Module.tags`/`Topic.tags` never cost an extra query per node.
+ */
+async function loadTagsByNode(nodeIds: string[]): Promise<Map<string, TagChip[]>> {
+  const assignments = await listAssignmentsForNodes(nodeIds);
+
+  if (assignments.length === 0) {
+    return new Map();
+  }
+
+  const tagById = await getTagsByIds(assignments.map((a) => a.tagId));
+  const byNode = new Map<string, TagChip[]>();
+
+  for (const assignment of assignments) {
+    const tag = tagById.get(assignment.tagId);
+
+    if (!tag) {
+      continue;
+    }
+
+    const key = `${assignment.nodeType}:${assignment.nodeId}`;
+    const list = byNode.get(key) ?? [];
+
+    list.push({ ...tag, assignmentId: assignment.id });
+    byNode.set(key, list);
+  }
+
+  return byNode;
 }
 
 export function toGap(row: typeof gaps.$inferSelect): Gap {

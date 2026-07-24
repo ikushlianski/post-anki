@@ -126,3 +126,175 @@ export function buildResearchPrompt(
 
   return lines.join("\n");
 }
+
+export interface TrustedSourceRef {
+  url: string;
+  title: string;
+}
+
+function trustedSourcesBlock(candidates: TrustedSourceRef[]): string {
+  if (candidates.length === 0) {
+    return "(the trusted-source web search for this stage returned nothing usable)";
+  }
+
+  return candidates.map((c) => `- ${c.title} — ${c.url}`).join("\n");
+}
+
+interface SnapshotOutlineTopic {
+  title: string;
+}
+
+interface SnapshotOutlineModule {
+  title: string;
+  level: string;
+  topics: SnapshotOutlineTopic[];
+}
+
+interface SnapshotOutline {
+  modules: SnapshotOutlineModule[];
+}
+
+function snapshotOutline(snapshot: SnapshotOutline | null): string {
+  if (!snapshot || snapshot.modules.length === 0) {
+    return "(no draft yet)";
+  }
+
+  return snapshot.modules
+    .map((m) => {
+      const topics = m.topics.map((t) => `    - ${t.title}`).join("\n");
+      const header = `- [${m.level}] ${m.title}`;
+
+      return topics.length > 0 ? `${header}\n${topics}` : header;
+    })
+    .join("\n");
+}
+
+export interface StructureTurnRef {
+  role: "user" | "assistant";
+  message: string;
+}
+
+function turnHistoryBlock(turns: StructureTurnRef[]): string {
+  if (turns.length === 0) {
+    return "(no conversation yet)";
+  }
+
+  return turns
+    .map((t) => `${t.role === "user" ? "Learner" : "Mentor"}: ${t.message}`)
+    .join("\n");
+}
+
+/**
+ * The first architect-agent call in structure shaping (Phase 5) — used both
+ * for the bare-name/docUrl path (once sources are approved) and the pasted-
+ * material path (immediately). Always preceded by a trusted-source web
+ * search, per the plan's "at every stage of curriculum shaping" requirement.
+ */
+export function buildStructureDraftPrompt(
+  ctx: PromptContext,
+  sourceText: string,
+  trustedSources: TrustedSourceRef[],
+): string {
+  return [
+    ...contextHeader(ctx),
+    "",
+    "Approved source material gathered so far:",
+    sourceText.length > 0
+      ? sourceText
+      : "(no approved source material — rely on your own trained knowledge)",
+    "",
+    "Trusted-source web search run for this stage (official docs, established company engineering blogs, and research papers):",
+    trustedSourcesBlock(trustedSources),
+    "",
+    "Propose a FIRST DRAFT of the full learning map for this curriculum, following the two-step reasoning from your instructions: first the general topics (modules), then the subtopics within each.",
+  ].join("\n");
+}
+
+/**
+ * Every subsequent chat turn, now sent to the TOOL-CALLING structure-editor
+ * agent (Phase 5's tool-calling structure editor) rather than requesting a
+ * fresh structured-output regeneration directly — Mastra's structured
+ * output and tool-calling don't compose on the same call, and the whole
+ * point of the tool set is that the agent picks a targeted edit instead of
+ * silently rebuilding everything. Includes the current draft verbatim, the
+ * full conversation so far, and a live study-time estimate so the agent can
+ * judge for itself whether a `suggestSplitIntoCourses` call is warranted.
+ */
+export function buildStructureToolTurnPrompt(
+  ctx: PromptContext,
+  sourceText: string,
+  trustedSources: TrustedSourceRef[],
+  turns: StructureTurnRef[],
+  currentSnapshot: SnapshotOutline,
+  studyTimeSummary: string,
+  options?: { researchGapLabels?: string[]; supplementalSources?: TrustedSourceRef[] },
+): string {
+  const lines = [
+    ...contextHeader(ctx),
+    "",
+    "Approved source material gathered so far:",
+    sourceText.length > 0
+      ? sourceText
+      : "(no approved source material — rely on your own trained knowledge)",
+    "",
+    "Trusted-source web search run for this stage (official docs, established company engineering blogs, and research papers):",
+    trustedSourcesBlock(trustedSources),
+  ];
+
+  const gapLabels = options?.researchGapLabels ?? [];
+
+  if (gapLabels.length > 0) {
+    lines.push(
+      "",
+      `Supplemental trusted-source research requested for these flagged items: ${gapLabels.join(", ")}`,
+      trustedSourcesBlock(options?.supplementalSources ?? []),
+    );
+  }
+
+  lines.push(
+    "",
+    "The CURRENT draft structure:",
+    snapshotOutline(currentSnapshot),
+    "",
+    `Estimated study time for the current draft: ${studyTimeSummary}`,
+    "",
+    "Conversation so far:",
+    turnHistoryBlock(turns),
+    "",
+    "Use your tools to make the edit(s) the learner's latest message above asks for, then reply with a short, plain summary of what you did.",
+  );
+
+  return lines.join("\n");
+}
+
+/**
+ * The `regenerateStructure` tool's own internal call — a narrower,
+ * single-instruction version of a full regeneration, used as a fallback
+ * when none of the structural edit tools fit the learner's request.
+ */
+export function buildStructureGuidedRegenPrompt(
+  ctx: PromptContext,
+  sourceText: string,
+  trustedSources: TrustedSourceRef[],
+  currentSnapshot: SnapshotOutline,
+  guidance: string,
+): string {
+  return [
+    ...contextHeader(ctx),
+    "",
+    "Approved source material gathered so far:",
+    sourceText.length > 0
+      ? sourceText
+      : "(no approved source material — rely on your own trained knowledge)",
+    "",
+    "Trusted-source web search run for this stage (official docs, established company engineering blogs, and research papers):",
+    trustedSourcesBlock(trustedSources),
+    "",
+    "The CURRENT draft structure — revise it, do not start over from nothing:",
+    snapshotOutline(currentSnapshot),
+    "",
+    `Guidance for this revision: ${guidance}`,
+    "",
+    "Produce a REVISED full structure that directly addresses the guidance above. Keep what still makes sense as-is; change only what the guidance asks for.",
+  ].join("\n");
+}

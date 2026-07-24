@@ -8,9 +8,17 @@ export type RouteName =
   | "updateCurriculum"
   | "deleteCurriculum"
   | "confirmCurriculum"
+  | "completePreAssessment"
   | "addSources"
   | "reparse"
   | "retryResearch"
+  | "retryDraftStructure"
+  | "approveSources"
+  | "getStructureTurns"
+  | "submitStructureTurn"
+  | "resolveSupplementalResearch"
+  | "confirmStructure"
+  | "deleteSource"
   | "reorderModules"
   | "createModule"
   | "reorderTopics"
@@ -36,13 +44,18 @@ export type RouteName =
   | "crossCutting"
   | "getAdminSettings"
   | "updateAdminSettings"
+  | "getAdminObservability"
   | "submitProbeQuestionFeedback"
   | "submitSocraticTurnFeedback"
   | "askStudyChat"
   | "getCurriculumStats"
   | "generateRecommendations"
   | "getStreak"
-  | "getElectricShape";
+  | "getElectricShape"
+  | "listTags"
+  | "createTag"
+  | "assignTag"
+  | "removeTagAssignment";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -54,6 +67,7 @@ interface RouteDef {
   pattern: string | RegExp;
   name: RouteName;
   param?: string;
+  params?: string[];
 }
 
 const ROUTES: RouteDef[] = [
@@ -63,9 +77,17 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/curricula", name: "listCurricula" },
   { method: "POST", pattern: "/curricula", name: "createCurriculum" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/confirm$/, name: "confirmCurriculum", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/complete-pre-assessment$/, name: "completePreAssessment", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/sources$/, name: "addSources", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/reparse$/, name: "reparse", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/retry-research$/, name: "retryResearch", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/retry-structure-draft$/, name: "retryDraftStructure", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/approve-sources$/, name: "approveSources", param: "id" },
+  { method: "GET", pattern: /^\/curricula\/([^/]+)\/structure-turns$/, name: "getStructureTurns", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/structure-turns$/, name: "submitStructureTurn", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/resolve-research-candidates$/, name: "resolveSupplementalResearch", param: "id" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/confirm-structure$/, name: "confirmStructure", param: "id" },
+  { method: "DELETE", pattern: /^\/sources\/([^/]+)$/, name: "deleteSource", param: "id" },
   { method: "PATCH", pattern: /^\/curricula\/([^/]+)\/modules\/order$/, name: "reorderModules", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/modules$/, name: "createModule", param: "id" },
   { method: "GET", pattern: /^\/curricula\/([^/]+)$/, name: "getCurriculum", param: "id" },
@@ -94,6 +116,7 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/cross-cutting", name: "crossCutting" },
   { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
   { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },
+  { method: "GET", pattern: "/admin/observability", name: "getAdminObservability" },
   {
     method: "POST",
     pattern: /^\/probe-session-questions\/([^/]+)\/feedback$/,
@@ -126,6 +149,20 @@ const ROUTES: RouteDef[] = [
   },
   { method: "GET", pattern: "/streak", name: "getStreak" },
   { method: "GET", pattern: "/electric/v1/shape", name: "getElectricShape" },
+  { method: "GET", pattern: "/tags", name: "listTags" },
+  { method: "POST", pattern: "/tags", name: "createTag" },
+  {
+    method: "POST",
+    pattern: /^\/tags\/([^/]+)\/assignments$/,
+    name: "assignTag",
+    param: "id",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/tags\/([^/]+)\/assignments\/([^/]+)$/,
+    name: "removeTagAssignment",
+    params: ["id", "assignmentId"],
+  },
 ];
 
 export function resolveRoute(method: string, path: string): ResolvedRoute | null {
@@ -145,6 +182,16 @@ export function resolveRoute(method: string, path: string): ResolvedRoute | null
     const match = path.match(def.pattern);
 
     if (match) {
+      if (def.params) {
+        const params: Record<string, string> = {};
+
+        def.params.forEach((name, i) => {
+          params[name] = match[i + 1]!;
+        });
+
+        return { name: def.name, params };
+      }
+
       return { name: def.name, params: { [def.param!]: match[1]! } };
     }
   }

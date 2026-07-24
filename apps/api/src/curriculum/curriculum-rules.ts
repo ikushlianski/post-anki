@@ -127,6 +127,13 @@ export function shouldIncludeTopicByDefault(
   return moduleLevel === preferredLevel;
 }
 
+export function isApproveSourcesBlocked(
+  approvableSourceCount: number,
+  override: boolean,
+): boolean {
+  return approvableSourceCount === 0 && !override;
+}
+
 export function isDocUrlAndResearchTopicConflict(
   docUrl: string | null | undefined,
   researchTopic: string | null | undefined,
@@ -135,6 +142,24 @@ export function isDocUrlAndResearchTopicConflict(
     Boolean(docUrl && docUrl.trim().length > 0) &&
     Boolean(researchTopic && researchTopic.trim().length > 0)
   );
+}
+
+function hasPastedMaterial(pastedMaterial: string | null | undefined): boolean {
+  return Boolean(pastedMaterial && pastedMaterial.trim().length > 0);
+}
+
+export function isPastedMaterialAndResearchConflict(
+  pastedMaterial: string | null | undefined,
+  researchTriggered: boolean,
+): boolean {
+  return hasPastedMaterial(pastedMaterial) && researchTriggered;
+}
+
+export function isPastedMaterialAndSourcesConflict(
+  pastedMaterial: string | null | undefined,
+  incomingSourceCount: number,
+): boolean {
+  return hasPastedMaterial(pastedMaterial) && incomingSourceCount > 0;
 }
 
 export interface PriorResearchSource {

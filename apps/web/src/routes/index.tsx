@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
+import { useQuery } from '@tanstack/react-query'
 
 import {
   curriculaCollection,
@@ -9,7 +10,7 @@ import {
   mapSubjectRow,
   subjectsCollection,
 } from '../curriculum/board.collection'
-import { getBoard } from '../curriculum/curriculum.api'
+import { getBoard, listTags } from '../curriculum/curriculum.api'
 import type { Curriculum, Subject } from '../curriculum/model'
 import { CreateSubjectForm } from '../subject/create-subject-form'
 import { SubjectSection } from '../subject/subject-section'
@@ -18,6 +19,38 @@ export const Route = createFileRoute('/')({
   component: Home,
   loader: () => getBoard(),
 })
+
+function TagList() {
+  const { data: tags } = useQuery({
+    queryKey: ['tags'],
+    queryFn: () => listTags(),
+  })
+
+  if (!tags || tags.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="mb-10" data-testid="tag-list">
+      <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+        Cross-cutting tags
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {tags.map((tag) => (
+          <Link
+            key={tag.id}
+            to="/probe/tag/$tagId"
+            params={{ tagId: tag.id }}
+            data-testid={`tag-list-item-${tag.id}`}
+            className="rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700 hover:bg-indigo-100"
+          >
+            #{tag.name}
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function Home() {
   const initial = Route.useLoaderData()
@@ -74,6 +107,8 @@ function Home() {
       <div className="mb-10">
         <CreateSubjectForm />
       </div>
+
+      <TagList />
 
       <div className="space-y-10">
         {subjects.map((subject) => (

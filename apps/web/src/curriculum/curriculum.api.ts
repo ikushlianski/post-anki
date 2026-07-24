@@ -5,14 +5,17 @@ import {
   addModuleCommentInput,
   addSourcesInput,
   addTopicCommentInput,
+  assignTagInput,
   createCurriculumInput,
   createModuleInput,
+  createTagInput,
   createTopicInput,
   curateGapInput,
   decideInput,
   declareGapInput,
   nextQuestionInput,
   recordAttemptInput,
+  removeTagAssignmentInput,
   reorderInput,
   setCurriculumStatusInput,
   setModuleStatusInput,
@@ -29,7 +32,9 @@ import type {
   DecideResult,
   QuestionKind,
   Subject,
+  Tag,
 } from './model'
+import type { StructureTurn } from '@post-anki/shared'
 import * as api from './api-client'
 
 export const getBoard = createServerFn({ method: 'GET' }).handler(
@@ -94,6 +99,54 @@ export const retryResearch = createServerFn({ method: 'POST' })
 
     return null
   })
+
+export const retryDraftStructure = createServerFn({ method: 'POST' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(async ({ data }) => {
+    await api.retryDraftStructure(data)
+
+    return null
+  })
+
+export const approveSources = createServerFn({ method: 'POST' })
+  .inputValidator((data: { curriculumId: string; override?: boolean }) => data)
+  .handler(async ({ data }) => {
+    await api.approveSources(data.curriculumId, data.override ?? false)
+
+    return null
+  })
+
+export const removeSource = createServerFn({ method: 'POST' })
+  .inputValidator((sourceId: string) => z.string().parse(sourceId))
+  .handler(async ({ data }) => {
+    await api.deleteSource(data)
+
+    return null
+  })
+
+export const getStructureTurns = createServerFn({ method: 'GET' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(({ data }): Promise<StructureTurn[]> => api.getStructureTurns(data))
+
+export const submitStructureTurn = createServerFn({ method: 'POST' })
+  .inputValidator(
+    (data: { curriculumId: string; message: string; researchGapLabels?: string[] }) => data,
+  )
+  .handler(
+    ({ data }): Promise<api.SubmitStructureTurnResult> =>
+      api.submitStructureTurn(data.curriculumId, data.message, data.researchGapLabels),
+  )
+
+export const resolveSupplementalResearch = createServerFn({ method: 'POST' })
+  .inputValidator((data: { curriculumId: string; approvedCandidateIds: string[] }) => data)
+  .handler(
+    ({ data }): Promise<api.SubmitStructureTurnResult> =>
+      api.resolveSupplementalResearch(data.curriculumId, data.approvedCandidateIds),
+  )
+
+export const confirmStructure = createServerFn({ method: 'POST' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(({ data }): Promise<Curriculum> => api.confirmStructure(data))
 
 export const getCurriculum = createServerFn({ method: 'GET' })
   .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
@@ -202,6 +255,10 @@ export const confirmCurriculum = createServerFn({ method: 'POST' })
   .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
   .handler(({ data }) => api.confirmCurriculum(data))
 
+export const completePreAssessment = createServerFn({ method: 'POST' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(({ data }) => api.completePreAssessment(data))
+
 export const updateCurriculumSettings = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => updateAdaptiveInput.parse(data))
   .handler(({ data }) =>
@@ -259,3 +316,27 @@ export const getCrossCutting = createServerFn({ method: 'GET' }).handler(
 export const decide = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => decideInput.parse(data))
   .handler(({ data }): Promise<DecideResult> => api.decide(data))
+
+export const listTags = createServerFn({ method: 'GET' }).handler(
+  (): Promise<Tag[]> => api.listTags(),
+)
+
+export const createOrGetTag = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => createTagInput.parse(data))
+  .handler(({ data }): Promise<Tag> => api.createOrGetTag(data.name))
+
+export const assignTag = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => assignTagInput.parse(data))
+  .handler(async ({ data }) => {
+    await api.assignTag(data.tagId, data.nodeType, data.nodeId)
+
+    return null
+  })
+
+export const removeTagAssignment = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => removeTagAssignmentInput.parse(data))
+  .handler(async ({ data }) => {
+    await api.removeTagAssignment(data.tagId, data.assignmentId)
+
+    return null
+  })

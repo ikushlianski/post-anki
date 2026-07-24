@@ -151,6 +151,14 @@ const STATUS_BADGE: Record<CurriculumStatus, { label: string; className: string 
   {
     draft: { label: 'draft', className: 'bg-neutral-100 text-neutral-500' },
     curating: { label: 'parsing…', className: 'bg-blue-100 text-blue-700' },
+    awaiting_source_approval: {
+      label: 'awaiting source approval',
+      className: 'bg-violet-100 text-violet-700',
+    },
+    shaping_structure: {
+      label: 'shaping structure',
+      className: 'bg-indigo-100 text-indigo-700',
+    },
     ready: { label: 'ready to confirm', className: 'bg-amber-100 text-amber-700' },
     confirmed: { label: 'confirmed', className: 'bg-emerald-100 text-emerald-700' },
     failed: { label: 'parse failed', className: 'bg-red-100 text-red-700' },

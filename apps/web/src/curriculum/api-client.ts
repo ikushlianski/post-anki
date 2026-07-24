@@ -15,11 +15,14 @@ import type {
   Gap,
   LearningStatus,
   Module,
+  NodeType,
   Question,
   QuestionKind,
   SourceDraft,
   Speed,
   Subject,
+  Tag,
+  TagChip,
   Topic,
   TopicProgress,
 } from './model'
@@ -43,6 +46,23 @@ export function authHeaders(): Record<string, string> {
   return headers
 }
 
+// Carries the HTTP status and the API's own `error` code (e.g.
+// `not_shaping_structure`, `turn_in_progress`) alongside the usual `Error`
+// shape, so a caller that needs to distinguish specific error responses
+// (rather than treat every failure generically) can — see
+// `submitStructureTurn` below for the one caller that currently does.
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string | undefined
+
+  constructor(status: number, code: string | undefined, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+  }
+}
+
 async function request<T>(
   path: string,
   init?: { method?: string; body?: unknown },
@@ -60,7 +80,17 @@ async function request<T>(
   })
 
   if (!response.ok) {
-    throw new Error(`api ${init?.method ?? 'GET'} ${path} → ${response.status}`)
+    const code = await response
+      .clone()
+      .json()
+      .then((body: { error?: string }) => body.error)
+      .catch(() => undefined)
+
+    throw new ApiError(
+      response.status,
+      code,
+      `api ${init?.method ?? 'GET'} ${path} → ${response.status}`,
+    )
   }
 
   return (await response.json()) as T
@@ -111,6 +141,23 @@ function mapProgress(
   }
 }
 
+function mapTag(tag: be.Tag): Tag {
+  return {
+    id: tag.id,
+    name: tag.name,
+    normalizedName: tag.normalizedName,
+  }
+}
+
+function mapTagChip(tag: be.TagChip): TagChip {
+  return {
+    id: tag.id,
+    name: tag.name,
+    normalizedName: tag.normalizedName,
+    assignmentId: tag.assignmentId,
+  }
+}
+
 function mapTopic(topic: be.Topic): Topic {
   const gaps = (topic.gaps ?? []).map(mapGap)
   const gapsCovered = gaps.filter((gap) => gap.status === 'covered').length
@@ -128,6 +175,7 @@ function mapTopic(topic: be.Topic): Topic {
     learningStatus: topic.learningStatus,
     gaps,
     progress: mapProgress(topic.progress, gaps.length, gapsCovered),
+    tags: (topic.tags ?? []).map(mapTagChip),
   }
 }
 
@@ -142,12 +190,15 @@ function mapModule(module: be.Module): Module {
     level: module.level,
     topics: module.topics.map(mapTopic),
     progress: module.progress,
+    tags: (module.tags ?? []).map(mapTagChip),
   }
 }
 
 const STATUS_FROM_BE: Record<string, CurriculumStatus> = {
   draft: 'draft',
   curating: 'curating',
+  awaiting_source_approval: 'awaiting_source_approval',
+  shaping_structure: 'shaping_structure',
   ready: 'ready',
   confirmed: 'confirmed',
   failed: 'failed',
@@ -166,6 +217,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     defaultDepth: mapDepth(curriculum.defaultDepth),
     origin: curriculum.origin,
     strictOrder: curriculum.strictOrder,
+    preAssessmentCompletedAt: curriculum.preAssessmentCompletedAt,
   }
 }
 
@@ -222,6 +274,8 @@ export async function getCurriculumDetail(
       modules: detail.modules.map(mapModule),
       progress: detail.progress,
       recommendedTopicId: detail.recommendedTopicId,
+      hasCitableSources: detail.hasCitableSources,
+      hasStructureDraftAttempt: detail.hasStructureDraftAttempt,
     }
   } catch {
     return null
@@ -284,6 +338,17 @@ export async function confirmCurriculum(
   return mapCurriculum(confirmed)
 }
 
+export async function completePreAssessment(
+  curriculumId: string,
+): Promise<Curriculum> {
+  const updated = await request<be.Curriculum>(
+    `/curricula/${curriculumId}/complete-pre-assessment`,
+    { method: 'POST' },
+  )
+
+  return mapCurriculum(updated)
+}
+
 export async function deleteCurriculum(curriculumId: string): Promise<void> {
   await request(`/curricula/${curriculumId}`, { method: 'DELETE' })
 }
@@ -304,6 +369,101 @@ export async function reparseCurriculum(curriculumId: string): Promise<void> {
 
 export async function retryResearch(curriculumId: string): Promise<void> {
   await request(`/curricula/${curriculumId}/retry-research`, { method: 'POST' })
+}
+
+export async function retryDraftStructure(curriculumId: string): Promise<void> {
+  await request(`/curricula/${curriculumId}/retry-structure-draft`, { method: 'POST' })
+}
+
+export async function approveSources(
+  curriculumId: string,
+  override: boolean,
+): Promise<void> {
+  await request(`/curricula/${curriculumId}/approve-sources`, {
+    method: 'POST',
+    body: { override },
+  })
+}
+
+export async function deleteSource(sourceId: string): Promise<void> {
+  await request(`/sources/${sourceId}`, { method: 'DELETE' })
+}
+
+export async function getStructureTurns(curriculumId: string): Promise<be.StructureTurn[]> {
+  return request<be.StructureTurn[]>(`/curricula/${curriculumId}/structure-turns`)
+}
+
+export type SubmitStructureTurnResult =
+  | { ok: true; turns: be.StructureTurn[] }
+  | { ok: false; code: 'turn_in_progress' | 'turn_limit_reached' }
+
+const STRUCTURE_TURN_GUARD_CODES = new Set(['turn_in_progress', 'turn_limit_reached'])
+
+export async function submitStructureTurn(
+  curriculumId: string,
+  message: string,
+  researchGapLabels?: string[],
+): Promise<SubmitStructureTurnResult> {
+  try {
+    const turns = await request<be.StructureTurn[]>(
+      `/curricula/${curriculumId}/structure-turns`,
+      { method: 'POST', body: { message, researchGapLabels } },
+    )
+
+    return { ok: true, turns }
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      err.status === 409 &&
+      err.code !== undefined &&
+      STRUCTURE_TURN_GUARD_CODES.has(err.code)
+    ) {
+      return { ok: false, code: err.code as 'turn_in_progress' | 'turn_limit_reached' }
+    }
+
+    throw err
+  }
+}
+
+/**
+ * Step 2 of the supplemental-research review gate: the learner's
+ * approve/reject decision on candidates a prior `submitStructureTurn` call
+ * surfaced (see that turn's `pendingResearchCandidates`). Re-enters the same
+ * `turn_in_progress`/`turn_limit_reached` guards `submitStructureTurn` does,
+ * so it shares that function's result shape and guard-translation logic.
+ */
+export async function resolveSupplementalResearch(
+  curriculumId: string,
+  approvedCandidateIds: string[],
+): Promise<SubmitStructureTurnResult> {
+  try {
+    const turns = await request<be.StructureTurn[]>(
+      `/curricula/${curriculumId}/resolve-research-candidates`,
+      { method: 'POST', body: { approvedCandidateIds } },
+    )
+
+    return { ok: true, turns }
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      err.status === 409 &&
+      err.code !== undefined &&
+      STRUCTURE_TURN_GUARD_CODES.has(err.code)
+    ) {
+      return { ok: false, code: err.code as 'turn_in_progress' | 'turn_limit_reached' }
+    }
+
+    throw err
+  }
+}
+
+export async function confirmStructure(curriculumId: string): Promise<Curriculum> {
+  const confirmed = await request<be.Curriculum>(
+    `/curricula/${curriculumId}/confirm-structure`,
+    { method: 'POST' },
+  )
+
+  return mapCurriculum(confirmed)
 }
 
 export async function setModuleLearningStatus(
@@ -751,6 +911,36 @@ export async function getStreak(): Promise<be.Streak | null> {
   }
 }
 
+export async function listTags(): Promise<Tag[]> {
+  const rows = await request<be.Tag[]>('/tags')
+
+  return rows.map(mapTag)
+}
+
+export async function createOrGetTag(name: string): Promise<Tag> {
+  const tag = await request<be.Tag>('/tags', { method: 'POST', body: { name } })
+
+  return mapTag(tag)
+}
+
+export async function assignTag(
+  tagId: string,
+  nodeType: NodeType,
+  nodeId: string,
+): Promise<void> {
+  await request(`/tags/${tagId}/assignments`, {
+    method: 'POST',
+    body: { nodeType, nodeId },
+  })
+}
+
+export async function removeTagAssignment(
+  tagId: string,
+  assignmentId: string,
+): Promise<void> {
+  await request(`/tags/${tagId}/assignments/${assignmentId}`, { method: 'DELETE' })
+}
+
 export async function getAdminSettings(): Promise<be.AdminSettings> {
   return request<be.AdminSettings>('/admin/settings')
 }
@@ -762,4 +952,8 @@ export async function updateAdminSettings(
     method: 'PATCH',
     body: input,
   })
+}
+
+export async function getAdminObservability(): Promise<be.AdminObservability> {
+  return request<be.AdminObservability>('/admin/observability')
 }

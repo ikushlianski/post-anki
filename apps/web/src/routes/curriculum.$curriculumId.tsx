@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 
 import type { Source } from '../curriculum/model'
 import { createModule } from '../curriculum/curriculum.api'
-import { curriculumDetailQuery } from '../curriculum/curriculum.queries'
+import { curriculumDetailQuery, structureTurnsQuery } from '../curriculum/curriculum.queries'
+import { needsPreAssessment } from '../curriculum/pre-assessment'
 import { AddSourcesForm } from '../curriculum/add-sources-form'
+import { SourceApprovalPanel } from '../curriculum/source-approval-panel'
+import { CurriculumStructureChat } from '../curriculum/curriculum-structure-chat'
 import {
   ConfirmBar,
   CuratingBanner,
@@ -18,10 +21,24 @@ import { AdaptiveSettings } from '../curriculum/adaptive-settings'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
-  loader: ({ params, context }) =>
-    context.queryClient.ensureQueryData(
+  loader: async ({ params, context }) => {
+    const detail = await context.queryClient.ensureQueryData(
       curriculumDetailQuery(params.curriculumId),
-    ),
+    )
+
+    if (detail && needsPreAssessment(detail.curriculum)) {
+      throw redirect({
+        to: '/curriculum/$curriculumId/assess',
+        params: { curriculumId: params.curriculumId },
+      })
+    }
+
+    if (detail && detail.curriculum.status === 'shaping_structure') {
+      await context.queryClient.ensureQueryData(structureTurnsQuery(params.curriculumId))
+    }
+
+    return detail
+  },
 })
 
 function CurriculumPage() {
@@ -45,6 +62,9 @@ function CurriculumPage() {
     curriculum.status === 'ready' || curriculum.status === 'confirmed'
   const isCurating =
     curriculum.status === 'curating' || curriculum.status === 'draft'
+  const isAwaitingSourceApproval = curriculum.status === 'awaiting_source_approval'
+  const isShapingStructure = curriculum.status === 'shaping_structure'
+  const approvedSources = sources.filter((source) => source.approvalStatus === 'approved')
   const moduleOrder = modules.map((module) => module.id)
   const allModules = modules.map((module) => ({
     id: module.id,
@@ -117,24 +137,34 @@ function CurriculumPage() {
         </div>
       ) : null}
 
-      <section className="mb-8">
-        <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-          Sources
-        </h2>
-        <ul className="space-y-1 text-sm">
-          {sources.map((source) => (
-            <SourceRow key={source.id} source={source} />
-          ))}
-        </ul>
-        <div className="mt-2">
-          <AddSourcesForm curriculumId={curriculum.id} />
-        </div>
-      </section>
+      {!isAwaitingSourceApproval && !isShapingStructure ? (
+        <section className="mb-8">
+          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Sources
+          </h2>
+          <ul className="space-y-1 text-sm">
+            {approvedSources.map((source) => (
+              <SourceRow key={source.id} source={source} />
+            ))}
+          </ul>
+          <div className="mt-2">
+            <AddSourcesForm curriculumId={curriculum.id} />
+          </div>
+        </section>
+      ) : null}
 
-      {isCurating ? (
+      {isAwaitingSourceApproval ? (
+        <SourceApprovalPanel curriculumId={curriculum.id} sources={sources} />
+      ) : isShapingStructure ? (
+        <CurriculumStructureChat curriculumId={curriculum.id} />
+      ) : isCurating ? (
         <CuratingBanner />
       ) : curriculum.status === 'failed' ? (
-        <FailedBanner curriculumId={curriculum.id} origin={curriculum.origin} />
+        <FailedBanner
+          curriculumId={curriculum.id}
+          origin={curriculum.origin}
+          hasStructureDraftAttempt={detail.hasStructureDraftAttempt}
+        />
       ) : (
         <>
           {curriculum.status === 'ready' ? (

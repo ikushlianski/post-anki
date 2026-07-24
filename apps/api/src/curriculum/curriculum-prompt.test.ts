@@ -3,6 +3,9 @@ import {
   buildParsePrompt,
   buildMergePrompt,
   buildResearchPrompt,
+  buildStructureDraftPrompt,
+  buildStructureGuidedRegenPrompt,
+  buildStructureToolTurnPrompt,
   type PromptContext,
 } from "./curriculum-prompt.js";
 
@@ -158,5 +161,99 @@ describe("buildResearchPrompt", () => {
 
       expect(prompt.toLowerCase()).not.toContain("fuller");
     });
+  });
+});
+
+describe("buildStructureDraftPrompt", () => {
+  it("includes source text and trusted-source candidates with their urls", () => {
+    const prompt = buildStructureDraftPrompt(FULL_CONTEXT, "pasted grounding text", [
+      { url: "https://docs.example.com", title: "Example docs" },
+    ]);
+
+    expect(prompt).toContain("pasted grounding text");
+    expect(prompt).toContain("https://docs.example.com");
+    expect(prompt).toContain("Example docs");
+    expect(prompt.toLowerCase()).toContain("first draft");
+  });
+
+  describe("no trusted sources found", () => {
+    it("says so instead of rendering an empty list", () => {
+      const prompt = buildStructureDraftPrompt(FULL_CONTEXT, "", []);
+
+      expect(prompt.toLowerCase()).toContain("nothing usable");
+    });
+  });
+});
+
+const SNAPSHOT = {
+  modules: [
+    { title: "Introduction", level: "basic", topics: [{ title: "Overview" }] },
+    { title: "Security", level: "medium", topics: [] },
+  ],
+};
+
+describe("buildStructureToolTurnPrompt", () => {
+  it("renders the current draft, turn history, and the study-time summary", () => {
+    const prompt = buildStructureToolTurnPrompt(
+      FULL_CONTEXT,
+      "source text",
+      [{ url: "https://docs.example.com", title: "Example docs" }],
+      [
+        { role: "assistant", message: "Here's a first draft." },
+        { role: "user", message: "Merge Introduction and Security." },
+      ],
+      SNAPSHOT,
+      "roughly 2 week(s) — 1 topics across 2 modules (target: 4-8 weeks)",
+    );
+
+    expect(prompt).toContain("Introduction");
+    expect(prompt).toContain("Security");
+    expect(prompt).toContain("Merge Introduction and Security.");
+    expect(prompt).toContain("roughly 2 week(s)");
+    expect(prompt.toLowerCase()).toContain("use your tools");
+  });
+
+  describe("with flagged research-gap labels", () => {
+    it("includes the flagged labels and the supplemental sources found for them", () => {
+      const prompt = buildStructureToolTurnPrompt(
+        FULL_CONTEXT,
+        "source text",
+        [],
+        [],
+        SNAPSHOT,
+        "roughly 2 week(s)",
+        {
+          researchGapLabels: ["Security"],
+          supplementalSources: [{ url: "https://blog.example.com/security", title: "Security blog post" }],
+        },
+      );
+
+      expect(prompt).toContain("Security");
+      expect(prompt).toContain("https://blog.example.com/security");
+    });
+  });
+
+  describe("with no flagged labels", () => {
+    it("does not mention supplemental research at all", () => {
+      const prompt = buildStructureToolTurnPrompt(FULL_CONTEXT, "source text", [], [], SNAPSHOT, "roughly 2 week(s)");
+
+      expect(prompt.toLowerCase()).not.toContain("supplemental");
+    });
+  });
+});
+
+describe("buildStructureGuidedRegenPrompt", () => {
+  it("includes the current draft and the specific guidance for this revision", () => {
+    const prompt = buildStructureGuidedRegenPrompt(
+      FULL_CONTEXT,
+      "source text",
+      [],
+      SNAPSHOT,
+      "Add more depth to the security topics.",
+    );
+
+    expect(prompt).toContain("Introduction");
+    expect(prompt).toContain("Add more depth to the security topics.");
+    expect(prompt.toLowerCase()).toContain("revised full structure");
   });
 });

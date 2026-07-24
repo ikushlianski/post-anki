@@ -9,13 +9,21 @@ import {
 } from "./subject/subject.controller.js";
 import {
   handleAddSources,
+  handleApproveSources,
+  handleCompletePreAssessment,
   handleConfirmCurriculum,
+  handleConfirmStructure,
   handleCreateCurriculum,
   handleDeleteCurriculum,
+  handleDeleteSource,
   handleGetCurriculum,
+  handleGetStructureTurns,
   handleListCurricula,
   handleReparse,
+  handleResolveSupplementalResearch,
+  handleRetryDraftStructure,
   handleRetryResearch,
+  handleSubmitStructureTurn,
   handleUpdateCurriculum,
 } from "./curriculum/curriculum.controller.js";
 import {
@@ -56,6 +64,7 @@ import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
+import { handleGetAdminObservability } from "./admin-observability/admin-observability.controller.js";
 import {
   handleSubmitProbeQuestionFeedback,
   handleSubmitSocraticTurnFeedback,
@@ -67,6 +76,12 @@ import {
 } from "./stats/stats.controller.js";
 import { handleGetStreak } from "./streak/streak.controller.js";
 import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
+import {
+  handleAssignTag,
+  handleCreateTag,
+  handleListTags,
+  handleRemoveTagAssignment,
+} from "./tag/tag.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -140,12 +155,28 @@ async function route(
       return handleDeleteCurriculum(res, id);
     case "confirmCurriculum":
       return handleConfirmCurriculum(res, id);
+    case "completePreAssessment":
+      return handleCompletePreAssessment(res, id);
     case "addSources":
       return handleAddSources(req, res, id);
     case "reparse":
       return handleReparse(res, id);
     case "retryResearch":
       return handleRetryResearch(res, id);
+    case "retryDraftStructure":
+      return handleRetryDraftStructure(res, id);
+    case "approveSources":
+      return handleApproveSources(req, res, id);
+    case "getStructureTurns":
+      return handleGetStructureTurns(res, id);
+    case "submitStructureTurn":
+      return handleSubmitStructureTurn(req, res, id);
+    case "resolveSupplementalResearch":
+      return handleResolveSupplementalResearch(req, res, id);
+    case "confirmStructure":
+      return handleConfirmStructure(res, id);
+    case "deleteSource":
+      return handleDeleteSource(res, id);
     case "reorderModules":
       return handleReorderModules(req, res);
     case "createModule":
@@ -200,6 +231,8 @@ async function route(
       return handleGetAdminSettings(res);
     case "updateAdminSettings":
       return handleUpdateAdminSettings(req, res);
+    case "getAdminObservability":
+      return handleGetAdminObservability(res);
     case "submitProbeQuestionFeedback":
       return handleSubmitProbeQuestionFeedback(req, res, id);
     case "submitSocraticTurnFeedback":
@@ -214,6 +247,14 @@ async function route(
       return handleGetStreak(res);
     case "getElectricShape":
       return handleGetElectricShape(res, url.search);
+    case "listTags":
+      return handleListTags(res);
+    case "createTag":
+      return handleCreateTag(req, res);
+    case "assignTag":
+      return handleAssignTag(req, res, id);
+    case "removeTagAssignment":
+      return handleRemoveTagAssignment(res, id, resolved.params.assignmentId ?? "");
   }
 }
 

@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 
 import type { CurriculumOrigin } from './model'
-import { confirmCurriculum, reparseCurriculum, retryResearch } from './curriculum.api'
+import {
+  confirmCurriculum,
+  reparseCurriculum,
+  retryDraftStructure,
+  retryResearch,
+} from './curriculum.api'
+import { needsPreAssessment } from './pre-assessment'
 
 export function CuratingBanner() {
   const router = useRouter()
@@ -31,9 +37,11 @@ export function CuratingBanner() {
 export function FailedBanner({
   curriculumId,
   origin,
+  hasStructureDraftAttempt,
 }: {
   curriculumId: string
   origin: CurriculumOrigin
+  hasStructureDraftAttempt: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -49,6 +57,42 @@ export function FailedBanner({
 
     setBusy(false)
     await router.invalidate()
+  }
+
+  async function retryDraft() {
+    setBusy(true)
+    await retryDraftStructure({ data: curriculumId })
+    setBusy(false)
+    await router.invalidate()
+  }
+
+  // A Phase 5 draft-generation failure (`generateDraftStructure`) — a real,
+  // separate failure point from the legacy research/parse paths below, and
+  // one those legacy retry actions were never built to recover from (they'd
+  // needlessly throw away already-approved sources or pasted material).
+  // Takes priority over the origin-based branches: a pasted-material
+  // curriculum resolves to origin "sources" but still fails via
+  // `generateDraftStructure`, not `reparseCurriculum`.
+  if (hasStructureDraftAttempt) {
+    return (
+      <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 text-center">
+        <p className="text-sm font-medium text-amber-800">
+          The mentor couldn’t draft a structure for this course.
+        </p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-amber-700">
+          The web search or the drafting step may have failed.
+        </p>
+        <button
+          type="button"
+          onClick={retryDraft}
+          disabled={busy}
+          data-testid="retry-structure-draft"
+          className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {busy ? 'Retrying…' : 'Retry drafting'}
+        </button>
+      </div>
+    )
   }
 
   if (origin === 'research') {
@@ -102,12 +146,28 @@ export function ConfirmBar({
   studyable: boolean
 }) {
   const router = useRouter()
+  const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
 
   async function confirm() {
     setBusy(true)
-    await confirmCurriculum({ data: curriculumId })
+    const confirmed = await confirmCurriculum({ data: curriculumId })
     setBusy(false)
+
+    if (needsPreAssessment(confirmed)) {
+      // Confirming is the moment status flips to "confirmed" — send the
+      // learner straight to the one-time pre-assessment screen instead of
+      // relying on router.invalidate() to re-run the loader here, since a
+      // same-route invalidate does not turn a loader's thrown redirect()
+      // into an actual client-side navigation (verified directly: the
+      // confirm call succeeds and the DB updates, but the URL never moves).
+      await navigate({
+        to: '/curriculum/$curriculumId/assess',
+        params: { curriculumId },
+      })
+      return
+    }
+
     await router.invalidate()
   }
 

@@ -30,6 +30,16 @@ const INSTRUCTIONS = [
   "- Do NOT generate gaps, quizzes, or discussion questions. Those emerge later, during learning.",
   "- Do NOT browse the web. Work only from the pasted material plus your own knowledge.",
   "- If no material was pasted, propose a sensible module skeleton for the curriculum name.",
+  "",
+  "Cross-cutting tags:",
+  "- Tag each module with 0-3 short, reusable concept tags (e.g. 'performance', 'security',",
+  "  'observability') ONLY when the module clearly covers a cross-cutting concern that shows up",
+  "  across other, unrelated technologies too — not the module's own subject/technology name.",
+  "- Prefer short, generic, lowercase-friendly labels a learner would recognize from other courses",
+  "  over invented or overly specific phrasing — this lets the same concept get tagged consistently",
+  "  across different curricula.",
+  "- Leave a module's tags empty (an empty array, never omit the field) when nothing cross-cutting",
+  "  applies — most modules will have none.",
 ].join("\n");
 
 export function createCurriculumArchitect(): Agent {

@@ -33,6 +33,39 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/topics/t1/gaps")).toEqual({ name: "listTopicGaps", params: { id: "t1" } });
       expect(resolveRoute("POST", "/topics/t1/study-chat")).toEqual({ name: "askStudyChat", params: { id: "t1" } });
     });
+
+    it("captures the source-approval routes", () => {
+      expect(resolveRoute("POST", "/curricula/c1/approve-sources")).toEqual({
+        name: "approveSources",
+        params: { id: "c1" },
+      });
+      expect(resolveRoute("DELETE", "/sources/s1")).toEqual({
+        name: "deleteSource",
+        params: { id: "s1" },
+      });
+    });
+
+    it("captures the structure-shaping routes", () => {
+      expect(resolveRoute("GET", "/curricula/c1/structure-turns")).toEqual({
+        name: "getStructureTurns",
+        params: { id: "c1" },
+      });
+      expect(resolveRoute("POST", "/curricula/c1/structure-turns")).toEqual({
+        name: "submitStructureTurn",
+        params: { id: "c1" },
+      });
+      expect(resolveRoute("POST", "/curricula/c1/confirm-structure")).toEqual({
+        name: "confirmStructure",
+        params: { id: "c1" },
+      });
+    });
+
+    it("captures the supplemental-research resolution route", () => {
+      expect(resolveRoute("POST", "/curricula/c1/resolve-research-candidates")).toEqual({
+        name: "resolveSupplementalResearch",
+        params: { id: "c1" },
+      });
+    });
   });
 
   describe("specificity — anchored patterns never collide", () => {
@@ -65,6 +98,20 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/socratic-turns/t1/feedback")).toEqual({
         name: "submitSocraticTurnFeedback",
         params: { id: "t1" },
+      });
+    });
+
+    it("captures both ids on the two-param tag-assignment delete route", () => {
+      expect(resolveRoute("DELETE", "/tags/tag1/assignments/asg1")).toEqual({
+        name: "removeTagAssignment",
+        params: { id: "tag1", assignmentId: "asg1" },
+      });
+    });
+
+    it("distinguishes the tag-assignment create route from its delete counterpart", () => {
+      expect(resolveRoute("POST", "/tags/tag1/assignments")).toEqual({
+        name: "assignTag",
+        params: { id: "tag1" },
       });
     });
   });
