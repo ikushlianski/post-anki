@@ -43,15 +43,36 @@ import {
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
 import { resolveRoute } from "./router.js";
+import { hashApiToken } from "./api-token/api-token.hash.js";
+import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
 
 const env = loadEnv();
 
-function authorized(req: http.IncomingMessage): boolean {
+async function authorized(req: http.IncomingMessage): Promise<boolean> {
   if (!env.API_SHARED_SECRET) {
     return true;
   }
 
-  return req.headers.authorization === `Bearer ${env.API_SHARED_SECRET}`;
+  const header = req.headers.authorization;
+
+  if (header === `Bearer ${env.API_SHARED_SECRET}`) {
+    return true;
+  }
+
+  if (!header?.startsWith("Bearer ")) {
+    return false;
+  }
+
+  const rawToken = header.slice("Bearer ".length);
+  const token = await findActiveTokenByHash(hashApiToken(rawToken));
+
+  if (!token) {
+    return false;
+  }
+
+  void touchLastUsed(token.id);
+
+  return true;
 }
 
 const server = http.createServer((req, res) => {
@@ -64,19 +85,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (!authorized(req)) {
-    sendError(res, 401, "unauthorized");
-    return;
-  }
+  void handleRequest(req, res, method, path, url);
+});
 
-  void route(req, res, method, path, url).catch((err) => {
+async function handleRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  method: string,
+  path: string,
+  url: URL,
+): Promise<void> {
+  try {
+    if (!(await authorized(req))) {
+      sendError(res, 401, "unauthorized");
+      return;
+    }
+
+    await route(req, res, method, path, url);
+  } catch (err) {
     log.error({ err, method, path }, "request_failed");
 
     if (!res.headersSent) {
       sendError(res, 500, "internal_error");
     }
-  });
-});
+  }
+}
 
 async function route(
   req: http.IncomingMessage,
