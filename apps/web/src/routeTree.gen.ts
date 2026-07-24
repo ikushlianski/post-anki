@@ -14,11 +14,14 @@ import { Route as DecideRouteImport } from './routes/decide'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
+import { Route as AdminObservabilityRouteImport } from './routes/admin-observability'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
+import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
 import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
+import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curriculum.$curriculumId_.assess'
 
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
@@ -45,6 +48,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/admin-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminObservabilityRoute = AdminObservabilityRouteImport.update({
+  id: '/admin-observability',
+  path: '/admin-observability',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -65,15 +73,27 @@ const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
   path: '/api/electric-shape',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProbeTagTagIdRoute = ProbeTagTagIdRouteImport.update({
+  id: '/probe/tag/$tagId',
+  path: '/probe/tag/$tagId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CurriculumCurriculumIdStatsRoute =
   CurriculumCurriculumIdStatsRouteImport.update({
     id: '/curriculum/$curriculumId_/stats',
     path: '/curriculum/$curriculumId/stats',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CurriculumCurriculumIdAssessRoute =
+  CurriculumCurriculumIdAssessRouteImport.update({
+    id: '/curriculum/$curriculumId_/assess',
+    path: '/curriculum/$curriculumId/assess',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
@@ -82,10 +102,13 @@ export interface FileRoutesByFullPath {
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
@@ -94,11 +117,14 @@ export interface FileRoutesByTo {
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
@@ -107,12 +133,15 @@ export interface FileRoutesById {
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin-observability'
     | '/admin-settings'
     | '/concerns'
     | '/dashboard'
@@ -121,10 +150,13 @@ export interface FileRouteTypes {
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
+    | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
+    | '/probe/tag/$tagId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin-observability'
     | '/admin-settings'
     | '/concerns'
     | '/dashboard'
@@ -133,10 +165,13 @@ export interface FileRouteTypes {
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
+    | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
+    | '/probe/tag/$tagId'
   id:
     | '__root__'
     | '/'
+    | '/admin-observability'
     | '/admin-settings'
     | '/concerns'
     | '/dashboard'
@@ -145,11 +180,14 @@ export interface FileRouteTypes {
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/probe/$topicId'
+    | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/stats'
+    | '/probe/tag/$tagId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminObservabilityRoute: typeof AdminObservabilityRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   ConcernsRoute: typeof ConcernsRoute
   DashboardRoute: typeof DashboardRoute
@@ -158,7 +196,9 @@ export interface RootRouteChildren {
   ApiElectricShapeRoute: typeof ApiElectricShapeRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   ProbeTopicIdRoute: typeof ProbeTopicIdRoute
+  CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
+  ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -198,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-observability': {
+      id: '/admin-observability'
+      path: '/admin-observability'
+      fullPath: '/admin-observability'
+      preLoaderRoute: typeof AdminObservabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -226,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiElectricShapeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/probe/tag/$tagId': {
+      id: '/probe/tag/$tagId'
+      path: '/probe/tag/$tagId'
+      fullPath: '/probe/tag/$tagId'
+      preLoaderRoute: typeof ProbeTagTagIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/curriculum/$curriculumId_/stats': {
       id: '/curriculum/$curriculumId_/stats'
       path: '/curriculum/$curriculumId/stats'
@@ -233,11 +287,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/curriculum/$curriculumId_/assess': {
+      id: '/curriculum/$curriculumId_/assess'
+      path: '/curriculum/$curriculumId/assess'
+      fullPath: '/curriculum/$curriculumId/assess'
+      preLoaderRoute: typeof CurriculumCurriculumIdAssessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminObservabilityRoute: AdminObservabilityRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   ConcernsRoute: ConcernsRoute,
   DashboardRoute: DashboardRoute,
@@ -246,7 +308,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiElectricShapeRoute: ApiElectricShapeRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   ProbeTopicIdRoute: ProbeTopicIdRoute,
+  CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
+  ProbeTagTagIdRoute: ProbeTagTagIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

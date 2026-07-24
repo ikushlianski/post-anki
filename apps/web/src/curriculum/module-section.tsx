@@ -7,6 +7,7 @@ import { levelBadgeLabel } from './level-badge'
 import { ProgressBar } from './progress-bar'
 import { TopicRow } from './topic-row'
 import { NodeCommentControl } from './node-comment-control'
+import { TagPicker } from './tag-picker'
 import { usePromoteDemoteModule } from './curriculum.mutations'
 import {
   addModuleComment,
@@ -125,6 +126,15 @@ export function ModuleSection({
             />
           ) : null}
         </div>
+      </div>
+
+      <div className="mb-3">
+        <TagPicker
+          nodeType="module"
+          nodeId={module.id}
+          tags={module.tags ?? []}
+          editable={editable}
+        />
       </div>
 
       {editable ? (

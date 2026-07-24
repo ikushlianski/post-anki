@@ -19,6 +19,7 @@ import { TopicShapeBar } from './topic-shape-bar'
 import { InlineRename, StrictOrderNote } from './shape-controls'
 import { NodeCommentControl } from './node-comment-control'
 import { DepthSlider } from './depth-slider'
+import { TagPicker } from './tag-picker'
 
 const STATUS_LABEL: Record<TopicProgressStatus, string> = {
   not_started: 'not started',
@@ -118,6 +119,14 @@ export function TopicRow({
           {topic.summary ? (
             <p className="mt-0.5 text-sm text-neutral-500">{topic.summary}</p>
           ) : null}
+          <div className="mt-1.5">
+            <TagPicker
+              nodeType="topic"
+              nodeId={topic.id}
+              tags={topic.tags ?? []}
+              editable={editable}
+            />
+          </div>
           {included ? (
             <div className="mt-2 flex items-center gap-2">
               <span

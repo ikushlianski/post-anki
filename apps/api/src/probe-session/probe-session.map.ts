@@ -27,12 +27,14 @@ export interface BuildRowsParams {
   makeId: (index: number) => string;
   allowMultiSelect?: boolean;
   makePermutation?: (length: number) => number[];
+  orderOffset?: number;
 }
 
 export function buildQuestionRows(
   params: BuildRowsParams,
 ): ProbeSessionQuestionInsert[] {
   const makePermutation = params.makePermutation ?? identityPermutation;
+  const orderOffset = params.orderOffset ?? 0;
 
   return params.generated.map((q, index) => {
     const topicId =
@@ -61,7 +63,7 @@ export function buildQuestionRows(
     return {
       id: params.makeId(index),
       sessionId: params.sessionId,
-      order: index + 1,
+      order: orderOffset + index + 1,
       topicId,
       gapId,
       prompt: q.prompt,
