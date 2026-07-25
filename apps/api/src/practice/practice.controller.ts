@@ -8,6 +8,7 @@ import {
 } from "./practice.repo.js";
 import { generatePhraseBatch } from "./generate-phrase-batch.orchestrator.js";
 import { gradeAttempts } from "./grade-attempts.orchestrator.js";
+import { getPhraseBankSummary } from "./phrase-bank.repo.js";
 
 async function requireLanguagePracticeSubject(
   res: http.ServerResponse,
@@ -84,7 +85,25 @@ export async function handleCreateAttempts(
   }
 
   const settings = await getOrCreatePracticeSettings(subjectId);
-  const rows = await gradeAttempts(subjectId, settings.level, body.data.answers);
+  const { attempts, phraseBankUpdates } = await gradeAttempts(
+    subjectId,
+    settings.level,
+    body.data.answers,
+  );
 
-  sendJson(res, 200, { attempts: rows });
+  sendJson(res, 200, { attempts, phraseBankUpdates });
+}
+
+export async function handleGetPhraseBank(
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  if (!(await requireLanguagePracticeSubject(res, subjectId))) {
+    return;
+  }
+
+  const settings = await getOrCreatePracticeSettings(subjectId);
+  const summary = await getPhraseBankSummary(subjectId, settings.level, settings.pack);
+
+  sendJson(res, 200, summary);
 }

@@ -4,3 +4,4 @@ export * from "./socratic/index";
 export * from "./feedback/index";
 export * from "./streak/index";
 export * from "./tag/index";
+export * from "./phrase-bank/index";

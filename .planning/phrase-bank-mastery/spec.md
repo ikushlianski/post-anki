@@ -17,7 +17,7 @@ lets the algorithm be proven correct and deterministic on its own, before any UI
 
 | Phase | Scenarios | BE Requirements | FE Requirements | Dependencies | Performance Target |
 |-------|-----------|------------------|-------------------|---------------|----------------------|
-| 1 — Bank, derivers, orchestrators | 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13 | New tables + `phrases` columns; `phrase-bank.ts` derivers; `phrase-bank.repo.ts`; both orchestrators updated; `handleGetPhraseBank` endpoint | None | None | N/A — no latency-sensitive path added |
+| 1 — Bank, derivers, orchestrators | 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14 | New tables + `phrases` columns; `phrase-bank.ts` derivers; `phrase-bank.repo.ts`; both orchestrators updated; `handleGetPhraseBank` endpoint | None | None | N/A — no latency-sensitive path added |
 | 2 — UI wiring | 2, 6 | `phraseBankUpdates` already returned by Phase 1's `handleCreateAttempts` | Recycled badge, mastered indicator, `PhraseBankPanel`, route wiring | Phase 1 complete and its DoD proven | N/A |
 
 ### Derivers
@@ -25,7 +25,7 @@ lets the algorithm be proven correct and deterministic on its own, before any UI
 | Deriver | Inputs | Output | Scenarios covered |
 |---------|--------|--------|--------------------|
 | `selectDuePhrases` | `entries: PhraseBankEntryState[]`, `currentSequenceNumber: number`, `maxDue: number` | Due entries (`status` is `struggling` or `practicing`, `scheduledForSentenceCount <= currentSequenceNumber`), most-overdue first, capped at `maxDue` | SCENARIO 5, SCENARIO 8, SCENARIO 10 |
-| `applyAttemptToPhraseBankEntry` | `entry: PhraseBankEntryState`, `attempt: { sequenceNumber: number; verdict: Verdict }` | `{ entry: PhraseBankEntryState; appearance: { result: "correct" \| "incorrect"; wasOverdue: boolean } }` — new/practicing/struggling/mastered transition (verdict→correct mapping happens inside), non-adjacency-guarded mastery count, isolation rollback preserving lifetime counters | SCENARIO 1, SCENARIO 3, SCENARIO 4, SCENARIO 10, SCENARIO 11 |
+| `applyAttemptToPhraseBankEntry` | `entry: PhraseBankEntryState`, `attempt: { sequenceNumber: number; verdict: Verdict }` | `{ entry: PhraseBankEntryState; appearance: { result: "correct" \| "incorrect"; wasOverdue: boolean } }` — new/practicing/struggling/mastered transition (verdict→correct mapping happens inside), non-adjacency-guarded mastery count, isolation rollback preserving lifetime counters | SCENARIO 1, SCENARIO 3, SCENARIO 4, SCENARIO 10, SCENARIO 11, SCENARIO 14 |
 | `matchExistingPhraseBankEntry` | `candidates: { id: string; phraseText: string; status: PhraseBankStatus }[]`, `phraseText: string` | Matched entry `id`, or `null` if no active (non-`mastered`) candidate matches (case-insensitive, trimmed exact match) | SCENARIO 1, SCENARIO 10 |
 
 ### Files by scenario
@@ -45,6 +45,7 @@ lets the algorithm be proven correct and deterministic on its own, before any UI
 | SCENARIO 11 (isolation rollback, not reset) | `grade-attempts.orchestrator.ts`, `packages/core/src/phrase-bank/phrase-bank.ts` | None | None |
 | SCENARIO 12 (bad id-echo never crashes generation) | `generate-phrase-batch.orchestrator.ts` | None | None |
 | SCENARIO 13 (exact sequence number, not approximated) | `apps/api/src/db/schema.ts`, `generate-phrase-batch.orchestrator.ts`, `phrase-bank.repo.ts` | None | None |
+| SCENARIO 14 (new phrase fails on first attempt) | `grade-attempts.orchestrator.ts`, `packages/core/src/phrase-bank/phrase-bank.ts` | None | None |
 
 ### Files to create
 
@@ -226,12 +227,12 @@ noted inline rather than silently overwritten, since a wrong-then-corrected call
 **Phase 1 — Bank, derivers, orchestrators:**
 1. `/tdd selectDuePhrases` — covers SCENARIO 5, SCENARIO 8, SCENARIO 10
 2. `/tdd matchExistingPhraseBankEntry` — covers SCENARIO 1, SCENARIO 10
-3. `/tdd applyAttemptToPhraseBankEntry` — covers SCENARIO 1, SCENARIO 3, SCENARIO 4, SCENARIO 10, SCENARIO 11
+3. `/tdd applyAttemptToPhraseBankEntry` — covers SCENARIO 1, SCENARIO 3, SCENARIO 4, SCENARIO 10, SCENARIO 11, SCENARIO 14
 4. `packages/shared/src/phrase-bank.ts` + `practice.ts` extension (schemas/types the rest depends on)
 5. `apps/api/src/db/schema.ts` — new tables + `phrases.targetPhraseBankEntryId` + `phrases.sequenceNumber`; generate + apply migration with backfill
 6. `apps/api/src/practice/phrase-bank.repo.ts` — persistence around the derivers
 7. `generate-phrase-batch.orchestrator.ts` + `practice-batch.schemas.ts` + `language-practice.agent.ts` prompt update — covers SCENARIO 5, SCENARIO 8, SCENARIO 12, SCENARIO 13
-8. `grade-attempts.orchestrator.ts` — covers SCENARIO 1, SCENARIO 3, SCENARIO 9, SCENARIO 11
+8. `grade-attempts.orchestrator.ts` — covers SCENARIO 1, SCENARIO 3, SCENARIO 9, SCENARIO 11, SCENARIO 14
 9. `practice.controller.ts` + `router.ts` + `server.ts` — `handleGetPhraseBank`, `phraseBankUpdates` on attempts response
 10. Phase 1 Definition of Done proven (see below) before Phase 2 starts.
 
@@ -266,8 +267,10 @@ Out of scope for this plan:
   `status: "mastered"`; a case asserting 2 attempts at adjacent `sequenceNumber`s (e.g. 5, 6) plus
   one more correct attempt do NOT yet reach `mastered`; a case asserting an incorrect attempt on a
   `practicing` entry rolls back to `struggling` with `masteryStage`/`correctCountInCycle` at 0 while
-  `incorrectCountInCycle` increments (SCENARIO 11); a case asserting `applyAttemptToPhraseBankEntry`
-  maps `verdict: "NeedsReview"` to an incorrect result internally.
+  `incorrectCountInCycle` increments (SCENARIO 11); a case asserting a brand-new (`status: "new"`)
+  entry's first attempt, if incorrect, goes directly to `struggling` without passing through
+  `practicing` (SCENARIO 14); a case asserting `applyAttemptToPhraseBankEntry` maps
+  `verdict: "NeedsReview"` to an incorrect result internally.
 - `npx vitest run apps/api/src/practice/generate-phrase-batch.orchestrator.test.ts apps/api/src/practice/grade-attempts.orchestrator.test.ts apps/api/src/practice/phrase-bank.repo.test.ts`
   — all pass, using a mocked Mastra agent (the same `vi.mock("../mastra/mastra.js", …)` pattern the
   existing orchestrator tests already use) returning deterministic, hand-authored structured-output
@@ -284,8 +287,10 @@ Out of scope for this plan:
   localhost:<port>/subjects/<id>/phrase-batches` then `curl -s localhost:<port>/subjects/<id>/phrase-bank`
   returns 200 with a body matching `phraseBankSummarySchema` (`{ active: [...], mastered: [...] }`).
 
-**Frontend** *(Phase 2 only — see "Implementation Phases"; N/A until Phase 1's Backend DoD above is
-proven)*
+**Frontend** *(delivered in Phase 2 — see "Implementation Phases." Frontend is touched and required:
+the wishlist's done-when criterion is explicit that recycling and mastery must be visible in the
+UI, not just the database. Phase 2 starts only once Phase 1's Backend proof below is green, so
+these checks land after, not instead of, the backend ones.)*
 - `npx vitest run apps/web/src/practice/practice.collection.test.ts apps/web/src/practice/phrase-bank-panel.test.tsx`
   — all pass, driving `PhraseBankPanel` and the recycled/mastered badges with mocked API responses
   (React Testing Library), not a live backend or live LLM — same determinism requirement as the

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import type { Pack, PracticeAttempt, PracticeLevel } from '@post-anki/shared'
+import type { Pack, PhraseBankUpdate, PracticeAttempt, PracticeLevel } from '@post-anki/shared'
 
 import { submitAttempts } from './practice.api'
 import { usePracticeBatch } from './use-practice-batch'
@@ -25,10 +25,12 @@ export function BatchPractice({
   subjectId,
   level,
   pack,
+  onPhraseBankUpdates,
 }: {
   subjectId: string
   level: PracticeLevel | undefined
   pack: Pack | undefined
+  onPhraseBankUpdates?: (updates: PhraseBankUpdate[]) => void
 }) {
   const { batchId, phrases, isBatchReady, isNextBatchReady, prefetchNextBatch, advanceToNextBatch } =
     usePracticeBatch(subjectId, level, pack)
@@ -38,11 +40,13 @@ export function BatchPractice({
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [results, setResults] = useState<Record<string, GradedAttempt>>({})
   const [isGrading, setIsGrading] = useState(false)
+  const [masteredByEntryId, setMasteredByEntryId] = useState<Record<string, PhraseBankUpdate>>({})
 
   useEffect(() => {
     setChunkStart(0)
     setAnswers({})
     setResults({})
+    setMasteredByEntryId({})
   }, [batchId])
 
   useEffect(() => {
@@ -84,7 +88,7 @@ export function BatchPractice({
   async function submitChunk() {
     setIsGrading(true)
     try {
-      const graded = await submitAttempts({
+      const { attempts, phraseBankUpdates } = await submitAttempts({
         data: {
           subjectId,
           answers: chunk.map((p) => ({
@@ -96,9 +100,21 @@ export function BatchPractice({
 
       setResults((prev) => {
         const next = { ...prev }
-        for (const g of graded) next[g.phraseId] = g
+        for (const g of attempts) next[g.phraseId] = g
         return next
       })
+
+      const justMastered = phraseBankUpdates.filter((update) => update.status === 'mastered')
+
+      if (justMastered.length > 0) {
+        setMasteredByEntryId((prev) => {
+          const next = { ...prev }
+          for (const update of justMastered) next[update.id] = update
+          return next
+        })
+      }
+
+      onPhraseBankUpdates?.(phraseBankUpdates)
     } finally {
       setIsGrading(false)
     }
@@ -154,6 +170,9 @@ export function BatchPractice({
       <div className="flex flex-col gap-4">
         {chunk.map((phrase, index) => {
           const result = results[phrase.id]
+          const mastered = phrase.targetPhraseBankEntryId
+            ? masteredByEntryId[phrase.targetPhraseBankEntryId]
+            : undefined
           return (
             <div
               key={phrase.id}
@@ -164,12 +183,22 @@ export function BatchPractice({
                 <p data-testid={`phrase-russian-${index}`} className="text-lg">
                   {phrase.russian}
                 </p>
-                <span
-                  data-testid={`phrase-domain-${index}`}
-                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800"
-                >
-                  {phrase.domain}
-                </span>
+                <div className="flex items-center gap-2">
+                  {phrase.targetPhraseBankEntryId && (
+                    <span
+                      data-testid="phrase-recycled-badge"
+                      className="rounded-full border border-sky-300 bg-sky-50 px-2 py-0.5 text-xs text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300"
+                    >
+                      Recycled
+                    </span>
+                  )}
+                  <span
+                    data-testid={`phrase-domain-${index}`}
+                    className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800"
+                  >
+                    {phrase.domain}
+                  </span>
+                </div>
               </div>
               <textarea
                 rows={2}
@@ -191,6 +220,14 @@ export function BatchPractice({
                     <span data-testid={`phrase-result-verdict-${index}`}>{VERDICT_LABELS[result.verdict]}</span>
                   </p>
                   <p className="mt-1">{result.feedback}</p>
+                  {mastered && (
+                    <p
+                      data-testid="phrase-mastered-indicator"
+                      className="mt-2 font-medium text-emerald-700 dark:text-emerald-400"
+                    >
+                      Mastered &ldquo;{mastered.phraseText}&rdquo; — moved to the phrase bank archive.
+                    </p>
+                  )}
                   {result.nativeAlternatives.length > 0 && (
                     <ul data-testid={`phrase-result-alternatives-${index}`} className="mt-1 list-inside list-disc">
                       {result.nativeAlternatives.map((alt) => (

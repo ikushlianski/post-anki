@@ -389,6 +389,39 @@ export const phrases = pgTable("phrases", {
   russian: text("russian").notNull(),
   referenceEnglish: text("reference_english").notNull(),
   domain: text("domain").notNull(),
+  targetPhraseBankEntryId: text("target_phrase_bank_entry_id"),
+  sequenceNumber: integer("sequence_number").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const phraseBankEntries = pgTable("phrase_bank_entries", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  level: text("level").notNull(),
+  pack: text("pack").notNull(),
+  phraseText: text("phrase_text").notNull(),
+  category: text("category"),
+  status: text("status").notNull().default("new"),
+  masteryStage: integer("mastery_stage").notNull().default(0),
+  correctCountInCycle: integer("correct_count_in_cycle").notNull().default(0),
+  incorrectCountInCycle: integer("incorrect_count_in_cycle").notNull().default(0),
+  lastCorrectAtSentenceCount: integer("last_correct_at_sentence_count"),
+  lastCorrectDate: timestamp("last_correct_date", { withTimezone: true }),
+  scheduledForSentenceCount: integer("scheduled_for_sentence_count"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  masteredAt: timestamp("mastered_at", { withTimezone: true }),
+});
+
+export const phraseBankAppearances = pgTable("phrase_bank_appearances", {
+  id: text("id").primaryKey(),
+  phraseBankEntryId: text("phrase_bank_entry_id").notNull(),
+  phraseId: text("phrase_id").notNull(),
+  sentenceCount: integer("sentence_count").notNull(),
+  result: text("result").notNull(),
+  score: integer("score").notNull(),
+  wasOverdue: boolean("was_overdue").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

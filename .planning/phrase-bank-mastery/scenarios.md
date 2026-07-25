@@ -116,6 +116,22 @@ What to verify:
 - This is "rollback to isolation," explicitly not a reset back to `new` — a phrase that has already
   been introduced once never goes back to looking untaught.
 
+SCENARIO 14: A brand-new phrase's very first attempt is wrong
+
+A phrase enters the bank as `status = new` (never attempted before) and the learner's very first
+attempt at it is graded incorrect — this is how most of the source app's real struggling entries
+actually arose (`fell-on-deaf-ears`, `jump-ship`, `dodge-question` in the source data all show
+`attempts: 1, correct: 0`, `mode: isolation`, empty `appearanceHistory`), so it's a distinct path
+from SCENARIO 11's "already-practicing phrase fails."
+
+What to verify:
+- The entry goes directly to `status = struggling`, `mode` isolation — it never passes through
+  `practicing` first.
+- `masteryStage` and `correctCountInCycle` stay at 0 (there was nothing to roll back from);
+  `incorrectCountInCycle` becomes 1.
+- It is scheduled for recycling roughly 3 generated sentences later, identical scheduling to any
+  other transition into `struggling`.
+
 ## Technical/Architectural Scenarios
 
 SCENARIO 9: Generation and grading stay resilient when the model tags no target phrase

@@ -45,6 +45,11 @@ following the same inside-out pattern as `packages/core/src/streak/streak.ts`:
 
 - `selectDuePhrases(entries, currentSequenceNumber, maxDue)` — which struggling/practicing entries
   are due for recycling in the next generated batch, most-overdue first, capped at `maxDue`.
+  `currentSequenceNumber` is always the max assigned `sequenceNumber` for that subject/level/pack
+  **before** the new batch's 10 rows are inserted — the orchestrator reads it once, selects due
+  entries against it, then assigns the new batch's own `sequenceNumber`s starting one past it. The
+  stored-column design (see "Sentence sequence" below) makes this exact regardless of read timing,
+  but pinning the order removes any ambiguity about which snapshot the due-selection call sees.
 - `applyAttemptToPhraseBankEntry(entry, attempt)` — the new/practicing/struggling/mastered state
   machine, the non-adjacency guard on the 3-correct mastery count, and the isolation rollback on a
   failed attempt. Takes the raw `verdict` (`Ok` | `NeedsReview` | `NeedsDeepDive`), not a

@@ -14,6 +14,8 @@ describe('mapPhraseRow', () => {
       russian: 'Привет',
       reference_english: 'Hello',
       domain: 'Everyday',
+      target_phrase_bank_entry_id: null,
+      sequence_number: 1,
       created_at: '2026-07-25T00:00:00.000Z',
     })
 
@@ -27,8 +29,30 @@ describe('mapPhraseRow', () => {
       russian: 'Привет',
       referenceEnglish: 'Hello',
       domain: 'Everyday',
+      targetPhraseBankEntryId: null,
+      sequenceNumber: 1,
       createdAt: '2026-07-25T00:00:00.000Z',
     })
+  })
+
+  it('carries a non-null target_phrase_bank_entry_id through for a recycled phrase', () => {
+    const phrase = mapPhraseRow({
+      id: 'phrase-2',
+      subject_id: 'subj-1',
+      batch_id: 'batch-2',
+      level: 'B1_B2',
+      pack: 'General',
+      position: 3,
+      russian: 'Довести дело до конца',
+      reference_english: 'See it through',
+      domain: 'Everyday',
+      target_phrase_bank_entry_id: 'pbentry-1',
+      sequence_number: 12,
+      created_at: '2026-07-25T00:00:00.000Z',
+    })
+
+    expect(phrase.targetPhraseBankEntryId).toBe('pbentry-1')
+    expect(phrase.sequenceNumber).toBe(12)
   })
 })
 

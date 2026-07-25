@@ -1,9 +1,18 @@
-import type { PracticeLevel } from "@post-anki/shared";
+import type { PracticeLevel, Verdict } from "@post-anki/shared";
+import { applyAttemptToPhraseBankEntry } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
 import { gradeBatchSchema, type GradeBatch } from "./practice-batch.schemas.js";
 import { getPhrasesByIds, insertAttempts, type AttemptInsertRow } from "./practice.repo.js";
+import {
+  getPhraseBankEntriesByIds,
+  insertPhraseBankAppearance,
+  toEntryState,
+  updatePhraseBankEntryAfterAttempt,
+  type DuePhraseBankEntry,
+  type PhraseBankAppearanceInsertRow,
+} from "./phrase-bank.repo.js";
 
 export interface AnswerInput {
   phraseId: string;
@@ -14,6 +23,11 @@ export interface GradeItem {
   russian: string;
   referenceEnglish: string;
   userAnswer: string;
+}
+
+export interface GradeAttemptsResult {
+  attempts: AttemptInsertRow[];
+  phraseBankUpdates: PhraseBankMasteryOutcome["nextEntry"][];
 }
 
 export function buildGradeBatchPrompt(level: PracticeLevel, items: GradeItem[]): string {
@@ -66,11 +80,75 @@ export function toAttemptRows(
   });
 }
 
+export interface PhraseBankAttemptInput {
+  phraseBankEntryId: string;
+  phraseId: string;
+  sequenceNumber: number;
+  verdict: Verdict;
+  score: number;
+}
+
+export interface PhraseBankMasteryOutcome {
+  entryId: string;
+  // Carries phraseText/category through (not just bare state) so Phase 2's
+  // "you mastered X" indicator can name the phrase without a second fetch.
+  nextEntry: DuePhraseBankEntry;
+  justMastered: boolean;
+  appearance: PhraseBankAppearanceInsertRow;
+}
+
+// Pure orchestration wiring: reads/writes the deriver's state through an in-memory
+// map so the mastery algorithm itself is never re-implemented here (SCENARIO 10) —
+// this only decides what gets persisted, using applyAttemptToPhraseBankEntry as the
+// single source of truth for the state transition.
+export function applyPhraseBankAttempts(
+  inputs: PhraseBankAttemptInput[],
+  entriesById: Map<string, DuePhraseBankEntry>,
+  makeAppearanceId: (index: number) => string = () => newId("pbappearance"),
+): PhraseBankMasteryOutcome[] {
+  const outcomes: PhraseBankMasteryOutcome[] = [];
+
+  inputs.forEach((input, index) => {
+    const current = entriesById.get(input.phraseBankEntryId);
+
+    if (!current) {
+      log.warn({ phraseBankEntryId: input.phraseBankEntryId }, "phrase_bank_entry_not_found");
+      return;
+    }
+
+    const { entry, appearance } = applyAttemptToPhraseBankEntry(current, {
+      sequenceNumber: input.sequenceNumber,
+      verdict: input.verdict,
+    });
+
+    const nextEntry = { ...entry, id: input.phraseBankEntryId };
+
+    entriesById.set(input.phraseBankEntryId, nextEntry);
+
+    outcomes.push({
+      entryId: input.phraseBankEntryId,
+      nextEntry,
+      justMastered: current.status !== "mastered" && entry.status === "mastered",
+      appearance: {
+        id: makeAppearanceId(index),
+        phraseBankEntryId: input.phraseBankEntryId,
+        phraseId: input.phraseId,
+        sentenceCount: input.sequenceNumber,
+        result: appearance.result,
+        score: input.score,
+        wasOverdue: appearance.wasOverdue,
+      },
+    });
+  });
+
+  return outcomes;
+}
+
 export async function gradeAttempts(
   subjectId: string,
   level: PracticeLevel,
   answers: AnswerInput[],
-): Promise<AttemptInsertRow[]> {
+): Promise<GradeAttemptsResult> {
   const phraseRows = await getPhrasesByIds(answers.map((a) => a.phraseId));
   const phraseById = new Map(phraseRows.map((p) => [p.id, p]));
 
@@ -99,7 +177,61 @@ export async function gradeAttempts(
 
   await insertAttempts(rows);
 
+  const phraseBankUpdates = await applyPhraseBankUpdates(answers, phraseById, result.object);
+
   log.info({ subjectId, count: rows.length }, "attempts_graded");
 
-  return rows;
+  return { attempts: rows, phraseBankUpdates };
+}
+
+async function applyPhraseBankUpdates(
+  answers: AnswerInput[],
+  phraseById: Map<string, { targetPhraseBankEntryId: string | null; sequenceNumber: number }>,
+  graded: GradeBatch,
+): Promise<PhraseBankMasteryOutcome["nextEntry"][]> {
+  const count = Math.min(graded.gradedAnswers.length, answers.length);
+
+  const inputs: PhraseBankAttemptInput[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const answer = answers[index]!;
+    const grade = graded.gradedAnswers[index]!;
+    const phrase = phraseById.get(answer.phraseId);
+
+    if (!phrase?.targetPhraseBankEntryId) {
+      continue;
+    }
+
+    inputs.push({
+      phraseBankEntryId: phrase.targetPhraseBankEntryId,
+      phraseId: answer.phraseId,
+      sequenceNumber: phrase.sequenceNumber,
+      verdict: grade.verdict,
+      score: grade.score,
+    });
+  }
+
+  if (inputs.length === 0) {
+    return [];
+  }
+
+  const entryIds = [...new Set(inputs.map((i) => i.phraseBankEntryId))];
+  const entryRows = await getPhraseBankEntriesByIds(entryIds);
+  const entriesById = new Map(entryRows.map((row) => [row.id, toEntryState(row)]));
+
+  const outcomes = applyPhraseBankAttempts(inputs, entriesById);
+
+  // Sequential, not Promise.all: two outcomes can target the same entry within one
+  // grading pass, and each already carries the cumulative state through it (built
+  // from the same mutating map above) — writing out of order would let an earlier,
+  // less-progressed outcome overwrite a later one's persisted state.
+  for (const outcome of outcomes) {
+    await updatePhraseBankEntryAfterAttempt(outcome.entryId, outcome.nextEntry, {
+      correct: outcome.appearance.result === "correct",
+      justMastered: outcome.justMastered,
+    });
+    await insertPhraseBankAppearance(outcome.appearance);
+  }
+
+  return outcomes.map((outcome) => outcome.nextEntry);
 }
