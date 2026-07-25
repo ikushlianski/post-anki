@@ -30,3 +30,4 @@ export * from "./streak";
 export * from "./stats";
 export * from "./tag";
 export * from "./lecture";
+export * from "./practice";

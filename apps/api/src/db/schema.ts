@@ -362,3 +362,35 @@ export const lectureSourceCandidates = pgTable("lecture_source_candidates", {
   fetchedText: text("fetched_text"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const languagePracticeSettings = pgTable("language_practice_settings", {
+  subjectId: text("subject_id").primaryKey(),
+  level: text("level").notNull().default("B1_B2"),
+  pack: text("pack").notNull().default("General"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const phrases = pgTable("phrases", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  batchId: text("batch_id").notNull(),
+  level: text("level").notNull(),
+  pack: text("pack").notNull(),
+  position: integer("position").notNull(),
+  russian: text("russian").notNull(),
+  referenceEnglish: text("reference_english").notNull(),
+  domain: text("domain").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const attempts = pgTable("attempts", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  phraseId: text("phrase_id").notNull(),
+  userAnswer: text("user_answer").notNull(),
+  score: integer("score").notNull(),
+  verdict: text("verdict").notNull(),
+  feedback: text("feedback").notNull(),
+  nativeAlternatives: jsonb("native_alternatives").$type<string[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

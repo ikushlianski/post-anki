@@ -60,7 +60,11 @@ export type RouteName =
   | "listLectureSourceCandidates"
   | "reviewLectureSourceCandidate"
   | "compileLecture"
-  | "getLecture";
+  | "getLecture"
+  | "getPracticeSettings"
+  | "updatePracticeSettings"
+  | "createPhraseBatch"
+  | "createAttempts";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -196,6 +200,30 @@ const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: /^\/topics\/([^/]+)\/lecture$/,
     name: "getLecture",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/practice-settings$/,
+    name: "getPracticeSettings",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/subjects\/([^/]+)\/practice-settings$/,
+    name: "updatePracticeSettings",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/subjects\/([^/]+)\/phrase-batches$/,
+    name: "createPhraseBatch",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/subjects\/([^/]+)\/attempts$/,
+    name: "createAttempts",
     param: "id",
   },
 ];

@@ -17,6 +17,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as AdminObservabilityRouteImport } from './routes/admin-observability'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
+import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
@@ -64,6 +65,11 @@ const ProbeTopicIdRoute = ProbeTopicIdRouteImport.update({
   path: '/probe/$topicId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PracticeSubjectIdRoute = PracticeSubjectIdRouteImport.update({
+  id: '/practice/$subjectId',
+  path: '/practice/$subjectId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LectureTopicIdRoute = LectureTopicIdRouteImport.update({
   id: '/lecture/$topicId',
   path: '/lecture/$topicId',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
+  '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
+  '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
+  '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/lecture/$topicId'
+    | '/practice/$subjectId'
     | '/probe/$topicId'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/lecture/$topicId'
+    | '/practice/$subjectId'
     | '/probe/$topicId'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
     | '/lecture/$topicId'
+    | '/practice/$subjectId'
     | '/probe/$topicId'
     | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/stats'
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   ApiElectricShapeRoute: typeof ApiElectricShapeRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
+  PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
   ProbeTopicIdRoute: typeof ProbeTopicIdRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProbeTopicIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/practice/$subjectId': {
+      id: '/practice/$subjectId'
+      path: '/practice/$subjectId'
+      fullPath: '/practice/$subjectId'
+      preLoaderRoute: typeof PracticeSubjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lecture/$topicId': {
       id: '/lecture/$topicId'
       path: '/lecture/$topicId'
@@ -328,6 +348,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiElectricShapeRoute: ApiElectricShapeRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
+  PracticeSubjectIdRoute: PracticeSubjectIdRoute,
   ProbeTopicIdRoute: ProbeTopicIdRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,

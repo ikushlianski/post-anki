@@ -89,6 +89,12 @@ import {
   handleListLectureSourceCandidates,
   handleReviewLectureSourceCandidate,
 } from "./lecture/lecture.controller.js";
+import {
+  handleCreateAttempts,
+  handleCreatePhraseBatch,
+  handleGetPracticeSettings,
+  handleUpdatePracticeSettings,
+} from "./practice/practice.controller.js";
 import { resolveRoute } from "./router.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
@@ -272,6 +278,14 @@ async function route(
       return handleCompileLecture(res, id);
     case "getLecture":
       return handleGetLecture(res, id);
+    case "getPracticeSettings":
+      return handleGetPracticeSettings(res, id);
+    case "updatePracticeSettings":
+      return handleUpdatePracticeSettings(req, res, id);
+    case "createPhraseBatch":
+      return handleCreatePhraseBatch(res, id);
+    case "createAttempts":
+      return handleCreateAttempts(req, res, id);
   }
 }
 

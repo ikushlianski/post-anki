@@ -30,41 +30,54 @@ export function SubjectSection({
         />
       </div>
 
-      <ul className="mb-3 space-y-2">
-        {curricula.length === 0 ? (
-          <li className="text-sm text-neutral-400">No curricula yet.</li>
-        ) : (
-          curricula.map((curriculum) => (
-            <li key={curriculum.id} className="flex items-center gap-2">
-              <Link
-                to="/curriculum/$curriculumId"
-                params={{ curriculumId: curriculum.id }}
-                className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
-              >
-                <span
-                  data-testid="curriculum-name"
-                  className="min-w-0 flex-1 truncate text-sm font-medium"
-                >
-                  {curriculum.name}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  {curriculum.origin === 'research' ? <OriginBadge /> : null}
-                  <StatusBadge status={curriculum.status} />
-                </span>
-              </Link>
-              <DeleteCurriculumButton curriculumId={curriculum.id} />
-            </li>
-          ))
-        )}
-      </ul>
+      {subject.kind === 'language-practice' ? (
+        <Link
+          to="/practice/$subjectId"
+          params={{ subjectId: subject.id }}
+          data-testid="open-practice-link"
+          className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium hover:border-neutral-400"
+        >
+          Open practice
+        </Link>
+      ) : (
+        <>
+          <ul className="mb-3 space-y-2">
+            {curricula.length === 0 ? (
+              <li className="text-sm text-neutral-400">No curricula yet.</li>
+            ) : (
+              curricula.map((curriculum) => (
+                <li key={curriculum.id} className="flex items-center gap-2">
+                  <Link
+                    to="/curriculum/$curriculumId"
+                    params={{ curriculumId: curriculum.id }}
+                    className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+                  >
+                    <span
+                      data-testid="curriculum-name"
+                      className="min-w-0 flex-1 truncate text-sm font-medium"
+                    >
+                      {curriculum.name}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      {curriculum.origin === 'research' ? <OriginBadge /> : null}
+                      <StatusBadge status={curriculum.status} />
+                    </span>
+                  </Link>
+                  <DeleteCurriculumButton curriculumId={curriculum.id} />
+                </li>
+              ))
+            )}
+          </ul>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <CreateCurriculumForm
-          subjectId={subject.id}
-          requireSources={subject.requireSources}
-        />
-        <StudyTechnologyForm subjectId={subject.id} />
-      </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <CreateCurriculumForm
+              subjectId={subject.id}
+              requireSources={subject.requireSources}
+            />
+            <StudyTechnologyForm subjectId={subject.id} />
+          </div>
+        </>
+      )}
     </section>
   )
 }
