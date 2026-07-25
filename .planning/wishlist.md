@@ -37,6 +37,23 @@ Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]
       Done when: an English subject generates a batch of translation sentences, the user answers,
       and gets scored for native-soundingness — the same practice loop as the source app, running
       inside post-anki.
+- [ ] Fix batch-practice's no-fallback dependency on Electric sync for reading a freshly
+      generated phrase batch.
+      Why: `POST /subjects/:id/phrase-batches` already returns the full phrase rows in its
+      response, but `apps/web/src/practice/use-practice-batch.ts` discards everything except
+      `batchId` and waits exclusively for Electric to redeliver the same rows before rendering
+      anything. If Electric is unconfigured, slow, or has any outage, the page gets stuck on
+      "Generating your next batch of phrases…" forever with no error — this will hit real users
+      the moment this feature ships, since `ELECTRIC_SERVICE_URL` reaching Neon is still an
+      unfinished manual step (see the batch-practice port item above and
+      `.planning/local-first-electric-sync/todo.md`). The board feature already solved this exact
+      problem with an SSR fallback; batch-practice doesn't follow that established pattern.
+      Pointers: full writeup + proposed fix in `docs/architecture/english-batch-practice/review.md`
+      (found during `/debrief` 2026-07-25) — seed the UI directly from the generate response,
+      treat Electric as a live-update layer on top instead of the only read path.
+      Done when: opening `/practice/:subjectId` and generating a batch renders phrases
+      immediately from the mutation response, with Electric sync verified independently as an
+      enhancement (e.g. a second tab/device sees the same batch) rather than a hard dependency.
 - [ ] Port phrase-bank spaced repetition with mastery tracking to the English subject.
       Why: this is the source app's actual differentiator — active recycling of weak phrases,
       3-non-adjacent-correct-uses mastery rule, failure rollback to isolation. Depends on the

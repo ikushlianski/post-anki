@@ -52,9 +52,11 @@ before it will render anything. Tonight's own build log confirms this is not the
 suite failed repeatedly with exactly this symptom (grading completed and persisted correctly per a
 direct DB check, but the UI never reflected it) until a local Electric instance was wired into the
 test stack. In production, `ELECTRIC_SERVICE_URL` reaching Neon is still an explicitly deferred,
-manual step (`.planning/local-first-electric-sync/todo.md`) — meaning this exact failure mode is
-live today, not hypothetical. If Electric is unconfigured, slow, or has any outage, a learner who
-opens this page sees "Generating your next batch of phrases…" forever, even though generation
+manual step (`.planning/local-first-electric-sync/todo.md`) — meaning this exact failure mode
+will hit production the moment this feature ships there, not just in theory. Nothing built tonight
+has been pushed or deployed, so this isn't live for real users yet — but it will break on day one
+once it is, unless the deferred Electric step happens first. If Electric is unconfigured, slow, or
+has any outage, a learner who opens this page sees "Generating your next batch of phrases…" forever, even though generation
 already succeeded server-side, with no error message and no fallback. The board feature that
 introduced Electric sync earlier already solved this exact problem with an SSR fallback
 ("renders even with Electric down" per its own todo.md) — batch-practice doesn't follow that
