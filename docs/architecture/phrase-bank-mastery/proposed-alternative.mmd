@@ -1,0 +1,30 @@
+flowchart LR
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+  classDef added fill:#fff9c4,stroke:#455a64,stroke-width:1.5px,color:#000
+
+  Gen["generate-phrase-batch orchestrator"]
+  Lock1["pg_advisory_xact_lock on subject+level+pack"]
+  SeqBase["nextSequenceBase inside the locked transaction"]
+  FK["Real FK: phrases.target_phrase_bank_entry_id references phrase_bank_entries.id"]
+  UniqSeq["Unique index on subject_id, level, pack, sequence_number"]
+  UniqEntry["Unique index on subject_id, level, pack, lower phrase_text"]
+  PhrasesTbl[("phrases table")]
+  Grade["grade-attempts orchestrator"]
+  Lock2["SELECT ... FOR UPDATE on the phrase_bank_entries row"]
+  EntriesTbl[("phrase_bank_entries table")]
+
+  Gen --> Lock1
+  Lock1 --> SeqBase
+  SeqBase --> PhrasesTbl
+  PhrasesTbl -.-> FK
+  PhrasesTbl -.-> UniqSeq
+  EntriesTbl -.-> UniqEntry
+  Grade --> Lock2
+  Lock2 --> EntriesTbl
+
+  class Lock1 added
+  class Lock2 added
+  class FK added
+  class UniqSeq added
+  class UniqEntry added

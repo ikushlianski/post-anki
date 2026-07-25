@@ -54,6 +54,27 @@ Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]
       Done when: opening `/practice/:subjectId` and generating a batch renders phrases
       immediately from the mutation response, with Electric sync verified independently as an
       enhancement (e.g. a second tab/device sees the same batch) rather than a hard dependency.
+- [ ] Close the phrase-bank's concurrency and data-integrity gaps: no real FK, no locking.
+      Why: `docs/architecture/phrase-bank-mastery/review.md` (found during `/debrief` 2026-07-25)
+      found the design doc's own claim that `phrases.targetPhraseBankEntryId` is "a real FK" is
+      false in the actual migration — it's a plain nullable text column, no `REFERENCES` clause.
+      The app-level id validation makes this safe for the one path that writes it today, but
+      nothing stops a future write path from creating a dangling reference, and — worse — three
+      real races (unlocked `MAX(sequenceNumber)` read in `nextSequenceBase`, unlocked
+      read-then-insert in `linkOrCreateTargetPhrases`, an unconditional `UPDATE` with no
+      optimistic-concurrency check in `updatePhraseBankEntryAfterAttempt`) degrade into silent
+      data corruption instead of a loud DB error specifically because there's no constraint to
+      catch them: two tabs practicing the same subject/level/pack simultaneously can corrupt the
+      exact sequence-number adjacency math the mastery rule depends on, create duplicate bank
+      entries for the same phrase, or silently lose a learner's just-earned "mastered" transition.
+      Pointers: `docs/architecture/phrase-bank-mastery/review.md`'s "Proposed alternative" — a
+      real FK, two unique indexes, and wrapping the two write paths in
+      `pg_advisory_xact_lock`/`SELECT ... FOR UPDATE` respectively. All additive migrations, no
+      API shape change.
+      Done when: two concurrent generate calls (or two concurrent grade calls) for the same
+      subject/level/pack, exercised by a real test, can no longer produce overlapping sequence
+      numbers, duplicate bank entries for the same phrase, or a lost mastery transition — either
+      one serializes behind the other, or the second gets a clean, catchable error.
 - [x] Port phrase-bank spaced repetition with mastery tracking to the English subject.
       [→ done: phrase-bank-mastery branch (merged to main), verified 2026-07-25 — 576/576 targeted
       + full-suite tests, typecheck clean, real headless-browser proof of the recycled badge and

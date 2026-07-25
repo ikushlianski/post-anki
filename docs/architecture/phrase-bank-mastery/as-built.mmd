@@ -1,0 +1,35 @@
+flowchart LR
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+
+  Gen["generate-phrase-batch orchestrator"]
+  Due["selectDuePhrases (pure)"]
+  Echo["resolveTargetPhraseBankEntryIds — app-level id validation, no DB FK"]
+  Link["linkOrCreateTargetPhrases — read then insert, no lock"]
+  SeqBase["nextSequenceBase — MAX(sequenceNumber), no lock"]
+  PhrasesTbl[("phrases table target_phrase_bank_entry_id has no FK")]
+  Grade["grade-attempts orchestrator"]
+  Apply["applyAttemptToPhraseBankEntry (pure)"]
+  UpdateEntry["updatePhraseBankEntryAfterAttempt — unconditional UPDATE, no version check"]
+  EntriesTbl[("phrase_bank_entries table")]
+  AppearTbl[("phrase_bank_appearances table")]
+  Panel["PhraseBankPanel — plain REST fetch"]
+  Badge["Recycled badge — Electric-synced phrases column"]
+  Callout["Mastered callout — one-shot from POST response only"]
+
+  EntriesTbl -- "due entries" --> Due
+  Due --> Gen
+  Gen --> SeqBase
+  SeqBase --> PhrasesTbl
+  Gen --> Echo
+  Echo --> Link
+  Link --> EntriesTbl
+  Link -- "targetPhraseBankEntryId, no FK" --> PhrasesTbl
+  PhrasesTbl -- "graded by" --> Grade
+  Grade --> Apply
+  Apply --> UpdateEntry
+  UpdateEntry --> EntriesTbl
+  Grade -- "appends" --> AppearTbl
+  Grade -- "phraseBankUpdates in response" --> Callout
+  EntriesTbl -- "GET /phrase-bank" --> Panel
+  PhrasesTbl -- "Electric sync" --> Badge
