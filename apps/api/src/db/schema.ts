@@ -96,6 +96,15 @@ export const gaps = pgTable("gaps", {
   lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
 });
 
+export const apiTokens = pgTable("api_tokens", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
 export const probeSessions = pgTable("probe_sessions", {
   id: text("id").primaryKey(),
   scope: text("scope").notNull(),

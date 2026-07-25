@@ -11,7 +11,8 @@
     "packages/core",
     "apps/api",
     "apps/web",
-    "apps/bot"
+    "apps/bot",
+    "apps/mobile"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -21,6 +22,7 @@
     "dev:web": "npm run dev -w @post-anki/web",
     "dev:api": "npm run dev -w @post-anki/api",
     "dev:bot": "npm run dev -w @post-anki/bot",
+    "dev:mobile": "npm run start -w @post-anki/mobile",
     "dev:pw": "bash e2e/scripts/run.sh",
     "db:dev:up": "docker compose up -d",
     "db:dev:down": "docker compose down",
