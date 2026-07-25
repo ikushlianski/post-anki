@@ -1,0 +1,26 @@
+flowchart LR
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+  classDef added fill:#fff9c4,stroke:#455a64,stroke-width:1.5px,color:#000
+
+  Learner["Learner on /practice/:subjectId"]
+  UI["BatchPractice component"]
+  GenAPI["POST /subjects/:id/phrase-batches"]
+  PhrasesTbl[("phrases table")]
+  ElectricProxy["/electric/v1/shape proxy"]
+  ElectricSvc["Electric sync service"]
+  PhrasesCol["phrasesCollection (Electric)"]
+  SeedState["Seed batch straight from the POST response"]
+
+  Learner --> UI
+  UI -- "generatePhraseBatch()" --> GenAPI
+  GenAPI --> PhrasesTbl
+  GenAPI -- "response already has phrase rows" --> SeedState
+  SeedState -- "render immediately, no Electric wait" --> UI
+
+  PhrasesTbl -- "replication" --> ElectricSvc
+  ElectricSvc --> ElectricProxy
+  ElectricProxy --> PhrasesCol
+  PhrasesCol -- "live updates once available (other tabs/devices)" --> UI
+
+  class SeedState added

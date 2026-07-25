@@ -73,11 +73,11 @@ Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]
       gatekeeper for — see `.planning/local-first-electric-sync/spec.md` and
       `docs/architecture/local-first-electric-sync.md`) rather than standing up a parallel
       backend. Start with the core study/review flow, not full feature parity with the web app.
-      [→ in progress, not done: planned + built 2026-07-17 at `.planning/mobile-study-review-app/`,
-      code sitting uncommitted in worktree `.claude/worktrees/mobile-study-review-app`
-      (branch `mobile-study-review-app`). Backend (new `api_tokens` PAT auth, additive to the
-      existing shared secret) and the Expo app's TypeScript/bundle layer are verified — real
-      tests, real curl checks, real typecheck, all independently re-confirmed. Blocked on: no iOS
+      [→ in progress, not done: planned + built 2026-07-17, merged to main 2026-07-25 (commit
+      `5d3afb5`). Backend (`api_tokens` PAT auth, additive to the existing shared secret) is
+      verified end-to-end on `main` — real token minted via `create-api-token.ts` against the dev
+      DB, a real curl with that token got 200 from `GET /subjects`, a bogus/missing token got 401;
+      typecheck + full vitest suite (471 files, 4125 tests) clean post-merge. Blocked on: no iOS
       Simulator / Android emulator on this machine, so the Connect/Today screens have never
       actually rendered — needs a physical device with Expo Go before this can be marked done.]
 - [ ] Build a Tauri desktop app for Post Anki wrapping the same web app / reusing the same
