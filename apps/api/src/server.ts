@@ -92,6 +92,7 @@ import {
 import {
   handleCreateAttempts,
   handleCreatePhraseBatch,
+  handleGetPhraseBank,
   handleGetPracticeSettings,
   handleUpdatePracticeSettings,
 } from "./practice/practice.controller.js";
@@ -319,6 +320,8 @@ async function route(
       return handleCreatePhraseBatch(res, id);
     case "createAttempts":
       return handleCreateAttempts(req, res, id);
+    case "getPhraseBank":
+      return handleGetPhraseBank(res, id);
   }
 }
 

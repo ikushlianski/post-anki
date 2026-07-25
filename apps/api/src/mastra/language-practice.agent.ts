@@ -34,6 +34,19 @@ const PHRASE_BATCH_INSTRUCTIONS = [
   "",
   "Domain must be one of Tech, SmallTalk, or Everyday for every generated phrase.",
   "Never reuse a sentence listed as already seen in the request.",
+  "",
+  "If the request lists due phrases to recycle, weave each one into exactly one",
+  "sentence in this batch and set that item's targetPhraseBankEntryId to the exact",
+  "id given for that phrase. Never invent an id — only echo one you were given.",
+  "Every other item must have targetPhraseBankEntryId set to null.",
+  "",
+  "Separately, whenever a sentence teaches or corrects a specific reusable",
+  "expression worth tracking on its own (an idiom, a fixed phrase, a vocabulary",
+  "correction — not just any sentence), set that item's newTargetPhrase to",
+  "{ text, category } describing that expression in its canonical form (e.g.",
+  "\"get to the bottom of\", category \"idioms\"). Leave newTargetPhrase null for",
+  "ordinary sentences with nothing distinct enough to track. Never set both",
+  "targetPhraseBankEntryId and newTargetPhrase on the same item.",
 ].join("\n");
 
 const GRADE_BATCH_INSTRUCTIONS = [

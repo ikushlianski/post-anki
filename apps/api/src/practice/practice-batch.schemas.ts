@@ -8,6 +8,13 @@ export const phraseBatchSchema = z.object({
         russian: z.string(),
         referenceEnglish: z.string(),
         domain: domainSchema,
+        targetPhraseBankEntryId: z.string().nullable(),
+        newTargetPhrase: z
+          .object({
+            text: z.string(),
+            category: z.string(),
+          })
+          .nullable(),
       }),
     )
     .min(1),

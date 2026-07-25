@@ -32,6 +32,8 @@ export const phraseSchema = z.object({
   russian: z.string(),
   referenceEnglish: z.string(),
   domain: domainSchema,
+  targetPhraseBankEntryId: z.string().nullable(),
+  sequenceNumber: z.number().int(),
   createdAt: z.string(),
 });
 

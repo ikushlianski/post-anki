@@ -19,6 +19,8 @@ interface PhraseRow {
   russian: string
   reference_english: string
   domain: Phrase['domain']
+  target_phrase_bank_entry_id: string | null
+  sequence_number: number
   created_at: string
 }
 
@@ -87,6 +89,8 @@ export function mapPhraseRow(row: PhraseRow): Phrase {
     russian: row.russian,
     referenceEnglish: row.reference_english,
     domain: row.domain,
+    targetPhraseBankEntryId: row.target_phrase_bank_entry_id,
+    sequenceNumber: row.sequence_number,
     createdAt: row.created_at,
   }
 }

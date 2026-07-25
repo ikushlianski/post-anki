@@ -1,8 +1,19 @@
-import type { PracticeAttempt, PracticeSettings, SubmitAttemptsInput, UpdatePracticeSettingsInput } from '@post-anki/shared'
+import type {
+  PhraseBankUpdate,
+  PracticeAttempt,
+  PracticeSettings,
+  SubmitAttemptsInput,
+  UpdatePracticeSettingsInput,
+} from '@post-anki/shared'
 
 import { apiBaseUrl, authHeaders } from '../curriculum/api-client'
 
 type GradedAttempt = Omit<PracticeAttempt, 'createdAt'>
+
+export interface SubmitAttemptsResult {
+  attempts: GradedAttempt[]
+  phraseBankUpdates: PhraseBankUpdate[]
+}
 
 async function request<T>(
   path: string,
@@ -58,12 +69,11 @@ export async function generatePhraseBatch(subjectId: string): Promise<{ batchId:
 
 export async function submitAttempts(
   input: SubmitAttemptsInput & { subjectId: string },
-): Promise<GradedAttempt[]> {
+): Promise<SubmitAttemptsResult> {
   const { subjectId, ...body } = input
-  const result = await request<{ attempts: GradedAttempt[] }>(
-    `/subjects/${subjectId}/attempts`,
-    { method: 'POST', body },
-  )
 
-  return result.attempts
+  return request<SubmitAttemptsResult>(`/subjects/${subjectId}/attempts`, {
+    method: 'POST',
+    body,
+  })
 }

@@ -1,9 +1,11 @@
 import { ClientOnly, Link, createFileRoute, notFound } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { getBoard } from '../curriculum/curriculum.api'
 import { BatchPractice } from '../practice/batch-practice'
 import { LevelSelect } from '../practice/level-select'
 import { PackSelect } from '../practice/pack-select'
+import { phraseBankQuery, PhraseBankPanel } from '../practice/phrase-bank-panel'
 import { getPracticeSettings } from '../practice/practice.api'
 import { usePracticeSettings } from '../practice/use-practice-settings'
 
@@ -55,6 +57,15 @@ function PracticePage() {
 
 function PracticeBody({ subjectId }: { subjectId: string }) {
   const settings = usePracticeSettings(subjectId)
+  const queryClient = useQueryClient()
+
+  function refreshPhraseBank() {
+    // The Phrase Bank panel is a plain REST GET, deliberately not synced
+    // through Electric (decision 9 in architecture.md) — a grading pass
+    // that touched tracked phrases invalidates it explicitly instead of
+    // relying on live sync to pick up the change.
+    void queryClient.invalidateQueries({ queryKey: phraseBankQuery(subjectId).queryKey })
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,7 +73,13 @@ function PracticeBody({ subjectId }: { subjectId: string }) {
         <LevelSelect subjectId={subjectId} />
         <PackSelect subjectId={subjectId} />
       </div>
-      <BatchPractice subjectId={subjectId} level={settings?.level} pack={settings?.pack} />
+      <BatchPractice
+        subjectId={subjectId}
+        level={settings?.level}
+        pack={settings?.pack}
+        onPhraseBankUpdates={refreshPhraseBank}
+      />
+      <PhraseBankPanel subjectId={subjectId} />
     </div>
   )
 }
