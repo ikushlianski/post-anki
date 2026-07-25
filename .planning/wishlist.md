@@ -54,7 +54,13 @@ Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]
       Done when: opening `/practice/:subjectId` and generating a batch renders phrases
       immediately from the mutation response, with Electric sync verified independently as an
       enhancement (e.g. a second tab/device sees the same batch) rather than a hard dependency.
-- [ ] Port phrase-bank spaced repetition with mastery tracking to the English subject.
+- [x] Port phrase-bank spaced repetition with mastery tracking to the English subject.
+      [→ done: phrase-bank-mastery branch (merged to main), verified 2026-07-25 — 576/576 targeted
+      + full-suite tests, typecheck clean, real headless-browser proof of the recycled badge and
+      phrase-bank panel rendering. Note: the source app's own algorithm doc was genuinely
+      ambiguous on how many correct isolated reps a struggling phrase needs before it counts as
+      "rescued" — the plan picked the simpler reading (one correct answer) as a reversible
+      default; see spec.md decision 6 if this needs revisiting.]
       Why: this is the source app's actual differentiator — active recycling of weak phrases,
       3-non-adjacent-correct-uses mastery rule, failure rollback to isolation. Depends on the
       batch-practice port above existing to attach to.
