@@ -69,7 +69,16 @@ export function BatchPractice({
   const batchDone = isFinalChunk && chunkGraded
 
   useEffect(() => {
-    if (batchDone && isNextBatchReady) advanceToNextBatch()
+    if (!batchDone || !isNextBatchReady) return
+
+    // Advancing the instant the final chunk's results land would wipe them
+    // (batch-practice's own [batchId] effect clears answers/results on every
+    // batch change) before the learner — or a test — ever sees the graded
+    // feedback for that last chunk. A short, deliberate pause lets it render
+    // first.
+    const timer = setTimeout(() => advanceToNextBatch(), 1_500)
+
+    return () => clearTimeout(timer)
   }, [batchDone, isNextBatchReady, advanceToNextBatch])
 
   async function submitChunk() {

@@ -2,6 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: post-anki-e2e-db
+    # wal_level=logical: the board and batch-practice local-first read paths
+    # go through Electric, which requires logical replication. Prod/dev point
+    # Electric at Neon (which already supports this — see
+    # .planning/local-first-electric-sync/todo.md); this flag exists only so
+    # the e2e stack can run a real local Electric container for verification,
+    # without touching that deferred Neon/prod decision.
+    command: postgres -c wal_level=logical
     environment:
       POSTGRES_USER: postanki
       POSTGRES_PASSWORD: postanki
@@ -15,3 +22,18 @@ services:
       retries: 20
     tmpfs:
       - /var/lib/postgresql/data
+
+  # Local-first pages (board, batch practice) read via Electric shape
+  # subscriptions proxied through the API — without this running, the
+  # electric-shape route always 500s and those pages' data never arrives.
+  electric:
+    image: electricsql/electric:1.7.7
+    container_name: post-anki-e2e-electric
+    environment:
+      DATABASE_URL: postgres://postanki:postanki@postgres:5432/postanki_e2e
+      ELECTRIC_INSECURE: 'true'
+    ports:
+      - '${E2E_ELECTRIC_PORT:-3011}:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
