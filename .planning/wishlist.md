@@ -27,7 +27,8 @@ Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]
       interaction against a topic under that subject visibly uses different agent instructions
       (recall/usage-based, not Socratic "why") than the same interaction under an
       `architecture-mentor` subject — proven by a real e2e test, not a self-report.
-- [ ] Port the English batch-practice engine as English-subject data model + UI.
+- [x] Port the English batch-practice engine as English-subject data model + UI.
+      [→ done: english-batch-practice branch (merged to main), e2e S1-S6 all pass 2026-07-25.]
       Why: post-anki's curriculum → topic → probe model doesn't fit "translate this sentence, get
       scored" — this needs its own data shape. Depends on the pedagogy-kind foundation above.
       Pointers: source app `src/practice/practice.server.ts`, `src/practice/use-practice-batch.ts`,
