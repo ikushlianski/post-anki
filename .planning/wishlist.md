@@ -11,8 +11,14 @@ Done is unambiguous; then the knowledge-map cluster in dependency order; the ite
 external data-source/credential decisions (#53) is deliberately last, since `/grand-loop` halts
 on a human-only blocker rather than skipping past it.
 
-- [ ] Fix batch-practice's no-fallback dependency on Electric sync for reading a freshly
+- [x] Fix batch-practice's no-fallback dependency on Electric sync for reading a freshly
       generated phrase batch.
+      [→ done: .bmad/batch-practice-electric-fallback/, merged to main 2026-07-28 (commit
+      55aabd7). review-playwright verdict: PASS 8/8 (S1-S8, fresh servers spawned from the
+      main-tree checkout). A real regression the fix itself introduced (a stale reset-effect
+      re-firing on the same level/pack and permanently stalling the retry guard) was caught by a
+      full-suite re-run during implementation and fixed with an idempotency guard — see
+      use-practice-batch.ts's lastResetKeyRef.]
       Why: `POST /subjects/:id/phrase-batches` already returns the full phrase rows in its
       response, but `apps/web/src/practice/use-practice-batch.ts` discards everything except
       `batchId` and waits exclusively for Electric to redeliver the same rows before rendering
