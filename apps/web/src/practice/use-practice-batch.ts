@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { eq, useLiveQuery } from '@tanstack/react-db'
 
-import type { Pack, PracticeLevel } from '@post-anki/shared'
+import type { Pack, Phrase, PracticeLevel } from '@post-anki/shared'
 
 import { generatePhraseBatch } from './practice.api'
-import { mapPhraseRow, phrasesCollection } from './practice.collection'
+import { mapPhraseRow, phrasesCollection, reconcilePhrases } from './practice.collection'
 import { BATCH_SIZE } from './practice.constants'
 
 export function usePracticeBatch(
@@ -14,6 +14,13 @@ export function usePracticeBatch(
 ) {
   const [currentBatchId, setCurrentBatchId] = useState<string>()
   const [nextBatchId, setNextBatchId] = useState<string>()
+  // Phrases seeded directly from a generate-batch mutation response, keyed by
+  // batchId — written the instant either generate call site resolves, so the
+  // batch renders immediately instead of waiting on Electric to redeliver the
+  // same rows. Reconciled with Electric's live query (below) rather than
+  // replaced by it, so a slow-but-eventually-working Electric connection
+  // still converges on the same synced data once it catches up.
+  const [seededPhrasesByBatchId, setSeededPhrasesByBatchId] = useState<Record<string, Phrase[]>>({})
   const isRequestingFirstBatchRef = useRef(false)
   const isPrefetchingRef = useRef(false)
   // Tracks the `level:pack` key of the most recent FAILED first-batch attempt. Guards against
@@ -30,13 +37,32 @@ export function usePracticeBatch(
   // generate call can never land after the fact and claim a batch/stub slot
   // that belongs to the new level/pack's own call.
   const inFlightControllersRef = useRef(new Set<AbortController>())
+  // The `level:pack` key this effect last actually reset for. Now that
+  // level/pack can be non-undefined from the very first render (seeded via
+  // usePracticeSettings' initialSettings), this effect can be invoked more
+  // than once for the SAME level/pack pair before its own generate call has
+  // settled (e.g. a dev-mode remount of this subtree) — without this guard,
+  // a same-key re-invocation would abort the still-in-flight first-batch
+  // request and never re-fire it (isRequestingFirstBatchRef stays true until
+  // the aborted promise's .finally() runs, so the very next effect pass sees
+  // a request "in flight" and skips), leaving the page stuck on
+  // "Generating…" forever. Comparing against the last key this effect
+  // genuinely reset for makes the reset idempotent for repeat invocations,
+  // while still firing correctly on an actual level/pack change.
+  const lastResetKeyRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
+    const key = level && pack ? `${level}:${pack}` : undefined
+
+    if (lastResetKeyRef.current === key) return
+    lastResetKeyRef.current = key
+
     for (const controller of inFlightControllersRef.current) controller.abort()
     inFlightControllersRef.current.clear()
     lastFailedKeyRef.current = undefined
     setCurrentBatchId(undefined)
     setNextBatchId(undefined)
+    setSeededPhrasesByBatchId({})
   }, [level, pack])
 
   useEffect(() => {
@@ -50,7 +76,13 @@ export function usePracticeBatch(
     const controller = new AbortController()
     inFlightControllersRef.current.add(controller)
     generatePhraseBatch({ data: subjectId, signal: controller.signal })
-      .then(({ batchId }) => setCurrentBatchId(batchId))
+      .then(({ batchId, phrases }) => {
+        // Seed BEFORE flipping currentBatchId, so the very first render that
+        // has a batchId already has phrases to reconcile against — never a
+        // render with a batchId but nothing to show yet.
+        setSeededPhrasesByBatchId((prev) => ({ ...prev, [batchId]: phrases }))
+        setCurrentBatchId(batchId)
+      })
       .catch((error) => {
         if (controller.signal.aborted) return
         lastFailedKeyRef.current = key
@@ -70,13 +102,12 @@ export function usePracticeBatch(
     [currentBatchId],
   )
 
-  const phrases = useMemo(
-    () =>
-      [...(phrasesInBatch ?? [])]
-        .map(mapPhraseRow)
-        .sort((a, b) => a.position - b.position),
-    [phrasesInBatch],
-  )
+  const phrases = useMemo(() => {
+    const seeded = currentBatchId ? (seededPhrasesByBatchId[currentBatchId] ?? []) : []
+    const live = [...(phrasesInBatch ?? [])].map(mapPhraseRow)
+
+    return reconcilePhrases(seeded, live)
+  }, [seededPhrasesByBatchId, currentBatchId, phrasesInBatch])
 
   const prefetchNextBatch = useCallback(() => {
     if (!level || !pack || nextBatchId || isPrefetchingRef.current) return
@@ -84,7 +115,10 @@ export function usePracticeBatch(
     const controller = new AbortController()
     inFlightControllersRef.current.add(controller)
     generatePhraseBatch({ data: subjectId, signal: controller.signal })
-      .then(({ batchId }) => setNextBatchId(batchId))
+      .then(({ batchId, phrases }) => {
+        setSeededPhrasesByBatchId((prev) => ({ ...prev, [batchId]: phrases }))
+        setNextBatchId(batchId)
+      })
       .catch((error) => {
         if (controller.signal.aborted) return
         console.error('Failed to prefetch next batch', error)

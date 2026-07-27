@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 
-import { mapAttemptRow, mapPhraseRow, mapPracticeSettingsRow } from './practice.collection'
+import type { Phrase } from '@post-anki/shared'
+
+import { mapAttemptRow, mapPhraseRow, mapPracticeSettingsRow, reconcilePhrases } from './practice.collection'
 
 describe('mapPhraseRow', () => {
   it('maps a synced Electric row to the shared Phrase shape', () => {
@@ -125,5 +127,68 @@ describe('mapPracticeSettingsRow', () => {
     })
 
     expect(settings).not.toHaveProperty('updatedAt')
+  })
+})
+
+function makePhrase(overrides: Partial<Phrase> & { id: string; position: number }): Phrase {
+  return {
+    subjectId: 'subj-1',
+    batchId: 'batch-1',
+    level: 'B1_B2',
+    pack: 'General',
+    russian: `Стаб ${overrides.id}`,
+    referenceEnglish: `Stub ${overrides.id}`,
+    domain: 'Everyday',
+    targetPhraseBankEntryId: null,
+    sequenceNumber: overrides.position,
+    createdAt: '2026-07-25T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+describe('reconcilePhrases', () => {
+  it('returns the seeded rows unchanged when there is no live delivery yet', () => {
+    const seeded = [
+      makePhrase({ id: 'phrase-1', position: 1 }),
+      makePhrase({ id: 'phrase-2', position: 2 }),
+    ]
+
+    expect(reconcilePhrases(seeded, [])).toEqual(seeded)
+  })
+
+  it('lets the live row win when the same id is present in both, without changing the count', () => {
+    const seeded = [
+      makePhrase({ id: 'phrase-1', position: 1, russian: 'Seeded 1' }),
+      makePhrase({ id: 'phrase-2', position: 2, russian: 'Seeded 2' }),
+    ]
+    const live = [
+      makePhrase({ id: 'phrase-1', position: 1, russian: 'Live 1' }),
+      makePhrase({ id: 'phrase-2', position: 2, russian: 'Live 2' }),
+    ]
+
+    const result = reconcilePhrases(seeded, live)
+
+    expect(result).toHaveLength(2)
+    expect(result.map((p) => p.russian)).toEqual(['Live 1', 'Live 2'])
+  })
+
+  it('replaces only the ids the live delivery covers, leaving the rest seeded', () => {
+    const seeded = [
+      makePhrase({ id: 'phrase-1', position: 1, russian: 'Seeded 1' }),
+      makePhrase({ id: 'phrase-2', position: 2, russian: 'Seeded 2' }),
+      makePhrase({ id: 'phrase-3', position: 3, russian: 'Seeded 3' }),
+    ]
+    const live = [makePhrase({ id: 'phrase-2', position: 2, russian: 'Live 2' })]
+
+    const result = reconcilePhrases(seeded, live)
+
+    expect(result).toHaveLength(3)
+    expect(result.map((p) => p.russian)).toEqual(['Seeded 1', 'Live 2', 'Seeded 3'])
+  })
+
+  it('returns the seeded rows unchanged when live is an empty array', () => {
+    const seeded = [makePhrase({ id: 'phrase-1', position: 1 })]
+
+    expect(reconcilePhrases(seeded, [])).toEqual(seeded)
   })
 })

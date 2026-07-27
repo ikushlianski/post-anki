@@ -1,4 +1,4 @@
-import type { PracticeLevel } from '@post-anki/shared'
+import type { PracticeLevel, PracticeSettings } from '@post-anki/shared'
 
 import { updatePracticeSettings } from './practice.api'
 import { usePracticeSettings } from './use-practice-settings'
@@ -10,8 +10,14 @@ const LEVEL_TESTIDS: Record<PracticeLevel, string> = {
   C1_C2: 'level-select-c1-c2',
 }
 
-export function LevelSelect({ subjectId }: { subjectId: string }) {
-  const settings = usePracticeSettings(subjectId)
+export function LevelSelect({
+  subjectId,
+  initialSettings,
+}: {
+  subjectId: string
+  initialSettings?: PracticeSettings
+}) {
+  const settings = usePracticeSettings(subjectId, initialSettings)
   const currentLevel = settings?.level
 
   return (

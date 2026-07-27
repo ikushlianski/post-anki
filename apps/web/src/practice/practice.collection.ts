@@ -116,3 +116,18 @@ export function mapPracticeSettingsRow(row: SettingsRow): PracticeSettings {
     pack: row.pack,
   }
 }
+
+// Merges the phrases seeded directly from a generate-batch mutation response
+// with whatever Electric's live query has delivered so far for the same
+// batch, deduped by id — a live row always wins over its seeded counterpart
+// (it's the same phrase, just confirmed via the sync layer), and any seeded
+// row with no live counterpart yet stays visible rather than disappearing.
+// Sorted by position so callers never need a separate sort pass.
+export function reconcilePhrases(seeded: Phrase[], live: Phrase[]): Phrase[] {
+  const byId = new Map<string, Phrase>()
+
+  for (const phrase of seeded) byId.set(phrase.id, phrase)
+  for (const phrase of live) byId.set(phrase.id, phrase)
+
+  return Array.from(byId.values()).sort((a, b) => a.position - b.position)
+}

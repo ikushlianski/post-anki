@@ -78,12 +78,14 @@ export async function recentRussianForSubject(
   return rows.map((r) => r.russian);
 }
 
-export async function insertPhraseBatch(rows: PhraseInsertRow[]): Promise<void> {
+export async function insertPhraseBatch(
+  rows: PhraseInsertRow[],
+): Promise<PhraseSelectRow[]> {
   if (rows.length === 0) {
-    return;
+    return [];
   }
 
-  await getDb().insert(phrases).values(rows);
+  return getDb().insert(phrases).values(rows).returning();
 }
 
 export async function insertAttempts(rows: AttemptInsertRow[]): Promise<void> {

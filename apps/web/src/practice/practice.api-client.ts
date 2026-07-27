@@ -1,4 +1,5 @@
 import type {
+  Phrase,
   PhraseBankUpdate,
   PracticeAttempt,
   PracticeSettings,
@@ -53,8 +54,10 @@ export async function updatePracticeSettings(
   })
 }
 
-export async function generatePhraseBatch(subjectId: string): Promise<{ batchId: string }> {
-  const result = await request<{ phrases: Array<{ batchId: string }> }>(
+export async function generatePhraseBatch(
+  subjectId: string,
+): Promise<{ batchId: string; phrases: Phrase[] }> {
+  const result = await request<{ phrases: Phrase[] }>(
     `/subjects/${subjectId}/phrase-batches`,
     { method: 'POST' },
   )
@@ -64,7 +67,7 @@ export async function generatePhraseBatch(subjectId: string): Promise<{ batchId:
     throw new Error('phrase batch generation returned no phrases')
   }
 
-  return { batchId }
+  return { batchId, phrases: result.phrases }
 }
 
 export async function submitAttempts(
