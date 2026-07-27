@@ -1,4 +1,4 @@
-import type { Pack } from '@post-anki/shared'
+import type { Pack, PracticeSettings } from '@post-anki/shared'
 
 import { updatePracticeSettings } from './practice.api'
 import { usePracticeSettings } from './use-practice-settings'
@@ -12,8 +12,14 @@ const PACK_TESTIDS: Record<Pack, string> = {
   GivingFeedback: 'pack-select-giving-feedback',
 }
 
-export function PackSelect({ subjectId }: { subjectId: string }) {
-  const settings = usePracticeSettings(subjectId)
+export function PackSelect({
+  subjectId,
+  initialSettings,
+}: {
+  subjectId: string
+  initialSettings?: PracticeSettings
+}) {
+  const settings = usePracticeSettings(subjectId, initialSettings)
   const currentPack = settings?.pack
 
   return (

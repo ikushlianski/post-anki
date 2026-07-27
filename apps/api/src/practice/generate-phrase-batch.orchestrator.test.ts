@@ -14,10 +14,19 @@ vi.mock("../shared/log.js", () => ({
 
 const practiceRepoState = { avoidRussian: [] as string[], insertedRows: [] as unknown[] };
 
+const STUB_CREATED_AT = new Date("2026-01-01T00:00:00.000Z");
+
 vi.mock("./practice.repo.js", () => ({
   recentRussianForSubject: vi.fn(async () => practiceRepoState.avoidRussian),
-  insertPhraseBatch: vi.fn(async (rows: unknown[]) => {
+  // insertPhraseBatch now returns the real inserted rows (via drizzle's
+  // .returning()) instead of void — the mock must mirror that shape so
+  // generatePhraseBatch's own return value (which is now insertPhraseBatch's
+  // result, not the pre-insert rows) carries every field the existing
+  // assertions below read, plus a real createdAt.
+  insertPhraseBatch: vi.fn(async (rows: Record<string, unknown>[]) => {
     practiceRepoState.insertedRows.push(...rows);
+
+    return rows.map((row) => ({ ...row, createdAt: STUB_CREATED_AT }));
   }),
 }));
 
@@ -302,6 +311,10 @@ describe("generatePhraseBatch", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]!.targetPhraseBankEntryId).toBeNull();
       expect(rows[0]!.sequenceNumber).toBe(1);
+      // The returned rows are now insertPhraseBatch's real, post-insert
+      // result (via .returning()), not the pre-insert rows — so a real
+      // createdAt is present, never undefined/missing.
+      expect(rows[0]!.createdAt).toEqual(STUB_CREATED_AT);
     });
   });
 

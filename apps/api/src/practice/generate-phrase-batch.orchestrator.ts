@@ -7,6 +7,7 @@ import {
   insertPhraseBatch,
   recentRussianForSubject,
   type PhraseInsertRow,
+  type PhraseSelectRow,
 } from "./practice.repo.js";
 import {
   createPhraseBankEntry,
@@ -103,7 +104,7 @@ export async function generatePhraseBatch(
   subjectId: string,
   level: PracticeLevel,
   pack: Pack,
-): Promise<PhraseInsertRow[]> {
+): Promise<PhraseSelectRow[]> {
   const avoidRussian = await recentRussianForSubject(subjectId, level, pack);
   const sequenceNumberBase = await nextSequenceBase(subjectId, level, pack);
   const dueEntries = await dueEntriesForScope(
@@ -155,14 +156,14 @@ export async function generatePhraseBatch(
     finalTargetIds,
   );
 
-  await insertPhraseBatch(rows);
+  const insertedRows = await insertPhraseBatch(rows);
 
   log.info(
-    { subjectId, batchId, count: rows.length, dueCount: dueEntries.length },
+    { subjectId, batchId, count: insertedRows.length, dueCount: dueEntries.length },
     "phrase_batch_generated",
   );
 
-  return rows;
+  return insertedRows;
 }
 
 // Sequential, not Promise.all: a duplicate newTargetPhrase text within the same

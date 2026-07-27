@@ -1,6 +1,8 @@
 import { ClientOnly, Link, createFileRoute, notFound } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 
+import type { PracticeSettings } from '@post-anki/shared'
+
 import { getBoard } from '../curriculum/curriculum.api'
 import { BatchPractice } from '../practice/batch-practice'
 import { LevelSelect } from '../practice/level-select'
@@ -22,14 +24,19 @@ export const Route = createFileRoute('/practice/$subjectId')({
     // Guarantees the settings row exists before the pills ever try to read
     // it via Electric sync — getOrCreatePracticeSettings upserts on first
     // read, so this call is what makes SCENARIO 1's "no scenery" case work.
-    await getPracticeSettings({ data: params.subjectId })
+    // The result is threaded through as initialSettings (rather than
+    // discarded) so the pills and the generate effect can seed themselves
+    // from it immediately, without waiting on Electric to redeliver the same
+    // row — the same gap that used to leave batch generation permanently
+    // gated on a live query that may never resolve.
+    const initialSettings = await getPracticeSettings({ data: params.subjectId })
 
-    return { subject }
+    return { subject, initialSettings }
   },
 })
 
 function PracticePage() {
-  const { subject } = Route.useLoaderData()
+  const { subject, initialSettings } = Route.useLoaderData()
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
@@ -49,14 +56,20 @@ function PracticePage() {
             never regenerate for the new subject. Forcing a remount here is
             simpler and safer than growing the ported hook's guard logic to
             cover a case the source app never had (subject-scoped batches). */}
-        <PracticeBody key={subject.id} subjectId={subject.id} />
+        <PracticeBody key={subject.id} subjectId={subject.id} initialSettings={initialSettings} />
       </ClientOnly>
     </main>
   )
 }
 
-function PracticeBody({ subjectId }: { subjectId: string }) {
-  const settings = usePracticeSettings(subjectId)
+function PracticeBody({
+  subjectId,
+  initialSettings,
+}: {
+  subjectId: string
+  initialSettings: PracticeSettings
+}) {
+  const settings = usePracticeSettings(subjectId, initialSettings)
   const queryClient = useQueryClient()
 
   function refreshPhraseBank() {
@@ -70,8 +83,8 @@ function PracticeBody({ subjectId }: { subjectId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
-        <LevelSelect subjectId={subjectId} />
-        <PackSelect subjectId={subjectId} />
+        <LevelSelect subjectId={subjectId} initialSettings={initialSettings} />
+        <PackSelect subjectId={subjectId} initialSettings={initialSettings} />
       </div>
       <BatchPractice
         subjectId={subjectId}
