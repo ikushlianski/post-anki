@@ -92,8 +92,10 @@ import {
 import {
   handleCreateAttempts,
   handleCreatePhraseBatch,
+  handleCreateWritingCheck,
   handleGetPhraseBank,
   handleGetPracticeSettings,
+  handleListWritingChecks,
   handleUpdatePracticeSettings,
 } from "./practice/practice.controller.js";
 import { resolveRoute } from "./router.js";
@@ -322,6 +324,10 @@ async function route(
       return handleCreateAttempts(req, res, id);
     case "getPhraseBank":
       return handleGetPhraseBank(res, id);
+    case "createWritingCheck":
+      return handleCreateWritingCheck(req, res, id);
+    case "listWritingChecks":
+      return handleListWritingChecks(res, id);
   }
 }
 

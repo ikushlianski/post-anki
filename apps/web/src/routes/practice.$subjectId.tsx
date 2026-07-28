@@ -44,8 +44,16 @@ function PracticePage() {
         ← All curricula
       </Link>
 
-      <header className="mb-6 mt-3">
+      <header className="mb-6 mt-3 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{subject.name}</h1>
+        <Link
+          to="/practice/$subjectId/check-writing"
+          params={{ subjectId: subject.id }}
+          data-testid="check-writing-nav-link"
+          className="text-sm text-neutral-500 hover:text-neutral-900"
+        >
+          Check my writing →
+        </Link>
       </header>
 
       <ClientOnly fallback={<p className="text-neutral-500">Loading…</p>}>

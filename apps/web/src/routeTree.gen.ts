@@ -22,6 +22,7 @@ import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
 import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
+import { Route as PracticeSubjectIdCheckWritingRouteImport } from './routes/practice.$subjectId_.check-writing'
 import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
 import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curriculum.$curriculumId_.assess'
 
@@ -90,6 +91,12 @@ const ProbeTagTagIdRoute = ProbeTagTagIdRouteImport.update({
   path: '/probe/tag/$tagId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PracticeSubjectIdCheckWritingRoute =
+  PracticeSubjectIdCheckWritingRouteImport.update({
+    id: '/practice/$subjectId_/check-writing',
+    path: '/practice/$subjectId/check-writing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CurriculumCurriculumIdStatsRoute =
   CurriculumCurriculumIdStatsRouteImport.update({
     id: '/curriculum/$curriculumId_/stats',
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
 }
 export interface FileRoutesByTo {
@@ -135,6 +143,7 @@ export interface FileRoutesByTo {
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
 }
 export interface FileRoutesById {
@@ -153,6 +162,7 @@ export interface FileRoutesById {
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
+  '/practice/$subjectId_/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
 }
 export interface FileRouteTypes {
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/probe/$topicId'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
+    | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/probe/$topicId'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
+    | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
   id:
     | '__root__'
@@ -206,6 +218,7 @@ export interface FileRouteTypes {
     | '/probe/$topicId'
     | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/stats'
+    | '/practice/$subjectId_/check-writing'
     | '/probe/tag/$tagId'
   fileRoutesById: FileRoutesById
 }
@@ -224,6 +237,7 @@ export interface RootRouteChildren {
   ProbeTopicIdRoute: typeof ProbeTopicIdRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
+  PracticeSubjectIdCheckWritingRoute: typeof PracticeSubjectIdCheckWritingRoute
   ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
 }
 
@@ -320,6 +334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProbeTagTagIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/practice/$subjectId_/check-writing': {
+      id: '/practice/$subjectId_/check-writing'
+      path: '/practice/$subjectId/check-writing'
+      fullPath: '/practice/$subjectId/check-writing'
+      preLoaderRoute: typeof PracticeSubjectIdCheckWritingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/curriculum/$curriculumId_/stats': {
       id: '/curriculum/$curriculumId_/stats'
       path: '/curriculum/$curriculumId/stats'
@@ -352,6 +373,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProbeTopicIdRoute: ProbeTopicIdRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
+  PracticeSubjectIdCheckWritingRoute: PracticeSubjectIdCheckWritingRoute,
   ProbeTagTagIdRoute: ProbeTagTagIdRoute,
 }
 export const routeTree = rootRouteImport
