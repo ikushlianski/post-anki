@@ -36,7 +36,13 @@ on a human-only blocker rather than skipping past it.
       Done when: opening `/practice/:subjectId` and generating a batch renders phrases
       immediately from the mutation response, with Electric sync verified independently as an
       enhancement (e.g. a second tab/device sees the same batch) rather than a hard dependency.
-- [ ] Close the phrase-bank's concurrency and data-integrity gaps: no real FK, no locking.
+- [x] Close the phrase-bank's concurrency and data-integrity gaps: no real FK, no locking.
+      [→ done: .planning/phrase-bank-concurrency-fix/, merged to main 2026-07-28. review-playwright
+      verdict: PASS — 15/15 backend integration tests proving all 3 races closed + the FK, 1/1 e2e
+      regression. A real bug was found and fixed along the way: the app-level uniqueness check on
+      phrase text excludes mastered entries, so the first DB-level unique index draft would have
+      500'd on a mastered phrase being reintroduced — fixed with a partial index
+      (`WHERE status <> 'mastered'`), caught by the plan's own integration test before it shipped.]
       Why: `docs/architecture/phrase-bank-mastery/review.md` (found during `/debrief` 2026-07-25)
       found the design doc's own claim that `phrases.targetPhraseBankEntryId` is "a real FK" is
       false in the actual migration — it's a plain nullable text column, no `REFERENCES` clause.
