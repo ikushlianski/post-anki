@@ -212,3 +212,5 @@ Note found while planning the entry below: the "22:18" entry directly above this
   `review-playwright` verdict: **PASS 12/12** (3 new + 8 `@english-batch-practice` + 1 `@phrase-bank-concurrency-fix` regression), independently re-run against fresh servers from the merged main checkout, mock-openrouter change spot-checked directly (genuinely branches, not a no-op). Merge commit follows `fc098a5`.
 
   `/debrief` next, then item 5 (seed subjects/knowledge map — the first item in this queue needing real product decisions, not a port).
+
+  **Debrief verdict: sound.** The already-built pack-selection-to-generation mechanism (settings persistence, prompt embedding, the advisory lock + unique index from item 2 scoped correctly to subject/level/pack, frontend key-based race guarding) holds up now that it's finally e2e-proven. One real, non-blocking tradeoff named: pack theming is enforced by prompt instructions, not a schema-validated check on the model's response — the mock proves the request reaches the model, not that a real model would honor it. `docs/architecture/workplace-scenario-packs/review.md`.
