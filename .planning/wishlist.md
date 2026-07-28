@@ -372,6 +372,20 @@ on a human-only blocker rather than skipping past it.
       Done when: both the config fix and the memory notes are committed in verification-repo, or
       a human has explicitly decided not to keep them.
 
+- [ ] Clean up orphaned `gap_mastery` rows left behind by gap/topic/module/curriculum deletion.
+      Why: `docs/architecture/generalize-gap-tracking/review.md` (found during `/debrief`
+      2026-07-28) found `gap_mastery` has no FK/cascade to `gaps`, and none of the four existing
+      deletion call sites (topic, module, curriculum, and gap deletion itself) clean up the
+      corresponding `gap_mastery` row. Not a corruption risk today — every reader reaches
+      `gap_mastery` by joining through `gaps`, so an orphaned row is simply invisible, never
+      misattributed — but it's an unbounded, invisible leak that will just grow over time.
+      Pointers: `apps/api/src/gap/gap-mastery.repo.ts`, the four deletion call sites named above
+      (grep for where `gaps` rows get deleted).
+      Done when: deleting a gap (directly, or via its parent topic/module/curriculum) also removes
+      its `gap_mastery` row, either via a real `ON DELETE CASCADE` FK or an explicit delete in the
+      same transaction — proven by a test that deletes a gap with an active mastery row and
+      confirms zero orphaned `gap_mastery` rows remain.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
