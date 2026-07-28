@@ -314,6 +314,39 @@ on a human-only blocker rather than skipping past it.
       assigning a tag updates the visible chip immediately, without a page reload, proven by an
       e2e test that does NOT navigate away before asserting.
 
+- [ ] Make a zero-suggestion priority review fail loudly instead of silently clearing the
+      "review due" banner.
+      Why: `docs/architecture/domain-priority-review/review.md` (found during `/debrief`
+      2026-07-28) found the trigger handler unconditionally clears the "review due" indicator on
+      any successful review call, including one that returns zero suggestions. The agent's prompt
+      asks for at least one suggestion but nothing enforces it in code, so a real model call that
+      returns an empty list looks — to the user, within the same session — exactly like "the
+      reminder mechanism silently did nothing," not an error. Not critical (rare, non-blocking,
+      no data loss) but a cheap, well-specified fix.
+      Pointers: `apps/api/src/mastra/domain-priority-review.agent.ts` (add `.min(1)` to the
+      result schema so an empty response fails structured-output validation and takes the
+      already-correct 502 error path instead of silently succeeding),
+      `apps/web/src/domain-map/priority-review-panel.tsx` (stop predicting `due: false` on an
+      empty successful result). Also worth doing in the same pass: an index on
+      `domain_priority_suggestions(subject_id, created_at)` — currently unindexed, a growing scan
+      per subject over time, flagged non-urgent in the same review.
+      Done when: a mocked zero-suggestion agent response results in a visible error (matching the
+      existing 502 path), not a silently-cleared "review due" banner.
+- [ ] Ensure the two disk-only Playwright memory notes captured during this run's build/review
+      passes (missing `.env` file, `routeTree.gen.ts` regeneration, `npm run <script> -w
+      <workspace>` vs `npx <tool> -w <workspace>` gotchas; verification-repo's cross-project
+      `PROJECT_DEV_SERVER_URL` env-precedence bug) are actually picked up by future sessions.
+      Why: several build/review agents in this run wrote gotchas to
+      `verification-repo/projects/post-anki/post-anki/docs/memories/` or fixed shared config
+      directly, but that repo is outside this session's autonomy grant (`~/work/`), so those
+      fixes and notes were left uncommitted for manual review — worth a deliberate pass to
+      confirm they're actually committed and indexed rather than silently lost.
+      Pointers: `verification-repo/playwright.post-anki.config.ts` (the dotenv load-order fix
+      from `phrase-bank-concurrency-fix`), `verification-repo/projects/post-anki/post-anki/docs/
+      memories/` (gotcha notes from `ontology-split-merge`'s build agent).
+      Done when: both the config fix and the memory notes are committed in verification-repo, or
+      a human has explicitly decided not to keep them.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
