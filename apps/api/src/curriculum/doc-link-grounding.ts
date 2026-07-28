@@ -1,6 +1,7 @@
 import { extractSameSiteLinks } from "@post-anki/core";
 import { looksLikeLlmsTxtContent } from "./curriculum-rules.js";
 import { log } from "../shared/log.js";
+import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
 
 const PROBE_TIMEOUT_MS = 8_000;
 const MAX_LLMS_TXT_CHARS = 30_000;
@@ -14,36 +15,15 @@ export interface DocSiteCandidate {
   fetchedText: string | null;
 }
 
+// Thin, byte-for-byte-behavior-preserving wrappers over the extracted
+// shared primitives (spec.md's Decisions #4) — kept as local names so the
+// rest of this file (and any future diff) reads unchanged.
 async function probe(url: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-
-    if (!res.ok) {
-      return null;
-    }
-
-    return await res.text();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return fetchWithTimeout(url, PROBE_TIMEOUT_MS);
 }
 
-const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
-  "[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]",
-  "g",
-);
-
 function truncate(text: string): string {
-  const sanitized = text.replace(CONTROL_CHARS_EXCEPT_WHITESPACE, " ");
-
-  return sanitized.length > MAX_LLMS_TXT_CHARS
-    ? sanitized.slice(0, MAX_LLMS_TXT_CHARS)
-    : sanitized;
+  return truncateText(text, MAX_LLMS_TXT_CHARS);
 }
 
 /**

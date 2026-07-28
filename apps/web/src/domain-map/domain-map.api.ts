@@ -2,20 +2,29 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type {
   DepthLevel,
+  DocScanResult,
+  DocScanSuggestionsResponse,
   DomainNode,
   DomainNodeTreeItem,
   DomainPriorityReviewStatus,
   DomainPrioritySuggestion,
   DomainPrioritySuggestionStatus,
+  DomainSuggestionStatus,
+  DomainSupersessionSuggestion,
+  DomainTopicSuggestion,
 } from '@post-anki/shared'
 
 import {
   getDomainMap,
   getDomainPriorityReviewStatus,
+  listDocScanSuggestions,
   listPrioritySuggestions,
   listSubjects,
+  resolveDomainSupersessionSuggestion,
+  resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
   setCurriculumDomainNode,
+  triggerDocScan,
   triggerDomainPriorityReview,
   updateDomainNodeTargetDepth,
 } from '../curriculum/api-client'
@@ -77,3 +86,29 @@ export const resolveSuggestionStatus = createServerFn({ method: 'POST' })
 export const getPriorityReviewStatus = createServerFn({ method: 'GET' })
   .inputValidator((subjectId: string) => z.string().parse(subjectId))
   .handler(({ data }): Promise<DomainPriorityReviewStatus> => getDomainPriorityReviewStatus(data))
+
+// doc-changelog-scan (issue #49) additions below.
+
+export const runDocScan = createServerFn({ method: 'POST' })
+  .inputValidator((subjectId: string) => z.string().parse(subjectId))
+  .handler(({ data }): Promise<DocScanResult> => triggerDocScan(data))
+
+export const getDocScanSuggestions = createServerFn({ method: 'GET' })
+  .inputValidator(
+    (data: { subjectId: string; status?: DomainSuggestionStatus }) => data,
+  )
+  .handler(({ data }): Promise<DocScanSuggestionsResponse> =>
+    listDocScanSuggestions(data.subjectId, data.status),
+  )
+
+export const resolveDocScanTopicSuggestion = createServerFn({ method: 'POST' })
+  .inputValidator((data: { suggestionId: string; status: 'accepted' | 'rejected' }) => data)
+  .handler(({ data }): Promise<DomainTopicSuggestion> =>
+    resolveDomainTopicSuggestion(data.suggestionId, data.status),
+  )
+
+export const resolveDocScanSupersessionSuggestion = createServerFn({ method: 'POST' })
+  .inputValidator((data: { suggestionId: string; status: 'accepted' | 'rejected' }) => data)
+  .handler(({ data }): Promise<DomainSupersessionSuggestion> =>
+    resolveDomainSupersessionSuggestion(data.suggestionId, data.status),
+  )

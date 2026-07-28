@@ -19,6 +19,7 @@ import { createPhraseBatchAgent, createGradeBatchAgent } from "./language-practi
 import { createWritingCheckAgent } from "./writing-check.agent.js";
 import { createSiblingDiscoveryAgent } from "./sibling-discovery.agent.js";
 import { createDomainPriorityReviewAgent } from "./domain-priority-review.agent.js";
+import { createDocScanAgent } from "./doc-scan.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -38,6 +39,7 @@ export const AGENT_KEYS = {
   writingCheck: "writingCheck",
   siblingDiscovery: "siblingDiscovery",
   domainPriorityReview: "domainPriorityReview",
+  docScan: "docScan",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -97,6 +99,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.writingCheck]: createWritingCheckAgent(),
         [AGENT_KEYS.siblingDiscovery]: createSiblingDiscoveryAgent(),
         [AGENT_KEYS.domainPriorityReview]: createDomainPriorityReviewAgent(),
+        [AGENT_KEYS.docScan]: createDocScanAgent(),
       },
       ...(observability ? { observability } : {}),
     });

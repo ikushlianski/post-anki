@@ -11,6 +11,13 @@ const dailyPushSchedule = config.get("dailyPushSchedule") ?? "0 8 * * *";
 const dailyPushTimeZone = config.get("dailyPushTimeZone") ?? "Europe/Warsaw";
 // Secret the bot's POST /push checks (must equal the bot's TELEGRAM_WEBHOOK_SECRET).
 const telegramWebhookSecret = config.getSecret("telegramWebhookSecret");
+const docScanSchedule = config.get("docScanSchedule") ?? "0 9 * * 1"; // Monday 09:00
+const docScanTimeZone = config.get("docScanTimeZone") ?? "Europe/Warsaw";
+// Secret the API's own auth check (server.ts's authorized()) verifies as a
+// bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
+// via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
+// human step: `pulumi config set --secret apiSharedSecret <same value>`.
+const apiSharedSecret = config.getSecret("apiSharedSecret");
 // Neon DIRECT (non-pooled) connection string — Electric's logical-replication
 // connection can't go through a connection pooler, unlike apps/api and apps/bot's
 // pooled Neon connection. Set via `pulumi config set --secret electricDatabaseUrl <value>`.
@@ -286,6 +293,31 @@ const dailyPushJob = new gcp.cloudscheduler.Job(
   { dependsOn: [botService, ...enabledApis] },
 );
 
+// doc-changelog-scan (issue #49) — weekly scan: fire the API's POST
+// /doc-scans once a week. Mirrors dailyPushJob's exact shape, gated by the
+// API's own API_SHARED_SECRET (sent as a bearer) rather than the bot's
+// TELEGRAM_WEBHOOK_SECRET. attemptDeadline is longer than dailyPushJob's 60s
+// (worst case: 4 tools x 8s fetch timeout + one LLM call).
+const docScanJob = new gcp.cloudscheduler.Job(
+  "doc-scan",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-doc-scan",
+    schedule: docScanSchedule,
+    timeZone: docScanTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/doc-scans`,
+      headers: apiSharedSecret
+        ? { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` }
+        : undefined,
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -302,3 +334,4 @@ export const apiDomainMappingRecords = apiDomainMapping.statuses;
 export const electricServiceUrl = electricServiceInstance.statuses[0].url;
 export const electricSaEmail = electricSa.email;
 export const dailyPushJobName = dailyPushJob.name;
+export const docScanJobName = docScanJob.name;

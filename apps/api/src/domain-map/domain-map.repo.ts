@@ -5,11 +5,22 @@ import type {
   DomainNodeTreeItem,
   DomainPrioritySuggestion,
   DomainPrioritySuggestionStatus,
+  DomainSuggestionStatus,
+  DomainSupersessionSuggestion,
+  DomainTopicSuggestion,
   Topic,
 } from "@post-anki/shared";
 import { domainNodeProgress, domainPriorityDistance } from "@post-anki/core";
 import { getDb } from "../db/client.js";
-import { curricula, domainNodes, domainPrioritySuggestions, topics } from "../db/schema.js";
+import {
+  curricula,
+  domainNodes,
+  domainPrioritySuggestions,
+  domainSupersessionSuggestions,
+  domainTopicSuggestions,
+  topics,
+  trackedToolScanState,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
@@ -22,6 +33,8 @@ function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
     order: row.order,
     createdAt: row.createdAt.toISOString(),
     targetDepth: (row.targetDepth as DepthLevel | null) ?? null,
+    supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
+    supersededReason: row.supersededReason ?? null,
   };
 }
 
@@ -172,6 +185,10 @@ export async function getDomainMapForSubject(subjectId: string): Promise<DomainN
       priorityDistance: domainPriorityDistance(targetDepth, percent),
       curricula: curriculaByNodeId.get(row.id) ?? [],
       children,
+      // doc-changelog-scan (issue #49) — projected read-only alongside
+      // percent, never derived from it (spec.md's Decisions #2).
+      supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
+      supersededReason: row.supersededReason ?? null,
     };
   }
 
@@ -324,4 +341,312 @@ export async function getLastReviewedAt(subjectId: string): Promise<string | nul
     .limit(1);
 
   return rows[0] ? rows[0].createdAt.toISOString() : null;
+}
+
+// doc-changelog-scan (issue #49) — repo additions below.
+
+function toDomainTopicSuggestion(
+  row: typeof domainTopicSuggestions.$inferSelect,
+): DomainTopicSuggestion {
+  return {
+    id: row.id,
+    subjectId: row.subjectId,
+    proposedParentNodeId: row.proposedParentNodeId ?? null,
+    proposedNodeName: row.proposedNodeName,
+    reason: row.reason,
+    source: row.source,
+    status: row.status as DomainSuggestionStatus,
+    createdAt: row.createdAt.toISOString(),
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+    createdDomainNodeId: row.createdDomainNodeId ?? null,
+  };
+}
+
+function toDomainSupersessionSuggestion(
+  row: typeof domainSupersessionSuggestions.$inferSelect,
+): DomainSupersessionSuggestion {
+  return {
+    id: row.id,
+    subjectId: row.subjectId,
+    domainNodeId: row.domainNodeId,
+    reason: row.reason,
+    source: row.source,
+    status: row.status as DomainSuggestionStatus,
+    createdAt: row.createdAt.toISOString(),
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+  };
+}
+
+export interface InsertDomainTopicSuggestionParams {
+  subjectId: string;
+  proposedParentNodeId: string | null;
+  proposedNodeName: string;
+  reason: string;
+  source: string;
+}
+
+export async function insertDomainTopicSuggestion(
+  params: InsertDomainTopicSuggestionParams,
+): Promise<DomainTopicSuggestion> {
+  const db = getDb();
+  const id = newId("dtsug");
+
+  await db.insert(domainTopicSuggestions).values({
+    id,
+    subjectId: params.subjectId,
+    proposedParentNodeId: params.proposedParentNodeId,
+    proposedNodeName: params.proposedNodeName,
+    reason: params.reason,
+    source: params.source,
+  });
+
+  const inserted = (
+    await db.select().from(domainTopicSuggestions).where(eq(domainTopicSuggestions.id, id))
+  )[0]!;
+
+  return toDomainTopicSuggestion(inserted);
+}
+
+export async function listDomainTopicSuggestions(
+  subjectId: string,
+  status?: DomainSuggestionStatus,
+): Promise<DomainTopicSuggestion[]> {
+  const db = getDb();
+
+  const rows = await db
+    .select()
+    .from(domainTopicSuggestions)
+    .where(
+      status
+        ? and(eq(domainTopicSuggestions.subjectId, subjectId), eq(domainTopicSuggestions.status, status))
+        : eq(domainTopicSuggestions.subjectId, subjectId),
+    )
+    .orderBy(desc(domainTopicSuggestions.createdAt));
+
+  return rows.map(toDomainTopicSuggestion);
+}
+
+export async function getDomainTopicSuggestion(
+  suggestionId: string,
+): Promise<DomainTopicSuggestion | null> {
+  const db = getDb();
+
+  const row = (
+    await db.select().from(domainTopicSuggestions).where(eq(domainTopicSuggestions.id, suggestionId))
+  )[0];
+
+  return row ? toDomainTopicSuggestion(row) : null;
+}
+
+// PATCH /domain-topic-suggestions/:id. Accepting inserts a new domain_nodes
+// row under proposed_parent_node_id (already a resolved real id — no
+// re-resolution needed) and sets created_domain_node_id + resolved_at on
+// the suggestion, in one transaction. Rejecting only resolves the
+// suggestion; the row is never deleted (mirrors item 7's Decisions #11).
+export async function resolveDomainTopicSuggestion(
+  suggestionId: string,
+  status: "accepted" | "rejected",
+): Promise<DomainTopicSuggestion | null> {
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const existing = (
+      await tx
+        .select()
+        .from(domainTopicSuggestions)
+        .where(eq(domainTopicSuggestions.id, suggestionId))
+    )[0];
+
+    if (!existing) {
+      return null;
+    }
+
+    const resolvedAt = new Date();
+    let createdDomainNodeId: string | null = existing.createdDomainNodeId ?? null;
+
+    if (status === "accepted") {
+      const nodeId = newId("dnode");
+
+      await tx.insert(domainNodes).values({
+        id: nodeId,
+        subjectId: existing.subjectId,
+        parentId: existing.proposedParentNodeId,
+        name: existing.proposedNodeName,
+        order: 0,
+      });
+
+      createdDomainNodeId = nodeId;
+    }
+
+    await tx
+      .update(domainTopicSuggestions)
+      .set({ status, resolvedAt, createdDomainNodeId })
+      .where(eq(domainTopicSuggestions.id, suggestionId));
+
+    return toDomainTopicSuggestion({
+      ...existing,
+      status,
+      resolvedAt,
+      createdDomainNodeId,
+    });
+  });
+}
+
+export interface InsertDomainSupersessionSuggestionParams {
+  subjectId: string;
+  domainNodeId: string;
+  reason: string;
+  source: string;
+}
+
+export async function insertDomainSupersessionSuggestion(
+  params: InsertDomainSupersessionSuggestionParams,
+): Promise<DomainSupersessionSuggestion> {
+  const db = getDb();
+  const id = newId("dssug");
+
+  await db.insert(domainSupersessionSuggestions).values({
+    id,
+    subjectId: params.subjectId,
+    domainNodeId: params.domainNodeId,
+    reason: params.reason,
+    source: params.source,
+  });
+
+  const inserted = (
+    await db
+      .select()
+      .from(domainSupersessionSuggestions)
+      .where(eq(domainSupersessionSuggestions.id, id))
+  )[0]!;
+
+  return toDomainSupersessionSuggestion(inserted);
+}
+
+export async function listDomainSupersessionSuggestions(
+  subjectId: string,
+  status?: DomainSuggestionStatus,
+): Promise<DomainSupersessionSuggestion[]> {
+  const db = getDb();
+
+  const rows = await db
+    .select()
+    .from(domainSupersessionSuggestions)
+    .where(
+      status
+        ? and(
+            eq(domainSupersessionSuggestions.subjectId, subjectId),
+            eq(domainSupersessionSuggestions.status, status),
+          )
+        : eq(domainSupersessionSuggestions.subjectId, subjectId),
+    )
+    .orderBy(desc(domainSupersessionSuggestions.createdAt));
+
+  return rows.map(toDomainSupersessionSuggestion);
+}
+
+export async function getDomainSupersessionSuggestion(
+  suggestionId: string,
+): Promise<DomainSupersessionSuggestion | null> {
+  const db = getDb();
+
+  const row = (
+    await db
+      .select()
+      .from(domainSupersessionSuggestions)
+      .where(eq(domainSupersessionSuggestions.id, suggestionId))
+  )[0];
+
+  return row ? toDomainSupersessionSuggestion(row) : null;
+}
+
+// PATCH /domain-supersession-suggestions/:id. Accepting writes a FLAG
+// (superseded_at/superseded_reason), never touches percent — the only write
+// path to those two columns (spec.md's Decisions #2). Rejecting only
+// resolves the suggestion; the node is never touched.
+export async function resolveDomainSupersessionSuggestion(
+  suggestionId: string,
+  status: "accepted" | "rejected",
+): Promise<DomainSupersessionSuggestion | null> {
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const existing = (
+      await tx
+        .select()
+        .from(domainSupersessionSuggestions)
+        .where(eq(domainSupersessionSuggestions.id, suggestionId))
+    )[0];
+
+    if (!existing) {
+      return null;
+    }
+
+    const resolvedAt = new Date();
+
+    await tx
+      .update(domainSupersessionSuggestions)
+      .set({ status, resolvedAt })
+      .where(eq(domainSupersessionSuggestions.id, suggestionId));
+
+    if (status === "accepted") {
+      await tx
+        .update(domainNodes)
+        .set({ supersededAt: resolvedAt, supersededReason: existing.reason })
+        .where(eq(domainNodes.id, existing.domainNodeId));
+    }
+
+    return toDomainSupersessionSuggestion({ ...existing, status, resolvedAt });
+  });
+}
+
+// doc-changelog-scan (issue #49) — the per-tool watermark
+// (tracked_tool_scan_state). null last_content_hash = never successfully
+// scanned.
+export async function getTrackedToolScanState(
+  toolKey: string,
+): Promise<{ toolKey: string; lastContentHash: string | null } | null> {
+  const db = getDb();
+
+  const row = (
+    await db
+      .select()
+      .from(trackedToolScanState)
+      .where(eq(trackedToolScanState.toolKey, toolKey))
+  )[0];
+
+  return row ? { toolKey: row.toolKey, lastContentHash: row.lastContentHash ?? null } : null;
+}
+
+// Upserted only for tools INCLUDED in a successful agent call (spec.md's
+// Decisions #9) — never called for a tool whose content was unchanged
+// (already correct) or whose changed content was part of a FAILED agent
+// call (must stay retryable — SCENARIO 10).
+export async function upsertTrackedToolScanState(
+  toolKey: string,
+  contentHash: string,
+): Promise<void> {
+  const db = getDb();
+  const now = new Date();
+
+  await db
+    .insert(trackedToolScanState)
+    .values({ toolKey, lastContentHash: contentHash, lastScannedAt: now })
+    .onConflictDoUpdate({
+      target: trackedToolScanState.toolKey,
+      set: { lastContentHash: contentHash, lastScannedAt: now },
+    });
+}
+
+// The cron wrapper's subject-gating precedent (spec.md's Scan mechanism,
+// same gating item 7 already established) — every subjectId with at least
+// one domain_nodes row, deduplicated.
+export async function listSubjectIdsWithDomainNodes(): Promise<string[]> {
+  const db = getDb();
+
+  const rows = await db
+    .selectDistinct({ subjectId: domainNodes.subjectId })
+    .from(domainNodes);
+
+  return rows.map((row) => row.subjectId);
 }

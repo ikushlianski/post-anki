@@ -30,6 +30,12 @@ export default defineConfig({
       // requires a real Postgres connection.
       "src/decide/decide.orchestrator.test.ts",
       "src/decide/decide.repo.test.ts",
+      // doc-scan.orchestrator.test.ts is the same named exception, for the
+      // same reason: spec.md's Backend DoD pins this exact path (not
+      // *.integration.test.ts) as the SCENARIO 2/3/4/10 proof command,
+      // requiring real SELECTs against 3 new tables that only a real
+      // Postgres connection can produce.
+      "src/domain-map/doc-scan.orchestrator.test.ts",
     ],
   },
 });

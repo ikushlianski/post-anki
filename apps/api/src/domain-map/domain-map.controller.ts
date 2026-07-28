@@ -1,8 +1,11 @@
 import type http from "node:http";
 import {
   domainPrioritySuggestionStatusSchema,
+  domainSuggestionStatusSchema,
   resolveDomainPrioritySuggestionInput,
   updateDomainNodeInput,
+  updateDomainSupersessionSuggestionInput,
+  updateDomainTopicSuggestionInput,
 } from "@post-anki/shared";
 import { isDomainPriorityReviewDue } from "@post-anki/core";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
@@ -11,11 +14,16 @@ import {
   getDomainMapForSubject,
   getDomainNode,
   getLastReviewedAt,
+  listDomainSupersessionSuggestions,
+  listDomainTopicSuggestions,
   listPrioritySuggestionsForSubject,
+  resolveDomainSupersessionSuggestion,
+  resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
   updateDomainNodeTargetDepth,
 } from "./domain-map.repo.js";
 import { triggerDomainPriorityReview } from "./domain-priority-review.orchestrator.js";
+import { runDocScan, runDocScanForAllTrackedSubjects } from "./doc-scan.orchestrator.js";
 
 export async function handleGetDomainMap(
   res: http.ServerResponse,
@@ -136,4 +144,106 @@ export async function handleGetDomainPriorityReviewStatus(
   const due = isDomainPriorityReviewDue(lastReviewedAt, new Date());
 
   sendJson(res, 200, { lastReviewedAt, due });
+}
+
+// doc-changelog-scan (issue #49) — handlers below.
+
+// POST /subjects/:id/doc-scans — the manual "Scan now" trigger + the
+// e2e-testability path. Requires the subject to already have domain_nodes
+// rows (404 otherwise — same gating precedent as the priority-review
+// trigger). Deliberately always 200, even on an internal agent failure
+// (spec.md's Decisions #8) — runDocScan() itself never throws; this is a
+// scheduled-background-job-shaped mechanism, not a foreground one.
+export async function handleTriggerDocScan(
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  const tree = await getDomainMapForSubject(subjectId);
+
+  if (tree.length === 0) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  const result = await runDocScan(subjectId);
+
+  sendJson(res, 200, result);
+}
+
+// POST /doc-scans — the scheduled job's target, no subject in the path
+// (Pulumi has no dynamically-generated subject id at deploy time). Always
+// 200.
+export async function handleTriggerAllDocScans(res: http.ServerResponse): Promise<void> {
+  const results = await runDocScanForAllTrackedSubjects();
+
+  sendJson(res, 200, results);
+}
+
+// GET /subjects/:id/doc-scan-suggestions?status=pending
+export async function handleListDocScanSuggestions(
+  res: http.ServerResponse,
+  subjectId: string,
+  statusParam: string | null,
+): Promise<void> {
+  const parsedStatus = statusParam ? domainSuggestionStatusSchema.safeParse(statusParam) : undefined;
+
+  if (statusParam && parsedStatus && !parsedStatus.success) {
+    sendJson(res, 400, { error: "invalid_input", message: "invalid status filter" });
+    return;
+  }
+
+  const status = parsedStatus && parsedStatus.success ? parsedStatus.data : undefined;
+
+  const [newTopics, supersessions] = await Promise.all([
+    listDomainTopicSuggestions(subjectId, status),
+    listDomainSupersessionSuggestions(subjectId, status),
+  ]);
+
+  sendJson(res, 200, { newTopics, supersessions });
+}
+
+// PATCH /domain-topic-suggestions/:id
+export async function handleResolveDomainTopicSuggestion(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  suggestionId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, updateDomainTopicSuggestionInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const updated = await resolveDomainTopicSuggestion(suggestionId, body.data.status);
+
+  if (!updated) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, updated);
+}
+
+// PATCH /domain-supersession-suggestions/:id
+export async function handleResolveDomainSupersessionSuggestion(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  suggestionId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, updateDomainSupersessionSuggestionInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const updated = await resolveDomainSupersessionSuggestion(suggestionId, body.data.status);
+
+  if (!updated) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, updated);
 }
