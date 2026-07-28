@@ -66,6 +66,11 @@ export function buildQuestionRows(
       order: orderOffset + index + 1,
       topicId,
       gapId,
+      // Generalized recall-gap mastery tracking (issue #57) — persisted
+      // even when unmatched at generation time (gapId stays null), so a
+      // miss on a never-before-seen concept can still spawn a new gap at
+      // answer time (SCENARIO 2).
+      gapLabel: q.gapLabel ?? null,
       prompt: q.prompt,
       options: reindexed.options,
       correctAnswerIndex,

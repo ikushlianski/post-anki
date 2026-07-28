@@ -7,6 +7,7 @@ import {
   type Concern,
   type Depth,
   type Gap,
+  type GapMastery,
   type SelfGrade as SelfGradeValue,
   type Topic,
   type TopicProgressStatus,
@@ -339,6 +340,34 @@ function GapChecklist({
   )
 }
 
+// Generalized recall-gap mastery tracking (issue #57) — display-precedence
+// rule (spec.md Decision 2 addendum): a gap that carries a mastery
+// sub-object renders ITS status, distinctly from a bare open/covered gap —
+// never falling back to `gap.status` once `gap.mastery` exists, even if
+// `gap.status` happens to independently read 'covered' via an unrelated
+// writer (the untouched freeform Socratic flow touching the same topic).
+const MASTERY_MARK: Record<GapMastery['status'], string> = {
+  new: '○',
+  practicing: '◐',
+  struggling: '◑',
+  mastered: '✓',
+}
+
+const MASTERY_CLASS: Record<GapMastery['status'], string> = {
+  new: 'text-neutral-600',
+  practicing: 'text-amber-600',
+  struggling: 'text-amber-700',
+  mastered: 'text-emerald-700',
+}
+
+function masteryLabel(mastery: GapMastery): string {
+  if (mastery.status === 'mastered') {
+    return 'mastered'
+  }
+
+  return `${mastery.status} (${mastery.masteryStage}/3)`
+}
+
 function GapRow({
   gap,
   inScope,
@@ -368,12 +397,29 @@ function GapRow({
     )
   }
 
+  const mastery = gap.mastery ?? null
+  const mark = mastery ? MASTERY_MARK[mastery.status] : gap.status === 'covered' ? '✓' : '○'
+  const markClass = mastery
+    ? MASTERY_CLASS[mastery.status]
+    : gap.status === 'covered'
+      ? 'text-emerald-700'
+      : 'text-neutral-600'
+
   return (
-    <li className="flex items-center justify-between gap-2 text-xs">
-      <span
-        className={gap.status === 'covered' ? 'text-emerald-700' : 'text-neutral-600'}
-      >
-        {gap.status === 'covered' ? '✓' : '○'} {gap.label}
+    <li
+      className="flex items-center justify-between gap-2 text-xs"
+      data-testid={`gap-row-${gap.id}`}
+    >
+      <span className={markClass}>
+        {mark} {gap.label}
+        {mastery ? (
+          <span
+            className="ml-1 rounded bg-neutral-100 px-1 text-[10px] text-neutral-500"
+            data-testid={`gap-mastery-status-${gap.id}`}
+          >
+            {masteryLabel(mastery)}
+          </span>
+        ) : null}
         {gap.origin === 'user' ? (
           <span className="ml-1 rounded bg-neutral-100 px-1 text-[10px] text-neutral-400">
             yours
@@ -385,7 +431,7 @@ function GapRow({
           </span>
         ) : null}
       </span>
-      {gap.status === 'open' ? (
+      {gap.status === 'open' && !mastery ? (
         <span className="flex shrink-0 items-center gap-2 text-neutral-400">
           <button
             type="button"

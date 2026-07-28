@@ -10,6 +10,25 @@ export const gapStateSchema = z.enum(["open", "covered", "skipped"]);
 
 export type GapState = z.infer<typeof gapStateSchema>;
 
+// Generalized recall-gap mastery tracking (issue #57) — present only for a
+// gap that has a gap_mastery sidecar row (probe-session quiz misses/corrects
+// tracked it). Display-precedence rule (spec.md Decision 2 addendum): when
+// this is non-null, the UI renders ITS status — never `gapState` — since
+// `gapState` can independently be flipped by the untouched freeform Socratic
+// flow while a mastery cycle is still below the mastery threshold.
+export const gapMasteryStatusSchema = z.enum(["new", "practicing", "struggling", "mastered"]);
+
+export type GapMasteryStatus = z.infer<typeof gapMasteryStatusSchema>;
+
+export const gapMasteryViewSchema = z.object({
+  status: gapMasteryStatusSchema,
+  masteryStage: z.number().int(),
+  correctCountInCycle: z.number().int(),
+  incorrectCountInCycle: z.number().int(),
+});
+
+export type GapMasteryView = z.infer<typeof gapMasteryViewSchema>;
+
 export const gapSchema = z.object({
   id: z.string(),
   topicId: z.string(),
@@ -20,6 +39,7 @@ export const gapSchema = z.object({
   wanted: z.boolean(),
   concern: concernSchema.nullable(),
   lastEvaluatedAt: z.string().nullable(),
+  mastery: gapMasteryViewSchema.nullable().optional(),
 });
 
 export type Gap = z.infer<typeof gapSchema>;
@@ -50,6 +70,24 @@ export const gapVerdictSchema = z.object({
 });
 
 export type GapVerdict = z.infer<typeof gapVerdictSchema>;
+
+// Generalized recall-gap mastery tracking (issue #57, SCENARIO 7) — the
+// cross-cutting nudge: a normalized gap label recurring across 3+ subjects,
+// mastery-tracked gaps only, surfaced as a one-time appear-once note (never
+// a persistent queue/count).
+export const crossCuttingNudgeSchema = z.object({
+  label: z.string(),
+  subjectIds: z.array(z.string()),
+  subjectNames: z.array(z.string()),
+});
+
+export type CrossCuttingNudge = z.infer<typeof crossCuttingNudgeSchema>;
+
+export const crossCuttingNudgeResponseSchema = z.object({
+  nudges: z.array(crossCuttingNudgeSchema),
+});
+
+export type CrossCuttingNudgeResponse = z.infer<typeof crossCuttingNudgeResponseSchema>;
 
 export const probeEvaluationSchema = z.object({
   verdicts: z.array(gapVerdictSchema),

@@ -169,6 +169,13 @@
       "when": 1785220963048,
       "tag": "0023_wet_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785225256730,
+      "tag": "0024_yellow_dakota_north",
+      "breakpoints": true
     }
   ]
 }

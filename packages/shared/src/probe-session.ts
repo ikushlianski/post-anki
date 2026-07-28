@@ -83,6 +83,25 @@ export const answerProbeSessionInput = z.object({
 
 export type AnswerProbeSessionInput = z.infer<typeof answerProbeSessionInput>;
 
+// Generalized recall-gap mastery tracking (issue #57) — present only when
+// this answer touched a mastery-tracked gap (an existing gapId, or a
+// gapLabel that matched/created one). `justMastered` is what
+// probe-session-quiz.tsx uses to render the "✓ Resolved: <label>"
+// acknowledgment distinctly from ordinary "correct, still practicing (n/3)"
+// feedback — never on the first correct, only on the transition that
+// actually reaches mastered (spec.md's "resolved lie" regression guard).
+export const answerProbeSessionGapMasteryResultSchema = z.object({
+  gapId: z.string(),
+  label: z.string(),
+  status: z.enum(["new", "practicing", "struggling", "mastered"]),
+  masteryStage: z.number().int(),
+  justMastered: z.boolean(),
+});
+
+export type AnswerProbeSessionGapMasteryResult = z.infer<
+  typeof answerProbeSessionGapMasteryResultSchema
+>;
+
 export const answerProbeSessionResultSchema = z.object({
   questionId: z.string(),
   outcome: probeOutcomeSchema,
@@ -94,6 +113,7 @@ export const answerProbeSessionResultSchema = z.object({
   status: probeSessionStatusSchema,
   coveredGapLabels: z.array(z.string()),
   optionExplanations: z.array(optionExplanationSchema).nullable(),
+  gapMastery: answerProbeSessionGapMasteryResultSchema.nullable(),
 });
 
 export type AnswerProbeSessionResult = z.infer<

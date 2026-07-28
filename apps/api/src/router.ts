@@ -45,6 +45,7 @@ export type RouteName =
   | "listDecideSessions"
   | "resolveDecideBlindSpot"
   | "crossCutting"
+  | "gapMasteryCrossCuttingNudge"
   | "getAdminSettings"
   | "updateAdminSettings"
   | "getAdminObservability"
@@ -144,6 +145,11 @@ const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "GET", pattern: "/cross-cutting", name: "crossCutting" },
+  {
+    method: "GET",
+    pattern: "/gap-mastery/cross-cutting-nudge",
+    name: "gapMasteryCrossCuttingNudge",
+  },
   { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
   { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },
   { method: "GET", pattern: "/admin/observability", name: "getAdminObservability" },

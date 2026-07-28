@@ -1,7 +1,11 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import type { CrossCuttingNudge } from '@post-anki/shared'
 
 import type { DailyPushReason, QuestionKind } from '../curriculum/model'
-import { getDailyPush } from '../curriculum/curriculum.api'
+import {
+  getDailyPush,
+  getGapMasteryCrossCuttingNudges,
+} from '../curriculum/curriculum.api'
 import { ProbeAnswer } from '../curriculum/probe-answer'
 
 export const Route = createFileRoute('/today')({
@@ -9,9 +13,41 @@ export const Route = createFileRoute('/today')({
     mode: search.mode === 'quick_test' ? 'quick_test' : 'socratic',
   }),
   loaderDeps: ({ search }) => ({ mode: search.mode }),
-  loader: ({ deps }) => getDailyPush({ data: deps.mode }),
+  loader: async ({ deps }) => {
+    const [push, nudges] = await Promise.all([
+      getDailyPush({ data: deps.mode }),
+      getGapMasteryCrossCuttingNudges(),
+    ])
+
+    return { ...push, nudges }
+  },
   component: TodayPage,
 })
+
+// Generalized recall-gap mastery tracking (issue #57, SCENARIO 7) — a
+// passive, appear-once banner naming a concept recurring across 3+
+// mastery-tracked subjects. No dismiss-tracking queue, no badge count
+// anywhere else — matches "silent on non-response"/no-nagging.
+function CrossCuttingNudgeBanner({ nudges }: { nudges: CrossCuttingNudge[] }) {
+  if (nudges.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="mb-6 space-y-2">
+      {nudges.map((nudge) => (
+        <div
+          key={nudge.label}
+          data-testid="cross-cutting-nudge-banner"
+          className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900"
+        >
+          <span className="font-medium">"{nudge.label}"</span> keeps coming up
+          — {nudge.subjectNames.join(', ')}.
+        </div>
+      ))}
+    </div>
+  )
+}
 
 const REASON_LABEL: Record<DailyPushReason, string> = {
   wanted: 'You asked for this one',
@@ -20,12 +56,13 @@ const REASON_LABEL: Record<DailyPushReason, string> = {
 }
 
 function TodayPage() {
-  const { push, question } = Route.useLoaderData()
+  const { push, question, nudges } = Route.useLoaderData()
   const { mode } = Route.useSearch()
   const router = useRouter()
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
+      <CrossCuttingNudgeBanner nudges={nudges} />
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Today</h1>

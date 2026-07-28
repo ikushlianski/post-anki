@@ -33,7 +33,7 @@ import type {
   Subject,
   Tag,
 } from './model'
-import type { StructureTurn } from '@post-anki/shared'
+import type { CrossCuttingNudge, StructureTurn } from '@post-anki/shared'
 import * as api from './api-client'
 
 export const getBoard = createServerFn({ method: 'GET' }).handler(
@@ -311,6 +311,10 @@ export const getDailyPush = createServerFn({ method: 'GET' })
 export const getCrossCutting = createServerFn({ method: 'GET' }).handler(
   (): Promise<ConcernSummary[]> => api.getCrossCutting(),
 )
+
+export const getGapMasteryCrossCuttingNudges = createServerFn({
+  method: 'GET',
+}).handler((): Promise<CrossCuttingNudge[]> => api.getGapMasteryCrossCuttingNudges())
 
 export const listTags = createServerFn({ method: 'GET' }).handler(
   (): Promise<Tag[]> => api.listTags(),

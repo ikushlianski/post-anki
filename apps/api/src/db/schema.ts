@@ -114,6 +114,14 @@ export const topics = pgTable("topics", {
   progressLastInteractedAt: timestamp("progress_last_interacted_at", {
     withTimezone: true,
   }),
+  // Generalized recall-gap mastery tracking (issue #57) — the monotonic
+  // per-topic counter mastery scheduling needs for probe-session quiz
+  // answers, analogous to phrases.sequenceNumber's role for phrase-bank but
+  // scoped to answered-question events per topic instead of
+  // phrase-generation events per subject/level/pack. Incremented once per
+  // answered probe-session question that touches a mastery-tracked gap on
+  // this topic (see gap-mastery.repo.ts).
+  gapMasterySequenceNumber: integer("gap_mastery_sequence_number").notNull().default(0),
 });
 
 export const appSettings = pgTable("app_settings", {
@@ -135,6 +143,48 @@ export const gaps = pgTable("gaps", {
   concern: text("concern"),
   lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
 });
+
+// Generalized recall-gap mastery tracking (issue #57) — a SIDECAR to `gaps`,
+// 1:1 via `gapId` (real unique index below), not new columns on `gaps`
+// itself. This keeps `gaps.state`'s existing 3-value enum and its three
+// pre-existing single-verdict writers (probe.service.ts, socratic.service.ts
+// — including the give-up path — and probe-session.service.ts's own
+// pre-existing single-verdict cover) completely untouched: none of them
+// read or are gated by this table. Only probe-session.service.ts's
+// answerProbeSession is rewritten to consult/write this table for gaps it
+// touches, and becomes the sole writer allowed to flip `gaps.state` to
+// "covered" for a mastery-tracked gap — and only once masteryStage reaches
+// the mastery threshold. See docs/architecture/generalize-gap-tracking.md.
+export const gapMastery = pgTable(
+  "gap_mastery",
+  {
+    id: text("id").primaryKey(),
+    gapId: text("gap_id").notNull(),
+    status: text("status").notNull().default("new"),
+    masteryStage: integer("mastery_stage").notNull().default(0),
+    correctCountInCycle: integer("correct_count_in_cycle").notNull().default(0),
+    incorrectCountInCycle: integer("incorrect_count_in_cycle").notNull().default(0),
+    lastCorrectAtSequence: integer("last_correct_at_sequence"),
+    scheduledForSequence: integer("scheduled_for_sequence"),
+    // Plain text, references probe_sessions.id BY VALUE — no .references() FK,
+    // matching this schema's dominant convention for cross-table ids (see
+    // e.g. gaps.topicId, decideBlindSpots.decideSessionId above). This is
+    // what proves "resurfaces in a later SESSION" (spec.md Decision 4) — a
+    // correct answer only advances masteryStage when the CURRENT
+    // probe_sessions.id differs from this stored value; a same-session
+    // replenish repeat does not.
+    lastCorrectSessionId: text("last_correct_session_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    masteredAt: timestamp("mastered_at", { withTimezone: true }),
+  },
+  (table) => [
+    // Genuine DB-level 1:1 backstop, not just an app-level convention —
+    // matches phrase_bank_entries' own unique-index precedent for its
+    // concurrency guarantee (architecture.md's Concurrency design).
+    uniqueIndex("gap_mastery_gap_id_unique").on(table.gapId),
+  ],
+);
 
 export const apiTokens = pgTable("api_tokens", {
   id: text("id").primaryKey(),
@@ -179,6 +229,11 @@ export const probeSessionQuestions = pgTable("probe_session_questions", {
   optionExplanations: jsonb("option_explanations").$type<
     { text: string; citationUrl: string | null }[]
   >(),
+  // Generalized recall-gap mastery tracking (issue #57) — persists the
+  // AI-generated concept label even when it doesn't match an existing gap at
+  // generation time (gapId stays null), so a miss on a never-before-seen
+  // concept can still spawn a new gap at answer time (SCENARIO 2).
+  gapLabel: text("gap_label"),
 });
 
 export const socraticSessions = pgTable("socratic_sessions", {

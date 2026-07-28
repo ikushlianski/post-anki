@@ -18,7 +18,8 @@ import {
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
 import { recordActivityToday } from "../streak/streak.service.js";
-import { listGapsForTopic, persistGaps } from "../gap/gap.repo.js";
+import { listGapsForTopic } from "../gap/gap.repo.js";
+import { applyGapMasteryAttempt } from "../gap/gap-mastery.repo.js";
 import {
   getTopicRow,
   rowDepth,
@@ -154,10 +155,15 @@ export async function answerProbeSession(
   }
 
   const isMulti = question.type === "multi";
+  // Only a genuinely fresh answer feeds the gap-mastery machine — a replay
+  // of an already-answered question (the same idempotency case the old
+  // single-verdict logic handled via `gap.state === "open"`) must never
+  // re-count toward masteryStage.
+  const isFreshAnswer = question.answeredIndex === null;
 
   let outcome: ProbeOutcome;
 
-  if (question.answeredIndex !== null) {
+  if (!isFreshAnswer) {
     outcome = (question.outcome as ProbeOutcome | null) ?? computeOutcome(question, input);
   } else {
     outcome = computeOutcome(question, input);
@@ -176,15 +182,39 @@ export async function answerProbeSession(
   }
 
   let coveredGapLabels: string[] = [];
+  let gapMastery: AnswerProbeSessionResult["gapMastery"] = null;
 
   if (question.topicId) {
-    if (outcome === "pass" && question.gapId) {
-      const gaps = await listGapsForTopic(question.topicId);
-      const gap = gaps.find((g) => g.id === question.gapId);
+    if (isFreshAnswer && (question.gapId || question.gapLabel)) {
+      const topicRow = await getTopicRow(question.topicId);
+      const topicDepth = topicRow ? rowDepth(topicRow) : "working";
 
-      if (gap && gap.state === "open") {
-        await persistGaps([{ ...gap, state: "covered", lastEvaluatedAt: now }]);
-        coveredGapLabels = [gap.label];
+      const attempt = await applyGapMasteryAttempt({
+        topicId: question.topicId,
+        topicDepth,
+        gapId: question.gapId,
+        gapLabel: question.gapLabel,
+        currentProbeSessionId: session.id,
+        correct: outcome === "pass",
+        now,
+      });
+
+      if (attempt) {
+        const topicGaps = await listGapsForTopic(question.topicId);
+        const gapRow = topicGaps.find((g) => g.id === attempt.gapId);
+        const label = gapRow?.label ?? question.gapLabel ?? "";
+
+        gapMastery = {
+          gapId: attempt.gapId,
+          label,
+          status: attempt.masteryStatus,
+          masteryStage: attempt.masteryStage,
+          justMastered: attempt.justMastered,
+        };
+
+        if (attempt.justMastered) {
+          coveredGapLabels = [label];
+        }
       }
     }
 
@@ -215,6 +245,7 @@ export async function answerProbeSession(
     status: progress.status as ProbeSessionStatus,
     coveredGapLabels,
     optionExplanations: question.optionExplanations ?? null,
+    gapMastery,
   };
 }
 

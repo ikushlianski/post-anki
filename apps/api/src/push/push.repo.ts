@@ -39,6 +39,6 @@ export async function gatherPushCandidates(): Promise<PushCandidate[]> {
     curriculumId: t.curriculumId,
     curriculumName: curriculumName.get(t.curriculumId) ?? "",
     depth: t.depth as DepthLevel,
-    gaps: gapRows.filter((g) => g.topicId === t.id).map(rowToGap),
+    gaps: gapRows.filter((g) => g.topicId === t.id).map((g) => rowToGap(g)),
   }));
 }
