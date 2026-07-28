@@ -116,7 +116,15 @@ on a human-only blocker rather than skipping past it.
       Needs real product/architecture planning first (how domains relate to the existing
       Subject/Curriculum model, what "incremental attachment" means concretely) — this entry
       queues the idea, it does not spec it. (#48)
-- [ ] Manage the ontology over time — split or merge subjects/courses/tags.
+- [x] Manage the ontology over time — split or merge subjects/courses/tags (merge only, split
+      deferred as a fast-follow — see below).
+      [→ done: .planning/ontology-split-merge/, merged to main 2026-07-28. review-playwright
+      verdict: sound — zero-orphan merge proof passed on every real execution (subjects, curricula,
+      domain_nodes, tags), 21/21 regression across all five previously-merged items in this run.
+      One flaky e2e run (S1, ~25%) traced to a pre-existing tag-picker hydration timing race
+      unrelated to the merge logic itself — the zero-orphan proof never failed, only a setup click
+      occasionally didn't register. Fixes the real "Webdev" vs "Programming / Web Development"
+      duplicate named in the issue.]
       Why: the seeded taxonomy (#48) is a starting point, not a fixed shape — a Subject/course
       will turn out too coarse or too fine as the user actually studies, and there's currently no
       way to reshape it except hand-editing the database. Real example needing this today:
@@ -256,6 +264,45 @@ on a human-only blocker rather than skipping past it.
       entry no longer deadlocks (proven by a new test exercising that exact interleaving), and
       `npm run test -w @post-anki/api` (or an explicit CI step) runs the two integration test
       files as part of normal verification, not just at build time.
+- [ ] Add split (subject/course/tag) as the fast-follow to the merge-only ontology management
+      shipped in `ontology-split-merge`.
+      Why: `.planning/ontology-split-merge/discussion.md` deliberately scoped that item to merge
+      only — split requires a real judgment call about which children (curricula, domain_nodes,
+      tag assignments) go to which new piece, genuinely harder and riskier than a strict
+      reassignment. Splitting also means domain_nodes gets a re-parenting path for the first
+      time, which is exactly when the tree-assembly recursion's missing cycle guard (flagged in
+      `docs/architecture/seed-knowledge-map/review.md`) stops being unreachable — this item must
+      add that guard as part of its own scope, not assume it's already there.
+      Pointers: `apps/api/src/subject/subject.repo.ts` (`mergeSubjects`, the reassignment pattern
+      to mirror in reverse), `apps/api/src/domain-map/domain-map.repo.ts` (the tree-assembly
+      recursion needing a cycle guard before this ships).
+      Done when: a Subject, course, or tag can be split into multiple from the app, with existing
+      children correctly assigned to the right piece (not orphaned or duplicated), and a
+      deliberately-malformed re-parenting attempt is rejected rather than causing an infinite loop.
+      Needs real product/architecture planning first — how the split UI decides which children go
+      where (manual assignment vs. a suggested split). This entry queues the idea, it does not
+      spec it.
+- [ ] Close the `createCurriculum`-vs-merge race and harden the TagPicker's live-refresh gap.
+      Why: two real, non-blocking gaps found during `ontology-split-merge`'s build and review,
+      both deliberately deferred rather than fixed inline: (1) `resolveDomainPlacement`/
+      `createCurriculum` run as separate, un-transacted, unlocked statements, so a curriculum or
+      domain node could still land under a source subject in the narrow window between a merge's
+      reassignment and its delete — mirrors the same class of gap `phrase-bank-concurrency-fix`
+      shipped its primary fix for while logging a residual race separately; (2) `TagPicker`
+      doesn't reliably reflect a live tag assignment in the SPA without a full reload (direct
+      API/DB reads confirm the write succeeds; the display doesn't refresh) — real, pre-existing,
+      unrelated to the merge feature itself, worked around in e2e test actions rather than fixed.
+      This second gap also caused one ~25% e2e flake (`review-playwright` on `ontology-split-merge`,
+      2026-07-28) in a *different* place — a setup click on the tag-picker control occasionally not
+      registering — worth confirming whether it's the same root cause before fixing both at once.
+      Pointers: `apps/api/src/subject/subject.repo.ts` (`mergeSubjects`, `createCurriculum` in
+      `apps/api/src/curriculum/`), `apps/web/src/curriculum/` (`TagPicker` component,
+      `router.invalidate()` usage vs. seeding from a mutation response — the same fix shape already
+      used for the Electric-fallback and seed-knowledge-map races).
+      Done when: a curriculum created during the exact window of a concurrent subject merge either
+      serializes behind it or gets a clean error, never landing under a deleted subject; and
+      assigning a tag updates the visible chip immediately, without a page reload, proven by an
+      e2e test that does NOT navigate away before asserting.
 
 ## Everything else (unchanged order, resumes below the active queue above)
 
