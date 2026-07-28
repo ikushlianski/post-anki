@@ -232,6 +232,59 @@ export async function getDomainMap(subjectId: string): Promise<be.DomainNodeTree
   return request<be.DomainNodeTreeItem[]>(`/subjects/${subjectId}/domain-map`)
 }
 
+// domain-priority-review (issue #52) — sets or clears (null) a domain
+// node's target depth directly, independent of the review flow.
+export async function updateDomainNodeTargetDepth(
+  nodeId: string,
+  targetDepth: be.DepthLevel | null,
+): Promise<be.DomainNode> {
+  return request<be.DomainNode>(`/domain-nodes/${nodeId}`, {
+    method: 'PATCH',
+    body: { targetDepth },
+  })
+}
+
+// The manual "trigger a review" action — one cheap agent call, returns the
+// freshly inserted suggestions. Propagates ApiError on failure (502 from
+// the backend when the agent call itself fails) rather than swallowing it.
+export async function triggerDomainPriorityReview(
+  subjectId: string,
+): Promise<be.DomainPrioritySuggestion[]> {
+  return request<be.DomainPrioritySuggestion[]>(
+    `/subjects/${subjectId}/domain-priority-reviews`,
+    { method: 'POST' },
+  )
+}
+
+export async function listPrioritySuggestions(
+  subjectId: string,
+  status?: be.DomainPrioritySuggestionStatus,
+): Promise<be.DomainPrioritySuggestion[]> {
+  const query = status ? `?status=${status}` : ''
+
+  return request<be.DomainPrioritySuggestion[]>(
+    `/subjects/${subjectId}/domain-priority-suggestions${query}`,
+  )
+}
+
+export async function resolvePrioritySuggestion(
+  suggestionId: string,
+  status: 'accepted' | 'rejected',
+): Promise<be.DomainPrioritySuggestion> {
+  return request<be.DomainPrioritySuggestion>(
+    `/domain-priority-suggestions/${suggestionId}`,
+    { method: 'PATCH', body: { status } },
+  )
+}
+
+export async function getDomainPriorityReviewStatus(
+  subjectId: string,
+): Promise<be.DomainPriorityReviewStatus> {
+  return request<be.DomainPriorityReviewStatus>(
+    `/subjects/${subjectId}/domain-priority-review-status`,
+  )
+}
+
 export async function createSubject(input: CreateSubjectInput): Promise<Subject> {
   return request<be.Subject>('/subjects', { method: 'POST', body: input })
 }

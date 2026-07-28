@@ -21,6 +21,7 @@ import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjec
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
+import { Route as SubjectSubjectIdPriorityReviewRouteImport } from './routes/subject.$subjectId.priority-review'
 import { Route as SubjectSubjectIdMapRouteImport } from './routes/subject.$subjectId.map'
 import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
 import { Route as PracticeSubjectIdCheckWritingRouteImport } from './routes/practice.$subjectId_.check-writing'
@@ -87,6 +88,12 @@ const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
   path: '/api/electric-shape',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubjectSubjectIdPriorityReviewRoute =
+  SubjectSubjectIdPriorityReviewRouteImport.update({
+    id: '/subject/$subjectId/priority-review',
+    path: '/subject/$subjectId/priority-review',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SubjectSubjectIdMapRoute = SubjectSubjectIdMapRouteImport.update({
   id: '/subject/$subjectId/map',
   path: '/subject/$subjectId/map',
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
+  '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
+  '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -173,6 +182,7 @@ export interface FileRoutesById {
   '/practice/$subjectId_/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
+  '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
     | '/subject/$subjectId/map'
+    | '/subject/$subjectId/priority-review'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
     | '/subject/$subjectId/map'
+    | '/subject/$subjectId/priority-review'
   id:
     | '__root__'
     | '/'
@@ -232,6 +244,7 @@ export interface FileRouteTypes {
     | '/practice/$subjectId_/check-writing'
     | '/probe/tag/$tagId'
     | '/subject/$subjectId/map'
+    | '/subject/$subjectId/priority-review'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -252,6 +265,7 @@ export interface RootRouteChildren {
   PracticeSubjectIdCheckWritingRoute: typeof PracticeSubjectIdCheckWritingRoute
   ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
   SubjectSubjectIdMapRoute: typeof SubjectSubjectIdMapRoute
+  SubjectSubjectIdPriorityReviewRoute: typeof SubjectSubjectIdPriorityReviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -340,6 +354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiElectricShapeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subject/$subjectId/priority-review': {
+      id: '/subject/$subjectId/priority-review'
+      path: '/subject/$subjectId/priority-review'
+      fullPath: '/subject/$subjectId/priority-review'
+      preLoaderRoute: typeof SubjectSubjectIdPriorityReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subject/$subjectId/map': {
       id: '/subject/$subjectId/map'
       path: '/subject/$subjectId/map'
@@ -396,6 +417,7 @@ const rootRouteChildren: RootRouteChildren = {
   PracticeSubjectIdCheckWritingRoute: PracticeSubjectIdCheckWritingRoute,
   ProbeTagTagIdRoute: ProbeTagTagIdRoute,
   SubjectSubjectIdMapRoute: SubjectSubjectIdMapRoute,
+  SubjectSubjectIdPriorityReviewRoute: SubjectSubjectIdPriorityReviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

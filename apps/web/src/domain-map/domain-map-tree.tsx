@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import type { DomainNodeTreeItem } from '@post-anki/shared'
+import type { DepthLevel, DomainNodeTreeItem } from '@post-anki/shared'
+import { domainPriorityDistance } from '@post-anki/core'
 
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
+import { TargetDepthControl } from './target-depth-control'
 
 export function DomainMapTree({
   subjectId,
@@ -38,6 +41,9 @@ function DomainMapNode({
   requireSources: boolean
   depth: number
 }) {
+  const [targetDepth, setTargetDepth] = useState<DepthLevel | null>(node.targetDepth)
+  const priorityDistance = domainPriorityDistance(targetDepth, node.percent)
+
   return (
     <div
       data-testid={`domain-map-node-${node.id}`}
@@ -46,12 +52,26 @@ function DomainMapNode({
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium">{node.name}</span>
-        <span
-          data-testid={`domain-map-node-percent-${node.id}`}
-          className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
-        >
-          {node.percent}%
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            data-testid={`domain-map-node-percent-${node.id}`}
+            className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
+          >
+            {node.percent}%
+          </span>
+          {priorityDistance !== null ? (
+            <span
+              data-testid={`domain-map-node-priority-distance-${node.id}`}
+              className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+            >
+              {priorityDistance} to target
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2">
+        <TargetDepthControl nodeId={node.id} targetDepth={targetDepth} onChanged={setTargetDepth} />
       </div>
 
       {node.description ? (

@@ -52,6 +52,27 @@ export const domainNodes = pgTable("domain_nodes", {
   description: text("description"),
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // domain-priority-review (issue #52) — nullable, no default: "unset" is a
+  // real, representable state (spec.md's Decisions #2). depthLevelSchema
+  // ("awareness" | "working" | "deep"), app-level validated.
+  targetDepth: text("target_depth"),
+});
+
+// One row per suggestion a domain-priority review run produces. No
+// .references() FK, matching domain_nodes' own convention (plain text
+// columns + app-level validation). `source` is the discriminator seam #49
+// (doc-scan) and #53 (job-market-scan) plug their own producers into later.
+export const domainPrioritySuggestions = pgTable("domain_priority_suggestions", {
+  id: text("id").primaryKey(),
+  domainNodeId: text("domain_node_id").notNull(),
+  subjectId: text("subject_id").notNull(),
+  currentTargetDepth: text("current_target_depth"),
+  suggestedTargetDepth: text("suggested_target_depth").notNull(),
+  reason: text("reason").notNull(),
+  source: text("source").notNull().default("general-knowledge"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
 export const sources = pgTable("sources", {
