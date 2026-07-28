@@ -240,6 +240,23 @@ export async function deleteSubject(subjectId: string): Promise<void> {
   await request(`/subjects/${subjectId}`, { method: 'DELETE' })
 }
 
+export interface MergeSubjectsResult {
+  targetSubjectId: string
+  sourceSubjectId: string
+  curriculaMoved: number
+  domainNodesMoved: number
+}
+
+export async function mergeSubjects(
+  targetSubjectId: string,
+  sourceSubjectId: string,
+): Promise<MergeSubjectsResult> {
+  return request<MergeSubjectsResult>(`/subjects/${targetSubjectId}/merge`, {
+    method: 'POST',
+    body: { sourceSubjectId },
+  })
+}
+
 export async function listCurricula(): Promise<Curriculum[]> {
   const list = await request<be.Curriculum[]>('/curricula')
 
@@ -958,6 +975,24 @@ export async function removeTagAssignment(
   assignmentId: string,
 ): Promise<void> {
   await request(`/tags/${tagId}/assignments/${assignmentId}`, { method: 'DELETE' })
+}
+
+export interface MergeTagsResult {
+  targetTagId: string
+  sourceTagId: string
+  assignmentsMoved: number
+  assignmentsDeduped: number
+  sessionsMoved: number
+}
+
+export async function mergeTags(
+  targetTagId: string,
+  sourceTagId: string,
+): Promise<MergeTagsResult> {
+  return request<MergeTagsResult>(`/tags/${targetTagId}/merge`, {
+    method: 'POST',
+    body: { sourceTagId },
+  })
 }
 
 export async function gatherLectureSources(

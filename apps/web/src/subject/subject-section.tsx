@@ -6,14 +6,16 @@ import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { StudyTechnologyForm } from '../curriculum/study-technology-form'
 import { deleteCurriculum } from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
-import { deleteSubject } from './subject.api'
+import { deleteSubject, mergeSubjects } from './subject.api'
 
 export function SubjectSection({
   subject,
   curricula,
+  allSubjects,
 }: {
   subject: Subject
   curricula: Curriculum[]
+  allSubjects: Subject[]
 }) {
   return (
     <section data-testid="subject-card" data-subject-id={subject.id}>
@@ -24,10 +26,15 @@ export function SubjectSection({
         >
           {subject.name}
         </h2>
-        <DeleteSubjectButton
-          subjectId={subject.id}
-          curriculaCount={curricula.length}
-        />
+        <span className="flex shrink-0 items-center gap-3">
+          {subject.kind === 'architecture-mentor' ? (
+            <MergeSubjectButton subject={subject} allSubjects={allSubjects} />
+          ) : null}
+          <DeleteSubjectButton
+            subjectId={subject.id}
+            curriculaCount={curricula.length}
+          />
+        </span>
       </div>
 
       {subject.kind === 'language-practice' ? (
@@ -102,6 +109,82 @@ function DeleteCurriculumButton({ curriculumId }: { curriculumId: string }) {
   }
 
   return <ConfirmDelete busy={busy} label="Delete curriculum" onConfirm={confirm} />
+}
+
+function MergeSubjectButton({
+  subject,
+  allSubjects,
+}: {
+  subject: Subject
+  allSubjects: Subject[]
+}) {
+  const router = useRouter()
+  const [armed, setArmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [targetSubjectId, setTargetSubjectId] = useState('')
+
+  const options = allSubjects.filter(
+    (candidate) => candidate.id !== subject.id && candidate.kind === 'architecture-mentor',
+  )
+
+  async function confirm() {
+    if (!targetSubjectId) {
+      return
+    }
+
+    setBusy(true)
+    await mergeSubjects({ data: { targetSubjectId, sourceSubjectId: subject.id } })
+    setBusy(false)
+    await router.invalidate()
+  }
+
+  if (!armed) {
+    return (
+      <button
+        type="button"
+        data-testid={`subject-merge-button-${subject.id}`}
+        onClick={() => setArmed(true)}
+        className="shrink-0 text-xs text-neutral-400 hover:text-indigo-600"
+      >
+        Merge into…
+      </button>
+    )
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-2 text-xs">
+      <select
+        data-testid={`subject-merge-target-select-${subject.id}`}
+        value={targetSubjectId}
+        onChange={(event) => setTargetSubjectId(event.target.value)}
+        className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
+      >
+        <option value="">select target…</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={busy || !targetSubjectId}
+        data-testid={`subject-merge-confirm-${subject.id}`}
+        onClick={confirm}
+        className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
+      >
+        Confirm
+      </button>
+      <button
+        type="button"
+        data-testid={`subject-merge-cancel-${subject.id}`}
+        onClick={() => setArmed(false)}
+        className="text-neutral-400 hover:text-neutral-700"
+      >
+        cancel
+      </button>
+    </span>
+  )
 }
 
 function DeleteSubjectButton({

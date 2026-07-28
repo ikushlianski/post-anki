@@ -1,11 +1,12 @@
 import type http from "node:http";
-import { assignTagInput, createTagInput } from "@post-anki/shared";
+import { assignTagInput, createTagInput, mergeTagsInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   addTagAssignment,
   createOrGetTag,
   deleteTagAssignment,
   getAllTags,
+  mergeTagsService,
 } from "./tag.service.js";
 
 export async function handleListTags(res: http.ServerResponse): Promise<void> {
@@ -65,4 +66,31 @@ export async function handleRemoveTagAssignment(
   }
 
   sendJson(res, 200, { ok: true });
+}
+
+export async function handleMergeTags(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  targetId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, mergeTagsInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await mergeTagsService(targetId, body.data.sourceTagId);
+
+  if ("error" in result) {
+    if (result.error === "not_found") {
+      sendError(res, 404, "not_found");
+      return;
+    }
+
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
 }

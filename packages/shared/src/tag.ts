@@ -43,3 +43,19 @@ export const assignTagInput = z.object({
 });
 
 export type AssignTagInput = z.infer<typeof assignTagInput>;
+
+export const mergeTagsInput = z.object({
+  sourceTagId: z.string(),
+});
+
+export type MergeTagsInput = z.infer<typeof mergeTagsInput>;
+
+export const mergeTagsResultSchema = z.object({
+  targetTagId: z.string(),
+  sourceTagId: z.string(),
+  assignmentsMoved: z.number(),
+  assignmentsDeduped: z.number(),
+  sessionsMoved: z.number(),
+});
+
+export type MergeTagsResult = z.infer<typeof mergeTagsResultSchema>;
