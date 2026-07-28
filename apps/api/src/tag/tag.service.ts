@@ -1,8 +1,10 @@
-import type { NodeType, Tag, TagAssignment } from "@post-anki/shared";
+import type { MergeTagsResult, NodeType, Tag, TagAssignment } from "@post-anki/shared";
 import {
   assignTag,
   getTag,
   listTags,
+  type MergeTagsError,
+  mergeTags,
   removeTagAssignment,
   resolveOrCreateTag,
 } from "./tag.repo.js";
@@ -36,4 +38,11 @@ export async function deleteTagAssignment(
   assignmentId: string,
 ): Promise<boolean> {
   return removeTagAssignment(tagId, assignmentId);
+}
+
+export async function mergeTagsService(
+  targetId: string,
+  sourceId: string,
+): Promise<MergeTagsResult | { error: MergeTagsError }> {
+  return mergeTags(targetId, sourceId);
 }

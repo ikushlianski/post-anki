@@ -2,6 +2,7 @@ export type RouteName =
   | "listSubjects"
   | "createSubject"
   | "deleteSubject"
+  | "mergeSubjects"
   | "listCurricula"
   | "createCurriculum"
   | "getCurriculum"
@@ -56,6 +57,7 @@ export type RouteName =
   | "createTag"
   | "assignTag"
   | "removeTagAssignment"
+  | "mergeTags"
   | "gatherLectureSources"
   | "listLectureSourceCandidates"
   | "reviewLectureSourceCandidate"
@@ -87,6 +89,7 @@ const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/subjects", name: "listSubjects" },
   { method: "POST", pattern: "/subjects", name: "createSubject" },
   { method: "DELETE", pattern: /^\/subjects\/([^/]+)$/, name: "deleteSubject", param: "id" },
+  { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },
   { method: "GET", pattern: "/curricula", name: "listCurricula" },
   { method: "POST", pattern: "/curricula", name: "createCurriculum" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/confirm$/, name: "confirmCurriculum", param: "id" },
@@ -176,6 +179,7 @@ const ROUTES: RouteDef[] = [
     name: "removeTagAssignment",
     params: ["id", "assignmentId"],
   },
+  { method: "POST", pattern: /^\/tags\/([^/]+)\/merge$/, name: "mergeTags", param: "id" },
   {
     method: "POST",
     pattern: /^\/topics\/([^/]+)\/lecture\/sources$/,

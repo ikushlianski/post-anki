@@ -13,6 +13,7 @@ import {
   curateGapInput,
   decideInput,
   declareGapInput,
+  mergeTagsInput,
   nextQuestionInput,
   recordAttemptInput,
   removeTagAssignmentInput,
@@ -340,3 +341,7 @@ export const removeTagAssignment = createServerFn({ method: 'POST' })
 
     return null
   })
+
+export const mergeTags = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => mergeTagsInput.parse(data))
+  .handler(({ data }) => api.mergeTags(data.targetTagId, data.sourceTagId))

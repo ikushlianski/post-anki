@@ -287,6 +287,13 @@ export const createSubjectInput = z.object({
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>
 
+export const mergeSubjectsInput = z.object({
+  targetSubjectId: z.string(),
+  sourceSubjectId: z.string(),
+})
+
+export type MergeSubjectsInput = z.infer<typeof mergeSubjectsInput>
+
 const docUrlSchema = z
   .string()
   .url()
@@ -491,6 +498,13 @@ export const removeTagAssignmentInput = z.object({
 })
 
 export type RemoveTagAssignmentInput = z.infer<typeof removeTagAssignmentInput>
+
+export const mergeTagsInput = z.object({
+  targetTagId: z.string(),
+  sourceTagId: z.string(),
+})
+
+export type MergeTagsInput = z.infer<typeof mergeTagsInput>
 
 export const decideInput = z.object({
   decision: z.string().min(1),

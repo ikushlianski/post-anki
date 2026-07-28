@@ -6,6 +6,7 @@ import {
   handleCreateSubject,
   handleDeleteSubject,
   handleListSubjects,
+  handleMergeSubjects,
 } from "./subject/subject.controller.js";
 import {
   handleAddSources,
@@ -80,6 +81,7 @@ import {
   handleAssignTag,
   handleCreateTag,
   handleListTags,
+  handleMergeTags,
   handleRemoveTagAssignment,
 } from "./tag/tag.controller.js";
 import {
@@ -193,6 +195,8 @@ async function route(
       return handleCreateSubject(req, res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
+    case "mergeSubjects":
+      return handleMergeSubjects(req, res, id);
     case "listCurricula":
       return handleListCurricula(res, url.searchParams.get("subjectId"));
     case "createCurriculum":
@@ -305,6 +309,8 @@ async function route(
       return handleAssignTag(req, res, id);
     case "removeTagAssignment":
       return handleRemoveTagAssignment(res, id, resolved.params.assignmentId ?? "");
+    case "mergeTags":
+      return handleMergeTags(req, res, id);
     case "gatherLectureSources":
       return handleGatherLectureSources(res, id);
     case "listLectureSourceCandidates":

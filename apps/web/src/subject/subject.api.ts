@@ -1,8 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
-import { createSubjectInput } from '../curriculum/model'
-import type { CreateSubjectInput } from '../curriculum/model'
+import { createSubjectInput, mergeSubjectsInput } from '../curriculum/model'
+import type { CreateSubjectInput, MergeSubjectsInput } from '../curriculum/model'
 import * as api from '../curriculum/api-client'
 
 export const createSubject = createServerFn({ method: 'POST' })
@@ -16,3 +16,7 @@ export const deleteSubject = createServerFn({ method: 'POST' })
 
     return null
   })
+
+export const mergeSubjects = createServerFn({ method: 'POST' })
+  .inputValidator((data: MergeSubjectsInput) => mergeSubjectsInput.parse(data))
+  .handler(({ data }) => api.mergeSubjects(data.targetSubjectId, data.sourceSubjectId))

@@ -1,0 +1,150 @@
+---
+type: architecture
+branch: ontology-split-merge
+state: confirmed
+updated: 2026-07-28
+---
+
+# Architecture — Subject and Tag merge
+
+## Why this plan gets an architecture.md
+
+Per this project's own trigger rule: this introduces a new atomic, cross-table write pattern
+(reassign-then-delete under an advisory lock) that two entity types (Subject, Tag) both use — a new
+decision-making shape sitting beside the existing simple create/delete repo functions, not a
+feature bolted onto an existing single-table CRUD path. It also touches a real, previously-flagged
+concurrency and cycle-safety concern from the prior item (seed-knowledge-map), so the reasoning
+needs to be visible in one place, not just in scattered code comments.
+
+## What merge actually moves — Subject merge
+
+```mermaid
+flowchart TB
+  subjectsSource["subjects (source)<br/>e.g. 'Webdev'"]
+  subjectsTarget["subjects (target)<br/>e.g. 'Programming / Web Development'"]
+  curriculaSource["curricula<br/>subject_id = source"]
+  domainNodesSource["domain_nodes forest<br/>subject_id = source<br/>(parent_id untouched)"]
+  tagAssignments["tag_assignments<br/>(untouched — keyed by module/topic id,<br/>not subject id)"]
+
+  subjectsSource -->|"owns"| curriculaSource
+  subjectsSource -->|"owns"| domainNodesSource
+  curriculaSource -.->|"modules/topics carry tags,<br/>tag_assignments never reference subject_id"| tagAssignments
+
+  subgraph AfterMerge["after mergeSubjects(target, source)"]
+    direction TB
+    curriculaMoved["curricula<br/>subject_id = target"]
+    domainNodesMoved["domain_nodes forest<br/>subject_id = target<br/>same parent_id values —<br/>becomes additional root(s)"]
+    sourceDeleted["subjects row for source: DELETED"]
+  end
+
+  curriculaSource -.->|"UPDATE subject_id"| curriculaMoved
+  domainNodesSource -.->|"UPDATE subject_id"| domainNodesMoved
+  subjectsSource -.->|"DELETE (direct, not deleteSubject())"| sourceDeleted
+```
+
+Two facts this diagram encodes and the code must preserve:
+
+1. `tag_assignments` is never touched by a subject merge — it is keyed by `(nodeType, nodeId)`
+   where `nodeId` is a module or topic id, and those ids don't change when their owning
+   curriculum's `subject_id` changes. A tagged module survives a subject merge with zero writes to
+   its tag.
+2. `domain_nodes.parent_id` is never touched — only `subject_id`. The forest's internal shape
+   (who's whose parent) is preserved byte-for-byte; it just now belongs to a different subject and
+   contributes additional root(s) to that subject's tree. `getDomainMapForSubject`'s existing
+   `nodeRows.filter(row => row.parentId === null)` root-detection already handles multiple roots —
+   confirmed by reading that function; this needs zero code change.
+
+## What merge actually moves — Tag merge
+
+```mermaid
+flowchart TB
+  tagSource["tags (source)<br/>e.g. 'reactjs'"]
+  tagTarget["tags (target)<br/>e.g. 'react'"]
+  assignSourceOnly["tag_assignments<br/>tag_id = source,<br/>node NOT also tagged target"]
+  assignBoth["tag_assignments<br/>tag_id = source,<br/>node ALSO tagged target<br/>(dedupe case)"]
+  probeSessions["probe_sessions<br/>scope='tag', scope_id = source"]
+
+  tagSource --> assignSourceOnly
+  tagSource --> assignBoth
+  tagSource --> probeSessions
+
+  assignSourceOnly -->|"UPDATE tag_id = target"| moved["tag_assignments<br/>tag_id = target"]
+  assignBoth -->|"DELETE (target's row for<br/>this node already exists)"| deduped["row removed —<br/>target's own assignment<br/>for this node survives"]
+  probeSessions -->|"UPDATE scope_id = target"| sessionsMoved["probe_sessions<br/>scope_id = target"]
+  tagSource -.->|"DELETE"| tagGone["tags row: DELETED"]
+```
+
+The dedupe delete (step 3 in spec.md's tag-merge procedure) MUST run before the bulk `UPDATE`
+(step 4) — running them in the other order would have the bulk update collide with
+`tag_assignments_tag_node_unique` on the very rows the dedupe step exists to clear first.
+
+## Advisory-lock sequencing (both merge endpoints)
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Controller as mergeSubjects/mergeTags controller
+  participant TX as db.transaction()
+  participant PG as Postgres
+
+  Client->>Controller: POST /:targetId/merge { sourceId }
+  Controller->>Controller: targetId !== sourceId? (cheap, pre-transaction check)
+  Controller->>TX: begin
+  TX->>PG: SELECT pg_advisory_xact_lock(hashtext(min(target,source)))
+  TX->>PG: SELECT pg_advisory_xact_lock(hashtext(max(target,source)))
+  Note over TX,PG: sorted order — prevents deadlock against a<br/>concurrent reverse-direction merge of the same pair
+  TX->>PG: re-SELECT both rows (post-lock read, not the<br/>pre-transaction read — closes the TOCTOU gap)
+  alt either row missing (a concurrent merge already won)
+    TX-->>Controller: rollback
+    Controller-->>Client: 404 not_found
+  else both present, preconditions hold
+    TX->>PG: UPDATE ... reassignment statements
+    TX->>PG: DELETE source row
+    TX-->>Controller: commit
+    Controller-->>Client: 200 { movedCounts }
+  end
+```
+
+## What this plan deliberately does NOT close (see spec.md Decision #6)
+
+```mermaid
+flowchart LR
+  merge["mergeSubjects transaction<br/>(locked, safe)"]
+  create["POST /curricula →<br/>resolveDomainPlacement + createCurriculum<br/>(NOT locked, NOT one transaction — verified<br/>by reading curriculum.controller.ts +<br/>curriculum.repo.ts in full)"]
+  race{"Both touch the<br/>same subjectId<br/>concurrently?"}
+
+  merge --> race
+  create --> race
+  race -->|"yes — narrow window"| orphanRisk["possible: a curriculum/domain_node<br/>lands under the just-deleted source id<br/>— NOT closed in this pass, documented<br/>as an accepted residual risk"]
+  race -->|"no"| fine["fine — this is the common case"]
+```
+
+Closing this fully means wrapping `resolveDomainPlacement` + `createCurriculum` in one transaction
+carrying the same `pg_advisory_xact_lock` — a three-file refactor
+(`domain-placement.orchestrator.ts`, `domain-map.repo.ts`, `curriculum.repo.ts`) of a hot,
+currently-working, frequently-exercised path. Deferred as a fast-follow (see spec.md Decision #6
+for the full reasoning), matching this project's own precedent of shipping a primary concurrency
+fix and logging a residual edge separately (`phrase-bank-concurrency-fix` → the still-open
+"Close a real deadlock window..." wishlist item).
+
+## Cycle-guard non-issue (verified, not assumed)
+
+`domain-map.repo.ts`'s `getDomainMapForSubject`/`buildItem` tree-assembly recursion has no cycle
+guard, unlike `packages/core/src/domain-map/domain-map-progress.ts`'s `domainNodeProgress` (which
+has a visited-set + depth cap of 6). This plan does not add a re-parenting write path — subject
+merge changes `domain_nodes.subject_id` only, never `parent_id`. Every `parent_id` write site in
+the codebase (`insertDomainNode` in `domain-map.repo.ts`, the node-creation call in
+`domain-placement.orchestrator.ts`) was grepped and confirmed to set it only at row-creation time.
+The missing cycle guard is real but is not exercised by anything this plan builds — it remains a
+prerequisite for the future split fast-follow, which WILL need to re-parent subtrees.
+
+## What this plan does not change
+
+- `curricula`, `domain_nodes`, `tags`, `tag_assignments`, `probe_sessions` table shapes — no
+  migration.
+- `deleteSubject()`'s existing pre-existing orphaning of `domain_nodes` on subject delete — a
+  separate, pre-existing gap, out of scope here (this plan's merge deliberately avoids calling that
+  function, but does not fix its own bug).
+- The domain-map read path (`GET /subjects/:id/domain-map`) — the multiple-roots-per-subject case
+  this plan produces is already handled by existing code, confirmed by reading it, zero changes
+  required there.
