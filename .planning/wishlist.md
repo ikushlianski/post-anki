@@ -214,6 +214,28 @@ on a human-only blocker rather than skipping past it.
       Needs real product/architecture planning first — this entry queues the idea, it does not
       spec it. (#53)
 
+- [ ] Close a real deadlock window between the phrase-bank's two new locks, and wire its
+      concurrency tests into the normal test run.
+      Why: `docs/architecture/phrase-bank-concurrency-fix/review.md` (found during `/debrief`
+      2026-07-28) found that the plan's own self-grill incorrectly concluded the generation path's
+      `pg_advisory_xact_lock` and the grading path's `SELECT ... FOR UPDATE` can never conflict —
+      they can, because the FK added by that same fix makes `insertPhraseBatch` take an automatic
+      `FOR KEY SHARE` lock on the referenced `phrase_bank_entries` row, which conflicts with
+      `FOR UPDATE`. A generate and a grade concurrently touching the same recycled entries in
+      different lock orders can deadlock — Postgres aborts one side cleanly (a 500, not corrupted
+      data), so this isn't data-loss-critical, but it's a real, avoidable failure mode. Separately,
+      the 15 integration tests that prove the concurrency fix works aren't wired into
+      `npm run test` or CI — they ran once at build time and currently pass, but nothing re-runs
+      them if a future change reintroduces one of the races they were written to catch.
+      Pointers: `docs/architecture/phrase-bank-concurrency-fix/review.md`'s first reviewer
+      question has the concrete one-line mitigation — have grading take the same advisory lock
+      before its `FOR UPDATE`, matching generation's lock order. `apps/api/vitest.config.ts`
+      (where the two integration test files are currently excluded from the default run).
+      Done when: a deliberately constructed concurrent generate+grade against the same recycled
+      entry no longer deadlocks (proven by a new test exercising that exact interleaving), and
+      `npm run test -w @post-anki/api` (or an explicit CI step) runs the two integration test
+      files as part of normal verification, not just at build time.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
