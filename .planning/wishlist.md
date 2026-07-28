@@ -413,6 +413,28 @@ on a human-only blocker rather than skipping past it.
       Done when: two gated subjects both genuinely receive independent doc-scan suggestions in
       the same scheduled run, proven by a test exercising exactly that interleaving.
 
+- [ ] Close the doc-scan review screen's double-click duplicate-node bug and two related
+      hardening gaps.
+      Why: `docs/architecture/doc-changelog-scan/review.md` (found during `/debrief` 2026-07-28)
+      found accepting a suggestion twice via a plain double-click can insert a duplicate real
+      `domain_nodes` row — `resolveDomainTopicSuggestion()`/`resolveDomainSupersessionSuggestion()`
+      don't check `status === "pending"` before acting, and the review panel's accept/reject
+      buttons have no in-flight disabled state (unlike the page-level "Scan now"/"Run review"
+      buttons, which already guard against this same class of bug). Two related, smaller
+      hardenings found in the same review: the scan's own watermark read-compare-write has no
+      lock, risking duplicate suggestions from an overlapping manual scan + scheduler tick; and
+      `infra/index.ts`'s `apiSharedSecret ? {...} : undefined` deploys silently with no
+      Authorization header if the one-time Pulumi secret step is skipped, rather than failing
+      loudly at deploy time.
+      Pointers: `apps/api/src/domain-map/domain-map.repo.ts` (add a `WHERE status = 'pending'`
+      guard to both resolve functions), `apps/web/src/domain-map/priority-review-panel.tsx` (add
+      a per-item disabled/in-flight state, mirroring the page-level buttons' existing pattern),
+      `apps/api/src/domain-map/doc-scan.orchestrator.ts` (the watermark race), `infra/index.ts`
+      (swap to `config.requireSecret()`).
+      Done when: a real double-click (or two rapid concurrent PATCH calls) on the same pending
+      suggestion results in exactly one resolution — one succeeds, the second is a clean no-op or
+      error, never a second real node/flag.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
