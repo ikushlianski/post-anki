@@ -73,6 +73,7 @@ describe('mapCurriculumRow', () => {
     default_depth: 'awareness',
     strict_order: false,
     pre_assessment_completed_at: null,
+    domain_node_id: null,
   }
 
   it('maps a curriculum with no research sources to sources-origin', () => {

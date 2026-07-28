@@ -118,6 +118,7 @@ export async function createCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
+    domainNodeId: input.domainNodeId ?? null,
   };
 
   await getDb().insert(curricula).values(row);
@@ -578,6 +579,10 @@ export async function updateCurriculum(
     patch.strictOrder = input.strictOrder;
   }
 
+  if (input.domainNodeId !== undefined) {
+    patch.domainNodeId = input.domainNodeId;
+  }
+
   if (Object.keys(patch).length === 0) {
     const existing = (
       await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
@@ -907,6 +912,7 @@ export async function createSplitOutCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
+    domainNodeId: null,
   };
 
   await getDb().insert(curricula).values(row);
@@ -1314,6 +1320,7 @@ function toCurriculum(
     defaultDepth: string;
     strictOrder: boolean;
     preAssessmentCompletedAt: Date | null;
+    domainNodeId?: string | null;
   },
   origin: CurriculumOrigin,
 ): Curriculum {
@@ -1332,6 +1339,7 @@ function toCurriculum(
     preAssessmentCompletedAt: row.preAssessmentCompletedAt
       ? row.preAssessmentCompletedAt.toISOString()
       : null,
+    domainNodeId: row.domainNodeId ?? null,
   };
 }
 

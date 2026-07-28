@@ -21,6 +21,7 @@ import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjec
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
+import { Route as SubjectSubjectIdMapRouteImport } from './routes/subject.$subjectId.map'
 import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
 import { Route as PracticeSubjectIdCheckWritingRouteImport } from './routes/practice.$subjectId_.check-writing'
 import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
@@ -86,6 +87,11 @@ const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
   path: '/api/electric-shape',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubjectSubjectIdMapRoute = SubjectSubjectIdMapRouteImport.update({
+  id: '/subject/$subjectId/map',
+  path: '/subject/$subjectId/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProbeTagTagIdRoute = ProbeTagTagIdRouteImport.update({
   id: '/probe/tag/$tagId',
   path: '/probe/tag/$tagId',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
+  '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
+  '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId_/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
+  '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId/stats'
     | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
+    | '/subject/$subjectId/map'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId/stats'
     | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
+    | '/subject/$subjectId/map'
   id:
     | '__root__'
     | '/'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId_/stats'
     | '/practice/$subjectId_/check-writing'
     | '/probe/tag/$tagId'
+    | '/subject/$subjectId/map'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -239,6 +251,7 @@ export interface RootRouteChildren {
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
   PracticeSubjectIdCheckWritingRoute: typeof PracticeSubjectIdCheckWritingRoute
   ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
+  SubjectSubjectIdMapRoute: typeof SubjectSubjectIdMapRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -327,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiElectricShapeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subject/$subjectId/map': {
+      id: '/subject/$subjectId/map'
+      path: '/subject/$subjectId/map'
+      fullPath: '/subject/$subjectId/map'
+      preLoaderRoute: typeof SubjectSubjectIdMapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/probe/tag/$tagId': {
       id: '/probe/tag/$tagId'
       path: '/probe/tag/$tagId'
@@ -375,6 +395,7 @@ const rootRouteChildren: RootRouteChildren = {
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
   PracticeSubjectIdCheckWritingRoute: PracticeSubjectIdCheckWritingRoute,
   ProbeTagTagIdRoute: ProbeTagTagIdRoute,
+  SubjectSubjectIdMapRoute: SubjectSubjectIdMapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

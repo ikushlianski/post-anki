@@ -98,6 +98,7 @@ import {
   handleListWritingChecks,
   handleUpdatePracticeSettings,
 } from "./practice/practice.controller.js";
+import { handleGetDomainMap } from "./domain-map/domain-map.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
@@ -328,6 +329,8 @@ async function route(
       return handleCreateWritingCheck(req, res, id);
     case "listWritingChecks":
       return handleListWritingChecks(res, id);
+    case "getDomainMap":
+      return handleGetDomainMap(res, id);
   }
 }
 

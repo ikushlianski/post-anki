@@ -17,6 +17,7 @@ import { createLectureSourceSelector } from "./lecture-source-selector.agent.js"
 import { createLectureCompiler } from "./lecture-compiler.agent.js";
 import { createPhraseBatchAgent, createGradeBatchAgent } from "./language-practice.agent.js";
 import { createWritingCheckAgent } from "./writing-check.agent.js";
+import { createSiblingDiscoveryAgent } from "./sibling-discovery.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -34,6 +35,7 @@ export const AGENT_KEYS = {
   phraseBatchGenerate: "phraseBatchGenerate",
   gradeBatch: "gradeBatch",
   writingCheck: "writingCheck",
+  siblingDiscovery: "siblingDiscovery",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -91,6 +93,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.phraseBatchGenerate]: createPhraseBatchAgent(),
         [AGENT_KEYS.gradeBatch]: createGradeBatchAgent(),
         [AGENT_KEYS.writingCheck]: createWritingCheckAgent(),
+        [AGENT_KEYS.siblingDiscovery]: createSiblingDiscoveryAgent(),
       },
       ...(observability ? { observability } : {}),
     });

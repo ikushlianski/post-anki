@@ -220,11 +220,16 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     origin: curriculum.origin,
     strictOrder: curriculum.strictOrder,
     preAssessmentCompletedAt: curriculum.preAssessmentCompletedAt,
+    domainNodeId: curriculum.domainNodeId,
   }
 }
 
 export async function listSubjects(): Promise<Subject[]> {
   return request<be.Subject[]>('/subjects')
+}
+
+export async function getDomainMap(subjectId: string): Promise<be.DomainNodeTreeItem[]> {
+  return request<be.DomainNodeTreeItem[]>(`/subjects/${subjectId}/domain-map`)
 }
 
 export async function createSubject(input: CreateSubjectInput): Promise<Subject> {
@@ -250,6 +255,18 @@ export async function createCurriculum(
   })
 
   return mapCurriculum(created)
+}
+
+export async function setCurriculumDomainNode(
+  curriculumId: string,
+  domainNodeId: string | null,
+): Promise<Curriculum> {
+  const updated = await request<be.Curriculum>(`/curricula/${curriculumId}`, {
+    method: 'PATCH',
+    body: { curriculumId, domainNodeId },
+  })
+
+  return mapCurriculum(updated)
 }
 
 export async function listTopicGaps(topicId: string): Promise<Gap[]> {

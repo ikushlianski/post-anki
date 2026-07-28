@@ -66,6 +66,7 @@ export const curriculumSchema = z.object({
   origin: curriculumOriginSchema,
   strictOrder: z.boolean(),
   preAssessmentCompletedAt: z.string().nullable(),
+  domainNodeId: z.string().nullable(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
@@ -302,6 +303,7 @@ export const createCurriculumInput = z.object({
   docUrl: docUrlSchema.nullable().optional(),
   pastedMaterial: z.string().min(1).nullable().optional(),
   preferredLevel: levelSchema.nullable().optional(),
+  domainNodeId: z.string().nullable().optional(),
 })
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>

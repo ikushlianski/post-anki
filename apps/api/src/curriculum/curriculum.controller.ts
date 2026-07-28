@@ -10,6 +10,8 @@ import {
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getSubject } from "../subject/subject.repo.js";
+import { resolveDomainPlacement } from "../domain-map/domain-placement.orchestrator.js";
+import { getDomainNode } from "../domain-map/domain-map.repo.js";
 import {
   confirmCurriculum,
   createCurriculum,
@@ -134,7 +136,17 @@ export async function handleCreateCurriculum(
     return;
   }
 
-  const curriculum = await createCurriculum({ ...body.data, sources });
+  const placement = await resolveDomainPlacement({
+    subjectId: body.data.subjectId,
+    name: body.data.name,
+    domainNodeId: body.data.domainNodeId,
+  });
+
+  const curriculum = await createCurriculum({
+    ...body.data,
+    sources,
+    domainNodeId: placement.domainNodeId,
+  });
 
   sendJson(res, 202, curriculum);
 
@@ -650,6 +662,27 @@ export async function handleUpdateCurriculum(
   if (!body.ok) {
     sendJson(res, 400, { error: "invalid_input", message: body.issues });
     return;
+  }
+
+  if (body.data.domainNodeId) {
+    const curriculum = await getCurriculum(curriculumId);
+
+    if (!curriculum) {
+      sendError(res, 404, "not_found");
+      return;
+    }
+
+    const targetNode = await getDomainNode(body.data.domainNodeId);
+
+    if (!targetNode || targetNode.subjectId !== curriculum.subjectId) {
+      sendError(
+        res,
+        400,
+        "domain_node_wrong_subject",
+        "the target domain node does not belong to this curriculum's own subject",
+      );
+      return;
+    }
   }
 
   const result = await updateCurriculum({ ...body.data, curriculumId });

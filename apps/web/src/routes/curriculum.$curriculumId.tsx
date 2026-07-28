@@ -18,6 +18,7 @@ import { ModuleSection } from '../curriculum/module-section'
 import { ProgressBar } from '../curriculum/progress-bar'
 import { AddInline } from '../curriculum/shape-controls'
 import { AdaptiveSettings } from '../curriculum/adaptive-settings'
+import { CurriculumPlacementPanel } from '../domain-map/curriculum-placement-panel'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
@@ -122,6 +123,12 @@ function CurriculumPage() {
           </div>
         ) : null}
       </header>
+
+      <CurriculumPlacementPanel
+        curriculumId={curriculum.id}
+        subjectId={curriculum.subjectId}
+        domainNodeId={curriculum.domainNodeId}
+      />
 
       {editable && modules.length > 0 ? (
         <div className="mb-6">
