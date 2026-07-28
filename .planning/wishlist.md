@@ -76,7 +76,13 @@ on a human-only blocker rather than skipping past it.
       Pointers: source repo `.bmad/check-my-writing-mode/`. No plan yet.
       Done when: pasting free text gets a native-soundingness score + rewrites, saved to a history
       list, same as the source app.
-- [ ] Port workplace scenario packs to the English subject.
+- [x] Port workplace scenario packs to the English subject.
+      [→ done: .planning/workplace-scenario-packs/, merged to main 2026-07-28. Turned out to be a
+      verification-gap fix, not a build: the pack picker UI/data model/agent theming were already
+      fully built as a side effect of the batch-practice and phrase-bank-mastery ports, but nothing
+      proved pack selection actually changed generated content (the e2e mock LLM ignored the pack
+      parameter). Made the mock pack-aware + added 3 e2e scenarios. review-playwright verdict: PASS
+      12/12 (3 new + 9 regression, no fallout).]
       Why: themed content packs (standup updates, code review, incident postmortems, giving
       feedback) already exist and were verified working in the source app this session.
       Pointers: source repo `.bmad/workplace-scenario-packs/`, `.planning/LOG.md` entry for
