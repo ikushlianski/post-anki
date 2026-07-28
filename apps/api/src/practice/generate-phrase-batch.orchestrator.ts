@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import type { Pack, PracticeLevel } from "@post-anki/shared";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { phraseBatchSchema, type PhraseBatch } from "./practice-batch.schemas.js";
 import {
   insertPhraseBatch,
@@ -106,12 +108,17 @@ export async function generatePhraseBatch(
   pack: Pack,
 ): Promise<PhraseSelectRow[]> {
   const avoidRussian = await recentRussianForSubject(subjectId, level, pack);
-  const sequenceNumberBase = await nextSequenceBase(subjectId, level, pack);
+  // Early, unlocked read — used only to compute the due-entries list offered
+  // to the model for recycling. Staleness here has no data-integrity
+  // consequence (architecture.md's "Key design decision"): worst case the
+  // model is offered a slightly stale due-list, which only affects which
+  // phrase gets recycled a batch earlier or later.
+  const promptSequenceNumberBase = await nextSequenceBase(subjectId, level, pack);
   const dueEntries = await dueEntriesForScope(
     subjectId,
     level,
     pack,
-    sequenceNumberBase,
+    promptSequenceNumberBase,
     MAX_DUE_PER_BATCH,
   );
 
@@ -124,6 +131,10 @@ export async function generatePhraseBatch(
     dueEntries.map((entry) => ({ id: entry.id, phraseText: entry.phraseText })),
   );
 
+  // The LLM call stays outside the lock and the transaction — nothing about
+  // it needs either, and holding one of the pool's 4 connections open for a
+  // 1-5s external network call would be pure cost with no correctness
+  // benefit (architecture.md).
   const result = await agent.generate(prompt, {
     structuredOutput: { schema: phraseBatchSchema },
   });
@@ -137,26 +148,37 @@ export async function generatePhraseBatch(
     result.object.phrases.map((p) => p.targetPhraseBankEntryId),
   );
 
-  const finalTargetIds = await linkOrCreateTargetPhrases(
-    subjectId,
-    level,
-    pack,
-    result.object,
-    resolvedEchoedIds,
-  );
-
+  const generated = result.object;
   const batchId = newId("batch");
-  const rows = toPhraseRows(
-    subjectId,
-    batchId,
-    level,
-    pack,
-    result.object,
-    sequenceNumberBase,
-    finalTargetIds,
-  );
 
-  const insertedRows = await insertPhraseBatch(rows);
+  // Everything from here down — the authoritative sequence-number re-read,
+  // linking/creating phrase-bank entries, and the batch insert — runs inside
+  // one transaction guarded by a Postgres advisory lock scoped to this
+  // subject/level/pack tuple (architecture.md's "Proposed shape"). This
+  // closes both race 1 (nextSequenceBase) and race 2
+  // (linkOrCreateTargetPhrases) with a single lock scope, since both live
+  // inside the same write window for the same scope. Every DB call in this
+  // body takes `tx` explicitly — never the default getDb() parameter — so
+  // every read/write here goes through the same connection that holds the
+  // lock (spec.md's Design-integrity requirement; the pool caps at 4).
+  const insertedRows = await getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${subjectId} || ${level} || ${pack})::bigint)`);
+
+    const sequenceNumberBase = await nextSequenceBase(subjectId, level, pack, tx);
+
+    const finalTargetIds = await linkOrCreateTargetPhrases(
+      subjectId,
+      level,
+      pack,
+      generated,
+      resolvedEchoedIds,
+      tx,
+    );
+
+    const rows = toPhraseRows(subjectId, batchId, level, pack, generated, sequenceNumberBase, finalTargetIds);
+
+    return insertPhraseBatch(rows, tx);
+  });
 
   log.info(
     { subjectId, batchId, count: insertedRows.length, dueCount: dueEntries.length },
@@ -168,13 +190,18 @@ export async function generatePhraseBatch(
 
 // Sequential, not Promise.all: a duplicate newTargetPhrase text within the same
 // batch must see the entry created by an earlier item in this same loop, so each
-// lookup has to run after the previous item's possible insert has landed.
+// lookup has to run after the previous item's possible insert has landed. `db`
+// is required (no default) — this always runs inside generatePhraseBatch's
+// locked transaction, and a default-parameter fallback here would silently
+// read through a second, unlocked connection (spec.md's Design-integrity
+// requirement).
 async function linkOrCreateTargetPhrases(
   subjectId: string,
   level: PracticeLevel,
   pack: Pack,
   generated: PhraseBatch,
   resolvedEchoedIds: (string | null)[],
+  db: DbExecutor,
 ): Promise<(string | null)[]> {
   const finalTargetIds: (string | null)[] = [];
 
@@ -193,7 +220,7 @@ async function linkOrCreateTargetPhrases(
       continue;
     }
 
-    const existingId = await matchExistingEntryId(subjectId, level, pack, newTargetPhrase.text);
+    const existingId = await matchExistingEntryId(subjectId, level, pack, newTargetPhrase.text, db);
 
     if (existingId) {
       finalTargetIds.push(existingId);
@@ -202,14 +229,17 @@ async function linkOrCreateTargetPhrases(
 
     const id = newId("pbentry");
 
-    await createPhraseBankEntry({
-      id,
-      subjectId,
-      level,
-      pack,
-      phraseText: newTargetPhrase.text,
-      category: newTargetPhrase.category,
-    });
+    await createPhraseBankEntry(
+      {
+        id,
+        subjectId,
+        level,
+        pack,
+        phraseText: newTargetPhrase.text,
+        category: newTargetPhrase.category,
+      },
+      db,
+    );
 
     finalTargetIds.push(id);
   }

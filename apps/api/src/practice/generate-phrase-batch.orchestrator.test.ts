@@ -12,6 +12,19 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+// generatePhraseBatch now opens getDb().transaction(...) directly (the
+// advisory-lock write path) rather than only calling already-mocked repo
+// functions — this stand-in just invokes the callback with a dummy `tx`
+// object, since every repo function called with it below is itself already
+// mocked and doesn't inspect the executor it's given. Signature-shape update
+// only; no assertion below changes.
+vi.mock("../db/client.js", () => ({
+  getDb: () => ({
+    transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ execute: vi.fn(async () => undefined) }),
+  }),
+}));
+
 const practiceRepoState = { avoidRussian: [] as string[], insertedRows: [] as unknown[] };
 
 const STUB_CREATED_AT = new Date("2026-01-01T00:00:00.000Z");

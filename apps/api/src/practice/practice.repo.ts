@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Pack, PracticeLevel, PracticeSettings } from "@post-anki/shared";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { attempts, languagePracticeSettings, phrases } from "../db/schema.js";
 
 const DEFAULT_LEVEL: PracticeLevel = "B1_B2";
@@ -80,12 +80,13 @@ export async function recentRussianForSubject(
 
 export async function insertPhraseBatch(
   rows: PhraseInsertRow[],
+  db: DbExecutor = getDb(),
 ): Promise<PhraseSelectRow[]> {
   if (rows.length === 0) {
     return [];
   }
 
-  return getDb().insert(phrases).values(rows).returning();
+  return db.insert(phrases).values(rows).returning();
 }
 
 export async function insertAttempts(rows: AttemptInsertRow[]): Promise<void> {

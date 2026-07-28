@@ -379,40 +379,94 @@ export const languagePracticeSettings = pgTable("language_practice_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const phrases = pgTable("phrases", {
-  id: text("id").primaryKey(),
-  subjectId: text("subject_id").notNull(),
-  batchId: text("batch_id").notNull(),
-  level: text("level").notNull(),
-  pack: text("pack").notNull(),
-  position: integer("position").notNull(),
-  russian: text("russian").notNull(),
-  referenceEnglish: text("reference_english").notNull(),
-  domain: text("domain").notNull(),
-  targetPhraseBankEntryId: text("target_phrase_bank_entry_id"),
-  sequenceNumber: integer("sequence_number").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const phrases = pgTable(
+  "phrases",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id").notNull(),
+    batchId: text("batch_id").notNull(),
+    level: text("level").notNull(),
+    pack: text("pack").notNull(),
+    position: integer("position").notNull(),
+    russian: text("russian").notNull(),
+    referenceEnglish: text("reference_english").notNull(),
+    domain: text("domain").notNull(),
+    // References phraseBankEntries.id (declared below in this file — safe,
+    // since drizzle resolves this callback lazily after the whole module has
+    // loaded). ON DELETE SET NULL: nothing in the app deletes a
+    // phrase_bank_entries row today (mastery archives via status:
+    // "mastered", never a delete) — see architecture.md's "Migration"
+    // section for the full reasoning.
+    targetPhraseBankEntryId: text("target_phrase_bank_entry_id").references(
+      (): typeof phraseBankEntries.id => phraseBankEntries.id,
+      { onDelete: "set null" },
+    ),
+    sequenceNumber: integer("sequence_number").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // DB-level backstop for the nextSequenceBase race (SCENARIO 2 /
+    // architecture.md race 1) — two concurrent batch-generation calls can no
+    // longer land overlapping sequence numbers for the same
+    // subject/level/pack scope, even if the advisory lock were ever bypassed.
+    uniqueIndex("phrases_subject_level_pack_sequence_number_idx").on(
+      table.subjectId,
+      table.level,
+      table.pack,
+      table.sequenceNumber,
+    ),
+  ],
+);
 
-export const phraseBankEntries = pgTable("phrase_bank_entries", {
-  id: text("id").primaryKey(),
-  subjectId: text("subject_id").notNull(),
-  level: text("level").notNull(),
-  pack: text("pack").notNull(),
-  phraseText: text("phrase_text").notNull(),
-  category: text("category"),
-  status: text("status").notNull().default("new"),
-  masteryStage: integer("mastery_stage").notNull().default(0),
-  correctCountInCycle: integer("correct_count_in_cycle").notNull().default(0),
-  incorrectCountInCycle: integer("incorrect_count_in_cycle").notNull().default(0),
-  lastCorrectAtSentenceCount: integer("last_correct_at_sentence_count"),
-  lastCorrectDate: timestamp("last_correct_date", { withTimezone: true }),
-  scheduledForSentenceCount: integer("scheduled_for_sentence_count"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  masteredAt: timestamp("mastered_at", { withTimezone: true }),
-});
+export const phraseBankEntries = pgTable(
+  "phrase_bank_entries",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id").notNull(),
+    level: text("level").notNull(),
+    pack: text("pack").notNull(),
+    phraseText: text("phrase_text").notNull(),
+    category: text("category"),
+    status: text("status").notNull().default("new"),
+    masteryStage: integer("mastery_stage").notNull().default(0),
+    correctCountInCycle: integer("correct_count_in_cycle").notNull().default(0),
+    incorrectCountInCycle: integer("incorrect_count_in_cycle").notNull().default(0),
+    lastCorrectAtSentenceCount: integer("last_correct_at_sentence_count"),
+    lastCorrectDate: timestamp("last_correct_date", { withTimezone: true }),
+    scheduledForSentenceCount: integer("scheduled_for_sentence_count"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    masteredAt: timestamp("mastered_at", { withTimezone: true }),
+  },
+  (table) => [
+    // DB-level backstop for the linkOrCreateTargetPhrases race (SCENARIO 3 /
+    // architecture.md race 2) — matches matchExistingPhraseBankEntry's
+    // existing case-insensitive, TRIMMED comparison (normalizePhraseText:
+    // text.trim().toLowerCase() in packages/core/src/phrase-bank/phrase-bank.ts).
+    // architecture.md's own SQL sketch names only lower(phrase_text), but
+    // scenarios.md SCENARIO 1's locked acceptance criteria explicitly
+    // requires a whitespace-only variant ("get to the bottom of " with a
+    // trailing space) to also collide — lower() alone would not catch that,
+    // only lower(trim(...)) matches the app-level comparison this index is
+    // meant to back up. Expression index; see architecture.md's "Migration"
+    // section for the drizzle-kit-generation caveat.
+    //
+    // PARTIAL — excludes status = 'mastered', same pattern as
+    // curriculum_structure_turns_pending_assistant_unique above.
+    // matchExistingPhraseBankEntry itself excludes mastered candidates from
+    // matching (phrase-bank.ts:61) — a mastered phrase re-encountered later
+    // is meant to start a fresh entry, not collide with the mastered one. A
+    // plain (non-partial) unique index here would 500 that request the
+    // moment this migration landed, a regression an earlier, non-partial
+    // draft of this index actually introduced and this project's own
+    // integration test (phrase-bank-concurrency.integration.test.ts,
+    // "a mastered entry's phrase text can be introduced again...") caught.
+    uniqueIndex("phrase_bank_entries_subject_level_pack_phrase_text_idx")
+      .on(table.subjectId, table.level, table.pack, sql`lower(trim(${table.phraseText}))`)
+      .where(sql`${table.status} <> 'mastered'`),
+  ],
+);
 
 export const phraseBankAppearances = pgTable("phrase_bank_appearances", {
   id: text("id").primaryKey(),
