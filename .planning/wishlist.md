@@ -239,8 +239,21 @@ on a human-only blocker rather than skipping past it.
       subject maps to something recyclable across probe questions and study-chat sessions, since
       probe questions aren't a fixed bank the way phrase drills are. This entry queues the idea,
       it does not spec it. (#57)
-- [ ] Periodic doc/changelog scan — surface new topics and adjust knowledge-map percentages
+- [x] Periodic doc/changelog scan — surface new topics and adjust knowledge-map percentages
       over time, without overwhelming the user.
+      [→ done: .planning/doc-changelog-scan/, merged to main 2026-07-28. review-playwright
+      verdict: PASS 5/5 + 41/42 regression (one confirmed timing flake under sustained load,
+      re-ran clean). Content-hash change detection means zero AI calls and zero new suggestions
+      when a tracked tool's docs haven't moved — proven by an explicit call-count assertion, not
+      "no new rows." Flags rather than reduces knowledge percentage (the percentage is derived,
+      nothing can write to it directly, and an automatic drop would violate the app's
+      no-passive-decay principle). Includes a real Pulumi Cloud Scheduler job — deploy correctly
+      deferred to a human (no prod deploy credentials in this session, and none would run
+      unattended regardless); manual steps in .planning/doc-changelog-scan/todo.md. One real,
+      clearly-documented limitation for a human to decide on: `tracked_tool_scan_state` is keyed
+      by tool_key alone, so only the first of multiple gated subjects gets real suggestions per
+      scheduled run — invisible today (one gated subject exists), becomes a correctness bug the
+      moment a second is seeded.]
       Why: the global knowledge map from "Seed subjects and courses/topics" (#48) needs to stay
       current, not just reflect a one-time snapshot. Periodically scan the docs/changelogs of
       tools the user actually tracks (e.g. Next.js docs, Remix docs, TC39/ECMAScript proposals)
@@ -385,6 +398,20 @@ on a human-only blocker rather than skipping past it.
       its `gap_mastery` row, either via a real `ON DELETE CASCADE` FK or an explicit delete in the
       same transaction — proven by a test that deletes a gap with an active mastery row and
       confirms zero orphaned `gap_mastery` rows remain.
+
+- [ ] Give `tracked_tool_scan_state` a subject dimension before seeding a second gated subject.
+      Why: `.planning/doc-changelog-scan/todo.md` (found during implementation, 2026-07-28) —
+      the table is keyed by `tool_key` alone, so only the first of multiple gated subjects
+      processed in a scheduled scan run ever gets real suggestions; every other subject silently
+      gets nothing, indefinitely. Invisible today (exactly one gated subject exists,
+      "Programming / Web Development") but becomes a real correctness bug, not a performance one,
+      the moment a second subject gets its own domain_nodes tree — deliberately not patched
+      quietly inside that ticket's scope, since it's a real schema change a human should decide on.
+      Pointers: `apps/api/src/domain-map/doc-scan.orchestrator.ts`
+      (`runDocScanForAllTrackedSubjects`), `apps/api/src/db/schema.ts`
+      (`tracked_tool_scan_state`) — needs a composite key on `(subject_id, tool_key)`.
+      Done when: two gated subjects both genuinely receive independent doc-scan suggestions in
+      the same scheduled run, proven by a test exercising exactly that interleaving.
 
 ## Everything else (unchanged order, resumes below the active queue above)
 
