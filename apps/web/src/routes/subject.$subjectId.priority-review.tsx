@@ -3,22 +3,28 @@ import type { DomainNodeTreeItem } from '@post-anki/shared'
 
 import { getDomainMapForSubject, getSubjectForMap } from '../domain-map/domain-map.api'
 import { getPriorityReviewStatus, getPrioritySuggestions } from '../domain-map/domain-map.api'
+import { getDocScanSuggestions } from '../domain-map/domain-map.api'
 import { PriorityReviewPanel } from '../domain-map/priority-review-panel'
 
 // domain-priority-review (issue #52) — SSR-first, loader-seeded, same
 // Electric-avoidance rationale as subject.$subjectId.map.tsx: this screen
 // has no live-multi-client requirement.
+//
+// doc-changelog-scan (issue #49) extends this same loader to also fetch
+// pending doc-scan suggestions alongside the existing loader data — required
+// for S5's Integration acceptance ("matches ... on a fresh page load").
 export const Route = createFileRoute('/subject/$subjectId/priority-review')({
   component: PriorityReviewPage,
   loader: async ({ params }) => {
-    const [subject, tree, suggestions, status] = await Promise.all([
+    const [subject, tree, suggestions, status, docScanSuggestions] = await Promise.all([
       getSubjectForMap({ data: params.subjectId }),
       getDomainMapForSubject({ data: params.subjectId }),
       getPrioritySuggestions({ data: { subjectId: params.subjectId, status: 'pending' } }),
       getPriorityReviewStatus({ data: params.subjectId }),
+      getDocScanSuggestions({ data: { subjectId: params.subjectId, status: 'pending' } }),
     ])
 
-    return { subject, tree, suggestions, status }
+    return { subject, tree, suggestions, status, docScanSuggestions }
   },
 })
 
@@ -39,7 +45,7 @@ function collectNodeNames(nodes: DomainNodeTreeItem[]): Record<string, string> {
 
 function PriorityReviewPage() {
   const { subjectId } = Route.useParams()
-  const { subject, tree, suggestions, status } = Route.useLoaderData()
+  const { subject, tree, suggestions, status, docScanSuggestions } = Route.useLoaderData()
 
   if (!subject) {
     return (
@@ -71,6 +77,8 @@ function PriorityReviewPage() {
         nodeNamesById={collectNodeNames(tree)}
         initialSuggestions={suggestions}
         initialDue={status.due}
+        initialNewTopicSuggestions={docScanSuggestions.newTopics}
+        initialSupersessionSuggestions={docScanSuggestions.supersessions}
       />
     </main>
   )

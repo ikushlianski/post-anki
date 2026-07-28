@@ -59,6 +59,15 @@ function DomainMapNode({
           >
             {node.percent}%
           </span>
+          {node.supersededAt ? (
+            <span
+              data-testid={`domain-map-node-superseded-badge-${node.id}`}
+              title={node.supersededReason ?? undefined}
+              className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700"
+            >
+              possibly outdated
+            </span>
+          ) : null}
           {priorityDistance !== null ? (
             <span
               data-testid={`domain-map-node-priority-distance-${node.id}`}

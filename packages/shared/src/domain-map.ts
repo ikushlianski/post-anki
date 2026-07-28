@@ -15,6 +15,13 @@ export const domainNodeSchema = z.object({
   // depth level. Independent of the node's real rollup percentage
   // (domainNodeProgress(), unchanged).
   targetDepth: depthLevelSchema.nullable(),
+  // doc-changelog-scan (issue #49) — a flag, never a percent change
+  // (spec.md's Decisions #2). Written only by
+  // resolveDomainSupersessionSuggestion() on { status: "accepted" }; null
+  // means not flagged. supersededReason snapshots the accepted suggestion's
+  // reason text at accept time.
+  supersededAt: z.string().nullable(),
+  supersededReason: z.string().nullable(),
 });
 
 export type DomainNode = z.infer<typeof domainNodeSchema>;
@@ -48,6 +55,10 @@ export interface DomainNodeTreeItem {
   priorityDistance: number | null;
   curricula: DomainNodeCurriculumSummary[];
   children: DomainNodeTreeItem[];
+  // doc-changelog-scan (issue #49) — see domainNodeSchema's own comment.
+  // Rendered beside `percent`, never derived from or affecting it.
+  supersededAt: string | null;
+  supersededReason: string | null;
 }
 
 export const domainNodeTreeItemSchema: z.ZodType<DomainNodeTreeItem> = z.lazy(() =>
@@ -63,6 +74,8 @@ export const domainNodeTreeItemSchema: z.ZodType<DomainNodeTreeItem> = z.lazy(()
     priorityDistance: z.number().nullable(),
     curricula: z.array(domainNodeCurriculumSummarySchema),
     children: z.array(domainNodeTreeItemSchema),
+    supersededAt: z.string().nullable(),
+    supersededReason: z.string().nullable(),
   }),
 );
 
@@ -160,6 +173,113 @@ export const domainPriorityReviewStatusSchema = z.object({
 });
 
 export type DomainPriorityReviewStatus = z.infer<typeof domainPriorityReviewStatusSchema>;
+
+// doc-changelog-scan (issue #49) — the scan mechanism's own contracts.
+// Two sibling suggestion tables, not a reuse of domain_priority_suggestions
+// (spec.md's Decisions #1: neither "propose a brand-new node" nor "flag an
+// existing node" fits that row's NOT NULL domain_node_id / suggested_target_
+// depth payload shape).
+
+export const domainSuggestionStatusSchema = z.enum(["pending", "accepted", "rejected"]);
+
+export type DomainSuggestionStatus = z.infer<typeof domainSuggestionStatusSchema>;
+
+// One row per "propose a brand-new node" suggestion (domain_topic_
+// suggestions). proposedParentNodeId is resolved and stored as a real id at
+// suggestion-creation time (spec.md's Decisions #11), never re-resolved by
+// name at accept time; null means "attach at the subject root."
+export const domainTopicSuggestionSchema = z.object({
+  id: z.string(),
+  subjectId: z.string(),
+  proposedParentNodeId: z.string().nullable(),
+  proposedNodeName: z.string().min(1),
+  reason: z.string().min(1),
+  source: z.string().min(1),
+  status: domainSuggestionStatusSchema,
+  createdAt: z.string(),
+  resolvedAt: z.string().nullable(),
+  createdDomainNodeId: z.string().nullable(),
+});
+
+export type DomainTopicSuggestion = z.infer<typeof domainTopicSuggestionSchema>;
+
+// One row per "flag an existing node as possibly superseded" suggestion
+// (domain_supersession_suggestions).
+export const domainSupersessionSuggestionSchema = z.object({
+  id: z.string(),
+  subjectId: z.string(),
+  domainNodeId: z.string(),
+  reason: z.string().min(1),
+  source: z.string().min(1),
+  status: domainSuggestionStatusSchema,
+  createdAt: z.string(),
+  resolvedAt: z.string().nullable(),
+});
+
+export type DomainSupersessionSuggestion = z.infer<typeof domainSupersessionSuggestionSchema>;
+
+// POST /subjects/:id/doc-scans and POST /doc-scans both return this shape.
+// agentCalled: false covers BOTH the "nothing changed, zero-call firehose
+// proof" path (SCENARIO 3) AND the "agent call failed, watermark left
+// un-advanced" path (SCENARIO 10) — agentError distinguishes the latter.
+export const docScanResultSchema = z.object({
+  newTopicSuggestions: z.array(domainTopicSuggestionSchema),
+  supersessionSuggestions: z.array(domainSupersessionSuggestionSchema),
+  toolsScanned: z.array(z.string()),
+  toolsChanged: z.array(z.string()),
+  agentCalled: z.boolean(),
+  agentError: z.boolean().optional(),
+});
+
+export type DocScanResult = z.infer<typeof docScanResultSchema>;
+
+// The docScan agent's own structured-output contract — names, never ids
+// (same posture as siblingDiscoveryResultSchema /
+// domainPrioritySuggestionAgentItemSchema above). Schema-level caps (max 3
+// each, max 6 combined) bound the raw agent output; MAX_TOTAL_SUGGESTIONS (5)
+// is the separate, stricter post-resolution insert cap enforced by the
+// orchestrator (spec.md's step 5b), not by this schema.
+export const domainTopicSuggestionAgentItemSchema = z.object({
+  parentNodePath: z.array(z.string()).nullable(),
+  nodeName: z.string().min(1),
+  reason: z.string().min(1),
+});
+
+export const domainSupersessionSuggestionAgentItemSchema = z.object({
+  nodePath: z.array(z.string()).min(1),
+  reason: z.string().min(1),
+});
+
+export const docScanAgentResultSchema = z.object({
+  newTopicSuggestions: z.array(domainTopicSuggestionAgentItemSchema).max(3),
+  supersessionSuggestions: z.array(domainSupersessionSuggestionAgentItemSchema).max(3),
+});
+
+export type DocScanAgentResult = z.infer<typeof docScanAgentResultSchema>;
+
+// PATCH /domain-topic-suggestions/:id
+export const updateDomainTopicSuggestionInput = z.object({
+  status: z.enum(["accepted", "rejected"]),
+});
+
+export type UpdateDomainTopicSuggestionInput = z.infer<typeof updateDomainTopicSuggestionInput>;
+
+// PATCH /domain-supersession-suggestions/:id
+export const updateDomainSupersessionSuggestionInput = z.object({
+  status: z.enum(["accepted", "rejected"]),
+});
+
+export type UpdateDomainSupersessionSuggestionInput = z.infer<
+  typeof updateDomainSupersessionSuggestionInput
+>;
+
+// GET /subjects/:id/doc-scan-suggestions?status=pending
+export const docScanSuggestionsResponseSchema = z.object({
+  newTopics: z.array(domainTopicSuggestionSchema),
+  supersessions: z.array(domainSupersessionSuggestionSchema),
+});
+
+export type DocScanSuggestionsResponse = z.infer<typeof docScanSuggestionsResponseSchema>;
 
 // Re-exported for callers that only need the module-progress shape this
 // deriver reuses unmodified.

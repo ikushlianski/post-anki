@@ -78,7 +78,12 @@ export type RouteName =
   | "triggerDomainPriorityReview"
   | "listPrioritySuggestions"
   | "resolvePrioritySuggestion"
-  | "getDomainPriorityReviewStatus";
+  | "getDomainPriorityReviewStatus"
+  | "triggerDocScan"
+  | "triggerAllDocScans"
+  | "listDocScanSuggestions"
+  | "resolveDomainTopicSuggestion"
+  | "resolveDomainSupersessionSuggestion";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -306,6 +311,31 @@ const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: /^\/subjects\/([^/]+)\/domain-priority-review-status$/,
     name: "getDomainPriorityReviewStatus",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/subjects\/([^/]+)\/doc-scans$/,
+    name: "triggerDocScan",
+    param: "id",
+  },
+  { method: "POST", pattern: "/doc-scans", name: "triggerAllDocScans" },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/doc-scan-suggestions$/,
+    name: "listDocScanSuggestions",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/domain-topic-suggestions\/([^/]+)$/,
+    name: "resolveDomainTopicSuggestion",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/domain-supersession-suggestions\/([^/]+)$/,
+    name: "resolveDomainSupersessionSuggestion",
     param: "id",
   },
 ];

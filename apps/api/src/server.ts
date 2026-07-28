@@ -108,8 +108,13 @@ import {
 import {
   handleGetDomainMap,
   handleGetDomainPriorityReviewStatus,
+  handleListDocScanSuggestions,
   handleListPrioritySuggestions,
+  handleResolveDomainSupersessionSuggestion,
+  handleResolveDomainTopicSuggestion,
   handleResolvePrioritySuggestion,
+  handleTriggerAllDocScans,
+  handleTriggerDocScan,
   handleTriggerDomainPriorityReview,
   handleUpdateDomainNode,
 } from "./domain-map/domain-map.controller.js";
@@ -365,6 +370,16 @@ async function route(
       return handleResolvePrioritySuggestion(req, res, id);
     case "getDomainPriorityReviewStatus":
       return handleGetDomainPriorityReviewStatus(res, id);
+    case "triggerDocScan":
+      return handleTriggerDocScan(res, id);
+    case "triggerAllDocScans":
+      return handleTriggerAllDocScans(res);
+    case "listDocScanSuggestions":
+      return handleListDocScanSuggestions(res, id, url.searchParams.get("status"));
+    case "resolveDomainTopicSuggestion":
+      return handleResolveDomainTopicSuggestion(req, res, id);
+    case "resolveDomainSupersessionSuggestion":
+      return handleResolveDomainSupersessionSuggestion(req, res, id);
   }
 }
 

@@ -1,7 +1,16 @@
 import { useState } from 'react'
-import type { DomainPrioritySuggestion } from '@post-anki/shared'
+import type {
+  DomainPrioritySuggestion,
+  DomainSupersessionSuggestion,
+  DomainTopicSuggestion,
+} from '@post-anki/shared'
 
 import { resolveSuggestionStatus, triggerPriorityReview } from './domain-map.api'
+import {
+  resolveDocScanSupersessionSuggestion,
+  resolveDocScanTopicSuggestion,
+  runDocScan,
+} from './domain-map.api'
 
 const DEPTH_LABEL: Record<string, string> = {
   awareness: 'Awareness',
@@ -23,17 +32,78 @@ export function PriorityReviewPanel({
   nodeNamesById,
   initialSuggestions,
   initialDue,
+  initialNewTopicSuggestions,
+  initialSupersessionSuggestions,
 }: {
   subjectId: string
   nodeNamesById: Record<string, string>
   initialSuggestions: DomainPrioritySuggestion[]
   initialDue: boolean
+  initialNewTopicSuggestions: DomainTopicSuggestion[]
+  initialSupersessionSuggestions: DomainSupersessionSuggestion[]
 }) {
   const [suggestions, setSuggestions] = useState(initialSuggestions)
   const [due, setDue] = useState(initialDue)
   const [triggering, setTriggering] = useState(false)
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
+
+  // doc-changelog-scan (issue #49) state below.
+  const [newTopicSuggestions, setNewTopicSuggestions] = useState(initialNewTopicSuggestions)
+  const [supersessionSuggestions, setSupersessionSuggestions] = useState(
+    initialSupersessionSuggestions,
+  )
+  const [scanning, setScanning] = useState(false)
+  const [scanRanOnce, setScanRanOnce] = useState(false)
+  const [docScanConfirmation, setDocScanConfirmation] = useState<string | null>(null)
+
+  async function scanNow() {
+    if (scanning) {
+      return
+    }
+
+    setScanning(true)
+
+    try {
+      const result = await runDocScan({ data: subjectId })
+      setNewTopicSuggestions((prev) => [...result.newTopicSuggestions, ...prev])
+      setSupersessionSuggestions((prev) => [...result.supersessionSuggestions, ...prev])
+    } catch {
+      // Silent-fallback posture (spec.md's Decisions #8): a failed scan
+      // reads identically to "nothing changed" — the sections simply stay
+      // as they were, no error state.
+    } finally {
+      setScanning(false)
+      setScanRanOnce(true)
+    }
+  }
+
+  async function resolveNewTopic(suggestion: DomainTopicSuggestion, decision: 'accept' | 'reject') {
+    const status = decision === 'accept' ? 'accepted' : 'rejected'
+
+    await resolveDocScanTopicSuggestion({ data: { suggestionId: suggestion.id, status } })
+
+    setNewTopicSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
+
+    if (decision === 'accept') {
+      const parentName = suggestion.proposedParentNodeId
+        ? (nodeNamesById[suggestion.proposedParentNodeId] ?? suggestion.proposedParentNodeId)
+        : 'the subject root'
+      setDocScanConfirmation(`${suggestion.proposedNodeName} added under ${parentName}`)
+      setTimeout(() => setDocScanConfirmation(null), 4000)
+    }
+  }
+
+  async function resolveSupersession(
+    suggestion: DomainSupersessionSuggestion,
+    decision: 'accept' | 'reject',
+  ) {
+    const status = decision === 'accept' ? 'accepted' : 'rejected'
+
+    await resolveDocScanSupersessionSuggestion({ data: { suggestionId: suggestion.id, status } })
+
+    setSupersessionSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
+  }
 
   async function trigger() {
     if (triggering) {
@@ -157,6 +227,142 @@ export function PriorityReviewPanel({
           ))}
         </ul>
       )}
+
+      <div data-testid="doc-scan-section" className="border-t border-neutral-200 pt-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            data-testid="doc-scan-trigger-button"
+            disabled={scanning}
+            onClick={scanNow}
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {scanning ? 'Scanning…' : 'Scan now'}
+          </button>
+          {docScanConfirmation ? (
+            <span className="text-sm text-emerald-700">{docScanConfirmation}</span>
+          ) : null}
+        </div>
+
+        <div className="mt-3">
+          <h2 className="text-sm font-semibold text-neutral-700">New topics found</h2>
+          {newTopicSuggestions.length === 0 ? (
+            <p className="mt-1 text-sm text-neutral-500">
+              {scanRanOnce ? 'No new suggestions this scan.' : 'No pending suggestions.'}
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {newTopicSuggestions.map((suggestion) => (
+                <li
+                  key={suggestion.id}
+                  data-testid={`doc-scan-new-topic-${suggestion.id}`}
+                  className="rounded-lg border border-neutral-200 bg-white p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{suggestion.proposedNodeName}</span>
+                    <span className="text-xs text-neutral-500">
+                      under{' '}
+                      {suggestion.proposedParentNodeId
+                        ? (nodeNamesById[suggestion.proposedParentNodeId] ??
+                          suggestion.proposedParentNodeId)
+                        : 'subject root'}
+                    </span>
+                  </div>
+
+                  <p
+                    data-testid={`doc-scan-new-topic-reason-${suggestion.id}`}
+                    className="mt-1 text-xs text-neutral-600"
+                  >
+                    {suggestion.reason}
+                  </p>
+
+                  <span
+                    data-testid={`doc-scan-new-topic-source-${suggestion.id}`}
+                    className="mt-1 inline-block text-[11px] text-neutral-400"
+                  >
+                    {suggestion.source}
+                  </span>
+
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      data-testid={`doc-scan-new-topic-accept-${suggestion.id}`}
+                      onClick={() => resolveNewTopic(suggestion, 'accept')}
+                      className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`doc-scan-new-topic-reject-${suggestion.id}`}
+                      onClick={() => resolveNewTopic(suggestion, 'reject')}
+                      className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <h2 className="text-sm font-semibold text-neutral-700">Possibly outdated</h2>
+          {supersessionSuggestions.length === 0 ? (
+            <p className="mt-1 text-sm text-neutral-500">
+              {scanRanOnce ? 'No new suggestions this scan.' : 'No pending suggestions.'}
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {supersessionSuggestions.map((suggestion) => (
+                <li
+                  key={suggestion.id}
+                  data-testid={`doc-scan-supersession-${suggestion.id}`}
+                  className="rounded-lg border border-neutral-200 bg-white p-3"
+                >
+                  <span className="text-sm font-medium">
+                    {nodeNamesById[suggestion.domainNodeId] ?? suggestion.domainNodeId}
+                  </span>
+
+                  <p
+                    data-testid={`doc-scan-supersession-reason-${suggestion.id}`}
+                    className="mt-1 text-xs text-neutral-600"
+                  >
+                    {suggestion.reason}
+                  </p>
+
+                  <span
+                    data-testid={`doc-scan-supersession-source-${suggestion.id}`}
+                    className="mt-1 inline-block text-[11px] text-neutral-400"
+                  >
+                    {suggestion.source}
+                  </span>
+
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      data-testid={`doc-scan-supersession-accept-${suggestion.id}`}
+                      onClick={() => resolveSupersession(suggestion, 'accept')}
+                      className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`doc-scan-supersession-reject-${suggestion.id}`}
+                      onClick={() => resolveSupersession(suggestion, 'reject')}
+                      className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

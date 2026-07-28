@@ -287,6 +287,43 @@ export async function getDomainPriorityReviewStatus(
   )
 }
 
+// doc-changelog-scan (issue #49) additions below.
+
+export async function triggerDocScan(subjectId: string): Promise<be.DocScanResult> {
+  return request<be.DocScanResult>(`/subjects/${subjectId}/doc-scans`, { method: 'POST' })
+}
+
+export async function listDocScanSuggestions(
+  subjectId: string,
+  status?: be.DomainSuggestionStatus,
+): Promise<be.DocScanSuggestionsResponse> {
+  const query = status ? `?status=${status}` : ''
+
+  return request<be.DocScanSuggestionsResponse>(
+    `/subjects/${subjectId}/doc-scan-suggestions${query}`,
+  )
+}
+
+export async function resolveDomainTopicSuggestion(
+  suggestionId: string,
+  status: 'accepted' | 'rejected',
+): Promise<be.DomainTopicSuggestion> {
+  return request<be.DomainTopicSuggestion>(`/domain-topic-suggestions/${suggestionId}`, {
+    method: 'PATCH',
+    body: { status },
+  })
+}
+
+export async function resolveDomainSupersessionSuggestion(
+  suggestionId: string,
+  status: 'accepted' | 'rejected',
+): Promise<be.DomainSupersessionSuggestion> {
+  return request<be.DomainSupersessionSuggestion>(
+    `/domain-supersession-suggestions/${suggestionId}`,
+    { method: 'PATCH', body: { status } },
+  )
+}
+
 export async function createSubject(input: CreateSubjectInput): Promise<Subject> {
   return request<be.Subject>('/subjects', { method: 'POST', body: input })
 }

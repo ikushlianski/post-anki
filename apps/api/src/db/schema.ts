@@ -56,6 +56,12 @@ export const domainNodes = pgTable("domain_nodes", {
   // real, representable state (spec.md's Decisions #2). depthLevelSchema
   // ("awareness" | "working" | "deep"), app-level validated.
   targetDepth: text("target_depth"),
+  // doc-changelog-scan (issue #49) — nullable, no default: a flag, never an
+  // automatic percentage drop (spec.md's Decisions #2). Written only by
+  // resolveDomainSupersessionSuggestion() on { status: "accepted" };
+  // domainNodeProgress()/percent are completely untouched by either column.
+  supersededAt: timestamp("superseded_at", { withTimezone: true }),
+  supersededReason: text("superseded_reason"),
 });
 
 // One row per suggestion a domain-priority review run produces. No
@@ -70,6 +76,57 @@ export const domainPrioritySuggestions = pgTable("domain_priority_suggestions", 
   suggestedTargetDepth: text("suggested_target_depth").notNull(),
   reason: text("reason").notNull(),
   source: text("source").notNull().default("general-knowledge"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+});
+
+// doc-changelog-scan (issue #49) — one row per tracked tool
+// (apps/api/src/domain-map/tracked-tools.ts's TRACKED_TOOLS constant), the
+// "never a firehose" watermark. last_content_hash null = never successfully
+// scanned. Only advanced by the orchestrator for a tool INCLUDED in a
+// successful agent call (spec.md's Decisions #9) — a changed tool whose
+// agent call then fails keeps its OLD hash so it's retried next run.
+export const trackedToolScanState = pgTable("tracked_tool_scan_state", {
+  toolKey: text("tool_key").primaryKey(),
+  lastContentHash: text("last_content_hash"),
+  lastScannedAt: timestamp("last_scanned_at", { withTimezone: true }),
+});
+
+// doc-changelog-scan (issue #49) — "propose a brand-new node" (the scan's
+// (a) output). Neither this nor domain_supersession_suggestions below reuses
+// domain_priority_suggestions (spec.md's Decisions #1: that row's
+// domain_node_id is NOT NULL and its payload is suggested_target_depth,
+// neither of which fits "no node id exists yet" or "flag, not a depth
+// change"). Mirrors that table's pending|accepted|rejected + resolved_at +
+// source shape as a pattern, not a literal shared row.
+export const domainTopicSuggestions = pgTable("domain_topic_suggestions", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  // Nullable = attach at the subject root. Resolved to a real existing node
+  // id AT SUGGESTION-CREATE TIME via domain-node-name-resolver.ts, never a
+  // name re-resolved later (spec.md's Decisions #11).
+  proposedParentNodeId: text("proposed_parent_node_id"),
+  proposedNodeName: text("proposed_node_name").notNull(),
+  reason: text("reason").notNull(),
+  source: text("source").notNull().default("doc-scan"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  // Set to the newly inserted domain_nodes row's id on accept; null while
+  // pending/rejected.
+  createdDomainNodeId: text("created_domain_node_id"),
+});
+
+// doc-changelog-scan (issue #49) — "flag an existing node as possibly
+// superseded" (the scan's (b) output). See domainTopicSuggestions' own
+// comment above for why this is a sibling table, not a reuse.
+export const domainSupersessionSuggestions = pgTable("domain_supersession_suggestions", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  domainNodeId: text("domain_node_id").notNull(),
+  reason: text("reason").notNull(),
+  source: text("source").notNull().default("doc-scan"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
