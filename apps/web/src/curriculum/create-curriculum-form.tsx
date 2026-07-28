@@ -9,9 +9,20 @@ import { useSourceRows } from './use-source-rows'
 export function CreateCurriculumForm({
   subjectId,
   requireSources = false,
+  domainNodeId,
+  toggleLabel = '+ New curriculum',
+  toggleTestId = 'curriculum-create-toggle',
 }: {
   subjectId: string
   requireSources?: boolean
+  // Explicit domain-tree placement — set when this form is rendered inline
+  // under a domain-map tree node's "add course here" affordance (SCENARIO 3).
+  // Passed straight through to createCurriculum's data; undefined everywhere
+  // else, which resolveDomainPlacement() reads the same as "no explicit
+  // placement given".
+  domainNodeId?: string | null
+  toggleLabel?: string
+  toggleTestId?: string
 }) {
   const router = useRouter()
   const sourceRows = useSourceRows()
@@ -37,7 +48,7 @@ export function CreateCurriculumForm({
 
     setBusy(true)
     await createCurriculum({
-      data: { subjectId, name: name.trim(), sources: drafts },
+      data: { subjectId, name: name.trim(), sources: drafts, domainNodeId },
     })
     setBusy(false)
     reset()
@@ -48,10 +59,11 @@ export function CreateCurriculumForm({
     return (
       <button
         type="button"
+        data-testid={toggleTestId}
         onClick={() => setOpen(true)}
         className="text-sm text-neutral-500 hover:text-neutral-900"
       >
-        + New curriculum
+        {toggleLabel}
       </button>
     )
   }
@@ -66,6 +78,7 @@ export function CreateCurriculumForm({
         onChange={(event) => setName(event.target.value)}
         placeholder="Curriculum name…"
         autoFocus
+        data-testid="curriculum-name-input"
         className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
       />
 
@@ -86,6 +99,7 @@ export function CreateCurriculumForm({
         <button
           type="submit"
           disabled={busy || sourceMandateUnmet}
+          data-testid="curriculum-create-submit"
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           Create curriculum

@@ -67,7 +67,8 @@ export type RouteName =
   | "createAttempts"
   | "getPhraseBank"
   | "createWritingCheck"
-  | "listWritingChecks";
+  | "listWritingChecks"
+  | "getDomainMap";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -245,6 +246,12 @@ const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: /^\/subjects\/([^/]+)\/writing-checks$/,
     name: "listWritingChecks",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/domain-map$/,
+    name: "getDomainMap",
     param: "id",
   },
 ];

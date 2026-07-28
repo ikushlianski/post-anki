@@ -43,6 +43,7 @@ export const curriculumSchema = z.object({
   origin: curriculumOriginSchema,
   strictOrder: z.boolean(),
   preAssessmentCompletedAt: z.string().nullable(),
+  domainNodeId: z.string().nullable(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -56,6 +57,11 @@ export const createCurriculumInput = z.object({
   docUrl: docUrlSchema.nullable().optional(),
   pastedMaterial: z.string().min(1).nullable().optional(),
   preferredLevel: levelSchema.nullable().optional(),
+  // Explicit domain-tree placement (the tree UI's "add course here"). When
+  // absent, resolveDomainPlacement() decides via a normalized-name match or
+  // the sibling-discovery agent — see apps/api/src/domain-map/
+  // domain-placement.orchestrator.ts.
+  domainNodeId: z.string().nullable().optional(),
 });
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>;
@@ -80,6 +86,10 @@ export const updateCurriculumInput = z.object({
   hinting: z.boolean().optional(),
   defaultDepth: depthLevelSchema.optional(),
   strictOrder: z.boolean().optional(),
+  // "Change placement" (SCENARIO 9) — re-points which domain node the
+  // curriculum is attached under. A plain field update, same shape as
+  // speed/hinting/defaultDepth; never restructures domain_nodes itself.
+  domainNodeId: z.string().nullable().optional(),
 });
 
 export type UpdateCurriculumInput = z.infer<typeof updateCurriculumInput>;

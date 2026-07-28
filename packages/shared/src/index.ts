@@ -32,3 +32,4 @@ export * from "./tag";
 export * from "./lecture";
 export * from "./practice";
 export * from "./phrase-bank";
+export * from "./domain-map";

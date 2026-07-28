@@ -33,6 +33,25 @@ export const curricula = pgTable("curricula", {
     withTimezone: true,
   }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Nullable, additive, one-directional link into domain_nodes below — the
+  // relationship is discovered by querying curricula WHERE domain_node_id =
+  // <id>, never stored redundantly on the node. No default, existing rows
+  // stay null, zero data migration.
+  domainNodeId: text("domain_node_id"),
+});
+
+// Self-referential tree, one forest per subject — sits between a subject and
+// its curricula, reflecting the real shape of a domain independent of what's
+// actually been studied. No .references() FK, matching this schema's
+// dominant convention (plain text columns + app-level validation).
+export const domainNodes = pgTable("domain_nodes", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  parentId: text("parent_id"),
+  name: text("name").notNull(),
+  description: text("description"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const sources = pgTable("sources", {

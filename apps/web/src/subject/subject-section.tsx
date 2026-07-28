@@ -16,7 +16,7 @@ export function SubjectSection({
   curricula: Curriculum[]
 }) {
   return (
-    <section data-testid="subject-card">
+    <section data-testid="subject-card" data-subject-id={subject.id}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <h2
           data-testid="subject-name"
