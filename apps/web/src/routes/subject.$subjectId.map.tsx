@@ -42,6 +42,14 @@ function SubjectMapPage() {
           The real shape of this domain — studied or not — with an approximate knowledge
           percentage per area.
         </p>
+        <Link
+          to="/subject/$subjectId/priority-review"
+          params={{ subjectId }}
+          data-testid="priority-review-link"
+          className="mt-2 inline-block text-sm text-neutral-500 underline hover:text-neutral-900"
+        >
+          Priority review →
+        </Link>
       </header>
 
       {tree.length === 0 ? (

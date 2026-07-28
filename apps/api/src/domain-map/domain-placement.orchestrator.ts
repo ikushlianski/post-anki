@@ -4,6 +4,7 @@ import { siblingDiscoveryResultSchema } from "@post-anki/shared";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { getDomainNode, insertDomainNode, listDomainNodesForSubject } from "./domain-map.repo.js";
+import { resolveNodePathByName } from "./domain-node-name-resolver.js";
 
 const MAX_SIBLING_SUGGESTIONS = 8;
 
@@ -52,46 +53,18 @@ function buildSiblingDiscoveryPrompt(existingNodes: DomainNode[], topicName: str
 
 // Resolves a candidate parentNodePath (see sibling-discovery.agent.ts's own
 // contract: the first element is a generic root marker, never a real node)
-// against real nodes by case-insensitive name match, walking one segment at
-// a time and stopping at the first unresolved segment — falls back to its
+// against real nodes by case-insensitive name match — falls back to its
 // last successfully resolved ancestor (or the subject root, null), never to
-// a database-id hallucination.
+// a database-id hallucination. Delegates to the shared
+// domain-node-name-resolver.ts (spec.md's Decisions #9 — the same
+// path-walking problem domain-priority-review.orchestrator.ts also faces),
+// only ever consuming `.nodeId` since this caller wants a parent regardless
+// of whether the whole path resolved.
 function resolveParentNodePath(
   existingNodes: DomainNode[],
   parentNodePath: string[] | null,
 ): string | null {
-  if (!parentNodePath || parentNodePath.length === 0) {
-    return null;
-  }
-
-  let currentParentId: string | null = null;
-  let sawFirstSegment = false;
-
-  for (const segment of parentNodePath) {
-    const normalizedSegment = normalizeTagName(segment);
-    const match = existingNodes.find(
-      (node) =>
-        node.parentId === currentParentId && normalizeTagName(node.name) === normalizedSegment,
-    );
-
-    if (!match) {
-      // The very first segment is the agent's own generic root label, never
-      // a real node — skip it silently rather than treating it as an
-      // unresolved segment. Any later unmatched segment is a genuine
-      // resolution stop.
-      if (!sawFirstSegment) {
-        sawFirstSegment = true;
-        continue;
-      }
-
-      return currentParentId;
-    }
-
-    sawFirstSegment = true;
-    currentParentId = match.id;
-  }
-
-  return currentParentId;
+  return resolveNodePathByName(existingNodes, parentNodePath).nodeId;
 }
 
 // The placement mechanism (spec.md "Placement mechanism (decided)"): three

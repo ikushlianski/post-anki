@@ -70,7 +70,12 @@ export type RouteName =
   | "getPhraseBank"
   | "createWritingCheck"
   | "listWritingChecks"
-  | "getDomainMap";
+  | "getDomainMap"
+  | "updateDomainNode"
+  | "triggerDomainPriorityReview"
+  | "listPrioritySuggestions"
+  | "resolvePrioritySuggestion"
+  | "getDomainPriorityReviewStatus";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -256,6 +261,36 @@ const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: /^\/subjects\/([^/]+)\/domain-map$/,
     name: "getDomainMap",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/domain-nodes\/([^/]+)$/,
+    name: "updateDomainNode",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/subjects\/([^/]+)\/domain-priority-reviews$/,
+    name: "triggerDomainPriorityReview",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/domain-priority-suggestions$/,
+    name: "listPrioritySuggestions",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/domain-priority-suggestions\/([^/]+)$/,
+    name: "resolvePrioritySuggestion",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/domain-priority-review-status$/,
+    name: "getDomainPriorityReviewStatus",
     param: "id",
   },
 ];

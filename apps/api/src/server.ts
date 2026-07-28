@@ -100,7 +100,14 @@ import {
   handleListWritingChecks,
   handleUpdatePracticeSettings,
 } from "./practice/practice.controller.js";
-import { handleGetDomainMap } from "./domain-map/domain-map.controller.js";
+import {
+  handleGetDomainMap,
+  handleGetDomainPriorityReviewStatus,
+  handleListPrioritySuggestions,
+  handleResolvePrioritySuggestion,
+  handleTriggerDomainPriorityReview,
+  handleUpdateDomainNode,
+} from "./domain-map/domain-map.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
@@ -337,6 +344,16 @@ async function route(
       return handleListWritingChecks(res, id);
     case "getDomainMap":
       return handleGetDomainMap(res, id);
+    case "updateDomainNode":
+      return handleUpdateDomainNode(req, res, id);
+    case "triggerDomainPriorityReview":
+      return handleTriggerDomainPriorityReview(req, res, id);
+    case "listPrioritySuggestions":
+      return handleListPrioritySuggestions(res, id, url.searchParams.get("status"));
+    case "resolvePrioritySuggestion":
+      return handleResolvePrioritySuggestion(req, res, id);
+    case "getDomainPriorityReviewStatus":
+      return handleGetDomainPriorityReviewStatus(res, id);
   }
 }
 

@@ -1,8 +1,24 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { DomainNodeTreeItem } from '@post-anki/shared'
+import type {
+  DepthLevel,
+  DomainNode,
+  DomainNodeTreeItem,
+  DomainPriorityReviewStatus,
+  DomainPrioritySuggestion,
+  DomainPrioritySuggestionStatus,
+} from '@post-anki/shared'
 
-import { getDomainMap, listSubjects, setCurriculumDomainNode } from '../curriculum/api-client'
+import {
+  getDomainMap,
+  getDomainPriorityReviewStatus,
+  listPrioritySuggestions,
+  listSubjects,
+  resolvePrioritySuggestion,
+  setCurriculumDomainNode,
+  triggerDomainPriorityReview,
+  updateDomainNodeTargetDepth,
+} from '../curriculum/api-client'
 import type { Curriculum, Subject } from '../curriculum/model'
 
 // SSR-first, loader-seeded — deliberately not Electric-dependent (see
@@ -31,3 +47,33 @@ export const changeCurriculumPlacement = createServerFn({ method: 'POST' })
   .handler(({ data }): Promise<Curriculum> =>
     setCurriculumDomainNode(data.curriculumId, data.domainNodeId),
   )
+
+// domain-priority-review (issue #52) additions below.
+
+export const setDomainNodeTargetDepth = createServerFn({ method: 'POST' })
+  .inputValidator((data: { nodeId: string; targetDepth: DepthLevel | null }) => data)
+  .handler(({ data }): Promise<DomainNode> =>
+    updateDomainNodeTargetDepth(data.nodeId, data.targetDepth),
+  )
+
+export const triggerPriorityReview = createServerFn({ method: 'POST' })
+  .inputValidator((subjectId: string) => z.string().parse(subjectId))
+  .handler(({ data }): Promise<DomainPrioritySuggestion[]> => triggerDomainPriorityReview(data))
+
+export const getPrioritySuggestions = createServerFn({ method: 'GET' })
+  .inputValidator(
+    (data: { subjectId: string; status?: DomainPrioritySuggestionStatus }) => data,
+  )
+  .handler(({ data }): Promise<DomainPrioritySuggestion[]> =>
+    listPrioritySuggestions(data.subjectId, data.status),
+  )
+
+export const resolveSuggestionStatus = createServerFn({ method: 'POST' })
+  .inputValidator((data: { suggestionId: string; status: 'accepted' | 'rejected' }) => data)
+  .handler(({ data }): Promise<DomainPrioritySuggestion> =>
+    resolvePrioritySuggestion(data.suggestionId, data.status),
+  )
+
+export const getPriorityReviewStatus = createServerFn({ method: 'GET' })
+  .inputValidator((subjectId: string) => z.string().parse(subjectId))
+  .handler(({ data }): Promise<DomainPriorityReviewStatus> => getDomainPriorityReviewStatus(data))
