@@ -9,7 +9,14 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/curricula")?.name).toBe("listCurricula");
       expect(resolveRoute("POST", "/gaps")?.name).toBe("declareGap");
       expect(resolveRoute("GET", "/daily-push")?.name).toBe("dailyPush");
-      expect(resolveRoute("POST", "/decide")?.name).toBe("decide");
+      // decide-mode: POST /decide is a legacy RPC-shaped route being
+      // replaced by the noun-based /decide-sessions resource (spec.md's
+      // Route design section) — RED right now, on two counts: router.ts
+      // still resolves POST /decide to "decide" (see the "legacy route
+      // removed" assertion in the misses block below), and it does not yet
+      // resolve POST/GET /decide-sessions at all.
+      expect(resolveRoute("POST", "/decide-sessions")?.name).toBe("createDecideSession");
+      expect(resolveRoute("GET", "/decide-sessions")?.name).toBe("listDecideSessions");
       expect(resolveRoute("GET", "/cross-cutting")?.name).toBe("crossCutting");
       expect(resolveRoute("GET", "/admin/settings")?.name).toBe(
         "getAdminSettings",
@@ -114,6 +121,13 @@ describe("resolveRoute", () => {
         params: { id: "tag1" },
       });
     });
+
+    it("captures the blind-spot id on the decide-mode PATCH route", () => {
+      expect(resolveRoute("PATCH", "/decide-blind-spots/bs1")).toEqual({
+        name: "resolveDecideBlindSpot",
+        params: { id: "bs1" },
+      });
+    });
   });
 
   describe("misses", () => {
@@ -124,6 +138,10 @@ describe("resolveRoute", () => {
     it("returns null for a known path with the wrong method", () => {
       expect(resolveRoute("PUT", "/subjects")).toBeNull();
       expect(resolveRoute("GET", "/decide")).toBeNull();
+    });
+
+    it("the legacy POST /decide route no longer resolves — replaced by POST /decide-sessions (decide-mode Backend DoD)", () => {
+      expect(resolveRoute("POST", "/decide")).toBeNull();
     });
 
     it("does not match a trailing-slash variant with an empty id segment", () => {

@@ -11,7 +11,6 @@ import {
   createTagInput,
   createTopicInput,
   curateGapInput,
-  decideInput,
   declareGapInput,
   mergeTagsInput,
   nextQuestionInput,
@@ -30,7 +29,6 @@ import type {
   Curriculum,
   DailyPushResult,
   DashboardSubject,
-  DecideResult,
   QuestionKind,
   Subject,
   Tag,
@@ -313,10 +311,6 @@ export const getDailyPush = createServerFn({ method: 'GET' })
 export const getCrossCutting = createServerFn({ method: 'GET' }).handler(
   (): Promise<ConcernSummary[]> => api.getCrossCutting(),
 )
-
-export const decide = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => decideInput.parse(data))
-  .handler(({ data }): Promise<DecideResult> => api.decide(data))
 
 export const listTags = createServerFn({ method: 'GET' }).handler(
   (): Promise<Tag[]> => api.listTags(),

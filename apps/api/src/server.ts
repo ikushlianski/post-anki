@@ -59,7 +59,11 @@ import {
 } from "./socratic/socratic.controller.js";
 import { handleCurateGap, handleDeclareGap } from "./gap/gap.controller.js";
 import { handleDailyPush } from "./push/push.controller.js";
-import { handleDecide } from "./decide/decide.controller.js";
+import {
+  handleCreateDecideSession,
+  handleListDecideSessions,
+  handleResolveDecideBlindSpot,
+} from "./decide/decide.controller.js";
 import { handleCrossCutting } from "./concern/concern.controller.js";
 import {
   handleGetAdminSettings,
@@ -284,8 +288,12 @@ async function route(
       return handleCurateGap(req, res, id);
     case "dailyPush":
       return handleDailyPush(res, url.searchParams.get("mode"));
-    case "decide":
-      return handleDecide(req, res);
+    case "createDecideSession":
+      return handleCreateDecideSession(req, res);
+    case "listDecideSessions":
+      return handleListDecideSessions(res);
+    case "resolveDecideBlindSpot":
+      return handleResolveDecideBlindSpot(req, res, id);
     case "crossCutting":
       return handleCrossCutting(res);
     case "getAdminSettings":

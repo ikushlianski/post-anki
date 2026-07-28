@@ -23,6 +23,13 @@ export default defineConfig({
       // into this fast, DB-free sweep — same reasoning as the glob above,
       // just naming a single file instead of a pattern.
       "src/domain-map/domain-priority-review.orchestrator.test.ts",
+      // decide.orchestrator.test.ts / decide.repo.test.ts (decide-mode) are
+      // the same named exception, for the same reason: spec.md's Backend DoD
+      // pins these two exact paths (not *.integration.test.ts) as the
+      // ordering/nested-attribution/502-mapping proof command, which
+      // requires a real Postgres connection.
+      "src/decide/decide.orchestrator.test.ts",
+      "src/decide/decide.repo.test.ts",
     ],
   },
 });
