@@ -195,8 +195,22 @@ on a human-only blocker rather than skipping past it.
       new subject kind, or a standalone mode independent of subjects), how "gap analysis of
       reasoning" is scored/structured, whether this needs its own persistence model. This entry
       queues the idea, it does not spec it. (#59)
-- [ ] Generalize the phrase-bank mastery state machine to drive gap tracking for every subject
+- [x] Generalize the phrase-bank mastery state machine to drive gap tracking for every subject
       kind, not just language-practice.
+      [→ done: .planning/generalize-gap-tracking/, merged to main 2026-07-28. review-playwright
+      verdict: sound, no data-integrity gap found — 9/9 e2e + 25/25 integration tests (concurrency
+      proof verified by temporarily removing the advisory lock and confirming a real Postgres
+      duplicate-key failure before restoring it) + 44/45 regression (the one failure reproduced
+      identically against the unmodified parent commit, confirmed pre-existing tag-picker
+      flakiness, not caused by this change). Deliberately did NOT unify with domain_priority_
+      suggestions or decide_blind_spots — read the actual schema comments and found my own
+      original framing was wrong (domain_priority_suggestions' seed is #49/#53, not this item);
+      only decide_blind_spots names this as its seam, and even that doesn't structurally fit
+      (a one-off reasoning blind spot has no re-askable question to recycle). Instead widens
+      specifically the pre-existing gaps table's binary "covered" flip (which could resolve on one
+      lucky guess) with a gap_mastery sidecar table, mirroring phrase-bank-concurrency-fix's own
+      locking discipline exactly. Found and fixed a real display bug along the way:
+      curriculum.repo.ts had its own duplicated gap-hydration path bypassing gap.repo.ts entirely.]
       Why: `packages/core/src/phrase-bank/phrase-bank.ts` (`selectDuePhrases`,
       `applyAttemptToPhraseBankEntry`, `matchExistingPhraseBankEntry`) is a real, already-built
       and heavily-tested pure deriver implementing exactly the "gap recycled into future
