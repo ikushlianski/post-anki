@@ -65,6 +65,7 @@ import {
   handleResolveDecideBlindSpot,
 } from "./decide/decide.controller.js";
 import { handleCrossCutting } from "./concern/concern.controller.js";
+import { handleGapMasteryCrossCuttingNudge } from "./gap/cross-cutting-nudge.controller.js";
 import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
@@ -296,6 +297,8 @@ async function route(
       return handleResolveDecideBlindSpot(req, res, id);
     case "crossCutting":
       return handleCrossCutting(res);
+    case "gapMasteryCrossCuttingNudge":
+      return handleGapMasteryCrossCuttingNudge(res);
     case "getAdminSettings":
       return handleGetAdminSettings(res);
     case "updateAdminSettings":

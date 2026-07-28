@@ -132,6 +132,24 @@ export const gapOriginSchema = z.enum(['ai', 'user'])
 
 export type GapOrigin = z.infer<typeof gapOriginSchema>
 
+// Generalized recall-gap mastery tracking (issue #57) — present only for a
+// gap tracked by the probe-session quiz mastery cycle. Display-precedence
+// rule (spec.md Decision 2 addendum): when a gap carries this, the UI
+// renders ITS status, never `status` (the legacy gaps.state-derived flag) —
+// see GapRow in topic-row.tsx.
+export const gapMasteryStatusSchema = z.enum(['new', 'practicing', 'struggling', 'mastered'])
+
+export type GapMasteryStatus = z.infer<typeof gapMasteryStatusSchema>
+
+export const gapMasterySchema = z.object({
+  status: gapMasteryStatusSchema,
+  masteryStage: z.number().int(),
+  correctCountInCycle: z.number().int(),
+  incorrectCountInCycle: z.number().int(),
+})
+
+export type GapMastery = z.infer<typeof gapMasterySchema>
+
 export const DEPTH_ORDER: Record<Depth, number> = {
   aware: 0,
   working: 1,
@@ -160,6 +178,7 @@ export const gapSchema = z.object({
   concern: concernSchema.nullable().optional(),
   socratic: z.string(),
   quickTest: quickTestSchema.optional(),
+  mastery: gapMasterySchema.nullable().optional(),
 })
 
 export type Gap = z.infer<typeof gapSchema>

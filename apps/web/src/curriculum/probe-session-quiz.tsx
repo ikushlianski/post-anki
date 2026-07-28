@@ -3,6 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { shouldReplenish } from '@post-anki/core'
 import type {
+  AnswerProbeSessionGapMasteryResult,
   OptionExplanation,
   ProbeScope,
   ProbeSession,
@@ -108,6 +109,13 @@ export function ProbeSessionQuiz({
 
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null)
   const [selectedMulti, setSelectedMulti] = useState<number[]>([])
+  // Generalized recall-gap mastery tracking (issue #57) — the mutation
+  // result's gapMastery sub-object only exists transiently on the response
+  // (the session model itself has no per-question mastery field), so it's
+  // held here to render the resolution acknowledgment / practicing-progress
+  // feedback, cleared whenever the learner moves to the next question.
+  const [lastGapMastery, setLastGapMastery] =
+    useState<AnswerProbeSessionGapMasteryResult | null>(null)
 
   useEffect(() => {
     if (session && currentQuestionId === null) {
@@ -165,7 +173,9 @@ export function ProbeSessionQuiz({
         }
       })
 
-      if (result.coveredGapLabels.length > 0) {
+      setLastGapMastery(result.gapMastery)
+
+      if (result.coveredGapLabels.length > 0 || result.gapMastery) {
         void router.invalidate()
       }
 
@@ -212,6 +222,7 @@ export function ProbeSessionQuiz({
 
   function goNext() {
     setSelectedMulti([])
+    setLastGapMastery(null)
     setCurrentQuestionId(nextQuestion(session)?.id ?? null)
   }
 
@@ -358,6 +369,7 @@ export function ProbeSessionQuiz({
           >
             {isPass ? 'Correct.' : 'Not quite.'}
           </p>
+          <GapMasteryFeedback gapMastery={lastGapMastery} />
           <div className="flex gap-2">
             <button
               type="button"
@@ -382,6 +394,51 @@ export function ProbeSessionQuiz({
       ) : null}
     </div>
   )
+}
+
+// Generalized recall-gap mastery tracking (issue #57) — a resolution
+// acknowledgment ("✓ Resolved: <label>"), rendered distinctly from the
+// ordinary "correct, still practicing (n/3)" language shown on the 1st/2nd
+// corrects (and on a same-session repeat, which stays at whatever n/3 it
+// already was). Never rendered below mastered — a single correct answer on
+// a fresh gap must never read as resolved (the "resolved lie" regression
+// guard, spec.md's S5).
+function GapMasteryFeedback({
+  gapMastery,
+}: {
+  gapMastery: AnswerProbeSessionGapMasteryResult | null
+}) {
+  // No currentGapId cross-check: lastGapMastery is set exactly once per
+  // mutation success, scoped 1:1 to whichever question was just answered
+  // (and cleared on goNext) — cross-checking against the QUESTION's own
+  // gapId field would wrongly suppress this for a novel gap created
+  // reactively at answer time (SCENARIO 2/4), whose question never had a
+  // resolved gapId to begin with even though the answer itself did create
+  // and track one.
+  if (!gapMastery) {
+    return null
+  }
+
+  if (gapMastery.justMastered) {
+    return (
+      <p
+        className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800"
+        data-testid="gap-resolution-ack"
+      >
+        ✓ Resolved: {gapMastery.label}
+      </p>
+    )
+  }
+
+  if (gapMastery.status === 'practicing' || gapMastery.status === 'struggling') {
+    return (
+      <p className="text-xs text-neutral-500" data-testid="gap-mastery-progress">
+        {gapMastery.label} — {gapMastery.status} ({gapMastery.masteryStage}/3)
+      </p>
+    )
+  }
+
+  return null
 }
 
 function OptionExplanationText({

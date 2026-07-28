@@ -123,6 +123,10 @@ function mapGap(gap: be.Gap): Gap {
     wanted: gap.wanted,
     concern: gap.concern,
     socratic: '',
+    // Generalized recall-gap mastery tracking (issue #57) — display
+    // precedence: GapRow renders THIS status when present, never falling
+    // back to `status` (spec.md Decision 2 addendum).
+    mastery: gap.mastery ?? null,
   }
 }
 
@@ -839,6 +843,20 @@ export async function getCrossCutting(): Promise<ConcernSummary[]> {
   const { summaries } = await request<be.CrossCuttingResponse>('/cross-cutting')
 
   return summaries
+}
+
+// Generalized recall-gap mastery tracking (issue #57, SCENARIO 7) — a
+// distinct, structurally different aggregation from getCrossCutting above
+// (that one groups by Concern tag on any gap; this groups by normalized
+// label across mastery-tracked gaps only).
+export async function getGapMasteryCrossCuttingNudges(): Promise<
+  be.CrossCuttingNudge[]
+> {
+  const { nudges } = await request<be.CrossCuttingNudgeResponse>(
+    '/gap-mastery/cross-cutting-nudge',
+  )
+
+  return nudges
 }
 
 export async function getActiveProbeSession(input: {

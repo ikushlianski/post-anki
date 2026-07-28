@@ -8,16 +8,22 @@ import {
   buildFeedbackDigest,
   openGaps,
   planModuleQuizDistribution,
+  rankDueGapsForQuiz,
   rankGapsForReplenish,
   sanitizeOptionExplanations,
   scaleTopicQuizTotal,
   selectQuizDifficultyMix,
   selectRecentFeedback,
   type FeedbackRow,
+  type GapMasteryDueInfo,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
+import {
+  getTopicGapMasterySequenceNumbers,
+  listGapMasteryForGapIds,
+} from "../gap/gap-mastery.repo.js";
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
 import {
   getCurriculumSourceRows,
@@ -242,6 +248,13 @@ interface TopicContext {
   gapLists: Gap[][];
   feedbackLists: FeedbackRow[][];
   priorLevelCoverageLists: string[][];
+  // Generalized recall-gap mastery tracking (issue #57) — the raw
+  // gap_mastery scheduling state (scheduledForSequence, unlike the
+  // public-facing Gap.mastery view) keyed by gapId, per topic, plus each
+  // topic's own current gapMasterySequenceNumber — the two inputs
+  // rankDueGapsForQuiz needs to gate the "due-ranked" replenish selection.
+  gapMasteryByTopic: Map<string, GapMasteryDueInfo>[];
+  gapMasterySequenceByTopic: Map<string, number>;
 }
 
 async function loadTopicContext(ctx: ScopeContext): Promise<TopicContext> {
@@ -251,7 +264,27 @@ async function loadTopicContext(ctx: ScopeContext): Promise<TopicContext> {
     Promise.all(ctx.topics.map((t) => getLowerLevelCoverage(t.id))),
   ]);
 
-  return { gapLists, feedbackLists, priorLevelCoverageLists };
+  const [gapMasteryByTopic, gapMasterySequenceByTopic] = await Promise.all([
+    Promise.all(
+      gapLists.map(async (gaps) => {
+        const rows = await listGapMasteryForGapIds(gaps.map((g) => g.id));
+
+        return new Map<string, GapMasteryDueInfo>(
+          Array.from(rows.entries()).map(([gapId, row]) => [
+            gapId,
+            {
+              gapId,
+              status: row.status as GapMasteryDueInfo["status"],
+              scheduledForSequence: row.scheduledForSequence,
+            },
+          ]),
+        );
+      }),
+    ),
+    getTopicGapMasterySequenceNumbers(ctx.topics.map((t) => t.id)),
+  ]);
+
+  return { gapLists, feedbackLists, priorLevelCoverageLists, gapMasteryByTopic, gapMasterySequenceByTopic };
 }
 
 interface GapSelection {
@@ -264,19 +297,35 @@ interface GapSelection {
 
 /**
  * Selects and orders which gap labels each topic's block in the prompt
- * lists. The initial batch (`selectGapLabels: "all"`) keeps today's
- * behavior — every non-skipped gap, unordered — since a fresh batch has no
- * "this session" history yet to prioritize by. A replenish batch
- * (`"open-ranked"`) narrows to this session's own topics' currently-open
- * gaps and orders them via `rankGapsForReplenish` (SCENARIO 19), so the
- * prompt's gap list itself surfaces what the learner hasn't demonstrated
- * yet first, without needing any change to `buildPrompt` — it already just
- * renders whatever order `gapsByTopic` hands it.
+ * lists. The initial batch (`mode: "all"`) keeps today's behavior — every
+ * non-skipped gap, unordered — since a fresh batch has no "this session"
+ * history yet to prioritize by. A replenish batch (`mode: "due-ranked"`,
+ * renamed from the original "open-ranked" — issue #57) narrows to this
+ * session's own topics' currently-open gaps, orders them via
+ * `rankGapsForReplenish` (SCENARIO 19, unchanged), and ADDITIONALLY excludes
+ * a mastery-tracked gap whose recycle schedule hasn't arrived yet
+ * (`rankDueGapsForQuiz` — the anti-spam guard, GENGAP.S3): a gap with no
+ * `gap_mastery` row at all is always eligible (existing behavior,
+ * unchanged); a mastery-tracked struggling/practicing gap is only eligible
+ * once `scheduledForSequence <= topics.gapMasterySequenceNumber`.
+ *
+ * `rankDueGapsForQuiz` gates ONLY the "due-ranked" (replenish) candidate
+ * list, not "all" mode. This is deliberate, not an oversight: "all" mode
+ * also drives a brand-new session's very first batch (via `regenerate:
+ * true`, prepareProbeSession), and S4's session-identity proof requires a
+ * struggling/practicing gap to reliably resurface in EACH new session
+ * regardless of how far the shared per-topic answered-question counter has
+ * advanced (which may not have crossed its schedule at all between two
+ * back-to-back test sessions that each only answer one question) — S3's
+ * anti-spam guard is specifically about NOT re-serving a struggling gap
+ * into the very next REPLENISH within the SAME still-open session, which is
+ * what "due-ranked" mode alone (used only by generateReplenishBatch) both
+ * targets and proves.
  */
 function selectGaps(
   ctx: ScopeContext,
   topicCtx: TopicContext,
-  mode: "all" | "open-ranked",
+  mode: "all" | "due-ranked",
 ): GapSelection {
   const gapsByTopic = new Map<string, string[]>();
   const gapIdByKey = new Map<string, string>();
@@ -290,7 +339,11 @@ function selectGaps(
     const selected =
       mode === "all"
         ? topicCtx.gapLists[i]!.filter((g) => g.state !== "skipped")
-        : rankGapsForReplenish(openGaps(topicCtx.gapLists[i]!, t.depth));
+        : rankDueGapsForQuiz(
+            rankGapsForReplenish(openGaps(topicCtx.gapLists[i]!, t.depth)),
+            topicCtx.gapMasteryByTopic[i]!,
+            topicCtx.gapMasterySequenceByTopic.get(t.id) ?? 0,
+          );
 
     gapsByTopic.set(
       t.id,
@@ -351,7 +404,7 @@ export async function generateReplenishBatch(
 ): Promise<GeneratedBatch> {
   const topicCtx = await loadTopicContext(ctx);
   const { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic } =
-    selectGaps(ctx, topicCtx, "open-ranked");
+    selectGaps(ctx, topicCtx, "due-ranked");
 
   return runGeneration(
     scope,

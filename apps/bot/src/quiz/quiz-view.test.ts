@@ -74,6 +74,7 @@ describe("formatAnswerReveal", () => {
       status: "active",
       coveredGapLabels: ["keys"],
       optionExplanations: null,
+      gapMastery: null,
     };
     const text = formatAnswerReveal(result, question());
     expect(text).toContain("✅ Correct");
@@ -94,6 +95,7 @@ describe("formatAnswerReveal", () => {
       status: "active",
       coveredGapLabels: [],
       optionExplanations: null,
+      gapMastery: null,
     };
     const text = formatAnswerReveal(result, question());
     expect(text).toContain("❌ Not quite");
@@ -114,6 +116,7 @@ describe("formatQuizComplete", () => {
       status: "completed",
       coveredGapLabels: [],
       optionExplanations: null,
+      gapMastery: null,
     };
     const text = formatQuizComplete(result, "Backend › Module › Topic");
     expect(text).toContain("3/4 (75%)");

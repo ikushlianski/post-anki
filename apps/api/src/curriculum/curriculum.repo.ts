@@ -39,12 +39,14 @@ import {
   curricula,
   curriculumStructureTurns,
   gaps,
+  gapMastery,
   modules,
   sources,
   structureResearchCandidates,
   subjects,
   topics,
 } from "../db/schema.js";
+import { rowToGap } from "../gap/gap.repo.js";
 import { newId } from "../shared/id.js";
 import {
   resolveCurriculumOrigin,
@@ -1119,6 +1121,21 @@ export async function getCurriculumDetail(
         )
       : [];
 
+  // Generalized recall-gap mastery tracking (issue #57) — display
+  // precedence (spec.md Decision 2 addendum): this curriculum-detail
+  // hydration path has its own gap fetch, independent of gap.repo.ts's
+  // listGapsForTopic, so the gap_mastery join has to happen here too or a
+  // mastery-tracked gap would silently render its legacy open/covered flag
+  // on this page while showing correctly wherever listGapsForTopic is used.
+  const masteryRows =
+    gapRows.length > 0
+      ? await db
+          .select()
+          .from(gapMastery)
+          .where(inArray(gapMastery.gapId, gapRows.map((g) => g.id)))
+      : [];
+  const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
+
   const tagsByNode = await loadTagsByNode([
     ...moduleRows.map((m) => m.id),
     ...topicRows.map((t) => t.id),
@@ -1130,6 +1147,7 @@ export async function getCurriculumDetail(
     gapRows,
     curriculumRow.strictOrder,
     tagsByNode,
+    masteryByGapId,
   );
 
   const [citableUrls, hasStructureDraftAttempt] = await Promise.all([
@@ -1282,6 +1300,7 @@ function buildModules(
   gapRows: (typeof gaps.$inferSelect)[],
   strictOrder: boolean,
   tagsByNode: Map<string, TagChip[]> = new Map(),
+  masteryByGapId: Map<string, typeof gapMastery.$inferSelect> = new Map(),
 ): Module[] {
   return sortForDisplay(moduleRows, strictOrder).map((m) => {
     const moduleTopics = sortForDisplay(
@@ -1289,7 +1308,9 @@ function buildModules(
       strictOrder,
     ).map((t) => ({
       ...toTopic(t, tagsByNode.get(`topic:${t.id}`) ?? []),
-      gaps: gapRows.filter((g) => g.topicId === t.id).map(toGap),
+      gaps: gapRows
+        .filter((g) => g.topicId === t.id)
+        .map((g) => rowToGap(g, masteryByGapId.get(g.id))),
     }));
 
     return {
@@ -1412,18 +1433,3 @@ async function loadTagsByNode(nodeIds: string[]): Promise<Map<string, TagChip[]>
   return byNode;
 }
 
-export function toGap(row: typeof gaps.$inferSelect): Gap {
-  return {
-    id: row.id,
-    topicId: row.topicId,
-    label: row.label,
-    depth: row.depth as DepthLevel,
-    origin: row.origin as Gap["origin"],
-    state: row.state as Gap["state"],
-    wanted: row.wanted,
-    concern: (row.concern as Gap["concern"]) ?? null,
-    lastEvaluatedAt: row.lastEvaluatedAt
-      ? row.lastEvaluatedAt.toISOString()
-      : null,
-  };
-}
