@@ -63,7 +63,14 @@ on a human-only blocker rather than skipping past it.
       subject/level/pack, exercised by a real test, can no longer produce overlapping sequence
       numbers, duplicate bank entries for the same phrase, or a lost mastery transition — either
       one serializes behind the other, or the second gets a clean, catchable error.
-- [ ] Port "check my writing" freeform scoring to the English subject.
+- [x] Port "check my writing" freeform scoring to the English subject.
+      [→ done: .planning/check-my-writing-mode/, merged to main 2026-07-28. review-playwright
+      verdict: PASS 3/3 + regression check green (12/12 total, no fallout on the two
+      previously-merged items in this run). Build phase found and fixed two real bugs: a
+      non-waiting existence check racing the page load, and a network-response matcher looking for
+      a literal REST path that TanStack Start server functions never expose (real requests go to
+      `/_serverFn/<base64>`) — built a small decoder helper to fix it properly rather than loosen
+      the assertion.]
       Why: turns English practice into a daily-use utility for real work writing, not just
       scheduled drills — already built and verified in the source app this session.
       Pointers: source repo `.bmad/check-my-writing-mode/`. No plan yet.
