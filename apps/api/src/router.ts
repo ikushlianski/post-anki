@@ -65,7 +65,9 @@ export type RouteName =
   | "updatePracticeSettings"
   | "createPhraseBatch"
   | "createAttempts"
-  | "getPhraseBank";
+  | "getPhraseBank"
+  | "createWritingCheck"
+  | "listWritingChecks";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -231,6 +233,18 @@ const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: /^\/subjects\/([^/]+)\/phrase-bank$/,
     name: "getPhraseBank",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/subjects\/([^/]+)\/writing-checks$/,
+    name: "createWritingCheck",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/writing-checks$/,
+    name: "listWritingChecks",
     param: "id",
   },
 ];

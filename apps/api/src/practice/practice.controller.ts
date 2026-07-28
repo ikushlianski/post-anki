@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { submitAttemptsInput, updatePracticeSettingsInput } from "@post-anki/shared";
+import { submitAttemptsInput, submitWritingCheckInput, updatePracticeSettingsInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { getSubject } from "../subject/subject.repo.js";
 import {
@@ -9,6 +9,8 @@ import {
 import { generatePhraseBatch } from "./generate-phrase-batch.orchestrator.js";
 import { gradeAttempts } from "./grade-attempts.orchestrator.js";
 import { getPhraseBankSummary } from "./phrase-bank.repo.js";
+import { gradeAndStoreWritingCheck } from "./writing-check.orchestrator.js";
+import { getWritingChecksForSubject } from "./writing-check.repo.js";
 
 async function requireLanguagePracticeSubject(
   res: http.ServerResponse,
@@ -106,4 +108,36 @@ export async function handleGetPhraseBank(
   const summary = await getPhraseBankSummary(subjectId, settings.level, settings.pack);
 
   sendJson(res, 200, summary);
+}
+
+export async function handleCreateWritingCheck(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  if (!(await requireLanguagePracticeSubject(res, subjectId))) {
+    return;
+  }
+
+  const body = await readJsonBody(req, submitWritingCheckInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const row = await gradeAndStoreWritingCheck(subjectId, body.data.text);
+
+  sendJson(res, 200, row);
+}
+
+export async function handleListWritingChecks(
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  if (!(await requireLanguagePracticeSubject(res, subjectId))) {
+    return;
+  }
+
+  sendJson(res, 200, await getWritingChecksForSubject(subjectId));
 }

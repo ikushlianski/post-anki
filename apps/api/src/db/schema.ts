@@ -490,3 +490,21 @@ export const attempts = pgTable("attempts", {
   nativeAlternatives: jsonb("native_alternatives").$type<string[]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One row per freeform "check my writing" submission (language-practice
+// subjects only) — mirrors attempts' graded-result shape (score/verdict/
+// feedback/nativeAlternatives) but carries the submitted `text` itself in
+// place of attempts' phraseId + userAnswer, since there is no originating
+// phrase to reference. No FK into subjects, matching every other
+// language-practice table's existing convention (phrases/attempts/
+// phraseBankEntries all carry a plain subjectId text column, no FK).
+export const writingChecks = pgTable("writing_checks", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  text: text("text").notNull(),
+  score: integer("score").notNull(),
+  verdict: text("verdict").notNull(),
+  feedback: text("feedback").notNull(),
+  nativeAlternatives: jsonb("native_alternatives").$type<string[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

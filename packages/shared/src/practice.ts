@@ -80,3 +80,22 @@ export const updatePracticeSettingsInput = z.object({
 });
 
 export type UpdatePracticeSettingsInput = z.infer<typeof updatePracticeSettingsInput>;
+
+export const submitWritingCheckInput = z.object({
+  text: z.string().trim().min(1).max(5000),
+});
+
+export type SubmitWritingCheckInput = z.infer<typeof submitWritingCheckInput>;
+
+export const writingCheckSchema = z.object({
+  id: z.string(),
+  subjectId: z.string(),
+  text: z.string(),
+  score: z.number().int(),
+  verdict: verdictSchema,
+  feedback: z.string(),
+  nativeAlternatives: z.array(z.string()),
+  createdAt: z.string(),
+});
+
+export type WritingCheck = z.infer<typeof writingCheckSchema>;
