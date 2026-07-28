@@ -1,7 +1,7 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { PhraseBankStatus } from "@post-anki/shared";
 import { selectDuePhrases, matchExistingPhraseBankEntry, type PhraseBankEntryState } from "@post-anki/core";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { phraseBankAppearances, phraseBankEntries, phrases } from "../db/schema.js";
 
 export type PhraseBankEntrySelectRow = typeof phraseBankEntries.$inferSelect;
@@ -56,8 +56,9 @@ export async function matchExistingEntryId(
   level: string,
   pack: string,
   phraseText: string,
+  db: DbExecutor = getDb(),
 ): Promise<string | null> {
-  const rows = await getDb()
+  const rows = await db
     .select({
       id: phraseBankEntries.id,
       phraseText: phraseBankEntries.phraseText,
@@ -76,8 +77,9 @@ export async function nextSequenceBase(
   subjectId: string,
   level: string,
   pack: string,
+  db: DbExecutor = getDb(),
 ): Promise<number> {
-  const result = await getDb()
+  const result = await db
     .select({ max: sql<number | null>`max(${phrases.sequenceNumber})` })
     .from(phrases)
     .where(and(eq(phrases.subjectId, subjectId), eq(phrases.level, level), eq(phrases.pack, pack)));
@@ -85,31 +87,58 @@ export async function nextSequenceBase(
   return result[0]?.max ?? 0;
 }
 
-export async function createPhraseBankEntry(row: {
-  id: string;
-  subjectId: string;
-  level: string;
-  pack: string;
-  phraseText: string;
-  category: string | null;
-}): Promise<void> {
-  await getDb()
-    .insert(phraseBankEntries)
-    .values({ ...row, status: "new" });
+export async function createPhraseBankEntry(
+  row: {
+    id: string;
+    subjectId: string;
+    level: string;
+    pack: string;
+    phraseText: string;
+    category: string | null;
+  },
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db.insert(phraseBankEntries).values({ ...row, status: "new" });
 }
 
-export async function getPhraseBankEntriesByIds(ids: string[]): Promise<PhraseBankEntrySelectRow[]> {
+export async function getPhraseBankEntriesByIds(
+  ids: string[],
+  db: DbExecutor = getDb(),
+): Promise<PhraseBankEntrySelectRow[]> {
   if (ids.length === 0) {
     return [];
   }
 
-  return getDb().select().from(phraseBankEntries).where(inArray(phraseBankEntries.id, ids));
+  return db.select().from(phraseBankEntries).where(inArray(phraseBankEntries.id, ids));
+}
+
+// SELECT ... FOR UPDATE, rows locked in id order — a second, concurrent
+// grading call touching the same entry/entries blocks on this read until the
+// first transaction commits, closing the lost-mastery-update race
+// (architecture.md's "Race 3"). Ordering by id is deadlock avoidance: when
+// one grading call touches more than one entry, two concurrent calls that
+// both touch {A, B} always acquire them in the same order.
+export async function getPhraseBankEntriesByIdsForUpdate(
+  ids: string[],
+  db: DbExecutor,
+): Promise<PhraseBankEntrySelectRow[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+
+  return db
+    .select()
+    .from(phraseBankEntries)
+    .where(inArray(phraseBankEntries.id, ids))
+    .orderBy(asc(phraseBankEntries.id))
+    .for("update");
 }
 
 export async function updatePhraseBankEntryAfterAttempt(
   id: string,
   next: PhraseBankEntryState,
   options: { correct: boolean; justMastered: boolean },
+  db: DbExecutor = getDb(),
 ): Promise<void> {
   const now = new Date();
 
@@ -131,11 +160,14 @@ export async function updatePhraseBankEntryAfterAttempt(
     patch.masteredAt = now;
   }
 
-  await getDb().update(phraseBankEntries).set(patch).where(eq(phraseBankEntries.id, id));
+  await db.update(phraseBankEntries).set(patch).where(eq(phraseBankEntries.id, id));
 }
 
-export async function insertPhraseBankAppearance(row: PhraseBankAppearanceInsertRow): Promise<void> {
-  await getDb().insert(phraseBankAppearances).values(row);
+export async function insertPhraseBankAppearance(
+  row: PhraseBankAppearanceInsertRow,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db.insert(phraseBankAppearances).values(row);
 }
 
 export async function getPhraseBankSummary(

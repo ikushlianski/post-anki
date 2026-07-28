@@ -3,10 +3,11 @@ import { applyAttemptToPhraseBankEntry } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
+import { getDb } from "../db/client.js";
 import { gradeBatchSchema, type GradeBatch } from "./practice-batch.schemas.js";
 import { getPhrasesByIds, insertAttempts, type AttemptInsertRow } from "./practice.repo.js";
 import {
-  getPhraseBankEntriesByIds,
+  getPhraseBankEntriesByIdsForUpdate,
   insertPhraseBankAppearance,
   toEntryState,
   updatePhraseBankEntryAfterAttempt,
@@ -216,22 +217,41 @@ async function applyPhraseBankUpdates(
   }
 
   const entryIds = [...new Set(inputs.map((i) => i.phraseBankEntryId))];
-  const entryRows = await getPhraseBankEntriesByIds(entryIds);
-  const entriesById = new Map(entryRows.map((row) => [row.id, toEntryState(row)]));
 
-  const outcomes = applyPhraseBankAttempts(inputs, entriesById);
+  // Read-compute-write, all inside one transaction (architecture.md's "Race
+  // 3 — grading's lost-update fix"). The read is SELECT ... FOR UPDATE
+  // (rows locked in id order to avoid deadlock — see
+  // getPhraseBankEntriesByIdsForUpdate), which blocks a second concurrent
+  // grading call touching the same entry until this transaction commits, so
+  // that call's own read then sees genuinely current state instead of a
+  // stale snapshot. Every DB call in this body takes `tx` explicitly — never
+  // the default getDb() parameter (spec.md's Design-integrity requirement;
+  // the pool caps at 4 connections).
+  const outcomes = await getDb().transaction(async (tx) => {
+    const entryRows = await getPhraseBankEntriesByIdsForUpdate(entryIds, tx);
+    const entriesById = new Map(entryRows.map((row) => [row.id, toEntryState(row)]));
 
-  // Sequential, not Promise.all: two outcomes can target the same entry within one
-  // grading pass, and each already carries the cumulative state through it (built
-  // from the same mutating map above) — writing out of order would let an earlier,
-  // less-progressed outcome overwrite a later one's persisted state.
-  for (const outcome of outcomes) {
-    await updatePhraseBankEntryAfterAttempt(outcome.entryId, outcome.nextEntry, {
-      correct: outcome.appearance.result === "correct",
-      justMastered: outcome.justMastered,
-    });
-    await insertPhraseBankAppearance(outcome.appearance);
-  }
+    const computedOutcomes = applyPhraseBankAttempts(inputs, entriesById);
+
+    // Sequential, not Promise.all: two outcomes can target the same entry within one
+    // grading pass, and each already carries the cumulative state through it (built
+    // from the same mutating map above) — writing out of order would let an earlier,
+    // less-progressed outcome overwrite a later one's persisted state.
+    for (const outcome of computedOutcomes) {
+      await updatePhraseBankEntryAfterAttempt(
+        outcome.entryId,
+        outcome.nextEntry,
+        {
+          correct: outcome.appearance.result === "correct",
+          justMastered: outcome.justMastered,
+        },
+        tx,
+      );
+      await insertPhraseBankAppearance(outcome.appearance, tx);
+    }
+
+    return computedOutcomes;
+  });
 
   return outcomes.map((outcome) => outcome.nextEntry);
 }

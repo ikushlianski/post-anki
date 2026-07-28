@@ -3,33 +3,41 @@ flowchart LR
   linkStyle default stroke:#455a64,stroke-width:1.5px
 
   Gen["generate-phrase-batch orchestrator"]
-  Due["selectDuePhrases (pure)"]
-  Echo["resolveTargetPhraseBankEntryIds — app-level id validation, no DB FK"]
-  Link["linkOrCreateTargetPhrases — read then insert, no lock"]
-  SeqBase["nextSequenceBase — MAX(sequenceNumber), no lock"]
-  PhrasesTbl[("phrases table target_phrase_bank_entry_id has no FK")]
+  Due["selectDuePhrases (pure) — early unlocked read, prompt context only"]
+  Echo["resolveTargetPhraseBankEntryIds — app-level id validation"]
+  LLM["agent.generate — LLM call, no DB txn held"]
+  Lock1["pg_advisory_xact_lock(hashtext(subject/level/pack)) — first statement in txn"]
+  SeqBase["nextSequenceBase re-read — authoritative, inside txn"]
+  Link["linkOrCreateTargetPhrases — inside same txn, tx threaded explicitly"]
+  Insert["insertPhraseBatch — inside same txn"]
+  PhrasesTbl[("phrases table — real FK on target_phrase_bank_entry_id, unique(subject,level,pack,sequence_number)")]
   Grade["grade-attempts orchestrator"]
+  ForUpdate["SELECT ... FOR UPDATE, rows locked in id order"]
   Apply["applyAttemptToPhraseBankEntry (pure)"]
-  UpdateEntry["updatePhraseBankEntryAfterAttempt — unconditional UPDATE, no version check"]
-  EntriesTbl[("phrase_bank_entries table")]
+  UpdateEntry["updatePhraseBankEntryAfterAttempt — inside same txn as the FOR UPDATE read"]
+  EntriesTbl[("phrase_bank_entries table — unique(subject,level,pack,lower(trim(phrase_text)))")]
   AppearTbl[("phrase_bank_appearances table")]
   Panel["PhraseBankPanel — plain REST fetch"]
   Badge["Recycled badge — Electric-synced phrases column"]
   Callout["Mastered callout — one-shot from POST response only"]
 
-  EntriesTbl -- "due entries" --> Due
+  EntriesTbl -- "due entries (unlocked read)" --> Due
   Due --> Gen
-  Gen --> SeqBase
-  SeqBase --> PhrasesTbl
-  Gen --> Echo
-  Echo --> Link
-  Link --> EntriesTbl
-  Link -- "targetPhraseBankEntryId, no FK" --> PhrasesTbl
+  Gen --> LLM
+  LLM --> Echo
+  Echo --> Lock1
+  Lock1 --> SeqBase
+  SeqBase --> Link
+  Link --> Insert
+  Insert --> PhrasesTbl
+  Link -- "linked or created, same txn" --> EntriesTbl
   PhrasesTbl -- "graded by" --> Grade
-  Grade --> Apply
+  Grade --> ForUpdate
+  ForUpdate --> EntriesTbl
+  ForUpdate --> Apply
   Apply --> UpdateEntry
   UpdateEntry --> EntriesTbl
-  Grade -- "appends" --> AppearTbl
+  Grade -- "appends, same txn" --> AppearTbl
   Grade -- "phraseBankUpdates in response" --> Callout
   EntriesTbl -- "GET /phrase-bank" --> Panel
   PhrasesTbl -- "Electric sync" --> Badge
