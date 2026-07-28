@@ -135,7 +135,17 @@ on a human-only blocker rather than skipping past it.
       app, with existing children/assignments correctly reassigned, not orphaned or duplicated.
       Needs real product/architecture planning first — this entry queues the idea, it does not
       spec it. (#56)
-- [ ] Per-domain expertise priority, with a monthly re-prioritization review.
+- [x] Per-domain expertise priority, with a manual review trigger (not yet monthly-automatic —
+      see note below).
+      [→ done: .planning/domain-priority-review/, merged to main 2026-07-28. review-playwright
+      verdict: PASS 5/5 + 24/24 regression across all six previously-merged items in this run.
+      Scoped deliberately: #49 (doc/changelog scan) and #53 (job market scan) — the intended
+      trend-signal inputs — aren't built yet, so this pass uses one general-purpose AI call
+      (labeled `source: "general-knowledge"`) instead of real trend data, with the review
+      mechanism (accept/reject, 30-day-due indicator) designed so #49/#53 can plug in their own
+      suggestion sources later with zero redesign. One accepted residual gap: the review-due
+      indicator relies on the agent prompt always returning ≥1 suggestion, not a code-level floor
+      — if a real model call ever returns zero suggestions, the indicator would stay stuck "due."]
       Why: not every domain in the knowledge map (#48) deserves the same depth. Lower priority is
       fine for areas that just need familiarity; some areas (AWS, Next.js, Postgres/databases)
       need real expert-level depth and will take sustained effort to close the gap. The map needs
