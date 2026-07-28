@@ -88,8 +88,16 @@ on a human-only blocker rather than skipping past it.
       Pointers: source repo `.bmad/workplace-scenario-packs/`, `.planning/LOG.md` entry for
       2026-07-18. No plan yet.
       Done when: a pack picker themes generated batches the same way it does in the source app.
-- [ ] Seed subjects and courses/topics — incremental domain/technology intake, grown over time
+- [x] Seed subjects and courses/topics — incremental domain/technology intake, grown over time
       rather than fixed at creation.
+      [→ done: .planning/seed-knowledge-map/, merged to main 2026-07-28. review-playwright verdict:
+      PASS 21/21 (6 new + 15 regression). New self-referential `domain_nodes` tree per subject,
+      deliberately kept separate from the earlier-shipped `tags`/`tag_assignments` mechanism (a
+      different concept — many-to-many cross-cutting labels vs. a strict one-parent tree). A real,
+      non-mocked live call against the sibling-discovery agent confirmed it correctly placed "Astro"
+      under "Meta-frameworks" alongside genuinely accurate real-world siblings (Next.js, Remix,
+      Nuxt.js, SvelteKit, Qwik, Gatsby, Eleventy, Angular Universal, SolidStart) — the AI placement
+      mechanism works for real, not just against the e2e mock.]
       Why: today a Curriculum is created once, from a single name or docs URL (see the shipped
       `.planning/doc-link-technology-intake/`). This is a different, complementary idea: let broad
       Subjects/domains be pre-seeded with a starter shape, then grown incrementally as the user
