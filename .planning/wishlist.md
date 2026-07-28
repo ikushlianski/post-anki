@@ -161,8 +161,19 @@ on a human-only blocker rather than skipping past it.
       re-prioritization for the user to accept or reject.
       Needs real product/architecture planning first — this entry queues the idea, it does not
       spec it. (#52)
-- [ ] Add an Opinion-First Decision Training mode (`/decide`) — user reasons through a real
+- [x] Add an Opinion-First Decision Training mode (`/decide`) — user reasons through a real
       architectural decision before seeing any AI evaluation.
+      [→ done: .planning/decide-mode/, merged to main 2026-07-28. review-playwright verdict:
+      PASS 4/4 + 29/29 regression across all seven previously-merged items in this run. Real
+      discovery during planning: a `/decide` page/agent/controller already existed from the
+      project's first commit and already got the opinion-first sequencing right — this item added
+      persistence (decide_sessions/decide_blind_spots) and an accept/reject step for blind spots
+      (mirroring domain_priority_suggestions, `source: "decide"` as the seam for #57), leaving
+      decide.agent.ts's instructions completely untouched (confirmed: empty diff). Also fixed a
+      real shared bug in every TanStack-Start-server-fn-driving e2e action in this project: the
+      response-matching helper only handled standard base64, not the base64URL encoding TanStack
+      Start actually uses — silently corrupting the decode and causing timeouts even after a
+      correct 200 had already arrived.]
       Why: every other interaction in this app either asks the user a Socratic question that
       leads them toward an answer, or grades an answer against a rubric — nothing captures the
       user's own independent reasoning on a real decision before the AI weighs in. The original
