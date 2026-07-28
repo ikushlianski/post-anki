@@ -9,8 +9,6 @@ import type {
   CurriculumDetail,
   CurriculumStatus,
   DailyPushResult,
-  DecideInput,
-  DecideResult,
   Depth,
   Gap,
   LearningStatus,
@@ -841,10 +839,6 @@ export async function getCrossCutting(): Promise<ConcernSummary[]> {
   const { summaries } = await request<be.CrossCuttingResponse>('/cross-cutting')
 
   return summaries
-}
-
-export async function decide(input: DecideInput): Promise<DecideResult> {
-  return request<be.DecideResult>('/decide', { method: 'POST', body: input })
 }
 
 export async function getActiveProbeSession(input: {

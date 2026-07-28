@@ -41,7 +41,9 @@ export type RouteName =
   | "declareGap"
   | "curateGap"
   | "dailyPush"
-  | "decide"
+  | "createDecideSession"
+  | "listDecideSessions"
+  | "resolveDecideBlindSpot"
   | "crossCutting"
   | "getAdminSettings"
   | "updateAdminSettings"
@@ -133,7 +135,14 @@ const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/gaps", name: "declareGap" },
   { method: "PATCH", pattern: /^\/gaps\/([^/]+)$/, name: "curateGap", param: "id" },
   { method: "GET", pattern: "/daily-push", name: "dailyPush" },
-  { method: "POST", pattern: "/decide", name: "decide" },
+  { method: "POST", pattern: "/decide-sessions", name: "createDecideSession" },
+  { method: "GET", pattern: "/decide-sessions", name: "listDecideSessions" },
+  {
+    method: "PATCH",
+    pattern: /^\/decide-blind-spots\/([^/]+)$/,
+    name: "resolveDecideBlindSpot",
+    param: "id",
+  },
   { method: "GET", pattern: "/cross-cutting", name: "crossCutting" },
   { method: "GET", pattern: "/admin/settings", name: "getAdminSettings" },
   { method: "PATCH", pattern: "/admin/settings", name: "updateAdminSettings" },

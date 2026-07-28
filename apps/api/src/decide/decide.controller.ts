@@ -1,22 +1,17 @@
 import type http from "node:http";
-import { decideInput, decideResultSchema, type DecideResult } from "@post-anki/shared";
+import { decideInput, resolveDecideBlindSpotInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
-import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
+import { submitDecideSession } from "./decide.orchestrator.js";
+import { listDecideSessions, updateDecideBlindSpotStatus } from "./decide.repo.js";
 
-const FALLBACK: DecideResult = {
-  strengths: [],
-  blindSpots: [
-    "The evaluator was unavailable — reason through the tradeoffs yourself and retry.",
-  ],
-  questions: [
-    "What is the strongest argument against your current choice?",
-    "What constraint would force you to decide differently?",
-  ],
-  verdict: "Could not evaluate right now. Your opinion stands unchallenged — retry shortly.",
-};
-
-export async function handleDecide(
+// POST /decide-sessions. Both agent-failure branches (a thrown error, and
+// the agent returning no/invalid structured output) surface here as the
+// SAME EvaluatorUnavailableError, mapped to the same 502
+// evaluator_unavailable response — spec.md's Route design section. Neither
+// failure path persists a row (submitDecideSession never reaches
+// insertDecideSession on either branch).
+export async function handleCreateDecideSession(
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ): Promise<void> {
@@ -27,21 +22,44 @@ export async function handleDecide(
     return;
   }
 
-  const prompt = [
-    `Decision the learner faces: ${body.data.decision}`,
-    "",
-    `The learner's own opinion (formed before asking): ${body.data.opinion}`,
-  ].join("\n");
-
   try {
-    const agent = getMastra().getAgent(AGENT_KEYS.decide);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: decideResultSchema },
-    });
+    const session = await submitDecideSession(body.data.decision, body.data.opinion);
 
-    sendJson(res, 200, result.object ?? FALLBACK);
+    sendJson(res, 200, session);
   } catch (err) {
-    log.error({ err }, "decide_failed");
+    log.error({ err }, "decide_session_failed");
     sendError(res, 502, "evaluator_unavailable");
   }
+}
+
+// GET /decide-sessions — full history, newest-first, each session's blind
+// spots nested inline. No pagination (matches writing_checks' own
+// unpaginated GET), acceptable at this app's current, small personal-use
+// scale.
+export async function handleListDecideSessions(res: http.ServerResponse): Promise<void> {
+  sendJson(res, 200, await listDecideSessions());
+}
+
+// PATCH /decide-blind-spots/:id. Mirrors resolvePrioritySuggestion's exact
+// shape: accept or reject, sets resolvedAt, persisted row never deleted.
+export async function handleResolveDecideBlindSpot(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  blindSpotId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, resolveDecideBlindSpotInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const updated = await updateDecideBlindSpotStatus(blindSpotId, body.data.status);
+
+  if (!updated) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, updated);
 }

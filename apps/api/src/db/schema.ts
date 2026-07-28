@@ -548,3 +548,35 @@ export const writingChecks = pgTable("writing_checks", {
   nativeAlternatives: jsonb("native_alternatives").$type<string[]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// One row per /decide submission. Standalone — no subjectId/topicId column
+// (spec.md's Decision #2: real architectural decisions are inherently
+// cross-cutting, not tied to one subject's studied content; the shipped UI
+// never had a subject picker). strengths/questions stay plain jsonb arrays
+// (nothing asks them to be individually actionable, unlike blindSpots).
+export const decideSessions = pgTable("decide_sessions", {
+  id: text("id").primaryKey(),
+  decision: text("decision").notNull(),
+  opinion: text("opinion").notNull(),
+  verdict: text("verdict").notNull(),
+  strengths: jsonb("strengths").$type<string[]>().notNull(),
+  questions: jsonb("questions").$type<string[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per blind spot a decide session's mentor evaluation surfaces —
+// individually actionable (status pending/accepted/rejected), modeled
+// directly on the already-shipped domain_priority_suggestions
+// accept/reject pattern (spec.md's Decision #1/#3). No .references() FK,
+// matching this schema's dominant convention (plain text columns + app-level
+// validation, e.g. writingChecks.subjectId above). `source` is the
+// discriminator seam #57 (generalized gap-tracking) plugs into later.
+export const decideBlindSpots = pgTable("decide_blind_spots", {
+  id: text("id").primaryKey(),
+  decideSessionId: text("decide_session_id").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("pending"),
+  source: text("source").notNull().default("decide"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+});
