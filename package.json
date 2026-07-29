@@ -32,12 +32,15 @@
     "db:migrate:api": "npm run db:migrate -w @post-anki/api",
     "db:seed:subjects": "npm run db:seed:subjects -w @post-anki/api",
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
-    "db:migrate:bot": "npm run db:migrate -w @post-anki/bot"
+    "db:migrate:bot": "npm run db:migrate -w @post-anki/bot",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs --output-type err apps packages",
+    "check-no-dynamic-imports": "node scripts/check-no-dynamic-imports.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/pg": "^8.20.0",
     "concurrently": "^10.0.3",
+    "dependency-cruiser": "^18.1.0",
     "pg": "^8.21.0"
   }
 }

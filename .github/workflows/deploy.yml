@@ -31,6 +31,20 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  review-factory-gate:
+    name: Review Factory Gate
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx depcruise --config .dependency-cruiser.cjs --output-type err apps packages
+      - run: node scripts/check-no-dynamic-imports.mjs
+
   infra:
     name: Infra
     needs: test
@@ -62,7 +76,7 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [test, infra]
+    needs: [test, infra, review-factory-gate]
     runs-on: ubuntu-latest
     environment: prod
     steps:
@@ -136,7 +150,7 @@ jobs:
 
   deploy-api:
     name: Deploy API
-    needs: [test, infra]
+    needs: [test, infra, review-factory-gate]
     runs-on: ubuntu-latest
     environment: prod
     steps:
@@ -211,7 +225,7 @@ jobs:
 
   deploy-web:
     name: Deploy Web
-    needs: [test, infra, deploy-api]
+    needs: [test, infra, deploy-api, review-factory-gate]
     # Dormant until the web Dockerfile exists and the var is set (see .inbox/TODOS.md).
     if: ${{ vars.PROD_WEB_ENABLED == 'true' }}
     runs-on: ubuntu-latest
