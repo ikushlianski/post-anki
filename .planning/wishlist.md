@@ -419,6 +419,35 @@ on a human-only blocker rather than skipping past it.
       suggestion results in exactly one resolution — one succeeds, the second is a clean no-op or
       error, never a second real node/flag.
 
+## Active build queue (2026-07-31) — React Native mobile app, prioritized for immediate use
+
+User wants to start using post-anki on mobile ASAP — moved ahead of the ontology follow-ups
+below. [Epic] React Native Mobile App (#64) tracks the full picture; #65 (verify on a real
+device) stays off this queue since it needs the user's own phone with Expo Go, not something
+buildable unattended.
+
+- [ ] Complete the core study/review loop on mobile. (#66)
+      Why: `apps/mobile/src/study/question-view.tsx` and `answer-submit.ts` exist but their
+      actual coverage against the web app's core loop (subject → due topic → probe or quiz,
+      depending on pedagogy kind → graded result) has never been verified end to end.
+      Pointers: `apps/mobile/src/study/`, `apps/api/src/probe/`, `apps/api/src/probe-session/`
+      (the existing web-facing orchestration this reuses via the same API contract). Part of
+      [Epic] React Native Mobile App (#64).
+      Done when: a learner can open the mobile app, see what's due, answer a real probe or quiz
+      question, and see a real graded result — for both an `architecture-mentor` and a
+      `language-practice` subject, since those two pedagogy kinds render genuinely different
+      flows on web.
+- [ ] Secure token storage and session persistence on mobile. (#67)
+      Why: `apps/mobile/src/api/token-storage.ts` exists but its actual storage mechanism has
+      never been verified as secure (Expo SecureStore vs. plain AsyncStorage) or durable across
+      app restarts/updates.
+      Pointers: `apps/mobile/src/api/token-storage.ts`, `apps/mobile/src/api/client.ts` (what
+      happens on a 401 — re-pair prompt, or silent failure?). Part of [Epic] React Native Mobile
+      App (#64).
+      Done when: a real device test confirms the token survives an app restart, is stored via
+      SecureStore not plain AsyncStorage, and a revoked/expired token produces a clear re-pair
+      prompt rather than a silent failure.
+
 ## Active build queue (2026-08-01) — ontology split/merge follow-ups
 
 Four new items filed after reviewing what shipped in `ontology-split-merge` — real gaps in the
