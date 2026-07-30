@@ -385,7 +385,9 @@ on a human-only blocker rather than skipping past it.
       Done when: both the config fix and the memory notes are committed in verification-repo, or
       a human has explicitly decided not to keep them.
 
-- [ ] Clean up orphaned `gap_mastery` rows left behind by gap/topic/module/curriculum deletion.
+- [x] Clean up orphaned `gap_mastery` rows left behind by gap/topic/module/curriculum deletion.
+      [→ done: .planning/gap-mastery-cascade-delete/, verified 2026-07-30, review-playwright: PASS
+      (two independent sweeps), review-factory: done:true (first live proof of the Phase 0 gate)]
       Why: `docs/architecture/generalize-gap-tracking/review.md` (found during `/debrief`
       2026-07-28) found `gap_mastery` has no FK/cascade to `gaps`, and none of the four existing
       deletion call sites (topic, module, curriculum, and gap deletion itself) clean up the

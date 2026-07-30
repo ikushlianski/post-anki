@@ -75,6 +75,17 @@ export async function getGapMasteryRowsForUpdate(
     .for("update");
 }
 
+export async function deleteGapMasteryForGapIds(
+  gapIds: string[],
+  db: DbExecutor,
+): Promise<void> {
+  if (gapIds.length === 0) {
+    return;
+  }
+
+  await db.delete(gapMastery).where(inArray(gapMastery.gapId, gapIds));
+}
+
 export async function listGapMasteryForGapIds(
   gapIds: string[],
 ): Promise<Map<string, GapMasteryRow>> {

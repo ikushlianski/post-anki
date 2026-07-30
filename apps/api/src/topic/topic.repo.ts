@@ -13,6 +13,7 @@ import { gaps, modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteLectureForTopic } from "../lecture/lecture.repo.js";
 import { deleteLectureSourceCandidatesForTopic } from "../lecture/lecture-source-candidate.repo.js";
+import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 
 function rowToTopic(row: typeof topics.$inferSelect): Topic {
   return {
@@ -178,10 +179,15 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
     return false;
   }
 
-  await db.delete(gaps).where(eq(gaps.topicId, topicId));
-  await deleteLectureForTopic(topicId);
-  await deleteLectureSourceCandidatesForTopic(topicId);
-  await db.delete(topics).where(eq(topics.id, topicId));
+  await db.transaction(async (tx) => {
+    const gapRows = await tx.select({ id: gaps.id }).from(gaps).where(eq(gaps.topicId, topicId));
+
+    await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+    await tx.delete(gaps).where(eq(gaps.topicId, topicId));
+    await deleteLectureForTopic(topicId, tx);
+    await deleteLectureSourceCandidatesForTopic(topicId, tx);
+    await tx.delete(topics).where(eq(topics.id, topicId));
+  });
 
   return true;
 }

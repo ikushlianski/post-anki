@@ -47,6 +47,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
+import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { newId } from "../shared/id.js";
 import {
   resolveCurriculumOrigin,
@@ -330,13 +331,22 @@ export async function deleteModules(moduleIds: string[]): Promise<void> {
     .select()
     .from(topics)
     .where(inArray(topics.moduleId, moduleIds));
+  const topicIds = topicRows.map((t) => t.id);
 
-  for (const t of topicRows) {
-    await db.delete(gaps).where(eq(gaps.topicId, t.id));
-  }
+  await db.transaction(async (tx) => {
+    if (topicIds.length > 0) {
+      const gapRows = await tx
+        .select({ id: gaps.id })
+        .from(gaps)
+        .where(inArray(gaps.topicId, topicIds));
 
-  await db.delete(topics).where(inArray(topics.moduleId, moduleIds));
-  await db.delete(modules).where(inArray(modules.id, moduleIds));
+      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
+    }
+
+    await tx.delete(topics).where(inArray(topics.moduleId, moduleIds));
+    await tx.delete(modules).where(inArray(modules.id, moduleIds));
+  });
 }
 
 export interface SourceRow {
@@ -448,13 +458,22 @@ export async function clearCurriculumStructure(
     .select()
     .from(topics)
     .where(eq(topics.curriculumId, curriculumId));
+  const topicIds = topicRows.map((t) => t.id);
 
-  for (const t of topicRows) {
-    await db.delete(gaps).where(eq(gaps.topicId, t.id));
-  }
+  await db.transaction(async (tx) => {
+    if (topicIds.length > 0) {
+      const gapRows = await tx
+        .select({ id: gaps.id })
+        .from(gaps)
+        .where(inArray(gaps.topicId, topicIds));
 
-  await db.delete(topics).where(eq(topics.curriculumId, curriculumId));
-  await db.delete(modules).where(eq(modules.curriculumId, curriculumId));
+      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
+    }
+
+    await tx.delete(topics).where(eq(topics.curriculumId, curriculumId));
+    await tx.delete(modules).where(eq(modules.curriculumId, curriculumId));
+  });
 }
 
 export async function deleteCurriculum(curriculumId: string): Promise<boolean> {

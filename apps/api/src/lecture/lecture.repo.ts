@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import type { Lecture, LectureStatus } from "@post-anki/shared";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { lectureCitations, lectureSections, lectures } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
@@ -127,9 +127,10 @@ export async function setLectureStatus(
   await getDb().update(lectures).set({ status }).where(eq(lectures.topicId, topicId));
 }
 
-export async function deleteLectureForTopic(topicId: string): Promise<void> {
-  const db = getDb();
-
+export async function deleteLectureForTopic(
+  topicId: string,
+  db: DbExecutor = getDb(),
+): Promise<void> {
   const existing = (
     await db.select().from(lectures).where(eq(lectures.topicId, topicId))
   )[0];

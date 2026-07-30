@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type {
   CreateModuleInput,
   LearningStatus,
@@ -9,6 +9,7 @@ import { moduleProgress, nextOrder, assignOrders } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { gaps, modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 
 export async function createModule(input: CreateModuleInput): Promise<Module> {
   const db = getDb();
@@ -108,13 +109,22 @@ export async function deleteModule(moduleId: string): Promise<boolean> {
     .select()
     .from(topics)
     .where(eq(topics.moduleId, moduleId));
+  const topicIds = topicRows.map((t) => t.id);
 
-  for (const t of topicRows) {
-    await db.delete(gaps).where(eq(gaps.topicId, t.id));
-  }
+  await db.transaction(async (tx) => {
+    if (topicIds.length > 0) {
+      const gapRows = await tx
+        .select({ id: gaps.id })
+        .from(gaps)
+        .where(inArray(gaps.topicId, topicIds));
 
-  await db.delete(topics).where(eq(topics.moduleId, moduleId));
-  await db.delete(modules).where(eq(modules.id, moduleId));
+      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
+    }
+
+    await tx.delete(topics).where(eq(topics.moduleId, moduleId));
+    await tx.delete(modules).where(eq(modules.id, moduleId));
+  });
 
   return true;
 }

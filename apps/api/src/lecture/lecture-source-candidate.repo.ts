@@ -1,6 +1,6 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import type { LectureSourceCandidate } from "@post-anki/shared";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { lectureSourceCandidates } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { partitionRegatherableCandidates, type ExtractedCandidate } from "./lecture-rules.js";
@@ -151,8 +151,9 @@ export async function storeCandidateFetchedText(
 
 export async function deleteLectureSourceCandidatesForTopic(
   topicId: string,
+  db: DbExecutor = getDb(),
 ): Promise<void> {
-  await getDb()
+  await db
     .delete(lectureSourceCandidates)
     .where(eq(lectureSourceCandidates.topicId, topicId));
 }
