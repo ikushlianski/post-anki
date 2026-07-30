@@ -273,24 +273,6 @@ on a human-only blocker rather than skipping past it.
       more than a small, bounded number of notifications per cycle.
       Needs real product/architecture planning first (scan source/frequency, how "supersedes"
       is judged, notification channel) — this entry queues the idea, it does not spec it. (#49)
-- [ ] Job market + community trend scanning, grouped by country.
-      Why: priority (#52) shouldn't be based on personal interest alone — regularly scan job
-      market demand by technology, grouped by country (US, Europe, Russia, Belarus, Poland),
-      surfacing what's gaining traction worldwide, plus lightweight Reddit/X monitoring as a
-      cross-check for real trend signal (not just "a nerd programmer said it's important").
-      Explicit constraint from the user: the social-monitoring piece should stay light-touch, a
-      cross-check not the primary driver — not meant to be an aggressive social-listening
-      pipeline. Deliberately placed last in this queue: no data source/API/credential has been
-      chosen for job-market data, so this is likely to hit a genuine human-only blocker during
-      planning — every item ahead of it should get built first.
-      Pointers: #52 (the review this feeds into), #48 (the knowledge map the recommendations
-      apply to).
-      Done when: at least one scan produces country-grouped demand data plus a small set of
-      recommendations without excessive noise, and a Reddit/X cross-check is demonstrated as
-      lightweight supplementary signal, not a primary driver.
-      Needs real product/architecture planning first — this entry queues the idea, it does not
-      spec it. (#53)
-
 - [ ] Close a real deadlock window between the phrase-bank's two new locks, and wire its
       concurrency tests into the normal test run.
       Why: `docs/architecture/phrase-bank-concurrency-fix/review.md` (found during `/debrief`
@@ -563,3 +545,24 @@ on a human-only blocker rather than skipping past it.
       fundamentally different practice types (spaced-repetition phrases vs. open-ended probe
       questions), and how much to surface in one message before it becomes noise. This entry
       queues the idea, it does not spec it. (#58)
+- [ ] Job market + community trend scanning, grouped by country. **Postponed — not being
+      actively pursued.**
+      Why: priority (#52) shouldn't be based on personal interest alone — regularly scan job
+      market demand by technology, grouped by country (US, Europe, Russia, Belarus, Poland),
+      surfacing what's gaining traction worldwide, plus lightweight Reddit/X monitoring as a
+      cross-check for real trend signal (not just "a nerd programmer said it's important").
+      Explicit constraint from the user: the social-monitoring piece should stay light-touch, a
+      cross-check not the primary driver — not meant to be an aggressive social-listening
+      pipeline.
+      Blocked on a real data-source decision — see `.planning/job-market-scanning/blocked.md`
+      (what's missing) and `.planning/job-market-scanning/investigation.md` (2026-07-31 research:
+      Adzuna is the most viable free starting point but Russia/Belarus coverage is unconfirmed;
+      Indeed/LinkedIn are dead ends for a personal project; Reddit now requires manual app
+      approval; X has no free tier left in 2026).
+      Pointers: #52 (the review this feeds into), #48 (the knowledge map the recommendations
+      apply to).
+      Done when: at least one scan produces country-grouped demand data plus a small set of
+      recommendations without excessive noise, and a Reddit/X cross-check is demonstrated as
+      lightweight supplementary signal, not a primary driver.
+      Needs a data-provider decision and real product/architecture planning — this entry queues
+      the idea, it does not spec it, and is postponed until revisited. (#53)
