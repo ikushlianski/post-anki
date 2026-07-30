@@ -1,0 +1,28 @@
+sequenceDiagram
+  participant L as Learner (browser)
+  participant RL as RouteLoader (practice.$subjectId.tsx)
+  participant PB as PracticeBody (LevelSelect PackSelect usePracticeSettings)
+  participant UB as UsePracticeBatch (use-practice-batch.ts)
+  participant API as apps/api (generatePhraseBatch, insertPhraseBatch .returning())
+  participant EL as Electric (live query, optional)
+
+  L->>RL: navigate to /practice/:subjectId
+  RL->>API: GET practice-settings (REST, upserts default row)
+  API-->>RL: settings row
+  RL-->>PB: subject, initialSettings (threaded through, not discarded)
+  PB->>PB: usePracticeSettings(subjectId, initialSettings)
+  PB->>PB: resolvePracticeSettings(live, initial) returns live or initial
+  Note over RL,API: level/pack render from initialSettings even before Electric has anything
+  PB->>UB: level, pack (defined from first render)
+  UB->>API: POST phrase-batches (first-batch effect)
+  API->>API: generate phrases, insertPhraseBatch .returning()
+  API-->>UB: batchId plus phrases (real createdAt, full rows)
+  UB->>UB: seed seededPhrasesByBatchId[batchId] before setCurrentBatchId
+  UB->>UB: reconcilePhrases(seeded, live) merge by id, live wins
+  UB-->>L: phrases render immediately, no Electric round trip required
+  par best-effort sync
+    EL--)UB: useLiveQuery over phrasesCollection and practiceSettingsCollection
+    UB->>UB: reconcile again if live rows arrive later
+  end
+  Note over UB,EL: Electric is now a live-update overlay, not the sole source of first render
+  Note over PB,EL: prefetchNextBatch repeats the same seed-before-set pattern for batch 2

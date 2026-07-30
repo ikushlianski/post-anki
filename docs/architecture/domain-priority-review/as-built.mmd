@@ -1,0 +1,44 @@
+flowchart TB
+  subgraph Frontend["apps/web/src/domain-map"]
+    Panel["PriorityReviewPanel\n(priority-review-panel.tsx)"]
+    DepthControl["TargetDepthControl\n(target-depth-control.tsx)"]
+  end
+
+  subgraph API["apps/api/src/domain-map"]
+    Controller["domain-map.controller.ts\n5 handlers"]
+    Orchestrator["triggerDomainPriorityReview()\ndomain-priority-review.orchestrator.ts"]
+    Resolver["resolveNodePathByName()\ndomain-node-name-resolver.ts\n(shared with placement)"]
+    Repo["domain-map.repo.ts\ngetLastReviewedAt / insertPrioritySuggestion\nlistPrioritySuggestionsForSubject / resolvePrioritySuggestion"]
+  end
+
+  subgraph Core["packages/core/src/domain-map"]
+    DueDeriver["isDomainPriorityReviewDue()\npure, now injected"]
+  end
+
+  subgraph AgentLayer["apps/api/src/mastra"]
+    Agent["domainPriorityReview agent\ncheap tier, structured output"]
+  end
+
+  DB[("Postgres\ndomain_priority_suggestions\n(status: pending/accepted/rejected,\nnever deleted)")]
+
+  Panel -->|"POST /subjects/:id/domain-priority-reviews"| Controller
+  Panel -->|"GET .../domain-priority-suggestions?status=pending"| Controller
+  Panel -->|"PATCH /domain-priority-suggestions/:id"| Controller
+  Panel -->|"GET .../domain-priority-review-status"| Controller
+  DepthControl -->|"PATCH /domain-nodes/:id"| Controller
+
+  Controller --> Orchestrator
+  Controller --> Repo
+  Controller --> DueDeriver
+
+  Orchestrator -->|"loads tree"| Repo
+  Orchestrator -->|"ONE agent.generate() call\nstructuredOutput schema"| Agent
+  Orchestrator --> Resolver
+  Orchestrator -->|"insert resolved suggestions\n(unresolved dropped silently)"| Repo
+
+  Repo --> DB
+  DueDeriver -.->|"lastReviewedAt = MAX(created_at)\nfor subject"| Repo
+
+  Agent -.->|"schema-invalid or network failure\n= thrown error"| Orchestrator
+  Orchestrator -.->|"error propagates"| Controller
+  Controller -.->|"502 review_failed"| Panel

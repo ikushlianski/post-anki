@@ -1,0 +1,93 @@
+flowchart TB
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+  classDef entry fill:#fff9c4,stroke:#455a64,stroke-width:1.5px,color:#000
+  classDef risk fill:#ffcdd2,stroke:#b71c1c,stroke-width:2px,color:#000
+  classDef safe fill:#c8e6c9,stroke:#2e7d32,stroke-width:1.5px,color:#000
+  classDef data fill:#b3e5fc,stroke:#01579b,stroke-width:1.5px,color:#000
+  classDef agent fill:#fff3e0,stroke:#e65100,stroke-width:1.5px,color:#000
+
+  CreateForm["Web: create-curriculum-form.tsx"]:::entry
+  ChangeSelect["Web: change-placement-select.tsx"]:::entry
+  MapRoute["Web: subject.$subjectId.map.tsx loader"]:::entry
+
+  PostCurricula["POST /curricula"]
+  PatchCurricula["PATCH /curricula/:id"]
+  GetMap["GET /subjects/:id/domain-map"]
+
+  CreateForm --> PostCurricula
+  ChangeSelect --> PatchCurricula
+  MapRoute --> GetMap
+
+  Handle["handleCreateCurriculum (curriculum.controller.ts)"]
+  PostCurricula --> Handle
+
+  Resolve["resolveDomainPlacement() -- AWAITED, blocks the HTTP response"]:::risk
+  Handle -->|"awaits before insert + 202"| Resolve
+
+  Insert["createCurriculum() inserts row"]
+  Respond202["sendJson 202"]
+  Resolve --> Insert --> Respond202
+
+  FireForget["parseCurriculum/researchCurriculum -- fire-and-forget AFTER response"]:::safe
+  Respond202 -.->|"same function, opposite pattern"| FireForget
+
+  P1{"Path 1: explicit domainNodeId?"}
+  Resolve --> P1
+  P1 -->|"yes"| Attach1["Validate same subjectId, attach directly"]
+
+  Gate{"Path gate: subject has any domain_nodes rows?"}
+  P1 -->|"no"| Gate
+  Gate -->|"no -- 7 of 8 subjects"| SkipAll["Skip placement entirely, zero queries, zero cost"]:::safe
+
+  P2{"Path 2: normalized name matches existing node?"}
+  Gate -->|"yes"| P2
+  Norm["normalizeTagName() -- reused from tags module"]
+  P2 --- Norm
+  P2 -->|"yes"| Attach2["Attach directly, zero agent calls"]
+
+  AgentCall["Call sibling-discovery Mastra agent (gemini-2.5-flash via OpenRouter, no timeout configured)"]:::agent
+  P2 -->|"no"| AgentCall
+
+  AgentOk{"Agent call succeeds + schema valid?"}
+  AgentCall --> AgentOk
+  ResolvePath["Resolve parentNodePath to real node ids by case-insensitive name walk"]
+  AgentOk -->|"yes"| ResolvePath
+  CreateNodes["Insert new node + up to 8 sibling nodes"]
+  ResolvePath --> CreateNodes
+
+  Fallback["Catch error -- domainNodeId: null, no retry, no user-facing error"]:::risk
+  AgentOk -->|"no: network/timeout/schema"| Fallback
+
+  DomainNodesTable[("domain_nodes: id, subject_id, parent_id (self-ref nullable), name, description, order -- no FK, no unique index")]:::data
+  CurriculaTable[("curricula: + domain_node_id (nullable, one-directional, no back-ref)")]:::data
+  TagsTable[("tags / tag_assignments -- untouched, structurally separate many-to-many")]:::data
+
+  Attach1 --> CurriculaTable
+  Attach2 --> CurriculaTable
+  CreateNodes --> DomainNodesTable
+  CreateNodes --> CurriculaTable
+  SkipAll --> CurriculaTable
+  Fallback --> CurriculaTable
+
+  PatchHandle["handleUpdateCurriculum -- existing generic PATCH, re-points domain_node_id only"]
+  PatchCurricula --> PatchHandle --> CurriculaTable
+
+  MapController["domain-map.controller.ts: handleGetDomainMap"]
+  GetMap --> MapController
+
+  RepoRead["getDomainMapForSubject() -- 2 flat queries, no recursive CTE, no N+1"]
+  MapController --> RepoRead
+  RepoRead --> DomainNodesTable
+  RepoRead --> CurriculaTable
+
+  BuildItem["buildItem() recursive tree assembly -- NO visited-set / cycle protection"]:::risk
+  RepoRead --> BuildItem
+
+  Deriver["domainNodeProgress() -- BFS with visited Set + depth cap 6, cycle-safe"]:::safe
+  BuildItem --> Deriver
+  ModuleProgress["moduleProgress() -- existing, unmodified"]
+  Deriver --> ModuleProgress
+
+  SeedScript["seed-domain-nodes.ts -- one-time idempotent static seed, no LLM, one subject only"]:::safe
+  SeedScript --> DomainNodesTable

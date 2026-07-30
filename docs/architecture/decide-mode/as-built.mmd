@@ -1,0 +1,37 @@
+flowchart LR
+    User["Learner in browser"]
+    DecidePage["decide.tsx page - /decide route"]
+    ServerFns["decide.server-fns.ts - TanStack server functions"]
+    ApiClient["decide.api.ts - REST client"]
+    Router["router.ts - resolveRoute"]
+    Server["server.ts - dispatch"]
+    Controller["decide.controller.ts"]
+    Orchestrator["decide.orchestrator.ts - submitDecideSession"]
+    Agent["decide.agent.ts - Mastra agent, instructions untouched"]
+    Repo["decide.repo.ts"]
+    DB[("Postgres - decide_sessions, decide_blind_spots")]
+    SharedTypes["packages/shared/src/decide.ts - decideInput, decideResultSchema, DecideSession"]
+
+    User -->|"types decision + opinion"| DecidePage
+    DecidePage --> ServerFns
+    ServerFns -->|"validates via decideInput"| ApiClient
+    ApiClient -->|"POST /decide-sessions"| Router
+    ApiClient -->|"GET /decide-sessions"| Router
+    ApiClient -->|"PATCH /decide-blind-spots/:id"| Router
+    Router --> Server
+    Server --> Controller
+    Controller -->|"submitDecideSession"| Orchestrator
+    Controller -->|"listDecideSessions"| Repo
+    Controller -->|"updateDecideBlindSpotStatus"| Repo
+    Orchestrator -->|"agent.generate + structuredOutput"| Agent
+    Agent -->|"blindSpots: string[] no ids"| Orchestrator
+    Orchestrator -->|"insertDecideSession - assigns newId per blind spot"| Repo
+    Repo --> DB
+    Orchestrator -.->|"throws EvaluatorUnavailableError on agent failure - no insert"| Controller
+    Controller -.->|"502 evaluator_unavailable - both failure branches unified"| ApiClient
+    SharedTypes -.->|"types + zod schemas"| Controller
+    SharedTypes -.->|"types + zod schemas"| Orchestrator
+    SharedTypes -.->|"types + zod schemas"| DecidePage
+
+    LegacyRoute["legacy POST /decide route"]
+    LegacyRoute -.->|"removed - resolveRoute returns null, test-proven"| Router

@@ -1,0 +1,55 @@
+sequenceDiagram
+  participant TA as Tab A
+  participant TB as Tab B
+  participant Gen as generatePhraseBatch
+  participant Grade as gradeAttempts
+  participant DB as Postgres pool max 4
+
+  Note over TA,DB: FLOW A - batch generation, advisory lock
+  TA->>Gen: generatePhraseBatch subject level pack
+  TB->>Gen: generatePhraseBatch subject level pack
+  Gen->>DB: unlocked nextSequenceBase read - prompt due-list only, staleness harmless
+  Gen->>Gen: agent.generate prompt - LLM call, no txn, no lock held
+  Gen->>DB: BEGIN tx Tab A
+  Gen->>DB: SELECT pg_advisory_xact_lock hashtext subject level pack cast bigint - A
+  Gen->>DB: BEGIN tx Tab B - blocks acquiring the same advisory lock
+  Note over DB: Tab A holds the advisory lock alone
+  Gen->>DB: authoritative nextSequenceBase re-read via tx - A
+  Gen->>DB: linkOrCreateTargetPhrases via tx - A - matches by lower trim text or inserts
+  Gen->>DB: insertPhraseBatch via tx - A
+  Gen->>DB: COMMIT A - advisory lock auto-released
+  Note over DB: Tab B's BEGIN now proceeds, lock granted
+  Gen->>DB: authoritative nextSequenceBase re-read via tx - B - now sees Tab A's committed rows
+  Gen->>DB: linkOrCreateTargetPhrases via tx - B
+  Gen->>DB: insertPhraseBatch via tx - B - non-overlapping sequence numbers
+  Gen->>DB: COMMIT B
+  Note over DB: DB backstops if the lock were ever bypassed
+  Note over DB: unique index on phrases subject level pack sequence_number
+  Note over DB: partial unique index on phrase_bank_entries subject level pack lower trim phrase_text where status is not mastered
+  Note over DB: real FK phrases target_phrase_bank_entry_id to phrase_bank_entries id, ON DELETE SET NULL
+
+  Note over TA,DB: FLOW B - grading, row-level FOR UPDATE lock
+  TA->>Grade: gradeAttempts subject level answers
+  TB->>Grade: gradeAttempts subject level answers
+  Grade->>DB: insertAttempts A - outside any transaction, always applies
+  Grade->>DB: insertAttempts B - outside any transaction, always applies
+  Grade->>DB: BEGIN tx Tab A
+  Grade->>DB: SELECT phrase_bank_entries WHERE id in entryIds ORDER BY id FOR UPDATE - A
+  Grade->>DB: BEGIN tx Tab B
+  Grade->>DB: FOR UPDATE select B - blocks on any row already locked by A
+  Note over DB: rows always locked in id order, so two calls touching the same pair of entries can never deadlock against each other
+  Grade->>Grade: applyAttemptToPhraseBankEntry pure deriver, packages core, unchanged - A
+  Grade->>DB: updatePhraseBankEntryAfterAttempt via tx - A
+  Grade->>DB: insertPhraseBankAppearance via tx - A
+  Grade->>DB: COMMIT A
+  Note over DB: Tab B's FOR UPDATE now proceeds, reads Tab A's committed state
+  Grade->>Grade: applyAttemptToPhraseBankEntry pure deriver - B
+  Grade->>DB: updatePhraseBankEntryAfterAttempt via tx - B
+  Grade->>DB: insertPhraseBankAppearance via tx - B
+  Grade->>DB: COMMIT B
+
+  Note over DB: both flows share one pg Pool, max 4 connections
+  Note over DB: every DB call inside either transaction body takes tx explicitly, never a default pool connection
+  Note over DB: this is what keeps each transaction confined to the single connection holding its lock
+  Note over DB: advisory locks in Flow A and row-level FOR UPDATE locks in Flow B are different Postgres lock namespaces
+  Note over DB: they cannot deadlock against each other even if a generate and a grade run concurrently for the same scope

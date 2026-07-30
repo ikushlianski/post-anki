@@ -1,0 +1,52 @@
+flowchart LR
+    classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+    linkStyle default stroke:#455a64,stroke-width:1.5px
+
+    User["Learner"]
+
+    subgraph Browser["Web app"]
+        NavLink["practice.$subjectId.tsx nav link"]
+        Route["Route practice.$subjectId_.check-writing.tsx (own page, kind guard in loader)"]
+        Component["CheckWriting component (check-writing.tsx)"]
+        ApiClient["writing-check.api.ts (createServerFn GET/POST)"]
+    end
+
+    subgraph ApiLayer["API"]
+        AuthGate["server.ts authorized() global gate"]
+        Router["router.ts POST/GET /subjects/:id/writing-checks"]
+        Controller["practice.controller.ts handleCreateWritingCheck / handleListWritingChecks"]
+        Guard["requireLanguagePracticeSubject guard (reused)"]
+        Shared["packages/shared practice.ts submitWritingCheckInput, writingCheckSchema"]
+    end
+
+    subgraph AgentLayer["Grading"]
+        Orchestrator["writing-check.orchestrator.ts gradeAndStoreWritingCheck"]
+        Agent["writing-check.agent.ts createWritingCheckAgent (AGENT_KEYS.writingCheck)"]
+        LLM["OpenRouter model via resolveAgentModel"]
+    end
+
+    subgraph DataLayer["Persistence"]
+        Repo["writing-check.repo.ts insertWritingCheck / getWritingChecksForSubject"]
+        DB[("Postgres writing_checks table")]
+    end
+
+    User -->|clicks Check my writing| NavLink
+    NavLink --> Route
+    Route --> Component
+    Component -->|submit text / load history| ApiClient
+    ApiClient -->|POST or GET via fetch| AuthGate
+    AuthGate -->|Bearer token or PAT| Router
+    Router --> Controller
+    Controller --> Guard
+    Guard -->|400 not_a_language_practice_subject if wrong kind| Controller
+    Controller -->|validates body against| Shared
+    Controller -->|POST path| Orchestrator
+    Controller -->|GET path| Repo
+    Orchestrator --> Agent
+    Agent -->|structuredOutput schema| LLM
+    LLM -->|score, verdict, feedback, nativeAlternatives| Orchestrator
+    Orchestrator -->|insert graded row| Repo
+    Repo --> DB
+    Repo -->|newest-first list| Controller
+    Controller -->|200 response, shape from Shared| Component
+    Component -->|render result card + history, invalidate query| User

@@ -1,0 +1,39 @@
+flowchart TB
+  scheduler["Cloud Scheduler job post-anki-doc-scan (NEW)<br/>weekly, 0 9 * * 1<br/>POST /doc-scans + Bearer apiSharedSecret"]
+  manualBtn["Manual Scan now button<br/>(priority-review-panel.tsx)"]
+  routerLayer["router.ts / server.ts<br/>authorized() bearer check (existing, unchanged)"]
+  controller["domain-map.controller.ts<br/>handleTriggerAllDocScans / handleTriggerDocScan"]
+  orchestratorAll["runDocScanForAllTrackedSubjects()<br/>doc-scan.orchestrator.ts"]
+  orchestratorOne["runDocScan(subjectId)<br/>doc-scan.orchestrator.ts"]
+  fetcher["fetchTrackedTool()<br/>tracked-tool-fetcher.ts"]
+  outboundFetch["fetchWithTimeout / truncateText<br/>outbound-fetch.ts (extracted, shared)"]
+  docLinkGrounding["doc-link-grounding.ts<br/>(existing caller, now imports shared helpers)"]
+  watermark[("tracked_tool_scan_state<br/>PK = tool_key ONLY<br/>no subject_id column")]
+  domainMapRepo["domain-map.repo.ts"]
+  agent["docScan Mastra agent<br/>doc-scan.agent.ts (cheap tier)"]
+  resolver["domain-node-name-resolver.ts<br/>(existing, shared with item 7)"]
+  topicTable[("domain_topic_suggestions (NEW)")]
+  supersessionTable[("domain_supersession_suggestions (NEW)")]
+  domainNodes[("domain_nodes<br/>+ superseded_at / superseded_reason (NEW cols)")]
+  reviewUI["priority-review-panel.tsx<br/>accept / reject suggestions"]
+
+  scheduler --> routerLayer
+  manualBtn --> routerLayer
+  routerLayer --> controller
+  controller -->|"POST /doc-scans"| orchestratorAll
+  controller -->|"POST /subjects/:id/doc-scans"| orchestratorOne
+  orchestratorAll -->|"listSubjectIdsWithDomainNodes()<br/>loop, sequential"| orchestratorOne
+  orchestratorOne --> fetcher
+  fetcher --> outboundFetch
+  docLinkGrounding --> outboundFetch
+  orchestratorOne -->|"getTrackedToolScanState(toolKey)<br/>read + compare hash"| watermark
+  orchestratorOne -->|"changed? build prompt, call once"| agent
+  agent -->|"structured output"| orchestratorOne
+  orchestratorOne --> resolver
+  orchestratorOne -->|"insert, capped at 5 total"| topicTable
+  orchestratorOne -->|"insert, capped at 5 total"| supersessionTable
+  orchestratorOne -->|"upsertTrackedToolScanState(toolKey, hash)<br/>ADVANCES GLOBAL WATERMARK"| watermark
+  domainMapRepo --> orchestratorOne
+  topicTable --> reviewUI
+  supersessionTable --> reviewUI
+  reviewUI -->|"PATCH accept"| domainNodes

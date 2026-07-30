@@ -1,0 +1,33 @@
+sequenceDiagram
+  participant U as User
+  participant UI as "SubjectSection (MergeSubjectButton)"
+  participant SF as "mergeSubjects server fn"
+  participant API as "POST /subjects/:targetId/merge"
+  participant C as "handleMergeSubjects controller"
+  participant R as "mergeSubjects() repo"
+  participant TX as "Postgres transaction"
+  participant CC as "Concurrent POST /curricula (unlocked)"
+
+  U->>UI: click "Merge into..." (arms UI)
+  UI->>UI: pick target subject (excludes self, excludes language-practice)
+  U->>UI: click Confirm
+  UI->>SF: mergeSubjects({targetSubjectId, sourceSubjectId})
+  SF->>API: POST body {sourceSubjectId}
+  API->>C: handleMergeSubjects(req, res, targetId)
+  C->>R: mergeSubjects(targetId, sourceId)
+  R->>TX: db.transaction(async tx => ...)
+  TX->>TX: pg_advisory_xact_lock on sorted(targetId, sourceId) pair
+  Note right of TX: sorted lock order prevents cross-merge deadlock (A-absorbs-B vs B-absorbs-A)
+  TX->>TX: re-read both subject rows inside the lock
+  TX->>TX: check not_found / kind_mismatch (post-lock, closes merge-vs-merge race)
+  TX->>TX: UPDATE curricula SET subject_id = target WHERE subject_id = source
+  TX->>TX: UPDATE domain_nodes SET subject_id = target (parent_id untouched, forest shape kept)
+  Note over CC,TX: DOCUMENTED, NOT CLOSED - a racing createCurriculum call can still insert a domain_node/curriculum with subject_id = source here (unlocked, non-transactional)
+  TX->>TX: DELETE FROM subjects WHERE id = source (direct delete, bypasses deleteSubject())
+  TX-->>R: commit, return counts
+  R-->>C: {targetSubjectId, sourceSubjectId, curriculaMoved, domainNodesMoved}
+  C-->>API: 200 JSON result
+  API-->>SF: result
+  SF-->>UI: result
+  UI->>UI: router.invalidate()
+  Note over UI,CC: Tag merge (POST /tags/:targetId/merge) follows the identical shape — same sorted-lock, re-read, transaction pattern — plus a dedupe DELETE on tag_assignments before the reassignment UPDATE, and an UPDATE of probe_sessions.scope_id for tag-scoped sessions

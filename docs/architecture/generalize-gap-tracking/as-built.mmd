@@ -1,0 +1,63 @@
+flowchart TD
+    Learner["Learner answers a probe-session quiz question"] --> Service["answerProbeSession (probe-session.service.ts)"]
+    Service --> Fresh{"Fresh answer?<br/>(answeredIndex was null)"}
+    Fresh -- "no, replay" --> GradeOnly["Grade only, no mastery side-effect"]
+    Fresh -- "yes" --> HasGap{"Question carries<br/>gapId or gapLabel?"}
+    HasGap -- "no" --> GradeOnly2["Grade only, no mastery side-effect"]
+    HasGap -- "yes" --> Repo["applyGapMasteryAttempt (gap-mastery.repo.ts)"]
+
+    subgraph TX["One Postgres transaction"]
+        Repo --> Lock["pg_advisory_xact_lock(hashtext(topicId))"]
+        Lock --> Match{"gapId present?"}
+        Match -- "no, label only" --> MatchLabel["matchExistingGapByLabel<br/>or insertDiscoveredGaps (origin: ai)"]
+        MatchLabel --> ForUpdate
+        Match -- "yes" --> ForUpdate["SELECT gap_mastery FOR UPDATE"]
+        ForUpdate --> Counter["topics.gap_mastery_sequence_number += 1"]
+        Counter --> Adjacent["computeGapAttemptIsAdjacent<br/>(currentSessionId == lastCorrectSessionId)"]
+        Adjacent --> Deriver["applyAttemptToMasteryEntry<br/>(mastery-state.ts, recycleOffset=10)"]
+        Deriver --> Write["UPSERT gap_mastery row"]
+        Write --> Mastered{"Reached mastered<br/>(stage 3)?"}
+        Mastered -- "yes" --> BridgeWrite["gaps.state = covered<br/>(sole mastery-gated writer)"]
+        Mastered -- "no" --> NoOp["gaps.state left untouched"]
+    end
+
+    BridgeWrite --> GapsTable[("gaps table")]
+    NoOp -.-> GapsTable
+    Write --> GapMasteryTable[("gap_mastery table<br/>(1:1 via unique index on gap_id,<br/>NO FK to gaps)")]
+
+    GapsTable --> Hydration["gap.repo.ts listGapsForTopic /<br/>curriculum.repo.ts getCurriculumDetail<br/>(both LEFT JOIN gap_mastery)"]
+    GapMasteryTable --> Hydration
+    Hydration --> UIRow["GapRow (topic-row.tsx):<br/>mastery status wins over gaps.state<br/>when a gap_mastery row exists"]
+    BridgeWrite --> UIChip["probe-session-quiz.tsx:<br/>'Resolved' chip on justMastered"]
+
+    subgraph Untouched["Left alone (out of scope)"]
+        Probe["apps/api/src/probe (freeform Socratic)"]
+        Socratic["socratic.service.ts (incl. give-up path)"]
+        Probe -.->|"single-verdict cover, unchanged"| GapsTable
+        Socratic -.->|"single-verdict cover, unchanged"| GapsTable
+    end
+
+    subgraph Nudge["Cross-cutting nudge (read-only, on-demand)"]
+        GapMasteryTable --> Join["listMasteryTrackedGapsAcrossSubjects<br/>INNER JOIN gaps/topics/curricula/subjects"]
+        Join --> Detect["detectCrossCuttingGaps<br/>(3+ distinct subjects,<br/>practicing/struggling only)"]
+        Detect --> Endpoint["GET cross-cutting-nudge.controller.ts"]
+        Endpoint --> Banner["/today loader: recomputed on<br/>EVERY page load, no dismiss/seen state"]
+    end
+
+    subgraph Deletes["Pre-existing gap-deleting call sites (unmodified by this feature)"]
+        DelTopic["topic.repo.ts deleteTopic"]
+        DelModule["module.repo.ts deleteModules"]
+        DelCurric["curriculum.repo.ts clearCurriculumStructure / deleteCurriculum"]
+        DelTopic -->|"DELETE FROM gaps<br/>gap_mastery row NOT deleted"| GapMasteryTable
+        DelModule -->|"DELETE FROM gaps<br/>gap_mastery row NOT deleted"| GapMasteryTable
+        DelCurric -->|"DELETE FROM gaps<br/>gap_mastery row NOT deleted"| GapMasteryTable
+    end
+
+    subgraph Shared["Shared extraction"]
+        MasteryState["packages/core/src/mastery/mastery-state.ts<br/>applyAttemptToMasteryEntry / selectDueMasteryEntries"]
+        PhraseBank["phrase-bank.ts thin wrapper<br/>(translates field names,<br/>computes isAdjacent internally)"]
+        GapMasteryLogic["gap-mastery.ts<br/>(computes isAdjacent via session identity)"]
+        PhraseBank --> MasteryState
+        GapMasteryLogic --> MasteryState
+        Deriver -.-> MasteryState
+    end

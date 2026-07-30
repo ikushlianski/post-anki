@@ -1,0 +1,61 @@
+flowchart LR
+    classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+    linkStyle default stroke:#455a64,stroke-width:1.5px
+    classDef testOnly fill:#fff9c4,stroke:#8d6e00,stroke-width:1.5px,color:#000
+
+    subgraph browser["Browser - apps/web/src/practice"]
+        packSelect["PackSelect button click"]
+        useSettings["usePracticeSettings hook"]
+        useBatch["usePracticeBatch hook - key = level:pack"]
+        batchView["batch-practice.tsx - renders batch-pack-label"]
+    end
+
+    subgraph api["API - apps/api/src/practice"]
+        updateSettingsRoute["handleUpdatePracticeSettings"]
+        createBatchRoute["handleCreatePhraseBatch"]
+        settingsRepo["practice.repo.ts - getOrCreatePracticeSettings / updatePracticeSettings"]
+        orchestrator["generate-phrase-batch.orchestrator.ts"]
+        buildPrompt["buildPhraseBatchPrompt - embeds Pack: X line"]
+        advisoryLock["pg_advisory_xact_lock keyed on subjectId+level+pack"]
+        phraseRepo["practice.repo.ts - recentRussianForSubject scoped by pack"]
+    end
+
+    subgraph agentLayer["Mastra agent"]
+        agent["phrase-batch-generate agent"]
+        instructions["PHRASE_BATCH_INSTRUCTIONS - per-pack content-mix prose"]
+    end
+
+    subgraph db["Postgres"]
+        settingsTable["language_practice_settings.pack"]
+        phrasesTable["phrases.pack - unique idx on subjectId+level+pack+sequenceNumber"]
+    end
+
+    subgraph mockLLM["verification-repo mock-openrouter (test only)"]
+        parsePack["parsePackFromPrompt - regex on ctx.userText"]
+        packBuilders["PHRASE_BATCH_PACK_BUILDERS - strict match, throws on unknown pack"]
+    end
+
+    packSelect -->|"updatePracticeSettings pack=X"| updateSettingsRoute
+    updateSettingsRoute --> settingsRepo
+    settingsRepo -->|"UPDATE"| settingsTable
+    useSettings -->|"reads settings.pack"| updateSettingsRoute
+
+    useBatch -->|"level:pack changed - reset and regenerate"| createBatchRoute
+    createBatchRoute -->|"reads settings.pack"| settingsRepo
+    createBatchRoute --> orchestrator
+    orchestrator --> phraseRepo
+    orchestrator --> buildPrompt
+    buildPrompt -->|"prompt string with Pack: X"| agent
+    agent -->|"real call"| instructions
+    agent -.->|"test env only"| parsePack
+    parsePack --> packBuilders
+    packBuilders -->|"themed stub JSON"| agent
+    agent -->|"structured phrases"| orchestrator
+    orchestrator --> advisoryLock
+    advisoryLock -->|"insert rows"| phrasesTable
+    orchestrator -->|"response phrases"| batchView
+    batchView -->|"phrases[0].pack"| useBatch
+
+    class parsePack testOnly
+    class packBuilders testOnly
+    class mockLLM testOnly
