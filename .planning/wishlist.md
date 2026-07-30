@@ -419,6 +419,76 @@ on a human-only blocker rather than skipping past it.
       suggestion results in exactly one resolution — one succeeds, the second is a clean no-op or
       error, never a second real node/flag.
 
+## Active build queue (2026-08-01) — ontology split/merge follow-ups
+
+Four new items filed after reviewing what shipped in `ontology-split-merge` — real gaps in the
+merge feature plus a piece of the original issue #56 scope (curriculum-level merge) that never
+got built. Ordered by dependency: curriculum-merge and domain-node-merge are independent of each
+other; audit-trail comes next since it should exist before more merge paths widen the blast
+radius of a mistake; duplicate-detection is last since it depends on the other three merge
+actions already existing to send an accepted suggestion to.
+
+- [ ] Add curriculum-level merge (two duplicate curricula within the same subject). (#60)
+      Why: issue #56 originally asked for "split or merge subjects/courses/tags" — the shipped
+      `ontology-split-merge` feature only built Subject-merge and Tag-merge. Curriculum-level
+      merge (e.g. two curricula both covering "React Hooks", created at different times) was part
+      of the original scope and never shipped.
+      Pointers: `apps/api/src/subject/subject.repo.ts` (`mergeSubjects` — the pattern to mirror:
+      sorted-pair advisory lock, preconditions re-checked after the lock, direct reassignment
+      rather than cascading delete), `apps/api/src/tag/tag.repo.ts` (`mergeTags` — the
+      dedupe-before-bulk-update pattern, relevant since colliding module/topic names need the
+      same care).
+      Done when: two curricula within the same subject can be merged from the app, with
+      modules/topics/tags/gap data correctly reassigned to the survivor (none orphaned or
+      duplicated), proven by a zero-orphan test mirroring subject-merge's own.
+      Needs real product/architecture planning first — how module/topic name conflicts are
+      resolved when both curricula have similar structure. This entry queues the idea, it does
+      not spec it.
+- [ ] Add domain-node merge to close near-duplicate knowledge-map nodes. (#61)
+      Why: the domain-map tree only prevents duplicates via an exact case/whitespace-insensitive
+      name match. Two independent AI call sites — `domain-placement.orchestrator.ts`'s
+      sibling-discovery agent and `doc-scan.orchestrator.ts` — can each create a new node with no
+      fuzzy matching between them, so "Server Components" vs. "React Server Components" could
+      end up as two nodes that never get caught.
+      Pointers: `apps/api/src/domain-map/domain-map.repo.ts` (where a merge function would live,
+      mirroring `mergeSubjects`/`mergeTags`' locking pattern), `docs/architecture/
+      seed-knowledge-map/review.md` (the tree-assembly recursion's missing cycle guard — relevant
+      here since merging re-parents children for the first time).
+      Done when: two domain nodes for the same subject can be merged from the map UI, with every
+      attached curriculum and child node correctly reassigned, and a deliberately-malformed merge
+      (into one's own descendant) is rejected rather than producing a cycle.
+      Needs real product/architecture planning first — this entry queues the idea, it does not
+      spec it, and must close the cycle-guard gap as part of its own scope.
+- [ ] Add a merge/split audit trail so a mistaken merge can be manually reversed. (#62)
+      Why: `docs/architecture/ontology-split-merge/review.md` (found during `/debrief`) named
+      this directly — merging is irreversible today with no record of what merged into what or
+      when. A wrong merge can't even be manually reconstructed from the database afterward.
+      Pointers: `apps/api/src/subject/subject.repo.ts` (`mergeSubjects`), `apps/api/src/tag/
+      tag.repo.ts` (`mergeTags`) — the two functions this adds logging to. Precedent for the log
+      row's shape: `domain_priority_suggestions`/`decide_blind_spots`'s `source` + timestamp
+      pattern.
+      Done when: every subject/tag merge writes a durable log row (source name, target name, what
+      was reassigned, timestamp) visible somewhere in the app — not necessarily an automated
+      undo, just enough for a human to manually reconstruct what happened.
+      Needs real product/architecture planning first — whether this extends to a real undo or
+      stays a read-only log for a first cut. This entry queues the idea, it does not spec it.
+- [ ] AI-assisted duplicate detection: surface likely-duplicate subjects/curricula/tags/nodes.
+      (#63)
+      Why: today a human has to notice a duplicate exists before merging it — the real "Webdev"
+      vs. "Programming / Web Development" case was caught by a human glancing at the subject
+      list, not surfaced by the system. Reuses the AI-proposes/human-accepts-or-rejects pattern
+      already built three times this run.
+      Pointers: `apps/api/src/domain-map/domain-priority-review.orchestrator.ts` (the closest
+      existing pattern: one AI call, persisted suggestions with a `source` discriminator, a
+      review screen). Depends conceptually on #60 and #61 existing first, since an accepted
+      suggestion needs a merge action to trigger for every entity type covered.
+      Done when: at least one scan produces a small set of "these two might be the same thing"
+      suggestions across subjects/curricula/tags/domain-nodes, and accepting one triggers the
+      corresponding merge action.
+      Needs real product/architecture planning first — scan cadence, how similarity is judged,
+      which entity types are in scope for a first cut. This entry queues the idea, it does not
+      spec it.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
