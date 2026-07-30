@@ -16,3 +16,6 @@ e2e/.auth/
 .review-factory-state.json
 .review-factory-digest-input.json
 docker-compose.override.yml
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

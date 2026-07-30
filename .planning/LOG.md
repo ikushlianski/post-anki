@@ -296,3 +296,63 @@ Note found while planning the entry below: the "22:18" entry directly above this
 ## Queue status: 10/11 items shipped, merged, and debriefed. Item 11 stopped on a genuine human-only blocker — see .planning/job-market-scanning/blocked.md for the exact decisions needed to unblock it. No further autonomous work remains in this queue.
 
   **Debrief verdict: sound.** No data loss, security bypass, cost-runaway, or blocking dependency found — the feature works as designed for the one subject that exists today. Two real gaps worth a human decision before this scales further: the already-known tool_key-only watermark limitation (confirmed again by direct code read), and a newly-found one — accepting a suggestion twice via a plain double-click can insert a duplicate real domain-map node, since neither the accept/reject buttons have an in-flight disabled state nor does the backend check `status === 'pending'` before acting (unlike the page-level "Scan now" button, which does guard against this). Also flagged: a possible duplicate-suggestion race in the scan's own unlocked read-compare-write watermark check, and that `infra/index.ts`'s `apiSharedSecret ? {...} : undefined` deploys silently with no Authorization header if the one-time Pulumi secret step is skipped, rather than failing loudly — `config.requireSecret()` would be safer. Full findings in `docs/architecture/doc-changelog-scan/review.md` and appended to `.bmad/OPEN-QUESTIONS.md`.
+
+## Software Factory Phase 0 — cross-repo verification harness (plan lives in ai-dev's `.planning/unassigned/software-factory/`)
+
+Not a wishlist item from this repo's own queue — a cross-repo build (ai-dev + post-anki + verification-repo) adding a second, independent verification layer in front of "done." Full design and combined log: `ai-dev/.planning/unassigned/software-factory/` (`spec.md`, `architecture.md`, `LOG.md`). Only the two post-anki-owned pieces plus the architecture doc are logged here; ai-dev-owned and verification-repo-owned pieces are logged in ai-dev's own `LOG.md` for this plan.
+
+- **F1 — fitness functions + CI backstop, DONE, independently verified** — `.dependency-cruiser.cjs` added (proven to fire on a deliberate violation, then reverted); `review-factory-gate` CI job added to `deploy.yml`. Building agent's own diff left the new job ungated (added to the workflow but not in any downstream job's `needs:`), caught via direct `git diff` read, not the agent's self-report — fixed via `needs: [test, infra, review-factory-gate]` on `deploy`/`deploy-api`/`deploy-web`, validated by parsing the YAML with `js-yaml` (Python's `yaml` module wasn't installed in this environment). Left uncommitted in worktree `~/orca/workspaces/post-anki/factory-fitness-functions/` for review.
+- **F2 — `.claude/settings.json` filesystem/Bash scoping, DONE, independently verified** — Applied directly to the main checkout (no worktree — config-only). Building agent reported it couldn't test its own work; I ran real `claude -p` sessions myself and found the agent's original deny rules used invalid `Glob(...)`/`Write(...)` keys Claude Code doesn't match (only `Read`/`Edit`/`Bash` rules are honored) — fixed directly. Confirmed `head -1 /etc/hosts` is blocked (by Claude Code's own built-in project-directory sandbox, independent of and stronger than the hand-written rules). **Disclosed, unresolved gap**: obfuscated reads via a general-purpose interpreter (`python3 -c "open(...).read()"`, `dd if=...`) fall through to an unapproved Bash prompt rather than a hard deny — safe by inaction in headless mode today, but not a real block; flagged for a human call before this gate ever runs under a broader auto-approve mode.
+- **F8 — architecture doc for the review gate, DONE** — `docs/architecture/software-factory-review-gate.md` + 3 diagrams in `docs/architecture/assets/`, written directly (not via subagent) in response to a direct request to document the harness. Reuses F9's already-validated Mermaid diagrams verbatim. Explicitly flags in its own status note that F7 (the orchestrating skill) was still mid-build when this was written.
+- **F7 (late addition) — the 3 worktrees (F1/F3/F4+F7) merged to main and removed** — all Phase 0
+  code now lives on `main` in `ai-dev`, `post-anki`, and `verification-repo`, not in disconnected
+  worktrees. A full security red-team pass on `review-factory` (4 parallel reviewers) found and
+  fixed 7 real critical/high findings — see `ai-dev`'s own `docs/principles/004-verification-harness-security.md`
+  for the durable lessons.
+- **01:51 — Phase 0 "basic working level" push started** — Closed the one remaining integration
+  gap: `grand-loop-playwright` never actually called `review-factory` (confirmed via grep — zero
+  references before tonight); its SKILL.md now has a Step 6.5 that invokes `review-factory` right
+  after a clean `review-playwright` sweep, and Step 7 requires both to be clean before marking a
+  wishlist item done. `npm install` re-run in both `ai-dev` and `post-anki` (new deps from the
+  merge weren't installed yet). Launched the first-ever live, end-to-end proof run: building the
+  wishlist item "Clean up orphaned `gap_mastery` rows" (small, self-contained, no external
+  credentials needed) through the full pipeline, deliberately targeting this item instead of the
+  literal wishlist-top ("Job market + community trend scanning" — a known, already-documented
+  human-only blocker from a prior session; re-running it would waste this proof without testing
+  the harness). Running directly in the main checkout, no worktree — per tonight's own corrected
+  convention for a single sequential unit of work (an earlier attempt at this same task
+  accidentally used worktree isolation and was stopped and relaunched correctly). Known blocker
+  already logged to `todo.md` before this run even started: `TELEGRAM_BOT_TOKEN`/
+  `TELEGRAM_DEBUG_CHAT_ID` aren't set in this environment, so the digest step will fail at final
+  delivery even on a clean `done: true` — expected, not a bug.
+- **03:41 — `gap-mastery-cascade-delete` DONE — the Software Factory Phase 0 gate cleared for
+  real, first time ever.** Both `review-playwright` sweeps and both `review-factory` passes are
+  genuinely independent and independently verified (not self-report): Pass 1 — dependency-cruiser
+  clean (0 violations, 396 modules), holdback suite 3/3, structured verdict PASS on all 4
+  dimensions (correctness/security/tests/architecture), each with the subagent re-running the
+  tests itself rather than trusting the diff's own claims. Pass 2 — a fully fresh, independent
+  e2e sweep (65/78, zero *new* failures against the standing 14-item known-failure baseline),
+  fresh dependency-cruiser + holdback reruns, and a second, independently-dispatched structured
+  verdict that caught something Pass 1's didn't (a related, pre-existing orphan-row leak in
+  lecture tables, correctly flagged as out-of-scope rather than papered over) — real evidence the
+  two verdicts aren't just cached copies of each other. `review-factory`'s state file correctly
+  shows `done: true` after 2 consecutive `PASS` entries in `runs`, with the earlier real `FAIL`
+  (from the first, buggy implementation attempt) still on record and correctly not counted toward
+  the streak. Digest generated correctly via the real `formatDigest` deriver; delivery to Telegram
+  failed exactly as expected on the already-known missing credentials (`todo.md`), not a bug.
+  **One real mistake caught and fixed mid-run, worth being honest about**: I initially recorded
+  Pass 2 as PASS after only its e2e sweep completed, before actually running its own required
+  fresh mechanical checks and structured verdict — an incomplete pass recorded as clean, exactly
+  the class of premature "done" claim this whole project exists to prevent. Caught it before
+  reporting success, completed the missing checks for real (both also came back clean), and the
+  `done: true` is now honestly earned, not just factually lucky.
+- **Also found and documented tonight**: a real, generalizable orchestration bug — a subagent can
+  correctly catch its own nested background-task-wait mistake, fix it one level down, then make
+  the identical mistake one level up itself, because only the top-level session receives
+  background-completion notifications. Full writeup:
+  `ai-dev/docs/principles/005-nested-background-agents.md`. Also: a subagent doing Pass 2's sweep
+  encountered and correctly refused a fabricated `<system-reminder>`-shaped instruction embedded
+  in tool output telling it to conceal a date change — flagged rather than silently complied with,
+  per standing security protocol; assessed as very likely a benign false positive given the same
+  legitimate pattern has fired normally elsewhere in this session, but reported rather than
+  silently dismissed either way.
