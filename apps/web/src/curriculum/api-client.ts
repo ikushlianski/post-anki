@@ -234,6 +234,20 @@ export async function getDomainMap(subjectId: string): Promise<be.DomainNodeTree
   return request<be.DomainNodeTreeItem[]>(`/subjects/${subjectId}/domain-map`)
 }
 
+// domain-node-merge (issue #61) — absorbs sourceDomainNodeId into
+// targetDomainNodeId: every curriculum and every direct child of the source
+// move onto the target, the source row is deleted. Same shape as
+// mergeSubjects/mergeCurricula/mergeTags below.
+export async function mergeDomainNodes(
+  targetDomainNodeId: string,
+  sourceDomainNodeId: string,
+): Promise<be.MergeDomainNodesResult> {
+  return request<be.MergeDomainNodesResult>(`/domain-nodes/${targetDomainNodeId}/merge`, {
+    method: 'POST',
+    body: { sourceDomainNodeId },
+  })
+}
+
 // domain-priority-review (issue #52) — sets or clears (null) a domain
 // node's target depth directly, independent of the review flow.
 export async function updateDomainNodeTargetDepth(

@@ -60,3 +60,56 @@ export function domainNodeProgress(
 
   return moduleProgress(topics);
 }
+
+// domain-node-merge (issue #61) — the cycle guard for the first write path
+// in this codebase that re-parents an existing domain_nodes row. Walks
+// nodeId's parentId chain UPWARD (mirrors domain-placement.orchestrator.ts's
+// pathFor() shape, not domainNodeProgress()'s descendant-BFS shape above),
+// checking whether candidateAncestorId appears anywhere in that chain.
+//
+// Deliberately NOT domainNodeProgress()'s MAX_DEPTH cap: that cap is a
+// defensive bound for a rollup, where stopping early just slightly
+// under-counts a very deep subtree — low stakes. This is a
+// correctness-critical, write-blocking check; stopping before reaching a
+// real ancestor would false-negative ("no cycle") and let a malformed merge
+// through, corrupting the tree. Termination is instead guaranteed by the
+// visited-Set alone (stop when a node id has already been seen, or the
+// chain runs out), correct even against a tree that's already unexpectedly
+// deep or already cyclic above nodeId.
+//
+// Permissive on a dangling parentId (a hop that doesn't resolve to any row
+// in `nodes`) — returns false rather than throwing. A merge's cycle guard
+// should not fail because of unrelated pre-existing data corruption
+// elsewhere in the tree; its job is narrowly "does this merge introduce a
+// cycle," not "is the whole tree healthy."
+export function isAncestor(
+  candidateAncestorId: string,
+  nodeId: string,
+  nodes: DomainNodeRef[],
+): boolean {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const visited = new Set<string>();
+  let currentId: string | null = nodeId;
+
+  while (currentId !== null) {
+    if (visited.has(currentId)) {
+      return false;
+    }
+
+    visited.add(currentId);
+
+    const current = byId.get(currentId);
+
+    if (!current) {
+      return false;
+    }
+
+    if (current.parentId === candidateAncestorId) {
+      return true;
+    }
+
+    currentId = current.parentId;
+  }
+
+  return false;
+}

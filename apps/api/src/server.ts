@@ -111,6 +111,7 @@ import {
   handleGetDomainPriorityReviewStatus,
   handleListDocScanSuggestions,
   handleListPrioritySuggestions,
+  handleMergeDomainNodes,
   handleResolveDomainSupersessionSuggestion,
   handleResolveDomainTopicSuggestion,
   handleResolvePrioritySuggestion,
@@ -365,6 +366,8 @@ async function route(
       return handleGetDomainMap(res, id);
     case "updateDomainNode":
       return handleUpdateDomainNode(req, res, id);
+    case "mergeDomainNodes":
+      return handleMergeDomainNodes(req, res, id);
     case "triggerDomainPriorityReview":
       return handleTriggerDomainPriorityReview(req, res, id);
     case "listPrioritySuggestions":

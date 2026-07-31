@@ -284,3 +284,22 @@ export type DocScanSuggestionsResponse = z.infer<typeof docScanSuggestionsRespon
 // Re-exported for callers that only need the module-progress shape this
 // deriver reuses unmodified.
 export { moduleProgressSchema };
+
+// domain-node-merge (issue #61) — POST /domain-nodes/:targetId/merge. Absorbs
+// sourceDomainNodeId into targetId: every curriculum and every child node
+// attached to the source move to the target, the source row is deleted.
+// Mirrors mergeSubjectsInput/mergeSubjectsResultSchema's exact shape.
+export const mergeDomainNodesInput = z.object({
+  sourceDomainNodeId: z.string(),
+});
+
+export type MergeDomainNodesInput = z.infer<typeof mergeDomainNodesInput>;
+
+export const mergeDomainNodesResultSchema = z.object({
+  targetDomainNodeId: z.string(),
+  sourceDomainNodeId: z.string(),
+  curriculaMoved: z.number(),
+  childNodesMoved: z.number(),
+});
+
+export type MergeDomainNodesResult = z.infer<typeof mergeDomainNodesResultSchema>;
