@@ -481,6 +481,26 @@ export async function deleteCurriculum(curriculumId: string): Promise<void> {
   await request(`/curricula/${curriculumId}`, { method: 'DELETE' })
 }
 
+export interface MergeCurriculaResult {
+  targetCurriculumId: string
+  sourceCurriculumId: string
+  modulesMoved: number
+  topicsMoved: number
+  sourcesMoved: number
+  socraticSessionsMoved: number
+  probeSessionsMoved: number
+}
+
+export async function mergeCurricula(
+  targetCurriculumId: string,
+  sourceCurriculumId: string,
+): Promise<MergeCurriculaResult> {
+  return request<MergeCurriculaResult>(`/curricula/${targetCurriculumId}/merge`, {
+    method: 'POST',
+    body: { sourceCurriculumId },
+  })
+}
+
 export async function addSources(
   curriculumId: string,
   sources: SourceDraft[],

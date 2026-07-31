@@ -20,6 +20,7 @@ import {
   handleGetCurriculum,
   handleGetStructureTurns,
   handleListCurricula,
+  handleMergeCurricula,
   handleReparse,
   handleResolveSupplementalResearch,
   handleRetryDraftStructure,
@@ -224,6 +225,8 @@ async function route(
       return handleUpdateCurriculum(req, res, id);
     case "deleteCurriculum":
       return handleDeleteCurriculum(res, id);
+    case "mergeCurricula":
+      return handleMergeCurricula(req, res, id);
     case "confirmCurriculum":
       return handleConfirmCurriculum(res, id);
     case "completePreAssessment":

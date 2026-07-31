@@ -8,6 +8,7 @@ export type RouteName =
   | "getCurriculum"
   | "updateCurriculum"
   | "deleteCurriculum"
+  | "mergeCurricula"
   | "confirmCurriculum"
   | "completePreAssessment"
   | "addSources"
@@ -105,6 +106,7 @@ const ROUTES: RouteDef[] = [
   { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },
   { method: "GET", pattern: "/curricula", name: "listCurricula" },
   { method: "POST", pattern: "/curricula", name: "createCurriculum" },
+  { method: "POST", pattern: /^\/curricula\/([^/]+)\/merge$/, name: "mergeCurricula", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/confirm$/, name: "confirmCurriculum", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/complete-pre-assessment$/, name: "completePreAssessment", param: "id" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/sources$/, name: "addSources", param: "id" },

@@ -4,6 +4,7 @@ import { normalizeTagName } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { tagAssignments, tags, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { withMergeLock } from "../shared/merge-lock.js";
 
 function rowToTag(row: typeof tags.$inferSelect): Tag {
   return {
@@ -248,16 +249,7 @@ export async function mergeTags(
   targetId: string,
   sourceId: string,
 ): Promise<MergeTagsResult | { error: MergeTagsError }> {
-  if (targetId === sourceId) {
-    return { error: "self_merge" };
-  }
-
-  return getDb().transaction(async (tx) => {
-    const [firstLockId, secondLockId] = [targetId, sourceId].sort();
-
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${firstLockId})::bigint)`);
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${secondLockId})::bigint)`);
-
+  return withMergeLock(targetId, sourceId, async (tx) => {
     const targetRow = (await tx.select().from(tags).where(eq(tags.id, targetId)))[0];
     const sourceRow = (await tx.select().from(tags).where(eq(tags.id, sourceId)))[0];
 

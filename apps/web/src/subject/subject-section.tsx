@@ -4,7 +4,7 @@ import { Link, useRouter } from '@tanstack/react-router'
 import type { Curriculum, CurriculumStatus, Subject } from '../curriculum/model'
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { StudyTechnologyForm } from '../curriculum/study-technology-form'
-import { deleteCurriculum } from '../curriculum/curriculum.api'
+import { deleteCurriculum, mergeCurricula } from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { deleteSubject, mergeSubjects } from './subject.api'
 
@@ -70,6 +70,7 @@ export function SubjectSection({
                       <StatusBadge status={curriculum.status} />
                     </span>
                   </Link>
+                  <MergeCurriculumButton curriculum={curriculum} curricula={curricula} />
                   <DeleteCurriculumButton curriculumId={curriculum.id} />
                 </li>
               ))
@@ -109,6 +110,82 @@ function DeleteCurriculumButton({ curriculumId }: { curriculumId: string }) {
   }
 
   return <ConfirmDelete busy={busy} label="Delete curriculum" onConfirm={confirm} />
+}
+
+function MergeCurriculumButton({
+  curriculum,
+  curricula,
+}: {
+  curriculum: Curriculum
+  curricula: Curriculum[]
+}) {
+  const router = useRouter()
+  const [armed, setArmed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [targetCurriculumId, setTargetCurriculumId] = useState('')
+
+  const options = curricula.filter((candidate) => candidate.id !== curriculum.id)
+
+  async function confirm() {
+    if (!targetCurriculumId) {
+      return
+    }
+
+    setBusy(true)
+    await mergeCurricula({
+      data: { targetCurriculumId, sourceCurriculumId: curriculum.id },
+    })
+    setBusy(false)
+    await router.invalidate()
+  }
+
+  if (!armed) {
+    return (
+      <button
+        type="button"
+        data-testid={`curriculum-merge-button-${curriculum.id}`}
+        onClick={() => setArmed(true)}
+        className="shrink-0 text-xs text-neutral-400 hover:text-indigo-600"
+      >
+        Merge into…
+      </button>
+    )
+  }
+
+  return (
+    <span className="flex shrink-0 items-center gap-2 text-xs">
+      <select
+        data-testid={`curriculum-merge-target-select-${curriculum.id}`}
+        value={targetCurriculumId}
+        onChange={(event) => setTargetCurriculumId(event.target.value)}
+        className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
+      >
+        <option value="">select target…</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={busy || !targetCurriculumId}
+        data-testid={`curriculum-merge-confirm-${curriculum.id}`}
+        onClick={confirm}
+        className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
+      >
+        Confirm
+      </button>
+      <button
+        type="button"
+        data-testid={`curriculum-merge-cancel-${curriculum.id}`}
+        onClick={() => setArmed(false)}
+        className="text-neutral-400 hover:text-neutral-700"
+      >
+        cancel
+      </button>
+    </span>
+  )
 }
 
 function MergeSubjectButton({
