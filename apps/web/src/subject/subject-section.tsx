@@ -123,6 +123,7 @@ function MergeCurriculumButton({
   const [armed, setArmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [targetCurriculumId, setTargetCurriculumId] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const options = curricula.filter((candidate) => candidate.id !== curriculum.id)
 
@@ -132,11 +133,25 @@ function MergeCurriculumButton({
     }
 
     setBusy(true)
-    await mergeCurricula({
-      data: { targetCurriculumId, sourceCurriculumId: curriculum.id },
-    })
-    setBusy(false)
-    await router.invalidate()
+    setError(null)
+
+    try {
+      await mergeCurricula({
+        data: { targetCurriculumId, sourceCurriculumId: curriculum.id },
+      })
+      await router.invalidate()
+    } catch {
+      // The backend is the real gate here (a failed target's "Retry"/
+      // "Reparse" action would otherwise delete this merge's own content
+      // later, with no timing coincidence required — see
+      // docs/architecture/curriculum-merge/review.md). Disabling failed
+      // options below covers the common case; this generic message covers
+      // a target that failed in the moment between opening the picker and
+      // confirming, without depending on the server-fn error shape.
+      setError("Couldn't merge — the target may no longer be valid. Choose a different target.")
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!armed) {
@@ -162,8 +177,9 @@ function MergeCurriculumButton({
       >
         <option value="">select target…</option>
         {options.map((option) => (
-          <option key={option.id} value={option.id}>
+          <option key={option.id} value={option.id} disabled={option.status === 'failed'}>
             {option.name}
+            {option.status === 'failed' ? ' (failed — cannot merge into this)' : ''}
           </option>
         ))}
       </select>
@@ -184,6 +200,11 @@ function MergeCurriculumButton({
       >
         cancel
       </button>
+      {error ? (
+        <span data-testid={`curriculum-merge-error-${curriculum.id}`} className="text-red-600">
+          {error}
+        </span>
+      ) : null}
     </span>
   )
 }

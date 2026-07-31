@@ -502,7 +502,8 @@ export type MergeCurriculaError =
   | "self_merge"
   | "not_found"
   | "different_subjects"
-  | "pending_structure_turn";
+  | "pending_structure_turn"
+  | "target_failed";
 
 /**
  * Absorbs `sourceId` into `targetId`: every module/topic/source/
@@ -524,11 +525,27 @@ export type MergeCurriculaError =
  * reasoning `mergeSubjects` already established for bypassing
  * `deleteSubject()`).
  *
- * The one precondition curriculum merge needs that subject/tag merge never
- * had to check: the SOURCE must not have a `curriculum_structure_turns` row
- * still `role: 'assistant', status: 'pending'` — scoped to the source only,
- * never the target, since the target's own turns are never touched by this
- * merge (Decision #2's verified reasoning).
+ * The SOURCE must not have a `curriculum_structure_turns` row still
+ * `role: 'assistant', status: 'pending'` — scoped to the source only, never
+ * the target, since the target's own turns are never touched by this merge
+ * (Decision #2's verified reasoning).
+ *
+ * The TARGET must not be `status: 'failed'`. Found by `/debrief`
+ * (docs/architecture/curriculum-merge/review.md): a failed curriculum's
+ * "Retry research"/"Reparse" recovery action calls
+ * `clearCurriculumStructure()`, which deletes every module/topic currently
+ * under that curriculum id with no concept of how they got there — merged-in
+ * content from another curriculum is deleted right alongside the original
+ * content that actually failed. This is not a timing race (a lock cannot
+ * close it, since the merge and the retry can be arbitrarily far apart in
+ * time); it's a real, ordinarily-reachable data-loss path, since the
+ * merge-target picker previously showed no status signal at all. Refusing a
+ * failed target here closes the "picked an unlabeled failed curriculum by
+ * accident" entry point. It does NOT close the case where a healthy merge
+ * target fails LATER through ordinary use (e.g. `mergeSourcesIntoCurriculum`
+ * failing on a subsequent "add more sources" attempt) — that gap needs
+ * `clearCurriculumStructure` itself to become provenance-aware, tracked
+ * separately (queued as a wishlist follow-up, not fixed in this pass).
  */
 export async function mergeCurricula(
   targetId: string,
@@ -548,6 +565,10 @@ export async function mergeCurricula(
 
     if (targetRow.subjectId !== sourceRow.subjectId) {
       return { error: "different_subjects" as const };
+    }
+
+    if (targetRow.status === "failed") {
+      return { error: "target_failed" as const };
     }
 
     const pendingSourceTurn = (
