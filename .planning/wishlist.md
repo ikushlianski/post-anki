@@ -477,7 +477,19 @@ other; audit-trail comes next since it should exist before more merge paths wide
 radius of a mistake; duplicate-detection is last since it depends on the other three merge
 actions already existing to send an accepted suggestion to.
 
-- [ ] Add curriculum-level merge (two duplicate curricula within the same subject). (#60)
+- [x] Add curriculum-level merge (two duplicate curricula within the same subject). (#60)
+      [→ done: .planning/curriculum-merge/, merged to main 2026-07-31. Closes the last piece of
+      issue #56's original scope (subject/course/tag merge — course-level merge never shipped).
+      review-playwright verdict: GREEN — 2/2 e2e + 47/47 regression across every previously-merged
+      item in this run, including the two back-ported subject/tag merge suites confirming the new
+      shared `withMergeLock` extraction didn't regress them. Same rigor as the first two merges:
+      zero-orphan, duplicate-free, denormalization-invariant, and deliberate-exclusion proofs all
+      passed. Named a genuinely worse, previously undocumented race while auditing (reparseCurriculum
+      could delete modules a concurrent merge just moved in) — deferred, matching established
+      precedent for this project's other documented residual races. Fixed a real, recurring
+      operational mistake found during review: a bare local `db:migrate` silently targets
+      production because apps/api/.env's own DATABASE_URL points there — this is the second time
+      this exact thing happened this session, now guarded against outside CI.]
       Why: issue #56 originally asked for "split or merge subjects/courses/tags" — the shipped
       `ontology-split-merge` feature only built Subject-merge and Tag-merge. Curriculum-level
       merge (e.g. two curricula both covering "React Hooks", created at different times) was part
@@ -537,6 +549,23 @@ actions already existing to send an accepted suggestion to.
       Needs real product/architecture planning first — scan cadence, how similarity is judged,
       which entity types are in scope for a first cut. This entry queues the idea, it does not
       spec it.
+
+- [ ] Fix the "+ tag" button's silent no-op click on a far-scrolled page position.
+      Why: found while reviewing `curriculum-merge` (2026-07-31) — a click on a "+ tag" button
+      roughly 3500px down a large curriculum page (the kind curriculum-merge itself now produces,
+      8+ modules) can be silently swallowed even though the page's own hydration-ready flag has
+      already fired, because React hasn't attached that far-down subtree's event handler yet.
+      Reproduced directly outside any test harness with a 2-of-3 failure rate on the same button —
+      a real user scrolling to a "+ tag" control shortly after page load could see the exact same
+      silent no-op. The e2e test suite already works around this with a click-retry helper
+      (`features/tag/actions/assign-tag.action.ts` in verification-repo), but the underlying app
+      behavior itself is still broken for a real user.
+      Pointers: whatever hydration/lazy-mount mechanism the curriculum detail page uses for
+      far-down content — the retry-based test action is a reasonable reference for confirming a
+      fix actually closes the window, not just papering over it with a longer wait.
+      Done when: clicking "+ tag" on a large curriculum immediately after page load reliably
+      opens the tag picker on the first click, proven by removing the e2e action's retry logic and
+      confirming the test still passes reliably.
 
 ## Everything else (unchanged order, resumes below the active queue above)
 
