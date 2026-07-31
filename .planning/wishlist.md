@@ -544,22 +544,25 @@ actions already existing to send an accepted suggestion to.
       undo, just enough for a human to manually reconstruct what happened.
       Needs real product/architecture planning first — whether this extends to a real undo or
       stays a read-only log for a first cut. This entry queues the idea, it does not spec it.
-- [ ] AI-assisted duplicate detection: surface likely-duplicate subjects/curricula/tags/nodes.
-      (#63)
+- [ ] AI-assisted duplicate detection: surface likely-duplicate subjects. (#63)
       Why: today a human has to notice a duplicate exists before merging it — the real "Webdev"
       vs. "Programming / Web Development" case was caught by a human glancing at the subject
       list, not surfaced by the system. Reuses the AI-proposes/human-accepts-or-rejects pattern
       already built three times this run.
+      Scope decided 2026-07-31 (user chose the recommended option on all three): **on-demand
+      scan** (a button, no cron/no per-create trigger — zero unattended AI spend), **embedding
+      similarity** (one embedding call per subject, cosine similarity comparison — O(n), not a
+      pairwise O(n²) LLM comparison), **subjects only for this first cut** (curricula/tags/
+      domain-nodes deferred until the pattern is proven here).
       Pointers: `apps/api/src/domain-map/domain-priority-review.orchestrator.ts` (the closest
       existing pattern: one AI call, persisted suggestions with a `source` discriminator, a
-      review screen). Depends conceptually on #60 and #61 existing first, since an accepted
-      suggestion needs a merge action to trigger for every entity type covered.
-      Done when: at least one scan produces a small set of "these two might be the same thing"
-      suggestions across subjects/curricula/tags/domain-nodes, and accepting one triggers the
-      corresponding merge action.
-      Needs real product/architecture planning first — scan cadence, how similarity is judged,
-      which entity types are in scope for a first cut. This entry queues the idea, it does not
-      spec it.
+      review screen). `mergeSubjects` (`apps/api/src/subject/subject.repo.ts`) is the accept
+      action's target — already exists, from #60.
+      Done when: clicking the scan button produces a small set of "these two subjects might be
+      the same thing" suggestions (embedding similarity above some threshold), and accepting one
+      triggers `mergeSubjects`. Must respect the mandatory agentic-app cost/security principles
+      (`/Users/ikushlianski/webdata/ilya-projects/ai-dev/docs/principles`) — bound the scan's
+      cost per invocation (e.g. cap on subject count compared), no unbounded fan-out.
 
 - [ ] Fix the "+ tag" button's silent no-op click on a far-scrolled page position.
       Why: found while reviewing `curriculum-merge` (2026-07-31) — a click on a "+ tag" button
