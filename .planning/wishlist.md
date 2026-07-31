@@ -528,7 +528,10 @@ actions already existing to send an accepted suggestion to.
       (into one's own descendant) is rejected rather than producing a cycle.
       Needs real product/architecture planning first — this entry queues the idea, it does not
       spec it, and must close the cycle-guard gap as part of its own scope.
-- [ ] Add a merge/split audit trail so a mistaken merge can be manually reversed. (#62)
+- [x] Add a merge/split audit trail so a mistaken merge can be manually reversed. (#62)
+      [→ done: .planning/ontology-audit-trail/, verified 2026-07-31 — 5/5 e2e + rollback proof,
+      271 backend tests green, full regression sweep 70/84 with all 14 failures independently
+      traced to pre-existing, unrelated causes. review-playwright PASS, debrief sound.]
       Why: `docs/architecture/ontology-split-merge/review.md` (found during `/debrief`) named
       this directly — merging is irreversible today with no record of what merged into what or
       when. A wrong merge can't even be manually reconstructed from the database afterward.
@@ -616,6 +619,19 @@ actions already existing to send an accepted suggestion to.
       Done when: the shared helper waits for a real hydration signal (not just router presence),
       and the per-action retry workarounds already added for domain-map/tag-picker become provably
       unnecessary — remove them and confirm their tests still pass reliably.
+
+- [ ] Add a regression test for the mobile transport-security guard (`assertSecureUrl`).
+      Why: found during `/review-playwright` on `ontology-audit-trail` (2026-07-31) — `apps/mobile`
+      has zero automated test files, so the two real bypasses a prior debrief found and fixed in
+      this guard (case-sensitive scheme check, embedded-userinfo/`@` host confusion — see
+      `docs/architecture/mobile-token-security/review.md`) have nothing locking the fix in place if
+      someone edits this function later.
+      Pointers: `apps/mobile/src/api/client.ts` (`assertSecureUrl`, `extractProtocolAndHost`) — the
+      12 cases already used to verify the fix by hand (in the earlier session segment) are a ready-
+      made test table.
+      Done when: a Vitest file co-located with `client.ts` asserts both bypasses are rejected and
+      legitimate `https://`/loopback-`http://` URLs are still accepted, running in CI alongside the
+      rest of the mobile package's checks.
 
 ## Everything else (unchanged order, resumes below the active queue above)
 
