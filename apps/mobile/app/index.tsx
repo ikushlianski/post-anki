@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { router } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { DailyPushResponse, ProbeResult } from "@post-anki/shared";
 import { ApiRequestError, apiFetch } from "../src/api/client";
@@ -106,6 +107,10 @@ export default function TodayScreen() {
           <RetryLink label="↻ New push" onPress={load} />
         </View>
       ) : null}
+
+      <Text style={styles.practiceLink} onPress={() => router.push("/practice")}>
+        Practice a language subject →
+      </Text>
     </ScrollView>
   );
 }
@@ -161,6 +166,12 @@ const styles = StyleSheet.create({
     color: "#b45309",
   },
   retryText: {
+    color: "#2563eb",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  practiceLink: {
+    marginTop: 24,
     color: "#2563eb",
     fontSize: 14,
     fontWeight: "600",

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "post-anki-api-token";
@@ -21,15 +22,29 @@ export function subscribeToStoredToken(listener: TokenListener): () => void {
 }
 
 export async function getStoredToken(): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return window.localStorage.getItem(TOKEN_KEY);
+  }
+
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
 export async function setStoredToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  if (Platform.OS === "web") {
+    window.localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  }
+
   notify(token);
 }
 
 export async function clearStoredToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  if (Platform.OS === "web") {
+    window.localStorage.removeItem(TOKEN_KEY);
+  } else {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  }
+
   notify(null);
 }
