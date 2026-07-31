@@ -567,6 +567,30 @@ actions already existing to send an accepted suggestion to.
       opens the tag picker on the first click, proven by removing the e2e action's retry logic and
       confirming the test still passes reliably.
 
+- [ ] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content.
+      Why: `docs/architecture/curriculum-merge/review.md` (found during `/debrief` 2026-07-31) —
+      a real, ordinarily-reachable data-loss path, not a narrow timing race. A healthy curriculum
+      that absorbed merged-in content (via `mergeCurricula`) can independently fail LATER through
+      routine use (e.g. `mergeSourcesIntoCurriculum` failing on an "add more sources" attempt);
+      the ordinary "Retry research"/"Reparse" recovery action then calls
+      `clearCurriculumStructure()`, which deletes every module/topic currently under that
+      curriculum id with no concept of how they got there — original content and merged-in
+      content alike, total loss, no surviving copy. The "picked a failed target by accident" entry
+      path is already closed (a `target_failed` precondition on `mergeCurricula` itself, commit
+      `1d77511`) — this item closes the harder, still-open case: a target that was healthy at
+      merge time and fails afterward through unrelated, ordinary use.
+      Pointers: `apps/api/src/curriculum/curriculum.repo.ts` (`clearCurriculumStructure`,
+      `mergeCurricula`'s reassignment step — needs to mark rows as merged-in at reassignment
+      time), `docs/architecture/curriculum-merge/review.md`'s "Proposed alternative" — a nullable
+      `merged_from_curriculum_id` marker (or equivalent provenance mechanism) that
+      `clearCurriculumStructure` filters on, deleting only rows that trace back to the
+      curriculum's own research/parse history. Likely shares real design surface with issue #62's
+      audit trail (both need to record where a row came from).
+      Done when: merging curriculum B's content into curriculum A, then later triggering A's
+      "Retry"/"Reparse" for an unrelated failure, leaves B's originally-merged-in modules/topics
+      intact — proven by a real test exercising exactly this sequence, not just the merge in
+      isolation.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
