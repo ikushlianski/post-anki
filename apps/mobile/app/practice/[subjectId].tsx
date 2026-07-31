@@ -18,18 +18,24 @@ export default function PracticeSubjectScreen() {
   const [masteredNote, setMasteredNote] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // setSubmitting(true) alone doesn't guard against a genuine double-tap: two
-  // native click events dispatched in the same synchronous tick both read
-  // the pre-update `submitting` state, since React state updates aren't
-  // applied until the next render. A ref is mutated immediately, so the
-  // second call sees the first call's guard in the same tick.
+  // setSubmitting(true)/setGenerating(true) alone don't guard against a
+  // genuine double-tap: two native click events dispatched in the same
+  // synchronous tick both read the pre-update state, since React state
+  // updates aren't applied until the next render. A ref is mutated
+  // immediately, so the second call sees the first call's guard in the
+  // same tick. generatingRef additionally guards a real cost concern:
+  // POST /phrase-batches triggers a paid LLM call and recycles due
+  // phrase-bank entries server-side, so a double-fire isn't just wasted
+  // work, it's an unchecked race on which entries get recycled.
   const submittingRef = useRef(false);
+  const generatingRef = useRef(false);
 
   const startBatch = useCallback(async () => {
-    if (!subjectId) {
+    if (!subjectId || generatingRef.current) {
       return;
     }
 
+    generatingRef.current = true;
     setGenerating(true);
     setGenerateError(null);
     setPhrases(null);
@@ -46,6 +52,7 @@ export default function PracticeSubjectScreen() {
         setGenerateError("Couldn't generate a new batch. Check your connection and try again.");
       }
     } finally {
+      generatingRef.current = false;
       setGenerating(false);
     }
   }, [subjectId]);
