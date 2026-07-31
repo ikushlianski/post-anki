@@ -544,7 +544,12 @@ actions already existing to send an accepted suggestion to.
       undo, just enough for a human to manually reconstruct what happened.
       Needs real product/architecture planning first — whether this extends to a real undo or
       stays a read-only log for a first cut. This entry queues the idea, it does not spec it.
-- [ ] AI-assisted duplicate detection: surface likely-duplicate subjects. (#63)
+- [x] AI-assisted duplicate detection: surface likely-duplicate subjects. (#63)
+      [→ done: .planning/ai-duplicate-detection/, verified 2026-07-31 — 27 deriver + 9 backend
+      integration tests green, real OpenRouter embedding call confirmed working end-to-end
+      (scan/accept/reject all verified via real browser + real API), full regression sweep back
+      to baseline after a critical node:crypto browser-bundle regression was found and fixed.
+      review-playwright PASS (after fix), debrief sound.]
       Why: today a human has to notice a duplicate exists before merging it — the real "Webdev"
       vs. "Programming / Web Development" case was caught by a human glancing at the subject
       list, not surfaced by the system. Reuses the AI-proposes/human-accepts-or-rejects pattern
@@ -623,6 +628,24 @@ actions already existing to send an accepted suggestion to.
       and the per-action retry workarounds already added for domain-map/tag-picker become provably
       unnecessary — remove them and confirm their tests still pass reliably.
 
+- [ ] Update two locked curriculum e2e tests (`strict-order-toggle`, `study-technology-doc-url`)
+      for the "conversational curriculum structure shaping" pipeline stage.
+      Why: found during `/review-playwright` re-verification on `ai-duplicate-detection`
+      (2026-07-31) — a prior review had lumped these two failures in with the unrelated
+      `waitForHydration` race above (they are not that race; both actually-hydration-race tests,
+      `merge-curricula-full-reassignment` and `merge-curriculum-target-picker-same-subject-only`,
+      pass). The real cause: commit `d7cb5f6` ("conversational curriculum structure shaping",
+      merged 2026-07-25, six days before this queue started) added a new mid-pipeline stage that
+      legitimately parks a curriculum at `shaping_structure` after a successful draft-structure
+      step (confirmed via the database: `curriculum_structure_turns` rows show `status: complete`
+      for these runs, not a stuck/failed step) — these two test files were written before that
+      stage existed and never account for it, so they hang/fail waiting for a state the pipeline
+      no longer reaches directly.
+      Pointers: the failing test files themselves (names above, in verification-repo), commit
+      `d7cb5f6` for what the new stage actually does and what a test needs to drive through it.
+      Done when: both tests account for the `shaping_structure` stage (either driving through it
+      or asserting the new intermediate state correctly) and pass reliably, not just once.
+
 - [ ] Add a regression test for the mobile transport-security guard (`assertSecureUrl`).
       Why: found during `/review-playwright` on `ontology-audit-trail` (2026-07-31) — `apps/mobile`
       has zero automated test files, so the two real bypasses a prior debrief found and fixed in
@@ -635,6 +658,24 @@ actions already existing to send an accepted suggestion to.
       Done when: a Vitest file co-located with `client.ts` asserts both bypasses are rejected and
       legitimate `https://`/loopback-`http://` URLs are still accepted, running in CI alongside the
       rest of the mobile package's checks.
+
+- [ ] Add a build-time guard against Node-only imports leaking into the `apps/web` bundle.
+      Why: found during `/review-playwright` on `ai-duplicate-detection` (2026-07-31) — a new file
+      in `packages/core` used `node:crypto`, which Vite silently bundled into `apps/web` through
+      the package's root barrel export, breaking every page importing it (curriculum, domain-map,
+      lecture, probe, practice all crashed at runtime with "Module node:crypto has been
+      externalized for browser compatibility"). Fixed for this one file (swapped to a
+      dependency-free hash, commit `365b058`), but nothing stops the same mistake from shipping
+      again the next time someone adds a Node built-in to a `packages/core` file that's reachable
+      from the web root barrel.
+      Pointers: `apps/web`'s production build already surfaces this as an "externalized for
+      browser" warning during `vite build` — the gap is that nobody's build/CI step fails on that
+      warning today, it just scrolls past. `packages/core/src/index.ts` is the root barrel in
+      question.
+      Done when: a CI step (or a `vite build` flag) fails the build if any Node built-in gets
+      externalized into the `apps/web` bundle, verified by deliberately reintroducing a
+      `node:crypto` import in a test file and confirming the build now fails instead of
+      succeeding silently.
 
 ## Everything else (unchanged order, resumes below the active queue above)
 
