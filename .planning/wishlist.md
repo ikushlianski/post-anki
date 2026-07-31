@@ -599,6 +599,24 @@ actions already existing to send an accepted suggestion to.
       intact — proven by a real test exercising exactly this sequence, not just the merge in
       isolation.
 
+- [ ] Fix the shared `waitForHydration` helper to wait for real hydration, not just router presence.
+      Why: found during `/review-playwright` on `domain-node-merge` (2026-07-31), confirmed via a
+      real A/B test against the pre-merge commit — a cold Vite dev-server compile lets a click
+      land before React finishes attaching its handler, since `waitForHydration` only checks that
+      `window.__TSR_ROUTER__` exists, not that hydration has actually completed. This is the same
+      root cause already worked around individually in two other places this session (the
+      `add-course-under-node` action for domain-map, and a tag-picker action for
+      `ontology-split-merge`) — a `study-technology-toggle` step in `curriculum-merge`'s own
+      locked S1/S2 test files hits the identical race but couldn't be fixed there without
+      touching the locked assertion contract, since it's inline in the test rather than a
+      reusable action.
+      Pointers: `lib/playwright/wait-for-hydration.ts` (or wherever the shared helper actually
+      lives in verification-repo) — the real fix belongs here, once, rather than another
+      one-off retry added to a fourth action/test the next time this race gets hit.
+      Done when: the shared helper waits for a real hydration signal (not just router presence),
+      and the per-action retry workarounds already added for domain-map/tag-picker become provably
+      unnecessary — remove them and confirm their tests still pass reliably.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
