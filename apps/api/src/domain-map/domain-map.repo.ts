@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type {
   DepthLevel,
   DomainNode,
@@ -8,9 +8,10 @@ import type {
   DomainSuggestionStatus,
   DomainSupersessionSuggestion,
   DomainTopicSuggestion,
+  MergeDomainNodesResult,
   Topic,
 } from "@post-anki/shared";
-import { domainNodeProgress, domainPriorityDistance } from "@post-anki/core";
+import { domainNodeProgress, domainPriorityDistance, isAncestor } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import {
   curricula,
@@ -22,6 +23,7 @@ import {
   trackedToolScanState,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { withMergeLock } from "../shared/merge-lock.js";
 
 function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
   return {
@@ -196,6 +198,103 @@ export async function getDomainMapForSubject(subjectId: string): Promise<DomainN
     .filter((row) => row.parentId === null)
     .sort((a, b) => a.order - b.order)
     .map(buildItem);
+}
+
+export type MergeDomainNodesError = "self_merge" | "not_found" | "different_subjects" | "cycle";
+
+/**
+ * domain-node-merge (issue #61) — the fourth "absorb source into target"
+ * merge in this codebase (alongside mergeSubjects, mergeCurricula,
+ * mergeTags), and the first one that re-parents an existing row. Every
+ * curriculum and every direct child of the source node move onto the
+ * target; the source row is deleted. Re-parented children get their `order`
+ * offset past the target's current max child order (mirrors
+ * mergeCurricula's own `modules.order` offset — spec.md Decision #8), so
+ * they never collide with the target's existing children.
+ *
+ * The cycle guard (isAncestor) is what makes this safe: re-parenting the
+ * source's children could otherwise make the target simultaneously an
+ * ancestor and a descendant of one of them — a cycle that would make
+ * getDomainMapForSubject()'s buildItem() recursion (and any future
+ * ancestor-path walk) loop forever. See spec.md's "Cycle-guard design" for
+ * the full reasoning behind walking the TARGET's ancestors (not the
+ * source's descendants), and why it deliberately does not reuse
+ * domainNodeProgress()'s MAX_DEPTH cap.
+ *
+ * Preconditions are re-checked INSIDE the transaction, after both advisory
+ * locks are held — never before opening it — so a concurrent merge that
+ * already deleted one side surfaces as a clean "not_found" instead of
+ * racing on a stale pre-transaction read (same TOCTOU-avoidance pattern as
+ * every other merge in this codebase).
+ */
+export async function mergeDomainNodes(
+  targetId: string,
+  sourceId: string,
+): Promise<MergeDomainNodesResult | { error: MergeDomainNodesError }> {
+  return withMergeLock(targetId, sourceId, async (tx) => {
+    const targetRow = (
+      await tx.select().from(domainNodes).where(eq(domainNodes.id, targetId))
+    )[0];
+    const sourceRow = (
+      await tx.select().from(domainNodes).where(eq(domainNodes.id, sourceId))
+    )[0];
+
+    if (!targetRow || !sourceRow) {
+      return { error: "not_found" as const };
+    }
+
+    if (targetRow.subjectId !== sourceRow.subjectId) {
+      return { error: "different_subjects" as const };
+    }
+
+    const allNodesForSubject = await tx
+      .select({ id: domainNodes.id, parentId: domainNodes.parentId })
+      .from(domainNodes)
+      .where(eq(domainNodes.subjectId, targetRow.subjectId));
+
+    if (isAncestor(sourceId, targetId, allNodesForSubject)) {
+      return { error: "cycle" as const };
+    }
+
+    const movedCurricula = await tx
+      .update(curricula)
+      .set({ domainNodeId: targetId })
+      .where(eq(curricula.domainNodeId, sourceId))
+      .returning({ id: curricula.id });
+
+    const targetMaxOrderRow = (
+      await tx
+        .select({ maxOrder: sql<number>`coalesce(max(${domainNodes.order}), 0)` })
+        .from(domainNodes)
+        .where(eq(domainNodes.parentId, targetId))
+    )[0];
+    const targetMaxOrder = targetMaxOrderRow?.maxOrder ?? 0;
+
+    const movedChildNodes = await tx
+      .update(domainNodes)
+      .set({ parentId: targetId, order: sql`${domainNodes.order} + ${targetMaxOrder}` })
+      .where(eq(domainNodes.parentId, sourceId))
+      .returning({ id: domainNodes.id });
+
+    await tx.delete(domainPrioritySuggestions).where(eq(domainPrioritySuggestions.domainNodeId, sourceId));
+    await tx
+      .delete(domainSupersessionSuggestions)
+      .where(eq(domainSupersessionSuggestions.domainNodeId, sourceId));
+
+    await tx
+      .update(domainTopicSuggestions)
+      .set({ proposedParentNodeId: targetId })
+      .where(eq(domainTopicSuggestions.proposedParentNodeId, sourceId));
+
+    await tx.delete(domainNodes).where(eq(domainNodes.id, sourceId));
+
+    return {
+      targetDomainNodeId: targetId,
+      sourceDomainNodeId: sourceId,
+      curriculaMoved: movedCurricula.length,
+      childNodesMoved: movedChildNodes.length,
+    };
+  });
 }
 
 // domain-priority-review (issue #52) — PATCH /domain-nodes/:id. Sets or

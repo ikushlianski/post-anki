@@ -12,6 +12,7 @@ import type {
   DomainSuggestionStatus,
   DomainSupersessionSuggestion,
   DomainTopicSuggestion,
+  MergeDomainNodesResult,
 } from '@post-anki/shared'
 
 import {
@@ -20,6 +21,7 @@ import {
   listDocScanSuggestions,
   listPrioritySuggestions,
   listSubjects,
+  mergeDomainNodes as apiMergeDomainNodes,
   resolveDomainSupersessionSuggestion,
   resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
@@ -50,6 +52,14 @@ export const getSubjectForMap = createServerFn({ method: 'GET' })
 
     return subjects.find((subject) => subject.id === data) ?? null
   })
+
+// domain-node-merge (issue #61) — absorbs a source domain node into a target,
+// same server-fn wrapper shape as changeCurriculumPlacement below.
+export const mergeDomainNodes = createServerFn({ method: 'POST' })
+  .inputValidator((data: { targetDomainNodeId: string; sourceDomainNodeId: string }) => data)
+  .handler(({ data }): Promise<MergeDomainNodesResult> =>
+    apiMergeDomainNodes(data.targetDomainNodeId, data.sourceDomainNodeId),
+  )
 
 export const changeCurriculumPlacement = createServerFn({ method: 'POST' })
   .inputValidator((data: { curriculumId: string; domainNodeId: string | null }) => data)

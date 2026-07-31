@@ -2,6 +2,7 @@ import type http from "node:http";
 import {
   domainPrioritySuggestionStatusSchema,
   domainSuggestionStatusSchema,
+  mergeDomainNodesInput,
   resolveDomainPrioritySuggestionInput,
   updateDomainNodeInput,
   updateDomainSupersessionSuggestionInput,
@@ -17,6 +18,7 @@ import {
   listDomainSupersessionSuggestions,
   listDomainTopicSuggestions,
   listPrioritySuggestionsForSubject,
+  mergeDomainNodes,
   resolveDomainSupersessionSuggestion,
   resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
@@ -58,6 +60,38 @@ export async function handleUpdateDomainNode(
   const updated = await updateDomainNodeTargetDepth(nodeId, body.data.targetDepth);
 
   sendJson(res, 200, updated);
+}
+
+// POST /domain-nodes/:targetId/merge — issue #61. Absorbs sourceDomainNodeId
+// into targetId; refuses cleanly on a cycle (target already inside source's
+// own subtree) rather than corrupting the tree. See
+// apps/api/src/domain-map/domain-map.repo.ts's mergeDomainNodes for the full
+// procedure.
+export async function handleMergeDomainNodes(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  targetId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, mergeDomainNodesInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await mergeDomainNodes(targetId, body.data.sourceDomainNodeId);
+
+  if ("error" in result) {
+    if (result.error === "not_found") {
+      sendError(res, 404, "not_found");
+      return;
+    }
+
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
 }
 
 // POST /subjects/:id/domain-priority-reviews — the manual review trigger.

@@ -5,6 +5,7 @@ import { domainPriorityDistance } from '@post-anki/core'
 
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { TargetDepthControl } from './target-depth-control'
+import { MergeDomainNodeButton } from './merge-domain-node-button'
 
 export function DomainMapTree({
   subjectId,
@@ -22,6 +23,7 @@ export function DomainMapTree({
           key={node.id}
           subjectId={subjectId}
           node={node}
+          allNodes={nodes}
           requireSources={requireSources}
           depth={0}
         />
@@ -33,11 +35,13 @@ export function DomainMapTree({
 function DomainMapNode({
   subjectId,
   node,
+  allNodes,
   requireSources,
   depth,
 }: {
   subjectId: string
   node: DomainNodeTreeItem
+  allNodes: DomainNodeTreeItem[]
   requireSources: boolean
   depth: number
 }) {
@@ -76,6 +80,7 @@ function DomainMapNode({
               {priorityDistance} to target
             </span>
           ) : null}
+          <MergeDomainNodeButton node={node} allNodes={allNodes} />
         </div>
       </div>
 
@@ -121,6 +126,7 @@ function DomainMapNode({
               key={child.id}
               subjectId={subjectId}
               node={child}
+              allNodes={allNodes}
               requireSources={requireSources}
               depth={depth + 1}
             />

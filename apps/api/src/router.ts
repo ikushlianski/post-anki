@@ -76,6 +76,7 @@ export type RouteName =
   | "listWritingChecks"
   | "getDomainMap"
   | "updateDomainNode"
+  | "mergeDomainNodes"
   | "triggerDomainPriorityReview"
   | "listPrioritySuggestions"
   | "resolvePrioritySuggestion"
@@ -289,6 +290,12 @@ const ROUTES: RouteDef[] = [
     method: "PATCH",
     pattern: /^\/domain-nodes\/([^/]+)$/,
     name: "updateDomainNode",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/domain-nodes\/([^/]+)\/merge$/,
+    name: "mergeDomainNodes",
     param: "id",
   },
   {
