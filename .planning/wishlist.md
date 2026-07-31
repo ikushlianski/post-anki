@@ -2,6 +2,189 @@
 
 Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]` item.
 
+## MVP scope in effect (2026-07-31) — see `.planning/mvp/roadmap.md`
+
+**This is the authoritative filter for `/grand-loop` right now, and overrides raw top-to-bottom
+checkbox order everywhere else in this file.** The owner wants to start real-world learning this
+week (Turbo Puffer urgently, plus ongoing RAG/AI-best-practices/Next.js depth) using the app's
+already-shipped core loop — course creation → lecture → quiz/Socratic → mastery tracking. Only
+items listed under `.planning/mvp/roadmap.md`'s "MVP-critical" section are live build work.
+**Everything else in this entire file — including items below still in raw `- [ ]` form — is
+deferred until the roadmap says otherwise.** Before picking up the next item, cross-check it
+against the roadmap file, not just this file's checkbox state.
+
+## Active build queue (2026-07-31) — plan.md "missing pieces" + mobile/web parity
+
+Sourced from `/Users/ikushlianski/orca/workspaces/post-anki/PostAnki-usability/plan.md` (the
+PostAnki usability plan), scoped to the tickets that need real building/fixing rather than just a
+usability test against something that already works. Two items below (`clearCurriculumStructure`
+provenance fix, ontology split) were already tracked further down this file — moved here rather
+than duplicated, since they're both part of this same "missing pieces" pass. Ordered by real
+dependency: the data-loss bug fixes first, then the sequential priority → suggestions → quick-
+session trio, then the two more self-contained builds, then mobile parity last since it explicitly
+depends on the web-side items above landing first. See `plan.md` for full usability-bar framing
+per ticket.
+
+**Re-scoped 2026-07-31, mid-queue: only #68/#69 (done) and #70 (in progress) survived MVP triage
+— see `.planning/mvp/roadmap.md`.** #71-#75 below are marked DEFERRED (not `- [ ]`) so they are no
+longer picked up automatically; they remain fully written up for whenever the MVP is done.
+
+- [x] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content. (#68)
+      [→ done: .planning/curriculum-merge-provenance/, built 2026-07-31 in worktree
+      `~/orca/workspaces/post-anki/curriculum-merge-provenance` (branch
+      `curriculum-merge-provenance`, uncommitted — left for review). `modules`/`topics` gained a
+      nullable `merged_from_curriculum_id` marker (existing merge-audit table, #62, was checked
+      first but is structurally unable to answer "did this row arrive via a merge" at delete time
+      — see `docs/architecture/curriculum-merge/architecture.md`). `clearCurriculumStructure`
+      now defaults to protecting marked rows; `deleteCurriculum` opts into
+      `includeMergedIn: true`. Verified: 4/4 new integration tests
+      (`curriculum-merge-provenance.integration.test.ts`, independently re-run) + 12/12 regression
+      tests unchanged + `tsc --noEmit` clean across every workspace. Known, deliberate
+      out-of-scope gaps: no retroactive protection for merges that happened before this fix
+      shipped; source-material duplication/loss in the orchestrator flows is a separate,
+      unrelated issue.]
+      Why: `docs/architecture/curriculum-merge/review.md` (found during `/debrief` 2026-07-31) —
+      a real, ordinarily-reachable data-loss path, not a narrow timing race. A healthy curriculum
+      that absorbed merged-in content (via `mergeCurricula`) can independently fail LATER through
+      routine use (e.g. `mergeSourcesIntoCurriculum` failing on an "add more sources" attempt);
+      the ordinary "Retry research"/"Reparse" recovery action then calls
+      `clearCurriculumStructure()`, which deletes every module/topic currently under that
+      curriculum id with no concept of how they got there — original content and merged-in
+      content alike, total loss, no surviving copy. The "picked a failed target by accident" entry
+      path is already closed (a `target_failed` precondition on `mergeCurricula` itself, commit
+      `1d77511`) — this item closes the harder, still-open case: a target that was healthy at
+      merge time and fails afterward through unrelated, ordinary use.
+      Pointers: `apps/api/src/curriculum/curriculum.repo.ts` (`clearCurriculumStructure`,
+      `mergeCurricula`'s reassignment step — needs to mark rows as merged-in at reassignment
+      time), `docs/architecture/curriculum-merge/review.md`'s "Proposed alternative" — a nullable
+      `merged_from_curriculum_id` marker (or equivalent provenance mechanism) that
+      `clearCurriculumStructure` filters on, deleting only rows that trace back to the
+      curriculum's own research/parse history. Likely shares real design surface with issue #62's
+      audit trail (both need to record where a row came from).
+      Done when: merging curriculum B's content into curriculum A, then later triggering A's
+      "Retry"/"Reparse" for an unrelated failure, leaves B's originally-merged-in modules/topics
+      intact — proven by a real test exercising exactly this sequence, not just the merge in
+      isolation.
+- [x] Add course-level priority reordering with drag-and-drop manual override on web. (#69)
+      [→ done: .planning/course-priority-drag-reorder/, built 2026-07-31 in worktree
+      `~/orca/workspaces/post-anki/course-priority-drag-reorder` (branch
+      `course-priority-drag-reorder`, uncommitted — left for review). Added a `curricula.order`
+      column (backfilled sequentially per subject), a transactional `reorderCurricula` endpoint
+      with exact-id-set validation (rejects a foreign or omitted course id, zero rows changed on
+      rejection), and a `@dnd-kit`-based drag handle on the home page's subject-section course
+      list, with optimistic local ordering and revert-on-failure. Verified: 12/12 new frontend
+      tests + 5/5 new backend integration tests (all independently re-run) + monorepo-wide
+      `tsc --noEmit` clean, plus a real curl round-trip against a running dev API confirming the
+      HTTP → DB → re-read cycle persists. Not proven (genuinely needs a real browser, documented
+      in `todo.md` as a follow-up): the actual mouse-drag gesture itself, and the Electric
+      cross-tab live-sync update — both deferred to a `verification-repo` Playwright test, a
+      distinct unit of work from this build. A pre-existing, unrelated bug was found and flagged
+      (not fixed): `reorderModules` has no curriculum-scoping check today (any caller can reorder
+      modules across curriculum boundaries) — queued separately below (#75).]
+- DEFERRED (post-MVP, see `.planning/mvp/roadmap.md`): Fix `reorderModules` to validate module
+      ids against the curriculum named in the URL. (#75)
+      Why deferred: latent data-integrity hardening found during #69's build — reachable only via
+      a malformed cross-curriculum payload, not routine UI use, unlike #68's reachable-through-
+      normal-use data loss. `apps/api/src/server.ts`'s `reorderModules` case silently discards the
+      `:id` the router captures from `/curricula/:id/modules/order`; #69's own `reorderCurricula`
+      added exact-id-set validation against exactly this mistake, `reorderModules` predates it.
+      Done when (once picked up): `reorderModules` rejects a payload containing a module id that
+      doesn't belong to the curriculum named in the URL, proven by a test exercising exactly that.
+- [x] Surface a "refocus" suggestion when priorities have meaningfully shifted across courses. (#70)
+      [→ done: .planning/cross-course-refocus-suggestion/, built 2026-07-31 in worktree
+      `~/orca/workspaces/post-anki/course-priority-drag-reorder` (continuing directly on top of
+      #69's uncommitted code, uncommitted — left for review). "Stale" defined concretely:
+      top-third of a subject's manual order, 14+ days unstudied, while the learner is still active
+      elsewhere within 3 days; plus a stricter trigger for a top-priority course created in the
+      last 7 days with zero activity. Pure arithmetic over existing timestamps, no LLM call. Adds
+      `course_refocus_dismissals` (unique on curriculum+reason, 7-day expiry) and a composite index
+      on `topics(curriculum_id, progress_last_interacted_at)`. Verified: 16/16 + 4/4 + 4/4 new
+      tests (core deriver, backend integration, frontend banner — all independently re-run), the
+      new table/index confirmed via `psql`, monorepo-wide `tsc --noEmit` clean, plus a full manual
+      psql+curl walkthrough proving the suggestion actually appears/disappears/reappears per the
+      real timestamp/dismissal rules, and a real SSR HTML check confirming the banner markup
+      renders server-side. Not proven (genuinely needs a real browser, documented in `todo.md`):
+      the actual dismiss-button click gesture — a `verification-repo` follow-up, same posture as
+      #69.]
+      Why: `domain-priority-review` already does AI-driven re-prioritization *within* one domain
+      map; nothing today notices "you've been ignoring course X, and course Y just became urgent"
+      *across* courses and tells the learner. Direct answer to "one day I want to learn X, the
+      next day I need to switch to Y."
+      Depends on: course-level priority reordering (above) existing first.
+      Pointers: `apps/api`'s existing `domain_priority_suggestions` mechanism as the closest prior
+      art (`source: "decide"` seam). See `plan.md` Ticket 5.
+      Done when: a course that's gone stale, or a newly-added high-priority course, produces a
+      non-blocking suggestion banner rather than requiring the learner to notice and reorder
+      manually.
+- DEFERRED (post-MVP, see `.planning/mvp/roadmap.md`): Build a "quick session" entry point: open
+      the app, tap once, land on the single most relevant question/card across all courses. (#71)
+      Why deferred: friction-reduction convenience on top of the priority system (#69/#70), not
+      the tracking mechanism itself — the learner can already navigate to any course directly.
+      Why: core ask behind "if I have 1 to 5 minutes, I should be able to tap on what's most
+      relevant and it's determined for me" — no matches anywhere today for this kind of
+      single-most-relevant-item surfacing.
+      Depends on: course-level priority reordering and the refocus-suggestion signal (both above)
+      existing first, so the ranking behind this pick is real rather than arbitrary.
+      Pointers: mobile's existing daily-push subject picker (`.planning/mobile-study-loop/`,
+      issue #66) is the closest prior art and likely the right home for this, not a separate
+      screen. See `plan.md` Ticket 6.
+      Done when: opening the app (mobile or web) and tapping the quick-session entry immediately
+      shows one real due question/card, picked by the actual priority ranking, in one or two taps.
+- DEFERRED (post-MVP, see `.planning/mvp/roadmap.md`): Add split (subject/course/tag) as the
+      fast-follow to the merge-only ontology management shipped in `ontology-split-merge`. (#72)
+      Why deferred: ontology hygiene/operational housekeeping, not core-loop functionality — no
+      blocker to real-world study.
+      Why: `.planning/ontology-split-merge/discussion.md` deliberately scoped that item to merge
+      only — split requires a real judgment call about which children (curricula, domain_nodes,
+      tag assignments) go to which new piece, genuinely harder and riskier than a strict
+      reassignment. Splitting also means domain_nodes gets a re-parenting path for the first
+      time, which is exactly when the tree-assembly recursion's missing cycle guard (flagged in
+      `docs/architecture/seed-knowledge-map/review.md`) stops being unreachable — this item must
+      add that guard as part of its own scope, not assume it's already there.
+      Pointers: `apps/api/src/subject/subject.repo.ts` (`mergeSubjects`, the reassignment pattern
+      to mirror in reverse), `apps/api/src/domain-map/domain-map.repo.ts` (the tree-assembly
+      recursion needing a cycle guard before this ships).
+      Done when: a Subject, course, or tag can be split into multiple from the app, with existing
+      children correctly assigned to the right piece (not orphaned or duplicated), and a
+      deliberately-malformed re-parenting attempt is rejected rather than causing an infinite loop.
+      Needs real product/architecture planning first — how the split UI decides which children go
+      where (manual assignment vs. a suggested split). This entry queues the idea, it does not
+      spec it.
+- DEFERRED (post-MVP, see `.planning/mvp/roadmap.md`): Confirm (then build if missing) a
+      four-point self-grade scale (#73) — difficult / not easy / easy / super easy — on free-form
+      Socratic questions, feeding the existing mastery/spaced-repetition schedule.
+      Why deferred: polish/refinement on a mastery engine that already works and generalizes
+      correctly — the core loop doesn't require this exact variant to be usable.
+      Why: `probe-session.map.ts` has a `difficulty` field for *question generation*, but no
+      confirmed learner-facing self-grade scale matching this exact four-point scheme was found
+      during research. This is the mechanism that makes the app "Anki-style" rather than just a
+      quiz app.
+      Pointers: `apps/api/src/probe-session/`, `apps/api/src/socratic/` — confirm current
+      self-grade UX against this spec directly before planning new work; the underlying mastery
+      mechanism already generalizes across subjects (`generalize-gap-tracking.md`), so only the
+      grading UI/schema may need to change. See `plan.md` Ticket 9.
+      Done when: answering a free-form Socratic question presents the four-point scale, the
+      chosen grade visibly affects the item's next due date, and this works the same way
+      regardless of which course/subject the card belongs to.
+- DEFERRED (post-MVP, see `.planning/mvp/roadmap.md`): Bring the mobile app to functional parity
+      with web: course creation, merge, split, and priority reordering — not just the
+      study/review loop it has today. (#74)
+      Why deferred: explicitly depends on the web-side items above landing first; mobile's
+      existing study/review-only surface already works and isn't a blocker for this week's goal —
+      web is the primary surface for Turbo Puffer/RAG/Next.js intake right now.
+      Why: mobile's original scoping (issue #66, below) deliberately deferred this — "start with
+      the core study/review flow, not full feature parity with the web app." That trade-off is
+      being revisited now: course management should work from the phone too, not stay a
+      web-only surface forever.
+      Depends on: the web-side items above (priority reordering, split, provenance-safe merge)
+      landing and proving out on web first — porting a still-changing flow to a second platform
+      means redoing the work.
+      Pointers: `apps/mobile/src/` today has only `study/`, `practice/`, `subject/` — no
+      curriculum-management UI at all. `apps/web/src/curriculum/`, `domain-map/` are the source to
+      port from. See `plan.md` Ticket 11.
+      Done when: a learner can create, merge, split, and reorder the priority of courses from the
+      mobile app, using the same underlying data and rules as web.
+
 ## Active build queue (2026-07-28) — plan-playwright → write-playwright-tests → review-playwright per item
 
 Reordered from a longer business-value review: two known bugs moved to the front because the
@@ -294,24 +477,6 @@ on a human-only blocker rather than skipping past it.
       entry no longer deadlocks (proven by a new test exercising that exact interleaving), and
       `npm run test -w @post-anki/api` (or an explicit CI step) runs the two integration test
       files as part of normal verification, not just at build time.
-- [ ] Add split (subject/course/tag) as the fast-follow to the merge-only ontology management
-      shipped in `ontology-split-merge`.
-      Why: `.planning/ontology-split-merge/discussion.md` deliberately scoped that item to merge
-      only — split requires a real judgment call about which children (curricula, domain_nodes,
-      tag assignments) go to which new piece, genuinely harder and riskier than a strict
-      reassignment. Splitting also means domain_nodes gets a re-parenting path for the first
-      time, which is exactly when the tree-assembly recursion's missing cycle guard (flagged in
-      `docs/architecture/seed-knowledge-map/review.md`) stops being unreachable — this item must
-      add that guard as part of its own scope, not assume it's already there.
-      Pointers: `apps/api/src/subject/subject.repo.ts` (`mergeSubjects`, the reassignment pattern
-      to mirror in reverse), `apps/api/src/domain-map/domain-map.repo.ts` (the tree-assembly
-      recursion needing a cycle guard before this ships).
-      Done when: a Subject, course, or tag can be split into multiple from the app, with existing
-      children correctly assigned to the right piece (not orphaned or duplicated), and a
-      deliberately-malformed re-parenting attempt is rejected rather than causing an infinite loop.
-      Needs real product/architecture planning first — how the split UI decides which children go
-      where (manual assignment vs. a suggested split). This entry queues the idea, it does not
-      spec it.
 - [ ] Close the `createCurriculum`-vs-merge race and harden the TagPicker's live-refresh gap.
       Why: two real, non-blocking gaps found during `ontology-split-merge`'s build and review,
       both deliberately deferred rather than fixed inline: (1) `resolveDomainPlacement`/
@@ -580,30 +745,6 @@ actions already existing to send an accepted suggestion to.
       Done when: clicking "+ tag" on a large curriculum immediately after page load reliably
       opens the tag picker on the first click, proven by removing the e2e action's retry logic and
       confirming the test still passes reliably.
-
-- [ ] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content.
-      Why: `docs/architecture/curriculum-merge/review.md` (found during `/debrief` 2026-07-31) —
-      a real, ordinarily-reachable data-loss path, not a narrow timing race. A healthy curriculum
-      that absorbed merged-in content (via `mergeCurricula`) can independently fail LATER through
-      routine use (e.g. `mergeSourcesIntoCurriculum` failing on an "add more sources" attempt);
-      the ordinary "Retry research"/"Reparse" recovery action then calls
-      `clearCurriculumStructure()`, which deletes every module/topic currently under that
-      curriculum id with no concept of how they got there — original content and merged-in
-      content alike, total loss, no surviving copy. The "picked a failed target by accident" entry
-      path is already closed (a `target_failed` precondition on `mergeCurricula` itself, commit
-      `1d77511`) — this item closes the harder, still-open case: a target that was healthy at
-      merge time and fails afterward through unrelated, ordinary use.
-      Pointers: `apps/api/src/curriculum/curriculum.repo.ts` (`clearCurriculumStructure`,
-      `mergeCurricula`'s reassignment step — needs to mark rows as merged-in at reassignment
-      time), `docs/architecture/curriculum-merge/review.md`'s "Proposed alternative" — a nullable
-      `merged_from_curriculum_id` marker (or equivalent provenance mechanism) that
-      `clearCurriculumStructure` filters on, deleting only rows that trace back to the
-      curriculum's own research/parse history. Likely shares real design surface with issue #62's
-      audit trail (both need to record where a row came from).
-      Done when: merging curriculum B's content into curriculum A, then later triggering A's
-      "Retry"/"Reparse" for an unrelated failure, leaves B's originally-merged-in modules/topics
-      intact — proven by a real test exercising exactly this sequence, not just the merge in
-      isolation.
 
 - [ ] Fix the shared `waitForHydration` helper to wait for real hydration, not just router presence.
       Why: found during `/review-playwright` on `domain-node-merge` (2026-07-31), confirmed via a
