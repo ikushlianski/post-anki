@@ -1,0 +1,35 @@
+flowchart LR
+classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+linkStyle default stroke:#455a64,stroke-width:1.5px
+classDef risk fill:#ffcdd2,stroke:#b71c1c,stroke-width:2px,color:#000
+classDef guarded fill:#c8e6c9,stroke:#1b5e20,stroke-width:1.5px,color:#000
+classDef backend fill:#37474f,stroke:#eceff1,stroke-width:1.5px,color:#fff
+
+Connect["Connect screen: paste token, Verify + Store"]:::risk
+RiskNote["No synchronous guard - only React state busy - double-tap can fire Verify+Store twice"]:::risk
+Today["Today screen: GET daily-push, submit probe answer"]:::guarded
+GuardNoteToday["submittingRef guard - synchronous, holds under double-tap"]:::guarded
+PracticeList["Practice subject list: GET subjects, GET phrase-bank due-count"]
+PracticeScreen["Practice subject screen: submit attempt"]:::guarded
+GuardNotePractice["submittingRef guard - synchronous, holds under double-tap"]:::guarded
+GenerateBatch["Generate batch retry and Practice again - no guard at all"]:::risk
+RiskNoteBatch["No boolean or ref guard - fast double-press fires two paid LLM generations"]:::risk
+TokenStorage["Token storage: web uses localStorage, native uses secure-store"]
+ApiClient["API client: attach bearer token, on 401 clear token and redirect to Connect"]
+Backend["apps-api backend: single authorized gate, PAT or shared secret, no changes this feature"]:::backend
+
+Connect --> RiskNote
+Connect --> ApiClient
+Today --> GuardNoteToday
+Today --> ApiClient
+PracticeList --> ApiClient
+PracticeScreen --> GuardNotePractice
+PracticeScreen --> ApiClient
+GenerateBatch --> RiskNoteBatch
+GenerateBatch --> ApiClient
+PracticeList --> GenerateBatch
+GenerateBatch --> PracticeScreen
+ApiClient --> TokenStorage
+ApiClient --> Backend
+Connect --> Today
+Today --> PracticeList

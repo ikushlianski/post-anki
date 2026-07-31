@@ -1,0 +1,30 @@
+sequenceDiagram
+  participant U as User
+  participant CS as Connect Screen
+  participant TS as Token Storage
+  participant CL as API Client
+  participant G as Transport Guard
+  participant API as Post Anki API
+  participant NAV as Navigation Gate
+
+  U->>CS: Tap Connect (busyRef blocks a second tap)
+  CS->>TS: consumeClearReason() on mount
+  TS-->>CS: "revoked" or none
+  CS->>CL: verifyToken(pastedToken)
+  CL->>G: assertSecureUrl(apiBaseUrl())
+  Note over G: RISK - host parser accepts<br/>"localhost:x@evil-host" as loopback<br/>and accepts uppercase "HTTP" as if https
+  G-->>CL: passes (should refuse, does not)
+  CL->>API: GET /daily-push with Bearer token
+  API-->>CL: 200 or 401
+  CL-->>CS: verified true/false or thrown error
+  CS->>TS: setStoredToken(token) on success
+  CS->>U: navigate to app home
+
+  Note over CL,API: Later, any screen call
+  CL->>G: assertSecureUrl(apiBaseUrl()) again, same risk
+  CL->>API: apiFetch(path) with Bearer token
+  API-->>CL: 401 token rejected
+  CL->>TS: clearStoredToken("revoked")
+  CL->>NAV: router.replace to Connect
+  TS->>NAV: token presence change also triggers redirect
+  NAV->>CS: Connect renders, reads "revoked" once
