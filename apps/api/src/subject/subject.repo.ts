@@ -5,6 +5,7 @@ import { curricula, domainNodes, subjects } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
 import { withMergeLock } from "../shared/merge-lock.js";
+import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function toSubject(r: typeof subjects.$inferSelect): Subject {
   return {
@@ -122,6 +123,21 @@ export async function mergeSubjects(
       .returning({ id: domainNodes.id });
 
     await tx.delete(subjects).where(eq(subjects.id, sourceId));
+
+    await insertOntologyMergeLog(
+      {
+        entityType: "subject",
+        targetId,
+        targetName: targetRow.name,
+        sourceId,
+        sourceName: sourceRow.name,
+        reassignedCounts: {
+          curriculaMoved: movedCurricula.length,
+          domainNodesMoved: movedDomainNodes.length,
+        },
+      },
+      tx,
+    );
 
     return {
       targetSubjectId: targetId,

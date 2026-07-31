@@ -183,6 +183,13 @@
       "when": 1785231027417,
       "tag": "0025_gifted_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785472359594,
+      "tag": "0026_jittery_midnight",
+      "breakpoints": true
     }
   ]
 }

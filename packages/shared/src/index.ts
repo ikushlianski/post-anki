@@ -20,6 +20,7 @@ export * from "./daily-push";
 export * from "./decide";
 export * from "./admin-settings";
 export * from "./admin-observability";
+export * from "./ontology-merge";
 export * from "./priority";
 export * from "./node-feedback";
 export * from "./feedback";

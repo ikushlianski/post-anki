@@ -28,6 +28,12 @@ function formatDurationMs(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
+function formatReassignedCounts(counts: Record<string, number>): string {
+  return Object.entries(counts)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(', ')
+}
+
 function AdminObservabilityPage() {
   const data = Route.useLoaderData()
 
@@ -103,6 +109,52 @@ function AdminObservabilityPage() {
                     <td className="px-4 py-2">{formatDurationMs(e.durationMs)}</td>
                     <td className="px-4 py-2 text-neutral-500">
                       {new Date(e.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="mb-3 text-lg font-medium">Recent ontology merges</h2>
+        {data.recentMerges.length === 0 ? (
+          <p className="text-sm text-neutral-500">No merges recorded yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-neutral-200">
+            <table className="w-full text-left text-sm" data-testid="admin-observability-merges-table">
+              <thead className="bg-neutral-50 text-xs uppercase text-neutral-500">
+                <tr>
+                  <th className="px-4 py-2">Entity</th>
+                  <th className="px-4 py-2">Target</th>
+                  <th className="px-4 py-2">Source</th>
+                  <th className="px-4 py-2">Reassigned</th>
+                  <th className="px-4 py-2">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentMerges.map((m) => (
+                  <tr
+                    key={m.id}
+                    className="border-t border-neutral-200"
+                    data-testid="admin-observability-merge-row"
+                  >
+                    <td className="px-4 py-2" data-testid="admin-observability-merge-entity-type">
+                      {m.entityType}
+                    </td>
+                    <td className="px-4 py-2" data-testid="admin-observability-merge-target-name">
+                      {m.targetName}
+                    </td>
+                    <td className="px-4 py-2" data-testid="admin-observability-merge-source-name">
+                      {m.sourceName}
+                    </td>
+                    <td className="px-4 py-2" data-testid="admin-observability-merge-reassigned">
+                      {formatReassignedCounts(m.reassignedCounts)}
+                    </td>
+                    <td className="px-4 py-2 text-neutral-500">
+                      {new Date(m.createdAt).toLocaleString()}
                     </td>
                   </tr>
                 ))}

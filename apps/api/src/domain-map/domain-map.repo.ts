@@ -24,6 +24,7 @@ import {
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { withMergeLock } from "../shared/merge-lock.js";
+import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
   return {
@@ -287,6 +288,21 @@ export async function mergeDomainNodes(
       .where(eq(domainTopicSuggestions.proposedParentNodeId, sourceId));
 
     await tx.delete(domainNodes).where(eq(domainNodes.id, sourceId));
+
+    await insertOntologyMergeLog(
+      {
+        entityType: "domain_node",
+        targetId,
+        targetName: targetRow.name,
+        sourceId,
+        sourceName: sourceRow.name,
+        reassignedCounts: {
+          curriculaMoved: movedCurricula.length,
+          childNodesMoved: movedChildNodes.length,
+        },
+      },
+      tx,
+    );
 
     return {
       targetDomainNodeId: targetId,
