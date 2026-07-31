@@ -17,6 +17,7 @@ import {
   nextQuestionInput,
   recordAttemptInput,
   removeTagAssignmentInput,
+  reorderCurriculaInput,
   reorderInput,
   setCurriculumStatusInput,
   setModuleStatusInput,
@@ -26,6 +27,8 @@ import {
 } from './model'
 import type {
   ConcernSummary,
+  CourseRefocusReason,
+  CourseRefocusSuggestion,
   CreateCurriculumInput,
   Curriculum,
   DailyPushResult,
@@ -283,6 +286,14 @@ export const mergeCurricula = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => mergeCurriculaInput.parse(data))
   .handler(({ data }) => api.mergeCurricula(data.targetCurriculumId, data.sourceCurriculumId))
 
+export const reorderCurricula = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => reorderCurriculaInput.parse(data))
+  .handler(async ({ data }) => {
+    await api.reorderCurricula(data.subjectId, data.orderedIds)
+
+    return null
+  })
+
 export const nextQuestion = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => nextQuestionInput.parse(data))
   .handler(({ data }) => api.startProbe(data.topicId, data.mode))
@@ -348,3 +359,15 @@ export const removeTagAssignment = createServerFn({ method: 'POST' })
 export const mergeTags = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => mergeTagsInput.parse(data))
   .handler(({ data }) => api.mergeTags(data.targetTagId, data.sourceTagId))
+
+export const getCourseRefocusSuggestions = createServerFn({ method: 'GET' }).handler(
+  (): Promise<CourseRefocusSuggestion[]> => api.getCourseRefocusSuggestions(),
+)
+
+export const dismissCourseRefocusSuggestion = createServerFn({ method: 'POST' })
+  .inputValidator((data: { curriculumId: string; reason: CourseRefocusReason }) => data)
+  .handler(async ({ data }) => {
+    await api.dismissCourseRefocusSuggestion(data.curriculumId, data.reason)
+
+    return null
+  })

@@ -12,7 +12,18 @@ import { defineConfig } from "vitest/config";
 // `npm run test:integration -- <path>`.
 export default defineConfig({
   test: {
-    include: ["src/**/*.integration.test.ts"],
+    include: [
+      "src/**/*.integration.test.ts",
+      // Named exceptions (see vitest.config.ts's own exclude list for why
+      // these aren't *.integration.test.ts-named): real-Postgres repo/
+      // orchestrator tests whose spec.md pins the exact path as the DoD
+      // proof command. `npx vitest run <path>` against the DEFAULT config
+      // can't reach them (CLI args don't override a configured `exclude` in
+      // this vitest version — confirmed empirically); this dedicated
+      // integration config is the one place they're actually runnable.
+      "src/curriculum/curriculum.repo.test.ts",
+      "src/curriculum/course-refocus.repo.test.ts",
+    ],
     exclude: ["**/node_modules/**"],
   },
 });

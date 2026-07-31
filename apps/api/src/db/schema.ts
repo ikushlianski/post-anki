@@ -39,6 +39,13 @@ export const curricula = pgTable("curricula", {
   // <id>, never stored redundantly on the node. No default, existing rows
   // stay null, zero data migration.
   domainNodeId: text("domain_node_id"),
+  // course-priority-drag-reorder (issue #69) — manual drag-and-drop
+  // position, scoped to "courses within one subject" (mirrors
+  // modules.order/topics.order one level up). NOT NULL with a flat default
+  // so the migration is additive; the accompanying migration backfills a
+  // distinct per-subject sequential value for every pre-existing row (see
+  // that migration's appended UPDATE) rather than leaving every row at 0.
+  order: integer("order").notNull().default(0),
 });
 
 // Self-referential tree, one forest per subject — sits between a subject and
@@ -154,33 +161,70 @@ export const modules = pgTable("modules", {
   level: text("level"),
 });
 
-export const topics = pgTable("topics", {
-  id: text("id").primaryKey(),
-  moduleId: text("module_id").notNull(),
-  curriculumId: text("curriculum_id").notNull(),
-  title: text("title").notNull(),
-  summary: text("summary"),
-  order: integer("order").notNull(),
-  priority: integer("priority").notNull().default(0),
-  included: boolean("included").notNull().default(true),
-  selfGrade: integer("self_grade"),
-  depth: text("depth").notNull().default("working"),
-  learningStatus: text("learning_status").notNull().default("not_started"),
-  progressStatus: text("progress_status").notNull().default("not_started"),
-  progressMaturity: integer("progress_maturity").notNull().default(0),
-  progressAttempts: integer("progress_attempts").notNull().default(0),
-  progressLastInteractedAt: timestamp("progress_last_interacted_at", {
-    withTimezone: true,
-  }),
-  // Generalized recall-gap mastery tracking (issue #57) — the monotonic
-  // per-topic counter mastery scheduling needs for probe-session quiz
-  // answers, analogous to phrases.sequenceNumber's role for phrase-bank but
-  // scoped to answered-question events per topic instead of
-  // phrase-generation events per subject/level/pack. Incremented once per
-  // answered probe-session question that touches a mastery-tracked gap on
-  // this topic (see gap-mastery.repo.ts).
-  gapMasterySequenceNumber: integer("gap_mastery_sequence_number").notNull().default(0),
-});
+export const topics = pgTable(
+  "topics",
+  {
+    id: text("id").primaryKey(),
+    moduleId: text("module_id").notNull(),
+    curriculumId: text("curriculum_id").notNull(),
+    title: text("title").notNull(),
+    summary: text("summary"),
+    order: integer("order").notNull(),
+    priority: integer("priority").notNull().default(0),
+    included: boolean("included").notNull().default(true),
+    selfGrade: integer("self_grade"),
+    depth: text("depth").notNull().default("working"),
+    learningStatus: text("learning_status").notNull().default("not_started"),
+    progressStatus: text("progress_status").notNull().default("not_started"),
+    progressMaturity: integer("progress_maturity").notNull().default(0),
+    progressAttempts: integer("progress_attempts").notNull().default(0),
+    progressLastInteractedAt: timestamp("progress_last_interacted_at", {
+      withTimezone: true,
+    }),
+    // Generalized recall-gap mastery tracking (issue #57) — the monotonic
+    // per-topic counter mastery scheduling needs for probe-session quiz
+    // answers, analogous to phrases.sequenceNumber's role for phrase-bank but
+    // scoped to answered-question events per topic instead of
+    // phrase-generation events per subject/level/pack. Incremented once per
+    // answered probe-session question that touches a mastery-tracked gap on
+    // this topic (see gap-mastery.repo.ts).
+    gapMasterySequenceNumber: integer("gap_mastery_sequence_number").notNull().default(0),
+  },
+  (table) => [
+    // cross-course-refocus-suggestion (issue #70) — keeps the per-curriculum
+    // MAX(progress_last_interacted_at) aggregate that
+    // listCourseRefocusSuggestions() runs on every home-page load cheap as
+    // this table grows; verified no such index existed before this feature.
+    index("topics_curriculum_id_progress_last_interacted_at_idx").on(
+      table.curriculumId,
+      table.progressLastInteractedAt,
+    ),
+  ],
+);
+
+// cross-course-refocus-suggestion (issue #70) — one row per (curriculum,
+// reason) the learner has dismissed. No .references() FK, matching this
+// schema's dominant convention. The suggestion's own content is never
+// stored here — only the dismissal decision, since regenerating a
+// suggestion costs one cheap aggregate query (see architecture.md). The
+// unique index is this codebase's first compound onConflictDoUpdate target
+// (existing single-column upserts: streak.repo.ts, lecture.repo.ts,
+// domain-map.repo.ts).
+export const courseRefocusDismissals = pgTable(
+  "course_refocus_dismissals",
+  {
+    id: text("id").primaryKey(),
+    curriculumId: text("curriculum_id").notNull(),
+    reason: text("reason").notNull(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("course_refocus_dismissals_curriculum_id_reason_idx").on(
+      table.curriculumId,
+      table.reason,
+    ),
+  ],
+);
 
 export const appSettings = pgTable("app_settings", {
   id: text("id").primaryKey(),

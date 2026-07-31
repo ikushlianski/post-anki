@@ -4,6 +4,7 @@ import {
   approveSourcesInput,
   createCurriculumInput,
   mergeCurriculaInput,
+  reorderCurriculaInput,
   resolveSupplementalResearchInput,
   submitStructureTurnInput,
   updateCurriculumInput,
@@ -27,6 +28,7 @@ import {
   listCurricula,
   markPreAssessmentCompleted,
   mergeCurricula,
+  reorderCurricula,
   updateCurriculum,
 } from "./curriculum.repo.js";
 import {
@@ -494,6 +496,33 @@ export async function handleMergeCurricula(
       return;
     }
 
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+// course-priority-drag-reorder (issue #69) — a plain PATCH → repo function
+// chain (Scenario 9), same shape as every other curriculum mutation.
+// `subjectId` is the URL-captured `:id`, unlike `reorderModules`'s
+// `handleReorderModules` (module.controller.ts), which silently discards the
+// curriculum id the router captures — this handler scopes every write to it.
+export async function handleReorderCurricula(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, reorderCurriculaInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await reorderCurricula(subjectId, body.data.orderedIds);
+
+  if ("error" in result) {
     sendJson(res, 400, { error: result.error });
     return;
   }

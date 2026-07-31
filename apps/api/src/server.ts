@@ -22,6 +22,7 @@ import {
   handleListCurricula,
   handleMergeCurricula,
   handleReparse,
+  handleReorderCurricula,
   handleResolveSupplementalResearch,
   handleRetryDraftStructure,
   handleRetryResearch,
@@ -120,6 +121,10 @@ import {
   handleTriggerDomainPriorityReview,
   handleUpdateDomainNode,
 } from "./domain-map/domain-map.controller.js";
+import {
+  handleDismissCourseRefocusSuggestion,
+  handleGetCourseRefocusSuggestions,
+} from "./curriculum/course-refocus.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
@@ -228,6 +233,8 @@ async function route(
       return handleDeleteCurriculum(res, id);
     case "mergeCurricula":
       return handleMergeCurricula(req, res, id);
+    case "reorderCurricula":
+      return handleReorderCurricula(req, res, id);
     case "confirmCurriculum":
       return handleConfirmCurriculum(res, id);
     case "completePreAssessment":
@@ -386,6 +393,14 @@ async function route(
       return handleResolveDomainTopicSuggestion(req, res, id);
     case "resolveDomainSupersessionSuggestion":
       return handleResolveDomainSupersessionSuggestion(req, res, id);
+    case "listCourseRefocusSuggestions":
+      return handleGetCourseRefocusSuggestions(res);
+    case "dismissCourseRefocusSuggestion":
+      return handleDismissCourseRefocusSuggestion(
+        res,
+        resolved.params.curriculumId ?? "",
+        resolved.params.reason ?? "",
+      );
   }
 }
 

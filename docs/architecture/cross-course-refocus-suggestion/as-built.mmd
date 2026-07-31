@@ -1,0 +1,27 @@
+flowchart LR
+classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+linkStyle default stroke:#455a64,stroke-width:1.5px
+
+LoadHome["Load Home Page"]
+ListSuggestions["List Refocus Suggestions<br/>fixed number of queries"]
+ActiveGate{Learner Active Elsewhere Recently?}
+NeglectGate{Course Neglected or Newly Ignored?}
+Banner["Refocus Suggestion Banner"]
+Dismiss["Dismiss Suggestion"]
+Dismissals[("Refocus Dismissals<br/>7-day expiry")]
+
+LoadHome --> ListSuggestions
+ListSuggestions --> ActiveGate
+ActiveGate -- "no - skip entirely" --> Banner
+ActiveGate -- yes --> NeglectGate
+NeglectGate -- no --> Banner
+NeglectGate -- yes --> Banner
+Banner --> Dismiss
+Dismiss --> Dismissals
+Dismissals -. "suppress for 7 days" .-> ListSuggestions
+
+classDef warn fill:#fff9c4,stroke:#c62828,stroke-width:1.5px,color:#000
+class NeglectGate warn
+
+%% Note: pure arithmetic over existing timestamps - deliberately no LLM call, unlike the existing LLM-backed domain priority review feature.
+%% Note: language-practice subjects are excluded from being suggested themselves, but their activity still counts toward the active-elsewhere gate.

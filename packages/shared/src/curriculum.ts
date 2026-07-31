@@ -44,6 +44,7 @@ export const curriculumSchema = z.object({
   strictOrder: z.boolean(),
   preAssessmentCompletedAt: z.string().nullable(),
   domainNodeId: z.string().nullable(),
+  order: z.number().int(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -252,6 +253,16 @@ export const mergeCurriculaInput = z.object({
 
 export type MergeCurriculaInput = z.infer<typeof mergeCurriculaInput>;
 
+// course-priority-drag-reorder (issue #69) — curriculum-owned, not reused
+// from packages/shared/src/module.ts's structurally-identical reorderInput,
+// per this codebase's entity-first ownership rule (the curriculum feature
+// owns its own input schema rather than reaching into a module-owned file).
+export const reorderCurriculaInput = z.object({
+  orderedIds: z.array(z.string()).min(1),
+});
+
+export type ReorderCurriculaInput = z.infer<typeof reorderCurriculaInput>;
+
 export const mergeCurriculaResultSchema = z.object({
   targetCurriculumId: z.string(),
   sourceCurriculumId: z.string(),
@@ -263,3 +274,32 @@ export const mergeCurriculaResultSchema = z.object({
 });
 
 export type MergeCurriculaResult = z.infer<typeof mergeCurriculaResultSchema>;
+
+// cross-course-refocus-suggestion (issue #70) — the two triggers
+// `computeCourseRefocusCandidatesForSubject` (packages/core) can produce.
+// "stale_top_priority": a top-band course gone quiet while the learner
+// studies elsewhere. "new_high_priority_ignored": a genuinely new, rank-1,
+// never-studied course. See that deriver's own comment for the full rules.
+export const courseRefocusReasonSchema = z.enum([
+  "stale_top_priority",
+  "new_high_priority_ignored",
+]);
+
+export type CourseRefocusReason = z.infer<typeof courseRefocusReasonSchema>;
+
+// No separate dismiss-input schema exists for this feature — curriculumId
+// and reason are both path params on the dismiss route
+// (`PUT /curricula/:curriculumId/refocus-dismissals/:reason`), never a
+// request body. `daysSinceActivity` is always the whole-day floor of "now
+// minus (lastStudiedAt ?? createdAt)" — recomputed live on every read, never
+// stored (see architecture.md's "no suggestion content is ever persisted").
+export const courseRefocusSuggestionSchema = z.object({
+  curriculumId: z.string(),
+  subjectId: z.string(),
+  curriculumName: z.string(),
+  subjectName: z.string(),
+  reason: courseRefocusReasonSchema,
+  daysSinceActivity: z.number().int(),
+});
+
+export type CourseRefocusSuggestion = z.infer<typeof courseRefocusSuggestionSchema>;

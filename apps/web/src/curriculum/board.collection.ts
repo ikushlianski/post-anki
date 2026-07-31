@@ -39,6 +39,7 @@ interface CurriculumRow {
   strict_order: boolean
   pre_assessment_completed_at: string | null
   domain_node_id: string | null
+  order: number
 }
 
 interface CurriculumSourceRow {
@@ -130,5 +131,6 @@ export function mapCurriculumRow(
     strictOrder: row.strict_order,
     preAssessmentCompletedAt: row.pre_assessment_completed_at,
     domainNodeId: row.domain_node_id,
+    order: row.order,
   }
 }

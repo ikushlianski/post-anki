@@ -3,6 +3,8 @@ import type {
   AttemptResult,
   Concern,
   ConcernSummary,
+  CourseRefocusReason,
+  CourseRefocusSuggestion,
   CreateCurriculumInput,
   CreateSubjectInput,
   Curriculum,
@@ -223,6 +225,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     strictOrder: curriculum.strictOrder,
     preAssessmentCompletedAt: curriculum.preAssessmentCompletedAt,
     domainNodeId: curriculum.domainNodeId,
+    order: curriculum.order,
   }
 }
 
@@ -512,6 +515,16 @@ export async function mergeCurricula(
   return request<MergeCurriculaResult>(`/curricula/${targetCurriculumId}/merge`, {
     method: 'POST',
     body: { sourceCurriculumId },
+  })
+}
+
+export async function reorderCurricula(
+  subjectId: string,
+  orderedIds: string[],
+): Promise<void> {
+  await request(`/subjects/${subjectId}/curricula/order`, {
+    method: 'PATCH',
+    body: { orderedIds },
   })
 }
 
@@ -1183,4 +1196,47 @@ export async function updateAdminSettings(
 
 export async function getAdminObservability(): Promise<be.AdminObservability> {
   return request<be.AdminObservability>('/admin/observability')
+}
+
+function mapCourseRefocusSuggestion(
+  suggestion: be.CourseRefocusSuggestion,
+): CourseRefocusSuggestion {
+  return {
+    curriculumId: suggestion.curriculumId,
+    subjectId: suggestion.subjectId,
+    curriculumName: suggestion.curriculumName,
+    subjectName: suggestion.subjectName,
+    reason: suggestion.reason,
+    daysSinceActivity: suggestion.daysSinceActivity,
+  }
+}
+
+// cross-course-refocus-suggestion (issue #70) — an enhancement-layer read:
+// a failed fetch here degrades to "no banner shown" (Scenario 9), never a
+// page-level error, so this swallows errors the same way getStreak()/
+// getCurriculumStats() already do above.
+export async function getCourseRefocusSuggestions(): Promise<CourseRefocusSuggestion[]> {
+  try {
+    const rows = await request<be.CourseRefocusSuggestion[]>('/course-refocus-suggestions')
+
+    return rows.map(mapCourseRefocusSuggestion)
+  } catch {
+    return []
+  }
+}
+
+// PUT, not PATCH: a nested sub-resource
+// (`/curricula/:curriculumId/refocus-dismissals/:reason`), idempotent by
+// construction — matches the backend route's own REST-convention reasoning
+// (spec.md's Decisions). This is a user-initiated write, so unlike the read
+// above it does NOT swallow errors — the banner's dismiss button shows an
+// inline error and stays visible on failure (architecture.md's failure-mode
+// posture).
+export async function dismissCourseRefocusSuggestion(
+  curriculumId: string,
+  reason: CourseRefocusReason,
+): Promise<void> {
+  await request(`/curricula/${curriculumId}/refocus-dismissals/${reason}`, {
+    method: 'PUT',
+  })
 }

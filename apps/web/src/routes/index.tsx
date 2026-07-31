@@ -10,14 +10,31 @@ import {
   mapSubjectRow,
   subjectsCollection,
 } from '../curriculum/board.collection'
-import { getBoard, listTags, mergeTags } from '../curriculum/curriculum.api'
-import type { Curriculum, Subject, Tag } from '../curriculum/model'
+import {
+  getBoard,
+  getCourseRefocusSuggestions,
+  listTags,
+  mergeTags,
+} from '../curriculum/curriculum.api'
+import type { Curriculum, CourseRefocusSuggestion, Subject, Tag } from '../curriculum/model'
+import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
 import { CreateSubjectForm } from '../subject/create-subject-form'
 import { SubjectSection } from '../subject/subject-section'
 
 export const Route = createFileRoute('/')({
   component: Home,
-  loader: () => getBoard(),
+  loader: async () => {
+    // cross-course-refocus-suggestion (issue #70) — fetched alongside
+    // getBoard() via Promise.all, never a sequential await: this is an
+    // enhancement-layer read (Scenario 9), so it must never delay or block
+    // the board's own data from resolving.
+    const [board, courseRefocusSuggestions] = await Promise.all([
+      getBoard(),
+      getCourseRefocusSuggestions(),
+    ])
+
+    return { ...board, courseRefocusSuggestions }
+  },
 })
 
 function TagMergeControl({
@@ -162,7 +179,11 @@ function Home() {
   return (
     <>
       {isClient && <LiveDataBridge onData={setLive} />}
-      <HomeView subjects={live?.subjects ?? initial.subjects} curricula={live?.curricula ?? initial.curricula} />
+      <HomeView
+        subjects={live?.subjects ?? initial.subjects}
+        curricula={live?.curricula ?? initial.curricula}
+        courseRefocusSuggestions={initial.courseRefocusSuggestions}
+      />
     </>
   )
 }
@@ -200,9 +221,11 @@ function LiveDataBridge({ onData }: { onData: (data: LiveBoardData) => void }) {
 function HomeView({
   subjects,
   curricula,
+  courseRefocusSuggestions,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
+  courseRefocusSuggestions: CourseRefocusSuggestion[]
 }) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -213,6 +236,8 @@ function HomeView({
           provide, not from a model's memory.
         </p>
       </header>
+
+      <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
 
       <div className="mb-10">
         <CreateSubjectForm />
@@ -225,7 +250,9 @@ function HomeView({
           <SubjectSection
             key={subject.id}
             subject={subject}
-            curricula={curricula.filter((c) => c.subjectId === subject.id)}
+            curricula={curricula
+              .filter((c) => c.subjectId === subject.id)
+              .sort((a, b) => a.order - b.order)}
             allSubjects={subjects}
           />
         ))}

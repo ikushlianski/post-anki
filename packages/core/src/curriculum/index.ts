@@ -12,3 +12,4 @@ export * from "./next-step";
 export * from "./source-candidates";
 export * from "./structure-time-budget";
 export * from "./structure-editor";
+export * from "./course-refocus";

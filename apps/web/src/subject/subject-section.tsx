@@ -1,10 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical } from 'lucide-react'
 
 import type { Curriculum, CurriculumStatus, Subject } from '../curriculum/model'
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { StudyTechnologyForm } from '../curriculum/study-technology-form'
-import { deleteCurriculum, mergeCurricula } from '../curriculum/curriculum.api'
+import {
+  deleteCurriculum,
+  mergeCurricula,
+  reorderCurricula,
+} from '../curriculum/curriculum.api'
+import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { deleteSubject, mergeSubjects } from './subject.api'
 
@@ -48,34 +70,7 @@ export function SubjectSection({
         </Link>
       ) : (
         <>
-          <ul className="mb-3 space-y-2">
-            {curricula.length === 0 ? (
-              <li className="text-sm text-neutral-400">No curricula yet.</li>
-            ) : (
-              curricula.map((curriculum) => (
-                <li key={curriculum.id} className="flex items-center gap-2">
-                  <Link
-                    to="/curriculum/$curriculumId"
-                    params={{ curriculumId: curriculum.id }}
-                    className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
-                  >
-                    <span
-                      data-testid="curriculum-name"
-                      className="min-w-0 flex-1 truncate text-sm font-medium"
-                    >
-                      {curriculum.name}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      {curriculum.origin === 'research' ? <OriginBadge /> : null}
-                      <StatusBadge status={curriculum.status} />
-                    </span>
-                  </Link>
-                  <MergeCurriculumButton curriculum={curriculum} curricula={curricula} />
-                  <DeleteCurriculumButton curriculumId={curriculum.id} />
-                </li>
-              ))
-            )}
-          </ul>
+          <CourseList subjectId={subject.id} curricula={curricula} />
 
           <div className="flex flex-wrap items-center gap-3">
             <CreateCurriculumForm
@@ -87,6 +82,163 @@ export function SubjectSection({
         </>
       )}
     </section>
+  )
+}
+
+// course-priority-drag-reorder (issue #69) — owns the drag-and-drop
+// reordering of a subject's courses (Scenarios 1, 3, 5b, 7). Local `orderIds`
+// state, seeded from props and updated synchronously in `onDragEnd` via the
+// pure `reorderAfterDrag`, is what drives `SortableContext`'s `items` and the
+// rendered list order — dnd-kit's own drop animation would otherwise snap
+// the dragged item back to its pre-drag slot the instant it's released,
+// since `items` still says that's where it belongs, until
+// `router.invalidate()` resolves. On a rejected mutation (Scenario 5b — a
+// stale drag racing another tab's create/delete), local order reverts to
+// the pre-drag state and a visible error appears, following
+// `MergeCurriculumButton`'s working try/catch + error-span pattern rather
+// than `DeleteCurriculumButton`'s, which swallows a thrown rejection.
+function CourseList({
+  subjectId,
+  curricula,
+}: {
+  subjectId: string
+  curricula: Curriculum[]
+}) {
+  const router = useRouter()
+  const [orderIds, setOrderIds] = useState(() => curricula.map((c) => c.id))
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setOrderIds(curricula.map((c) => c.id))
+  }, [curricula])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  if (curricula.length === 0) {
+    return <p className="mb-3 text-sm text-neutral-400">No curricula yet.</p>
+  }
+
+  const byId = new Map(curricula.map((c) => [c.id, c]))
+  const orderedCurricula = orderIds
+    .map((id) => byId.get(id))
+    .filter((c): c is Curriculum => c !== undefined)
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+
+    if (!over) {
+      return
+    }
+
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    if (activeId === overId) {
+      return
+    }
+
+    const previousOrderIds = orderIds
+    const nextOrderIds = reorderAfterDrag(orderIds, activeId, overId)
+
+    setOrderIds(nextOrderIds)
+    setError(null)
+
+    try {
+      await reorderCurricula({ data: { subjectId, orderedIds: nextOrderIds } })
+      await router.invalidate()
+    } catch {
+      // Scenario 5b — the drag-list this tab rendered from is stale (another
+      // tab created/deleted a course mid-drag), so the backend's exact-id-set
+      // check rejected the request. Revert to the pre-drag order and
+      // re-invalidate so the learner's next drag starts from the current,
+      // correct list, rather than leaving them looking at an order that was
+      // never actually persisted.
+      setOrderIds(previousOrderIds)
+      setError("Couldn't reorder — the list may have changed. Try dragging again.")
+      await router.invalidate()
+    }
+  }
+
+  return (
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={(event) => {
+          void handleDragEnd(event)
+        }}
+      >
+        <SortableContext items={orderIds} strategy={verticalListSortingStrategy}>
+          <ul className="mb-3 space-y-2">
+            {orderedCurricula.map((curriculum) => (
+              <SortableCurriculumRow
+                key={curriculum.id}
+                curriculum={curriculum}
+                curricula={curricula}
+              />
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
+      {error ? (
+        <p data-testid="reorder-error" className="mb-3 text-xs text-red-600">
+          {error}
+        </p>
+      ) : null}
+    </>
+  )
+}
+
+function SortableCurriculumRow({
+  curriculum,
+  curricula,
+}: {
+  curriculum: Curriculum
+  curricula: Curriculum[]
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: curriculum.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition ?? undefined,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <li ref={setNodeRef} style={style} className="flex items-center gap-2">
+      <button
+        type="button"
+        data-testid={`curriculum-drag-handle-${curriculum.id}`}
+        aria-label={`Reorder ${curriculum.name}`}
+        className="shrink-0 cursor-grab touch-none text-neutral-300 hover:text-neutral-500"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={16} />
+      </button>
+      <Link
+        to="/curriculum/$curriculumId"
+        params={{ curriculumId: curriculum.id }}
+        className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+      >
+        <span
+          data-testid="curriculum-name"
+          className="min-w-0 flex-1 truncate text-sm font-medium"
+        >
+          {curriculum.name}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {curriculum.origin === 'research' ? <OriginBadge /> : null}
+          <StatusBadge status={curriculum.status} />
+        </span>
+      </Link>
+      <MergeCurriculumButton curriculum={curriculum} curricula={curricula} />
+      <DeleteCurriculumButton curriculumId={curriculum.id} />
+    </li>
   )
 }
 

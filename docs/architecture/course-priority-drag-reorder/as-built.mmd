@@ -1,0 +1,28 @@
+flowchart LR
+classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+linkStyle default stroke:#455a64,stroke-width:1.5px
+
+Drag["Drag a Course Row"]
+LocalState["Local Order State<br/>instant re-render"]
+Request["Reorder Courses Request"]
+Check{Exact ID Set Match?}
+Reject["Reject - Zero Rows Changed"]
+Revert["Revert and Show Error<br/>re-sync from server"]
+Write["Write New Order<br/>single transaction"]
+Table[("Courses Table<br/>order column")]
+Read["Course List Read<br/>home page and other tabs"]
+
+Drag --> LocalState
+LocalState --> Request
+Request --> Check
+Check -- no --> Reject
+Reject --> Revert
+Check -- yes --> Write
+Write --> Table
+Table --> Read
+
+classDef warn fill:#fff9c4,stroke:#c62828,stroke-width:1.5px,color:#000
+class Write warn
+
+%% Note: cross-tab live updates use an existing separate sync layer, not built by this feature.
+%% Note: no automated browser/drag e2e test yet - proven via direct API calls; a real drag-gesture test is a documented follow-up.

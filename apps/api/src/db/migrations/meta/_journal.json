@@ -190,6 +190,20 @@
       "when": 1785472359594,
       "tag": "0026_jittery_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785485869772,
+      "tag": "0027_silent_hedge_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785489603580,
+      "tag": "0028_normal_the_fury",
+      "breakpoints": true
     }
   ]
 }

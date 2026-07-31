@@ -28,9 +28,11 @@ import type {
   UpdateCurriculumInput,
 } from "@post-anki/shared";
 import {
+  assignOrders,
   curriculumProgress,
   extractUrls,
   moduleProgress,
+  nextOrder,
   priorLevelCoverageLabels,
   recommendedTopicId,
   sortForDisplay,
@@ -84,7 +86,12 @@ interface Plan {
 }
 
 export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
-  const rows = (await getDb().select().from(curricula)).filter(
+  const rows = (
+    await getDb()
+      .select()
+      .from(curricula)
+      .orderBy(asc(curricula.subjectId), asc(curricula.order))
+  ).filter(
     (r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId,
   );
 
@@ -114,6 +121,11 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
 export async function createCurriculum(
   input: CreateCurriculumInput,
 ): Promise<Curriculum> {
+  const existing = await getDb()
+    .select({ order: curricula.order })
+    .from(curricula)
+    .where(eq(curricula.subjectId, input.subjectId));
+
   const row = {
     id: newId("cur"),
     subjectId: input.subjectId,
@@ -127,6 +139,10 @@ export async function createCurriculum(
     strictOrder: false,
     preAssessmentCompletedAt: null,
     domainNodeId: input.domainNodeId ?? null,
+    // Scenario 2 — a newly created course joins at the back of the line,
+    // never silently jumping ahead of courses already manually prioritized
+    // in this subject.
+    order: nextOrder(existing.map((r) => r.order)),
   };
 
   await getDb().insert(curricula).values(row);
@@ -146,6 +162,51 @@ export async function createCurriculum(
   }
 
   return toCurriculum(row, "sources");
+}
+
+export type ReorderCurriculaError = "invalid_id_set";
+
+// Scenario 5 — the payload's id set must EXACTLY match the subject's current
+// full set of course ids (same length, no missing, no extra), not just "every
+// id belongs to the subject". A deliberate hardening beyond the
+// `reorderModules` precedent (which validates neither) — `assignOrders`
+// reassigns 1..N only to the ids it's given, so an incomplete list would
+// leave the omitted courses' stale `order` values colliding with the newly-
+// assigned range. Rejecting up front means zero rows are ever touched on a
+// mismatch (Scenario 5), and the write itself runs inside `db.transaction()`
+// (matching this file's `clearCurriculumStructure`/`mergeCurricula` pattern,
+// not `reorderModules`'s unwrapped loop) so a mid-write failure can never
+// leave some courses renumbered and others stale.
+export async function reorderCurricula(
+  subjectId: string,
+  orderedIds: string[],
+): Promise<{ error: ReorderCurriculaError } | { reordered: number }> {
+  const db = getDb();
+
+  const existing = await db
+    .select({ id: curricula.id })
+    .from(curricula)
+    .where(eq(curricula.subjectId, subjectId));
+
+  const existingIds = new Set(existing.map((r) => r.id));
+  const payloadIds = new Set(orderedIds);
+
+  const exactMatch =
+    existingIds.size === payloadIds.size &&
+    orderedIds.length === payloadIds.size &&
+    [...existingIds].every((id) => payloadIds.has(id));
+
+  if (!exactMatch) {
+    return { error: "invalid_id_set" };
+  }
+
+  await db.transaction(async (tx) => {
+    for (const { id, order } of assignOrders(orderedIds)) {
+      await tx.update(curricula).set({ order }).where(eq(curricula.id, id));
+    }
+  });
+
+  return { reordered: orderedIds.length };
 }
 
 async function originFor(curriculumId: string): Promise<CurriculumOrigin> {
@@ -1096,6 +1157,11 @@ export async function createSplitOutCurriculum(
   subjectId: string,
   name: string,
 ): Promise<Curriculum> {
+  const existing = await getDb()
+    .select({ order: curricula.order })
+    .from(curricula)
+    .where(eq(curricula.subjectId, subjectId));
+
   const row = {
     id: newId("cur"),
     subjectId,
@@ -1109,6 +1175,7 @@ export async function createSplitOutCurriculum(
     strictOrder: false,
     preAssessmentCompletedAt: null,
     domainNodeId: null,
+    order: nextOrder(existing.map((r) => r.order)),
   };
 
   await getDb().insert(curricula).values(row);
@@ -1536,6 +1603,7 @@ function toCurriculum(
     strictOrder: boolean;
     preAssessmentCompletedAt: Date | null;
     domainNodeId?: string | null;
+    order: number;
   },
   origin: CurriculumOrigin,
 ): Curriculum {
@@ -1555,6 +1623,7 @@ function toCurriculum(
       ? row.preAssessmentCompletedAt.toISOString()
       : null,
     domainNodeId: row.domainNodeId ?? null,
+    order: row.order,
   };
 }
 

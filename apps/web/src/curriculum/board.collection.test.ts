@@ -74,6 +74,7 @@ describe('mapCurriculumRow', () => {
     strict_order: false,
     pre_assessment_completed_at: null,
     domain_node_id: null,
+    order: 1,
   }
 
   it('maps a curriculum with no research sources to sources-origin', () => {
@@ -106,12 +107,13 @@ describe('mapCurriculumRow', () => {
     expect(curriculum.defaultDepth).toBe('aware')
   })
 
-  it('carries subjectId, status, and strictOrder through unchanged', () => {
+  it('carries subjectId, status, strictOrder, and order through unchanged', () => {
     const curriculum = mapCurriculumRow(baseRow, [])
 
     expect(curriculum.subjectId).toBe('subj-1')
     expect(curriculum.status).toBe('confirmed')
     expect(curriculum.strictOrder).toBe(false)
+    expect(curriculum.order).toBe(1)
   })
 
   it('carries preAssessmentCompletedAt through unchanged', () => {

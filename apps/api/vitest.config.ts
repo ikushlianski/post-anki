@@ -36,6 +36,21 @@ export default defineConfig({
       // requiring real SELECTs against 3 new tables that only a real
       // Postgres connection can produce.
       "src/domain-map/doc-scan.orchestrator.test.ts",
+      // curriculum.repo.test.ts (course-priority-drag-reorder) is the same
+      // named exception, for the same reason: spec.md's Backend DoD pins
+      // this exact path (not *.integration.test.ts) as the exact-id-set-
+      // rejection / transactional-write / listCurricula-ordering proof
+      // command, requiring a real Postgres transaction to prove the
+      // mid-loop-failure rollback.
+      "src/curriculum/curriculum.repo.test.ts",
+      // course-refocus.repo.test.ts (cross-course-refocus-suggestion) is the
+      // same named exception, for the same reason: spec.md's Backend DoD
+      // pins this exact path (not *.integration.test.ts) as the
+      // language-practice-exclusion / global-activity-gate / dismiss-upsert
+      // proof command, requiring real aggregate queries against topics and
+      // phrase_bank_entries that only a real Postgres connection can
+      // produce.
+      "src/curriculum/course-refocus.repo.test.ts",
     ],
   },
 });

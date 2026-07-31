@@ -67,6 +67,7 @@ export const curriculumSchema = z.object({
   strictOrder: z.boolean(),
   preAssessmentCompletedAt: z.string().nullable(),
   domainNodeId: z.string().nullable(),
+  order: z.number().int(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
@@ -403,6 +404,17 @@ export const reorderInput = z.object({
 
 export type ReorderInput = z.infer<typeof reorderInput>
 
+// course-priority-drag-reorder (issue #69) — curriculum-owned, not reused
+// from reorderInput above: the backend endpoint is scoped by subjectId (in
+// the URL path), not by curriculumOrModuleId, so the shape genuinely
+// differs from the modules/topics reorder input.
+export const reorderCurriculaInput = z.object({
+  subjectId: z.string(),
+  orderedIds: z.array(z.string()).min(1),
+})
+
+export type ReorderCurriculaInput = z.infer<typeof reorderCurriculaInput>
+
 export const setCurriculumStatusInput = z.object({
   curriculumId: z.string(),
   learningStatus: learningStatusSchema,
@@ -597,3 +609,27 @@ export const reviewLectureSourceCandidateInput = z.object({
 export type ReviewLectureSourceCandidateInput = z.infer<
   typeof reviewLectureSourceCandidateInput
 >
+
+// cross-course-refocus-suggestion (issue #70) — FE-side type, matching how
+// Curriculum/Tag are already handled in this file: a local schema mirroring
+// the backend shape 1:1, with api-client.ts's mapCourseRefocusSuggestion
+// doing the (here, pass-through) conversion, rather than importing the
+// backend type directly. No dismiss-input schema — curriculumId/reason are
+// path params, never a request body.
+export const courseRefocusReasonSchema = z.enum([
+  'stale_top_priority',
+  'new_high_priority_ignored',
+])
+
+export type CourseRefocusReason = z.infer<typeof courseRefocusReasonSchema>
+
+export const courseRefocusSuggestionSchema = z.object({
+  curriculumId: z.string(),
+  subjectId: z.string(),
+  curriculumName: z.string(),
+  subjectName: z.string(),
+  reason: courseRefocusReasonSchema,
+  daysSinceActivity: z.number().int(),
+})
+
+export type CourseRefocusSuggestion = z.infer<typeof courseRefocusSuggestionSchema>
