@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Phrase, PracticeAttempt } from "@post-anki/shared";
@@ -18,6 +18,12 @@ export default function PracticeSubjectScreen() {
   const [masteredNote, setMasteredNote] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // setSubmitting(true) alone doesn't guard against a genuine double-tap: two
+  // native click events dispatched in the same synchronous tick both read
+  // the pre-update `submitting` state, since React state updates aren't
+  // applied until the next render. A ref is mutated immediately, so the
+  // second call sees the first call's guard in the same tick.
+  const submittingRef = useRef(false);
 
   const startBatch = useCallback(async () => {
     if (!subjectId) {
@@ -52,10 +58,11 @@ export default function PracticeSubjectScreen() {
   const batchComplete = phrases !== null && index >= phrases.length;
 
   async function handleSubmit(answer: string) {
-    if (!subjectId || !currentPhrase) {
+    if (!subjectId || !currentPhrase || submittingRef.current) {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
 
@@ -76,6 +83,7 @@ export default function PracticeSubjectScreen() {
         setSubmitError("Couldn't submit your answer — it wasn't lost, try again.");
       }
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
