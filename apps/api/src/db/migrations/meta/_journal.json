@@ -190,6 +190,13 @@
       "when": 1785472359594,
       "tag": "0026_jittery_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785482217970,
+      "tag": "0027_true_kingpin",
+      "breakpoints": true
     }
   ]
 }

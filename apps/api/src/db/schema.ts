@@ -152,6 +152,11 @@ export const modules = pgTable("modules", {
   priority: integer("priority").notNull().default(0),
   learningStatus: text("learning_status").notNull().default("not_started"),
   level: text("level"),
+  // Issue #68 — provenance marker set by mergeCurricula when this module
+  // moves in from another curriculum. Null means "native to this
+  // curriculum's own research/parse history". Read by
+  // clearCurriculumStructure to decide what survives a clear-and-regenerate.
+  mergedFromCurriculumId: text("merged_from_curriculum_id"),
 });
 
 export const topics = pgTable("topics", {
@@ -180,6 +185,9 @@ export const topics = pgTable("topics", {
   // answered probe-session question that touches a mastery-tracked gap on
   // this topic (see gap-mastery.repo.ts).
   gapMasterySequenceNumber: integer("gap_mastery_sequence_number").notNull().default(0),
+  // Issue #68 — same provenance marker as modules.mergedFromCurriculumId,
+  // set by mergeCurricula and read by clearCurriculumStructure.
+  mergedFromCurriculumId: text("merged_from_curriculum_id"),
 });
 
 export const appSettings = pgTable("app_settings", {

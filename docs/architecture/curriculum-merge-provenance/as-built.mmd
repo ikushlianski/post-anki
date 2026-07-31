@@ -1,0 +1,27 @@
+flowchart LR
+classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+linkStyle default stroke:#455a64,stroke-width:1.5px
+
+MergeAction["Merge Course Action"]
+RetryAction["Retry Research / Reparse Action"]
+DeleteAction["Delete Course Action"]
+
+MergeCourses["Merge Courses<br/>marks moved rows via coalesce"]
+ClearStructure{"Clear Course Structure<br/>includeMergedIn?"}
+AuditLog["Merge Audit Log<br/>issue #62 - operation-level only"]
+
+Rows["Modules and Topics<br/>merged_from_course_id column"]
+
+MergeAction --> MergeCourses
+MergeCourses -- "tag moved rows" --> Rows
+MergeCourses -- "log the operation" --> AuditLog
+MergeCourses -. "cannot answer per-row<br/>provenance at delete time" .-> ClearStructure
+
+RetryAction --> ClearStructure
+DeleteAction --> ClearStructure
+
+ClearStructure -- "false (default): delete only<br/>native rows" --> Rows
+ClearStructure -- "true: delete every row<br/>merged-in or not" --> Rows
+
+classDef warn fill:#fff9c4,stroke:#c62828,stroke-width:1.5px,color:#000
+class Rows warn

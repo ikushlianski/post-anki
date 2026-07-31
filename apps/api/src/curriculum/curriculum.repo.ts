@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
@@ -454,15 +454,38 @@ export async function addCurriculumSources(
     );
 }
 
+/**
+ * Deletes a curriculum's own modules/topics (and their gaps/gap-mastery
+ * rows) — the first step of both `reparseCurriculum` and `retryResearch`.
+ *
+ * Defaults to protective: only rows with `merged_from_curriculum_id IS NULL`
+ * (native to this curriculum's own research/parse history) are deleted.
+ * Rows that arrived via `mergeCurricula` survive by default, closing the
+ * data-loss path found by `/debrief`
+ * (docs/architecture/curriculum-merge/review.md) — a target that absorbed a
+ * merge and later fails through unrelated use must not lose the merged-in
+ * content on retry/reparse.
+ *
+ * `{ includeMergedIn: true }` opts out of the filter, deleting every
+ * module/topic under the curriculum id regardless of provenance —
+ * `deleteCurriculum` is the one caller that needs this, since a fully
+ * deleted curriculum must not leave orphaned modules/topics behind.
+ */
 export async function clearCurriculumStructure(
   curriculumId: string,
+  options?: { includeMergedIn?: boolean },
 ): Promise<void> {
   const db = getDb();
+  const includeMergedIn = options?.includeMergedIn ?? false;
 
   const topicRows = await db
     .select()
     .from(topics)
-    .where(eq(topics.curriculumId, curriculumId));
+    .where(
+      includeMergedIn
+        ? eq(topics.curriculumId, curriculumId)
+        : and(eq(topics.curriculumId, curriculumId), isNull(topics.mergedFromCurriculumId)),
+    );
   const topicIds = topicRows.map((t) => t.id);
 
   await db.transaction(async (tx) => {
@@ -476,8 +499,20 @@ export async function clearCurriculumStructure(
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
     }
 
-    await tx.delete(topics).where(eq(topics.curriculumId, curriculumId));
-    await tx.delete(modules).where(eq(modules.curriculumId, curriculumId));
+    await tx
+      .delete(topics)
+      .where(
+        includeMergedIn
+          ? eq(topics.curriculumId, curriculumId)
+          : and(eq(topics.curriculumId, curriculumId), isNull(topics.mergedFromCurriculumId)),
+      );
+    await tx
+      .delete(modules)
+      .where(
+        includeMergedIn
+          ? eq(modules.curriculumId, curriculumId)
+          : and(eq(modules.curriculumId, curriculumId), isNull(modules.mergedFromCurriculumId)),
+      );
   });
 }
 
@@ -492,7 +527,10 @@ export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
     return false;
   }
 
-  await clearCurriculumStructure(curriculumId);
+  // Full deletion must not leave orphaned merged-in modules/topics behind —
+  // this is the one caller that opts out of clearCurriculumStructure's
+  // protective default (issue #68).
+  await clearCurriculumStructure(curriculumId, { includeMergedIn: true });
   await db.delete(sources).where(eq(sources.curriculumId, curriculumId));
   await db.delete(curricula).where(eq(curricula.id, curriculumId));
 
@@ -602,13 +640,22 @@ export async function mergeCurricula(
       .set({
         curriculumId: targetId,
         order: sql`${modules.order} + ${targetMaxOrder}`,
+        // Issue #68 — mark rows moved by this merge as non-native to the
+        // target, so a later clearCurriculumStructure(target) protects
+        // them. coalesce() preserves a marker already set by an earlier
+        // merge hop rather than overwriting it, so a row that crossed one
+        // merge boundary stays correctly flagged through any later merge.
+        mergedFromCurriculumId: sql`coalesce(${modules.mergedFromCurriculumId}, ${sourceId})`,
       })
       .where(eq(modules.curriculumId, sourceId))
       .returning({ id: modules.id });
 
     const movedTopics = await tx
       .update(topics)
-      .set({ curriculumId: targetId })
+      .set({
+        curriculumId: targetId,
+        mergedFromCurriculumId: sql`coalesce(${topics.mergedFromCurriculumId}, ${sourceId})`,
+      })
       .where(eq(topics.curriculumId, sourceId))
       .returning({ id: topics.id });
 
