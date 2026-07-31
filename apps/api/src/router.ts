@@ -85,7 +85,10 @@ export type RouteName =
   | "triggerAllDocScans"
   | "listDocScanSuggestions"
   | "resolveDomainTopicSuggestion"
-  | "resolveDomainSupersessionSuggestion";
+  | "resolveDomainSupersessionSuggestion"
+  | "triggerSubjectDuplicateScan"
+  | "listSubjectDuplicateSuggestions"
+  | "resolveSubjectDuplicateSuggestion";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -345,6 +348,18 @@ const ROUTES: RouteDef[] = [
     method: "PATCH",
     pattern: /^\/domain-supersession-suggestions\/([^/]+)$/,
     name: "resolveDomainSupersessionSuggestion",
+    param: "id",
+  },
+  { method: "POST", pattern: "/subject-duplicate-scans", name: "triggerSubjectDuplicateScan" },
+  {
+    method: "GET",
+    pattern: "/subject-duplicate-suggestions",
+    name: "listSubjectDuplicateSuggestions",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/subject-duplicate-suggestions\/([^/]+)$/,
+    name: "resolveSubjectDuplicateSuggestion",
     param: "id",
   },
 ];

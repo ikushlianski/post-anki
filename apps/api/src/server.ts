@@ -120,6 +120,11 @@ import {
   handleTriggerDomainPriorityReview,
   handleUpdateDomainNode,
 } from "./domain-map/domain-map.controller.js";
+import {
+  handleListSubjectDuplicateSuggestions,
+  handleResolveSubjectDuplicateSuggestion,
+  handleTriggerSubjectDuplicateScan,
+} from "./subject-duplicate/subject-duplicate.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
@@ -386,6 +391,12 @@ async function route(
       return handleResolveDomainTopicSuggestion(req, res, id);
     case "resolveDomainSupersessionSuggestion":
       return handleResolveDomainSupersessionSuggestion(req, res, id);
+    case "triggerSubjectDuplicateScan":
+      return handleTriggerSubjectDuplicateScan(res);
+    case "listSubjectDuplicateSuggestions":
+      return handleListSubjectDuplicateSuggestions(res, url.searchParams.get("status"));
+    case "resolveSubjectDuplicateSuggestion":
+      return handleResolveSubjectDuplicateSuggestion(req, res, id);
   }
 }
 

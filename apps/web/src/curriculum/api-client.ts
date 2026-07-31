@@ -1184,3 +1184,29 @@ export async function updateAdminSettings(
 export async function getAdminObservability(): Promise<be.AdminObservability> {
   return request<be.AdminObservability>('/admin/observability')
 }
+
+// ai-duplicate-detection (issue #63) additions below.
+
+export async function triggerSubjectDuplicateScan(): Promise<be.TriggerSubjectDuplicateScanResult> {
+  return request<be.TriggerSubjectDuplicateScanResult>('/subject-duplicate-scans', {
+    method: 'POST',
+  })
+}
+
+export async function listSubjectDuplicateSuggestions(
+  status?: be.SubjectDuplicateSuggestionStatus,
+): Promise<be.SubjectDuplicateSuggestion[]> {
+  const query = status ? `?status=${status}` : ''
+
+  return request<be.SubjectDuplicateSuggestion[]>(`/subject-duplicate-suggestions${query}`)
+}
+
+export async function resolveSubjectDuplicateSuggestion(
+  suggestionId: string,
+  input: be.ResolveSubjectDuplicateSuggestionInput,
+): Promise<be.SubjectDuplicateSuggestion> {
+  return request<be.SubjectDuplicateSuggestion>(
+    `/subject-duplicate-suggestions/${suggestionId}`,
+    { method: 'PATCH', body: input },
+  )
+}

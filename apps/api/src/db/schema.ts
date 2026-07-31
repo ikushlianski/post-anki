@@ -8,6 +8,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  real,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
@@ -17,6 +18,15 @@ export const subjects = pgTable("subjects", {
   requireSources: boolean("require_sources").notNull().default(false),
   kind: text("kind").notNull().default("architecture-mentor"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // ai-duplicate-detection (issue #63) — nullable, additive, no backfill:
+  // every existing subject simply starts with no cached embedding, which
+  // the first scan fills in. embeddingHash lets a scan skip re-embedding a
+  // subject whose name+description text hasn't changed since it was last
+  // embedded (the real cost bound, not just a subject-count cap — see
+  // architecture.md's "Data model evolution").
+  embedding: jsonb("embedding").$type<number[]>(),
+  embeddingHash: text("embedding_hash"),
+  embeddedAt: timestamp("embedded_at", { withTimezone: true }),
 });
 
 export const curricula = pgTable("curricula", {
@@ -725,4 +735,45 @@ export const ontologyMerges = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("ontology_merges_created_at_idx").on(table.createdAt.desc())],
+);
+
+// ai-duplicate-detection (issue #63) — one row per candidate duplicate pair
+// an embedding-similarity scan surfaces. Sibling in shape to
+// domain_priority_suggestions/domain_topic_suggestions (source discriminator,
+// status pending/accepted/rejected), plus a fourth status this feature
+// introduces: "stale", for a pair invalidated by an unrelated merge/delete
+// rather than resolved by a human (spec.md Decision #5) — kept distinct from
+// "rejected" so a pair a human explicitly said "not a duplicate" to is never
+// conflated with one that just became moot.
+//
+// subjectAId/subjectBId store an UNORDERED pair, but always in CANONICAL
+// lexicographic order (subjectAId < subjectBId) — this is what lets the
+// plain two-column partial unique index below enforce "at most one pending
+// row per pair" regardless of which subject a caller names first (spec.md
+// Decision #6).
+export const subjectDuplicateSuggestions = pgTable(
+  "subject_duplicate_suggestions",
+  {
+    id: text("id").primaryKey(),
+    subjectAId: text("subject_a_id").notNull(),
+    subjectBId: text("subject_b_id").notNull(),
+    similarity: real("similarity").notNull(),
+    reason: text("reason").notNull(),
+    source: text("source").notNull().default("embedding-similarity"),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [
+    // DB-level race guard, not just an app-level check-then-act guard
+    // (red-team finding, mirrors curriculum_structure_turns_pending_
+    // assistant_unique above) — a human double-clicking "Scan for
+    // duplicates", or two browser tabs, can both observe "no pending row
+    // yet" for the same pair before either insert commits. The constraint
+    // itself is what makes the second concurrent insert fail atomically;
+    // the repo catches that specific violation and treats it as a no-op.
+    uniqueIndex("subject_duplicate_suggestions_pending_pair_unique")
+      .on(table.subjectAId, table.subjectBId)
+      .where(sql`${table.status} = 'pending'`),
+  ],
 );
