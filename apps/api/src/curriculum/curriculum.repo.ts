@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type {
   CreateCurriculumInput,
   Curriculum,
@@ -11,6 +11,7 @@ import type {
   LearningMapSnapshot,
   LearningStatus,
   Level,
+  MergeCurriculaResult,
   Module,
   ResearchCandidateApprovalStatus,
   Source,
@@ -41,6 +42,8 @@ import {
   gaps,
   gapMastery,
   modules,
+  probeSessions,
+  socraticSessions,
   sources,
   structureResearchCandidates,
   subjects,
@@ -49,6 +52,7 @@ import {
 import { rowToGap } from "../gap/gap.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { newId } from "../shared/id.js";
+import { withMergeLock } from "../shared/merge-lock.js";
 import {
   resolveCurriculumOrigin,
   hasStudyableContent,
@@ -492,6 +496,137 @@ export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
   await db.delete(curricula).where(eq(curricula.id, curriculumId));
 
   return true;
+}
+
+export type MergeCurriculaError =
+  | "self_merge"
+  | "not_found"
+  | "different_subjects"
+  | "pending_structure_turn";
+
+/**
+ * Absorbs `sourceId` into `targetId`: every module/topic/source/
+ * socratic_sessions/probe_sessions row owned by the source moves to the
+ * target (modules land as ADDITIONAL modules under the target, no
+ * title-matching reconciliation attempted — see spec.md's Decision #1 —
+ * with their `order` offset past the target's current max so the two
+ * independently-numbered sequences don't collide/interleave under
+ * `sortForDisplay`), the source's `curriculum_structure_turns` and
+ * `structure_research_candidates` rows are DELETED rather than reassigned
+ * (Decision #2 — reassigning risks colliding with
+ * `curriculum_structure_turns_pending_assistant_unique` and always produces
+ * an incoherent interleaved chat thread), `llm_call_events` is left
+ * pointing at the deleted source id on purpose (Decision #3 — an
+ * append-only observability log, reassigning would falsify which
+ * curriculum an LLM call actually ran against), and the source `curricula`
+ * row is deleted directly (not via `deleteCurriculum()`, which would
+ * re-clear structure this merge already moved off the source — same
+ * reasoning `mergeSubjects` already established for bypassing
+ * `deleteSubject()`).
+ *
+ * The one precondition curriculum merge needs that subject/tag merge never
+ * had to check: the SOURCE must not have a `curriculum_structure_turns` row
+ * still `role: 'assistant', status: 'pending'` — scoped to the source only,
+ * never the target, since the target's own turns are never touched by this
+ * merge (Decision #2's verified reasoning).
+ */
+export async function mergeCurricula(
+  targetId: string,
+  sourceId: string,
+): Promise<MergeCurriculaResult | { error: MergeCurriculaError }> {
+  return withMergeLock(targetId, sourceId, async (tx) => {
+    const targetRow = (
+      await tx.select().from(curricula).where(eq(curricula.id, targetId))
+    )[0];
+    const sourceRow = (
+      await tx.select().from(curricula).where(eq(curricula.id, sourceId))
+    )[0];
+
+    if (!targetRow || !sourceRow) {
+      return { error: "not_found" as const };
+    }
+
+    if (targetRow.subjectId !== sourceRow.subjectId) {
+      return { error: "different_subjects" as const };
+    }
+
+    const pendingSourceTurn = (
+      await tx
+        .select({ id: curriculumStructureTurns.id })
+        .from(curriculumStructureTurns)
+        .where(
+          and(
+            eq(curriculumStructureTurns.curriculumId, sourceId),
+            eq(curriculumStructureTurns.role, "assistant"),
+            eq(curriculumStructureTurns.status, "pending"),
+          ),
+        )
+    )[0];
+
+    if (pendingSourceTurn) {
+      return { error: "pending_structure_turn" as const };
+    }
+
+    const targetMaxOrderRow = (
+      await tx
+        .select({ maxOrder: sql<number>`coalesce(max(${modules.order}), 0)` })
+        .from(modules)
+        .where(eq(modules.curriculumId, targetId))
+    )[0];
+    const targetMaxOrder = targetMaxOrderRow?.maxOrder ?? 0;
+
+    const movedModules = await tx
+      .update(modules)
+      .set({
+        curriculumId: targetId,
+        order: sql`${modules.order} + ${targetMaxOrder}`,
+      })
+      .where(eq(modules.curriculumId, sourceId))
+      .returning({ id: modules.id });
+
+    const movedTopics = await tx
+      .update(topics)
+      .set({ curriculumId: targetId })
+      .where(eq(topics.curriculumId, sourceId))
+      .returning({ id: topics.id });
+
+    const movedSources = await tx
+      .update(sources)
+      .set({ curriculumId: targetId })
+      .where(eq(sources.curriculumId, sourceId))
+      .returning({ id: sources.id });
+
+    const movedSocraticSessions = await tx
+      .update(socraticSessions)
+      .set({ curriculumId: targetId })
+      .where(eq(socraticSessions.curriculumId, sourceId))
+      .returning({ id: socraticSessions.id });
+
+    const movedProbeSessions = await tx
+      .update(probeSessions)
+      .set({ curriculumId: targetId })
+      .where(eq(probeSessions.curriculumId, sourceId))
+      .returning({ id: probeSessions.id });
+
+    await tx
+      .delete(curriculumStructureTurns)
+      .where(eq(curriculumStructureTurns.curriculumId, sourceId));
+    await tx
+      .delete(structureResearchCandidates)
+      .where(eq(structureResearchCandidates.curriculumId, sourceId));
+
+    await tx.delete(curricula).where(eq(curricula.id, sourceId));
+
+    return {
+      targetCurriculumId: targetId,
+      sourceCurriculumId: sourceId,
+      modulesMoved: movedModules.length,
+      topicsMoved: movedTopics.length,
+      sourcesMoved: movedSources.length,
+      socraticSessionsMoved: movedSocraticSessions.length,
+      probeSessionsMoved: movedProbeSessions.length,
+    };
+  });
 }
 
 export async function countModules(curriculumId: string): Promise<number> {

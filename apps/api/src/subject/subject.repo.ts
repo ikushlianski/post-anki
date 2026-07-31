@@ -1,9 +1,10 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { CreateSubjectInput, MergeSubjectsResult, Subject } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, domainNodes, subjects } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
+import { withMergeLock } from "../shared/merge-lock.js";
 
 function toSubject(r: typeof subjects.$inferSelect): Subject {
   return {
@@ -92,16 +93,7 @@ export async function mergeSubjects(
   targetId: string,
   sourceId: string,
 ): Promise<MergeSubjectsResult | { error: MergeSubjectsError }> {
-  if (targetId === sourceId) {
-    return { error: "self_merge" };
-  }
-
-  return getDb().transaction(async (tx) => {
-    const [firstLockId, secondLockId] = [targetId, sourceId].sort();
-
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${firstLockId})::bigint)`);
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${secondLockId})::bigint)`);
-
+  return withMergeLock(targetId, sourceId, async (tx) => {
     const targetRow = (
       await tx.select().from(subjects).where(eq(subjects.id, targetId))
     )[0];

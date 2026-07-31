@@ -3,6 +3,7 @@ import {
   addSourcesInput,
   approveSourcesInput,
   createCurriculumInput,
+  mergeCurriculaInput,
   resolveSupplementalResearchInput,
   submitStructureTurnInput,
   updateCurriculumInput,
@@ -25,6 +26,7 @@ import {
   insertPendingSources,
   listCurricula,
   markPreAssessmentCompleted,
+  mergeCurricula,
   updateCurriculum,
 } from "./curriculum.repo.js";
 import {
@@ -470,6 +472,33 @@ export async function handleDeleteCurriculum(
   }
 
   sendJson(res, 200, { id: curriculumId, deleted: true });
+}
+
+export async function handleMergeCurricula(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  targetId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, mergeCurriculaInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await mergeCurricula(targetId, body.data.sourceCurriculumId);
+
+  if ("error" in result) {
+    if (result.error === "not_found") {
+      sendError(res, 404, "not_found");
+      return;
+    }
+
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
 }
 
 export async function handleGetCurriculum(

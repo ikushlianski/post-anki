@@ -245,3 +245,21 @@ export const resolveSupplementalResearchInput = z.object({
 export type ResolveSupplementalResearchInput = z.infer<
   typeof resolveSupplementalResearchInput
 >;
+
+export const mergeCurriculaInput = z.object({
+  sourceCurriculumId: z.string(),
+});
+
+export type MergeCurriculaInput = z.infer<typeof mergeCurriculaInput>;
+
+export const mergeCurriculaResultSchema = z.object({
+  targetCurriculumId: z.string(),
+  sourceCurriculumId: z.string(),
+  modulesMoved: z.number(),
+  topicsMoved: z.number(),
+  sourcesMoved: z.number(),
+  socraticSessionsMoved: z.number(),
+  probeSessionsMoved: z.number(),
+});
+
+export type MergeCurriculaResult = z.infer<typeof mergeCurriculaResultSchema>;

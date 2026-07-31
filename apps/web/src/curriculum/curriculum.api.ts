@@ -12,6 +12,7 @@ import {
   createTopicInput,
   curateGapInput,
   declareGapInput,
+  mergeCurriculaInput,
   mergeTagsInput,
   nextQuestionInput,
   recordAttemptInput,
@@ -277,6 +278,10 @@ export const deleteCurriculum = createServerFn({ method: 'POST' })
 
     return null
   })
+
+export const mergeCurricula = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => mergeCurriculaInput.parse(data))
+  .handler(({ data }) => api.mergeCurricula(data.targetCurriculumId, data.sourceCurriculumId))
 
 export const nextQuestion = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => nextQuestionInput.parse(data))
