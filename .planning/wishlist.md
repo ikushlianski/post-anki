@@ -505,7 +505,15 @@ actions already existing to send an accepted suggestion to.
       Needs real product/architecture planning first — how module/topic name conflicts are
       resolved when both curricula have similar structure. This entry queues the idea, it does
       not spec it.
-- [ ] Add domain-node merge to close near-duplicate knowledge-map nodes. (#61)
+- [x] Add domain-node merge to close near-duplicate knowledge-map nodes. (#61)
+      [→ done: .planning/domain-node-merge/, merged to main 2026-07-31. review-playwright verdict:
+      PASS — S1/S2 both pass, 47/49 regression (2 failures confirmed via A/B testing against the
+      pre-merge commit to be an unrelated pre-existing hydration race, not caused by this feature).
+      First merge to re-parent an existing row; adds `isAncestor()`, a write-blocking cycle guard
+      with no depth cap (deliberately distinct from the read-path percentage rollup's depth-6 cap
+      — a cap is fine for a display under-count, wrong for a correctness guard), proven at depth 9
+      with an argument-order regression test. Read-path proof included: the tree-assembly recursion
+      correctly traverses a merged/re-parented shape, closing the gap two prior debriefs flagged.]
       Why: the domain-map tree only prevents duplicates via an exact case/whitespace-insensitive
       name match. Two independent AI call sites — `domain-placement.orchestrator.ts`'s
       sibling-discovery agent and `doc-scan.orchestrator.ts` — can each create a new node with no
