@@ -5,6 +5,7 @@ import { getDb } from "../db/client.js";
 import { tagAssignments, tags, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { withMergeLock } from "../shared/merge-lock.js";
+import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function rowToTag(row: typeof tags.$inferSelect): Tag {
   return {
@@ -278,6 +279,18 @@ export async function mergeTags(
     const sessionsMoved = sessionsResult.rowCount ?? 0;
 
     await tx.delete(tags).where(eq(tags.id, sourceId));
+
+    await insertOntologyMergeLog(
+      {
+        entityType: "tag",
+        targetId,
+        targetName: targetRow.name,
+        sourceId,
+        sourceName: sourceRow.name,
+        reassignedCounts: { assignmentsMoved, assignmentsDeduped, sessionsMoved },
+      },
+      tx,
+    );
 
     return {
       targetTagId: targetId,

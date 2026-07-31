@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ontologyMergeLogRowSchema } from "./ontology-merge";
 
 export const stuckCurriculumSchema = z.object({
   id: z.string(),
@@ -26,6 +27,7 @@ export type LlmCallEvent = z.infer<typeof llmCallEventSchema>;
 export const adminObservabilitySchema = z.object({
   stuckCurricula: z.array(stuckCurriculumSchema),
   recentEvents: z.array(llmCallEventSchema),
+  recentMerges: z.array(ontologyMergeLogRowSchema),
 });
 
 export type AdminObservability = z.infer<typeof adminObservabilitySchema>;

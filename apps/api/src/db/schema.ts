@@ -7,6 +7,7 @@ import {
   timestamp,
   jsonb,
   uniqueIndex,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
@@ -692,3 +693,36 @@ export const decideBlindSpots = pgTable("decide_blind_spots", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
+
+// ontology-audit-trail (issue #62) — an append-only log of every "absorb
+// source into target" merge across the four current merge functions
+// (mergeSubjects/mergeTags/mergeCurricula/mergeDomainNodes). One row per
+// successful merge, written inside that merge's own transaction (see
+// ontology-merge.repo.ts's insertOntologyMergeLog). target_name/source_name
+// are snapshots taken at merge time, not live joins — the source row is
+// deleted by the merge itself, so a live join would 404 forever after.
+// reassigned_counts is jsonb typed Record<string, number> rather than fixed
+// columns — the four merges' count fields don't share a vocabulary
+// (curriculaMoved/domainNodesMoved for subjects; assignmentsMoved/
+// assignmentsDeduped/sessionsMoved for tags; modulesMoved/topicsMoved/
+// sourcesMoved/socraticSessionsMoved/probeSessionsMoved for curricula;
+// curriculaMoved/childNodesMoved for domain nodes) — mirrors this schema's
+// existing typed-jsonb-for-varying-shape pattern (structureSnapshot,
+// toolActions, nativeAlternatives). This is explicitly NOT the same
+// mechanism as the still-open "make clearCurriculumStructure
+// provenance-aware" wishlist item — see docs/architecture/
+// ontology-audit-trail/architecture.md.
+export const ontologyMerges = pgTable(
+  "ontology_merges",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    targetId: text("target_id").notNull(),
+    targetName: text("target_name").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceName: text("source_name").notNull(),
+    reassignedCounts: jsonb("reassigned_counts").$type<Record<string, number>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("ontology_merges_created_at_idx").on(table.createdAt.desc())],
+);

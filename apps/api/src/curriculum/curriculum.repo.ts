@@ -53,6 +53,7 @@ import { rowToGap } from "../gap/gap.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { newId } from "../shared/id.js";
 import { withMergeLock } from "../shared/merge-lock.js";
+import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 import {
   resolveCurriculumOrigin,
   hasStudyableContent,
@@ -637,6 +638,24 @@ export async function mergeCurricula(
       .where(eq(structureResearchCandidates.curriculumId, sourceId));
 
     await tx.delete(curricula).where(eq(curricula.id, sourceId));
+
+    await insertOntologyMergeLog(
+      {
+        entityType: "curriculum",
+        targetId,
+        targetName: targetRow.name,
+        sourceId,
+        sourceName: sourceRow.name,
+        reassignedCounts: {
+          modulesMoved: movedModules.length,
+          topicsMoved: movedTopics.length,
+          sourcesMoved: movedSources.length,
+          socraticSessionsMoved: movedSocraticSessions.length,
+          probeSessionsMoved: movedProbeSessions.length,
+        },
+      },
+      tx,
+    );
 
     return {
       targetCurriculumId: targetId,
