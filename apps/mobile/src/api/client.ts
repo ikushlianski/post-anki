@@ -18,14 +18,36 @@ export function apiBaseUrl(): string {
 // guard's fixed allowlist. This regex only needs to extract a scheme and a
 // host for a fixed, small set of comparisons, so it sidesteps both quirks
 // and behaves identically on web and native.
+//
+// Two real bypasses were found here by a `/debrief` review and are fixed
+// below, not just noted: (1) scheme comparison must be case-insensitive —
+// real URL parsing normalizes scheme case, so "HTTP://" is plaintext HTTP
+// regardless of spelling; (2) an "@" before the host marks embedded
+// userinfo ("http://localhost:x@evil-host/"), and real URL parsing treats
+// everything after the LAST "@" as the actual host — this parser has no
+// use case for userinfo in an API base URL, so any "@" in the authority is
+// rejected outright rather than parsed, closing the bypass without adding
+// a second parsing path to keep in sync with the first.
 function extractProtocolAndHost(url: string): { protocol: string; host: string } {
-  const match = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\/(\[[^\]]+\]|[^/:?#]+)/.exec(url);
+  const match = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\/(\[[^\]]+\]|[^/?#]+)/.exec(url);
 
   if (!match) {
     throw new Error(`Cannot parse API base URL: ${url}`);
   }
 
-  return { protocol: `${match[1]}:`, host: match[2].replace(/^\[|\]$/g, "") };
+  const authority = match[2];
+
+  if (authority.includes("@")) {
+    throw new Error(`Refusing to parse a URL with embedded userinfo: ${url}`);
+  }
+
+  // Only strip a trailing ":port" for the non-bracketed form — an IPv6
+  // literal's own colons must stay intact, and the bracketed alternative
+  // above never captures a trailing port in the first place.
+  const isBracketed = authority.startsWith("[");
+  const host = isBracketed ? authority.replace(/^\[|\]$/g, "") : authority.split(":")[0];
+
+  return { protocol: `${match[1].toLowerCase()}:`, host: host.toLowerCase() };
 }
 
 export function assertSecureUrl(url: string): void {

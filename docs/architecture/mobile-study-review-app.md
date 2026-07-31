@@ -47,6 +47,11 @@ parses the scheme and host with a small regex rather than the built-in `URL`: WH
 bracketed IPv6 hostnames (`"[::1]"`), and React Native's own `global.URL` polyfill
 (`Libraries/Core/setUpXHR.js`) parses bracketed IPv6 literals differently again — neither can be
 trusted to agree with this guard's fixed allowlist, so `new URL()` is deliberately not used here.
+A `/debrief` review found and closed two real bypasses in the hand-rolled parser: scheme
+comparison is now case-insensitive (`HTTP://evil-host` is plaintext regardless of spelling), and
+any `@` in the authority — embedded userinfo, e.g. `http://localhost:x@evil-host/` — is rejected
+outright rather than parsed, since a naive regex previously read everything before the first `:`
+as the host and silently ignored the real destination after the `@`.
 The guard is called explicitly at the top of both `apiFetch` and `verifyToken`, deliberately **not**
 folded into
 `apiBaseUrl()` itself: `verifyToken` wraps its body in `try { ... } catch { return false }`, and if
