@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   ActivityIndicator,
@@ -11,12 +11,19 @@ import {
   View,
 } from "react-native";
 import { verifyToken } from "../src/api/client";
-import { setStoredToken } from "../src/api/token-storage";
+import { consumeClearReason, setStoredToken } from "../src/api/token-storage";
 
 export default function ConnectScreen() {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clearReason] = useState(() => consumeClearReason());
+  // setBusy(true) alone doesn't guard against a genuine double-tap: two
+  // native click events dispatched in the same synchronous tick both read
+  // the pre-update `busy` state, since React state updates aren't applied
+  // until the next render. Same pattern already fixed in the Today and
+  // practice screens' submit handlers.
+  const busyRef = useRef(false);
 
   async function connect() {
     const trimmed = token.trim();
@@ -26,20 +33,30 @@ export default function ConnectScreen() {
       return;
     }
 
-    setBusy(true);
-    setError(null);
-
-    const ok = await verifyToken(trimmed);
-
-    if (!ok) {
-      setBusy(false);
-      setError("That token was rejected. Check it and try again.");
+    if (busyRef.current) {
       return;
     }
 
-    await setStoredToken(trimmed);
-    setBusy(false);
-    router.replace("/");
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+
+    try {
+      const ok = await verifyToken(trimmed);
+
+      if (!ok) {
+        setError("That token was rejected. Check it and try again.");
+        return;
+      }
+
+      await setStoredToken(trimmed);
+      router.replace("/");
+    } catch {
+      setError("Can't reach the server — check the app's configured server address.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
 
   return (
@@ -49,7 +66,9 @@ export default function ConnectScreen() {
     >
       <Text style={styles.title}>Connect to Post Anki</Text>
       <Text style={styles.subtitle}>
-        Paste the personal access token you minted on your own machine.
+        {clearReason === "revoked"
+          ? "Your session ended — reconnect with a new token below."
+          : "Paste the personal access token you minted on your own machine."}
       </Text>
       <TextInput
         style={styles.input}

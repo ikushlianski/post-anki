@@ -3,9 +3,13 @@ import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "post-anki-api-token";
 
+export type ClearReason = "revoked";
+
 type TokenListener = (token: string | null) => void;
 
 const listeners = new Set<TokenListener>();
+
+let lastClearReason: ClearReason | null = null;
 
 function notify(token: string | null): void {
   for (const listener of listeners) {
@@ -39,7 +43,9 @@ export async function setStoredToken(token: string): Promise<void> {
   notify(token);
 }
 
-export async function clearStoredToken(): Promise<void> {
+export async function clearStoredToken(reason?: ClearReason): Promise<void> {
+  lastClearReason = reason ?? null;
+
   if (Platform.OS === "web") {
     window.localStorage.removeItem(TOKEN_KEY);
   } else {
@@ -47,4 +53,12 @@ export async function clearStoredToken(): Promise<void> {
   }
 
   notify(null);
+}
+
+export function consumeClearReason(): ClearReason | null {
+  const reason = lastClearReason;
+
+  lastClearReason = null;
+
+  return reason;
 }
