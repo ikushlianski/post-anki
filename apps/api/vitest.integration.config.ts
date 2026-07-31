@@ -12,7 +12,17 @@ import { defineConfig } from "vitest/config";
 // `npm run test:integration -- <path>`.
 export default defineConfig({
   test: {
-    include: ["src/**/*.integration.test.ts"],
+    include: [
+      "src/**/*.integration.test.ts",
+      // ai-duplicate-detection (issue #63) — same named-exception shape as
+      // decide.repo.test.ts/domain-priority-review.orchestrator.test.ts
+      // (real Postgres, DB partial unique index + cross-table transaction
+      // behavior that only a real connection can prove), listed here
+      // explicitly rather than renamed to *.integration.test.ts because
+      // spec.md's Backend DoD pins these two exact paths.
+      "src/subject-duplicate/subject-duplicate.orchestrator.test.ts",
+      "src/subject-duplicate/subject-duplicate.repo.test.ts",
+    ],
     exclude: ["**/node_modules/**"],
   },
 });

@@ -4,6 +4,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   OPENROUTER_API_KEY: z.string().min(1),
   CURRICULUM_MODEL: z.string().min(1).default("openrouter/google/gemini-2.5-flash"),
+  EMBEDDING_MODEL: z.string().min(1).default("openai/text-embedding-3-small"),
   OPENROUTER_BASE_URL: z.string().min(1).optional(),
   API_SHARED_SECRET: z.string().min(1).optional(),
   ELECTRIC_SERVICE_URL: z.string().min(1).optional(),

@@ -1,10 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import type { CreateSubjectInput, MergeSubjectsResult, Subject } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
-import { curricula, domainNodes, subjects } from "../db/schema.js";
+import { curricula, domainNodes, subjectDuplicateSuggestions, subjects } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
-import { withMergeLock } from "../shared/merge-lock.js";
+import { withMergeLock, type Tx } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function toSubject(r: typeof subjects.$inferSelect): Subject {
@@ -34,6 +34,35 @@ export async function getSubject(subjectId: string): Promise<Subject | null> {
   return row ? toSubject(row) : null;
 }
 
+export interface SubjectForDuplicateScan {
+  id: string;
+  name: string;
+  description: string | null;
+  embedding: number[] | null;
+  embeddingHash: string | null;
+}
+
+// ai-duplicate-detection (issue #63) — the orchestrator's only read of the
+// subjects table. Scoped to "architecture-mentor" only (SCENARIO 1 —
+// language-practice subjects, e.g. flashcard decks, are never compared or
+// suggested, matching mergeSubjects' own kind restriction) and exposes the
+// internal embedding/embeddingHash columns the public Subject type
+// deliberately omits.
+export async function listArchitectureMentorSubjectsForDuplicateScan(): Promise<
+  SubjectForDuplicateScan[]
+> {
+  return getDb()
+    .select({
+      id: subjects.id,
+      name: subjects.name,
+      description: subjects.description,
+      embedding: subjects.embedding,
+      embeddingHash: subjects.embeddingHash,
+    })
+    .from(subjects)
+    .where(eq(subjects.kind, "architecture-mentor"));
+}
+
 export async function createSubject(input: CreateSubjectInput): Promise<Subject> {
   const row = {
     id: newId("sub"),
@@ -45,7 +74,54 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
 
   await getDb().insert(subjects).values(row);
 
-  return toSubject({ ...row, createdAt: new Date() });
+  return toSubject({
+    ...row,
+    createdAt: new Date(),
+    embedding: null,
+    embeddingHash: null,
+    embeddedAt: null,
+  });
+}
+
+// ai-duplicate-detection (issue #63) — writes a fresh embedding+hash back
+// onto a subject row after a successful embeddings call. embeddedAt is set
+// to "now" purely for tracing/debugging visibility (architecture.md's "Data
+// model evolution") — cache-invalidation logic never reads it, only the
+// hash comparison does.
+export async function updateSubjectEmbedding(
+  subjectId: string,
+  embedding: number[],
+  hash: string,
+): Promise<void> {
+  await getDb()
+    .update(subjects)
+    .set({ embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .where(eq(subjects.id, subjectId));
+}
+
+// ai-duplicate-detection (issue #63) — shared by mergeSubjects and
+// deleteSubject: whenever a subject stops existing (merged away or plain-
+// deleted), every OTHER pending duplicate-suggestion row that still
+// references it must be invalidated to "stale" (distinct from "rejected" —
+// spec.md Decision #5) rather than left dangling on a subject id that no
+// longer exists. Runs inside the caller's own transaction so this
+// invalidation and the row deletion that necessitates it commit atomically.
+async function invalidateStalePendingDuplicateSuggestions(
+  tx: Tx,
+  subjectId: string,
+): Promise<void> {
+  await tx
+    .update(subjectDuplicateSuggestions)
+    .set({ status: "stale", resolvedAt: new Date() })
+    .where(
+      and(
+        or(
+          eq(subjectDuplicateSuggestions.subjectAId, subjectId),
+          eq(subjectDuplicateSuggestions.subjectBId, subjectId),
+        ),
+        eq(subjectDuplicateSuggestions.status, "pending"),
+      ),
+    );
 }
 
 export async function deleteSubject(subjectId: string): Promise<boolean> {
@@ -68,7 +144,15 @@ export async function deleteSubject(subjectId: string): Promise<boolean> {
     await deleteCurriculum(c.id);
   }
 
-  await db.delete(subjects).where(eq(subjects.id, subjectId));
+  // The subject row deletion and the pending-suggestion stale-invalidation
+  // it necessitates (SCENARIO 5b) run in one transaction — a crash between
+  // the two would otherwise leave a suggestion row pointing at a subject id
+  // that no longer exists, which the panel's frontend name-lookup couldn't
+  // resolve.
+  await db.transaction(async (tx) => {
+    await tx.delete(subjects).where(eq(subjects.id, subjectId));
+    await invalidateStalePendingDuplicateSuggestions(tx, subjectId);
+  });
 
   return true;
 }
@@ -89,10 +173,24 @@ export type MergeSubjectsError = "self_merge" | "not_found" | "kind_mismatch";
  * deadlock) — never before opening it — so a concurrent merge that already
  * deleted one side surfaces as a clean "not_found" 404 instead of racing on
  * a stale pre-transaction read (spec.md's double-merge race, Scenario 5).
+ *
+ * `resolvingSuggestionId` (ai-duplicate-detection, issue #63) — when this
+ * merge is the atomic-accept path for a subject-duplicate suggestion, the
+ * caller passes the id of the specific suggestion being accepted. After the
+ * usual stale-invalidation sweep below sets EVERY pending suggestion
+ * referencing sourceId (including this one) to "stale", this one row is
+ * immediately overwritten to "accepted" instead — still inside this same
+ * transaction, so either both effects commit or neither does (spec.md's
+ * Decision #7 / architecture.md's "Accept must be atomic" — fixes a crash
+ * window an earlier two-sequential-writes draft left open, where an
+ * accepted suggestion could get permanently stuck at "stale"). Omitted
+ * (undefined) for the pre-existing manual "Merge into…" control, which has
+ * no suggestion to resolve — behavior for that call site is unchanged.
  */
 export async function mergeSubjects(
   targetId: string,
   sourceId: string,
+  resolvingSuggestionId?: string,
 ): Promise<MergeSubjectsResult | { error: MergeSubjectsError }> {
   return withMergeLock(targetId, sourceId, async (tx) => {
     const targetRow = (
@@ -123,6 +221,15 @@ export async function mergeSubjects(
       .returning({ id: domainNodes.id });
 
     await tx.delete(subjects).where(eq(subjects.id, sourceId));
+
+    await invalidateStalePendingDuplicateSuggestions(tx, sourceId);
+
+    if (resolvingSuggestionId) {
+      await tx
+        .update(subjectDuplicateSuggestions)
+        .set({ status: "accepted", resolvedAt: new Date() })
+        .where(eq(subjectDuplicateSuggestions.id, resolvingSuggestionId));
+    }
 
     await insertOntologyMergeLog(
       {

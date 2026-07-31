@@ -10,14 +10,25 @@ import {
   mapSubjectRow,
   subjectsCollection,
 } from '../curriculum/board.collection'
+import type { SubjectDuplicateSuggestion } from '@post-anki/shared'
+
 import { getBoard, listTags, mergeTags } from '../curriculum/curriculum.api'
 import type { Curriculum, Subject, Tag } from '../curriculum/model'
 import { CreateSubjectForm } from '../subject/create-subject-form'
 import { SubjectSection } from '../subject/subject-section'
+import { DuplicateScanPanel } from '../subject-duplicate/duplicate-scan-panel'
+import { listPendingDuplicateSuggestions } from '../subject-duplicate/subject-duplicate.api'
 
 export const Route = createFileRoute('/')({
   component: Home,
-  loader: () => getBoard(),
+  loader: async () => {
+    const [board, duplicateSuggestions] = await Promise.all([
+      getBoard(),
+      listPendingDuplicateSuggestions({ data: 'pending' }),
+    ])
+
+    return { ...board, duplicateSuggestions }
+  },
 })
 
 function TagMergeControl({
@@ -162,7 +173,11 @@ function Home() {
   return (
     <>
       {isClient && <LiveDataBridge onData={setLive} />}
-      <HomeView subjects={live?.subjects ?? initial.subjects} curricula={live?.curricula ?? initial.curricula} />
+      <HomeView
+        subjects={live?.subjects ?? initial.subjects}
+        curricula={live?.curricula ?? initial.curricula}
+        initialDuplicateSuggestions={initial.duplicateSuggestions}
+      />
     </>
   )
 }
@@ -200,9 +215,11 @@ function LiveDataBridge({ onData }: { onData: (data: LiveBoardData) => void }) {
 function HomeView({
   subjects,
   curricula,
+  initialDuplicateSuggestions,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
+  initialDuplicateSuggestions: SubjectDuplicateSuggestion[]
 }) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -217,6 +234,11 @@ function HomeView({
       <div className="mb-10">
         <CreateSubjectForm />
       </div>
+
+      <DuplicateScanPanel
+        initialSuggestions={initialDuplicateSuggestions}
+        allSubjects={subjects}
+      />
 
       <TagList />
 
