@@ -426,7 +426,18 @@ below. [Epic] React Native Mobile App (#64) tracks the full picture; #65 (verify
 device) stays off this queue since it needs the user's own phone with Expo Go, not something
 buildable unattended.
 
-- [ ] Complete the core study/review loop on mobile. (#66)
+- [x] Complete the core study/review loop on mobile. (#66)
+      [→ done: .planning/mobile-study-loop/, merged to main 2026-07-31. Real gap turned out
+      structural, not cosmetic: `/daily-push` never surfaced language-practice subjects at all
+      (phrase-bank data hangs off a bare subjectId, not curricula/topics). Added a subject picker
+      + trimmed phrase-practice screen. Also fixed a real crash blocking any browser-based
+      verification at all: expo-secure-store has no web implementation, so token-storage.ts now
+      falls back to localStorage on Platform.OS === "web" only. Verified via a proven mechanism —
+      a standalone Playwright script against `expo start --web`, no simulator needed — which is
+      how independent re-verification caught a real bug the build agent's own claim missed: double-
+      submit protection didn't hold under a genuine synchronous double-tap (only a slower
+      Playwright-click-timing gap), fixed with a useRef-based synchronous guard and re-confirmed.
+      On-device native behavior (real SecureStore, Expo Go, gestures) stays deferred to #65.]
       Why: `apps/mobile/src/study/question-view.tsx` and `answer-submit.ts` exist but their
       actual coverage against the web app's core loop (subject → due topic → probe or quiz,
       depending on pedagogy kind → graded result) has never been verified end to end.
