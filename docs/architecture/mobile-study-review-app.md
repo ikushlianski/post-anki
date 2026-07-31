@@ -27,6 +27,38 @@ migrations already sit behind. The raw token is shown once and stored only in th
 secure keychain (`expo-secure-store`), never in plain `AsyncStorage` and never in source control
 or the app bundle.
 
+The Connect screen (`apps/mobile/app/connect.tsx`) visibly distinguishes first-time pairing from
+post-eviction re-pairing, rather than showing identical copy either way. When `apiFetch`'s 401
+branch clears a rejected token, it records `"revoked"` as a module-level, read-once reason in
+`apps/mobile/src/api/token-storage.ts` (`clearStoredToken(reason)` / `consumeClearReason()`) —
+not a route param. Two independent code paths can both redirect to `/connect` after an eviction
+(`apiFetch`'s own imperative redirect, and `_layout.tsx`'s effect reacting to the same
+`clearStoredToken` call), so a param threaded through whichever redirect happens to land first
+would be unreliable; module state read once when Connect mounts sidesteps that race entirely.
+Connect reads the reason once via a lazy `useState` initializer and renders "Your session
+ended — reconnect with a new token below." instead of the default first-pairing copy.
+
+`apps/mobile/src/api/client.ts` also guards against a misconfigured, plaintext transport:
+`assertSecureUrl(url)` throws for any `http://` URL whose host isn't a recognized loopback address
+(`localhost`, `127.0.0.1`, `::1`, `10.0.2.2` — the Android emulator's host-loopback alias); any
+`https://` URL passes unchanged. A Bearer PAT read out of the Keychain/Keystore still has to
+travel securely once it's on the wire — secure storage alone doesn't guarantee that. The guard
+parses the scheme and host with a small regex rather than the built-in `URL`: WHATWG `URL` returns
+bracketed IPv6 hostnames (`"[::1]"`), and React Native's own `global.URL` polyfill
+(`Libraries/Core/setUpXHR.js`) parses bracketed IPv6 literals differently again — neither can be
+trusted to agree with this guard's fixed allowlist, so `new URL()` is deliberately not used here.
+The guard is called explicitly at the top of both `apiFetch` and `verifyToken`, deliberately **not**
+folded into
+`apiBaseUrl()` itself: `verifyToken` wraps its body in `try { ... } catch { return false }`, and if
+`apiBaseUrl()` threw from inside that try block the throw would be silently swallowed and
+misreported as "That token was rejected" — a server-misconfiguration error masquerading as a bad
+token. `assertSecureUrl(apiBaseUrl())` runs before `verifyToken`'s try block instead, so the throw
+reaches `connect.tsx`'s `connect()`, which now has its own try/catch showing a distinct "Can't
+reach the server — check the app's configured server address." message. `apiFetch` has no try/catch
+of its own, so the same guard throw there propagates unchanged to the calling screen's existing
+generic error handling — no new UI needed for an already-paired app whose configured URL later
+becomes insecure.
+
 ## Flow
 
 ```mermaid
