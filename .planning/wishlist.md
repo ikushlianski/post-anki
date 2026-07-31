@@ -448,7 +448,16 @@ buildable unattended.
       question, and see a real graded result — for both an `architecture-mentor` and a
       `language-practice` subject, since those two pedagogy kinds render genuinely different
       flows on web.
-- [ ] Secure token storage and session persistence on mobile. (#67)
+- [x] Secure token storage and session persistence on mobile. (#67)
+      [→ done: .planning/mobile-token-security/, merged to main 2026-07-31. Storage was already
+      secure before this session (expo-secure-store, not the assumed gap) — real remaining work
+      was distinguishing a revoked-session bounce from first-launch on the Connect screen, plus an
+      adjacent gap found while auditing: nothing stopped the app being pointed at a plaintext
+      http:// server, which would send the bearer token in the clear. Added assertSecureUrl at the
+      two real network call sites, using a hand-rolled URL parser after finding WHATWG URL and
+      React Native's own URL polyfill disagree on bracketed IPv6 loopback addresses — independently
+      re-verified all 7 parsing cases myself. Also fixed the same double-tap gap already closed on
+      the Today/practice screens: connect()'s busy guard was async-state-only.]
       Why: `apps/mobile/src/api/token-storage.ts` exists but its actual storage mechanism has
       never been verified as secure (Expo SecureStore vs. plain AsyncStorage) or durable across
       app restarts/updates.
