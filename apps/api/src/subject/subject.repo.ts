@@ -4,7 +4,7 @@ import { getDb } from "../db/client.js";
 import { curricula, domainNodes, subjectDuplicateSuggestions, subjects } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
-import { withMergeLock, type Tx } from "../shared/merge-lock.js";
+import { withMergeLock, withSubjectLock, type Tx } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function toSubject(r: typeof subjects.$inferSelect): Subject {
@@ -124,37 +124,53 @@ async function invalidateStalePendingDuplicateSuggestions(
     );
 }
 
+/**
+ * Runs under the subject's advisory lock — the same lock space `mergeSubjects`,
+ * `createCurriculum` and `insertDomainNode` take — and re-reads the subject
+ * INSIDE that lock, closing the last of the four windows onto this row.
+ *
+ * Both directions of a delete racing a merge were broken, and differently.
+ * Deleting the merge's TARGET enumerated that target's curricula before the
+ * merge's uncommitted "reassign the source's curricula" UPDATE was visible, so
+ * the subject row went away while a curriculum was still being moved
+ * underneath it — and there is no foreign key on curricula.subject_id to catch
+ * the orphan. Deleting the merge's SOURCE saw those same curricula still under
+ * the source and destroyed the very rows the merge was handing to the target.
+ * Serializing on the lock resolves both: whichever operation gets there second
+ * observes the first as already committed, and a delete whose subject is gone
+ * by then reports `false` rather than half-applying.
+ *
+ * The transaction that used to wrap only the row deletion plus its
+ * stale-suggestion invalidation (SCENARIO 5b) is now that same lock
+ * transaction, rather than a second one nested inside it. `deleteCurriculum`
+ * still runs on its own pooled connection — it is not transaction-aware — so
+ * the curricula and the subject row remain two separate commits, as before;
+ * what changed is only that no concurrent merge can interleave between them.
+ */
 export async function deleteSubject(subjectId: string): Promise<boolean> {
-  const db = getDb();
+  return withSubjectLock(subjectId, async (tx) => {
+    const existing = (
+      await tx.select().from(subjects).where(eq(subjects.id, subjectId))
+    )[0];
 
-  const existing = (
-    await db.select().from(subjects).where(eq(subjects.id, subjectId))
-  )[0];
+    if (!existing) {
+      return false;
+    }
 
-  if (!existing) {
-    return false;
-  }
+    const owned = await tx
+      .select()
+      .from(curricula)
+      .where(eq(curricula.subjectId, subjectId));
 
-  const owned = await db
-    .select()
-    .from(curricula)
-    .where(eq(curricula.subjectId, subjectId));
+    for (const c of owned) {
+      await deleteCurriculum(c.id);
+    }
 
-  for (const c of owned) {
-    await deleteCurriculum(c.id);
-  }
-
-  // The subject row deletion and the pending-suggestion stale-invalidation
-  // it necessitates (SCENARIO 5b) run in one transaction — a crash between
-  // the two would otherwise leave a suggestion row pointing at a subject id
-  // that no longer exists, which the panel's frontend name-lookup couldn't
-  // resolve.
-  await db.transaction(async (tx) => {
     await tx.delete(subjects).where(eq(subjects.id, subjectId));
     await invalidateStalePendingDuplicateSuggestions(tx, subjectId);
-  });
 
-  return true;
+    return true;
+  });
 }
 
 export type MergeSubjectsError = "self_merge" | "not_found" | "kind_mismatch";

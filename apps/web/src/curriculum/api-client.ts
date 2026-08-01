@@ -318,23 +318,61 @@ export async function listDocScanSuggestions(
   )
 }
 
+/**
+ * Both doc-scan resolve routes answer 409 `already_resolved` when the
+ * suggestion is no longer pending — the second tab, or the same user's own
+ * double-click. That is not a failure: the decision the caller asked for has
+ * been made, just not by this request, so the caller should drop the row
+ * exactly as it would on a 200 rather than leave it listed.
+ *
+ * Translated here into a plain discriminated result rather than left as a
+ * thrown `ApiError` for two reasons. It follows what `submitStructureTurn` /
+ * `resolveSupplementalResearch` already do with their own 409 guard codes
+ * below — narrow on `status` AND `code`, so an unrelated 409 still throws and
+ * `request()` keeps throwing on every non-2xx for every other caller. And the
+ * consumers are server functions whose return value crosses the
+ * TanStack RPC boundary, where an `Error` subclass loses its class identity
+ * and an `instanceof` check on the client would silently never match — a
+ * serializable object survives that crossing, an exception type does not.
+ */
+export type ResolveDocScanSuggestionResult<T> =
+  | { outcome: 'resolved'; suggestion: T }
+  | { outcome: 'already_resolved' }
+
+async function resolveDocScanSuggestion<T>(
+  path: string,
+  status: 'accepted' | 'rejected',
+): Promise<ResolveDocScanSuggestionResult<T>> {
+  try {
+    const suggestion = await request<T>(path, { method: 'PATCH', body: { status } })
+
+    return { outcome: 'resolved', suggestion }
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409 && err.code === 'already_resolved') {
+      return { outcome: 'already_resolved' }
+    }
+
+    throw err
+  }
+}
+
 export async function resolveDomainTopicSuggestion(
   suggestionId: string,
   status: 'accepted' | 'rejected',
-): Promise<be.DomainTopicSuggestion> {
-  return request<be.DomainTopicSuggestion>(`/domain-topic-suggestions/${suggestionId}`, {
-    method: 'PATCH',
-    body: { status },
-  })
+): Promise<ResolveDocScanSuggestionResult<be.DomainTopicSuggestion>> {
+  return resolveDocScanSuggestion<be.DomainTopicSuggestion>(
+    `/domain-topic-suggestions/${suggestionId}`,
+    status,
+  )
 }
 
 export async function resolveDomainSupersessionSuggestion(
   suggestionId: string,
   status: 'accepted' | 'rejected',
-): Promise<be.DomainSupersessionSuggestion> {
-  return request<be.DomainSupersessionSuggestion>(
+): Promise<ResolveDocScanSuggestionResult<be.DomainSupersessionSuggestion>> {
+  return resolveDocScanSuggestion<be.DomainSupersessionSuggestion>(
     `/domain-supersession-suggestions/${suggestionId}`,
-    { method: 'PATCH', body: { status } },
+    status,
   )
 }
 

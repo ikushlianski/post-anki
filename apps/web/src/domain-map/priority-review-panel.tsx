@@ -89,11 +89,18 @@ export function PriorityReviewPanel({
     const status = decision === 'accept' ? 'accepted' : 'rejected'
 
     try {
-      await resolveDocScanTopicSuggestion({ data: { suggestionId: suggestion.id, status } })
+      const result = await resolveDocScanTopicSuggestion({
+        data: { suggestionId: suggestion.id, status },
+      })
 
+      // `already_resolved` (a 409 from the second tab, or this user's own
+      // double-click) is a success as far as the list is concerned — the row
+      // has been decided and must go. The confirmation is NOT shown for it:
+      // the other tab may well have rejected the suggestion, so claiming the
+      // node was added would be a guess.
       setNewTopicSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
 
-      if (decision === 'accept') {
+      if (decision === 'accept' && result.outcome === 'resolved') {
         const parentName = suggestion.proposedParentNodeId
           ? (nodeNamesById[suggestion.proposedParentNodeId] ?? suggestion.proposedParentNodeId)
           : 'the subject root'

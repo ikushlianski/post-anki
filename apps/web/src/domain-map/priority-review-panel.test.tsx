@@ -2,10 +2,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 
-import type { DomainTopicSuggestion } from '@post-anki/shared'
+import type { DomainSupersessionSuggestion, DomainTopicSuggestion } from '@post-anki/shared'
 
 import { PriorityReviewPanel } from './priority-review-panel'
-import { resolveDocScanTopicSuggestion, triggerPriorityReview } from './domain-map.api'
+import {
+  resolveDocScanSupersessionSuggestion,
+  resolveDocScanTopicSuggestion,
+  triggerPriorityReview,
+} from './domain-map.api'
 
 vi.mock('./domain-map.api', () => ({
   triggerPriorityReview: vi.fn(),
@@ -100,6 +104,7 @@ describe('PriorityReviewPanel — review due banner', () => {
 })
 
 const mockedResolveDocScanTopicSuggestion = vi.mocked(resolveDocScanTopicSuggestion)
+const mockedResolveDocScanSupersessionSuggestion = vi.mocked(resolveDocScanSupersessionSuggestion)
 
 const PENDING_TOPIC_SUGGESTION: DomainTopicSuggestion = {
   id: 'dtsug-1',
@@ -141,7 +146,8 @@ describe('PriorityReviewPanel — per-item accept/reject in-flight guard', () =>
     mockedResolveDocScanTopicSuggestion.mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolveRequest = () => resolve(PENDING_TOPIC_SUGGESTION)
+          resolveRequest = () =>
+            resolve({ outcome: 'resolved', suggestion: PENDING_TOPIC_SUGGESTION })
         }),
     )
 
@@ -195,5 +201,104 @@ describe('PriorityReviewPanel — per-item accept/reject in-flight guard', () =>
 
     expect(screen.getByTestId('doc-scan-new-topic-dtsug-1')).toBeDefined()
     expect(mockedResolveDocScanTopicSuggestion).toHaveBeenCalledTimes(1)
+  })
+})
+
+const PENDING_SUPERSESSION_SUGGESTION: DomainSupersessionSuggestion = {
+  id: 'dssug-1',
+  subjectId: 'sub-1',
+  domainNodeId: 'dnode-1',
+  reason: 'Superseded by a newer approach in the tracked docs.',
+  source: 'doc-scan',
+  status: 'pending',
+  createdAt: '2026-08-01T00:00:00.000Z',
+  resolvedAt: null,
+}
+
+describe('PriorityReviewPanel — a suggestion someone else already resolved', () => {
+  beforeEach(() => {
+    mockedResolveDocScanTopicSuggestion.mockReset()
+    mockedResolveDocScanSupersessionSuggestion.mockReset()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('drops the new-topic row on already_resolved exactly as it does on a normal resolve', async () => {
+    mockedResolveDocScanTopicSuggestion.mockResolvedValue({ outcome: 'already_resolved' })
+
+    renderPanelWithTopicSuggestion()
+
+    screen.getByTestId('doc-scan-new-topic-accept-dtsug-1').click()
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('doc-scan-new-topic-dtsug-1')).toBeNull()
+    })
+
+    expect(screen.queryByText('Astro added under Frontend')).toBeNull()
+  })
+
+  it('still confirms the placement when this request is the one that resolved it', async () => {
+    mockedResolveDocScanTopicSuggestion.mockResolvedValue({
+      outcome: 'resolved',
+      suggestion: PENDING_TOPIC_SUGGESTION,
+    })
+
+    renderPanelWithTopicSuggestion()
+
+    screen.getByTestId('doc-scan-new-topic-accept-dtsug-1').click()
+
+    await waitFor(() => {
+      expect(screen.getByText('Astro added under Frontend')).toBeDefined()
+    })
+  })
+
+  it('drops the supersession row on already_resolved', async () => {
+    mockedResolveDocScanSupersessionSuggestion.mockResolvedValue({ outcome: 'already_resolved' })
+
+    render(
+      <PriorityReviewPanel
+        subjectId="sub-1"
+        nodeNamesById={{ 'dnode-1': 'Frontend' }}
+        initialSuggestions={[]}
+        initialDue={false}
+        initialNewTopicSuggestions={[]}
+        initialSupersessionSuggestions={[PENDING_SUPERSESSION_SUGGESTION]}
+      />,
+    )
+
+    screen.getByTestId('doc-scan-supersession-reject-dssug-1').click()
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('doc-scan-supersession-dssug-1')).toBeNull()
+    })
+  })
+
+  it('keeps the supersession row listed when the request is a genuine failure', async () => {
+    mockedResolveDocScanSupersessionSuggestion.mockRejectedValue(new Error('Internal Error'))
+
+    render(
+      <PriorityReviewPanel
+        subjectId="sub-1"
+        nodeNamesById={{ 'dnode-1': 'Frontend' }}
+        initialSuggestions={[]}
+        initialDue={false}
+        initialNewTopicSuggestions={[]}
+        initialSupersessionSuggestions={[PENDING_SUPERSESSION_SUGGESTION]}
+      />,
+    )
+
+    const accept = screen.getByTestId(
+      'doc-scan-supersession-accept-dssug-1',
+    ) as HTMLButtonElement
+
+    accept.click()
+
+    await waitFor(() => {
+      expect(accept.disabled).toBe(false)
+    })
+
+    expect(screen.getByTestId('doc-scan-supersession-dssug-1')).toBeDefined()
   })
 })
