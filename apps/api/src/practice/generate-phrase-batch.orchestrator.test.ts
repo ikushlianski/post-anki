@@ -57,6 +57,7 @@ const phraseBankRepoState = {
 };
 
 vi.mock("./phrase-bank.repo.js", () => ({
+  lockPhraseBankScope: vi.fn(async () => undefined),
   dueEntriesForScope: vi.fn(async () => phraseBankRepoState.dueEntries),
   nextSequenceBase: vi.fn(async () => phraseBankRepoState.sequenceBase),
   matchExistingEntryId: vi.fn(async (_s: string, _l: string, _p: string, text: string) => {

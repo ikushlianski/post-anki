@@ -10,6 +10,12 @@ import { defineConfig } from "vitest/config";
 // `npx vitest run <path>` against the default config alone. Run via
 // `npx vitest run --config vitest.integration.config.ts <path>` or
 // `npm run test:integration -- <path>`.
+//
+// `npm run test:all -w @post-anki/api` is the full verification pass (fast
+// sweep, then these). It is deliberately NOT what root `npm test` runs: that
+// fans out to every workspace and is what CI's Test job invokes, and CI has
+// no Postgres service — folding these into `test` would break the pipeline
+// and make a checkout without `npm run e2e:db:up` fail confusingly.
 export default defineConfig({
   test: {
     include: [
@@ -22,6 +28,16 @@ export default defineConfig({
       // spec.md's Backend DoD pins these two exact paths.
       "src/subject-duplicate/subject-duplicate.orchestrator.test.ts",
       "src/subject-duplicate/subject-duplicate.repo.test.ts",
+      // Same named-exception shape, and the same reason they belong here:
+      // each is pinned by its own spec.md's Backend Definition of Done to a
+      // path that is not *.integration.test.ts, and each needs a real
+      // Postgres connection. They were named in vitest.config.ts's `exclude`
+      // without ever being added here, so until now they ran under neither
+      // config — silently not executing rather than failing.
+      "src/decide/decide.orchestrator.test.ts",
+      "src/decide/decide.repo.test.ts",
+      "src/domain-map/doc-scan.orchestrator.test.ts",
+      "src/domain-map/domain-priority-review.orchestrator.test.ts",
     ],
     exclude: ["**/node_modules/**"],
   },

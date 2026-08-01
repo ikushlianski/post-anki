@@ -36,6 +36,27 @@ function scopeFilter(subjectId: string, level: string, pack: string) {
   );
 }
 
+// The single lock both phrase-bank write paths take as their transaction's
+// first statement, so neither can be part-way through acquiring the scope's
+// phrase_bank_entries rows when the other starts. Generation locks those rows
+// implicitly — the phrases -> phrase_bank_entries FK makes every insert take
+// FOR KEY SHARE on the referenced row, in the model's generation order —
+// while grading locks them explicitly with FOR UPDATE in id order. Those two
+// orders can disagree, and FOR KEY SHARE conflicts with FOR UPDATE, so
+// without this shared outer lock a concurrent generate+grade over the same
+// recycled entries can deadlock (40P01). Keyed identically on both paths;
+// keep the key formula here only, never inlined at a call site.
+export async function lockPhraseBankScope(
+  subjectId: string,
+  level: string,
+  pack: string,
+  db: DbExecutor,
+): Promise<void> {
+  await db.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${subjectId} || ${level} || ${pack})::bigint)`,
+  );
+}
+
 export async function dueEntriesForScope(
   subjectId: string,
   level: string,

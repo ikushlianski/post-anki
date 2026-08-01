@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "npm run test && npm run test:integration",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
     "db:seed:subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subjects.ts",

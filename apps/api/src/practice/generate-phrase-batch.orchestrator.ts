@@ -1,4 +1,3 @@
-import { sql } from "drizzle-orm";
 import type { Pack, PracticeLevel } from "@post-anki/shared";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
@@ -14,6 +13,7 @@ import {
 import {
   createPhraseBankEntry,
   dueEntriesForScope,
+  lockPhraseBankScope,
   matchExistingEntryId,
   nextSequenceBase,
 } from "./phrase-bank.repo.js";
@@ -162,7 +162,7 @@ export async function generatePhraseBatch(
   // every read/write here goes through the same connection that holds the
   // lock (spec.md's Design-integrity requirement; the pool caps at 4).
   const insertedRows = await getDb().transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${subjectId} || ${level} || ${pack})::bigint)`);
+    await lockPhraseBankScope(subjectId, level, pack, tx);
 
     const sequenceNumberBase = await nextSequenceBase(subjectId, level, pack, tx);
 
