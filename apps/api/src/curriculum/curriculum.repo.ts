@@ -52,7 +52,7 @@ import {
 import { rowToGap } from "../gap/gap.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { newId } from "../shared/id.js";
-import { withMergeLock } from "../shared/merge-lock.js";
+import { withMergeLock, withSubjectLock } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 import {
   resolveCurriculumOrigin,
@@ -111,9 +111,24 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   );
 }
 
+export type CreateCurriculumError = "subject_not_found";
+
+/**
+ * Runs under the subject's advisory lock (the same lock space `mergeSubjects`
+ * takes), and re-reads the subject INSIDE that lock rather than trusting the
+ * controller's earlier pre-check. Without this, a curriculum created in the
+ * window between a concurrent merge's "reassign the source's curricula" step
+ * and its "delete the source subject" step was reassigned by neither and left
+ * pointing at a subject id that no longer existed — there is no foreign key on
+ * curricula.subject_id to catch it, so the orphan was silent.
+ *
+ * A create that loses this race gets `subject_not_found` — the same clean,
+ * catchable outcome (a 404, never a 500) `mergeSubjects` already returns when
+ * it loses its own race, rather than a partially-applied write.
+ */
 export async function createCurriculum(
   input: CreateCurriculumInput,
-): Promise<Curriculum> {
+): Promise<Curriculum | { error: CreateCurriculumError }> {
   const row = {
     id: newId("cur"),
     subjectId: input.subjectId,
@@ -129,12 +144,19 @@ export async function createCurriculum(
     domainNodeId: input.domainNodeId ?? null,
   };
 
-  await getDb().insert(curricula).values(row);
+  return withSubjectLock(input.subjectId, async (tx) => {
+    const subjectRow = (
+      await tx.select().from(subjects).where(eq(subjects.id, input.subjectId))
+    )[0];
 
-  if (input.sources.length > 0) {
-    await getDb()
-      .insert(sources)
-      .values(
+    if (!subjectRow) {
+      return { error: "subject_not_found" as const };
+    }
+
+    await tx.insert(curricula).values(row);
+
+    if (input.sources.length > 0) {
+      await tx.insert(sources).values(
         input.sources.map((s) => ({
           id: newId("src"),
           curriculumId: row.id,
@@ -143,9 +165,10 @@ export async function createCurriculum(
           title: s.title ?? null,
         })),
       );
-  }
+    }
 
-  return toCurriculum(row, "sources");
+    return toCurriculum(row, "sources");
+  });
 }
 
 async function originFor(curriculumId: string): Promise<CurriculumOrigin> {

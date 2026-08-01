@@ -144,11 +144,23 @@ export async function handleCreateCurriculum(
     domainNodeId: body.data.domainNodeId,
   });
 
-  const curriculum = await createCurriculum({
+  const created = await createCurriculum({
     ...body.data,
     sources,
     domainNodeId: placement.domainNodeId,
   });
+
+  // The subject can disappear between the pre-check above and the insert —
+  // a concurrent subject merge deletes the source subject once it has
+  // reassigned that subject's curricula. createCurriculum re-checks under the
+  // merge's own lock, so this is the same 404 the pre-check would have sent,
+  // just decided later and correctly.
+  if ("error" in created) {
+    sendError(res, 404, created.error);
+    return;
+  }
+
+  const curriculum = created;
 
   sendJson(res, 202, curriculum);
 

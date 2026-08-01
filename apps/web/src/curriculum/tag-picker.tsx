@@ -4,6 +4,7 @@ import { Link, useRouter } from '@tanstack/react-router'
 
 import type { NodeType, TagChip } from './model'
 import { assignTag, createOrGetTag, removeTagAssignment } from './curriculum.api'
+import { visibleTagChips } from './tag-chips'
 
 export function TagPicker({
   nodeType,
@@ -20,6 +21,16 @@ export function TagPicker({
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
+  // Chips this component's own mutations already know about, reconciled with
+  // (never replaced by) whatever the route hands down in `tags`. Seeding from
+  // the mutation response is what makes an added or removed chip visible
+  // straight away — the router.invalidate() calls below stay, but as a
+  // live-update layer on top rather than the only path to a correct display.
+  // Same fix shape as CurriculumPlacementPanel's committedDomainNodeId and
+  // usePracticeBatch's seeded phrases.
+  const [seededTags, setSeededTags] = useState<TagChip[]>([])
+  const [removedAssignmentIds, setRemovedAssignmentIds] = useState<string[]>([])
+  const shownTags = visibleTagChips(tags, seededTags, removedAssignmentIds)
 
   async function addTag(event: FormEvent) {
     event.preventDefault()
@@ -32,7 +43,10 @@ export function TagPicker({
 
     setBusy(true)
     const tag = await createOrGetTag({ data: { name: trimmed } })
-    await assignTag({ data: { tagId: tag.id, nodeType, nodeId } })
+    const assignment = await assignTag({ data: { tagId: tag.id, nodeType, nodeId } })
+
+    setSeededTags((current) => [...current, { ...tag, assignmentId: assignment.id }])
+    setRemovedAssignmentIds((current) => current.filter((id) => id !== assignment.id))
     setValue('')
     setOpen(false)
     setBusy(false)
@@ -42,13 +56,14 @@ export function TagPicker({
   async function remove(assignmentId: string, tagId: string) {
     setBusy(true)
     await removeTagAssignment({ data: { tagId, assignmentId } })
+    setRemovedAssignmentIds((current) => [...current, assignmentId])
     setBusy(false)
     await router.invalidate()
   }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5" data-testid={`tag-picker-${nodeId}`}>
-      {tags.map((tag) => (
+      {shownTags.map((tag) => (
         <span
           key={tag.assignmentId}
           data-testid={`tag-chip-${tag.id}`}

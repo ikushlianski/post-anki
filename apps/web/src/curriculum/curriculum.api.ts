@@ -34,7 +34,7 @@ import type {
   Subject,
   Tag,
 } from './model'
-import type { CrossCuttingNudge, StructureTurn } from '@post-anki/shared'
+import type { CrossCuttingNudge, StructureTurn, TagAssignment } from '@post-anki/shared'
 import * as api from './api-client'
 
 export const getBoard = createServerFn({ method: 'GET' }).handler(
@@ -329,13 +329,15 @@ export const createOrGetTag = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => createTagInput.parse(data))
   .handler(({ data }): Promise<Tag> => api.createOrGetTag(data.name))
 
+// Returns the assignment (the backend's own 201 body) rather than discarding
+// it — the caller needs its id to render the new chip immediately, instead of
+// waiting on a route invalidation to redeliver the same fact.
 export const assignTag = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => assignTagInput.parse(data))
-  .handler(async ({ data }) => {
-    await api.assignTag(data.tagId, data.nodeType, data.nodeId)
-
-    return null
-  })
+  .handler(
+    ({ data }): Promise<TagAssignment> =>
+      api.assignTag(data.tagId, data.nodeType, data.nodeId),
+  )
 
 export const removeTagAssignment = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => removeTagAssignmentInput.parse(data))

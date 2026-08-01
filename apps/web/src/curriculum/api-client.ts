@@ -1099,8 +1099,8 @@ export async function assignTag(
   tagId: string,
   nodeType: NodeType,
   nodeId: string,
-): Promise<void> {
-  await request(`/tags/${tagId}/assignments`, {
+): Promise<be.TagAssignment> {
+  return request<be.TagAssignment>(`/tags/${tagId}/assignments`, {
     method: 'POST',
     body: { nodeType, nodeId },
   })
