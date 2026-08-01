@@ -5,6 +5,8 @@ import { Link, useRouter } from '@tanstack/react-router'
 import type { NodeType, TagChip } from './model'
 import { assignTag, createOrGetTag, removeTagAssignment } from './curriculum.api'
 import { visibleTagChips } from './tag-chips'
+import { isTagControlDisabled, tagControlHint, tagControlState } from './tag-control-state'
+import { useHydrated } from './use-hydrated'
 
 export function TagPicker({
   nodeType,
@@ -31,6 +33,9 @@ export function TagPicker({
   const [seededTags, setSeededTags] = useState<TagChip[]>([])
   const [removedAssignmentIds, setRemovedAssignmentIds] = useState<string[]>([])
   const shownTags = visibleTagChips(tags, seededTags, removedAssignmentIds)
+  const hydrated = useHydrated()
+  const controlState = tagControlState({ editable, hydrated, busy })
+  const controlsDisabled = isTagControlDisabled(controlState)
 
   async function addTag(event: FormEvent) {
     event.preventDefault()
@@ -76,10 +81,11 @@ export function TagPicker({
           >
             #{tag.name}
           </Link>
-          {editable ? (
+          {controlState !== 'hidden' ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={controlsDisabled}
+              title={tagControlHint(controlState)}
               onClick={() => remove(tag.assignmentId, tag.id)}
               aria-label={`Remove tag ${tag.name}`}
               data-testid={`tag-chip-remove-${tag.id}`}
@@ -91,7 +97,7 @@ export function TagPicker({
         </span>
       ))}
 
-      {editable ? (
+      {controlState !== 'hidden' ? (
         open ? (
           <form onSubmit={addTag} className="flex items-center gap-1">
             <input
@@ -122,9 +128,11 @@ export function TagPicker({
         ) : (
           <button
             type="button"
+            disabled={controlsDisabled}
+            title={tagControlHint(controlState)}
             onClick={() => setOpen(true)}
             data-testid={`tag-picker-open-${nodeId}`}
-            className="text-xs text-neutral-400 hover:text-neutral-700"
+            className="text-xs text-neutral-400 hover:text-neutral-700 disabled:cursor-progress disabled:opacity-40 disabled:hover:text-neutral-400"
           >
             + tag
           </button>
