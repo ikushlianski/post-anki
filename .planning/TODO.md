@@ -16,6 +16,12 @@ what's left. Check a box the moment its step lands, not batched at the end.
 
 ## To review / clarify
 
+- [ ] `@curriculum-merge.S1` flaked once on 2026-08-01's final gate (120s timeout on `locator.fill`
+      for `study-technology-name-input` during setup; passed in 7.3s on immediate re-run, machine
+      was loaded). Ruled out a pool-timeout regression — zero connect-timeout errors in the log.
+      Likely the same pre-hydration window measured tonight for the tag picker, which is page-wide,
+      not tag-specific. Strengthens the case for the existing `waitForHydration` wishlist item.
+
 - [ ] **Critical, from the architecture debrief (`docs/architecture/concurrency-and-verification-hardening/review.md`):**
       `deleteSubject` and `withDocScanLock` each hold a pooled connection AND an advisory lock
       while taking a SECOND connection from a `max: 4` pool that has no `connectionTimeoutMillis`
