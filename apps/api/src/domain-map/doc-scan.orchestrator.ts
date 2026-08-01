@@ -14,6 +14,7 @@ import {
 } from "./domain-map.repo.js";
 import { resolveNodePathByName, type NamedNode } from "./domain-node-name-resolver.js";
 import { withDocScanLock } from "./doc-scan-lock.js";
+import type { Tx } from "../shared/merge-lock.js";
 
 const SOURCE = "doc-scan";
 // Post-resolution insert cap (spec.md's step 5b) — the single enforced
@@ -122,7 +123,7 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
   }
 
   return withDocScanLock(
-    () => scanFetchedTools(subjectId, toolsScanned, fetchedTools),
+    (tx) => scanFetchedTools(subjectId, toolsScanned, fetchedTools, tx),
     () => {
       // A manual "Scan now" firing while the weekly scheduler's run is still
       // in flight (or a Cloud Scheduler retry overlapping its own first
@@ -141,15 +142,25 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
 // single agent call and the suggestion inserts between the two halves. The
 // network-bound tracked-tool fetches deliberately happen BEFORE this, so the
 // advisory lock is never held across them.
+//
+// Every statement here runs on the lock's own transaction rather than
+// reaching back into the pool, so a scan costs one pooled connection and not
+// two — see doc-scan-lock.ts. It also means an exception escaping this
+// function rolls the suggestion inserts back along with the watermark
+// advance. The agent-failure path deliberately does NOT escape: it is caught
+// below and returns `agentError: true`, committing a transaction that
+// inserted nothing and advanced nothing, which is what keeps the changed
+// tools retryable next run (SCENARIO 10).
 async function scanFetchedTools(
   subjectId: string,
   toolsScanned: string[],
   fetchedTools: ChangedTool[],
+  tx: Tx,
 ): Promise<DocScanResult> {
   const changedTools: ChangedTool[] = [];
 
   for (const fetched of fetchedTools) {
-    const existingState = await getTrackedToolScanState(subjectId, fetched.tool.toolKey);
+    const existingState = await getTrackedToolScanState(subjectId, fetched.tool.toolKey, tx);
 
     if (existingState?.lastContentHash === fetched.hash) {
       continue;
@@ -162,7 +173,7 @@ async function scanFetchedTools(
     return emptyResult(toolsScanned);
   }
 
-  const tree = await getDomainMapForSubject(subjectId);
+  const tree = await getDomainMapForSubject(subjectId, tx);
   const flatNodes = flattenTree(tree);
   const prompt = buildPrompt(flatNodes, changedTools);
 
@@ -202,13 +213,16 @@ async function scanFetchedTools(
 
     for (const topic of cappedTopics) {
       newTopicSuggestions.push(
-        await insertDomainTopicSuggestion({
-          subjectId,
-          proposedParentNodeId: topic.proposedParentNodeId,
-          proposedNodeName: topic.proposedNodeName,
-          reason: topic.reason,
-          source: SOURCE,
-        }),
+        await insertDomainTopicSuggestion(
+          {
+            subjectId,
+            proposedParentNodeId: topic.proposedParentNodeId,
+            proposedNodeName: topic.proposedNodeName,
+            reason: topic.reason,
+            source: SOURCE,
+          },
+          tx,
+        ),
       );
     }
 
@@ -216,17 +230,20 @@ async function scanFetchedTools(
 
     for (const supersession of cappedSupersessions) {
       supersessionSuggestions.push(
-        await insertDomainSupersessionSuggestion({
-          subjectId,
-          domainNodeId: supersession.domainNodeId,
-          reason: supersession.reason,
-          source: SOURCE,
-        }),
+        await insertDomainSupersessionSuggestion(
+          {
+            subjectId,
+            domainNodeId: supersession.domainNodeId,
+            reason: supersession.reason,
+            source: SOURCE,
+          },
+          tx,
+        ),
       );
     }
 
     for (const changed of changedTools) {
-      await upsertTrackedToolScanState(subjectId, changed.tool.toolKey, changed.hash);
+      await upsertTrackedToolScanState(subjectId, changed.tool.toolKey, changed.hash, tx);
     }
 
     return {

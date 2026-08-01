@@ -143,9 +143,9 @@ async function invalidateStalePendingDuplicateSuggestions(
  * The transaction that used to wrap only the row deletion plus its
  * stale-suggestion invalidation (SCENARIO 5b) is now that same lock
  * transaction, rather than a second one nested inside it. `deleteCurriculum`
- * still runs on its own pooled connection — it is not transaction-aware — so
- * the curricula and the subject row remain two separate commits, as before;
- * what changed is only that no concurrent merge can interleave between them.
+ * runs inside it too — it takes a `DbExecutor`, so the whole delete costs one
+ * pooled connection rather than a second one per owned curriculum, and the
+ * curricula and the subject row commit together instead of separately.
  */
 export async function deleteSubject(subjectId: string): Promise<boolean> {
   return withSubjectLock(subjectId, async (tx) => {
@@ -163,7 +163,7 @@ export async function deleteSubject(subjectId: string): Promise<boolean> {
       .where(eq(curricula.subjectId, subjectId));
 
     for (const c of owned) {
-      await deleteCurriculum(c.id);
+      await deleteCurriculum(c.id, tx);
     }
 
     await tx.delete(subjects).where(eq(subjects.id, subjectId));

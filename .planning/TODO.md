@@ -189,7 +189,7 @@ what's left. Check a box the moment its step lands, not batched at the end.
       1 orphan curriculum before the fix (0 after), and deleting the merge SOURCE destroyed
       the curriculum the merge was handing over and still returned `true` before the fix
       (returns `false`, curriculum preserved under the target, after).]
-- [ ] `deleteSubject()` now holds one pooled connection (its lock transaction) for its whole
+- [x] `deleteSubject()` now holds one pooled connection (its lock transaction) for its whole
       run while each `deleteCurriculum()` inside the loop takes a SECOND connection, because
       `deleteCurriculum`/`clearCurriculumStructure` are not transaction-aware and live in
       `apps/api/src/curriculum/`, which the subject unit does not own. With `max: 4` on the
@@ -198,6 +198,14 @@ what's left. Check a box the moment its step lands, not batched at the end.
       the curricula and the subject row are still two separate commits (as before the lock
       fix), so a crash mid-delete leaves an empty subject; the window is now longer. Real fix
       is making `deleteCurriculum` accept a `Tx`.
+      [→ done 2026-08-01. `deleteCurriculum`, `clearCurriculumStructure` and its private
+      `resolveClearTargets` all take a trailing `db: DbExecutor = getDb()`; `deleteSubject`
+      passes its lock `tx`. Proven red-then-green by two new integration tests in
+      `apps/api/src/subject/`: `subject-delete-connection-usage.integration.test.ts` counted
+      2 held pool connections before / 1 after (per-run `application_name` +
+      `pg_stat_activity`, `state IS DISTINCT FROM 'idle'`), and
+      `subject-delete-atomicity.integration.test.ts` left 1 of 2 curricula destroyed before /
+      0 after when the delete fails partway through.]
 - [x] `clearCurriculumStructure` is now provenance-aware and takes a second `scope` argument
       (`"own"` by default, `"all"` only from `deleteCurriculum`). Modules AND topics carry a
       nullable `merged_from_curriculum_id` (migration `0029_lucky_maestro`, applied to the local
@@ -236,11 +244,27 @@ what's left. Check a box the moment its step lands, not batched at the end.
       redundant scan.
 - [ ] `apps/api/src/domain-map/doc-scan-lock.ts` stays a single GLOBAL advisory key even
       though the watermark is now per-subject and a per-subject key would serialize the right
-      thing. Reason: a scan holds two pooled connections across an LLM call and
-      `db/client.ts` is `max: 4`, so per-subject keys would let two scans exhaust the pool.
-      Consequence to know about: a manual "Scan now" for subject B while the scheduler is
-      mid-run on subject A still returns an empty result. The scheduled run is sequential, so
-      every subject still gets its own scan.
+      thing. Reason as of 2026-08-01: a scan now costs ONE pooled connection, not two
+      (`withDocScanLock` hands its transaction to `run`, and the whole watermark
+      read-compare-write plus both suggestion inserts run on it) — but that one connection is
+      still pinned for the length of an LLM call with no timeout, and `db/client.ts` is
+      `max: 4` shared with the web app, the Telegram bot and Cloud Scheduler. Consequence to
+      know about: a manual "Scan now" for subject B while the scheduler is mid-run on subject
+      A still returns an empty result. The scheduled run is sequential, so every subject still
+      gets its own scan.
+- [ ] `withDocScanLock(run, onBusy)` now calls `run(tx)`. Any new work added inside the scan's
+      critical section must use that `tx` — reaching for `getDb()` there re-creates the
+      two-connections-under-a-lock hazard. `getDomainMapForSubject`,
+      `getTrackedToolScanState`, `upsertTrackedToolScanState`, `insertDomainTopicSuggestion`
+      and `insertDomainSupersessionSuggestion` all take a trailing `db: DbExecutor = getDb()`
+      for this. Side effect worth knowing: a scan's suggestion inserts and its watermark
+      advance now commit together. The agent-failure path is unchanged — it is caught inside
+      `scanFetchedTools`, so the transaction commits having inserted nothing and advanced
+      nothing, keeping the changed tools retryable.
+- [ ] `apps/api/src/db/client.ts`'s pool now sets `connectionTimeoutMillis: 10_000`. Before
+      this, an exhausted `max: 4` pool queued forever, so any future nested-acquisition bug is
+      a permanent process-wide hang instead of an error. It is now a logged failure after 10s.
+      A checkout waiting longer than that is a bug in every path this app has.
 
 ## Wave 1 — in flight
 

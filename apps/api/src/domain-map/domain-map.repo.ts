@@ -12,7 +12,7 @@ import type {
   Topic,
 } from "@post-anki/shared";
 import { domainNodeProgress, domainPriorityDistance, isAncestor } from "@post-anki/core";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
   domainNodes,
@@ -142,9 +142,10 @@ function toTopicForProgress(row: typeof topics.$inferSelect): Topic {
 // have a non-null domain_node_id) — never a recursive CTE, never N+1,
 // regardless of tree depth — assembled and rolled up in memory via the pure
 // domainNodeProgress() deriver. No agent, no LLM call anywhere in this path.
-export async function getDomainMapForSubject(subjectId: string): Promise<DomainNodeTreeItem[]> {
-  const db = getDb();
-
+export async function getDomainMapForSubject(
+  subjectId: string,
+  db: DbExecutor = getDb(),
+): Promise<DomainNodeTreeItem[]> {
   const nodeRows = await db.select().from(domainNodes).where(eq(domainNodes.subjectId, subjectId));
 
   const placedCurricula = await db
@@ -516,8 +517,8 @@ export interface InsertDomainTopicSuggestionParams {
 
 export async function insertDomainTopicSuggestion(
   params: InsertDomainTopicSuggestionParams,
+  db: DbExecutor = getDb(),
 ): Promise<DomainTopicSuggestion> {
-  const db = getDb();
   const id = newId("dtsug");
 
   await db.insert(domainTopicSuggestions).values({
@@ -685,8 +686,8 @@ export interface InsertDomainSupersessionSuggestionParams {
 
 export async function insertDomainSupersessionSuggestion(
   params: InsertDomainSupersessionSuggestionParams,
+  db: DbExecutor = getDb(),
 ): Promise<DomainSupersessionSuggestion> {
-  const db = getDb();
   const id = newId("dssug");
 
   await db.insert(domainSupersessionSuggestions).values({
@@ -802,9 +803,8 @@ export async function resolveDomainSupersessionSuggestion(
 export async function getTrackedToolScanState(
   subjectId: string,
   toolKey: string,
+  db: DbExecutor = getDb(),
 ): Promise<{ subjectId: string; toolKey: string; lastContentHash: string | null } | null> {
-  const db = getDb();
-
   const row = (
     await db
       .select()
@@ -830,8 +830,8 @@ export async function upsertTrackedToolScanState(
   subjectId: string,
   toolKey: string,
   contentHash: string,
+  db: DbExecutor = getDb(),
 ): Promise<void> {
-  const db = getDb();
   const now = new Date();
 
   await db

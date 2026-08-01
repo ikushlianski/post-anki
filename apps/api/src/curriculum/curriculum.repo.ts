@@ -35,7 +35,7 @@ import {
   recommendedTopicId,
   sortForDisplay,
 } from "@post-anki/core";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
   curriculumStructureTurns,
@@ -499,9 +499,8 @@ export type ClearStructureScope = "own" | "all";
 async function resolveClearTargets(
   curriculumId: string,
   scope: ClearStructureScope,
+  db: DbExecutor,
 ): Promise<{ moduleIds: string[]; topicIds: string[] }> {
-  const db = getDb();
-
   const moduleRows = await db
     .select({ id: modules.id, mergedFrom: modules.mergedFromCurriculumId })
     .from(modules)
@@ -540,10 +539,9 @@ async function resolveClearTargets(
 export async function clearCurriculumStructure(
   curriculumId: string,
   scope: ClearStructureScope = "own",
+  db: DbExecutor = getDb(),
 ): Promise<void> {
-  const db = getDb();
-
-  const { moduleIds, topicIds } = await resolveClearTargets(curriculumId, scope);
+  const { moduleIds, topicIds } = await resolveClearTargets(curriculumId, scope, db);
 
   if (moduleIds.length === 0 && topicIds.length === 0) {
     return;
@@ -578,9 +576,18 @@ export async function maxModuleOrder(curriculumId: string): Promise<number> {
   return row?.maxOrder ?? 0;
 }
 
-export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
-  const db = getDb();
-
+// `db` defaults to getDb() so the DELETE /curricula/:id controller and every
+// test call site are unaffected. It exists so `deleteSubject` — which runs its
+// whole body inside `withSubjectLock`'s transaction, holding one pooled
+// connection — can hand that transaction down instead of this loop taking a
+// SECOND connection from a `max: 4` pool per owned curriculum
+// (docs/architecture/concurrency-and-verification-hardening/review.md). It
+// also makes the curricula deletions part of the caller's transaction, so a
+// failure partway through no longer leaves a subject whose courses are gone.
+export async function deleteCurriculum(
+  curriculumId: string,
+  db: DbExecutor = getDb(),
+): Promise<boolean> {
   const existing = (
     await db.select().from(curricula).where(eq(curricula.id, curriculumId))
   )[0];
@@ -589,7 +596,7 @@ export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
     return false;
   }
 
-  await clearCurriculumStructure(curriculumId, "all");
+  await clearCurriculumStructure(curriculumId, "all", db);
   await db.delete(sources).where(eq(sources.curriculumId, curriculumId));
   await db.delete(curricula).where(eq(curricula.id, curriculumId));
 
