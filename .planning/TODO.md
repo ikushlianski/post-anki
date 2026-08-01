@@ -16,6 +16,13 @@ what's left. Check a box the moment its step lands, not batched at the end.
 
 ## To review / clarify
 
+- [ ] **Critical, from the architecture debrief (`docs/architecture/concurrency-and-verification-hardening/review.md`):**
+      `deleteSubject` and `withDocScanLock` each hold a pooled connection AND an advisory lock
+      while taking a SECOND connection from a `max: 4` pool that has no `connectionTimeoutMillis`
+      — so exhausting it hangs forever rather than erroring, and the blocked callers keep holding
+      subject locks, which blocks every merge and create on those subjects until a restart.
+      Fix is a pattern the repo already has (`DbExecutor`, used in 8 files). A fix agent is on it.
+
 - [ ] The Electric Cloud Run service in production has been crash-looping since 2026-07-18
       and may have been billing that whole time (`minScale: 1`, CPU throttling off; every
       revision fails to start because `electricDatabaseUrl` was never set on the Pulumi prod
