@@ -50,12 +50,27 @@ function extractProtocolAndHost(url: string): { protocol: string; host: string }
   return { protocol: `${match[1].toLowerCase()}:`, host: host.toLowerCase() };
 }
 
+// An allowlist, not a denylist. Rejecting only "http:" would have let every
+// other non-secure scheme through unchecked — "ws:", "ftp:", or whatever a
+// future config typo produces — since none of them are "http:" and none of
+// them are https either. A transport guard that names the one scheme it
+// blocks is only ever as good as the list of schemes someone thought of.
 export function assertSecureUrl(url: string): void {
   const { protocol, host } = extractProtocolAndHost(url);
 
-  if (protocol === "http:" && !LOOPBACK_HOSTS.has(host)) {
+  if (protocol === "https:") {
+    return;
+  }
+
+  if (protocol === "http:" && LOOPBACK_HOSTS.has(host)) {
+    return;
+  }
+
+  if (protocol === "http:") {
     throw new Error(`Refusing to send requests over plaintext HTTP to a non-local host: ${host}`);
   }
+
+  throw new Error(`Refusing to send requests over a non-HTTPS scheme (${protocol}): ${url}`);
 }
 
 export class ApiRequestError extends Error {
