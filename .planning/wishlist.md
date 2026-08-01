@@ -273,8 +273,13 @@ on a human-only blocker rather than skipping past it.
       more than a small, bounded number of notifications per cycle.
       Needs real product/architecture planning first (scan source/frequency, how "supersedes"
       is judged, notification channel) — this entry queues the idea, it does not spec it. (#49)
-- [ ] Close a real deadlock window between the phrase-bank's two new locks, and wire its
+- [x] Close a real deadlock window between the phrase-bank's two new locks, and wire its
       concurrency tests into the normal test run.
+      [→ done 2026-08-01 (commit 2de6a78). Grading now takes the same advisory lock generation
+      takes, before its FOR UPDATE, via a single lockPhraseBankScope(). Proven with a real
+      Postgres 40P01: no-op the lock and the new test fails, restore it and it passes. Also
+      fixed four DB-backed test files that ran under NEITHER vitest config and so were silently
+      not executing at all; CI gained a Postgres service so these now re-run (commit d381622).]
       Why: `docs/architecture/phrase-bank-concurrency-fix/review.md` (found during `/debrief`
       2026-07-28) found that the plan's own self-grill incorrectly concluded the generation path's
       `pg_advisory_xact_lock` and the grading path's `SELECT ... FOR UPDATE` can never conflict —
@@ -312,7 +317,12 @@ on a human-only blocker rather than skipping past it.
       Needs real product/architecture planning first — how the split UI decides which children go
       where (manual assignment vs. a suggested split). This entry queues the idea, it does not
       spec it.
-- [ ] Close the `createCurriculum`-vs-merge race and harden the TagPicker's live-refresh gap.
+- [x] Close the `createCurriculum`-vs-merge race and harden the TagPicker's live-refresh gap.
+      [→ done 2026-08-01 (commit f1009b6). createCurriculum joins the merge advisory-lock space
+      via a new withSubjectLock and re-reads the subject inside it, so a lost race is a clean 404.
+      TagPicker seeds chips from the assign mutation response instead of relying on
+      router.invalidate(). The ~25% e2e flake was checked and does NOT share this root cause —
+      it is a pre-hydration click, traced separately.]
       Why: two real, non-blocking gaps found during `ontology-split-merge`'s build and review,
       both deliberately deferred rather than fixed inline: (1) `resolveDomainPlacement`/
       `createCurriculum` run as separate, un-transacted, unlocked statements, so a curriculum or
@@ -404,8 +414,13 @@ on a human-only blocker rather than skipping past it.
       Done when: two gated subjects both genuinely receive independent doc-scan suggestions in
       the same scheduled run, proven by a test exercising exactly that interleaving.
 
-- [ ] Close the doc-scan review screen's double-click duplicate-node bug and two related
+- [x] Close the doc-scan review screen's double-click duplicate-node bug and two related
       hardening gaps.
+      [→ done 2026-08-01 (commit 9d30491). Both resolvers claim their row with UPDATE ... WHERE
+      status = 'pending' RETURNING before any side effect; PATCH routes gained a 409. Per-item
+      in-flight disable held in a useRef (state alone lets two clicks in one React batch pass).
+      Watermark race closed with a NON-blocking pg_try_advisory_xact_lock, tracked-tool fetches
+      hoisted out so it cannot starve the 4-connection pool. infra now config.requireSecret().]
       Why: `docs/architecture/doc-changelog-scan/review.md` (found during `/debrief` 2026-07-28)
       found accepting a suggestion twice via a plain double-click can insert a duplicate real
       `domain_nodes` row — `resolveDomainTopicSuggestion()`/`resolveDomainSupersessionSuggestion()`
@@ -576,7 +591,12 @@ actions already existing to send an accepted suggestion to.
       (`/Users/ikushlianski/webdata/ilya-projects/ai-dev/docs/principles`) — bound the scan's
       cost per invocation (e.g. cap on subject count compared), no unbounded fan-out.
 
-- [ ] Fix the "+ tag" button's silent no-op click on a far-scrolled page position.
+- [x] Fix the "+ tag" button's silent no-op click on a far-scrolled page position.
+      [→ done 2026-08-01 (commit ebe95c8). Cause measured, not guessed: React 19 hydrates this
+      root progressively and the tree has no Suspense boundaries, so controls sit in the DOM
+      looking normal before their handler attaches. __TSR_ROUTER__ resolves ~180-220ms; the deep
+      button attaches ~290-500ms. Controls now render disabled until their own component hydrates.
+      Measured 0/5 -> 5/5 (y=5011px) and 0/5 -> 15/15 (y=44769px) on a single click, no retry.]
       Why: found while reviewing `curriculum-merge` (2026-07-31) — a click on a "+ tag" button
       roughly 3500px down a large curriculum page (the kind curriculum-merge itself now produces,
       8+ modules) can be silently swallowed even though the page's own hydration-ready flag has
@@ -593,7 +613,13 @@ actions already existing to send an accepted suggestion to.
       opens the tag picker on the first click, proven by removing the e2e action's retry logic and
       confirming the test still passes reliably.
 
-- [ ] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content.
+- [x] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content.
+      [→ done 2026-08-01 (commit 59d7e6c). merged_from_curriculum_id on BOTH modules and topics
+      (a topic can be reparented between the two, so module-derived provenance alone would lose
+      it), written by mergeCurricula; clearCurriculumStructure takes a scope defaulting to "own".
+      Migration 0029, applied to the local e2e DB only — Neon dev and prod still need it.
+      RESIDUAL: mergeSourcesIntoCurriculum's success path still deletes merged-in modules as
+      "free" — same loss class, different trigger, needs a product decision. See .planning/todo.md.]
       Why: `docs/architecture/curriculum-merge/review.md` (found during `/debrief` 2026-07-31) —
       a real, ordinarily-reachable data-loss path, not a narrow timing race. A healthy curriculum
       that absorbed merged-in content (via `mergeCurricula`) can independently fail LATER through
@@ -671,7 +697,12 @@ actions already existing to send an accepted suggestion to.
       legitimate `https://`/loopback-`http://` URLs are still accepted, running in CI alongside the
       rest of the mobile package's checks.
 
-- [ ] Add a build-time guard against Node-only imports leaking into the `apps/web` bundle.
+- [x] Add a build-time guard against Node-only imports leaking into the `apps/web` bundle.
+      [→ done 2026-08-01 (commit d381622). scripts/check-web-node-builtins.mjs, wired into CI's
+      test job. Scanning the emitted bundle does NOT work — rolldown tree-shakes the offending
+      module out of the chunks while the leak is still in the graph — so the guard runs the real
+      vite build and matches its resolve-time externalization warning. Proven by reintroducing
+      node:crypto (exit 1, names the file) and reverting (exit 0).]
       Why: found during `/review-playwright` on `ai-duplicate-detection` (2026-07-31) — a new file
       in `packages/core` used `node:crypto`, which Vite silently bundled into `apps/web` through
       the package's root barrel export, breaking every page importing it (curriculum, domain-map,
