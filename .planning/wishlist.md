@@ -334,8 +334,15 @@ on a human-only blocker rather than skipping past it.
       assigning a tag updates the visible chip immediately, without a page reload, proven by an
       e2e test that does NOT navigate away before asserting.
 
-- [ ] Make a zero-suggestion priority review fail loudly instead of silently clearing the
+- [x] Make a zero-suggestion priority review fail loudly instead of silently clearing the
       "review due" banner.
+      [→ done 2026-08-01. `.min(1)` landed on `domainPriorityReviewAgentResultSchema` in
+      `packages/shared/src/domain-map.ts` (not the agent file the pointer named — the schema
+      never lived there); `setDue(false)` in the panel is now gated on a non-empty result;
+      migration `0028_massive_ultragirl` adds `domain_priority_suggestions(subject_id,
+      created_at DESC)`, applied to the local e2e Postgres only, NOT to Neon. Proven
+      red-then-green with 2 new tests in `domain-priority-review.orchestrator.test.ts` and a
+      new `apps/web/src/domain-map/priority-review-panel.test.tsx`.]
       Why: `docs/architecture/domain-priority-review/review.md` (found during `/debrief`
       2026-07-28) found the trigger handler unconditionally clears the "review due" indicator on
       any successful review call, including one that returns zero suggestions. The agent's prompt
