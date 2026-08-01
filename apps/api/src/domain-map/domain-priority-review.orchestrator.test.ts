@@ -251,6 +251,61 @@ describe("triggerDomainPriorityReview — SCENARIO 8 (agent failure surfaces a r
     expect(rows).toHaveLength(0);
   });
 
+  it("treats a schema-valid but empty suggestion list the same as a malformed response — throws, zero rows inserted", async () => {
+    mockAgentGenerate.mockClear();
+    mockAgentGenerate.mockResolvedValue({ object: { suggestions: [] } });
+
+    const { subjectId } = await seedTree();
+
+    const { triggerDomainPriorityReview } = await import(
+      "./domain-priority-review.orchestrator.js"
+    );
+
+    await expect(triggerDomainPriorityReview(subjectId)).rejects.toThrow();
+
+    const { getDb } = await import("../db/client.js");
+    const { domainPrioritySuggestions } = await import("../db/schema.js");
+    const db = getDb();
+
+    const rows = await db
+      .select()
+      .from(domainPrioritySuggestions)
+      .where(eq(domainPrioritySuggestions.subjectId, subjectId));
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it("surfaces a zero-suggestion response as HTTP 502, never a silently successful 200", async () => {
+    mockAgentGenerate.mockClear();
+    mockAgentGenerate.mockResolvedValue({ object: { suggestions: [] } });
+
+    const { subjectId } = await seedTree();
+
+    const { handleTriggerDomainPriorityReview } = await import("./domain-map.controller.js");
+
+    const req = fakeRequest({});
+    const res = fakeResponse();
+
+    await handleTriggerDomainPriorityReview(req, res, subjectId);
+
+    expect(res.statusCode).toBe(502);
+
+    const parsed = JSON.parse(res.body) as { error: string; message?: string };
+    expect(parsed.error).toBeTruthy();
+    expect(parsed.message).toBeTruthy();
+
+    const { getDb } = await import("../db/client.js");
+    const { domainPrioritySuggestions } = await import("../db/schema.js");
+    const db = getDb();
+
+    const rows = await db
+      .select()
+      .from(domainPrioritySuggestions)
+      .where(eq(domainPrioritySuggestions.subjectId, subjectId));
+
+    expect(rows).toHaveLength(0);
+  });
+
   it("the controller surfaces the failure as HTTP 502 with a non-empty message, never a silent no-op", async () => {
     mockAgentGenerate.mockClear();
     mockAgentGenerate.mockRejectedValue(new Error("ECONNREFUSED"));

@@ -155,8 +155,12 @@ export const domainPrioritySuggestionAgentItemSchema = z.object({
   reason: z.string().min(1),
 });
 
+// .min(1) is a real contract, not defensive padding: the agent's instructions
+// already say "never return an empty list", so a schema-valid empty array is a
+// malformed response and must take the same 502 path as any other one —
+// otherwise it reads to the user as "the review reminder silently did nothing".
 export const domainPriorityReviewAgentResultSchema = z.object({
-  suggestions: z.array(domainPrioritySuggestionAgentItemSchema).max(5),
+  suggestions: z.array(domainPrioritySuggestionAgentItemSchema).min(1).max(5),
 });
 
 export type DomainPriorityReviewAgentResult = z.infer<

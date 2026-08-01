@@ -116,7 +116,14 @@ export function PriorityReviewPanel({
     try {
       const fresh = await triggerPriorityReview({ data: subjectId })
       setSuggestions((prev) => [...fresh, ...prev])
-      setDue(false)
+
+      // Only clear the banner when the review actually produced something.
+      // The server's own due-status comes from MAX(created_at) over inserted
+      // rows, so predicting due:false on an empty result desyncs the two until
+      // the next page load.
+      if (fresh.length > 0) {
+        setDue(false)
+      }
     } catch {
       setTriggerError('Review could not be completed — try again.')
     } finally {

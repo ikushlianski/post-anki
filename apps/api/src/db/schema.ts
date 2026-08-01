@@ -79,18 +79,30 @@ export const domainNodes = pgTable("domain_nodes", {
 // .references() FK, matching domain_nodes' own convention (plain text
 // columns + app-level validation). `source` is the discriminator seam #49
 // (doc-scan) and #53 (job-market-scan) plug their own producers into later.
-export const domainPrioritySuggestions = pgTable("domain_priority_suggestions", {
-  id: text("id").primaryKey(),
-  domainNodeId: text("domain_node_id").notNull(),
-  subjectId: text("subject_id").notNull(),
-  currentTargetDepth: text("current_target_depth"),
-  suggestedTargetDepth: text("suggested_target_depth").notNull(),
-  reason: text("reason").notNull(),
-  source: text("source").notNull().default("general-knowledge"),
-  status: text("status").notNull().default("pending"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-});
+export const domainPrioritySuggestions = pgTable(
+  "domain_priority_suggestions",
+  {
+    id: text("id").primaryKey(),
+    domainNodeId: text("domain_node_id").notNull(),
+    subjectId: text("subject_id").notNull(),
+    currentTargetDepth: text("current_target_depth"),
+    suggestedTargetDepth: text("suggested_target_depth").notNull(),
+    reason: text("reason").notNull(),
+    source: text("source").notNull().default("general-knowledge"),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  // getLastReviewedAt() runs WHERE subject_id = ? ORDER BY created_at DESC
+  // LIMIT 1 on every review-status page load; rows are never deleted, so
+  // without this it degrades into a growing per-subject scan-and-sort.
+  (table) => [
+    index("domain_priority_suggestions_subject_created_at_idx").on(
+      table.subjectId,
+      table.createdAt.desc(),
+    ),
+  ],
+);
 
 // doc-changelog-scan (issue #49) — one row per tracked tool
 // (apps/api/src/domain-map/tracked-tools.ts's TRACKED_TOOLS constant), the
