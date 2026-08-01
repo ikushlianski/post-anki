@@ -124,25 +124,73 @@ what's left. Check a box the moment its step lands, not batched at the end.
       the lock returns an empty result immediately rather than waiting — the pool is `max: 4`
       and the winner holds its connection across the LLM call, so queued waiters would starve
       it. Keep the tracked-tool fetches OUTSIDE the locked section.
-- [ ] Residual, NOT fixed here: `resolveDomainTopicSuggestion()`'s accept path inserts its new
+- [x] Residual, NOT fixed here: `resolveDomainTopicSuggestion()`'s accept path inserts its new
       `domain_nodes` row without a subject lock — same orphan window `insertDomainNode()` just
       closed, different call site. Needs a pre-read outside the lock to learn the subjectId
       first, so it was left out of the double-click unit's scope.
-- [ ] Known small gap in the review panel's two-tab case: `request()` in
+      [→ done 2026-08-01 alongside the tracked-tool watermark unit. The suggestion is read once
+      outside the lock purely to pick the key, then the subject re-read and the pending claim
+      both happen inside `withSubjectLock`. The subject check runs BEFORE the claim so a
+      vanished subject leaves the suggestion pending rather than committing it accepted with
+      no node behind it. Rejecting deliberately does NOT require the subject to exist.
+      New arm: `resolveDomainTopicSuggestion()` can now return
+      `{ error: "subject_not_found" }` (type `ResolveDomainTopicSuggestionError`), which
+      `PATCH /domain-topic-suggestions/:id` answers as a **404 `subject_not_found`**. The
+      supersession resolver is unchanged. Proven red-then-green by
+      `topic-suggestion-accept-merge-race.integration.test.ts`: 1 orphan `domain_nodes` row
+      under the deleted subject before, 0 after.]
+- [x] Known small gap in the review panel's two-tab case: `request()` in
       `apps/web/src/curriculum/api-client.ts` throws `ApiError` on any non-2xx, so a 409
       `already_resolved` lands in the panel's catch and the row stays listed (re-enabled) until
       a page reload. Correct would be to treat 409 like success and drop the row. Not fixed
       because that means editing `api-client.ts`, outside the domain-map unit's ownership.
+      [→ done 2026-08-01. `request()` is UNCHANGED — the translation is per-call, mirroring
+      `submitStructureTurn`/`resolveSupplementalResearch`'s existing 409 guard-code handling in
+      the same file. Proven red-then-green in `curriculum/api-client.test.ts`.]
+- [ ] `resolveDomainTopicSuggestion()` / `resolveDomainSupersessionSuggestion()` in
+      `apps/web/src/curriculum/api-client.ts` no longer return the suggestion directly — they
+      return `ResolveDocScanSuggestionResult<T>` = `{ outcome: 'resolved'; suggestion: T } |
+      { outcome: 'already_resolved' }`, and the two `domain-map.api.ts` server fns pass that
+      shape through. A 409 whose code is exactly `already_resolved` becomes the second arm;
+      every other non-2xx (404, 500, a different 409 code, a network failure) still throws
+      `ApiError`. Deliberately a serializable object, not a typed exception: these values cross
+      the TanStack server-fn RPC boundary, where an `Error` subclass loses its class identity
+      and a client-side `instanceof` would silently never match.
+- [ ] Residual for the subject-module owner, found while closing the topic-suggestion lock:
+      `mergeSubjects()` reassigns `curricula` and `domain_nodes` but touches NEITHER
+      `domain_topic_suggestions` NOR `domain_supersession_suggestions`, so the source subject's
+      pending doc-scan suggestions outlive the subject. Since 2026-08-01 accepting one is
+      cleanly refused (`subject_not_found`, no orphan node) instead of creating a node under a
+      dead subject — strictly better — but those rows are now stuck pending forever and
+      invisible, because the review panel lists suggestions by `subjectId` and that id is the
+      deleted source. Fix is reassigning both tables to the target inside `mergeSubjects`
+      (`apps/api/src/subject/subject.repo.ts`), which the domain-map unit does not own.
 - [ ] Residual, deliberately NOT guarded: `resolvePrioritySuggestion()` still acts without a
       `WHERE status = 'pending'` claim. Unlike the two doc-scan resolvers it is idempotent
       (a second accept re-writes the same target depth, no second row), so it was left alone;
       its buttons DO get the new per-item in-flight disable.
-- [ ] Residual, NOT fixed here: `deleteSubject()` (`apps/api/src/subject/subject.repo.ts`) has
+- [x] Residual, NOT fixed here: `deleteSubject()` (`apps/api/src/subject/subject.repo.ts`) has
       the same orphan window as the merge did — it deletes the subject's curricula in a loop
       and then the subject row, all outside any advisory lock, so a curriculum created between
       those two steps survives its own parent. Deliberately left alone (the wishlist item
       scopes the fix to the merge window); `withSubjectLock` is the ready-made fix if it
       matters.
+      [→ done 2026-08-01. `deleteSubject()` now runs under `withSubjectLock` and re-reads the
+      subject inside it; its old inner `db.transaction` IS that lock transaction now, not a
+      second one nested in it. Proven red-then-green by
+      `subject/subject-delete-merge-race.integration.test.ts`: deleting the merge TARGET left
+      1 orphan curriculum before the fix (0 after), and deleting the merge SOURCE destroyed
+      the curriculum the merge was handing over and still returned `true` before the fix
+      (returns `false`, curriculum preserved under the target, after).]
+- [ ] `deleteSubject()` now holds one pooled connection (its lock transaction) for its whole
+      run while each `deleteCurriculum()` inside the loop takes a SECOND connection, because
+      `deleteCurriculum`/`clearCurriculumStructure` are not transaction-aware and live in
+      `apps/api/src/curriculum/`, which the subject unit does not own. With `max: 4` on the
+      pool, four concurrent subject deletions would each hold a connection and then all need a
+      fifth — they would starve rather than deadlock the DB, but they would hang. Also means
+      the curricula and the subject row are still two separate commits (as before the lock
+      fix), so a crash mid-delete leaves an empty subject; the window is now longer. Real fix
+      is making `deleteCurriculum` accept a `Tx`.
 - [x] `clearCurriculumStructure` is now provenance-aware and takes a second `scope` argument
       (`"own"` by default, `"all"` only from `deleteCurriculum`). Modules AND topics carry a
       nullable `merged_from_curriculum_id` (migration `0029_lucky_maestro`, applied to the local
@@ -171,6 +219,21 @@ what's left. Check a box the moment its step lands, not batched at the end.
 - [ ] `POST /tags/:tagId/assignments`'s 201 body is now consumed by the web layer (it was
       discarded before). Nothing about the endpoint changed, but it is no longer safe to
       switch it to a 204.
+- [x] `tracked_tool_scan_state` is now keyed by `(subject_id, tool_key)` (migration
+      `0030_groovy_madame_web`, hand-ordered — drizzle-kit emitted the ADD CONSTRAINT before
+      the ADD COLUMN and left the old PK's DROP commented out). `getTrackedToolScanState()` /
+      `upsertTrackedToolScanState()` both take `subjectId` first now. Applied to the local
+      e2e DB only; Neon dev/prod still need it. Existing rows are attributed to the sole
+      gated subject only when exactly one exists, and dropped otherwise — on the local e2e DB
+      (20 leftover gated subjects) that meant its 4 rows were dropped, which just costs one
+      redundant scan.
+- [ ] `apps/api/src/domain-map/doc-scan-lock.ts` stays a single GLOBAL advisory key even
+      though the watermark is now per-subject and a per-subject key would serialize the right
+      thing. Reason: a scan holds two pooled connections across an LLM call and
+      `db/client.ts` is `max: 4`, so per-subject keys would let two scans exhaust the pool.
+      Consequence to know about: a manual "Scan now" for subject B while the scheduler is
+      mid-run on subject A still returns an empty result. The scheduled run is sequential, so
+      every subject still gets its own scan.
 
 ## Wave 1 — in flight
 

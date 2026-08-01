@@ -400,7 +400,17 @@ on a human-only blocker rather than skipping past it.
       same transaction — proven by a test that deletes a gap with an active mastery row and
       confirms zero orphaned `gap_mastery` rows remain.
 
-- [ ] Give `tracked_tool_scan_state` a subject dimension before seeding a second gated subject.
+- [x] Give `tracked_tool_scan_state` a subject dimension before seeding a second gated subject.
+      [→ done 2026-08-01. Composite primary key on `(subject_id, tool_key)`, migration
+      `0030_groovy_madame_web` (hand-ordered: drizzle-kit emitted the ADD CONSTRAINT before the
+      ADD COLUMN and left the old PK's DROP commented out). Existing rows are attributed to the
+      sole gated subject when exactly one exists and dropped otherwise — a dropped watermark
+      costs one redundant scan, a wrongly attributed one reproduces the bug. Proven
+      red-then-green by `doc-scan-subject-watermark.integration.test.ts`: 1 agent call for 2
+      gated subjects before, 2 after, each subject with its own suggestions and its own 4
+      watermark rows. The test in `doc-scan.orchestrator.test.ts` that pinned the old
+      "exactly one subject wins" behaviour now asserts every gated subject gets a real call.
+      Applied to the local e2e DB only; Neon dev/prod still need it.]
       Why: `.planning/doc-changelog-scan/todo.md` (found during implementation, 2026-07-28) —
       the table is keyed by `tool_key` alone, so only the first of multiple gated subjects
       processed in a scheduled scan run ever gets real suggestions; every other subject silently
