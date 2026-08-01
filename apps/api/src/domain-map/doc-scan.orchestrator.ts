@@ -149,7 +149,7 @@ async function scanFetchedTools(
   const changedTools: ChangedTool[] = [];
 
   for (const fetched of fetchedTools) {
-    const existingState = await getTrackedToolScanState(fetched.tool.toolKey);
+    const existingState = await getTrackedToolScanState(subjectId, fetched.tool.toolKey);
 
     if (existingState?.lastContentHash === fetched.hash) {
       continue;
@@ -226,7 +226,7 @@ async function scanFetchedTools(
     }
 
     for (const changed of changedTools) {
-      await upsertTrackedToolScanState(changed.tool.toolKey, changed.hash);
+      await upsertTrackedToolScanState(subjectId, changed.tool.toolKey, changed.hash);
     }
 
     return {
@@ -249,9 +249,13 @@ async function scanFetchedTools(
 
 // Cron wrapper (spec.md "Scan mechanism (decided)") — one call to
 // runDocScan() per subject with at least one domain_nodes row (same
-// subject-gating precedent item 7 established). Per-tool fetch+hash work is
-// NOT deduplicated across subjects in v1 — deferred optimization, not
-// correctness-relevant at today's "exactly one gated subject" scale.
+// subject-gating precedent item 7 established). Each subject carries its own
+// watermark row per tool, so every subject in this loop compares against its
+// OWN last-seen hash; the loop stays sequential because the doc-scan
+// advisory lock is global (see doc-scan-lock.ts) and a parallel version
+// would simply skip every subject after the first. Per-tool fetch+hash work
+// is NOT deduplicated across subjects — deferred optimization, not
+// correctness-relevant at today's scale.
 export async function runDocScanForAllTrackedSubjects(): Promise<Record<string, DocScanResult>> {
   const subjectIds = await listSubjectIdsWithDomainNodes();
   const results: Record<string, DocScanResult> = {};

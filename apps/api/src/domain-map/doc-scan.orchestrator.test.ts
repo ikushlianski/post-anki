@@ -199,7 +199,10 @@ describe("runDocScan — SCENARIO 2 (first-ever scan, exactly one agent call, wa
       await import("../db/schema.js");
     const db = getDb();
 
-    const watermarkRows = await db.select().from(trackedToolScanState);
+    const watermarkRows = await db
+      .select()
+      .from(trackedToolScanState)
+      .where(eq(trackedToolScanState.subjectId, subjectId));
     expect(watermarkRows).toHaveLength(4);
 
     for (const row of watermarkRows) {
@@ -347,7 +350,10 @@ describe("runDocScan — SCENARIO 10 (agent failure mid-scan leaves changed tool
     const db = getDb();
 
     const oldHashes = new Map<string, string | null>();
-    for (const row of await db.select().from(trackedToolScanState)) {
+    for (const row of await db
+      .select()
+      .from(trackedToolScanState)
+      .where(eq(trackedToolScanState.subjectId, subjectId))) {
       oldHashes.set(row.toolKey, row.lastContentHash);
     }
 
@@ -400,7 +406,10 @@ describe("runDocScan — SCENARIO 10 (agent failure mid-scan leaves changed tool
     expect(supersessionCountAfter).toBe(supersessionCountBefore);
 
     const newHashes = new Map<string, string | null>();
-    for (const row of await db.select().from(trackedToolScanState)) {
+    for (const row of await db
+      .select()
+      .from(trackedToolScanState)
+      .where(eq(trackedToolScanState.subjectId, subjectId))) {
       newHashes.set(row.toolKey, row.lastContentHash);
     }
 
@@ -447,7 +456,7 @@ describe("runDocScan — SCENARIO 10 (agent failure mid-scan leaves changed tool
 });
 
 describe("handleTriggerAllDocScans — the scheduled job's actual entry point (POST /doc-scans)", () => {
-  it("dispatches runDocScan once per gated subject and returns 200 with a result keyed by subject id — and demonstrates the known cross-subject watermark limitation", async () => {
+  it("dispatches runDocScan once per gated subject and returns 200 with a result keyed by subject id — every gated subject gets its own real agent call", async () => {
     mockAgentGenerate.mockClear();
     mockFetchTrackedTool.mockClear();
     mockAllToolsFetch(11);
@@ -458,9 +467,8 @@ describe("handleTriggerAllDocScans — the scheduled job's actual entry point (P
     const { newId } = await import("../shared/id.js");
     const db = getDb();
 
-    // Cleared so this test's own invariant (exactly one gated subject in
-    // the WHOLE database gets a real agent call, no matter how many others
-    // exist from earlier tests in this file) is deterministic rather than
+    // Cleared so this test's own invariant (EVERY gated subject in the
+    // whole database gets a real agent call) is deterministic rather than
     // depending on whatever hash a prior test happened to leave behind.
     await db.delete(trackedToolScanState);
 
@@ -486,24 +494,21 @@ describe("handleTriggerAllDocScans — the scheduled job's actual entry point (P
     const body = JSON.parse(res.body) as Record<string, { agentCalled: boolean }>;
     expect(Object.keys(body)).toEqual(expect.arrayContaining([subjectA, subjectB]));
 
-    // Known limitation (documented in docs/architecture/doc-changelog-scan.md
-    // and .planning/doc-changelog-scan/todo.md, not fixed here — a real
-    // architectural decision, not a bug to silently patch): tracked_tool_
-    // scan_state is keyed by tool_key ALONE, with no subject dimension.
-    // listSubjectIdsWithDomainNodes() returns EVERY gated subject in the
-    // whole database (every earlier test in this file left its own gated
-    // subject behind), so this single dispatch call fans out across all of
-    // them, not just subjectA/subjectB. Whichever ONE of them is processed
-    // first genuinely sees "changed" content and calls the agent, advancing
-    // the GLOBAL watermark for all 4 tools; every subject processed after
-    // that — despite never having been scanned before, itself — sees the
-    // same mocked content as already "unchanged" and gets zero suggestions.
-    // This is the exact "before seeding a second gated subject" trap noted
-    // in todo.md, demonstrated here as an order-independent invariant
-    // (exactly one true, the rest false) rather than asserting which
-    // specific subject wins — that part IS legitimately order-dependent.
+    // The former "known cross-subject watermark limitation", now fixed:
+    // tracked_tool_scan_state carries a subject_id, so each subject in this
+    // fan-out compares the mocked content against its OWN (absent) hash.
+    // Before the composite key, exactly ONE subject — whichever the
+    // undefined selectDistinct order put first — called the agent and
+    // advanced the single global watermark, and every later subject read
+    // "unchanged" and got nothing despite never having been scanned.
+    // listSubjectIdsWithDomainNodes() returns every gated subject in the
+    // whole database, including those earlier tests in this file left
+    // behind, so the invariant is stated over all of them rather than only
+    // subjectA/subjectB.
     const agentCalledCount = Object.values(body).filter((r) => r.agentCalled).length;
-    expect(agentCalledCount).toBe(1);
+    expect(agentCalledCount).toBe(Object.keys(body).length);
+    expect(body[subjectA]?.agentCalled).toBe(true);
+    expect(body[subjectB]?.agentCalled).toBe(true);
   });
 });
 

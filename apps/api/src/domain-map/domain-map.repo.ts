@@ -569,6 +569,13 @@ export async function getDomainTopicSuggestion(
 
 export type ResolveDomainSuggestionError = "not_found" | "already_resolved";
 
+// Only the topic resolver can hit this: it is the one that CREATES a
+// domain_nodes row, so it is the one that has to care whether the owning
+// subject still exists when the lock is finally held.
+export type ResolveDomainTopicSuggestionError =
+  | ResolveDomainSuggestionError
+  | "subject_not_found";
+
 // PATCH /domain-topic-suggestions/:id. Accepting inserts a new domain_nodes
 // row under proposed_parent_node_id (already a resolved real id — no
 // re-resolution needed) and sets created_domain_node_id + resolved_at on
@@ -582,14 +589,45 @@ export type ResolveDomainSuggestionError = "not_found" | "already_resolved";
 // also insert a domain_nodes row and overwrite created_domain_node_id
 // (which would orphan the first inserted node). A plain read-then-act, as
 // this used to be, lets a double-click produce two real nodes.
+//
+// The whole claim-and-insert also runs under the owning subject's advisory
+// lock (the same one `insertDomainNode` and `createCurriculum` take), so an
+// accepted suggestion can no longer create a domain_nodes row under a
+// subject a concurrent merge is in the middle of deleting. Learning WHICH
+// subject to lock needs a read before the lock, so the suggestion is read
+// once outside it purely to pick the key; everything that decides the
+// outcome — the subject's existence and the pending claim — is re-read
+// inside. The subject check happens BEFORE the claim so that a vanished
+// subject leaves the suggestion pending rather than committing it as
+// accepted with no node behind it. Rejecting deliberately does not require
+// the subject to exist: it only marks a row resolved, and a pending
+// suggestion can outlive its subject.
 export async function resolveDomainTopicSuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainTopicSuggestion | { error: ResolveDomainSuggestionError }> {
+): Promise<DomainTopicSuggestion | { error: ResolveDomainTopicSuggestionError }> {
   const db = getDb();
 
-  return db.transaction(async (tx) => {
+  const preRead = (
+    await db.select().from(domainTopicSuggestions).where(eq(domainTopicSuggestions.id, suggestionId))
+  )[0];
+
+  if (!preRead) {
+    return { error: "not_found" as const };
+  }
+
+  return withSubjectLock(preRead.subjectId, async (tx) => {
     const resolvedAt = new Date();
+
+    if (status === "accepted") {
+      const subjectRow = (
+        await tx.select().from(subjects).where(eq(subjects.id, preRead.subjectId))
+      )[0];
+
+      if (!subjectRow) {
+        return { error: "subject_not_found" as const };
+      }
+    }
 
     const claimed = (
       await tx
@@ -756,22 +794,32 @@ export async function resolveDomainSupersessionSuggestion(
   });
 }
 
-// doc-changelog-scan (issue #49) — the per-tool watermark
+// doc-changelog-scan (issue #49) — the per-subject, per-tool watermark
 // (tracked_tool_scan_state). null last_content_hash = never successfully
-// scanned.
+// scanned. The subjectId half of the key is what keeps a scheduled run's
+// second subject from reading the first subject's already-advanced hash and
+// concluding nothing changed.
 export async function getTrackedToolScanState(
+  subjectId: string,
   toolKey: string,
-): Promise<{ toolKey: string; lastContentHash: string | null } | null> {
+): Promise<{ subjectId: string; toolKey: string; lastContentHash: string | null } | null> {
   const db = getDb();
 
   const row = (
     await db
       .select()
       .from(trackedToolScanState)
-      .where(eq(trackedToolScanState.toolKey, toolKey))
+      .where(
+        and(
+          eq(trackedToolScanState.subjectId, subjectId),
+          eq(trackedToolScanState.toolKey, toolKey),
+        ),
+      )
   )[0];
 
-  return row ? { toolKey: row.toolKey, lastContentHash: row.lastContentHash ?? null } : null;
+  return row
+    ? { subjectId: row.subjectId, toolKey: row.toolKey, lastContentHash: row.lastContentHash ?? null }
+    : null;
 }
 
 // Upserted only for tools INCLUDED in a successful agent call (spec.md's
@@ -779,6 +827,7 @@ export async function getTrackedToolScanState(
 // (already correct) or whose changed content was part of a FAILED agent
 // call (must stay retryable — SCENARIO 10).
 export async function upsertTrackedToolScanState(
+  subjectId: string,
   toolKey: string,
   contentHash: string,
 ): Promise<void> {
@@ -787,9 +836,9 @@ export async function upsertTrackedToolScanState(
 
   await db
     .insert(trackedToolScanState)
-    .values({ toolKey, lastContentHash: contentHash, lastScannedAt: now })
+    .values({ subjectId, toolKey, lastContentHash: contentHash, lastScannedAt: now })
     .onConflictDoUpdate({
-      target: trackedToolScanState.toolKey,
+      target: [trackedToolScanState.subjectId, trackedToolScanState.toolKey],
       set: { lastContentHash: contentHash, lastScannedAt: now },
     });
 }

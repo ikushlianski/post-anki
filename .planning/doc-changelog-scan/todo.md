@@ -66,6 +66,16 @@ scheduler job automatically without a manual `pulumi up`.
 
 ## Before seeding a second gated subject — read this first
 
+**FIXED 2026-08-01 — this whole section is now history.** `tracked_tool_scan_state` is
+composite-keyed on `(subject_id, tool_key)` as of migration `0030_groovy_madame_web`;
+`getTrackedToolScanState()` / `upsertTrackedToolScanState()` both take a `subjectId`, and
+`apps/api/src/domain-map/doc-scan-subject-watermark.integration.test.ts` proves two gated
+subjects each get their own agent call, their own suggestions and their own four watermark
+rows in one scheduled run. The paragraphs below describe the pre-fix behaviour and are kept
+only for the reasoning. Note that the local e2e DB's four pre-existing watermark rows were
+dropped by the migration's backfill rule (it only attributes rows when exactly one gated
+subject exists), which costs one redundant scan and nothing else.
+
 `tracked_tool_scan_state` is keyed by `tool_key` ALONE, with no subject
 dimension — a genuine architectural limitation discovered while implementing
 this feature, not a hypothetical. `runDocScanForAllTrackedSubjects()` (the

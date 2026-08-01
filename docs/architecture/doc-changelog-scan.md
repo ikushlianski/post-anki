@@ -183,3 +183,9 @@ shape and rationale as `resolveAgentModel`'s existing `OPENROUTER_BASE_URL` over
   `.planning/doc-changelog-scan/todo.md`'s "Before seeding a second gated subject" section for the
   fix (a composite `(subject_id, tool_key)` key), deliberately not applied in this ticket since it's
   a schema change a human should scope explicitly.
+- **FIXED 2026-08-01 (migration `0030_groovy_madame_web`).** Both bullets above are now history:
+  the table is composite-keyed on `(subject_id, tool_key)`, every gated subject compares against
+  its own hashes, and `handleTriggerAllDocScans` asserts that ALL gated subjects get
+  `agentCalled: true`. One consequence for the e2e suite: a fresh subject per test now DOES
+  isolate this table, so SCENARIO 5's `deleteRows('tracked_tool_scan_state')` precondition is no
+  longer required (harmless, just redundant).

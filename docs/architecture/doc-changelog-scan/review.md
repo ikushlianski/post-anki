@@ -101,6 +101,9 @@ part of the original scrutiny list:
    — not merely a performance deferral — the moment a second subject is gated. The fix (a composite
    `(subject_id, tool_key)` key) is correctly deferred to a human decision rather than patched
    quietly, since it's a schema change with its own migration and repo-signature implications.
+   **Resolved 2026-08-01: the composite key shipped as migration `0030_groovy_madame_web`, proven
+   by `doc-scan-subject-watermark.integration.test.ts` (two gated subjects, two agent calls, two
+   independent sets of suggestions in one scheduled run).**
 4. **No idempotency guard on suggestion accept (found while reading the accept path).**
    `resolveDomainTopicSuggestion()` and `resolveDomainSupersessionSuggestion()` each read the existing
    row, then act on `status` unconditionally — neither checks that the suggestion is still `pending`

@@ -27,8 +27,10 @@ Backend DoD proofs with no dedicated `SCENARIO N` number (spec.md's Backend DoD,
 - `handleTriggerAllDocScans` (the scheduled job's actual entry point, `POST /doc-scans` → 
   `runDocScanForAllTrackedSubjects()` → `listSubjectIdsWithDomainNodes()`) — proven to dispatch
   across every gated subject and return 200; this test is also what surfaced and deterministically
-  demonstrates the cross-subject watermark limitation documented in `todo.md` and
-  `docs/architecture/doc-changelog-scan.md`.
+  demonstrated the cross-subject watermark limitation documented in `todo.md` and
+  `docs/architecture/doc-changelog-scan.md` — fixed 2026-08-01 by the `(subject_id, tool_key)`
+  composite key (migration `0030`), so the test now asserts that EVERY gated subject gets a real
+  agent call rather than exactly one.
 - `PATCH /domain-topic-suggestions/:id` accept/reject, at the controller layer.
 - `PATCH /domain-supersession-suggestions/:id` accept/reject, at the controller layer, including
   the percent-byte-identical negative assertion against a real attached, studied curriculum.

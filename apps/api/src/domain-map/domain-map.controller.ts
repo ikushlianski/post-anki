@@ -23,7 +23,7 @@ import {
   resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
   updateDomainNodeTargetDepth,
-  type ResolveDomainSuggestionError,
+  type ResolveDomainTopicSuggestionError,
 } from "./domain-map.repo.js";
 import { triggerDomainPriorityReview } from "./domain-priority-review.orchestrator.js";
 import { runDocScan, runDocScanForAllTrackedSubjects } from "./doc-scan.orchestrator.js";
@@ -241,12 +241,16 @@ export async function handleListDocScanSuggestions(
 // there and already handled, which is exactly what a double-click's second
 // PATCH hits. Distinguishing the two is what lets the review panel tell
 // "someone else already resolved this" apart from "this id is wrong".
+// subject_not_found is a 404 too: the accept could not create its node
+// because the owning subject was merged or deleted out from under the
+// pending suggestion, so from the caller's side the thing it addressed is
+// gone. The suggestion is left pending in that case, never half-accepted.
 function sendResolveSuggestionError(
   res: http.ServerResponse,
-  error: ResolveDomainSuggestionError,
+  error: ResolveDomainTopicSuggestionError,
 ): void {
-  if (error === "not_found") {
-    sendError(res, 404, "not_found");
+  if (error === "not_found" || error === "subject_not_found") {
+    sendError(res, 404, error);
     return;
   }
 

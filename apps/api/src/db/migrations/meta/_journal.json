@@ -211,6 +211,13 @@
       "when": 1785547363051,
       "tag": "0029_lucky_maestro",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1785548917595,
+      "tag": "0030_groovy_madame_web",
+      "breakpoints": true
     }
   ]
 }

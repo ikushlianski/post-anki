@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   index,
   real,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
@@ -104,17 +105,27 @@ export const domainPrioritySuggestions = pgTable(
   ],
 );
 
-// doc-changelog-scan (issue #49) — one row per tracked tool
+// doc-changelog-scan (issue #49) — one row per (subject, tracked tool)
 // (apps/api/src/domain-map/tracked-tools.ts's TRACKED_TOOLS constant), the
 // "never a firehose" watermark. last_content_hash null = never successfully
 // scanned. Only advanced by the orchestrator for a tool INCLUDED in a
 // successful agent call (spec.md's Decisions #9) — a changed tool whose
 // agent call then fails keeps its OLD hash so it's retried next run.
-export const trackedToolScanState = pgTable("tracked_tool_scan_state", {
-  toolKey: text("tool_key").primaryKey(),
-  lastContentHash: text("last_content_hash"),
-  lastScannedAt: timestamp("last_scanned_at", { withTimezone: true }),
-});
+//
+// The subject dimension is load-bearing, not a convenience: keyed by
+// tool_key alone, the first gated subject a scheduled run processed
+// advanced every tool's hash, and every later subject in the same run read
+// "nothing changed" and got no suggestions at all, indefinitely.
+export const trackedToolScanState = pgTable(
+  "tracked_tool_scan_state",
+  {
+    subjectId: text("subject_id").notNull(),
+    toolKey: text("tool_key").notNull(),
+    lastContentHash: text("last_content_hash"),
+    lastScannedAt: timestamp("last_scanned_at", { withTimezone: true }),
+  },
+  (table) => [primaryKey({ columns: [table.subjectId, table.toolKey] })],
+);
 
 // doc-changelog-scan (issue #49) — "propose a brand-new node" (the scan's
 // (a) output). Neither this nor domain_supersession_suggestions below reuses

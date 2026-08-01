@@ -1,10 +1,16 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 
-// One global key, because the watermark this protects
-// (tracked_tool_scan_state) is itself keyed by tool_key alone, with no
-// subject column — so per-subject locking would not serialize the thing
-// that actually races.
+// One global key. The watermark this protects (tracked_tool_scan_state) is
+// now keyed by (subject_id, tool_key), so a per-subject key WOULD serialize
+// the right thing — it is deliberately not used, because `db/client.ts`'s
+// pool is `max: 4` and a scan costs two connections (this lock's own
+// transaction plus the scan's pooled reads/writes) held across an LLM call.
+// Per-subject keys would let two scans run concurrently and consume the
+// entire pool. The cost of keeping it global is that a manual "Scan now"
+// for subject B during the scheduler's run on subject A returns empty
+// instead of scanning; the scheduled run itself is sequential, so every
+// subject still gets its own scan.
 const DOC_SCAN_LOCK_KEY = "doc-scan";
 
 /**
