@@ -3,7 +3,7 @@ type: debrief
 branch: main
 feature: concurrency-and-verification-hardening
 updated: 2026-08-01
-verdict: critical-issue-found
+verdict: critical-issue-found-and-closed
 diagram-format: ascii
 ---
 
@@ -37,6 +37,9 @@ after it was fixed). No drift was found between what the remaining docs claim an
 does.
 
 ## As-built architecture
+
+*This sketch shows the state at review time. The two `⚠` items were fixed immediately
+afterwards — see "Resolution" below.*
 
 ```
         ONE advisory-lock space — every lock is hashtext(id)::bigint
@@ -159,6 +162,38 @@ What it buys beyond the hang: `deleteSubject` becomes genuinely atomic. Today `d
 commits independently of the outer transaction, so a failure partway through leaves the subject
 row present with some of its curricula already destroyed. That partial-delete window is
 *pre-existing*, not introduced by this run — but the same one-line change closes both.
+
+## Resolution (same session, commit `ae0b37e`)
+
+The critical issue above was fixed rather than left for the morning, since it was introduced by
+this same run and the fix follows a pattern the codebase already had.
+
+`deleteCurriculum`, `clearCurriculumStructure` and `resolveClearTargets` now each take a trailing
+`db: DbExecutor = getDb()`, so `deleteSubject` runs the whole deletion on the one connection it
+already holds. `resolveClearTargets` was the frame most easily missed — it called `getDb()` and
+issued two `SELECT`s *before* `clearCurriculumStructure` even opened its transaction, so threading
+only the outer two frames would have left the second connection in place. `withDocScanLock` now
+hands its transaction to `run(tx)`, threaded through five one-line repo functions, and its comment
+block was rewritten because this change falsified the "two connections" rationale it previously
+gave for the global lock key. `connectionTimeoutMillis: 10_000` is set on the pool.
+
+Proven, both tests written and run red against unmodified code first:
+- **Atomicity** — injecting a failure on the second course deletion destroyed 1 of 2 courses
+  before (`expected 1 to be 2`); after, all courses, their modules and topics, and the subject
+  survive intact. This closes a **pre-existing** partial-delete window, not one this run created.
+- **Connection usage** — tagging the pool with a per-run `application_name`, parking the delete on
+  a `FOR UPDATE`-held course row and counting non-idle backends in `pg_stat_activity` showed 2
+  connections held before (`expected 2 to be 1`); exactly 1 after.
+
+Worth recording: the agent's first version of the connection test used courses with no modules or
+topics, so it never reached the nested `db.transaction(...)` inside `clearCurriculumStructure` —
+the single line most likely to take a second connection. It caught that itself, seeded real
+structure, and re-confirmed. The strengthened test also demonstrates drizzle turns that nested
+transaction into a savepoint on the same session rather than a new connection.
+
+Still open, deliberately: `deleteCurriculum` called standalone via `DELETE /curricula/:id` remains
+three separate commits, exactly as before. It is atomic only when handed a transaction. Wrapping
+the standalone path is a further improvement beyond what this review asked for.
 
 ## Questions a reviewer would ask
 
