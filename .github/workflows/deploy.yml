@@ -21,6 +21,25 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    # The apps/api integration tests run against a real Postgres, never a mock —
+    # they exist to prove locking and transaction behavior that only a real
+    # connection can demonstrate. Credentials and port mirror e2e/docker-compose.yml
+    # so the same command works locally and here. Each test creates its own
+    # throwaway database off this one and migrates into it, so no seed step is needed.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postanki
+          POSTGRES_PASSWORD: postanki
+          POSTGRES_DB: postanki_e2e
+        ports:
+          - 5436:5432
+        options: >-
+          --health-cmd "pg_isready -U postanki -d postanki_e2e"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +49,22 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+      # Separate from `npm test` because these need the Postgres service above.
+      # Without this step the concurrency tests only ever ran at build time —
+      # nothing re-ran them, so a change reintroducing one of the races they
+      # were written to catch would have gone unnoticed.
+      - name: Integration tests (real Postgres)
+        env:
+          DATABASE_URL: postgres://postanki:postanki@localhost:5436/postanki_e2e
+        run: npm run test:integration -w @post-anki/api
+
+      # Runs the real apps/web browser build and fails if any Node built-in gets externalized
+      # into it. Lives here rather than in review-factory-gate (where the other fitness functions
+      # sit) because it needs an actual build, not a static scan, and because `test` is what gates
+      # `infra` as well — a browser bundle that crashes at runtime must never reach a deploy.
+      - name: Check for Node built-ins in the web bundle
+        run: node scripts/check-web-node-builtins.mjs
 
   review-factory-gate:
     name: Review Factory Gate
