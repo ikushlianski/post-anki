@@ -182,8 +182,34 @@ jobs:
           docker push "$IMAGE"
           echo "API_IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
-      - name: Deploy API to Cloud Run
+      # Electric sync engine wiring. Dormant until PROD_ELECTRIC_ENABLED is set to
+      # 'true' (same dormancy pattern as deploy-web's PROD_WEB_ENABLED), because
+      # apps/api's shape proxy must not be reachable in production until the
+      # server-side shape/table allowlist has landed — see
+      # .planning/local-first-electric-sync/todo.md.
+      # The URL is read back off the Pulumi-created Cloud Run service the same way
+      # this workflow already resolves API_URL for the bot and web deploys, so it
+      # can never drift from the `electricServiceUrl` stack output.
+      - name: Resolve Electric service URL
+        if: ${{ vars.PROD_ELECTRIC_ENABLED == 'true' }}
         run: |
+          ELECTRIC_URL=$(gcloud run services describe post-anki-electric --region ${{ vars.PROD_REGION }} --project ${{ vars.PROD_PROJECT_ID }} --format='value(status.url)')
+          if [ -z "$ELECTRIC_URL" ]; then
+            echo "post-anki-electric has no ready URL — the service exists but is not serving."
+            echo "Most likely the Pulumi prod stack has no electricDatabaseUrl secret set, so the container cannot start."
+            exit 1
+          fi
+          echo "ELECTRIC_URL=$ELECTRIC_URL" >> "$GITHUB_ENV"
+
+      - name: Deploy API to Cloud Run
+        # ELECTRIC_AUTH_MODE is deliberately never set here: apps/api's env schema
+        # defaults it to "iam", which is what production needs (Cloud Run
+        # service-to-service ID tokens). Only local dev overrides it to "none".
+        run: |
+          ELECTRIC_ARGS=()
+          if [ -n "${ELECTRIC_URL:-}" ]; then
+            ELECTRIC_ARGS+=(--set-env-vars "ELECTRIC_SERVICE_URL=$ELECTRIC_URL")
+          fi
           gcloud run deploy post-anki-api \
             --image "$API_IMAGE" \
             --project ${{ vars.PROD_PROJECT_ID }} \
@@ -205,6 +231,7 @@ jobs:
             --set-env-vars "LANGFUSE_PUBLIC_KEY=${{ secrets.PROD_LANGFUSE_PUBLIC_KEY }}" \
             --set-env-vars "LANGFUSE_SECRET_KEY=${{ secrets.PROD_LANGFUSE_SECRET_KEY }}" \
             --set-env-vars "LANGFUSE_HOST=${{ vars.PROD_LANGFUSE_HOST || 'https://cloud.langfuse.com' }}" \
+            "${ELECTRIC_ARGS[@]}" \
             --quiet
 
       - name: Verify API health
