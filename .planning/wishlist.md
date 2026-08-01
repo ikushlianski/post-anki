@@ -653,7 +653,12 @@ actions already existing to send an accepted suggestion to.
       Done when: both tests account for the `shaping_structure` stage (either driving through it
       or asserting the new intermediate state correctly) and pass reliably, not just once.
 
-- [ ] Add a regression test for the mobile transport-security guard (`assertSecureUrl`).
+- [x] Add a regression test for the mobile transport-security guard (`assertSecureUrl`).
+      [→ done 2026-08-01: `apps/mobile/src/api/client.test.ts`, 32 cases, plus the package's
+      first vitest setup (`vitest.config.ts` + `test` script, picked up by root `npm test`).
+      Both named bypasses are locked in. The guard was NOT found vulnerable to lookalike hosts;
+      two residual notes (Android `10.0.2.2` exemption, http-only denylist) are in
+      `.planning/todo.md` under "To review / clarify".]
       Why: found during `/review-playwright` on `ontology-audit-trail` (2026-07-31) — `apps/mobile`
       has zero automated test files, so the two real bypasses a prior debrief found and fixed in
       this guard (case-sensitive scheme check, embedded-userinfo/`@` host confusion — see

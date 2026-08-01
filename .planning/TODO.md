@@ -38,6 +38,13 @@ what's left. Check a box the moment its step lands, not batched at the end.
       now keeps the "review due" banner up, but shows no error, so it still reads as "nothing
       happened". Deliberately out of scope of the zero-suggestion fix; the review's own
       question 3 proposes surfacing "N returned, M unmatched".
+- [ ] Mobile `assertSecureUrl` is NOT vulnerable to lookalike hosts (`localhost.evil.com` and
+      friends reject — exact Set membership, verified by test 2026-08-01), but two real gaps
+      remain: (a) `10.0.2.2` is the Android emulator's host alias, not loopback, so a release
+      build on a LAN that has a 10.0.2.2 host would send the bearer token in cleartext;
+      (b) the check is a denylist on `http:` only, so any other non-https scheme (`ftp://`,
+      `ws://`, anything future) is accepted unchecked. Both are deliberate-looking, so left
+      unchanged and untested rather than silently hardened.
 
 ## Manual steps
 
@@ -82,6 +89,11 @@ what's left. Check a box the moment its step lands, not batched at the end.
 - [ ] CI's `test` job now runs a full `apps/web` browser build (`node
       scripts/check-web-node-builtins.mjs`) after `npm test`. If you add a step there, it runs
       before that build, not after.
+- [ ] `apps/mobile` now has vitest (`vitest.config.ts` + a `test` script), but `vitest` is
+      deliberately NOT declared in its `package.json` devDependencies — declaring it without
+      regenerating the root `package-lock.json` breaks CI's `npm ci`, and the lockfile is a
+      root file three agents are editing this wave. It resolves from the hoisted root install
+      (4.1.7). Whoever next updates the lockfile should add `"vitest": "^2.1.0"` there.
 - [ ] `apps/api/src/shared/merge-lock.ts` gained an additive `withSubjectLock()` export
       (same `hashtext(id)::bigint` advisory-lock space as `withMergeLock`) so curriculum
       creation serializes behind a subject merge. Anyone else touching locking this wave
@@ -90,17 +102,67 @@ what's left. Check a box the moment its step lands, not batched at the end.
       to `apps/api/vitest.integration.config.ts`'s `include` — naming it only in
       `vitest.config.ts`'s `exclude` means it runs under no config at all. Four tests were in
       that state until 2026-08-01.
-- [ ] Residual, NOT fixed here: `insertDomainNode()` (`apps/api/src/domain-map/`) still
+- [x] Residual, NOT fixed here: `insertDomainNode()` (`apps/api/src/domain-map/`) still
       inserts outside any subject lock, so a domain node created by
       `resolveDomainPlacement`'s sibling-discovery path can still land under a subject that
       a concurrent merge is deleting. Same fix shape as the curriculum one — wrap the insert
       in `withSubjectLock` and re-read the subject inside it. Left for the domain-map owner.
+      [→ done 2026-08-01 in the doc-scan double-click unit. `insertDomainNode()` now runs
+      under `withSubjectLock` and returns `DomainNode | { error: "subject_not_found" }`;
+      both `resolveDomainPlacement` call sites narrow and fall back to unplaced.]
+- [ ] `insertDomainNode()` no longer returns a bare `DomainNode` — any new caller must narrow
+      the `{ error: "subject_not_found" }` arm. Same for `resolveDomainTopicSuggestion()` /
+      `resolveDomainSupersessionSuggestion()`, which now return
+      `{ error: "not_found" | "already_resolved" }` instead of `null`.
+- [ ] `PATCH /domain-topic-suggestions/:id` and `PATCH /domain-supersession-suggestions/:id`
+      now answer **409 `already_resolved`** when the suggestion is no longer pending (404 stays
+      "no such id"). Anyone writing e2e or client code against those two routes should treat a
+      409 as "someone already handled this", not as a failure.
+- [ ] `apps/api/src/domain-map/doc-scan-lock.ts` is a NON-blocking
+      `pg_try_advisory_xact_lock` in the same `hashtext(id)::bigint` space as
+      `shared/merge-lock.ts`, kept out of that shared file on purpose. A doc scan that loses
+      the lock returns an empty result immediately rather than waiting — the pool is `max: 4`
+      and the winner holds its connection across the LLM call, so queued waiters would starve
+      it. Keep the tracked-tool fetches OUTSIDE the locked section.
+- [ ] Residual, NOT fixed here: `resolveDomainTopicSuggestion()`'s accept path inserts its new
+      `domain_nodes` row without a subject lock — same orphan window `insertDomainNode()` just
+      closed, different call site. Needs a pre-read outside the lock to learn the subjectId
+      first, so it was left out of the double-click unit's scope.
+- [ ] Known small gap in the review panel's two-tab case: `request()` in
+      `apps/web/src/curriculum/api-client.ts` throws `ApiError` on any non-2xx, so a 409
+      `already_resolved` lands in the panel's catch and the row stays listed (re-enabled) until
+      a page reload. Correct would be to treat 409 like success and drop the row. Not fixed
+      because that means editing `api-client.ts`, outside the domain-map unit's ownership.
+- [ ] Residual, deliberately NOT guarded: `resolvePrioritySuggestion()` still acts without a
+      `WHERE status = 'pending'` claim. Unlike the two doc-scan resolvers it is idempotent
+      (a second accept re-writes the same target depth, no second row), so it was left alone;
+      its buttons DO get the new per-item in-flight disable.
 - [ ] Residual, NOT fixed here: `deleteSubject()` (`apps/api/src/subject/subject.repo.ts`) has
       the same orphan window as the merge did — it deletes the subject's curricula in a loop
       and then the subject row, all outside any advisory lock, so a curriculum created between
       those two steps survives its own parent. Deliberately left alone (the wishlist item
       scopes the fix to the merge window); `withSubjectLock` is the ready-made fix if it
       matters.
+- [x] `clearCurriculumStructure` is now provenance-aware and takes a second `scope` argument
+      (`"own"` by default, `"all"` only from `deleteCurriculum`). Modules AND topics carry a
+      nullable `merged_from_curriculum_id` (migration `0029_lucky_maestro`, applied to the local
+      e2e DB only — Neon dev/prod still need it). Anyone adding a new caller of
+      `clearCurriculumStructure` must decide which scope they mean: `"own"` spares merged-in
+      rows, `"all"` is required whenever the curriculum row itself is going away, or the rows
+      orphan. `saveCurriculumPlan`'s `orderOffset` is no longer safe to pass as 0 after a clear —
+      `parseCurriculum`/`confirmStructure` now pass `maxModuleOrder(curriculumId)`.
+- [ ] Residual, NOT fixed by the `clearCurriculumStructure` provenance unit:
+      `mergeSourcesIntoCurriculum`'s SUCCESS path still destroys merged-in modules. It runs
+      `deleteModules(freeModuleIds)` and rebuilds from the fresh plan; a merged-in module with no
+      learning progress is "free", so it is deleted outright — same total-loss class as the bug
+      just fixed, different trigger, reachable from the same "add more sources" flow. Not fixed
+      because excluding merged-in modules from `freeModuleIds` would make them permanently
+      unrebuildable by any later merge-sources run — a product decision, not a column.
+- [ ] Residual, NOT fixed by the `clearCurriculumStructure` provenance unit: `retryResearch()`
+      still calls `deleteAllCurriculumSources(curriculumId)`, which deletes merged-in `sources`
+      rows along with the curriculum's own. Deliberately left alone — `resolveRetryResearchSource`
+      picks the re-research URL from those same source rows, so preserving another curriculum's
+      sources would risk pointing A's retry at B's docs. Needs a product decision, not a column.
 - [ ] Follow-up e2e scenario needed for the TagPicker live refresh: assert the chip appears
       after assigning a tag WITHOUT the `page.reload()` the existing `assignTagToModule` /
       `createTag` actions currently do (verification-repo is outside this session's grant, so
@@ -112,6 +174,20 @@ what's left. Check a box the moment its step lands, not batched at the end.
 
 ## Wave 1 — in flight
 
+- [x] Close the doc-scan review screen's double-click duplicate-node bug and two related
+      hardening gaps.
+      [→ `resolveDomainTopicSuggestion()` / `resolveDomainSupersessionSuggestion()` now CLAIM
+      the row with `UPDATE ... WHERE status = 'pending' RETURNING *` before acting, so a
+      second accept is a 409 `already_resolved` instead of a second real `domain_nodes` row.
+      Per-item accept/reject buttons got a ref-backed in-flight guard
+      (`use-resolving-suggestions.ts`). The scan's watermark read-compare-write plus its one
+      agent call now run under a non-blocking `doc-scan-lock.ts`, with the tracked-tool
+      fetches hoisted out of it. `insertDomainNode()` runs under `withSubjectLock`.
+      `infra/index.ts` uses `config.requireSecret("apiSharedSecret")`. Proven red-then-green:
+      6 new repo tests in `suggestion-double-resolve.integration.test.ts` (all 6 red before,
+      all 6 green after), the new concurrent-scan test in `doc-scan.orchestrator.test.ts`
+      (2 agent calls before, 1 after), and 2 of 3 new panel tests (double-click sent 2
+      requests before, 1 after).]
 - [x] Close the phrase-bank generate/grade deadlock window and wire its concurrency tests
       into normal verification.
       [→ grading now takes the same `pg_advisory_xact_lock` as generation, before its
@@ -138,3 +214,19 @@ what's left. Check a box the moment its step lands, not batched at the end.
       browser compatibility" warning. Proven by reintroducing `node:crypto` in
       `packages/core/src/subject-duplicate/content-hash.ts` (exit 1, names the module and the
       importing file) and reverting (exit 0).]
+- [ ] Measured 2026-08-01 (Playwright, e2e stack under `vite dev`): on an 8-module/80-topic
+      curriculum the "+ tag" button is in the DOM at ~130ms and hit-testable (the click event
+      reaches document capture phase, `elementFromPoint` returns the button — no overlay), but
+      React only attaches its handler (`__reactProps$` expando) at ~290ms for a y=5011px button
+      and ~500-970ms for a y=44769px one. `window.__TSR_ROUTER__` — all `waitForHydration`
+      checks — resolves at ~210ms, so there is a 70-370ms window where any control below the
+      fold is visible, enabled-looking and completely dead. React 19 root hydration here is
+      time-sliced and progressive (no Suspense boundaries on this page), so this affects EVERY
+      far-down control, not just TagPicker.
+- [ ] Human-gated (verification-repo is outside this session's grant): the 3-attempt click-retry
+      loop in `projects/post-anki/post-anki/features/tag/actions/assign-tag.action.ts` can now be
+      collapsed back to a single `await openButton.click()` and the curriculum-merge S1 test
+      re-run to confirm. TagPicker's "+ tag" / remove controls now render `disabled` until the
+      component has actually hydrated, and Playwright's `click()` auto-waits for enabled — so the
+      wait the retry loop was faking is now a real actionability signal. Measured 15/15 first-click
+      opens on a y=44769px button that failed 0/5 before the change.
