@@ -166,6 +166,21 @@ export const sources = pgTable("sources", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// `mergedFromCurriculumId` (on modules AND topics) is the provenance marker
+// docs/architecture/curriculum-merge/review.md's "Proposed alternative" #1
+// asks for: NULL means "this row traces back to its curriculum's own
+// research/parse history", non-NULL names the curriculum a `mergeCurricula`
+// reassignment moved it in from. `clearCurriculumStructure` — the recovery
+// clear behind "Retry research"/"Reparse" — deletes only NULL-marked rows,
+// so a curriculum that failed after absorbing another one's content no
+// longer destroys that content on recovery. Deliberately NOT the
+// `ontology_merges` audit log: that stores per-merge counts, not row
+// identity, so it cannot answer "was THIS row merged in".
+//
+// It lives on both tables rather than modules alone because `updateTopic`
+// reparents a topic across modules (`updateTopicInput.moduleId`), so a
+// merged-in topic can end up under an original module and vice versa —
+// module-derived provenance alone would lose it.
 export const modules = pgTable("modules", {
   id: text("id").primaryKey(),
   curriculumId: text("curriculum_id").notNull(),
@@ -174,12 +189,14 @@ export const modules = pgTable("modules", {
   priority: integer("priority").notNull().default(0),
   learningStatus: text("learning_status").notNull().default("not_started"),
   level: text("level"),
+  mergedFromCurriculumId: text("merged_from_curriculum_id"),
 });
 
 export const topics = pgTable("topics", {
   id: text("id").primaryKey(),
   moduleId: text("module_id").notNull(),
   curriculumId: text("curriculum_id").notNull(),
+  mergedFromCurriculumId: text("merged_from_curriculum_id"),
   title: text("title").notNull(),
   summary: text("summary"),
   order: integer("order").notNull(),

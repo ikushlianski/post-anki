@@ -477,16 +477,77 @@ export async function addCurriculumSources(
     );
 }
 
+export type ClearStructureScope = "own" | "all";
+
+/**
+ * Which module/topic rows a clear at the given scope would remove.
+ *
+ * At scope "all" that is simply everything under the curriculum — what an
+ * explicit `deleteCurriculum` needs, since leaving merged-in rows behind
+ * would orphan them under a curriculum id that no longer exists.
+ *
+ * At scope "own" (the default, used by the "Retry research"/"Reparse"
+ * recovery path) a row survives when its own `mergedFromCurriculumId` is
+ * set, and a module additionally survives when it still holds a merged-in
+ * topic — `updateTopic` can reparent a topic across modules, so provenance
+ * derived from the parent module alone would drop it. Topics under a
+ * surviving module survive with it, which is what keeps a topic the learner
+ * added under a merged-in module after the merge. A topic whose module is
+ * already gone still gets cleared, matching the delete-by-curriculum_id
+ * sweep this replaces.
+ */
+async function resolveClearTargets(
+  curriculumId: string,
+  scope: ClearStructureScope,
+): Promise<{ moduleIds: string[]; topicIds: string[] }> {
+  const db = getDb();
+
+  const moduleRows = await db
+    .select({ id: modules.id, mergedFrom: modules.mergedFromCurriculumId })
+    .from(modules)
+    .where(eq(modules.curriculumId, curriculumId));
+  const topicRows = await db
+    .select({
+      id: topics.id,
+      moduleId: topics.moduleId,
+      mergedFrom: topics.mergedFromCurriculumId,
+    })
+    .from(topics)
+    .where(eq(topics.curriculumId, curriculumId));
+
+  if (scope === "all") {
+    return { moduleIds: moduleRows.map((m) => m.id), topicIds: topicRows.map((t) => t.id) };
+  }
+
+  const survivingModuleIds = new Set(
+    moduleRows.filter((m) => m.mergedFrom !== null).map((m) => m.id),
+  );
+
+  for (const topic of topicRows) {
+    if (topic.mergedFrom !== null) {
+      survivingModuleIds.add(topic.moduleId);
+    }
+  }
+
+  return {
+    moduleIds: moduleRows.filter((m) => !survivingModuleIds.has(m.id)).map((m) => m.id),
+    topicIds: topicRows
+      .filter((t) => t.mergedFrom === null && !survivingModuleIds.has(t.moduleId))
+      .map((t) => t.id),
+  };
+}
+
 export async function clearCurriculumStructure(
   curriculumId: string,
+  scope: ClearStructureScope = "own",
 ): Promise<void> {
   const db = getDb();
 
-  const topicRows = await db
-    .select()
-    .from(topics)
-    .where(eq(topics.curriculumId, curriculumId));
-  const topicIds = topicRows.map((t) => t.id);
+  const { moduleIds, topicIds } = await resolveClearTargets(curriculumId, scope);
+
+  if (moduleIds.length === 0 && topicIds.length === 0) {
+    return;
+  }
 
   await db.transaction(async (tx) => {
     if (topicIds.length > 0) {
@@ -497,11 +558,24 @@ export async function clearCurriculumStructure(
 
       await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
+      await tx.delete(topics).where(inArray(topics.id, topicIds));
     }
 
-    await tx.delete(topics).where(eq(topics.curriculumId, curriculumId));
-    await tx.delete(modules).where(eq(modules.curriculumId, curriculumId));
+    if (moduleIds.length > 0) {
+      await tx.delete(modules).where(inArray(modules.id, moduleIds));
+    }
   });
+}
+
+export async function maxModuleOrder(curriculumId: string): Promise<number> {
+  const row = (
+    await getDb()
+      .select({ maxOrder: sql<number>`coalesce(max(${modules.order}), 0)` })
+      .from(modules)
+      .where(eq(modules.curriculumId, curriculumId))
+  )[0];
+
+  return row?.maxOrder ?? 0;
 }
 
 export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
@@ -515,7 +589,7 @@ export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
     return false;
   }
 
-  await clearCurriculumStructure(curriculumId);
+  await clearCurriculumStructure(curriculumId, "all");
   await db.delete(sources).where(eq(sources.curriculumId, curriculumId));
   await db.delete(curricula).where(eq(curricula.id, curriculumId));
 
@@ -565,11 +639,11 @@ export type MergeCurriculaError =
  * time); it's a real, ordinarily-reachable data-loss path, since the
  * merge-target picker previously showed no status signal at all. Refusing a
  * failed target here closes the "picked an unlabeled failed curriculum by
- * accident" entry point. It does NOT close the case where a healthy merge
- * target fails LATER through ordinary use (e.g. `mergeSourcesIntoCurriculum`
- * failing on a subsequent "add more sources" attempt) — that gap needs
- * `clearCurriculumStructure` itself to become provenance-aware, tracked
- * separately (queued as a wishlist follow-up, not fixed in this pass).
+ * accident" entry point. The harder case — a healthy merge target that fails
+ * LATER through ordinary use (e.g. `mergeSourcesIntoCurriculum` failing on a
+ * subsequent "add more sources" attempt) — is closed by the
+ * `mergedFromCurriculumId` marker this reassignment writes onto every moved
+ * module and topic: `clearCurriculumStructure` then spares those rows.
  */
 export async function mergeCurricula(
   targetId: string,
@@ -620,18 +694,27 @@ export async function mergeCurricula(
     )[0];
     const targetMaxOrder = targetMaxOrderRow?.maxOrder ?? 0;
 
+    // `coalesce` rather than a straight assignment so a chain of merges
+    // keeps naming the curriculum a row ORIGINALLY came from: content that
+    // reached B via an earlier merge and is now moving on to A stays
+    // attributed to its first origin. Either way the marker is non-NULL,
+    // which is what `clearCurriculumStructure` filters on.
     const movedModules = await tx
       .update(modules)
       .set({
         curriculumId: targetId,
         order: sql`${modules.order} + ${targetMaxOrder}`,
+        mergedFromCurriculumId: sql`coalesce(${modules.mergedFromCurriculumId}, ${sourceId})`,
       })
       .where(eq(modules.curriculumId, sourceId))
       .returning({ id: modules.id });
 
     const movedTopics = await tx
       .update(topics)
-      .set({ curriculumId: targetId })
+      .set({
+        curriculumId: targetId,
+        mergedFromCurriculumId: sql`coalesce(${topics.mergedFromCurriculumId}, ${sourceId})`,
+      })
       .where(eq(topics.curriculumId, sourceId))
       .returning({ id: topics.id });
 

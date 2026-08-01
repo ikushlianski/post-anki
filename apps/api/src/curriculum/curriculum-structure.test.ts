@@ -16,6 +16,7 @@ const getLatestStructureSnapshot = vi.fn();
 const getStructureTurns = vi.fn();
 const insertStructureResearchCandidates = vi.fn();
 const insertStructureTurn = vi.fn();
+const maxModuleOrder = vi.fn(async () => 0);
 const saveCurriculumPlan = vi.fn();
 const setCurriculumStatus = vi.fn();
 const setCurriculumStrictOrder = vi.fn();
@@ -30,6 +31,7 @@ vi.mock("./curriculum.repo.js", () => ({
   getStructureTurns: (...args: unknown[]) => getStructureTurns(...args),
   insertStructureResearchCandidates: (...args: unknown[]) => insertStructureResearchCandidates(...args),
   insertStructureTurn: (...args: unknown[]) => insertStructureTurn(...args),
+  maxModuleOrder: () => maxModuleOrder(),
   saveCurriculumPlan: (...args: unknown[]) => saveCurriculumPlan(...args),
   setCurriculumStatus: (...args: unknown[]) => setCurriculumStatus(...args),
   setCurriculumStrictOrder: (...args: unknown[]) => setCurriculumStrictOrder(...args),

@@ -25,6 +25,7 @@ import {
   getStructureTurns,
   insertStructureResearchCandidates,
   insertStructureTurn,
+  maxModuleOrder,
   saveCurriculumPlan,
   setCurriculumStatus,
   setCurriculumStrictOrder,
@@ -724,7 +725,12 @@ export async function confirmStructure(curriculumId: string): Promise<ConfirmStr
     return "no_snapshot";
   }
 
-  await saveCurriculumPlan(curriculumId, snapshot, 0, { defaultIncluded: false });
+  // Offset past merged-in modules a provenance-aware clear left in place
+  // (same reasoning as parseCurriculum's own save) — 0 only stayed correct
+  // while every clear emptied the curriculum outright.
+  await saveCurriculumPlan(curriculumId, snapshot, await maxModuleOrder(curriculumId), {
+    defaultIncluded: false,
+  });
   await setCurriculumStrictOrder(curriculumId, snapshot.strictOrder ?? false);
   await setCurriculumStatus(curriculumId, "ready");
 
