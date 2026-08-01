@@ -1,5 +1,6 @@
 import { GoogleAuth } from "google-auth-library";
 import { loadEnv } from "../shared/env.js";
+import { buildElectricShapeQuery } from "./electric-shape-registry.js";
 
 const ELECTRIC_HEADER_PREFIX = "electric-";
 
@@ -52,13 +53,23 @@ export interface ElectricShapeResponse {
 }
 
 export async function fetchElectricShape(search: string): Promise<ElectricShapeResponse> {
+  const shapeQuery = buildElectricShapeQuery(search);
+
+  if (!shapeQuery.ok) {
+    return {
+      status: 400,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ error: shapeQuery.error, message: shapeQuery.message }),
+    };
+  }
+
   const env = loadEnv();
 
   if (!env.ELECTRIC_SERVICE_URL) {
     throw new Error("ELECTRIC_SERVICE_URL is not configured");
   }
 
-  const targetUrl = `${env.ELECTRIC_SERVICE_URL}/v1/shape${search}`;
+  const targetUrl = `${env.ELECTRIC_SERVICE_URL}/v1/shape${shapeQuery.query}`;
 
   const response =
     env.ELECTRIC_AUTH_MODE === "none"
