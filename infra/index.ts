@@ -17,7 +17,13 @@ const docScanTimeZone = config.get("docScanTimeZone") ?? "Europe/Warsaw";
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
 // human step: `pulumi config set --secret apiSharedSecret <same value>`.
-const apiSharedSecret = config.getSecret("apiSharedSecret");
+//
+// requireSecret, not getSecret: getSecret returns undefined when that step
+// was skipped, and the scheduler job below would then deploy with no
+// Authorization header at all — a job that 401s forever with no deploy-time
+// signal, so the weekly scan silently never produces a suggestion. This
+// fails `pulumi preview`/`up` instead.
+const apiSharedSecret = config.requireSecret("apiSharedSecret");
 // Neon DIRECT (non-pooled) connection string — Electric's logical-replication
 // connection can't go through a connection pooler, unlike apps/api and apps/bot's
 // pooled Neon connection. Set via `pulumi config set --secret electricDatabaseUrl <value>`.
@@ -310,9 +316,7 @@ const docScanJob = new gcp.cloudscheduler.Job(
     httpTarget: {
       httpMethod: "POST",
       uri: pulumi.interpolate`https://${apiDomain}/doc-scans`,
-      headers: apiSharedSecret
-        ? { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` }
-        : undefined,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
     },
   },
   { dependsOn: [apiService, ...enabledApis] },

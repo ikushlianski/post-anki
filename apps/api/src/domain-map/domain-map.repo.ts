@@ -19,11 +19,12 @@ import {
   domainPrioritySuggestions,
   domainSupersessionSuggestions,
   domainTopicSuggestions,
+  subjects,
   topics,
   trackedToolScanState,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { withMergeLock } from "../shared/merge-lock.js";
+import { withMergeLock, withSubjectLock } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
@@ -58,13 +59,20 @@ function toDomainPrioritySuggestion(
   };
 }
 
+export type InsertDomainNodeError = "subject_not_found";
+
+// Serialized behind any in-flight merge or delete of the owning subject
+// (same `hashtext(id)::bigint` advisory-lock space `createCurriculum` and
+// `mergeSubjects` use), and re-reads the subject INSIDE the lock: a node
+// created by resolveDomainPlacement's sibling-discovery path can otherwise
+// land under a subject a concurrent merge is in the middle of deleting.
 export async function insertDomainNode(params: {
   subjectId: string;
   parentId: string | null;
   name: string;
   description?: string | null;
   order?: number;
-}): Promise<DomainNode> {
+}): Promise<DomainNode | { error: InsertDomainNodeError }> {
   const row = {
     id: newId("dnode"),
     subjectId: params.subjectId,
@@ -74,13 +82,19 @@ export async function insertDomainNode(params: {
     order: params.order ?? 0,
   };
 
-  await getDb().insert(domainNodes).values(row);
+  return withSubjectLock(params.subjectId, async (tx) => {
+    const subjectRow = (
+      await tx.select().from(subjects).where(eq(subjects.id, params.subjectId))
+    )[0];
 
-  const inserted = (
-    await getDb().select().from(domainNodes).where(eq(domainNodes.id, row.id))
-  )[0]!;
+    if (!subjectRow) {
+      return { error: "subject_not_found" as const };
+    }
 
-  return toDomainNode(inserted);
+    const inserted = (await tx.insert(domainNodes).values(row).returning())[0]!;
+
+    return toDomainNode(inserted);
+  });
 }
 
 export async function listDomainNodesForSubject(subjectId: string): Promise<DomainNode[]> {
@@ -553,57 +567,74 @@ export async function getDomainTopicSuggestion(
   return row ? toDomainTopicSuggestion(row) : null;
 }
 
+export type ResolveDomainSuggestionError = "not_found" | "already_resolved";
+
 // PATCH /domain-topic-suggestions/:id. Accepting inserts a new domain_nodes
 // row under proposed_parent_node_id (already a resolved real id — no
 // re-resolution needed) and sets created_domain_node_id + resolved_at on
 // the suggestion, in one transaction. Rejecting only resolves the
 // suggestion; the row is never deleted (mirrors item 7's Decisions #11).
+//
+// The suggestion is CLAIMED first, by an UPDATE ... WHERE status = 'pending'
+// whose zero-row result is what makes a double accept safe — under READ
+// COMMITTED the second transaction blocks on the row lock and then
+// re-evaluates that predicate against the committed row, so it can never
+// also insert a domain_nodes row and overwrite created_domain_node_id
+// (which would orphan the first inserted node). A plain read-then-act, as
+// this used to be, lets a double-click produce two real nodes.
 export async function resolveDomainTopicSuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainTopicSuggestion | null> {
+): Promise<DomainTopicSuggestion | { error: ResolveDomainSuggestionError }> {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const existing = (
+    const resolvedAt = new Date();
+
+    const claimed = (
       await tx
-        .select()
-        .from(domainTopicSuggestions)
-        .where(eq(domainTopicSuggestions.id, suggestionId))
+        .update(domainTopicSuggestions)
+        .set({ status, resolvedAt })
+        .where(
+          and(
+            eq(domainTopicSuggestions.id, suggestionId),
+            eq(domainTopicSuggestions.status, "pending"),
+          ),
+        )
+        .returning()
     )[0];
 
-    if (!existing) {
-      return null;
+    if (!claimed) {
+      const existing = (
+        await tx
+          .select()
+          .from(domainTopicSuggestions)
+          .where(eq(domainTopicSuggestions.id, suggestionId))
+      )[0];
+
+      return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
     }
 
-    const resolvedAt = new Date();
-    let createdDomainNodeId: string | null = existing.createdDomainNodeId ?? null;
-
-    if (status === "accepted") {
-      const nodeId = newId("dnode");
-
-      await tx.insert(domainNodes).values({
-        id: nodeId,
-        subjectId: existing.subjectId,
-        parentId: existing.proposedParentNodeId,
-        name: existing.proposedNodeName,
-        order: 0,
-      });
-
-      createdDomainNodeId = nodeId;
+    if (status === "rejected") {
+      return toDomainTopicSuggestion(claimed);
     }
+
+    const nodeId = newId("dnode");
+
+    await tx.insert(domainNodes).values({
+      id: nodeId,
+      subjectId: claimed.subjectId,
+      parentId: claimed.proposedParentNodeId,
+      name: claimed.proposedNodeName,
+      order: 0,
+    });
 
     await tx
       .update(domainTopicSuggestions)
-      .set({ status, resolvedAt, createdDomainNodeId })
+      .set({ createdDomainNodeId: nodeId })
       .where(eq(domainTopicSuggestions.id, suggestionId));
 
-    return toDomainTopicSuggestion({
-      ...existing,
-      status,
-      resolvedAt,
-      createdDomainNodeId,
-    });
+    return toDomainTopicSuggestion({ ...claimed, createdDomainNodeId: nodeId });
   });
 }
 
@@ -678,40 +709,50 @@ export async function getDomainSupersessionSuggestion(
 // PATCH /domain-supersession-suggestions/:id. Accepting writes a FLAG
 // (superseded_at/superseded_reason), never touches percent — the only write
 // path to those two columns (spec.md's Decisions #2). Rejecting only
-// resolves the suggestion; the node is never touched.
+// resolves the suggestion; the node is never touched. Same claim-first
+// pending guard as resolveDomainTopicSuggestion above, so a second accept
+// cannot re-stamp superseded_at with a later timestamp.
 export async function resolveDomainSupersessionSuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainSupersessionSuggestion | null> {
+): Promise<DomainSupersessionSuggestion | { error: ResolveDomainSuggestionError }> {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const existing = (
-      await tx
-        .select()
-        .from(domainSupersessionSuggestions)
-        .where(eq(domainSupersessionSuggestions.id, suggestionId))
-    )[0];
-
-    if (!existing) {
-      return null;
-    }
-
     const resolvedAt = new Date();
 
-    await tx
-      .update(domainSupersessionSuggestions)
-      .set({ status, resolvedAt })
-      .where(eq(domainSupersessionSuggestions.id, suggestionId));
+    const claimed = (
+      await tx
+        .update(domainSupersessionSuggestions)
+        .set({ status, resolvedAt })
+        .where(
+          and(
+            eq(domainSupersessionSuggestions.id, suggestionId),
+            eq(domainSupersessionSuggestions.status, "pending"),
+          ),
+        )
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      const existing = (
+        await tx
+          .select()
+          .from(domainSupersessionSuggestions)
+          .where(eq(domainSupersessionSuggestions.id, suggestionId))
+      )[0];
+
+      return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
+    }
 
     if (status === "accepted") {
       await tx
         .update(domainNodes)
-        .set({ supersededAt: resolvedAt, supersededReason: existing.reason })
-        .where(eq(domainNodes.id, existing.domainNodeId));
+        .set({ supersededAt: resolvedAt, supersededReason: claimed.reason })
+        .where(eq(domainNodes.id, claimed.domainNodeId));
     }
 
-    return toDomainSupersessionSuggestion({ ...existing, status, resolvedAt });
+    return toDomainSupersessionSuggestion(claimed);
   });
 }
 

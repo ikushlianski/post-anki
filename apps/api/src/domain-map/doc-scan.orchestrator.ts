@@ -13,6 +13,7 @@ import {
   upsertTrackedToolScanState,
 } from "./domain-map.repo.js";
 import { resolveNodePathByName, type NamedNode } from "./domain-node-name-resolver.js";
+import { withDocScanLock } from "./doc-scan-lock.js";
 
 const SOURCE = "doc-scan";
 // Post-resolution insert cap (spec.md's step 5b) — the single enforced
@@ -102,7 +103,7 @@ function buildPrompt(flatNodes: FlatNode[], changedTools: ChangedTool[]): string
 // "scanned" despite producing nothing.
 export async function runDocScan(subjectId: string): Promise<DocScanResult> {
   const toolsScanned: string[] = [];
-  const changedTools: ChangedTool[] = [];
+  const fetchedTools: ChangedTool[] = [];
 
   for (const tool of TRACKED_TOOLS) {
     const fetched = await fetchTrackedTool(tool);
@@ -113,14 +114,48 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
     }
 
     toolsScanned.push(tool.toolKey);
+    fetchedTools.push({ tool, content: fetched.content, hash: fetched.hash });
+  }
 
-    const existingState = await getTrackedToolScanState(tool.toolKey);
+  if (fetchedTools.length === 0) {
+    return emptyResult(toolsScanned);
+  }
+
+  return withDocScanLock(
+    () => scanFetchedTools(subjectId, toolsScanned, fetchedTools),
+    () => {
+      // A manual "Scan now" firing while the weekly scheduler's run is still
+      // in flight (or a Cloud Scheduler retry overlapping its own first
+      // attempt) would otherwise read the same stale watermark and produce a
+      // duplicate set of pending suggestions on the review screen. Reads
+      // identically to "nothing changed", which is the same posture every
+      // other non-outcome of this job already has.
+      log.info({ subjectId }, "doc_scan_skipped_concurrent_run");
+
+      return emptyResult(toolsScanned);
+    },
+  );
+}
+
+// The locked critical section: the watermark read-compare-write, with the
+// single agent call and the suggestion inserts between the two halves. The
+// network-bound tracked-tool fetches deliberately happen BEFORE this, so the
+// advisory lock is never held across them.
+async function scanFetchedTools(
+  subjectId: string,
+  toolsScanned: string[],
+  fetchedTools: ChangedTool[],
+): Promise<DocScanResult> {
+  const changedTools: ChangedTool[] = [];
+
+  for (const fetched of fetchedTools) {
+    const existingState = await getTrackedToolScanState(fetched.tool.toolKey);
 
     if (existingState?.lastContentHash === fetched.hash) {
       continue;
     }
 
-    changedTools.push({ tool, content: fetched.content, hash: fetched.hash });
+    changedTools.push(fetched);
   }
 
   if (changedTools.length === 0) {

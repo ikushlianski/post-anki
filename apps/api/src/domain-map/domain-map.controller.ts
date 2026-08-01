@@ -23,6 +23,7 @@ import {
   resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
   updateDomainNodeTargetDepth,
+  type ResolveDomainSuggestionError,
 } from "./domain-map.repo.js";
 import { triggerDomainPriorityReview } from "./domain-priority-review.orchestrator.js";
 import { runDocScan, runDocScanForAllTrackedSubjects } from "./doc-scan.orchestrator.js";
@@ -236,6 +237,22 @@ export async function handleListDocScanSuggestions(
   sendJson(res, 200, { newTopics, supersessions });
 }
 
+// A suggestion that is no longer pending is a 409, not a 404: the row is
+// there and already handled, which is exactly what a double-click's second
+// PATCH hits. Distinguishing the two is what lets the review panel tell
+// "someone else already resolved this" apart from "this id is wrong".
+function sendResolveSuggestionError(
+  res: http.ServerResponse,
+  error: ResolveDomainSuggestionError,
+): void {
+  if (error === "not_found") {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendError(res, 409, "already_resolved");
+}
+
 // PATCH /domain-topic-suggestions/:id
 export async function handleResolveDomainTopicSuggestion(
   req: http.IncomingMessage,
@@ -251,8 +268,8 @@ export async function handleResolveDomainTopicSuggestion(
 
   const updated = await resolveDomainTopicSuggestion(suggestionId, body.data.status);
 
-  if (!updated) {
-    sendError(res, 404, "not_found");
+  if ("error" in updated) {
+    sendResolveSuggestionError(res, updated.error);
     return;
   }
 
@@ -274,8 +291,8 @@ export async function handleResolveDomainSupersessionSuggestion(
 
   const updated = await resolveDomainSupersessionSuggestion(suggestionId, body.data.status);
 
-  if (!updated) {
-    sendError(res, 404, "not_found");
+  if ("error" in updated) {
+    sendResolveSuggestionError(res, updated.error);
     return;
   }
 

@@ -839,3 +839,51 @@ describe("PATCH /domain-supersession-suggestions/:id — accept/reject proofs, i
     expect(suggestionRow?.status).toBe("rejected");
   });
 });
+
+// The watermark race the doc-changelog-scan review's question 3 raised: the
+// read-compare-write on tracked_tool_scan_state used to be unlocked, so a
+// manual "Scan now" overlapping the scheduler's own run (or a Cloud
+// Scheduler retry overlapping its first attempt) both read the same stale
+// hash, both called the agent, and both inserted a full set of pending
+// suggestions. The agent call is deliberately slowed here so the second run
+// genuinely reaches the lock while the first still holds it.
+describe("runDocScan — two overlapping scans cannot both advance the same watermark", () => {
+  it("calls the agent once and inserts one set of suggestions when two scans run concurrently", async () => {
+    mockAgentGenerate.mockClear();
+    mockFetchTrackedTool.mockClear();
+    mockAllToolsFetch(13);
+
+    const { subjectId, frontendId, nextJsId } = await seedTree();
+
+    mockAgentGenerate.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      return mockAgentPayload(nextJsId, frontendId);
+    });
+
+    const { runDocScan } = await import("./doc-scan.orchestrator.js");
+
+    const results = await Promise.all([runDocScan(subjectId), runDocScan(subjectId)]);
+
+    expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
+    expect(results.filter((result) => result.agentCalled)).toHaveLength(1);
+
+    const { getDb } = await import("../db/client.js");
+    const { domainSupersessionSuggestions, domainTopicSuggestions } = await import(
+      "../db/schema.js"
+    );
+    const db = getDb();
+
+    const topicRows = await db
+      .select()
+      .from(domainTopicSuggestions)
+      .where(eq(domainTopicSuggestions.subjectId, subjectId));
+    expect(topicRows).toHaveLength(1);
+
+    const supersessionRows = await db
+      .select()
+      .from(domainSupersessionSuggestions)
+      .where(eq(domainSupersessionSuggestions.subjectId, subjectId));
+    expect(supersessionRows).toHaveLength(1);
+  });
+});
