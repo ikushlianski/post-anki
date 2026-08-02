@@ -18,12 +18,14 @@ export function TopicShapeBar({
   moduleId,
   curriculumId,
   allModules,
+  hydrated,
 }: {
   topic: Topic
   topicOrder: string[]
   moduleId: string
   curriculumId: string
   allModules: { id: string; title: string }[]
+  hydrated: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -44,6 +46,7 @@ export function TopicShapeBar({
         canUp={index > 0}
         canDown={index < topicOrder.length - 1}
         busy={busy}
+        hydrated={hydrated}
         onMove={(direction) =>
           run(() =>
             reorderTopics({
@@ -58,6 +61,7 @@ export function TopicShapeBar({
       <PromoteDemoteButtons
         priority={topic.priority}
         busy={promoteDemoteMutation.isPending}
+        hydrated={hydrated}
         promoteTestId={`topic-promote-${topic.id}`}
         demoteTestId={`topic-demote-${topic.id}`}
         onToggle={(direction) =>
@@ -95,6 +99,7 @@ export function TopicShapeBar({
       ) : null}
       <ConfirmDelete
         busy={busy}
+        hydrated={hydrated}
         label="Delete topic"
         onConfirm={() => run(() => deleteTopic({ data: topic.id }))}
       />

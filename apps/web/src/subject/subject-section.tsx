@@ -7,6 +7,7 @@ import { StudyTechnologyForm } from '../curriculum/study-technology-form'
 import { deleteCurriculum, mergeCurricula } from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { deleteSubject, mergeSubjects } from './subject.api'
+import { useHydrated } from '../shared/use-hydrated'
 
 export function SubjectSection({
   subject,
@@ -101,6 +102,7 @@ function OriginBadge() {
 function DeleteCurriculumButton({ curriculumId }: { curriculumId: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const hydrated = useHydrated()
 
   async function confirm() {
     setBusy(true)
@@ -109,7 +111,7 @@ function DeleteCurriculumButton({ curriculumId }: { curriculumId: string }) {
     await router.invalidate()
   }
 
-  return <ConfirmDelete busy={busy} label="Delete curriculum" onConfirm={confirm} />
+  return <ConfirmDelete busy={busy} hydrated={hydrated} label="Delete curriculum" onConfirm={confirm} />
 }
 
 function MergeCurriculumButton({

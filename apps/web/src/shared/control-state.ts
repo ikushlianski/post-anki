@@ -1,6 +1,6 @@
-export type TagControlState = 'hidden' | 'preparing' | 'busy' | 'ready'
+export type ControlState = 'hidden' | 'preparing' | 'busy' | 'ready'
 
-export function tagControlState({
+export function controlState({
   editable,
   hydrated,
   busy,
@@ -8,7 +8,7 @@ export function tagControlState({
   editable: boolean
   hydrated: boolean
   busy: boolean
-}): TagControlState {
+}): ControlState {
   if (!editable) {
     return 'hidden'
   }
@@ -24,11 +24,11 @@ export function tagControlState({
   return 'ready'
 }
 
-export function isTagControlDisabled(state: TagControlState): boolean {
+export function isControlDisabled(state: ControlState): boolean {
   return state !== 'ready'
 }
 
-export function tagControlHint(state: TagControlState): string | undefined {
+export function controlHint(state: ControlState): string | undefined {
   if (state === 'preparing') {
     return 'Still loading — this control is not ready yet'
   }

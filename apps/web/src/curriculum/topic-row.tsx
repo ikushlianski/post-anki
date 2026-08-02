@@ -21,6 +21,8 @@ import { InlineRename, StrictOrderNote } from './shape-controls'
 import { NodeCommentControl } from './node-comment-control'
 import { DepthSlider } from './depth-slider'
 import { TagPicker } from './tag-picker'
+import { useHydrated } from '../shared/use-hydrated'
+import { controlHint, controlState, isControlDisabled } from '../shared/control-state'
 
 const STATUS_LABEL: Record<TopicProgressStatus, string> = {
   not_started: 'not started',
@@ -61,8 +63,12 @@ export function TopicRow({
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const hydrated = useHydrated()
   const toggleIncludedMutation = useToggleTopicIncluded(curriculumId)
   const included = topic.included
+  const shapeState = controlState({ editable: true, hydrated, busy })
+  const shapeDisabled = isControlDisabled(shapeState)
+  const includeState = controlState({ editable: true, hydrated, busy: false })
 
   async function patch(data: {
     title?: string
@@ -104,6 +110,7 @@ export function TopicRow({
                 <InlineRename
                   value={topic.title}
                   busy={busy}
+                  hydrated={hydrated}
                   onSave={(title) => patch({ title })}
                 />
               ) : (
@@ -126,6 +133,7 @@ export function TopicRow({
               nodeId={topic.id}
               tags={topic.tags ?? []}
               editable={editable}
+              hydrated={hydrated}
             />
           </div>
           {included ? (
@@ -147,8 +155,11 @@ export function TopicRow({
         </div>
         <button
           type="button"
+          title={controlHint(includeState)}
+          disabled={isControlDisabled(includeState)}
+          data-testid={`topic-included-toggle-${topic.id}`}
           onClick={toggleIncluded}
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-40 ${
             included
               ? 'bg-neutral-900 text-white'
               : 'bg-neutral-200 text-neutral-600'
@@ -165,12 +176,17 @@ export function TopicRow({
           moduleId={moduleId}
           curriculumId={curriculumId}
           allModules={allModules}
+          hydrated={hydrated}
         />
       ) : null}
 
       {editable ? (
         <div className="mt-2">
-          <NodeCommentControl busy={busy} onSubmit={submitComment} />
+          <NodeCommentControl
+            busy={busy}
+            hydrated={hydrated}
+            onSubmit={submitComment}
+          />
         </div>
       ) : null}
 
@@ -183,7 +199,7 @@ export function TopicRow({
             <SelfGrade
               value={topic.selfGrade}
               onChange={(grade) => patch({ selfGrade: grade })}
-              disabled={busy}
+              disabled={shapeDisabled}
             />
           </div>
 
@@ -195,7 +211,7 @@ export function TopicRow({
               <DepthSlider
                 value={topic.targetDepth}
                 onChange={(depth) => patch({ targetDepth: depth })}
-                disabled={busy}
+                disabled={shapeDisabled}
               />
             </div>
           </div>
@@ -208,7 +224,7 @@ export function TopicRow({
             </p>
           ) : null}
 
-          <GapChecklist topic={topic} curriculumId={curriculumId} />
+          <GapChecklist topic={topic} curriculumId={curriculumId} hydrated={hydrated} />
 
           {canProbe ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -255,15 +271,20 @@ export function TopicRow({
 function GapChecklist({
   topic,
   curriculumId,
+  hydrated,
 }: {
   topic: Topic
   curriculumId: string
+  hydrated: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [label, setLabel] = useState('')
   const [concern, setConcern] = useState<Concern | ''>('')
   const curateGapMutation = useCurateGap(curriculumId)
+  const state = controlState({ editable: true, hydrated, busy })
+  const disabled = isControlDisabled(state)
+  const hint = controlHint(state)
 
   function curate(
     gapId: string,
@@ -301,7 +322,8 @@ function GapChecklist({
             key={gap.id}
             gap={gap}
             inScope={isInScope(gap, topic.targetDepth)}
-            busy={busy}
+            disabled={disabled}
+            hint={hint}
             onWant={() => curate(gap.id, { wanted: !gap.wanted })}
             onSkip={() => curate(gap.id, { status: 'skipped' })}
           />
@@ -311,12 +333,14 @@ function GapChecklist({
       <form onSubmit={addGap} className="flex flex-wrap gap-2 pt-1">
         <input
           value={label}
+          disabled={disabled}
           onChange={(event) => setLabel(event.target.value)}
           placeholder="Add a gap you want covered…"
           className="min-w-[8rem] flex-1 rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
         />
         <select
           value={concern}
+          disabled={disabled}
           onChange={(event) => setConcern(event.target.value as Concern | '')}
           aria-label="Concern"
           className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-600 outline-none focus:border-neutral-400"
@@ -330,8 +354,9 @@ function GapChecklist({
         </select>
         <button
           type="submit"
-          disabled={busy}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50"
+          title={hint}
+          disabled={disabled}
+          className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-40"
         >
           Add gap
         </button>
@@ -371,13 +396,15 @@ function masteryLabel(mastery: GapMastery): string {
 function GapRow({
   gap,
   inScope,
-  busy,
+  disabled,
+  hint,
   onWant,
   onSkip,
 }: {
   gap: Gap
   inScope: boolean
-  busy: boolean
+  disabled: boolean
+  hint: string | undefined
   onWant: () => void
   onSkip: () => void
 }) {
@@ -435,17 +462,19 @@ function GapRow({
         <span className="flex shrink-0 items-center gap-2 text-neutral-400">
           <button
             type="button"
-            disabled={busy}
+            title={hint}
+            disabled={disabled}
             onClick={onWant}
-            className={gap.wanted ? 'text-amber-500' : 'hover:text-neutral-700'}
+            className={`disabled:opacity-40 ${gap.wanted ? 'text-amber-500' : 'hover:text-neutral-700'}`}
           >
             {gap.wanted ? '★ wanted' : '☆ want'}
           </button>
           <button
             type="button"
-            disabled={busy}
+            title={hint}
+            disabled={disabled}
             onClick={onSkip}
-            className="hover:text-neutral-700"
+            className="hover:text-neutral-700 disabled:opacity-40"
           >
             skip
           </button>

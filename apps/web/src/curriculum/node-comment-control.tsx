@@ -1,16 +1,21 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
+import { controlHint, controlState, isControlDisabled } from '../shared/control-state'
+
 export function NodeCommentControl({
   busy,
+  hydrated,
   onSubmit,
 }: {
   busy: boolean
+  hydrated: boolean
   onSubmit: (comment: string) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [saved, setSaved] = useState(false)
+  const openState = controlState({ editable: true, hydrated, busy: false })
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -36,8 +41,10 @@ export function NodeCommentControl({
     return (
       <button
         type="button"
+        title={controlHint(openState)}
+        disabled={isControlDisabled(openState)}
         onClick={() => setOpen(true)}
-        className="text-xs text-neutral-400 hover:text-neutral-700"
+        className="text-xs text-neutral-400 hover:text-neutral-700 disabled:opacity-40 disabled:hover:text-neutral-400"
       >
         💬 Leave a comment
       </button>
@@ -57,7 +64,7 @@ export function NodeCommentControl({
       <button
         type="submit"
         disabled={busy}
-        className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50"
+        className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-40"
       >
         Save
       </button>

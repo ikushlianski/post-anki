@@ -31,7 +31,7 @@ const mockedRemoveTagAssignment = vi.mocked(removeTagAssignment)
 const NODE_ID = 'mod-1'
 
 function renderPicker(tags: TagChip[] = []) {
-  return render(<TagPicker nodeType="module" nodeId={NODE_ID} tags={tags} editable />)
+  return render(<TagPicker nodeType="module" nodeId={NODE_ID} tags={tags} editable hydrated />)
 }
 
 async function submitTagName(name: string) {
@@ -95,7 +95,7 @@ describe('TagPicker live refresh', () => {
       expect(screen.getByTestId('tag-chip-tag-1')).toBeDefined()
     })
 
-    rerender(<TagPicker nodeType="module" nodeId={NODE_ID} tags={[]} editable />)
+    rerender(<TagPicker nodeType="module" nodeId={NODE_ID} tags={[]} editable hydrated />)
 
     expect(screen.getByTestId('tag-chip-tag-1')).toBeDefined()
   })
@@ -117,6 +117,7 @@ describe('TagPicker live refresh', () => {
           { id: 'tag-1', name: 'Caching', normalizedName: 'caching', assignmentId: 'tga-1' },
         ]}
         editable
+        hydrated
       />,
     )
 

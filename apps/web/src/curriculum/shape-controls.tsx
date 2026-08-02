@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Priority } from './model'
+import { controlHint, controlState, isControlDisabled } from '../shared/control-state'
 
 export function moveInOrder(
   ids: string[],
@@ -31,30 +32,38 @@ export function ReorderButtons({
   canUp,
   canDown,
   busy,
+  hydrated,
   onMove,
 }: {
   canUp: boolean
   canDown: boolean
   busy: boolean
+  hydrated: boolean
   onMove: (direction: 'up' | 'down') => void
 }) {
+  const state = controlState({ editable: true, hydrated, busy })
+  const disabled = isControlDisabled(state)
+  const hint = controlHint(state)
+
   return (
     <span className="flex flex-col leading-none">
       <button
         type="button"
         aria-label="Move up"
-        disabled={busy || !canUp}
+        title={hint}
+        disabled={disabled || !canUp}
         onClick={() => onMove('up')}
-        className="text-[10px] text-neutral-400 hover:text-neutral-800 disabled:opacity-30"
+        className="text-[10px] text-neutral-400 hover:text-neutral-800 disabled:opacity-40"
       >
         ▲
       </button>
       <button
         type="button"
         aria-label="Move down"
-        disabled={busy || !canDown}
+        title={hint}
+        disabled={disabled || !canDown}
         onClick={() => onMove('down')}
-        className="text-[10px] text-neutral-400 hover:text-neutral-800 disabled:opacity-30"
+        className="text-[10px] text-neutral-400 hover:text-neutral-800 disabled:opacity-40"
       >
         ▼
       </button>
@@ -65,26 +74,32 @@ export function ReorderButtons({
 export function PromoteDemoteButtons({
   priority,
   busy,
+  hydrated,
   onToggle,
   promoteTestId,
   demoteTestId,
 }: {
   priority: Priority
   busy: boolean
+  hydrated: boolean
   onToggle: (direction: 'up' | 'down') => void
   promoteTestId?: string
   demoteTestId?: string
 }) {
+  const state = controlState({ editable: true, hydrated, busy })
+  const disabled = isControlDisabled(state)
+  const hint = controlHint(state)
+
   return (
     <span className="flex flex-col leading-none">
       <button
         type="button"
         aria-label="Promote"
-        title="Promote"
-        disabled={busy}
+        title={hint ?? 'Promote'}
+        disabled={disabled}
         data-testid={promoteTestId}
         onClick={() => onToggle('up')}
-        className={`text-[10px] disabled:opacity-30 ${
+        className={`text-[10px] disabled:opacity-40 ${
           priority === 1
             ? 'font-bold text-emerald-600'
             : 'text-neutral-400 hover:text-neutral-800'
@@ -95,11 +110,11 @@ export function PromoteDemoteButtons({
       <button
         type="button"
         aria-label="Demote"
-        title="Demote"
-        disabled={busy}
+        title={hint ?? 'Demote'}
+        disabled={disabled}
         data-testid={demoteTestId}
         onClick={() => onToggle('down')}
-        className={`text-[10px] disabled:opacity-30 ${
+        className={`text-[10px] disabled:opacity-40 ${
           priority === -1
             ? 'font-bold text-red-500'
             : 'text-neutral-400 hover:text-neutral-800'
@@ -122,13 +137,19 @@ export function StrictOrderNote() {
   )
 }
 
+// Deliberately renders as plain text rather than a dimmed button before
+// hydration: this control *is* the module/topic title, so dimming it would
+// flicker every heading on the page. Plain text does not look interactive,
+// which is the whole point of the gate.
 export function InlineRename({
   value,
   busy,
+  hydrated,
   onSave,
 }: {
   value: string
   busy: boolean
+  hydrated: boolean
   onSave: (next: string) => void
 }) {
   const [editing, setEditing] = useState(false)
@@ -144,6 +165,10 @@ export function InlineRename({
     }
 
     setEditing(false)
+  }
+
+  if (!hydrated) {
+    return <span>{value}</span>
   }
 
   if (!editing) {
@@ -178,21 +203,26 @@ export function InlineRename({
 
 export function ConfirmDelete({
   busy,
+  hydrated,
   label,
   onConfirm,
 }: {
   busy: boolean
+  hydrated: boolean
   label: string
   onConfirm: () => void
 }) {
   const [armed, setArmed] = useState(false)
+  const state = controlState({ editable: true, hydrated, busy })
+  const disabled = isControlDisabled(state)
+  const hint = controlHint(state)
 
   if (!armed) {
     return (
       <button
         type="button"
-        title={label}
-        disabled={busy}
+        title={hint ?? label}
+        disabled={disabled}
         onClick={() => setArmed(true)}
         className="text-xs text-neutral-400 hover:text-red-600 disabled:opacity-40"
       >
@@ -205,7 +235,7 @@ export function ConfirmDelete({
     <span className="flex items-center gap-1 text-xs">
       <button
         type="button"
-        disabled={busy}
+        disabled={disabled}
         onClick={onConfirm}
         className="font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
       >
@@ -226,15 +256,20 @@ export function AddInline({
   cta,
   placeholder,
   busy,
+  hydrated,
   onAdd,
+  ctaTestId,
 }: {
   cta: string
   placeholder: string
   busy: boolean
+  hydrated: boolean
   onAdd: (value: string) => void
+  ctaTestId?: string
 }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
+  const openState = controlState({ editable: true, hydrated, busy: false })
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -254,8 +289,11 @@ export function AddInline({
     return (
       <button
         type="button"
+        title={controlHint(openState)}
+        disabled={isControlDisabled(openState)}
+        data-testid={ctaTestId}
         onClick={() => setOpen(true)}
-        className="text-sm text-neutral-500 hover:text-neutral-900"
+        className="text-sm text-neutral-500 hover:text-neutral-900 disabled:opacity-40 disabled:hover:text-neutral-500"
       >
         {cta}
       </button>
@@ -275,7 +313,7 @@ export function AddInline({
       <button
         type="submit"
         disabled={busy}
-        className="rounded-md bg-neutral-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50"
+        className="rounded-md bg-neutral-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-40"
       >
         Add
       </button>

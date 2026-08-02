@@ -5,19 +5,20 @@ import { Link, useRouter } from '@tanstack/react-router'
 import type { NodeType, TagChip } from './model'
 import { assignTag, createOrGetTag, removeTagAssignment } from './curriculum.api'
 import { visibleTagChips } from './tag-chips'
-import { isTagControlDisabled, tagControlHint, tagControlState } from './tag-control-state'
-import { useHydrated } from './use-hydrated'
+import { controlHint, controlState, isControlDisabled } from '../shared/control-state'
 
 export function TagPicker({
   nodeType,
   nodeId,
   tags,
   editable,
+  hydrated,
 }: {
   nodeType: NodeType
   nodeId: string
   tags: TagChip[]
   editable: boolean
+  hydrated: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -33,9 +34,8 @@ export function TagPicker({
   const [seededTags, setSeededTags] = useState<TagChip[]>([])
   const [removedAssignmentIds, setRemovedAssignmentIds] = useState<string[]>([])
   const shownTags = visibleTagChips(tags, seededTags, removedAssignmentIds)
-  const hydrated = useHydrated()
-  const controlState = tagControlState({ editable, hydrated, busy })
-  const controlsDisabled = isTagControlDisabled(controlState)
+  const state = controlState({ editable, hydrated, busy })
+  const controlsDisabled = isControlDisabled(state)
 
   async function addTag(event: FormEvent) {
     event.preventDefault()
@@ -81,15 +81,15 @@ export function TagPicker({
           >
             #{tag.name}
           </Link>
-          {controlState !== 'hidden' ? (
+          {state !== 'hidden' ? (
             <button
               type="button"
               disabled={controlsDisabled}
-              title={tagControlHint(controlState)}
+              title={controlHint(state)}
               onClick={() => remove(tag.assignmentId, tag.id)}
               aria-label={`Remove tag ${tag.name}`}
               data-testid={`tag-chip-remove-${tag.id}`}
-              className="text-indigo-400 hover:text-indigo-700 disabled:opacity-50"
+              className="text-indigo-400 hover:text-indigo-700 disabled:opacity-40"
             >
               ×
             </button>
@@ -97,7 +97,7 @@ export function TagPicker({
         </span>
       ))}
 
-      {controlState !== 'hidden' ? (
+      {state !== 'hidden' ? (
         open ? (
           <form onSubmit={addTag} className="flex items-center gap-1">
             <input
@@ -129,7 +129,7 @@ export function TagPicker({
           <button
             type="button"
             disabled={controlsDisabled}
-            title={tagControlHint(controlState)}
+            title={controlHint(state)}
             onClick={() => setOpen(true)}
             data-testid={`tag-picker-open-${nodeId}`}
             className="text-xs text-neutral-400 hover:text-neutral-700 disabled:cursor-progress disabled:opacity-40 disabled:hover:text-neutral-400"

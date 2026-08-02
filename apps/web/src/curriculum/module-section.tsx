@@ -8,6 +8,7 @@ import { ProgressBar } from './progress-bar'
 import { TopicRow } from './topic-row'
 import { NodeCommentControl } from './node-comment-control'
 import { TagPicker } from './tag-picker'
+import { useHydrated } from '../shared/use-hydrated'
 import { usePromoteDemoteModule } from './curriculum.mutations'
 import {
   addModuleComment,
@@ -47,6 +48,7 @@ export function ModuleSection({
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const hydrated = useHydrated()
   const index = moduleOrder.indexOf(module.id)
   const topicOrder = module.topics.map((topic) => topic.id)
   const promoteDemoteMutation = usePromoteDemoteModule(curriculumId)
@@ -67,6 +69,7 @@ export function ModuleSection({
               canUp={index > 0}
               canDown={index < moduleOrder.length - 1}
               busy={busy}
+              hydrated={hydrated}
               onMove={(direction) =>
                 run(() =>
                   reorderModules({
@@ -83,6 +86,7 @@ export function ModuleSection({
             <PromoteDemoteButtons
               priority={module.priority}
               busy={promoteDemoteMutation.isPending}
+              hydrated={hydrated}
               promoteTestId={`module-promote-${module.id}`}
               demoteTestId={`module-demote-${module.id}`}
               onToggle={(direction) =>
@@ -98,6 +102,7 @@ export function ModuleSection({
               <InlineRename
                 value={module.title}
                 busy={busy}
+                hydrated={hydrated}
                 onSave={(title) =>
                   run(() => updateModule({ data: { moduleId: module.id, title } }))
                 }
@@ -121,6 +126,7 @@ export function ModuleSection({
           {editable ? (
             <ConfirmDelete
               busy={busy}
+              hydrated={hydrated}
               label="Delete module"
               onConfirm={() => run(() => deleteModule({ data: module.id }))}
             />
@@ -134,6 +140,7 @@ export function ModuleSection({
           nodeId={module.id}
           tags={module.tags ?? []}
           editable={editable}
+          hydrated={hydrated}
         />
       </div>
 
@@ -141,6 +148,7 @@ export function ModuleSection({
         <div className="mb-3">
           <NodeCommentControl
             busy={busy}
+            hydrated={hydrated}
             onSubmit={(comment) =>
               run(() => addModuleComment({ data: { moduleId: module.id, comment } }))
             }
@@ -178,6 +186,8 @@ export function ModuleSection({
             cta="+ Add topic"
             placeholder="Topic title…"
             busy={busy}
+            hydrated={hydrated}
+            ctaTestId={`module-add-topic-${module.id}`}
             onAdd={(title) =>
               run(() => createTopic({ data: { moduleId: module.id, title } }))
             }
