@@ -4,17 +4,21 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
 
-// The last open instance of the "child created under a subject a merge is
-// deleting" window, after createCurriculum and insertDomainNode closed
-// theirs: accepting a pending domain_topic_suggestion inserts a real
-// domain_nodes row, and mergeSubjects reassigns domain_nodes and THEN
-// deletes the source subject. A node inserted between those two statements
-// is reassigned by neither and is left under a subject id that no longer
-// exists. mergeSubjects does not touch domain_topic_suggestions at all, so
-// a pending suggestion outlives its own subject and the accept button stays
-// clickable.
+// Race-condition safety: accepting a pending domain_topic_suggestion
+// inserts a real domain_nodes row, and mergeSubjects reassigns both the
+// nodes AND the suggestions to the target before deleting the source subject.
 //
-// The interleaving is constructed, not raced for, exactly as
+// Two scenarios:
+// 1. Accept races with the merge while the source subject DELETE is still
+//    blocked (first test): the accept runs BEFORE the suggestions are
+//    reassigned, so it tries to claim the suggestion under the source subject
+//    that is about to be deleted and fails with subject_not_found.
+//
+// 2. Accept runs AFTER the merge is complete (second test): the suggestion
+//    has been reassigned to the target subject (which still exists), so the
+//    accept succeeds normally.
+//
+// The interleaving in test 1 is constructed, not raced for, exactly as
 // curriculum-create-merge-race.integration.test.ts does it: a second
 // connection holds `SELECT ... FOR UPDATE` on the source subject row, which
 // parks the real mergeSubjects on its own `DELETE FROM subjects` while it
@@ -167,7 +171,7 @@ describe("accepting a domain topic suggestion racing a concurrent subject merge"
     expect(await suggestionStatus(suggestionId)).toBe("pending");
   }, 60_000);
 
-  it("leaves the suggestion pending rather than half-accepting when the subject is already gone", async () => {
+  it("accepts a reassigned suggestion normally after the merge completes", async () => {
     const sourceId = await insertSubject("Already Merged Suggestion Source");
     const targetId = await insertSubject("Already Merged Suggestion Target");
     const suggestionId = await insertPendingSuggestion(sourceId);
@@ -179,9 +183,11 @@ describe("accepting a domain topic suggestion racing a concurrent subject merge"
       "accepted",
     )) as ResolveOutcome;
 
-    expect(result.error).toBe("subject_not_found");
+    expect(result.error).toBeUndefined();
+    expect(result.createdDomainNodeId).toBeTruthy();
+    expect(await suggestionStatus(suggestionId)).toBe("accepted");
     expect(await countDomainNodesFor(sourceId)).toBe(0);
-    expect(await suggestionStatus(suggestionId)).toBe("pending");
+    expect(await countDomainNodesFor(targetId)).toBeGreaterThan(0);
   }, 30_000);
 
   it("still accepts normally when no merge is in flight", async () => {
