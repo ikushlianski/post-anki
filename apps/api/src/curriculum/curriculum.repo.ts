@@ -85,7 +85,8 @@ interface Plan {
 
 export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   const rows = (await getDb().select().from(curricula)).filter(
-    (r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId,
+    (r: typeof curricula.$inferSelect) =>
+      !subjectId || r.subjectId === subjectId,
   );
 
   if (rows.length === 0) {
@@ -95,7 +96,12 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   const sourceRows = await getDb()
     .select()
     .from(sources)
-    .where(inArray(sources.curriculumId, rows.map((r) => r.id)));
+    .where(
+      inArray(
+        sources.curriculumId,
+        rows.map((r) => r.id),
+      ),
+    );
 
   const kindsByCurriculum = new Map<string, string[]>();
 
@@ -201,7 +207,10 @@ export async function getCurriculumContextForTopic(
   }
 
   const curriculumRow = (
-    await db.select().from(curricula).where(eq(curricula.id, topicRow.curriculumId))
+    await db
+      .select()
+      .from(curricula)
+      .where(eq(curricula.id, topicRow.curriculumId))
   )[0];
 
   if (!curriculumRow) {
@@ -293,7 +302,10 @@ export async function getCurriculumPromptContext(
   }
 
   const subjectRow = (
-    await db.select().from(subjects).where(eq(subjects.id, curriculumRow.subjectId))
+    await db
+      .select()
+      .from(subjects)
+      .where(eq(subjects.id, curriculumRow.subjectId))
   )[0];
 
   return {
@@ -368,7 +380,10 @@ export async function deleteModules(moduleIds: string[]): Promise<void> {
         .from(gaps)
         .where(inArray(gaps.topicId, topicIds));
 
-      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await deleteGapMasteryForGapIds(
+        gapRows.map((g) => g.id),
+        tx,
+      );
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
     }
 
@@ -515,7 +530,10 @@ async function resolveClearTargets(
     .where(eq(topics.curriculumId, curriculumId));
 
   if (scope === "all") {
-    return { moduleIds: moduleRows.map((m) => m.id), topicIds: topicRows.map((t) => t.id) };
+    return {
+      moduleIds: moduleRows.map((m) => m.id),
+      topicIds: topicRows.map((t) => t.id),
+    };
   }
 
   const survivingModuleIds = new Set(
@@ -529,9 +547,13 @@ async function resolveClearTargets(
   }
 
   return {
-    moduleIds: moduleRows.filter((m) => !survivingModuleIds.has(m.id)).map((m) => m.id),
+    moduleIds: moduleRows
+      .filter((m) => !survivingModuleIds.has(m.id))
+      .map((m) => m.id),
     topicIds: topicRows
-      .filter((t) => t.mergedFrom === null && !survivingModuleIds.has(t.moduleId))
+      .filter(
+        (t) => t.mergedFrom === null && !survivingModuleIds.has(t.moduleId),
+      )
       .map((t) => t.id),
   };
 }
@@ -541,7 +563,11 @@ export async function clearCurriculumStructure(
   scope: ClearStructureScope = "own",
   db: DbExecutor = getDb(),
 ): Promise<void> {
-  const { moduleIds, topicIds } = await resolveClearTargets(curriculumId, scope, db);
+  const { moduleIds, topicIds } = await resolveClearTargets(
+    curriculumId,
+    scope,
+    db,
+  );
 
   if (moduleIds.length === 0 && topicIds.length === 0) {
     return;
@@ -554,7 +580,10 @@ export async function clearCurriculumStructure(
         .from(gaps)
         .where(inArray(gaps.topicId, topicIds));
 
-      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await deleteGapMasteryForGapIds(
+        gapRows.map((g) => g.id),
+        tx,
+      );
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
       await tx.delete(topics).where(inArray(topics.id, topicIds));
     }
@@ -576,17 +605,37 @@ export async function maxModuleOrder(curriculumId: string): Promise<number> {
   return row?.maxOrder ?? 0;
 }
 
-// `db` defaults to getDb() so the DELETE /curricula/:id controller and every
-// test call site are unaffected. It exists so `deleteSubject` — which runs its
-// whole body inside `withSubjectLock`'s transaction, holding one pooled
-// connection — can hand that transaction down instead of this loop taking a
-// SECOND connection from a `max: 4` pool per owned curriculum
-// (docs/architecture/concurrency-and-verification-hardening/review.md). It
-// also makes the curricula deletions part of the caller's transaction, so a
-// failure partway through no longer leaves a subject whose courses are gone.
+// A delete destroys a curriculum's whole module/topic/gap tree, then its
+// sources, then the curriculum row — three writes that must land together or
+// not at all, or a failure between them leaves a course whose content is
+// partly gone with nothing to say which part.
+//
+// `db` is optional rather than defaulting to getDb() so the two cases stay
+// distinguishable. `deleteSubject` runs its whole body inside
+// `withSubjectLock`'s transaction and hands that transaction down, which both
+// keeps the delete on the one pooled connection it already holds (a `max: 4`
+// pool — docs/architecture/concurrency-and-verification-hardening/review.md)
+// and makes the curricula deletions part of the caller's commit. That path is
+// left exactly as it was: wrapping it again would open a savepoint, which
+// would let a caller catch a failure here and carry on inside an outer
+// transaction that today is already aborted.
+//
+// Called standalone — `DELETE /curricula/:id` — there is no caller
+// transaction to join, so this opens its own.
 export async function deleteCurriculum(
   curriculumId: string,
-  db: DbExecutor = getDb(),
+  db?: DbExecutor,
+): Promise<boolean> {
+  if (!db) {
+    return getDb().transaction((tx) => deleteCurriculumWith(curriculumId, tx));
+  }
+
+  return deleteCurriculumWith(curriculumId, db);
+}
+
+async function deleteCurriculumWith(
+  curriculumId: string,
+  db: DbExecutor,
 ): Promise<boolean> {
   const existing = (
     await db.select().from(curricula).where(eq(curricula.id, curriculumId))
@@ -860,7 +909,6 @@ export async function markPreAssessmentCompleted(
   return toCurriculum(rows[0], await originFor(curriculumId));
 }
 
-
 export async function updateCurriculum(
   input: UpdateCurriculumInput,
 ): Promise<Curriculum | null> {
@@ -894,10 +942,15 @@ export async function updateCurriculum(
 
   if (Object.keys(patch).length === 0) {
     const existing = (
-      await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
+      await db
+        .select()
+        .from(curricula)
+        .where(eq(curricula.id, input.curriculumId))
     )[0];
 
-    return existing ? toCurriculum(existing, await originFor(input.curriculumId)) : null;
+    return existing
+      ? toCurriculum(existing, await originFor(input.curriculumId))
+      : null;
   }
 
   const rows = await db
@@ -1018,7 +1071,9 @@ export async function insertApprovedTextSource(
  * research-triggered curriculum is candidate-gathering machinery, not
  * user-pasted material (that path is `parseCurriculum`, untouched here).
  */
-export async function deleteAllCurriculumSources(curriculumId: string): Promise<void> {
+export async function deleteAllCurriculumSources(
+  curriculumId: string,
+): Promise<void> {
   await getDb().delete(sources).where(eq(sources.curriculumId, curriculumId));
 }
 
@@ -1058,7 +1113,9 @@ export async function insertPendingSources(
  * always inserts for a research-triggered curriculum, which is never a
  * candidate for the learner to approve or reject.
  */
-export async function getApprovableSourceCount(curriculumId: string): Promise<number> {
+export async function getApprovableSourceCount(
+  curriculumId: string,
+): Promise<number> {
   const rows = await getDb()
     .select()
     .from(sources)
@@ -1067,17 +1124,26 @@ export async function getApprovableSourceCount(curriculumId: string): Promise<nu
   return rows.filter((r) => r.kind !== "web_research").length;
 }
 
-export async function approveAllPendingSources(curriculumId: string): Promise<void> {
+export async function approveAllPendingSources(
+  curriculumId: string,
+): Promise<void> {
   await getDb()
     .update(sources)
     .set({ approvalStatus: "approved" })
-    .where(and(eq(sources.curriculumId, curriculumId), eq(sources.approvalStatus, "pending")));
+    .where(
+      and(
+        eq(sources.curriculumId, curriculumId),
+        eq(sources.approvalStatus, "pending"),
+      ),
+    );
 }
 
 export async function deleteSource(sourceId: string): Promise<boolean> {
   const db = getDb();
 
-  const existing = (await db.select().from(sources).where(eq(sources.id, sourceId)))[0];
+  const existing = (
+    await db.select().from(sources).where(eq(sources.id, sourceId))
+  )[0];
 
   if (!existing) {
     return false;
@@ -1117,7 +1183,8 @@ export async function insertStructureTurn(
     .from(curriculumStructureTurns)
     .where(eq(curriculumStructureTurns.curriculumId, curriculumId));
 
-  const nextOrder = existing.reduce((max, row) => Math.max(max, row.order), 0) + 1;
+  const nextOrder =
+    existing.reduce((max, row) => Math.max(max, row.order), 0) + 1;
   const id = newId("turn");
 
   await db.insert(curriculumStructureTurns).values({
@@ -1188,7 +1255,9 @@ export async function updateStructureTurn(
  * pre-Phase-5 research/parse failure, which never writes to this table at
  * all — see `FailedBanner` on the frontend.
  */
-export async function hasAnyStructureTurns(curriculumId: string): Promise<boolean> {
+export async function hasAnyStructureTurns(
+  curriculumId: string,
+): Promise<boolean> {
   const rows = await getDb()
     .select({ id: curriculumStructureTurns.id })
     .from(curriculumStructureTurns)
@@ -1229,7 +1298,9 @@ export async function createSplitOutCurriculum(
   return toCurriculum(row, "sources");
 }
 
-export async function getStructureTurns(curriculumId: string): Promise<StructureTurn[]> {
+export async function getStructureTurns(
+  curriculumId: string,
+): Promise<StructureTurn[]> {
   const db = getDb();
 
   const [rows, candidateRows] = await Promise.all([
@@ -1262,7 +1333,9 @@ export async function getStructureTurns(curriculumId: string): Promise<Structure
     pendingByTurnId.set(row.structureTurnId, list);
   }
 
-  return rows.map((row) => toStructureTurn(row, pendingByTurnId.get(row.id) ?? []));
+  return rows.map((row) =>
+    toStructureTurn(row, pendingByTurnId.get(row.id) ?? []),
+  );
 }
 
 /**
@@ -1393,7 +1466,8 @@ function toStructureTurn(
     curriculumId: row.curriculumId,
     role: row.role as StructureTurnRole,
     message: row.message,
-    structureSnapshot: (row.structureSnapshot as DocResearchPlan | null) ?? null,
+    structureSnapshot:
+      (row.structureSnapshot as DocResearchPlan | null) ?? null,
     splitSuggestion: (row.splitSuggestion as SplitSuggestion | null) ?? null,
     toolActions: (row.toolActions as string[] | null) ?? [],
     status: row.status as StructureTurnStatus,
@@ -1423,9 +1497,15 @@ export async function getCurriculumDetail(
 
   const gapRows =
     topicRows.length > 0
-      ? await db.select().from(gaps).where(
-          inArray(gaps.topicId, topicRows.map((t) => t.id)),
-        )
+      ? await db
+          .select()
+          .from(gaps)
+          .where(
+            inArray(
+              gaps.topicId,
+              topicRows.map((t) => t.id),
+            ),
+          )
       : [];
 
   // Generalized recall-gap mastery tracking (issue #57) — display
@@ -1439,7 +1519,12 @@ export async function getCurriculumDetail(
       ? await db
           .select()
           .from(gapMastery)
-          .where(inArray(gapMastery.gapId, gapRows.map((g) => g.id)))
+          .where(
+            inArray(
+              gapMastery.gapId,
+              gapRows.map((g) => g.id),
+            ),
+          )
       : [];
   const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
 
@@ -1476,7 +1561,9 @@ export async function getCurriculumDetail(
   };
 }
 
-export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> {
+export async function getLearningMapSnapshots(): Promise<
+  LearningMapSnapshot[]
+> {
   const db = getDb();
 
   const curriculumRows = await db
@@ -1489,11 +1576,16 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
   }
 
   const curriculumIds = curriculumRows.map((c) => c.id);
-  const subjectIds = Array.from(new Set(curriculumRows.map((c) => c.subjectId)));
+  const subjectIds = Array.from(
+    new Set(curriculumRows.map((c) => c.subjectId)),
+  );
 
   const [subjectRows, moduleRows, topicRows] = await Promise.all([
     db.select().from(subjects).where(inArray(subjects.id, subjectIds)),
-    db.select().from(modules).where(inArray(modules.curriculumId, curriculumIds)),
+    db
+      .select()
+      .from(modules)
+      .where(inArray(modules.curriculumId, curriculumIds)),
     db.select().from(topics).where(inArray(topics.curriculumId, curriculumIds)),
   ]);
 
@@ -1513,30 +1605,35 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
       topicsByModuleId.set(t.moduleId, list);
     }
 
-    const moduleSnapshots: LearningMapModuleSnapshot[] = curriculumModules.map((m) => {
-      const moduleTopics = topicsByModuleId.get(m.id) ?? [];
+    const moduleSnapshots: LearningMapModuleSnapshot[] = curriculumModules.map(
+      (m) => {
+        const moduleTopics = topicsByModuleId.get(m.id) ?? [];
 
-      return {
-        level: (m.level as Level | null) ?? null,
-        progress: moduleProgress(moduleTopics),
-        topics: moduleTopics.map((t) => ({
-          id: t.id,
-          title: t.title,
-          progress: t.progress,
-        })),
-      };
-    });
+        return {
+          level: (m.level as Level | null) ?? null,
+          progress: moduleProgress(moduleTopics),
+          topics: moduleTopics.map((t) => ({
+            id: t.id,
+            title: t.title,
+            progress: t.progress,
+          })),
+        };
+      },
+    );
 
     const overallProgress = moduleProgress(curriculumTopics);
-    const lastInteractedAt = curriculumTopics.reduce<string | null>((latest, t) => {
-      if (!t.progress.lastInteractedAt) {
-        return latest;
-      }
+    const lastInteractedAt = curriculumTopics.reduce<string | null>(
+      (latest, t) => {
+        if (!t.progress.lastInteractedAt) {
+          return latest;
+        }
 
-      return !latest || t.progress.lastInteractedAt > latest
-        ? t.progress.lastInteractedAt
-        : latest;
-    }, null);
+        return !latest || t.progress.lastInteractedAt > latest
+          ? t.progress.lastInteractedAt
+          : latest;
+      },
+      null,
+    );
 
     return {
       curriculumId: c.id,
@@ -1550,7 +1647,9 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
   });
 }
 
-export async function getLowerLevelCoverage(topicId: string): Promise<string[]> {
+export async function getLowerLevelCoverage(
+  topicId: string,
+): Promise<string[]> {
   const db = getDb();
 
   const topicRow = (
@@ -1713,7 +1812,9 @@ function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
  * lookup keyed by `${nodeType}:${nodeId}` — used by `getCurriculumDetail` so
  * `Module.tags`/`Topic.tags` never cost an extra query per node.
  */
-async function loadTagsByNode(nodeIds: string[]): Promise<Map<string, TagChip[]>> {
+async function loadTagsByNode(
+  nodeIds: string[],
+): Promise<Map<string, TagChip[]>> {
   const assignments = await listAssignmentsForNodes(nodeIds);
 
   if (assignments.length === 0) {
@@ -1739,4 +1840,3 @@ async function loadTagsByNode(nodeIds: string[]): Promise<Map<string, TagChip[]>
 
   return byNode;
 }
-

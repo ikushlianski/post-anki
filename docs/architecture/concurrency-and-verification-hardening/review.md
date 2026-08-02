@@ -191,9 +191,11 @@ the single line most likely to take a second connection. It caught that itself, 
 structure, and re-confirmed. The strengthened test also demonstrates drizzle turns that nested
 transaction into a savepoint on the same session rather than a new connection.
 
-Still open, deliberately: `deleteCurriculum` called standalone via `DELETE /curricula/:id` remains
-three separate commits, exactly as before. It is atomic only when handed a transaction. Wrapping
-the standalone path is a further improvement beyond what this review asked for.
+The standalone path — `deleteCurriculum` called without a transaction via `DELETE /curricula/:id`
+— wraps the entire deletion in a single transaction, making it atomic: the structure clear, the
+sources delete, and the curriculum row delete either succeed together or fail together with full
+rollback. This closes a pre-existing partial-delete window, verified with a test injecting failure
+after the structure clear.
 
 ## Questions a reviewer would ask
 
