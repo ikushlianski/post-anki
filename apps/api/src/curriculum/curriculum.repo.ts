@@ -67,6 +67,14 @@ import {
 } from "../tag/tag.repo.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
 import type { DocResearchPlan } from "./curriculum-research-plan.js";
+import {
+  deleteMappingsForCurriculum,
+  getPrimaryConfirmedDomainNodeId,
+  getPrimaryConfirmedDomainNodeIdsByCurriculumIds,
+  insertConfirmedMapping,
+  listMappingsForCurriculum,
+  rejectAllConfirmedForCurriculum,
+} from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
 
 interface PlanModule {
   title: string;
@@ -112,8 +120,16 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
     kindsByCurriculum.set(s.curriculumId, list);
   }
 
+  const primaryDomainNodeIdByCurriculum = await getPrimaryConfirmedDomainNodeIdsByCurriculumIds(
+    rows.map((r) => r.id),
+  );
+
   return rows.map((r) =>
-    toCurriculum(r, resolveCurriculumOrigin(kindsByCurriculum.get(r.id) ?? [])),
+    toCurriculum(
+      r,
+      resolveCurriculumOrigin(kindsByCurriculum.get(r.id) ?? []),
+      primaryDomainNodeIdByCurriculum.get(r.id) ?? null,
+    ),
   );
 }
 
@@ -132,8 +148,18 @@ export type CreateCurriculumError = "subject_not_found";
  * catchable outcome (a 404, never a 500) `mergeSubjects` already returns when
  * it loses its own race, rather than a partially-applied write.
  */
+export type CreateCurriculumDomainNodeSource = "manual" | "auto";
+
+/**
+ * `domainNodeSource` is a repo-internal addition, not part of the shared
+ * `CreateCurriculumInput` contract — it tells this function WHY
+ * `domainNodeId` is set: "manual" for an explicit placement request
+ * (SCENARIO 5, `handleCreateCurriculum`'s explicit-first check), "auto" for
+ * the non-taxonomy-subject `resolveDomainPlacement` path (SCENARIO 8).
+ * Absent/undefined when `domainNodeId` is null (nothing to attribute).
+ */
 export async function createCurriculum(
-  input: CreateCurriculumInput,
+  input: CreateCurriculumInput & { domainNodeSource?: CreateCurriculumDomainNodeSource },
 ): Promise<Curriculum | { error: CreateCurriculumError }> {
   const row = {
     id: newId("cur"),
@@ -147,8 +173,8 @@ export async function createCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
-    domainNodeId: input.domainNodeId ?? null,
   };
+  const domainNodeId = input.domainNodeId ?? null;
 
   return withSubjectLock(input.subjectId, async (tx) => {
     const subjectRow = (
@@ -173,7 +199,22 @@ export async function createCurriculum(
       );
     }
 
-    return toCurriculum(row, "sources");
+    // decouple-curricula-from-domain-nodes (issue #84) — placement no
+    // longer writes curricula.domain_node_id (column retired); a resolved
+    // placement instead lands as one already-`confirmed` mapping row, in
+    // the same subject-locked transaction (SCENARIO 5's "one write").
+    if (domainNodeId) {
+      await insertConfirmedMapping(
+        {
+          curriculumId: row.id,
+          domainNodeId,
+          source: input.domainNodeSource ?? "auto",
+        },
+        tx,
+      );
+    }
+
+    return toCurriculum(row, "sources", domainNodeId);
   });
 }
 
@@ -277,7 +318,12 @@ export async function getCurriculum(
     return null;
   }
 
-  return toCurriculum(row, await originFor(curriculumId));
+  const [origin, primaryDomainNodeId] = await Promise.all([
+    originFor(curriculumId),
+    getPrimaryConfirmedDomainNodeId(curriculumId),
+  ]);
+
+  return toCurriculum(row, origin, primaryDomainNodeId);
 }
 
 export interface CurriculumPromptContext {
@@ -647,6 +693,10 @@ async function deleteCurriculumWith(
 
   await clearCurriculumStructure(curriculumId, "all", db);
   await db.delete(sources).where(eq(sources.curriculumId, curriculumId));
+  // SCENARIO 13 — every mapping row this curriculum owns (suggested,
+  // confirmed, and rejected alike) is removed alongside it, so no dangling
+  // reference is left for getDomainMapForSubject to trip over.
+  await deleteMappingsForCurriculum(curriculumId, db);
   await db.delete(curricula).where(eq(curricula.id, curriculumId));
 
   return true;
@@ -799,6 +849,16 @@ export async function mergeCurricula(
       .delete(structureResearchCandidates)
       .where(eq(structureResearchCandidates.curriculumId, sourceId));
 
+    // decouple-curricula-from-domain-nodes (issue #84) — not reassigned onto
+    // the target (this merge never reconciles the two curricula's domain
+    // placements — same posture this merge already has for every other
+    // source-owned row: deleted, not moved, per the doc comment above).
+    // Deleting them here is what keeps this consistent with the OLD
+    // curricula.domain_node_id-column behavior, where a merged-away source's
+    // placement was simply lost with the row — the only change is that this
+    // is now a real cleanup query instead of an implicit column drop.
+    await deleteMappingsForCurriculum(sourceId, tx);
+
     await tx.delete(curricula).where(eq(curricula.id, sourceId));
 
     await insertOntologyMergeLog(
@@ -854,7 +914,11 @@ export async function confirmCurriculum(
   }
 
   if (existing.status === "confirmed") {
-    return toCurriculum(existing, await originFor(curriculumId));
+    return toCurriculum(
+      existing,
+      await originFor(curriculumId),
+      await getPrimaryConfirmedDomainNodeId(curriculumId),
+    );
   }
 
   if (existing.status !== "ready") {
@@ -888,7 +952,11 @@ export async function confirmCurriculum(
     .where(eq(curricula.id, curriculumId))
     .returning();
 
-  return toCurriculum(rows[0]!, await originFor(curriculumId));
+  return toCurriculum(
+    rows[0]!,
+    await originFor(curriculumId),
+    await getPrimaryConfirmedDomainNodeId(curriculumId),
+  );
 }
 
 export async function markPreAssessmentCompleted(
@@ -906,13 +974,43 @@ export async function markPreAssessmentCompleted(
     return "not_found";
   }
 
-  return toCurriculum(rows[0], await originFor(curriculumId));
+  return toCurriculum(
+    rows[0],
+    await originFor(curriculumId),
+    await getPrimaryConfirmedDomainNodeId(curriculumId),
+  );
 }
 
+/**
+ * decouple-curricula-from-domain-nodes (issue #84) — `domainNodeId` is no
+ * longer a scalar column patch: it is handled as its own mapping-table side
+ * effect, independent of `patch` below, since `patch` is applied via a
+ * single scalar `UPDATE curricula SET ...` and there is no longer any
+ * `curricula.domain_node_id` column to include in it. `undefined` means
+ * "leave placement untouched" (the patch omitted the field entirely); `null`
+ * is the "change placement" panel's "— unplaced —" — resolves every
+ * currently-confirmed mapping to `rejected` (never deleted, same
+ * audit-trail convention as the rest of this codebase's suggestion tables);
+ * a real id inserts a new `confirmed`, `source: "manual"` mapping row
+ * (SCENARIO 5/9's re-pointing UI) rather than clearing the old one, since
+ * placement is many-to-many now.
+ */
 export async function updateCurriculum(
   input: UpdateCurriculumInput,
 ): Promise<Curriculum | null> {
   const db = getDb();
+
+  // Existence check happens first, before any mapping-table side effect —
+  // a domainNodeId patch against a curriculum id that doesn't exist must
+  // stay a clean no-op (404 at the controller), never an orphaned mapping
+  // row pointing at nothing.
+  const existing = (
+    await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
+  )[0];
+
+  if (!existing) {
+    return null;
+  }
 
   const patch: Partial<typeof curricula.$inferInsert> = {};
 
@@ -937,31 +1035,33 @@ export async function updateCurriculum(
   }
 
   if (input.domainNodeId !== undefined) {
-    patch.domainNodeId = input.domainNodeId;
+    if (input.domainNodeId === null) {
+      await rejectAllConfirmedForCurriculum(input.curriculumId);
+    } else {
+      await insertConfirmedMapping({
+        curriculumId: input.curriculumId,
+        domainNodeId: input.domainNodeId,
+        source: "manual",
+      });
+    }
   }
 
-  if (Object.keys(patch).length === 0) {
-    const existing = (
-      await db
-        .select()
-        .from(curricula)
-        .where(eq(curricula.id, input.curriculumId))
-    )[0];
+  const row =
+    Object.keys(patch).length === 0
+      ? existing
+      : (
+          await db
+            .update(curricula)
+            .set(patch)
+            .where(eq(curricula.id, input.curriculumId))
+            .returning()
+        )[0]!;
 
-    return existing
-      ? toCurriculum(existing, await originFor(input.curriculumId))
-      : null;
-  }
-
-  const rows = await db
-    .update(curricula)
-    .set(patch)
-    .where(eq(curricula.id, input.curriculumId))
-    .returning();
-
-  const row = rows[0];
-
-  return row ? toCurriculum(row, await originFor(input.curriculumId)) : null;
+  return toCurriculum(
+    row,
+    await originFor(input.curriculumId),
+    await getPrimaryConfirmedDomainNodeId(input.curriculumId),
+  );
 }
 
 export async function saveCurriculumPlan(
@@ -1290,12 +1390,11 @@ export async function createSplitOutCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
-    domainNodeId: null,
   };
 
   await getDb().insert(curricula).values(row);
 
-  return toCurriculum(row, "sources");
+  return toCurriculum(row, "sources", null);
 }
 
 export async function getStructureTurns(
@@ -1542,15 +1641,24 @@ export async function getCurriculumDetail(
     masteryByGapId,
   );
 
-  const [citableUrls, hasStructureDraftAttempt] = await Promise.all([
+  const [citableUrls, hasStructureDraftAttempt, domainMappings] = await Promise.all([
     getCurriculumCitableUrls(curriculumId),
     hasAnyStructureTurns(curriculumId),
+    listMappingsForCurriculum(curriculumId),
   ]);
+
+  // Already ordered by createdAt DESC (listMappingsForCurriculum's own
+  // query) — the first confirmed row in that order is the most recently
+  // confirmed placement, same semantics as getPrimaryConfirmedDomainNodeId,
+  // without a second query.
+  const primaryDomainNodeId =
+    domainMappings.find((mapping) => mapping.status === "confirmed")?.domainNodeId ?? null;
 
   return {
     curriculum: toCurriculum(
       curriculumRow,
       resolveCurriculumOrigin(sourceRows.map((s) => s.kind)),
+      primaryDomainNodeId,
     ),
     sources: sourceRows.map(toSource),
     modules: assembledModules,
@@ -1558,6 +1666,7 @@ export async function getCurriculumDetail(
     recommendedTopicId: recommendedTopicId(assembledModules),
     hasCitableSources: citableUrls.length > 0,
     hasStructureDraftAttempt,
+    domainMappings,
   };
 }
 
@@ -1747,9 +1856,14 @@ function toCurriculum(
     defaultDepth: string;
     strictOrder: boolean;
     preAssessmentCompletedAt: Date | null;
-    domainNodeId?: string | null;
   },
   origin: CurriculumOrigin,
+  // decouple-curricula-from-domain-nodes (issue #84) — no longer read off
+  // `row` (curricula.domain_node_id was migrated and dropped): every caller
+  // supplies the derived value explicitly, from
+  // getPrimaryConfirmedDomainNodeId()/getPrimaryConfirmedDomainNodeIdsByCurriculumIds()
+  // or from a placement it just wrote itself in the same call.
+  primaryDomainNodeId: string | null,
 ): Curriculum {
   return {
     id: row.id,
@@ -1766,7 +1880,7 @@ function toCurriculum(
     preAssessmentCompletedAt: row.preAssessmentCompletedAt
       ? row.preAssessmentCompletedAt.toISOString()
       : null,
-    domainNodeId: row.domainNodeId ?? null,
+    domainNodeId: primaryDomainNodeId,
   };
 }
 

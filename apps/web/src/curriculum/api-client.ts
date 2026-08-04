@@ -7,6 +7,7 @@ import type {
   CreateSubjectInput,
   Curriculum,
   CurriculumDetail,
+  CurriculumDomainNodeMapping,
   CurriculumStatus,
   DailyPushResult,
   Depth,
@@ -110,6 +111,25 @@ const DEPTH_TO_BE: Record<Depth, string> = {
 
 function mapDepth(beDepth: string): Depth {
   return DEPTH_FROM_BE[beDepth] ?? 'working'
+}
+
+function mapDepthNullable(beDepth: string | null): Depth | null {
+  return beDepth === null ? null : mapDepth(beDepth)
+}
+
+function mapCurriculumDomainNodeMapping(
+  mapping: be.CurriculumDomainNodeMapping,
+): CurriculumDomainNodeMapping {
+  return {
+    id: mapping.id,
+    curriculumId: mapping.curriculumId,
+    domainNodeId: mapping.domainNodeId,
+    depth: mapDepthNullable(mapping.depth),
+    status: mapping.status,
+    source: mapping.source,
+    createdAt: mapping.createdAt,
+    resolvedAt: mapping.resolvedAt,
+  }
 }
 
 function mapGap(gap: be.Gap): Gap {
@@ -456,10 +476,51 @@ export async function getCurriculumDetail(
       recommendedTopicId: detail.recommendedTopicId,
       hasCitableSources: detail.hasCitableSources,
       hasStructureDraftAttempt: detail.hasStructureDraftAttempt,
+      domainMappings: detail.domainMappings.map(mapCurriculumDomainNodeMapping),
     }
   } catch {
     return null
   }
+}
+
+// decouple-curricula-from-domain-nodes (issue #84) — the on-demand "Map to
+// taxonomy" trigger + suggestion review flow.
+
+export async function triggerCurriculumDomainMapping(
+  curriculumId: string,
+): Promise<CurriculumDomainNodeMapping[]> {
+  const rows = await request<be.CurriculumDomainNodeMapping[]>(
+    `/curricula/${curriculumId}/domain-mappings`,
+    { method: 'POST' },
+  )
+
+  return rows.map(mapCurriculumDomainNodeMapping)
+}
+
+export async function listCurriculumDomainMappings(
+  curriculumId: string,
+): Promise<CurriculumDomainNodeMapping[]> {
+  const rows = await request<be.CurriculumDomainNodeMapping[]>(
+    `/curricula/${curriculumId}/domain-mappings`,
+  )
+
+  return rows.map(mapCurriculumDomainNodeMapping)
+}
+
+export async function resolveCurriculumDomainMapping(
+  mappingId: string,
+  status: 'confirmed' | 'rejected',
+  depth?: Depth,
+): Promise<CurriculumDomainNodeMapping> {
+  const row = await request<be.CurriculumDomainNodeMapping>(
+    `/curriculum-domain-mappings/${mappingId}`,
+    {
+      method: 'PATCH',
+      body: { status, depth: depth ? DEPTH_TO_BE[depth] : undefined },
+    },
+  )
+
+  return mapCurriculumDomainNodeMapping(row)
 }
 
 export async function setCurriculumLearningStatus(

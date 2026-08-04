@@ -1,0 +1,23 @@
+flowchart TB
+    Route["subject.$subjectId.map.tsx\nview state: list | map\ndefault: list"]
+    API["GET /subjects/:id/domain-map\nreused verbatim, no new endpoint"]
+    Toggle["domain-map-view-toggle.tsx\ncontrolled by route"]
+    Tree["DomainMapTree\nexisting list view\nUNCHANGED"]
+    Layout["computeDomainMapLayout()\nd3-hierarchy, packages/core\npure, DOM-free"]
+    Collapsed["defaultCollapsedNodeIds()\ndepth >= 1\nbounds initial render"]
+    Graph["DomainMapGraph\n@xyflow/react canvas"]
+    Node["DomainMapGraphNode\ntestid + min-h-11 min-w-11\nmastery color"]
+    Edge["DomainMapGraphEdge\nhighlighted if curricula present"]
+    Detail["DomainMapGraphDetailPanel\ntap node -> read-only panel\nlink back to list view"]
+
+    Route -->|"fetch"| API
+    API --> Toggle
+    Toggle -->|"view=list"| Tree
+    Toggle -->|"view=map"| Graph
+    API --> Layout
+    Layout --> Collapsed
+    Collapsed --> Graph
+    Graph --> Node
+    Graph --> Edge
+    Node -->|"tap"| Detail
+    Detail -.->|"Manage in list view"| Toggle

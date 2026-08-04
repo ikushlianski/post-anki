@@ -159,6 +159,9 @@ async function insertDomainNode(
   );
 }
 
+// decouple-curricula-from-domain-nodes (issue #84) — curricula.domain_node_id
+// was migrated and dropped; placement is now a confirmed row in
+// curriculum_domain_node_mappings.
 async function insertCurriculumUnderDomainNode(
   curriculumId: string,
   subjectId: string,
@@ -166,8 +169,13 @@ async function insertCurriculumUnderDomainNode(
   name: string,
 ): Promise<void> {
   await client.query(
-    `INSERT INTO curricula (id, subject_id, name, status, domain_node_id) VALUES ($1, $2, $3, 'ready', $4)`,
-    [curriculumId, subjectId, name, domainNodeId],
+    `INSERT INTO curricula (id, subject_id, name, status) VALUES ($1, $2, $3, 'ready')`,
+    [curriculumId, subjectId, name],
+  );
+  await client.query(
+    `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status, source)
+     VALUES ($1, $2, $3, 'confirmed', 'manual')`,
+    [id("cdnm"), curriculumId, domainNodeId],
   );
 }
 

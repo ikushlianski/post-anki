@@ -45,6 +45,13 @@ export default defineConfig({
       // only be proven against a real connection).
       "src/subject-duplicate/subject-duplicate.orchestrator.test.ts",
       "src/subject-duplicate/subject-duplicate.repo.test.ts",
+      // curriculum-domain-mapping.orchestrator.test.ts (decouple-curricula-
+      // from-domain-nodes, issue #84) is the same named exception, for the
+      // same reason: the plan's own Definition of Done pins this exact path
+      // (not *.integration.test.ts) as the hallucinated-node-id proof
+      // command, requiring a real Postgres connection (the same pattern
+      // domain-priority-review.orchestrator.test.ts already established).
+      "src/curriculum-domain-mapping/curriculum-domain-mapping.orchestrator.test.ts",
     ],
   },
 });

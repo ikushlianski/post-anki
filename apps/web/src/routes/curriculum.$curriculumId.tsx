@@ -19,6 +19,7 @@ import { ProgressBar } from '../curriculum/progress-bar'
 import { AddInline } from '../curriculum/shape-controls'
 import { AdaptiveSettings } from '../curriculum/adaptive-settings'
 import { CurriculumPlacementPanel } from '../domain-map/curriculum-placement-panel'
+import { CurriculumDomainMappingPanel } from '../curriculum/curriculum-domain-mapping-panel'
 import { useHydrated } from '../shared/use-hydrated'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
@@ -129,6 +130,12 @@ function CurriculumPage() {
         curriculumId={curriculum.id}
         subjectId={curriculum.subjectId}
         domainNodeId={curriculum.domainNodeId}
+      />
+
+      <CurriculumDomainMappingPanel
+        curriculumId={curriculum.id}
+        subjectId={curriculum.subjectId}
+        initialMappings={detail.domainMappings}
       />
 
       {editable && modules.length > 0 ? (

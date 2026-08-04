@@ -60,10 +60,18 @@ async function insertDomainNode(
   );
 }
 
+// decouple-curricula-from-domain-nodes (issue #84) — curricula.domain_node_id
+// was migrated and dropped; placement is now a confirmed row in
+// curriculum_domain_node_mappings.
 async function insertCurriculum(curriculumId: string, subjectId: string, domainNodeId: string): Promise<void> {
   await client.query(
-    `INSERT INTO curricula (id, subject_id, name, domain_node_id) VALUES ($1, $2, $3, $4)`,
-    [curriculumId, subjectId, `curriculum attached to ${domainNodeId}`, domainNodeId],
+    `INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`,
+    [curriculumId, subjectId, `curriculum attached to ${domainNodeId}`],
+  );
+  await client.query(
+    `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status, source)
+     VALUES ($1, $2, $3, 'confirmed', 'manual')`,
+    [id("cdnm"), curriculumId, domainNodeId],
   );
 }
 
@@ -177,10 +185,10 @@ describe("SCENARIO 1 — zero-orphan proof: reassigned curricula, reassigned chi
     );
     expect(childRows[0]!.parent_id).toBe(targetId);
 
-    // The curriculum is re-pointed onto the target, not orphaned with a
-    // dangling domain_node_id.
+    // The curriculum's mapping row is re-pointed onto the target, not
+    // orphaned with a dangling domain_node_id.
     const { rows: curriculumRows } = await client.query(
-      `SELECT domain_node_id FROM curricula WHERE id = $1`,
+      `SELECT domain_node_id FROM curriculum_domain_node_mappings WHERE curriculum_id = $1 AND status = 'confirmed'`,
       [curriculumId],
     );
     expect(curriculumRows[0]!.domain_node_id).toBe(targetId);
@@ -215,6 +223,201 @@ describe("SCENARIO 1 — zero-orphan proof: reassigned curricula, reassigned chi
 
     const nestedChild = findNode(targetNode!.children, childId);
     expect(nestedChild).toBeDefined();
+  });
+});
+
+describe("SCENARIO 1b — a curriculum already mapped to both source and target is not left with two confirmed pairs", () => {
+  it("drops the redundant source-side mapping instead of re-pointing it into a duplicate confirmed row", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId, "S1b duplicate-mapping subject");
+
+    const targetId = id("target");
+    const sourceId = id("source");
+
+    await insertDomainNode(targetId, subjectId, null, "Target A");
+    await insertDomainNode(sourceId, subjectId, null, "Source B");
+
+    // This curriculum is confirmed-mapped to BOTH nodes before the merge —
+    // the exact shape a blind bulk re-point would turn into two confirmed
+    // (curriculum, target) rows.
+    const curriculumId = id("curr");
+    await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`, [
+      curriculumId,
+      subjectId,
+      "curriculum mapped to both source and target",
+    ]);
+    await client.query(
+      `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status, source)
+       VALUES ($1, $2, $3, 'confirmed', 'manual'), ($4, $2, $5, 'confirmed', 'manual')`,
+      [id("cdnm"), curriculumId, targetId, id("cdnm"), sourceId],
+    );
+
+    const result = (await mergeDomainNodes(targetId, sourceId)) as MergeOutcome;
+
+    expect(result.error).toBeUndefined();
+    // The source's confirmed row was dropped as a duplicate, not moved — the
+    // audit count must reflect that nothing was genuinely relocated here.
+    expect(result.curriculaMoved).toBe(0);
+
+    // WRITE-PATH PROOF — exactly one confirmed row for (curriculum, target)
+    // survives; the redundant source-side row was dropped, not re-pointed
+    // into a duplicate.
+    const { rows: confirmedRows } = await client.query(
+      `SELECT domain_node_id FROM curriculum_domain_node_mappings
+       WHERE curriculum_id = $1 AND status = 'confirmed'`,
+      [curriculumId],
+    );
+    expect(confirmedRows).toHaveLength(1);
+    expect(confirmedRows[0]!.domain_node_id).toBe(targetId);
+
+    // READ-PATH PROOF — getDomainMapForSubject's own defensive dedup also
+    // lists the curriculum exactly once under the target, not twice.
+    const tree = await getDomainMapForSubject(subjectId);
+    const targetNode = findNode(tree as unknown as TreeNode[], targetId) as unknown as {
+      curricula: { id: string }[];
+    };
+
+    expect(targetNode).toBeDefined();
+
+    const matches = targetNode.curricula.filter((c) => c.id === curriculumId);
+    expect(matches).toHaveLength(1);
+  });
+});
+
+describe("SCENARIO 1c — target's only row for the curriculum is stale (rejected/suggested), source holds the real confirmed placement", () => {
+  it("moves the source's confirmed row onto the target instead of deleting it as a false duplicate", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId, "S1c stale-target-row subject");
+
+    const targetId = id("target");
+    const sourceId = id("source");
+
+    await insertDomainNode(targetId, subjectId, null, "Target A");
+    await insertDomainNode(sourceId, subjectId, null, "Source B");
+
+    // The target only has a REJECTED row for this curriculum — a leftover
+    // AI suggestion, never the real placement. The source holds the
+    // genuinely confirmed one. A status-blind "target already has a row for
+    // this curriculum" check would treat the rejected row as "already
+    // there," delete the source's confirmed row as redundant, and leave the
+    // curriculum with zero confirmed mappings.
+    const curriculumId = id("curr");
+    await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`, [
+      curriculumId,
+      subjectId,
+      "curriculum with a stale rejected row at target",
+    ]);
+    await client.query(
+      `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status, source)
+       VALUES ($1, $2, $3, 'rejected', 'ai_suggested'), ($4, $2, $5, 'confirmed', 'manual')`,
+      [id("cdnm"), curriculumId, targetId, id("cdnm"), sourceId],
+    );
+
+    const result = (await mergeDomainNodes(targetId, sourceId)) as MergeOutcome;
+
+    expect(result.error).toBeUndefined();
+    expect(result.curriculaMoved).toBe(1);
+
+    const { rows: confirmedRows } = await client.query(
+      `SELECT domain_node_id FROM curriculum_domain_node_mappings
+       WHERE curriculum_id = $1 AND status = 'confirmed'`,
+      [curriculumId],
+    );
+    expect(confirmedRows).toHaveLength(1);
+    expect(confirmedRows[0]!.domain_node_id).toBe(targetId);
+  });
+});
+
+describe("SCENARIO 1d — source has multiple rows for the same curriculum (a rejected suggestion plus a confirmed manual placement)", () => {
+  it("re-points the confirmed row and drops the non-confirmed one, never dropping the confirmed row instead", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId, "S1d multi-row-at-source subject");
+
+    const targetId = id("target");
+    const sourceId = id("source");
+
+    await insertDomainNode(targetId, subjectId, null, "Target A");
+    await insertDomainNode(sourceId, subjectId, null, "Source B");
+
+    // The exact shape the "AI suggests A and B, user confirms B, rejects A"
+    // flow produces when both suggestions land on the same node: one
+    // rejected row and one confirmed row for the same curriculum, both
+    // pointed at the source. A status-blind loop can nondeterministically
+    // pick either row to keep.
+    const curriculumId = id("curr");
+    await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`, [
+      curriculumId,
+      subjectId,
+      "curriculum with two rows at the same source node",
+    ]);
+    await client.query(
+      `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status, source)
+       VALUES ($1, $2, $3, 'rejected', 'ai_suggested'), ($4, $2, $3, 'confirmed', 'manual')`,
+      [id("cdnm"), curriculumId, sourceId, id("cdnm")],
+    );
+
+    const result = (await mergeDomainNodes(targetId, sourceId)) as MergeOutcome;
+
+    expect(result.error).toBeUndefined();
+    expect(result.curriculaMoved).toBe(1);
+
+    const { rows: allRows } = await client.query(
+      `SELECT domain_node_id, status FROM curriculum_domain_node_mappings WHERE curriculum_id = $1`,
+      [curriculumId],
+    );
+
+    // The confirmed row survived and moved to the target; the rejected
+    // source-side row was dropped, not kept as an orphaned suggestion
+    // against a node that no longer exists.
+    expect(allRows).toHaveLength(1);
+    expect(allRows[0]!.status).toBe("confirmed");
+    expect(allRows[0]!.domain_node_id).toBe(targetId);
+  });
+});
+
+describe("SCENARIO 1e — source's only row for a curriculum is a still-pending suggestion, nothing confirmed anywhere", () => {
+  it("re-points the pending suggestion onto the target instead of deleting it", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId, "S1e pending-suggestion-only subject");
+
+    const targetId = id("target");
+    const sourceId = id("source");
+
+    await insertDomainNode(targetId, subjectId, null, "Target A");
+    await insertDomainNode(sourceId, subjectId, null, "Source B");
+
+    // No confirmed row anywhere for this curriculum — just an unresolved AI
+    // suggestion sitting on the source node. A fix that only special-cases
+    // "confirmed vs. non-confirmed at the same curriculum" could regress
+    // this into a deletion, since there's no confirmed row to disambiguate
+    // against.
+    const curriculumId = id("curr");
+    await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`, [
+      curriculumId,
+      subjectId,
+      "curriculum with only a pending suggestion at source",
+    ]);
+    await client.query(
+      `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status, source)
+       VALUES ($1, $2, $3, 'suggested', 'ai_suggested')`,
+      [id("cdnm"), curriculumId, sourceId],
+    );
+
+    const result = (await mergeDomainNodes(targetId, sourceId)) as MergeOutcome;
+
+    expect(result.error).toBeUndefined();
+    // Nothing was placed under the target — a pending suggestion moving
+    // domain node is not a "moved" confirmed placement.
+    expect(result.curriculaMoved).toBe(0);
+
+    const { rows: allRows } = await client.query(
+      `SELECT domain_node_id, status FROM curriculum_domain_node_mappings WHERE curriculum_id = $1`,
+      [curriculumId],
+    );
+
+    expect(allRows).toHaveLength(1);
+    expect(allRows[0]!.status).toBe("suggested");
+    expect(allRows[0]!.domain_node_id).toBe(targetId);
   });
 });
 
@@ -273,13 +476,13 @@ describe("SCENARIO 4 — two concurrent merges racing for the same source node",
     expect(loserChildren[0]!.n).toBe(0);
 
     const { rows: winnerCurricula } = await client.query(
-      `SELECT count(*)::int AS n FROM curricula WHERE domain_node_id = $1`,
+      `SELECT count(*)::int AS n FROM curriculum_domain_node_mappings WHERE domain_node_id = $1 AND status = 'confirmed'`,
       [winnerId],
     );
     expect(winnerCurricula[0]!.n).toBe(1);
 
     const { rows: loserCurricula } = await client.query(
-      `SELECT count(*)::int AS n FROM curricula WHERE domain_node_id = $1`,
+      `SELECT count(*)::int AS n FROM curriculum_domain_node_mappings WHERE domain_node_id = $1 AND status = 'confirmed'`,
       [loserId],
     );
     expect(loserCurricula[0]!.n).toBe(0);

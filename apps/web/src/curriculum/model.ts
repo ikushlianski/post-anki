@@ -285,6 +285,33 @@ export const curriculumProgressSchema = moduleProgressSchema
 
 export type CurriculumProgress = z.infer<typeof curriculumProgressSchema>
 
+// decouple-curricula-from-domain-nodes (issue #84) — mirrors
+// @post-anki/shared's curriculumDomainNodeMappingSchema locally, matching
+// this file's own self-contained-mirror convention for every other backend
+// shape.
+export const curriculumDomainNodeMappingStatusSchema = z.enum([
+  'suggested',
+  'confirmed',
+  'rejected',
+])
+
+export type CurriculumDomainNodeMappingStatus = z.infer<
+  typeof curriculumDomainNodeMappingStatusSchema
+>
+
+export const curriculumDomainNodeMappingSchema = z.object({
+  id: z.string(),
+  curriculumId: z.string(),
+  domainNodeId: z.string(),
+  depth: depthSchema.nullable(),
+  status: curriculumDomainNodeMappingStatusSchema,
+  source: z.enum(['ai_suggested', 'manual', 'auto']),
+  createdAt: z.string(),
+  resolvedAt: z.string().nullable(),
+})
+
+export type CurriculumDomainNodeMapping = z.infer<typeof curriculumDomainNodeMappingSchema>
+
 export const curriculumDetailSchema = z.object({
   curriculum: curriculumSchema,
   sources: z.array(sourceSchema),
@@ -293,6 +320,7 @@ export const curriculumDetailSchema = z.object({
   recommendedTopicId: z.string().nullable(),
   hasCitableSources: z.boolean(),
   hasStructureDraftAttempt: z.boolean(),
+  domainMappings: z.array(curriculumDomainNodeMappingSchema),
 })
 
 export type CurriculumDetail = z.infer<typeof curriculumDetailSchema>

@@ -129,6 +129,14 @@ export function mapCurriculumRow(
     origin: resolveCurriculumOrigin(kinds),
     strictOrder: row.strict_order,
     preAssessmentCompletedAt: row.pre_assessment_completed_at,
-    domainNodeId: row.domain_node_id,
+    // decouple-curricula-from-domain-nodes (issue #84) — curricula.domain_node_id
+    // was migrated and dropped, so the Electric-replicated row no longer
+    // carries this column at all (row.domain_node_id is simply absent, not
+    // present-and-null). Nothing on the dashboard board view displays this
+    // field, so it's normalized to null here rather than joining a second
+    // Electric collection against curriculum_domain_node_mappings purely to
+    // populate a field nobody reads. The curriculum detail page (REST-backed,
+    // not Electric) is where a real placement value comes from.
+    domainNodeId: row.domain_node_id ?? null,
   }
 }

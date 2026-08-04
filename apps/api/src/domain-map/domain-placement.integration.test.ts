@@ -121,7 +121,9 @@ describe("handleCreateCurriculum — agent-failure fallback never blocks creatio
     mockAgentGenerate.mockRejectedValue(new Error("ECONNREFUSED"));
 
     const { getDb } = await import("../db/client.js");
-    const { subjects, domainNodes, curricula } = await import("../db/schema.js");
+    const { subjects, domainNodes, curricula, curriculumDomainNodeMappings } = await import(
+      "../db/schema.js"
+    );
     const { newId } = await import("../shared/id.js");
     const { handleCreateCurriculum } = await import("../curriculum/curriculum.controller.js");
 
@@ -157,6 +159,12 @@ describe("handleCreateCurriculum — agent-failure fallback never blocks creatio
     const rows = await db.select().from(curricula).where(eq(curricula.id, created.id));
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.domainNodeId ?? null).toBeNull();
+
+    const mappingRows = await db
+      .select()
+      .from(curriculumDomainNodeMappings)
+      .where(eq(curriculumDomainNodeMappings.curriculumId, created.id));
+
+    expect(mappingRows).toHaveLength(0);
   });
 });

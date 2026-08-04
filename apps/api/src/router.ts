@@ -88,7 +88,10 @@ export type RouteName =
   | "resolveDomainSupersessionSuggestion"
   | "triggerSubjectDuplicateScan"
   | "listSubjectDuplicateSuggestions"
-  | "resolveSubjectDuplicateSuggestion";
+  | "resolveSubjectDuplicateSuggestion"
+  | "triggerCurriculumDomainMapping"
+  | "listCurriculumDomainMappings"
+  | "resolveCurriculumDomainMapping";
 
 export interface ResolvedRoute {
   name: RouteName;
@@ -360,6 +363,24 @@ const ROUTES: RouteDef[] = [
     method: "PATCH",
     pattern: /^\/subject-duplicate-suggestions\/([^/]+)$/,
     name: "resolveSubjectDuplicateSuggestion",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/curricula\/([^/]+)\/domain-mappings$/,
+    name: "triggerCurriculumDomainMapping",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/curricula\/([^/]+)\/domain-mappings$/,
+    name: "listCurriculumDomainMappings",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/curriculum-domain-mappings\/([^/]+)$/,
+    name: "resolveCurriculumDomainMapping",
     param: "id",
   },
 ];

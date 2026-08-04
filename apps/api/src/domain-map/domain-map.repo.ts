@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   DepthLevel,
   DomainNode,
@@ -15,6 +15,7 @@ import { domainNodeProgress, domainPriorityDistance, isAncestor } from "@post-an
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
+  curriculumDomainNodeMappings,
   domainNodes,
   domainPrioritySuggestions,
   domainSupersessionSuggestions,
@@ -39,6 +40,7 @@ function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
     targetDepth: (row.targetDepth as DepthLevel | null) ?? null,
     supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
     supersededReason: row.supersededReason ?? null,
+    source: row.source as DomainNode["source"],
   };
 }
 
@@ -137,23 +139,45 @@ function toTopicForProgress(row: typeof topics.$inferSelect): Topic {
   };
 }
 
-// GET /subjects/:id/domain-map's read path: two flat queries (domain_nodes
-// for the subject, curricula-with-modules-with-topics for the subject that
-// have a non-null domain_node_id) — never a recursive CTE, never N+1,
-// regardless of tree depth — assembled and rolled up in memory via the pure
-// domainNodeProgress() deriver. No agent, no LLM call anywhere in this path.
+// GET /subjects/:id/domain-map's read path: three flat queries (domain_nodes
+// for the subject, curricula for the subject, confirmed
+// curriculum_domain_node_mappings for those curricula) — never a recursive
+// CTE, never N+1, regardless of tree depth — assembled and rolled up in
+// memory via the pure domainNodeProgress() deriver. No agent, no LLM call
+// anywhere in this path.
+//
+// decouple-curricula-from-domain-nodes (issue #84) — placement moved off
+// curricula.domain_node_id (a single nullable column) onto this many-to-many
+// table, so a curriculum can now be confirmed against MORE THAN ONE node
+// (SCENARIO 9): one {domainNodeId, topics} entry per confirmed mapping row,
+// same curriculum's full topic list contributing to each. curriculaByNodeId
+// dedupes by curriculum id per node defensively — mergeDomainNodes'
+// re-pointing already avoids creating a duplicate confirmed pair, but this
+// read path stays correct even if one ever slipped through.
 export async function getDomainMapForSubject(
   subjectId: string,
   db: DbExecutor = getDb(),
 ): Promise<DomainNodeTreeItem[]> {
   const nodeRows = await db.select().from(domainNodes).where(eq(domainNodes.subjectId, subjectId));
 
-  const placedCurricula = await db
-    .select()
+  const subjectCurricula = await db
+    .select({ id: curricula.id, name: curricula.name })
     .from(curricula)
-    .where(and(eq(curricula.subjectId, subjectId), isNotNull(curricula.domainNodeId)));
+    .where(eq(curricula.subjectId, subjectId));
+  const curriculumNameById = new Map(subjectCurricula.map((c) => [c.id, c.name]));
+  const curriculumIds = subjectCurricula.map((c) => c.id);
 
-  const curriculumIds = placedCurricula.map((c) => c.id);
+  const confirmedMappings = curriculumIds.length
+    ? await db
+        .select()
+        .from(curriculumDomainNodeMappings)
+        .where(
+          and(
+            inArray(curriculumDomainNodeMappings.curriculumId, curriculumIds),
+            eq(curriculumDomainNodeMappings.status, "confirmed"),
+          ),
+        )
+    : [];
 
   const topicRows = curriculumIds.length
     ? await db.select().from(topics).where(inArray(topics.curriculumId, curriculumIds))
@@ -167,17 +191,25 @@ export async function getDomainMapForSubject(
     topicsByCurriculumId.set(topicRow.curriculumId, list);
   }
 
-  const curriculumTopics = placedCurricula.map((curriculum) => ({
-    domainNodeId: curriculum.domainNodeId!,
-    topics: (topicsByCurriculumId.get(curriculum.id) ?? []).map(toTopicForProgress),
+  const curriculumTopics = confirmedMappings.map((mapping) => ({
+    domainNodeId: mapping.domainNodeId,
+    topics: (topicsByCurriculumId.get(mapping.curriculumId) ?? []).map(toTopicForProgress),
   }));
 
   const curriculaByNodeId = new Map<string, { id: string; name: string }[]>();
 
-  for (const curriculum of placedCurricula) {
-    const list = curriculaByNodeId.get(curriculum.domainNodeId!) ?? [];
-    list.push({ id: curriculum.id, name: curriculum.name });
-    curriculaByNodeId.set(curriculum.domainNodeId!, list);
+  for (const mapping of confirmedMappings) {
+    const list = curriculaByNodeId.get(mapping.domainNodeId) ?? [];
+
+    if (list.some((entry) => entry.id === mapping.curriculumId)) {
+      continue;
+    }
+
+    list.push({
+      id: mapping.curriculumId,
+      name: curriculumNameById.get(mapping.curriculumId) ?? "",
+    });
+    curriculaByNodeId.set(mapping.domainNodeId, list);
   }
 
   const nodeRefs = nodeRows.map((row) => ({ id: row.id, parentId: row.parentId }));
@@ -207,6 +239,7 @@ export async function getDomainMapForSubject(
       // percent, never derived from it (spec.md's Decisions #2).
       supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
       supersededReason: row.supersededReason ?? null,
+      source: row.source as DomainNodeTreeItem["source"],
     };
   }
 
@@ -272,11 +305,106 @@ export async function mergeDomainNodes(
       return { error: "cycle" as const };
     }
 
-    const movedCurricula = await tx
-      .update(curricula)
-      .set({ domainNodeId: targetId })
-      .where(eq(curricula.domainNodeId, sourceId))
-      .returning({ id: curricula.id });
+    // decouple-curricula-from-domain-nodes (issue #84) — placement moved off
+    // curricula.domain_node_id onto the many-to-many
+    // curriculum_domain_node_mappings table, which (unlike the old single
+    // column) can hold several rows per curriculum at a single node (e.g. a
+    // rejected AI suggestion alongside a separately confirmed manual
+    // placement — the ordinary "AI suggests A and B, user confirms B,
+    // rejects A" flow). Re-pointing must therefore be status-aware on BOTH
+    // sides:
+    //
+    // - "already there" at the target only counts a CONFIRMED row. A stale
+    //   rejected/suggested row at the target must never block moving the
+    //   source's real confirmed placement over — otherwise the confirmed row
+    //   gets deleted as "redundant" against a row that was never the actual
+    //   placement, and the curriculum silently ends up with zero confirmed
+    //   mappings.
+    // - Per curriculum at the SOURCE, the confirmed row (if any) is the one
+    //   that gets re-pointed (or deduped against an existing confirmed
+    //   target row); every other row for that curriculum at the source is a
+    //   now-stale suggestion against a node that's about to be deleted, so
+    //   it's dropped rather than risking a nondeterministic pick between it
+    //   and the confirmed row.
+    const sourceMappingRows = await tx
+      .select()
+      .from(curriculumDomainNodeMappings)
+      .where(eq(curriculumDomainNodeMappings.domainNodeId, sourceId))
+      .orderBy(asc(curriculumDomainNodeMappings.createdAt));
+    const targetConfirmedMappingRows = await tx
+      .select({ curriculumId: curriculumDomainNodeMappings.curriculumId })
+      .from(curriculumDomainNodeMappings)
+      .where(
+        and(
+          eq(curriculumDomainNodeMappings.domainNodeId, targetId),
+          eq(curriculumDomainNodeMappings.status, "confirmed"),
+        ),
+      );
+    const targetConfirmedCurriculumIds = new Set(targetConfirmedMappingRows.map((row) => row.curriculumId));
+
+    const sourceRowsByCurriculum = new Map<string, typeof sourceMappingRows>();
+    for (const row of sourceMappingRows) {
+      const existing = sourceRowsByCurriculum.get(row.curriculumId);
+      if (existing) {
+        existing.push(row);
+      } else {
+        sourceRowsByCurriculum.set(row.curriculumId, [row]);
+      }
+    }
+
+    let movedCurriculaCount = 0;
+
+    for (const [curriculumId, rows] of sourceRowsByCurriculum) {
+      const confirmedRow = rows.find((row) => row.status === "confirmed");
+
+      // No confirmed row for this curriculum at the source at all — every
+      // row here is a still-pending suggestion or a rejected one, neither of
+      // which competes with a target-side confirmed placement (that's the
+      // targetConfirmedCurriculumIds check above, which only ever applies to
+      // a confirmed source row). Re-point them like domainTopicSuggestions
+      // below rather than deleting: a pending "suggested" row is an
+      // unresolved review item the mapping panel still needs to show, and
+      // "rejected rows are never deleted" is this table's own audit-trail
+      // convention (todo.md). Duplicates at the target are harmless — the
+      // table has no unique constraint on (curriculumId, domainNodeId), and
+      // every read path (getDomainMapForSubject) only ever looks at
+      // status = 'confirmed'.
+      if (!confirmedRow) {
+        await tx
+          .update(curriculumDomainNodeMappings)
+          .set({ domainNodeId: targetId })
+          .where(
+            inArray(
+              curriculumDomainNodeMappings.id,
+              rows.map((row) => row.id),
+            ),
+          );
+
+        continue;
+      }
+
+      const rowsToDrop = rows.filter((row) => row.id !== confirmedRow.id);
+
+      if (targetConfirmedCurriculumIds.has(curriculumId)) {
+        rowsToDrop.push(confirmedRow);
+      } else {
+        await tx
+          .update(curriculumDomainNodeMappings)
+          .set({ domainNodeId: targetId })
+          .where(eq(curriculumDomainNodeMappings.id, confirmedRow.id));
+        targetConfirmedCurriculumIds.add(curriculumId);
+        movedCurriculaCount += 1;
+      }
+
+      if (rowsToDrop.length > 0) {
+        await tx.delete(curriculumDomainNodeMappings).where(
+          inArray(
+            curriculumDomainNodeMappings.id,
+            rowsToDrop.map((row) => row.id),
+          ),
+        );
+      }
+    }
 
     const targetMaxOrderRow = (
       await tx
@@ -312,7 +440,7 @@ export async function mergeDomainNodes(
         sourceId,
         sourceName: sourceRow.name,
         reassignedCounts: {
-          curriculaMoved: movedCurricula.length,
+          curriculaMoved: movedCurriculaCount,
           childNodesMoved: movedChildNodes.length,
         },
       },
@@ -322,7 +450,7 @@ export async function mergeDomainNodes(
     return {
       targetDomainNodeId: targetId,
       sourceDomainNodeId: sourceId,
-      curriculaMoved: movedCurricula.length,
+      curriculaMoved: movedCurriculaCount,
       childNodesMoved: movedChildNodes.length,
     };
   });

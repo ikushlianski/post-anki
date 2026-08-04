@@ -8,11 +8,12 @@ import {
   submitStructureTurnInput,
   updateCurriculumInput,
 } from "@post-anki/shared";
+import { resolveDomainNodeSource } from "@post-anki/core";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getSubject } from "../subject/subject.repo.js";
 import { resolveDomainPlacement } from "../domain-map/domain-placement.orchestrator.js";
-import { getDomainNode } from "../domain-map/domain-map.repo.js";
+import { getDomainNode, listDomainNodesForSubject } from "../domain-map/domain-map.repo.js";
 import {
   confirmCurriculum,
   createCurriculum,
@@ -138,16 +139,58 @@ export async function handleCreateCurriculum(
     return;
   }
 
-  const placement = await resolveDomainPlacement({
-    subjectId: body.data.subjectId,
-    name: body.data.name,
-    domainNodeId: body.data.domainNodeId,
-  });
+  // decouple-curricula-from-domain-nodes (issue #84), SCENARIO 5 — an
+  // explicit domainNodeId is checked FIRST, before ever looking at whether
+  // the subject is taxonomy-backed. Branching on subject type first would
+  // silently drop an explicit placement on a taxonomy-backed subject
+  // instead of confirming the row the caller asked for (the bug this plan's
+  // own grill-plan review caught before implementation) — "add course here"
+  // on the domain map tree must win regardless of subject type.
+  let resolvedDomainNodeId: string | null = null;
+  let domainNodeSource: "manual" | "auto" | undefined;
+
+  if (body.data.domainNodeId) {
+    const targetNode = await getDomainNode(body.data.domainNodeId);
+
+    if (!targetNode || targetNode.subjectId !== body.data.subjectId) {
+      sendError(
+        res,
+        400,
+        "domain_node_wrong_subject",
+        "the target domain node does not belong to this curriculum's own subject",
+      );
+      return;
+    }
+
+    resolvedDomainNodeId = targetNode.id;
+    domainNodeSource = "manual";
+  } else {
+    // No explicit node given — SCENARIO 8: a subject with a static taxonomy
+    // skips placement entirely here (the on-demand "Map to taxonomy"
+    // trigger handles it later); every other subject keeps today's
+    // resolveDomainPlacement flow completely unchanged.
+    const existingNodes = await listDomainNodesForSubject(body.data.subjectId);
+    const sourceKind = resolveDomainNodeSource(
+      existingNodes.map((node) => ({ source: node.source })),
+    );
+
+    if (sourceKind !== "static_taxonomy") {
+      const placement = await resolveDomainPlacement({
+        subjectId: body.data.subjectId,
+        name: body.data.name,
+        domainNodeId: body.data.domainNodeId,
+      });
+
+      resolvedDomainNodeId = placement.domainNodeId;
+      domainNodeSource = placement.domainNodeId ? "auto" : undefined;
+    }
+  }
 
   const created = await createCurriculum({
     ...body.data,
     sources,
-    domainNodeId: placement.domainNodeId,
+    domainNodeId: resolvedDomainNodeId,
+    domainNodeSource,
   });
 
   // The subject can disappear between the pre-check above and the insert —

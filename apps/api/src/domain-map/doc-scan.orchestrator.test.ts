@@ -733,8 +733,15 @@ describe("PATCH /domain-topic-suggestions/:id — accept/reject proofs", () => {
 describe("PATCH /domain-supersession-suggestions/:id — accept/reject proofs, including the percent-byte-identical negative assertion (Decisions #2)", () => {
   it("accepting sets superseded_at/superseded_reason AND leaves the flagged node's percent byte-identical before/after (proves 'flag, never reduce percent')", async () => {
     const { getDb } = await import("../db/client.js");
-    const { subjects, domainNodes, curricula, modules, topics, domainSupersessionSuggestions } =
-      await import("../db/schema.js");
+    const {
+      subjects,
+      domainNodes,
+      curricula,
+      curriculumDomainNodeMappings,
+      modules,
+      topics,
+      domainSupersessionSuggestions,
+    } = await import("../db/schema.js");
     const { newId } = await import("../shared/id.js");
     const db = getDb();
 
@@ -750,7 +757,13 @@ describe("PATCH /domain-supersession-suggestions/:id — accept/reject proofs, i
       subjectId,
       name: "Studied Next.js curriculum",
       status: "ready",
+    });
+    await db.insert(curriculumDomainNodeMappings).values({
+      id: newId("cdnm"),
+      curriculumId,
       domainNodeId: nextJsId,
+      status: "confirmed",
+      source: "manual",
     });
     await db.insert(modules).values({ id: moduleId, curriculumId, title: "Module", order: 0 });
     await db.insert(topics).values({

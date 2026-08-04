@@ -1,0 +1,10 @@
+flowchart LR
+    API["getDomainMapForSubject()\n#84: already returns\nEVERY node, percent:0\nfor unmapped ones"]
+    Tree["DomainMapNode\ndomain-map-tree.tsx"]
+    Status["domainMasteryStatus(percent)\npure function\n0 -> gap, else -> progress"]
+    Badge["gap badge\nrose, '0% — gap'\nadditive only"]
+
+    API -->|"node.percent"| Tree
+    Tree --> Status
+    Status -->|"gap"| Badge
+    Status -->|"progress"| Tree

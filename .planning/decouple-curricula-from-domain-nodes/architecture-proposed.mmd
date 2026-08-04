@@ -1,0 +1,39 @@
+flowchart TD
+classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+linkStyle default stroke:#455a64,stroke-width:1.5px
+classDef store fill:#fff9c4,stroke:#455a64,stroke-width:1.5px,color:#000
+classDef agent fill:#e0f2f1,stroke:#455a64,stroke-width:1.5px,color:#000
+classDef unchanged fill:#eceff1,stroke:#607d8b,stroke-width:1.5px,color:#000,stroke-dasharray: 3 3
+
+CreateCurriculum["User creates a curriculum"]
+ExplicitCheck{"Node chosen explicitly?"}
+ManualRow["Confirmed mapping row (manual)"]
+SubjectType{"Subject has a static taxonomy?"}
+OldPlacement["Resolve Domain Placement (unchanged)"]:::unchanged
+AutoRow["Auto-confirmed mapping row"]
+Taxonomy["Static Taxonomy Nodes (seeded once)"]:::store
+Trigger["User clicks Map to taxonomy"]
+MapAgent["Domain Taxonomy Mapping Agent"]:::agent
+Suggested["Suggested mapping rows"]
+Review["User approves / adjusts / rejects"]
+Confirmed["Confirmed mapping rows"]
+Unmatched["Unmatched topic -> existing new-node suggestion flow"]
+MappingTable["curriculum_domain_node_mappings (many-to-many)"]:::store
+Map["Subject Domain Map"]:::store
+
+CreateCurriculum --> ExplicitCheck
+ExplicitCheck -->|yes, any subject| ManualRow
+ManualRow --> MappingTable
+ExplicitCheck -->|no| SubjectType
+SubjectType -->|no taxonomy| OldPlacement
+OldPlacement --> AutoRow
+AutoRow --> MappingTable
+SubjectType -->|has taxonomy| Trigger
+Trigger --> MapAgent
+Taxonomy --> MapAgent
+MapAgent --> Suggested
+MapAgent -->|no match for a topic| Unmatched
+Suggested --> Review
+Review --> Confirmed
+Confirmed --> MappingTable
+MappingTable --> Map
