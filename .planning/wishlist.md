@@ -2,7 +2,55 @@
 
 Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]` item.
 
-## Active build queue (2026-07-28) — plan-playwright → write-playwright-tests → review-playwright per item
+## Active build queue (2026-08-02) — URGENT: Static knowledge map foundation
+
+New priority (added 2026-08-02): Foundation for post-anki's vision as an IT career knowledge platform.
+These form a dependency chain: taxonomy → curriculum decoupling → progress separation → visualization.
+Blocks: learning capture (#78), highlight-comment (#80), curriculum augmentation (#81), recommender (#77).
+
+- [x] Design the objective IT knowledge taxonomy — hierarchical map of domains/competencies (#83) [→ done: .planning/design-knowledge-taxonomy/, verified 2026-08-04]
+      Why: Post-anki needs a static, objective taxonomy of IT knowledge independent of curricula
+      and user progress. Currently, domain nodes are dynamically created by curricula, mixing
+      "what exists to learn" with "what the user has chosen to study." This item designs the
+      foundational taxonomy (15-20 top domains, 3-4 levels deep) covering IT: networking, databases,
+      cloud, security, DevOps, and similar.
+      Done when: a documented, structured taxonomy exists (.yaml or .json, committed to the repo),
+      with 15+ domains organized hierarchically, each with a brief description and any
+      prerequisite markers.
+      Depends on: none (this is the foundation).
+
+- [x] Decouple curricula from domain node creation — map into static taxonomy instead (#84) [→ done: .planning/decouple-curricula-from-domain-nodes/, verified 2026-08-04 — survived red-team pass (4 fixes) + dual review (1 data-loss bug found+fixed+reverified)]
+      Why: Currently, creating a curriculum creates/shapes domain nodes. Flip this: domain nodes
+      should be static (seeded once), and curricula should map INTO them rather than create them.
+      Enables intelligent curriculum augmentation, prerequisite detection, and visualization.
+      Done when: curriculum creation now maps its topics into existing domain_nodes rather than
+      creating them, via an AI-assisted mapping step that the user can approve/adjust.
+      Depends on: #83 (static taxonomy must exist first).
+
+- [x] Separate progress overlay from structure — show mastery on top of static map (#85) [→ done: .planning/separate-progress-overlay-from-structure/, verified 2026-08-04 — built on #84's worktree, red-team pass (3 fixes) + independent re-verification]
+      Why: Currently, 'percent' shown in domain map derives from curricula structure (average of
+      topics in curricula you created). Decouple this: domain nodes are always shown (complete
+      taxonomy), and mastery is an overlay (what you've learned). Shows both 'knowledge areas exist
+      to learn' and 'you know X% of Y area.'
+      Done when: domain map shows all nodes even if user has no curriculum under them, mastery
+      appears as a color/badge separate from structure, and gaps (areas with 0% mastery) are visible
+      and actionable.
+      Depends on: #84 (must decouple curricula from node creation first).
+
+- [x] Visual knowledge map — graph/mind-map rendering of objective taxonomy with mastery overlay (#86) [→ done: .planning/visual-knowledge-map/, verified 2026-08-04 — red-team pass (7 fixes) + dual review, both independently re-verified clean]
+      Why: Current domain map is a text tree. Render it visually as a mind map or knowledge graph,
+      showing mastery as color, curricula as highlighted paths, gaps as empty areas. Makes the
+      landscape visible at a glance.
+      Done when: a visual representation (mind map, network graph, or treemap) exists and renders
+      the static taxonomy with mastery coloring, interactive drill-down, and mobile-responsive.
+      Depends on: #85 (must separate progress from structure first).
+
+- [x] Seed the initial static taxonomy into the database (#82 follow-up) [→ done: .planning/unassigned/seed-static-taxonomy/, verified 2026-08-04 — 3 red-team passes (9 fixes), 208 rows independently confirmed persisted in postanki_dev via direct SQL. Production subject placement still deferred to GitHub #84's open Decision 2.]
+      Why: Once the design and decoupling are done, populate the taxonomy so it's ready for use.
+      Done when: the taxonomy designed in #83 is seeded into domain_nodes, with no curricula
+      under the nodes yet (curriculum-to-node mappings are empty), and the structure is verified.
+
+## Previous active build queue (2026-07-28) — plan-playwright → write-playwright-tests → review-playwright per item
 
 Reordered from a longer business-value review: two known bugs moved to the front because the
 next two features attach to the exact surfaces they break; the two items with a concrete
@@ -730,6 +778,49 @@ actions already existing to send an accepted suggestion to.
       `node:crypto` import in a test file and confirming the build now fails instead of
       succeeding silently.
 
+## the-me-agent integration (2026-08-01) — flagged important by the user
+
+Two linked items, in dependency order: the MCP connection is the data source the recommendations
+need. The server half lives in the-me-agent's own wishlist (that repo has no GitHub remote, so no
+issue exists there — its `.planning/wishlist.md` top entry is the tracking artifact).
+
+- [ ] Connect post-anki to the-me-agent vault via MCP. (#76)
+      Why: post-anki's mentor agents know nothing about Ilya outside this app. the-me-agent owns
+      that knowledge — `notes/profile.md` plus the learning map built 2026-08-01
+      (`notes/web-dev/learning/`: per-category hands-on vs want-to-try files with project
+      evidence). An MCP boundary keeps the-me-agent the single owner of vault access and makes
+      post-anki a read-only consumer instead of duplicating profile facts into a second database.
+      Pointers: `apps/api/src/mastra/` (where an `@mastra/mcp` MCPClient wires in),
+      the-me-agent's `src/ask/read-note-tool.ts`/`vault-map.ts` (the guarded read-only tools its
+      server will wrap), todoist-todo-app (in-house precedent for a tested stdio MCP server),
+      `ai-dev/docs/principles/003-building-mcp-servers.md` (mandatory guidance).
+      Constraints already decided: read-only always; vault content is data, not instructions
+      (prompt-injection boundary); bounded tool-call fan-out per agent run.
+      Done when: a post-anki agent, in a real run, answers a question it could only answer via
+      the vault (e.g. names a want-to-try technology from `notes/web-dev/learning/`) through the
+      MCP client against a locally running the-me-agent server — proven by a test with the MCP
+      boundary mocked plus one real end-to-end invocation.
+      Blocked on: the-me-agent's MCP server existing (top entry of that repo's wishlist).
+
+- [ ] Recommend new courses to start from the me-agent learning map, with accept / later /
+      dismiss. (#77)
+      Why: post-anki only studies what was already added — nothing proposes what to start next.
+      The learning map records exactly that (want-to-try: vector DBs, chunking/RAG eval, Python
+      agent frameworks, LiteLLM, Ollama, …). Surface those as grounded course suggestions:
+      "hands-on with LangGraph and Mastra, never touched a vector DB — start a pgvector course?"
+      Pointers: `domain_priority_suggestions` / doc-scan review / duplicate detection (#63) — the
+      AI-proposes/human-reviews pattern to reuse (suggestion rows with a `source` discriminator +
+      a review surface); the existing subject/curriculum intake as the accept action. New here:
+      a third response state — "later" snoozes and resurfaces after a period; "dismiss" persists
+      and never re-suggests; existing pattern only has accept/reject.
+      Constraints already decided: on-demand or bounded cadence, never unattended firehose (same
+      anti-noise bar as #49, zero-unattended-spend precedent from #63); suggestions must cite
+      their learning-map evidence, not free-associate; bounded cost per scan.
+      Done when: a real run against the live MCP connection (#76) produces at least one course
+      suggestion grounded in a want-to-try entry; accepting creates the course via the existing
+      intake; "later" resurfaces after the snooze period; dismissed never returns — each proven
+      by a test.
+
 ## Everything else (unchanged order, resumes below the active queue above)
 
 - [x] Add subject pedagogy-kind + a language-practice agent set — the architectural foundation
@@ -783,7 +874,7 @@ actions already existing to send an accepted suggestion to.
       Done when: a phrase that's been answered correctly 3 times non-adjacently is archived as
       mastered, and a struggling phrase gets re-surfaced according to the isolation-then-retry
       rule — visible in the UI, not just the database.
-- [ ] Migrate existing English practice data into post-anki's database.
+- [x] Migrate existing English practice data into post-anki's database. [→ done: .planning/migrate-english-practice-data/, verified 2026-08-04 — code + tests complete, live run deferred pending SOURCE_DATABASE_URL (see todo.md)]
       Why: the source app's Neon tables (`settings`, `phrases`, `attempts`) and the separate
       chat-session phrase-bank JSON files both hold real practice history that shouldn't be lost
       when the source app is retired. Do this last, once the English subject's schema in post-anki
@@ -877,3 +968,35 @@ actions already existing to send an accepted suggestion to.
       lightweight supplementary signal, not a primary driver.
       Needs a data-provider decision and real product/architecture planning — this entry queues
       the idea, it does not spec it, and is postponed until revisited. (#53)
+
+- [ ] Fix the shared local dev Postgres's migration 0027 being permanently skipped —
+      subject_duplicate_suggestions is missing, breaking the already-shipped duplicate-detection
+      feature locally.
+      Why: found during tonight's #86 build/review (2026-08-04) — drizzle-orm's Postgres migrator
+      only ever reads the SINGLE latest row from the migration-tracking table, then compares every
+      migration's own timestamp against that one fixed watermark for the whole batch; it never
+      checks per-migration whether that specific migration actually ran. The shared local dev
+      container (`post-anki-dev-db`, port 5437) has orphaned tracking rows with timestamps that
+      don't correspond to any migration currently in `apps/api/src/db/migrations/meta/_journal.json`
+      (confirmed via `git log -p` — a journal entry with one of those exact timestamps existed
+      historically and was removed during a migration-folder squash/renumbering at some point).
+      Those orphaned rows permanently raise the watermark past migration 0027's own timestamp, so
+      `npm run db:migrate` silently skips 0027 forever, for anyone, on every future run — not a
+      one-time fluke. `subjects.embedding`/`embedding_hash`/`embedded_at` (also from 0027) were
+      manually patched in twice tonight (#85 and #86's builds both hit this and worked around it
+      locally, without touching migration files or the tracking table) but
+      `subject_duplicate_suggestions` — the other table 0027 creates — is still missing, and the
+      already-merged AI-assisted duplicate-detection feature (`apps/api/src/subject-duplicate/`)
+      is currently broken against local dev as a result.
+      Pointers: `node_modules/drizzle-orm/pg-core/dialect.js:57-70` (the single-watermark
+      comparison logic), the `drizzle.drizzle_migrations_api` tracking table in the local
+      `post-anki-dev-db` container (has rows with timestamps `1785485869772`/`1785489603580` that
+      match no current journal entry), `apps/api/src/db/migrations/0027_amused_nightmare.sql` (the
+      skipped migration).
+      Done when: `subject_duplicate_suggestions` exists in the local dev database with its correct
+      unique index, `npm run db:migrate` no longer silently skips migration 0027 on a fresh clone,
+      and the fix addresses the root cause (the watermark/tracking gap) rather than another
+      one-off manual column patch.
+      Not urgent for production (Neon is unaffected — this is a local-dev-only container issue),
+      but worth fixing soon since it will keep resurfacing for every worktree/session that touches
+      this area, exactly as it did twice in one night.
