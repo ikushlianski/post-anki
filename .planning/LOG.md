@@ -994,3 +994,26 @@ independently re-running the tests and reading the actual diff.
 
 **End of overnight run — no further wakeups scheduled. Nothing left in tonight's scope.**
 
+
+- **2026-08-05 — Properly root-caused and fixed the migration-0027 tracking bug** (not another
+  manual patch — the underlying drizzle_migrations_api reconciliation itself). Diffed every journal
+  timestamp against every tracking-table row precisely: found 6 orphaned rows (historical debris
+  from a past migration squash) plus a genuinely missing row for 0027 itself. Deleted the orphans,
+  inserted the correct row for 0027 using its real sha256 file hash and real journal timestamp
+  (matching drizzle's own hashing exactly), after confirming its actual DB objects already existed
+  from tonight's manual patches. Verified 0028-0030's objects are real too, not just tracked.
+  Post-fix: tracking table and journal match exactly 1:1, and a fresh `db:migrate` run inserts
+  zero new rows — confirmed the fix holds under a real re-run. Marked done in wishlist.md.
+
+
+- **2026-08-05 — Fixed integration test isolation (25 files total).** A background subagent fixed
+  24 pre-existing integration test files that connected directly to whatever DATABASE_URL resolved
+  to instead of an isolated throwaway database — root cause of tonight's fixture pollution in the
+  live app (S1b/S1c/S3/S4/provenance test subjects). Independently re-verified: pointed at
+  postanki_dev directly, ran the exact test that caused the pollution, subject count stayed at 2
+  before/after. Also fixed a 25th file (curriculum-move.integration.test.ts, built by a concurrent
+  subagent for the new move-curriculum feature) that had the same gap — same pattern applied by
+  hand, verified 5/5 passing with zero pollution. Move-curriculum-to-subject feature also verified:
+  spot-checked the implementation directly (correctly wipes stale cross-subject domain mappings,
+  reuses the existing sorted advisory-lock pattern), confirmed live via a real API call.
+
