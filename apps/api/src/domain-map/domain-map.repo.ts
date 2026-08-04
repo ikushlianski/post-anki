@@ -549,39 +549,55 @@ export async function getPrioritySuggestion(
 // the node is never touched. Rejected rows are never deleted (spec.md's
 // Decisions #11) — status flips to "rejected", resolvedAt is set, the row
 // stays visible as "handled."
+//
+// Claimed first via `UPDATE ... WHERE status = 'pending' RETURNING *`, the
+// same pattern resolveDomainTopicSuggestion/resolveDomainSupersessionSuggestion
+// use. A concurrent double-accept is already idempotent here — accepting the
+// same suggestion twice just re-writes the same target_depth — but the guard
+// is added anyway for consistency with the rest of this file's concurrency
+// discipline, and so a double-click gets a clean `already_resolved` refusal
+// instead of a second silent write.
 export async function resolvePrioritySuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainPrioritySuggestion | null> {
+): Promise<DomainPrioritySuggestion | { error: ResolveDomainSuggestionError }> {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const existing = (
-      await tx
-        .select()
-        .from(domainPrioritySuggestions)
-        .where(eq(domainPrioritySuggestions.id, suggestionId))
-    )[0];
-
-    if (!existing) {
-      return null;
-    }
-
     const resolvedAt = new Date();
 
-    await tx
-      .update(domainPrioritySuggestions)
-      .set({ status, resolvedAt })
-      .where(eq(domainPrioritySuggestions.id, suggestionId));
+    const claimed = (
+      await tx
+        .update(domainPrioritySuggestions)
+        .set({ status, resolvedAt })
+        .where(
+          and(
+            eq(domainPrioritySuggestions.id, suggestionId),
+            eq(domainPrioritySuggestions.status, "pending"),
+          ),
+        )
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      const existing = (
+        await tx
+          .select()
+          .from(domainPrioritySuggestions)
+          .where(eq(domainPrioritySuggestions.id, suggestionId))
+      )[0];
+
+      return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
+    }
 
     if (status === "accepted") {
       await tx
         .update(domainNodes)
-        .set({ targetDepth: existing.suggestedTargetDepth })
-        .where(eq(domainNodes.id, existing.domainNodeId));
+        .set({ targetDepth: claimed.suggestedTargetDepth })
+        .where(eq(domainNodes.id, claimed.domainNodeId));
     }
 
-    return toDomainPrioritySuggestion({ ...existing, status, resolvedAt });
+    return toDomainPrioritySuggestion(claimed);
   });
 }
 

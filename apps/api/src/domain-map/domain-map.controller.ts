@@ -144,7 +144,9 @@ export async function handleListPrioritySuggestions(
 // PATCH /domain-priority-suggestions/:id — accept writes the node's target
 // depth in the same transaction; reject only resolves the suggestion,
 // leaving the node untouched. Both are persisted, never deleted
-// (spec.md's Decisions #11). SCENARIOS 6, 7.
+// (spec.md's Decisions #11). SCENARIOS 6, 7. Claimed first the same way as
+// the topic/supersession resolvers, so a double-click answers 409
+// already_resolved instead of silently re-applying.
 export async function handleResolvePrioritySuggestion(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -159,8 +161,8 @@ export async function handleResolvePrioritySuggestion(
 
   const updated = await resolvePrioritySuggestion(suggestionId, body.data.status);
 
-  if (!updated) {
-    sendError(res, 404, "not_found");
+  if ("error" in updated) {
+    sendResolveSuggestionError(res, updated.error);
     return;
   }
 

@@ -1,7 +1,16 @@
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 import type { CreateSubjectInput, MergeSubjectsResult, Subject } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
-import { curricula, domainNodes, subjectDuplicateSuggestions, subjects } from "../db/schema.js";
+import {
+  curricula,
+  domainNodes,
+  domainPrioritySuggestions,
+  domainSupersessionSuggestions,
+  domainTopicSuggestions,
+  subjectDuplicateSuggestions,
+  subjects,
+  trackedToolScanState,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
 import { withMergeLock, withSubjectLock, type Tx } from "../shared/merge-lock.js";
@@ -124,6 +133,105 @@ async function invalidateStalePendingDuplicateSuggestions(
     );
 }
 
+// Moves the source subject's three domain-review suggestion tables onto the
+// target, alongside the curricula and domain_nodes the merge already moves.
+// Reassignment rather than invalidation, for two reasons:
+//
+//   * These rows' payloads reference domain NODE IDS
+//     (proposed_parent_node_id / domain_node_id), and mergeSubjects moves the
+//     whole domain_nodes forest by subject_id alone — every id a payload
+//     names still exists, now under the target — so a moved suggestion stays
+//     resolvable and means the same thing it meant before.
+//   * There is no representable "invalidated" state to move them to:
+//     domainSuggestionStatusSchema / domainPrioritySuggestionStatusSchema
+//     (packages/shared/src/domain-map.ts) are strictly
+//     pending|accepted|rejected and every read parses through them, unlike
+//     subject_duplicate_suggestions' own status enum which does carry
+//     "stale". Inventing one would be a shared-schema plus web change, not a
+//     repo-local one.
+//
+// Deliberately NOT pending-only, which is where this parts company with
+// invalidateStalePendingDuplicateSuggestions above: there subject_id is part
+// of the historical claim ("these two subjects looked alike"), here it is
+// purely the routing key deciding whose review panel a row renders in, so
+// resolved history has to follow its nodes too or it becomes unreachable.
+// Consequence worth knowing: getLastReviewedAt() is MAX(created_at) per
+// subject, so absorbing a more recently reviewed source moves the target's
+// "last reviewed" forward and its "review due" back.
+//
+// A pending topic suggestion with a null proposed_parent_node_id meant
+// "attach at the source's root" and now reads as "attach at the target's
+// root" — accepted deliberately: the source's roots became the target's
+// roots in the same merge, and there is no better anchor.
+async function reassignSubjectSuggestions(
+  tx: Tx,
+  sourceId: string,
+  targetId: string,
+): Promise<void> {
+  await tx
+    .update(domainTopicSuggestions)
+    .set({ subjectId: targetId })
+    .where(eq(domainTopicSuggestions.subjectId, sourceId));
+
+  await tx
+    .update(domainSupersessionSuggestions)
+    .set({ subjectId: targetId })
+    .where(eq(domainSupersessionSuggestions.subjectId, sourceId));
+
+  await tx
+    .update(domainPrioritySuggestions)
+    .set({ subjectId: targetId })
+    .where(eq(domainPrioritySuggestions.subjectId, sourceId));
+}
+
+// tracked_tool_scan_state is keyed (subject_id, tool_key), so a blind
+// reassign of the source's rows onto the target — the doc-scan suggestion
+// tables' own pattern above — would throw a PK conflict on every tool the
+// target has already scanned. For each tool_key the source scanned:
+//   * the target already has a row for it — the source's row is deleted,
+//     keeping the target's watermark as authoritative (it's presumably the
+//     more relevant one). Costs one possibly-redundant re-scan of that tool
+//     under the target later — harmless, one extra agent call.
+//   * the target has no row for it — the source's row is reassigned onto
+//     the target, preserving its watermark instead of losing it.
+async function reassignTrackedToolScanState(
+  tx: Tx,
+  sourceId: string,
+  targetId: string,
+): Promise<void> {
+  const [sourceRows, targetRows] = await Promise.all([
+    tx
+      .select({ toolKey: trackedToolScanState.toolKey })
+      .from(trackedToolScanState)
+      .where(eq(trackedToolScanState.subjectId, sourceId)),
+    tx
+      .select({ toolKey: trackedToolScanState.toolKey })
+      .from(trackedToolScanState)
+      .where(eq(trackedToolScanState.subjectId, targetId)),
+  ]);
+
+  const targetToolKeys = new Set(targetRows.map((row) => row.toolKey));
+  const conflictingToolKeys = sourceRows
+    .map((row) => row.toolKey)
+    .filter((toolKey) => targetToolKeys.has(toolKey));
+
+  if (conflictingToolKeys.length > 0) {
+    await tx
+      .delete(trackedToolScanState)
+      .where(
+        and(
+          eq(trackedToolScanState.subjectId, sourceId),
+          inArray(trackedToolScanState.toolKey, conflictingToolKeys),
+        ),
+      );
+  }
+
+  await tx
+    .update(trackedToolScanState)
+    .set({ subjectId: targetId })
+    .where(eq(trackedToolScanState.subjectId, sourceId));
+}
+
 /**
  * Runs under the subject's advisory lock — the same lock space `mergeSubjects`,
  * `createCurriculum` and `insertDomainNode` take — and re-reads the subject
@@ -179,7 +287,9 @@ export type MergeSubjectsError = "self_merge" | "not_found" | "kind_mismatch";
  * Absorbs `sourceId` into `targetId`: every curriculum and the whole
  * domain_nodes forest owned by the source move to the target (subject_id
  * only — domain_nodes.parent_id is never touched, so the moved forest keeps
- * its shape and becomes additional root(s) under the target), then the
+ * its shape and becomes additional root(s) under the target), the three
+ * domain-review suggestion tables follow their nodes across (see
+ * reassignSubjectSuggestions above), then the
  * source subject row is deleted directly (not via deleteSubject(), which
  * would cascade-delete the curricula this merge just reassigned away — see
  * spec.md Decision #4).
@@ -235,6 +345,9 @@ export async function mergeSubjects(
       .set({ subjectId: targetId })
       .where(eq(domainNodes.subjectId, sourceId))
       .returning({ id: domainNodes.id });
+
+    await reassignSubjectSuggestions(tx, sourceId, targetId);
+    await reassignTrackedToolScanState(tx, sourceId, targetId);
 
     await tx.delete(subjects).where(eq(subjects.id, sourceId));
 
