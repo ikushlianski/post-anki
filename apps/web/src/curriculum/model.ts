@@ -348,6 +348,13 @@ export const mergeCurriculaInput = z.object({
 
 export type MergeCurriculaInput = z.infer<typeof mergeCurriculaInput>
 
+export const moveCurriculumInput = z.object({
+  curriculumId: z.string(),
+  targetSubjectId: z.string(),
+})
+
+export type MoveCurriculumInput = z.infer<typeof moveCurriculumInput>
+
 const docUrlSchema = z
   .string()
   .url()

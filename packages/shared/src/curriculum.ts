@@ -277,3 +277,9 @@ export const mergeCurriculaResultSchema = z.object({
 });
 
 export type MergeCurriculaResult = z.infer<typeof mergeCurriculaResultSchema>;
+
+export const moveCurriculumInput = z.object({
+  targetSubjectId: z.string(),
+});
+
+export type MoveCurriculumInput = z.infer<typeof moveCurriculumInput>;

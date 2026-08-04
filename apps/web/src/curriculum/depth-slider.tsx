@@ -28,7 +28,7 @@ export function DepthSlider({
         value={DEPTH_ORDER[value]}
         disabled={disabled}
         onChange={(event) => onChange(DEPTHS[Number(event.target.value)]!)}
-        className="w-full accent-neutral-900 disabled:opacity-50"
+        className="w-full accent-neutral-900 disabled:opacity-40"
         aria-label="Target depth"
       />
       <div className="mt-1 flex justify-between text-[11px]">
@@ -38,11 +38,11 @@ export function DepthSlider({
             type="button"
             disabled={disabled}
             onClick={() => onChange(depth)}
-            className={
+            className={`disabled:opacity-40 ${
               value === depth
                 ? 'font-medium text-neutral-900'
                 : 'text-neutral-400 hover:text-neutral-700'
-            }
+            }`}
           >
             {DEPTH_LABEL[depth]}
           </button>

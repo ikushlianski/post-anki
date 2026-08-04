@@ -36,6 +36,8 @@ describe("resolveRoute", () => {
 
     it("captures nested action routes", () => {
       expect(resolveRoute("POST", "/curricula/c1/confirm")).toEqual({ name: "confirmCurriculum", params: { id: "c1" } });
+      expect(resolveRoute("POST", "/curricula/c1/merge")).toEqual({ name: "mergeCurricula", params: { id: "c1" } });
+      expect(resolveRoute("POST", "/curricula/c1/move")).toEqual({ name: "moveCurriculum", params: { id: "c1" } });
       expect(resolveRoute("POST", "/topics/t1/probe/answer")).toEqual({ name: "submitProbe", params: { id: "t1" } });
       expect(resolveRoute("GET", "/topics/t1/gaps")).toEqual({ name: "listTopicGaps", params: { id: "t1" } });
       expect(resolveRoute("POST", "/topics/t1/study-chat")).toEqual({ name: "askStudyChat", params: { id: "t1" } });

@@ -614,6 +614,18 @@ export async function mergeCurricula(
   })
 }
 
+export async function moveCurriculum(
+  curriculumId: string,
+  targetSubjectId: string,
+): Promise<Curriculum> {
+  const updated = await request<be.Curriculum>(`/curricula/${curriculumId}/move`, {
+    method: 'POST',
+    body: { targetSubjectId },
+  })
+
+  return mapCurriculum(updated)
+}
+
 export async function addSources(
   curriculumId: string,
   sources: SourceDraft[],

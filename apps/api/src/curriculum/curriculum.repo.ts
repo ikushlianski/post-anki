@@ -667,13 +667,19 @@ export async function maxModuleOrder(curriculumId: string): Promise<number> {
 // transaction that today is already aborted.
 //
 // Called standalone — `DELETE /curricula/:id` — there is no caller
-// transaction to join, so this opens its own.
+// transaction to join, so this takes `withSubjectLock`'s single-entity lock
+// keyed by the curriculum id itself. `mergeCurricula` locks the SAME
+// `hashtext(id)` space for both its targetId and sourceId (withMergeLock's
+// sorted pair), so a standalone delete of a curriculum that is currently
+// either side of an in-flight merge now waits for the merge to commit rather
+// than interleaving with its reassignment UPDATEs — the same orphan/
+// content-loss window `deleteSubject` closes for subjects, one level down.
 export async function deleteCurriculum(
   curriculumId: string,
   db?: DbExecutor,
 ): Promise<boolean> {
   if (!db) {
-    return getDb().transaction((tx) => deleteCurriculumWith(curriculumId, tx));
+    return withSubjectLock(curriculumId, (tx) => deleteCurriculumWith(curriculumId, tx));
   }
 
   return deleteCurriculumWith(curriculumId, db);
@@ -889,6 +895,120 @@ export async function mergeCurricula(
       probeSessionsMoved: movedProbeSessions.length,
     };
   });
+}
+
+export type MoveCurriculumError =
+  | "not_found"
+  | "subject_not_found"
+  | "same_subject"
+  | "kind_mismatch";
+
+/**
+ * Reassigns a curriculum to a different subject (the "reorganize my
+ * curricula across subjects" flow) — a plain `subjectId` column update, but
+ * with one necessary side effect: every `curriculum_domain_node_mappings`
+ * row this curriculum owns (suggested, confirmed, and rejected alike) is
+ * deleted outright, the same SCENARIO 13 treatment `deleteCurriculum`
+ * already gives them. `domain_nodes` form a separate forest PER SUBJECT
+ * (`domainNodes.subjectId`) — see schema.ts — so a mapping pointing at a
+ * node under the OLD subject is not just stale once the curriculum moves,
+ * it is nonsensical: the id it names lives in a tree the curriculum no
+ * longer belongs to. Reassigning the mapping onto the new subject's tree
+ * isn't an option either — there is no name/position correspondence between
+ * two independently-authored domain trees to reassign it TO. The learner
+ * re-triggers "Map to taxonomy" under the new subject if they want fresh
+ * placement (the same on-demand entry point `createCurriculum` already
+ * documents for issue #84).
+ *
+ * The target subject must be `kind: "architecture-mentor"` — a
+ * `language-practice` subject never renders a curricula list at all
+ * (`SubjectSection`'s `language-practice` branch shows only the "Open
+ * practice" link), so moving a curriculum there would make it invisible in
+ * the UI, not just unplaced. Mirrors `MergeSubjectButton`'s own options
+ * filter on the frontend.
+ *
+ * Locking mirrors `mergeSubjects`: the target subject's id and the
+ * curriculum's OWN (pre-move) subject id are both taken via the same
+ * sorted advisory-lock pair `withMergeLock` already uses for merges, so a
+ * concurrent `mergeSubjects`/`deleteSubject` touching either subject
+ * serializes against this move instead of racing it. The "own subject id"
+ * half of that pair has to be read once, unlocked, before opening the
+ * transaction — `withMergeLock` needs both lock ids up front, and the
+ * curriculum's current subject isn't known ahead of time the way both ids
+ * are for a subject-to-subject merge. A third actor moving this exact
+ * curriculum again in the gap between that peek and the lock being granted
+ * is a real but vanishingly unlikely race for a single-user tool, and it is
+ * caught, not silently misapplied: the curriculum row is re-read again
+ * INSIDE the lock, and every decision below (same_subject, the update, the
+ * mapping wipe) is made off that authoritative re-read, never the stale
+ * peeked value.
+ */
+export async function moveCurriculumToSubject(
+  curriculumId: string,
+  targetSubjectId: string,
+): Promise<Curriculum | { error: MoveCurriculumError }> {
+  const peeked = (
+    await getDb()
+      .select({ subjectId: curricula.subjectId })
+      .from(curricula)
+      .where(eq(curricula.id, curriculumId))
+  )[0];
+
+  if (!peeked) {
+    return { error: "not_found" as const };
+  }
+
+  if (peeked.subjectId === targetSubjectId) {
+    return { error: "same_subject" as const };
+  }
+
+  type MoveLockResult =
+    | { error: MoveCurriculumError }
+    | { row: typeof curricula.$inferSelect };
+
+  const locked = await withMergeLock(targetSubjectId, peeked.subjectId, async (tx): Promise<MoveLockResult> => {
+    const curriculumRow = (
+      await tx.select().from(curricula).where(eq(curricula.id, curriculumId))
+    )[0];
+
+    if (!curriculumRow) {
+      return { error: "not_found" as const };
+    }
+
+    if (curriculumRow.subjectId === targetSubjectId) {
+      return { error: "same_subject" as const };
+    }
+
+    const targetSubjectRow = (
+      await tx.select().from(subjects).where(eq(subjects.id, targetSubjectId))
+    )[0];
+
+    if (!targetSubjectRow) {
+      return { error: "subject_not_found" as const };
+    }
+
+    if (targetSubjectRow.kind !== "architecture-mentor") {
+      return { error: "kind_mismatch" as const };
+    }
+
+    const updatedRow = (
+      await tx
+        .update(curricula)
+        .set({ subjectId: targetSubjectId })
+        .where(eq(curricula.id, curriculumId))
+        .returning()
+    )[0]!;
+
+    await deleteMappingsForCurriculum(curriculumId, tx);
+
+    return { row: updatedRow };
+  });
+
+  if ("error" in locked) {
+    return { error: locked.error === "self_merge" ? "same_subject" : locked.error };
+  }
+
+  return toCurriculum(locked.row, await originFor(curriculumId), null);
 }
 
 export async function countModules(curriculumId: string): Promise<number> {

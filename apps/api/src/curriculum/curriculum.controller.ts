@@ -4,6 +4,7 @@ import {
   approveSourcesInput,
   createCurriculumInput,
   mergeCurriculaInput,
+  moveCurriculumInput,
   resolveSupplementalResearchInput,
   submitStructureTurnInput,
   updateCurriculumInput,
@@ -28,6 +29,7 @@ import {
   listCurricula,
   markPreAssessmentCompleted,
   mergeCurricula,
+  moveCurriculumToSubject,
   updateCurriculum,
 } from "./curriculum.repo.js";
 import {
@@ -546,6 +548,33 @@ export async function handleMergeCurricula(
   if ("error" in result) {
     if (result.error === "not_found") {
       sendError(res, 404, "not_found");
+      return;
+    }
+
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+export async function handleMoveCurriculum(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  curriculumId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, moveCurriculumInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await moveCurriculumToSubject(curriculumId, body.data.targetSubjectId);
+
+  if ("error" in result) {
+    if (result.error === "not_found" || result.error === "subject_not_found") {
+      sendError(res, 404, result.error);
       return;
     }
 
