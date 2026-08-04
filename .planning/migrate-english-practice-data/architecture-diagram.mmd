@@ -1,0 +1,15 @@
+flowchart LR
+    classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+    linkStyle default stroke:#455a64,stroke-width:1.5px
+    sourceDb["Source Neon Postgres<br/>settings, phrases, attempts<br/>(read-only)"]
+    sourceJson["Source JSON files<br/>active-phrases.json<br/>mastered-phrases.json<br/>(read-only, local disk)"]
+    script["migrate-english-practice-data.ts<br/>derive status, assign level,<br/>renumber sequence, dedupe by<br/>deterministic id"]
+    subject["subjects row: English<br/>kind flipped to language-practice"]
+    practice["languagePracticeSettings,<br/>phrases, attempts<br/>(target Postgres)"]
+    bank["phraseBankEntries,<br/>phraseBankAppearances<br/>(target Postgres)"]
+
+    sourceDb -- "reads settings/phrases/attempts" --> script
+    sourceJson -- "reads active + mastered entries" --> script
+    script -- "step 0: fail loudly if missing" --> subject
+    script -- "idempotent insert, deterministic ids" --> practice
+    script -- "idempotent insert, deterministic ids" --> bank
