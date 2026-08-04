@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
@@ -29,11 +31,39 @@ const BASE_DATABASE_URL =
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 
+// A dedicated, freshly-migrated throwaway Postgres database — never the
+// shared e2e/dev database BASE_DATABASE_URL resolves to — so this file never
+// leaves fixture rows behind in a database a developer might also be pointing
+// DATABASE_URL at for unrelated local work (e.g. `npm run dev`). Same pattern
+// as db/migrations.integration.test.ts and seed-domain-nodes.integration.test.ts.
+function withDatabaseName(connectionString: string, databaseName: string): string {
+  const url = new URL(connectionString);
+
+  url.pathname = `/${databaseName}`;
+
+  return url.toString();
+}
+
+const dbName = `pb_deadlock_${randomUUID().replace(/-/g, "_")}`;
+const TEST_DATABASE_URL = withDatabaseName(BASE_DATABASE_URL, dbName);
+
+const adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
+await adminPool.query(`CREATE DATABASE ${dbName}`);
+
+const migratePool = new pg.Pool({ connectionString: TEST_DATABASE_URL });
+const migrateDb = drizzle(migratePool);
+
+await migrate(migrateDb, {
+  migrationsFolder: new URL("../db/migrations", import.meta.url).pathname,
+  migrationsTable: "drizzle_migrations_api",
+});
+await migratePool.end();
+
 // Tags the orchestrators' own pool connections so the lock-wait polling below
 // can count exactly them, and never a connection belonging to another
 // integration test file running at the same time.
 const POOL_APP_NAME = `pb-deadlock-${randomUUID().slice(0, 8)}`;
-const taggedUrl = new URL(BASE_DATABASE_URL);
+const taggedUrl = new URL(TEST_DATABASE_URL);
 
 taggedUrl.searchParams.set("application_name", POOL_APP_NAME);
 
@@ -66,8 +96,8 @@ let client: pg.Client;
 let blocker: pg.Client;
 
 beforeAll(async () => {
-  client = new pg.Client({ connectionString: BASE_DATABASE_URL });
-  blocker = new pg.Client({ connectionString: BASE_DATABASE_URL });
+  client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+  blocker = new pg.Client({ connectionString: TEST_DATABASE_URL });
   await Promise.all([client.connect(), blocker.connect()]);
 }, 30_000);
 
@@ -75,6 +105,13 @@ afterAll(async () => {
   await blocker?.end();
   await client?.end();
   await closeDb();
+
+  await adminPool.query(
+    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+    [dbName],
+  );
+  await adminPool.query(`DROP DATABASE IF EXISTS ${dbName}`);
+  await adminPool.end();
 });
 
 async function waitForLockWaiters(expected: number): Promise<void> {

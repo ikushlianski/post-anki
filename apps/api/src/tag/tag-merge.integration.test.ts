@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
@@ -14,12 +16,40 @@ import { closeDb } from "../db/client.js";
 // reassignment, including the "neither tag has a session" zero-row edge and
 // the "both tags already have their own session" tie-break edge.
 
-const DATABASE_URL =
+const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
   "postgres://postanki:postanki@localhost:5436/postanki_e2e";
 
-assertLocalDbTarget(DATABASE_URL);
+assertLocalDbTarget(BASE_DATABASE_URL);
+
+// A dedicated, freshly-migrated throwaway Postgres database — never the
+// shared e2e/dev database BASE_DATABASE_URL resolves to — so this file never
+// leaves fixture rows behind in a database a developer might also be pointing
+// DATABASE_URL at for unrelated local work (e.g. `npm run dev`). Same pattern
+// as db/migrations.integration.test.ts and seed-domain-nodes.integration.test.ts.
+function withDatabaseName(connectionString: string, databaseName: string): string {
+  const url = new URL(connectionString);
+
+  url.pathname = `/${databaseName}`;
+
+  return url.toString();
+}
+
+const dbName = `tag_merge_${randomUUID().replace(/-/g, "_")}`;
+const DATABASE_URL = withDatabaseName(BASE_DATABASE_URL, dbName);
+
+const adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
+await adminPool.query(`CREATE DATABASE ${dbName}`);
+
+const migratePool = new pg.Pool({ connectionString: DATABASE_URL });
+const migrateDb = drizzle(migratePool);
+
+await migrate(migrateDb, {
+  migrationsFolder: new URL("../db/migrations", import.meta.url).pathname,
+  migrationsTable: "drizzle_migrations_api",
+});
+await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
@@ -37,6 +67,13 @@ beforeAll(async () => {
 afterAll(async () => {
   await client?.end();
   await closeDb();
+
+  await adminPool.query(
+    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+    [dbName],
+  );
+  await adminPool.query(`DROP DATABASE IF EXISTS ${dbName}`);
+  await adminPool.end();
 });
 
 function id(prefix: string): string {
