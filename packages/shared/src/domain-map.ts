@@ -22,6 +22,14 @@ export const domainNodeSchema = z.object({
   // reason text at accept time.
   supersededAt: z.string().nullable(),
   supersededReason: z.string().nullable(),
+  // decouple-curricula-from-domain-nodes (issue #84) — "static_taxonomy" for
+  // a node seeded once via seed-domain-taxonomy.ts, independent of any
+  // curriculum; "ai_generated" (the default) for every node created
+  // dynamically by resolveDomainPlacement's sibling-discovery path, exactly
+  // as every existing row already is. See resolveDomainNodeSource()
+  // (@post-anki/core) for how this decides which placement path a subject
+  // uses.
+  source: z.enum(["static_taxonomy", "ai_generated"]),
 });
 
 export type DomainNode = z.infer<typeof domainNodeSchema>;
@@ -59,6 +67,12 @@ export interface DomainNodeTreeItem {
   // Rendered beside `percent`, never derived from or affecting it.
   supersededAt: string | null;
   supersededReason: string | null;
+  // decouple-curricula-from-domain-nodes (issue #84) — carried through so the
+  // frontend can decide whether to render the "Map to taxonomy" trigger
+  // (curriculum-domain-mapping-panel.tsx) for a curriculum's own subject,
+  // without a second request — a subject is taxonomy-backed iff ANY node in
+  // its tree carries "static_taxonomy" here.
+  source: "static_taxonomy" | "ai_generated";
 }
 
 export const domainNodeTreeItemSchema: z.ZodType<DomainNodeTreeItem> = z.lazy(() =>
@@ -76,6 +90,7 @@ export const domainNodeTreeItemSchema: z.ZodType<DomainNodeTreeItem> = z.lazy(()
     children: z.array(domainNodeTreeItemSchema),
     supersededAt: z.string().nullable(),
     supersededReason: z.string().nullable(),
+    source: z.enum(["static_taxonomy", "ai_generated"]),
   }),
 );
 
@@ -307,3 +322,83 @@ export const mergeDomainNodesResultSchema = z.object({
 });
 
 export type MergeDomainNodesResult = z.infer<typeof mergeDomainNodesResultSchema>;
+
+// decouple-curricula-from-domain-nodes (issue #84) — the many-to-many
+// curriculum <-> domain node placement mechanism. See
+// apps/api/src/db/schema.ts's curriculumDomainNodeMappings for the full
+// status/source lifecycle this mirrors.
+
+export const curriculumDomainNodeMappingStatusSchema = z.enum([
+  "suggested",
+  "confirmed",
+  "rejected",
+]);
+
+export type CurriculumDomainNodeMappingStatus = z.infer<
+  typeof curriculumDomainNodeMappingStatusSchema
+>;
+
+export const curriculumDomainNodeMappingSourceSchema = z.enum([
+  "ai_suggested",
+  "manual",
+  "auto",
+]);
+
+export type CurriculumDomainNodeMappingSource = z.infer<
+  typeof curriculumDomainNodeMappingSourceSchema
+>;
+
+export const curriculumDomainNodeMappingSchema = z.object({
+  id: z.string(),
+  curriculumId: z.string(),
+  domainNodeId: z.string(),
+  depth: depthLevelSchema.nullable(),
+  status: curriculumDomainNodeMappingStatusSchema,
+  source: curriculumDomainNodeMappingSourceSchema,
+  createdAt: z.string(),
+  resolvedAt: z.string().nullable(),
+});
+
+export type CurriculumDomainNodeMapping = z.infer<typeof curriculumDomainNodeMappingSchema>;
+
+// POST /curricula/:id/domain-mappings (trigger) and GET (list) both return
+// this shape.
+export const curriculumDomainMappingsResponseSchema = z.array(curriculumDomainNodeMappingSchema);
+
+export type CurriculumDomainMappingsResponse = z.infer<
+  typeof curriculumDomainMappingsResponseSchema
+>;
+
+// PATCH /curriculum-domain-mappings/:id — accept (optionally overriding the
+// AI's suggested depth, SCENARIO 4) or reject a suggested mapping.
+export const resolveCurriculumDomainMappingInput = z.object({
+  status: z.enum(["confirmed", "rejected"]),
+  depth: depthLevelSchema.optional(),
+});
+
+export type ResolveCurriculumDomainMappingInput = z.infer<
+  typeof resolveCurriculumDomainMappingInput
+>;
+
+// The domainTaxonomyMapping agent's own structured-output contract.
+// Deliberately returns real node IDS, not names (unlike
+// siblingDiscoveryResultSchema/domainPrioritySuggestionAgentItemSchema,
+// which return names to sidestep hallucination risk by construction) — this
+// agent is given the subject's full taxonomy tree WITH each node's real id
+// in the prompt, and partitionMappingResult() (@post-anki/core) is the
+// defense against a hallucinated id: any matched nodeId not present in the
+// subject's real tree is dropped before any insert (spec.md's Derivers
+// table; the DoD's own required test case).
+export const domainTaxonomyMappingAgentMatchSchema = z.object({
+  nodeId: z.string().min(1),
+  depth: depthLevelSchema,
+});
+
+export const domainTaxonomyMappingAgentResultSchema = z.object({
+  matches: z.array(domainTaxonomyMappingAgentMatchSchema),
+  unmatchedTopics: z.array(z.string()),
+});
+
+export type DomainTaxonomyMappingAgentResult = z.infer<
+  typeof domainTaxonomyMappingAgentResultSchema
+>;

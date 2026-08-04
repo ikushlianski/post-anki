@@ -10,3 +10,4 @@ export * from "./tag/index";
 export * from "./phrase-bank/index";
 export * from "./domain-map/index";
 export * from "./subject-duplicate/index";
+export * from "./curriculum-domain-mapping/index";

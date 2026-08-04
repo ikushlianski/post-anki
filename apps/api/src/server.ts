@@ -125,6 +125,11 @@ import {
   handleResolveSubjectDuplicateSuggestion,
   handleTriggerSubjectDuplicateScan,
 } from "./subject-duplicate/subject-duplicate.controller.js";
+import {
+  handleListCurriculumDomainMappings,
+  handleResolveCurriculumDomainMapping,
+  handleTriggerCurriculumDomainMapping,
+} from "./curriculum-domain-mapping/curriculum-domain-mapping.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
@@ -397,6 +402,12 @@ async function route(
       return handleListSubjectDuplicateSuggestions(res, url.searchParams.get("status"));
     case "resolveSubjectDuplicateSuggestion":
       return handleResolveSubjectDuplicateSuggestion(req, res, id);
+    case "triggerCurriculumDomainMapping":
+      return handleTriggerCurriculumDomainMapping(res, id);
+    case "listCurriculumDomainMappings":
+      return handleListCurriculumDomainMappings(res, id);
+    case "resolveCurriculumDomainMapping":
+      return handleResolveCurriculumDomainMapping(req, res, id);
   }
 }
 

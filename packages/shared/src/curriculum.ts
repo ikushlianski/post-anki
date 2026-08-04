@@ -6,6 +6,7 @@ import { learningStatusSchema } from "./learning-status";
 import { speedSchema } from "./adaptive";
 import { depthLevelSchema } from "./depth";
 import { levelSchema } from "./level";
+import { curriculumDomainNodeMappingSchema } from "./domain-map";
 
 const docUrlSchema = z
   .string()
@@ -43,6 +44,14 @@ export const curriculumSchema = z.object({
   origin: curriculumOriginSchema,
   strictOrder: z.boolean(),
   preAssessmentCompletedAt: z.string().nullable(),
+  // decouple-curricula-from-domain-nodes (issue #84) — no longer a stored
+  // column (curricula.domain_node_id was migrated and dropped). DERIVED at
+  // read time: the most recently confirmed curriculum_domain_node_mappings
+  // row for this curriculum, or null if none is confirmed. Kept as a
+  // single-value field purely for backward compatibility with the existing
+  // "change placement" UI (apps/web/src/domain-map/curriculum-placement-
+  // panel.tsx), which predates the many-to-many model this ticket
+  // introduces — CurriculumDetail.domainMappings below is the full list.
   domainNodeId: z.string().nullable(),
 });
 
@@ -108,6 +117,11 @@ export const curriculumDetailSchema = z.object({
   // apart from an old pre-Phase-5 research/parse failure, which never
   // touches `curriculum_structure_turns` at all.
   hasStructureDraftAttempt: z.boolean(),
+  // decouple-curricula-from-domain-nodes (issue #84) — every
+  // curriculum_domain_node_mappings row for this curriculum (suggested,
+  // confirmed, and rejected alike), for the new "Map to taxonomy" panel
+  // (apps/web/src/curriculum/curriculum-domain-mapping-panel.tsx).
+  domainMappings: z.array(curriculumDomainNodeMappingSchema),
 });
 
 export type CurriculumDetail = z.infer<typeof curriculumDetailSchema>;

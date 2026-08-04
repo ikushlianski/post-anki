@@ -1,0 +1,28 @@
+flowchart TB
+    User["User\ncurriculum detail page"]
+    Panel["curriculum-domain-mapping-panel.tsx\naccept / reject / depth"]
+    Controller["curriculum-domain-mapping.controller.ts"]
+    Orchestrator["triggerCurriculumDomainMapping()\nguards: taxonomy-backed subject only"]
+    Agent["domainTaxonomyMapping agent\nMastra, ONE call per trigger"]
+    Partition["partitionMappingResult()\npure deriver, drops\nhallucinated node ids"]
+    MappingTable[("curriculum_domain_node_mappings\nstatus: suggested|confirmed|rejected\nsource: ai|manual|auto")]
+    TopicSuggestion["existing domain_topic_suggestions\nflow, unmodified"]
+    CreateCtrl["handleCreateCurriculum\nexplicit domainNodeId\nchecked FIRST"]
+    Progress["domainNodeProgress()\ndedup by topic.id\nbefore rollup"]
+    Merge["mergeDomainNodes()\nconfirmed-only re-point,\nper-curriculum grouping"]
+    Migration[("0031 migration\nbackfill source=auto,\none transaction")]
+
+    User -->|"click Map to taxonomy"| Panel
+    Panel --> Controller
+    Controller --> Orchestrator
+    Orchestrator -->|"400 subject_has_no_static_taxonomy\nif not taxonomy-backed"| Controller
+    Orchestrator --> Agent
+    Agent -->|"structured output,\nuntrusted node ids"| Partition
+    Partition -->|"validated matches only"| MappingTable
+    Partition -->|"unmatched topics"| TopicSuggestion
+    Panel -->|"accept/reject"| MappingTable
+    User -->|"create curriculum\nwith explicit node"| CreateCtrl
+    CreateCtrl -->|"confirmed row,\nsource=manual"| MappingTable
+    MappingTable --> Progress
+    MappingTable --> Merge
+    Migration -.->|"one-time backfill\nof pre-existing placements"| MappingTable

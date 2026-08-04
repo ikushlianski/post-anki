@@ -38,6 +38,9 @@ export default defineConfig({
       "src/decide/decide.repo.test.ts",
       "src/domain-map/doc-scan.orchestrator.test.ts",
       "src/domain-map/domain-priority-review.orchestrator.test.ts",
+      // decouple-curricula-from-domain-nodes (issue #84) — same
+      // named-exception shape as the others above.
+      "src/curriculum-domain-mapping/curriculum-domain-mapping.orchestrator.test.ts",
     ],
     exclude: ["**/node_modules/**"],
   },

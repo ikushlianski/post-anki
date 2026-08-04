@@ -20,6 +20,7 @@ import { createWritingCheckAgent } from "./writing-check.agent.js";
 import { createSiblingDiscoveryAgent } from "./sibling-discovery.agent.js";
 import { createDomainPriorityReviewAgent } from "./domain-priority-review.agent.js";
 import { createDocScanAgent } from "./doc-scan.agent.js";
+import { createDomainTaxonomyMappingAgent } from "./domain-taxonomy-mapping.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -40,6 +41,7 @@ export const AGENT_KEYS = {
   siblingDiscovery: "siblingDiscovery",
   domainPriorityReview: "domainPriorityReview",
   docScan: "docScan",
+  domainTaxonomyMapping: "domainTaxonomyMapping",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -100,6 +102,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.siblingDiscovery]: createSiblingDiscoveryAgent(),
         [AGENT_KEYS.domainPriorityReview]: createDomainPriorityReviewAgent(),
         [AGENT_KEYS.docScan]: createDocScanAgent(),
+        [AGENT_KEYS.domainTaxonomyMapping]: createDomainTaxonomyMappingAgent(),
       },
       ...(observability ? { observability } : {}),
     });

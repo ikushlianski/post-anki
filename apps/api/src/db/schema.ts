@@ -45,11 +45,6 @@ export const curricula = pgTable("curricula", {
     withTimezone: true,
   }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  // Nullable, additive, one-directional link into domain_nodes below — the
-  // relationship is discovered by querying curricula WHERE domain_node_id =
-  // <id>, never stored redundantly on the node. No default, existing rows
-  // stay null, zero data migration.
-  domainNodeId: text("domain_node_id"),
 });
 
 // Self-referential tree, one forest per subject — sits between a subject and
@@ -74,7 +69,60 @@ export const domainNodes = pgTable("domain_nodes", {
   // domainNodeProgress()/percent are completely untouched by either column.
   supersededAt: timestamp("superseded_at", { withTimezone: true }),
   supersededReason: text("superseded_reason"),
+  // decouple-curricula-from-domain-nodes (issue #84) — "static_taxonomy" for
+  // a node seeded once via seed-domain-taxonomy.ts, independent of any
+  // curriculum; "ai_generated" (the default, for backward compatibility) for
+  // every node created dynamically by resolveDomainPlacement's
+  // sibling-discovery path, exactly as every existing row already is. This
+  // is the signal resolveDomainNodeSource() (packages/core/src/curriculum-
+  // domain-mapping/) reads to decide which of the two placement paths a
+  // subject uses.
+  source: text("source").notNull().default("ai_generated"),
 });
+
+// decouple-curricula-from-domain-nodes (issue #84) — the many-to-many
+// replacement for curricula.domain_node_id (dropped in the same migration
+// that backfills this table — see apps/api/src/db/migrations/). One row per
+// (curriculum, domain node) placement, `status` tracking its own lifecycle:
+// "suggested" (the AI mapping agent proposed it, unconfirmed — never counts
+// toward a node's rollup or appears on the map), "confirmed" (the user
+// approved it, or it was written directly by an explicit placement/the
+// non-taxonomy auto path), "rejected" (the user declined it — kept, never
+// deleted, same audit-trail convention as domain_priority_suggestions/
+// domain_topic_suggestions/domain_supersession_suggestions). `source`
+// records how a CONFIRMED row came to be: "ai_suggested" (accepted from a
+// suggestion), "manual" (an explicit domainNodeId at create/update time),
+// "auto" (the non-taxonomy-subject resolveDomainPlacement path, including
+// pre-existing rows migrated from the old column — SCENARIO 10). Deleted
+// only when its owning curriculum is deleted (SCENARIO 13).
+export const curriculumDomainNodeMappings = pgTable(
+  "curriculum_domain_node_mappings",
+  {
+    id: text("id").primaryKey(),
+    curriculumId: text("curriculum_id").notNull(),
+    domainNodeId: text("domain_node_id").notNull(),
+    // DepthLevel ("awareness" | "working" | "deep"), app-level validated —
+    // nullable until confirmed (a still-"suggested" row always carries the
+    // agent's proposed depth too, but the column stays nullable to mirror
+    // domain_nodes.target_depth's own "unset is representable" precedent).
+    depth: text("depth"),
+    status: text("status").notNull().default("suggested"),
+    source: text("source").notNull().default("ai_suggested"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [
+    // getDomainMapForSubject() reads WHERE status = 'confirmed' on every
+    // domain-map page load; listMappingsForCurriculum() reads WHERE
+    // curriculum_id = ? on every curriculum detail page load — both hot,
+    // frequent reads.
+    index("curriculum_domain_node_mappings_domain_node_id_status_idx").on(
+      table.domainNodeId,
+      table.status,
+    ),
+    index("curriculum_domain_node_mappings_curriculum_id_idx").on(table.curriculumId),
+  ],
+);
 
 // One row per suggestion a domain-priority review run produces. No
 // .references() FK, matching domain_nodes' own convention (plain text
