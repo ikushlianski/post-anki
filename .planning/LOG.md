@@ -1017,3 +1017,18 @@ independently re-running the tests and reading the actual diff.
   spot-checked the implementation directly (correctly wipes stale cross-subject domain mappings,
   reuses the existing sorted advisory-lock pattern), confirmed live via a real API call.
 
+- **2026-08-05 — dashboard-unified-tree, PARTIAL (grandloop-playwright-factory, unattended).** Merged
+  the Curricula/Dashboard pages into one tree at `/` with a redirect + single nav entry, and
+  verified the existing "Move to…" dropdown for the first time (S1/S2/S5 — clean on an independent
+  review-playwright sweep). Drag-and-drop of a curriculum onto a subject (S3/S4) is NOT banked —
+  both fail intermittently under the real sweep, ~1/3-2/3 of runs, on the same mid-drag assertion,
+  for two different not-fully-confirmed reasons (S3: fails only when run right after S4, a
+  worker/file-order effect; S4: a long-idle-hold `@dnd-kit/core` timing issue). Split into a
+  separate TODO.md wishlist line rather than re-attempted blind. Notable: implement-playwright's
+  own self-report claimed 4/5 green (S1/S2/S3/S5); review-playwright's independent sweep caught
+  that S3 was not actually reliable — exactly the gap Step 6's "never trust self-report" rule
+  exists to catch, and TODO.md's own "Decisions to make" entry has been corrected to match. First
+  real use of tonight's new bankable-partial-outcome mechanism (`review-playwright` →
+  `scenario-coverage.json` → `packages/review-factory`'s `partial-outcome` CLI):
+  `{bankable: true, covered: [S1,S2,S5], uncovered: [S3,S4]}`.
+

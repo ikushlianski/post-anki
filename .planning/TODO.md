@@ -12,16 +12,38 @@ directly rather than parked here — `LOG.md` has the narrative of what's been f
 
 ## Wishlist for the night
 
-- [ ] Easy to manage dashboard: list of subjects, modules, topics , draggable etc.
+- [x] Easy to manage dashboard: subjects/curricula/modules/topics now render as one tree at `/`,
+      `/dashboard` redirects there, and the nav has a single entry point — verified 2026-08-05 by
+      an independent review-playwright sweep (S1/S2/S5 PASS every run). [→ .planning/dashboard-unified-tree/]
+- [ ] Drag a curriculum card onto a different subject to move it there (the richer alternative to
+      the "Move to…" dropdown, which itself works fine — S5 verified). Both drag scenarios (S3:
+      drop on an eligible subject, S4: drop on an ineligible one) still fail intermittently under
+      review-playwright's own independent sweep — 1/3 to 2/3 of full-sweep runs, same mid-drag
+      `dropTargetActive` assertion, two different suspected causes neither fully confirmed: S3
+      only fails when run right after S4 (a worker/file-order position effect, not a per-test
+      timing issue); S4 tracks a long idle hold before its third hover in one continuous drag
+      (`@dnd-kit/core` collision re-measurement timing). Full investigation:
+      `.planning/dashboard-unified-tree/decisions.md`. Needs a follow-up session with a clean
+      machine and a headed browser to finish root-causing — an unattended run can't observe this
+      directly.
 - [ ] Easy to start adding sources to a curriculum, like turbopuffer docs 
 - [ ] Easy to expadn the module/topic so it suggests children based on web search
 - [ ] Easy to chat with the structure of my knowledge, move stuff, merge etc.
 
 ## Decisions to make
 
-- [ ] Merge the "Curricula" home page and the "Dashboard" page into one — user prefers the
+- [x] Merge the "Curricula" home page and the "Dashboard" page into one — user prefers the
       Dashboard's design as the base. Should also support drag-and-drop of curricula between
-      subjects, as a richer alternative to the "Move to…" button just added.
+      subjects, as a richer alternative to the "Move to…" button just added. Implemented
+      2026-08-05 (`.planning/dashboard-unified-tree/`, unattended run): `/` now shows the full
+      merged tree, `/dashboard` redirects, the "Move to…" dropdown still works. Drag-and-drop
+      itself is NOT yet reliable — see the split-out wishlist item above — correcting
+      implement-playwright's own self-report here, which understated it as 4/5 green; an
+      independent review-playwright sweep found only 3/5 (S1/S2/S5) actually clean.
+- [ ] Add `@dnd-kit/core` to `ai-dev`'s `tech-stack-registry.md` under post-anki's row — introduced
+      by the `dashboard-unified-tree` plan as the drag-and-drop library for the merged
+      dashboard/curricula page; this repo's planning run deliberately did not edit the `ai-dev`
+      repo directly (out of scope for a post-anki-only run).
 - [ ] Turn on Electric sync (live-updating UI) in production? Fact-checked 2026-08-05: it was
       deployed once, 2026-07-16, and has never passed its health check since — currently dead,
       not serving any traffic. Configured to always keep one instance running, which is the
