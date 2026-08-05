@@ -1045,3 +1045,16 @@ independently re-running the tests and reading the actual diff.
   fourth blind retry, per tonight's fix to the stuck-handling rule (flag and move on, don't grind).
   Branch left uncommitted, untouched, for human review. Loop continues to the next wishlist item.
 
+- 2026-08-05 -- module-topic-expand-web-search ("Go deeper" suggestions), STUCK
+  (grandloop-playwright-factory, unattended). Bridged from an earlier planning-only pass tonight
+  (go-deeper-suggestions), with a real gap closed in the bridge itself (curriculum-level
+  suggestions weren't grounded in web search, contradicting the wishlist's own ask and this
+  project's standing trusted-sources rule -- fixed before building). 10/10 e2e scenarios green,
+  twice independently, plus two independently-verified concurrency proofs. Three review-factory
+  attempts each found one real, different, now-fixed gap (a transaction-atomicity bug, a
+  grounding-validation gap, missing merge-invalidation tests) -- converging, not stalling. Stuck
+  at attempt 3 on a fourth, smaller finding: citation links have no URL-scheme validation, a
+  pre-existing pattern in 4 other places this feature reproduces. Branch committed for review.
+  Loop continues to the next item -- the user's own priority pivot (simplify the dashboard to
+  only show self-initiated curricula, no taxonomy view yet).
+

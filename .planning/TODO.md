@@ -12,6 +12,12 @@ directly rather than parked here — `LOG.md` has the narrative of what's been f
 
 ## Wishlist for the night
 
+- [ ] Simplify the dashboard: show and operate only on the curricula I actually started — no
+      objective/static knowledge-map taxonomy view yet (2026-08-05, top priority now). Confirmed:
+      the visual knowledge-map route isn't currently linked from the dashboard, curricula list, or
+      nav anywhere, so there's nothing to hide there; the "Go deeper" work below already keys off
+      subjects/curricula, not the taxonomy tree. Still needs an explicit pass to confirm nothing
+      else surfaces the taxonomy structure, and to keep it that way going forward.
 - [x] Easy to manage dashboard: subjects/curricula/modules/topics now render as one tree at `/`,
       `/dashboard` redirects there, and the nav has a single entry point — verified 2026-08-05 by
       an independent review-playwright sweep (S1/S2/S5 PASS every run). [→ .planning/dashboard-unified-tree/]
@@ -35,7 +41,18 @@ directly rather than parked here — `LOG.md` has the narrative of what's been f
       not a nitpick — plus no test coverage yet for the new fetch-discovery endpoint. Branch
       `curriculum-add-sources-easily` has all the work, uncommitted, untouched, ready for a human to
       review and finish; full detail in `.planning/curriculum-add-sources-easily/`.
-- [ ] Easy to expadn the module/topic so it suggests children based on web search
+- [ ] Easy to expadn the module/topic so it suggests children based on web search — STUCK, needs a
+      human look (2026-08-05). Built and verified clean three times over: a "Go deeper" button on
+      every subject (proposes a new curriculum) and every curriculum (proposes new modules,
+      grounded in real web-search citations, not bare LLM recall), with real concurrency and
+      transaction-safety fixes along the way. Blocked on one small, well-scoped gap the final
+      independent review found: citation links render with no URL-scheme check, so a malicious
+      search result could carry a `javascript:`/`data:` link — the same pre-existing pattern
+      already exists in four other places in the app, so this reproduces a known weakness rather
+      than inventing one. A shared http/https-only allowlist at the one citation-render point
+      would close it here and in those other four spots. Branch `module-topic-expand-web-search`
+      has all the work, committed there for review; full detail in
+      `.planning/module-topic-expand-web-search/`.
 - [ ] Easy to chat with the structure of my knowledge, move stuff, merge etc.
 
 ## Decisions to make
