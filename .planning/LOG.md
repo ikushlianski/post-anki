@@ -1032,3 +1032,16 @@ independently re-running the tests and reading the actual diff.
   `scenario-coverage.json` → `packages/review-factory`'s `partial-outcome` CLI):
   `{bankable: true, covered: [S1,S2,S5], uncovered: [S3,S4]}`.
 
+- **2026-08-05 — curriculum-add-sources-easily, STUCK (grandloop-playwright-factory, unattended).**
+  All 4 e2e scenarios green, twice independently, including after a real security fix. Still
+  flagged stuck by `review-factory`'s 3-strike counter: attempt 1 hit a pre-existing, unrelated
+  dependency-cruiser violation (fixed); attempt 2's skeptical structured-verdict check found a real
+  correctness gap (fetchedText dropped on one code path) and a real SSRF exposure in the new
+  discovery endpoint (both fixed with a proper SSRF guard — DNS-resolution-time IP checks,
+  redirect re-validation, an established library for IP-range classification); attempt 3, run
+  fully independently, found the SSRF guard doesn't cover a SECOND pre-existing fetch path
+  (`source-fetch.ts`) reachable from the same add-sources flow, plus zero test coverage on the new
+  endpoint. Three real attempts is this gate's deliberate ceiling — stopping here rather than a
+  fourth blind retry, per tonight's fix to the stuck-handling rule (flag and move on, don't grind).
+  Branch left uncommitted, untouched, for human review. Loop continues to the next wishlist item.
+

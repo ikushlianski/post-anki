@@ -26,7 +26,15 @@ directly rather than parked here — `LOG.md` has the narrative of what's been f
       `.planning/dashboard-unified-tree/decisions.md`. Needs a follow-up session with a clean
       machine and a headed browser to finish root-causing — an unattended run can't observe this
       directly.
-- [ ] Easy to start adding sources to a curriculum, like turbopuffer docs 
+- [ ] Easy to start adding sources to a curriculum, like turbopuffer docs — STUCK, needs a human
+      look, not another automatic retry (2026-08-05). The discovery flow itself works (pasting a
+      docs URL and reviewing found pages is built and passing its own tests three times over,
+      including after a security fix), but an independent adversarial review found a second,
+      unguarded path elsewhere in the code that fetches a user-supplied URL without the same
+      protection the new flow got — the kind of gap this project treats as a real security issue,
+      not a nitpick — plus no test coverage yet for the new fetch-discovery endpoint. Branch
+      `curriculum-add-sources-easily` has all the work, uncommitted, untouched, ready for a human to
+      review and finish; full detail in `.planning/curriculum-add-sources-easily/`.
 - [ ] Easy to expadn the module/topic so it suggests children based on web search
 - [ ] Easy to chat with the structure of my knowledge, move stuff, merge etc.
 
@@ -53,6 +61,18 @@ directly rather than parked here — `LOG.md` has the narrative of what's been f
       on, or remove it from the infrastructure entirely.
 - [ ] Splitting a subject/course/tag into multiple pieces needs real product design first — how
       does the app decide which existing content goes to which new piece?
+- [ ] `curriculum-add-sources-easily` planning hit a genuine fork with no backing GitHub issue
+      (classified by fork-classifier-factory, not defaulted): when a user discovers doc-site
+      sources for an EXISTING curriculum (the new "paste a docs URL" flow), should the discovered
+      candidates be persisted immediately as `pending` sources reusing the same
+      approval-state-machine UI curriculum creation already has (`awaiting_source_approval` +
+      `SourceApprovalPanel`), or returned to the browser for review with no persistence and
+      resubmitted through the existing add-sources endpoint? The classifier flagged this
+      genuine (it changes the shape of a core business entity — the source-draft schema) even
+      though one option is clearly lower-risk. Plan proceeded with the reversible placeholder
+      (ephemeral review, no persistence, no `curriculum.status` coupling) — see
+      `.planning/curriculum-add-sources-easily/spec.md`'s Decisions made autonomously #1 for the
+      full reasoning. Revisit if the ephemeral approach turns out to feel wrong in practice.
 
 ## To review / clarify
 
