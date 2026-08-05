@@ -13,14 +13,24 @@ directly rather than parked here — `LOG.md` has the narrative of what's been f
 ## Wishlist for the night
 
 - [ ] Simplify the dashboard: show and operate only on the curricula I actually started — no
-      objective/static knowledge-map taxonomy view yet (2026-08-05, top priority now). Confirmed:
-      the visual knowledge-map route isn't currently linked from the dashboard, curricula list, or
-      nav anywhere, so there's nothing to hide there; the "Go deeper" work below already keys off
-      subjects/curricula, not the taxonomy tree. Still needs an explicit pass to confirm nothing
-      else surfaces the taxonomy structure, and to keep it that way going forward.
-- [x] Easy to manage dashboard: subjects/curricula/modules/topics now render as one tree at `/`,
-      `/dashboard` redirects there, and the nav has a single entry point — verified 2026-08-05 by
-      an independent review-playwright sweep (S1/S2/S5 PASS every run). [→ .planning/dashboard-unified-tree/]
+      objective/static knowledge-map taxonomy view yet — STUCK, needs a human look (2026-08-05).
+      Confirmed: the visual knowledge-map route isn't linked from the dashboard/curricula/nav
+      anywhere, and the `/` page never shows a fabricated curricula list from taxonomy data
+      (regression test built and verified). What's still missing: the SAME guarantee for the
+      actual `/dashboard` page — a real, separate page today (see the correction on the item
+      below), not yet covered by any test. An earlier attempt added that coverage, then a second
+      attempt wrongly removed it, assuming `/dashboard` had already become a redirect. Branch
+      `dashboard-self-initiated-only` has the `/` coverage, committed, ready for a human to add the
+      missing `/dashboard` piece; full detail in `.planning/dashboard-self-initiated-only/`.
+- [x] Easy to manage dashboard: built and verified on its own branch — subjects/curricula/modules/
+      topics render as one tree at `/`, `/dashboard` redirects there, the nav has a single entry
+      point — S1/S2/S5 PASS every run on an independent review-playwright sweep. **Correction
+      2026-08-05: NOT yet merged into `main`.** An earlier version of this line read as if this
+      were already true of the live app; it isn't — `main`'s `/dashboard` still independently
+      renders its own page today. This caused a real, separate item (`dashboard-self-initiated-only`)
+      to fail: it assumed this merge had already landed and removed test coverage for `/dashboard`
+      on that premise, which was wrong. Branch: `dashboard-unified-tree` (commit `6f69e51`),
+      uncommitted to `main`. [→ .planning/dashboard-unified-tree/]
 - [ ] Drag a curriculum card onto a different subject to move it there (the richer alternative to
       the "Move to…" dropdown, which itself works fine — S5 verified). Both drag scenarios (S3:
       drop on an eligible subject, S4: drop on an ineligible one) still fail intermittently under

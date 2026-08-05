@@ -1058,3 +1058,13 @@ independently re-running the tests and reading the actual diff.
   Loop continues to the next item -- the user's own priority pivot (simplify the dashboard to
   only show self-initiated curricula, no taxonomy view yet).
 
+- 2026-08-05 -- dashboard-self-initiated-only, STUCK (grandloop-playwright-factory, unattended).
+  Locked in that the / page never fabricates a curricula list from taxonomy (domain_nodes) data --
+  a real gap found in local dev data (a leftover taxonomy-only seed subject) during planning, fixed
+  with a regression test, no source change needed. Got stuck via a real mistake in this loop's own
+  reasoning: assumed dashboard-unified-tree's not-yet-merged /dashboard-redirect decision was
+  already live, removed the equivalent /dashboard test coverage on that false premise, and
+  review-factory's third attempt correctly caught it as reopening the original gap. Corrected the
+  same false premise where it had leaked into TODO.md's own wording for the dashboard-unified-tree
+  item. Branch has the / coverage, committed; /dashboard coverage still needs restoring by hand.
+
