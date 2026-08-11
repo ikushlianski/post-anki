@@ -1,0 +1,17 @@
+export const FOLD_IN_QUESTION_CEILING = 6;
+
+export const SERIES_QUESTION_CEILING_MIN = 20;
+
+export const SERIES_QUESTION_CEILING_MAX = 30;
+
+export const QUESTIONS_PER_SERIES_PART = 3;
+
+export const SLICE_TOPIC_COUNT = 3;
+
+export const QUESTIONS_PER_TOPIC = 2;
+
+export const SLICE_QUESTION_COUNT = SLICE_TOPIC_COUNT * QUESTIONS_PER_TOPIC;
+
+export const HEADROOM_OFFER_COOLDOWN_DAYS = 30;
+
+export const GENERATION_DAY_MS = 24 * 60 * 60 * 1000;

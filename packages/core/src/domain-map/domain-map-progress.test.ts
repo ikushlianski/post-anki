@@ -28,6 +28,7 @@ function topic(overrides: Partial<Topic> & { id: string; maturity: number }): To
       attempts: maturity > 0 ? 1 : 0,
       lastInteractedAt: null,
     },
+    depthElectedAt: null,
     ...rest,
   };
 }

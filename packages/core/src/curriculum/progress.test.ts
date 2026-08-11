@@ -19,6 +19,7 @@ function topic(overrides: Partial<Topic> & { id: string }): Topic {
       attempts: 0,
       lastInteractedAt: null,
     },
+    depthElectedAt: null,
     ...overrides,
   };
 }

@@ -19,6 +19,7 @@ function topic(id: string, learningStatus: LearningStatus, included = true): Top
     learningStatus,
     questions: [],
     progress: { status: "not_started", maturity: 0, attempts: 0, lastInteractedAt: null },
+    depthElectedAt: null,
   };
 }
 

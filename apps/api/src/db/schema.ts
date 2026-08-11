@@ -10,6 +10,7 @@ import {
   index,
   real,
   primaryKey,
+  customType,
 } from "drizzle-orm/pg-core";
 
 export const subjects = pgTable("subjects", {
@@ -45,6 +46,12 @@ export const curricula = pgTable("curricula", {
     withTimezone: true,
   }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // learning-list-intake — nullable, no default: a curriculum that is not
+  // cross-cutting simply has no concern, exactly as gaps.concern already
+  // models it. Same 6-value `concernSchema` from @post-anki/shared,
+  // app-level validated — deliberately NOT a pg enum, matching every other
+  // enum-ish text column in this file.
+  concern: text("concern"),
 });
 
 // Self-referential tree, one forest per subject — sits between a subject and
@@ -78,6 +85,15 @@ export const domainNodes = pgTable("domain_nodes", {
   // domain-mapping/) reads to decide which of the two placement paths a
   // subject uses.
   source: text("source").notNull().default("ai_generated"),
+  // learning-list-intake — "sub_subject" | "area" | null. Nullable with no
+  // default because "unset" is the correct, representable state for every
+  // node that predates fixed Areas (the whole 208-node it-taxonomy.yaml
+  // tree): it says "this node is ordinary taxonomy", not "this is a broken
+  // Area". Only web-dev-areas.yaml seeds a non-null kind today. This is the
+  // column that makes "AI may never create an Area" enforceable rather than
+  // conventional — resolveAreaPlacement resolves against kind = 'area' rows
+  // only, and falls back to that sub-subject's "Other".
+  kind: text("kind"),
 });
 
 // decouple-curricula-from-domain-nodes (issue #84) — the many-to-many
@@ -223,6 +239,27 @@ export const sources = pgTable("sources", {
   fetchedText: text("fetched_text"),
   approvalStatus: text("approval_status").notNull().default("approved"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // content-library (module 5) — nullable, additive: a source that predates
+  // this column, or one never re-fetched, simply has no recorded attempt.
+  // This is what makes fetch state a real readable field instead of an
+  // inference from `fetchedText IS NULL` — that null was already ambiguous
+  // between "never attempted" and "attempted and failed" (see
+  // resolveFetchState in packages/core/src/content-library/). Written on
+  // EVERY re-fetch attempt regardless of outcome; `fetchedText` itself is
+  // only overwritten when `lastFetchOutcome` is `"ok"` — a failed re-fetch
+  // must never clobber a previously-good body.
+  lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
+  // App-level validated: "ok" | "blocked" | "http_error" | "network_error"
+  // (guardedFetchText's own outcome vocabulary) — deliberately not a pg enum,
+  // matching every other enum-ish text column in this file.
+  lastFetchOutcome: text("last_fetch_outcome"),
+  // content-library (module 5) — mirrors subjects.embedding/embeddingHash/
+  // embeddedAt exactly (see that column's own comment above), for the same
+  // don't-re-embed-unchanged-content cache selectSubjectsForScan already
+  // assumes, applied here to source-duplicate detection's embedding tier.
+  embedding: jsonb("embedding").$type<number[]>(),
+  embeddingHash: text("embedding_hash"),
+  embeddedAt: timestamp("embedded_at", { withTimezone: true }),
 });
 
 // `mergedFromCurriculumId` (on modules AND topics) is the provenance marker
@@ -278,6 +315,55 @@ export const topics = pgTable("topics", {
   // answered probe-session question that touches a mastery-tracked gap on
   // this topic (see gap-mastery.repo.ts).
   gapMasterySequenceNumber: integer("gap_mastery_sequence_number").notNull().default(0),
+  // learning-list-intake — same nullable `concernSchema` text column as
+  // curricula.concern/gaps.concern, app-level validated, no pg enum.
+  concern: text("concern"),
+  // Provenance back to the `sources` row that produced this topic. Without
+  // it a topic folded into a shared Area is unattributable, and a declined
+  // nudge cannot know which content to make dormant (architecture.md's
+  // "Provenance loss" failure mode). Nullable: every topic that predates
+  // learning-list intake has no single originating source, and topics
+  // authored directly still won't.
+  sourceId: text("source_id"),
+  // Depth is elected when a topic FIRST comes up for study, not for every
+  // topic at capture time. A null here means "never asked" — distinct from
+  // `depth`, which always carries a value because of its own default. Once
+  // set, gap generation is capped at the elected depth.
+  depthElectedAt: timestamp("depth_elected_at", { withTimezone: true }),
+  // The highest depth the underlying material could support, which is what
+  // makes headroom ("you know the basics — want the advanced pass?")
+  // computable against the elected depth. depthLevelSchema
+  // ("awareness" | "working" | "deep"), app-level validated; null means no
+  // headroom is known, never "no headroom exists".
+  availableDepth: text("available_depth"),
+  // lms-buildout 0.2 — separates "not yet released" from "learner excluded
+  // it" for lazy slice release (see learning-list/slice-release.ts). Today
+  // slice release picks its next batch from `included = false` alone, which
+  // cannot tell a topic still queued for its first release apart from one a
+  // learner deliberately dropped via `updateTopic({ included: false })` —
+  // the latter must never be resurrected by a later release.
+  //
+  // NULL is NOT "unknown, skip" — it means "not declined", i.e. still
+  // releasable. Every topic that predates this column, and every topic
+  // `confirmStructure` creates with `defaultIncluded: false`
+  // (curriculum-structure.ts) for the ordinary (non-learning-list) queued-
+  // structure flow, carries NULL and must keep being treated as eligible for
+  // release. Only an explicit "declined" here means "do not release this,
+  // ever, until the learner re-includes it" — the app-level values are
+  // "declined" (learner excluded) and "queued" (informational: known to be
+  // awaiting first release). This column is intentionally NOT wired into
+  // `updateTopic`/`slice-release.ts` yet — see topic-progress.repo.ts's
+  // rowReleaseState/setTopicReleaseState for the accessor that a later
+  // change wires the real predicate through.
+  releaseState: text("release_state"),
+  // lms-buildout 0.5 — persists shouldOfferHeadroom's `lastOfferAt` input
+  // (packages/core/src/learning-list/headroom-offer.ts), which today only
+  // lives in the web app's React state (apps/web/src/learning-list/
+  // topic-depth-gate.tsx) and resets on reload, defeating the cooling-off
+  // period. Set when the headroom offer is shown/declined; null means never
+  // offered. Storage only — nothing writes it yet (see topic-progress.repo.ts's
+  // rowHeadroomOfferedAt/setTopicHeadroomOfferedAt accessor).
+  headroomOfferedAt: timestamp("headroom_offered_at", { withTimezone: true }),
 });
 
 export const appSettings = pgTable("app_settings", {
@@ -863,5 +949,417 @@ export const subjectDuplicateSuggestions = pgTable(
     uniqueIndex("subject_duplicate_suggestions_pending_pair_unique")
       .on(table.subjectAId, table.subjectBId)
       .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
+// learning-list-intake — one row per thing captured into the learning list,
+// from paste through classification to whatever it became. No .references()
+// FK, matching this schema's dominant convention (plain text columns +
+// app-level validation).
+//
+// `url` and `rawText` are both nullable because the two capture modes are
+// genuinely different: a pasted link stores the URL (and, once fetched,
+// the extracted text), a pasted video description stores only the text
+// (spec.md's scope boundary — no transcript fetching). At least one is
+// always present; that's an app-level invariant, not a DB constraint,
+// because Postgres cannot express it without a CHECK this file has no
+// precedent for.
+//
+// `verdict` (single | series | unknown) and `recommendation` (fold_in |
+// mini_course | park) are separate columns rather than one derived field
+// specifically so an overridden recommendation never destroys the
+// classifier's original verdict — S2 shows the deciding signals back to the
+// user, which requires the verdict to survive the override.
+//
+// `questionsGenerated` is the ingestion CURSOR, not a total: it is what
+// nextIngestionSlice resumes from after a nudge is accepted, so a dormant
+// item that wakes up continues instead of restarting. `questionCeiling` is
+// the hard stop that bounds runaway generation independently of liveness
+// (architecture.md's "Runaway generation" failure mode) — nullable until
+// planQuestionCeiling has run.
+export const learningListItems = pgTable(
+  "learning_list_items",
+  {
+    id: text("id").primaryKey(),
+    url: text("url"),
+    rawText: text("raw_text"),
+    title: text("title"),
+    kind: text("kind").notNull(),
+    verdict: text("verdict"),
+    recommendation: text("recommendation"),
+    status: text("status").notNull().default("captured"),
+    curriculumId: text("curriculum_id"),
+    questionsGenerated: integer("questions_generated").notNull().default(0),
+    questionCeiling: integer("question_ceiling"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // The learning list itself is a status-filtered, newest-first read on
+    // every page load, and the nudge sweep re-reads the same slice — the
+    // one hot path this table has.
+    index("learning_list_items_status_created_at_idx").on(table.status, table.createdAt.desc()),
+  ],
+);
+
+// learning-list-intake — the 1–10 liveness score, polymorphic over the three
+// things that carry one (learning-list items, curricula and domain nodes),
+// following the existing tag_assignments / study_item_feedback / node_feedback
+// convention rather than three parallel column sets on three tables. One
+// scale, one decay rule, one nudge history.
+//
+// Deliberately a STORED ANCHOR, not a stored current score: `score` is the
+// last explicitly-set value (starting score on approval, or the result of
+// applyNudgeResponse), and the live score is derived at read time by decaying
+// it against `lastActivityAt`. A scheduled recompute that missed a run would
+// otherwise silently mark live items dead (architecture.md's "Liveness
+// recomputation drift").
+//
+// A missing row reads as UNSET, never as dead — this is what lets every
+// pre-existing curriculum and domain node keep behaving normally until its
+// first recorded activity.
+//
+// `lastNudgeResponse` is the only thing that can make an entity dormant.
+// A decayed score stops GENERATION; only an explicit decline stops
+// SURFACING (spec.md's isDormant deriver).
+export const liveness = pgTable(
+  "liveness",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    score: integer("score").notNull(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
+    lastNudgeAt: timestamp("last_nudge_at", { withTimezone: true }),
+    lastNudgeResponse: text("last_nudge_response"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One liveness row per entity, enforced at the DB rather than by a
+    // check-then-insert: answer submission and the nudge sweep can both
+    // observe "no row yet" for the same entity before either insert
+    // commits (the same race guard subject_duplicate_suggestions_pending_
+    // pair_unique above exists for). Also the read index — every liveness
+    // lookup is by exactly this pair.
+    uniqueIndex("liveness_entity_unique").on(table.entityType, table.entityId),
+  ],
+);
+
+// lms-buildout 0.7 — `domain_nodes` is a strict single-parent tree
+// (`parentId`), but some nodes genuinely belong under more than one place:
+// AWS sits under Web Development for the fixed-Areas taxonomy (see
+// web-dev-areas.yaml) but is also Cloud Computing (it-taxonomy.yaml's own
+// root). This table adds an explicit SECONDARY edge without disturbing the
+// tree — `parentId` still decides where a node renders; this is an
+// additional cross-reference read alongside it, never a substitute. No
+// .references() FK, matching domain_nodes' own convention.
+//
+// `kind` is app-level validated free text, not a pg enum — "also_in" is the
+// only value seeded today (seed-domain-taxonomy.ts's AWS/Cloud Computing
+// link), but this stays open so a second link semantic never needs a
+// migration. Directional: fromNodeId "is also" toNodeId, not symmetric —
+// a reverse lookup reads the toNodeId index below.
+export const domainNodeLinks = pgTable(
+  "domain_node_links",
+  {
+    id: text("id").primaryKey(),
+    fromNodeId: text("from_node_id").notNull(),
+    toNodeId: text("to_node_id").notNull(),
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Existence-checked SELECT-before-INSERT (seed-domain-taxonomy.ts) relies
+    // on this being unique so a second seed run creates nothing new.
+    uniqueIndex("domain_node_links_from_to_kind_unique").on(
+      table.fromNodeId,
+      table.toNodeId,
+      table.kind,
+    ),
+    // Reverse lookup — "what links to this node" — isn't covered by the
+    // composite unique index above, which only serves fromNodeId-first reads.
+    index("domain_node_links_to_node_id_idx").on(table.toNodeId),
+  ],
+);
+
+// learning-paths (module 1) — the taxonomy's own prerequisite graph,
+// revived from `it-taxonomy.yaml`'s `prerequisites:` field (dropped since
+// the intake module, see `parse-taxonomy-yaml.ts`'s own history). An edge
+// table, not a column on `domain_nodes` — same reasoning as
+// `domain_node_links` above: never put a foreign id inside `domain_nodes`
+// itself. No `.references()` FK, matching this schema's dominant
+// convention. Seeded in a second pass by `seed-domain-taxonomy.ts`, after
+// every node in every taxonomy YAML file has been inserted, so a forward or
+// cross-branch reference (e.g. `cloud-computing`'s prerequisites naming
+// `networking`, declared earlier in the file) resolves regardless of
+// declaration order. `resolvePathOrder` (packages/core/src/learning-path/)
+// restricts these edges to a path's chosen target set at read time — this
+// table itself has no notion of "path".
+export const domainNodePrerequisites = pgTable(
+  "domain_node_prerequisites",
+  {
+    id: text("id").primaryKey(),
+    domainNodeId: text("domain_node_id").notNull(),
+    prerequisiteNodeId: text("prerequisite_node_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Existence-checked SELECT-before-INSERT (seed-domain-taxonomy.ts) relies
+    // on this being unique so a second seed run creates no duplicate edges —
+    // same idempotency convention as domain_node_links_from_to_kind_unique.
+    uniqueIndex("domain_node_prerequisites_node_prerequisite_unique").on(
+      table.domainNodeId,
+      table.prerequisiteNodeId,
+    ),
+    // "what does this node require" is the only read direction
+    // resolvePathOrder needs — a node's own prerequisites, forward.
+    index("domain_node_prerequisites_domain_node_id_idx").on(table.domainNodeId),
+  ],
+);
+
+// learning-paths (module 1) — an ordered route through EXISTING taxonomy
+// nodes toward a target role (e.g. "Frontend Engineer"). A path never
+// creates a domain node, a curriculum, or any content — it is a read/order
+// overlay on structure that already exists (spec.md's Decisions). No
+// `.references()` FK, matching this schema's dominant convention.
+export const learningPaths = pgTable("learning_paths", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  targetRoleLabel: text("target_role_label").notNull(),
+  status: text("status").notNull().default("draft"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+});
+
+// learning-paths (module 1) — a path's ordered steps. `domainNodeId` is the
+// ONLY foreign reference a step carries — never a curriculum id. Content is
+// discovered live via `curriculum_domain_node_mappings` (status
+// "confirmed") under that node's subtree, exactly like the domain map
+// already does; this is the same inversion `decouple-curricula-from-
+// domain-nodes` established (spec.md's Decisions). Deliberately no
+// progress/status column: a step's status is always derived at read time
+// (`pathProgress`/`nextPathStep`), never stored, so it can never drift from
+// live curriculum/gap data.
+export const learningPathSteps = pgTable(
+  "learning_path_steps",
+  {
+    id: text("id").primaryKey(),
+    pathId: text("path_id").notNull(),
+    domainNodeId: text("domain_node_id").notNull(),
+    // Snapshotted at creation from resolvePathOrder's output, never
+    // recomputed — if prerequisite edges change later (a future taxonomy
+    // edit), an in-progress path does not silently reshuffle underneath the
+    // learner (spec.md's Decisions).
+    order: integer("order").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Every path-detail read fetches a path's own steps, in order.
+    index("learning_path_steps_path_id_idx").on(table.pathId),
+  ],
+);
+
+// learning-brain (module 2) — Postgres tsvector has no native drizzle
+// column type; this is the "no new dependency" native-FTS column the spec
+// asks for, kept maintained at APPLICATION write time (note.repo.ts) rather
+// than a DB-generated column or trigger — this schema has no precedent for
+// either, and a plain write keeps every write path visible in TypeScript.
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
+
+// learning-brain (module 2) — one polymorphic table for a note or highlight
+// captured against a topic, gap or source, following the existing
+// `tag_assignments`/`node_feedback`/`study_item_feedback` `nodeType`/
+// `nodeId` convention rather than three parallel tables. No `.references()`
+// FK, matching that same convention. `isHighlight` is a flag on the same
+// row, not a separate entity — a highlight and a note are mechanically
+// identical (captured text at a point). `concern` reuses the existing
+// `concernSchema` vocabulary (see curricula.concern/topics.concern above),
+// app-level validated, no pg enum. `lastSurfacedAt` is an anti-repeat
+// heuristic only for the pull-only review surface — never a review-debt
+// signal, never written by anything but that surface (spec.md's Decisions).
+export const notes = pgTable(
+  "notes",
+  {
+    id: text("id").primaryKey(),
+    nodeType: text("node_type").notNull(),
+    nodeId: text("node_id").notNull(),
+    body: text("body").notNull(),
+    isHighlight: boolean("is_highlight").notNull().default(false),
+    concern: text("concern"),
+    searchVector: tsvector("search_vector"),
+    lastSurfacedAt: timestamp("last_surfaced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Full-text search — GIN, per spec.md's explicit "native Postgres
+    // tsvector/GIN, no new dependency" data-model instruction.
+    index("notes_search_vector_idx").using("gin", table.searchVector),
+    // "notes attached to this thing" — the capture surfaces' own hot read.
+    index("notes_node_type_node_id_idx").on(table.nodeType, table.nodeId),
+  ],
+);
+
+// study-scheduling (module 3) — a single table across a session's whole
+// lifecycle (planned -> in_progress -> completed/abandoned), not a separate
+// "schedule" and "run record" — mirrors probe_sessions' own single-table-
+// with-status-lifecycle precedent (spec.md's Decisions). No `.references()`
+// FK, matching this schema's dominant convention. `targetType`/`targetId`
+// are both nullable together: `targetType: null` means "anything" (the
+// same unscoped candidate pool gatherPushCandidates already produces), not
+// a broken reference. `questionsAnswered`/`questionsCorrect` are running
+// counters incremented as each existing single-gap probe endpoint answer
+// resolves — no new per-answer table, unlike probe_session_questions.
+export const studySessions = pgTable(
+  "study_sessions",
+  {
+    id: text("id").primaryKey(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    plannedDurationMinutes: integer("planned_duration_minutes").notNull(),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+    status: text("status").notNull().default("planned"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    questionsAnswered: integer("questions_answered").notNull().default(0),
+    questionsCorrect: integer("questions_correct").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // The schedule list (upcoming/missed) and the consistency rollup
+    // (planned-vs-completed in a rolling window) both filter by status and
+    // order by scheduledFor — the two hot reads this table has.
+    index("study_sessions_status_scheduled_for_idx").on(table.status, table.scheduledFor),
+  ],
+);
+
+// content-library (module 5) — one row per candidate duplicate pair the
+// library's two-tier detection surfaces: exact normalized-URL matches
+// (`matchKind: "url_match"`, `similarity: null` — there is no score, just a
+// match) and embedding-similarity matches (`matchKind: "embedding_similarity"`,
+// a real float). Sibling to subject_duplicate_suggestions above, same
+// pending/acknowledged/dismissed lifecycle and same partial-unique
+// concurrency guard, but deliberately reporting-only: resolving a suggestion
+// here only ever moves `status`, never merges or deletes a `sources` row.
+// `topics.sourceId` is a provenance link a declined liveness nudge depends on
+// to make the right content dormant — auto-merging two source rows the way
+// mergeSubjects does for subjects would silently orphan that link for any
+// topic pointing at the "losing" source. No `.references()` FK, matching
+// this schema's dominant convention.
+//
+// sourceAId/sourceBId store an UNORDERED pair, always in CANONICAL
+// lexicographic order (sourceAId < sourceBId), same convention as
+// subjectDuplicateSuggestions — this is what lets the plain two-column
+// partial unique index below enforce "at most one pending row per pair"
+// regardless of which source a caller names first.
+export const sourceDuplicateSuggestions = pgTable(
+  "source_duplicate_suggestions",
+  {
+    id: text("id").primaryKey(),
+    sourceAId: text("source_a_id").notNull(),
+    sourceBId: text("source_b_id").notNull(),
+    similarity: real("similarity"),
+    matchKind: text("match_kind").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [
+    // DB-level race guard, not just an app-level check-then-act guard —
+    // mirrors subject_duplicate_suggestions_pending_pair_unique's identical
+    // reasoning: a double-click on "scan for duplicates", or two browser
+    // tabs, can both observe "no pending row yet" for the same pair before
+    // either insert commits.
+    uniqueIndex("source_duplicate_suggestions_pending_pair_unique")
+      .on(table.sourceAId, table.sourceBId)
+      .where(sql`${table.status} = 'pending'`),
+  ],
+);
+
+// milestones (module 6) — a one-time, un-losable fact: this curriculum or
+// this Area (domain_nodes.kind = 'area') reached 100% mastered. Polymorphic
+// over the two entity types, mirroring `liveness`'s identical
+// entityType/entityId convention rather than doubling the repo/controller
+// code path for a mechanically identical write. No `.references()` FK,
+// matching this schema's dominant convention.
+//
+// `criteriaKey` is kept as an open string ("full_mastery" is the only value
+// today), not a 2-value enum — mirrors domain_node_links.kind's same
+// "stays open" precedent, so a future criteria type needs no migration.
+//
+// Never updated after insert and never deleted by any code path: a later
+// structural change (a new topic added to an already-100%-mastered
+// curriculum, a new curriculum mapped under an already-100%-mastered Area)
+// can drop the LIVE percent back below 100, but the awarded milestone does
+// not care — milestone.repo.ts's read path never re-derives from live
+// percent for an already-awarded row, it only reads this table.
+export const milestones = pgTable(
+  "milestones",
+  {
+    id: text("id").primaryKey(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    criteriaKey: text("criteria_key").notNull(),
+    achievedAt: timestamp("achieved_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // The concurrent-double-award guard: two tabs, or a retry, both
+    // observing "not yet awarded" before either insert commits — same race
+    // shape as lectures_topic_id_unique/subject_duplicate_suggestions_
+    // pending_pair_unique. milestone.repo.ts catches the 23505 this raises
+    // and treats it as a no-op, never a second row.
+    uniqueIndex("milestones_entity_criteria_unique").on(
+      table.entityType,
+      table.entityId,
+      table.criteriaKey,
+    ),
+  ],
+);
+
+// study-material-generation (module 7) — worked examples and analogies,
+// requested per topic. One polymorphic table with a `kind` column, not two
+// tables — mirrors learning_list_items.kind/notes.isHighlight's established
+// single-table-multi-kind convention: one repo, one controller, one review
+// pattern, two prompt branches. No `.references()` FK, matching this
+// schema's dominant convention.
+//
+// Deliberately NO unique index on `topicId`, unlike `lectures_topic_id_
+// unique` — "on demand" explicitly means re-requesting is allowed, a second
+// worked example with a different angle is a new row, not an overwrite.
+// History accumulates by design; unlike `notes`, this content is
+// AI-generated and never counted as a debt, so there is no
+// `.product/REJECTED.md` revision-log tension in letting rows pile up.
+//
+// `citations` is a flat jsonb array, not a split lecture_citations-style
+// table — a worked example or analogy is a single body of text with a flat
+// citation list, never multiple ordered sections the way a lecture is.
+// Mirrors probe_session_questions.optionExplanations' existing
+// jsonb $type<...>() precedent for a small structured array that doesn't
+// need its own table.
+export const studyMaterials = pgTable(
+  "study_materials",
+  {
+    id: text("id").primaryKey(),
+    topicId: text("topic_id").notNull(),
+    kind: text("kind").notNull(),
+    status: text("status").notNull().default("generating"),
+    body: text("body"),
+    citations: jsonb("citations").$type<{ title: string; url: string }[]>(),
+    failureReason: text("failure_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Non-unique — see the no-unique-index comment above. listStudyMaterials
+    // reads every row for a topic, newest first, and rows are never deleted
+    // (re-request accumulates a new row) — same growing-scan-and-sort hazard
+    // domain_priority_suggestions_subject_created_at_idx exists to prevent.
+    index("study_materials_topic_id_created_at_idx").on(table.topicId, table.createdAt.desc()),
   ],
 );
