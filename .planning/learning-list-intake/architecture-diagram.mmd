@@ -1,0 +1,38 @@
+flowchart TB
+  subgraph Intake["Intake (new)"]
+    LL["Learning list<br/>learning_list_items"]
+    GF["Guarded source fetch<br/>SSRF + size + scheme"]
+    CL["Classifier agent<br/>single / series / unknown"]
+  end
+
+  subgraph Decide["Routing (new derivers)"]
+    DV["deriveSeriesVerdict"]
+    RD["recommendDestination"]
+    SL["nextIngestionSlice"]
+  end
+
+  subgraph Existing["Existing post-anki"]
+    CUR["curricula<br/>+ concern"]
+    MOD["modules / topics / gaps<br/>+ sourceId provenance"]
+    MAP["curriculum_domain_node_mappings"]
+    DN["domain_nodes<br/>static_taxonomy + Areas"]
+    PROBE["probe sessions<br/>gap_mastery"]
+    PUSH["daily push / Telegram"]
+  end
+
+  subgraph Live["Liveness (new)"]
+    LV["liveness<br/>polymorphic score 1-10"]
+    ND["shouldNudge"]
+  end
+
+  LL --> GF --> CL --> DV --> RD
+  RD -->|fold in| MOD
+  RD -->|mini-course| CUR
+  CUR --> MOD
+  CUR --> MAP --> DN
+  MOD --> PROBE
+  PROBE -->|answers raise score| LV
+  LV --> SL
+  SL -->|next slice while live| MOD
+  LV --> ND --> PUSH
+  PUSH -->|yes bumps score| LV
