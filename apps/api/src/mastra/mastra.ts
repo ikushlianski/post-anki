@@ -21,6 +21,9 @@ import { createSiblingDiscoveryAgent } from "./sibling-discovery.agent.js";
 import { createDomainPriorityReviewAgent } from "./domain-priority-review.agent.js";
 import { createDocScanAgent } from "./doc-scan.agent.js";
 import { createDomainTaxonomyMappingAgent } from "./domain-taxonomy-mapping.agent.js";
+import { createLearningListClassifierAgent } from "./learning-list-classifier.agent.js";
+import { createLearningListSliceAgent } from "./learning-list-slice.agent.js";
+import { createStudyMaterialWriter } from "./study-material-writer.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -42,6 +45,9 @@ export const AGENT_KEYS = {
   domainPriorityReview: "domainPriorityReview",
   docScan: "docScan",
   domainTaxonomyMapping: "domainTaxonomyMapping",
+  learningListClassifier: "learningListClassifier",
+  learningListSlice: "learningListSlice",
+  studyMaterialWriter: "studyMaterialWriter",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -103,6 +109,9 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.domainPriorityReview]: createDomainPriorityReviewAgent(),
         [AGENT_KEYS.docScan]: createDocScanAgent(),
         [AGENT_KEYS.domainTaxonomyMapping]: createDomainTaxonomyMappingAgent(),
+        [AGENT_KEYS.learningListClassifier]: createLearningListClassifierAgent(),
+        [AGENT_KEYS.learningListSlice]: createLearningListSliceAgent(),
+        [AGENT_KEYS.studyMaterialWriter]: createStudyMaterialWriter(),
       },
       ...(observability ? { observability } : {}),
     });

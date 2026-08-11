@@ -47,6 +47,13 @@ vi.mock("../feedback/feedback.repo.js", () => ({
   getFeedbackForTopic: vi.fn(async () => []),
 }));
 
+const recordAnswerActivity = vi.fn();
+
+vi.mock("../liveness/answer-activity.js", () => ({
+  recordAnswerActivity: (curriculumId: string | null, now: string) =>
+    recordAnswerActivity(curriculumId, now),
+}));
+
 vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
@@ -164,6 +171,34 @@ describe("submitProbe opener discovery path", () => {
     if (!("error" in result)) {
       expect(result.nextQuestion).toBeNull();
     }
+  });
+});
+
+describe("submitProbe provenance-linked liveness activity", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTopicRow.mockResolvedValue(topicRow);
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+  });
+
+  it("records activity against the curriculum the answered gap traces back to", async () => {
+    await submitProbe(
+      { topicId: "t1", gapId: "g1", mode: "quick_test", answer: "0", selfOutcome: "pass" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    expect(recordAnswerActivity).toHaveBeenCalledWith("c1", "2026-06-24T00:00:00.000Z");
+  });
+
+  it("records no activity when the topic is not found", async () => {
+    getTopicRow.mockResolvedValue(null);
+
+    await submitProbe(
+      { topicId: "missing", gapId: null, mode: "quick_test", answer: "0" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    expect(recordAnswerActivity).not.toHaveBeenCalled();
   });
 });
 

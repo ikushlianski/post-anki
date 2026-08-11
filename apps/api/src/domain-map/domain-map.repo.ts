@@ -136,6 +136,7 @@ function toTopicForProgress(row: typeof topics.$inferSelect): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
   };
 }
 

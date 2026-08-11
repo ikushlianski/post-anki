@@ -3,9 +3,10 @@ import type {
   CurriculumDomainNodeMapping,
   CurriculumDomainNodeMappingSource,
   DepthLevel,
+  ExistingCurriculumMatch,
 } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { curriculumDomainNodeMappings } from "../db/schema.js";
+import { curricula, curriculumDomainNodeMappings } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 function toMapping(
@@ -82,6 +83,28 @@ export async function insertSuggestedMappings(
     createdAt: new Date().toISOString(),
     resolvedAt: null,
   }));
+}
+
+export async function findCurriculumMappedToNode(
+  domainNodeId: string,
+  db: DbExecutor = getDb(),
+): Promise<ExistingCurriculumMatch | null> {
+  const row = (
+    await db
+      .select({ curriculumId: curricula.id, title: curricula.name })
+      .from(curriculumDomainNodeMappings)
+      .innerJoin(curricula, eq(curricula.id, curriculumDomainNodeMappings.curriculumId))
+      .where(
+        and(
+          eq(curriculumDomainNodeMappings.domainNodeId, domainNodeId),
+          ne(curriculumDomainNodeMappings.status, "rejected"),
+        ),
+      )
+      .orderBy(desc(curriculumDomainNodeMappings.createdAt))
+      .limit(1)
+  )[0];
+
+  return row ? { curriculumId: row.curriculumId, title: row.title } : null;
 }
 
 export interface InsertConfirmedMappingParams {

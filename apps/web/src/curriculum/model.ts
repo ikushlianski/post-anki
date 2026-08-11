@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import type { DailyPushNudge } from '@post-anki/shared'
+
 export const subjectSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
@@ -254,6 +256,8 @@ export const topicSchema = z.object({
   gaps: z.array(gapSchema),
   progress: topicProgressSchema,
   tags: z.array(tagChipSchema).optional(),
+  depthElectedAt: z.string().nullable(),
+  headroomOfferedAt: z.string().nullable(),
 })
 
 export type Topic = z.infer<typeof topicSchema>
@@ -519,6 +523,7 @@ export type DailyPush = z.infer<typeof dailyPushSchema>
 export type DailyPushResult = {
   push: DailyPush | null
   question: Question | null
+  nudge: DailyPushNudge | null
 }
 
 export const addModuleCommentInput = z.object({

@@ -131,6 +131,57 @@ import {
   handleResolveCurriculumDomainMapping,
   handleTriggerCurriculumDomainMapping,
 } from "./curriculum-domain-mapping/curriculum-domain-mapping.controller.js";
+import {
+  handleCaptureLearningListItem,
+  handleCreateLearningListNudgeResponse,
+  handleGetLearningListItem,
+  handleListLearningListItems,
+  handleResolveLearningListRecommendation,
+} from "./learning-list/learning-list.controller.js";
+import { handleCreateNudgeResponse } from "./liveness/liveness.controller.js";
+import {
+  handleAbandonLearningPath,
+  handleCreateLearningPath,
+  handleGetLearningPath,
+  handleGetLearningPathStepPush,
+  handleListLearningPaths,
+  handleListRoleTemplates,
+} from "./learning-path/learning-path.controller.js";
+import {
+  handleCaptureNote,
+  handleListNotesForNode,
+  handleSearchNotes,
+} from "./note/note.controller.js";
+import { handleReviewNote } from "./note/note-review.service.js";
+import {
+  handleGetCoverageReport,
+  handleGetRetentionReport,
+  handleGetWeeklyDigest,
+} from "./analytics/analytics.controller.js";
+import {
+  handleCreateStudySession,
+  handleEndStudySession,
+  handleGetStudySession,
+  handleGetStudySessionConsistency,
+  handleGetStudySessionPush,
+  handleListStudySessions,
+  handleRecordStudySessionAnswer,
+  handleStartStudySession,
+} from "./study-session/study-session.controller.js";
+import {
+  handleListLibrarySources,
+  handleRefetchSource,
+} from "./content-library/content-library.controller.js";
+import {
+  handleListSourceDuplicateSuggestions,
+  handleResolveSourceDuplicateSuggestion,
+  handleTriggerSourceDuplicateScan,
+} from "./source-duplicate/source-duplicate.controller.js";
+import { handleGetMilestones } from "./milestone/milestone.controller.js";
+import {
+  handleListStudyMaterials,
+  handleRequestStudyMaterial,
+} from "./study-material/study-material.controller.js";
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
@@ -411,6 +462,90 @@ async function route(
       return handleListCurriculumDomainMappings(res, id);
     case "resolveCurriculumDomainMapping":
       return handleResolveCurriculumDomainMapping(req, res, id);
+    case "captureLearningListItem":
+      return handleCaptureLearningListItem(req, res);
+    case "listLearningListItems":
+      return handleListLearningListItems(req, res);
+    case "getLearningListItem":
+      return handleGetLearningListItem(res, id);
+    case "resolveLearningListRecommendation":
+      return handleResolveLearningListRecommendation(req, res, id);
+    case "createLearningListNudgeResponse":
+      return handleCreateLearningListNudgeResponse(req, res, id);
+    case "createNudgeResponse":
+      return handleCreateNudgeResponse(req, res);
+    case "listRoleTemplates":
+      return handleListRoleTemplates(res);
+    case "createLearningPath":
+      return handleCreateLearningPath(req, res);
+    case "listLearningPaths":
+      return handleListLearningPaths(res, url.searchParams.get("status"));
+    case "getLearningPath":
+      return handleGetLearningPath(res, id);
+    case "updateLearningPath":
+      return handleAbandonLearningPath(req, res, id);
+    case "getLearningPathStepPush":
+      return handleGetLearningPathStepPush(res, id, resolved.params.stepId ?? "");
+    case "captureNote":
+      return handleCaptureNote(req, res);
+    case "listNotesForNode":
+      return handleListNotesForNode(
+        res,
+        url.searchParams.get("nodeType"),
+        url.searchParams.get("nodeId"),
+      );
+    case "searchNotes":
+      return handleSearchNotes(
+        res,
+        url.searchParams.get("q"),
+        url.searchParams.get("concern"),
+        url.searchParams.get("domainNodeId"),
+      );
+    case "reviewNote":
+      return handleReviewNote(res, url.searchParams.get("excludeIds"));
+    case "getCoverageReport":
+      return handleGetCoverageReport(res);
+    case "getRetentionReport":
+      return handleGetRetentionReport(res);
+    case "getWeeklyDigest":
+      return handleGetWeeklyDigest(res);
+    case "createStudySession":
+      return handleCreateStudySession(req, res);
+    case "listStudySessions":
+      return handleListStudySessions(res);
+    case "getStudySessionConsistency":
+      return handleGetStudySessionConsistency(res, url.searchParams.get("windowDays"));
+    case "getStudySession":
+      return handleGetStudySession(res, id);
+    case "startStudySession":
+      return handleStartStudySession(res, id);
+    case "endStudySession":
+      return handleEndStudySession(req, res, id);
+    case "recordStudySessionAnswer":
+      return handleRecordStudySessionAnswer(req, res, id);
+    case "getStudySessionPush":
+      return handleGetStudySessionPush(
+        res,
+        id,
+        url.searchParams.get("excludeGapIds"),
+        url.searchParams.get("mode"),
+      );
+    case "listLibrarySources":
+      return handleListLibrarySources(res);
+    case "refetchSource":
+      return handleRefetchSource(res, id);
+    case "triggerSourceDuplicateScan":
+      return handleTriggerSourceDuplicateScan(res);
+    case "listSourceDuplicateSuggestions":
+      return handleListSourceDuplicateSuggestions(res, url.searchParams.get("status"));
+    case "resolveSourceDuplicateSuggestion":
+      return handleResolveSourceDuplicateSuggestion(req, res, id);
+    case "listMilestones":
+      return handleGetMilestones(res);
+    case "requestStudyMaterial":
+      return handleRequestStudyMaterial(req, res, id);
+    case "listStudyMaterials":
+      return handleListStudyMaterials(res, id);
   }
 }
 

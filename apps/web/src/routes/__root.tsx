@@ -69,6 +69,42 @@ function RootDocument({ children }: { children: ReactNode }) {
                 Today
               </Link>
               <Link
+                to="/learning-list"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Learning list
+              </Link>
+              <Link
+                to="/learning-paths"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Learning paths
+              </Link>
+              <Link
+                to="/milestones"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Milestones
+              </Link>
+              <Link
+                to="/study-sessions"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Study sessions
+              </Link>
+              <Link
+                to="/analytics"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Analytics
+              </Link>
+              <Link
+                to="/content-library"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Library
+              </Link>
+              <Link
                 to="/concerns"
                 className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
               >

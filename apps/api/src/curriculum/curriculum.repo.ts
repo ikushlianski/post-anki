@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type {
+  Concern,
   CreateCurriculumInput,
   Curriculum,
   CurriculumDetail,
@@ -2036,6 +2037,8 @@ function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
+    headroomOfferedAt: row.headroomOfferedAt ? row.headroomOfferedAt.toISOString() : null,
     tags,
   };
 }
@@ -2073,4 +2076,12 @@ async function loadTagsByNode(
   }
 
   return byNode;
+}
+
+export async function setCurriculumConcern(
+  curriculumId: string,
+  concern: Concern | null,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db.update(curricula).set({ concern }).where(eq(curricula.id, curriculumId));
 }

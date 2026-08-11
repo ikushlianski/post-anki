@@ -1,5 +1,6 @@
+import { FETCH_TIMEOUT_MS, guardedFetchText } from "../shared/guarded-fetch.js";
+
 const MAX_CHARS_PER_SOURCE = 20_000;
-const FETCH_TIMEOUT_MS = 15_000;
 
 export async function resolveSourceText(
   kind: string,
@@ -13,27 +14,21 @@ export async function resolveSourceText(
 }
 
 async function fetchLink(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const result = await guardedFetchText(url, { timeoutMs: FETCH_TIMEOUT_MS });
 
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-
-    if (!res.ok) {
-      return `[could not fetch ${url}: HTTP ${res.status}]`;
-    }
-
-    // Candidate URLs discovered via the general trusted-source search or a
-    // same-site crawl are not guaranteed to be HTML (PDFs and other binary
-    // documents show up often, e.g. arxiv/ACL papers) — a naive text() read
-    // on binary content can carry NUL bytes and other control characters
-    // that Postgres's `text` type rejects outright at insert time.
-    return sanitizeForStorage(stripHtml(await res.text()));
-  } catch {
-    return `[could not fetch ${url}]`;
-  } finally {
-    clearTimeout(timer);
+  if (result.ok) {
+    return sanitizeForStorage(stripHtml(result.text));
   }
+
+  if (result.outcome === "blocked") {
+    return `[could not fetch ${url}: ${result.message}]`;
+  }
+
+  if (result.outcome === "http_error") {
+    return `[could not fetch ${url}: HTTP ${result.status}]`;
+  }
+
+  return `[could not fetch ${url}]`;
 }
 
 const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(

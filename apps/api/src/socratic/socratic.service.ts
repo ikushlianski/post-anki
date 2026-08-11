@@ -31,6 +31,7 @@ import {
 } from "../topic/topic-progress.repo.js";
 import { getCurriculumContextForTopic } from "../curriculum/curriculum.repo.js";
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
+import { recordAnswerActivity } from "../liveness/answer-activity.js";
 import { buildProbeQuestionForGap } from "../probe/probe.service.js";
 import {
   completeSocraticSession,
@@ -181,6 +182,7 @@ export async function answerSocraticSession(
   }
 
   await refreshTopicProgress(topicRow, now);
+  await recordAnswerActivity(session.curriculumId, now);
 
   let next: SocraticTurnRow | null = null;
   let status: "active" | "completed" = "active";

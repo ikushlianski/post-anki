@@ -3,6 +3,7 @@ import { nextStepRecommendation } from "@post-anki/core";
 import { log } from "../shared/log.js";
 import { webSearch } from "../probe/probe-grounding.js";
 import { getLearningMapSnapshots } from "../curriculum/curriculum.repo.js";
+import { readLivenessStatus } from "../liveness/liveness.repo.js";
 import {
   getCurriculumDetail,
   getRecommendationsForTopics,
@@ -95,10 +96,17 @@ export async function generateRecommendations(
   curriculumId: string,
   now: string,
 ): Promise<GenerateRecommendationsResult | { error: StatsError }> {
-  const detail = await getCurriculumDetail(curriculumId);
+  const [detail, liveness] = await Promise.all([
+    getCurriculumDetail(curriculumId),
+    readLivenessStatus({ entityType: "curriculum", entityId: curriculumId }, now),
+  ]);
 
   if (!detail) {
     return { error: "not_found" };
+  }
+
+  if (liveness.dormant) {
+    return { recommendations: [], failed: false };
   }
 
   const allTopics = summarizeTopics(detail);
