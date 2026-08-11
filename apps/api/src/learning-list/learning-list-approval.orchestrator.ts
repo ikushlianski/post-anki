@@ -16,6 +16,13 @@ import { triggerCurriculumDomainMapping } from "../curriculum-domain-mapping/cur
 import { insertSuggestedMappings } from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
 import { recordNudgeResponse, startLivenessTracking } from "../liveness/liveness.repo.js";
 import { log } from "../shared/log.js";
+import { approveFoldInRecommendation } from "./learning-list-fold-in.orchestrator.js";
+import {
+  DEFAULT_PLACEMENT_DEPTH,
+  sourcesForItem,
+  type ApprovedRecommendation,
+  type ResolveRecommendationError,
+} from "./learning-list-approval-shared.js";
 import {
   claimRecommendation,
   getLearningListItem,
@@ -24,19 +31,7 @@ import {
 } from "./learning-list.repo.js";
 import { releaseNextSliceSafely } from "./slice-release.js";
 
-export type ResolveRecommendationError =
-  | "not_found"
-  | "not_awaiting_decision"
-  | "subject_not_found"
-  | "extend_target_missing"
-  | "extend_target_busy";
-
-export interface ApprovedRecommendation {
-  item: LearningListItem;
-  curriculumId: string;
-}
-
-const DEFAULT_PLACEMENT_DEPTH = "working" as const;
+export type { ApprovedRecommendation, ResolveRecommendationError };
 
 export async function approveRecommendation(
   itemId: string,
@@ -52,7 +47,8 @@ export async function approveRecommendation(
   if (
     !recommendation ||
     (recommendation.destination !== "mini_course" &&
-      recommendation.destination !== "extend_curriculum")
+      recommendation.destination !== "extend_curriculum" &&
+      recommendation.destination !== "fold_in")
   ) {
     return { error: "not_awaiting_decision" as const };
   }
@@ -63,9 +59,15 @@ export async function approveRecommendation(
     return { error: claimed.error };
   }
 
-  return recommendation.destination === "extend_curriculum"
-    ? approveExtendRecommendation(itemId, claimed, recommendation)
-    : approveMiniCourseRecommendation(itemId, claimed, recommendation);
+  if (recommendation.destination === "extend_curriculum") {
+    return approveExtendRecommendation(itemId, claimed, recommendation);
+  }
+
+  if (recommendation.destination === "fold_in") {
+    return approveFoldInRecommendation(itemId, claimed, recommendation);
+  }
+
+  return approveMiniCourseRecommendation(itemId, claimed, recommendation);
 }
 
 async function approveMiniCourseRecommendation(
@@ -200,18 +202,6 @@ export async function respondToLearningListNudge(
   }
 
   return result;
-}
-
-function sourcesForItem(item: LearningListItem) {
-  if (item.kind === "video") {
-    return item.rawText
-      ? [{ kind: "text" as const, value: item.rawText, title: item.title ?? undefined }]
-      : [];
-  }
-
-  return item.url
-    ? [{ kind: "link" as const, value: item.url, title: item.title ?? undefined }]
-    : [];
 }
 
 async function suggestDomainMappings(curriculumId: string): Promise<void> {

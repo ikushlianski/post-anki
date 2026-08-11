@@ -1,0 +1,2 @@
+ALTER TABLE "curricula" ADD COLUMN "container_area_node_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "curricula_container_area_node_id_unique" ON "curricula" USING btree ("subject_id","container_area_node_id") WHERE "curricula"."container_area_node_id" is not null;

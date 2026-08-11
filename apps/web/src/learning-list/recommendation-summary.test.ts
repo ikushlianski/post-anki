@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { LearningListRecommendation } from '@post-anki/shared'
 
 import {
+  approveOutcome,
   decidingSignals,
   declineOutcome,
   isAwaitingRecommendationDecision,
@@ -49,6 +50,15 @@ describe('isAwaitingRecommendationDecision', () => {
     ).toBe(false)
   })
 
+  it('should await a decision for a classified fold-in recommendation', () => {
+    expect(
+      isAwaitingRecommendationDecision({
+        status: 'classified',
+        recommendation: { ...recommendation, destination: 'fold_in' },
+      }),
+    ).toBe(true)
+  })
+
   it('should not await a decision when there is no recommendation', () => {
     expect(
       isAwaitingRecommendationDecision({
@@ -89,6 +99,12 @@ describe('signalsFraming', () => {
     expect(framing).not.toContain('approve')
   })
 
+  it('should offer the override route while a fold-in decision is pending', () => {
+    expect(
+      signalsFraming({ destination: 'fold_in', awaitingDecision: true }),
+    ).toContain('decline')
+  })
+
   it('should explain why a parked item was not decided', () => {
     expect(
       signalsFraming({ destination: 'park', awaitingDecision: false }),
@@ -105,6 +121,23 @@ describe('overridePrompt', () => {
 describe('declineOutcome', () => {
   it('should state that nothing was created', () => {
     expect(declineOutcome()).toContain('No course, module, topic or question')
+  })
+})
+
+describe('approveOutcome', () => {
+  it('should describe folding into an Area, not creating a course', () => {
+    const outcome = approveOutcome('fold_in')
+
+    expect(outcome).toContain('Folded')
+    expect(outcome).not.toContain('mini-course was created')
+  })
+
+  it('should describe merging into the existing mini-course for extend_curriculum', () => {
+    expect(approveOutcome('extend_curriculum')).toContain('Merged into the existing mini-course')
+  })
+
+  it('should default to describing a new mini-course', () => {
+    expect(approveOutcome('mini_course')).toContain('mini-course was created')
   })
 })
 

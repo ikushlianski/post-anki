@@ -12,7 +12,7 @@ export const VERDICT_LABEL: Record<SeriesVerdictValue, string> = {
 }
 
 export const DESTINATION_LABEL: Record<LearningListDestination, string> = {
-  fold_in: 'Folded into an existing Area',
+  fold_in: 'Fold into an existing Area recommended',
   mini_course: 'Mini-course recommended',
   extend_curriculum: 'Matches an existing mini-course',
   park: 'Parked in the learning list',
@@ -24,6 +24,7 @@ const NO_SIGNALS_RECORDED =
 const APPROVABLE_DESTINATIONS: LearningListDestination[] = [
   'mini_course',
   'extend_curriculum',
+  'fold_in',
 ]
 
 export function isAwaitingRecommendationDecision(
@@ -81,9 +82,15 @@ export function declineOutcome(): string {
 export function approveOutcome(
   destination: LearningListDestination = 'mini_course',
 ): string {
-  return destination === 'extend_curriculum'
-    ? 'Approved. Merged into the existing mini-course instead of creating a new one.'
-    : 'Approved. The mini-course was created with its first slice only.'
+  if (destination === 'extend_curriculum') {
+    return 'Approved. Merged into the existing mini-course instead of creating a new one.'
+  }
+
+  if (destination === 'fold_in') {
+    return 'Approved. Folded into your Area — no new course to browse or finish.'
+  }
+
+  return 'Approved. The mini-course was created with its first slice only.'
 }
 
 export function placementSummary(

@@ -129,12 +129,12 @@ beforeEach(() => {
 });
 
 describe("captureLearningListItem — single article, SCENARIO 1", () => {
-  it("folds the article into a real Area and creates no curriculum", async () => {
+  it("recommends folding into a real Area and creates no curriculum yet", async () => {
     mockAgentGenerate.mockResolvedValue(agentResult());
 
     await captureLearningListItem(input);
 
-    expect(savedStatus()).toBe("folded_in");
+    expect(savedStatus()).toBe("classified");
     expect(savedRecommendation().destination).toBe("fold_in");
     expect(savedRecommendation().areaId).toBe("dnode_react_effects");
     expect(mockInsertSiblings).not.toHaveBeenCalled();

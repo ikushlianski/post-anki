@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 
 import type { LearningListRecommendation } from '@post-anki/shared'
 
@@ -59,13 +60,25 @@ export function RecommendationReview({
       <RecommendationSignals recommendation={recommendation} awaitingDecision />
 
       {outcome ? (
-        <p
+        <div
           role="status"
           data-testid="recommendation-outcome"
           className="mt-3 rounded-md border border-indigo-300 bg-white px-3 py-2 text-xs text-indigo-900"
         >
-          {outcome}
-        </p>
+          <p>{outcome}</p>
+          {recommendation.destination === 'fold_in' && recommendation.areaName && recommendation.subjectId && (
+            <p className="mt-2">
+              Folded into{' '}
+              <Link
+                to="/subject/$subjectId/map"
+                params={{ subjectId: recommendation.subjectId }}
+                className="font-medium text-indigo-600 hover:underline"
+              >
+                {recommendation.areaName}
+              </Link>
+            </p>
+          )}
+        </div>
       ) : (
         <div className="mt-3 flex gap-2">
           <button
@@ -77,7 +90,9 @@ export function RecommendationReview({
           >
             {recommendation.destination === 'extend_curriculum'
               ? 'Approve — extend the existing course'
-              : 'Approve the mini-course'}
+              : recommendation.destination === 'fold_in'
+                ? 'Approve — fold into the Area'
+                : 'Approve the mini-course'}
           </button>
           <button
             type="button"

@@ -271,6 +271,30 @@ export async function linkCurriculum(
   return updated ? toLearningListItem(updated) : null;
 }
 
+// learning-list-fold-in — the fold-in branch's own terminal write: unlike
+// the other two approve paths (which leave the claim's "course_created"
+// status standing as the final state), a folded-in item's real resolved
+// status is "folded_in" — the label the frontend already carries
+// (learning-list-item-row.tsx's STATUS_LABEL) for "settled, nothing left to
+// decide, no course was created". One UPDATE rather than linkCurriculum plus
+// a second status write, so the two never land as separate, interleavable
+// statements against the same row.
+export async function linkFoldInCurriculum(
+  itemId: string,
+  curriculumId: string,
+  db: DbExecutor = getDb(),
+): Promise<LearningListItem | null> {
+  const updated = (
+    await db
+      .update(learningListItems)
+      .set({ curriculumId, status: "folded_in", updatedAt: new Date() })
+      .where(eq(learningListItems.id, itemId))
+      .returning()
+  )[0];
+
+  return updated ? toLearningListItem(updated) : null;
+}
+
 // `now` is stamped onto `updatedAt` explicitly rather than via `new Date()`
 // so this row's own pacing anchor (slice-release.ts reads `updatedAt` back
 // as `lastReleasedAt`) lines up with whatever logical clock the caller is

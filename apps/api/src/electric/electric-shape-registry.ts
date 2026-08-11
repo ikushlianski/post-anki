@@ -1,14 +1,24 @@
 interface ShapeDefinition {
   table: string;
   columns?: string[];
+  where?: string;
 }
 
 // Electric's own auth guide is explicit that table/where/columns must be set
 // server-side, because the proxy is the authorization layer that decides what a
 // client is allowed to sync. Anything not listed here is unreachable.
+//
+// learning-list-fold-in — `curricula`'s `where` excludes container curricula
+// (`container_area_node_id`, see schema.ts's own comment on that column) the
+// same way `listCurricula()` (curriculum.repo.ts) already does for the
+// REST-backed board/tree read paths. Without this, the Electric-synced board
+// (apps/web/src/curriculum/board.collection.ts, the primary data source for
+// the homepage once its live query is ready) would stream every container
+// straight from Postgres, unfiltered — the one read path that isn't
+// reachable through `listCurricula()` at all.
 const SHAPE_REGISTRY = new Map<string, ShapeDefinition>([
   ["subjects", { table: "subjects" }],
-  ["curricula", { table: "curricula" }],
+  ["curricula", { table: "curricula", where: "container_area_node_id IS NULL" }],
   ["sources", { table: "sources", columns: ["id", "curriculum_id", "kind"] }],
   ["phrases", { table: "phrases" }],
   ["attempts", { table: "attempts" }],
@@ -77,6 +87,10 @@ export function buildElectricShapeQuery(search: string): ShapeQueryResult {
 
   if (definition.columns) {
     outgoing.set("columns", definition.columns.join(","));
+  }
+
+  if (definition.where) {
+    outgoing.set("where", definition.where);
   }
 
   for (const param of PASS_THROUGH_PARAMS) {

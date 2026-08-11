@@ -52,6 +52,7 @@ process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 const {
   insertSuggestedMappings,
   insertConfirmedMapping,
+  insertConfirmedMappingIdempotent,
   listMappingsForCurriculum,
   resolveMapping,
   deleteMappingsForCurriculum,
@@ -291,6 +292,68 @@ describe("findCurriculumMappedToNode — learning-list 0.1, anti-sprawl match fo
     const match = await findCurriculumMappedToNode(nodeId);
 
     expect(match?.curriculumId).toBe(newerCurriculumId);
+  });
+});
+
+describe("insertConfirmedMappingIdempotent — fold-in Area container reuse", () => {
+  it("returns the existing mapping on the second call, never creates a duplicate", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const curriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Container Area");
+    await insertCurriculum(curriculumId, subjectId);
+
+    const first = await insertConfirmedMappingIdempotent({
+      curriculumId,
+      domainNodeId: nodeId,
+      depth: "working",
+      source: "auto",
+    });
+
+    const second = await insertConfirmedMappingIdempotent({
+      curriculumId,
+      domainNodeId: nodeId,
+      depth: "working",
+      source: "auto",
+    });
+
+    expect(first.id).toBe(second.id);
+    expect(second.status).toBe("confirmed");
+
+    const all = await listMappingsForCurriculum(curriculumId);
+
+    expect(all).toHaveLength(1);
+    expect(all[0]!.id).toBe(first.id);
+  });
+
+  it("returns the existing suggested mapping instead of creating a confirmed duplicate", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const curriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Suggested Area");
+    await insertCurriculum(curriculumId, subjectId);
+
+    const suggested = await insertSuggestedMappings(curriculumId, [
+      { nodeId, depth: "working" },
+    ]);
+
+    const confirmed = await insertConfirmedMappingIdempotent({
+      curriculumId,
+      domainNodeId: nodeId,
+      depth: "working",
+      source: "auto",
+    });
+
+    expect(confirmed.id).toBe(suggested[0]!.id);
+    expect(confirmed.status).toBe("suggested");
+
+    const all = await listMappingsForCurriculum(curriculumId);
+
+    expect(all).toHaveLength(1);
   });
 });
 

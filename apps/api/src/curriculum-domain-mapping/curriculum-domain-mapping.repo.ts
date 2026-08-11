@@ -145,6 +145,28 @@ export async function insertConfirmedMapping(
   return toMapping(inserted);
 }
 
+export async function insertConfirmedMappingIdempotent(
+  params: InsertConfirmedMappingParams,
+  db: DbExecutor = getDb(),
+): Promise<CurriculumDomainNodeMapping> {
+  const existing = await db
+    .select()
+    .from(curriculumDomainNodeMappings)
+    .where(
+      and(
+        eq(curriculumDomainNodeMappings.curriculumId, params.curriculumId),
+        eq(curriculumDomainNodeMappings.domainNodeId, params.domainNodeId),
+        ne(curriculumDomainNodeMappings.status, "rejected"),
+      ),
+    );
+
+  if (existing.length > 0) {
+    return toMapping(existing[0]!);
+  }
+
+  return insertConfirmedMapping(params, db);
+}
+
 export async function listMappingsForCurriculum(
   curriculumId: string,
   db: DbExecutor = getDb(),

@@ -157,12 +157,19 @@ function withPlacementFallback(
   return destination === "fold_in" && areaId === null ? "park" : destination;
 }
 
+// learning-list-fold-in — `fold_in` is an approvable recommendation, exactly
+// like `mini_course`/`extend_curriculum`: it lands the item on `classified`
+// ("awaiting your decision") so `approveRecommendation` can claim and resolve
+// it. `folded_in` is the SEPARATE terminal status `linkFoldInCurriculum`
+// (learning-list.repo.ts) writes once approval actually happens — this
+// function must never pre-empt that by writing it here, or the item is never
+// reachable through the approve flow at all.
 function statusForDestination(destination: LearningListDestination): LearningListItemStatus {
-  if (destination === "fold_in") {
-    return "folded_in";
-  }
-
-  if (destination === "mini_course" || destination === "extend_curriculum") {
+  if (
+    destination === "mini_course" ||
+    destination === "extend_curriculum" ||
+    destination === "fold_in"
+  ) {
     return "classified";
   }
 

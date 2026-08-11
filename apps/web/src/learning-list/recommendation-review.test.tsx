@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
+import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import type { LearningListRecommendation } from '@post-anki/shared'
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, params }: { children: ReactNode; params?: Record<string, string> }) => (
+    <a href={`/subject/${params?.subjectId}/map`}>{children}</a>
+  ),
+}))
 
 import { RecommendationReview } from './recommendation-review'
 
@@ -93,6 +100,40 @@ describe('RecommendationReview', () => {
       'No course, module, topic or question was created',
     )
     expect(screen.queryByTestId('recommendation-approve')).toBeNull()
+  })
+
+  it('should offer to fold into the Area, not create a mini-course', async () => {
+    const foldInRec: LearningListRecommendation = {
+      ...recommendation,
+      destination: 'fold_in',
+      areaId: 'area-effects',
+      areaName: 'Effects & Synchronization',
+      subjectId: 'subject-1',
+    }
+
+    render(
+      <RecommendationReview
+        itemId="item-3"
+        title="A single article"
+        recommendation={foldInRec}
+        onResolve={vi.fn().mockResolvedValue({ ok: true, data: {} })}
+        onResolved={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('recommendation-approve').textContent).toContain(
+      'fold into the Area',
+    )
+
+    fireEvent.click(screen.getByTestId('recommendation-approve'))
+
+    const outcome = await screen.findByTestId('recommendation-outcome')
+
+    expect(outcome.textContent).toContain('Folded into your Area')
+    expect(outcome.textContent).toContain('Effects & Synchronization')
+    expect(outcome.querySelector('a')?.getAttribute('href')).toBe(
+      '/subject/subject-1/map',
+    )
   })
 
   it('should never render an empty signal list', () => {

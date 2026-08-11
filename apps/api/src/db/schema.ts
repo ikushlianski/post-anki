@@ -31,28 +31,58 @@ export const subjects = pgTable("subjects", {
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
 });
 
-export const curricula = pgTable("curricula", {
-  id: text("id").primaryKey(),
-  subjectId: text("subject_id").notNull(),
-  name: text("name").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("draft"),
-  learningStatus: text("learning_status").notNull().default("not_started"),
-  speed: text("speed").notNull().default("normal"),
-  hinting: boolean("hinting").notNull().default(true),
-  defaultDepth: text("default_depth").notNull().default("working"),
-  strictOrder: boolean("strict_order").notNull().default(false),
-  preAssessmentCompletedAt: timestamp("pre_assessment_completed_at", {
-    withTimezone: true,
-  }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  // learning-list-intake — nullable, no default: a curriculum that is not
-  // cross-cutting simply has no concern, exactly as gaps.concern already
-  // models it. Same 6-value `concernSchema` from @post-anki/shared,
-  // app-level validated — deliberately NOT a pg enum, matching every other
-  // enum-ish text column in this file.
-  concern: text("concern"),
-});
+export const curricula = pgTable(
+  "curricula",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    status: text("status").notNull().default("draft"),
+    learningStatus: text("learning_status").notNull().default("not_started"),
+    speed: text("speed").notNull().default("normal"),
+    hinting: boolean("hinting").notNull().default(true),
+    defaultDepth: text("default_depth").notNull().default("working"),
+    strictOrder: boolean("strict_order").notNull().default(false),
+    preAssessmentCompletedAt: timestamp("pre_assessment_completed_at", {
+      withTimezone: true,
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // learning-list-intake — nullable, no default: a curriculum that is not
+    // cross-cutting simply has no concern, exactly as gaps.concern already
+    // models it. Same 6-value `concernSchema` from @post-anki/shared,
+    // app-level validated — deliberately NOT a pg enum, matching every other
+    // enum-ish text column in this file.
+    concern: text("concern"),
+    // learning-list-fold-in — nullable, additive: marks a curriculum as the
+    // implicit, single, per-Area catch-all container that a folded-in single
+    // (learning-list destination `fold_in`) lands in, since `topics.
+    // curriculum_id` is NOT NULL but folding an article in must never spawn a
+    // course the learner has to browse or finish. NULL for every ordinary
+    // curriculum — this is the ONLY thing that marks a curriculum as a
+    // container; nothing else does. Holds the `domain_nodes.id` of the Area
+    // (`domain_nodes.kind = 'area'`) it backs, at most one container per
+    // (subject, Area) — see curricula_container_area_node_id_unique below.
+    // Written and read by findOrCreateAreaContainer (learning-list/
+    // area-container.repo.ts); every curricula listing read path filters
+    // this non-null so the container never shows up as a course to browse.
+    containerAreaNodeId: text("container_area_node_id"),
+  },
+  (table) => [
+    // The find-or-create DB-level race guard (mirrors milestones_entity_
+    // criteria_unique's identical reasoning): two concurrent fold-in
+    // approvals for the same Area can both observe "no container yet" before
+    // either insert commits — this constraint, not the app-level read, is
+    // what stops a second container from ever existing for the same
+    // (subject, Area) pair. Postgres already treats NULL <> NULL, so every
+    // ordinary curriculum (containerAreaNodeId NULL) is naturally exempt
+    // without needing the explicit partial WHERE — kept anyway purely for
+    // self-documentation.
+    uniqueIndex("curricula_container_area_node_id_unique")
+      .on(table.subjectId, table.containerAreaNodeId)
+      .where(sql`${table.containerAreaNodeId} is not null`),
+  ],
+);
 
 // Self-referential tree, one forest per subject — sits between a subject and
 // its curricula, reflecting the real shape of a domain independent of what's

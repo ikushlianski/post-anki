@@ -72,6 +72,7 @@ const { approveRecommendation, declineRecommendation, respondToLearningListNudge
 const { insertLearningListItem, saveClassification, getLearningListItem } = await import(
   "./learning-list.repo.js"
 );
+const { listCurricula } = await import("../curriculum/curriculum.repo.js");
 
 let client: pg.Client;
 let subjectId: string;
@@ -134,7 +135,10 @@ async function classifiedItem(overrides: Partial<LearningListRecommendation> = {
   });
 
   const rec = recommendation(overrides);
-  const awaitingDecision = rec.destination === "mini_course" || rec.destination === "extend_curriculum";
+  const awaitingDecision =
+    rec.destination === "mini_course" ||
+    rec.destination === "extend_curriculum" ||
+    rec.destination === "fold_in";
 
   await saveClassification(item.id, {
     title: "Security for agentic AI on AWS",
@@ -228,8 +232,8 @@ describe("approveRecommendation — SCENARIO 2 and 3", () => {
     expect(confirmed.rowCount).toBe(0);
   });
 
-  it("refuses to approve an item whose recommendation was not a mini-course", async () => {
-    const itemId = await classifiedItem({ verdict: "single", destination: "fold_in" });
+  it("refuses to approve an item that was parked rather than settled on a destination", async () => {
+    const itemId = await classifiedItem({ verdict: "unknown", destination: "park" });
 
     expect(await approveRecommendation(itemId)).toEqual({ error: "not_awaiting_decision" });
   });
@@ -318,6 +322,208 @@ describe("approveRecommendation — extend an existing curriculum, SCENARIO 0.1"
     const reloaded = await getLearningListItem(itemId);
 
     expect(reloaded!.status).toBe("classified");
+  });
+});
+
+describe("approveRecommendation — fold into an Area container", () => {
+  it("creates the Area's container on first fold-in and marks the item folded_in", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { modules: [] } });
+
+    const areaNodeId = `dnode_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO domain_nodes (id, subject_id, parent_id, name, "order", source, kind)
+       VALUES ($1, $2, $3, 'Effects & Synchronization', 0, 'static_taxonomy', 'area')`,
+      [areaNodeId, subjectId, awsNodeId],
+    );
+
+    const itemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Effects & Synchronization",
+    });
+
+    const result = await approveRecommendation(itemId);
+
+    expect("error" in result).toBe(false);
+
+    const containerId = (result as { curriculumId: string }).curriculumId;
+
+    const containers = await client.query(
+      `SELECT name, container_area_node_id FROM curricula WHERE id = $1`,
+      [containerId],
+    );
+
+    expect(containers.rowCount).toBe(1);
+    expect(containers.rows[0].name).toBe("Effects & Synchronization");
+    expect(containers.rows[0].container_area_node_id).toBe(areaNodeId);
+
+    const reloaded = await getLearningListItem(itemId);
+
+    expect(reloaded!.status).toBe("folded_in");
+    expect(reloaded!.curriculumId).toBe(containerId);
+
+    const liveness = await client.query(
+      `SELECT score FROM liveness WHERE entity_type = 'learning_list_item' AND entity_id = $1`,
+      [itemId],
+    );
+
+    expect(liveness.rowCount).toBe(1);
+
+    const confirmed = await client.query(
+      `SELECT status FROM curriculum_domain_node_mappings WHERE curriculum_id = $1 AND domain_node_id = $2`,
+      [containerId, areaNodeId],
+    );
+
+    expect(confirmed.rowCount).toBe(1);
+    expect(confirmed.rows[0].status).toBe("confirmed");
+
+    await vi.waitFor(async () => {
+      const sources = await client.query(`SELECT id FROM sources WHERE curriculum_id = $1`, [
+        containerId,
+      ]);
+
+      expect(sources.rowCount).toBeGreaterThan(0);
+    });
+
+    const listed = await listCurricula(subjectId);
+
+    expect(listed.some((c) => c.id === containerId)).toBe(false);
+  });
+
+  it("reuses the same container for a second article folded into the same Area", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { modules: [] } });
+
+    const areaNodeId = `dnode_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO domain_nodes (id, subject_id, parent_id, name, "order", source, kind)
+       VALUES ($1, $2, $3, 'Identity & Access', 0, 'static_taxonomy', 'area')`,
+      [areaNodeId, subjectId, awsNodeId],
+    );
+
+    const firstItemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Identity & Access",
+    });
+    const secondItemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Identity & Access",
+    });
+
+    const firstResult = await approveRecommendation(firstItemId);
+    const secondResult = await approveRecommendation(secondItemId);
+
+    expect(
+      (secondResult as { curriculumId: string }).curriculumId,
+    ).toBe((firstResult as { curriculumId: string }).curriculumId);
+
+    const containers = await client.query(
+      `SELECT id FROM curricula WHERE subject_id = $1 AND container_area_node_id = $2`,
+      [subjectId, areaNodeId],
+    );
+
+    expect(containers.rowCount).toBe(1);
+
+    const mappings = await client.query(
+      `SELECT id FROM curriculum_domain_node_mappings WHERE curriculum_id = $1 AND domain_node_id = $2`,
+      [
+        (firstResult as { curriculumId: string }).curriculumId,
+        areaNodeId,
+      ],
+    );
+
+    expect(mappings.rowCount).toBe(1);
+  });
+
+  it("resolves two concurrent fold-ins into the same Area to a single container", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { modules: [] } });
+
+    const areaNodeId = `dnode_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO domain_nodes (id, subject_id, parent_id, name, "order", source, kind)
+       VALUES ($1, $2, $3, 'Networking', 0, 'static_taxonomy', 'area')`,
+      [areaNodeId, subjectId, awsNodeId],
+    );
+
+    const firstItemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Networking",
+    });
+    const secondItemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Networking",
+    });
+
+    const [firstResult, secondResult] = await Promise.all([
+      approveRecommendation(firstItemId),
+      approveRecommendation(secondItemId),
+    ]);
+
+    expect("error" in firstResult).toBe(false);
+    expect("error" in secondResult).toBe(false);
+    expect(
+      (secondResult as { curriculumId: string }).curriculumId,
+    ).toBe((firstResult as { curriculumId: string }).curriculumId);
+
+    const containers = await client.query(
+      `SELECT id FROM curricula WHERE subject_id = $1 AND container_area_node_id = $2`,
+      [subjectId, areaNodeId],
+    );
+
+    expect(containers.rowCount).toBe(1);
+
+    const mappings = await client.query(
+      `SELECT id FROM curriculum_domain_node_mappings WHERE curriculum_id = $1 AND domain_node_id = $2`,
+      [
+        (firstResult as { curriculumId: string }).curriculumId,
+        areaNodeId,
+      ],
+    );
+
+    expect(mappings.rowCount).toBe(1);
+  });
+
+  it("blocks folding into a container whose structure is mid-shaping, and releases the claim", async () => {
+    const areaNodeId = `dnode_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO domain_nodes (id, subject_id, parent_id, name, "order", source, kind)
+       VALUES ($1, $2, $3, 'Storage', 0, 'static_taxonomy', 'area')`,
+      [areaNodeId, subjectId, awsNodeId],
+    );
+
+    const containerId = `cur_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO curricula (id, subject_id, name, status, container_area_node_id)
+       VALUES ($1, $2, 'Storage', 'shaping_structure', $3)`,
+      [containerId, subjectId, areaNodeId],
+    );
+
+    const itemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Storage",
+    });
+
+    expect(await approveRecommendation(itemId)).toEqual({ error: "extend_target_busy" });
+
+    const reloaded = await getLearningListItem(itemId);
+
+    expect(reloaded!.status).toBe("classified");
+    expect(reloaded!.curriculumId).toBeNull();
   });
 });
 
