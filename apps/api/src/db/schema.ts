@@ -167,6 +167,15 @@ export const curriculumDomainNodeMappings = pgTable(
       table.status,
     ),
     index("curriculum_domain_node_mappings_curriculum_id_idx").on(table.curriculumId),
+    // learning-list fold-in creates a container's Area mapping on approval,
+    // and two captures folding into the same Area can run concurrently. A
+    // check-then-insert alone raced and produced duplicate live mappings, so
+    // uniqueness is enforced here and the writer retries on 23505. Rejected
+    // rows are excluded: re-suggesting a node whose mapping was rejected is
+    // legitimate, and must not be blocked by an old tombstone.
+    uniqueIndex("curriculum_domain_node_mappings_live_pair_unique")
+      .on(table.curriculumId, table.domainNodeId)
+      .where(sql`${table.status} <> 'rejected'`),
   ],
 );
 

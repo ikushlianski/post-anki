@@ -180,6 +180,30 @@ describe("0.10 — approving a mini-course triggers its first slice release", ()
     expect(reloaded!.questionsGenerated).toBe(1);
   });
 
+  it("advances the new curriculum to confirmed once real, studyable content lands, so it can be quizzed immediately", async () => {
+    mockDomainMappingGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+    mockSliceGenerate.mockResolvedValue({
+      object: {
+        topics: [
+          { title: "IAM roles vs. users", summary: "Grounding on AWS IAM", gaps: [{ label: "What is an IAM role?", depth: "working" }] },
+        ],
+      },
+    });
+
+    const itemId = await classifiedItem();
+    const result = await approveRecommendation(itemId);
+
+    expect("error" in result).toBe(false);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+
+    const curriculum = await client.query(`SELECT status FROM curricula WHERE id = $1`, [
+      curriculumId,
+    ]);
+
+    expect(curriculum.rows[0].status).toBe("confirmed");
+  });
+
   it("never creates a domain_nodes row through this trigger path either", async () => {
     mockDomainMappingGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
     mockSliceGenerate.mockResolvedValue({
@@ -212,6 +236,14 @@ describe("0.10 — approving a mini-course triggers its first slice release", ()
 
     expect(reloaded!.status).toBe("course_created");
     expect(reloaded!.questionsGenerated).toBe(0);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+
+    const curriculum = await client.query(`SELECT status FROM curricula WHERE id = $1`, [
+      curriculumId,
+    ]);
+
+    expect(curriculum.rows[0].status).toBe("curating");
   });
 });
 
@@ -260,5 +292,172 @@ describe("0.10 — extending an existing curriculum also releases a first slice 
     );
 
     expect(topics.rowCount).toBe(1);
+  });
+
+  // Status "awaiting_source_approval" keeps `resolveSourceMergeAction` on the
+  // "queue_for_approval" branch, so this exercise never touches
+  // `mergeSourcesIntoCurriculum` — that background merge unconditionally
+  // pushes the target through "curating" on its own (curriculum-parse.
+  // orchestrator.ts), which would otherwise race this assertion regardless
+  // of anything this fix does. Isolating that lets this test prove the one
+  // thing in scope: `approveExtendRecommendation` itself never calls
+  // `confirmLearningListCurriculum`, even though a real slice was released.
+  it("does not auto-confirm the extended curriculum — manual/research courses keep their own human review step", async () => {
+    mockSliceGenerate.mockResolvedValue({
+      object: {
+        topics: [{ title: "useMemo pitfalls", summary: null, gaps: [{ label: "g1", depth: "working" }] }],
+      },
+    });
+
+    const targetCurriculumId = await targetCurriculumWithSource("awaiting_source_approval");
+
+    const itemId = await classifiedItem({
+      destination: "extend_curriculum",
+      existingCurriculumMatch: { curriculumId: targetCurriculumId, title: "React Hooks deep dive" },
+    });
+
+    const result = await approveRecommendation(itemId);
+
+    expect("error" in result).toBe(false);
+
+    const topics = await client.query(
+      `SELECT id FROM topics WHERE curriculum_id = $1 AND included = true`,
+      [targetCurriculumId],
+    );
+
+    expect(topics.rowCount).toBe(1);
+
+    const target = await client.query(`SELECT status FROM curricula WHERE id = $1`, [
+      targetCurriculumId,
+    ]);
+
+    expect(target.rows[0].status).toBe("awaiting_source_approval");
+  });
+});
+
+describe("0.10 — approving a fold-in also releases a first slice into the Area container", () => {
+  // The architect mock here returns a REAL module (not `{ modules: [] }`)
+  // on purpose: `mergeSourcesIntoCurriculum` now runs to completion, via
+  // `saveCurriculumPlan`, before `releaseNextSliceSafely` starts (see
+  // learning-list-fold-in.orchestrator.ts's await-ordering comment). That
+  // save defaults `included: true` for every topic it writes (no
+  // `defaultIncluded: false` option is passed — contrast
+  // `confirmStructure`'s manual-review path in curriculum-structure.ts,
+  // which does pass it, to pre-draft topics for the drip-feed release
+  // branch in `decideSlice`). So this merge-created topic is never a
+  // candidate for `nextUnreleasedTopicIds` (which only selects
+  // `included = false`), and `decideSlice` still falls through to
+  // `needs_generation` — proven below by the merge's own topic carrying
+  // zero gaps while the release's topic carries real ones.
+  it("advances the Area container curriculum to confirmed once real, studyable content lands, without silently skipping question generation", async () => {
+    mockDomainMappingGenerate.mockResolvedValue({
+      object: {
+        modules: [
+          {
+            title: "Storage fundamentals",
+            topics: [{ title: "Object storage classes", summary: null, suggestedDepth: "working" }],
+            tags: null,
+          },
+        ],
+      },
+    });
+    mockSliceGenerate.mockResolvedValue({
+      object: {
+        topics: [{ title: "S3 bucket policies", summary: null, gaps: [{ label: "g1", depth: "working" }] }],
+      },
+    });
+
+    const areaNodeId = `dnode_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO domain_nodes (id, subject_id, parent_id, name, "order", source, kind)
+       VALUES ($1, $2, $3, 'Storage', 0, 'static_taxonomy', 'area')`,
+      [areaNodeId, subjectId, awsNodeId],
+    );
+
+    const itemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Storage",
+    });
+
+    const result = await approveRecommendation(itemId);
+
+    expect("error" in result).toBe(false);
+
+    const containerId = (result as { curriculumId: string }).curriculumId;
+
+    const container = await client.query(`SELECT status FROM curricula WHERE id = $1`, [
+      containerId,
+    ]);
+
+    expect(container.rows[0].status).toBe("confirmed");
+
+    const topics = await client.query(
+      `SELECT title, included FROM topics WHERE curriculum_id = $1 ORDER BY title`,
+      [containerId],
+    );
+
+    expect(topics.rows.map((r) => r.title).sort()).toEqual([
+      "Object storage classes",
+      "S3 bucket policies",
+    ]);
+    expect(topics.rows.every((r) => r.included)).toBe(true);
+
+    const gaps = await client.query(
+      `SELECT t.title FROM gaps g JOIN topics t ON t.id = g.topic_id WHERE t.curriculum_id = $1`,
+      [containerId],
+    );
+
+    expect(gaps.rows.map((r) => r.title)).toEqual(["S3 bucket policies"]);
+  });
+
+  it("keeps an already-confirmed container confirmed when a second article folds in", async () => {
+    mockDomainMappingGenerate.mockResolvedValue({ object: { modules: [] } });
+    mockSliceGenerate.mockResolvedValue({
+      object: {
+        topics: [{ title: "IAM policy basics", summary: null, gaps: [{ label: "g1", depth: "working" }] }],
+      },
+    });
+
+    const areaNodeId = `dnode_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO domain_nodes (id, subject_id, parent_id, name, "order", source, kind)
+       VALUES ($1, $2, $3, 'Access Control', 0, 'static_taxonomy', 'area')`,
+      [areaNodeId, subjectId, awsNodeId],
+    );
+
+    const firstItemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Access Control",
+    });
+
+    const firstResult = await approveRecommendation(firstItemId);
+    const containerId = (firstResult as { curriculumId: string }).curriculumId;
+
+    const afterFirst = await client.query(`SELECT status FROM curricula WHERE id = $1`, [
+      containerId,
+    ]);
+
+    expect(afterFirst.rows[0].status).toBe("confirmed");
+
+    const secondItemId = await classifiedItem({
+      verdict: "single",
+      destination: "fold_in",
+      areaId: areaNodeId,
+      areaName: "Access Control",
+    });
+
+    await approveRecommendation(secondItemId);
+
+    const afterSecond = await client.query(`SELECT status FROM curricula WHERE id = $1`, [
+      containerId,
+    ]);
+
+    expect(afterSecond.rows[0].status).toBe("confirmed");
   });
 });

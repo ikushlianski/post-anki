@@ -1,11 +1,22 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { nextIngestionSlice, QUESTIONS_PER_TOPIC } from "@post-anki/core";
+import { confirmCurriculum, getCurriculum, setCurriculumStatus } from "../curriculum/curriculum.repo.js";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { learningListItems, modules, topics } from "../db/schema.js";
 import { readLivenessStatus } from "../liveness/liveness.repo.js";
 import { log } from "../shared/log.js";
-import { advanceIngestionCursor } from "./learning-list.repo.js";
+import { advanceIngestionCursor, getLearningListItem } from "./learning-list.repo.js";
 import { generateSliceContent, type ReleasedSlice, type SliceGenerationRequest } from "./slice-generation.orchestrator.js";
+
+// The only two destinations that ever spawn or fold into a curriculum this
+// module itself owns outright (a brand-new mini-course, or a fold-in Area
+// container — see `confirmLearningListCurriculum`'s own comment). Read off
+// the item's own `recommendation.destination` rather than trusted-by-caller,
+// so this stays correct regardless of which caller triggered the release —
+// the two approval orchestrators today, `answer-activity.ts`'s post-answer
+// re-release tomorrow, or any future trigger — without each one having to
+// remember to opt in.
+const CONFIRMABLE_DESTINATIONS = new Set(["mini_course", "fold_in"]);
 
 export type { ReleasedSlice };
 
@@ -148,8 +159,10 @@ export async function releaseNextSliceSafely(
   itemId: string,
   now: string = new Date().toISOString(),
 ): Promise<ReleasedSlice | null> {
+  let released: ReleasedSlice | null;
+
   try {
-    const released = await releaseNextSlice(itemId, now);
+    released = await releaseNextSlice(itemId, now);
 
     if (released) {
       log.info(
@@ -157,11 +170,62 @@ export async function releaseNextSliceSafely(
         "learning_list_slice_released",
       );
     }
-
-    return released;
   } catch (err) {
     log.error({ err, itemId }, "learning_list_slice_release_failed");
 
     return null;
+  }
+
+  // Deliberately outside the try/catch above: real content was just
+  // committed, so `released` is the true outcome of this call regardless of
+  // what happens next. `confirmIfLearningListOwned` never throws, but this
+  // ordering keeps that guarantee even if it someday did — a caller must
+  // never see a successful release reported as a failure because the
+  // curriculum's status update ran into trouble.
+  if (released) {
+    await confirmIfLearningListOwned(itemId);
+  }
+
+  return released;
+}
+
+async function confirmIfLearningListOwned(itemId: string): Promise<void> {
+  try {
+    const item = await getLearningListItem(itemId);
+    const destination = item?.recommendation?.destination;
+
+    if (!item || item.curriculumId === null || !destination || !CONFIRMABLE_DESTINATIONS.has(destination)) {
+      return;
+    }
+
+    await confirmLearningListCurriculum(item.curriculumId);
+  } catch (err) {
+    log.error({ err, itemId }, "learning_list_curriculum_confirm_lookup_failed");
+  }
+}
+
+// Reuses `setCurriculumStatus`/`confirmCurriculum` rather than writing
+// `status` directly, so `confirmCurriculum`'s `hasStudyableContent` check
+// still gates the transition. Never throws: a caller just wrote real
+// content for the learner, and a confirmation failure must not undo that.
+async function confirmLearningListCurriculum(curriculumId: string): Promise<void> {
+  try {
+    const curriculum = await getCurriculum(curriculumId);
+
+    if (!curriculum || curriculum.status === "confirmed") {
+      return;
+    }
+
+    if (curriculum.status !== "ready") {
+      await setCurriculumStatus(curriculumId, "ready");
+    }
+
+    const result = await confirmCurriculum(curriculumId);
+
+    if (typeof result === "string") {
+      log.error({ curriculumId, result }, "learning_list_curriculum_confirm_failed");
+    }
+  } catch (err) {
+    log.error({ err, curriculumId }, "learning_list_curriculum_confirm_failed");
   }
 }

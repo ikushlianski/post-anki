@@ -1,3 +1,4 @@
+import { extractSourceText } from "@post-anki/core";
 import type { RefetchOutcome } from "@post-anki/shared";
 import { FETCH_TIMEOUT_MS, guardedFetchText } from "../shared/guarded-fetch.js";
 
@@ -10,9 +11,11 @@ import { FETCH_TIMEOUT_MS, guardedFetchText } from "../shared/guarded-fetch.js";
 // built for "assemble prompt text once", not "tell me if this attempt
 // succeeded". SCENARIO 7 needs the real outcome to decide whether to
 // overwrite fetchedText, so this module calls guardedFetchText directly
-// instead, duplicating the small strip/sanitize/truncate step
-// source-fetch.ts already does rather than exporting it from a file shared
-// with two other modules mid-way through a multi-agent run.
+// instead. The HTML-to-text extraction step is shared with source-fetch.ts
+// and learning-list-source.ts via @post-anki/core; only the small
+// sanitize/truncate step below stays duplicated per-module, since each
+// module's truncation/whitespace-cleanup constants are trivial enough that
+// a shared file would add an import for no real reuse.
 const MAX_CHARS_PER_SOURCE = 20_000;
 
 const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
@@ -22,16 +25,6 @@ const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
 
 function sanitizeForStorage(text: string): string {
   return text.replace(CONTROL_CHARS_EXCEPT_WHITESPACE, " ");
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&[a-z]+;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function truncate(text: string): string {
@@ -56,7 +49,7 @@ export async function refetchLink(url: string): Promise<RefetchLinkResult> {
   const result = await guardedFetchText(url, { timeoutMs: FETCH_TIMEOUT_MS });
 
   if (result.ok) {
-    return { outcome: "ok", text: truncate(sanitizeForStorage(stripHtml(result.text))) };
+    return { outcome: "ok", text: truncate(sanitizeForStorage(extractSourceText(result.text))) };
   }
 
   if (result.outcome === "blocked") {

@@ -99,6 +99,8 @@ export type RouteName =
   | "listLearningListItems"
   | "getLearningListItem"
   | "resolveLearningListRecommendation"
+  | "chooseLearningListDestination"
+  | "classifyLearningListItem"
   | "createLearningListNudgeResponse"
   | "createNudgeResponse"
   | "listRoleTemplates"

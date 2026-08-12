@@ -1,6 +1,8 @@
 import type http from "node:http";
 import {
   captureLearningListItemInput,
+  chooseLearningListDestinationInput,
+  classifyLearningListItemInput,
   learningListItemStatusSchema,
   nudgeResponseSchema,
   resolveLearningListRecommendationInput,
@@ -16,7 +18,13 @@ import {
   declineRecommendation,
   respondToLearningListNudge,
 } from "./learning-list-approval.orchestrator.js";
-import { getLearningListItem, listLearningListItems } from "./learning-list.repo.js";
+import {
+  claimForClassification,
+  claimParkedDestination,
+  getLearningListItem,
+  listLearningListItems,
+  releaseClassificationClaim,
+} from "./learning-list.repo.js";
 
 const respondToNudgeInput = z.object({ response: nudgeResponseSchema });
 
@@ -162,6 +170,104 @@ export async function handleCreateLearningListNudgeResponse(
   }
 
   sendJson(res, 201, result);
+}
+
+export async function handleChooseLearningListDestination(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  itemId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, chooseLearningListDestinationInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const claimed = await claimParkedDestination(itemId, body.data.destination);
+
+  if ("error" in claimed) {
+    sendError(res, claimed.error === "not_found" ? 404 : 409, claimed.error);
+    return;
+  }
+
+  const result = await approveRecommendation(itemId);
+
+  if ("error" in result) {
+    if (result.error === "not_found") {
+      sendError(res, 404, "not_found");
+      return;
+    }
+
+    if (result.error === "not_awaiting_decision") {
+      sendError(res, 409, "not_awaiting_decision");
+      return;
+    }
+
+    sendError(res, 400, result.error);
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+export async function handleClassifyLearningListItem(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  itemId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, classifyLearningListItemInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const claimed = await claimForClassification(itemId);
+
+  if ("error" in claimed) {
+    sendError(res, claimed.error === "not_found" ? 404 : 409, claimed.error);
+    return;
+  }
+
+  if (claimed.url === null) {
+    await releaseClassificationClaim(itemId);
+    sendError(res, 422, "missing_url");
+    return;
+  }
+
+  try {
+    const result = await captureLearningListItem({
+      url: claimed.url,
+      kind: claimed.kind,
+      pastedDescription: null,
+      subjectId: body.data.subjectId,
+      subSubjectNodeId: body.data.subSubjectNodeId,
+    });
+
+    if ("error" in result) {
+      if (result.itemId === null) {
+        await releaseClassificationClaim(itemId);
+      }
+
+      sendJson(res, SOURCE_ERROR_STATUS[result.error] ?? 400, {
+        error: result.error,
+        message: result.message,
+        itemId: result.itemId ?? itemId,
+      });
+      return;
+    }
+
+    sendJson(res, 200, result);
+  } catch (err) {
+    await releaseClassificationClaim(itemId);
+
+    log.error({ err, itemId, url: claimed.url }, "learning_list_reclassify_failed");
+
+    const message = err instanceof Error ? err.message : "classification failed";
+
+    sendError(res, 502, "classification_failed", message);
+  }
 }
 
 function parseStatusFilter(url: string | undefined): LearningListItemStatus | null | "invalid" {

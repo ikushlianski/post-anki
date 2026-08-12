@@ -1,3 +1,4 @@
+import { extractSourceText } from "@post-anki/core";
 import { FETCH_TIMEOUT_MS, guardedFetchText } from "../shared/guarded-fetch.js";
 
 const MAX_CHARS_PER_SOURCE = 20_000;
@@ -17,7 +18,7 @@ async function fetchLink(url: string): Promise<string> {
   const result = await guardedFetchText(url, { timeoutMs: FETCH_TIMEOUT_MS });
 
   if (result.ok) {
-    return sanitizeForStorage(stripHtml(result.text));
+    return sanitizeForStorage(extractSourceText(result.text));
   }
 
   if (result.outcome === "blocked") {
@@ -38,16 +39,6 @@ const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
 
 function sanitizeForStorage(text: string): string {
   return text.replace(CONTROL_CHARS_EXCEPT_WHITESPACE, " ");
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&[a-z]+;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function truncate(text: string): string {

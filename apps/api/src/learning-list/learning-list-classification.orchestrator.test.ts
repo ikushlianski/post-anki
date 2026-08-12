@@ -3,6 +3,7 @@ import type { LearningListItem } from "@post-anki/shared";
 
 const mockAgentGenerate = vi.fn();
 const mockGuardedFetchText = vi.fn();
+const mockDiscoverGithubChapters = vi.fn();
 
 vi.mock("../mastra/mastra.js", () => ({
   AGENT_KEYS: { learningListClassifier: "learningListClassifier" },
@@ -11,6 +12,10 @@ vi.mock("../mastra/mastra.js", () => ({
 
 vi.mock("../shared/guarded-fetch.js", () => ({
   guardedFetchText: (...args: unknown[]) => mockGuardedFetchText(...args),
+}));
+
+vi.mock("./github-chapters.js", () => ({
+  discoverGithubChapters: (...args: unknown[]) => mockDiscoverGithubChapters(...args),
 }));
 
 vi.mock("../shared/log.js", () => ({
@@ -119,6 +124,7 @@ beforeEach(() => {
   }));
   mockInsertSiblings.mockResolvedValue([]);
   mockFindCurriculumMappedToNode.mockResolvedValue(null);
+  mockDiscoverGithubChapters.mockResolvedValue({ chapters: [], truncated: false, capped: false });
   mockGuardedFetchText.mockResolvedValue({
     ok: true,
     finalUrl: "https://example.com/post",
@@ -362,6 +368,95 @@ describe("captureLearningListItem — an unreachable source", () => {
     });
     expect(mockMarkUnreachable).toHaveBeenCalledWith("llitem_1");
     expect(mockAgentGenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe("captureLearningListItem — GitHub book chapter discovery", () => {
+  const githubInput = {
+    ...input,
+    url: "https://github.com/owner/book/blob/main/01-Part_One/Chapter_1-Prompt_Chaining-hash1.md",
+  };
+
+  it("treats a GitHub chapter as a series with the discovered chapters as siblings", async () => {
+    mockDiscoverGithubChapters.mockResolvedValue({
+      chapters: [
+        {
+          path: "01-Part_One/Chapter_1-Prompt_Chaining-hash1.md",
+          title: "Chapter 1 — Prompt Chaining",
+          url: "https://github.com/owner/book/blob/main/01-Part_One/Chapter_1-Prompt_Chaining-hash1.md",
+        },
+        {
+          path: "01-Part_One/Chapter_2-Routing-hash2.md",
+          title: "Chapter 2 — Routing",
+          url: "https://github.com/owner/book/blob/main/01-Part_One/Chapter_2-Routing-hash2.md",
+        },
+        {
+          path: "01-Part_One/Chapter_3-Parallelization-hash3.md",
+          title: "Chapter 3 — Parallelization",
+          url: "https://github.com/owner/book/blob/main/01-Part_One/Chapter_3-Parallelization-hash3.md",
+        },
+      ],
+      truncated: false,
+      capped: false,
+    });
+    mockAgentGenerate.mockResolvedValue(agentResult());
+
+    await captureLearningListItem(githubInput);
+
+    expect(mockDiscoverGithubChapters).toHaveBeenCalledWith(githubInput.url);
+    expect(savedRecommendation().verdict).toBe("series");
+    expect(savedRecommendation().destination).toBe("mini_course");
+    expect(savedRecommendation().partCount).toBe(3);
+    expect(mockInsertSiblings).toHaveBeenCalledWith([
+      "https://github.com/owner/book/blob/main/01-Part_One/Chapter_2-Routing-hash2.md",
+      "https://github.com/owner/book/blob/main/01-Part_One/Chapter_3-Parallelization-hash3.md",
+    ]);
+  });
+
+  it("notes a truncated or capped repository listing in the recommendation reasons", async () => {
+    mockDiscoverGithubChapters.mockResolvedValue({
+      chapters: [
+        {
+          path: "01-Part_One/Chapter_2-Routing-hash2.md",
+          title: "Chapter 2 — Routing",
+          url: "https://github.com/owner/book/blob/main/01-Part_One/Chapter_2-Routing-hash2.md",
+        },
+      ],
+      truncated: true,
+      capped: true,
+    });
+    mockAgentGenerate.mockResolvedValue(agentResult());
+
+    await captureLearningListItem(githubInput);
+
+    const reasons = savedRecommendation().reasons as string[];
+
+    expect(reasons.some((reason) => reason.includes("truncated"))).toBe(true);
+    expect(reasons.some((reason) => reason.includes("capped"))).toBe(true);
+    expect(savedStatus()).toBe("classified");
+  });
+
+  it("falls back to the classifier's own series signals when no chapters are discovered", async () => {
+    mockDiscoverGithubChapters.mockResolvedValue({ chapters: [], truncated: false, capped: false });
+    mockAgentGenerate.mockResolvedValue(agentResult());
+
+    await captureLearningListItem(githubInput);
+
+    expect(savedRecommendation().verdict).toBe("single");
+    expect(mockInsertSiblings).not.toHaveBeenCalled();
+  });
+
+  it("never attempts chapter discovery for a video capture", async () => {
+    mockAgentGenerate.mockResolvedValue(agentResult());
+
+    await captureLearningListItem({
+      ...input,
+      kind: "video",
+      url: "https://www.youtube.com/watch?v=abc",
+      pastedDescription: "A talk about prompt chaining.",
+    });
+
+    expect(mockDiscoverGithubChapters).not.toHaveBeenCalled();
   });
 });
 

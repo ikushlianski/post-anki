@@ -1,3 +1,4 @@
+import { extractSourceText } from "@post-anki/core";
 import type { LearningListItemKind } from "@post-anki/shared";
 import { guardedFetchText } from "../shared/guarded-fetch.js";
 
@@ -69,7 +70,7 @@ export async function resolveLearningListSource(
     };
   }
 
-  const text = sanitize(stripHtml(fetched.text));
+  const text = sanitize(extractSourceText(fetched.text));
 
   if (text.length === 0) {
     return {
@@ -89,16 +90,6 @@ const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
 
 function sanitize(text: string): string {
   return text.replace(CONTROL_CHARS_EXCEPT_WHITESPACE, " ").trim();
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&[a-z]+;/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function truncate(text: string): string {

@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type {
+  ChosenLearningListDestination,
   LearningListItem,
   LearningListItemKind,
   LearningListItemStatus,
@@ -54,10 +55,37 @@ export interface InsertLearningListItemParams {
   status?: LearningListItemStatus;
 }
 
+// A row claimed for on-demand reclassification (see `claimForClassification`
+// below) sits at status "classifying" for the duration of the pipeline run.
+// `captureLearningListItem` (learning-list-classification.orchestrator.ts,
+// owned by another agent this round) always starts by calling this function
+// with the item's own URL — reusing that same claimed row here, instead of
+// inserting a fresh one, is what lets the reclassify route replay the whole
+// capture pipeline against an existing sibling stub without forking or
+// editing that orchestrator.
 export async function insertLearningListItem(
   params: InsertLearningListItemParams,
   db: DbExecutor = getDb(),
 ): Promise<LearningListItem> {
+  if (params.url !== null) {
+    const claimedForReclassification = (
+      await db
+        .select()
+        .from(learningListItems)
+        .where(
+          and(
+            eq(learningListItems.url, params.url),
+            eq(learningListItems.status, "classifying"),
+          ),
+        )
+        .limit(1)
+    )[0];
+
+    if (claimedForReclassification) {
+      return toLearningListItem(claimedForReclassification);
+    }
+  }
+
   const inserted = (
     await db
       .insert(learningListItems)
@@ -253,6 +281,102 @@ export async function releaseRecommendationClaim(
     .where(
       and(eq(learningListItems.id, itemId), eq(learningListItems.status, "course_created")),
     );
+}
+
+export type ClaimForClassificationError = "not_found" | "not_capturable";
+
+export async function claimForClassification(
+  itemId: string,
+  db: DbExecutor = getDb(),
+): Promise<LearningListItem | { error: ClaimForClassificationError }> {
+  return db.transaction(async (tx) => {
+    const existing = (
+      await tx.select().from(learningListItems).where(eq(learningListItems.id, itemId)).limit(1)
+    )[0];
+
+    if (!existing) {
+      return { error: "not_found" as const };
+    }
+
+    const claimed = (
+      await tx
+        .update(learningListItems)
+        .set({ status: "classifying", updatedAt: new Date() })
+        .where(and(eq(learningListItems.id, itemId), eq(learningListItems.status, "captured")))
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      return { error: "not_capturable" as const };
+    }
+
+    return toLearningListItem(claimed);
+  });
+}
+
+export async function releaseClassificationClaim(
+  itemId: string,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db
+    .update(learningListItems)
+    .set({ status: "captured", updatedAt: new Date() })
+    .where(and(eq(learningListItems.id, itemId), eq(learningListItems.status, "classifying")));
+}
+
+export type ClaimParkedDestinationError = "not_found" | "not_parked";
+
+// Rewrites a parked item's stored recommendation with the destination the
+// human chose in place of the classifier's own `unknown` verdict, then hands
+// it to `approveRecommendation` (learning-list-approval.orchestrator.ts)
+// completely unforked — that function only ever looks at
+// `recommendation.destination`, so overwriting it here is enough to make the
+// existing mini_course/fold_in approval machinery run exactly as it would
+// for a normal classified item. The CAS on `status = 'parked'` is the same
+// double-submission guard `claimRecommendation` uses.
+export async function claimParkedDestination(
+  itemId: string,
+  destination: ChosenLearningListDestination,
+  db: DbExecutor = getDb(),
+): Promise<LearningListItem | { error: ClaimParkedDestinationError }> {
+  return db.transaction(async (tx) => {
+    const existing = (
+      await tx.select().from(learningListItems).where(eq(learningListItems.id, itemId)).limit(1)
+    )[0];
+
+    if (!existing) {
+      return { error: "not_found" as const };
+    }
+
+    const currentRecommendation = parseRecommendation(existing.recommendation);
+
+    if (!currentRecommendation) {
+      return { error: "not_parked" as const };
+    }
+
+    const updatedRecommendation: LearningListRecommendation = {
+      ...currentRecommendation,
+      destination,
+    };
+
+    const claimed = (
+      await tx
+        .update(learningListItems)
+        .set({
+          status: "classified",
+          recommendation: JSON.stringify(updatedRecommendation),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(learningListItems.id, itemId), eq(learningListItems.status, "parked")))
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      return { error: "not_parked" as const };
+    }
+
+    return toLearningListItem(claimed);
+  });
 }
 
 export async function linkCurriculum(

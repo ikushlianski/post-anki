@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import {
   captureLearningListItemInput,
+  chosenLearningListDestinationSchema,
   depthLevelSchema,
   learningStatusSchema,
   nudgeResponseInputSchema,
@@ -13,6 +14,17 @@ import * as api from './learning-list.api-client'
 const resolveRecommendationInput = z.object({
   itemId: z.string().min(1),
   decision: z.enum(['approve', 'decline']),
+})
+
+const chooseDestinationInput = z.object({
+  itemId: z.string().min(1),
+  destination: chosenLearningListDestinationSchema,
+})
+
+const classifyLearningListItemInput = z.object({
+  itemId: z.string().min(1),
+  subjectId: z.string().min(1),
+  subSubjectNodeId: z.string().min(1).nullable(),
 })
 
 const electTopicDepthInput = z.object({
@@ -42,6 +54,14 @@ export const getLearningListItem = createServerFn({ method: 'GET' })
 export const resolveRecommendation = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => resolveRecommendationInput.parse(data))
   .handler(({ data }) => api.resolveRecommendation(data))
+
+export const chooseLearningListDestination = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => chooseDestinationInput.parse(data))
+  .handler(({ data }) => api.chooseLearningListDestination(data))
+
+export const classifyLearningListItem = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => classifyLearningListItemInput.parse(data))
+  .handler(({ data }) => api.classifyLearningListItem(data))
 
 export const respondToNudge = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => nudgeResponseInputSchema.parse(data))

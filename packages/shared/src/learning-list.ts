@@ -95,6 +95,7 @@ export type LearningListItemKind = z.infer<typeof learningListItemKindSchema>;
 
 export const learningListItemStatusSchema = z.enum([
   "captured",
+  "classifying",
   "classified",
   "folded_in",
   "parked",
@@ -147,6 +148,25 @@ export const resolveLearningListRecommendationInput = z.object({
 export type ResolveLearningListRecommendationInput = z.infer<
   typeof resolveLearningListRecommendationInput
 >;
+
+export const chosenLearningListDestinationSchema = z.enum(["mini_course", "fold_in"]);
+
+export type ChosenLearningListDestination = z.infer<typeof chosenLearningListDestinationSchema>;
+
+export const chooseLearningListDestinationInput = z.object({
+  destination: chosenLearningListDestinationSchema,
+});
+
+export type ChooseLearningListDestinationInput = z.infer<
+  typeof chooseLearningListDestinationInput
+>;
+
+export const classifyLearningListItemInput = z.object({
+  subjectId: z.string().min(1),
+  subSubjectNodeId: z.string().min(1).nullable().default(null),
+});
+
+export type ClassifyLearningListItemInput = z.infer<typeof classifyLearningListItemInput>;
 
 export const learningListClassificationSchema = z.object({
   title: z.string(),

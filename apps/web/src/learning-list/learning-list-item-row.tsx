@@ -1,5 +1,10 @@
-import type { LearningListItemStatus } from '@post-anki/shared'
+import type {
+  ChosenLearningListDestination,
+  LearningListItemStatus,
+} from '@post-anki/shared'
 
+import { ClassifyAction } from './classify-action'
+import { DestinationChoice } from './destination-choice'
 import { LivenessBadge } from './liveness-badge'
 import { RecommendationReview } from './recommendation-review'
 import { RecommendationSignals } from './recommendation-signals'
@@ -15,6 +20,7 @@ import type {
 
 const STATUS_LABEL: Record<LearningListItemStatus, string> = {
   captured: 'Captured',
+  classifying: 'Classifying…',
   classified: 'Awaiting your decision',
   folded_in: 'Folded into an Area',
   parked: 'Parked',
@@ -25,17 +31,34 @@ const STATUS_LABEL: Record<LearningListItemStatus, string> = {
 
 export interface LearningListItemRowProps {
   item: LearningListItemWithLiveness
+  subjects: Array<{ id: string; name: string }>
   onResolve: (input: {
     itemId: string
     decision: 'approve' | 'decline'
   }) => Promise<ApiResult<unknown>>
   onResolved: () => void | Promise<void>
+  onChooseDestination: (input: {
+    itemId: string
+    destination: ChosenLearningListDestination
+  }) => Promise<ApiResult<unknown>>
+  onChosen: () => void | Promise<void>
+  onClassify: (input: {
+    itemId: string
+    subjectId: string
+    subSubjectNodeId: string | null
+  }) => Promise<ApiResult<unknown>>
+  onClassified: () => void | Promise<void>
 }
 
 export function LearningListItemRow({
   item,
+  subjects,
   onResolve,
   onResolved,
+  onChooseDestination,
+  onChosen,
+  onClassify,
+  onClassified,
 }: LearningListItemRowProps) {
   const title = item.title ?? item.url ?? 'Untitled capture'
   const muted = isVisuallyMuted(item.liveness)
@@ -89,6 +112,23 @@ export function LearningListItemRow({
             awaitingDecision={false}
           />
         </div>
+      ) : null}
+
+      {item.status === 'parked' ? (
+        <DestinationChoice
+          itemId={item.id}
+          onChoose={onChooseDestination}
+          onChosen={onChosen}
+        />
+      ) : null}
+
+      {item.status === 'captured' && item.url !== null ? (
+        <ClassifyAction
+          itemId={item.id}
+          subjects={subjects}
+          onClassify={onClassify}
+          onClassified={onClassified}
+        />
       ) : null}
     </li>
   )

@@ -133,6 +133,8 @@ import {
 } from "./curriculum-domain-mapping/curriculum-domain-mapping.controller.js";
 import {
   handleCaptureLearningListItem,
+  handleChooseLearningListDestination,
+  handleClassifyLearningListItem,
   handleCreateLearningListNudgeResponse,
   handleGetLearningListItem,
   handleListLearningListItems,
@@ -470,6 +472,10 @@ async function route(
       return handleGetLearningListItem(res, id);
     case "resolveLearningListRecommendation":
       return handleResolveLearningListRecommendation(req, res, id);
+    case "chooseLearningListDestination":
+      return handleChooseLearningListDestination(req, res, id);
+    case "classifyLearningListItem":
+      return handleClassifyLearningListItem(req, res, id);
     case "createLearningListNudgeResponse":
       return handleCreateLearningListNudgeResponse(req, res, id);
     case "createNudgeResponse":

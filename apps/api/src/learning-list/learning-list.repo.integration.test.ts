@@ -47,6 +47,9 @@ const {
   listLearningListItems,
   saveClassification,
   claimRecommendation,
+  claimForClassification,
+  releaseClassificationClaim,
+  claimParkedDestination,
   linkCurriculum,
   listAreaPlacementCandidates,
 } = await import("./learning-list.repo.js");
@@ -107,6 +110,28 @@ async function classifiedItem(): Promise<string> {
     recommendation: recommendation(),
     questionCeiling: 27,
     status: "classified",
+  });
+
+  return item.id;
+}
+
+async function parkedItem(
+  overrides: Partial<LearningListRecommendation> = {},
+): Promise<string> {
+  const item = await insertLearningListItem({
+    url: `https://example.com/${randomUUID()}`,
+    rawText: null,
+    title: null,
+    kind: "article",
+  });
+
+  await saveClassification(item.id, {
+    title: "Introduction — one of nine guides",
+    rawText: "guide text",
+    verdict: "unknown",
+    recommendation: recommendation({ verdict: "unknown", destination: "park", ...overrides }),
+    questionCeiling: 1,
+    status: "parked",
   });
 
   return item.id;
@@ -286,5 +311,126 @@ describe("listAreaPlacementCandidates — SCENARIO 12, Areas are scoped to their
     ]);
     expect(aws.areas).toHaveLength(1);
     expect(react.areas.find((area) => area.name === "Other")!.id).not.toBe(aws.areas[0]!.id);
+  });
+});
+
+describe("claimForClassification — an already-captured sibling stub going through classification on demand", () => {
+  it("lets exactly one concurrent request claim a captured stub", async () => {
+    const stub = await insertSiblingLearningListItems([
+      `https://aws.example.com/${randomUUID()}`,
+    ]);
+    const itemId = stub[0]!.id;
+
+    const [a, b] = await Promise.all([
+      claimForClassification(itemId),
+      claimForClassification(itemId),
+    ]);
+
+    const outcomes = [a, b];
+
+    expect(outcomes.filter((outcome) => !("error" in outcome))).toHaveLength(1);
+    expect(outcomes.filter((outcome) => "error" in outcome)).toHaveLength(1);
+
+    const reloaded = await getLearningListItem(itemId);
+
+    expect(reloaded!.status).toBe("classifying");
+  });
+
+  it("refuses to claim an item that is not a fresh capture", async () => {
+    const itemId = await classifiedItem();
+
+    expect(await claimForClassification(itemId)).toEqual({ error: "not_capturable" });
+  });
+
+  it("reports a missing item as not found", async () => {
+    expect(await claimForClassification(id("llitem"))).toEqual({ error: "not_found" });
+  });
+
+  it("releases a claim back to captured so it can be retried", async () => {
+    const stub = await insertSiblingLearningListItems([
+      `https://aws.example.com/${randomUUID()}`,
+    ]);
+    const itemId = stub[0]!.id;
+
+    await claimForClassification(itemId);
+    await releaseClassificationClaim(itemId);
+
+    const reloaded = await getLearningListItem(itemId);
+
+    expect(reloaded!.status).toBe("captured");
+    expect(await claimForClassification(itemId)).not.toHaveProperty("error");
+  });
+});
+
+describe("insertLearningListItem — reusing a row claimed for reclassification", () => {
+  it("returns the claimed row itself instead of inserting a twin for the same URL", async () => {
+    const url = `https://aws.example.com/${randomUUID()}`;
+    const stub = await insertSiblingLearningListItems([url]);
+    const claimed = await claimForClassification(stub[0]!.id);
+
+    const reused = await insertLearningListItem({
+      url,
+      rawText: null,
+      title: null,
+      kind: "article",
+    });
+
+    expect(reused.id).toBe((claimed as { id: string }).id);
+
+    const all = await listLearningListItems();
+
+    expect(all.filter((item) => item.url === url)).toHaveLength(1);
+  });
+});
+
+describe("claimParkedDestination — resolving a parked item's ambiguity", () => {
+  it("lets exactly one concurrent request choose a destination for a parked item", async () => {
+    const itemId = await parkedItem();
+
+    const [a, b] = await Promise.all([
+      claimParkedDestination(itemId, "mini_course"),
+      claimParkedDestination(itemId, "fold_in"),
+    ]);
+
+    const outcomes = [a, b];
+
+    expect(outcomes.filter((outcome) => !("error" in outcome))).toHaveLength(1);
+    expect(outcomes.filter((outcome) => "error" in outcome)).toHaveLength(1);
+
+    const reloaded = await getLearningListItem(itemId);
+
+    expect(reloaded!.status).toBe("classified");
+    expect(["mini_course", "fold_in"]).toContain(reloaded!.recommendation!.destination);
+  });
+
+  it("overwrites the stored destination while keeping the rest of the recommendation intact", async () => {
+    const itemId = await parkedItem({
+      areaId: "dnode_aws_identity",
+      areaName: "Identity & Access",
+    });
+
+    const claimed = await claimParkedDestination(itemId, "fold_in");
+
+    expect(claimed).not.toHaveProperty("error");
+
+    const reloaded = await getLearningListItem(itemId);
+
+    expect(reloaded!.recommendation!.destination).toBe("fold_in");
+    expect(reloaded!.recommendation!.areaId).toBe("dnode_aws_identity");
+    expect(reloaded!.recommendation!.verdict).toBe("unknown");
+  });
+
+  it("refuses to choose a destination for an item that was never parked", async () => {
+    const itemId = await classifiedItem();
+
+    expect(await claimParkedDestination(itemId, "mini_course")).toEqual({
+      error: "not_parked",
+    });
+  });
+
+  it("reports a missing item as not found", async () => {
+    expect(await claimParkedDestination(id("llitem"), "mini_course")).toEqual({
+      error: "not_found",
+    });
   });
 });

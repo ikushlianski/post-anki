@@ -315,6 +315,18 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   {
+    method: "PATCH",
+    pattern: /^\/learning-list-items\/([^/]+)\/destination$/,
+    name: "chooseLearningListDestination",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/learning-list-items\/([^/]+)\/classification$/,
+    name: "classifyLearningListItem",
+    param: "id",
+  },
+  {
     method: "POST",
     pattern: /^\/learning-list-items\/([^/]+)\/nudge-responses$/,
     name: "createLearningListNudgeResponse",

@@ -1,5 +1,6 @@
 import {
   isSafeSourceUrl,
+  rewriteGithubBlobUrl,
   type SourceUrlRejectionReason,
   type SourceUrlVerdict,
 } from "@post-anki/core";
@@ -59,7 +60,12 @@ export async function guardedFetchText(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    let current = url;
+    // A GitHub blob URL is rewritten to its raw.githubusercontent.com
+    // equivalent before anything else runs, so isSafeSourceUrl and the
+    // redirect loop below see and guard the URL that is actually fetched —
+    // this never bypasses the safety check, it just changes which URL the
+    // check (and the fetch) applies to.
+    let current = rewriteGithubBlobUrl(url);
 
     for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
       const verdict = verdictForHop(current);

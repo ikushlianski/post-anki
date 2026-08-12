@@ -1,8 +1,10 @@
 import {
   deriveSeriesVerdict,
   isSafeSourceUrl,
+  parseGithubBlobUrl,
   planQuestionCeiling,
   recommendDestination,
+  type DiscoveredChapter,
 } from "@post-anki/core";
 import {
   concernSchema,
@@ -13,10 +15,12 @@ import {
   type LearningListItem,
   type LearningListItemStatus,
   type LearningListRecommendation,
+  type SeriesVerdict,
 } from "@post-anki/shared";
 import { findCurriculumMappedToNode } from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
+import { discoverGithubChapters, type GithubChapterDiscoveryResult } from "./github-chapters.js";
 import { buildClassificationPrompt } from "./learning-list-prompt.js";
 import {
   resolveLearningListSource,
@@ -32,6 +36,12 @@ import {
 } from "./learning-list.repo.js";
 
 const MAX_CAPTURED_SIBLINGS = 12;
+
+const NO_CHAPTERS_DISCOVERED: GithubChapterDiscoveryResult = {
+  chapters: [],
+  truncated: false,
+  capped: false,
+};
 
 export type CaptureLearningListItemError = LearningListSourceError;
 
@@ -78,10 +88,13 @@ async function classifyCapturedItem(
   const candidates = await listAreaPlacementCandidates(input.subjectId);
   const agent = getMastra().getAgent(AGENT_KEYS.learningListClassifier);
 
-  const result = await agent.generate(
-    buildClassificationPrompt(candidates, input.kind === "video" ? null : input.url, sourceText),
-    { structuredOutput: { schema: learningListClassificationSchema } },
-  );
+  const [result, chapterDiscovery] = await Promise.all([
+    agent.generate(
+      buildClassificationPrompt(candidates, input.kind === "video" ? null : input.url, sourceText),
+      { structuredOutput: { schema: learningListClassificationSchema } },
+    ),
+    input.kind === "video" ? Promise.resolve(NO_CHAPTERS_DISCOVERED) : discoverGithubChapters(input.url),
+  ]);
 
   if (!result.object) {
     throw new Error("learning-list classifier returned no structured output");
@@ -95,7 +108,14 @@ async function classifyCapturedItem(
     proposedAreaName: classification.proposedAreaName,
   });
 
-  const seriesVerdict = deriveSeriesVerdict(classification.signals);
+  const bookChapters = otherBookChapters(chapterDiscovery, input.url);
+  const seriesVerdict = bookChapters === null
+    ? deriveSeriesVerdict(classification.signals)
+    : bookSeriesVerdict(bookChapters, chapterDiscovery);
+  const partCount = bookChapters === null ? classification.partCount : bookChapters.length + 1;
+  const siblingUrls = bookChapters === null
+    ? classification.siblingUrls
+    : bookChapters.map((chapter) => chapter.url);
   const existingCurriculumMatch =
     seriesVerdict.verdict === "series" && placement.areaId !== null
       ? await findCurriculumMappedToNode(placement.areaId)
@@ -118,7 +138,7 @@ async function classifyCapturedItem(
     subSubjectNodeId: placement.subSubjectNodeId,
     subjectId: input.subjectId,
     concern: validConcern(classification.suggestedConcern),
-    partCount: classification.partCount,
+    partCount,
     existingCurriculumMatch,
   };
 
@@ -127,14 +147,12 @@ async function classifyCapturedItem(
     rawText: sourceText,
     verdict: seriesVerdict.verdict,
     recommendation,
-    questionCeiling: planQuestionCeiling(seriesVerdict.verdict, classification.partCount),
+    questionCeiling: planQuestionCeiling(seriesVerdict.verdict, partCount),
     status: statusForDestination(destination),
   });
 
   if (seriesVerdict.verdict === "series") {
-    await insertSiblingLearningListItems(
-      safeSiblingUrls(classification.siblingUrls, input.url),
-    );
+    await insertSiblingLearningListItems(safeSiblingUrls(siblingUrls, input.url));
   }
 
   log.info(
@@ -155,6 +173,47 @@ function withPlacementFallback(
   areaId: string | null,
 ): LearningListDestination {
   return destination === "fold_in" && areaId === null ? "park" : destination;
+}
+
+// Discovered chapters always include whichever chapter the API tree happens
+// to sort the captured URL into — this excludes it by repository path
+// (decoded, so it matches regardless of how the user's URL was encoded)
+// rather than by exact string equality against input.url, since a freshly
+// built chapter URL and the URL the user actually pasted can differ in
+// encoding even when they name the same file.
+function otherBookChapters(
+  discovery: GithubChapterDiscoveryResult,
+  capturedUrl: string,
+): DiscoveredChapter[] | null {
+  if (discovery.chapters.length === 0) {
+    return null;
+  }
+
+  const capturedPath = parseGithubBlobUrl(capturedUrl)?.path ?? null;
+  const others = discovery.chapters.filter((chapter) => chapter.path !== capturedPath);
+
+  return others.length > 0 ? others : null;
+}
+
+function bookSeriesVerdict(
+  otherChapters: DiscoveredChapter[],
+  discovery: GithubChapterDiscoveryResult,
+): SeriesVerdict {
+  const chapterWord = otherChapters.length === 1 ? "chapter" : "chapters";
+  const wasWere = otherChapters.length === 1 ? "was" : "were";
+  const reasons = [
+    `${otherChapters.length} other ${chapterWord} from the same GitHub repository ${wasWere} found`,
+  ];
+
+  if (discovery.truncated) {
+    reasons.push("the repository's file listing was truncated by GitHub, so some chapters may be missing");
+  }
+
+  if (discovery.capped) {
+    reasons.push("the repository has more markdown files than could be included, so the chapter list was capped");
+  }
+
+  return { verdict: "series", reasons };
 }
 
 // learning-list-fold-in — `fold_in` is an approvable recommendation, exactly

@@ -22,3 +22,5 @@ export * from "./study-material/index";
 export * from "./milestone/index";
 export * from "./content-library/index";
 export * from "./source-duplicate/index";
+export * from "./source-text/index";
+export * from "./github-book/index";

@@ -190,6 +190,36 @@ describe("guardedFetchText", () => {
     });
   });
 
+  describe("a GitHub blob URL", () => {
+    it("fetches the raw markdown URL instead of the chrome-wrapped blob page", async () => {
+      const spy = stubFetch(() => page("# Chapter 1\n\nPrompt chaining body text."));
+
+      const result = await guardedFetchText(
+        "https://github.com/owner/repo/blob/main/docs/chapter-1.md",
+      );
+
+      expect(spy).toHaveBeenCalledWith(
+        "https://raw.githubusercontent.com/owner/repo/main/docs/chapter-1.md",
+        expect.anything(),
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        finalUrl: "https://raw.githubusercontent.com/owner/repo/main/docs/chapter-1.md",
+      });
+    });
+
+    it("leaves a non-blob GitHub URL, and every non-GitHub URL, alone", async () => {
+      const spy = stubFetch(() => page("tree listing"));
+
+      await guardedFetchText("https://github.com/owner/repo/tree/main/docs");
+
+      expect(spy).toHaveBeenCalledWith(
+        "https://github.com/owner/repo/tree/main/docs",
+        expect.anything(),
+      );
+    });
+  });
+
   describe("an oversized response", () => {
     it("stops reading at the byte cap and says the text was cut short", async () => {
       stubFetch(() => page("a".repeat(5_000)));

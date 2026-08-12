@@ -1,5 +1,6 @@
 import type {
   CaptureLearningListItemInput,
+  ChosenLearningListDestination,
   DepthLevel,
   LearningListItem,
   LearningStatus,
@@ -100,6 +101,33 @@ export async function resolveRecommendation(input: {
   return requestDiscardingBody(
     `/learning-list-items/${input.itemId}/recommendation`,
     { method: 'PATCH', body: { decision: input.decision } },
+  )
+}
+
+export async function chooseLearningListDestination(input: {
+  itemId: string
+  destination: ChosenLearningListDestination
+}): Promise<ApiResult<null>> {
+  return requestDiscardingBody(
+    `/learning-list-items/${input.itemId}/destination`,
+    { method: 'PATCH', body: { destination: input.destination } },
+  )
+}
+
+export async function classifyLearningListItem(input: {
+  itemId: string
+  subjectId: string
+  subSubjectNodeId: string | null
+}): Promise<ApiResult<LearningListItem>> {
+  return request<LearningListItem>(
+    `/learning-list-items/${input.itemId}/classification`,
+    {
+      method: 'POST',
+      body: {
+        subjectId: input.subjectId,
+        subSubjectNodeId: input.subSubjectNodeId,
+      },
+    },
   )
 }
 

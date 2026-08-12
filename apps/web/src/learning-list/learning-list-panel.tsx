@@ -1,3 +1,5 @@
+import type { ChosenLearningListDestination } from '@post-anki/shared'
+
 import { LearningListItemRow } from './learning-list-item-row'
 import type {
   ApiResult,
@@ -6,17 +8,34 @@ import type {
 
 export interface LearningListPanelProps {
   items: LearningListItemWithLiveness[]
+  subjects: Array<{ id: string; name: string }>
   onResolve: (input: {
     itemId: string
     decision: 'approve' | 'decline'
   }) => Promise<ApiResult<unknown>>
   onResolved: () => void | Promise<void>
+  onChooseDestination: (input: {
+    itemId: string
+    destination: ChosenLearningListDestination
+  }) => Promise<ApiResult<unknown>>
+  onChosen: () => void | Promise<void>
+  onClassify: (input: {
+    itemId: string
+    subjectId: string
+    subSubjectNodeId: string | null
+  }) => Promise<ApiResult<unknown>>
+  onClassified: () => void | Promise<void>
 }
 
 export function LearningListPanel({
   items,
+  subjects,
   onResolve,
   onResolved,
+  onChooseDestination,
+  onChosen,
+  onClassify,
+  onClassified,
 }: LearningListPanelProps) {
   if (items.length === 0) {
     return (
@@ -35,8 +54,13 @@ export function LearningListPanel({
         <LearningListItemRow
           key={item.id}
           item={item}
+          subjects={subjects}
           onResolve={onResolve}
           onResolved={onResolved}
+          onChooseDestination={onChooseDestination}
+          onChosen={onChosen}
+          onClassify={onClassify}
+          onClassified={onClassified}
         />
       ))}
     </ul>

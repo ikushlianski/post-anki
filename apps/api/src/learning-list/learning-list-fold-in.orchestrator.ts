@@ -69,6 +69,15 @@ export async function approveFoldInRecommendation(
 
   const drafts = sourcesForItem(claimed);
 
+  // Awaited, not fire-and-forget: `mergeSourcesIntoCurriculum` cycles
+  // `container.status` through "curating" then "ready"/"failed" (see
+  // curriculum-parse.orchestrator.ts), and `releaseNextSliceSafely` below
+  // may advance that same status to "confirmed" once real content lands
+  // (slice-release.ts's `confirmIfLearningListOwned`). Letting the merge run
+  // unawaited would race that confirm — worst case, silently dropping an
+  // already-`confirmed`, reused container back to "curating" underneath a
+  // learner mid-session. Sequencing here is what keeps confirm the last
+  // writer of `container.status`.
   if (action === "queue_for_approval") {
     await insertPendingSources(
       container.id,
@@ -80,7 +89,7 @@ export async function approveFoldInRecommendation(
       })),
     );
   } else {
-    void mergeSourcesIntoCurriculum(container.id, drafts).catch((err) =>
+    await mergeSourcesIntoCurriculum(container.id, drafts).catch((err) =>
       log.error({ err, itemId, curriculumId: container.id }, "learning_list_fold_in_merge_failed"),
     );
   }

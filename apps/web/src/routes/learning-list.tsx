@@ -5,6 +5,8 @@ import { CaptureForm } from '../learning-list/capture-form'
 import { LearningListPanel } from '../learning-list/learning-list-panel'
 import {
   captureLearningListItem,
+  chooseLearningListDestination,
+  classifyLearningListItem,
   listLearningListItems,
   resolveRecommendation,
 } from '../learning-list/learning-list.api'
@@ -48,8 +50,16 @@ function LearningListPage() {
 
       <LearningListPanel
         items={items}
+        subjects={subjects.map((subject) => ({
+          id: subject.id,
+          name: subject.name,
+        }))}
         onResolve={(data) => resolveRecommendation({ data })}
         onResolved={() => router.invalidate()}
+        onChooseDestination={(data) => chooseLearningListDestination({ data })}
+        onChosen={() => router.invalidate()}
+        onClassify={(data) => classifyLearningListItem({ data })}
+        onClassified={() => router.invalidate()}
       />
     </main>
   )

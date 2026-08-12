@@ -164,7 +164,50 @@ export async function insertConfirmedMappingIdempotent(
     return toMapping(existing[0]!);
   }
 
-  return insertConfirmedMapping(params, db);
+  try {
+    return await insertConfirmedMapping(params, db);
+  } catch (err) {
+    if (!isUniqueViolation(err)) {
+      throw err;
+    }
+
+    const winner = await selectLiveMapping(params, db);
+
+    if (!winner) {
+      throw err;
+    }
+
+    return winner;
+  }
+}
+
+const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
+  );
+}
+
+async function selectLiveMapping(
+  params: InsertConfirmedMappingParams,
+  db: DbExecutor,
+): Promise<CurriculumDomainNodeMapping | null> {
+  const rows = await db
+    .select()
+    .from(curriculumDomainNodeMappings)
+    .where(
+      and(
+        eq(curriculumDomainNodeMappings.curriculumId, params.curriculumId),
+        eq(curriculumDomainNodeMappings.domainNodeId, params.domainNodeId),
+        ne(curriculumDomainNodeMappings.status, "rejected"),
+      ),
+    );
+
+  return rows[0] ? toMapping(rows[0]) : null;
 }
 
 export async function listMappingsForCurriculum(

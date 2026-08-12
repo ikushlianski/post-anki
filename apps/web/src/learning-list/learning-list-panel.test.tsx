@@ -33,8 +33,13 @@ function renderPanel(items: LearningListItemWithLiveness[]) {
   render(
     <LearningListPanel
       items={items}
+      subjects={[{ id: 'subject-1', name: 'Web Development' }]}
       onResolve={vi.fn().mockResolvedValue({ ok: true, data: {} })}
       onResolved={vi.fn()}
+      onChooseDestination={vi.fn().mockResolvedValue({ ok: true, data: {} })}
+      onChosen={vi.fn()}
+      onClassify={vi.fn().mockResolvedValue({ ok: true, data: {} })}
+      onClassified={vi.fn()}
     />,
   )
 }
@@ -222,6 +227,14 @@ describe('LearningListPanel', () => {
     expect(screen.getByTestId('learning-list-item').textContent).toContain(
       'too weak',
     )
+    expect(screen.getByTestId('destination-choice')).toBeTruthy()
+  })
+
+  it('should offer to classify a discovered sibling still sitting as a bare capture', () => {
+    renderPanel([item({ id: 'sibling-1', status: 'captured', verdict: null })])
+
+    expect(screen.getByTestId('classify-action')).toBeTruthy()
+    expect(screen.queryByTestId('destination-choice')).toBeNull()
   })
 
   it('should show generation progress against the ceiling', () => {
