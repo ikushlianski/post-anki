@@ -206,6 +206,74 @@ describe("handleUpdate", () => {
     expect(onStudy).toHaveBeenCalledWith(OWNER, null);
   });
 
+  it("'let's continue' with no tool named shows the subjects screen", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "let's continue" }), deps);
+    expect(deps.onStart).toHaveBeenCalledWith(OWNER);
+    expect(flow.getDailyPush).not.toHaveBeenCalled();
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("'where were we' with no tool named shows the subjects screen", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "where were we" }), deps);
+    expect(deps.onStart).toHaveBeenCalledWith(OWNER);
+  });
+
+  it("'let's continue with X' starts a fresh session on that tool, same as /study", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onStudy = onStudy;
+    await handleUpdate(update({ text: "let's continue with Kubernetes" }), deps);
+    expect(onStudy).toHaveBeenCalledWith(OWNER, "Kubernetes");
+    expect(deps.onStart).not.toHaveBeenCalled();
+  });
+
+  it("'let's talk about X' starts a fresh session on that tool via the existing study path", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onStudy = onStudy;
+    await handleUpdate(update({ text: "let's talk about Lambda" }), deps);
+    expect(onStudy).toHaveBeenCalledWith(OWNER, "Lambda");
+  });
+
+  it("continuation language mid-socratic-session shows the subjects screen instead of being submitted as an answer (matches /study's existing mid-session behaviour)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "let's continue" }), deps);
+    expect(deps.onStart).toHaveBeenCalledWith(OWNER);
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("routes continue-with-tool through no new copy — falls back to the existing decline reply when unwired", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "let's continue with Kubernetes" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, DECLINE_REPLY);
+  });
+
+  it("routes bare continue through no new copy — falls back to the existing decline reply when unwired", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow) as HandlerDeps & { sendMessage: ReturnType<typeof vi.fn> };
+    deps.onStart = undefined;
+    await handleUpdate(update({ text: "let's continue" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, DECLINE_REPLY);
+  });
+
   it("/study runs even mid-socratic session, without touching the socratic handler", async () => {
     const flow = makeFlow();
     const deps = makeDeps(flow);

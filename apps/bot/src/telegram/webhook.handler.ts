@@ -110,6 +110,22 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
       return;
     }
 
+    if (decision.kind === "continue") {
+      if (decision.tool) {
+        if (deps.onStudy) {
+          await deps.onStudy(chatId, decision.tool);
+        } else {
+          await sendMessage(chatId, DECLINE_REPLY);
+        }
+      } else if (deps.onStart) {
+        await deps.onStart(chatId);
+      } else {
+        await sendMessage(chatId, DECLINE_REPLY);
+      }
+
+      return;
+    }
+
     if (decision.kind === "today") {
       if (deps.clearChatContext) {
         await deps.clearChatContext(chatId);

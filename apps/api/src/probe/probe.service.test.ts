@@ -22,10 +22,11 @@ vi.mock("../topic/topic-progress.repo.js", () => ({
 }));
 
 const listGapsForTopic = vi.fn();
+const persistGaps = vi.fn();
 
 vi.mock("../gap/gap.repo.js", () => ({
   listGapsForTopic: (id: string) => listGapsForTopic(id),
-  persistGaps: vi.fn(),
+  persistGaps: (gaps: unknown) => persistGaps(gaps),
   insertDiscoveredGaps: vi.fn(async () => []),
 }));
 
@@ -190,5 +191,52 @@ describe("startProbe quick_test question", () => {
       expect(result.correctAnswerIndex).toBe(2);
       expect(result.kind).toBe("quick_test");
     }
+  });
+});
+
+describe("startProbe depth-calibration staleness (#26/#42)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTopicRow.mockResolvedValue(topicRow);
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Pick one", options: ["a", "b", "c", "d"], correctAnswerIndex: 2 },
+    });
+  });
+
+  it("floors Target depth to awareness for a gap not evaluated in 60+ days, without writing gaps.depth", async () => {
+    listGapsForTopic.mockResolvedValue([
+      makeGap({ depth: "working", lastEvaluatedAt: "2026-01-01T00:00:00.000Z" }),
+    ]);
+
+    await startProbe({ topicId: "t1", mode: "quick_test" }, "2026-06-24T00:00:00.000Z");
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain("Target depth: awareness");
+    expect(prompt).not.toContain("Target depth: working");
+    expect(persistGaps).not.toHaveBeenCalled();
+  });
+
+  it("keeps the gap's real depth when it was evaluated recently", async () => {
+    listGapsForTopic.mockResolvedValue([
+      makeGap({ depth: "working", lastEvaluatedAt: "2026-06-20T00:00:00.000Z" }),
+    ]);
+
+    await startProbe({ topicId: "t1", mode: "quick_test" }, "2026-06-24T00:00:00.000Z");
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain("Target depth: working");
+    expect(prompt).not.toContain("Target depth: awareness");
+  });
+
+  it("keeps the gap's real depth when it has never been evaluated", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap({ depth: "working", lastEvaluatedAt: null })]);
+
+    await startProbe({ topicId: "t1", mode: "quick_test" }, "2026-06-24T00:00:00.000Z");
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain("Target depth: working");
   });
 });

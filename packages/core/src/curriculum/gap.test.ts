@@ -7,6 +7,7 @@ import {
   openGaps,
   inScopeGaps,
   nextGapToProbe,
+  isCalibrationStale,
 } from "./gap";
 
 function gap(overrides: Partial<Gap> & { id: string }): Gap {
@@ -181,6 +182,34 @@ describe("openGaps", () => {
     ];
 
     expect(openGaps(gaps, "working").map((g) => g.id)).toEqual(["b"]);
+  });
+});
+
+describe("isCalibrationStale", () => {
+  const NOW = "2026-05-31T00:00:00.000Z";
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const nowMs = new Date(NOW).getTime();
+
+  it("never marks a never-evaluated gap stale", () => {
+    expect(isCalibrationStale(null, NOW)).toBe(false);
+  });
+
+  it("is not yet stale a few days after evaluation", () => {
+    const recent = new Date(nowMs - 5 * DAY_MS).toISOString();
+
+    expect(isCalibrationStale(recent, NOW)).toBe(false);
+  });
+
+  it("is not yet stale exactly at the 60-day boundary", () => {
+    const exactly60 = new Date(nowMs - 60 * DAY_MS).toISOString();
+
+    expect(isCalibrationStale(exactly60, NOW)).toBe(false);
+  });
+
+  it("is stale once more than 60 days have passed", () => {
+    const day61 = new Date(nowMs - 61 * DAY_MS).toISOString();
+
+    expect(isCalibrationStale(day61, NOW)).toBe(true);
   });
 });
 

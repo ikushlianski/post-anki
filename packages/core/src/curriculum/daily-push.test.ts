@@ -100,6 +100,20 @@ describe("selectDailyPush", () => {
     expect(pick?.reason).toBe("refresh");
   });
 
+  it("never accumulates a queue across repeated calls with the same unanswered gap present", () => {
+    const candidates = [
+      candidate({ topicId: "t1", gaps: [gap({ id: "g1", state: "open" })] }),
+    ];
+
+    const first = selectDailyPush(candidates, NOW);
+    const second = selectDailyPush(candidates, NOW);
+    const third = selectDailyPush(candidates, NOW);
+
+    expect(first).toEqual(second);
+    expect(second).toEqual(third);
+    expect(first?.gap.id).toBe("g1");
+  });
+
   it("does not refresh a recently-covered gap", () => {
     const pick = selectDailyPush(
       [

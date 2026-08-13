@@ -63,6 +63,70 @@ describe("selectReply", () => {
     });
   });
 
+  describe("continuation language", () => {
+    it("routes a bare 'let's continue' to the continue branch with no tool", () => {
+      expect(selectReply(msg({ text: "let's continue" }))).toEqual({
+        kind: "continue",
+        tool: null,
+      });
+    });
+
+    it("routes 'lets continue' (no apostrophe) the same way", () => {
+      expect(selectReply(msg({ text: "lets continue" }))).toEqual({
+        kind: "continue",
+        tool: null,
+      });
+    });
+
+    it("routes 'where were we' to the continue branch with no tool", () => {
+      expect(selectReply(msg({ text: "where were we" }))).toEqual({
+        kind: "continue",
+        tool: null,
+      });
+    });
+
+    it("routes 'where were we?' (trailing punctuation) the same way", () => {
+      expect(selectReply(msg({ text: "Where were we?" }))).toEqual({
+        kind: "continue",
+        tool: null,
+      });
+    });
+
+    it("routes standalone 'continue' to the continue branch with no tool", () => {
+      expect(selectReply(msg({ text: "continue" }))).toEqual({ kind: "continue", tool: null });
+    });
+
+    it("extracts a trailing tool name from 'let's continue with X'", () => {
+      expect(selectReply(msg({ text: "let's continue with Kubernetes" }))).toEqual({
+        kind: "continue",
+        tool: "Kubernetes",
+      });
+    });
+
+    it("does not treat a normal answer that happens to mention 'continue' mid-sentence as continuation language", () => {
+      expect(
+        selectReply(msg({ text: "let's continue with the idempotency key discussion, since keys dedupe retried writes" })),
+      ).toEqual({
+        kind: "process",
+        text: "let's continue with the idempotency key discussion, since keys dedupe retried writes",
+      });
+    });
+
+    it("routes 'let's talk about X' straight through the existing study path", () => {
+      expect(selectReply(msg({ text: "let's talk about Lambda" }))).toEqual({
+        kind: "study",
+        name: "Lambda",
+      });
+    });
+
+    it("routes 'let's discuss X' straight through the existing study path", () => {
+      expect(selectReply(msg({ text: "let's discuss Temporal Workflows" }))).toEqual({
+        kind: "study",
+        name: "Temporal Workflows",
+      });
+    });
+  });
+
   describe("non-text attachments", () => {
     it.each([
       { name: "voice", payload: { voice: { file_id: "v", duration: 1, file_unique_id: "v" } } },

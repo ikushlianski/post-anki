@@ -7,6 +7,22 @@ import type {
 import { DEPTH_RANK } from "@post-anki/shared";
 import { deriveTopicStatus } from "./progress";
 
+const CALIBRATION_STALE_AFTER_DAYS = 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Read-time-only staleness signal (#26/#42's minimal calibration reset): a gap
+// whose classification hasn't been re-evaluated in 60+ days should be probed
+// at a softer depth next time, without ever mutating `gap.depth` itself —
+// mutating it would also change which gaps `inScopeGaps` treats as in scope.
+export function isCalibrationStale(lastEvaluatedAt: string | null, now: string): boolean {
+  if (!lastEvaluatedAt) {
+    return false;
+  }
+
+  return new Date(now).getTime() - new Date(lastEvaluatedAt).getTime() >
+    CALIBRATION_STALE_AFTER_DAYS * DAY_MS;
+}
+
 export function inScopeGaps(gaps: Gap[], depth: DepthLevel): Gap[] {
   const ceiling = DEPTH_RANK[depth];
 

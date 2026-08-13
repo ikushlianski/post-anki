@@ -11,6 +11,7 @@ import {
 import {
   applyGapVerdicts,
   buildFeedbackDigest,
+  isCalibrationStale,
   nextGapToProbe,
   openGaps,
   progressFromGaps,
@@ -52,6 +53,7 @@ interface AskContext {
 
 export async function startProbe(
   input: StartProbeInput,
+  now: string = new Date().toISOString(),
 ): Promise<ProbeQuestion | { error: ProbeError }> {
   const topic = await getTopicRow(input.topicId);
 
@@ -70,19 +72,26 @@ export async function startProbe(
   const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
   const priorLevelCoverage = await getLowerLevelCoverage(input.topicId);
 
-  return buildQuestion(topic, gap, input.mode, {
-    speed: ctx.speed,
-    hinting: ctx.hinting,
-    grounding: grounding.text,
-    citations: grounding.citations,
-    priorLevelCoverage,
-  });
+  return buildQuestion(
+    topic,
+    gap,
+    input.mode,
+    {
+      speed: ctx.speed,
+      hinting: ctx.hinting,
+      grounding: grounding.text,
+      citations: grounding.citations,
+      priorLevelCoverage,
+    },
+    now,
+  );
 }
 
 export async function buildProbeQuestionForGap(
   topicId: string,
   gap: Gap,
   mode: QuestionKind,
+  now: string = new Date().toISOString(),
 ): Promise<ProbeQuestion | null> {
   const topic = await getTopicRow(topicId);
 
@@ -99,13 +108,19 @@ export async function buildProbeQuestionForGap(
   const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, gap.label);
   const priorLevelCoverage = await getLowerLevelCoverage(topicId);
 
-  return buildQuestion(topic, gap, mode, {
-    speed: ctx.speed,
-    hinting: ctx.hinting,
-    grounding: grounding.text,
-    citations: grounding.citations,
-    priorLevelCoverage,
-  });
+  return buildQuestion(
+    topic,
+    gap,
+    mode,
+    {
+      speed: ctx.speed,
+      hinting: ctx.hinting,
+      grounding: grounding.text,
+      citations: grounding.citations,
+      priorLevelCoverage,
+    },
+    now,
+  );
 }
 
 export async function submitProbe(
@@ -183,8 +198,9 @@ async function buildQuestion(
   gap: Gap | null,
   mode: QuestionKind,
   ask: AskContext,
+  now: string,
 ): Promise<ProbeQuestion> {
-  const generated = await generateQuestion(topic, gap, mode, ask);
+  const generated = await generateQuestion(topic, gap, mode, ask, now);
 
   return {
     gapId: gap?.id ?? null,
@@ -217,11 +233,19 @@ async function generateQuestion(
   gap: Gap | null,
   mode: QuestionKind,
   ask: AskContext,
+  now: string,
 ): Promise<GeneratedQuestion> {
   const agent = getMastra().getAgent(AGENT_KEYS.mentorAsk);
 
+  // Read-time-only calibration floor (#26/#42): a gap that hasn't been
+  // re-evaluated in 60+ days is asked about at "awareness" depth for this
+  // one question. `gap.depth` itself is never written — nothing here
+  // touches persistence, so the taxonomy classification stays intact.
+  const targetDepth =
+    gap && isCalibrationStale(gap.lastEvaluatedAt, now) ? "awareness" : gap?.depth;
+
   const focus = gap
-    ? [`Gap to probe: ${gap.label}`, `Target depth: ${gap.depth}`]
+    ? [`Gap to probe: ${gap.label}`, `Target depth: ${targetDepth}`]
     : [
         `Target depth: ${rowDepth(topic)}`,
         "This is the OPENING question — the learner has not been probed on this topic yet,",

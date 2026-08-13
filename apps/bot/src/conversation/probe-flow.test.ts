@@ -102,3 +102,32 @@ describe("answerPending", () => {
     expect(await answerPending(7, "x", d)).toBe(NO_PENDING_REPLY);
   });
 });
+
+describe("fixed strings", () => {
+  it("no-push reply is non-guilt-inducing and short (#26)", () => {
+    expect(NO_PUSH_REPLY.length).toBeLessThan(150);
+
+    const lower = NO_PUSH_REPLY.toLowerCase();
+
+    expect(lower).not.toContain("sorry");
+    expect(lower).not.toContain("missed");
+    expect(lower).not.toContain("behind");
+    expect(lower).not.toContain("been gone");
+    expect(lower).not.toContain("been away");
+    expect(lower).not.toContain("welcome back");
+  });
+
+  it("no-pending reply is non-guilt-inducing, short, and points at /today (#26)", () => {
+    expect(NO_PENDING_REPLY.length).toBeLessThan(150);
+    expect(NO_PENDING_REPLY).toContain("/today");
+
+    const lower = NO_PENDING_REPLY.toLowerCase();
+
+    expect(lower).not.toContain("sorry");
+    expect(lower).not.toContain("missed");
+    expect(lower).not.toContain("behind");
+    expect(lower).not.toContain("been gone");
+    expect(lower).not.toContain("been away");
+    expect(lower).not.toContain("welcome back");
+  });
+});
