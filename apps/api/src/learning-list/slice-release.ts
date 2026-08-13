@@ -2,10 +2,14 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { nextIngestionSlice, QUESTIONS_PER_TOPIC } from "@post-anki/core";
 import { confirmCurriculum, getCurriculum, setCurriculumStatus } from "../curriculum/curriculum.repo.js";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { learningListItems, modules, topics } from "../db/schema.js";
+import { gaps, learningListItems, modules, topics } from "../db/schema.js";
 import { readLivenessStatus } from "../liveness/liveness.repo.js";
 import { log } from "../shared/log.js";
-import { advanceIngestionCursor, getLearningListItem } from "./learning-list.repo.js";
+import {
+  advanceIngestionCursor,
+  getLearningListItem,
+  touchLearningListItem,
+} from "./learning-list.repo.js";
 import { generateSliceContent, type ReleasedSlice, type SliceGenerationRequest } from "./slice-generation.orchestrator.js";
 
 // The only two destinations that ever spawn or fold into a curriculum this
@@ -47,6 +51,39 @@ async function nextUnreleasedTopicIds(
   return rows.map((row) => row.id);
 }
 
+// The exhaustion signal `nextIngestionSlice`'s `unansweredCount` needs:
+// reuses `gaps.state === "open"` — the same answered/covered notion
+// `openGaps`/`gapMaturity` (packages/core/src/curriculum/gap.ts) already
+// read everywhere else a gap's answered-ness matters — rather than
+// inventing a second one here, scoped to `topics.included = true`, the same
+// "currently released to the learner" flag `nextUnreleasedTopicIds` above
+// reads the negation of.
+//
+// Returns a count of *topics*, not raw open gaps, and on purpose treats a
+// released topic with NO gap rows at all the same as one with an open gap
+// (i.e. still unfinished) rather than the same as fully covered. A
+// pre-drafted topic (the `nextUnreleasedTopicIds` branch below) is flipped
+// to `included` with its gaps still undiscovered — they surface later,
+// live, during study (see `insertDiscoveredGaps` in gap.repo.ts) — so "zero
+// open gaps" there means "nothing generated for it yet", not "the learner
+// answered everything". Only a topic that has real gaps AND none of them
+// are still open counts as finished/exhausted.
+async function unfinishedReleasedTopicCount(
+  curriculumId: string,
+  db: DbExecutor,
+): Promise<number> {
+  const result = await db.execute<{ topicId: string }>(sql`
+    SELECT ${topics.id} AS "topicId"
+    FROM ${topics}
+    LEFT JOIN ${gaps} ON ${gaps.topicId} = ${topics.id}
+    WHERE ${topics.curriculumId} = ${curriculumId} AND ${topics.included} = true
+    GROUP BY ${topics.id}
+    HAVING count(${gaps.id}) = 0 OR bool_or(${gaps.state} = 'open')
+  `);
+
+  return result.rows.length;
+}
+
 type SliceDecision =
   | { kind: "released"; result: ReleasedSlice }
   | { kind: "needs_generation"; request: SliceGenerationRequest };
@@ -82,15 +119,17 @@ async function decideSlice(itemId: string, now: string): Promise<SliceDecision |
       return null;
     }
 
-    // Pacing anchor: `updatedAt` is only ever touched, post-approval, by
-    // `advanceIngestionCursor` (see learning-list.repo.ts) — so once a slice
-    // has actually been released, it reliably reflects that release's
-    // timestamp. Before the first release, `questionsGenerated` is still 0,
-    // which is exactly when this must NOT gate — otherwise the approval-time
-    // write that links the curriculum (`linkCurriculum`, which also bumps
-    // `updatedAt`) would be mistaken for a prior release and block the very
-    // first slice.
+    // Pacing anchor: post-approval, `updatedAt` is touched by
+    // `advanceIngestionCursor` on a successful release and by
+    // `touchLearningListItem` on a failed one (see `backOffAfterFailedRelease`
+    // below) — both are deliberately "an attempt happened just now", which is
+    // exactly what pacing needs to bound. Before the first release,
+    // `questionsGenerated` is still 0, which is exactly when this must NOT
+    // gate — otherwise the approval-time writes that link the curriculum and
+    // reconcile the ceiling, which also bump `updatedAt`, would be mistaken
+    // for a prior release and block the very first slice.
     const lastReleasedAt = item.questionsGenerated > 0 ? item.updatedAt.toISOString() : null;
+    const unfinishedTopicCount = await unfinishedReleasedTopicCount(item.curriculumId, tx);
 
     const slice = nextIngestionSlice(
       {
@@ -98,6 +137,7 @@ async function decideSlice(itemId: string, now: string): Promise<SliceDecision |
         questionsAlreadyGenerated: item.questionsGenerated,
         ceiling: item.questionCeiling,
         lastReleasedAt,
+        unansweredCount: unfinishedTopicCount,
       },
       now,
     );
@@ -155,6 +195,21 @@ export async function releaseNextSlice(
   return generateSliceContent(itemId, decision.request, now);
 }
 
+// Pacing reads `updatedAt` as the last-release marker. An exhausted item has
+// no unanswered questions left, so the exhaustion exception bypasses pacing on
+// every answer — and a generation attempt that throws advances nothing, so
+// without this the next answer retries generation immediately, and the one
+// after that, indefinitely. Touching the row on failure puts a failed attempt
+// back under the same daily bound a successful one gets, so a permanently
+// unfetchable part costs one attempt a day rather than one per answer.
+async function backOffAfterFailedRelease(itemId: string): Promise<void> {
+  try {
+    await touchLearningListItem(itemId);
+  } catch (err) {
+    log.error({ err, itemId }, "learning_list_slice_backoff_failed");
+  }
+}
+
 export async function releaseNextSliceSafely(
   itemId: string,
   now: string = new Date().toISOString(),
@@ -172,6 +227,8 @@ export async function releaseNextSliceSafely(
     }
   } catch (err) {
     log.error({ err, itemId }, "learning_list_slice_release_failed");
+
+    await backOffAfterFailedRelease(itemId);
 
     return null;
   }

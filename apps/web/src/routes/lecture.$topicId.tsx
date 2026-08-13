@@ -18,7 +18,7 @@ function LecturePage() {
         Back to curricula
       </Link>
       <div className="mt-4 space-y-6">
-        <LecturePanel topicId={topicId} />
+        <LecturePanel key={topicId} topicId={topicId} />
 
         <NoteCaptureBox
           nodeType="topic"

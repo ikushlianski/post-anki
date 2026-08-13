@@ -68,6 +68,12 @@ vi.mock("./lecture.repo.js", () => ({
   setLectureStatus: (id: string, status: string) => setLectureStatus(id, status),
 }));
 
+const resolveCourseGroundingSources = vi.fn();
+
+vi.mock("./course-source-grounding.js", () => ({
+  resolveCourseGroundingSources: (id: string) => resolveCourseGroundingSources(id),
+}));
+
 vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
@@ -176,6 +182,7 @@ describe("gatherLectureSources", () => {
 describe("compileLecture", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveCourseGroundingSources.mockResolvedValue(null);
   });
 
   it("refuses instead of fabricating when every approved source has zero usable grounding text", async () => {
@@ -223,5 +230,44 @@ describe("compileLecture", () => {
       title: "TCP handshake",
     }));
     expect(setLectureStatus).not.toHaveBeenCalled();
+  });
+
+  it("compiles from the course's own sources without ever consulting approved candidates", async () => {
+    resolveCourseGroundingSources.mockResolvedValue([
+      {
+        title: "Captured article",
+        url: "https://example.com/captured",
+        text: "x".repeat(250),
+      },
+    ]);
+    generate.mockResolvedValue({
+      object: {
+        title: "TCP handshake",
+        sections: [{ heading: "Overview", body: "..." }],
+        citations: [{ title: "Captured article", url: "https://example.com/captured" }],
+      },
+    });
+
+    await compileLecture(TOPIC.id);
+
+    expect(listApprovedCandidatesForCompile).not.toHaveBeenCalled();
+    expect(generate).toHaveBeenCalled();
+    expect(replaceLectureContent).toHaveBeenCalledWith(TOPIC.id, expect.objectContaining({
+      title: "TCP handshake",
+    }));
+    expect(setLectureStatus).not.toHaveBeenCalled();
+  });
+
+  it("still fails cleanly, without inventing content, when the course's own source text is too short", async () => {
+    resolveCourseGroundingSources.mockResolvedValue([
+      { title: "Thin article", url: "https://example.com/thin", text: "too short" },
+    ]);
+
+    await compileLecture(TOPIC.id);
+
+    expect(listApprovedCandidatesForCompile).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+    expect(replaceLectureContent).not.toHaveBeenCalled();
+    expect(setLectureStatus).toHaveBeenCalledWith(TOPIC.id, "failed");
   });
 });

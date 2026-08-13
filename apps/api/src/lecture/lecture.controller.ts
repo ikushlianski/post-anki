@@ -5,6 +5,7 @@ import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { compileLecture, gatherLectureSources } from "./lecture.orchestrator.js";
 import { getLectureByTopic, startGeneratingLecture } from "./lecture.repo.js";
+import { hasCourseOwnSources } from "./course-source-grounding.js";
 import {
   listApprovedCandidatesForCompile,
   listLectureSourceCandidates,
@@ -75,11 +76,15 @@ export async function handleCompileLecture(
     return;
   }
 
-  const approved = await listApprovedCandidatesForCompile(topicId);
+  const ownSourcesEligible = await hasCourseOwnSources(topicId);
 
-  if (approved.length === 0) {
-    sendError(res, 400, "no_approved_sources");
-    return;
+  if (!ownSourcesEligible) {
+    const approved = await listApprovedCandidatesForCompile(topicId);
+
+    if (approved.length === 0) {
+      sendError(res, 400, "no_approved_sources");
+      return;
+    }
   }
 
   const lecture = await startGeneratingLecture(topicId, topic.title);

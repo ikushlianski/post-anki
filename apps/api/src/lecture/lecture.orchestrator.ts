@@ -26,6 +26,10 @@ import {
   storeCandidateFetchedText,
 } from "./lecture-source-candidate.repo.js";
 import { replaceLectureContent, setLectureStatus } from "./lecture.repo.js";
+import {
+  resolveCourseGroundingSources,
+  type CourseGroundingSource,
+} from "./course-source-grounding.js";
 
 interface ResolvedCurriculumContext {
   curriculumId: string;
@@ -112,22 +116,29 @@ export async function gatherLectureSources(
   return listLectureSourceCandidates(topicId);
 }
 
+async function resolveApprovedCandidateSources(
+  topicId: string,
+): Promise<CourseGroundingSource[]> {
+  const approved = await listApprovedCandidatesForCompile(topicId);
+
+  return Promise.all(
+    approved.map(async (candidate) => {
+      if (candidate.fetchedText !== null) {
+        return { title: candidate.title, url: candidate.url, text: candidate.fetchedText };
+      }
+
+      const text = await resolveSourceText("url", candidate.url);
+      await storeCandidateFetchedText(candidate.id, text);
+
+      return { title: candidate.title, url: candidate.url, text };
+    }),
+  );
+}
+
 export async function compileLecture(topicId: string): Promise<void> {
   try {
-    const approved = await listApprovedCandidatesForCompile(topicId);
-
-    const sourcesWithText = await Promise.all(
-      approved.map(async (candidate) => {
-        if (candidate.fetchedText !== null) {
-          return { title: candidate.title, url: candidate.url, text: candidate.fetchedText };
-        }
-
-        const text = await resolveSourceText("url", candidate.url);
-        await storeCandidateFetchedText(candidate.id, text);
-
-        return { title: candidate.title, url: candidate.url, text };
-      }),
-    );
+    const ownSources = await resolveCourseGroundingSources(topicId);
+    const sourcesWithText = ownSources ?? (await resolveApprovedCandidateSources(topicId));
 
     const combinedSourceText = sourcesWithText.map((s) => s.text).join("\n\n");
 

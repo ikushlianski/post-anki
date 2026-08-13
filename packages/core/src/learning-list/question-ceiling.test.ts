@@ -111,6 +111,7 @@ describe("a known-parts ceiling never overrides the liveness gate", () => {
         questionsAlreadyGenerated: 0,
         ceiling: knownPartsCeiling,
         lastReleasedAt: null,
+        unansweredCount: 0,
       },
       "2026-01-01T00:00:00.000Z",
     );

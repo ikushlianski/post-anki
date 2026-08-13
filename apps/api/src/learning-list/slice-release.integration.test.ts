@@ -361,3 +361,77 @@ describe("0.2 completion — releaseState is honoured by the release predicate",
     expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("engaged learner — exhaustion overrides pacing", () => {
+  async function insertCurriculumWithReleasedTopic(): Promise<{
+    curriculumId: string;
+    itemId: string;
+    releasedTopicId: string;
+    nextTopicId: string;
+  }> {
+    const subjectId = `subj_${randomUUID()}`;
+    const curriculumId = `cur_${randomUUID()}`;
+    const moduleId = `mod_${randomUUID()}`;
+    const releasedTopicId = `top_${randomUUID()}`;
+    const nextTopicId = `top_${randomUUID()}`;
+
+    await client.query(`INSERT INTO subjects (id, name) VALUES ($1, $2)`, [subjectId, "Web"]);
+    await client.query(
+      `INSERT INTO curricula (id, subject_id, name, status) VALUES ($1, $2, $3, 'confirmed')`,
+      [curriculumId, subjectId, "Captured series"],
+    );
+    await client.query(
+      `INSERT INTO modules (id, curriculum_id, title, "order") VALUES ($1, $2, $3, 1)`,
+      [moduleId, curriculumId, "Module 1"],
+    );
+    await client.query(
+      `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included)
+       VALUES ($1, $2, $3, $4, 1, true)`,
+      [releasedTopicId, moduleId, curriculumId, "Released topic"],
+    );
+    await client.query(
+      `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included)
+       VALUES ($1, $2, $3, $4, 2, false)`,
+      [nextTopicId, moduleId, curriculumId, "Next topic"],
+    );
+
+    const itemId = await insertLearningListItem({
+      curriculumId,
+      questionCeiling: 24,
+      questionsGenerated: 2,
+    });
+
+    await startLivenessTracking({ entityType: "learning_list_item", entityId: itemId });
+
+    return { curriculumId, itemId, releasedTopicId, nextTopicId };
+  }
+
+  async function insertGap(topicId: string, state: "open" | "covered"): Promise<void> {
+    await client.query(
+      `INSERT INTO gaps (id, topic_id, label, depth, origin, state, wanted)
+       VALUES ($1, $2, 'g', 'working', 'ai', $3, false)`,
+      [`gap_${randomUUID()}`, topicId, state],
+    );
+  }
+
+  it("releases the next slice immediately once every released question has been answered, even inside the 24h pacing window", async () => {
+    const { itemId, releasedTopicId, nextTopicId } = await insertCurriculumWithReleasedTopic();
+
+    await insertGap(releasedTopicId, "covered");
+    await insertGap(releasedTopicId, "covered");
+
+    const released = await releaseNextSlice(itemId);
+
+    expect(released).not.toBeNull();
+    expect(released?.topicIds).toEqual([nextTopicId]);
+  });
+
+  it("still withholds the next slice inside the pacing window while a released question remains unanswered", async () => {
+    const { itemId, releasedTopicId } = await insertCurriculumWithReleasedTopic();
+
+    await insertGap(releasedTopicId, "covered");
+    await insertGap(releasedTopicId, "open");
+
+    expect(await releaseNextSlice(itemId)).toBeNull();
+  });
+});

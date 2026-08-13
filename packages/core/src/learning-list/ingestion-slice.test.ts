@@ -19,6 +19,7 @@ function slice(overrides: Partial<NextIngestionSliceInput>) {
     questionsAlreadyGenerated: 0,
     ceiling: SERIES_CEILING,
     lastReleasedAt: null,
+    unansweredCount: 1,
     ...overrides,
   };
 
@@ -106,6 +107,7 @@ describe("nextIngestionSlice", () => {
             questionsAlreadyGenerated: generated,
             ceiling: SERIES_CEILING,
             lastReleasedAt,
+            unansweredCount: 1,
           },
           new Date(clock).toISOString(),
         );
@@ -158,11 +160,52 @@ describe("nextIngestionSlice", () => {
           questionsAlreadyGenerated: SLICE_QUESTION_COUNT,
           ceiling: SERIES_CEILING,
           lastReleasedAt: firstReleaseAt,
+          unansweredCount: 1,
         },
         new Date(new Date(firstReleaseAt).getTime() + 5 * 60 * 1000).toISOString(),
       );
 
       expect(secondAttempt).toBeNull();
+    });
+  });
+
+  describe("an engaged learner who has answered everything currently released", () => {
+    it("releases the next slice immediately, mid-pacing-window, once unansweredCount hits zero", () => {
+      const lastReleasedAt = new Date(new Date(NOW).getTime() - 60 * 60 * 1000).toISOString();
+
+      expect(
+        slice({ questionsAlreadyGenerated: 6, lastReleasedAt, unansweredCount: 0 }),
+      ).not.toBeNull();
+    });
+
+    it("still keeps pacing while any unanswered released content remains", () => {
+      const lastReleasedAt = new Date(new Date(NOW).getTime() - 60 * 60 * 1000).toISOString();
+
+      expect(
+        slice({ questionsAlreadyGenerated: 6, lastReleasedAt, unansweredCount: 1 }),
+      ).toBeNull();
+    });
+
+    it("does not let exhaustion override the liveness gate — a dead item still gets nothing", () => {
+      expect(
+        slice({
+          liveness: LIVENESS_MIN_SCORE,
+          questionsAlreadyGenerated: 6,
+          lastReleasedAt: NOW,
+          unansweredCount: 0,
+        }),
+      ).toBeNull();
+    });
+
+    it("does not let exhaustion override the question ceiling — a maxed-out item still gets nothing", () => {
+      expect(
+        slice({
+          liveness: LIVENESS_MAX_SCORE,
+          questionsAlreadyGenerated: SERIES_CEILING,
+          lastReleasedAt: NOW,
+          unansweredCount: 0,
+        }),
+      ).toBeNull();
     });
   });
 

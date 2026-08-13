@@ -283,6 +283,16 @@ export async function releaseRecommendationClaim(
     );
 }
 
+export async function touchLearningListItem(
+  itemId: string,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db
+    .update(learningListItems)
+    .set({ updatedAt: new Date() })
+    .where(eq(learningListItems.id, itemId));
+}
+
 export async function setQuestionCeiling(
   itemId: string,
   questionCeiling: number,
