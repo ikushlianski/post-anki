@@ -85,6 +85,13 @@ export const learningListRecommendationSchema = z.object({
   concern: concernSchema.nullable(),
   partCount: z.number().int().nonnegative(),
   existingCurriculumMatch: existingCurriculumMatchSchema.nullable().default(null),
+  // Optional (not `.default([])`) so a recommendation stored before this
+  // field existed still parses, and so it stays optional in the inferred TS
+  // type too — a plain object literal built against this type does not need
+  // to name it. Capped at 12 to mirror MAX_CAPTURED_SIBLINGS, the same bound
+  // already enforced where these URLs are validated and persisted
+  // (learning-list-classification.orchestrator.ts).
+  siblingUrls: z.array(z.string()).max(12).optional(),
 });
 
 export type LearningListRecommendation = z.infer<typeof learningListRecommendationSchema>;

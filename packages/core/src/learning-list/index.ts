@@ -9,3 +9,5 @@ export * from "./depth-headroom";
 export * from "./headroom-offer";
 export * from "./plan-series-modules";
 export * from "./select-unfilled-module";
+export * from "./derive-title-from-url";
+export * from "./resolve-known-series-parts";

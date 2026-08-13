@@ -283,6 +283,17 @@ export async function releaseRecommendationClaim(
     );
 }
 
+export async function setQuestionCeiling(
+  itemId: string,
+  questionCeiling: number,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db
+    .update(learningListItems)
+    .set({ questionCeiling, updatedAt: new Date() })
+    .where(eq(learningListItems.id, itemId));
+}
+
 export type ClaimForClassificationError = "not_found" | "not_capturable";
 
 export async function claimForClassification(

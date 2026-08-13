@@ -116,6 +116,11 @@ async function classifyCapturedItem(
   const siblingUrls = bookChapters === null
     ? classification.siblingUrls
     : bookChapters.map((chapter) => chapter.url);
+  // Safety-validated once here, then reused for both the persisted
+  // recommendation and the un-ingested sibling capture below — never a
+  // second, separately-drifting validation pass over the same untrusted,
+  // model-read URLs.
+  const safeSiblings = safeSiblingUrls(siblingUrls, input.url);
   const existingCurriculumMatch =
     seriesVerdict.verdict === "series" && placement.areaId !== null
       ? await findCurriculumMappedToNode(placement.areaId)
@@ -128,6 +133,14 @@ async function classifyCapturedItem(
     ),
     placement.areaId,
   );
+  // "Known" — genuinely verified, not an LLM's guess at partCount — only for
+  // `mini_course`, the one destination that ever seeds modules from these
+  // parts (`seedKnownSeriesModules`, called only from
+  // `approveMiniCourseRecommendation`). `extend_curriculum` and `fold_in`
+  // never seed known-part modules, so raising their ceiling here would just
+  // be unearned generation budget spent into someone else's curriculum.
+  const knownPartCount =
+    destination === "mini_course" && safeSiblings.length > 0 ? safeSiblings.length + 1 : null;
 
   const recommendation: LearningListRecommendation = {
     verdict: seriesVerdict.verdict,
@@ -140,6 +153,7 @@ async function classifyCapturedItem(
     concern: validConcern(classification.suggestedConcern),
     partCount,
     existingCurriculumMatch,
+    siblingUrls: safeSiblings,
   };
 
   const saved = await saveClassification(item.id, {
@@ -147,12 +161,12 @@ async function classifyCapturedItem(
     rawText: sourceText,
     verdict: seriesVerdict.verdict,
     recommendation,
-    questionCeiling: planQuestionCeiling(seriesVerdict.verdict, partCount),
+    questionCeiling: planQuestionCeiling(seriesVerdict.verdict, partCount, knownPartCount),
     status: statusForDestination(destination),
   });
 
   if (seriesVerdict.verdict === "series") {
-    await insertSiblingLearningListItems(safeSiblingUrls(siblingUrls, input.url));
+    await insertSiblingLearningListItems(safeSiblings);
   }
 
   log.info(

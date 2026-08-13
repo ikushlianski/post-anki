@@ -325,6 +325,200 @@ describe("approveRecommendation — series with known parts shapes the course li
 
     expect(modules.rowCount).toBe(0);
   });
+
+  it("shapes a course from persisted sibling URLs when no code-host discoverer applies — the AWS guide series", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+    mockDiscoverGithubChapters.mockResolvedValueOnce({ chapters: [], truncated: false, capped: false });
+
+    const capturedUrl =
+      "https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-security/introduction.html";
+    const siblingUrls = [
+      "https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-security/threat-modeling.html",
+      "https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-security/data-protection.html",
+    ];
+
+    const item = await insertLearningListItem({
+      url: capturedUrl,
+      rawText: null,
+      title: null,
+      kind: "article",
+    });
+
+    await saveClassification(item.id, {
+      title: null,
+      rawText: "guide text",
+      verdict: "series",
+      recommendation: recommendation({ partCount: 9, siblingUrls }),
+      questionCeiling: 54,
+      status: "classified",
+    });
+
+    const result = await approveRecommendation(item.id);
+
+    expect("error" in result).toBe(false);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+    const modules = await client.query(
+      `SELECT title, "order" FROM modules WHERE curriculum_id = $1 ORDER BY "order"`,
+      [curriculumId],
+    );
+
+    // The captured item has no classified title, so its own module title is
+    // derived from its URL path exactly like its siblings.
+    expect(modules.rowCount).toBe(3);
+    expect(modules.rows.map((row) => row.title)).toEqual([
+      "Agentic Ai Security",
+      "Threat Modeling",
+      "Data Protection",
+    ]);
+
+    const sources = await client.query(`SELECT value, title FROM sources WHERE curriculum_id = $1`, [
+      curriculumId,
+    ]);
+    const capturedSource = sources.rows.find((row) => row.value === capturedUrl);
+
+    expect(capturedSource?.title).toBe("Agentic Ai Security");
+  });
+
+  it("raises a question ceiling that was planned before the parts were known", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+    mockDiscoverGithubChapters.mockResolvedValueOnce({ chapters: [], truncated: false, capped: false });
+
+    const capturedUrl = "https://example.com/guide/introduction.html";
+    const siblingUrls = [
+      "https://example.com/guide/one.html",
+      "https://example.com/guide/two.html",
+      "https://example.com/guide/three.html",
+      "https://example.com/guide/four.html",
+      "https://example.com/guide/five.html",
+    ];
+
+    const item = await insertLearningListItem({
+      url: capturedUrl,
+      rawText: null,
+      title: null,
+      kind: "article",
+    });
+
+    await saveClassification(item.id, {
+      title: null,
+      rawText: "guide text",
+      verdict: "series",
+      recommendation: recommendation({ partCount: 2, siblingUrls }),
+      questionCeiling: 20,
+      status: "classified",
+    });
+
+    const result = await approveRecommendation(item.id);
+
+    expect("error" in result).toBe(false);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+    const modules = await client.query(`SELECT id FROM modules WHERE curriculum_id = $1`, [
+      curriculumId,
+    ]);
+
+    expect(modules.rowCount).toBe(6);
+
+    const stored = await client.query(
+      `SELECT question_ceiling FROM learning_list_items WHERE id = $1`,
+      [item.id],
+    );
+
+    expect(Number(stored.rows[0].question_ceiling)).toBe(36);
+  });
+
+  it("never lowers a question ceiling that already exceeds the seeded part count", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+    mockDiscoverGithubChapters.mockResolvedValueOnce({ chapters: [], truncated: false, capped: false });
+
+    const capturedUrl = "https://example.com/other/introduction.html";
+    const siblingUrls = ["https://example.com/other/one.html"];
+
+    const item = await insertLearningListItem({
+      url: capturedUrl,
+      rawText: null,
+      title: null,
+      kind: "article",
+    });
+
+    await saveClassification(item.id, {
+      title: null,
+      rawText: "guide text",
+      verdict: "series",
+      recommendation: recommendation({ partCount: 9, siblingUrls }),
+      questionCeiling: 54,
+      status: "classified",
+    });
+
+    await approveRecommendation(item.id);
+
+    const stored = await client.query(
+      `SELECT question_ceiling FROM learning_list_items WHERE id = $1`,
+      [item.id],
+    );
+
+    expect(Number(stored.rows[0].question_ceiling)).toBe(54);
+  });
+
+  it("prefers discovered code-host chapters over persisted sibling URLs when both are available", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+
+    const capturedUrl = "https://github.com/owner/repo/blob/main/01-Intro.md";
+
+    mockDiscoverGithubChapters.mockResolvedValueOnce({
+      chapters: [
+        { path: "01-Intro.md", title: "Chapter 1 — Intro", url: capturedUrl },
+        {
+          path: "02-Routing.md",
+          title: "Chapter 2 — Routing",
+          url: "https://github.com/owner/repo/blob/main/02-Routing.md",
+        },
+      ],
+      truncated: false,
+      capped: false,
+    });
+
+    const item = await insertLearningListItem({
+      url: capturedUrl,
+      rawText: null,
+      title: null,
+      kind: "article",
+    });
+
+    await saveClassification(item.id, {
+      title: "A book",
+      rawText: "chapter text",
+      verdict: "series",
+      recommendation: recommendation({
+        partCount: 2,
+        siblingUrls: ["https://not-the-repo.example.com/scraped-guide"],
+      }),
+      questionCeiling: 20,
+      status: "classified",
+    });
+
+    const result = await approveRecommendation(item.id);
+
+    expect("error" in result).toBe(false);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+    const modules = await client.query(
+      `SELECT title, "order" FROM modules WHERE curriculum_id = $1 ORDER BY "order"`,
+      [curriculumId],
+    );
+
+    expect(modules.rowCount).toBe(2);
+    expect(modules.rows.map((row) => row.title)).toEqual(["Chapter 1 — Intro", "Chapter 2 — Routing"]);
+
+    const sources = await client.query(`SELECT value FROM sources WHERE curriculum_id = $1`, [
+      curriculumId,
+    ]);
+
+    expect(sources.rows.map((row) => row.value)).not.toContain(
+      "https://not-the-repo.example.com/scraped-guide",
+    );
+  });
 });
 
 describe("approveRecommendation — extend an existing curriculum, SCENARIO 0.1", () => {

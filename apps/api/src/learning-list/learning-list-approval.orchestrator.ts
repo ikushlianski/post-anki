@@ -1,5 +1,10 @@
 import { eq } from "drizzle-orm";
-import { planSeriesModules, type SeriesPart } from "@post-anki/core";
+import {
+  planQuestionCeiling,
+  planSeriesModules,
+  resolveKnownSeriesParts,
+  type SeriesPart,
+} from "@post-anki/core";
 import type {
   LearningListItem,
   LearningListRecommendation,
@@ -35,6 +40,7 @@ import {
   getLearningListItem,
   linkCurriculum,
   releaseRecommendationClaim,
+  setQuestionCeiling,
 } from "./learning-list.repo.js";
 import { releaseNextSliceSafely } from "./slice-release.js";
 
@@ -100,7 +106,7 @@ async function approveMiniCourseRecommendation(
 
   const subSubjectNodeId = recommendation.subSubjectNodeId;
 
-  const [linked] = await Promise.all([
+  const [linked, , , seededPartCount] = await Promise.all([
     linkCurriculum(itemId, curriculum.id),
     startLivenessTracking({ entityType: "learning_list_item", entityId: itemId }),
     subSubjectNodeId
@@ -110,6 +116,8 @@ async function approveMiniCourseRecommendation(
       : Promise.resolve([]),
     seedKnownSeriesModules(curriculum.id, claimed),
   ]);
+
+  await reconcileCeilingToSeededParts(itemId, claimed, seededPartCount);
 
   await Promise.all([suggestDomainMappings(curriculum.id), releaseNextSliceSafely(itemId)]);
 
@@ -220,46 +228,47 @@ async function suggestDomainMappings(curriculumId: string): Promise<void> {
   }
 }
 
-// "Known parts" today only ever resolves from a GitHub book's own chapter
-// listing (packages/core/src/github-book) — no discoverer is wired up yet
-// for any other host (e.g. an AWS guide index's sibling pages). This is the
-// one place that host knowledge lives: `planSeriesModules` and everything
-// downstream of it (slice-generation.orchestrator.ts) only ever see the
-// host-agnostic SeriesPart shape, so a second discoverer slots in here
-// later without touching any of that logic.
-async function discoverKnownSeriesParts(url: string): Promise<SeriesPart[]> {
+// GitHub's own chapter listing is the one host-specific discoverer wired up
+// today (packages/core/src/github-book); planSeriesModules and everything
+// downstream only ever see the host-agnostic SeriesPart shape.
+async function discoverGithubSeriesParts(url: string): Promise<SeriesPart[]> {
   const discovery = await discoverGithubChapters(url);
 
   return discovery.chapters.map((chapter) => ({ url: chapter.url, title: chapter.title }));
 }
 
-// Approving a series with known parts shapes the course like the book
-// itself up front: one module per part, in the book's own order, each
-// paired with a `sources` row carrying that part's own URL so a later
-// slice can fetch and generate from that document alone
-// (slice-generation.orchestrator.ts's own module-filling logic). The
-// captured item's own chapter already has a source row from
-// `createCurriculum`'s `sourcesForItem(claimed)` — matched here by URL and
-// re-titled to its derived chapter title rather than duplicated.
+// Shapes the course like the book itself up front: one module per known
+// part, in book order, each paired with a `sources` row carrying that
+// part's own URL for slice-generation.orchestrator.ts to fill from later.
+// The captured item's own source row (`createCurriculum`'s
+// `sourcesForItem(claimed)`) is matched by URL and re-titled, not duplicated.
 //
-// A series whose parts aren't known (a single-part discovery result, or no
-// discoverer wired up for its host) seeds nothing: generateSliceContent
-// then falls back to its original all-source-text "Slice N" behaviour
-// exactly as before. Never throws — a discovery hiccup here must not fail
-// an approval that already created real content elsewhere.
+// `resolveKnownSeriesParts` (packages/core) prefers a fresh GitHub discovery
+// (re-run here, not trusted from classification time) over the sibling URLs
+// already safety-validated and persisted on the recommendation. Neither
+// present means nothing seeds — generateSliceContent falls back to its
+// original all-source-text "Slice N" path. Never throws: a discovery hiccup
+// must not fail an approval that already created real content elsewhere.
 async function seedKnownSeriesModules(
   curriculumId: string,
   item: LearningListItem,
-): Promise<void> {
+): Promise<number> {
   if (item.kind === "video" || !item.url) {
-    return;
+    return 0;
   }
 
   try {
-    const planned = planSeriesModules(await discoverKnownSeriesParts(item.url));
+    const discoveredChapters = await discoverGithubSeriesParts(item.url);
+    const parts = resolveKnownSeriesParts({
+      discoveredChapters,
+      siblingUrls: item.recommendation?.siblingUrls ?? [],
+      capturedUrl: item.url,
+      capturedTitle: item.title,
+    });
+    const planned = planSeriesModules(parts);
 
     if (planned.length <= 1) {
-      return;
+      return 0;
     }
 
     const existingByUrl = new Map(
@@ -292,7 +301,50 @@ async function seedKnownSeriesModules(
     });
 
     log.info({ curriculumId, parts: planned.length }, "learning_list_series_modules_seeded");
+
+    return planned.length;
   } catch (err) {
     log.error({ err, curriculumId, itemId: item.id }, "learning_list_series_modules_seed_failed");
+
+    return 0;
   }
+}
+
+// The ceiling is planned at classification time, but the modules are seeded
+// at approval time from a fresh discovery — a listing that was rate-limited
+// or capped at capture can succeed later, and vice versa. Left alone, the
+// course would promise N modules while the budget only funded M. The seeded
+// count is the one that matches what the learner can actually see, so it
+// wins. Never lowers a ceiling: shrinking it after questions were already
+// generated would strand content the learner has, and planQuestionCeiling
+// only ever raises for known parts anyway.
+async function reconcileCeilingToSeededParts(
+  itemId: string,
+  item: LearningListItem,
+  seededPartCount: number,
+): Promise<void> {
+  const verdict = item.recommendation?.verdict ?? null;
+
+  if (verdict === null || seededPartCount <= 0) {
+    return;
+  }
+
+  const reconciled = planQuestionCeiling(
+    verdict,
+    item.recommendation?.partCount ?? seededPartCount,
+    seededPartCount,
+  );
+
+  const current = item.questionCeiling ?? 0;
+
+  if (reconciled <= current) {
+    return;
+  }
+
+  await setQuestionCeiling(itemId, reconciled);
+
+  log.info(
+    { itemId, from: current, to: reconciled, seededPartCount },
+    "learning_list_question_ceiling_reconciled",
+  );
 }

@@ -106,6 +106,10 @@ function savedRecommendation() {
   return mockSaveClassification.mock.calls[0]![1].recommendation;
 }
 
+function savedQuestionCeiling(): number {
+  return mockSaveClassification.mock.calls[0]![1].questionCeiling;
+}
+
 const input = {
   url: "https://example.com/post",
   kind: "article" as const,
@@ -189,6 +193,42 @@ describe("captureLearningListItem — multi-part series, SCENARIO 2 and 3", () =
       "https://aws.example.com/guide-2",
       "https://aws.example.com/guide-3",
     ]);
+
+    // The validated siblings are persisted on the recommendation itself, not
+    // just handed to insertSiblingLearningListItems — approval-time module
+    // seeding reads them from here (learning-list-approval.orchestrator.ts).
+    expect(savedRecommendation().siblingUrls).toEqual([
+      "https://aws.example.com/guide-2",
+      "https://aws.example.com/guide-3",
+    ]);
+  });
+
+  it("raises the ceiling past the old clamp once real sibling parts are known, unblocking the AWS nine-guide series", async () => {
+    mockAgentGenerate.mockResolvedValue(
+      agentResult({
+        title: "Security for agentic AI on AWS",
+        signals: {
+          explicitSeriesPhrase: "Part 1 of our nine-guide series",
+          detectedPart: { part: 1, total: 9 },
+          siblingNavLinkCount: 8,
+          hasPaginationLinks: true,
+          breadcrumbDepth: 3,
+        },
+        proposedSubSubjectName: "AWS",
+        proposedAreaName: "Identity & Access",
+        suggestedConcern: "security",
+        partCount: 9,
+        siblingUrls: Array.from({ length: 8 }, (_, i) => `https://aws.example.com/guide-${i + 2}`),
+      }),
+    );
+
+    await captureLearningListItem(input);
+
+    // 9 known parts (the captured guide + 8 validated siblings) at
+    // QUESTIONS_PER_KNOWN_SERIES_PART (6) each = 54, well past the old
+    // 30-question clamp that used to cut this exact series off after five
+    // releases.
+    expect(savedQuestionCeiling()).toBe(54);
   });
 
   it("offers to extend an existing curriculum instead of a second mini-course, SCENARIO 0.1", async () => {
@@ -251,6 +291,7 @@ describe("captureLearningListItem — multi-part series, SCENARIO 2 and 3", () =
     await captureLearningListItem(input);
 
     expect(mockInsertSiblings).toHaveBeenCalledWith(["https://aws.example.com/guide-2"]);
+    expect(savedRecommendation().siblingUrls).toEqual(["https://aws.example.com/guide-2"]);
   });
 });
 
@@ -411,6 +452,30 @@ describe("captureLearningListItem — GitHub book chapter discovery", () => {
       "https://github.com/owner/book/blob/main/01-Part_One/Chapter_2-Routing-hash2.md",
       "https://github.com/owner/book/blob/main/01-Part_One/Chapter_3-Parallelization-hash3.md",
     ]);
+  });
+
+  it("raises the ceiling for a twelve-chapter book past the old thirty-question clamp", async () => {
+    const chapters = Array.from({ length: 12 }, (_, i) => ({
+      path: i === 0
+        ? "01-Part_One/Chapter_1-Prompt_Chaining-hash1.md"
+        : `0${Math.floor(i / 4) + 1}-Part/Chapter_${i + 1}.md`,
+      title: `Chapter ${i + 1}`,
+      url: i === 0
+        ? githubInput.url
+        : `https://github.com/owner/book/blob/main/0${Math.floor(i / 4) + 1}-Part/Chapter_${i + 1}.md`,
+    }));
+
+    mockDiscoverGithubChapters.mockResolvedValue({ chapters, truncated: false, capped: false });
+    mockAgentGenerate.mockResolvedValue(agentResult());
+
+    await captureLearningListItem(githubInput);
+
+    // 11 other chapters + the captured chapter itself = 12 known parts.
+    expect(savedRecommendation().partCount).toBe(12);
+    // 12 known parts at QUESTIONS_PER_KNOWN_SERIES_PART (6) each = 72, well
+    // past the old 30-question clamp that would otherwise leave 7 of the 12
+    // modules permanently empty.
+    expect(savedQuestionCeiling()).toBe(72);
   });
 
   it("notes a truncated or capped repository listing in the recommendation reasons", async () => {

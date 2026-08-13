@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   FOLD_IN_QUESTION_CEILING,
+  QUESTIONS_PER_KNOWN_SERIES_PART,
   SERIES_QUESTION_CEILING_MAX,
   SERIES_QUESTION_CEILING_MIN,
 } from "./generation-constants";
+import { nextIngestionSlice } from "./ingestion-slice";
 import { planQuestionCeiling } from "./question-ceiling";
 
 describe("planQuestionCeiling", () => {
@@ -64,5 +66,55 @@ describe("planQuestionCeiling", () => {
       expect(planQuestionCeiling("series", Number.NaN)).toBe(SERIES_QUESTION_CEILING_MIN);
       expect(planQuestionCeiling("series", -3)).toBe(SERIES_QUESTION_CEILING_MIN);
     });
+  });
+
+  describe("a series whose parts are genuinely known — discovered and verified, not guessed", () => {
+    it("raises a twelve-chapter book's ceiling past the old clamp so every module can fill", () => {
+      const ceiling = planQuestionCeiling("series", 12, 12);
+
+      expect(ceiling).toBe(12 * QUESTIONS_PER_KNOWN_SERIES_PART);
+      expect(ceiling).toBeGreaterThan(SERIES_QUESTION_CEILING_MAX);
+    });
+
+    it("never lowers the ceiling below what the unverified partCount guess would have given", () => {
+      expect(planQuestionCeiling("series", 40, 1)).toBe(SERIES_QUESTION_CEILING_MAX);
+    });
+
+    it("ignores a null, zero, or negative known part count and falls back to the clamped guess", () => {
+      expect(planQuestionCeiling("series", 9, null)).toBe(planQuestionCeiling("series", 9));
+      expect(planQuestionCeiling("series", 9, 0)).toBe(planQuestionCeiling("series", 9));
+      expect(planQuestionCeiling("series", 9, -2)).toBe(planQuestionCeiling("series", 9));
+    });
+
+    it("gives the AWS nine-guide series enough budget to fill every guide, not just five", () => {
+      const ceiling = planQuestionCeiling("series", 9, 9);
+
+      expect(ceiling).toBe(54);
+      expect(ceiling).toBeGreaterThan(SERIES_QUESTION_CEILING_MAX);
+    });
+
+    it("has no effect outside a series verdict", () => {
+      expect(planQuestionCeiling("single", 1, 12)).toBe(FOLD_IN_QUESTION_CEILING);
+    });
+  });
+});
+
+describe("a known-parts ceiling never overrides the liveness gate", () => {
+  it("still refuses to release a slice for a cold topic, no matter how high the ceiling is", () => {
+    const knownPartsCeiling = planQuestionCeiling("series", 12, 12);
+
+    expect(knownPartsCeiling).toBeGreaterThan(SERIES_QUESTION_CEILING_MAX);
+
+    const slice = nextIngestionSlice(
+      {
+        liveness: 0,
+        questionsAlreadyGenerated: 0,
+        ceiling: knownPartsCeiling,
+        lastReleasedAt: null,
+      },
+      "2026-01-01T00:00:00.000Z",
+    );
+
+    expect(slice).toBeNull();
   });
 });
