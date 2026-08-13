@@ -1068,3 +1068,13 @@ independently re-running the tests and reading the actual diff.
   same false premise where it had leaked into TODO.md's own wording for the dashboard-unified-tree
   item. Branch has the / coverage, committed; /dashboard coverage still needs restoring by hand.
 
+- 2026-08-13 -- job-market-scanning removed at user's request, not built. Issue #53 stays open
+  (human-only close) with a comment explaining the removal. Deleted `.planning/job-market-scanning/`
+  (blocked.md + investigation.md -- the human-only-blocker writeup and the follow-up provider
+  research, both already fully captured in this LOG's earlier entries, nothing new lost). Removed
+  the `job-market-scanning` Orca worktree/branch via `orca worktree rm --force`: verified first
+  that its branch tip was already a merge-base-ancestor of `main` (zero unique commits) and its
+  only uncommitted content (a `.planning/LOG.md` edit, a `blocked.md` copy) was byte-identical to
+  what's already committed here -- nothing unique was discarded. No implemented code existed for
+  this feature anywhere in `apps/`, `packages/`, `scripts/`, or `infra/` (confirmed by grep before
+  removing anything) -- this was planning-only, never built.
