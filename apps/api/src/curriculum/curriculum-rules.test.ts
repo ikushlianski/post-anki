@@ -15,6 +15,7 @@ import {
   isApproveSourcesBlocked,
   isPastedMaterialAndResearchConflict,
   isPastedMaterialAndSourcesConflict,
+  resolveSourceMergeAction,
   type ModuleTouchState,
   type TopicTouchState,
   type StudyableModule,
@@ -452,5 +453,23 @@ describe("isPastedMaterialAndSourcesConflict", () => {
       expect(isPastedMaterialAndSourcesConflict(null, 2)).toBe(false);
       expect(isPastedMaterialAndSourcesConflict(undefined, 0)).toBe(false);
     });
+  });
+});
+
+describe("resolveSourceMergeAction", () => {
+  it("queues new sources for approval instead of merging while the source list is still under review", () => {
+    expect(resolveSourceMergeAction("awaiting_source_approval")).toBe("queue_for_approval");
+  });
+
+  it("blocks a merge while the structure chat is shaping the curriculum", () => {
+    expect(resolveSourceMergeAction("shaping_structure")).toBe("blocked_by_shaping");
+  });
+
+  it("merges straight in for every other status, including an already-confirmed curriculum", () => {
+    expect(resolveSourceMergeAction("draft")).toBe("merge");
+    expect(resolveSourceMergeAction("curating")).toBe("merge");
+    expect(resolveSourceMergeAction("ready")).toBe("merge");
+    expect(resolveSourceMergeAction("confirmed")).toBe("merge");
+    expect(resolveSourceMergeAction("failed")).toBe("merge");
   });
 });

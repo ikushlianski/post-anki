@@ -3,170 +3,106 @@ type: todo
 branch: main
 task: post-anki open items
 state: open
-updated: 2026-08-05
+updated: 2026-08-09
 ---
 # Run todo
 
-Business and architecture-level open items only. Small, mechanical, code-level gaps get fixed
-directly rather than parked here — `LOG.md` has the narrative of what's been fixed and when.
+Business and architecture-level open items only. Small mechanical gaps get fixed directly.
 
 ## Wishlist for the night
 
-- [ ] Simplify the dashboard: show and operate only on the curricula I actually started — no
-      objective/static knowledge-map taxonomy view yet — STUCK, needs a human look (2026-08-05).
-      Confirmed: the visual knowledge-map route isn't linked from the dashboard/curricula/nav
-      anywhere, and the `/` page never shows a fabricated curricula list from taxonomy data
-      (regression test built and verified). What's still missing: the SAME guarantee for the
-      actual `/dashboard` page — a real, separate page today (see the correction on the item
-      below), not yet covered by any test. An earlier attempt added that coverage, then a second
-      attempt wrongly removed it, assuming `/dashboard` had already become a redirect. Branch
-      `dashboard-self-initiated-only` has the `/` coverage, committed, ready for a human to add the
-      missing `/dashboard` piece; full detail in `.planning/dashboard-self-initiated-only/`.
-- [x] Easy to manage dashboard: built and verified on its own branch — subjects/curricula/modules/
-      topics render as one tree at `/`, `/dashboard` redirects there, the nav has a single entry
-      point — S1/S2/S5 PASS every run on an independent review-playwright sweep. **Correction
-      2026-08-05: NOT yet merged into `main`.** An earlier version of this line read as if this
-      were already true of the live app; it isn't — `main`'s `/dashboard` still independently
-      renders its own page today. This caused a real, separate item (`dashboard-self-initiated-only`)
-      to fail: it assumed this merge had already landed and removed test coverage for `/dashboard`
-      on that premise, which was wrong. Branch: `dashboard-unified-tree` (commit `6f69e51`),
-      uncommitted to `main`. [→ .planning/dashboard-unified-tree/]
-- [ ] Drag a curriculum card onto a different subject to move it there (the richer alternative to
-      the "Move to…" dropdown, which itself works fine — S5 verified). Both drag scenarios (S3:
-      drop on an eligible subject, S4: drop on an ineligible one) still fail intermittently under
-      review-playwright's own independent sweep — 1/3 to 2/3 of full-sweep runs, same mid-drag
-      `dropTargetActive` assertion, two different suspected causes neither fully confirmed: S3
-      only fails when run right after S4 (a worker/file-order position effect, not a per-test
-      timing issue); S4 tracks a long idle hold before its third hover in one continuous drag
-      (`@dnd-kit/core` collision re-measurement timing). Full investigation:
-      `.planning/dashboard-unified-tree/decisions.md`. Needs a follow-up session with a clean
-      machine and a headed browser to finish root-causing — an unattended run can't observe this
-      directly.
-- [ ] Easy to start adding sources to a curriculum, like turbopuffer docs — STUCK, needs a human
-      look, not another automatic retry (2026-08-05). The discovery flow itself works (pasting a
-      docs URL and reviewing found pages is built and passing its own tests three times over,
-      including after a security fix), but an independent adversarial review found a second,
-      unguarded path elsewhere in the code that fetches a user-supplied URL without the same
-      protection the new flow got — the kind of gap this project treats as a real security issue,
-      not a nitpick — plus no test coverage yet for the new fetch-discovery endpoint. Branch
-      `curriculum-add-sources-easily` has all the work, uncommitted, untouched, ready for a human to
-      review and finish; full detail in `.planning/curriculum-add-sources-easily/`.
-- [ ] Easy to expadn the module/topic so it suggests children based on web search — STUCK, needs a
-      human look (2026-08-05). Built and verified clean three times over: a "Go deeper" button on
-      every subject (proposes a new curriculum) and every curriculum (proposes new modules,
-      grounded in real web-search citations, not bare LLM recall), with real concurrency and
-      transaction-safety fixes along the way. Blocked on one small, well-scoped gap the final
-      independent review found: citation links render with no URL-scheme check, so a malicious
-      search result could carry a `javascript:`/`data:` link — the same pre-existing pattern
-      already exists in four other places in the app, so this reproduces a known weakness rather
-      than inventing one. A shared http/https-only allowlist at the one citation-render point
-      would close it here and in those other four spots. Branch `module-topic-expand-web-search`
-      has all the work, committed there for review; full detail in
-      `.planning/module-topic-expand-web-search/`.
-- [ ] Easy to chat with the structure of my knowledge, move stuff, merge etc.
+- [ ] Simplify the dashboard to show only the courses I actually started — STUCK, needs a human
+      look. The home page is proven never to invent courses from taxonomy data; the separate
+      dashboard page still has no such guarantee. Work sits on branch
+      dashboard-self-initiated-only.
+- [x] One easy-to-manage dashboard tree of subjects, courses, modules and topics. Built and
+      verified on branch dashboard-unified-tree, NOT yet merged — the live app still shows the
+      old separate dashboard page.
+- [ ] Drag a course card onto a different subject to move it there. The dropdown alternative
+      works; the drag itself fails intermittently under independent review and needs a human
+      watching a real browser to finish diagnosing.
+- [ ] Make it easy to add sources to a course — STUCK, needs a human look. The paste-a-docs-link
+      flow works, but review found a second place elsewhere that fetches a user-supplied address
+      without the same protection, plus no test coverage for the new discovery step. Work sits on
+      branch curriculum-add-sources-easily.
+- [ ] Let a module or topic suggest its own children from web search — STUCK, needs a human look.
+      Built and verified; blocked on citation links rendering without a safe-address check, a
+      weakness that already exists in four other places. Work sits on branch
+      module-topic-expand-web-search.
+- [ ] Let me chat with the structure of my knowledge — move things, merge them, reorganise.
 
 ## Decisions to make
 
-- [x] Merge the "Curricula" home page and the "Dashboard" page into one — user prefers the
-      Dashboard's design as the base. Should also support drag-and-drop of curricula between
-      subjects, as a richer alternative to the "Move to…" button just added. Implemented
-      2026-08-05 (`.planning/dashboard-unified-tree/`, unattended run): `/` now shows the full
-      merged tree, `/dashboard` redirects, the "Move to…" dropdown still works. Drag-and-drop
-      itself is NOT yet reliable — see the split-out wishlist item above — correcting
-      implement-playwright's own self-report here, which understated it as 4/5 green; an
-      independent review-playwright sweep found only 3/5 (S1/S2/S5) actually clean.
-- [ ] Add `@dnd-kit/core` to `ai-dev`'s `tech-stack-registry.md` under post-anki's row — introduced
-      by the `dashboard-unified-tree` plan as the drag-and-drop library for the merged
-      dashboard/curricula page; this repo's planning run deliberately did not edit the `ai-dev`
-      repo directly (out of scope for a post-anki-only run).
-- [ ] Turn on Electric sync (live-updating UI) in production? Fact-checked 2026-08-05: it was
-      deployed once, 2026-07-16, and has never passed its health check since — currently dead,
-      not serving any traffic. Configured to always keep one instance running, which is the
-      normal trigger for ongoing cost, though a container that's never actually started
-      successfully typically isn't billed the same way a healthy one is — check the GCP Billing
-      console directly for the real number rather than assuming either way. Decide: fix and turn
-      on, or remove it from the infrastructure entirely.
-- [ ] Splitting a subject/course/tag into multiple pieces needs real product design first — how
-      does the app decide which existing content goes to which new piece?
-- [ ] `curriculum-add-sources-easily` planning hit a genuine fork with no backing GitHub issue
-      (classified by fork-classifier-factory, not defaulted): when a user discovers doc-site
-      sources for an EXISTING curriculum (the new "paste a docs URL" flow), should the discovered
-      candidates be persisted immediately as `pending` sources reusing the same
-      approval-state-machine UI curriculum creation already has (`awaiting_source_approval` +
-      `SourceApprovalPanel`), or returned to the browser for review with no persistence and
-      resubmitted through the existing add-sources endpoint? The classifier flagged this
-      genuine (it changes the shape of a core business entity — the source-draft schema) even
-      though one option is clearly lower-risk. Plan proceeded with the reversible placeholder
-      (ephemeral review, no persistence, no `curriculum.status` coupling) — see
-      `.planning/curriculum-add-sources-easily/spec.md`'s Decisions made autonomously #1 for the
-      full reasoning. Revisit if the ephemeral approach turns out to feel wrong in practice.
+- [x] Merge the courses home page and the dashboard into one, using the dashboard's design.
+      Implemented; drag-and-drop between subjects is not yet reliable and is tracked separately.
+- [ ] Register the drag-and-drop library in the shared tech-stack registry, which lives in
+      another repository this run deliberately did not touch.
+- [ ] Turn on live-updating sync in production, or remove it entirely. It was deployed once and
+      has never passed a health check since, so it currently serves no traffic. Check real
+      billing before assuming it costs nothing.
+- [ ] Splitting a subject, course or tag into pieces needs product design first: how does the app
+      decide which existing content goes where?
+- [ ] When discovering doc-site sources for an existing course, should candidates be saved
+      immediately and go through the same approval flow as new courses, or be reviewed in the
+      browser and submitted only once accepted? Currently the reversible second option. Revisit
+      if it feels wrong in practice.
 
 ## To review / clarify
 
-- [ ] The AI-generated "which parts of your knowledge map need review" suggestions can come back
-      empty and the app shows no error — it just looks like nothing happened.
-- [ ] Adding more source material to an existing curriculum can silently delete modules that were
-      merged in from a different curriculum earlier — no warning, no confirmation.
-- [ ] Retrying research on a curriculum that absorbed another one via merge can delete the
-      absorbed curriculum's original source links.
-- [ ] Manually triggering a "scan for new docs" check can return an empty result while a
-      scheduled scan is already running for a different subject, because scans are serialized
-      across the whole app rather than per subject.
-- [ ] Mobile app has two narrow URL-safety gaps: doesn't recognize the Android emulator's loopback
-      alias, and only blocks plain `http`, not other non-secure schemes. Low real-world risk,
-      not yet hardened.
+- [ ] Review suggestions for the knowledge map can come back empty with no error — it just looks
+      like nothing happened.
+- [ ] Adding more source material to a course can silently delete modules merged in from another
+      course, with no warning.
+- [ ] Retrying research on a course that absorbed another can delete the absorbed course's
+      original source links.
+- [ ] A manual scan for new docs can return nothing while a scheduled scan runs for a different
+      subject, because scans are serialised across the whole app instead of per subject.
+- [ ] The mobile app has two narrow address-safety gaps around local development and non-secure
+      connection types. Low real-world risk, not yet hardened.
 
 ## Manual steps
 
-- [ ] API's integration test suite isn't wired into CI yet — needs a Postgres service added to
-      the pipeline config.
-- [ ] If Electric goes to production: set its database secret, then flip the
-      `PROD_ELECTRIC_ENABLED` switch.
-- [ ] The Neon **dev** branch (cloud, not local) is missing recent migrations — loading the board
-      against it fails. Needs someone with Neon access to run the migration.
-- [ ] Three migrations from the concurrency-hardening work are only applied locally, not on Neon
-      dev/prod yet.
-- [ ] Uncommitted fixes sitting in `verification-repo` (outside this session's reach) need
-      reviewing and committing or discarding by hand.
-- [ ] A 3-attempt click-retry workaround in the tag-picker's e2e test can likely be simplified
-      back to a single click now that the underlying hydration-timing bug is fixed — needs
-      confirming in `verification-repo`.
+- [ ] Wire the API's database-backed test suite into the build pipeline.
+- [ ] If live sync goes to production: set its database secret, then turn on the feature switch.
+- [ ] The cloud development database is missing recent updates, so the board fails to load
+      against it. Needs someone with access to apply them.
+- [ ] Three database updates from the concurrency work exist only locally, not in the cloud.
+- [ ] Uncommitted fixes sitting in the separate end-to-end test repo need reviewing and either
+      committing or discarding by hand.
+- [ ] A repeated-click workaround in the tag-picker end-to-end test can probably be simplified now
+      that the underlying timing bug is fixed.
 
 ## Post-deploy checks
 
-- [ ] Once Electric is live: confirm a real long-lived connection isn't cut short by a default
-      timeout somewhere in the request chain.
-- [ ] Once Electric is live: confirm an unauthorized table request is correctly rejected against
-      the real production URL, not just locally.
+- [ ] Once live sync is running: confirm a long-lived connection is not cut short by a timeout.
+- [ ] Once live sync is running: confirm an unauthorised data request is rejected against the real
+      production address, not just locally.
 
 ## Resolved
 
-- 2026-08-05 — Integration tests polluted the live local database with test fixtures — 25 test
-  files now run against an isolated throwaway database instead.
-- 2026-08-05 — Curricula could only be reorganized by deleting and recreating them — added a
-  proper "move to a different subject" action.
-- 2026-08-05 — A stale migration-tracking bug was permanently hiding one migration from the
-  local database, breaking the duplicate-subject-detection feature — root-caused and fixed.
-- 2026-08-01 — Concurrent phrase-bank generate/grade calls could deadlock — closed.
-- 2026-08-01 — A domain-map review with zero suggestions silently looked like nothing happened —
-  now fails loudly instead.
-- 2026-08-01 — Creating a curriculum during a concurrent subject merge could orphan it — closed.
-- 2026-08-01 — Tag assignments didn't show up in the UI without a manual page reload — fixed.
-- 2026-08-01 — A Node-only import could silently break the web app in production — CI now catches
-  this before it ships.
-- 2026-08-01 — Double-clicking accept/reject on a doc-scan suggestion could create a duplicate
-  knowledge-map entry — closed.
-- 2026-08-01 — Merging two subjects left the losing subject's pending review suggestions stuck
-  and invisible forever — now carried over to the surviving subject.
-- 2026-08-01 — Deleting a subject during a concurrent merge could destroy or orphan curricula —
-  closed.
-- 2026-08-01 — Deleting a subject could hang the whole app under load by holding two database
-  connections per delete — now uses one.
-- 2026-08-01 — An exhausted connection pool could hang forever with no error — now fails loudly
-  after 10 seconds.
-- 2026-08-01 — Four database-backed tests were silently not running in either test config — fixed.
-- 2026-08-01 — Investigated a flaky curriculum-merge test — traced to a real, already-known
-  rendering timing issue, not a new bug.
-- 2026-08-01 — Measured and confirmed a real timing gap where far-down page controls look
-  clickable before React has actually attached their handlers.
-</content>
+- 2026-08-05 — Tests polluted the live local database with fixtures; they now run against an
+  isolated throwaway database.
+- 2026-08-05 — Courses could only be reorganised by deleting and recreating them; added a proper
+  move-to-another-subject action.
+- 2026-08-05 — A stale tracking bug permanently hid one database update locally, breaking
+  duplicate-subject detection.
+- 2026-08-01 — Concurrent phrase-bank generate and grade calls could deadlock.
+- 2026-08-01 — A knowledge-map review with zero suggestions silently looked like nothing happened;
+  now fails loudly.
+- 2026-08-01 — Creating a course during a concurrent subject merge could orphan it.
+- 2026-08-01 — Tag assignments needed a manual page reload to appear.
+- 2026-08-01 — A server-only import could silently break the web app in production; the build now
+  catches it.
+- 2026-08-01 — Double-clicking accept or reject on a doc-scan suggestion could create a duplicate
+  knowledge-map entry.
+- 2026-08-01 — Merging two subjects left the losing subject's pending suggestions stuck and
+  invisible forever; they now carry over.
+- 2026-08-01 — Deleting a subject during a concurrent merge could destroy or orphan courses.
+- 2026-08-01 — Deleting a subject could hang the app under load by holding two database
+  connections per delete; now uses one.
+- 2026-08-01 — An exhausted connection pool could hang forever with no error; now fails loudly.
+- 2026-08-01 — Four database-backed tests were silently not running in either configuration.
+- 2026-08-01 — Investigated a flaky course-merge test; traced to a known rendering timing issue,
+  not a new bug.
+- 2026-08-01 — Confirmed a real timing gap where controls far down a page look clickable before
+  the app has attached their handlers.

@@ -49,6 +49,24 @@ export function SubjectSection({
         </Link>
       ) : (
         <>
+          <div className="mb-3 flex flex-wrap gap-3">
+            <Link
+              to="/subject/$subjectId/map"
+              params={{ subjectId: subject.id }}
+              data-testid="knowledge-map-link"
+              className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium hover:border-neutral-400"
+            >
+              Knowledge map
+            </Link>
+            <Link
+              to="/subject/$subjectId/priority-review"
+              params={{ subjectId: subject.id }}
+              data-testid="priority-review-link"
+              className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium hover:border-neutral-400"
+            >
+              Priority review
+            </Link>
+          </div>
           <ul className="mb-3 space-y-2">
             {curricula.length === 0 ? (
               <li className="text-sm text-neutral-400">No curricula yet.</li>

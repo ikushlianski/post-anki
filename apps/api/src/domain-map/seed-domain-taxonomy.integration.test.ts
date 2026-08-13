@@ -8,6 +8,8 @@ import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import {
   subjects,
   domainNodes,
+  domainNodeLinks,
+  domainNodePrerequisites,
   curricula,
   curriculumDomainNodeMappings,
 } from "../db/schema.js";
@@ -15,7 +17,7 @@ import { newId } from "../shared/id.js";
 
 // seed-static-taxonomy (#82 follow-up to #84) — proves seed-domain-taxonomy.ts
 // (apps/api/scripts/seed-domain-taxonomy.ts), rewired to load the real
-// 208-node/15-domain taxonomy via parseTaxonomyYaml, against a real, freshly
+// 244-node/15-domain taxonomy via parseTaxonomyYaml, against a real, freshly
 // migrated throwaway Postgres database. Mirrors
 // seed-domain-nodes.integration.test.ts's exact pattern (fresh DB per test
 // group, created + migrated + dropped via createMigratedTestDb/dropTestDb,
@@ -211,7 +213,7 @@ async function walkToRootHopCount(
   }
 }
 
-describe("seed-domain-taxonomy — full 208-node taxonomy (SCENARIO 1, 2, 3)", () => {
+describe("seed-domain-taxonomy — full 244-node taxonomy (SCENARIO 1, 2, 3)", () => {
   let dbName: string;
   let adminPool: pg.Pool;
   let testPool: pg.Pool;
@@ -264,12 +266,19 @@ describe("seed-domain-taxonomy — full 208-node taxonomy (SCENARIO 1, 2, 3)", (
     await dropTestDb(dbName, adminPool, testPool);
   }, 30_000);
 
-  it("seeds exactly 208 rows, 15 roots, all static_taxonomy, no orphans/cycles (SCENARIO 1)", async () => {
+  it("seeds exactly 244 rows, 15 roots, all static_taxonomy, no orphans/cycles (SCENARIO 1)", async () => {
     const { seedDomainTaxonomy } = await import("../../scripts/seed-domain-taxonomy.js");
 
     const result = await seedDomainTaxonomy(db, subjectId);
 
-    expect(result).toEqual({ created: 208, skipped: 0 });
+    // learning-list-intake — 208 base-taxonomy nodes plus 36 from
+    // web-dev-areas.yaml (React / Node.js / AWS, each with 10 Areas +
+    // "Other"). The 3 skips are that file's name-only scaffold — Web
+    // Development, Frontend Development, Backend Development — resolving to
+    // the rows it-taxonomy.yaml seeded moments earlier instead of
+    // duplicating them. That the overlay creates nothing at the scaffold
+    // level is the whole point of the existence check.
+    expect(result).toEqual({ created: 244, skipped: 3 });
 
     const rows = await db
       .select({
@@ -281,10 +290,10 @@ describe("seed-domain-taxonomy — full 208-node taxonomy (SCENARIO 1, 2, 3)", (
       .where(eq(domainNodes.subjectId, subjectId));
 
     // otherNodeId is a pre-existing node in the same subject, so the raw
-    // row count is 209; filter it out to isolate the newly-seeded set.
+    // row count is 245; filter it out to isolate the newly-seeded set.
     const seededRows = rows.filter((row) => row.id !== otherNodeId);
 
-    expect(seededRows).toHaveLength(208);
+    expect(seededRows).toHaveLength(244);
 
     const roots = seededRows.filter((row) => row.parentId === null);
 
@@ -294,23 +303,29 @@ describe("seed-domain-taxonomy — full 208-node taxonomy (SCENARIO 1, 2, 3)", (
     for (const row of seededRows) {
       const hops = await walkToRootHopCount(db, seededRows, row.id);
 
-      expect(hops).toBeLessThanOrEqual(2);
+      // 3, not it-taxonomy.yaml's own 2: React's and Node.js's Areas sit
+      // one level below their sub-subject, which itself sits under
+      // Frontend/Backend Development (AWS's Areas stay at 2, hanging
+      // directly off Web Development).
+      expect(hops).toBeLessThanOrEqual(3);
     }
   });
 
-  it("is idempotent on a second run — created: 0, skipped: 208, no duplicates (SCENARIO 2)", async () => {
+  it("is idempotent on a second run — created: 0, skipped: 247, no duplicates (SCENARIO 2)", async () => {
     const { seedDomainTaxonomy } = await import("../../scripts/seed-domain-taxonomy.js");
 
     const second = await seedDomainTaxonomy(db, subjectId);
 
-    expect(second).toEqual({ created: 0, skipped: 208 });
+    // 247, not 244: the 3 scaffold nodes are visited (and skipped) on
+    // every run, including the first.
+    expect(second).toEqual({ created: 0, skipped: 247 });
 
     const rows = await db
       .select({ id: domainNodes.id })
       .from(domainNodes)
       .where(eq(domainNodes.subjectId, subjectId));
 
-    expect(rows.filter((row) => row.id !== otherNodeId)).toHaveLength(208);
+    expect(rows.filter((row) => row.id !== otherNodeId)).toHaveLength(244);
   });
 
   it("maps zero curricula to the newly-seeded nodes, even though the table is non-empty (SCENARIO 3)", async () => {
@@ -331,6 +346,170 @@ describe("seed-domain-taxonomy — full 208-node taxonomy (SCENARIO 1, 2, 3)", (
       .where(inArray(curriculumDomainNodeMappings.domainNodeId, seededIds));
 
     expect(filtered).toHaveLength(0);
+  });
+
+  // learning-list-intake — the DB-level half of the Areas contract that
+  // seed-domain-taxonomy-sources.test.ts pins at the YAML level: that `kind`
+  // actually reaches domain_nodes, and that the 10 + "Other" count survives
+  // the seed rather than only the parse.
+  it("seeds React / Node.js / AWS as sub-subjects, each with 10 Areas plus Other", async () => {
+    const rows = await db
+      .select({
+        id: domainNodes.id,
+        parentId: domainNodes.parentId,
+        name: domainNodes.name,
+        kind: domainNodes.kind,
+      })
+      .from(domainNodes)
+      .where(eq(domainNodes.subjectId, subjectId));
+
+    for (const name of ["React", "Node.js", "AWS"]) {
+      const subSubject = rows.find((row) => row.name === name);
+
+      expect(subSubject?.kind).toBe("sub_subject");
+
+      const areas = rows.filter((row) => row.parentId === subSubject!.id);
+
+      expect(areas).toHaveLength(11);
+      expect(areas.every((area) => area.kind === "area")).toBe(true);
+      expect(areas.filter((area) => area.name === "Other")).toHaveLength(1);
+    }
+
+    expect(rows.filter((row) => row.kind === "sub_subject")).toHaveLength(3);
+    expect(rows.filter((row) => row.kind === "area")).toHaveLength(33);
+
+    // Every other node — the whole 208-node base taxonomy, plus the
+    // pre-existing unrelated row — stays kind-less, which is what "unset,
+    // not a broken Area" means for rows that predate fixed Areas.
+    expect(rows.filter((row) => row.kind === null)).toHaveLength(209);
+  });
+
+  // lms-buildout 0.7
+  it("links AWS to Cloud Computing via domain_node_links, and stays idempotent on a second run", async () => {
+    const nodes = await db
+      .select({ id: domainNodes.id, parentId: domainNodes.parentId, name: domainNodes.name })
+      .from(domainNodes)
+      .where(eq(domainNodes.subjectId, subjectId));
+
+    const webDevelopment = nodes.find(
+      (row) => row.parentId === null && row.name === "Web Development",
+    )!;
+    const aws = nodes.find((row) => row.parentId === webDevelopment.id && row.name === "AWS")!;
+    const cloudComputing = nodes.find(
+      (row) => row.parentId === null && row.name === "Cloud Computing",
+    )!;
+
+    const links = await db.select().from(domainNodeLinks);
+
+    expect(links).toHaveLength(1);
+    expect(links[0]).toMatchObject({
+      fromNodeId: aws.id,
+      toNodeId: cloudComputing.id,
+      kind: "also_in",
+    });
+
+    const { seedDomainTaxonomy } = await import("../../scripts/seed-domain-taxonomy.js");
+
+    await seedDomainTaxonomy(db, subjectId);
+
+    const linksAfterSecondRun = await db.select().from(domainNodeLinks);
+
+    expect(linksAfterSecondRun).toHaveLength(1);
+  });
+
+  // lms-buildout 0.8 — the concrete regression: before this fix, React
+  // collided with html-css-js at order 0, Node.js with web-frameworks at 0,
+  // and AWS with web-standards at 2.
+  it("gives React, Node.js and AWS a sibling order that does not collide with an existing it-taxonomy node", async () => {
+    const nodes = await db
+      .select({
+        id: domainNodes.id,
+        parentId: domainNodes.parentId,
+        name: domainNodes.name,
+        order: domainNodes.order,
+      })
+      .from(domainNodes)
+      .where(eq(domainNodes.subjectId, subjectId));
+
+    const byName = (name: string) => nodes.find((row) => row.name === name)!;
+
+    const frontendDevelopment = byName("Frontend Development");
+    const backendDevelopment = byName("Backend Development");
+    const webDevelopment = byName("Web Development");
+
+    const react = nodes.find(
+      (row) => row.parentId === frontendDevelopment.id && row.name === "React",
+    )!;
+    const nodejs = nodes.find(
+      (row) => row.parentId === backendDevelopment.id && row.name === "Node.js",
+    )!;
+    const aws = nodes.find((row) => row.parentId === webDevelopment.id && row.name === "AWS")!;
+
+    for (const [siblings, newSibling] of [
+      [frontendDevelopment.id, react],
+      [backendDevelopment.id, nodejs],
+      [webDevelopment.id, aws],
+    ] as const) {
+      const orders = nodes.filter((row) => row.parentId === siblings).map((row) => row.order);
+      const duplicates = orders.filter((order) => order === newSibling.order);
+
+      expect(duplicates).toHaveLength(1);
+    }
+  });
+
+  // learning-paths (module 1), SCENARIO 14 — every non-empty
+  // `prerequisites: [...]` in it-taxonomy.yaml (66 edges across 60 nodes,
+  // verified independently against the shipped YAML — none dangling)
+  // produces a matching domain_node_prerequisites row after a single seed
+  // run. web-dev-areas.yaml carries no prerequisites, so this count is the
+  // whole taxonomy's.
+  it("seeds exactly 66 prerequisite edges from it-taxonomy.yaml's prerequisites field", async () => {
+    const edges = await db.select().from(domainNodePrerequisites);
+
+    expect(edges).toHaveLength(66);
+  });
+
+  // learning-paths (module 1), SCENARIO 14 — cloud-computing is a root
+  // domain declared well after networking (an earlier root) and after
+  // virtualization-containerization (a sibling root under a different
+  // branch), and names both as prerequisites. This is the concrete forward
+  // + cross-branch reference the two-pass seed exists to resolve correctly
+  // regardless of declaration order.
+  it("resolves cloud-computing's forward and cross-branch prerequisite references", async () => {
+    const nodes = await db
+      .select({ id: domainNodes.id, parentId: domainNodes.parentId, name: domainNodes.name })
+      .from(domainNodes)
+      .where(eq(domainNodes.subjectId, subjectId));
+
+    const cloudComputing = nodes.find(
+      (row) => row.parentId === null && row.name === "Cloud Computing",
+    )!;
+    const networking = nodes.find((row) => row.parentId === null && row.name === "Networking")!;
+    const virtualization = nodes.find(
+      (row) => row.parentId === null && row.name === "Virtualization & Containerization",
+    )!;
+
+    const edges = await db
+      .select()
+      .from(domainNodePrerequisites)
+      .where(eq(domainNodePrerequisites.domainNodeId, cloudComputing.id));
+
+    const prerequisiteIds = edges.map((edge) => edge.prerequisiteNodeId).sort();
+
+    expect(prerequisiteIds).toEqual([networking.id, virtualization.id].sort());
+  });
+
+  // learning-paths (module 1), SCENARIO 14 — re-running the seed script
+  // inserts zero duplicate edge rows, same existence-checked convention as
+  // node seeding and domain_node_links.
+  it("is idempotent on a second run — zero duplicate prerequisite edges", async () => {
+    const { seedDomainTaxonomy } = await import("../../scripts/seed-domain-taxonomy.js");
+
+    await seedDomainTaxonomy(db, subjectId);
+
+    const edges = await db.select().from(domainNodePrerequisites);
+
+    expect(edges).toHaveLength(66);
   });
 });
 
@@ -451,7 +630,7 @@ describe("seed-domain-taxonomy — re-seeding over the old placeholder tree (SCE
     await dropTestDb(dbName, adminPool, testPool);
   }, 30_000);
 
-  it("forms two disjoint forests: 224 total rows, 19 roots, original 16 unchanged", async () => {
+  it("forms two disjoint forests: 260 total rows, 19 roots, original 16 unchanged", async () => {
     const placeholderRowsBefore = await db
       .select()
       .from(domainNodes)
@@ -463,14 +642,14 @@ describe("seed-domain-taxonomy — re-seeding over the old placeholder tree (SCE
 
     const result = await seedDomainTaxonomy(db, subjectId);
 
-    expect(result).toEqual({ created: 208, skipped: 0 });
+    expect(result).toEqual({ created: 244, skipped: 3 });
 
     const allRows = await db
       .select()
       .from(domainNodes)
       .where(eq(domainNodes.subjectId, subjectId));
 
-    expect(allRows).toHaveLength(224);
+    expect(allRows).toHaveLength(260);
 
     const roots = allRows.filter((row) => row.parentId === null);
 

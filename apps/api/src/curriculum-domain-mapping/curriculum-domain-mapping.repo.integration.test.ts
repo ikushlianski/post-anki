@@ -52,12 +52,14 @@ process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 const {
   insertSuggestedMappings,
   insertConfirmedMapping,
+  insertConfirmedMappingIdempotent,
   listMappingsForCurriculum,
   resolveMapping,
   deleteMappingsForCurriculum,
   getPrimaryConfirmedDomainNodeId,
   getPrimaryConfirmedDomainNodeIdsByCurriculumIds,
   rejectAllConfirmedForCurriculum,
+  findCurriculumMappedToNode,
 } = await import("./curriculum-domain-mapping.repo.js");
 
 let client: pg.Client;
@@ -235,6 +237,123 @@ describe("rejectAllConfirmedForCurriculum — the 'change placement' panel's cle
     const all = await listMappingsForCurriculum(curriculumId);
     expect(all).toHaveLength(1);
     expect(all[0]!.status).toBe("rejected");
+  });
+});
+
+describe("findCurriculumMappedToNode — learning-list 0.1, anti-sprawl match for an Area", () => {
+  it("finds the curriculum through a merely-suggested mapping, not just a confirmed one", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const curriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Hooks");
+    await insertCurriculum(curriculumId, subjectId);
+
+    expect(await findCurriculumMappedToNode(nodeId)).toBeNull();
+
+    await insertSuggestedMappings(curriculumId, [{ nodeId, depth: "working" }]);
+
+    const match = await findCurriculumMappedToNode(nodeId);
+
+    expect(match).toEqual({ curriculumId, title: `curriculum ${curriculumId}` });
+  });
+
+  it("never matches through a rejected mapping", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const curriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Rejected Node");
+    await insertCurriculum(curriculumId, subjectId);
+    await insertConfirmedMapping({ curriculumId, domainNodeId: nodeId, source: "manual" });
+    await rejectAllConfirmedForCurriculum(curriculumId);
+
+    expect(await findCurriculumMappedToNode(nodeId)).toBeNull();
+  });
+
+  it("picks the most recently placed curriculum when more than one matches the same Area", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const olderCurriculumId = id("cur");
+    const newerCurriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Shared Node");
+    await insertCurriculum(olderCurriculumId, subjectId);
+    await insertCurriculum(newerCurriculumId, subjectId);
+    await insertSuggestedMappings(olderCurriculumId, [{ nodeId, depth: "working" }]);
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    await insertSuggestedMappings(newerCurriculumId, [{ nodeId, depth: "working" }]);
+
+    const match = await findCurriculumMappedToNode(nodeId);
+
+    expect(match?.curriculumId).toBe(newerCurriculumId);
+  });
+});
+
+describe("insertConfirmedMappingIdempotent — fold-in Area container reuse", () => {
+  it("returns the existing mapping on the second call, never creates a duplicate", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const curriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Container Area");
+    await insertCurriculum(curriculumId, subjectId);
+
+    const first = await insertConfirmedMappingIdempotent({
+      curriculumId,
+      domainNodeId: nodeId,
+      depth: "working",
+      source: "auto",
+    });
+
+    const second = await insertConfirmedMappingIdempotent({
+      curriculumId,
+      domainNodeId: nodeId,
+      depth: "working",
+      source: "auto",
+    });
+
+    expect(first.id).toBe(second.id);
+    expect(second.status).toBe("confirmed");
+
+    const all = await listMappingsForCurriculum(curriculumId);
+
+    expect(all).toHaveLength(1);
+    expect(all[0]!.id).toBe(first.id);
+  });
+
+  it("returns the existing suggested mapping instead of creating a confirmed duplicate", async () => {
+    const subjectId = id("sub");
+    const nodeId = id("dnode");
+    const curriculumId = id("cur");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(nodeId, subjectId, "Suggested Area");
+    await insertCurriculum(curriculumId, subjectId);
+
+    const suggested = await insertSuggestedMappings(curriculumId, [
+      { nodeId, depth: "working" },
+    ]);
+
+    const confirmed = await insertConfirmedMappingIdempotent({
+      curriculumId,
+      domainNodeId: nodeId,
+      depth: "working",
+      source: "auto",
+    });
+
+    expect(confirmed.id).toBe(suggested[0]!.id);
+    expect(confirmed.status).toBe("suggested");
+
+    const all = await listMappingsForCurriculum(curriculumId);
+
+    expect(all).toHaveLength(1);
   });
 });
 

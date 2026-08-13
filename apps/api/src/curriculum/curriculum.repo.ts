@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type {
+  Concern,
   CreateCurriculumInput,
   Curriculum,
   CurriculumDetail,
@@ -91,10 +92,14 @@ interface Plan {
   modules: PlanModule[];
 }
 
+// learning-list-fold-in — a container curriculum (containerAreaNodeId set)
+// is plumbing, never a course the learner browses: every read path that
+// lists curricula for display filters it out here, at the one function every
+// board/tree/merge-picker view in apps/web ultimately calls.
 export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   const rows = (await getDb().select().from(curricula)).filter(
     (r: typeof curricula.$inferSelect) =>
-      !subjectId || r.subjectId === subjectId,
+      (!subjectId || r.subjectId === subjectId) && r.containerAreaNodeId === null,
   );
 
   if (rows.length === 0) {
@@ -151,15 +156,25 @@ export type CreateCurriculumError = "subject_not_found";
 export type CreateCurriculumDomainNodeSource = "manual" | "auto";
 
 /**
- * `domainNodeSource` is a repo-internal addition, not part of the shared
- * `CreateCurriculumInput` contract — it tells this function WHY
- * `domainNodeId` is set: "manual" for an explicit placement request
- * (SCENARIO 5, `handleCreateCurriculum`'s explicit-first check), "auto" for
- * the non-taxonomy-subject `resolveDomainPlacement` path (SCENARIO 8).
- * Absent/undefined when `domainNodeId` is null (nothing to attribute).
+ * `domainNodeSource` and `containerAreaNodeId` are repo-internal additions,
+ * not part of the shared `CreateCurriculumInput` contract.
+ *
+ * `domainNodeSource` tells this function WHY `domainNodeId` is set: "manual"
+ * for an explicit placement request (SCENARIO 5, `handleCreateCurriculum`'s
+ * explicit-first check), "auto" for the non-taxonomy-subject
+ * `resolveDomainPlacement` path (SCENARIO 8). Absent/undefined when
+ * `domainNodeId` is null (nothing to attribute).
+ *
+ * `containerAreaNodeId` is learning-list-fold-in's own addition — set only by
+ * `findOrCreateAreaContainer` (learning-list/area-container.repo.ts), never
+ * by any user-facing create path, to mark the new row as the implicit
+ * per-Area catch-all curriculum rather than an ordinary course.
  */
 export async function createCurriculum(
-  input: CreateCurriculumInput & { domainNodeSource?: CreateCurriculumDomainNodeSource },
+  input: CreateCurriculumInput & {
+    domainNodeSource?: CreateCurriculumDomainNodeSource;
+    containerAreaNodeId?: string;
+  },
 ): Promise<Curriculum | { error: CreateCurriculumError }> {
   const row = {
     id: newId("cur"),
@@ -173,6 +188,7 @@ export async function createCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
+    containerAreaNodeId: input.containerAreaNodeId ?? null,
   };
   const domainNodeId = input.domainNodeId ?? null;
 
@@ -2036,6 +2052,8 @@ function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
+    headroomOfferedAt: row.headroomOfferedAt ? row.headroomOfferedAt.toISOString() : null,
     tags,
   };
 }
@@ -2073,4 +2091,12 @@ async function loadTagsByNode(
   }
 
   return byNode;
+}
+
+export async function setCurriculumConcern(
+  curriculumId: string,
+  concern: Concern | null,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db.update(curricula).set({ concern }).where(eq(curricula.id, curriculumId));
 }

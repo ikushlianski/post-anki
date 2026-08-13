@@ -22,6 +22,13 @@ const envSchema = z.object({
   // override — set only in verification-repo's e2e stage env, never in
   // dev/prod.
   E2E_MOCK_TRACKED_TOOL_CONTENT: z.string().min(1).optional(),
+  /* learning-list-intake (SCENARIO 14) — e2e-stage-only exemption from
+     guarded-fetch.ts's private/internal-address rejection, so the local mock
+     docs sites on loopback stay reachable. Comma-separated origins, e.g.
+     "http://localhost:4998,http://localhost:4997". The http/https scheme
+     check is never exempted. Set only in verification-repo's e2e stage env,
+     never in dev/prod. */
+  E2E_SOURCE_FETCH_ALLOWED_ORIGINS: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

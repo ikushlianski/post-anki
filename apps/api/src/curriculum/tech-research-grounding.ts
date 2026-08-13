@@ -1,3 +1,4 @@
+import { isSafeSourceUrl } from "@post-anki/core";
 import { loadEnv, type Env } from "../shared/env.js";
 import { log } from "../shared/log.js";
 
@@ -141,14 +142,8 @@ function truncate(text: string): string {
   return text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
 }
 
-function isHttpUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
+function isSafeCitationUrl(value: string): boolean {
+  return isSafeSourceUrl(value).allowed;
 }
 
 function extractFirstUrl(text: string): string | null {
@@ -199,7 +194,7 @@ export async function resolveOfficialDocsUrl(technologyName: string): Promise<st
 
     const data = (await res.json()) as ChatResponse;
     const message = data.choices?.[0]?.message;
-    const fromCitation = collectCitations(message?.annotations).find(isHttpUrl);
+    const fromCitation = collectCitations(message?.annotations).find(isSafeCitationUrl);
 
     if (fromCitation) {
       return fromCitation;
@@ -269,7 +264,7 @@ export async function gatherTrustedSourceCandidates(
     const citations = collectCitations(data.choices?.[0]?.message?.annotations);
 
     return citations
-      .filter(isHttpUrl)
+      .filter(isSafeCitationUrl)
       .map((url) => ({
         url,
         title: `Trusted source (blog/paper): ${url}`,

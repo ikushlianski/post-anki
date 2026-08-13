@@ -20,6 +20,7 @@ import { log } from "../shared/log.js";
 import { recordActivityToday } from "../streak/streak.service.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { applyGapMasteryAttempt } from "../gap/gap-mastery.repo.js";
+import { recordAnswerActivityForTopic } from "../liveness/answer-activity.js";
 import {
   getTopicRow,
   rowDepth,
@@ -219,6 +220,10 @@ export async function answerProbeSession(
     }
 
     await refreshTopicProgress(question.topicId, now);
+
+    if (isFreshAnswer) {
+      await recordAnswerActivityForTopic(question.topicId, now);
+    }
   }
 
   const progress = await syncSessionCounters(input.sessionId, now);

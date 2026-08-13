@@ -36,6 +36,8 @@ function rowToTopic(row: typeof topics.$inferSelect): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
+    headroomOfferedAt: row.headroomOfferedAt ? row.headroomOfferedAt.toISOString() : null,
   };
 }
 
@@ -71,6 +73,8 @@ export async function createTopic(input: CreateTopicInput): Promise<Topic | null
     progressMaturity: 0,
     progressAttempts: 0,
     progressLastInteractedAt: null,
+    depthElectedAt: null,
+    headroomOfferedAt: null,
   };
 
   await db.insert(topics).values(row);
@@ -117,6 +121,14 @@ export async function updateTopic(input: UpdateTopicInput): Promise<Topic | null
 
   if (input.depth !== undefined) {
     patch.depth = input.depth;
+  }
+
+  if (input.depthElectedAt !== undefined) {
+    patch.depthElectedAt = input.depthElectedAt ? new Date(input.depthElectedAt) : null;
+  }
+
+  if (input.headroomOfferedAt !== undefined) {
+    patch.headroomOfferedAt = input.headroomOfferedAt ? new Date(input.headroomOfferedAt) : null;
   }
 
   if (input.learningStatus !== undefined) {

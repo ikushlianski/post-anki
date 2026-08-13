@@ -127,6 +127,20 @@ export function shouldIncludeTopicByDefault(
   return moduleLevel === preferredLevel;
 }
 
+export type SourceMergeAction = "queue_for_approval" | "blocked_by_shaping" | "merge";
+
+export function resolveSourceMergeAction(curriculumStatus: string): SourceMergeAction {
+  if (curriculumStatus === "awaiting_source_approval") {
+    return "queue_for_approval";
+  }
+
+  if (curriculumStatus === "shaping_structure") {
+    return "blocked_by_shaping";
+  }
+
+  return "merge";
+}
+
 export function isApproveSourcesBlocked(
   approvableSourceCount: number,
   override: boolean,

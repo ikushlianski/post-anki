@@ -323,7 +323,7 @@ domains:
             name: Metrics & Monitoring
             description: Metrics collection, time-series data, and dashboards
             prerequisites: []
-          - id: log-aggregation
+          - id: log-aggregation-devops
             name: Log Aggregation
             description: Centralized logging, log collection, and analysis
             prerequisites: []

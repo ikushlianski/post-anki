@@ -9,6 +9,8 @@ import {
 } from '../curriculum/curriculum.api'
 import { ProbeAnswer } from '../curriculum/probe-answer'
 import { listOpenQuestions } from '../open-questions/open-questions.api'
+import { NudgePanel } from '../learning-list/nudge-panel'
+import { respondToNudge } from '../learning-list/learning-list.api'
 
 const OPEN_QUESTIONS_BANNER_LIMIT = 3
 
@@ -119,12 +121,20 @@ const REASON_LABEL: Record<DailyPushReason, string> = {
 }
 
 function TodayPage() {
-  const { push, question, nudges, openQuestions } = Route.useLoaderData()
+  const { push, question, nudge, nudges, openQuestions } = Route.useLoaderData()
   const { mode } = Route.useSearch()
   const router = useRouter()
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
+      {nudge ? (
+        <NudgePanel
+          key={`${nudge.entityType}:${nudge.entityId}`}
+          nudge={nudge}
+          onRespond={(data) => respondToNudge({ data })}
+          onResponded={() => router.invalidate()}
+        />
+      ) : null}
       <OpenQuestionsBanner items={openQuestions.items} totalCount={openQuestions.totalCount} />
       <CrossCuttingNudgeBanner nudges={nudges} />
       <header className="mb-8 flex items-start justify-between gap-4">

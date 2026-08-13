@@ -3,9 +3,10 @@ import type {
   CurriculumDomainNodeMapping,
   CurriculumDomainNodeMappingSource,
   DepthLevel,
+  ExistingCurriculumMatch,
 } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { curriculumDomainNodeMappings } from "../db/schema.js";
+import { curricula, curriculumDomainNodeMappings } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 function toMapping(
@@ -84,6 +85,28 @@ export async function insertSuggestedMappings(
   }));
 }
 
+export async function findCurriculumMappedToNode(
+  domainNodeId: string,
+  db: DbExecutor = getDb(),
+): Promise<ExistingCurriculumMatch | null> {
+  const row = (
+    await db
+      .select({ curriculumId: curricula.id, title: curricula.name })
+      .from(curriculumDomainNodeMappings)
+      .innerJoin(curricula, eq(curricula.id, curriculumDomainNodeMappings.curriculumId))
+      .where(
+        and(
+          eq(curriculumDomainNodeMappings.domainNodeId, domainNodeId),
+          ne(curriculumDomainNodeMappings.status, "rejected"),
+        ),
+      )
+      .orderBy(desc(curriculumDomainNodeMappings.createdAt))
+      .limit(1)
+  )[0];
+
+  return row ? { curriculumId: row.curriculumId, title: row.title } : null;
+}
+
 export interface InsertConfirmedMappingParams {
   curriculumId: string;
   domainNodeId: string;
@@ -120,6 +143,71 @@ export async function insertConfirmedMapping(
   )[0]!;
 
   return toMapping(inserted);
+}
+
+export async function insertConfirmedMappingIdempotent(
+  params: InsertConfirmedMappingParams,
+  db: DbExecutor = getDb(),
+): Promise<CurriculumDomainNodeMapping> {
+  const existing = await db
+    .select()
+    .from(curriculumDomainNodeMappings)
+    .where(
+      and(
+        eq(curriculumDomainNodeMappings.curriculumId, params.curriculumId),
+        eq(curriculumDomainNodeMappings.domainNodeId, params.domainNodeId),
+        ne(curriculumDomainNodeMappings.status, "rejected"),
+      ),
+    );
+
+  if (existing.length > 0) {
+    return toMapping(existing[0]!);
+  }
+
+  try {
+    return await insertConfirmedMapping(params, db);
+  } catch (err) {
+    if (!isUniqueViolation(err)) {
+      throw err;
+    }
+
+    const winner = await selectLiveMapping(params, db);
+
+    if (!winner) {
+      throw err;
+    }
+
+    return winner;
+  }
+}
+
+const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
+  );
+}
+
+async function selectLiveMapping(
+  params: InsertConfirmedMappingParams,
+  db: DbExecutor,
+): Promise<CurriculumDomainNodeMapping | null> {
+  const rows = await db
+    .select()
+    .from(curriculumDomainNodeMappings)
+    .where(
+      and(
+        eq(curriculumDomainNodeMappings.curriculumId, params.curriculumId),
+        eq(curriculumDomainNodeMappings.domainNodeId, params.domainNodeId),
+        ne(curriculumDomainNodeMappings.status, "rejected"),
+      ),
+    );
+
+  return rows[0] ? toMapping(rows[0]) : null;
 }
 
 export async function listMappingsForCurriculum(

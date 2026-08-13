@@ -227,10 +227,52 @@
       "breakpoints": true
     },
     {
+      "idx": 32,
+      "version": "7",
+      "when": 1786097105755,
+      "tag": "0032_nifty_surge",
+      "breakpoints": true
+    },
+    {
       "idx": 33,
       "version": "7",
       "when": 1786628095496,
       "tag": "0033_rainy_bug",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786147588063,
+      "tag": "0034_cultured_colleen_wing",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786149852982,
+      "tag": "0035_confused_garia",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1786151153800,
+      "tag": "0036_heavy_lucky_pierre",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786490304435,
+      "tag": "0037_neat_satana",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786578625811,
+      "tag": "0038_silly_redwing",
       "breakpoints": true
     }
   ]

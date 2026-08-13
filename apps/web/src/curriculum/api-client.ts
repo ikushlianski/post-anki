@@ -201,6 +201,8 @@ function mapTopic(topic: be.Topic): Topic {
     gaps,
     progress: mapProgress(topic.progress, gaps.length, gapsCovered),
     tags: (topic.tags ?? []).map(mapTagChip),
+    depthElectedAt: topic.depthElectedAt,
+    headroomOfferedAt: topic.headroomOfferedAt ?? null,
   }
 }
 
@@ -1019,7 +1021,7 @@ export async function getDailyPush(
       ? mapProbeQuestion(res.push.topicId, res.question)
       : null
 
-  return { push, question }
+  return { push, question, nudge: res.nudge }
 }
 
 export async function getCrossCutting(): Promise<ConcernSummary[]> {

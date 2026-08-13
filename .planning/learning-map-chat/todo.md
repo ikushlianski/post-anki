@@ -3,56 +3,27 @@ type: todo
 branch: learning-map-chat
 task: Persistent sidebar study chat with cross-curriculum learning-map context + level-aware generation
 state: open
-updated: 2026-07-15
+updated: 2026-08-09
 ---
 # Todo: Learning-map sidebar chat
 
 ## Decisions to make
 Nothing to decide — every fork below was resolved autonomously during this unattended planning
-run (no `AskUserQuestion`), with a logged default. Listed here for morning review only.
+run, with a logged default. Listed here for morning review only.
 
-- **Gap regression/demotion not built.** A wrong answer never demotes an already-`covered` gap
-  back to `open`. Verified the existing model already satisfies "wrong answers go to review"
-  (they simply never leave `open` in the first place for a first attempt), and demotion was never
-  asked for in the user's own words. If forgetting/regression tracking is actually wanted, that's
-  new scope, not a bug fix — flag if so.
-- **`SocraticChat` component reuse deferred to implementation time.** The sibling
-  `topic-study-experience` plan's `SocraticChat` doesn't exist in `main` yet at planning time, so
-  its internal decomposition can't be inspected. Default: build this plan's sidebar chat as its
-  own component; at implementation time, extract/share bubble+input presentational pieces with
-  `SocraticChat` only if it already isolates them cleanly. Not blocking either way.
-- **Chat transcript is session-local (browser tab), not server-persisted** — matches the sibling
-  plan's identical decision for `SocraticChat`, for consistency across the two chat surfaces on
-  the same page. A reload loses scrollback but not underlying progress state (there is no
-  underlying state here to lose — this chat never writes to the DB).
-- **Learning-map summary budget: 10 curricula / 1,200 chars, ranked in-progress-first.** A
-  concrete default so the deriver is testable; revisit only if real usage shows it's too tight or
-  too loose once the learner has enough curricula to hit the cap.
-- **Level-aware coverage line is a flat text hint, not a structured schema field.** Appended to
-  the existing prompt-building string functions (`buildPrompt` in `probe-session.generate.ts`,
-  the Socratic ask-prompt path) rather than a new field threaded through
-  `generatedProbeBatchSchema`/`socraticEvalSchema` — it's guidance for the model, not something
-  the caller needs to read back structured.
+- A wrong answer never moves an already-mastered topic back to needing review; flag if that behavior is actually wanted.
+- Whether the sidebar chat shares its look with the existing study chat is decided during building, not now.
+- Chat history is not saved between visits; closing the tab clears the conversation, matching the other chat surface.
+- The learner's course summary shown to the assistant is capped in size, prioritising courses currently in progress.
+- The learner's skill level is passed to the assistant as a plain hint, not as a separate structured field.
 
 ## To review / clarify
-- **Cross-plan dependency (build-order, not a blocker for this plan alone):**
-  `study-stats-dashboard`'s next-step recommender and weak/strong-spot view consume this plan's
-  `getLearningMapSnapshots()` (`apps/api/src/curriculum/curriculum.repo.ts`) and its
-  `LearningMapSnapshot` type directly rather than defining a parallel query. Implement this plan
-  first, or at minimum land that one repo function + type before `study-stats-dashboard`'s
-  recommender work starts, or its code won't have anything to compile against.
-- **Streak/"hailed and commended" UI belongs entirely to `study-stats-dashboard`**, not this plan
-  — flagging only so nobody assumes this plan surfaces a streak banner. It doesn't; this plan is
-  chat + generation context only.
+- Another planned feature (the stats dashboard) depends on this one's course-progress data; build this one first.
+- Streak and celebration banners belong to a different feature; this one only covers chat and content generation.
 
 ## Manual steps
-No manual steps required — no new env vars, secrets, or infra. The chat agent uses the same
-`OPENROUTER_API_KEY`/model resolution every other Mastra agent in `apps/api/src/mastra/` already
-uses.
+No manual steps required; the chat feature reuses the existing AI provider setup already used elsewhere.
 
 ## Post-deploy checks
-- Open a topic page with only one curriculum studied and confirm the chat still answers
-  sensibly (SCENARIO 3's degrade-gracefully case) rather than erroring on an empty comparison set.
-- Open a topic in a curriculum with module `level: null` (a pasted-material curriculum, not a
-  research one) and confirm quiz/Socratic generation is byte-for-byte unchanged from before this
-  plan (SCENARIO 5's no-level-tiers case).
+- Confirm the chat still answers sensibly for a learner who has studied only one course.
+- Confirm quiz and chat generation is unchanged for courses that have no skill-level tiers set.

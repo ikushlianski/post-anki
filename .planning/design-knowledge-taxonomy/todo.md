@@ -3,7 +3,7 @@ type: todo
 branch: design-knowledge-taxonomy
 task: Design the objective IT knowledge taxonomy — hierarchical map of domains/competencies (#83)
 state: confirmed
-updated: 2026-08-04
+updated: 2026-08-09
 ---
 
 # TODO: Design the objective IT knowledge taxonomy
@@ -37,14 +37,14 @@ updated: 2026-08-04
 - [ ] Disaster Recovery & Continuity: Backup Strategies, Redundancy, Failover, Disaster Recovery Planning, Business Continuity
 - [ ] Observability & Diagnostics: Monitoring & Alerting, Logging, Tracing, Performance Profiling, Log Aggregation
 
-### 3. Write taxonomy.yaml with full structure
+### 3. Write the full taxonomy structure
 
-- [ ] Create YAML structure with all 15 domains
+- [ ] Create the full structure covering all 15 domains
 - [ ] Add second-level categories (2–4 per domain)
 - [ ] Add third-level topics where applicable
 - [ ] Populate descriptions for each node
 - [ ] Add prerequisite markers (e.g., "TCP/IP before Routing") where applicable
-- [ ] Validate YAML syntax and structure
+- [ ] Check the taxonomy document for structural correctness
 
 ### 4. Validate against validation criteria
 
@@ -54,7 +54,7 @@ updated: 2026-08-04
 - [ ] Overlap analysis: Intentional overlaps (e.g., Security concepts in Cloud, DevOps, Networking) are documented
 - [ ] Career path alignment: Real IT career progressions (Sys Admin → DevOps, Network Admin → Architect) are traceable through the taxonomy
 
-### 5. Write taxonomy-validation-report.md
+### 5. Write the validation report
 
 - [ ] Document domain selection rationale (why these 15?)
 - [ ] Explain hierarchy design for each domain
@@ -65,14 +65,14 @@ updated: 2026-08-04
 
 ### 6. Finalize and commit
 
-- [ ] Review taxonomy.yaml for completeness and correctness
-- [ ] Review taxonomy-validation-report.md for clarity and accuracy
+- [ ] Review the taxonomy document for completeness and correctness
+- [ ] Review the validation report for clarity and accuracy
 - [ ] Ensure all scenarios can be satisfied by this taxonomy design
-- [ ] Commit to .planning/design-knowledge-taxonomy/
-- [ ] Mark plan as state: confirmed once validated
+- [ ] Save the finished taxonomy work to the project plan
+- [ ] Mark this plan as confirmed once validated
 
 ## Blocks and dependencies
 
 - No external dependencies
 - No code implementation required
-- Output is a design artifact (YAML + report) ready for the next ticket (seed-knowledge-map, #84)
+- Output is a design document ready for the next ticket, which will seed the actual knowledge map (#84)

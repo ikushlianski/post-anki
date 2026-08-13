@@ -15,6 +15,7 @@ import { log } from "../shared/log.js";
 import { getSubject } from "../subject/subject.repo.js";
 import { resolveDomainPlacement } from "../domain-map/domain-placement.orchestrator.js";
 import { getDomainNode, listDomainNodesForSubject } from "../domain-map/domain-map.repo.js";
+import { startLivenessTracking } from "../liveness/liveness.repo.js";
 import {
   confirmCurriculum,
   createCurriculum,
@@ -39,6 +40,7 @@ import {
   isPastedMaterialAndSourcesConflict,
   isResearchAndSourcesConflict,
   isSourceMandateUnmet,
+  resolveSourceMergeAction,
 } from "./curriculum-rules.js";
 import {
   generateCurriculumFromApprovedSources,
@@ -630,6 +632,8 @@ export async function handleConfirmCurriculum(
     return;
   }
 
+  await startLivenessTracking({ entityType: "curriculum", entityId: curriculumId });
+
   sendJson(res, 200, result);
 }
 
@@ -669,7 +673,9 @@ export async function handleAddSources(
     return;
   }
 
-  if (curriculum.status === "awaiting_source_approval") {
+  const action = resolveSourceMergeAction(curriculum.status);
+
+  if (action === "queue_for_approval") {
     // A manually-added link during the approval review — inserted as
     // pending, same as an auto-discovered candidate, so it's treated
     // identically once the learner clicks "Approve & generate" (SCENARIO
@@ -689,7 +695,7 @@ export async function handleAddSources(
     return;
   }
 
-  if (curriculum.status === "shaping_structure") {
+  if (action === "blocked_by_shaping") {
     // Structure shaping's only sourcing path is the in-chat "research this
     // more" flow (see `submitStructureTurn`'s `researchGapLabels`) — adding
     // sources directly here would bypass that chat and the draft it's

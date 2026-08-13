@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
 import type { QuestionKind } from '../curriculum/model'
@@ -8,6 +8,7 @@ import { ProbeSessionQuiz } from '../curriculum/probe-session-quiz'
 import { ProbeRoomDrawer } from '../curriculum/probe-room-drawer'
 import { SocraticChat } from '../curriculum/socratic-chat'
 import { StudyChatSidebar } from '../curriculum/study-chat-sidebar'
+import { TopicDepthGate } from '../learning-list/topic-depth-gate'
 
 export const Route = createFileRoute('/probe/$topicId')({
   validateSearch: (
@@ -35,6 +36,7 @@ function ProbeRoom() {
     enabled: curriculumId !== '',
   })
   const [chatSeed, setChatSeed] = useState<string | null>(null)
+  const router = useRouter()
 
   const topic = detail?.modules
     .flatMap((module) => module.topics)
@@ -83,6 +85,17 @@ function ProbeRoom() {
           {topic.progress.maturity}%
         </p>
       </header>
+
+      <TopicDepthGate
+        key={topic.id}
+        topicId={topic.id}
+        topicTitle={topic.title}
+        depth={topic.targetDepth}
+        depthElectedAt={topic.depthElectedAt}
+        headroomOfferedAt={topic.headroomOfferedAt}
+        mastered={topic.progress.status === 'mastered'}
+        onChanged={() => router.invalidate()}
+      />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1">
