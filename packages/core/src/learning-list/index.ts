@@ -7,3 +7,5 @@ export * from "./ingestion-slice";
 export * from "./slice-generation";
 export * from "./depth-headroom";
 export * from "./headroom-offer";
+export * from "./plan-series-modules";
+export * from "./select-unfilled-module";

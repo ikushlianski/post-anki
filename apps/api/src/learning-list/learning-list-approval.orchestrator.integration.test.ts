@@ -8,10 +8,20 @@ import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
 
 const mockAgentGenerate = vi.fn();
+const mockDiscoverGithubChapters = vi.fn();
 
 vi.mock("../mastra/mastra.js", () => ({
   AGENT_KEYS: { domainTaxonomyMapping: "domainTaxonomyMapping" },
   getMastra: () => ({ getAgent: () => ({ generate: mockAgentGenerate }) }),
+}));
+
+// No test in this file cares about GitHub book discovery unless it says so —
+// defaulting to "no other chapters found" keeps every other approval test
+// exercising exactly the pre-existing, non-book-shaped path.
+mockDiscoverGithubChapters.mockResolvedValue({ chapters: [], truncated: false, capped: false });
+
+vi.mock("./github-chapters.js", () => ({
+  discoverGithubChapters: (...args: unknown[]) => mockDiscoverGithubChapters(...args),
 }));
 
 /* 0.10 stubs the first-slice-release trigger out of this file entirely: this
@@ -240,6 +250,80 @@ describe("approveRecommendation — SCENARIO 2 and 3", () => {
 
   it("reports a missing item as not found", async () => {
     expect(await approveRecommendation(`llitem_${randomUUID()}`)).toEqual({ error: "not_found" });
+  });
+});
+
+describe("approveRecommendation — series with known parts shapes the course like the book", () => {
+  it("creates one module per discovered chapter, in book order, each carrying its own source", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+
+    const chapters = Array.from({ length: 12 }, (_, i) => ({
+      path: `0${Math.floor(i / 4) + 1}-Part/Chapter_${i + 1}.md`,
+      title: `Chapter ${i + 1} — Topic ${i + 1}`,
+      url: `https://github.com/owner/repo/blob/main/0${Math.floor(i / 4) + 1}-Part/Chapter_${i + 1}.md`,
+    }));
+
+    mockDiscoverGithubChapters.mockResolvedValueOnce({ chapters, truncated: false, capped: false });
+
+    const capturedChapter = chapters[4]!;
+    const item = await insertLearningListItem({
+      url: capturedChapter.url,
+      rawText: null,
+      title: null,
+      kind: "article",
+    });
+
+    await saveClassification(item.id, {
+      title: "A different title the classifier picked",
+      rawText: "chapter text",
+      verdict: "series",
+      recommendation: recommendation({ partCount: 12 }),
+      questionCeiling: 30,
+      status: "classified",
+    });
+
+    const result = await approveRecommendation(item.id);
+
+    expect("error" in result).toBe(false);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+
+    const modules = await client.query(
+      `SELECT title, "order" FROM modules WHERE curriculum_id = $1 ORDER BY "order"`,
+      [curriculumId],
+    );
+
+    expect(modules.rowCount).toBe(12);
+    expect(modules.rows.map((row) => row.title)).toEqual(chapters.map((c) => c.title));
+    expect(modules.rows.map((row) => row.order)).toEqual(chapters.map((_, i) => i + 1));
+
+    const sources = await client.query(`SELECT value, title FROM sources WHERE curriculum_id = $1`, [
+      curriculumId,
+    ]);
+
+    expect(sources.rowCount).toBe(12);
+
+    const capturedSource = sources.rows.find((row) => row.value === capturedChapter.url);
+
+    // The captured item's own source row (created by createCurriculum from
+    // sourcesForItem) is re-titled to its derived chapter title, not
+    // duplicated into a second row.
+    expect(capturedSource?.title).toBe(capturedChapter.title);
+  });
+
+  it("seeds no modules up front when the discoverer finds no other parts — legacy behaviour", async () => {
+    mockAgentGenerate.mockResolvedValue({ object: { matches: [], unmatchedTopics: [] } });
+    mockDiscoverGithubChapters.mockResolvedValueOnce({ chapters: [], truncated: false, capped: false });
+
+    const itemId = await classifiedItem();
+    const result = await approveRecommendation(itemId);
+
+    expect("error" in result).toBe(false);
+
+    const curriculumId = (result as { curriculumId: string }).curriculumId;
+    const modules = await client.query(`SELECT id FROM modules WHERE curriculum_id = $1`, [curriculumId]);
+
+    expect(modules.rowCount).toBe(0);
   });
 });
 

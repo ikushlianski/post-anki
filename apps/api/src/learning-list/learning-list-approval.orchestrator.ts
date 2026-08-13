@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+import { planSeriesModules, type SeriesPart } from "@post-anki/core";
 import type {
   LearningListItem,
   LearningListRecommendation,
@@ -9,12 +11,17 @@ import { mergeSourcesIntoCurriculum } from "../curriculum/curriculum-parse.orche
 import {
   createCurriculum,
   getCurriculum,
+  getCurriculumSourceRows,
   insertPendingSources,
   setCurriculumConcern,
 } from "../curriculum/curriculum.repo.js";
 import { triggerCurriculumDomainMapping } from "../curriculum-domain-mapping/curriculum-domain-mapping.orchestrator.js";
 import { insertSuggestedMappings } from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
+import { getDb } from "../db/client.js";
+import { modules, sources } from "../db/schema.js";
+import { discoverGithubChapters } from "./github-chapters.js";
 import { recordNudgeResponse, startLivenessTracking } from "../liveness/liveness.repo.js";
+import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
 import { approveFoldInRecommendation } from "./learning-list-fold-in.orchestrator.js";
 import {
@@ -101,6 +108,7 @@ async function approveMiniCourseRecommendation(
           { nodeId: subSubjectNodeId, depth: DEFAULT_PLACEMENT_DEPTH },
         ])
       : Promise.resolve([]),
+    seedKnownSeriesModules(curriculum.id, claimed),
   ]);
 
   await Promise.all([suggestDomainMappings(curriculum.id), releaseNextSliceSafely(itemId)]);
@@ -209,5 +217,82 @@ async function suggestDomainMappings(curriculumId: string): Promise<void> {
     await triggerCurriculumDomainMapping(curriculumId);
   } catch (err) {
     log.error({ err, curriculumId }, "learning_list_domain_mapping_failed");
+  }
+}
+
+// "Known parts" today only ever resolves from a GitHub book's own chapter
+// listing (packages/core/src/github-book) — no discoverer is wired up yet
+// for any other host (e.g. an AWS guide index's sibling pages). This is the
+// one place that host knowledge lives: `planSeriesModules` and everything
+// downstream of it (slice-generation.orchestrator.ts) only ever see the
+// host-agnostic SeriesPart shape, so a second discoverer slots in here
+// later without touching any of that logic.
+async function discoverKnownSeriesParts(url: string): Promise<SeriesPart[]> {
+  const discovery = await discoverGithubChapters(url);
+
+  return discovery.chapters.map((chapter) => ({ url: chapter.url, title: chapter.title }));
+}
+
+// Approving a series with known parts shapes the course like the book
+// itself up front: one module per part, in the book's own order, each
+// paired with a `sources` row carrying that part's own URL so a later
+// slice can fetch and generate from that document alone
+// (slice-generation.orchestrator.ts's own module-filling logic). The
+// captured item's own chapter already has a source row from
+// `createCurriculum`'s `sourcesForItem(claimed)` — matched here by URL and
+// re-titled to its derived chapter title rather than duplicated.
+//
+// A series whose parts aren't known (a single-part discovery result, or no
+// discoverer wired up for its host) seeds nothing: generateSliceContent
+// then falls back to its original all-source-text "Slice N" behaviour
+// exactly as before. Never throws — a discovery hiccup here must not fail
+// an approval that already created real content elsewhere.
+async function seedKnownSeriesModules(
+  curriculumId: string,
+  item: LearningListItem,
+): Promise<void> {
+  if (item.kind === "video" || !item.url) {
+    return;
+  }
+
+  try {
+    const planned = planSeriesModules(await discoverKnownSeriesParts(item.url));
+
+    if (planned.length <= 1) {
+      return;
+    }
+
+    const existingByUrl = new Map(
+      (await getCurriculumSourceRows(curriculumId)).map((source) => [source.value, source]),
+    );
+
+    await getDb().transaction(async (tx) => {
+      for (const part of planned) {
+        const existing = existingByUrl.get(part.url);
+
+        if (existing) {
+          await tx.update(sources).set({ title: part.title }).where(eq(sources.id, existing.id));
+        } else {
+          await tx.insert(sources).values({
+            id: newId("src"),
+            curriculumId,
+            kind: "link",
+            value: part.url,
+            title: part.title,
+          });
+        }
+
+        await tx.insert(modules).values({
+          id: newId("mod"),
+          curriculumId,
+          title: part.title,
+          order: part.order,
+        });
+      }
+    });
+
+    log.info({ curriculumId, parts: planned.length }, "learning_list_series_modules_seeded");
+  } catch (err) {
+    log.error({ err, curriculumId, itemId: item.id }, "learning_list_series_modules_seed_failed");
   }
 }
