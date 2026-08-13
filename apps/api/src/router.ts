@@ -53,6 +53,10 @@ export type RouteName =
   | "getAdminObservability"
   | "submitProbeQuestionFeedback"
   | "submitSocraticTurnFeedback"
+  | "captureProbeQuestionOpenQuestion"
+  | "captureSocraticTurnOpenQuestion"
+  | "listOpenQuestions"
+  | "resolveOpenQuestion"
   | "askStudyChat"
   | "getCurriculumStats"
   | "generateRecommendations"
@@ -68,6 +72,8 @@ export type RouteName =
   | "reviewLectureSourceCandidate"
   | "compileLecture"
   | "getLecture"
+  | "compileCards"
+  | "getCards"
   | "getPracticeSettings"
   | "updatePracticeSettings"
   | "createPhraseBatch"
@@ -183,6 +189,25 @@ const ROUTES: RouteDef[] = [
   },
   {
     method: "POST",
+    pattern: /^\/probe-session-questions\/([^/]+)\/open-questions$/,
+    name: "captureProbeQuestionOpenQuestion",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/socratic-turns\/([^/]+)\/open-questions$/,
+    name: "captureSocraticTurnOpenQuestion",
+    param: "id",
+  },
+  { method: "GET", pattern: "/open-questions", name: "listOpenQuestions" },
+  {
+    method: "PATCH",
+    pattern: /^\/open-questions\/([^/]+)$/,
+    name: "resolveOpenQuestion",
+    param: "id",
+  },
+  {
+    method: "POST",
     pattern: /^\/topics\/([^/]+)\/study-chat$/,
     name: "askStudyChat",
     param: "id",
@@ -244,6 +269,18 @@ const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: /^\/topics\/([^/]+)\/lecture$/,
     name: "getLecture",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/topics\/([^/]+)\/cards$/,
+    name: "compileCards",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/topics\/([^/]+)\/cards$/,
+    name: "getCards",
     param: "id",
   },
   {

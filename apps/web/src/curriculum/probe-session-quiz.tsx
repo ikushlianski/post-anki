@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { shouldReplenish } from '@post-anki/core'
+import { isOneShotProbeScope, shouldReplenish } from '@post-anki/core'
 import type {
   AnswerProbeSessionGapMasteryResult,
   OptionExplanation,
@@ -22,8 +22,9 @@ import {
   prepareProbeSession,
 } from './probe-session.api'
 import { ItemFeedbackButtons } from '../feedback/item-feedback-buttons'
+import { CaptureQuestionButton } from '../open-questions/capture-question-button'
 
-function probeSessionQueryKey(scope: ProbeScope, scopeId: string) {
+export function probeSessionQueryKey(scope: ProbeScope, scopeId: string) {
   return ['probe-session', scope, scopeId] as const
 }
 
@@ -188,7 +189,18 @@ export function ProbeSessionQuiz({
       // learner simply doesn't see the new questions until they answer past
       // this point again (an accepted staleness window, not a bug — see
       // architecture.md's Phase 4 notes).
-      if (shouldReplenish(result.total, result.answered, REPLENISH_FLOOR)) {
+      //
+      // A one-shot scope (curriculum calibration probe) never replenishes
+      // server-side (probe-session.service.ts's own isOneShotProbeScope
+      // guard) — invalidating here on its FINAL answer would refetch
+      // getActiveProbeSession right as the session flips to "completed" and
+      // get back null (getActiveSessionRow only matches status "active" or
+      // "replenishing"), wiping the just-finished quiz out from under the
+      // learner and any completion summary reading this same cache entry.
+      if (
+        !isOneShotProbeScope(scope) &&
+        shouldReplenish(result.total, result.answered, REPLENISH_FLOOR)
+      ) {
         void queryClient.invalidateQueries({ queryKey })
       }
     },
@@ -305,6 +317,7 @@ export function ProbeSessionQuiz({
       </p>
 
       <ItemFeedbackButtons itemType="probe_question" itemId={current.id} />
+      <CaptureQuestionButton itemType="probe_question" itemId={current.id} />
 
       {current.type === 'multi' ? (
         <p className="mt-1 text-xs text-neutral-400">

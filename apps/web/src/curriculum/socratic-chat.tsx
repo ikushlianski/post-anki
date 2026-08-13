@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { answerSocraticSession, startSocraticSession } from './socratic.api'
 import { ItemFeedbackButtons } from '../feedback/item-feedback-buttons'
+import { CaptureQuestionButton } from '../open-questions/capture-question-button'
 
 interface ChatMessage {
   id: string
@@ -144,7 +145,10 @@ export function SocraticChat({ topicId }: { topicId: string }) {
               {message.text}
             </div>
             {message.turnId ? (
-              <ItemFeedbackButtons itemType="socratic_turn" itemId={message.turnId} />
+              <>
+                <ItemFeedbackButtons itemType="socratic_turn" itemId={message.turnId} />
+                <CaptureQuestionButton itemType="socratic_turn" itemId={message.turnId} />
+              </>
             ) : null}
           </div>
         ))}

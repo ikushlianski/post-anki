@@ -81,6 +81,12 @@ function RootDocument({ children }: { children: ReactNode }) {
                 Decide
               </Link>
               <Link
+                to="/open-questions"
+                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
+              >
+                Open questions
+              </Link>
+              <Link
                 to="/admin-settings"
                 className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
               >
@@ -90,17 +96,19 @@ function RootDocument({ children }: { children: ReactNode }) {
           </nav>
           {children}
         </div>
-        <TanStackDevtools
-          config={{
-            position: 'bottom-right',
-          }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-          ]}
-        />
+        {import.meta.env.DEV ? (
+          <TanStackDevtools
+            config={{
+              position: 'bottom-right',
+            }}
+            plugins={[
+              {
+                name: 'Tanstack Router',
+                render: <TanStackRouterDevtoolsPanel />,
+              },
+            ]}
+          />
+        ) : null}
         <Scripts />
       </body>
     </html>

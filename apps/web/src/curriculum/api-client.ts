@@ -25,6 +25,7 @@ import type {
   Tag,
   TagChip,
   Topic,
+  TopicCardSet,
   TopicProgress,
 } from './model'
 
@@ -1145,6 +1146,55 @@ export async function submitSocraticTurnFeedback(
   })
 }
 
+export async function captureProbeQuestionOpenQuestion(
+  questionId: string,
+  input: be.CaptureOpenQuestionInput,
+): Promise<be.OpenQuestion> {
+  return request<be.OpenQuestion>(`/probe-session-questions/${questionId}/open-questions`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function captureSocraticTurnOpenQuestion(
+  turnId: string,
+  input: be.CaptureOpenQuestionInput,
+): Promise<be.OpenQuestion> {
+  return request<be.OpenQuestion>(`/socratic-turns/${turnId}/open-questions`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function listOpenQuestions(input: {
+  status?: be.OpenQuestionStatus
+  limit?: number
+}): Promise<be.OpenQuestionsListResult> {
+  const params = new URLSearchParams()
+
+  if (input.status) {
+    params.set('status', input.status)
+  }
+
+  if (input.limit) {
+    params.set('limit', String(input.limit))
+  }
+
+  const query = params.toString()
+
+  return request<be.OpenQuestionsListResult>(`/open-questions${query ? `?${query}` : ''}`)
+}
+
+export async function resolveOpenQuestion(
+  id: string,
+  input: be.ResolveOpenQuestionInput,
+): Promise<be.OpenQuestion> {
+  return request<be.OpenQuestion>(`/open-questions/${id}`, {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
 export async function askStudyChat(input: {
   topicId: string
   message: string
@@ -1274,6 +1324,18 @@ export async function compileLecture(topicId: string): Promise<Lecture> {
 export async function getLecture(topicId: string): Promise<Lecture | null> {
   try {
     return await request<be.Lecture>(`/topics/${topicId}/lecture`)
+  } catch {
+    return null
+  }
+}
+
+export async function compileCards(topicId: string): Promise<TopicCardSet> {
+  return request<be.TopicCardSet>(`/topics/${topicId}/cards`, { method: 'POST' })
+}
+
+export async function getCards(topicId: string): Promise<TopicCardSet | null> {
+  try {
+    return await request<be.TopicCardSet>(`/topics/${topicId}/cards`)
   } catch {
     return null
   }

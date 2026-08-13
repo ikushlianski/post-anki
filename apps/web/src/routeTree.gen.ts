@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodayRouteImport } from './routes/today'
+import { Route as OpenQuestionsRouteImport } from './routes/open-questions'
 import { Route as DecideRouteImport } from './routes/decide'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ConcernsRouteImport } from './routes/concerns'
@@ -20,6 +21,7 @@ import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
+import { Route as CardsTopicIdRouteImport } from './routes/cards.$topicId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
 import { Route as SubjectSubjectIdPriorityReviewRouteImport } from './routes/subject.$subjectId.priority-review'
 import { Route as SubjectSubjectIdMapRouteImport } from './routes/subject.$subjectId.map'
@@ -31,6 +33,11 @@ import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curri
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
   path: '/today',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpenQuestionsRoute = OpenQuestionsRouteImport.update({
+  id: '/open-questions',
+  path: '/open-questions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DecideRoute = DecideRouteImport.update({
@@ -83,6 +90,11 @@ const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
   path: '/curriculum/$curriculumId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CardsTopicIdRoute = CardsTopicIdRouteImport.update({
+  id: '/cards/$topicId',
+  path: '/cards/$topicId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
   id: '/api/electric-shape',
   path: '/api/electric-shape',
@@ -130,8 +142,10 @@ export interface FileRoutesByFullPath {
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
+  '/open-questions': typeof OpenQuestionsRoute
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
+  '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -150,8 +164,10 @@ export interface FileRoutesByTo {
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
+  '/open-questions': typeof OpenQuestionsRoute
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
+  '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -171,8 +187,10 @@ export interface FileRoutesById {
   '/concerns': typeof ConcernsRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
+  '/open-questions': typeof OpenQuestionsRoute
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
+  '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -193,8 +211,10 @@ export interface FileRouteTypes {
     | '/concerns'
     | '/dashboard'
     | '/decide'
+    | '/open-questions'
     | '/today'
     | '/api/electric-shape'
+    | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -213,8 +233,10 @@ export interface FileRouteTypes {
     | '/concerns'
     | '/dashboard'
     | '/decide'
+    | '/open-questions'
     | '/today'
     | '/api/electric-shape'
+    | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -233,8 +255,10 @@ export interface FileRouteTypes {
     | '/concerns'
     | '/dashboard'
     | '/decide'
+    | '/open-questions'
     | '/today'
     | '/api/electric-shape'
+    | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -254,8 +278,10 @@ export interface RootRouteChildren {
   ConcernsRoute: typeof ConcernsRoute
   DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
+  OpenQuestionsRoute: typeof OpenQuestionsRoute
   TodayRoute: typeof TodayRoute
   ApiElectricShapeRoute: typeof ApiElectricShapeRoute
+  CardsTopicIdRoute: typeof CardsTopicIdRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
   PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
@@ -275,6 +301,13 @@ declare module '@tanstack/react-router' {
       path: '/today'
       fullPath: '/today'
       preLoaderRoute: typeof TodayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/open-questions': {
+      id: '/open-questions'
+      path: '/open-questions'
+      fullPath: '/open-questions'
+      preLoaderRoute: typeof OpenQuestionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/decide': {
@@ -347,6 +380,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cards/$topicId': {
+      id: '/cards/$topicId'
+      path: '/cards/$topicId'
+      fullPath: '/cards/$topicId'
+      preLoaderRoute: typeof CardsTopicIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/electric-shape': {
       id: '/api/electric-shape'
       path: '/api/electric-shape'
@@ -406,8 +446,10 @@ const rootRouteChildren: RootRouteChildren = {
   ConcernsRoute: ConcernsRoute,
   DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,
+  OpenQuestionsRoute: OpenQuestionsRoute,
   TodayRoute: TodayRoute,
   ApiElectricShapeRoute: ApiElectricShapeRoute,
+  CardsTopicIdRoute: CardsTopicIdRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
   PracticeSubjectIdRoute: PracticeSubjectIdRoute,

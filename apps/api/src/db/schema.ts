@@ -439,6 +439,23 @@ export const studyItemFeedback = pgTable(
   (table) => [uniqueIndex("study_item_feedback_item_unique").on(table.itemType, table.itemId)],
 );
 
+export const openQuestions = pgTable(
+  "open_questions",
+  {
+    id: text("id").primaryKey(),
+    sourceType: text("source_type").notNull(),
+    sourceItemId: text("source_item_id").notNull(),
+    topicId: text("topic_id"),
+    topicTitle: text("topic_title"),
+    questionText: text("question_text").notNull(),
+    status: text("status").notNull().default("open"),
+    answerText: text("answer_text"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [index("open_questions_status_created_at").on(table.status, table.createdAt)],
+);
+
 export const topicRecommendations = pgTable("topic_recommendations", {
   id: text("id").primaryKey(),
   topicId: text("topic_id").notNull(),

@@ -77,6 +77,12 @@ import {
   handleSubmitProbeQuestionFeedback,
   handleSubmitSocraticTurnFeedback,
 } from "./feedback/feedback.controller.js";
+import {
+  handleCaptureProbeQuestionOpenQuestion,
+  handleCaptureSocraticTurnOpenQuestion,
+  handleListOpenQuestions,
+  handleResolveOpenQuestion,
+} from "./open-questions/open-questions.controller.js";
 import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
 import {
   handleGenerateRecommendations,
@@ -98,6 +104,10 @@ import {
   handleListLectureSourceCandidates,
   handleReviewLectureSourceCandidate,
 } from "./lecture/lecture.controller.js";
+import {
+  handleCompileCards,
+  handleGetCards,
+} from "./cards/cards.controller.js";
 import {
   handleCreateAttempts,
   handleCreatePhraseBatch,
@@ -331,6 +341,18 @@ async function route(
       return handleSubmitProbeQuestionFeedback(req, res, id);
     case "submitSocraticTurnFeedback":
       return handleSubmitSocraticTurnFeedback(req, res, id);
+    case "captureProbeQuestionOpenQuestion":
+      return handleCaptureProbeQuestionOpenQuestion(req, res, id);
+    case "captureSocraticTurnOpenQuestion":
+      return handleCaptureSocraticTurnOpenQuestion(req, res, id);
+    case "listOpenQuestions":
+      return handleListOpenQuestions(
+        res,
+        url.searchParams.get("status"),
+        url.searchParams.get("limit"),
+      );
+    case "resolveOpenQuestion":
+      return handleResolveOpenQuestion(req, res, id);
     case "askStudyChat":
       return handleAskStudyChat(req, res, id);
     case "getCurriculumStats":
@@ -361,6 +383,10 @@ async function route(
       return handleCompileLecture(res, id);
     case "getLecture":
       return handleGetLecture(res, id);
+    case "compileCards":
+      return handleCompileCards(res, id);
+    case "getCards":
+      return handleGetCards(res, id);
     case "getPracticeSettings":
       return handleGetPracticeSettings(res, id);
     case "updatePracticeSettings":
