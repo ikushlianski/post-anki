@@ -4,12 +4,26 @@ import { isChapterCandidatePath } from "./is-chapter-candidate-path";
 import { sortChapterPaths } from "./sort-chapter-paths";
 import type { GithubTreeEntry } from "./github-tree-schema";
 
-// Same order of magnitude as MAX_CAPTURED_SIBLINGS in
-// learning-list-classification.orchestrator.ts (12) — this bounds the
-// discovered book's chapter list itself (the captured chapter plus its
-// siblings), so the two caps land on comparable course sizes even though
-// they're applied at different points in the pipeline.
-export const MAX_DISCOVERED_CHAPTERS = 12;
+// Bounds the discovered book's chapter list itself (the captured chapter
+// plus its siblings). A real book needs real headroom here: the
+// Agentic-Design-Patterns fixture below alone needs 31 slots (3 substantive
+// front-matter entries once ceremonial ones are excluded, 21 numbered
+// chapters, 7 appendices) just to avoid truncating mid-book, and other real
+// books run longer still. 40 comfortably covers that shape with headroom to
+// spare, while still being a fixed, reviewable bound rather than "however
+// many files GitHub returns" — a pathological monorepo with hundreds of
+// markdown files is still capped.
+//
+// This number is not just a discovery-side concern: downstream,
+// QUESTIONS_PER_KNOWN_SERIES_PART funds one release of quiz questions per
+// known part (see generation-constants.ts), so this cap is also the upper
+// bound on generated questions for a book-shaped course — raising it here
+// raises that ceiling too (worst case, MAX_DISCOVERED_CHAPTERS *
+// QUESTIONS_PER_KNOWN_SERIES_PART questions). MAX_CAPTURED_SIBLINGS in
+// learning-list-classification.orchestrator.ts (12) is a separate, smaller
+// bound applied later in the pipeline and is deliberately not kept in lock
+// step with this one.
+export const MAX_DISCOVERED_CHAPTERS = 40;
 
 export interface DiscoveredChapter {
   path: string;
@@ -33,7 +47,7 @@ export interface DiscoverBookChaptersResult {
 
 export function discoverBookChapters(input: DiscoverBookChaptersInput): DiscoverBookChaptersResult {
   const candidatePaths = input.entries
-    .filter((entry) => entry.type === "blob" && isChapterCandidatePath(entry.path))
+    .filter((entry) => entry.type === "blob" && isChapterCandidatePath(entry.path, input.repo))
     .map((entry) => entry.path);
   const sortedPaths = sortChapterPaths(candidatePaths);
   const capped = sortedPaths.length > MAX_DISCOVERED_CHAPTERS;

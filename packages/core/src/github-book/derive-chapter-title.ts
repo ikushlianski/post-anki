@@ -1,68 +1,67 @@
-const MARKDOWN_EXTENSION_PATTERN = /\.md$/i;
+import { meaningfulNameTokens, stripMarkdownExtension } from "./filename-tokens";
+
 const CHAPTER_PREFIX_PATTERN = /^chapter(\d)/i;
 const LEADING_CHAPTER_PATTERN = /^chapter\s+(\d+)\s*(.*)$/i;
+const LEADING_APPENDIX_PATTERN = /^appendix\s+([a-z])\s*(.*)$/i;
+const LEADING_ORDINAL_PATTERN = /^\d+\s+(.+)$/;
 
 // Derives a human-readable chapter title from a repository filename such as
 // "Chapter_1-Prompt_Chaining-1flxKGrbnF2g8yh3F-oVD5Xx7ZumId56HbFpIiPdkqLI.md".
-//
-// The trailing ID cannot be isolated by simply taking "the last '-'-joined
-// segment": real export tools (Google Docs -> markdown converters, in
-// particular) embed IDs that themselves contain hyphens, so the ID and a
-// genuine hyphenated title word (e.g. "Multi-Agent") are shaped the same at
-// the string level. Instead, tokens are inspected from the end and dropped
-// as long as they don't "look like a word" — a real title token is either
-// all digits (a chapter number) or starts with an uppercase letter with no
-// digit mixed into the same underscore-delimited part; an opaque ID token
-// mixes digits and letters within a part. This also survives IDs that
-// happen to be split across several trailing "-" tokens.
+// A "Chapter_N-..." or "Appendix_X-..." filename is reshaped into a
+// structured "Chapter N — Name" / "Appendix X — Name" title; anything else
+// (front- or back-matter such as "04-A_Thought_Leaders...md") keeps its
+// descriptive words but drops the bare leading ordinal, since that number
+// only encoded directory order and carries no reader-facing meaning on its
+// own — see filename-tokens.ts for the hash- and ordinal-stripping rules
+// shared with isChapterCandidatePath.
 export function deriveChapterTitle(filename: string): string {
-  const basename = filename.replace(MARKDOWN_EXTENSION_PATTERN, "");
-  const tokens = basename.split("-").filter((token) => token.length > 0);
-  const kept = dropTrailingHashTokens(tokens);
-  const humanized = humanizeTokens(kept.length > 0 ? kept : tokens);
-  const normalized = humanized.replace(CHAPTER_PREFIX_PATTERN, "Chapter $1");
-  const chapterMatch = LEADING_CHAPTER_PATTERN.exec(normalized);
+  const basename = stripMarkdownExtension(filename);
+  const kept = meaningfulNameTokens(basename);
+  const humanized = humanizeTokens(kept);
 
-  if (!chapterMatch) {
-    return normalized;
+  return (
+    formatChapterTitle(humanized) ?? formatAppendixTitle(humanized) ?? dropLeadingOrdinal(humanized)
+  );
+}
+
+function formatChapterTitle(humanized: string): string | null {
+  const normalized = humanized.replace(CHAPTER_PREFIX_PATTERN, "Chapter $1");
+  const match = LEADING_CHAPTER_PATTERN.exec(normalized);
+
+  if (!match) {
+    return null;
   }
 
-  const [, number, rest] = chapterMatch;
+  const [, number, rest] = match;
   const trimmedRest = rest!.trim();
 
   return trimmedRest.length > 0 ? `Chapter ${number} — ${trimmedRest}` : `Chapter ${number}`;
 }
 
-function dropTrailingHashTokens(tokens: string[]): string[] {
-  let end = tokens.length;
+function formatAppendixTitle(humanized: string): string | null {
+  const match = LEADING_APPENDIX_PATTERN.exec(humanized);
 
-  while (end > 1 && !isWordishToken(tokens[end - 1]!)) {
-    end -= 1;
+  if (!match) {
+    return null;
   }
 
-  return tokens.slice(0, end);
+  const [, letter, rest] = match;
+  const trimmedRest = rest!.trim();
+  const label = `Appendix ${letter!.toUpperCase()}`;
+
+  return trimmedRest.length > 0 ? `${label} — ${trimmedRest}` : label;
 }
 
-function isWordishToken(rawToken: string): boolean {
-  const stripped = rawToken.replace(/[()]/g, "");
-  const parts = stripped.split("_").filter((part) => part.length > 0);
+function dropLeadingOrdinal(humanized: string): string {
+  const match = LEADING_ORDINAL_PATTERN.exec(humanized);
 
-  return parts.length > 0 && parts.every(isWordishPart);
-}
-
-function isWordishPart(part: string): boolean {
-  const hasDigit = /\d/.test(part);
-  const hasLetter = /[A-Za-z]/.test(part);
-
-  if (hasDigit && hasLetter) {
-    return false;
+  if (!match) {
+    return humanized;
   }
 
-  if (hasDigit) {
-    return true;
-  }
+  const rest = match[1]!.trim();
 
-  return /^[A-Z]/.test(part);
+  return rest.length > 0 ? rest : humanized;
 }
 
 function humanizeTokens(tokens: string[]): string {

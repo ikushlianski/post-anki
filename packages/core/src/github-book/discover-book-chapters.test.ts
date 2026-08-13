@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AGENTIC_DESIGN_PATTERNS_PATHS } from "./agentic-design-patterns-fixture";
 import { discoverBookChapters, MAX_DISCOVERED_CHAPTERS } from "./discover-book-chapters";
 import type { GithubTreeEntry } from "./github-tree-schema";
 
@@ -29,7 +30,7 @@ describe("discoverBookChapters", () => {
     expect(result.chapters).toEqual([
       {
         path: "00-Introduction/05-Introduction-hash5.md",
-        title: "05 Introduction",
+        title: "Introduction",
         url: "https://github.com/Mathews-Tom/Agentic-Design-Patterns/blob/main/00-Introduction/05-Introduction-hash5.md",
       },
       {
@@ -87,5 +88,79 @@ describe("discoverBookChapters", () => {
 
     expect(result.chapters).toEqual([]);
     expect(result.capped).toBe(false);
+  });
+
+  it("discovers the real Agentic-Design-Patterns book in reading order, uncapped, with no bare-number titles", () => {
+    const result = discoverBookChapters({
+      owner: "Mathews-Tom",
+      repo: "Agentic-Design-Patterns",
+      ref: "main",
+      truncated: false,
+      entries: AGENTIC_DESIGN_PATTERNS_PATHS.map((path) => entry(path)),
+    });
+
+    expect(result.capped).toBe(false);
+
+    const titles = result.chapters.map((chapter) => chapter.title);
+
+    expect(titles).not.toContain("");
+    for (const title of titles) {
+      expect(title).not.toMatch(/^\d+$/);
+    }
+
+    const chapter8Index = result.chapters.findIndex((chapter) => chapter.title === "Chapter 8 — Memory Management");
+    const chapter10Index = result.chapters.findIndex(
+      (chapter) => chapter.title === "Chapter 10 — Model Context Protocol MCP",
+    );
+
+    expect(chapter8Index).toBeGreaterThanOrEqual(0);
+    expect(chapter10Index).toBeGreaterThan(chapter8Index);
+
+    expect(titles).toEqual([
+      "A Thought Leaders Perspective Power and Responsibility",
+      "Introduction",
+      "What makes an AI system an Agent",
+      "Chapter 1 — Prompt Chaining",
+      "Chapter 2 — Routing",
+      "Chapter 3 — Parallelization",
+      "Chapter 4 — Reflection",
+      "Chapter 5 — Tool Use Function Calling",
+      "Chapter 6 — Planning",
+      "Chapter 7 — Multi Agent Collaboration",
+      "Chapter 8 — Memory Management",
+      "Chapter 9 — Learning and Adaptation",
+      "Chapter 10 — Model Context Protocol MCP",
+      "Chapter 11 — Goal Setting and Monitoring",
+      "Chapter 12 — Exception Handling and Recovery",
+      "Chapter 13 — Human in the Loop",
+      "Chapter 14 — Knowledge Retrieval RAG",
+      "Chapter 15 — Inter Agent Communication A2A",
+      "Chapter 16 — Resource Aware Optimization",
+      "Chapter 17 — Reasoning Techniques",
+      "Chapter 18 — Guardrails Safety Patterns",
+      "Chapter 19 — Evaluation and Monitoring",
+      "Chapter 20 — Prioritization",
+      "Chapter 21 — Exploration and Discovery",
+      "Appendix A — Advanced Prompting Techniques",
+      "Appendix B — AI Agentic Interactions From GUI to Real World Environment",
+      "Appendix C — Quick Overview of Agentic Frameworks",
+      "Appendix D — Building an Agent with AgentSpace on line only",
+      "Appendix E — AI Agents on the CLI",
+      "Appendix F — Under the Hood An Inside Look at the Agents Reasoning Engines",
+      "Appendix G — Coding Agents",
+      "Conclusion",
+      "Online Contribution Frequently Asked Questions Agentic Design Patterns",
+    ]);
+
+    expect(result.chapters.map((chapter) => chapter.path)).not.toContain(
+      "00-Introduction/01-Dedication-1cQ61mNpiWn6eSORmWjEjF44vN2Lpba8kyKmNwIC60ig.md",
+    );
+    expect(result.chapters.map((chapter) => chapter.path)).not.toContain(
+      "00-Introduction/02-Acknowledgment-1u2y6tY48bw8nriDUuwWEf9s8g66vyIqBKSKZDOS-n0s.md",
+    );
+    expect(result.chapters.map((chapter) => chapter.path)).not.toContain(
+      "00-Introduction/03-Foreword-18Q9kfZuCTL37ztrSjLxwf8Elr5UfAiAavmnj0IqSpbU.md",
+    );
+    expect(result.chapters.map((chapter) => chapter.path)).not.toContain("README.md");
   });
 });
