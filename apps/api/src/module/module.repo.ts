@@ -129,10 +129,36 @@ export async function deleteModule(moduleId: string): Promise<boolean> {
   return true;
 }
 
-export async function reorderModules(orderedIds: string[]): Promise<void> {
+export type ReorderModulesError = "invalid_id_set";
+
+export async function reorderModules(
+  curriculumId: string,
+  orderedIds: string[],
+): Promise<{ error: ReorderModulesError } | { reordered: number }> {
   const db = getDb();
 
-  for (const { id, order } of assignOrders(orderedIds)) {
-    await db.update(modules).set({ order }).where(eq(modules.id, id));
+  const existing = await db
+    .select({ id: modules.id })
+    .from(modules)
+    .where(eq(modules.curriculumId, curriculumId));
+
+  const existingIds = new Set(existing.map((r) => r.id));
+  const payloadIds = new Set(orderedIds);
+
+  const exactMatch =
+    existingIds.size === payloadIds.size &&
+    orderedIds.length === payloadIds.size &&
+    [...existingIds].every((id) => payloadIds.has(id));
+
+  if (!exactMatch) {
+    return { error: "invalid_id_set" };
   }
+
+  await db.transaction(async (tx) => {
+    for (const { id, order } of assignOrders(orderedIds)) {
+      await tx.update(modules).set({ order }).where(eq(modules.id, id));
+    }
+  });
+
+  return { reordered: orderedIds.length };
 }

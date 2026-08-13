@@ -266,7 +266,7 @@ async function route(
     case "deleteSource":
       return handleDeleteSource(res, id);
     case "reorderModules":
-      return handleReorderModules(req, res);
+      return handleReorderModules(req, res, id);
     case "createModule":
       return handleCreateModule(req, res, id);
     case "reorderTopics":

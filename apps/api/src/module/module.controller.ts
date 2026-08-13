@@ -71,6 +71,7 @@ export async function handleDeleteModule(
 export async function handleReorderModules(
   req: http.IncomingMessage,
   res: http.ServerResponse,
+  curriculumId: string,
 ): Promise<void> {
   const body = await readJsonBody(req, reorderInput);
 
@@ -79,7 +80,12 @@ export async function handleReorderModules(
     return;
   }
 
-  await reorderModules(body.data.orderedIds);
+  const result = await reorderModules(curriculumId, body.data.orderedIds);
 
-  sendJson(res, 200, { reordered: body.data.orderedIds.length });
+  if ("error" in result) {
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
 }
