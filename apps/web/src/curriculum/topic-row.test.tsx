@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import type { Gap, GapMastery, Topic } from './model'
+import { curateGap } from './curriculum.api'
 import { GapChecklist, isGapActionable } from './topic-row'
+
+const mockedCurateGap = vi.mocked(curateGap)
 
 vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ invalidate: vi.fn().mockResolvedValue(undefined) }),
@@ -106,15 +109,27 @@ describe('isGapActionable', () => {
 describe('GapChecklist gap controls', () => {
   afterEach(() => {
     cleanup()
+    mockedCurateGap.mockReset()
   })
 
-  it('lets a learner stop showing a gap they have already been quizzed on', () => {
+  it('lets a learner stop showing a gap they have already been quizzed on', async () => {
+    mockedCurateGap.mockResolvedValue(null)
     renderChecklist(topicWithGap({ status: 'open', mastery: mastery({ status: 'practicing' }) }))
 
     const row = screen.getByTestId('gap-row-gap_1')
+    const wantButton = within(row).getByRole('button', { name: '☆ want' })
+    const skipButton = within(row).getByRole('button', { name: 'skip' })
 
-    expect(row.textContent).toContain('☆ want')
-    expect(row.textContent).toContain('skip')
+    expect(wantButton.hasAttribute('disabled')).toBe(false)
+    expect(skipButton.hasAttribute('disabled')).toBe(false)
+
+    fireEvent.click(skipButton)
+
+    await waitFor(() =>
+      expect(mockedCurateGap).toHaveBeenCalledWith({
+        data: { gapId: 'gap_1', wanted: undefined, status: 'skipped' },
+      }),
+    )
   })
 
   it('hides the want/skip controls for an already-mastered gap and keeps the status badge', () => {
@@ -122,8 +137,8 @@ describe('GapChecklist gap controls', () => {
 
     const row = screen.getByTestId('gap-row-gap_1')
 
-    expect(row.textContent).not.toContain('want')
-    expect(row.textContent).not.toContain('skip')
+    expect(within(row).queryByRole('button', { name: /want/ })).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'skip' })).toBeNull()
     expect(screen.getByTestId('gap-mastery-status-gap_1')).toBeTruthy()
   })
 })
