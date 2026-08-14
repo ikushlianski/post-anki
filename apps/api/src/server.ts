@@ -139,6 +139,11 @@ import {
   handleUpdateDomainNode,
 } from "./domain-map/domain-map.controller.js";
 import {
+  handleListDomainRecommendations,
+  handleResolveDomainRecommendation,
+  handleTriggerDomainRecommendations,
+} from "./domain-recommendation/domain-recommendation.controller.js";
+import {
   handleListSubjectDuplicateSuggestions,
   handleResolveSubjectDuplicateSuggestion,
   handleTriggerSubjectDuplicateScan,
@@ -483,6 +488,12 @@ async function route(
       return handleResolvePrioritySuggestion(req, res, id);
     case "getDomainPriorityReviewStatus":
       return handleGetDomainPriorityReviewStatus(res, id);
+    case "triggerDomainRecommendations":
+      return handleTriggerDomainRecommendations(res, id);
+    case "listDomainRecommendations":
+      return handleListDomainRecommendations(res, id, url.searchParams.get("status"));
+    case "resolveDomainRecommendation":
+      return handleResolveDomainRecommendation(req, res, id);
     case "triggerDocScan":
       return handleTriggerDocScan(res, id);
     case "triggerAllDocScans":

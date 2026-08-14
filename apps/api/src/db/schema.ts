@@ -269,6 +269,59 @@ export const domainSupersessionSuggestions = pgTable("domain_supersession_sugges
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
+// deepen-widen-recommendations (issue #90) — one row per structural
+// deepen/widen suggestion (computeDeepenCandidates/computeWidenCandidates,
+// @post-anki/core). Sibling in shape to domain_priority_suggestions
+// (pending|accepted|rejected vocabulary, source discriminator seam,
+// resolved_at), but with a DELIBERATELY STRONGER suppression guarantee — see
+// the unique index below. `source_node_id` is the node the recommendation
+// was derived from (the mastered node for deepen; the actively-studied
+// sibling for widen), stored rather than re-derived at read time so a
+// suggestion stays explicable even if the tree changes state before it's
+// reviewed. `created_curriculum_id` is set on accept only, mirroring
+// domain_topic_suggestions.created_domain_node_id's own "set on accept"
+// pattern above.
+export const domainRecommendations = pgTable(
+  "domain_recommendations",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id").notNull(),
+    domainNodeId: text("domain_node_id").notNull(),
+    sourceNodeId: text("source_node_id").notNull(),
+    // "deepen" | "widen", app-level validated — matches this schema's
+    // dominant convention of plain text + zod validation, not a pg enum.
+    axis: text("axis").notNull(),
+    reason: text("reason").notNull(),
+    source: text("source").notNull().default("structural"),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdCurriculumId: text("created_curriculum_id"),
+  },
+  (table) => [
+    // The mechanism behind "reject never resurfaces the same node" (issue
+    // #90's own Done-when clause) — a TRUE unique index, no partial WHERE,
+    // deliberately diverging from curriculum_domain_node_mappings' own
+    // partial-unique-excluding-rejected pattern above: once ANY row exists
+    // for (subject_id, domain_node_id), in any status, no second row can
+    // ever be inserted for it, on either axis. That table's suppression
+    // requirement is the opposite of this one's (re-suggestable after
+    // rejection there; permanently suppressed here), so the divergence is
+    // required, not an oversight.
+    uniqueIndex("domain_recommendations_subject_node_unique").on(
+      table.subjectId,
+      table.domainNodeId,
+    ),
+    // The review page's list query — same shape as
+    // domain_priority_suggestions_subject_created_at_idx above.
+    index("domain_recommendations_subject_status_created_idx").on(
+      table.subjectId,
+      table.status,
+      table.createdAt.desc(),
+    ),
+  ],
+);
+
 export const sources = pgTable("sources", {
   id: text("id").primaryKey(),
   curriculumId: text("curriculum_id").notNull(),

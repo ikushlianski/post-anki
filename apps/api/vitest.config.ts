@@ -52,6 +52,13 @@ export default defineConfig({
       // command, requiring a real Postgres connection (the same pattern
       // domain-priority-review.orchestrator.test.ts already established).
       "src/curriculum-domain-mapping/curriculum-domain-mapping.orchestrator.test.ts",
+      // deepen-widen-recommendations (issue #90) — same named-exception
+      // shape as the entries above: each pinned by scenarios.md's own AC
+      // list to this exact path (not *.integration.test.ts), and each needs
+      // a real Postgres connection (AC 11's real unique-index violation,
+      // AC 22/23's real curriculum_domain_node_mappings read after accept).
+      "src/domain-recommendation/domain-recommendation.repo.test.ts",
+      "src/domain-recommendation/domain-recommendation.orchestrator.test.ts",
     ],
   },
 });

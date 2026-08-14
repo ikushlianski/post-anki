@@ -30,7 +30,9 @@ import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjec
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as LearningPathsPathIdRouteImport } from './routes/learning-paths.$pathId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
+import { Route as CardsTopicIdRouteImport } from './routes/cards.$topicId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
+import { Route as SubjectSubjectIdRecommendationsRouteImport } from './routes/subject.$subjectId.recommendations'
 import { Route as SubjectSubjectIdPriorityReviewRouteImport } from './routes/subject.$subjectId.priority-review'
 import { Route as SubjectSubjectIdMapRouteImport } from './routes/subject.$subjectId.map'
 import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
@@ -143,11 +145,22 @@ const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
   path: '/curriculum/$curriculumId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CardsTopicIdRoute = CardsTopicIdRouteImport.update({
+  id: '/cards/$topicId',
+  path: '/cards/$topicId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
   id: '/api/electric-shape',
   path: '/api/electric-shape',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubjectSubjectIdRecommendationsRoute =
+  SubjectSubjectIdRecommendationsRouteImport.update({
+    id: '/subject/$subjectId/recommendations',
+    path: '/subject/$subjectId/recommendations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SubjectSubjectIdPriorityReviewRoute =
   SubjectSubjectIdPriorityReviewRouteImport.update({
     id: '/subject/$subjectId/priority-review',
@@ -200,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/study-sessions': typeof StudySessionsRouteWithChildren
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
+  '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
@@ -212,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
   '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
+  '/subject/$subjectId/recommendations': typeof SubjectSubjectIdRecommendationsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -230,6 +245,7 @@ export interface FileRoutesByTo {
   '/study-sessions': typeof StudySessionsRouteWithChildren
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
+  '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
@@ -242,6 +258,7 @@ export interface FileRoutesByTo {
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
   '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
+  '/subject/$subjectId/recommendations': typeof SubjectSubjectIdRecommendationsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -261,6 +278,7 @@ export interface FileRoutesById {
   '/study-sessions': typeof StudySessionsRouteWithChildren
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
+  '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
@@ -273,6 +291,7 @@ export interface FileRoutesById {
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
   '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
+  '/subject/$subjectId/recommendations': typeof SubjectSubjectIdRecommendationsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -293,6 +312,7 @@ export interface FileRouteTypes {
     | '/study-sessions'
     | '/today'
     | '/api/electric-shape'
+    | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
@@ -305,6 +325,7 @@ export interface FileRouteTypes {
     | '/probe/tag/$tagId'
     | '/subject/$subjectId/map'
     | '/subject/$subjectId/priority-review'
+    | '/subject/$subjectId/recommendations'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -323,6 +344,7 @@ export interface FileRouteTypes {
     | '/study-sessions'
     | '/today'
     | '/api/electric-shape'
+    | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
@@ -335,6 +357,7 @@ export interface FileRouteTypes {
     | '/probe/tag/$tagId'
     | '/subject/$subjectId/map'
     | '/subject/$subjectId/priority-review'
+    | '/subject/$subjectId/recommendations'
   id:
     | '__root__'
     | '/'
@@ -353,6 +376,7 @@ export interface FileRouteTypes {
     | '/study-sessions'
     | '/today'
     | '/api/electric-shape'
+    | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
@@ -365,6 +389,7 @@ export interface FileRouteTypes {
     | '/probe/tag/$tagId'
     | '/subject/$subjectId/map'
     | '/subject/$subjectId/priority-review'
+    | '/subject/$subjectId/recommendations'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -384,6 +409,7 @@ export interface RootRouteChildren {
   StudySessionsRoute: typeof StudySessionsRouteWithChildren
   TodayRoute: typeof TodayRoute
   ApiElectricShapeRoute: typeof ApiElectricShapeRoute
+  CardsTopicIdRoute: typeof CardsTopicIdRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
   PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
@@ -394,6 +420,7 @@ export interface RootRouteChildren {
   ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
   SubjectSubjectIdMapRoute: typeof SubjectSubjectIdMapRoute
   SubjectSubjectIdPriorityReviewRoute: typeof SubjectSubjectIdPriorityReviewRoute
+  SubjectSubjectIdRecommendationsRoute: typeof SubjectSubjectIdRecommendationsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -545,11 +572,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cards/$topicId': {
+      id: '/cards/$topicId'
+      path: '/cards/$topicId'
+      fullPath: '/cards/$topicId'
+      preLoaderRoute: typeof CardsTopicIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/electric-shape': {
       id: '/api/electric-shape'
       path: '/api/electric-shape'
       fullPath: '/api/electric-shape'
       preLoaderRoute: typeof ApiElectricShapeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subject/$subjectId/recommendations': {
+      id: '/subject/$subjectId/recommendations'
+      path: '/subject/$subjectId/recommendations'
+      fullPath: '/subject/$subjectId/recommendations'
+      preLoaderRoute: typeof SubjectSubjectIdRecommendationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subject/$subjectId/priority-review': {
@@ -638,6 +679,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudySessionsRoute: StudySessionsRouteWithChildren,
   TodayRoute: TodayRoute,
   ApiElectricShapeRoute: ApiElectricShapeRoute,
+  CardsTopicIdRoute: CardsTopicIdRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
   PracticeSubjectIdRoute: PracticeSubjectIdRoute,
@@ -648,7 +690,17 @@ const rootRouteChildren: RootRouteChildren = {
   ProbeTagTagIdRoute: ProbeTagTagIdRoute,
   SubjectSubjectIdMapRoute: SubjectSubjectIdMapRoute,
   SubjectSubjectIdPriorityReviewRoute: SubjectSubjectIdPriorityReviewRoute,
+  SubjectSubjectIdRecommendationsRoute: SubjectSubjectIdRecommendationsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

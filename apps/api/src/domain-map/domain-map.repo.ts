@@ -241,6 +241,7 @@ export async function getDomainMapForSubject(
       supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
       supersededReason: row.supersededReason ?? null,
       source: row.source as DomainNodeTreeItem["source"],
+      kind: (row.kind as DomainNodeTreeItem["kind"]) ?? null,
     };
   }
 

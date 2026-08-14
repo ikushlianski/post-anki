@@ -41,6 +41,10 @@ export default defineConfig({
       // decouple-curricula-from-domain-nodes (issue #84) — same
       // named-exception shape as the others above.
       "src/curriculum-domain-mapping/curriculum-domain-mapping.orchestrator.test.ts",
+      // deepen-widen-recommendations (issue #90) — same named-exception
+      // shape as the others above.
+      "src/domain-recommendation/domain-recommendation.repo.test.ts",
+      "src/domain-recommendation/domain-recommendation.orchestrator.test.ts",
     ],
     exclude: ["**/node_modules/**"],
   },

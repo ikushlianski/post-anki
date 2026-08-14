@@ -315,6 +315,24 @@ export const ROUTES: RouteDef[] = [
     name: "resolveDomainSupersessionSuggestion",
     param: "id",
   },
+  {
+    method: "POST",
+    pattern: /^\/subjects\/([^/]+)\/domain-recommendations$/,
+    name: "triggerDomainRecommendations",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/subjects\/([^/]+)\/domain-recommendations$/,
+    name: "listDomainRecommendations",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/domain-recommendations\/([^/]+)$/,
+    name: "resolveDomainRecommendation",
+    param: "id",
+  },
   { method: "POST", pattern: "/subject-duplicate-scans", name: "triggerSubjectDuplicateScan" },
   {
     method: "GET",

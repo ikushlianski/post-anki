@@ -399,6 +399,40 @@ export async function resolveDomainSupersessionSuggestion(
   )
 }
 
+// deepen-widen-recommendations (issue #90) additions below.
+
+export async function triggerDomainRecommendations(
+  subjectId: string,
+): Promise<be.DomainRecommendation[]> {
+  return request<be.DomainRecommendation[]>(`/subjects/${subjectId}/domain-recommendations`, {
+    method: 'POST',
+  })
+}
+
+export async function listDomainRecommendations(
+  subjectId: string,
+  status?: be.DomainRecommendationStatus,
+): Promise<be.DomainRecommendation[]> {
+  const query = status ? `?status=${status}` : ''
+
+  return request<be.DomainRecommendation[]>(
+    `/subjects/${subjectId}/domain-recommendations${query}`,
+  )
+}
+
+// Mirrors resolveDocScanSuggestion's own already_resolved-as-outcome shape
+// (not a thrown error) — SCENARIO 8's second tab gets a clean outcome to
+// render from, not a caught exception.
+export async function resolveDomainRecommendation(
+  recommendationId: string,
+  status: 'accepted' | 'rejected',
+): Promise<ResolveDocScanSuggestionResult<be.DomainRecommendation>> {
+  return resolveDocScanSuggestion<be.DomainRecommendation>(
+    `/domain-recommendations/${recommendationId}`,
+    status,
+  )
+}
+
 export async function createSubject(input: CreateSubjectInput): Promise<Subject> {
   return request<be.Subject>('/subjects', { method: 'POST', body: input })
 }

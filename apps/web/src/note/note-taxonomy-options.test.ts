@@ -20,6 +20,7 @@ function node(overrides: Partial<DomainNodeTreeItem>): DomainNodeTreeItem {
     supersededAt: null,
     supersededReason: null,
     source: 'static_taxonomy',
+    kind: null,
     ...overrides,
   }
 }

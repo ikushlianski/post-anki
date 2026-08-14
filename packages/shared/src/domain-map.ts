@@ -73,6 +73,15 @@ export interface DomainNodeTreeItem {
   // without a second request — a subject is taxonomy-backed iff ANY node in
   // its tree carries "static_taxonomy" here.
   source: "static_taxonomy" | "ai_generated";
+  // deepen-widen-recommendations (issue #90) — projected read-only from
+  // `domain_nodes.kind` (learning-list-intake), same "carried through so a
+  // consumer doesn't need a second request" rationale as `source` above.
+  // `computeDeepenCandidates`/`computeWidenCandidates` (@post-anki/core)
+  // exclude any node with `kind === "area"` on either side of a candidate
+  // pair — Areas are a fixed, purpose-built structure layered on top of the
+  // taxonomy, not part of the 208-node/15-domain hierarchy those functions
+  // reason over.
+  kind: "sub_subject" | "area" | null;
 }
 
 export const domainNodeTreeItemSchema: z.ZodType<DomainNodeTreeItem> = z.lazy(() =>
@@ -91,6 +100,7 @@ export const domainNodeTreeItemSchema: z.ZodType<DomainNodeTreeItem> = z.lazy(()
     supersededAt: z.string().nullable(),
     supersededReason: z.string().nullable(),
     source: z.enum(["static_taxonomy", "ai_generated"]),
+    kind: z.enum(["sub_subject", "area"]).nullable(),
   }),
 );
 

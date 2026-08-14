@@ -45,6 +45,7 @@ function makeNode(overrides: Partial<DomainNodeTreeItem> = {}): DomainNodeTreeIt
     supersededAt: null,
     supersededReason: null,
     source: 'ai_generated',
+    kind: null,
     ...overrides,
   }
 }

@@ -32,6 +32,7 @@ function makeNode(overrides: Partial<DomainNodeTreeItem> & { id: string }): Doma
     supersededAt: null,
     supersededReason: null,
     source: 'ai_generated',
+    kind: null,
     ...overrides,
   }
 }
