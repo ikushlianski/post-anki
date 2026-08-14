@@ -40,6 +40,10 @@ function isInScope(gap: Gap, targetDepth: Depth): boolean {
   return DEPTH_ORDER[gap.depth] <= DEPTH_ORDER[targetDepth]
 }
 
+export function isGapActionable(gap: Pick<Gap, 'status' | 'mastery'>): boolean {
+  return gap.status === 'open'
+}
+
 export function TopicRow({
   topic,
   recommended,
@@ -268,7 +272,7 @@ export function TopicRow({
   )
 }
 
-function GapChecklist({
+export function GapChecklist({
   topic,
   curriculumId,
   hydrated,
@@ -458,7 +462,7 @@ function GapRow({
           </span>
         ) : null}
       </span>
-      {gap.status === 'open' && !mastery ? (
+      {isGapActionable(gap) ? (
         <span className="flex shrink-0 items-center gap-2 text-neutral-400">
           <button
             type="button"
