@@ -810,8 +810,10 @@ describe("handleUpdate", () => {
       const deps = makeDeps(flow);
       const clearChatContext = vi.fn().mockResolvedValue(undefined);
       const onSocraticText = vi.fn().mockResolvedValue(undefined);
+      const onSteer = vi.fn().mockResolvedValue(false);
       deps.clearChatContext = clearChatContext;
       deps.onSocraticText = onSocraticText;
+      deps.onSteer = onSteer;
       deps.onVoice = vi.fn().mockResolvedValue(null);
       deps.getChatContext = vi.fn().mockResolvedValue({
         mode: "socratic",
@@ -828,8 +830,11 @@ describe("handleUpdate", () => {
 
       expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, TRANSCRIPTION_FAILED_REPLY);
       expect(flow.clearPending).not.toHaveBeenCalled();
+      expect(flow.setPending).not.toHaveBeenCalled();
+      expect(flow.getPending).not.toHaveBeenCalled();
       expect(clearChatContext).not.toHaveBeenCalled();
       expect(onSocraticText).not.toHaveBeenCalled();
+      expect(onSteer).not.toHaveBeenCalled();
       expect(deps.getChatContext).not.toHaveBeenCalled();
     });
 
