@@ -148,7 +148,9 @@ export type RouteName =
   | "resolveSourceDuplicateSuggestion"
   | "listMilestones"
   | "requestStudyMaterial"
-  | "listStudyMaterials";
+  | "listStudyMaterials"
+  | "listCourseRefocusSuggestions"
+  | "dismissCourseRefocusSuggestion";
 
 export interface ResolvedRoute {
   name: RouteName;

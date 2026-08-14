@@ -463,7 +463,14 @@ export const topics = pgTable("topics", {
   // offered. Storage only — nothing writes it yet (see topic-progress.repo.ts's
   // rowHeadroomOfferedAt/setTopicHeadroomOfferedAt accessor).
   headroomOfferedAt: timestamp("headroom_offered_at", { withTimezone: true }),
-});
+},
+  (table) => [
+    index("topics_curriculum_id_progress_last_interacted_at_idx").on(
+      table.curriculumId,
+      table.progressLastInteractedAt.desc(),
+    ),
+  ],
+);
 
 export const appSettings = pgTable("app_settings", {
   id: text("id").primaryKey(),
@@ -472,6 +479,24 @@ export const appSettings = pgTable("app_settings", {
     .notNull()
     .defaultNow(),
 });
+
+export const courseRefocusDismissals = pgTable(
+  "course_refocus_dismissals",
+  {
+    id: text("id").primaryKey(),
+    curriculumId: text("curriculum_id").notNull(),
+    reason: text("reason").notNull(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("course_refocus_dismissals_curriculum_reason_unique").on(
+      table.curriculumId,
+      table.reason,
+    ),
+  ],
+);
 
 export const gaps = pgTable("gaps", {
   id: text("id").primaryKey(),

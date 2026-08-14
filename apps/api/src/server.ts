@@ -31,6 +31,10 @@ import {
   handleUpdateCurriculum,
 } from "./curriculum/curriculum.controller.js";
 import {
+  handleListCourseRefocusSuggestions,
+  handleDismissCourseRefocusSuggestion,
+} from "./curriculum/course-refocus.controller.js";
+import {
   handleCreateModule,
   handleDeleteModule,
   handleReorderModules,
@@ -616,6 +620,14 @@ async function route(
       return handleRequestStudyMaterial(req, res, id);
     case "listStudyMaterials":
       return handleListStudyMaterials(res, id);
+    case "listCourseRefocusSuggestions":
+      return handleListCourseRefocusSuggestions(res);
+    case "dismissCourseRefocusSuggestion":
+      return handleDismissCourseRefocusSuggestion(
+        res,
+        resolved.params.curriculumId ?? "",
+        resolved.params.reason ?? "",
+      );
   }
 }
 

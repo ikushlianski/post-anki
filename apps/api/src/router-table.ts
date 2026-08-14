@@ -484,4 +484,15 @@ export const ROUTES: RouteDef[] = [
     name: "getStudySession",
     param: "id",
   },
+  {
+    method: "GET",
+    pattern: "/course-refocus-suggestions",
+    name: "listCourseRefocusSuggestions",
+  },
+  {
+    method: "PUT",
+    pattern: /^\/curricula\/([^/]+)\/refocus-dismissals\/([^/]+)$/,
+    name: "dismissCourseRefocusSuggestion",
+    params: ["curriculumId", "reason"],
+  },
 ];

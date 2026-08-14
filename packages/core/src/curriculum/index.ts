@@ -13,3 +13,4 @@ export * from "./source-candidates";
 export * from "./structure-time-budget";
 export * from "./structure-editor";
 export * from "./structure-draft";
+export * from "./course-refocus";

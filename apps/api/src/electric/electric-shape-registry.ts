@@ -23,6 +23,7 @@ const SHAPE_REGISTRY = new Map<string, ShapeDefinition>([
   ["phrases", { table: "phrases" }],
   ["attempts", { table: "attempts" }],
   ["language_practice_settings", { table: "language_practice_settings" }],
+  ["course_refocus_dismissals", { table: "course_refocus_dismissals" }],
 ]);
 
 // Cursor/pagination/transport state that ShapeStream maintains across the

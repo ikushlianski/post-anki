@@ -679,3 +679,5 @@ export const topicCardSetSchema = z.object({
 })
 
 export type TopicCardSet = z.infer<typeof topicCardSetSchema>
+
+export type CourseRefocusSuggestion = be.CourseRefocusSuggestion

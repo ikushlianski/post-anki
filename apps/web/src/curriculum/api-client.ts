@@ -3,6 +3,7 @@ import type {
   AttemptResult,
   Concern,
   ConcernSummary,
+  CourseRefocusSuggestion,
   CreateCurriculumInput,
   CreateSubjectInput,
   Curriculum,
@@ -1448,5 +1449,16 @@ export async function resolveSubjectDuplicateSuggestion(
   return request<be.SubjectDuplicateSuggestion>(
     `/subject-duplicate-suggestions/${suggestionId}`,
     { method: 'PATCH', body: input },
+  )
+}
+
+export function listCourseRefocusSuggestions(): Promise<CourseRefocusSuggestion[]> {
+  return request<CourseRefocusSuggestion[]>('/course-refocus-suggestions', { method: 'GET' })
+}
+
+export function dismissCourseRefocusSuggestion(curriculumId: string, reason: string): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(
+    `/curricula/${curriculumId}/refocus-dismissals/${reason}`,
+    { method: 'PUT' },
   )
 }

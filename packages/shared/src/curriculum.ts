@@ -293,3 +293,21 @@ export const reorderCurriculaInput = z.object({
 });
 
 export type ReorderCurriculaInput = z.infer<typeof reorderCurriculaInput>;
+
+export const courseRefocusReasonSchema = z.enum([
+  "stale_top_priority",
+  "new_high_priority_ignored",
+]);
+
+export type CourseRefocusReason = z.infer<typeof courseRefocusReasonSchema>;
+
+export const courseRefocusSuggestionSchema = z.object({
+  curriculumId: z.string(),
+  subjectId: z.string(),
+  subjectName: z.string(),
+  courseName: z.string(),
+  reason: courseRefocusReasonSchema,
+  dismissedAt: z.string().nullable(),
+});
+
+export type CourseRefocusSuggestion = z.infer<typeof courseRefocusSuggestionSchema>;

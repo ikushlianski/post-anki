@@ -13,21 +13,24 @@ import {
 import type { SubjectDuplicateSuggestion } from '@post-anki/shared'
 
 import { getBoard, listTags, mergeTags } from '../curriculum/curriculum.api'
-import type { Curriculum, Subject, Tag } from '../curriculum/model'
+import { listCourseRefocusSuggestions } from '../curriculum/api-client'
+import type { Curriculum, CourseRefocusSuggestion, Subject, Tag } from '../curriculum/model'
 import { CreateSubjectForm } from '../subject/create-subject-form'
 import { SubjectSection } from '../subject/subject-section'
+import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
 import { DuplicateScanPanel } from '../subject-duplicate/duplicate-scan-panel'
 import { listPendingDuplicateSuggestions } from '../subject-duplicate/subject-duplicate.api'
 
 export const Route = createFileRoute('/')({
   component: Home,
   loader: async () => {
-    const [board, duplicateSuggestions] = await Promise.all([
+    const [board, duplicateSuggestions, courseRefocusSuggestions] = await Promise.all([
       getBoard(),
       listPendingDuplicateSuggestions({ data: 'pending' }),
+      listCourseRefocusSuggestions().catch(() => []),
     ])
 
-    return { ...board, duplicateSuggestions }
+    return { ...board, duplicateSuggestions, courseRefocusSuggestions }
   },
 })
 
@@ -177,6 +180,7 @@ function Home() {
         subjects={live?.subjects ?? initial.subjects}
         curricula={live?.curricula ?? initial.curricula}
         initialDuplicateSuggestions={initial.duplicateSuggestions}
+        courseRefocusSuggestions={initial.courseRefocusSuggestions}
       />
     </>
   )
@@ -216,10 +220,12 @@ function HomeView({
   subjects,
   curricula,
   initialDuplicateSuggestions,
+  courseRefocusSuggestions,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
   initialDuplicateSuggestions: SubjectDuplicateSuggestion[]
+  courseRefocusSuggestions: CourseRefocusSuggestion[]
 }) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -233,6 +239,10 @@ function HomeView({
 
       <div className="mb-10">
         <CreateSubjectForm />
+      </div>
+
+      <div className="mb-10">
+        <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
       </div>
 
       <DuplicateScanPanel
