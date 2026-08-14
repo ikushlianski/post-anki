@@ -1,4 +1,5 @@
 import { inArray } from "drizzle-orm";
+import { STALE_PENDING_TURN_AGE_MS } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { curricula, curriculumStructureTurns } from "../db/schema.js";
 
@@ -13,13 +14,6 @@ const STUCK_STATUSES: string[] = ["curating", "shaping_structure"];
 // `generateWithRetry`'s retries plus `MAX_TOOL_STEPS` tool calls) always
 // finishes well inside it.
 const STUCK_THRESHOLD_MS = 30 * 60 * 1000;
-
-// Mirrors `STALE_PENDING_TURN_AGE_MS` in curriculum-structure.ts: a pending
-// assistant turn younger than this is normal in-flight work, not a stuck
-// curriculum — only a turn that outlives this age (and, by extension,
-// `finalizeStalePendingTurn`'s own self-heal window) counts as a real
-// symptom.
-const FRESH_PENDING_TURN_MS = 5 * 60 * 1000;
 
 export interface StuckCurriculumCandidate {
   id: string;
@@ -53,9 +47,9 @@ export interface StuckCurriculum {
  * `STUCK_STATUSES`, (2) the most meaningful timestamp available for it —
  * the latest `curriculum_structure_turns` row if one exists, otherwise the
  * curriculum's own `createdAt` — is older than `STUCK_THRESHOLD_MS`, and (3)
- * it does NOT have a fresh (under `FRESH_PENDING_TURN_MS`) pending assistant
+ * it does NOT have a fresh (under `STALE_PENDING_TURN_AGE_MS`) pending assistant
  * turn, since that's normal in-flight work, not a stall. A *stale* pending
- * turn (older than `FRESH_PENDING_TURN_MS`) is not excluded — a pending
+ * turn (older than `STALE_PENDING_TURN_AGE_MS`) is not excluded — a pending
  * turn nobody ever came back to finalize is exactly the silent-stall
  * scenario this detector exists to surface.
  */
@@ -77,7 +71,7 @@ export function evaluateStuckCurricula(
     if (row.role === "assistant" && row.status === "pending") {
       const ageMs = now.getTime() - row.createdAt.getTime();
 
-      if (ageMs < FRESH_PENDING_TURN_MS) {
+      if (ageMs < STALE_PENDING_TURN_AGE_MS) {
         hasFreshPendingTurn.add(row.curriculumId);
       }
     }

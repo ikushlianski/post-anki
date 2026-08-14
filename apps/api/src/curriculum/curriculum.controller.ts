@@ -9,7 +9,7 @@ import {
   submitStructureTurnInput,
   updateCurriculumInput,
 } from "@post-anki/shared";
-import { resolveDomainNodeSource } from "@post-anki/core";
+import { draftProgressState, resolveDomainNodeSource } from "@post-anki/core";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getSubject } from "../subject/subject.repo.js";
@@ -31,6 +31,7 @@ import {
   markPreAssessmentCompleted,
   mergeCurricula,
   moveCurriculumToSubject,
+  setCurriculumStatus,
   updateCurriculum,
 } from "./curriculum.repo.js";
 import {
@@ -284,11 +285,17 @@ export async function handleApproveSources(
     return;
   }
 
-  sendJson(res, 202, { ...curriculum, status: "curating" });
+  await setCurriculumStatus(curriculumId, "shaping_structure");
 
-  void generateCurriculumFromApprovedSources(curriculumId).catch((err) =>
-    log.error({ err, curriculumId }, "generate_from_approved_sources_dispatch_failed"),
-  );
+  sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
+
+  void generateCurriculumFromApprovedSources(curriculumId).catch((err) => {
+    log.error({ err, curriculumId }, "generate_from_approved_sources_dispatch_failed");
+
+    void setCurriculumStatus(curriculumId, "failed").catch((statusErr) =>
+      log.error({ err: statusErr, curriculumId }, "generate_from_approved_sources_failed_status_write_failed"),
+    );
+  });
 }
 
 export async function handleGetStructureTurns(
@@ -487,9 +494,7 @@ export async function handleRetryResearch(
 /**
  * Recovery specifically for a `generateDraftStructure` failure — see
  * `retryDraftStructure`'s own comment for why this is a separate action
- * from `handleRetryResearch`/`handleReparse`. Gated to `failed` only: the
- * retry button that dispatches here only ever renders for a curriculum
- * already sitting at that status.
+ * from `handleRetryResearch`/`handleReparse`.
  */
 export async function handleRetryDraftStructure(
   res: http.ServerResponse,
@@ -502,7 +507,11 @@ export async function handleRetryDraftStructure(
     return;
   }
 
-  if (curriculum.status !== "failed") {
+  const stalled =
+    curriculum.status === "shaping_structure" &&
+    draftProgressState(await getStructureTurns(curriculumId), Date.now()) === "stalled";
+
+  if (curriculum.status !== "failed" && !stalled) {
     sendError(
       res,
       409,
@@ -512,7 +521,9 @@ export async function handleRetryDraftStructure(
     return;
   }
 
-  sendJson(res, 202, { ...curriculum, status: "curating" });
+  await setCurriculumStatus(curriculumId, "shaping_structure");
+
+  sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
 
   void retryDraftStructure(curriculumId).catch((err) =>
     log.error({ err, curriculumId }, "retry_draft_structure_dispatch_failed"),

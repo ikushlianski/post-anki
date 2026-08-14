@@ -111,11 +111,10 @@ export const retryDraftStructure = createServerFn({ method: 'POST' })
 
 export const approveSources = createServerFn({ method: 'POST' })
   .inputValidator((data: { curriculumId: string; override?: boolean }) => data)
-  .handler(async ({ data }) => {
-    await api.approveSources(data.curriculumId, data.override ?? false)
-
-    return null
-  })
+  .handler(
+    ({ data }): Promise<api.ApproveSourcesResult> =>
+      api.approveSources(data.curriculumId, data.override ?? false),
+  )
 
 export const removeSource = createServerFn({ method: 'POST' })
   .inputValidator((sourceId: string) => z.string().parse(sourceId))

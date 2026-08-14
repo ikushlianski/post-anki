@@ -9,8 +9,9 @@ import type {
   StructureSnapshot,
   StructureTurn,
 } from '@post-anki/shared'
-import { estimateStructureStudyTime } from '@post-anki/core'
+import { draftProgressState, estimateStructureStudyTime, isStalePendingTurn } from '@post-anki/core'
 import { confirmStructure, resolveSupplementalResearch, submitStructureTurn } from './curriculum.api'
+import { StructureDraftPending } from './curriculum-lifecycle'
 import { structureTurnsQuery } from './curriculum.queries'
 
 function latestSnapshot(
@@ -57,10 +58,12 @@ function pendingResearchCandidates(turns: StructureTurn[]): StructureResearchCan
  * self-healed into "failed" by the next `submitStructureTurn` call (see
  * that function's `finalizeStalePendingTurn`).
  */
-function stuckPendingTurn(turns: StructureTurn[]): StructureTurn | null {
+function stuckPendingTurn(turns: StructureTurn[], now: number): StructureTurn | null {
   const last = turns[turns.length - 1]
 
-  return last && last.role === 'assistant' && last.status === 'pending' ? last : null
+  return last && last.role === 'assistant' && last.status === 'pending' && isStalePendingTurn(last, now)
+    ? last
+    : null
 }
 
 function lastUserMessageBefore(turns: StructureTurn[], turnId: string): string | null {
@@ -91,8 +94,10 @@ export function CurriculumStructureChat({ curriculumId }: { curriculumId: string
   const [error, setError] = useState<string | null>(null)
 
   const snapshot = latestSnapshot(turns)
+  const progressState = draftProgressState(turns, Date.now())
+  const canEditStructure = progressState === 'idle' && Boolean(snapshot)
   const splitSuggestion = pendingSplitSuggestion(turns)
-  const stuckTurn = stuckPendingTurn(turns)
+  const stuckTurn = snapshot ? stuckPendingTurn(turns, Date.now()) : null
   const researchCandidates = pendingResearchCandidates(turns)
   const [removedCandidateIds, setRemovedCandidateIds] = useState<Set<string>>(new Set())
 
@@ -290,9 +295,7 @@ export function CurriculumStructureChat({ curriculumId }: { curriculumId: string
           </div>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-neutral-500" data-testid="structure-draft-pending">
-          Drafting the first version of the structure…
-        </p>
+        <StructureDraftPending curriculumId={curriculumId} stalled={progressState === 'stalled'} />
       )}
 
       <div className="mt-5 space-y-2 border-t border-neutral-100 pt-4">
@@ -446,36 +449,40 @@ export function CurriculumStructureChat({ curriculumId }: { curriculumId: string
         </div>
       ) : null}
 
-      <form onSubmit={send} className="mt-4 flex gap-2">
-        <input
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder="Tell the mentor what to change…"
-          data-testid="structure-chat-input"
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          data-testid="structure-chat-send"
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
-        >
-          {busy ? 'Sending…' : 'Send'}
-        </button>
-      </form>
+      {canEditStructure ? (
+        <form onSubmit={send} className="mt-4 flex gap-2">
+          <input
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            placeholder="Tell the mentor what to change…"
+            data-testid="structure-chat-input"
+            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            data-testid="structure-chat-send"
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
+          >
+            {busy ? 'Sending…' : 'Send'}
+          </button>
+        </form>
+      ) : null}
       {error ? <p className="mt-1 text-xs text-red-600">{error}</p> : null}
 
-      <div className="mt-5">
-        <button
-          type="button"
-          onClick={confirm}
-          disabled={busy || !snapshot}
-          data-testid="structure-chat-confirm"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {busy ? 'Building…' : 'Build this course'}
-        </button>
-      </div>
+      {canEditStructure ? (
+        <div className="mt-5">
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={busy}
+            data-testid="structure-chat-confirm"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {busy ? 'Building…' : 'Build this course'}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

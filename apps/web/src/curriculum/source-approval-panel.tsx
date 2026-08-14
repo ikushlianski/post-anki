@@ -5,6 +5,11 @@ import { useRouter } from '@tanstack/react-router'
 import type { Source } from './model'
 import { addSourcesToCurriculum, approveSources, removeSource } from './curriculum.api'
 
+const APPROVE_ERROR_MESSAGES: Record<'not_awaiting_approval' | 'no_approved_sources', string> = {
+  not_awaiting_approval: 'This course is already generating — no need to approve again.',
+  no_approved_sources: 'Approve or add at least one source, or generate without sources.',
+}
+
 function isValidHttpUrl(value: string): boolean {
   try {
     const parsed = new URL(value)
@@ -57,9 +62,22 @@ export function SourceApprovalPanel({
 
   async function approve(override: boolean) {
     setBusy(true)
-    await approveSources({ data: { curriculumId, override } })
-    setBusy(false)
-    await router.invalidate()
+    setError(null)
+
+    try {
+      const result = await approveSources({ data: { curriculumId, override } })
+
+      if (!result.ok) {
+        setError(APPROVE_ERROR_MESSAGES[result.code])
+        setBusy(false)
+        return
+      }
+
+      await router.invalidate()
+    } catch {
+      setError("Couldn't approve sources — try again.")
+      setBusy(false)
+    }
   }
 
   return (

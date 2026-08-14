@@ -34,6 +34,57 @@ export function CuratingBanner() {
   )
 }
 
+export function StructureDraftPending({
+  curriculumId,
+  stalled,
+}: {
+  curriculumId: string
+  stalled: boolean
+}) {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void router.invalidate()
+    }, 2500)
+
+    return () => clearInterval(timer)
+  }, [router])
+
+  async function retry() {
+    setBusy(true)
+    await retryDraftStructure({ data: curriculumId })
+    setBusy(false)
+    await router.invalidate()
+  }
+
+  if (stalled) {
+    return (
+      <div className="mt-4" data-testid="structure-draft-pending">
+        <p className="text-sm text-neutral-500">
+          This is taking longer than expected — the mentor may not have finished.
+        </p>
+        <button
+          type="button"
+          onClick={retry}
+          disabled={busy}
+          data-testid="structure-draft-retry"
+          className="mt-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {busy ? 'Retrying…' : 'Retry drafting'}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <p className="mt-4 text-sm text-neutral-500" data-testid="structure-draft-pending">
+      Drafting the first version of the structure…
+    </p>
+  )
+}
+
 export function FailedBanner({
   curriculumId,
   origin,

@@ -76,9 +76,12 @@ vi.mock("../llm-call-events/llm-call-events.repo.js", () => ({
   recordLlmCallEvent: (...args: unknown[]) => recordLlmCallEvent(...args),
 }));
 
-const { generateDraftStructure, resolveSupplementalResearch, submitStructureTurn } = await import(
-  "./curriculum-structure.js"
-);
+const {
+  generateDraftStructure,
+  resolveSupplementalResearch,
+  retryDraftStructure,
+  submitStructureTurn,
+} = await import("./curriculum-structure.js");
 
 function uniqueViolation(): Error {
   const err = new Error(
@@ -440,6 +443,96 @@ describe("generateDraftStructure", () => {
     insertStructureTurn.mockRejectedValue(new Error("connection reset"));
 
     await expect(generateDraftStructure("cur_1")).rejects.toThrow("connection reset");
+  });
+
+  it("sets shaping_structure immediately after the placeholder insert succeeds, before the trusted-source search or the agent call", async () => {
+    insertStructureTurn.mockResolvedValue("placeholder_turn_id");
+    getCurriculum.mockResolvedValue(curriculum);
+    getCurriculumPromptContext.mockResolvedValue({
+      curriculumName: "Event-Driven Systems",
+      curriculumDescription: null,
+      subjectName: "Distributed Systems",
+      subjectDescription: null,
+    });
+    gatherTrustedSourceCandidates.mockImplementation(() => new Promise(() => {}));
+
+    void generateDraftStructure("cur_1");
+
+    await vi.waitFor(() => {
+      expect(setCurriculumStatus).toHaveBeenCalledWith("cur_1", "shaping_structure");
+    });
+
+    expect(agentGenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe("retryDraftStructure", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getCurriculum.mockResolvedValue(curriculum);
+    getCurriculumPromptContext.mockResolvedValue({
+      curriculumName: "Event-Driven Systems",
+      curriculumDescription: null,
+      subjectName: "Distributed Systems",
+      subjectDescription: null,
+    });
+    gatherTrustedSourceCandidates.mockResolvedValue([]);
+  });
+
+  it("finalizes a stranded stale pending turn before attempting a new draft, instead of silently no-oping on the unique-index conflict", async () => {
+    const staleTurn = makeTurn({
+      id: "turn_stale",
+      role: "assistant",
+      status: "pending",
+      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    });
+
+    const callOrder: string[] = [];
+
+    getStructureTurns.mockImplementation(async () => {
+      callOrder.push("getStructureTurns");
+      return [staleTurn];
+    });
+    updateStructureTurn.mockImplementation(async () => {
+      callOrder.push("updateStructureTurn");
+    });
+    insertStructureTurn.mockImplementation(async () => {
+      callOrder.push("insertStructureTurn");
+      return "placeholder_turn_id";
+    });
+    agentGenerate.mockResolvedValue({ object: { modules: [], strictOrder: false } });
+
+    await retryDraftStructure("cur_1");
+
+    expect(updateStructureTurn).toHaveBeenCalledWith(
+      "turn_stale",
+      expect.objectContaining({ status: "failed" }),
+    );
+    expect(callOrder.indexOf("updateStructureTurn")).toBeGreaterThanOrEqual(0);
+    expect(callOrder.indexOf("updateStructureTurn")).toBeLessThan(
+      callOrder.indexOf("insertStructureTurn"),
+    );
+    expect(insertStructureTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a fresh pending turn alone and still lets the new attempt back off on the unique-index conflict", async () => {
+    const freshTurn = makeTurn({
+      id: "turn_fresh",
+      role: "assistant",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    });
+
+    getStructureTurns.mockResolvedValue([freshTurn]);
+    insertStructureTurn.mockRejectedValue(uniqueViolation());
+
+    await retryDraftStructure("cur_1");
+
+    expect(updateStructureTurn).not.toHaveBeenCalledWith(
+      "turn_fresh",
+      expect.objectContaining({ status: "failed" }),
+    );
+    expect(setCurriculumStatus).not.toHaveBeenCalled();
   });
 });
 

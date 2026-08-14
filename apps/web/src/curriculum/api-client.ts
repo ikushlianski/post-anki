@@ -651,14 +651,34 @@ export async function retryDraftStructure(curriculumId: string): Promise<void> {
   await request(`/curricula/${curriculumId}/retry-structure-draft`, { method: 'POST' })
 }
 
+export type ApproveSourcesResult =
+  | { ok: true }
+  | { ok: false; code: 'not_awaiting_approval' | 'no_approved_sources' }
+
+const APPROVE_SOURCES_GUARD_CODES = new Set(['not_awaiting_approval', 'no_approved_sources'])
+
 export async function approveSources(
   curriculumId: string,
   override: boolean,
-): Promise<void> {
-  await request(`/curricula/${curriculumId}/approve-sources`, {
-    method: 'POST',
-    body: { override },
-  })
+): Promise<ApproveSourcesResult> {
+  try {
+    await request(`/curricula/${curriculumId}/approve-sources`, {
+      method: 'POST',
+      body: { override },
+    })
+
+    return { ok: true }
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      err.code !== undefined &&
+      APPROVE_SOURCES_GUARD_CODES.has(err.code)
+    ) {
+      return { ok: false, code: err.code as 'not_awaiting_approval' | 'no_approved_sources' }
+    }
+
+    throw err
+  }
 }
 
 export async function deleteSource(sourceId: string): Promise<void> {

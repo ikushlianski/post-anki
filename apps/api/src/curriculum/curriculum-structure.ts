@@ -1,6 +1,6 @@
 import pRetry from "p-retry";
 import type { Curriculum, SplitSuggestion, StructureSnapshot } from "@post-anki/shared";
-import { estimateStructureStudyTime } from "@post-anki/core";
+import { STALE_PENDING_TURN_AGE_MS, estimateStructureStudyTime } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
@@ -146,7 +146,6 @@ function isPendingTurnConflict(err: unknown): boolean {
 // proceed to edit the same prior snapshot. A crash is still healed; it's
 // just healed once it's actually old enough to be a crash and not a turn
 // still doing real work.
-const STALE_PENDING_TURN_AGE_MS = 5 * 60 * 1000;
 
 /**
  * Self-healing for a turn that was left "pending" by a process that
@@ -215,6 +214,8 @@ export async function generateDraftStructure(curriculumId: string): Promise<void
 
     throw err;
   }
+
+  await setCurriculumStatus(curriculumId, "shaping_structure");
 
   try {
     const curriculum = await getCurriculum(curriculumId);
@@ -286,6 +287,7 @@ export async function generateDraftStructure(curriculumId: string): Promise<void
  * this needs no input beyond the curriculum id.
  */
 export async function retryDraftStructure(curriculumId: string): Promise<void> {
+  await finalizeStalePendingTurn(curriculumId);
   await generateDraftStructure(curriculumId);
 }
 
