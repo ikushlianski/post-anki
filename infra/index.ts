@@ -24,6 +24,18 @@ const docScanTimeZone = config.get("docScanTimeZone") ?? "Europe/Warsaw";
 // independently, matching how gapResurfaceSchedule got its own key above.
 const autoDeferSweepSchedule = config.get("autoDeferSweepSchedule") ?? "0 6 * * *";
 const autoDeferSweepTimeZone = config.get("autoDeferSweepTimeZone") ?? "Europe/Warsaw";
+// sessionIdleSweepJob (issue #27) — the only sub-daily scheduled job in this
+// repo. 5-minute cadence against a 30-minute threshold: up to ~5 minutes of
+// lag on the inactivity boundary, same disclosed-lag shape as #33's sweep,
+// just a tighter interval because inactivity detection needs to be closer
+// to real-time than a daily auto-defer check. Cost: 288 invocations/day vs.
+// 1/day for every existing job — each invocation is one chat_context row
+// read for a single-owner bot, not a table scan, so the marginal DB/compute
+// cost is negligible; the marginal cost that IS real is 288 scheduler-job
+// executions/day against Cloud Scheduler's own billing tier (flagged for
+// Ilya in .planning/27-session-end-summary/todo.md).
+const sessionIdleSweepSchedule = config.get("sessionIdleSweepSchedule") ?? "*/5 * * * *";
+const sessionIdleSweepTimeZone = config.get("sessionIdleSweepTimeZone") ?? "Europe/Warsaw";
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -335,6 +347,31 @@ const gapResurfaceJob = new gcp.cloudscheduler.Job(
   { dependsOn: [botService, ...enabledApis] },
 );
 
+// sessionIdleSweepJob (issue #27) — mirrors gapResurfaceJob's exact shape:
+// same TELEGRAM_WEBHOOK_SECRET bearer auth, POSTs to the bot's own
+// POST /session-idle-sweep (server.ts), which checks the one owner chat for
+// a Socratic session idle 30+ minutes and, if so, completes it and sends
+// the summary.
+const sessionIdleSweepJob = new gcp.cloudscheduler.Job(
+  "session-idle-sweep",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-session-idle-sweep",
+    schedule: sessionIdleSweepSchedule,
+    timeZone: sessionIdleSweepTimeZone,
+    attemptDeadline: "60s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${botDomain}/session-idle-sweep`,
+      headers: telegramWebhookSecret
+        ? { Authorization: pulumi.interpolate`Bearer ${telegramWebhookSecret}` }
+        : undefined,
+    },
+  },
+  { dependsOn: [botService, ...enabledApis] },
+);
+
 // doc-changelog-scan (issue #49) — weekly scan: fire the API's POST
 // /doc-scans once a week. Mirrors dailyPushJob's exact shape, gated by the
 // API's own API_SHARED_SECRET (sent as a bearer) rather than the bot's
@@ -401,3 +438,4 @@ export const dailyPushJobName = dailyPushJob.name;
 export const gapResurfaceJobName = gapResurfaceJob.name;
 export const docScanJobName = docScanJob.name;
 export const autoDeferSweepJobName = autoDeferSweepJob.name;
+export const sessionIdleSweepJobName = sessionIdleSweepJob.name;

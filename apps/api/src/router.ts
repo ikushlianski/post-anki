@@ -42,6 +42,8 @@ export type RouteName =
   | "answerProbeSession"
   | "startSocratic"
   | "answerSocratic"
+  | "checkSocraticSessionIdle"
+  | "completeSocraticSessionRoute"
   | "declareGap"
   | "curateGap"
   | "triageGap"

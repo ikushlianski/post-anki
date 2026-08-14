@@ -26,6 +26,11 @@ describe("selectReply", () => {
       expect(selectReply(msg({ text: "/push@post_anki_bot" }))).toEqual({ kind: "today" });
     });
 
+    it("routes /done to the done branch (AC 1)", () => {
+      expect(selectReply(msg({ text: "/done" }))).toEqual({ kind: "done" });
+      expect(selectReply(msg({ text: "/done@post_anki_bot" }))).toEqual({ kind: "done" });
+    });
+
     it("routes /study <name> to the study branch with the name", () => {
       expect(selectReply(msg({ text: "/study Temporal" }))).toEqual({
         kind: "study",

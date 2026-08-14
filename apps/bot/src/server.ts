@@ -12,7 +12,8 @@ import { sendTodaysQuestion, type FlowDeps } from "./conversation/probe-flow.js"
 import { getChatContext, clearChatContext } from "./session/chat-context.repo.js";
 import { handleCallback } from "./nav/dispatcher.js";
 import { showSubjects, sendScreen } from "./nav/menu.js";
-import { answerSocratic } from "./socratic/socratic-flow.js";
+import { answerSocratic, endSocratic } from "./socratic/socratic-flow.js";
+import { runSessionIdleSweep } from "./socratic/session-idle-flow.js";
 import { startStudy } from "./conversation/study-flow.js";
 import type { ChatContextLike } from "./telegram/webhook.handler.js";
 
@@ -77,6 +78,29 @@ function main() {
       return;
     }
 
+    // sessionIdleSweepJob (issue #27) — the 5-minute Cloud Scheduler job
+    // checking the one owner chat for a Socratic session idle 30+ minutes.
+    // Mirrors /gap-resurface's exact shape (same TELEGRAM_WEBHOOK_SECRET
+    // bearer, same fire-and-forget 200-then-work). Lives on the bot, not
+    // the API, because sending the summary requires the bot's own
+    // sendMessage/TELEGRAM_WEBHOOK_SECRET.
+    if (req.method === "POST" && req.url === "/session-idle-sweep") {
+      if (req.headers.authorization !== `Bearer ${env.TELEGRAM_WEBHOOK_SECRET}`) {
+        res.writeHead(401);
+        res.end();
+        return;
+      }
+
+      res.writeHead(200);
+      res.end();
+
+      void runSessionIdleSweep(env.OWNER_TELEGRAM_CHAT_ID).catch((err) =>
+        log.error({ err }, "session_idle_sweep_failed"),
+      );
+
+      return;
+    }
+
     if (req.method !== "POST" || req.url !== "/telegram") {
       res.writeHead(404);
       res.end();
@@ -132,6 +156,9 @@ function main() {
         },
         onStudy: async (chatId: number, name: string | null) => {
           await startStudy(chatId, name);
+        },
+        onDone: async (chatId: number, context: ChatContextLike) => {
+          await endSocratic(chatId, context);
         },
       }).catch((err) => log.error({ err }, "handler_failed"));
     });

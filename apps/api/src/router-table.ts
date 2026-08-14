@@ -67,6 +67,18 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: /^\/probe-sessions\/([^/]+)\/answer$/, name: "answerProbeSession", param: "id" },
   { method: "POST", pattern: "/socratic-sessions", name: "startSocratic" },
   { method: "POST", pattern: /^\/socratic-sessions\/([^/]+)\/answer$/, name: "answerSocratic", param: "id" },
+  {
+    method: "POST",
+    pattern: /^\/socratic-sessions\/([^/]+)\/check-idle$/,
+    name: "checkSocraticSessionIdle",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/socratic-sessions\/([^/]+)\/complete$/,
+    name: "completeSocraticSessionRoute",
+    param: "id",
+  },
   { method: "PATCH", pattern: /^\/topics\/([^/]+)$/, name: "updateTopic", param: "id" },
   { method: "DELETE", pattern: /^\/topics\/([^/]+)$/, name: "deleteTopic", param: "id" },
   { method: "POST", pattern: "/gaps", name: "declareGap" },

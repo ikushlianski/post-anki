@@ -1,0 +1,1 @@
+ALTER TABLE "socratic_sessions" ADD COLUMN "checkpoint_shown_at" timestamp with time zone;

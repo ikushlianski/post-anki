@@ -2,14 +2,18 @@ import {
   editMessageText,
   sendChatAction,
   sendMessage,
+  sendMessageWithKeyboard,
 } from "../telegram/bot.js";
 import {
   answerSocraticSession,
+  completeSocraticSessionNow,
   startSocraticSession,
 } from "../api/client.js";
-import { setChatContext } from "../session/chat-context.repo.js";
+import { clearChatContext, setChatContext } from "../session/chat-context.repo.js";
 import type { ChatContext } from "../session/chat-context.repo.js";
 import { formatSocraticAnswer, formatTurn } from "./socratic-view.js";
+import { buildCheckpointKeyboard } from "./session-checkpoint-view.js";
+import { formatSessionSummary } from "./session-summary-view.js";
 
 export async function startSocratic(
   chatId: number,
@@ -69,9 +73,40 @@ export async function answerSocratic(
       sessionId: null,
       currentItemId: null,
     });
-  } else {
-    await setChatContext(chatId, { ...context, currentItemId: result.next.id });
+    await sendMessage(chatId, formatSocraticAnswer(result));
+    return;
+  }
+
+  await setChatContext(chatId, { ...context, currentItemId: result.next.id });
+
+  if (result.checkpointReached && result.checkpointSummary) {
+    await sendMessageWithKeyboard(
+      chatId,
+      formatSessionSummary(result.checkpointSummary),
+      buildCheckpointKeyboard(false),
+    );
+    return;
   }
 
   await sendMessage(chatId, formatSocraticAnswer(result));
+}
+
+// `/done` (issue #27, spec.md Decision 3) — ends the current Socratic
+// session immediately via the same finalize path the inactivity sweep uses
+// (completeSocraticSessionNow -> completeSessionNow's shared CAS). Chat
+// context clears unconditionally: even if this call loses the race to a
+// concurrent sweep, the user's intent was to leave the session, and the
+// other caller already handled the summary.
+export async function endSocratic(chatId: number, context: ChatContext): Promise<void> {
+  if (!context.sessionId) {
+    return;
+  }
+
+  const result = await completeSocraticSessionNow(context.sessionId);
+
+  if (result.completed && result.summary) {
+    await sendMessage(chatId, formatSessionSummary(result.summary));
+  }
+
+  await clearChatContext(chatId);
 }

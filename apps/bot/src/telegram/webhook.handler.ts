@@ -44,6 +44,7 @@ export type HandlerDeps = {
   onQuizText?: (chatId: number) => Promise<void>;
   clearChatContext?: (chatId: number) => Promise<void>;
   onStudy?: (chatId: number, name: string | null) => Promise<void>;
+  onDone?: (chatId: number, context: ChatContextLike) => Promise<void>;
 };
 
 export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<void> {
@@ -132,6 +133,36 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
       }
 
       const reply = await sendTodaysQuestion(chatId, defaultMode, flow);
+      await sendMessage(chatId, reply);
+      return;
+    }
+
+    if (decision.kind === "done") {
+      const doneContext = deps.getChatContext
+        ? await deps.getChatContext(chatId)
+        : null;
+
+      if (doneContext && doneContext.mode === "socratic") {
+        if (deps.onDone) {
+          await deps.onDone(chatId, doneContext);
+        } else {
+          await sendMessage(chatId, DECLINE_REPLY);
+        }
+
+        return;
+      }
+
+      if (doneContext && doneContext.mode === "quiz") {
+        if (deps.onQuizText) {
+          await deps.onQuizText(chatId);
+        } else {
+          await sendMessage(chatId, "Tap one of the answer buttons above.");
+        }
+
+        return;
+      }
+
+      const reply = await answerPending(chatId, "/done", flow);
       await sendMessage(chatId, reply);
       return;
     }

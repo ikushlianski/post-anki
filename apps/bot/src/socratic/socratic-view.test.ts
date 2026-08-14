@@ -31,6 +31,24 @@ function session(over: Partial<SocraticSession> = {}): SocraticSession {
   };
 }
 
+function answerResult(over: Partial<AnswerSocraticResult> = {}): AnswerSocraticResult {
+  return {
+    action: "advance",
+    degree: "correct",
+    feedback: "Nailed it.",
+    conceptLabel: "Idempotency keys",
+    covered: true,
+    next: null,
+    status: "active",
+    conceptsCovered: 0,
+    conceptsTotal: 3,
+    topicMaturity: 20,
+    checkpointReached: false,
+    checkpointSummary: null,
+    ...over,
+  };
+}
+
 describe("formatTurn", () => {
   it("shows the concept, progress and prompt", () => {
     const text = formatTurn(turn(), session());
@@ -42,7 +60,7 @@ describe("formatTurn", () => {
 
 describe("formatSocraticAnswer", () => {
   it("appends the next prompt when advancing", () => {
-    const result: AnswerSocraticResult = {
+    const result = answerResult({
       action: "advance",
       degree: "correct",
       feedback: "Nailed it.",
@@ -53,7 +71,7 @@ describe("formatSocraticAnswer", () => {
       conceptsCovered: 1,
       conceptsTotal: 3,
       topicMaturity: 45,
-    };
+    });
     const text = formatSocraticAnswer(result);
     expect(text).toContain("Nailed it.");
     expect(text).toContain("Retries");
@@ -61,7 +79,7 @@ describe("formatSocraticAnswer", () => {
   });
 
   it("renders the move_on action generically, with no next-turn assumption baked in", () => {
-    const result: AnswerSocraticResult = {
+    const result = answerResult({
       action: "move_on",
       degree: "mostly_wrong",
       feedback: "Let's move on for now — we'll come back to this one later.",
@@ -72,14 +90,14 @@ describe("formatSocraticAnswer", () => {
       conceptsCovered: 1,
       conceptsTotal: 3,
       topicMaturity: 45,
-    };
+    });
     const text = formatSocraticAnswer(result);
     expect(text).toContain("Let's move on for now");
     expect(text).toContain("Retries");
   });
 
   it("renders the retry action (nullable degree) without crashing on the new enum value", () => {
-    const result: AnswerSocraticResult = {
+    const result = answerResult({
       action: "retry",
       degree: null,
       feedback: "I didn't catch an answer there — give it another go:",
@@ -90,13 +108,13 @@ describe("formatSocraticAnswer", () => {
       conceptsCovered: 0,
       conceptsTotal: 3,
       topicMaturity: 20,
-    };
+    });
     const text = formatSocraticAnswer(result);
     expect(text).toContain("I didn't catch an answer there");
   });
 
   it("announces completion when there is no next turn", () => {
-    const result: AnswerSocraticResult = {
+    const result = answerResult({
       action: "advance",
       degree: "correct",
       feedback: "Great.",
@@ -107,7 +125,7 @@ describe("formatSocraticAnswer", () => {
       conceptsCovered: 3,
       conceptsTotal: 3,
       topicMaturity: 100,
-    };
+    });
     const text = formatSocraticAnswer(result);
     expect(text).toContain("Topic complete");
     expect(text).toContain("100%");

@@ -10,6 +10,7 @@ export type ReplyDecision =
   | { kind: "today" }
   | { kind: "study"; name: string | null }
   | { kind: "continue"; tool: string | null }
+  | { kind: "done" }
   | { kind: "process"; text: string }
   | { kind: "decline" };
 
@@ -38,6 +39,8 @@ export function selectReply(message: Message): ReplyDecision {
   if (command === "/start") return { kind: "start" };
 
   if (command === "/today" || command === "/push") return { kind: "today" };
+
+  if (command === "/done") return { kind: "done" };
 
   if (command === "/study") {
     const name = text.slice(firstWord.length).trim();

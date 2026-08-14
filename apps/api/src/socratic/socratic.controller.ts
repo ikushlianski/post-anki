@@ -3,6 +3,8 @@ import { answerSocraticInput, startSocraticSessionInput } from "@post-anki/share
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   answerSocraticSession,
+  checkSessionIdle,
+  completeSessionNow,
   startSocraticSession,
   type SocraticError,
 } from "./socratic.service.js";
@@ -53,6 +55,38 @@ export async function handleAnswerSocratic(
     { ...body.data, sessionId },
     new Date().toISOString(),
   );
+
+  if ("error" in result) {
+    sendError(res, STATUS[result.error], result.error);
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+// Bot-called only, not user-facing — polled by the /session-idle-sweep
+// scheduled job (issue #27, spec.md Decision 5).
+export async function handleCheckSocraticSessionIdle(
+  res: http.ServerResponse,
+  sessionId: string,
+): Promise<void> {
+  const result = await checkSessionIdle(sessionId, new Date().toISOString());
+
+  if ("error" in result) {
+    sendError(res, STATUS[result.error], result.error);
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+// Backs the `/done` command (spec.md Decision 3) — shares the same
+// active -> completed CAS and summary-build path checkSessionIdle uses.
+export async function handleCompleteSocraticSession(
+  res: http.ServerResponse,
+  sessionId: string,
+): Promise<void> {
+  const result = await completeSessionNow(sessionId, new Date().toISOString());
 
   if ("error" in result) {
     sendError(res, STATUS[result.error], result.error);

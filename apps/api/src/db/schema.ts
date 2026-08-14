@@ -600,6 +600,10 @@ export const socraticSessions = pgTable("socratic_sessions", {
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  // Soft checkpoint at 5+ exchanges (issue #27) — stamped once so the
+  // checkpoint never re-fires later in the same session's lifetime. Null
+  // until the checkpoint has been shown.
+  checkpointShownAt: timestamp("checkpoint_shown_at", { withTimezone: true }),
 });
 
 export const socraticTurns = pgTable("socratic_turns", {

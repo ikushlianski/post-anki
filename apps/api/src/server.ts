@@ -57,6 +57,8 @@ import {
 } from "./probe-session/probe-session.controller.js";
 import {
   handleAnswerSocratic,
+  handleCheckSocraticSessionIdle,
+  handleCompleteSocraticSession,
   handleStartSocratic,
 } from "./socratic/socratic.controller.js";
 import {
@@ -380,6 +382,10 @@ async function route(
       return handleStartSocratic(req, res);
     case "answerSocratic":
       return handleAnswerSocratic(req, res, id);
+    case "checkSocraticSessionIdle":
+      return handleCheckSocraticSessionIdle(res, id);
+    case "completeSocraticSessionRoute":
+      return handleCompleteSocraticSession(res, id);
     case "declareGap":
       return handleDeclareGap(req, res);
     case "curateGap":

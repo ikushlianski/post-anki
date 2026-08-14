@@ -1,6 +1,8 @@
 import type {
   AnswerProbeSessionResult,
   AnswerSocraticResult,
+  CheckSessionIdleResult,
+  CompleteSocraticSessionResult,
   Curriculum,
   CurriculumDetail,
   DailyPushResponse,
@@ -177,6 +179,24 @@ export function answerSocraticSession(
   return apiFetch<AnswerSocraticResult>(
     `/socratic-sessions/${encodeURIComponent(sessionId)}/answer`,
     { method: "POST", body: input },
+  );
+}
+
+export function checkSocraticSessionIdle(
+  sessionId: string,
+): Promise<CheckSessionIdleResult> {
+  return apiFetch<CheckSessionIdleResult>(
+    `/socratic-sessions/${encodeURIComponent(sessionId)}/check-idle`,
+    { method: "POST" },
+  );
+}
+
+export function completeSocraticSessionNow(
+  sessionId: string,
+): Promise<CompleteSocraticSessionResult> {
+  return apiFetch<CompleteSocraticSessionResult>(
+    `/socratic-sessions/${encodeURIComponent(sessionId)}/complete`,
+    { method: "POST" },
   );
 }
 

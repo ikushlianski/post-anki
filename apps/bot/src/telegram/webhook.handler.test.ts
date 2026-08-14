@@ -319,6 +319,98 @@ describe("handleUpdate", () => {
     expect(onCallback).toHaveBeenCalledOnce();
   });
 
+  it("/done dispatches to onDone only when a socratic session is active (AC 1, 2)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onDone = vi.fn().mockResolvedValue(undefined);
+    deps.onDone = onDone;
+    const socraticContext = {
+      mode: "socratic" as const,
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    };
+    deps.getChatContext = vi.fn().mockResolvedValue(socraticContext);
+
+    await handleUpdate(update({ text: "/done" }), deps);
+
+    expect(onDone).toHaveBeenCalledWith(OWNER, socraticContext);
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("/done outside an active socratic session falls through to the existing pending-answer path unchanged (AC 3)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onDone = vi.fn().mockResolvedValue(undefined);
+    deps.onDone = onDone;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "idle",
+      sessionId: null,
+      currentItemId: null,
+      scopeKind: null,
+      scopeId: null,
+      navCurriculumId: null,
+      label: null,
+      messageId: null,
+    });
+
+    await handleUpdate(update({ text: "/done" }), deps);
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(flow.submitAnswer).toHaveBeenCalledWith({
+      topicId: "t1",
+      gapId: "g1",
+      mode: "socratic",
+      answer: "/done",
+    });
+  });
+
+  it("/done during a quiz falls through to the existing quiz nudge unchanged (AC 3)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onDone = vi.fn().mockResolvedValue(undefined);
+    deps.onDone = onDone;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "quiz",
+      sessionId: "ps1",
+      currentItemId: "q1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+
+    await handleUpdate(update({ text: "/done" }), deps);
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+    expect((deps.sendMessage.mock.calls[0]![1] as string)).toContain("answer buttons");
+  });
+
+  it("/done with no onDone dep configured falls back to the decline reply (mirrors onSocraticText's unwired shape)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+
+    await handleUpdate(update({ text: "/done" }), deps);
+
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, DECLINE_REPLY);
+  });
+
   it("falls back to the fixed apology when the flow throws", async () => {
     const flow = makeFlow();
     flow.submitAnswer = vi.fn().mockRejectedValue(new Error("api down"));

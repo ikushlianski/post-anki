@@ -96,12 +96,33 @@ export async function recordTurnAnswer(
     .where(eq(socraticTurns.id, turnId));
 }
 
+// Conditional UPDATE … WHERE status='active' RETURNING * — the race guard
+// shared by `/done` and the inactivity sweep (issue #27, spec.md Decision
+// 6). Mirrors this codebase's existing CAS pattern
+// (probe-session.repo.ts's tryClaimReplenish): whichever caller's WHERE
+// clause actually matches performs the transition and gets the row back;
+// the loser gets null and knows to send nothing.
 export async function completeSocraticSession(
   id: string,
   now: string,
-): Promise<void> {
-  await getDb()
+): Promise<SocraticSessionRow | null> {
+  const rows = await getDb()
     .update(socraticSessions)
     .set({ status: "completed", completedAt: new Date(now) })
-    .where(eq(socraticSessions.id, id));
+    .where(and(eq(socraticSessions.id, id), eq(socraticSessions.status, "active")))
+    .returning();
+
+  return rows[0] ?? null;
+}
+
+// Soft checkpoint (issue #27) — stamps at most once per session regardless
+// of how many times answerSocraticSession crosses the threshold again
+// later (it never will, since the guard is read on every call).
+export async function markCheckpointShown(id: string, now: string): Promise<void> {
+  await getDb()
+    .update(socraticSessions)
+    .set({ checkpointShownAt: new Date(now) })
+    .where(
+      and(eq(socraticSessions.id, id), isNull(socraticSessions.checkpointShownAt)),
+    );
 }

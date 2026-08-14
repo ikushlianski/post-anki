@@ -1,10 +1,13 @@
 import type {
   AnswerSocraticInput,
   AnswerSocraticResult,
+  CheckSessionIdleResult,
+  CompleteSocraticSessionResult,
   Gap,
   SocraticAction,
   SocraticEval,
   SocraticSession,
+  SocraticSessionSummary,
   StartSocraticSessionInput,
 } from "@post-anki/shared";
 import { socraticEvalSchema } from "@post-anki/shared";
@@ -41,14 +44,24 @@ import {
   getTurnRow,
   insertTurn,
   listTurnRows,
+  markCheckpointShown,
   pendingTurn,
   recordTurnAnswer,
   type SocraticSessionRow,
   type SocraticTurnRow,
 } from "./socratic.repo.js";
 import { rowToTurn } from "./socratic.map.js";
+import {
+  buildSessionSummary,
+  lastActivityAt,
+  SESSION_IDLE_THRESHOLD_MS,
+} from "./session-summary.js";
 
 export type SocraticError = "not_found" | "not_confirmed" | "turn_not_found";
+
+// Soft checkpoint at 5+ exchanges (issue #27) — the literal number from the
+// issue itself, no per-depth scaling.
+const SOFT_CHECKPOINT_THRESHOLD = 5;
 
 export async function startSocraticSession(
   input: StartSocraticSessionInput,
@@ -203,6 +216,27 @@ export async function answerSocraticSession(
 
   await recordActivityToday(now);
 
+  // Soft checkpoint (issue #27, spec.md Decision 2) — counted LIVE from the
+  // answered-turn count, computed AFTER recordTurnAnswer above so the
+  // just-answered turn is included. Guarded by checkpointShownAt so it
+  // fires at most once per session. Suppressed when this same answer
+  // naturally completed the session (all gaps covered) — that path already
+  // has its own "Topic complete" message, and there's no next exchange to
+  // checkpoint into.
+  const turnsAfterAnswer = await listTurnRows(session.id);
+  const answeredCount = turnsAfterAnswer.filter((t) => t.answeredAt).length;
+  const checkpointReached =
+    status === "active" &&
+    session.checkpointShownAt === null &&
+    answeredCount >= SOFT_CHECKPOINT_THRESHOLD;
+
+  let checkpointSummary: SocraticSessionSummary | null = null;
+
+  if (checkpointReached) {
+    await markCheckpointShown(session.id, now);
+    checkpointSummary = buildSessionSummary(turnsAfterAnswer, topicRow, after);
+  }
+
   return {
     action,
     degree: evaluation.degree,
@@ -214,7 +248,108 @@ export async function answerSocraticSession(
     conceptsCovered: inScope.filter((g) => g.state === "covered").length,
     conceptsTotal: inScope.length,
     topicMaturity: gapMaturity(after, depth),
+    checkpointReached,
+    checkpointSummary,
   };
+}
+
+// Shared finalize step for both hard-end triggers (issue #27, spec.md
+// Decision 3 & 5) — `/done` (completeSessionNow) and the inactivity sweep
+// (checkSessionIdle) both funnel through this one function, so there is
+// exactly one place that decides what a hard-end summary looks like and
+// exactly one place that performs the active -> completed transition.
+// `completed: false` means this call lost the race (or the session was
+// already completed) — the caller sends nothing in that case.
+interface FinalizeResult {
+  completed: boolean;
+  summary: SocraticSessionSummary | null;
+}
+
+async function finalizeSession(
+  sessionId: string,
+  now: string,
+): Promise<FinalizeResult | { error: SocraticError }> {
+  const session = await getSocraticSessionRow(sessionId);
+
+  if (!session) {
+    return { error: "not_found" };
+  }
+
+  const turns = await listTurnRows(session.id);
+  const updated = await completeSocraticSession(session.id, now);
+
+  if (!updated) {
+    return { completed: false, summary: null };
+  }
+
+  // #27's own minimum-exchange rule: a session that never had an answered
+  // turn (e.g. /done or the sweep fires before the first answer) still gets
+  // marked completed above, but produces no summary message.
+  const answered = turns.filter((t) => t.answeredAt);
+
+  if (answered.length === 0) {
+    return { completed: true, summary: null };
+  }
+
+  const topicRow = await getTopicRow(session.topicId);
+
+  if (!topicRow) {
+    return { completed: true, summary: null };
+  }
+
+  const gaps = await listGapsForTopic(session.topicId);
+  const summary = buildSessionSummary(turns, topicRow, gaps);
+
+  return { completed: true, summary };
+}
+
+export async function checkSessionIdle(
+  sessionId: string,
+  now: string,
+): Promise<CheckSessionIdleResult | { error: SocraticError }> {
+  const session = await getSocraticSessionRow(sessionId);
+
+  if (!session) {
+    return { error: "not_found" };
+  }
+
+  if (session.status !== "active") {
+    return { idle: false };
+  }
+
+  const turns = await listTurnRows(session.id);
+  const pending = await pendingTurn(session.id);
+  const last = lastActivityAt(pending, turns);
+  const idleMs = new Date(now).getTime() - last.getTime();
+
+  if (idleMs < SESSION_IDLE_THRESHOLD_MS) {
+    return { idle: false };
+  }
+
+  const result = await finalizeSession(sessionId, now);
+
+  if ("error" in result) {
+    return result;
+  }
+
+  if (!result.completed) {
+    return { idle: false };
+  }
+
+  return { idle: true, summary: result.summary };
+}
+
+export async function completeSessionNow(
+  sessionId: string,
+  now: string,
+): Promise<CompleteSocraticSessionResult | { error: SocraticError }> {
+  const result = await finalizeSession(sessionId, now);
+
+  if ("error" in result) {
+    return result;
+  }
+
+  return { completed: result.completed, summary: result.summary };
 }
 
 async function retryResult(
@@ -236,6 +371,8 @@ async function retryResult(
     conceptsCovered: inScope.filter((g) => g.state === "covered").length,
     conceptsTotal: inScope.length,
     topicMaturity: gapMaturity(gaps, depth),
+    checkpointReached: false,
+    checkpointSummary: null,
   };
 }
 
