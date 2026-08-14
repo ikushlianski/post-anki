@@ -48,3 +48,4 @@ export * from "./study-material";
 export * from "./milestone";
 export * from "./content-library";
 export * from "./source-duplicate";
+export * from "./transcription";

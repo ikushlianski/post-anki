@@ -1,21 +1,46 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleUpdate, type HandlerDeps } from "./webhook.handler.js";
+import { handleUpdate, MAX_VOICE_DURATION_SEC, type HandlerDeps } from "./webhook.handler.js";
 import { createUpdateLru } from "./update-lru.js";
-import { DECLINE_REPLY, ERROR_REPLY } from "../conversation/reply.js";
+import {
+  DECLINE_REPLY,
+  ERROR_REPLY,
+  VOICE_TOO_LONG_REPLY,
+  TRANSCRIPTION_FAILED_REPLY,
+} from "../conversation/reply.js";
 import type { FlowDeps } from "../conversation/probe-flow.js";
 import type { Update } from "grammy/types";
 
 const OWNER = 42;
 const STRANGER = 999;
 
-function update(opts: { id?: number; chatId?: number; text?: string; voice?: boolean }): Update {
+interface VoiceOpts {
+  duration?: number;
+  fileId?: string;
+  mimeType?: string;
+}
+
+function update(opts: {
+  id?: number;
+  chatId?: number;
+  text?: string;
+  voice?: boolean | VoiceOpts;
+}): Update {
   const chat = { id: opts.chatId ?? OWNER, type: "private" as const, first_name: "x" };
   const base = { message_id: 1, date: 0, chat };
+  const voiceOpts: VoiceOpts = typeof opts.voice === "object" ? opts.voice : {};
 
   return {
     update_id: opts.id ?? 1,
     message: opts.voice
-      ? ({ ...base, voice: { file_id: "v", file_unique_id: "v", duration: 1 } } as Update["message"])
+      ? ({
+          ...base,
+          voice: {
+            file_id: voiceOpts.fileId ?? "v",
+            file_unique_id: voiceOpts.fileId ?? "v",
+            duration: voiceOpts.duration ?? 1,
+            mime_type: voiceOpts.mimeType,
+          },
+        } as Update["message"])
       : ({ ...base, text: opts.text ?? "hello" } as Update["message"]),
   };
 }
@@ -598,5 +623,224 @@ describe("handleUpdate", () => {
     const deps = makeDeps(flow);
     await handleUpdate(update({ text: "answer" }), deps);
     expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, ERROR_REPLY);
+  });
+
+  describe("voice notes (#22)", () => {
+    it("rejects a voice note over the duration cap before any download, transcription call, or typing indicator (AC 6, Scenario 3)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onVoice = vi.fn().mockResolvedValue("transcript");
+      const sendChatAction = vi.fn().mockResolvedValue(undefined);
+      deps.onVoice = onVoice;
+      deps.sendChatAction = sendChatAction;
+
+      await handleUpdate(
+        update({ voice: { duration: MAX_VOICE_DURATION_SEC + 1 } }),
+        deps,
+      );
+
+      expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, VOICE_TOO_LONG_REPLY);
+      expect(onVoice).not.toHaveBeenCalled();
+      expect(sendChatAction).not.toHaveBeenCalled();
+    });
+
+    it("sends a typing indicator exactly once before transcribing, only when sendChatAction is configured (AC 9)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onVoice = vi.fn().mockResolvedValue("keys dedupe retried writes");
+      const sendChatAction = vi.fn().mockResolvedValue(undefined);
+      deps.onVoice = onVoice;
+      deps.sendChatAction = sendChatAction;
+
+      await handleUpdate(update({ voice: { duration: 10 } }), deps);
+
+      expect(sendChatAction).toHaveBeenCalledOnce();
+      expect(sendChatAction).toHaveBeenCalledWith(OWNER, "typing");
+    });
+
+    it("proceeds to transcription with no crash when sendChatAction is not configured (AC 9)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onVoice = vi.fn().mockResolvedValue("keys dedupe retried writes");
+      deps.onVoice = onVoice;
+
+      await handleUpdate(update({ voice: { duration: 10 } }), deps);
+
+      expect(onVoice).toHaveBeenCalledOnce();
+      expect(flow.submitAnswer).toHaveBeenCalledWith({
+        topicId: "t1",
+        gapId: "g1",
+        mode: "socratic",
+        answer: "keys dedupe retried writes",
+      });
+    });
+
+    it("passes the voice note's file id and mime type through to onVoice (AC 15's caller side)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onVoice = vi.fn().mockResolvedValue("an answer");
+      deps.onVoice = onVoice;
+
+      await handleUpdate(
+        update({ voice: { duration: 10, fileId: "file_abc", mimeType: "audio/ogg" } }),
+        deps,
+      );
+
+      expect(onVoice).toHaveBeenCalledWith(OWNER, "file_abc", "audio/ogg");
+    });
+
+    it("a transcript classifying as a pending answer dispatches into the existing answerPending path, same as a typed answer (AC 10 process case, Scenario 1)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      deps.onVoice = vi.fn().mockResolvedValue("keys dedupe retried writes");
+
+      await handleUpdate(update({ voice: { duration: 20 } }), deps);
+
+      expect(flow.submitAnswer).toHaveBeenCalledWith({
+        topicId: "t1",
+        gapId: "g1",
+        mode: "socratic",
+        answer: "keys dedupe retried writes",
+      });
+      expect((deps.sendMessage.mock.calls[0]![1] as string)).toContain("Solid.");
+    });
+
+    it("a transcript classifying as study dispatches into onStudy, same as typing 'let's talk about X' (AC 10 study case, Scenario 2)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onStudy = vi.fn().mockResolvedValue(undefined);
+      deps.onStudy = onStudy;
+      deps.onVoice = vi.fn().mockResolvedValue("let's talk about Lambda");
+
+      await handleUpdate(update({ voice: { duration: 3 } }), deps);
+
+      expect(onStudy).toHaveBeenCalledWith(OWNER, "Lambda");
+      expect(flow.submitAnswer).not.toHaveBeenCalled();
+    });
+
+    it("a transcript classifying as today dispatches into sendTodaysQuestion, same as typing /today (AC 10 today case)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      deps.onVoice = vi.fn().mockResolvedValue("/today");
+
+      await handleUpdate(update({ voice: { duration: 3 } }), deps);
+
+      expect(flow.getDailyPush).toHaveBeenCalledWith("socratic");
+      expect((deps.sendMessage.mock.calls[0]![1] as string)).toContain("Why idempotency keys?");
+    });
+
+    it("a transcribed answer mid-Socratic-session is steered through the exact same onSteer/onSocraticText branches a typed answer would hit (AC 11)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onSocraticText = vi.fn().mockResolvedValue(undefined);
+      deps.onSocraticText = onSocraticText;
+      deps.onVoice = vi.fn().mockResolvedValue("keys dedupe retried writes");
+      deps.getChatContext = vi.fn().mockResolvedValue({
+        mode: "socratic",
+        sessionId: "ss1",
+        currentItemId: "turn1",
+        scopeKind: "topic",
+        scopeId: "t1",
+        navCurriculumId: "c1",
+        label: "x",
+        messageId: 5,
+      });
+
+      await handleUpdate(update({ voice: { duration: 15 } }), deps);
+
+      expect(onSocraticText).toHaveBeenCalledWith(
+        OWNER,
+        expect.objectContaining({ mode: "socratic" }),
+        "keys dedupe retried writes",
+      );
+      expect(flow.submitAnswer).not.toHaveBeenCalled();
+    });
+
+    it("a transcribed steer-shaped phrase mid-Socratic-session hits onSteer ahead of the study dispatch, same as typed steering (AC 11)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const onSteer = vi.fn().mockResolvedValue(true);
+      const onStudy = vi.fn().mockResolvedValue(undefined);
+      deps.onSteer = onSteer;
+      deps.onStudy = onStudy;
+      deps.onVoice = vi.fn().mockResolvedValue("let's talk about AWS Lambda");
+      const socraticContext = {
+        mode: "socratic" as const,
+        sessionId: "ss1",
+        currentItemId: "turn1",
+        scopeKind: "topic",
+        scopeId: "t1",
+        navCurriculumId: "c1",
+        label: "x",
+        messageId: 5,
+      };
+      deps.getChatContext = vi.fn().mockResolvedValue(socraticContext);
+
+      await handleUpdate(update({ voice: { duration: 15 } }), deps);
+
+      expect(onSteer).toHaveBeenCalledWith(OWNER, socraticContext, "let's talk about AWS Lambda");
+      expect(onStudy).not.toHaveBeenCalled();
+    });
+
+    it("a mechanical transcription failure (onVoice resolves null) sends the flat fallback and never classifies or dispatches (AC 12, Scenario 4)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      deps.onVoice = vi.fn().mockResolvedValue(null);
+
+      await handleUpdate(update({ voice: { duration: 15 } }), deps);
+
+      expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, TRANSCRIPTION_FAILED_REPLY);
+      expect(flow.submitAnswer).not.toHaveBeenCalled();
+      expect(flow.getDailyPush).not.toHaveBeenCalled();
+    });
+
+    it("an empty or whitespace-only transcript is treated identically to null (AC 13)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      deps.onVoice = vi.fn().mockResolvedValue("   ");
+
+      await handleUpdate(update({ voice: { duration: 15 } }), deps);
+
+      expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, TRANSCRIPTION_FAILED_REPLY);
+      expect(flow.submitAnswer).not.toHaveBeenCalled();
+    });
+
+    it("a transcription failure leaves pending/chat-context state completely untouched, same as the existing decline path (AC 14)", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      const clearChatContext = vi.fn().mockResolvedValue(undefined);
+      const onSocraticText = vi.fn().mockResolvedValue(undefined);
+      deps.clearChatContext = clearChatContext;
+      deps.onSocraticText = onSocraticText;
+      deps.onVoice = vi.fn().mockResolvedValue(null);
+      deps.getChatContext = vi.fn().mockResolvedValue({
+        mode: "socratic",
+        sessionId: "ss1",
+        currentItemId: "turn1",
+        scopeKind: "topic",
+        scopeId: "t1",
+        navCurriculumId: "c1",
+        label: "x",
+        messageId: 5,
+      });
+
+      await handleUpdate(update({ voice: { duration: 15 } }), deps);
+
+      expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, TRANSCRIPTION_FAILED_REPLY);
+      expect(flow.clearPending).not.toHaveBeenCalled();
+      expect(clearChatContext).not.toHaveBeenCalled();
+      expect(onSocraticText).not.toHaveBeenCalled();
+      expect(deps.getChatContext).not.toHaveBeenCalled();
+    });
+
+    it("an unexpected throw from onVoice still degrades to the flat fallback message instead of an unhandled rejection", async () => {
+      const flow = makeFlow();
+      const deps = makeDeps(flow);
+      deps.onVoice = vi.fn().mockRejectedValue(new Error("boom"));
+
+      await handleUpdate(update({ voice: { duration: 15 } }), deps);
+
+      expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, TRANSCRIPTION_FAILED_REPLY);
+    });
   });
 });

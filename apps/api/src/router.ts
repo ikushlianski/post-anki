@@ -69,6 +69,7 @@ export type RouteName =
   | "getCurriculumStats"
   | "generateRecommendations"
   | "getStreak"
+  | "createTranscription"
   | "getElectricShape"
   | "listTags"
   | "createTag"

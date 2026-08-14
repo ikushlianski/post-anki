@@ -3,7 +3,8 @@ import type { Update } from "grammy/types";
 import { loadEnv } from "./env.js";
 import { handleUpdate } from "./telegram/webhook.handler.js";
 import { createUpdateLru } from "./telegram/update-lru.js";
-import { sendMessage } from "./telegram/bot.js";
+import { sendMessage, sendChatAction } from "./telegram/bot.js";
+import { transcribeVoiceNote } from "./voice/voice-transcription.js";
 import { log } from "./telegram/log.js";
 import { getDailyPush, getGapsDueForResurface, submitAnswer } from "./api/client.js";
 import { runGapResurface } from "./gap-triage/gap-triage-flow.js";
@@ -170,6 +171,14 @@ function main() {
           text: string,
         ) => {
           return steerToTopic(chatId, context, text);
+        },
+        sendChatAction,
+        onVoice: async (
+          _chatId: number,
+          fileId: string,
+          mimeType: string | undefined,
+        ) => {
+          return transcribeVoiceNote(fileId, mimeType);
         },
       }).catch((err) => log.error({ err }, "handler_failed"));
     });

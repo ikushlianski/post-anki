@@ -5,6 +5,10 @@ export const START_REPLY =
 export const DECLINE_REPLY = "I can only read text for now.";
 export const ERROR_REPLY = "Had a hiccup — try again in a moment.";
 export const SKIP_ACK = "No problem — I'll skip this one.";
+export const VOICE_TOO_LONG_REPLY =
+  "That voice message is a bit long — try a shorter one, or just type it.";
+export const TRANSCRIPTION_FAILED_REPLY =
+  "I couldn't catch that — try again, or type your answer.";
 
 export type ReplyDecision =
   | { kind: "start" }
@@ -14,6 +18,7 @@ export type ReplyDecision =
   | { kind: "done" }
   | { kind: "skip" }
   | { kind: "process"; text: string }
+  | { kind: "voice"; fileId: string; durationSec: number }
   | { kind: "decline" };
 
 const SKIP_PATTERN = /^skip[\s.!?]*$/i;
@@ -32,11 +37,7 @@ const CONTINUE_PATTERNS = [
   new RegExp(`^continue${TOOL_TAIL}`, "i"),
 ];
 
-export function selectReply(message: Message): ReplyDecision {
-  const text = message.text?.trim();
-
-  if (!text) return { kind: "decline" };
-
+export function classifyText(text: string): ReplyDecision {
   const firstWord = text.split(/\s+/, 1)[0] ?? "";
   const command = firstWord.split("@", 1)[0];
 
@@ -73,6 +74,22 @@ export function selectReply(message: Message): ReplyDecision {
   }
 
   return { kind: "process", text };
+}
+
+// Voice is a parallel input channel into classifyText, not a separate
+// feature — a transcribed answer re-enters the exact same classification a
+// typed one would, once webhook.handler.ts has a transcript in hand
+// (.planning/22-voice-responses/spec.md Decision 3).
+export function selectReply(message: Message): ReplyDecision {
+  const text = message.text?.trim();
+
+  if (text) return classifyText(text);
+
+  if (message.voice) {
+    return { kind: "voice", fileId: message.voice.file_id, durationSec: message.voice.duration };
+  }
+
+  return { kind: "decline" };
 }
 
 export function formatErrorReply(_error: unknown): string {

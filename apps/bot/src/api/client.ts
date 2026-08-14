@@ -14,6 +14,8 @@ import type {
   ResurfaceKind,
   SocraticSession,
   Subject,
+  TranscribeAudioInput,
+  TranscribeAudioResponse,
   TriageAction,
   TriageGapResultDto,
 } from "@post-anki/shared";
@@ -215,5 +217,12 @@ export function markGapResurfaced(gapId: string, kind: ResurfaceKind): Promise<v
   return apiFetch<void>(`/gaps/${encodeURIComponent(gapId)}/mark-resurfaced`, {
     method: "POST",
     body: { kind },
+  });
+}
+
+export function transcribeAudio(input: TranscribeAudioInput): Promise<TranscribeAudioResponse> {
+  return apiFetch<TranscribeAudioResponse>("/transcriptions", {
+    method: "POST",
+    body: input,
   });
 }

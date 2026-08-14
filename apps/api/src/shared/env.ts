@@ -5,6 +5,12 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().min(1),
   CURRICULUM_MODEL: z.string().min(1).default("openrouter/google/gemini-2.5-flash"),
   EMBEDDING_MODEL: z.string().min(1).default("openai/text-embedding-3-small"),
+  // Voice responses (issue #22, spec.md Decision 2) — deliberately its own
+  // var, not a reuse of CURRICULUM_MODEL: apps/api/.env.example's own local
+  // CURRICULUM_MODEL value (gpt-4o-mini) is not audio-capable, so reusing it
+  // would silently break transcription in local dev. Same OPENROUTER_API_KEY,
+  // no new credential.
+  TRANSCRIPTION_MODEL: z.string().min(1).default("openrouter/google/gemini-2.5-flash"),
   OPENROUTER_BASE_URL: z.string().min(1).optional(),
   API_SHARED_SECRET: z.string().min(1).optional(),
   ELECTRIC_SERVICE_URL: z.string().min(1).optional(),

@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   selectReply,
+  classifyText,
   formatErrorReply,
   START_REPLY,
   DECLINE_REPLY,
   ERROR_REPLY,
   SKIP_ACK,
+  VOICE_TOO_LONG_REPLY,
+  TRANSCRIPTION_FAILED_REPLY,
 } from "./reply.js";
 import type { Message } from "grammy/types";
 
@@ -156,19 +159,51 @@ describe("selectReply", () => {
 
   describe("non-text attachments", () => {
     it.each([
-      { name: "voice", payload: { voice: { file_id: "v", duration: 1, file_unique_id: "v" } } },
       { name: "photo", payload: { photo: [{ file_id: "p", file_unique_id: "p", width: 1, height: 1 }] } },
       { name: "sticker", payload: { sticker: { file_id: "s", file_unique_id: "s", type: "regular", width: 1, height: 1, is_animated: false, is_video: false } } },
       { name: "document", payload: { document: { file_id: "d", file_unique_id: "d" } } },
       { name: "video", payload: { video: { file_id: "v", file_unique_id: "v", width: 1, height: 1, duration: 1 } } },
       { name: "audio", payload: { audio: { file_id: "a", file_unique_id: "a", duration: 1 } } },
-    ])("declines $name with no LLM call", ({ payload }) => {
+    ])("declines $name with no LLM call (AC 4)", ({ payload }) => {
       expect(selectReply(msg(payload as Partial<Message>))).toEqual({ kind: "decline" });
     });
 
-    it("declines an empty message with no text", () => {
+    it("declines an empty message with no text and no voice (AC 5)", () => {
       expect(selectReply(msg({}))).toEqual({ kind: "decline" });
     });
+  });
+
+  describe("voice notes", () => {
+    it("recognizes a voice message and carries its file id and duration, not text (AC 3)", () => {
+      expect(
+        selectReply(msg({ voice: { file_id: "v1", file_unique_id: "v1", duration: 42 } })),
+      ).toEqual({ kind: "voice", fileId: "v1", durationSec: 42 });
+    });
+
+    it("prefers text over voice when a message somehow carries both", () => {
+      expect(
+        selectReply(
+          msg({ text: "skip", voice: { file_id: "v1", file_unique_id: "v1", duration: 5 } }),
+        ),
+      ).toEqual({ kind: "skip" });
+    });
+  });
+});
+
+describe("classifyText (AC 1, 2)", () => {
+  it("is the same function selectReply delegates to for typed text — every branch above already proves this via selectReply", () => {
+    expect(classifyText("what is event-driven architecture?")).toEqual({
+      kind: "process",
+      text: "what is event-driven architecture?",
+    });
+    expect(classifyText("/today")).toEqual({ kind: "today" });
+    expect(classifyText("let's talk about Lambda")).toEqual({ kind: "study", name: "Lambda" });
+  });
+
+  it("classifies a transcript exactly as it would the same typed phrase — proving voice is a parallel input channel, not a separate classifier", () => {
+    const spoken = classifyText("let's talk about Lambda");
+    const typed = classifyText("let's talk about Lambda");
+    expect(spoken).toEqual(typed);
   });
 });
 
@@ -199,5 +234,16 @@ describe("fixed strings", () => {
   it("error reply is non-guilt-inducing and short", () => {
     expect(ERROR_REPLY.length).toBeLessThan(120);
     expect(ERROR_REPLY.toLowerCase()).not.toContain("sorry");
+  });
+
+  it("voice-too-long reply offers a way forward instead of just refusing", () => {
+    expect(VOICE_TOO_LONG_REPLY.length).toBeLessThan(120);
+    expect(VOICE_TOO_LONG_REPLY.toLowerCase()).toContain("type");
+  });
+
+  it("transcription-failed reply offers a way forward and is non-guilt-inducing", () => {
+    expect(TRANSCRIPTION_FAILED_REPLY.length).toBeLessThan(120);
+    expect(TRANSCRIPTION_FAILED_REPLY.toLowerCase()).not.toContain("sorry");
+    expect(TRANSCRIPTION_FAILED_REPLY.toLowerCase()).toContain("try again");
   });
 });

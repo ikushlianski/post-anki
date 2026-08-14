@@ -3,9 +3,12 @@ import type { QuestionKind } from "@post-anki/shared";
 import { isAuthorizedChat } from "../auth/owner.js";
 import {
   selectReply,
+  classifyText,
   formatErrorReply,
   DECLINE_REPLY,
   SKIP_ACK,
+  VOICE_TOO_LONG_REPLY,
+  TRANSCRIPTION_FAILED_REPLY,
 } from "../conversation/reply.js";
 import {
   answerPending,
@@ -14,6 +17,15 @@ import {
 } from "../conversation/probe-flow.js";
 import { isDuplicateUpdate, type UpdateLru } from "./update-lru.js";
 import { log } from "./log.js";
+
+// Sized against apps/api's real 1MB JSON body cap (readJsonBody's
+// MAX_BODY_BYTES), not Telegram's own far more generous 20MB getFile limit —
+// the payload gets base64-encoded (~4/3 inflation) before it reaches
+// apps/api, and that's the binding constraint every voice note shares with
+// every other endpoint. .planning/22-voice-responses/spec.md Decision 4:
+// a deliberately conservative default, flagged as an empirical unknown not
+// verified against a real Telegram-issued file in this pass.
+export const MAX_VOICE_DURATION_SEC = 180;
 
 export type ChatMode = "idle" | "quiz" | "socratic";
 
@@ -52,6 +64,12 @@ export type HandlerDeps = {
     context: ChatContextLike,
     text: string,
   ) => Promise<boolean>;
+  sendChatAction?: (chatId: number, action: "typing") => Promise<void>;
+  onVoice?: (
+    chatId: number,
+    fileId: string,
+    mimeType: string | undefined,
+  ) => Promise<string | null>;
 };
 
 export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<void> {
@@ -88,8 +106,52 @@ export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<v
 async function handleMessage(message: Message, deps: HandlerDeps): Promise<void> {
   const { flow, defaultMode, sendMessage } = deps;
   const chatId = message.chat.id;
-  const decision = selectReply(message);
-  const text = message.text?.trim() ?? "";
+  let decision = selectReply(message);
+  let text = message.text?.trim() ?? "";
+
+  // Voice preprocessing (issue #22, spec.md Decision 3) — runs ahead of
+  // every existing decision.kind check below so a transcribed answer
+  // re-enters the exact same, otherwise-untouched dispatch chain a typed
+  // answer would. Order matters: duration guard (no download, no API call,
+  // no typing indicator for a note that's going to be rejected anyway) →
+  // missing-onVoice fallback → typing indicator → transcription.
+  if (decision.kind === "voice") {
+    if (decision.durationSec > MAX_VOICE_DURATION_SEC) {
+      await sendMessage(chatId, VOICE_TOO_LONG_REPLY);
+      return;
+    }
+
+    if (!deps.onVoice) {
+      await sendMessage(chatId, DECLINE_REPLY);
+      return;
+    }
+
+    if (deps.sendChatAction) {
+      await deps.sendChatAction(chatId, "typing");
+    }
+
+    // deps.onVoice's own contract (voice-transcription.ts, AC 16) never
+    // throws — every mechanical failure point is caught there and produces
+    // null. The try/catch here is defensive-only insurance so a violation
+    // of that contract still degrades to the flat fallback message instead
+    // of an unhandled rejection reaching server.ts's bare .catch().
+    let transcript: string | null;
+
+    try {
+      transcript = await deps.onVoice(chatId, decision.fileId, message.voice?.mime_type);
+    } catch (err) {
+      log.error({ err, chat_id: chatId }, "voice_transcription_unexpected_throw");
+      transcript = null;
+    }
+
+    if (!transcript || transcript.trim().length === 0) {
+      await sendMessage(chatId, TRANSCRIPTION_FAILED_REPLY);
+      return;
+    }
+
+    text = transcript.trim();
+    decision = classifyText(text);
+  }
 
   if (decision.kind === "start") {
     if (deps.onStart) {

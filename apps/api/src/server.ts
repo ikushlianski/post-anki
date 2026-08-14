@@ -98,6 +98,7 @@ import {
   handleGetCurriculumStats,
 } from "./stats/stats.controller.js";
 import { handleGetStreak } from "./streak/streak.controller.js";
+import { handleCreateTranscription } from "./transcription/transcription.controller.js";
 import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
 import {
   handleAssignTag,
@@ -440,6 +441,8 @@ async function route(
       return handleGenerateRecommendations(res, id);
     case "getStreak":
       return handleGetStreak(res);
+    case "createTranscription":
+      return handleCreateTranscription(req, res);
     case "getElectricShape":
       return handleGetElectricShape(res, url.search);
     case "listTags":
