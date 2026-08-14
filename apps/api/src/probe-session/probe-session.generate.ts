@@ -7,6 +7,7 @@ import {
 import {
   buildFeedbackDigest,
   openGaps,
+  planCurriculumQuizDistribution,
   planModuleQuizDistribution,
   rankDueGapsForQuiz,
   rankGapsForReplenish,
@@ -14,6 +15,7 @@ import {
   scaleTopicQuizTotal,
   selectQuizDifficultyMix,
   selectRecentFeedback,
+  type CurriculumQuizPlan,
   type FeedbackRow,
   type GapMasteryDueInfo,
 } from "@post-anki/core";
@@ -35,6 +37,15 @@ import { normalize } from "./probe-session.map.js";
 
 const MODULE_TARGET = 16;
 const MIN_TOTAL = 10;
+// Matches this file's own MODULE_TARGET (16) and curriculum-plan.ts's
+// CURRICULUM_QUIZ_MAX_TOTAL (20) — the two existing "sane one-sitting quiz
+// size" precedents in this package bracket 16-20. Topic scope is the
+// deepest single-topic focus of the three (module spreads MODULE_TARGET
+// across several topics at ~1-2 questions each; curriculum spans an entire
+// course at one question per topic), so it sits at the TOP of that
+// already-established range rather than introducing an unrelated fourth
+// number (issue #96).
+const TOPIC_QUIZ_CEILING = 20;
 // The replenish floor and batch size are deliberately the same number
 // (SCENARIO 17/18: keep at least 10 ready). A fixed size — rather than
 // reusing targetTotal's gap-count-scaled formula — keeps a top-up batch a
@@ -44,13 +55,23 @@ const MIN_TOTAL = 10;
 // to be as large as the first batch to still be useful.
 const REPLENISH_BATCH_SIZE = MIN_TOTAL;
 
+function curriculumPlanFor(ctx: ScopeContext): CurriculumQuizPlan {
+  return planCurriculumQuizDistribution(
+    ctx.topics.map((t) => ({ topicId: t.id, priority: t.priority })),
+  );
+}
+
 function targetTotal(
   scope: ProbeScope,
   ctx: ScopeContext,
   topicGapCount: number,
 ): number {
   if (scope === "topic") {
-    return scaleTopicQuizTotal(topicGapCount, MIN_TOTAL);
+    return scaleTopicQuizTotal(topicGapCount, MIN_TOTAL, TOPIC_QUIZ_CEILING);
+  }
+
+  if (scope === "curriculum") {
+    return curriculumPlanFor(ctx).total;
   }
 
   const plan = planModuleQuizDistribution(
@@ -205,6 +226,37 @@ async function buildPrompt(
       .join("\n");
   }
 
+  if (scope === "curriculum") {
+    const plan = curriculumPlanFor(ctx);
+    const countByTopicId = new Map(plan.perTopic.map((p) => [p.topicId, p.count]));
+
+    const topicBlocks = ctx.topics
+      .map((t) => {
+        const count = countByTopicId.get(t.id) ?? 1;
+
+        return `${topicBlock(
+          t.title,
+          t.summary,
+          gapsByTopic.get(t.id) ?? [],
+          feedbackByTopic.get(t.id) ?? null,
+          priorLevelCoverageByTopic.get(t.id) ?? [],
+        )}\nAsk about ${count} question(s) for this topic; set topicTitle to "${t.title}".`;
+      })
+      .join("\n\n");
+
+    return [
+      header,
+      `This is a ONE-TIME CALIBRATION quiz spanning ${ctx.topics.length} topics across the whole curriculum "${ctx.title}", weighted toward the learner's higher-priority topics. Every question must belong to exactly one topic — do NOT produce integrative/cross-topic questions here.`,
+      "",
+      topicBlocks,
+      grounding
+        ? `\nGround the questions in this material (prefer it over general knowledge):\n${grounding}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
   const plan = planModuleQuizDistribution(
     ctx.topics.map((t) => t.id),
     MODULE_TARGET,
@@ -242,6 +294,12 @@ export interface GeneratedBatch {
   questions: GeneratedProbeQuestion[];
   gapIdByKey: Map<string, string>;
   topicIdByTitle: Map<string, string>;
+  // The topic an unmatched question (no topicTitle match) falls back to.
+  // Equal to `ctx.topics[0]?.id` for every scope except "curriculum", where
+  // it must instead point at the plan-narrowed topic set (see
+  // `narrowToCurriculumPlan`) — otherwise a fallback could land on a topic
+  // that was never actually asked about in this batch.
+  defaultTopicId: string;
 }
 
 interface TopicContext {
@@ -362,20 +420,40 @@ function selectGaps(
   return { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic };
 }
 
+/**
+ * A curriculum can include far more topics than a 10-20 question batch can
+ * cover — narrowing down to the plan's chosen topics BEFORE gap/feedback
+ * lookups (rather than after) avoids fetching context for topics that never
+ * end up in the prompt, and keeps `ctx.topics[0]` (the `defaultTopicId`
+ * fallback for an unmatched question) pointing at one of the topics actually
+ * asked about.
+ */
+function narrowToCurriculumPlan(ctx: ScopeContext): ScopeContext {
+  const plan = curriculumPlanFor(ctx);
+  const chosenIds = new Set(plan.perTopic.map((p) => p.topicId));
+
+  return { ...ctx, topics: ctx.topics.filter((t) => chosenIds.has(t.id)) };
+}
+
 export async function generateProbeBatch(
   scope: ProbeScope,
   ctx: ScopeContext,
   allowMultiSelect = false,
 ): Promise<GeneratedBatch> {
-  const topicCtx = await loadTopicContext(ctx);
+  const scopedCtx = scope === "curriculum" ? narrowToCurriculumPlan(ctx) : ctx;
+  const topicCtx = await loadTopicContext(scopedCtx);
   const { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic } =
-    selectGaps(ctx, topicCtx, "all");
+    selectGaps(scopedCtx, topicCtx, "all");
 
-  const total = targetTotal(scope, ctx, gapsByTopic.get(ctx.topics[0]?.id ?? "")?.length ?? 0);
+  const total = targetTotal(
+    scope,
+    scopedCtx,
+    gapsByTopic.get(scopedCtx.topics[0]?.id ?? "")?.length ?? 0,
+  );
 
   return runGeneration(
     scope,
-    ctx,
+    scopedCtx,
     allowMultiSelect,
     total,
     gapsByTopic,
@@ -544,11 +622,12 @@ async function runGeneration(
         }),
         gapIdByKey,
         topicIdByTitle,
+        defaultTopicId: ctx.topics[0]?.id ?? "",
       };
     }
   } catch (err) {
     log.error({ err, scope, scopeId: ctx.scopeId }, "probe_batch_failed");
   }
 
-  return { questions: [], gapIdByKey, topicIdByTitle };
+  return { questions: [], gapIdByKey, topicIdByTitle, defaultTopicId: ctx.topics[0]?.id ?? "" };
 }

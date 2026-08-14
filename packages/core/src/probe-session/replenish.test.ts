@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { Gap } from "@post-anki/shared";
-import { isOneShotProbeScope, rankGapsForReplenish, shouldReplenish } from "./replenish";
+import {
+  hasEarlyMasterySignal,
+  isOneShotProbeScope,
+  rankGapsForReplenish,
+  shouldReplenish,
+} from "./replenish";
 
 function gap(overrides: Partial<Gap> & { id: string }): Gap {
   return {
@@ -78,6 +83,29 @@ describe("rankGapsForReplenish", () => {
     rankGapsForReplenish(gaps);
 
     expect(gaps).toEqual(original);
+  });
+});
+
+describe("hasEarlyMasterySignal", () => {
+  it("returns false below the minimum sample size, regardless of accuracy", () => {
+    expect(hasEarlyMasterySignal(4, 4)).toBe(false);
+  });
+
+  it("returns true at exactly the 4-of-5 threshold", () => {
+    expect(hasEarlyMasterySignal(4, 5)).toBe(true);
+  });
+
+  it("returns false just under the threshold", () => {
+    expect(hasEarlyMasterySignal(3, 5)).toBe(false);
+  });
+
+  it("recomputes fresh from the counts passed in on every call, not sticky", () => {
+    expect(hasEarlyMasterySignal(4, 5)).toBe(true);
+    expect(hasEarlyMasterySignal(8, 12)).toBe(false);
+  });
+
+  it("stays false for a long, uneven session whose cumulative accuracy hasn't cleared 80% yet, even after a strong recent streak (disclosed limitation, not a bug — spec.md Decision 4)", () => {
+    expect(hasEarlyMasterySignal(50, 80)).toBe(false);
   });
 });
 

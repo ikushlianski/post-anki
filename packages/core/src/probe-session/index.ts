@@ -1,6 +1,7 @@
 export * from "./start-mode";
 export * from "./session";
 export * from "./module-plan";
+export * from "./curriculum-plan";
 export * from "./difficulty";
 export * from "./shuffle";
 export * from "./quiz-size";

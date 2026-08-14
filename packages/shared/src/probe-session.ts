@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const probeScopeSchema = z.enum(["module", "topic", "tag"]);
+export const probeScopeSchema = z.enum(["module", "topic", "tag", "curriculum"]);
 
 export type ProbeScope = z.infer<typeof probeScopeSchema>;
 

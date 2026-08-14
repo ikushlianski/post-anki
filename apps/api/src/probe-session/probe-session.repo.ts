@@ -32,6 +32,7 @@ export interface ScopeTopic {
   summary: string | null;
   depth: DepthLevel;
   curriculumId: string;
+  priority: number;
 }
 
 export interface ScopeContext {
@@ -308,6 +309,7 @@ export async function getScopeContext(
           summary: topicRow.summary,
           depth: topicRow.depth as DepthLevel,
           curriculumId: topicRow.curriculumId,
+          priority: topicRow.priority,
         },
       ],
     };
@@ -315,6 +317,10 @@ export async function getScopeContext(
 
   if (scope === "tag") {
     return getTagScopeContext(scopeId);
+  }
+
+  if (scope === "curriculum") {
+    return getCurriculumScopeContext(scopeId);
   }
 
   const moduleRow = (
@@ -363,6 +369,55 @@ export async function getScopeContext(
       summary: t.summary,
       depth: t.depth as DepthLevel,
       curriculumId: t.curriculumId,
+      priority: t.priority,
+    })),
+  };
+}
+
+/**
+ * A curriculum-wide calibration probe's topic set is every INCLUDED topic
+ * across every module in the curriculum (not just one module) — the whole
+ * point of this scope (issue: curriculum-wide calibration probe) is a single
+ * one-shot batch spanning the entire course, weighted toward each topic's own
+ * priority (see `planCurriculumQuizDistribution`, packages/core).
+ */
+async function getCurriculumScopeContext(curriculumId: string): Promise<ScopeContext | null> {
+  const db = getDb();
+  const curriculumRow = (
+    await db.select().from(curricula).where(eq(curricula.id, curriculumId))
+  )[0];
+
+  if (!curriculumRow) {
+    return null;
+  }
+
+  const topicRows = await db
+    .select()
+    .from(topics)
+    .where(and(eq(topics.curriculumId, curriculumId), eq(topics.included, true)))
+    .orderBy(topics.order);
+
+  const priorMaturity =
+    topicRows.length === 0
+      ? 0
+      : Math.round(
+          topicRows.reduce((sum, t) => sum + t.progressMaturity, 0) / topicRows.length,
+        );
+
+  return {
+    scope: "curriculum",
+    scopeId: curriculumId,
+    curriculumId: curriculumRow.id,
+    status: curriculumRow.status as CurriculumStatus,
+    title: curriculumRow.name,
+    priorMaturity,
+    topics: topicRows.map((t) => ({
+      id: t.id,
+      title: t.title,
+      summary: t.summary,
+      depth: t.depth as DepthLevel,
+      curriculumId: t.curriculumId,
+      priority: t.priority,
     })),
   };
 }
@@ -435,6 +490,7 @@ async function getTagScopeContext(tagId: string): Promise<ScopeContext | null> {
       summary: t.summary,
       depth: t.depth as DepthLevel,
       curriculumId: t.curriculumId,
+      priority: t.priority,
     })),
   };
 }

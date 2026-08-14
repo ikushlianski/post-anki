@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { isOneShotProbeScope, shouldReplenish } from '@post-anki/core'
+import { hasEarlyMasterySignal, isOneShotProbeScope, shouldReplenish } from '@post-anki/core'
 import type {
   AnswerProbeSessionGapMasteryResult,
   OptionExplanation,
@@ -197,8 +197,15 @@ export function ProbeSessionQuiz({
       // get back null (getActiveSessionRow only matches status "active" or
       // "replenishing"), wiping the just-finished quiz out from under the
       // learner and any completion summary reading this same cache entry.
+      // Issue #96 — mirrors the server's own early-mastery gate
+      // (probe-session.service.ts's maybeReplenish) so a session the server
+      // has already stopped growing doesn't pay for a wasted refetch.
+      // Purely an optimization: correctness doesn't depend on it, since a
+      // stale invalidate degrades into the same accepted staleness window
+      // already described above.
       if (
         !isOneShotProbeScope(scope) &&
+        !hasEarlyMasterySignal(result.correct, result.answered) &&
         shouldReplenish(result.total, result.answered, REPLENISH_FLOOR)
       ) {
         void queryClient.invalidateQueries({ queryKey })

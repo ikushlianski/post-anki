@@ -178,6 +178,7 @@ export interface TagTopicRow {
   summary: string | null;
   depth: string;
   curriculumId: string;
+  priority: number;
 }
 
 /**
@@ -231,6 +232,7 @@ export async function listTopicsForTag(tagId: string): Promise<TagTopicRow[]> {
     summary: row.summary,
     depth: row.depth,
     curriculumId: row.curriculumId,
+    priority: row.priority,
   }));
 }
 

@@ -10,6 +10,8 @@ import type {
 import {
   deriveMultiQuizOutcome,
   deriveQuizOutcome,
+  hasEarlyMasterySignal,
+  isOneShotProbeScope,
   openGaps,
   progressFromGaps,
   randomPermutation,
@@ -99,7 +101,7 @@ export async function prepareProbeSession(
   const rows = buildQuestionRows({
     sessionId,
     generated: batch.questions,
-    defaultTopicId: ctx.topics[0]?.id ?? "",
+    defaultTopicId: batch.defaultTopicId,
     topicIdByTitle: batch.topicIdByTitle,
     gapIdByKey: batch.gapIdByKey,
     makeId: () => newId("psq"),
@@ -263,8 +265,25 @@ export async function answerProbeSession(
  */
 async function maybeReplenish(
   session: ProbeSessionRow,
-  progress: { total: number; answered: number },
+  progress: { total: number; answered: number; correct: number },
 ): Promise<void> {
+  // A curriculum-wide calibration probe is a single one-shot batch (per its
+  // own spec) — it must never grow mid-session the way an ongoing topic/
+  // module/tag practice queue does.
+  if (isOneShotProbeScope(session.scope as ProbeScope)) {
+    return;
+  }
+
+  // Issue #96 — a learner who has clearly already demonstrated mastery
+  // (strong, early, consistent accuracy) stops triggering further
+  // generation, for topic, module, and tag scope alike. Composed as a
+  // second, separate early-return above shouldReplenish's own floor check,
+  // not folded into it — shouldReplenish is a generic "remaining below
+  // floor" check reused as-is by the client's own mirror.
+  if (hasEarlyMasterySignal(progress.correct, progress.answered)) {
+    return;
+  }
+
   if (!shouldReplenish(progress.total, progress.answered, REPLENISH_FLOOR)) {
     return;
   }
@@ -301,7 +320,7 @@ async function maybeReplenish(
       const rows = buildQuestionRows({
         sessionId: session.id,
         generated: batch.questions,
-        defaultTopicId: ctx.topics[0]?.id ?? "",
+        defaultTopicId: batch.defaultTopicId,
         topicIdByTitle: batch.topicIdByTitle,
         gapIdByKey: batch.gapIdByKey,
         makeId: () => newId("psq"),
