@@ -60,6 +60,7 @@ import {
   handleStartSocratic,
 } from "./socratic/socratic.controller.js";
 import {
+  handleAutoDeferSweep,
   handleCurateGap,
   handleDeclareGap,
   handleDueForResurface,
@@ -384,6 +385,8 @@ async function route(
       return handleDueForResurface(res);
     case "markGapResurfaced":
       return handleMarkResurfaced(req, res, id);
+    case "sweepAutoDeferGaps":
+      return handleAutoDeferSweep(res);
     case "dailyPush":
       return handleDailyPush(res, url.searchParams.get("mode"));
     case "createDecideSession":

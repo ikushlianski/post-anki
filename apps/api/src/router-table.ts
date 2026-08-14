@@ -71,6 +71,7 @@ export const ROUTES: RouteDef[] = [
   { method: "DELETE", pattern: /^\/topics\/([^/]+)$/, name: "deleteTopic", param: "id" },
   { method: "POST", pattern: "/gaps", name: "declareGap" },
   { method: "GET", pattern: "/gaps/due-for-resurface", name: "listGapsDueForResurface" },
+  { method: "POST", pattern: "/gaps/auto-defer-sweep", name: "sweepAutoDeferGaps" },
   { method: "POST", pattern: /^\/gaps\/([^/]+)\/triage$/, name: "triageGap", param: "id" },
   {
     method: "POST",

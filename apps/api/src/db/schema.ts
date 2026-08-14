@@ -436,6 +436,16 @@ export const gaps = pgTable("gaps", {
   deferralCount: integer("deferral_count").notNull().default(0),
   dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
   dismissedCheckinSentAt: timestamp("dismissed_checkin_sent_at", { withTimezone: true }),
+  // Auto-defer timer (issue #33). "The moment this gap most recently entered
+  // the untriaged state" — one column covering BOTH of the issue's timer
+  // rules (starts at creation; full reset on every return to untriaged).
+  // notNull + defaultNow deliberately backfills existing rows with the
+  // migration timestamp, so no historical gap mass-auto-defers on deploy day.
+  untriagedSince: timestamp("untriaged_since", { withTimezone: true }).notNull().defaultNow(),
+  // Stamped by the sweep only. `triagedAt` is deliberately NOT written on an
+  // auto-defer — that column means "the user decided something," and this is
+  // explicitly system housekeeping, not a user choice.
+  autoDeferredAt: timestamp("auto_deferred_at", { withTimezone: true }),
 });
 
 // Generalized recall-gap mastery tracking (issue #57) — a SIDECAR to `gaps`,

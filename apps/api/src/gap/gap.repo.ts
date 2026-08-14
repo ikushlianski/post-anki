@@ -51,6 +51,8 @@ export function rowToGap(
     dismissedCheckinSentAt: row.dismissedCheckinSentAt
       ? row.dismissedCheckinSentAt.toISOString()
       : null,
+    untriagedSince: row.untriagedSince.toISOString(),
+    autoDeferredAt: row.autoDeferredAt ? row.autoDeferredAt.toISOString() : null,
   };
 }
 
@@ -92,6 +94,8 @@ export async function persistGaps(updated: Gap[]): Promise<void> {
         dismissedCheckinSentAt: gap.dismissedCheckinSentAt
           ? new Date(gap.dismissedCheckinSentAt)
           : null,
+        untriagedSince: new Date(gap.untriagedSince),
+        autoDeferredAt: gap.autoDeferredAt ? new Date(gap.autoDeferredAt) : null,
       })
       .where(eq(gaps.id, gap.id));
   }
@@ -102,9 +106,16 @@ export async function persistGaps(updated: Gap[]): Promise<void> {
 // only so gap-mastery.repo.ts's locked, advisory-lock-guarded transaction
 // (SCENARIO 2 — a new gap + its gap_mastery row in one transaction) can pass
 // its own `tx` instead of a second, unlocked connection.
+//
+// `now` is required (issue #33) and written into `untriaged_since`
+// EXPLICITLY rather than leaning on the column's own default: the default
+// fires at DB-clock time while the returned DTO below carries app-clock
+// `now`, and the two would disagree by milliseconds — enough to make an
+// equality assertion in a test flake.
 export async function insertDiscoveredGaps(
   topicId: string,
   discovered: { label: string; depth: DepthLevel; concern: Concern | null }[],
+  now: string,
   db: DbExecutor = getDb(),
 ): Promise<Gap[]> {
   if (discovered.length === 0) {
@@ -120,6 +131,7 @@ export async function insertDiscoveredGaps(
     state: "open" as const,
     wanted: false,
     concern: d.concern,
+    untriagedSince: new Date(now),
   }));
 
   await db.insert(gaps).values(rows);
@@ -140,6 +152,8 @@ export async function insertDiscoveredGaps(
     deferralCount: 0,
     dismissedAt: null,
     dismissedCheckinSentAt: null,
+    untriagedSince: now,
+    autoDeferredAt: null,
   }));
 }
 

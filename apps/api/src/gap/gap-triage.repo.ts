@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type {
   GapDueForResurfaceItem,
   GapsDueForResurfaceResponse,
@@ -6,7 +6,13 @@ import type {
   TriageAction,
   TriageGapResultDto,
 } from "@post-anki/shared";
-import { applyTriageAction, isDismissedCheckinDue, isResurfaceDue } from "@post-anki/core";
+import {
+  applyAutoDefer,
+  applyTriageAction,
+  isAutoDeferDue,
+  isDismissedCheckinDue,
+  isResurfaceDue,
+} from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { curricula, gaps, subjects, topics } from "../db/schema.js";
 import { rowToGap } from "./gap.repo.js";
@@ -61,6 +67,8 @@ export async function triageGapLocked(
           dismissedCheckinSentAt: updated.dismissedCheckinSentAt
             ? new Date(updated.dismissedCheckinSentAt)
             : null,
+          untriagedSince: new Date(updated.untriagedSince),
+          autoDeferredAt: updated.autoDeferredAt ? new Date(updated.autoDeferredAt) : null,
         })
         .where(eq(gaps.id, gapId));
     }
@@ -129,7 +137,17 @@ export async function markGapResurfaced(
   if (kind === "deferral-expired") {
     await db
       .update(gaps)
-      .set({ triageState: "untriaged", deferredUntil: null, triagedAt: new Date(now) })
+      .set({
+        triageState: "untriaged",
+        deferredUntil: null,
+        triagedAt: new Date(now),
+        // Issue #33 — a 60-day deferral expiring is itself a fresh return to
+        // untriaged. Without resetting the clock here, the gap's stale,
+        // 60-day-old `untriaged_since` would let the very next morning's
+        // sweep auto-defer it immediately, contradicting the resurfacing UX
+        // #29 shipped (the highest-value regression this story guards).
+        untriagedSince: new Date(now),
+      })
       .where(eq(gaps.id, gapId));
 
     return;
@@ -139,4 +157,66 @@ export async function markGapResurfaced(
     .update(gaps)
     .set({ dismissedCheckinSentAt: new Date(now) })
     .where(eq(gaps.id, gapId));
+}
+
+// Bounds the scheduler's attemptDeadline (not correctness) — a capped run is
+// picked up by the next day's sweep. Exported so the integration test can
+// seed exactly SWEEP_BATCH_LIMIT + 5 rows instead of hardcoding the number.
+export const SWEEP_BATCH_LIMIT = 500;
+
+// autoDeferSweepJob's one write path (issue #33). Narrows candidates in SQL
+// (triageState = untriaged), decides due-ness in the unit-tested pure
+// predicate (isAutoDeferDue) — same "narrow in SQL, decide in the pure
+// function" split as listGapsDueForResurface above. `orderBy(asc(untriagedSince))`
+// BEFORE `.limit()` is load-bearing, not cosmetic: without it, a backlog
+// larger than the cap could return the same not-yet-due rows on every run
+// while genuinely due gaps are never reached — oldest-first guarantees due
+// gaps are always in the batch first.
+export async function sweepAutoDeferredGaps(
+  now: string,
+): Promise<{ autoDeferred: number; capped: boolean }> {
+  const db = getDb();
+
+  const candidates = await db
+    .select()
+    .from(gaps)
+    .where(eq(gaps.triageState, "untriaged"))
+    .orderBy(asc(gaps.untriagedSince))
+    .limit(SWEEP_BATCH_LIMIT);
+
+  const due = candidates.filter((row) => isAutoDeferDue(rowToGap(row), now));
+
+  let autoDeferred = 0;
+
+  for (const row of due) {
+    const changed = await db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(gaps)
+        .where(and(eq(gaps.id, row.id), eq(gaps.triageState, "untriaged")))
+        .for("update");
+      const locked = rows[0];
+
+      if (!locked) {
+        return false;
+      }
+
+      const { gap: updated, changed: didChange } = applyAutoDefer(rowToGap(locked), now);
+
+      if (didChange) {
+        await tx
+          .update(gaps)
+          .set({ triageState: updated.triageState, autoDeferredAt: new Date(updated.autoDeferredAt!) })
+          .where(eq(gaps.id, row.id));
+      }
+
+      return didChange;
+    });
+
+    if (changed) {
+      autoDeferred += 1;
+    }
+  }
+
+  return { autoDeferred, capped: candidates.length === SWEEP_BATCH_LIMIT };
 }

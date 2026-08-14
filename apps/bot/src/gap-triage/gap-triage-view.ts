@@ -1,3 +1,4 @@
+import type { Gap } from "@post-anki/shared";
 import type { InlineKeyboard } from "../telegram/bot.js";
 import { buildCallback } from "../nav/callback.js";
 import { chunkButtons } from "../nav/keyboard.js";
@@ -59,3 +60,26 @@ export const DISMISS_CONFIRMATION_TEXT = "Dismissed. I'll trust your judgment on
 export const CHECKIN_CONFIRM_TEXT = "Good to know — I won't bring this one up again.";
 
 export const CHECKIN_REVISIT_TEXT = "Reopened — I'll ask about it again.";
+
+// Issue #33's "Visual distinction in /gaps" section, verbatim. Same section,
+// distinct label — "prevents the user from wondering why they 'chose' to
+// defer something they never consciously acted on." Driven by the gap's
+// STORED `triageState`, not `effectiveTriageState` — the bot depends only on
+// @post-anki/shared, not @post-anki/core, and whichever section a future
+// /gaps (#43) files a gap under is itself driven by the stored value, so a
+// label from the same stored value is always internally consistent with its
+// own heading. Not wired to any live surface in this story — #43 imports it.
+export const AUTO_FILED_SUFFIX = "(auto-filed)";
+export const USER_DEFERRED_SUFFIX = "(deferred by you)";
+
+export function deferredGapListLabel(gap: Gap): string {
+  if (gap.triageState === "auto_deferred") {
+    return `${gap.label} ${AUTO_FILED_SUFFIX}`;
+  }
+
+  if (gap.triageState === "user_deferred") {
+    return `${gap.label} ${USER_DEFERRED_SUFFIX}`;
+  }
+
+  return gap.label;
+}

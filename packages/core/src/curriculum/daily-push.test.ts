@@ -18,6 +18,8 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     deferralCount: 0,
     dismissedAt: null,
     dismissedCheckinSentAt: null,
+    untriagedSince: NOW,
+    autoDeferredAt: null,
     ...overrides,
   };
 }
@@ -172,6 +174,51 @@ describe("selectDailyPush", () => {
     );
 
     expect(pick?.gap.id).toBe("resurfaced-gap");
+  });
+
+  it("issue #33 — an auto-deferred gap REMAINS in push rotation: excluded on a non-eligible day, picked on its eligible day", () => {
+    // untriagedSince 3 days before NOW puts the auto-defer anchor exactly at
+    // NOW, so NOW is its eligible day (day 0); NOW + 1 day is not (day 1).
+    const autoDeferred = gap({
+      id: "auto",
+      triageState: "auto_deferred",
+      untriagedSince: "2026-05-28T00:00:00.000Z",
+    });
+    const untriaged = gap({ id: "regular" });
+
+    const nonEligibleDay = "2026-06-01T00:00:00.000Z";
+
+    const pickOnNonEligibleDay = selectDailyPush(
+      [candidate({ topicId: "t", gaps: [autoDeferred, untriaged] })],
+      nonEligibleDay,
+    );
+
+    expect(pickOnNonEligibleDay?.gap.id).toBe("regular");
+
+    const pickOnEligibleDay = selectDailyPush(
+      [candidate({ topicId: "t", gaps: [autoDeferred] })],
+      NOW,
+    );
+
+    expect(pickOnEligibleDay?.gap.id).toBe("auto");
+  });
+
+  it("issue #33 — an auto-deferred gap on its eligible day is ranked by the existing wanted-then-depth sort, no penalty", () => {
+    const autoDeferredWanted = gap({
+      id: "auto",
+      triageState: "auto_deferred",
+      untriagedSince: "2026-05-28T00:00:00.000Z",
+      wanted: true,
+    });
+    const untriagedNotWanted = gap({ id: "regular", wanted: false });
+
+    const pick = selectDailyPush(
+      [candidate({ topicId: "t", gaps: [autoDeferredWanted, untriagedNotWanted] })],
+      NOW,
+    );
+
+    expect(pick?.gap.id).toBe("auto");
+    expect(pick?.reason).toBe("wanted");
   });
 
   it("does not refresh a recently-covered gap", () => {

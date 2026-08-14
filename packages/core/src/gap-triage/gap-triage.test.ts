@@ -20,6 +20,8 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     deferralCount: 0,
     dismissedAt: null,
     dismissedCheckinSentAt: null,
+    untriagedSince: NOW,
+    autoDeferredAt: null,
     ...overrides,
   };
 }
@@ -188,5 +190,17 @@ describe("applyTriageAction — revisit (dismissed check-in's 'Actually, let's r
     const result = applyTriageAction(current, "revisit", NOW);
 
     expect(result.changed).toBe(false);
+  });
+
+  it("resets untriagedSince to now — issue #33's 'every return to untriaged earns a fresh 3-day window'", () => {
+    const current = gap({
+      id: "g1",
+      triageState: "dismissed",
+      untriagedSince: "2020-01-01T00:00:00.000Z",
+    });
+
+    const result = applyTriageAction(current, "revisit", NOW);
+
+    expect(result.gap.untriagedSince).toBe(NOW);
   });
 });

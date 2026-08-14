@@ -15,6 +15,7 @@ import {
   nextGapToProbe,
   openGaps,
   progressFromGaps,
+  reactivateOnFail,
   selectRecentFeedback,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -157,7 +158,19 @@ export async function submitProbe(
         (await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title)).text,
       );
 
-  const updated = applyGapVerdicts(gaps, evaluation.verdicts, now);
+  // Issue #33 — one definition of "the user failed this gap", used both for
+  // the reactivation below and for the reported `outcome`. A MISSING verdict
+  // counts as a fail, matching what the old `outcome` expression already did
+  // (`?.covered === true ? "pass" : "fail"`) — the freeform LLM path can omit
+  // the probed gap's verdict entirely, so this cannot be hooked off
+  // `applyGapVerdicts`' `coveredById.has(...)` branch alone.
+  const probedFailed =
+    probed !== null &&
+    evaluation.verdicts.find((v) => v.gapId === probed.id)?.covered !== true;
+
+  const updated = applyGapVerdicts(gaps, evaluation.verdicts, now).map((gap) =>
+    probedFailed && gap.id === probed!.id ? reactivateOnFail(gap, now).gap : gap,
+  );
   const coveredGapLabels = updated
     .filter(
       (g) =>
@@ -168,7 +181,7 @@ export async function submitProbe(
 
   await persistGaps(updated);
 
-  const discovered = await insertDiscoveredGaps(input.topicId, evaluation.newGaps);
+  const discovered = await insertDiscoveredGaps(input.topicId, evaluation.newGaps, now);
   const allGaps = [...updated, ...discovered];
 
   const attempts = topic.progressAttempts + 1;
@@ -179,11 +192,7 @@ export async function submitProbe(
   await writeTopicProgress(input.topicId, progress, learningStatus);
   await recordAnswerActivity(ctx.curriculumId, now);
 
-  const outcome = probed
-    ? evaluation.verdicts.find((v) => v.gapId === probed.id)?.covered === true
-      ? "pass"
-      : "fail"
-    : "pass";
+  const outcome = probed ? (probedFailed ? "fail" : "pass") : "pass";
 
   return {
     outcome,

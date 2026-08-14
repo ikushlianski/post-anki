@@ -228,9 +228,11 @@ describe("SCENARIO 8 — a fresh discovery of a previously-dismissed label creat
       dismissedCheckinSentAt: checkinSentAt,
     });
 
-    const [newGap] = await insertDiscoveredGaps(topicId, [
-      { label: "async iterators", depth: "working", concern: null },
-    ]);
+    const [newGap] = await insertDiscoveredGaps(
+      topicId,
+      [{ label: "async iterators", depth: "working", concern: null }],
+      new Date().toISOString(),
+    );
 
     expect(newGap!.id).not.toBe(gapId);
 

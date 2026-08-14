@@ -5,6 +5,7 @@ import type {
   TopicProgress,
 } from "@post-anki/shared";
 import { DEPTH_RANK } from "@post-anki/shared";
+import { effectiveTriageState, isAutoDeferredPushEligible } from "../gap-triage/auto-defer";
 import { deriveTopicStatus } from "./progress";
 
 const CALIBRATION_STALE_AFTER_DAYS = 60;
@@ -96,6 +97,14 @@ const DISMISSED_CHECKIN_AFTER_MONTHS = 6;
 export function isPushExcluded(gap: Gap, now: string): boolean {
   if (gap.triageState === "dismissed") {
     return true;
+  }
+
+  // Issue #33 — an untriaged gap past its 3-day line is excluded from the
+  // push except on its own rotation-eligible day, read-time-derived (via
+  // effectiveTriageState) so this never depends on whether the 06:00 sweep
+  // has already materialised the state.
+  if (effectiveTriageState(gap, now) === "auto_deferred") {
+    return !isAutoDeferredPushEligible(gap, now);
   }
 
   if (gap.triageState === "user_deferred" && gap.deferredUntil) {

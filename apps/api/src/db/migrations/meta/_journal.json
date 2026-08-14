@@ -288,6 +288,13 @@
       "when": 1786665472753,
       "tag": "0040_fantastic_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786668490835,
+      "tag": "0041_futuristic_frightful_four",
+      "breakpoints": true
     }
   ]
 }

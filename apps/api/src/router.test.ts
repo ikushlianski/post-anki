@@ -8,6 +8,10 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/subjects")?.name).toBe("createSubject");
       expect(resolveRoute("GET", "/curricula")?.name).toBe("listCurricula");
       expect(resolveRoute("POST", "/gaps")?.name).toBe("declareGap");
+      // issue #33's sweep endpoint — the only caller is the
+      // autoDeferSweepJob Cloud Scheduler job. Auth is the existing
+      // Bearer-secret authorized() check in server.ts, no new auth code.
+      expect(resolveRoute("POST", "/gaps/auto-defer-sweep")?.name).toBe("sweepAutoDeferGaps");
       expect(resolveRoute("GET", "/daily-push")?.name).toBe("dailyPush");
       // decide-mode: POST /decide is a legacy RPC-shaped route being
       // replaced by the noun-based /decide-sessions resource (spec.md's

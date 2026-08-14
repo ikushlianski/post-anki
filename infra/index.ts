@@ -17,6 +17,13 @@ const gapResurfaceTimeZone = config.get("gapResurfaceTimeZone") ?? "Europe/Warsa
 const telegramWebhookSecret = config.getSecret("telegramWebhookSecret");
 const docScanSchedule = config.get("docScanSchedule") ?? "0 9 * * 1"; // Monday 09:00
 const docScanTimeZone = config.get("docScanTimeZone") ?? "Europe/Warsaw";
+// autoDeferSweepJob (issue #33) — 06:00, two hours ahead of the 08:00 daily
+// push, so a gap that crosses its 3-day line overnight is already
+// materialised as auto_deferred before that morning's push and before any
+// user-visible read that day. Own config keys so it can be retimed
+// independently, matching how gapResurfaceSchedule got its own key above.
+const autoDeferSweepSchedule = config.get("autoDeferSweepSchedule") ?? "0 6 * * *";
+const autoDeferSweepTimeZone = config.get("autoDeferSweepTimeZone") ?? "Europe/Warsaw";
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -351,6 +358,30 @@ const docScanJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+// autoDeferSweepJob (issue #33) — mirrors docScanJob's shape, not
+// gapResurfaceJob's: this sweep sends zero Telegram messages ("No
+// notification is sent about the auto-defer — it's silent"), so it targets
+// the API directly (apiDomain, apiSharedSecret bearer) rather than routing a
+// database-only housekeeping write through the bot's Telegram-delivery
+// boundary.
+const autoDeferSweepJob = new gcp.cloudscheduler.Job(
+  "auto-defer-sweep",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-auto-defer-sweep",
+    schedule: autoDeferSweepSchedule,
+    timeZone: autoDeferSweepTimeZone,
+    attemptDeadline: "60s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/gaps/auto-defer-sweep`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -369,3 +400,4 @@ export const electricSaEmail = electricSa.email;
 export const dailyPushJobName = dailyPushJob.name;
 export const gapResurfaceJobName = gapResurfaceJob.name;
 export const docScanJobName = docScanJob.name;
+export const autoDeferSweepJobName = autoDeferSweepJob.name;

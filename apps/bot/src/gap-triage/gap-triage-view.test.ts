@@ -1,15 +1,40 @@
 import { describe, it, expect } from "vitest";
+import type { Gap } from "@post-anki/shared";
 import {
   buildTriageKeyboard,
   buildResurfaceCheckinKeyboard,
   resurfaceMessageText,
   dismissedCheckinMessageText,
   importantConfirmationText,
+  deferredGapListLabel,
   DEFER_CONFIRMATION_TEXT,
   DISMISS_CONFIRMATION_TEXT,
   CHECKIN_CONFIRM_TEXT,
   CHECKIN_REVISIT_TEXT,
+  AUTO_FILED_SUFFIX,
+  USER_DEFERRED_SUFFIX,
 } from "./gap-triage-view.js";
+
+function gap(overrides: Partial<Gap> & { id: string; label: string }): Gap {
+  return {
+    topicId: "t1",
+    depth: "working",
+    origin: "ai",
+    state: "open",
+    wanted: false,
+    concern: null,
+    lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
+    untriagedSince: "2020-01-01T00:00:00.000Z",
+    autoDeferredAt: null,
+    ...overrides,
+  };
+}
 
 describe("buildTriageKeyboard", () => {
   it("renders exactly Important / Defer again / Dismiss in one row below the reshow threshold", () => {
@@ -100,5 +125,39 @@ describe("confirmation text", () => {
 
   it("the check-in's two outcomes have distinct acknowledgment copy", () => {
     expect(CHECKIN_CONFIRM_TEXT).not.toBe(CHECKIN_REVISIT_TEXT);
+  });
+});
+
+// SCENARIO 8 — the two Deferred labels read differently (formatter only, not
+// wired to any live surface yet — see spec.md Decision 1, #43 imports this).
+describe("deferredGapListLabel", () => {
+  it("labels a user-deferred gap 'deferred by you' — the issue's copy verbatim", () => {
+    const label = deferredGapListLabel(
+      gap({ id: "g1", label: "Plugin API internals", triageState: "user_deferred" }),
+    );
+
+    expect(label).toBe("Plugin API internals (deferred by you)");
+  });
+
+  it("labels an auto-deferred gap 'auto-filed' — the issue's copy verbatim", () => {
+    const label = deferredGapListLabel(
+      gap({ id: "g2", label: "Hydration boundary behavior", triageState: "auto_deferred" }),
+    );
+
+    expect(label).toBe("Hydration boundary behavior (auto-filed)");
+  });
+
+  it.each(["untriaged", "important", "dismissed"] as const)(
+    "returns the bare label with no suffix for a %s gap",
+    (triageState) => {
+      const label = deferredGapListLabel(gap({ id: "g3", label: "Bare label", triageState }));
+
+      expect(label).toBe("Bare label");
+    },
+  );
+
+  it("uses the exact suffix constants in the formatted output", () => {
+    expect(AUTO_FILED_SUFFIX).toBe("(auto-filed)");
+    expect(USER_DEFERRED_SUFFIX).toBe("(deferred by you)");
   });
 });

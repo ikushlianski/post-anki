@@ -93,6 +93,8 @@ function makeGap(over: Partial<Gap> = {}): Gap {
     deferralCount: 0,
     dismissedAt: null,
     dismissedCheckinSentAt: null,
+    untriagedSince: "2026-06-24T00:00:00.000Z",
+    autoDeferredAt: null,
     ...over,
   };
 }
@@ -232,6 +234,102 @@ describe("startProbe quick_test question", () => {
       expect(result.correctAnswerIndex).toBe(2);
       expect(result.kind).toBe("quick_test");
     }
+  });
+});
+
+describe("submitProbe auto-defer reactivation (issue #33)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTopicRow.mockResolvedValue(topicRow);
+  });
+
+  it("AC 24a — a MISSING verdict on the freeform path reactivates an auto-deferred probed gap", async () => {
+    listGapsForTopic.mockResolvedValue([
+      makeGap({ triageState: "auto_deferred", autoDeferredAt: "2026-06-20T00:00:00.000Z" }),
+    ]);
+    evalGenerate.mockResolvedValue({
+      object: { verdicts: [], newGaps: [], nextPrompt: null },
+    });
+
+    const result = await submitProbe(
+      { topicId: "t1", gapId: "g1", mode: "socratic", answer: "not quite" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    expect("error" in result).toBe(false);
+
+    if (!("error" in result)) {
+      expect(result.outcome).toBe("fail");
+    }
+
+    expect(persistGaps).toHaveBeenCalledTimes(1);
+    const [persisted] = persistGaps.mock.calls[0]![0] as Gap[];
+
+    expect(persisted!.triageState).toBe("untriaged");
+    expect(persisted!.untriagedSince).toBe("2026-06-24T00:00:00.000Z");
+    expect(persisted!.autoDeferredAt).toBeNull();
+  });
+
+  it("AC 24d — a PASS verdict on an auto-deferred gap covers it and does not reactivate it", async () => {
+    listGapsForTopic.mockResolvedValue([
+      makeGap({ triageState: "auto_deferred", autoDeferredAt: "2026-06-20T00:00:00.000Z" }),
+    ]);
+    evalGenerate.mockResolvedValue({
+      object: { verdicts: [{ gapId: "g1", covered: true }], newGaps: [], nextPrompt: null },
+    });
+
+    const result = await submitProbe(
+      { topicId: "t1", gapId: "g1", mode: "socratic", answer: "yes exactly" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    if (!("error" in result)) {
+      expect(result.outcome).toBe("pass");
+    }
+
+    const [persisted] = persistGaps.mock.calls[0]![0] as Gap[];
+
+    expect(persisted!.state).toBe("covered");
+    expect(persisted!.triageState).toBe("auto_deferred");
+    expect(persisted!.autoDeferredAt).toBe("2026-06-20T00:00:00.000Z");
+  });
+
+  it("AC 22 — a Fail on a plain (not-yet-due) untriaged gap resets nothing", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap({ triageState: "untriaged" })]);
+
+    await submitProbe(
+      { topicId: "t1", gapId: "g1", mode: "quick_test", answer: "1", selfOutcome: "fail" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    const [persisted] = persistGaps.mock.calls[0]![0] as Gap[];
+
+    expect(persisted!.triageState).toBe("untriaged");
+    expect(persisted!.untriagedSince).toBe("2026-06-24T00:00:00.000Z");
+  });
+
+  it("AC 24c — outcome and coveredGapLabels are unaffected by the probedFailed hoist (byte-identical to before)", async () => {
+    listGapsForTopic.mockResolvedValue([
+      makeGap({ triageState: "auto_deferred", autoDeferredAt: "2026-06-20T00:00:00.000Z" }),
+    ]);
+    evalGenerate.mockResolvedValue({
+      object: { verdicts: [], newGaps: [], nextPrompt: null },
+    });
+
+    const result = await submitProbe(
+      { topicId: "t1", gapId: "g1", mode: "socratic", answer: "not quite" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    if (!("error" in result)) {
+      expect(result.outcome).toBe("fail");
+      expect(result.coveredGapLabels).not.toContain("TCP handshake");
+    }
+
+    const [persisted] = persistGaps.mock.calls[0]![0] as Gap[];
+
+    expect(persisted!.state).toBe("open");
+    expect(persisted!.lastEvaluatedAt).toBeNull();
   });
 });
 

@@ -138,6 +138,8 @@ describe('LearningPathStepRow', () => {
           deferralCount: 0,
           dismissedAt: null,
           dismissedCheckinSentAt: null,
+          untriagedSince: '2020-01-01T00:00:00.000Z',
+          autoDeferredAt: null,
         },
         reason: 'weakest',
       },

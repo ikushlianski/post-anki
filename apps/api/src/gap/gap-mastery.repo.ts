@@ -168,6 +168,7 @@ export async function applyGapMasteryAttempt(
         const [created] = await insertDiscoveredGaps(
           input.topicId,
           [{ label: input.gapLabel!, depth: input.topicDepth, concern: null }],
+          input.now,
           tx,
         );
         gapId = created!.id;

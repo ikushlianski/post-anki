@@ -12,13 +12,14 @@ export type GapState = z.infer<typeof gapStateSchema>;
 
 // Gap triage (issue #29) — orthogonal to `state` above, never overloading it
 // (matching the same "don't overload state" lesson gap_mastery already
-// documents). Literal value `user_deferred`, not `deferred`, reserves room
-// for a future `auto_deferred` sibling (issue #33) without another
+// documents). Literal value `user_deferred`, not `deferred`, reserved room
+// for the `auto_deferred` sibling (issue #33) added below without another
 // migration touching this column's existing rows.
 export const gapTriageStateSchema = z.enum([
   "untriaged",
   "important",
   "user_deferred",
+  "auto_deferred",
   "dismissed",
 ]);
 
@@ -84,6 +85,11 @@ export const gapSchema = z.object({
   deferralCount: z.number().int(),
   dismissedAt: z.string().nullable(),
   dismissedCheckinSentAt: z.string().nullable(),
+  // Auto-defer timer (issue #33). Non-nullable to match the column — carries
+  // a stale-but-harmless value for a gap in any non-`untriaged` state,
+  // because no predicate reads it outside the `untriaged` branch.
+  untriagedSince: z.string(),
+  autoDeferredAt: z.string().nullable(),
 });
 
 export type Gap = z.infer<typeof gapSchema>;

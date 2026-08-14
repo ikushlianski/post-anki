@@ -91,6 +91,9 @@ function applyRevisit(gap: Gap, now: string): TriageResult {
       deferredUntil: null,
       dismissedAt: null,
       dismissedCheckinSentAt: null,
+      // Issue #33 — every return to untriaged earns a fresh full 3-day
+      // auto-defer window, never a shortened repeat-offender one.
+      untriagedSince: now,
     },
     changed: true,
   };

@@ -13,7 +13,12 @@ import { getDb } from "../db/client.js";
 import { gaps, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { rowToGap } from "./gap.repo.js";
-import { listGapsDueForResurface, markGapResurfaced, triageGapLocked } from "./gap-triage.repo.js";
+import {
+  listGapsDueForResurface,
+  markGapResurfaced,
+  sweepAutoDeferredGaps,
+  triageGapLocked,
+} from "./gap-triage.repo.js";
 
 export async function handleDeclareGap(
   req: http.IncomingMessage,
@@ -36,6 +41,8 @@ export async function handleDeclareGap(
     return;
   }
 
+  const now = new Date().toISOString();
+
   const row = {
     id: newId("gap"),
     topicId: body.data.topicId,
@@ -45,6 +52,7 @@ export async function handleDeclareGap(
     state: "open" as const,
     wanted: body.data.wanted ?? true,
     concern: body.data.concern ?? null,
+    untriagedSince: new Date(now),
   };
 
   await db.insert(gaps).values(row);
@@ -65,6 +73,8 @@ export async function handleDeclareGap(
     deferralCount: 0,
     dismissedAt: null,
     dismissedCheckinSentAt: null,
+    untriagedSince: now,
+    autoDeferredAt: null,
   };
 
   sendJson(res, 201, gap);
@@ -170,4 +180,15 @@ export async function handleMarkResurfaced(
   await markGapResurfaced(gapId, body.data.kind, now);
 
   sendJson(res, 200, { ok: true });
+}
+
+// POST /gaps/auto-defer-sweep — the only caller is the autoDeferSweepJob
+// Cloud Scheduler job (issue #33). No Telegram message is ever sent by this
+// path; the response is a count only. Auth is the existing `authorized()`
+// bearer check in server.ts — no new auth code.
+export async function handleAutoDeferSweep(res: http.ServerResponse): Promise<void> {
+  const now = new Date().toISOString();
+  const result = await sweepAutoDeferredGaps(now);
+
+  sendJson(res, 200, result);
 }

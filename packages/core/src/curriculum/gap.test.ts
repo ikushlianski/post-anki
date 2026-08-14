@@ -29,6 +29,8 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     deferralCount: 0,
     dismissedAt: null,
     dismissedCheckinSentAt: null,
+    untriagedSince: "2026-05-31T00:00:00.000Z",
+    autoDeferredAt: null,
     ...overrides,
   };
 }
@@ -252,6 +254,27 @@ describe("isPushExcluded", () => {
   it("never excludes an untriaged or important gap", () => {
     expect(isPushExcluded(gap({ id: "g1", triageState: "untriaged" }), NOW)).toBe(false);
     expect(isPushExcluded(gap({ id: "g1", triageState: "important" }), NOW)).toBe(false);
+  });
+
+  it("issue #33 — excludes an untriaged gap past its 3-day line on a non-eligible rotation day", () => {
+    const g = gap({
+      id: "g1",
+      triageState: "untriaged",
+      untriagedSince: "2026-05-01T00:00:00.000Z",
+    });
+
+    // Anchor is 2026-05-04T00:00Z (day 0, eligible); day 1 is not.
+    expect(isPushExcluded(g, "2026-05-05T00:00:00.000Z")).toBe(true);
+  });
+
+  it("issue #33 — does not exclude that same gap on its eligible rotation day", () => {
+    const g = gap({
+      id: "g1",
+      triageState: "untriaged",
+      untriagedSince: "2026-05-01T00:00:00.000Z",
+    });
+
+    expect(isPushExcluded(g, "2026-05-04T00:00:00.000Z")).toBe(false);
   });
 });
 

@@ -47,6 +47,7 @@ export type RouteName =
   | "triageGap"
   | "listGapsDueForResurface"
   | "markGapResurfaced"
+  | "sweepAutoDeferGaps"
   | "dailyPush"
   | "createDecideSession"
   | "listDecideSessions"
