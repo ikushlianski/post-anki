@@ -53,6 +53,10 @@ export const curriculumSchema = z.object({
   // panel.tsx), which predates the many-to-many model this ticket
   // introduces — CurriculumDetail.domainMappings below is the full list.
   domainNodeId: z.string().nullable(),
+  // course-priority-reordering (#69) — drag-and-drop learner-controlled
+  // order within a subject. Scoped per subject. Assigned by nextOrder()
+  // at create time; updated by reorder endpoint inside transaction.
+  order: z.number().int(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -283,3 +287,9 @@ export const moveCurriculumInput = z.object({
 });
 
 export type MoveCurriculumInput = z.infer<typeof moveCurriculumInput>;
+
+export const reorderCurriculaInput = z.object({
+  orderedIds: z.string().array(),
+});
+
+export type ReorderCurriculaInput = z.infer<typeof reorderCurriculaInput>;

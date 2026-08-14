@@ -46,9 +46,19 @@ function ProbeRoom() {
     return (
       <main className="mx-auto max-w-2xl px-5 py-10">
         <p className="text-sm text-neutral-500">This topic isn’t available.</p>
-        <Link to="/" className="text-sm underline">
-          Back to curricula
-        </Link>
+        {curriculumId ? (
+          <Link
+            to="/curriculum/$curriculumId"
+            params={{ curriculumId }}
+            className="text-sm underline"
+          >
+            Back to curriculum
+          </Link>
+        ) : (
+          <Link to="/" className="text-sm underline">
+            Back to curricula
+          </Link>
+        )}
       </main>
     )
   }
@@ -65,6 +75,14 @@ function ProbeRoom() {
             className="text-xs font-medium text-neutral-500 underline hover:text-neutral-900"
           >
             Lecture
+          </Link>
+          <Link
+            to="/cards/$topicId"
+            params={{ topicId: topic.id }}
+            data-testid="cards-link"
+            className="text-xs font-medium text-neutral-500 underline hover:text-neutral-900"
+          >
+            Cards
           </Link>
           <ModeToggle topicId={topic.id} curriculumId={curriculumId} mode={mode} />
         </div>

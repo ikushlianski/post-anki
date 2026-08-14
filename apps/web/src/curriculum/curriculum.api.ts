@@ -19,6 +19,7 @@ import {
   recordAttemptInput,
   removeTagAssignmentInput,
   reorderInput,
+  reorderCurriculaInput,
   setCurriculumStatusInput,
   setModuleStatusInput,
   updateAdaptiveInput,
@@ -217,6 +218,14 @@ export const reorderModules = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => reorderInput.parse(data))
   .handler(async ({ data }) => {
     await api.reorderModules(data.curriculumOrModuleId, data.orderedIds)
+
+    return null
+  })
+
+export const reorderCurricula = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => reorderCurriculaInput.parse(data))
+  .handler(async ({ data }) => {
+    await api.reorderCurricula(data.subjectId, data.orderedIds)
 
     return null
   })

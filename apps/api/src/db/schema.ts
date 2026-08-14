@@ -67,6 +67,13 @@ export const curricula = pgTable(
     // area-container.repo.ts); every curricula listing read path filters
     // this non-null so the container never shows up as a course to browse.
     containerAreaNodeId: text("container_area_node_id"),
+    // course-priority-reordering (#69) — drag-and-drop learner-controlled
+    // order within a subject. Scoped per subject (order 1..N per subject).
+    // Containers (containerAreaNodeId IS NOT NULL) stay at 0 and are never
+    // reordered. All other curricula assigned by nextOrder() per subject at
+    // create time; reorder endpoint updates via assignOrders() inside
+    // db.transaction(). Live-synced via Electric (no column allowlist).
+    order: integer("order").notNull().default(0),
   },
   (table) => [
     // The find-or-create DB-level race guard (mirrors milestones_entity_

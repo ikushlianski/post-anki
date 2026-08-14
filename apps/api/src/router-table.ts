@@ -13,6 +13,7 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/subjects", name: "createSubject" },
   { method: "DELETE", pattern: /^\/subjects\/([^/]+)$/, name: "deleteSubject", param: "id" },
   { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },
+  { method: "PATCH", pattern: /^\/subjects\/([^/]+)\/curricula\/order$/, name: "reorderCurricula", param: "id" },
   { method: "GET", pattern: "/curricula", name: "listCurricula" },
   { method: "POST", pattern: "/curricula", name: "createCurriculum" },
   { method: "POST", pattern: /^\/curricula\/([^/]+)\/merge$/, name: "mergeCurricula", param: "id" },

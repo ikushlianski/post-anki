@@ -5,6 +5,7 @@ import {
   createCurriculumInput,
   mergeCurriculaInput,
   moveCurriculumInput,
+  reorderCurriculaInput,
   resolveSupplementalResearchInput,
   submitStructureTurnInput,
   updateCurriculumInput,
@@ -31,6 +32,7 @@ import {
   markPreAssessmentCompleted,
   mergeCurricula,
   moveCurriculumToSubject,
+  reorderCurricula,
   setCurriculumStatus,
   updateCurriculum,
 } from "./curriculum.repo.js";
@@ -819,6 +821,28 @@ export async function handleUpdateCurriculum(
 
   if (!result) {
     sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+export async function handleReorderCurricula(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, reorderCurriculaInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await reorderCurricula(subjectId, body.data.orderedIds);
+
+  if ("error" in result) {
+    sendJson(res, 400, result);
     return;
   }
 

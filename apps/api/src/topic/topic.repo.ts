@@ -12,6 +12,7 @@ import { getDb } from "../db/client.js";
 import { gaps, modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteLectureForTopic } from "../lecture/lecture.repo.js";
+import { deleteCardsForTopic } from "../cards/cards.repo.js";
 import { deleteLectureSourceCandidatesForTopic } from "../lecture/lecture-source-candidate.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 
@@ -198,6 +199,7 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
     await tx.delete(gaps).where(eq(gaps.topicId, topicId));
     await deleteLectureForTopic(topicId, tx);
     await deleteLectureSourceCandidatesForTopic(topicId, tx);
+    await deleteCardsForTopic(topicId, tx);
     await tx.delete(topics).where(eq(topics.id, topicId));
   });
 

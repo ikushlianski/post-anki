@@ -15,6 +15,7 @@ import { createStructureEditorAgent } from "./structure-editor.agent.js";
 import { createLanguageChatAgent } from "./language-chat.agent.js";
 import { createLectureSourceSelector } from "./lecture-source-selector.agent.js";
 import { createLectureCompiler } from "./lecture-compiler.agent.js";
+import { createCardsCompiler } from "./cards-compiler.agent.js";
 import { createPhraseBatchAgent, createGradeBatchAgent } from "./language-practice.agent.js";
 import { createWritingCheckAgent } from "./writing-check.agent.js";
 import { createSiblingDiscoveryAgent } from "./sibling-discovery.agent.js";
@@ -38,6 +39,7 @@ export const AGENT_KEYS = {
   languageChat: "languageChat",
   lectureSourceSelector: "lectureSourceSelector",
   lectureCompiler: "lectureCompiler",
+  cardsCompiler: "cardsCompiler",
   phraseBatchGenerate: "phraseBatchGenerate",
   gradeBatch: "gradeBatch",
   writingCheck: "writingCheck",
@@ -102,6 +104,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.languageChat]: createLanguageChatAgent(),
         [AGENT_KEYS.lectureSourceSelector]: createLectureSourceSelector(),
         [AGENT_KEYS.lectureCompiler]: createLectureCompiler(),
+        [AGENT_KEYS.cardsCompiler]: createCardsCompiler(),
         [AGENT_KEYS.phraseBatchGenerate]: createPhraseBatchAgent(),
         [AGENT_KEYS.gradeBatch]: createGradeBatchAgent(),
         [AGENT_KEYS.writingCheck]: createWritingCheckAgent(),

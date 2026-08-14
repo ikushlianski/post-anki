@@ -24,6 +24,7 @@ export type RouteName =
   | "resolveSupplementalResearch"
   | "confirmStructure"
   | "deleteSource"
+  | "reorderCurricula"
   | "reorderModules"
   | "createModule"
   | "reorderTopics"

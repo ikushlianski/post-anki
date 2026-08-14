@@ -1,0 +1,44 @@
+flowchart TD
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+
+  subgraph CAL["Calibration Probe"]
+    direction TD
+    AssessPage["Curriculum Assess Page"]
+    QuizAPI["Probe Session API"]
+    TopicSampler["Priority-Weighted Topic Sampler"]
+    QuizAgent["Quiz Question Generator LLM"]
+    SessionStore[("Probe Session Store")]
+    GapPipeline["Gap Signal Pipeline existing, reused"]
+    TopicSummary["Per-Topic Strength Summary"]
+    PreAssessFlag["Pre-Assessment Flag"]
+
+    AssessPage -->|"Take a quick level check"| QuizAPI
+    QuizAPI --> TopicSampler
+    TopicSampler --> QuizAgent
+    QuizAgent --> SessionStore
+    SessionStore -->|"quiz rendered"| AssessPage
+    AssessPage -->|"each answer"| GapPipeline
+    SessionStore --> TopicSummary
+    TopicSummary --> PreAssessFlag
+  end
+
+  subgraph CARDS["Anki Card Mode"]
+    direction TD
+    ProbePage["Topic Probe Page"]
+    CardsPage["Cards Page"]
+    CardAPI["Card Generation API"]
+    TopicGaps[("Existing Topic Gaps")]
+    CardAgent["Card Compiler LLM"]
+    CardStore[("Card Content Store")]
+    CardReview["Card Review UI"]
+
+    ProbePage -->|"Cards link"| CardsPage
+    CardsPage -->|"Generate cards"| CardAPI
+    CardAPI --> TopicGaps
+    TopicGaps --> CardAgent
+    CardAPI --> CardAgent
+    CardAgent --> CardStore
+    CardStore -->|"poll while generating"| CardsPage
+    CardStore --> CardReview
+  end

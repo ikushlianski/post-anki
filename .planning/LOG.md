@@ -1078,3 +1078,87 @@ independently re-running the tests and reading the actual diff.
   what's already committed here -- nothing unique was discarded. No implemented code existed for
   this feature anywhere in `apps/`, `packages/`, `scripts/`, or `infra/` (confirmed by grep before
   removing anything) -- this was planning-only, never built.
+
+- **01:32 — curriculum-calibration-probe** (`.planning/newcomer-onboarding-and-cards/`,
+  moonshine-factory). First fixed a real outage before any feature work: local docker Postgres/
+  Electric containers weren't running at all (no containers existed), so `GET /subjects` 500'd
+  and took `localhost:3001` down entirely — started the stack, ran migrations, reseeded subjects.
+  Then built the calibration probe: new `"curriculum"` ProbeScope value, a priority-weighted
+  topic-sampling deriver capping at 20 questions, a one-shot-scope guard (verified load-bearing by
+  temporarily removing it and watching its regression test fail) so a calibration session's
+  completed state can't be wiped by the existing low-question-count refetch. Wired into the assess
+  page as an added "Take a quick level check" option alongside the untouched self-grade rows, with
+  a per-topic strong/weak summary on completion. Spot-checked independently (not just trusting the
+  agent's own report): typecheck clean across all workspaces, re-ran the new tests directly — 17/17
+  core, 8/8 web — and confirmed both servers still 200 after the change. Known gap: never exercised
+  against a real LLM call — no curricula exist in the local dev DB yet, and creating one costs a
+  real OpenRouter call; follow-up check is logged in this run's todo.md. Next: e2e coverage in
+  verification-repo, then the Anki-card-mode unit (blocked on this one — both touch
+  `probe.$topicId.tsx`'s mode toggle).
+
+- **02:12 — curriculum-calibration-probe e2e coverage** (verification-repo,
+  `projects/post-anki/post-anki/features/curriculum/tests/pre-assessment-level-check-summarizes-by-topic.test.ts`).
+  New scenario: a learner answers a 10-question calibration quiz scripted strong/weak/mixed across
+  3 topics, asserts both the UI summary (per-topic ratio rows) and Postgres persistence
+  (`probe_sessions`/`probe_session_questions` grouped by topic). Extended the existing
+  mock-openrouter convention (a new responder that reads the real per-topic distribution out of the
+  app's own prompt text, so the mock lines up with what `planCurriculumQuizDistribution` actually
+  computed) rather than inventing a new mocking approach. Found and fixed one real bug along the
+  way: `/assess` is a route no prior e2e test had ever visited, so it hit the documented Vite
+  cold-start hydration race — fixed with the project's existing `clickOnceHydrated` helper +
+  extending `global-setup.ts`'s warm-up, the same pattern already used for the sibling
+  curriculum-detail route. Independently re-ran headless myself (not just trusting the subagent):
+  `1 passed (1.2m)`. The subagent's broader `features/curriculum features/probe` sweep showed 16
+  pre-existing failures; verified via `git stash` comparison on a sample that these predate this
+  change (confirmed against `git status` showing substantial unrelated uncommitted work already
+  sitting in verification-repo from other runs) — not a regression, not blocking this unit.
+  **curriculum-calibration-probe unit: done.** Starting anki-card-mode next.
+
+- **02:26 — anki-card-mode** (`.planning/newcomer-onboarding-and-cards/`, moonshine-factory).
+  New per-topic "Cards" mode, mirroring the Lecture feature one level deeper:
+  `topic_card_sets` (1/topic) → `topic_cards` (one per concept) → `topic_card_variants`
+  (3-5 differently-phrased prompt/answer pairs per concept, click-to-reveal). Generation is
+  button-gated, never auto-fires, to avoid unplanned LLM spend; grounds on topic title +
+  summary + its existing gaps (`listGapsForTopic`, reused, no new query) rather than new web
+  research — cards test recall of what's already established, they don't need net-new
+  sourcing. New `cardsCompiler` Mastra agent registered alongside the existing ones.
+  `deleteCardsForTopic` wired into `deleteTopic`'s transaction so a deleted topic doesn't
+  orphan card rows — the implementing agent caught this itself by noticing Lecture does the
+  same thing, even though my brief didn't call it out explicitly. Spot-checked independently:
+  read the actual schema/migration/mastra-registration/router citations myself (all matched),
+  re-ran typecheck clean across every workspace, re-ran the new orchestrator tests directly
+  (6/6), confirmed both dev servers still 200 and the new `GET /topics/:id/cards` route
+  correctly 404s on an unknown topic. Known gap: never exercised against a real LLM call for
+  the same reason as unit 1 — no curricula exist in the local dev DB. Next: e2e coverage in
+  verification-repo.
+
+
+- **02:55 -- anki-card-mode e2e coverage** (verification-repo,
+  `projects/post-anki/post-anki/features/cards/tests/cards-generate-produces-distinct-variants.test.ts`).
+  New scenario: reaches Cards mode via the probe page's `cards-link`, generates a set,
+  asserts two concepts render with 3-4 variants each, that variant wording genuinely differs
+  between siblings (not just a count check), click-to-reveal shows the exact mocked answer,
+  and Regenerate is independently reactive. Asserts both UI and `topic_card_sets`/
+  `topic_card_variants` row state. Found and fixed one real, reusable framework gap along the
+  way: a naive wait-for-terminal-state races against React Query's stale-while-refetching
+  render on any action that re-fires from an already-settled UI (unlike every prior action in
+  this suite, which only ever fires from a blank state) -- fixed with a two-phase wait
+  (block on the `generating` state appearing first, then race the terminal states),
+  documented as a pattern for future retry/regenerate actions. Independently re-ran headless
+  myself: `1 passed (1.2m)`. Also independently re-ran unit 1's e2e test as a regression check
+  since both edited the same shared `mock-openrouter/responses.ts` -- still `1 passed`, no
+  cross-contamination. The subagent additionally ran the full 106-test suite unprompted (its
+  own initiative, checking for collateral damage) and found 38 pre-existing failures; sampled
+  3, confirmed they pass in isolation and fail for reasons unrelated to any mocking change (a
+  404 before any LLM call, a UI timeout) -- a load/sequencing artifact of an un-sharded
+  single-worker full run, not a regression from this run's work. Flagging this as a stale
+  claim in `e2e/README.md` ("suite GREEN") rather than chasing it -- out of scope for this
+  run's two units.
+
+  **anki-card-mode unit: done.**
+
+## Run complete -- newcomer-onboarding-and-cards
+
+Both units (curriculum-calibration-probe, anki-card-mode) implemented, independently
+spot-checked beyond each subagent's own report, and e2e-verified headless by the orchestrator
+directly. See the handoff report delivered to the user for the full scenario-level summary.

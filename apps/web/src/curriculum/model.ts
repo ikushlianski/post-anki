@@ -69,6 +69,7 @@ export const curriculumSchema = z.object({
   strictOrder: z.boolean(),
   preAssessmentCompletedAt: z.string().nullable(),
   domainNodeId: z.string().nullable(),
+  order: z.number().int(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
@@ -441,6 +442,13 @@ export const reorderInput = z.object({
 })
 
 export type ReorderInput = z.infer<typeof reorderInput>
+
+export const reorderCurriculaInput = z.object({
+  subjectId: z.string(),
+  orderedIds: z.array(z.string()),
+})
+
+export type ReorderCurriculaInput = z.infer<typeof reorderCurriculaInput>
 
 export const setCurriculumStatusInput = z.object({
   curriculumId: z.string(),

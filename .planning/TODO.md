@@ -3,7 +3,7 @@ type: todo
 branch: main
 task: post-anki open items
 state: open
-updated: 2026-08-09
+updated: 2026-08-14
 ---
 # Run todo
 
@@ -30,6 +30,14 @@ Business and architecture-level open items only. Small mechanical gaps get fixed
       weakness that already exists in four other places. Work sits on branch
       module-topic-expand-web-search.
 - [ ] Let me chat with the structure of my knowledge — move things, merge them, reorganise.
+- [ ] Fix waitForHydration to wait for real hydration, not router presence.
+- [ ] Update two locked e2e tests for curriculum structure-shaping pipeline stage.
+- [ ] Add subject/tag split fast-follow to ontology-split-merge; include cycle guard.
+- [ ] Connect post-anki to the-me-agent vault via MCP for mentor context.
+- [ ] Recommend courses from the-me-agent's learning map, with accept/later/dismiss.
+- [ ] Add one daily Telegram touchpoint digesting all practice surfaces.
+- [ ] Merge Tauri desktop app worktree once Rust toolchain is installed.
+      [→ .claude/worktrees/tauri-desktop-app]
 
 ## Decisions to make
 
@@ -71,6 +79,8 @@ Business and architecture-level open items only. Small mechanical gaps get fixed
       committing or discarding by hand.
 - [ ] A repeated-click workaround in the tag-picker end-to-end test can probably be simplified now
       that the underlying timing bug is fixed.
+- [ ] Confirm Playwright gotcha notes got committed in verification-repo (outside this repo's
+      autonomy).
 
 ## Post-deploy checks
 
@@ -80,6 +90,7 @@ Business and architecture-level open items only. Small mechanical gaps get fixed
 
 ## Resolved
 
+- 2026-08-05 — TODO.md wrongly implied an unmerged branch was live; corrected.
 - 2026-08-05 — Tests polluted the live local database with fixtures; they now run against an
   isolated throwaway database.
 - 2026-08-05 — Courses could only be reorganised by deleting and recreating them; added a proper

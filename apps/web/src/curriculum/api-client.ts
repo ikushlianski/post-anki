@@ -926,6 +926,16 @@ export async function reorderModules(
   })
 }
 
+export async function reorderCurricula(
+  subjectId: string,
+  orderedIds: string[],
+): Promise<void> {
+  await request(`/subjects/${subjectId}/curricula/order`, {
+    method: 'PATCH',
+    body: { orderedIds },
+  })
+}
+
 export async function createTopic(input: {
   moduleId: string
   title: string

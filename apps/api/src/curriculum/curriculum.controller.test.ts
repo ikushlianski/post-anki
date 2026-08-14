@@ -77,6 +77,7 @@ function makeCurriculum(overrides: Partial<Curriculum> = {}): Curriculum {
     strictOrder: false,
     preAssessmentCompletedAt: null,
     domainNodeId: null,
+    order: 1,
     ...overrides,
   };
 }

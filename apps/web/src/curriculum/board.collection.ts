@@ -39,6 +39,7 @@ interface CurriculumRow {
   strict_order: boolean
   pre_assessment_completed_at: string | null
   domain_node_id: string | null
+  order: number
 }
 
 interface CurriculumSourceRow {
@@ -138,5 +139,6 @@ export function mapCurriculumRow(
     // populate a field nobody reads. The curriculum detail page (REST-backed,
     // not Electric) is where a real placement value comes from.
     domainNodeId: row.domain_node_id ?? null,
+    order: row.order,
   }
 }

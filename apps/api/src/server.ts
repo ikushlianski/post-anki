@@ -22,6 +22,7 @@ import {
   handleListCurricula,
   handleMergeCurricula,
   handleMoveCurriculum,
+  handleReorderCurricula,
   handleReparse,
   handleResolveSupplementalResearch,
   handleRetryDraftStructure,
@@ -343,6 +344,8 @@ async function route(
       return handleConfirmStructure(res, id);
     case "deleteSource":
       return handleDeleteSource(res, id);
+    case "reorderCurricula":
+      return handleReorderCurricula(req, res, id);
     case "reorderModules":
       return handleReorderModules(req, res, id);
     case "createModule":

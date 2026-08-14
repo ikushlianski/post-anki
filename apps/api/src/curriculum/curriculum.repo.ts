@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type {
   Concern,
   CreateCurriculumInput,
@@ -35,6 +35,8 @@ import {
   priorLevelCoverageLabels,
   recommendedTopicId,
   sortForDisplay,
+  nextOrder,
+  assignOrders,
 } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
@@ -98,10 +100,16 @@ interface Plan {
 // lists curricula for display filters it out here, at the one function every
 // board/tree/merge-picker view in apps/web ultimately calls.
 export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
-  const rows = (await getDb().select().from(curricula)).filter(
-    (r: typeof curricula.$inferSelect) =>
-      (!subjectId || r.subjectId === subjectId) && r.containerAreaNodeId === null,
-  );
+  const conditions = [isNull(curricula.containerAreaNodeId)];
+  if (subjectId) {
+    conditions.push(eq(curricula.subjectId, subjectId));
+  }
+
+  const rows = await getDb()
+    .select()
+    .from(curricula)
+    .where(and(...conditions))
+    .orderBy(asc(curricula.subjectId), asc(curricula.order));
 
   if (rows.length === 0) {
     return [];
@@ -177,6 +185,8 @@ export async function createCurriculum(
     containerAreaNodeId?: string;
   },
 ): Promise<Curriculum | { error: CreateCurriculumError }> {
+  const isContainer = !!input.containerAreaNodeId;
+
   const row = {
     id: newId("cur"),
     subjectId: input.subjectId,
@@ -190,6 +200,7 @@ export async function createCurriculum(
     strictOrder: false,
     preAssessmentCompletedAt: null,
     containerAreaNodeId: input.containerAreaNodeId ?? null,
+    order: 0,
   };
   const domainNodeId = input.domainNodeId ?? null;
 
@@ -200,6 +211,19 @@ export async function createCurriculum(
 
     if (!subjectRow) {
       return { error: "subject_not_found" as const };
+    }
+
+    if (!isContainer) {
+      const existingRows = await tx
+        .select()
+        .from(curricula)
+        .where(
+          and(
+            eq(curricula.subjectId, input.subjectId),
+            isNull(curricula.containerAreaNodeId),
+          ),
+        );
+      row.order = nextOrder(existingRows.map((r) => r.order));
     }
 
     await tx.insert(curricula).values(row);
@@ -1535,11 +1559,63 @@ export async function createSplitOutCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
+    containerAreaNodeId: null,
+    order: 0,
   };
 
-  await getDb().insert(curricula).values(row);
+  return withSubjectLock(subjectId, async (tx) => {
+    const existingRows = await tx
+      .select()
+      .from(curricula)
+      .where(
+        and(
+          eq(curricula.subjectId, subjectId),
+          isNull(curricula.containerAreaNodeId),
+        ),
+      );
+    row.order = nextOrder(existingRows.map((r) => r.order));
 
-  return toCurriculum(row, "sources", null);
+    await tx.insert(curricula).values(row);
+
+    return toCurriculum(row, "sources", null);
+  });
+}
+
+export async function reorderCurricula(
+  subjectId: string,
+  orderedIds: string[],
+): Promise<{ reordered: number } | { error: "invalid_id_set" }> {
+  return withSubjectLock(subjectId, async (tx) => {
+    const existingRows = await tx
+      .select()
+      .from(curricula)
+      .where(
+        and(
+          eq(curricula.subjectId, subjectId),
+          isNull(curricula.containerAreaNodeId),
+        ),
+      );
+
+    const existingIds = new Set(existingRows.map((r) => r.id));
+    const payloadIds = new Set(orderedIds);
+
+    if (existingIds.size !== payloadIds.size || !orderedIds.every((id) => existingIds.has(id))) {
+      return { error: "invalid_id_set" as const };
+    }
+
+    const assignments = assignOrders(orderedIds);
+
+    await tx.transaction(async (nestedTx) => {
+      for (const assignment of assignments) {
+        await nestedTx
+          .update(curricula)
+          .set({ order: assignment.order })
+          .where(eq(curricula.id, assignment.id));
+      }
+    });
+
+    return { reordered: assignments.length };
+  });
 }
 
 export async function getStructureTurns(
@@ -2001,6 +2077,7 @@ function toCurriculum(
     defaultDepth: string;
     strictOrder: boolean;
     preAssessmentCompletedAt: Date | null;
+    order: number;
   },
   origin: CurriculumOrigin,
   // decouple-curricula-from-domain-nodes (issue #84) — no longer read off
@@ -2026,6 +2103,7 @@ function toCurriculum(
       ? row.preAssessmentCompletedAt.toISOString()
       : null,
     domainNodeId: primaryDomainNodeId,
+    order: row.order,
   };
 }
 
