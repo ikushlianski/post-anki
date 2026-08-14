@@ -1,13 +1,29 @@
 import { useState } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { GripVertical } from 'lucide-react'
 
 import type { Curriculum, CurriculumStatus, Subject } from '../curriculum/model'
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { StudyTechnologyForm } from '../curriculum/study-technology-form'
-import { deleteCurriculum, mergeCurricula, moveCurriculum } from '../curriculum/curriculum.api'
+import {
+  deleteCurriculum,
+  mergeCurricula,
+  moveCurriculum,
+  reorderCurricula,
+} from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { deleteSubject, mergeSubjects } from './subject.api'
 import { useHydrated } from '../shared/use-hydrated'
+import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
 
 export function SubjectSection({
   subject,
@@ -18,6 +34,42 @@ export function SubjectSection({
   curricula: Curriculum[]
   allSubjects: Subject[]
 }) {
+  const router = useRouter()
+  const [localOrder, setLocalOrder] = useState<string[]>(curricula.map((c) => c.id))
+  const [reorderError, setReorderError] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      distance: 8,
+    }),
+  )
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const currentOrder = localOrder
+    const newOrder = reorderAfterDrag(currentOrder, String(active.id), String(over.id))
+
+    setLocalOrder(newOrder)
+    setReorderError(null)
+
+    try {
+      await reorderCurricula({
+        data: { subjectId: subject.id, orderedIds: newOrder },
+      })
+      await router.invalidate()
+    } catch (error) {
+      setReorderError(
+        error instanceof Error ? error.message : 'Failed to reorder curricula',
+      )
+      setLocalOrder(currentOrder)
+    }
+  }
+
   return (
     <section data-testid="subject-card" data-subject-id={subject.id}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
@@ -67,35 +119,29 @@ export function SubjectSection({
               Priority review
             </Link>
           </div>
-          <ul className="mb-3 space-y-2">
-            {curricula.length === 0 ? (
-              <li className="text-sm text-neutral-400">No curricula yet.</li>
-            ) : (
-              curricula.map((curriculum) => (
-                <li key={curriculum.id} className="flex items-center gap-2">
-                  <Link
-                    to="/curriculum/$curriculumId"
-                    params={{ curriculumId: curriculum.id }}
-                    className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
-                  >
-                    <span
-                      data-testid="curriculum-name"
-                      className="min-w-0 flex-1 truncate text-sm font-medium"
-                    >
-                      {curriculum.name}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      {curriculum.origin === 'research' ? <OriginBadge /> : null}
-                      <StatusBadge status={curriculum.status} />
-                    </span>
-                  </Link>
-                  <MergeCurriculumButton curriculum={curriculum} curricula={curricula} />
-                  <MoveCurriculumButton curriculum={curriculum} allSubjects={allSubjects} />
-                  <DeleteCurriculumButton curriculumId={curriculum.id} />
-                </li>
-              ))
-            )}
-          </ul>
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <ul className="mb-3 space-y-2">
+              {curricula.length === 0 ? (
+                <li className="text-sm text-neutral-400">No curricula yet.</li>
+              ) : (
+                <SortableContext items={localOrder} strategy={verticalListSortingStrategy}>
+                  {curricula.map((curriculum) => (
+                    <SortableCurriculumItem
+                      key={curriculum.id}
+                      curriculum={curriculum}
+                      allCurricula={curricula}
+                      allSubjects={allSubjects}
+                    />
+                  ))}
+                </SortableContext>
+              )}
+            </ul>
+          </DndContext>
+          {reorderError ? (
+            <div data-testid="reorder-error" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {reorderError}
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
             <CreateCurriculumForm
@@ -115,6 +161,59 @@ function OriginBadge() {
     <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
       🔎 Researched
     </span>
+  )
+}
+
+function SortableCurriculumItem({
+  curriculum,
+  allCurricula,
+  allSubjects,
+}: {
+  curriculum: Curriculum
+  allCurricula: Curriculum[]
+  allSubjects: Subject[]
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: curriculum.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li ref={setNodeRef} style={style} className="flex items-center gap-2">
+      <button
+        type="button"
+        className="shrink-0 text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+        data-testid={`drag-handle-${curriculum.id}`}
+        aria-label="Drag to reorder"
+      >
+        <GripVertical size={16} />
+      </button>
+      <Link
+        to="/curriculum/$curriculumId"
+        params={{ curriculumId: curriculum.id }}
+        className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+      >
+        <span
+          data-testid="curriculum-name"
+          className="min-w-0 flex-1 truncate text-sm font-medium"
+        >
+          {curriculum.name}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {curriculum.origin === 'research' ? <OriginBadge /> : null}
+          <StatusBadge status={curriculum.status} />
+        </span>
+      </Link>
+      <MergeCurriculumButton curriculum={curriculum} curricula={allCurricula} />
+      <MoveCurriculumButton curriculum={curriculum} allSubjects={allSubjects} />
+      <DeleteCurriculumButton curriculumId={curriculum.id} />
+    </li>
   )
 }
 

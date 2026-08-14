@@ -246,6 +246,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     strictOrder: curriculum.strictOrder,
     preAssessmentCompletedAt: curriculum.preAssessmentCompletedAt,
     domainNodeId: curriculum.domainNodeId,
+    order: curriculum.order,
   }
 }
 

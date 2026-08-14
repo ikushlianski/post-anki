@@ -74,6 +74,7 @@ describe('mapCurriculumRow', () => {
     strict_order: false,
     pre_assessment_completed_at: null,
     domain_node_id: null,
+    order: 1,
   }
 
   it('maps a curriculum with no research sources to sources-origin', () => {
