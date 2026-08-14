@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { DailyPushNudge } from '@post-anki/shared'
+import type { CourseRefocusSuggestion as SharedCourseRefocusSuggestion, DailyPushNudge } from '@post-anki/shared'
 
 export const subjectSchema = z.object({
   id: z.string(),
@@ -680,4 +680,4 @@ export const topicCardSetSchema = z.object({
 
 export type TopicCardSet = z.infer<typeof topicCardSetSchema>
 
-export type CourseRefocusSuggestion = be.CourseRefocusSuggestion
+export type CourseRefocusSuggestion = SharedCourseRefocusSuggestion

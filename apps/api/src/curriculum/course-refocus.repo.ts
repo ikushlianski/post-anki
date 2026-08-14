@@ -1,6 +1,13 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
-import { curricula, courseRefocusDismissals, subjects, topics } from "../db/schema.js";
+import {
+  attempts,
+  curricula,
+  courseRefocusDismissals,
+  phraseBankAppearances,
+  subjects,
+  topics,
+} from "../db/schema.js";
 import {
   computeCourseRefocusCandidatesForSubject,
   isRefocusSuppressedByDismissal,
@@ -23,6 +30,38 @@ interface SubjectCoursesData {
   subjectId: string;
   subjectName: string;
   courses: CourseData[];
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function toDate(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
+async function listActivityDaysAnywhere(windowStart: Date): Promise<Date[]> {
+  const db = getDb();
+
+  const [topicDays, attemptDays, phraseBankDays] = await Promise.all([
+    db
+      .select({ latest: sql<Date | string>`max(${topics.progressLastInteractedAt})` })
+      .from(topics)
+      .where(gte(topics.progressLastInteractedAt, windowStart))
+      .groupBy(sql`date_trunc('day', ${topics.progressLastInteractedAt})`),
+    db
+      .select({ latest: sql<Date | string>`max(${attempts.createdAt})` })
+      .from(attempts)
+      .where(gte(attempts.createdAt, windowStart))
+      .groupBy(sql`date_trunc('day', ${attempts.createdAt})`),
+    db
+      .select({ latest: sql<Date | string>`max(${phraseBankAppearances.createdAt})` })
+      .from(phraseBankAppearances)
+      .where(gte(phraseBankAppearances.createdAt, windowStart))
+      .groupBy(sql`date_trunc('day', ${phraseBankAppearances.createdAt})`),
+  ]);
+
+  return [...topicDays, ...attemptDays, ...phraseBankDays]
+    .filter((row) => row.latest !== null)
+    .map((row) => toDate(row.latest));
 }
 
 export async function listCourseRefocusSuggestions(): Promise<CourseRefocusSuggestion[]> {
@@ -102,19 +141,8 @@ export async function listCourseRefocusSuggestions(): Promise<CourseRefocusSugge
     }
   }
 
-  const allMostRecentActivities: Date[] = [];
-  for (const subjectData of subjectGroupsMap.values()) {
-    for (const course of subjectData.courses) {
-      if (course.lastStudiedAt) {
-        allMostRecentActivities.push(course.lastStudiedAt);
-      }
-    }
-  }
-
-  const mostRecentActivityAnywhere =
-    allMostRecentActivities.length > 0
-      ? new Date(Math.max(...allMostRecentActivities.map((d) => d.getTime())))
-      : null;
+  const activityWindowStart = new Date(now.getTime() - STALE_DAYS * MS_PER_DAY);
+  const activityAnywhere = await listActivityDaysAnywhere(activityWindowStart);
 
   const suggestions: CourseRefocusSuggestion[] = [];
 
@@ -122,7 +150,7 @@ export async function listCourseRefocusSuggestions(): Promise<CourseRefocusSugge
     const candidates = computeCourseRefocusCandidatesForSubject(
       subjectData.courses,
       now,
-      mostRecentActivityAnywhere,
+      activityAnywhere,
       thresholds,
     );
 

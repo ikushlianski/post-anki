@@ -30,15 +30,45 @@ function computeTopBandSize(eligibleCount: number): number {
   return Math.max(1, Math.ceil(eligibleCount / 3));
 }
 
+export function hasSustainedEngagementElsewhere(
+  activityAnywhere: Date[],
+  now: Date,
+  thresholds: CourseRefocusThresholds,
+): boolean {
+  let isActiveNow = false;
+  let wasAlreadyEngagedBeforeNow = false;
+
+  for (const activity of activityAnywhere) {
+    const days = daysSince(activity, now);
+
+    if (days <= thresholds.activeWindowDays) {
+      isActiveNow = true;
+      continue;
+    }
+
+    if (days < thresholds.staleDays) {
+      wasAlreadyEngagedBeforeNow = true;
+    }
+  }
+
+  return isActiveNow && wasAlreadyEngagedBeforeNow;
+}
+
 export function computeCourseRefocusCandidatesForSubject(
   courses: CourseRefocusSignal[],
   now: Date,
-  mostRecentActivityAnywhere: Date | null,
+  activityAnywhere: Date[],
   thresholds: CourseRefocusThresholds,
 ): CourseRefocusCandidate[] {
   const eligible = courses.filter((c) => c.learningStatus !== "done" && c.learningStatus !== "skipped");
 
   if (eligible.length === 0) {
+    return [];
+  }
+
+  const isEngagedElsewhere = hasSustainedEngagementElsewhere(activityAnywhere, now, thresholds);
+
+  if (!isEngagedElsewhere) {
     return [];
   }
 
@@ -50,30 +80,21 @@ export function computeCourseRefocusCandidatesForSubject(
     const daysSinceActivity = daysSince(referenceDate, now);
 
     if (course.order <= topBandSize && daysSinceActivity >= thresholds.staleDays) {
-      if (mostRecentActivityAnywhere !== null) {
-        const daysSinceMostRecentActivity = daysSince(mostRecentActivityAnywhere, now);
-        if (daysSinceMostRecentActivity <= thresholds.activeWindowDays) {
-          candidates.push({
-            curriculumId: course.id,
-            reason: "stale_top_priority",
-          });
-        }
-      }
+      candidates.push({
+        curriculumId: course.id,
+        reason: "stale_top_priority",
+      });
     }
 
     if (
       course.order === 1 &&
       course.lastStudiedAt === null &&
-      daysSince(course.createdAt, now) <= thresholds.recentDays &&
-      mostRecentActivityAnywhere !== null
+      daysSince(course.createdAt, now) <= thresholds.recentDays
     ) {
-      const daysSinceMostRecentActivity = daysSince(mostRecentActivityAnywhere, now);
-      if (daysSinceMostRecentActivity <= thresholds.activeWindowDays) {
-        candidates.push({
-          curriculumId: course.id,
-          reason: "new_high_priority_ignored",
-        });
-      }
+      candidates.push({
+        curriculumId: course.id,
+        reason: "new_high_priority_ignored",
+      });
     }
   }
 

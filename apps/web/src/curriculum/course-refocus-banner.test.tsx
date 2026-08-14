@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseRefocusBanner } from './course-refocus-banner'
@@ -56,14 +56,13 @@ describe('CourseRefocusBanner', () => {
 
     renderBanner(suggestions)
 
-    expect(screen.getByText('Relational Database Fundamentals')).toBeInTheDocument()
-    expect(screen.getByText('Query Optimization')).toBeInTheDocument()
-    expect(screen.getByText('Distributed Systems')).toBeInTheDocument()
+    expect(screen.getByText('Relational Database Fundamentals')).toBeTruthy()
+    expect(screen.getByText('Query Optimization')).toBeTruthy()
+    expect(screen.getByText('Distributed Systems')).toBeTruthy()
   })
 
   it('removes card from view after dismissing', async () => {
     const user = userEvent.setup()
-    const onRefresh = vi.fn()
     const suggestions: CourseRefocusSuggestion[] = [
       {
         curriculumId: 'c1',
@@ -81,7 +80,7 @@ describe('CourseRefocusBanner', () => {
     await user.click(dismissButton)
 
     await waitFor(() => {
-      expect(screen.queryByText('Relational Database Fundamentals')).not.toBeInTheDocument()
+      expect(screen.queryByText('Relational Database Fundamentals')).toBeNull()
     })
   })
 
@@ -99,7 +98,7 @@ describe('CourseRefocusBanner', () => {
 
     renderBanner(suggestions)
 
-    expect(screen.getByText(/haven't studied this course in a while/i)).toBeInTheDocument()
+    expect(screen.getByText(/haven't studied this course in a while/i)).toBeTruthy()
   })
 
   it('displays correct reason message for new course', () => {
@@ -116,6 +115,31 @@ describe('CourseRefocusBanner', () => {
 
     renderBanner(suggestions)
 
-    expect(screen.getByText(/new, high-priority course/i)).toBeInTheDocument()
+    expect(screen.getByText(/new, high-priority course/i)).toBeTruthy()
+  })
+
+  it('never tells the learner how many days they have been away', () => {
+    const suggestions: CourseRefocusSuggestion[] = [
+      {
+        curriculumId: 'c1',
+        subjectId: 'subj1',
+        subjectName: 'Database Design',
+        courseName: 'Relational Database Fundamentals',
+        reason: 'stale_top_priority',
+        dismissedAt: null,
+      },
+      {
+        curriculumId: 'c2',
+        subjectId: 'subj2',
+        subjectName: 'System Design',
+        courseName: 'Distributed Systems',
+        reason: 'new_high_priority_ignored',
+        dismissedAt: null,
+      },
+    ]
+
+    const { container } = renderBanner(suggestions)
+
+    expect(container.textContent).not.toMatch(/\d+\s*(day|week|month)s?/i)
   })
 })
