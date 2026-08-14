@@ -78,6 +78,9 @@ const { startSocraticSession, answerSocraticSession, completeSessionNow } = awai
   "../socratic/socratic.service.js"
 );
 const { startProbe } = await import("./probe.service.js");
+const { getMostRecentTurnArchetype, getRecentSessionExchangesForGap } = await import(
+  "../socratic/socratic.repo.js"
+);
 
 let client: pg.Client;
 
@@ -282,10 +285,17 @@ describe("SCENARIO 6 — cross-surface LRU sharing and same-session continuation
     expect(fifthPrompt).toContain("Framing archetype for this question: Cross-cutting");
     expect(probeQuestion.archetype).toBe("cross_cutting");
 
+    // AC 24 — the full 5-key map, not just the 3 applicable keys: the two
+    // never-applicable archetypes (compare_contrast, debug_challenge) stay
+    // null across every write in this whole scenario.
     state = await archetypeStateRow(scenery.gapId);
-    expect(state.archetype_last_used_at.scenario_based).toBe(now1);
-    expect(state.archetype_last_used_at.design_challenge).toBe(now4);
-    expect(state.archetype_last_used_at.cross_cutting).toBe(now5);
+    expect(state.archetype_last_used_at).toEqual({
+      scenario_based: now1,
+      compare_contrast: null,
+      design_challenge: now4,
+      cross_cutting: now5,
+      debug_challenge: null,
+    });
   }, 30_000);
 });
 
@@ -371,5 +381,115 @@ describe("AC 32 — a gap only ever probed via push/startProbe never gets a prio
 
     expect(second.archetype).toBe("compare_contrast");
     expect(secondPrompt).not.toContain("Prior sessions discussing this concept");
+  }, 30_000);
+});
+
+async function seedSocraticSession(topicId: string, curriculumId: string, createdAt: string) {
+  const sessionId = id("ssess");
+
+  await client.query(
+    `INSERT INTO socratic_sessions (id, topic_id, curriculum_id, status, created_at)
+     VALUES ($1, $2, $3, 'completed', $4)`,
+    [sessionId, topicId, curriculumId, createdAt],
+  );
+
+  return sessionId;
+}
+
+async function seedSocraticTurn(
+  sessionId: string,
+  gapId: string,
+  order: number,
+  archetype: string,
+) {
+  await client.query(
+    `INSERT INTO socratic_turns (id, session_id, gap_id, concept_label, "order", prompt, archetype)
+     VALUES ($1, $2, $3, 'Concept', $4, 'Question?', $5)`,
+    [id("sturn"), sessionId, gapId, order, archetype],
+  );
+}
+
+// AC 28, 32, 33 — direct proof against socratic.repo.ts's two new query
+// functions, real Postgres, no service layer involved. Named explicitly as
+// the "easiest to get wrong" items from todo.md: getMostRecentTurnArchetype
+// must scope to BOTH sessionId AND gapId (not either alone), and the
+// context query must resolve 3 distinct SESSIONS, not `.limit(3)` on turns.
+describe("AC 28, 32, 33 — direct repo-level proof: session+gap scoping and distinct-session resolution", () => {
+  it("scopes getMostRecentTurnArchetype to BOTH session and gap, and getRecentSessionExchangesForGap resolves 3 distinct sessions (not turns), newest-first, excluding the current one", async () => {
+    const scenery = await seedTopicWithGap();
+    const gapG = scenery.gapId;
+    const [gapH] = (
+      await client.query(
+        `INSERT INTO gaps (id, topic_id, label, state, origin) VALUES ($1, $2, $3, 'open', 'user') RETURNING id`,
+        [id("gap"), scenery.topicId, "Second gap in the same topic"],
+      )
+    ).rows.map((r) => r.id as string);
+
+    const sessionE = await seedSocraticSession(
+      scenery.topicId,
+      scenery.curriculumId,
+      "2026-08-01T00:00:00.000Z",
+    );
+    await seedSocraticTurn(sessionE, gapG, 1, "scenario_based");
+
+    const sessionA = await seedSocraticSession(
+      scenery.topicId,
+      scenery.curriculumId,
+      "2026-08-02T00:00:00.000Z",
+    );
+    await seedSocraticTurn(sessionA, gapG, 1, "compare_contrast");
+    await seedSocraticTurn(sessionA, gapG, 2, "design_challenge");
+
+    // Session B has 5 turns for gap G AND a 6th, higher-order turn for gap
+    // H — if getMostRecentTurnArchetype ignored gapId and scoped to session
+    // alone, it would wrongly return H's archetype here instead of G's.
+    const sessionB = await seedSocraticSession(
+      scenery.topicId,
+      scenery.curriculumId,
+      "2026-08-03T00:00:00.000Z",
+    );
+    const bArchetypesForG = [
+      "scenario_based",
+      "compare_contrast",
+      "design_challenge",
+      "cross_cutting",
+      "debug_challenge",
+    ];
+
+    for (const [i, archetype] of bArchetypesForG.entries()) {
+      await seedSocraticTurn(sessionB, gapG, i + 1, archetype);
+    }
+
+    await seedSocraticTurn(sessionB, gapH!, 6, "scenario_based");
+
+    const sessionC = await seedSocraticSession(
+      scenery.topicId,
+      scenery.curriculumId,
+      "2026-08-04T00:00:00.000Z",
+    );
+    await seedSocraticTurn(sessionC, gapG, 1, "cross_cutting");
+
+    // Session D is the newest and has NO turns for gap G at all — if
+    // getMostRecentTurnArchetype ignored sessionId and scoped to gapId
+    // alone, it would wrongly leak an earlier session's archetype here
+    // instead of correctly reporting "no continuation for this session".
+    const sessionD = await seedSocraticSession(
+      scenery.topicId,
+      scenery.curriculumId,
+      "2026-08-05T00:00:00.000Z",
+    );
+
+    expect(await getMostRecentTurnArchetype(sessionB, gapG)).toBe("debug_challenge");
+    expect(await getMostRecentTurnArchetype(sessionD, gapG)).toBeNull();
+
+    const exchanges = await getRecentSessionExchangesForGap(gapG, sessionD, 3);
+
+    expect(exchanges.map((e) => e.sessionId)).toEqual([sessionC, sessionB, sessionA]);
+    expect(exchanges.find((e) => e.sessionId === sessionB)!.turns).toHaveLength(5);
+    expect(
+      exchanges
+        .find((e) => e.sessionId === sessionB)!
+        .turns.some((t) => t.prompt.includes("Question?")),
+    ).toBe(true);
   }, 30_000);
 });
