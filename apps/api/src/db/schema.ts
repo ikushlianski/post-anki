@@ -543,6 +543,37 @@ export const gapMastery = pgTable(
   ],
 );
 
+// LRU archetype rotation (issue #36) — a SIDECAR to `gaps`, 1:1 via `gapId`
+// (real unique index below), mirroring `gap_mastery`'s own documented
+// reasoning above for the identical choice: keeps `gaps`' existing writers
+// untouched, this state is cross-cutting/orthogonal to gap state exactly
+// like mastery is.
+export const gapArchetypeState = pgTable(
+  "gap_archetype_state",
+  {
+    id: text("id").primaryKey(),
+    gapId: text("gap_id").notNull(),
+    // Nullable at the column level defensively (matches gap_mastery's own
+    // style of tolerating a not-yet-fully-populated row), but in practice
+    // NEVER actually null once a row exists: the only insert path
+    // (recordArchetypeClassification) always supplies a normalized
+    // non-empty array in the same write that creates the row. Frozen once
+    // written — never re-derived, so the rotation's candidate pool never
+    // silently drifts session to session.
+    applicableArchetypes: jsonb("applicable_archetypes").$type<string[]>(),
+    // All 5 archetype keys always present, ISO timestamp or null.
+    // Per-archetype (not just "last archetype used overall") because LRU
+    // selection needs the full recency ordering across the candidate set,
+    // not just the single most recent value.
+    archetypeLastUsedAt: jsonb("archetype_last_used_at")
+      .$type<Record<string, string | null>>()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("gap_archetype_state_gap_id_unique").on(table.gapId)],
+);
+
 export const apiTokens = pgTable("api_tokens", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
@@ -618,6 +649,12 @@ export const socraticTurns = pgTable("socratic_turns", {
   action: text("action"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   answeredAt: timestamp("answered_at", { withTimezone: true }),
+  // LRU archetype rotation (issue #36) — which archetype framed THIS turn's
+  // question, for same-session continuation (a retry on the same gap within
+  // the same still-active session reuses this instead of re-rolling) and
+  // the last-3-sessions context block. Null for a turn asked before this
+  // column existed.
+  archetype: text("archetype"),
 });
 
 export const nodeFeedback = pgTable("node_feedback", {

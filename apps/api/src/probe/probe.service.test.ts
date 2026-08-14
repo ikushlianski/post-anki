@@ -59,6 +59,26 @@ vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+const getGapArchetypeState = vi.fn();
+const recordArchetypeClassification = vi.fn();
+const recordArchetypeUsage = vi.fn();
+
+vi.mock("../gap/gap-archetype.repo.js", () => ({
+  getGapArchetypeState: (gapId: string) => getGapArchetypeState(gapId),
+  recordArchetypeClassification: (...args: unknown[]) =>
+    recordArchetypeClassification(...args),
+  recordArchetypeUsage: (...args: unknown[]) => recordArchetypeUsage(...args),
+}));
+
+const getMostRecentTurnArchetype = vi.fn();
+const getRecentSessionExchangesForGap = vi.fn();
+
+vi.mock("../socratic/socratic.repo.js", () => ({
+  getMostRecentTurnArchetype: (...args: unknown[]) => getMostRecentTurnArchetype(...args),
+  getRecentSessionExchangesForGap: (...args: unknown[]) =>
+    getRecentSessionExchangesForGap(...args),
+}));
+
 vi.mock("@post-anki/core", async () => {
   const actual = await vi.importActual<typeof import("@post-anki/core")>("@post-anki/core");
 
@@ -377,5 +397,208 @@ describe("startProbe depth-calibration staleness (#26/#42)", () => {
     const prompt = askGenerate.mock.calls[0]![0] as string;
 
     expect(prompt).toContain("Target depth: working");
+  });
+});
+
+describe("LRU archetype rotation (issue #36)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTopicRow.mockResolvedValue(topicRow);
+    getMostRecentTurnArchetype.mockResolvedValue(null);
+    getRecentSessionExchangesForGap.mockResolvedValue([]);
+  });
+
+  it("never touches archetype state for a quick_test question, even with a real gap (AC 19, 26)", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Pick one", options: ["a", "b", "c", "d"], correctAnswerIndex: 1 },
+    });
+
+    const result = await startProbe({ topicId: "t1", mode: "quick_test" });
+
+    expect(getGapArchetypeState).not.toHaveBeenCalled();
+    expect(recordArchetypeClassification).not.toHaveBeenCalled();
+    expect(recordArchetypeUsage).not.toHaveBeenCalled();
+
+    if (!("error" in result)) {
+      expect(result.archetype).toBeNull();
+    }
+  });
+
+  it("never touches archetype state for the opening question (gap === null), even in socratic mode (AC 19, 26)", async () => {
+    listGapsForTopic.mockResolvedValue([]);
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Tell me about this topic", options: [], correctAnswerIndex: null },
+    });
+
+    const result = await startProbe({ topicId: "t1", mode: "socratic" });
+
+    expect(getGapArchetypeState).not.toHaveBeenCalled();
+
+    if (!("error" in result)) {
+      expect(result.archetype).toBeNull();
+    }
+  });
+
+  it("SCENARIO 1 / AC 20 — a gap's first-ever socratic question asks the model to classify AND forces Scenario-based framing", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    getGapArchetypeState.mockResolvedValue(null);
+    askGenerate.mockResolvedValue({
+      object: {
+        prompt: "Walk me through it",
+        options: [],
+        correctAnswerIndex: null,
+        applicableArchetypes: ["scenario_based", "design_challenge"],
+      },
+    });
+
+    const result = await startProbe(
+      { topicId: "t1", mode: "socratic" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain("Classify which of the 5 reference archetypes");
+    expect(prompt).toContain("Scenario-based framing");
+    expect(prompt).not.toContain("Framing archetype for this question");
+
+    expect(recordArchetypeClassification).toHaveBeenCalledWith(
+      "g1",
+      ["scenario_based", "design_challenge"],
+      "scenario_based",
+      "2026-06-24T00:00:00.000Z",
+    );
+    expect(recordArchetypeUsage).not.toHaveBeenCalled();
+
+    if (!("error" in result)) {
+      expect(result.archetype).toBe("scenario_based");
+    }
+  });
+
+  it("SCENARIO 2 / AC 23, 24 — an already-classified gap gets no classification instruction, just the framing line, and only recordArchetypeUsage fires", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    getGapArchetypeState.mockResolvedValue({
+      gapId: "g1",
+      applicableArchetypes: ["scenario_based", "design_challenge", "cross_cutting"],
+      archetypeLastUsedAt: {
+        scenario_based: "2026-06-20T00:00:00.000Z",
+        compare_contrast: null,
+        design_challenge: null,
+        cross_cutting: null,
+        debug_challenge: null,
+      },
+    });
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Today's specific question", options: [], correctAnswerIndex: null },
+    });
+
+    const result = await startProbe(
+      { topicId: "t1", mode: "socratic" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).not.toContain("Classify which of the 5 reference archetypes");
+    // scenario_based excluded (most recently used); design_challenge (canonical
+    // position 3) is earliest of the two remaining never-used candidates.
+    expect(prompt).toContain("Framing archetype for this question: Design challenge");
+
+    expect(recordArchetypeClassification).not.toHaveBeenCalled();
+    expect(recordArchetypeUsage).toHaveBeenCalledWith(
+      "g1",
+      "design_challenge",
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    if (!("error" in result)) {
+      expect(result.archetype).toBe("design_challenge");
+    }
+  });
+
+  it("includes the prior-sessions context block only when getRecentSessionExchangesForGap returns real history (AC 34)", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    getGapArchetypeState.mockResolvedValue({
+      gapId: "g1",
+      applicableArchetypes: ["scenario_based", "design_challenge"],
+      archetypeLastUsedAt: { scenario_based: null, compare_contrast: null, design_challenge: null, cross_cutting: null, debug_challenge: null },
+    });
+    getRecentSessionExchangesForGap.mockResolvedValue([
+      {
+        sessionId: "ss-old",
+        createdAt: new Date("2026-06-01T00:00:00.000Z"),
+        turns: [{ prompt: "Old question?", answer: "Old answer" }],
+      },
+    ]);
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Fresh question", options: [], correctAnswerIndex: null },
+    });
+
+    await startProbe({ topicId: "t1", mode: "socratic" }, "2026-06-24T00:00:00.000Z");
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain("Prior sessions discussing this concept");
+    expect(prompt).toContain("Old question?");
+  });
+
+  it("SCENARIO 3 / AC 29 — same-session continuation reuses the archetype verbatim, no LRU selection, no write, no classification", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    getMostRecentTurnArchetype.mockResolvedValue("cross_cutting");
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Continuation question", options: [], correctAnswerIndex: null },
+    });
+
+    const question = await (
+      await import("./probe.service.js")
+    ).buildProbeQuestionForGap(
+      "t1",
+      makeGap(),
+      "socratic",
+      "2026-06-24T00:00:00.000Z",
+      "session-1",
+    );
+
+    expect(getMostRecentTurnArchetype).toHaveBeenCalledWith("session-1", "g1");
+    expect(getGapArchetypeState).not.toHaveBeenCalled();
+    expect(recordArchetypeClassification).not.toHaveBeenCalled();
+    expect(recordArchetypeUsage).not.toHaveBeenCalled();
+
+    const prompt = askGenerate.mock.calls[0]![0] as string;
+
+    expect(prompt).not.toContain("Framing archetype for this question");
+    expect(prompt).not.toContain("Classify which of the 5 reference archetypes");
+    expect(question?.archetype).toBe("cross_cutting");
+  });
+
+  it("SCENARIO 5 / AC 25 — an agent failure writes no archetype state and returns archetype: null", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    getGapArchetypeState.mockResolvedValue(null);
+    askGenerate.mockRejectedValue(new Error("agent down"));
+
+    const result = await startProbe(
+      { topicId: "t1", mode: "socratic" },
+      "2026-06-24T00:00:00.000Z",
+    );
+
+    expect(recordArchetypeClassification).not.toHaveBeenCalled();
+    expect(recordArchetypeUsage).not.toHaveBeenCalled();
+
+    if (!("error" in result)) {
+      expect(result.archetype).toBeNull();
+    }
+  });
+
+  it("AC 27 — startProbe never passes a socraticSessionId, so continuation never applies to it", async () => {
+    listGapsForTopic.mockResolvedValue([makeGap()]);
+    getGapArchetypeState.mockResolvedValue(null);
+    askGenerate.mockResolvedValue({
+      object: { prompt: "Fresh question", options: [], correctAnswerIndex: null },
+    });
+
+    await startProbe({ topicId: "t1", mode: "socratic" }, "2026-06-24T00:00:00.000Z");
+
+    expect(getMostRecentTurnArchetype).not.toHaveBeenCalled();
   });
 });

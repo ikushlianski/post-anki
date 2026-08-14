@@ -22,6 +22,20 @@ const ASK_INSTRUCTIONS = [
   "- For a socratic question, options is empty and correctAnswerIndex is null.",
   "- If a \"Prior feedback\" section is present for this topic, honor it: never repeat anything",
   "  listed under 'Avoid', and lean into the style of anything listed under 'Well received'.",
+  "",
+  "Archetype reference (used only when the per-call prompt asks you to apply one, or to classify):",
+  "1. Scenario-based — \"A team is building X and hits Y problem — how would you approach it?\"",
+  "2. Compare/contrast — \"You know Next.js. How would this compare for a Next.js developer?\"",
+  "3. Design challenge — \"Starting a new project — when would you choose this over the alternative?\"",
+  "4. Cross-cutting — \"A client is concerned about the security implications — what would you tell them?\"",
+  "5. Debug challenge — \"A user reports X is broken — where would you look first?\"",
+  "",
+  "Filtering rules for classification:",
+  "- Debug challenge: ONLY for runtime/operational concepts (cold starts, latency, error handling).",
+  "  Skip for conceptual/pricing/policy topics.",
+  "- Compare/contrast: ONLY for architectural choices where a real alternative exists. Skip for",
+  "  single-approach topics.",
+  "- Scenario-based, Design challenge, Cross-cutting: apply broadly to almost all concepts.",
 ].join("\n");
 
 const EVAL_INSTRUCTIONS = [

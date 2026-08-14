@@ -2,6 +2,7 @@ import { z } from "zod";
 import { questionKindSchema } from "./question";
 import { topicProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
+import { archetypeSchema } from "./archetype";
 
 export const probeQuestionSchema = z.object({
   gapId: z.string().nullable(),
@@ -11,6 +12,11 @@ export const probeQuestionSchema = z.object({
   options: z.array(z.string()).optional(),
   sources: z.array(z.string()).optional(),
   correctAnswerIndex: z.number().int().nullable().optional(),
+  // LRU archetype rotation (issue #36) — the question archetype the service
+  // selected (or reused via same-session continuation) for this question.
+  // null for quick_test and the opening (gap === null) question, which never
+  // go through archetype selection at all.
+  archetype: archetypeSchema.nullable().optional(),
 });
 
 export type ProbeQuestion = z.infer<typeof probeQuestionSchema>;

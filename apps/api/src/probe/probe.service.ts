@@ -1,5 +1,6 @@
 import {
   probeEvaluationSchema,
+  type Archetype,
   type Gap,
   type ProbeQuestion,
   type ProbeResult,
@@ -13,9 +14,11 @@ import {
   buildFeedbackDigest,
   isCalibrationStale,
   nextGapToProbe,
+  normalizeApplicableArchetypes,
   openGaps,
   progressFromGaps,
   reactivateOnFail,
+  selectArchetype,
   selectRecentFeedback,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -32,14 +35,31 @@ import {
   persistGaps,
 } from "../gap/gap.repo.js";
 import {
+  getGapArchetypeState,
+  recordArchetypeClassification,
+  recordArchetypeUsage,
+} from "../gap/gap-archetype.repo.js";
+import {
   getCurriculumContextForTopic,
   getLowerLevelCoverage,
 } from "../curriculum/curriculum.repo.js";
 import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
 import { recordAnswerActivity } from "../liveness/answer-activity.js";
+import {
+  getMostRecentTurnArchetype,
+  getRecentSessionExchangesForGap,
+} from "../socratic/socratic.repo.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
 import { localEvaluation, shouldScoreLocally } from "./probe-evaluation.js";
+
+const ARCHETYPE_LABELS: Record<Archetype, string> = {
+  scenario_based: "Scenario-based",
+  compare_contrast: "Compare/contrast",
+  design_challenge: "Design challenge",
+  cross_cutting: "Cross-cutting",
+  debug_challenge: "Debug challenge",
+};
 
 const MAX_QUICK_TEST_OPTIONS = 4;
 
@@ -94,6 +114,11 @@ export async function buildProbeQuestionForGap(
   gap: Gap,
   mode: QuestionKind,
   now: string = new Date().toISOString(),
+  // LRU archetype rotation (issue #36) — trailing-optional, and ONLY ever
+  // passed by socratic.service.ts's makeTurnForGap. push.controller.ts and
+  // startProbe must never pass one: neither has a session concept, so both
+  // always want a fresh LRU pick, never continuation.
+  socraticSessionId?: string,
 ): Promise<ProbeQuestion | null> {
   const topic = await getTopicRow(topicId);
 
@@ -122,6 +147,7 @@ export async function buildProbeQuestionForGap(
       priorLevelCoverage,
     },
     now,
+    socraticSessionId,
   );
 }
 
@@ -210,8 +236,16 @@ async function buildQuestion(
   mode: QuestionKind,
   ask: AskContext,
   now: string,
+  socraticSessionId?: string,
 ): Promise<ProbeQuestion> {
-  const generated = await generateQuestion(topic, gap, mode, ask, now);
+  const { generated, archetype } = await generateQuestion(
+    topic,
+    gap,
+    mode,
+    ask,
+    now,
+    socraticSessionId,
+  );
 
   return {
     gapId: gap?.id ?? null,
@@ -224,6 +258,7 @@ async function buildQuestion(
         : undefined,
     sources: ask.citations.length > 0 ? ask.citations : undefined,
     correctAnswerIndex: mode === "quick_test" ? generated.correctAnswerIndex : null,
+    archetype,
   };
 }
 
@@ -239,13 +274,103 @@ function paceHint(speed: Speed): string {
   return "standard difficulty for the target depth";
 }
 
+// LRU archetype rotation (issue #36) — the AGENT's structured-output
+// contract (GeneratedQuestion) never carries the chosen archetype: the
+// SERVICE already decided it before calling the agent. This wrapper keeps
+// the two concerns separate at the type level instead of widening
+// GeneratedQuestion.
+interface QuestionWithArchetype {
+  generated: GeneratedQuestion;
+  archetype: Archetype | null;
+}
+
+interface ArchetypePlan {
+  chosen: Archetype;
+  promptLines: string[];
+  onSuccess: (result: GeneratedQuestion) => Promise<void>;
+}
+
+// Only entered for mode === "socratic" && gap !== null (AC 19) — the
+// opening question and quick_test never touch archetype logic at all.
+async function planArchetypeForQuestion(
+  gapId: string,
+  socraticSessionId: string | undefined,
+  now: string,
+): Promise<ArchetypePlan> {
+  if (socraticSessionId) {
+    // Same-session continuation (a retry on a still-open gap within the
+    // same active Socratic session) reuses the archetype verbatim — no
+    // re-roll, no LRU write, no classification instruction even if
+    // somehow unclassified.
+    const continued = await getMostRecentTurnArchetype(socraticSessionId, gapId);
+
+    if (continued) {
+      return { chosen: continued, promptLines: [], onSuccess: async () => {} };
+    }
+  }
+
+  const state = await getGapArchetypeState(gapId);
+
+  if (!state) {
+    // First-ever socratic question for this gap — force the Scenario-based
+    // framing (the safe universal default) and ask the model to classify
+    // which archetypes apply. No archetype context/history line — there is
+    // none yet.
+    return {
+      chosen: "scenario_based",
+      promptLines: [
+        "Classify which of the 5 reference archetypes apply to this concept in " +
+          "applicableArchetypes, per the filtering rules in your instructions.",
+        "For THIS question, use the Scenario-based framing (the safe universal default).",
+      ],
+      onSuccess: async (result) => {
+        const normalized = normalizeApplicableArchetypes(result.applicableArchetypes ?? []);
+
+        await recordArchetypeClassification(gapId, normalized, "scenario_based", now);
+      },
+    };
+  }
+
+  // Already classified — select in-process (no LLM call), no classification
+  // instruction at all this time, plus the last-3-sessions context block
+  // when non-empty.
+  const chosen = selectArchetype(state.applicableArchetypes, state.archetypeLastUsedAt);
+  const exchanges = await getRecentSessionExchangesForGap(gapId, socraticSessionId ?? null);
+
+  const promptLines = [
+    `Framing archetype for this question: ${ARCHETYPE_LABELS[chosen]}. Write today's specific question fitting this framing.`,
+  ];
+
+  if (exchanges.length > 0) {
+    promptLines.push(
+      "Prior sessions discussing this concept — avoid repeating the same specific scenario or wording:",
+      ...exchanges.flatMap((session) =>
+        session.turns.map((turn) =>
+          turn.answer
+            ? `- Asked: ${turn.prompt} | Answered: ${turn.answer}`
+            : `- Asked: ${turn.prompt}`,
+        ),
+      ),
+    );
+  }
+
+  return {
+    chosen,
+    promptLines,
+    onSuccess: async () => {
+      await recordArchetypeUsage(gapId, chosen, now);
+    },
+  };
+}
+
 async function generateQuestion(
   topic: TopicRow,
   gap: Gap | null,
   mode: QuestionKind,
   ask: AskContext,
   now: string,
-): Promise<GeneratedQuestion> {
+  socraticSessionId?: string,
+): Promise<QuestionWithArchetype> {
   const agent = getMastra().getAgent(AGENT_KEYS.mentorAsk);
 
   // Read-time-only calibration floor (#26/#42): a gap that hasn't been
@@ -268,6 +393,11 @@ async function generateQuestion(
   const feedbackRows = await getFeedbackForTopic(topic.id);
   const feedbackDigest = buildFeedbackDigest(selectRecentFeedback(feedbackRows));
 
+  const archetypePlan =
+    mode === "socratic" && gap !== null
+      ? await planArchetypeForQuestion(gap.id, socraticSessionId, now)
+      : null;
+
   const prompt = [
     `Topic: ${topic.title}`,
     topic.summary ? `Why it matters: ${topic.summary}` : "",
@@ -283,6 +413,7 @@ async function generateQuestion(
     ask.priorLevelCoverage && ask.priorLevelCoverage.length > 0
       ? `Already covered at a lower level: ${ask.priorLevelCoverage.join(", ")} — build on these, don't re-teach them.`
       : "",
+    ...(archetypePlan?.promptLines ?? []),
     `Question kind: ${mode}`,
   ]
     .filter(Boolean)
@@ -294,13 +425,22 @@ async function generateQuestion(
     });
 
     if (result.object) {
-      return result.object;
+      if (archetypePlan) {
+        await archetypePlan.onSuccess(result.object);
+      }
+
+      return { generated: result.object, archetype: archetypePlan?.chosen ?? null };
     }
   } catch (err) {
     log.error({ err, topicId: topic.id, gapId: gap?.id ?? null }, "probe_question_failed");
   }
 
-  return fallbackQuestion(topic, gap, mode);
+  // The fallback question was never actually shown with any archetype
+  // framing — no state write (see planArchetypeForQuestion's onSuccess,
+  // never invoked here) and archetype is null, not archetypePlan.chosen,
+  // so a later retry-branch lookup never finds a phantom framing for this
+  // turn.
+  return { generated: fallbackQuestion(topic, gap, mode), archetype: null };
 }
 
 async function evaluateAnswer(

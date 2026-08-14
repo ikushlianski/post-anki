@@ -419,7 +419,12 @@ async function makeTurnForGap(
   gap: Gap,
   now: string,
 ): Promise<SocraticTurnRow> {
-  const question = await buildProbeQuestionForGap(topicRow.id, gap, "socratic");
+  // LRU archetype rotation (issue #36) — always passes sessionId, so a
+  // retry on this same (session, gap) pair later finds it via
+  // getMostRecentTurnArchetype and reuses the framing instead of rotating
+  // mid-conversation. This is the one caller that always passes it; push
+  // and startProbe never do (see buildProbeQuestionForGap's own comment).
+  const question = await buildProbeQuestionForGap(topicRow.id, gap, "socratic", now, sessionId);
   const prompt =
     question?.prompt ??
     `In your own words, explain ${gap.label} — and the tradeoffs you'd weigh.`;
@@ -437,6 +442,7 @@ async function makeTurnForGap(
     action: null,
     createdAt: new Date(now),
     answeredAt: null,
+    archetype: question?.archetype ?? null,
   };
 
   await insertTurn(turn);

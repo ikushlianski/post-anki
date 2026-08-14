@@ -1,5 +1,5 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
-import type { SocraticAction, SocraticDegree } from "@post-anki/shared";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import type { Archetype, SocraticAction, SocraticDegree } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { socraticSessions, socraticTurns } from "../db/schema.js";
 
@@ -125,4 +125,90 @@ export async function markCheckpointShown(id: string, now: string): Promise<void
     .where(
       and(eq(socraticSessions.id, id), isNull(socraticSessions.checkpointShownAt)),
     );
+}
+
+// LRU archetype rotation (issue #36) — same-session continuation. Scoped to
+// BOTH sessionId AND gapId: session-only would return the wrong turn's
+// archetype whenever a session has probed more than one gap; gap-only would
+// leak continuation across different sessions entirely.
+export async function getMostRecentTurnArchetype(
+  sessionId: string,
+  gapId: string,
+): Promise<Archetype | null> {
+  const rows = await getDb()
+    .select({ archetype: socraticTurns.archetype })
+    .from(socraticTurns)
+    .where(and(eq(socraticTurns.sessionId, sessionId), eq(socraticTurns.gapId, gapId)))
+    .orderBy(desc(socraticTurns.order))
+    .limit(1);
+
+  return (rows[0]?.archetype as Archetype | null) ?? null;
+}
+
+export interface RecentSessionExchange {
+  sessionId: string;
+  createdAt: Date;
+  turns: { prompt: string; answer: string | null }[];
+}
+
+// LRU archetype rotation (issue #36) — the last-3-sessions context block.
+// Two-step query, not a single `.limit(3)` on turns: a single session can
+// contain many turns for the same gap (several retries), so limiting the
+// turns query directly can return turns from only 1-2 sessions instead of
+// 3 distinct ones. Resolves the distinct session id set FIRST, excluding
+// excludeSessionId at the query level (not an afterthought filter), then
+// fetches that session set's own turns for this gap, in original turn
+// order, grouped under each session.
+export async function getRecentSessionExchangesForGap(
+  gapId: string,
+  excludeSessionId: string | null,
+  limit = 3,
+): Promise<RecentSessionExchange[]> {
+  const db = getDb();
+
+  const sessionIdRows = await db
+    .selectDistinct({ sessionId: socraticTurns.sessionId })
+    .from(socraticTurns)
+    .where(
+      excludeSessionId
+        ? and(eq(socraticTurns.gapId, gapId), ne(socraticTurns.sessionId, excludeSessionId))
+        : eq(socraticTurns.gapId, gapId),
+    );
+
+  const candidateSessionIds = sessionIdRows.map((row) => row.sessionId);
+
+  if (candidateSessionIds.length === 0) {
+    return [];
+  }
+
+  const sessionRows = await db
+    .select({ id: socraticSessions.id, createdAt: socraticSessions.createdAt })
+    .from(socraticSessions)
+    .where(inArray(socraticSessions.id, candidateSessionIds))
+    .orderBy(desc(socraticSessions.createdAt))
+    .limit(limit);
+
+  if (sessionRows.length === 0) {
+    return [];
+  }
+
+  const chosenSessionIds = sessionRows.map((row) => row.id);
+
+  const turnRows = await db
+    .select({
+      sessionId: socraticTurns.sessionId,
+      prompt: socraticTurns.prompt,
+      answer: socraticTurns.answer,
+    })
+    .from(socraticTurns)
+    .where(and(eq(socraticTurns.gapId, gapId), inArray(socraticTurns.sessionId, chosenSessionIds)))
+    .orderBy(socraticTurns.order);
+
+  return sessionRows.map((session) => ({
+    sessionId: session.id,
+    createdAt: session.createdAt,
+    turns: turnRows
+      .filter((turn) => turn.sessionId === session.id)
+      .map((turn) => ({ prompt: turn.prompt, answer: turn.answer })),
+  }));
 }

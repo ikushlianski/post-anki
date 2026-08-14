@@ -10,6 +10,7 @@ import { getDb } from "../db/client.js";
 import { gaps, modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
+import { deleteGapArchetypeStateForGapIds } from "../gap/gap-archetype.repo.js";
 
 export async function createModule(input: CreateModuleInput): Promise<Module> {
   const db = getDb();
@@ -119,6 +120,7 @@ export async function deleteModule(moduleId: string): Promise<boolean> {
         .where(inArray(gaps.topicId, topicIds));
 
       await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await deleteGapArchetypeStateForGapIds(gapRows.map((g) => g.id), tx);
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
     }
 

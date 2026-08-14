@@ -48,6 +48,7 @@ function seedTurn(over: Partial<SocraticTurnRow> = {}): SocraticTurnRow {
     action: null,
     createdAt: new Date("2026-08-14T08:00:00.000Z"),
     answeredAt: null,
+    archetype: null,
     ...over,
   };
 
@@ -109,7 +110,9 @@ const markCheckpointShown = vi.fn(async (id: string, now: string) => {
     sessionRow = { ...sessionRow, checkpointShownAt: new Date(now) };
   }
 });
-const createSocraticSession = vi.fn(async () => {});
+const createSocraticSession = vi.fn(async (session: SocraticSessionRow) => {
+  sessionRow = { ...session };
+});
 const getActiveSocraticSessionRow = vi.fn(async () => null);
 
 vi.mock("./socratic.repo.js", () => ({
@@ -127,7 +130,7 @@ vi.mock("./socratic.repo.js", () => ({
   ) => recordTurnAnswer(turnId, answer, degree, action, now),
   completeSocraticSession: (id: string, now: string) => completeSocraticSession(id, now),
   markCheckpointShown: (id: string, now: string) => markCheckpointShown(id, now),
-  createSocraticSession: () => createSocraticSession(),
+  createSocraticSession: (session: SocraticSessionRow) => createSocraticSession(session),
   getActiveSocraticSessionRow: () => getActiveSocraticSessionRow(),
 }));
 
@@ -178,8 +181,21 @@ vi.mock("../probe/probe-grounding.js", () => ({
   gatherProbeGrounding: vi.fn(async () => ({ text: "", citations: [] })),
 }));
 
+vi.mock("../curriculum/curriculum.repo.js", () => ({
+  getCurriculumContextForTopic: vi.fn(async () => ({
+    curriculumId: "c1",
+    status: "confirmed",
+    speed: "normal",
+    hinting: false,
+  })),
+}));
+
+const buildProbeQuestionForGap = vi.fn(
+  async (..._args: unknown[]) => null as null | { prompt: string; archetype: string | null },
+);
+
 vi.mock("../probe/probe.service.js", () => ({
-  buildProbeQuestionForGap: vi.fn(async () => null),
+  buildProbeQuestionForGap: (...args: unknown[]) => buildProbeQuestionForGap(...args),
 }));
 
 vi.mock("../streak/streak.service.js", () => ({
@@ -201,9 +217,8 @@ vi.mock("../mastra/mastra.js", () => ({
   getMastra: () => ({ getAgent: () => ({ generate }) }),
 }));
 
-const { answerSocraticSession, checkSessionIdle, completeSessionNow } = await import(
-  "./socratic.service.js"
-);
+const { answerSocraticSession, checkSessionIdle, completeSessionNow, startSocraticSession } =
+  await import("./socratic.service.js");
 
 function unwrapAnswer(
   result: AnswerSocraticResult | { error: unknown },
@@ -433,5 +448,79 @@ describe("finalizeSession (shared by /done and the inactivity sweep) — issue #
 
     expect(pendingTurn).toHaveBeenCalledWith("ss1");
     expect(listTurnRows).toHaveBeenCalledWith("ss1");
+  });
+});
+
+describe("LRU archetype rotation (issue #36) — session-id threading and turn stamping", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetFakeSocraticRepo();
+    getTopicRow.mockResolvedValue(TOPIC_ROW);
+    listGapsForTopic.mockResolvedValue([GAP]);
+  });
+
+  it("AC 27, 30 — opening a new concept passes session.id as the trailing socraticSessionId and stamps the returned archetype onto the new turn", async () => {
+    buildProbeQuestionForGap.mockResolvedValueOnce({
+      prompt: "Framed question",
+      archetype: "cross_cutting",
+    });
+
+    const result = await startSocraticSession({ topicId: "t1" }, "2026-08-14T08:00:00.000Z");
+
+    if ("error" in result) throw new Error(`unexpected error: ${result.error}`);
+
+    expect(buildProbeQuestionForGap).toHaveBeenCalledWith(
+      "t1",
+      GAP,
+      "socratic",
+      "2026-08-14T08:00:00.000Z",
+      result.id,
+    );
+
+    const insertedTurn = insertTurn.mock.calls[0]![0] as { archetype: string | null };
+
+    expect(insertedTurn.archetype).toBe("cross_cutting");
+  });
+
+  it("AC 27, 30 — the retry branch (answerSocraticSession, same gap still open) also passes session.id, and stamps the reused archetype", async () => {
+    seedTurn({ id: "turn-1", archetype: "scenario_based" });
+    generate.mockResolvedValue({
+      object: {
+        degree: "mostly_wrong",
+        whatWasRight: "",
+        pointOut: "not quite",
+        explanation: "reconsider",
+        correctAnswer: "the real answer",
+      },
+    });
+    buildProbeQuestionForGap.mockResolvedValueOnce({
+      prompt: "Continuation question",
+      archetype: "scenario_based",
+    });
+
+    const result = await answer("turn-1", "2026-08-14T08:01:00.000Z");
+
+    expect(buildProbeQuestionForGap).toHaveBeenCalledWith(
+      "t1",
+      GAP,
+      "socratic",
+      "2026-08-14T08:01:00.000Z",
+      "ss1",
+    );
+    expect(result.next?.id).toBeDefined();
+
+    const insertedTurn = insertTurn.mock.calls[0]![0] as { archetype: string | null };
+
+    expect(insertedTurn.archetype).toBe("scenario_based");
+  });
+
+  it("stamps archetype: null on the new turn when buildProbeQuestionForGap falls back to null (defensive)", async () => {
+    buildProbeQuestionForGap.mockResolvedValueOnce(null);
+
+    await startSocraticSession({ topicId: "t1" }, "2026-08-14T08:00:00.000Z");
+
+    const insertedTurn = insertTurn.mock.calls[0]![0] as { archetype: string | null };
+
+    expect(insertedTurn.archetype).toBeNull();
   });
 });

@@ -52,6 +52,7 @@ import {
 } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
+import { deleteGapArchetypeStateForGapIds } from "../gap/gap-archetype.repo.js";
 import { newId } from "../shared/id.js";
 import { withMergeLock, withSubjectLock } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
@@ -446,6 +447,10 @@ export async function deleteModules(moduleIds: string[]): Promise<void> {
         gapRows.map((g) => g.id),
         tx,
       );
+      await deleteGapArchetypeStateForGapIds(
+        gapRows.map((g) => g.id),
+        tx,
+      );
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
     }
 
@@ -643,6 +648,10 @@ export async function clearCurriculumStructure(
         .where(inArray(gaps.topicId, topicIds));
 
       await deleteGapMasteryForGapIds(
+        gapRows.map((g) => g.id),
+        tx,
+      );
+      await deleteGapArchetypeStateForGapIds(
         gapRows.map((g) => g.id),
         tx,
       );

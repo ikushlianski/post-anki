@@ -7,3 +7,4 @@ export * from "./shuffle";
 export * from "./quiz-size";
 export * from "./option-explanations";
 export * from "./replenish";
+export * from "./archetype-rotation";

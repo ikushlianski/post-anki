@@ -49,6 +49,7 @@ function makeTurn(over: Partial<SocraticTurnRow> = {}): SocraticTurnRow {
     action: null,
     createdAt: new Date("2026-08-14T10:00:00.000Z"),
     answeredAt: null,
+    archetype: null,
     ...over,
   };
 }
