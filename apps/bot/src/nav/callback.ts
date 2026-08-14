@@ -17,6 +17,7 @@ export type CallbackKind =
   | "triage_dismiss_shortcut"
   | "checkin_confirm"
   | "checkin_revisit"
+  | "save_for_next"
   | "noop";
 
 export interface ParsedCallback {
@@ -43,6 +44,7 @@ const PREFIX_TO_KIND: Record<string, CallbackKind> = {
   tad: "triage_dismiss_shortcut",
   cc: "checkin_confirm",
   cr: "checkin_revisit",
+  sv: "save_for_next",
 };
 
 export function parseCallback(data: string): ParsedCallback {

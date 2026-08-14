@@ -13,6 +13,7 @@ import { getChatContext, clearChatContext } from "./session/chat-context.repo.js
 import { handleCallback } from "./nav/dispatcher.js";
 import { showSubjects, sendScreen } from "./nav/menu.js";
 import { answerSocratic, endSocratic } from "./socratic/socratic-flow.js";
+import { finalizeForSkip, steerToTopic } from "./socratic/session-pivot-flow.js";
 import { runSessionIdleSweep } from "./socratic/session-idle-flow.js";
 import { startStudy } from "./conversation/study-flow.js";
 import type { ChatContextLike } from "./telegram/webhook.handler.js";
@@ -159,6 +160,16 @@ function main() {
         },
         onDone: async (chatId: number, context: ChatContextLike) => {
           await endSocratic(chatId, context);
+        },
+        onSkip: async (chatId: number, context: ChatContextLike) => {
+          await finalizeForSkip(chatId, context);
+        },
+        onSteer: async (
+          chatId: number,
+          context: ChatContextLike,
+          text: string,
+        ) => {
+          return steerToTopic(chatId, context, text);
         },
       }).catch((err) => log.error({ err }, "handler_failed"));
     });

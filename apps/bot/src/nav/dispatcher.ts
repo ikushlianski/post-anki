@@ -3,6 +3,7 @@ import { getCurriculumDetail } from "../api/client.js";
 import {
   answerCallbackQuery,
   editMessageText,
+  sendMessage,
 } from "../telegram/bot.js";
 import {
   getChatContext,
@@ -14,7 +15,8 @@ import {
   startQuiz,
   submitQuizAnswer,
 } from "../quiz/quiz-flow.js";
-import { startSocratic } from "../socratic/socratic-flow.js";
+import { endSocratic, startSocratic } from "../socratic/socratic-flow.js";
+import { finalizeForPivot } from "../socratic/session-pivot-flow.js";
 import { handleCheckinCallback, handleTriageCallback } from "../gap-triage/gap-triage-flow.js";
 import { parseCallback } from "./callback.js";
 import {
@@ -151,7 +153,26 @@ async function route(
 
   if (kind === "checkin_confirm" || kind === "checkin_revisit") {
     await handleCheckinCallback(chatId, messageId, arg, kind);
+    return;
   }
+
+  if (kind === "save_for_next") {
+    await saveForNext(chatId, messageId);
+  }
+}
+
+// #27's extension point (spec.md Decision 5) — reuses endSocratic verbatim,
+// the exact /done path, zero new backend logic. Unreachable in production
+// until a future story supplies isIntensityMode: true (session-checkpoint-
+// view.ts's only caller always passes false).
+async function saveForNext(chatId: number, messageId: number): Promise<void> {
+  const context = await getChatContext(chatId);
+
+  if (context?.sessionId) {
+    await endSocratic(chatId, context);
+  }
+
+  await editMessageText(chatId, messageId, "Saved. Send /today or tap a topic to pick up later.");
 }
 
 async function startTopic(
@@ -176,6 +197,12 @@ async function startTopic(
 
   const label = curriculumLabel(detail.curriculum.name, module.title, topic.title);
 
+  if (context?.mode === "socratic" && context.sessionId && context.scopeId !== topicId) {
+    const { notice } = await finalizeForPivot(context, label);
+
+    if (notice) await sendMessage(chatId, notice);
+  }
+
   if (topic.progress.status === "not_started") {
     await startQuiz(chatId, messageId, "topic", topicId, label, false);
     return;
@@ -198,6 +225,12 @@ async function startModule(
   }
 
   const label = await moduleLabel(curriculumId, moduleId);
+
+  if (context?.mode === "socratic" && context.sessionId) {
+    const { notice } = await finalizeForPivot(context, label);
+
+    if (notice) await sendMessage(chatId, notice);
+  }
 
   await startQuiz(chatId, messageId, "module", moduleId, label, false);
 }

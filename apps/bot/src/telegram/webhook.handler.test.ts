@@ -411,6 +411,187 @@ describe("handleUpdate", () => {
     expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, DECLINE_REPLY);
   });
 
+  it("skip inside an active socratic session dispatches to onSkip and never touches the pending flow (AC 19, 20)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onSkip = vi.fn().mockResolvedValue(undefined);
+    deps.onSkip = onSkip;
+    const socraticContext = {
+      mode: "socratic" as const,
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    };
+    deps.getChatContext = vi.fn().mockResolvedValue(socraticContext);
+
+    await handleUpdate(update({ text: "skip" }), deps);
+
+    expect(onSkip).toHaveBeenCalledWith(OWNER, socraticContext);
+    expect(flow.getPending).not.toHaveBeenCalled();
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("skip while idle with a pending question clears it and acknowledges without submitting an answer (AC 21)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "idle",
+      sessionId: null,
+      currentItemId: null,
+      scopeKind: null,
+      scopeId: null,
+      navCurriculumId: null,
+      label: null,
+      messageId: null,
+    });
+
+    await handleUpdate(update({ text: "skip" }), deps);
+
+    expect(flow.clearPending).toHaveBeenCalledWith(OWNER);
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, "No problem — I'll skip this one.");
+  });
+
+  it("skip while idle with nothing pending still acknowledges and performs no writes (AC 22)", async () => {
+    const flow = makeFlow();
+    flow.getPending = vi.fn().mockResolvedValue(null);
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "idle",
+      sessionId: null,
+      currentItemId: null,
+      scopeKind: null,
+      scopeId: null,
+      navCurriculumId: null,
+      label: null,
+      messageId: null,
+    });
+
+    await handleUpdate(update({ text: "skip" }), deps);
+
+    expect(flow.clearPending).not.toHaveBeenCalled();
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, "No problem — I'll skip this one.");
+  });
+
+  it("skip mid-quiz falls through to the existing quiz-text handling unchanged (AC 23)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onSkip = vi.fn().mockResolvedValue(undefined);
+    deps.onSkip = onSkip;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "quiz",
+      sessionId: "ps1",
+      currentItemId: "q1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+
+    await handleUpdate(update({ text: "skip" }), deps);
+
+    expect(onSkip).not.toHaveBeenCalled();
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+    expect((deps.sendMessage.mock.calls[0]![1] as string)).toContain("answer buttons");
+  });
+
+  it("skip in an active socratic session with no onSkip dep configured falls back to the decline reply (AC 24)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+
+    await handleUpdate(update({ text: "skip" }), deps);
+
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, DECLINE_REPLY);
+  });
+
+  it("intercepts a steer-shaped message during an active socratic session via onSteer, ahead of the study/continue dispatch (AC 13, Decision 2 Step 4)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onSteer = vi.fn().mockResolvedValue(true);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onSteer = onSteer;
+    deps.onStudy = onStudy;
+    const socraticContext = {
+      mode: "socratic" as const,
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    };
+    deps.getChatContext = vi.fn().mockResolvedValue(socraticContext);
+
+    await handleUpdate(update({ text: "let's talk about AWS Lambda" }), deps);
+
+    expect(onSteer).toHaveBeenCalledWith(OWNER, socraticContext, "let's talk about AWS Lambda");
+    expect(onStudy).not.toHaveBeenCalled();
+  });
+
+  it("falls through to the existing study path when onSteer finds no match (AC 16)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onSteer = vi.fn().mockResolvedValue(false);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onSteer = onSteer;
+    deps.onStudy = onStudy;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic" as const,
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+
+    await handleUpdate(update({ text: "let's talk about quantum stuff" }), deps);
+
+    expect(onSteer).toHaveBeenCalledOnce();
+    expect(onStudy).toHaveBeenCalledWith(OWNER, "quantum stuff");
+  });
+
+  it("never calls onSteer outside an active socratic session (AC 17)", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const onSteer = vi.fn().mockResolvedValue(false);
+    const onStudy = vi.fn().mockResolvedValue(undefined);
+    deps.onSteer = onSteer;
+    deps.onStudy = onStudy;
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "idle",
+      sessionId: null,
+      currentItemId: null,
+      scopeKind: null,
+      scopeId: null,
+      navCurriculumId: null,
+      label: null,
+      messageId: null,
+    });
+
+    await handleUpdate(update({ text: "let's talk about AWS Lambda" }), deps);
+
+    expect(onSteer).not.toHaveBeenCalled();
+    expect(onStudy).toHaveBeenCalledWith(OWNER, "AWS Lambda");
+  });
+
   it("falls back to the fixed apology when the flow throws", async () => {
     const flow = makeFlow();
     flow.submitAnswer = vi.fn().mockRejectedValue(new Error("api down"));

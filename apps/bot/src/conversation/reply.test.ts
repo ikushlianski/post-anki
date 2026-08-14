@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { selectReply, formatErrorReply, START_REPLY, DECLINE_REPLY, ERROR_REPLY } from "./reply.js";
+import {
+  selectReply,
+  formatErrorReply,
+  START_REPLY,
+  DECLINE_REPLY,
+  ERROR_REPLY,
+  SKIP_ACK,
+} from "./reply.js";
 import type { Message } from "grammy/types";
 
 function msg(extra: Partial<Message>): Message {
@@ -39,6 +46,21 @@ describe("selectReply", () => {
       expect(selectReply(msg({ text: "/study@post_anki_bot Kubernetes" }))).toEqual({
         kind: "study",
         name: "Kubernetes",
+      });
+    });
+
+    it("routes a bare 'skip' to the skip branch, case-insensitive with optional trailing punctuation (AC 19)", () => {
+      expect(selectReply(msg({ text: "skip" }))).toEqual({ kind: "skip" });
+      expect(selectReply(msg({ text: "Skip" }))).toEqual({ kind: "skip" });
+      expect(selectReply(msg({ text: "SKIP!" }))).toEqual({ kind: "skip" });
+      expect(selectReply(msg({ text: "skip." }))).toEqual({ kind: "skip" });
+      expect(selectReply(msg({ text: "skip?" }))).toEqual({ kind: "skip" });
+    });
+
+    it("does not treat a sentence that merely starts with 'skip' as the skip command", () => {
+      expect(selectReply(msg({ text: "skip the intro and go deeper" }))).toEqual({
+        kind: "process",
+        text: "skip the intro and go deeper",
       });
     });
 
@@ -167,6 +189,11 @@ describe("fixed strings", () => {
 
   it("decline references text-only constraint", () => {
     expect(DECLINE_REPLY.toLowerCase()).toContain("text");
+  });
+
+  it("skip acknowledgment is short and non-judgmental", () => {
+    expect(SKIP_ACK.length).toBeLessThan(80);
+    expect(SKIP_ACK.toLowerCase()).not.toContain("wrong");
   });
 
   it("error reply is non-guilt-inducing and short", () => {

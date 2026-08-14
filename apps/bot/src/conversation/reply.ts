@@ -4,6 +4,7 @@ export const START_REPLY =
   "I'm your architecture mentor. Send /today for today's question, then just reply with your answer and I'll probe deeper.";
 export const DECLINE_REPLY = "I can only read text for now.";
 export const ERROR_REPLY = "Had a hiccup — try again in a moment.";
+export const SKIP_ACK = "No problem — I'll skip this one.";
 
 export type ReplyDecision =
   | { kind: "start" }
@@ -11,8 +12,11 @@ export type ReplyDecision =
   | { kind: "study"; name: string | null }
   | { kind: "continue"; tool: string | null }
   | { kind: "done" }
+  | { kind: "skip" }
   | { kind: "process"; text: string }
   | { kind: "decline" };
+
+const SKIP_PATTERN = /^skip[\s.!?]*$/i;
 
 const TALK_ABOUT_PATTERN = /^let'?s\s+(?:talk about|discuss)\s+(.+?)[\s.!?]*$/i;
 
@@ -41,6 +45,8 @@ export function selectReply(message: Message): ReplyDecision {
   if (command === "/today" || command === "/push") return { kind: "today" };
 
   if (command === "/done") return { kind: "done" };
+
+  if (SKIP_PATTERN.test(text)) return { kind: "skip" };
 
   if (command === "/study") {
     const name = text.slice(firstWord.length).trim();

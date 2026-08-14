@@ -38,6 +38,14 @@ describe("buildCallback", () => {
     expect(buildCallback("next")).toBe("qnext");
   });
 
+  it("round-trips the save_for_next kind (AC 25)", () => {
+    expect(buildCallback("save_for_next")).toBe("sv");
+    expect(parseCallback(buildCallback("save_for_next"))).toEqual({
+      kind: "save_for_next",
+      arg: "",
+    });
+  });
+
   it.each([
     "triage_important",
     "triage_defer",

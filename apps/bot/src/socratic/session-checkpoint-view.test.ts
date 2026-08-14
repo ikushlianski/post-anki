@@ -29,10 +29,12 @@ describe("buildCheckpointKeyboard", () => {
     expect(buttons[1]!.text).toContain("Save for next session");
   });
 
-  it("does not wire the second button to a real CallbackKind — no callback this story owns fires from it (AC 14)", () => {
+  it("wires the second button to the real save_for_next CallbackKind (AC 25)", () => {
     const keyboard = buildCheckpointKeyboard(true);
     const buttons = keyboard.flat();
 
-    expect("callback_data" in buttons[1]! && buttons[1]!.callback_data).not.toContain("done");
+    expect("callback_data" in buttons[1]! && buttons[1]!.callback_data).toBe(
+      buildCallback("save_for_next"),
+    );
   });
 });
