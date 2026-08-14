@@ -189,6 +189,79 @@ describe("computeDomainMapLayout", () => {
   });
 });
 
+describe("computeDomainMapLayout mode dispatch (#86 widened, Mind-map view)", () => {
+  it("defaults to the tree layout when mode is omitted, matching the pre-existing behavior exactly", () => {
+    const tree = threeLevelTree();
+
+    const withoutMode = computeDomainMapLayout(tree, new Set());
+    const explicitTreeMode = computeDomainMapLayout(tree, new Set(), "tree");
+
+    expect(withoutMode).toEqual(explicitTreeMode);
+  });
+
+  it("keeps the same node/edge shape in mind-map mode, differing only in each node's x/y", () => {
+    const tree = threeLevelTree();
+
+    const treeLayout = computeDomainMapLayout(tree, new Set(), "tree");
+    const mindmapLayout = computeDomainMapLayout(tree, new Set(), "mindmap");
+
+    expect(mindmapLayout.nodes.map((n) => n.id).sort()).toEqual(
+      treeLayout.nodes.map((n) => n.id).sort(),
+    );
+    expect(mindmapLayout.edges).toEqual(treeLayout.edges);
+
+    const byId = new Map(mindmapLayout.nodes.map((n) => [n.id, n]));
+
+    expect(byId.get("root-1")).toMatchObject({ depth: 0, hasChildren: true, childCount: 2 });
+    expect(byId.get("child-1")).toMatchObject({ depth: 1, hasChildren: true, childCount: 1 });
+
+    const treeById = new Map(treeLayout.nodes.map((n) => [n.id, n]));
+
+    expect(mindmapLayout.nodes.some((n) => n.x !== treeById.get(n.id)?.x || n.y !== treeById.get(n.id)?.y)).toBe(
+      true,
+    );
+  });
+
+  it("reuses the same collapse-filtering and curricula-coverage highlighting regardless of mode", () => {
+    const grandchild = makeNode({
+      id: "grandchild-1",
+      parentId: "child-1",
+      curricula: [{ id: "c1", name: "Course" }],
+    });
+    const child1 = makeNode({ id: "child-1", parentId: "root-1", children: [grandchild] });
+    const root = makeNode({ id: "root-1", children: [child1] });
+
+    const treeLayout = computeDomainMapLayout([root], new Set(["child-1"]), "tree");
+    const mindmapLayout = computeDomainMapLayout([root], new Set(["child-1"]), "mindmap");
+
+    expect(mindmapLayout.nodes.map((n) => n.id)).toEqual(treeLayout.nodes.map((n) => n.id));
+    expect(mindmapLayout.edges.find((e) => e.target === "child-1")?.highlighted).toBe(true);
+    expect(treeLayout.edges.find((e) => e.target === "child-1")?.highlighted).toBe(true);
+  });
+
+  it("does not throw on a cyclic input in mind-map mode either", () => {
+    const child: DomainNodeTreeItem = makeNode({ id: "child", parentId: "root" });
+    const root: DomainNodeTreeItem = makeNode({ id: "root", children: [child] });
+
+    (child as { children: DomainNodeTreeItem[] }).children = [root];
+
+    expect(() => computeDomainMapLayout([root], new Set(), "mindmap")).not.toThrow();
+  });
+
+  it("bounds a pathologically deep synthetic input the same way in mind-map mode as in tree mode", () => {
+    let deepest = makeNode({ id: "leaf" });
+
+    for (let i = 0; i < 80; i += 1) {
+      deepest = makeNode({ id: `n${i}`, children: [deepest] });
+    }
+
+    const treeLayout = computeDomainMapLayout([deepest], new Set(), "tree");
+    const mindmapLayout = computeDomainMapLayout([deepest], new Set(), "mindmap");
+
+    expect(mindmapLayout.nodes.length).toBe(treeLayout.nodes.length);
+  });
+});
+
 describe("defaultCollapsedNodeIds", () => {
   it("collapses every node at depth 1 or deeper, and never the depth-0 root", () => {
     const tree = threeLevelTree();

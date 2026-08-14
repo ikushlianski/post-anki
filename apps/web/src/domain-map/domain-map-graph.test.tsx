@@ -48,7 +48,7 @@ function threeLevelTree(): DomainNodeTreeItem[] {
 
 describe('DomainMapGraph', () => {
   it('renders only depth-0/1 nodes on initial mount, not depth-2 descendants (SCENARIO 9)', () => {
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={vi.fn()} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={vi.fn()} />)
 
     expect(screen.getByTestId('domain-map-graph-node-root-1')).toBeTruthy()
     expect(screen.getByTestId('domain-map-graph-node-child-1')).toBeTruthy()
@@ -57,7 +57,7 @@ describe('DomainMapGraph', () => {
   })
 
   it('reveals a node’s direct children when its collapse toggle is clicked, and hides them again on a second click', () => {
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={vi.fn()} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={vi.fn()} />)
 
     expect(screen.queryByTestId('domain-map-graph-node-grandchild-1')).toBeNull()
 
@@ -69,14 +69,14 @@ describe('DomainMapGraph', () => {
   })
 
   it('does nothing when a leaf node’s body is clicked', () => {
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={vi.fn()} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={vi.fn()} />)
 
     expect(() => fireEvent.click(screen.getByTestId('domain-map-graph-node-child-2'))).not.toThrow()
     expect(screen.queryByTestId('domain-map-graph-detail-panel')).toBeNull()
   })
 
   it('opens the read-only detail panel when a node’s details target is clicked, without altering collapse state', () => {
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={vi.fn()} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={vi.fn()} />)
 
     expect(screen.queryByTestId('domain-map-graph-detail-panel')).toBeNull()
 
@@ -91,7 +91,7 @@ describe('DomainMapGraph', () => {
   it('calls onManageInListView when the detail panel’s escape hatch is clicked', () => {
     const onManageInListView = vi.fn()
 
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={onManageInListView} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={onManageInListView} />)
     fireEvent.click(screen.getByTestId('domain-map-graph-node-details-root-1'))
     fireEvent.click(screen.getByTestId('domain-map-graph-detail-panel-manage-in-list'))
 
@@ -99,7 +99,7 @@ describe('DomainMapGraph', () => {
   })
 
   it('renders the canvas full-width with a fixed height, per this route’s mobile-responsive requirement (SCENARIO 8)', () => {
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={vi.fn()} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={vi.fn()} />)
 
     const canvas = screen.getByTestId('domain-map-graph')
 
@@ -108,7 +108,7 @@ describe('DomainMapGraph', () => {
   })
 
   it('gives both of a node’s click targets the 44x44px minimum touch-target classes', () => {
-    render(<DomainMapGraph nodes={threeLevelTree()} onManageInListView={vi.fn()} />)
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="tree" onManageInListView={vi.fn()} />)
 
     const body = screen.getByTestId('domain-map-graph-node-root-1')
     const details = screen.getByTestId('domain-map-graph-node-details-root-1')
@@ -117,5 +117,52 @@ describe('DomainMapGraph', () => {
     expect(body.className).toContain('min-w-11')
     expect(details.className).toContain('min-h-11')
     expect(details.className).toContain('min-w-11')
+  })
+})
+
+// #86 widened (mind-map/tree-hierarchy dual view) — mode='mindmap' render
+// path, alongside the existing mode='tree' cases above.
+describe('DomainMapGraph in mind-map mode', () => {
+  it('renders the same shared node component for the same nodes as tree mode (SCENARIO 2)', () => {
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="mindmap" onManageInListView={vi.fn()} />)
+
+    expect(screen.getByTestId('domain-map-graph-node-root-1')).toBeTruthy()
+    expect(screen.getByTestId('domain-map-graph-node-child-1')).toBeTruthy()
+    expect(screen.getByTestId('domain-map-graph-node-child-2')).toBeTruthy()
+    expect(screen.queryByTestId('domain-map-graph-node-grandchild-1')).toBeNull()
+  })
+
+  it('still opens the detail panel and honors collapse/expand identically to tree mode', () => {
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="mindmap" onManageInListView={vi.fn()} />)
+
+    fireEvent.click(screen.getByTestId('domain-map-graph-node-child-1'))
+    expect(screen.getByTestId('domain-map-graph-node-grandchild-1')).toBeTruthy()
+
+    fireEvent.click(screen.getByTestId('domain-map-graph-node-details-root-1'))
+    const panel = screen.getByTestId('domain-map-graph-detail-panel')
+
+    expect(within(panel).getByText('root-1')).toBeTruthy()
+  })
+
+  // AC 17's edgeTypes-identity-across-modes claim and AC 18's per-edge
+  // `type` tagging are asserted in domain-map-graph-mode-wiring.test.tsx via
+  // a mocked React Flow, not here: React Flow only paints an edge once its
+  // source/target nodes report measured dimensions, which never happens
+  // under jsdom's ResizeObserver stub (the pre-existing
+  // `<div class="react-flow__edges">` stays empty regardless of mode —
+  // verified directly, not assumed), so a rendered-DOM assertion in THIS
+  // file can't see edges at all, let alone their type. This test instead
+  // covers the DOM-observable half of AC 17: an interaction that changes
+  // one node's collapse state doesn't remount an unrelated node.
+  it('does not remount an unrelated node when a different node’s collapse state changes (AC 17, doubled edgeTypes/nodeTypes registration stays remount-safe)', () => {
+    render(<DomainMapGraph nodes={threeLevelTree()} mode="mindmap" onManageInListView={vi.fn()} />)
+
+    const rootNodeBefore = screen.getByTestId('domain-map-graph-node-container-root-1')
+
+    fireEvent.click(screen.getByTestId('domain-map-graph-node-child-1'))
+
+    const rootNodeAfter = screen.getByTestId('domain-map-graph-node-container-root-1')
+
+    expect(rootNodeAfter).toBe(rootNodeBefore)
   })
 })

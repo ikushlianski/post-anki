@@ -1,5 +1,6 @@
-import { hierarchy, tree } from "d3-hierarchy";
+import { hierarchy, tree, type HierarchyNode, type HierarchyPointNode } from "d3-hierarchy";
 import type { DomainNodeTreeItem } from "@post-anki/shared";
+import { positionRadial } from "./domain-map-radial-layout";
 
 // visual-knowledge-map (issue #86) — the graph view's own pure layout
 // deriver. Takes the same DomainNodeTreeItem[] tree the existing text-tree
@@ -120,9 +121,19 @@ function buildVisibleTree(
   };
 }
 
+// #86 widened (mind-map/tree-hierarchy dual view) — the original single
+// layout algorithm, extracted verbatim (no behavior change) so
+// computeDomainMapLayout can dispatch to it or to positionRadial below.
+export type DomainMapLayoutMode = "tree" | "mindmap";
+
+function positionTree(root: HierarchyNode<TraversalNode>): HierarchyPointNode<TraversalNode> {
+  return tree<TraversalNode>().nodeSize([NODE_SPACING_X, NODE_SPACING_Y])(root);
+}
+
 export function computeDomainMapLayout(
   nodes: DomainNodeTreeItem[],
   collapsedNodeIds: ReadonlySet<string>,
+  mode: DomainMapLayoutMode = "tree",
 ): DomainMapLayout {
   const highlightMap = computeHighlightMap(nodes);
   const visibleRoot = buildVisibleTree(nodes, collapsedNodeIds);
@@ -131,7 +142,7 @@ export function computeDomainMapLayout(
     d.children.length > 0 ? d.children : undefined,
   );
 
-  const positionedRoot = tree<TraversalNode>().nodeSize([NODE_SPACING_X, NODE_SPACING_Y])(root);
+  const positionedRoot = mode === "mindmap" ? positionRadial(root) : positionTree(root);
 
   const layoutNodes: DomainMapLayoutNode[] = [];
   const edges: DomainMapLayoutEdge[] = [];

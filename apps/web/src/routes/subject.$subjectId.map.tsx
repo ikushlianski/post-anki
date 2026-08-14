@@ -88,7 +88,17 @@ function SubjectMapPage() {
               requireSources={subject.requireSources}
             />
           ) : (
-            <DomainMapGraph nodes={tree} onManageInListView={() => setView('list')} />
+            // #86 widened (mind-map/tree-hierarchy dual view), Decision 8 —
+            // keyed by `mode` so switching Tree <-> Mind-map forces a fresh
+            // mount of DomainMapGraph, resetting collapse state to its
+            // depth-bounded default rather than carrying it over between
+            // modes (SCENARIO 4/21).
+            <DomainMapGraph
+              key={view}
+              mode={view}
+              nodes={tree}
+              onManageInListView={() => setView('list')}
+            />
           )}
         </>
       )}
