@@ -43,6 +43,14 @@ export function rowToGap(
       ? row.lastEvaluatedAt.toISOString()
       : null,
     mastery: rowToGapMasteryView(masteryRow),
+    triageState: row.triageState as Gap["triageState"],
+    triagedAt: row.triagedAt ? row.triagedAt.toISOString() : null,
+    deferredUntil: row.deferredUntil ? row.deferredUntil.toISOString() : null,
+    deferralCount: row.deferralCount,
+    dismissedAt: row.dismissedAt ? row.dismissedAt.toISOString() : null,
+    dismissedCheckinSentAt: row.dismissedCheckinSentAt
+      ? row.dismissedCheckinSentAt.toISOString()
+      : null,
   };
 }
 
@@ -75,6 +83,14 @@ export async function persistGaps(updated: Gap[]): Promise<void> {
         depth: gap.depth,
         lastEvaluatedAt: gap.lastEvaluatedAt
           ? new Date(gap.lastEvaluatedAt)
+          : null,
+        triageState: gap.triageState,
+        triagedAt: gap.triagedAt ? new Date(gap.triagedAt) : null,
+        deferredUntil: gap.deferredUntil ? new Date(gap.deferredUntil) : null,
+        deferralCount: gap.deferralCount,
+        dismissedAt: gap.dismissedAt ? new Date(gap.dismissedAt) : null,
+        dismissedCheckinSentAt: gap.dismissedCheckinSentAt
+          ? new Date(gap.dismissedCheckinSentAt)
           : null,
       })
       .where(eq(gaps.id, gap.id));
@@ -118,6 +134,12 @@ export async function insertDiscoveredGaps(
     wanted: r.wanted,
     concern: r.concern,
     lastEvaluatedAt: null,
+    triageState: "untriaged" as const,
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
   }));
 }
 

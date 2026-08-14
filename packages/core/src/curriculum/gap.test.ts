@@ -8,6 +8,9 @@ import {
   inScopeGaps,
   nextGapToProbe,
   isCalibrationStale,
+  isPushExcluded,
+  isResurfaceDue,
+  isDismissedCheckinDue,
 } from "./gap";
 
 function gap(overrides: Partial<Gap> & { id: string }): Gap {
@@ -20,6 +23,12 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     wanted: false,
     concern: null,
     lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
     ...overrides,
   };
 }
@@ -210,6 +219,93 @@ describe("isCalibrationStale", () => {
     const day61 = new Date(nowMs - 61 * DAY_MS).toISOString();
 
     expect(isCalibrationStale(day61, NOW)).toBe(true);
+  });
+});
+
+describe("isPushExcluded", () => {
+  const NOW = "2026-05-31T00:00:00.000Z";
+
+  it("always excludes a dismissed gap", () => {
+    expect(isPushExcluded(gap({ id: "g1", triageState: "dismissed" }), NOW)).toBe(true);
+  });
+
+  it("excludes a user-deferred gap while the deferral is still in the future", () => {
+    const g = gap({
+      id: "g1",
+      triageState: "user_deferred",
+      deferredUntil: "2026-06-01T00:00:00.000Z",
+    });
+
+    expect(isPushExcluded(g, NOW)).toBe(true);
+  });
+
+  it("no longer excludes a user-deferred gap once its deferral has elapsed, independent of the resurface job having run", () => {
+    const g = gap({
+      id: "g1",
+      triageState: "user_deferred",
+      deferredUntil: "2026-05-30T00:00:00.000Z",
+    });
+
+    expect(isPushExcluded(g, NOW)).toBe(false);
+  });
+
+  it("never excludes an untriaged or important gap", () => {
+    expect(isPushExcluded(gap({ id: "g1", triageState: "untriaged" }), NOW)).toBe(false);
+    expect(isPushExcluded(gap({ id: "g1", triageState: "important" }), NOW)).toBe(false);
+  });
+});
+
+describe("isResurfaceDue", () => {
+  const DEFERRED_AT = new Date("2026-04-01T00:00:00.000Z").getTime();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const deferredUntil = new Date(DEFERRED_AT + 60 * DAY_MS).toISOString();
+
+  it("returns false with no deferral set", () => {
+    expect(isResurfaceDue(null, "2026-06-01T00:00:00.000Z")).toBe(false);
+  });
+
+  it("is not yet due a day before the deferral elapses", () => {
+    const day59 = new Date(DEFERRED_AT + 59 * DAY_MS).toISOString();
+
+    expect(isResurfaceDue(deferredUntil, day59)).toBe(false);
+  });
+
+  it("is due exactly when the deferral elapses", () => {
+    const day60 = new Date(DEFERRED_AT + 60 * DAY_MS).toISOString();
+
+    expect(isResurfaceDue(deferredUntil, day60)).toBe(true);
+  });
+
+  it("stays due a day after the deferral elapses", () => {
+    const day61 = new Date(DEFERRED_AT + 61 * DAY_MS).toISOString();
+
+    expect(isResurfaceDue(deferredUntil, day61)).toBe(true);
+  });
+});
+
+describe("isDismissedCheckinDue", () => {
+  const DISMISSED_AT = "2026-01-01T00:00:00.000Z";
+
+  it("returns false with no dismissal recorded", () => {
+    expect(isDismissedCheckinDue(null, null, "2026-06-01T00:00:00.000Z")).toBe(false);
+  });
+
+  it("short-circuits to false once a check-in has already been sent, even long after 6 months", () => {
+    expect(
+      isDismissedCheckinDue(DISMISSED_AT, "2026-07-05T00:00:00.000Z", "2027-01-01T00:00:00.000Z"),
+    ).toBe(false);
+  });
+
+  it("is not yet due at 5 months and 29 days", () => {
+    expect(isDismissedCheckinDue(DISMISSED_AT, null, "2026-06-30T00:00:00.000Z")).toBe(false);
+  });
+
+  it("is due at exactly 6 months", () => {
+    expect(isDismissedCheckinDue(DISMISSED_AT, null, "2026-07-01T00:00:00.000Z")).toBe(true);
+  });
+
+  it("stays due a day past 6 months", () => {
+    expect(isDismissedCheckinDue(DISMISSED_AT, null, "2026-07-02T00:00:00.000Z")).toBe(true);
   });
 });
 

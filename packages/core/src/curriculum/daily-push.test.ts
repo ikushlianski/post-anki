@@ -12,6 +12,12 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     wanted: false,
     concern: null,
     lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
     ...overrides,
   };
 }
@@ -112,6 +118,60 @@ describe("selectDailyPush", () => {
     expect(first).toEqual(second);
     expect(second).toEqual(third);
     expect(first?.gap.id).toBe("g1");
+  });
+
+  it("never selects a dismissed or still-live-deferred gap, and prioritizes an important one over merely wanted", () => {
+    const pick = selectDailyPush(
+      [
+        candidate({
+          topicId: "dismissed",
+          gaps: [gap({ id: "dismissed-gap", triageState: "dismissed" })],
+        }),
+        candidate({
+          topicId: "deferred",
+          gaps: [
+            gap({
+              id: "deferred-gap",
+              triageState: "user_deferred",
+              deferredUntil: "2026-06-15T00:00:00.000Z",
+            }),
+          ],
+        }),
+        candidate({
+          topicId: "wanted-only",
+          gaps: [gap({ id: "wanted-gap", wanted: true })],
+        }),
+        candidate({
+          topicId: "important",
+          gaps: [gap({ id: "important-gap", triageState: "important" })],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(pick?.topicId).toBe("important");
+    expect(pick?.gap.id).toBe("important-gap");
+    expect(pick?.reason).toBe("important");
+  });
+
+  it("no longer excludes a user-deferred gap once its deferral has elapsed", () => {
+    const pick = selectDailyPush(
+      [
+        candidate({
+          topicId: "resurfaced",
+          gaps: [
+            gap({
+              id: "resurfaced-gap",
+              triageState: "user_deferred",
+              deferredUntil: "2026-05-01T00:00:00.000Z",
+            }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(pick?.gap.id).toBe("resurfaced-gap");
   });
 
   it("does not refresh a recently-covered gap", () => {

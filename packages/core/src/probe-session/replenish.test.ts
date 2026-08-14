@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Gap } from "@post-anki/shared";
-import { rankGapsForReplenish, shouldReplenish } from "./replenish";
+import { isOneShotProbeScope, rankGapsForReplenish, shouldReplenish } from "./replenish";
 
 function gap(overrides: Partial<Gap> & { id: string }): Gap {
   return {
@@ -12,6 +12,12 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     wanted: false,
     concern: null,
     lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
     ...overrides,
   };
 }
@@ -70,5 +76,17 @@ describe("rankGapsForReplenish", () => {
     rankGapsForReplenish(gaps);
 
     expect(gaps).toEqual(original);
+  });
+});
+
+describe("isOneShotProbeScope", () => {
+  it("treats a curriculum-wide calibration probe as one-shot", () => {
+    expect(isOneShotProbeScope("curriculum")).toBe(true);
+  });
+
+  it("treats every other scope as replenishable", () => {
+    expect(isOneShotProbeScope("topic")).toBe(false);
+    expect(isOneShotProbeScope("module")).toBe(false);
+    expect(isOneShotProbeScope("tag")).toBe(false);
   });
 });

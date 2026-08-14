@@ -115,6 +115,7 @@ function CrossCuttingNudgeBanner({ nudges }: { nudges: CrossCuttingNudge[] }) {
 }
 
 const REASON_LABEL: Record<DailyPushReason, string> = {
+  important: 'You flagged this as important',
   wanted: 'You asked for this one',
   weakest: 'Your weakest open area',
   refresh: 'Worth refreshing',

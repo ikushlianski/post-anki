@@ -4,12 +4,16 @@ import type {
   Curriculum,
   CurriculumDetail,
   DailyPushResponse,
+  GapsDueForResurfaceResponse,
   ProbeResult,
   ProbeScope,
   ProbeSession,
   QuestionKind,
+  ResurfaceKind,
   SocraticSession,
   Subject,
+  TriageAction,
+  TriageGapResultDto,
 } from "@post-anki/shared";
 
 const QUICK_STUDIES_SUBJECT_NAME = "Quick Studies";
@@ -174,4 +178,22 @@ export function answerSocraticSession(
     `/socratic-sessions/${encodeURIComponent(sessionId)}/answer`,
     { method: "POST", body: input },
   );
+}
+
+export function triageGap(gapId: string, action: TriageAction): Promise<TriageGapResultDto> {
+  return apiFetch<TriageGapResultDto>(`/gaps/${encodeURIComponent(gapId)}/triage`, {
+    method: "POST",
+    body: { action },
+  });
+}
+
+export function getGapsDueForResurface(): Promise<GapsDueForResurfaceResponse> {
+  return apiFetch<GapsDueForResurfaceResponse>("/gaps/due-for-resurface");
+}
+
+export function markGapResurfaced(gapId: string, kind: ResurfaceKind): Promise<void> {
+  return apiFetch<void>(`/gaps/${encodeURIComponent(gapId)}/mark-resurfaced`, {
+    method: "POST",
+    body: { kind },
+  });
 }

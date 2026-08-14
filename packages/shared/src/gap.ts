@@ -10,6 +10,44 @@ export const gapStateSchema = z.enum(["open", "covered", "skipped"]);
 
 export type GapState = z.infer<typeof gapStateSchema>;
 
+// Gap triage (issue #29) — orthogonal to `state` above, never overloading it
+// (matching the same "don't overload state" lesson gap_mastery already
+// documents). Literal value `user_deferred`, not `deferred`, reserves room
+// for a future `auto_deferred` sibling (issue #33) without another
+// migration touching this column's existing rows.
+export const gapTriageStateSchema = z.enum([
+  "untriaged",
+  "important",
+  "user_deferred",
+  "dismissed",
+]);
+
+export type GapTriageState = z.infer<typeof gapTriageStateSchema>;
+
+// `revisit` is the dismissed-check-in's "Actually, let's revisit" outcome
+// (issue #29 SCENARIO 6) — reopens a dismissed gap back to `untriaged`. It
+// reuses this same locked transition path rather than a bespoke endpoint so
+// there is exactly one write path for every triage-state change.
+export const triageActionSchema = z.enum(["important", "defer", "dismiss", "revisit"]);
+
+export type TriageAction = z.infer<typeof triageActionSchema>;
+
+export const triageGapInput = z.object({
+  action: triageActionSchema,
+});
+
+export type TriageGapInput = z.infer<typeof triageGapInput>;
+
+export const resurfaceKindSchema = z.enum(["deferral-expired", "dismissed-checkin"]);
+
+export type ResurfaceKind = z.infer<typeof resurfaceKindSchema>;
+
+export const markGapResurfacedInput = z.object({
+  kind: resurfaceKindSchema,
+});
+
+export type MarkGapResurfacedInput = z.infer<typeof markGapResurfacedInput>;
+
 // Generalized recall-gap mastery tracking (issue #57) — present only for a
 // gap that has a gap_mastery sidecar row (probe-session quiz misses/corrects
 // tracked it). Display-precedence rule (spec.md Decision 2 addendum): when
@@ -40,9 +78,42 @@ export const gapSchema = z.object({
   concern: concernSchema.nullable(),
   lastEvaluatedAt: z.string().nullable(),
   mastery: gapMasteryViewSchema.nullable().optional(),
+  triageState: gapTriageStateSchema,
+  triagedAt: z.string().nullable(),
+  deferredUntil: z.string().nullable(),
+  deferralCount: z.number().int(),
+  dismissedAt: z.string().nullable(),
+  dismissedCheckinSentAt: z.string().nullable(),
 });
 
 export type Gap = z.infer<typeof gapSchema>;
+
+// The tool (subject) name travels alongside the gap on both the
+// triage-write response and the resurface-candidate read — the bot's tap
+// confirmation ("Noted — {Tool}: ...") needs the exact same name the
+// original resurfacing/check-in message already showed, without a second
+// round trip or brittle re-parsing of the earlier message text.
+export const triageGapResultSchema = z.object({
+  gap: gapSchema,
+  changed: z.boolean(),
+  tool: z.string(),
+});
+
+export type TriageGapResultDto = z.infer<typeof triageGapResultSchema>;
+
+export const gapDueForResurfaceItemSchema = z.object({
+  gap: gapSchema,
+  tool: z.string(),
+});
+
+export type GapDueForResurfaceItem = z.infer<typeof gapDueForResurfaceItemSchema>;
+
+export const gapsDueForResurfaceResponseSchema = z.object({
+  userDeferredDue: z.array(gapDueForResurfaceItemSchema),
+  dismissedCheckinDue: z.array(gapDueForResurfaceItemSchema),
+});
+
+export type GapsDueForResurfaceResponse = z.infer<typeof gapsDueForResurfaceResponseSchema>;
 
 export const declareGapInput = z.object({
   topicId: z.string(),

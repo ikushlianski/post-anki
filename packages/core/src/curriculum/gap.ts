@@ -83,6 +83,59 @@ export function openGaps(gaps: Gap[], depth: DepthLevel): Gap[] {
   return inScopeGaps(gaps, depth).filter((g) => g.state === "open");
 }
 
+const DISMISSED_CHECKIN_AFTER_MONTHS = 6;
+
+// Push-eligibility exclusion (issue #29) — a pure, read-time predicate,
+// deliberately NOT folded into `openGaps`/`inScopeGaps`: those two also feed
+// probe/Socratic session generation and stats reporting (probe.service.ts,
+// probe-session.service.ts, stats.repo.ts), none of which #29's acceptance
+// criteria ask to change. Only `selectDailyPush` (daily-push.ts) consumes
+// this — correctness cannot depend on the once-a-day gapResurfaceJob having
+// already run: a deferral that expired minutes ago must be excluded (still
+// live) or included (once past deferredUntil) correctly on every read.
+export function isPushExcluded(gap: Gap, now: string): boolean {
+  if (gap.triageState === "dismissed") {
+    return true;
+  }
+
+  if (gap.triageState === "user_deferred" && gap.deferredUntil) {
+    return new Date(now).getTime() < new Date(gap.deferredUntil).getTime();
+  }
+
+  return false;
+}
+
+// `deferredUntil` is already the absolute due timestamp (computed once, at
+// defer-time, by applyTriageAction) — this is a plain "is it past yet"
+// check, not a second place that recomputes the 60-day window.
+export function isResurfaceDue(deferredUntil: string | null, now: string): boolean {
+  if (!deferredUntil) {
+    return false;
+  }
+
+  return new Date(now).getTime() >= new Date(deferredUntil).getTime();
+}
+
+// The `dismissedCheckinSentAt !== null` short-circuit is what makes the
+// 6-month check-in a one-time event: once sent, this never matches the same
+// gap again unless the user later re-dismisses it (which resets the field,
+// gap-triage.ts's applyTriageAction).
+export function isDismissedCheckinDue(
+  dismissedAt: string | null,
+  dismissedCheckinSentAt: string | null,
+  now: string,
+): boolean {
+  if (!dismissedAt || dismissedCheckinSentAt) {
+    return false;
+  }
+
+  const due = new Date(dismissedAt);
+
+  due.setUTCMonth(due.getUTCMonth() + DISMISSED_CHECKIN_AFTER_MONTHS);
+
+  return new Date(now).getTime() >= due.getTime();
+}
+
 export function nextGapToProbe(gaps: Gap[], depth: DepthLevel): Gap | null {
   const open = openGaps(gaps, depth);
 

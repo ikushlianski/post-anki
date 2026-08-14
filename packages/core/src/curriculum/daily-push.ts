@@ -1,6 +1,6 @@
 import type { DepthLevel, Gap } from "@post-anki/shared";
 import { DEPTH_RANK } from "@post-anki/shared";
-import { openGaps } from "./gap";
+import { isPushExcluded, openGaps } from "./gap";
 
 const STALE_AFTER_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ export type DailyPushPick = {
   curriculumId: string;
   curriculumName: string;
   gap: Gap;
-  reason: "wanted" | "weakest" | "refresh";
+  reason: "important" | "wanted" | "weakest" | "refresh";
 } | null;
 
 export function isStale(lastEvaluatedAt: string | null, now: string): boolean {
@@ -37,11 +37,18 @@ export function selectDailyPush(
   now: string,
 ): DailyPushPick {
   const open = candidates.flatMap((c) =>
-    openGaps(c.gaps, c.depth).map((gap) => ({ c, gap })),
+    openGaps(c.gaps, c.depth)
+      .filter((gap) => !isPushExcluded(gap, now))
+      .map((gap) => ({ c, gap })),
   );
 
+  // Priority tiers, highest first (issue #29): an `important`-triaged gap
+  // always wins over a merely `wanted` one when both are eligible — "appears
+  // within 5-7 days" is verified here as selection weight, not a literal
+  // timer (no code path in this repo can assert wall-clock delivery).
+  const important = open.filter((o) => o.gap.triageState === "important");
   const wanted = open.filter((o) => o.gap.wanted);
-  const pool = wanted.length > 0 ? wanted : open;
+  const pool = important.length > 0 ? important : wanted.length > 0 ? wanted : open;
 
   if (pool.length > 0) {
     const ranked = [...pool].sort((a, b) => {
@@ -60,7 +67,7 @@ export function selectDailyPush(
       curriculumId: top.c.curriculumId,
       curriculumName: top.c.curriculumName,
       gap: top.gap,
-      reason: top.gap.wanted ? "wanted" : "weakest",
+      reason: top.gap.triageState === "important" ? "important" : top.gap.wanted ? "wanted" : "weakest",
     };
   }
 

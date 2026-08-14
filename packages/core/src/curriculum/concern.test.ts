@@ -12,6 +12,12 @@ function gap(overrides: Partial<Gap> & { id: string }): Gap {
     wanted: false,
     concern: null,
     lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
     ...overrides,
   };
 }

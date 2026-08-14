@@ -1,6 +1,7 @@
 export * from "./mastery/mastery-state";
 export * from "./gap-mastery/gap-mastery";
 export * from "./gap-mastery/cross-cutting-nudge";
+export * from "./gap-triage/gap-triage";
 export * from "./curriculum/index";
 export * from "./probe-session/index";
 export * from "./socratic/index";

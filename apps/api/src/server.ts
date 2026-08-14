@@ -59,7 +59,13 @@ import {
   handleAnswerSocratic,
   handleStartSocratic,
 } from "./socratic/socratic.controller.js";
-import { handleCurateGap, handleDeclareGap } from "./gap/gap.controller.js";
+import {
+  handleCurateGap,
+  handleDeclareGap,
+  handleDueForResurface,
+  handleMarkResurfaced,
+  handleTriageGap,
+} from "./gap/gap.controller.js";
 import { handleDailyPush } from "./push/push.controller.js";
 import {
   handleCreateDecideSession,
@@ -372,6 +378,12 @@ async function route(
       return handleDeclareGap(req, res);
     case "curateGap":
       return handleCurateGap(req, res, id);
+    case "triageGap":
+      return handleTriageGap(req, res, id);
+    case "listGapsDueForResurface":
+      return handleDueForResurface(res);
+    case "markGapResurfaced":
+      return handleMarkResurfaced(req, res, id);
     case "dailyPush":
       return handleDailyPush(res, url.searchParams.get("mode"));
     case "createDecideSession":

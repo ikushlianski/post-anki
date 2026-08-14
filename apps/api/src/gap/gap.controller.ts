@@ -2,6 +2,8 @@ import type http from "node:http";
 import {
   curateGapInput,
   declareGapInput,
+  markGapResurfacedInput,
+  triageGapInput,
   type DepthLevel,
   type Gap,
 } from "@post-anki/shared";
@@ -11,6 +13,7 @@ import { getDb } from "../db/client.js";
 import { gaps, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { rowToGap } from "./gap.repo.js";
+import { listGapsDueForResurface, markGapResurfaced, triageGapLocked } from "./gap-triage.repo.js";
 
 export async function handleDeclareGap(
   req: http.IncomingMessage,
@@ -56,6 +59,12 @@ export async function handleDeclareGap(
     wanted: row.wanted,
     concern: row.concern,
     lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
   };
 
   sendJson(res, 201, gap);
@@ -104,4 +113,61 @@ export async function handleCurateGap(
   }
 
   sendJson(res, 200, rowToGap({ ...existing, ...patch }));
+}
+
+// POST /gaps/:id/triage (issue #29) — the one Telegram-tap write path
+// (Important / Defer again / Dismiss). Locked via triageGapLocked so two
+// concurrent taps on the same gap (duplicate webhook delivery) serialize
+// into one real transition and one true no-op.
+export async function handleTriageGap(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  gapId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, triageGapInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const result = await triageGapLocked(gapId, body.data.action, now);
+
+  if (!result) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+// GET /gaps/due-for-resurface — read-only candidate list for the
+// gapResurfaceJob scheduled job / bot's POST /gap-resurface handler.
+export async function handleDueForResurface(res: http.ServerResponse): Promise<void> {
+  const now = new Date().toISOString();
+  const result = await listGapsDueForResurface(now);
+
+  sendJson(res, 200, result);
+}
+
+// POST /gaps/:id/mark-resurfaced — committed only after the bot's Telegram
+// send for this gap has already succeeded (see server.ts's POST
+// /gap-resurface in apps/bot). Never called eagerly.
+export async function handleMarkResurfaced(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  gapId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, markGapResurfacedInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  await markGapResurfaced(gapId, body.data.kind, now);
+
+  sendJson(res, 200, { ok: true });
 }

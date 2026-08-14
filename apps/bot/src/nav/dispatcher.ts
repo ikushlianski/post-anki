@@ -15,6 +15,7 @@ import {
   submitQuizAnswer,
 } from "../quiz/quiz-flow.js";
 import { startSocratic } from "../socratic/socratic-flow.js";
+import { handleCheckinCallback, handleTriageCallback } from "../gap-triage/gap-triage-flow.js";
 import { parseCallback } from "./callback.js";
 import {
   editScreen,
@@ -135,6 +136,21 @@ async function route(
 
   if (kind === "continue") {
     await onContinue(chatId, messageId);
+    return;
+  }
+
+  if (
+    kind === "triage_important" ||
+    kind === "triage_defer" ||
+    kind === "triage_dismiss" ||
+    kind === "triage_dismiss_shortcut"
+  ) {
+    await handleTriageCallback(chatId, messageId, arg, kind);
+    return;
+  }
+
+  if (kind === "checkin_confirm" || kind === "checkin_revisit") {
+    await handleCheckinCallback(chatId, messageId, arg, kind);
   }
 }
 

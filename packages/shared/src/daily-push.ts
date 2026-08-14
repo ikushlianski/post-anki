@@ -3,7 +3,7 @@ import { gapSchema } from "./gap";
 import { livenessEntityTypeSchema, livenessScoreSchema } from "./liveness";
 import { probeQuestionSchema } from "./probe";
 
-export const dailyPushReasonSchema = z.enum(["wanted", "weakest", "refresh"]);
+export const dailyPushReasonSchema = z.enum(["important", "wanted", "weakest", "refresh"]);
 
 export type DailyPushReason = z.infer<typeof dailyPushReasonSchema>;
 

@@ -423,6 +423,19 @@ export const gaps = pgTable("gaps", {
   wanted: boolean("wanted").notNull().default(false),
   concern: text("concern"),
   lastEvaluatedAt: timestamp("last_evaluated_at", { withTimezone: true }),
+  // Gap triage (issue #29) — a permanent 1:1 attribute of a gap, same shape
+  // as `wanted`/`concern` above, not a `gap_mastery`-style sidecar (triage
+  // is never a cycling/resettable counter). `triageState`'s literal enum
+  // value is `user_deferred`, not `deferred` — reserves `auto_deferred` as a
+  // future sibling (issue #33) without another migration touching this
+  // column. `state` (open|covered|skipped) is completely untouched by any
+  // of this — triage is an orthogonal concept layered on top.
+  triageState: text("triage_state").notNull().default("untriaged"),
+  triagedAt: timestamp("triaged_at", { withTimezone: true }),
+  deferredUntil: timestamp("deferred_until", { withTimezone: true }),
+  deferralCount: integer("deferral_count").notNull().default(0),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  dismissedCheckinSentAt: timestamp("dismissed_checkin_sent_at", { withTimezone: true }),
 });
 
 // Generalized recall-gap mastery tracking (issue #57) — a SIDECAR to `gaps`,
@@ -763,6 +776,32 @@ export const lectureSourceCandidates = pgTable("lecture_source_candidates", {
   reviewStatus: text("review_status").notNull().default("pending"),
   fetchedText: text("fetched_text"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const topicCardSets = pgTable(
+  "topic_card_sets",
+  {
+    id: text("id").primaryKey(),
+    topicId: text("topic_id").notNull(),
+    status: text("status").notNull().default("generating"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("topic_card_sets_topic_id_unique").on(table.topicId)],
+);
+
+export const topicCards = pgTable("topic_cards", {
+  id: text("id").primaryKey(),
+  cardSetId: text("card_set_id").notNull(),
+  order: integer("order").notNull(),
+  concept: text("concept").notNull(),
+});
+
+export const topicCardVariants = pgTable("topic_card_variants", {
+  id: text("id").primaryKey(),
+  cardId: text("card_id").notNull(),
+  order: integer("order").notNull(),
+  prompt: text("prompt").notNull(),
+  answer: text("answer").notNull(),
 });
 
 export const languagePracticeSettings = pgTable("language_practice_settings", {

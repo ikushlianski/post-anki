@@ -9,6 +9,10 @@ const botDomain = config.get("botDomain") ?? "bot.postanki.ilya.online";
 const apiDomain = config.get("apiDomain") ?? "api.postanki.ilya.online";
 const dailyPushSchedule = config.get("dailyPushSchedule") ?? "0 8 * * *";
 const dailyPushTimeZone = config.get("dailyPushTimeZone") ?? "Europe/Warsaw";
+// gapResurfaceJob (issue #29) — daily, same time-zone default as the daily
+// push; a distinct config key so the two can be retimed independently later.
+const gapResurfaceSchedule = config.get("gapResurfaceSchedule") ?? "0 8 * * *";
+const gapResurfaceTimeZone = config.get("gapResurfaceTimeZone") ?? "Europe/Warsaw";
 // Secret the bot's POST /push checks (must equal the bot's TELEGRAM_WEBHOOK_SECRET).
 const telegramWebhookSecret = config.getSecret("telegramWebhookSecret");
 const docScanSchedule = config.get("docScanSchedule") ?? "0 9 * * 1"; // Monday 09:00
@@ -299,6 +303,31 @@ const dailyPushJob = new gcp.cloudscheduler.Job(
   { dependsOn: [botService, ...enabledApis] },
 );
 
+// gapResurfaceJob (issue #29) — mirrors dailyPushJob's exact shape: daily,
+// same TELEGRAM_WEBHOOK_SECRET bearer auth, POSTs to the bot's own
+// POST /gap-resurface (server.ts), which reads due candidates from the API,
+// sends one standalone Telegram message per gap, and marks each resurfaced
+// only after its own send succeeds.
+const gapResurfaceJob = new gcp.cloudscheduler.Job(
+  "gap-resurface",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-gap-resurface",
+    schedule: gapResurfaceSchedule,
+    timeZone: gapResurfaceTimeZone,
+    attemptDeadline: "60s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${botDomain}/gap-resurface`,
+      headers: telegramWebhookSecret
+        ? { Authorization: pulumi.interpolate`Bearer ${telegramWebhookSecret}` }
+        : undefined,
+    },
+  },
+  { dependsOn: [botService, ...enabledApis] },
+);
+
 // doc-changelog-scan (issue #49) — weekly scan: fire the API's POST
 // /doc-scans once a week. Mirrors dailyPushJob's exact shape, gated by the
 // API's own API_SHARED_SECRET (sent as a bearer) rather than the bot's
@@ -338,4 +367,5 @@ export const apiDomainMappingRecords = apiDomainMapping.statuses;
 export const electricServiceUrl = electricServiceInstance.statuses[0].url;
 export const electricSaEmail = electricSa.email;
 export const dailyPushJobName = dailyPushJob.name;
+export const gapResurfaceJobName = gapResurfaceJob.name;
 export const docScanJobName = docScanJob.name;

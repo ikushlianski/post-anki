@@ -11,6 +11,12 @@ export type CallbackKind =
   | "regenerate_module"
   | "answer"
   | "next"
+  | "triage_important"
+  | "triage_defer"
+  | "triage_dismiss"
+  | "triage_dismiss_shortcut"
+  | "checkin_confirm"
+  | "checkin_revisit"
   | "noop";
 
 export interface ParsedCallback {
@@ -31,6 +37,12 @@ const PREFIX_TO_KIND: Record<string, CallbackKind> = {
   rm: "regenerate_module",
   qa: "answer",
   qnext: "next",
+  ti: "triage_important",
+  td: "triage_defer",
+  tds: "triage_dismiss",
+  tad: "triage_dismiss_shortcut",
+  cc: "checkin_confirm",
+  cr: "checkin_revisit",
 };
 
 export function parseCallback(data: string): ParsedCallback {

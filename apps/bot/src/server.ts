@@ -5,7 +5,8 @@ import { handleUpdate } from "./telegram/webhook.handler.js";
 import { createUpdateLru } from "./telegram/update-lru.js";
 import { sendMessage } from "./telegram/bot.js";
 import { log } from "./telegram/log.js";
-import { getDailyPush, submitAnswer } from "./api/client.js";
+import { getDailyPush, getGapsDueForResurface, submitAnswer } from "./api/client.js";
+import { runGapResurface } from "./gap-triage/gap-triage-flow.js";
 import { getPending, setPending, clearPending } from "./session/pending.repo.js";
 import { sendTodaysQuestion, type FlowDeps } from "./conversation/probe-flow.js";
 import { getChatContext, clearChatContext } from "./session/chat-context.repo.js";
@@ -51,6 +52,27 @@ function main() {
         .then(() => sendTodaysQuestion(env.OWNER_TELEGRAM_CHAT_ID, DEFAULT_MODE, flow))
         .then((text) => sendMessage(env.OWNER_TELEGRAM_CHAT_ID, text))
         .catch((err) => log.error({ err }, "daily_push_failed"));
+
+      return;
+    }
+
+    // gapResurfaceJob (issue #29) — the daily 60-day-deferral / 6-month
+    // dismissed-check-in scheduled job, mirroring /push's own auth exactly
+    // (same TELEGRAM_WEBHOOK_SECRET bearer check, same fire-and-forget
+    // 200-then-work shape).
+    if (req.method === "POST" && req.url === "/gap-resurface") {
+      if (req.headers.authorization !== `Bearer ${env.TELEGRAM_WEBHOOK_SECRET}`) {
+        res.writeHead(401);
+        res.end();
+        return;
+      }
+
+      res.writeHead(200);
+      res.end();
+
+      void getGapsDueForResurface()
+        .then((candidates) => runGapResurface(env.OWNER_TELEGRAM_CHAT_ID, candidates))
+        .catch((err) => log.error({ err }, "gap_resurface_failed"));
 
       return;
     }

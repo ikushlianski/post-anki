@@ -87,6 +87,12 @@ function makeGap(over: Partial<Gap> = {}): Gap {
     wanted: true,
     concern: null,
     lastEvaluatedAt: null,
+    triageState: "untriaged",
+    triagedAt: null,
+    deferredUntil: null,
+    deferralCount: 0,
+    dismissedAt: null,
+    dismissedCheckinSentAt: null,
     ...over,
   };
 }

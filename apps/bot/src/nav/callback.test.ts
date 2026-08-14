@@ -37,4 +37,30 @@ describe("buildCallback", () => {
   it("emits a bare prefix when arg is empty", () => {
     expect(buildCallback("next")).toBe("qnext");
   });
+
+  it.each([
+    "triage_important",
+    "triage_defer",
+    "triage_dismiss",
+    "triage_dismiss_shortcut",
+    "checkin_confirm",
+    "checkin_revisit",
+  ] as const)("round-trips the gap-triage kind %s with its gap id", (kind) => {
+    expect(parseCallback(buildCallback(kind, "gap_1"))).toEqual({ kind, arg: "gap_1" });
+  });
+
+  it("keeps every gap-triage callback_data well under Telegram's 64-byte limit for a typical gap id", () => {
+    const gapId = `gap_${"a".repeat(36)}`;
+
+    for (const kind of [
+      "triage_important",
+      "triage_defer",
+      "triage_dismiss",
+      "triage_dismiss_shortcut",
+      "checkin_confirm",
+      "checkin_revisit",
+    ] as const) {
+      expect(buildCallback(kind, gapId).length).toBeLessThanOrEqual(64);
+    }
+  });
 });
