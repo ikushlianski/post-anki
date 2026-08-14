@@ -60,6 +60,7 @@ const CURRICULUM: Curriculum = {
   strictOrder: false,
   preAssessmentCompletedAt: null,
   domainNodeId: null,
+  order: 1,
 }
 
 describe('SubjectSection', () => {
