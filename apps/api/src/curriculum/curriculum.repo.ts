@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type {
+  Concern,
   CreateCurriculumInput,
   Curriculum,
   CurriculumDetail,
@@ -35,7 +36,7 @@ import {
   recommendedTopicId,
   sortForDisplay,
 } from "@post-anki/core";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
   curriculumStructureTurns,
@@ -52,7 +53,7 @@ import {
 import { rowToGap } from "../gap/gap.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { newId } from "../shared/id.js";
-import { withMergeLock } from "../shared/merge-lock.js";
+import { withMergeLock, withSubjectLock } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 import {
   resolveCurriculumOrigin,
@@ -67,6 +68,14 @@ import {
 } from "../tag/tag.repo.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
 import type { DocResearchPlan } from "./curriculum-research-plan.js";
+import {
+  deleteMappingsForCurriculum,
+  getPrimaryConfirmedDomainNodeId,
+  getPrimaryConfirmedDomainNodeIdsByCurriculumIds,
+  insertConfirmedMapping,
+  listMappingsForCurriculum,
+  rejectAllConfirmedForCurriculum,
+} from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
 
 interface PlanModule {
   title: string;
@@ -83,9 +92,14 @@ interface Plan {
   modules: PlanModule[];
 }
 
+// learning-list-fold-in — a container curriculum (containerAreaNodeId set)
+// is plumbing, never a course the learner browses: every read path that
+// lists curricula for display filters it out here, at the one function every
+// board/tree/merge-picker view in apps/web ultimately calls.
 export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   const rows = (await getDb().select().from(curricula)).filter(
-    (r: typeof curricula.$inferSelect) => !subjectId || r.subjectId === subjectId,
+    (r: typeof curricula.$inferSelect) =>
+      (!subjectId || r.subjectId === subjectId) && r.containerAreaNodeId === null,
   );
 
   if (rows.length === 0) {
@@ -95,7 +109,12 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   const sourceRows = await getDb()
     .select()
     .from(sources)
-    .where(inArray(sources.curriculumId, rows.map((r) => r.id)));
+    .where(
+      inArray(
+        sources.curriculumId,
+        rows.map((r) => r.id),
+      ),
+    );
 
   const kindsByCurriculum = new Map<string, string[]>();
 
@@ -106,14 +125,57 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
     kindsByCurriculum.set(s.curriculumId, list);
   }
 
+  const primaryDomainNodeIdByCurriculum = await getPrimaryConfirmedDomainNodeIdsByCurriculumIds(
+    rows.map((r) => r.id),
+  );
+
   return rows.map((r) =>
-    toCurriculum(r, resolveCurriculumOrigin(kindsByCurriculum.get(r.id) ?? [])),
+    toCurriculum(
+      r,
+      resolveCurriculumOrigin(kindsByCurriculum.get(r.id) ?? []),
+      primaryDomainNodeIdByCurriculum.get(r.id) ?? null,
+    ),
   );
 }
 
+export type CreateCurriculumError = "subject_not_found";
+
+/**
+ * Runs under the subject's advisory lock (the same lock space `mergeSubjects`
+ * takes), and re-reads the subject INSIDE that lock rather than trusting the
+ * controller's earlier pre-check. Without this, a curriculum created in the
+ * window between a concurrent merge's "reassign the source's curricula" step
+ * and its "delete the source subject" step was reassigned by neither and left
+ * pointing at a subject id that no longer existed — there is no foreign key on
+ * curricula.subject_id to catch it, so the orphan was silent.
+ *
+ * A create that loses this race gets `subject_not_found` — the same clean,
+ * catchable outcome (a 404, never a 500) `mergeSubjects` already returns when
+ * it loses its own race, rather than a partially-applied write.
+ */
+export type CreateCurriculumDomainNodeSource = "manual" | "auto";
+
+/**
+ * `domainNodeSource` and `containerAreaNodeId` are repo-internal additions,
+ * not part of the shared `CreateCurriculumInput` contract.
+ *
+ * `domainNodeSource` tells this function WHY `domainNodeId` is set: "manual"
+ * for an explicit placement request (SCENARIO 5, `handleCreateCurriculum`'s
+ * explicit-first check), "auto" for the non-taxonomy-subject
+ * `resolveDomainPlacement` path (SCENARIO 8). Absent/undefined when
+ * `domainNodeId` is null (nothing to attribute).
+ *
+ * `containerAreaNodeId` is learning-list-fold-in's own addition — set only by
+ * `findOrCreateAreaContainer` (learning-list/area-container.repo.ts), never
+ * by any user-facing create path, to mark the new row as the implicit
+ * per-Area catch-all curriculum rather than an ordinary course.
+ */
 export async function createCurriculum(
-  input: CreateCurriculumInput,
-): Promise<Curriculum> {
+  input: CreateCurriculumInput & {
+    domainNodeSource?: CreateCurriculumDomainNodeSource;
+    containerAreaNodeId?: string;
+  },
+): Promise<Curriculum | { error: CreateCurriculumError }> {
   const row = {
     id: newId("cur"),
     subjectId: input.subjectId,
@@ -126,15 +188,23 @@ export async function createCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
-    domainNodeId: input.domainNodeId ?? null,
+    containerAreaNodeId: input.containerAreaNodeId ?? null,
   };
+  const domainNodeId = input.domainNodeId ?? null;
 
-  await getDb().insert(curricula).values(row);
+  return withSubjectLock(input.subjectId, async (tx) => {
+    const subjectRow = (
+      await tx.select().from(subjects).where(eq(subjects.id, input.subjectId))
+    )[0];
 
-  if (input.sources.length > 0) {
-    await getDb()
-      .insert(sources)
-      .values(
+    if (!subjectRow) {
+      return { error: "subject_not_found" as const };
+    }
+
+    await tx.insert(curricula).values(row);
+
+    if (input.sources.length > 0) {
+      await tx.insert(sources).values(
         input.sources.map((s) => ({
           id: newId("src"),
           curriculumId: row.id,
@@ -143,9 +213,25 @@ export async function createCurriculum(
           title: s.title ?? null,
         })),
       );
-  }
+    }
 
-  return toCurriculum(row, "sources");
+    // decouple-curricula-from-domain-nodes (issue #84) — placement no
+    // longer writes curricula.domain_node_id (column retired); a resolved
+    // placement instead lands as one already-`confirmed` mapping row, in
+    // the same subject-locked transaction (SCENARIO 5's "one write").
+    if (domainNodeId) {
+      await insertConfirmedMapping(
+        {
+          curriculumId: row.id,
+          domainNodeId,
+          source: input.domainNodeSource ?? "auto",
+        },
+        tx,
+      );
+    }
+
+    return toCurriculum(row, "sources", domainNodeId);
+  });
 }
 
 async function originFor(curriculumId: string): Promise<CurriculumOrigin> {
@@ -178,7 +264,10 @@ export async function getCurriculumContextForTopic(
   }
 
   const curriculumRow = (
-    await db.select().from(curricula).where(eq(curricula.id, topicRow.curriculumId))
+    await db
+      .select()
+      .from(curricula)
+      .where(eq(curricula.id, topicRow.curriculumId))
   )[0];
 
   if (!curriculumRow) {
@@ -245,7 +334,12 @@ export async function getCurriculum(
     return null;
   }
 
-  return toCurriculum(row, await originFor(curriculumId));
+  const [origin, primaryDomainNodeId] = await Promise.all([
+    originFor(curriculumId),
+    getPrimaryConfirmedDomainNodeId(curriculumId),
+  ]);
+
+  return toCurriculum(row, origin, primaryDomainNodeId);
 }
 
 export interface CurriculumPromptContext {
@@ -270,7 +364,10 @@ export async function getCurriculumPromptContext(
   }
 
   const subjectRow = (
-    await db.select().from(subjects).where(eq(subjects.id, curriculumRow.subjectId))
+    await db
+      .select()
+      .from(subjects)
+      .where(eq(subjects.id, curriculumRow.subjectId))
   )[0];
 
   return {
@@ -345,7 +442,10 @@ export async function deleteModules(moduleIds: string[]): Promise<void> {
         .from(gaps)
         .where(inArray(gaps.topicId, topicIds));
 
-      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await deleteGapMasteryForGapIds(
+        gapRows.map((g) => g.id),
+        tx,
+      );
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
     }
 
@@ -454,16 +554,86 @@ export async function addCurriculumSources(
     );
 }
 
-export async function clearCurriculumStructure(
-  curriculumId: string,
-): Promise<void> {
-  const db = getDb();
+export type ClearStructureScope = "own" | "all";
 
+/**
+ * Which module/topic rows a clear at the given scope would remove.
+ *
+ * At scope "all" that is simply everything under the curriculum — what an
+ * explicit `deleteCurriculum` needs, since leaving merged-in rows behind
+ * would orphan them under a curriculum id that no longer exists.
+ *
+ * At scope "own" (the default, used by the "Retry research"/"Reparse"
+ * recovery path) a row survives when its own `mergedFromCurriculumId` is
+ * set, and a module additionally survives when it still holds a merged-in
+ * topic — `updateTopic` can reparent a topic across modules, so provenance
+ * derived from the parent module alone would drop it. Topics under a
+ * surviving module survive with it, which is what keeps a topic the learner
+ * added under a merged-in module after the merge. A topic whose module is
+ * already gone still gets cleared, matching the delete-by-curriculum_id
+ * sweep this replaces.
+ */
+async function resolveClearTargets(
+  curriculumId: string,
+  scope: ClearStructureScope,
+  db: DbExecutor,
+): Promise<{ moduleIds: string[]; topicIds: string[] }> {
+  const moduleRows = await db
+    .select({ id: modules.id, mergedFrom: modules.mergedFromCurriculumId })
+    .from(modules)
+    .where(eq(modules.curriculumId, curriculumId));
   const topicRows = await db
-    .select()
+    .select({
+      id: topics.id,
+      moduleId: topics.moduleId,
+      mergedFrom: topics.mergedFromCurriculumId,
+    })
     .from(topics)
     .where(eq(topics.curriculumId, curriculumId));
-  const topicIds = topicRows.map((t) => t.id);
+
+  if (scope === "all") {
+    return {
+      moduleIds: moduleRows.map((m) => m.id),
+      topicIds: topicRows.map((t) => t.id),
+    };
+  }
+
+  const survivingModuleIds = new Set(
+    moduleRows.filter((m) => m.mergedFrom !== null).map((m) => m.id),
+  );
+
+  for (const topic of topicRows) {
+    if (topic.mergedFrom !== null) {
+      survivingModuleIds.add(topic.moduleId);
+    }
+  }
+
+  return {
+    moduleIds: moduleRows
+      .filter((m) => !survivingModuleIds.has(m.id))
+      .map((m) => m.id),
+    topicIds: topicRows
+      .filter(
+        (t) => t.mergedFrom === null && !survivingModuleIds.has(t.moduleId),
+      )
+      .map((t) => t.id),
+  };
+}
+
+export async function clearCurriculumStructure(
+  curriculumId: string,
+  scope: ClearStructureScope = "own",
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  const { moduleIds, topicIds } = await resolveClearTargets(
+    curriculumId,
+    scope,
+    db,
+  );
+
+  if (moduleIds.length === 0 && topicIds.length === 0) {
+    return;
+  }
 
   await db.transaction(async (tx) => {
     if (topicIds.length > 0) {
@@ -472,18 +642,69 @@ export async function clearCurriculumStructure(
         .from(gaps)
         .where(inArray(gaps.topicId, topicIds));
 
-      await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
+      await deleteGapMasteryForGapIds(
+        gapRows.map((g) => g.id),
+        tx,
+      );
       await tx.delete(gaps).where(inArray(gaps.topicId, topicIds));
+      await tx.delete(topics).where(inArray(topics.id, topicIds));
     }
 
-    await tx.delete(topics).where(eq(topics.curriculumId, curriculumId));
-    await tx.delete(modules).where(eq(modules.curriculumId, curriculumId));
+    if (moduleIds.length > 0) {
+      await tx.delete(modules).where(inArray(modules.id, moduleIds));
+    }
   });
 }
 
-export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
-  const db = getDb();
+export async function maxModuleOrder(curriculumId: string): Promise<number> {
+  const row = (
+    await getDb()
+      .select({ maxOrder: sql<number>`coalesce(max(${modules.order}), 0)` })
+      .from(modules)
+      .where(eq(modules.curriculumId, curriculumId))
+  )[0];
 
+  return row?.maxOrder ?? 0;
+}
+
+// A delete destroys a curriculum's whole module/topic/gap tree, then its
+// sources, then the curriculum row — three writes that must land together or
+// not at all, or a failure between them leaves a course whose content is
+// partly gone with nothing to say which part.
+//
+// `db` is optional rather than defaulting to getDb() so the two cases stay
+// distinguishable. `deleteSubject` runs its whole body inside
+// `withSubjectLock`'s transaction and hands that transaction down, which both
+// keeps the delete on the one pooled connection it already holds (a `max: 4`
+// pool — docs/architecture/concurrency-and-verification-hardening/review.md)
+// and makes the curricula deletions part of the caller's commit. That path is
+// left exactly as it was: wrapping it again would open a savepoint, which
+// would let a caller catch a failure here and carry on inside an outer
+// transaction that today is already aborted.
+//
+// Called standalone — `DELETE /curricula/:id` — there is no caller
+// transaction to join, so this takes `withSubjectLock`'s single-entity lock
+// keyed by the curriculum id itself. `mergeCurricula` locks the SAME
+// `hashtext(id)` space for both its targetId and sourceId (withMergeLock's
+// sorted pair), so a standalone delete of a curriculum that is currently
+// either side of an in-flight merge now waits for the merge to commit rather
+// than interleaving with its reassignment UPDATEs — the same orphan/
+// content-loss window `deleteSubject` closes for subjects, one level down.
+export async function deleteCurriculum(
+  curriculumId: string,
+  db?: DbExecutor,
+): Promise<boolean> {
+  if (!db) {
+    return withSubjectLock(curriculumId, (tx) => deleteCurriculumWith(curriculumId, tx));
+  }
+
+  return deleteCurriculumWith(curriculumId, db);
+}
+
+async function deleteCurriculumWith(
+  curriculumId: string,
+  db: DbExecutor,
+): Promise<boolean> {
   const existing = (
     await db.select().from(curricula).where(eq(curricula.id, curriculumId))
   )[0];
@@ -492,8 +713,12 @@ export async function deleteCurriculum(curriculumId: string): Promise<boolean> {
     return false;
   }
 
-  await clearCurriculumStructure(curriculumId);
+  await clearCurriculumStructure(curriculumId, "all", db);
   await db.delete(sources).where(eq(sources.curriculumId, curriculumId));
+  // SCENARIO 13 — every mapping row this curriculum owns (suggested,
+  // confirmed, and rejected alike) is removed alongside it, so no dangling
+  // reference is left for getDomainMapForSubject to trip over.
+  await deleteMappingsForCurriculum(curriculumId, db);
   await db.delete(curricula).where(eq(curricula.id, curriculumId));
 
   return true;
@@ -542,11 +767,11 @@ export type MergeCurriculaError =
  * time); it's a real, ordinarily-reachable data-loss path, since the
  * merge-target picker previously showed no status signal at all. Refusing a
  * failed target here closes the "picked an unlabeled failed curriculum by
- * accident" entry point. It does NOT close the case where a healthy merge
- * target fails LATER through ordinary use (e.g. `mergeSourcesIntoCurriculum`
- * failing on a subsequent "add more sources" attempt) — that gap needs
- * `clearCurriculumStructure` itself to become provenance-aware, tracked
- * separately (queued as a wishlist follow-up, not fixed in this pass).
+ * accident" entry point. The harder case — a healthy merge target that fails
+ * LATER through ordinary use (e.g. `mergeSourcesIntoCurriculum` failing on a
+ * subsequent "add more sources" attempt) — is closed by the
+ * `mergedFromCurriculumId` marker this reassignment writes onto every moved
+ * module and topic: `clearCurriculumStructure` then spares those rows.
  */
 export async function mergeCurricula(
   targetId: string,
@@ -597,18 +822,27 @@ export async function mergeCurricula(
     )[0];
     const targetMaxOrder = targetMaxOrderRow?.maxOrder ?? 0;
 
+    // `coalesce` rather than a straight assignment so a chain of merges
+    // keeps naming the curriculum a row ORIGINALLY came from: content that
+    // reached B via an earlier merge and is now moving on to A stays
+    // attributed to its first origin. Either way the marker is non-NULL,
+    // which is what `clearCurriculumStructure` filters on.
     const movedModules = await tx
       .update(modules)
       .set({
         curriculumId: targetId,
         order: sql`${modules.order} + ${targetMaxOrder}`,
+        mergedFromCurriculumId: sql`coalesce(${modules.mergedFromCurriculumId}, ${sourceId})`,
       })
       .where(eq(modules.curriculumId, sourceId))
       .returning({ id: modules.id });
 
     const movedTopics = await tx
       .update(topics)
-      .set({ curriculumId: targetId })
+      .set({
+        curriculumId: targetId,
+        mergedFromCurriculumId: sql`coalesce(${topics.mergedFromCurriculumId}, ${sourceId})`,
+      })
       .where(eq(topics.curriculumId, sourceId))
       .returning({ id: topics.id });
 
@@ -636,6 +870,16 @@ export async function mergeCurricula(
     await tx
       .delete(structureResearchCandidates)
       .where(eq(structureResearchCandidates.curriculumId, sourceId));
+
+    // decouple-curricula-from-domain-nodes (issue #84) — not reassigned onto
+    // the target (this merge never reconciles the two curricula's domain
+    // placements — same posture this merge already has for every other
+    // source-owned row: deleted, not moved, per the doc comment above).
+    // Deleting them here is what keeps this consistent with the OLD
+    // curricula.domain_node_id-column behavior, where a merged-away source's
+    // placement was simply lost with the row — the only change is that this
+    // is now a real cleanup query instead of an implicit column drop.
+    await deleteMappingsForCurriculum(sourceId, tx);
 
     await tx.delete(curricula).where(eq(curricula.id, sourceId));
 
@@ -669,6 +913,120 @@ export async function mergeCurricula(
   });
 }
 
+export type MoveCurriculumError =
+  | "not_found"
+  | "subject_not_found"
+  | "same_subject"
+  | "kind_mismatch";
+
+/**
+ * Reassigns a curriculum to a different subject (the "reorganize my
+ * curricula across subjects" flow) — a plain `subjectId` column update, but
+ * with one necessary side effect: every `curriculum_domain_node_mappings`
+ * row this curriculum owns (suggested, confirmed, and rejected alike) is
+ * deleted outright, the same SCENARIO 13 treatment `deleteCurriculum`
+ * already gives them. `domain_nodes` form a separate forest PER SUBJECT
+ * (`domainNodes.subjectId`) — see schema.ts — so a mapping pointing at a
+ * node under the OLD subject is not just stale once the curriculum moves,
+ * it is nonsensical: the id it names lives in a tree the curriculum no
+ * longer belongs to. Reassigning the mapping onto the new subject's tree
+ * isn't an option either — there is no name/position correspondence between
+ * two independently-authored domain trees to reassign it TO. The learner
+ * re-triggers "Map to taxonomy" under the new subject if they want fresh
+ * placement (the same on-demand entry point `createCurriculum` already
+ * documents for issue #84).
+ *
+ * The target subject must be `kind: "architecture-mentor"` — a
+ * `language-practice` subject never renders a curricula list at all
+ * (`SubjectSection`'s `language-practice` branch shows only the "Open
+ * practice" link), so moving a curriculum there would make it invisible in
+ * the UI, not just unplaced. Mirrors `MergeSubjectButton`'s own options
+ * filter on the frontend.
+ *
+ * Locking mirrors `mergeSubjects`: the target subject's id and the
+ * curriculum's OWN (pre-move) subject id are both taken via the same
+ * sorted advisory-lock pair `withMergeLock` already uses for merges, so a
+ * concurrent `mergeSubjects`/`deleteSubject` touching either subject
+ * serializes against this move instead of racing it. The "own subject id"
+ * half of that pair has to be read once, unlocked, before opening the
+ * transaction — `withMergeLock` needs both lock ids up front, and the
+ * curriculum's current subject isn't known ahead of time the way both ids
+ * are for a subject-to-subject merge. A third actor moving this exact
+ * curriculum again in the gap between that peek and the lock being granted
+ * is a real but vanishingly unlikely race for a single-user tool, and it is
+ * caught, not silently misapplied: the curriculum row is re-read again
+ * INSIDE the lock, and every decision below (same_subject, the update, the
+ * mapping wipe) is made off that authoritative re-read, never the stale
+ * peeked value.
+ */
+export async function moveCurriculumToSubject(
+  curriculumId: string,
+  targetSubjectId: string,
+): Promise<Curriculum | { error: MoveCurriculumError }> {
+  const peeked = (
+    await getDb()
+      .select({ subjectId: curricula.subjectId })
+      .from(curricula)
+      .where(eq(curricula.id, curriculumId))
+  )[0];
+
+  if (!peeked) {
+    return { error: "not_found" as const };
+  }
+
+  if (peeked.subjectId === targetSubjectId) {
+    return { error: "same_subject" as const };
+  }
+
+  type MoveLockResult =
+    | { error: MoveCurriculumError }
+    | { row: typeof curricula.$inferSelect };
+
+  const locked = await withMergeLock(targetSubjectId, peeked.subjectId, async (tx): Promise<MoveLockResult> => {
+    const curriculumRow = (
+      await tx.select().from(curricula).where(eq(curricula.id, curriculumId))
+    )[0];
+
+    if (!curriculumRow) {
+      return { error: "not_found" as const };
+    }
+
+    if (curriculumRow.subjectId === targetSubjectId) {
+      return { error: "same_subject" as const };
+    }
+
+    const targetSubjectRow = (
+      await tx.select().from(subjects).where(eq(subjects.id, targetSubjectId))
+    )[0];
+
+    if (!targetSubjectRow) {
+      return { error: "subject_not_found" as const };
+    }
+
+    if (targetSubjectRow.kind !== "architecture-mentor") {
+      return { error: "kind_mismatch" as const };
+    }
+
+    const updatedRow = (
+      await tx
+        .update(curricula)
+        .set({ subjectId: targetSubjectId })
+        .where(eq(curricula.id, curriculumId))
+        .returning()
+    )[0]!;
+
+    await deleteMappingsForCurriculum(curriculumId, tx);
+
+    return { row: updatedRow };
+  });
+
+  if ("error" in locked) {
+    return { error: locked.error === "self_merge" ? "same_subject" : locked.error };
+  }
+
+  return toCurriculum(locked.row, await originFor(curriculumId), null);
+}
+
 export async function countModules(curriculumId: string): Promise<number> {
   const rows = await getDb()
     .select()
@@ -692,7 +1050,11 @@ export async function confirmCurriculum(
   }
 
   if (existing.status === "confirmed") {
-    return toCurriculum(existing, await originFor(curriculumId));
+    return toCurriculum(
+      existing,
+      await originFor(curriculumId),
+      await getPrimaryConfirmedDomainNodeId(curriculumId),
+    );
   }
 
   if (existing.status !== "ready") {
@@ -726,7 +1088,11 @@ export async function confirmCurriculum(
     .where(eq(curricula.id, curriculumId))
     .returning();
 
-  return toCurriculum(rows[0]!, await originFor(curriculumId));
+  return toCurriculum(
+    rows[0]!,
+    await originFor(curriculumId),
+    await getPrimaryConfirmedDomainNodeId(curriculumId),
+  );
 }
 
 export async function markPreAssessmentCompleted(
@@ -744,14 +1110,43 @@ export async function markPreAssessmentCompleted(
     return "not_found";
   }
 
-  return toCurriculum(rows[0], await originFor(curriculumId));
+  return toCurriculum(
+    rows[0],
+    await originFor(curriculumId),
+    await getPrimaryConfirmedDomainNodeId(curriculumId),
+  );
 }
 
-
+/**
+ * decouple-curricula-from-domain-nodes (issue #84) — `domainNodeId` is no
+ * longer a scalar column patch: it is handled as its own mapping-table side
+ * effect, independent of `patch` below, since `patch` is applied via a
+ * single scalar `UPDATE curricula SET ...` and there is no longer any
+ * `curricula.domain_node_id` column to include in it. `undefined` means
+ * "leave placement untouched" (the patch omitted the field entirely); `null`
+ * is the "change placement" panel's "— unplaced —" — resolves every
+ * currently-confirmed mapping to `rejected` (never deleted, same
+ * audit-trail convention as the rest of this codebase's suggestion tables);
+ * a real id inserts a new `confirmed`, `source: "manual"` mapping row
+ * (SCENARIO 5/9's re-pointing UI) rather than clearing the old one, since
+ * placement is many-to-many now.
+ */
 export async function updateCurriculum(
   input: UpdateCurriculumInput,
 ): Promise<Curriculum | null> {
   const db = getDb();
+
+  // Existence check happens first, before any mapping-table side effect —
+  // a domainNodeId patch against a curriculum id that doesn't exist must
+  // stay a clean no-op (404 at the controller), never an orphaned mapping
+  // row pointing at nothing.
+  const existing = (
+    await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
+  )[0];
+
+  if (!existing) {
+    return null;
+  }
 
   const patch: Partial<typeof curricula.$inferInsert> = {};
 
@@ -776,26 +1171,33 @@ export async function updateCurriculum(
   }
 
   if (input.domainNodeId !== undefined) {
-    patch.domainNodeId = input.domainNodeId;
+    if (input.domainNodeId === null) {
+      await rejectAllConfirmedForCurriculum(input.curriculumId);
+    } else {
+      await insertConfirmedMapping({
+        curriculumId: input.curriculumId,
+        domainNodeId: input.domainNodeId,
+        source: "manual",
+      });
+    }
   }
 
-  if (Object.keys(patch).length === 0) {
-    const existing = (
-      await db.select().from(curricula).where(eq(curricula.id, input.curriculumId))
-    )[0];
+  const row =
+    Object.keys(patch).length === 0
+      ? existing
+      : (
+          await db
+            .update(curricula)
+            .set(patch)
+            .where(eq(curricula.id, input.curriculumId))
+            .returning()
+        )[0]!;
 
-    return existing ? toCurriculum(existing, await originFor(input.curriculumId)) : null;
-  }
-
-  const rows = await db
-    .update(curricula)
-    .set(patch)
-    .where(eq(curricula.id, input.curriculumId))
-    .returning();
-
-  const row = rows[0];
-
-  return row ? toCurriculum(row, await originFor(input.curriculumId)) : null;
+  return toCurriculum(
+    row,
+    await originFor(input.curriculumId),
+    await getPrimaryConfirmedDomainNodeId(input.curriculumId),
+  );
 }
 
 export async function saveCurriculumPlan(
@@ -905,7 +1307,9 @@ export async function insertApprovedTextSource(
  * research-triggered curriculum is candidate-gathering machinery, not
  * user-pasted material (that path is `parseCurriculum`, untouched here).
  */
-export async function deleteAllCurriculumSources(curriculumId: string): Promise<void> {
+export async function deleteAllCurriculumSources(
+  curriculumId: string,
+): Promise<void> {
   await getDb().delete(sources).where(eq(sources.curriculumId, curriculumId));
 }
 
@@ -945,7 +1349,9 @@ export async function insertPendingSources(
  * always inserts for a research-triggered curriculum, which is never a
  * candidate for the learner to approve or reject.
  */
-export async function getApprovableSourceCount(curriculumId: string): Promise<number> {
+export async function getApprovableSourceCount(
+  curriculumId: string,
+): Promise<number> {
   const rows = await getDb()
     .select()
     .from(sources)
@@ -954,17 +1360,26 @@ export async function getApprovableSourceCount(curriculumId: string): Promise<nu
   return rows.filter((r) => r.kind !== "web_research").length;
 }
 
-export async function approveAllPendingSources(curriculumId: string): Promise<void> {
+export async function approveAllPendingSources(
+  curriculumId: string,
+): Promise<void> {
   await getDb()
     .update(sources)
     .set({ approvalStatus: "approved" })
-    .where(and(eq(sources.curriculumId, curriculumId), eq(sources.approvalStatus, "pending")));
+    .where(
+      and(
+        eq(sources.curriculumId, curriculumId),
+        eq(sources.approvalStatus, "pending"),
+      ),
+    );
 }
 
 export async function deleteSource(sourceId: string): Promise<boolean> {
   const db = getDb();
 
-  const existing = (await db.select().from(sources).where(eq(sources.id, sourceId)))[0];
+  const existing = (
+    await db.select().from(sources).where(eq(sources.id, sourceId))
+  )[0];
 
   if (!existing) {
     return false;
@@ -1004,7 +1419,8 @@ export async function insertStructureTurn(
     .from(curriculumStructureTurns)
     .where(eq(curriculumStructureTurns.curriculumId, curriculumId));
 
-  const nextOrder = existing.reduce((max, row) => Math.max(max, row.order), 0) + 1;
+  const nextOrder =
+    existing.reduce((max, row) => Math.max(max, row.order), 0) + 1;
   const id = newId("turn");
 
   await db.insert(curriculumStructureTurns).values({
@@ -1075,7 +1491,9 @@ export async function updateStructureTurn(
  * pre-Phase-5 research/parse failure, which never writes to this table at
  * all — see `FailedBanner` on the frontend.
  */
-export async function hasAnyStructureTurns(curriculumId: string): Promise<boolean> {
+export async function hasAnyStructureTurns(
+  curriculumId: string,
+): Promise<boolean> {
   const rows = await getDb()
     .select({ id: curriculumStructureTurns.id })
     .from(curriculumStructureTurns)
@@ -1108,15 +1526,16 @@ export async function createSplitOutCurriculum(
     defaultDepth: "working" as const,
     strictOrder: false,
     preAssessmentCompletedAt: null,
-    domainNodeId: null,
   };
 
   await getDb().insert(curricula).values(row);
 
-  return toCurriculum(row, "sources");
+  return toCurriculum(row, "sources", null);
 }
 
-export async function getStructureTurns(curriculumId: string): Promise<StructureTurn[]> {
+export async function getStructureTurns(
+  curriculumId: string,
+): Promise<StructureTurn[]> {
   const db = getDb();
 
   const [rows, candidateRows] = await Promise.all([
@@ -1149,7 +1568,9 @@ export async function getStructureTurns(curriculumId: string): Promise<Structure
     pendingByTurnId.set(row.structureTurnId, list);
   }
 
-  return rows.map((row) => toStructureTurn(row, pendingByTurnId.get(row.id) ?? []));
+  return rows.map((row) =>
+    toStructureTurn(row, pendingByTurnId.get(row.id) ?? []),
+  );
 }
 
 /**
@@ -1280,7 +1701,8 @@ function toStructureTurn(
     curriculumId: row.curriculumId,
     role: row.role as StructureTurnRole,
     message: row.message,
-    structureSnapshot: (row.structureSnapshot as DocResearchPlan | null) ?? null,
+    structureSnapshot:
+      (row.structureSnapshot as DocResearchPlan | null) ?? null,
     splitSuggestion: (row.splitSuggestion as SplitSuggestion | null) ?? null,
     toolActions: (row.toolActions as string[] | null) ?? [],
     status: row.status as StructureTurnStatus,
@@ -1310,9 +1732,15 @@ export async function getCurriculumDetail(
 
   const gapRows =
     topicRows.length > 0
-      ? await db.select().from(gaps).where(
-          inArray(gaps.topicId, topicRows.map((t) => t.id)),
-        )
+      ? await db
+          .select()
+          .from(gaps)
+          .where(
+            inArray(
+              gaps.topicId,
+              topicRows.map((t) => t.id),
+            ),
+          )
       : [];
 
   // Generalized recall-gap mastery tracking (issue #57) — display
@@ -1326,7 +1754,12 @@ export async function getCurriculumDetail(
       ? await db
           .select()
           .from(gapMastery)
-          .where(inArray(gapMastery.gapId, gapRows.map((g) => g.id)))
+          .where(
+            inArray(
+              gapMastery.gapId,
+              gapRows.map((g) => g.id),
+            ),
+          )
       : [];
   const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
 
@@ -1344,15 +1777,24 @@ export async function getCurriculumDetail(
     masteryByGapId,
   );
 
-  const [citableUrls, hasStructureDraftAttempt] = await Promise.all([
+  const [citableUrls, hasStructureDraftAttempt, domainMappings] = await Promise.all([
     getCurriculumCitableUrls(curriculumId),
     hasAnyStructureTurns(curriculumId),
+    listMappingsForCurriculum(curriculumId),
   ]);
+
+  // Already ordered by createdAt DESC (listMappingsForCurriculum's own
+  // query) — the first confirmed row in that order is the most recently
+  // confirmed placement, same semantics as getPrimaryConfirmedDomainNodeId,
+  // without a second query.
+  const primaryDomainNodeId =
+    domainMappings.find((mapping) => mapping.status === "confirmed")?.domainNodeId ?? null;
 
   return {
     curriculum: toCurriculum(
       curriculumRow,
       resolveCurriculumOrigin(sourceRows.map((s) => s.kind)),
+      primaryDomainNodeId,
     ),
     sources: sourceRows.map(toSource),
     modules: assembledModules,
@@ -1360,10 +1802,13 @@ export async function getCurriculumDetail(
     recommendedTopicId: recommendedTopicId(assembledModules),
     hasCitableSources: citableUrls.length > 0,
     hasStructureDraftAttempt,
+    domainMappings,
   };
 }
 
-export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> {
+export async function getLearningMapSnapshots(): Promise<
+  LearningMapSnapshot[]
+> {
   const db = getDb();
 
   const curriculumRows = await db
@@ -1376,11 +1821,16 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
   }
 
   const curriculumIds = curriculumRows.map((c) => c.id);
-  const subjectIds = Array.from(new Set(curriculumRows.map((c) => c.subjectId)));
+  const subjectIds = Array.from(
+    new Set(curriculumRows.map((c) => c.subjectId)),
+  );
 
   const [subjectRows, moduleRows, topicRows] = await Promise.all([
     db.select().from(subjects).where(inArray(subjects.id, subjectIds)),
-    db.select().from(modules).where(inArray(modules.curriculumId, curriculumIds)),
+    db
+      .select()
+      .from(modules)
+      .where(inArray(modules.curriculumId, curriculumIds)),
     db.select().from(topics).where(inArray(topics.curriculumId, curriculumIds)),
   ]);
 
@@ -1400,30 +1850,35 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
       topicsByModuleId.set(t.moduleId, list);
     }
 
-    const moduleSnapshots: LearningMapModuleSnapshot[] = curriculumModules.map((m) => {
-      const moduleTopics = topicsByModuleId.get(m.id) ?? [];
+    const moduleSnapshots: LearningMapModuleSnapshot[] = curriculumModules.map(
+      (m) => {
+        const moduleTopics = topicsByModuleId.get(m.id) ?? [];
 
-      return {
-        level: (m.level as Level | null) ?? null,
-        progress: moduleProgress(moduleTopics),
-        topics: moduleTopics.map((t) => ({
-          id: t.id,
-          title: t.title,
-          progress: t.progress,
-        })),
-      };
-    });
+        return {
+          level: (m.level as Level | null) ?? null,
+          progress: moduleProgress(moduleTopics),
+          topics: moduleTopics.map((t) => ({
+            id: t.id,
+            title: t.title,
+            progress: t.progress,
+          })),
+        };
+      },
+    );
 
     const overallProgress = moduleProgress(curriculumTopics);
-    const lastInteractedAt = curriculumTopics.reduce<string | null>((latest, t) => {
-      if (!t.progress.lastInteractedAt) {
-        return latest;
-      }
+    const lastInteractedAt = curriculumTopics.reduce<string | null>(
+      (latest, t) => {
+        if (!t.progress.lastInteractedAt) {
+          return latest;
+        }
 
-      return !latest || t.progress.lastInteractedAt > latest
-        ? t.progress.lastInteractedAt
-        : latest;
-    }, null);
+        return !latest || t.progress.lastInteractedAt > latest
+          ? t.progress.lastInteractedAt
+          : latest;
+      },
+      null,
+    );
 
     return {
       curriculumId: c.id,
@@ -1437,7 +1892,9 @@ export async function getLearningMapSnapshots(): Promise<LearningMapSnapshot[]> 
   });
 }
 
-export async function getLowerLevelCoverage(topicId: string): Promise<string[]> {
+export async function getLowerLevelCoverage(
+  topicId: string,
+): Promise<string[]> {
   const db = getDb();
 
   const topicRow = (
@@ -1535,9 +1992,14 @@ function toCurriculum(
     defaultDepth: string;
     strictOrder: boolean;
     preAssessmentCompletedAt: Date | null;
-    domainNodeId?: string | null;
   },
   origin: CurriculumOrigin,
+  // decouple-curricula-from-domain-nodes (issue #84) — no longer read off
+  // `row` (curricula.domain_node_id was migrated and dropped): every caller
+  // supplies the derived value explicitly, from
+  // getPrimaryConfirmedDomainNodeId()/getPrimaryConfirmedDomainNodeIdsByCurriculumIds()
+  // or from a placement it just wrote itself in the same call.
+  primaryDomainNodeId: string | null,
 ): Curriculum {
   return {
     id: row.id,
@@ -1554,7 +2016,7 @@ function toCurriculum(
     preAssessmentCompletedAt: row.preAssessmentCompletedAt
       ? row.preAssessmentCompletedAt.toISOString()
       : null,
-    domainNodeId: row.domainNodeId ?? null,
+    domainNodeId: primaryDomainNodeId,
   };
 }
 
@@ -1590,6 +2052,8 @@ function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
+    headroomOfferedAt: row.headroomOfferedAt ? row.headroomOfferedAt.toISOString() : null,
     tags,
   };
 }
@@ -1600,7 +2064,9 @@ function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
  * lookup keyed by `${nodeType}:${nodeId}` — used by `getCurriculumDetail` so
  * `Module.tags`/`Topic.tags` never cost an extra query per node.
  */
-async function loadTagsByNode(nodeIds: string[]): Promise<Map<string, TagChip[]>> {
+async function loadTagsByNode(
+  nodeIds: string[],
+): Promise<Map<string, TagChip[]>> {
   const assignments = await listAssignmentsForNodes(nodeIds);
 
   if (assignments.length === 0) {
@@ -1627,3 +2093,10 @@ async function loadTagsByNode(nodeIds: string[]): Promise<Map<string, TagChip[]>
   return byNode;
 }
 
+export async function setCurriculumConcern(
+  curriculumId: string,
+  concern: Concern | null,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db.update(curricula).set({ concern }).where(eq(curricula.id, curriculumId));
+}

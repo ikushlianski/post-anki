@@ -9,11 +9,15 @@ export function ProbeAnswer({
   mode,
   question,
   autoInvalidate = true,
+  hideNextControl = false,
+  onAnswered,
 }: {
   topicId: string
   mode: QuestionKind
   question: Question
   autoInvalidate?: boolean
+  hideNextControl?: boolean
+  onAnswered?: (result: AttemptResult) => void
 }) {
   const router = useRouter()
   const [current, setCurrent] = useState<Question>(question)
@@ -58,6 +62,7 @@ export function ProbeAnswer({
 
     if (res) {
       setResult(res)
+      onAnswered?.(res)
     }
 
     if (autoInvalidate) {
@@ -218,19 +223,23 @@ export function ProbeAnswer({
               ))}
             </div>
           ) : null}
-          <button
-            type="button"
-            disabled={loadingNext}
-            onClick={() => void loadNext()}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
-          >
-            {loadingNext ? 'Loading next…' : 'Probe the next gap'}
-          </button>
-          {noMore ? (
-            <p className="text-xs text-neutral-500">
-              Nothing left to probe here right now — every in-scope gap is
-              covered. Try another topic from the menu.
-            </p>
+          {!hideNextControl ? (
+            <>
+              <button
+                type="button"
+                disabled={loadingNext}
+                onClick={() => void loadNext()}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
+              >
+                {loadingNext ? 'Loading next…' : 'Probe the next gap'}
+              </button>
+              {noMore ? (
+                <p className="text-xs text-neutral-500">
+                  Nothing left to probe here right now — every in-scope gap is
+                  covered. Try another topic from the menu.
+                </p>
+              ) : null}
+            </>
           ) : null}
         </div>
       ) : null}

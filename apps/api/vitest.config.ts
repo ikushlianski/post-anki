@@ -36,6 +36,22 @@ export default defineConfig({
       // requiring real SELECTs against 3 new tables that only a real
       // Postgres connection can produce.
       "src/domain-map/doc-scan.orchestrator.test.ts",
+      // subject-duplicate.orchestrator.test.ts / subject-duplicate.repo.test.ts
+      // (ai-duplicate-detection, issue #63) are the same named exception,
+      // for the same reason: spec.md's Backend DoD pins these two exact
+      // paths (not *.integration.test.ts) as the proof commands, requiring
+      // a real Postgres connection (the DB partial unique index, SCENARIO
+      // 8b, and the cross-table transaction behavior, SCENARIO 4/5b, can
+      // only be proven against a real connection).
+      "src/subject-duplicate/subject-duplicate.orchestrator.test.ts",
+      "src/subject-duplicate/subject-duplicate.repo.test.ts",
+      // curriculum-domain-mapping.orchestrator.test.ts (decouple-curricula-
+      // from-domain-nodes, issue #84) is the same named exception, for the
+      // same reason: the plan's own Definition of Done pins this exact path
+      // (not *.integration.test.ts) as the hallucinated-node-id proof
+      // command, requiring a real Postgres connection (the same pattern
+      // domain-priority-review.orchestrator.test.ts already established).
+      "src/curriculum-domain-mapping/curriculum-domain-mapping.orchestrator.test.ts",
     ],
   },
 });

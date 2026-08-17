@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { Lecture, LectureSourceCandidate } from './model'
@@ -45,7 +46,7 @@ export function LecturePanel({ topicId }: { topicId: string }) {
   }
 
   if (!lecture) {
-    return <LectureGatherReview topicId={topicId} onCompiled={invalidateLecture} />
+    return <LectureStart topicId={topicId} onCompiled={invalidateLecture} />
   }
 
   if (lecture.status === 'generating') {
@@ -69,6 +70,46 @@ export function LecturePanel({ topicId }: { topicId: string }) {
   }
 
   return <LectureReady lecture={lecture} />
+}
+
+function LectureStart({
+  topicId,
+  onCompiled,
+}: {
+  topicId: string
+  onCompiled: () => void
+}) {
+  const [needsManualReview, setNeedsManualReview] = useState(false)
+
+  const compileMutation = useMutation({
+    mutationFn: () => compileLecture({ data: topicId }),
+    onSuccess: onCompiled,
+    onError: () => setNeedsManualReview(true),
+  })
+
+  if (needsManualReview) {
+    return <LectureGatherReview topicId={topicId} onCompiled={onCompiled} />
+  }
+
+  return (
+    <div
+      className="rounded-lg border border-neutral-200 bg-white p-6 text-center"
+      data-testid="lecture-start"
+    >
+      <p className="text-sm font-medium text-neutral-700">
+        No lecture for this topic yet.
+      </p>
+      <button
+        type="button"
+        data-testid="lecture-compile-start-button"
+        disabled={compileMutation.isPending}
+        onClick={() => compileMutation.mutate()}
+        className="mt-4 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+      >
+        {compileMutation.isPending ? 'Compiling…' : 'Compile lecture'}
+      </button>
+    </div>
+  )
 }
 
 function LectureGatherReview({

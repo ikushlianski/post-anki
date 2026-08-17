@@ -9,9 +9,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "npm run test && npm run test:integration",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
     "db:seed:subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subjects.ts",
+    "migrate:english-practice-data": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate-english-practice-data.ts",
+    "db:seed:domain-taxonomy": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-domain-taxonomy.ts",
     "verify:e2e": "tsx scripts/verify-e2e.ts"
   },
   "dependencies": {
@@ -27,6 +30,7 @@
     "p-retry": "^7.1.1",
     "pg": "^8.13.0",
     "pino": "^9.5.0",
+    "yaml": "^2.9.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

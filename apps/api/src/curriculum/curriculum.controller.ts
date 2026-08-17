@@ -4,15 +4,18 @@ import {
   approveSourcesInput,
   createCurriculumInput,
   mergeCurriculaInput,
+  moveCurriculumInput,
   resolveSupplementalResearchInput,
   submitStructureTurnInput,
   updateCurriculumInput,
 } from "@post-anki/shared";
+import { resolveDomainNodeSource } from "@post-anki/core";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getSubject } from "../subject/subject.repo.js";
 import { resolveDomainPlacement } from "../domain-map/domain-placement.orchestrator.js";
-import { getDomainNode } from "../domain-map/domain-map.repo.js";
+import { getDomainNode, listDomainNodesForSubject } from "../domain-map/domain-map.repo.js";
+import { startLivenessTracking } from "../liveness/liveness.repo.js";
 import {
   confirmCurriculum,
   createCurriculum,
@@ -27,6 +30,7 @@ import {
   listCurricula,
   markPreAssessmentCompleted,
   mergeCurricula,
+  moveCurriculumToSubject,
   updateCurriculum,
 } from "./curriculum.repo.js";
 import {
@@ -36,6 +40,7 @@ import {
   isPastedMaterialAndSourcesConflict,
   isResearchAndSourcesConflict,
   isSourceMandateUnmet,
+  resolveSourceMergeAction,
 } from "./curriculum-rules.js";
 import {
   generateCurriculumFromApprovedSources,
@@ -138,17 +143,71 @@ export async function handleCreateCurriculum(
     return;
   }
 
-  const placement = await resolveDomainPlacement({
-    subjectId: body.data.subjectId,
-    name: body.data.name,
-    domainNodeId: body.data.domainNodeId,
-  });
+  // decouple-curricula-from-domain-nodes (issue #84), SCENARIO 5 — an
+  // explicit domainNodeId is checked FIRST, before ever looking at whether
+  // the subject is taxonomy-backed. Branching on subject type first would
+  // silently drop an explicit placement on a taxonomy-backed subject
+  // instead of confirming the row the caller asked for (the bug this plan's
+  // own grill-plan review caught before implementation) — "add course here"
+  // on the domain map tree must win regardless of subject type.
+  let resolvedDomainNodeId: string | null = null;
+  let domainNodeSource: "manual" | "auto" | undefined;
 
-  const curriculum = await createCurriculum({
+  if (body.data.domainNodeId) {
+    const targetNode = await getDomainNode(body.data.domainNodeId);
+
+    if (!targetNode || targetNode.subjectId !== body.data.subjectId) {
+      sendError(
+        res,
+        400,
+        "domain_node_wrong_subject",
+        "the target domain node does not belong to this curriculum's own subject",
+      );
+      return;
+    }
+
+    resolvedDomainNodeId = targetNode.id;
+    domainNodeSource = "manual";
+  } else {
+    // No explicit node given — SCENARIO 8: a subject with a static taxonomy
+    // skips placement entirely here (the on-demand "Map to taxonomy"
+    // trigger handles it later); every other subject keeps today's
+    // resolveDomainPlacement flow completely unchanged.
+    const existingNodes = await listDomainNodesForSubject(body.data.subjectId);
+    const sourceKind = resolveDomainNodeSource(
+      existingNodes.map((node) => ({ source: node.source })),
+    );
+
+    if (sourceKind !== "static_taxonomy") {
+      const placement = await resolveDomainPlacement({
+        subjectId: body.data.subjectId,
+        name: body.data.name,
+        domainNodeId: body.data.domainNodeId,
+      });
+
+      resolvedDomainNodeId = placement.domainNodeId;
+      domainNodeSource = placement.domainNodeId ? "auto" : undefined;
+    }
+  }
+
+  const created = await createCurriculum({
     ...body.data,
     sources,
-    domainNodeId: placement.domainNodeId,
+    domainNodeId: resolvedDomainNodeId,
+    domainNodeSource,
   });
+
+  // The subject can disappear between the pre-check above and the insert —
+  // a concurrent subject merge deletes the source subject once it has
+  // reassigned that subject's curricula. createCurriculum re-checks under the
+  // merge's own lock, so this is the same 404 the pre-check would have sent,
+  // just decided later and correctly.
+  if ("error" in created) {
+    sendError(res, 404, created.error);
+    return;
+  }
+
+  const curriculum = created;
 
   sendJson(res, 202, curriculum);
 
@@ -501,6 +560,33 @@ export async function handleMergeCurricula(
   sendJson(res, 200, result);
 }
 
+export async function handleMoveCurriculum(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  curriculumId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, moveCurriculumInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await moveCurriculumToSubject(curriculumId, body.data.targetSubjectId);
+
+  if ("error" in result) {
+    if (result.error === "not_found" || result.error === "subject_not_found") {
+      sendError(res, 404, result.error);
+      return;
+    }
+
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
 export async function handleGetCurriculum(
   res: http.ServerResponse,
   curriculumId: string,
@@ -546,6 +632,8 @@ export async function handleConfirmCurriculum(
     return;
   }
 
+  await startLivenessTracking({ entityType: "curriculum", entityId: curriculumId });
+
   sendJson(res, 200, result);
 }
 
@@ -585,7 +673,9 @@ export async function handleAddSources(
     return;
   }
 
-  if (curriculum.status === "awaiting_source_approval") {
+  const action = resolveSourceMergeAction(curriculum.status);
+
+  if (action === "queue_for_approval") {
     // A manually-added link during the approval review — inserted as
     // pending, same as an auto-discovered candidate, so it's treated
     // identically once the learner clicks "Approve & generate" (SCENARIO
@@ -605,7 +695,7 @@ export async function handleAddSources(
     return;
   }
 
-  if (curriculum.status === "shaping_structure") {
+  if (action === "blocked_by_shaping") {
     // Structure shaping's only sourcing path is the in-chat "research this
     // more" flow (see `submitStructureTurn`'s `researchGapLabels`) — adding
     // sources directly here would bypass that chat and the draft it's

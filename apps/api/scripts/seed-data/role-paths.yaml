@@ -1,0 +1,55 @@
+roleTemplates:
+  - id: frontend-engineer
+    name: Frontend Engineer
+    targetRoleLabel: Frontend Engineer
+    targets:
+      - [Web Development, Frontend Development, React, "Components, JSX & Props"]
+      - [Web Development, Frontend Development, React, "Rendering Logic & Purity"]
+      - [Web Development, Frontend Development, React, "State Fundamentals"]
+      - [Web Development, Frontend Development, React, "State Architecture"]
+      - [Web Development, Frontend Development, React, "Reducers & Context"]
+      - [Web Development, Frontend Development, React, "Effects & Synchronization"]
+      - [Web Development, Frontend Development, React, "Refs & DOM Escape Hatches"]
+      - [Web Development, Frontend Development, React, "Custom Hooks & Logic Reuse"]
+      - [Web Development, Frontend Development, React, "Performance & Concurrent Rendering"]
+      - [Web Development, Frontend Development, React, "Server Components & Data Loading"]
+
+  - id: full-stack-engineer
+    name: Full-Stack Engineer
+    targetRoleLabel: Full-Stack Engineer
+    targets:
+      - [Web Development, Frontend Development, React, "Components, JSX & Props"]
+      - [Web Development, Frontend Development, React, "Rendering Logic & Purity"]
+      - [Web Development, Frontend Development, React, "State Fundamentals"]
+      - [Web Development, Frontend Development, React, "State Architecture"]
+      - [Web Development, Frontend Development, React, "Reducers & Context"]
+      - [Web Development, Frontend Development, React, "Effects & Synchronization"]
+      - [Web Development, Frontend Development, React, "Refs & DOM Escape Hatches"]
+      - [Web Development, Frontend Development, React, "Custom Hooks & Logic Reuse"]
+      - [Web Development, Frontend Development, React, "Performance & Concurrent Rendering"]
+      - [Web Development, Frontend Development, React, "Server Components & Data Loading"]
+      - [Web Development, Backend Development, "Node.js", "Runtime & Module System"]
+      - [Web Development, Backend Development, "Node.js", "Async Model & Event Loop"]
+      - [Web Development, Backend Development, "Node.js", "Streams & Backpressure"]
+      - [Web Development, Backend Development, "Node.js", "Filesystem & Paths"]
+      - [Web Development, Backend Development, "Node.js", "HTTP & Networking"]
+      - [Web Development, Backend Development, "Node.js", "Processes, Concurrency & Workers"]
+      - [Web Development, Backend Development, "Node.js", "Packages & Publishing"]
+      - [Web Development, Backend Development, "Node.js", "TypeScript in Node"]
+      - [Web Development, Backend Development, "Node.js", Testing]
+      - [Web Development, Backend Development, "Node.js", "Diagnostics & Performance"]
+
+  - id: cloud-engineer
+    name: Cloud Engineer
+    targetRoleLabel: Cloud Engineer
+    targets:
+      - [Web Development, AWS, "Identity & Access"]
+      - [Web Development, AWS, Compute]
+      - [Web Development, AWS, Storage]
+      - [Web Development, AWS, Databases]
+      - [Web Development, AWS, "Networking & Delivery"]
+      - [Web Development, AWS, "Messaging & Events"]
+      - [Web Development, AWS, Observability]
+      - [Web Development, AWS, "IaC & Deployment"]
+      - [Web Development, AWS, "Cost & Capacity"]
+      - [Web Development, AWS, "AI/ML Services"]

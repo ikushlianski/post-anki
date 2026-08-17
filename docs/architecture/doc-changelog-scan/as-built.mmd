@@ -8,7 +8,7 @@ flowchart TB
   fetcher["fetchTrackedTool()<br/>tracked-tool-fetcher.ts"]
   outboundFetch["fetchWithTimeout / truncateText<br/>outbound-fetch.ts (extracted, shared)"]
   docLinkGrounding["doc-link-grounding.ts<br/>(existing caller, now imports shared helpers)"]
-  watermark[("tracked_tool_scan_state<br/>PK = tool_key ONLY<br/>no subject_id column")]
+  watermark[("tracked_tool_scan_state<br/>PK = (subject_id, tool_key)<br/>since migration 0030")]
   domainMapRepo["domain-map.repo.ts"]
   agent["docScan Mastra agent<br/>doc-scan.agent.ts (cheap tier)"]
   resolver["domain-node-name-resolver.ts<br/>(existing, shared with item 7)"]
@@ -26,13 +26,13 @@ flowchart TB
   orchestratorOne --> fetcher
   fetcher --> outboundFetch
   docLinkGrounding --> outboundFetch
-  orchestratorOne -->|"getTrackedToolScanState(toolKey)<br/>read + compare hash"| watermark
+  orchestratorOne -->|"getTrackedToolScanState(subjectId, toolKey)<br/>read + compare hash"| watermark
   orchestratorOne -->|"changed? build prompt, call once"| agent
   agent -->|"structured output"| orchestratorOne
   orchestratorOne --> resolver
   orchestratorOne -->|"insert, capped at 5 total"| topicTable
   orchestratorOne -->|"insert, capped at 5 total"| supersessionTable
-  orchestratorOne -->|"upsertTrackedToolScanState(toolKey, hash)<br/>ADVANCES GLOBAL WATERMARK"| watermark
+  orchestratorOne -->|"upsertTrackedToolScanState(subjectId, toolKey, hash)<br/>advances THIS subject only"| watermark
   domainMapRepo --> orchestratorOne
   topicTable --> reviewUI
   supersessionTable --> reviewUI

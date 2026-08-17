@@ -28,6 +28,9 @@ vi.mock("../db/client.js", () => ({
 
 interface FakePhrase {
   id: string;
+  subjectId: string;
+  level: string;
+  pack: string;
   russian: string;
   referenceEnglish: string;
   targetPhraseBankEntryId: string | null;
@@ -54,9 +57,13 @@ const phraseBankRepoState = {
   entries: new Map<string, FakeBankEntry>(),
   updateCalls: [] as { id: string; next: PhraseBankEntryState; options: { correct: boolean; justMastered: boolean } }[],
   appearanceCalls: [] as unknown[],
+  lockCalls: [] as { subjectId: string; level: string; pack: string }[],
 };
 
 vi.mock("./phrase-bank.repo.js", () => ({
+  lockPhraseBankScope: vi.fn(async (subjectId: string, level: string, pack: string) => {
+    phraseBankRepoState.lockCalls.push({ subjectId, level, pack });
+  }),
   getPhraseBankEntriesByIdsForUpdate: vi.fn(async (ids: string[]) =>
     ids
       .map((id) => phraseBankRepoState.entries.get(id))
@@ -78,6 +85,7 @@ import {
   buildGradeBatchPrompt,
   toAttemptRows,
   applyPhraseBankAttempts,
+  phraseBankLockScopes,
   gradeAttempts,
   type GradeItem,
   type PhraseBankAttemptInput,
@@ -90,6 +98,7 @@ beforeEach(() => {
   phraseBankRepoState.entries = new Map();
   phraseBankRepoState.updateCalls = [];
   phraseBankRepoState.appearanceCalls = [];
+  phraseBankRepoState.lockCalls = [];
 });
 
 function baseEntry(overrides: Partial<FakeBankEntry> = {}): FakeBankEntry {
@@ -317,6 +326,9 @@ describe("gradeAttempts", () => {
     it("performs no phrase-bank writes at all", async () => {
       practiceRepoState.phrases.set("phr_1", {
         id: "phr_1",
+        subjectId: "sub_1",
+        level: "B1_B2",
+        pack: "General",
         russian: "Как дела?",
         referenceEnglish: "How's it going?",
         targetPhraseBankEntryId: null,
@@ -333,12 +345,36 @@ describe("gradeAttempts", () => {
       expect(phraseBankRepoState.appearanceCalls).toEqual([]);
       expect(phraseBankRepoState.updateCalls).toEqual([]);
     });
+
+    it("takes no phrase-bank scope lock, so an untracked grade never contends with generation", async () => {
+      practiceRepoState.phrases.set("phr_1", {
+        id: "phr_1",
+        subjectId: "sub_1",
+        level: "B1_B2",
+        pack: "General",
+        russian: "Как дела?",
+        referenceEnglish: "How's it going?",
+        targetPhraseBankEntryId: null,
+        sequenceNumber: 1,
+      });
+
+      mockAgentGenerate.mockResolvedValue({
+        object: { gradedAnswers: [{ score: 8, verdict: "Ok", feedback: "Good.", nativeAlternatives: [] }] },
+      });
+
+      await gradeAttempts("sub_1", "B1_B2", [{ phraseId: "phr_1", userAnswer: "How's it going" }]);
+
+      expect(phraseBankRepoState.lockCalls).toEqual([]);
+    });
   });
 
   describe("a graded attempt for a tracked phrase", () => {
     it("writes an appearance row and updates the entry on grading", async () => {
       practiceRepoState.phrases.set("phr_1", {
         id: "phr_1",
+        subjectId: "sub_1",
+        level: "B1_B2",
+        pack: "General",
         russian: "Разберись с этим",
         referenceEnglish: "Get to the bottom of it",
         targetPhraseBankEntryId: "pbentry_1",
@@ -365,7 +401,32 @@ describe("gradeAttempts", () => {
       expect(result.phraseBankUpdates).toHaveLength(1);
       expect(result.phraseBankUpdates[0]).toMatchObject({ status: "practicing", masteryStage: 1 });
     });
+
+    it("locks the graded phrase's own scope, the same lock generation takes", async () => {
+      practiceRepoState.phrases.set("phr_1", {
+        id: "phr_1",
+        subjectId: "sub_1",
+        level: "B1_B2",
+        pack: "CodeReview",
+        russian: "Разберись с этим",
+        referenceEnglish: "Get to the bottom of it",
+        targetPhraseBankEntryId: "pbentry_1",
+        sequenceNumber: 1,
+      });
+      phraseBankRepoState.entries.set("pbentry_1", baseEntry({ status: "new" }));
+
+      mockAgentGenerate.mockResolvedValue({
+        object: { gradedAnswers: [{ score: 9, verdict: "Ok", feedback: "Nice.", nativeAlternatives: [] }] },
+      });
+
+      await gradeAttempts("sub_1", "B1_B2", [{ phraseId: "phr_1", userAnswer: "Get to the bottom of it" }]);
+
+      expect(phraseBankRepoState.lockCalls).toEqual([
+        { subjectId: "sub_1", level: "B1_B2", pack: "CodeReview" },
+      ]);
+    });
   });
+
 
   describe("three sequential mocked generate+grade cycles for the same tracked phrase", () => {
     it("reaches status mastered after the third non-adjacent correct grading", async () => {
@@ -380,6 +441,9 @@ describe("gradeAttempts", () => {
       for (const cycle of cycles) {
         practiceRepoState.phrases.set(cycle.phraseId, {
           id: cycle.phraseId,
+          subjectId: "sub_1",
+          level: "B1_B2",
+          pack: "General",
           russian: "Разберись с этим",
           referenceEnglish: "Get to the bottom of it",
           targetPhraseBankEntryId: "pbentry_1",
@@ -398,5 +462,34 @@ describe("gradeAttempts", () => {
         masteryStage: 3,
       });
     });
+  });
+});
+
+describe("phraseBankLockScopes", () => {
+  it("collapses repeated scopes to one and orders them deterministically", () => {
+    const scopes = phraseBankLockScopes([
+      { subjectId: "sub_1", level: "B1_B2", pack: "Standup" },
+      { subjectId: "sub_1", level: "B1_B2", pack: "General" },
+      { subjectId: "sub_1", level: "B1_B2", pack: "Standup" },
+    ]);
+
+    expect(scopes).toEqual([
+      { subjectId: "sub_1", level: "B1_B2", pack: "General" },
+      { subjectId: "sub_1", level: "B1_B2", pack: "Standup" },
+    ]);
+  });
+
+  it("orders the same set identically whichever order it arrives in", () => {
+    const forward = phraseBankLockScopes([
+      { subjectId: "sub_a", level: "B1_B2", pack: "General" },
+      { subjectId: "sub_b", level: "B1_B2", pack: "General" },
+    ]);
+
+    const reversed = phraseBankLockScopes([
+      { subjectId: "sub_b", level: "B1_B2", pack: "General" },
+      { subjectId: "sub_a", level: "B1_B2", pack: "General" },
+    ]);
+
+    expect(forward).toEqual(reversed);
   });
 });

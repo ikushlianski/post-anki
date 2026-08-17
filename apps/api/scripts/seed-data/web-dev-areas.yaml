@@ -1,0 +1,169 @@
+domains:
+  - id: web-development
+    name: Web Development
+    children:
+      - id: frontend-development
+        name: Frontend Development
+        children:
+          - id: react
+            name: React
+            description: React as a sub-subject — react.dev's Learn structure, plus Compiler and Server Components
+            kind: sub_subject
+            # lms-buildout 0.8 — frontend-development already has 3 real
+            # siblings from it-taxonomy.yaml (html-css-js: 0, frontend-
+            # frameworks: 1, state-management: 2); React is the 4th.
+            order: 3
+            children:
+              - id: react-components-jsx-props
+                name: Components, JSX & Props
+                description: first component, import/export, JSX markup, curly braces, passing props, children
+                kind: area
+              - id: react-rendering-logic-purity
+                name: Rendering Logic & Purity
+                description: conditional rendering, lists, keys, keeping components pure, UI as a tree
+                kind: area
+              - id: react-state-fundamentals
+                name: State Fundamentals
+                description: state as a component's memory, render & commit, state as a snapshot, queueing updates, updating objects/arrays
+                kind: area
+              - id: react-state-architecture
+                name: State Architecture
+                description: choosing state structure, sharing state between components, preserving & resetting state
+                kind: area
+              - id: react-reducers-context
+                name: Reducers & Context
+                description: extracting state logic into a reducer, passing data deeply with context, scaling up
+                kind: area
+              - id: react-effects-synchronization
+                name: Effects & Synchronization
+                description: synchronizing with effects, you might not need an effect, lifecycle of reactive effects, separating events from effects, removing dependencies
+                kind: area
+              - id: react-refs-dom-escape-hatches
+                name: Refs & DOM Escape Hatches
+                description: referencing values with refs, manipulating the DOM with refs
+                kind: area
+              - id: react-custom-hooks-logic-reuse
+                name: Custom Hooks & Logic Reuse
+                description: reusing logic with custom hooks
+                kind: area
+              - id: react-performance-concurrent-rendering
+                name: Performance & Concurrent Rendering
+                description: memo, useMemo/useCallback, transitions, Suspense, React Compiler
+                kind: area
+              - id: react-server-components-data-loading
+                name: Server Components & Data Loading
+                description: RSC, server/client boundary, streaming, data fetching patterns
+                kind: area
+              - id: react-other
+                name: Other
+                description: anything not covered above
+                kind: area
+      - id: backend-development
+        name: Backend Development
+        children:
+          - id: nodejs
+            name: Node.js
+            description: Node.js as a sub-subject — nodejs.org/en/learn's category structure
+            kind: sub_subject
+            # lms-buildout 0.8 — backend-development already has 3 real
+            # siblings from it-taxonomy.yaml (web-frameworks: 0, rest-apis:
+            # 1, graphql: 2); Node.js is the 4th.
+            order: 3
+            children:
+              - id: nodejs-runtime-module-system
+                name: Runtime & Module System
+                description: V8, Node vs browser, ESM/CJS, globals, ES2015+
+                kind: area
+              - id: nodejs-async-model-event-loop
+                name: Async Model & Event Loop
+                description: callbacks, promises, event loop, blocking vs non-blocking, nextTick/setImmediate, timers
+                kind: area
+              - id: nodejs-streams-backpressure
+                name: Streams & Backpressure
+                description: streams, backpressure, pipelines
+                kind: area
+              - id: nodejs-filesystem-paths
+                name: Filesystem & Paths
+                description: file stats, paths, read/write, descriptors, folders, cross-filesystem
+                kind: area
+              - id: nodejs-http-networking
+                name: HTTP & Networking
+                description: anatomy of an HTTP transaction, fetch, WebSocket clients, enterprise network config
+                kind: area
+              - id: nodejs-processes-concurrency-workers
+                name: Processes, Concurrency & Workers
+                description: concurrency models, child processes, worker threads, clustering, env vars, CLI/REPL
+                kind: area
+              - id: nodejs-packages-publishing
+                name: Packages & Publishing
+                description: npm, package.json, semver, publishing, Node-API packages
+                kind: area
+              - id: nodejs-typescript-in-node
+                name: TypeScript in Node
+                description: native TS, transpilation, runners, publishing a TS package
+                kind: area
+              - id: nodejs-testing
+                name: Testing
+                description: node:test runner, mocking, code coverage
+                kind: area
+              - id: nodejs-diagnostics-performance
+                name: Diagnostics & Performance
+                description: debugging, inspector, heap profiler/snapshots, GC tracing, flame graphs, profiling
+                kind: area
+              - id: nodejs-other
+                name: Other
+                description: anything not covered above
+                kind: area
+      - id: aws
+        name: AWS
+        description: AWS as a sub-subject — service categories, kept orthogonal to the Well-Architected pillars, which are concerns
+        kind: sub_subject
+        # lms-buildout 0.8 — web-development already has 4 real children
+        # from it-taxonomy.yaml (frontend-development: 0, backend-
+        # development: 1, web-standards: 2, fullstack: 3); AWS is the 5th.
+        order: 4
+        children:
+          - id: aws-identity-access
+            name: Identity & Access
+            description: IAM roles/policies, STS, Cognito, resource policies
+            kind: area
+          - id: aws-compute
+            name: Compute
+            description: Lambda, Fargate/ECS, EC2, App Runner
+            kind: area
+          - id: aws-storage
+            name: Storage
+            description: S3, EBS, EFS, lifecycle & durability
+            kind: area
+          - id: aws-databases
+            name: Databases
+            description: RDS/Aurora, DynamoDB, ElastiCache, connection management
+            kind: area
+          - id: aws-networking-delivery
+            name: Networking & Delivery
+            description: VPC, ALB, API Gateway, CloudFront, Route 53
+            kind: area
+          - id: aws-messaging-events
+            name: Messaging & Events
+            description: SQS, SNS, EventBridge, Step Functions
+            kind: area
+          - id: aws-observability
+            name: Observability
+            description: CloudWatch logs/metrics/alarms, X-Ray, structured tracing
+            kind: area
+          - id: aws-iac-deployment
+            name: IaC & Deployment
+            description: CloudFormation, CDK, Pulumi, CI/CD pipelines
+            kind: area
+          - id: aws-cost-capacity
+            name: Cost & Capacity
+            description: pricing models, scaling, budgets, right-sizing
+            kind: area
+          - id: aws-ai-ml-services
+            name: AI/ML Services
+            description: Bedrock, agents, SageMaker, model hosting
+            kind: area
+          - id: aws-other
+            name: Other
+            description: anything not covered above
+            kind: area

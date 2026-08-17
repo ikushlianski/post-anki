@@ -7,6 +7,8 @@ import {
   getGapMasteryCrossCuttingNudges,
 } from '../curriculum/curriculum.api'
 import { ProbeAnswer } from '../curriculum/probe-answer'
+import { NudgePanel } from '../learning-list/nudge-panel'
+import { respondToNudge } from '../learning-list/learning-list.api'
 
 export const Route = createFileRoute('/today')({
   validateSearch: (search: Record<string, unknown>): { mode: QuestionKind } => ({
@@ -56,12 +58,20 @@ const REASON_LABEL: Record<DailyPushReason, string> = {
 }
 
 function TodayPage() {
-  const { push, question, nudges } = Route.useLoaderData()
+  const { push, question, nudge, nudges } = Route.useLoaderData()
   const { mode } = Route.useSearch()
   const router = useRouter()
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
+      {nudge ? (
+        <NudgePanel
+          key={`${nudge.entityType}:${nudge.entityId}`}
+          nudge={nudge}
+          onRespond={(data) => respondToNudge({ data })}
+          onResponded={() => router.invalidate()}
+        />
+      ) : null}
       <CrossCuttingNudgeBanner nudges={nudges} />
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>

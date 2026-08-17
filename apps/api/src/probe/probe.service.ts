@@ -34,6 +34,7 @@ import {
   getLowerLevelCoverage,
 } from "../curriculum/curriculum.repo.js";
 import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
+import { recordAnswerActivity } from "../liveness/answer-activity.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
 import { localEvaluation, shouldScoreLocally } from "./probe-evaluation.js";
@@ -161,6 +162,7 @@ export async function submitProbe(
   const learningStatus = remaining.length === 0 ? "reviewing" : "probing";
 
   await writeTopicProgress(input.topicId, progress, learningStatus);
+  await recordAnswerActivity(ctx.curriculumId, now);
 
   const outcome = probed
     ? evaluation.verdicts.find((v) => v.gapId === probed.id)?.covered === true

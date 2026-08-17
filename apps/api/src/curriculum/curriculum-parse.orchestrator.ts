@@ -25,6 +25,7 @@ import {
   getModuleProgressSnapshots,
   insertPendingSources,
   insertResearchSource,
+  maxModuleOrder,
   saveCurriculumPlan,
   setCurriculumStatus,
   storeFetchedText,
@@ -68,7 +69,11 @@ export async function parseCurriculum(curriculumId: string): Promise<void> {
       throw new Error("architect returned no structured plan");
     }
 
-    await saveCurriculumPlan(curriculumId, result.object);
+    // Offset past whatever survived the clear rather than restarting at 1:
+    // `clearCurriculumStructure` now spares merged-in modules, which keep
+    // the order values `mergeCurricula` offset them to, so a fresh plan
+    // starting at 1 would interleave with them under `sortForDisplay`.
+    await saveCurriculumPlan(curriculumId, result.object, await maxModuleOrder(curriculumId));
     await setCurriculumStatus(curriculumId, "ready");
 
     log.info(

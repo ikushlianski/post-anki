@@ -4,6 +4,28 @@ export interface ExtractedCandidate {
   whySelected: string;
 }
 
+const CURRICULUM_SOURCE_CANDIDATE_CAP = 6;
+
+export function buildCurriculumSourceCandidates(
+  citableUrls: string[],
+): ExtractedCandidate[] {
+  return citableUrls.slice(0, CURRICULUM_SOURCE_CANDIDATE_CAP).map((url) => ({
+    title: `Curriculum source: ${url}`,
+    url,
+    whySelected: "Already part of this curriculum's own stored sources.",
+  }));
+}
+
+export function mergeCandidatesPreferringCurriculum(
+  curriculumCandidates: ExtractedCandidate[],
+  webCandidates: ExtractedCandidate[],
+): ExtractedCandidate[] {
+  const seen = new Set(curriculumCandidates.map((candidate) => candidate.url));
+  const supplemental = webCandidates.filter((candidate) => !seen.has(candidate.url));
+
+  return [...curriculumCandidates, ...supplemental];
+}
+
 export function selectValidCandidates(
   extracted: ExtractedCandidate[],
   citationUrls: string[],

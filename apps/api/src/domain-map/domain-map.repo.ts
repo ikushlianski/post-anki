@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type {
   DepthLevel,
   DomainNode,
@@ -12,18 +12,20 @@ import type {
   Topic,
 } from "@post-anki/shared";
 import { domainNodeProgress, domainPriorityDistance, isAncestor } from "@post-anki/core";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
+  curriculumDomainNodeMappings,
   domainNodes,
   domainPrioritySuggestions,
   domainSupersessionSuggestions,
   domainTopicSuggestions,
+  subjects,
   topics,
   trackedToolScanState,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { withMergeLock } from "../shared/merge-lock.js";
+import { withMergeLock, withSubjectLock } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 
 function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
@@ -38,6 +40,7 @@ function toDomainNode(row: typeof domainNodes.$inferSelect): DomainNode {
     targetDepth: (row.targetDepth as DepthLevel | null) ?? null,
     supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
     supersededReason: row.supersededReason ?? null,
+    source: row.source as DomainNode["source"],
   };
 }
 
@@ -58,13 +61,20 @@ function toDomainPrioritySuggestion(
   };
 }
 
+export type InsertDomainNodeError = "subject_not_found";
+
+// Serialized behind any in-flight merge or delete of the owning subject
+// (same `hashtext(id)::bigint` advisory-lock space `createCurriculum` and
+// `mergeSubjects` use), and re-reads the subject INSIDE the lock: a node
+// created by resolveDomainPlacement's sibling-discovery path can otherwise
+// land under a subject a concurrent merge is in the middle of deleting.
 export async function insertDomainNode(params: {
   subjectId: string;
   parentId: string | null;
   name: string;
   description?: string | null;
   order?: number;
-}): Promise<DomainNode> {
+}): Promise<DomainNode | { error: InsertDomainNodeError }> {
   const row = {
     id: newId("dnode"),
     subjectId: params.subjectId,
@@ -74,13 +84,19 @@ export async function insertDomainNode(params: {
     order: params.order ?? 0,
   };
 
-  await getDb().insert(domainNodes).values(row);
+  return withSubjectLock(params.subjectId, async (tx) => {
+    const subjectRow = (
+      await tx.select().from(subjects).where(eq(subjects.id, params.subjectId))
+    )[0];
 
-  const inserted = (
-    await getDb().select().from(domainNodes).where(eq(domainNodes.id, row.id))
-  )[0]!;
+    if (!subjectRow) {
+      return { error: "subject_not_found" as const };
+    }
 
-  return toDomainNode(inserted);
+    const inserted = (await tx.insert(domainNodes).values(row).returning())[0]!;
+
+    return toDomainNode(inserted);
+  });
 }
 
 export async function listDomainNodesForSubject(subjectId: string): Promise<DomainNode[]> {
@@ -120,25 +136,49 @@ function toTopicForProgress(row: typeof topics.$inferSelect): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
   };
 }
 
-// GET /subjects/:id/domain-map's read path: two flat queries (domain_nodes
-// for the subject, curricula-with-modules-with-topics for the subject that
-// have a non-null domain_node_id) — never a recursive CTE, never N+1,
-// regardless of tree depth — assembled and rolled up in memory via the pure
-// domainNodeProgress() deriver. No agent, no LLM call anywhere in this path.
-export async function getDomainMapForSubject(subjectId: string): Promise<DomainNodeTreeItem[]> {
-  const db = getDb();
-
+// GET /subjects/:id/domain-map's read path: three flat queries (domain_nodes
+// for the subject, curricula for the subject, confirmed
+// curriculum_domain_node_mappings for those curricula) — never a recursive
+// CTE, never N+1, regardless of tree depth — assembled and rolled up in
+// memory via the pure domainNodeProgress() deriver. No agent, no LLM call
+// anywhere in this path.
+//
+// decouple-curricula-from-domain-nodes (issue #84) — placement moved off
+// curricula.domain_node_id (a single nullable column) onto this many-to-many
+// table, so a curriculum can now be confirmed against MORE THAN ONE node
+// (SCENARIO 9): one {domainNodeId, topics} entry per confirmed mapping row,
+// same curriculum's full topic list contributing to each. curriculaByNodeId
+// dedupes by curriculum id per node defensively — mergeDomainNodes'
+// re-pointing already avoids creating a duplicate confirmed pair, but this
+// read path stays correct even if one ever slipped through.
+export async function getDomainMapForSubject(
+  subjectId: string,
+  db: DbExecutor = getDb(),
+): Promise<DomainNodeTreeItem[]> {
   const nodeRows = await db.select().from(domainNodes).where(eq(domainNodes.subjectId, subjectId));
 
-  const placedCurricula = await db
-    .select()
+  const subjectCurricula = await db
+    .select({ id: curricula.id, name: curricula.name })
     .from(curricula)
-    .where(and(eq(curricula.subjectId, subjectId), isNotNull(curricula.domainNodeId)));
+    .where(eq(curricula.subjectId, subjectId));
+  const curriculumNameById = new Map(subjectCurricula.map((c) => [c.id, c.name]));
+  const curriculumIds = subjectCurricula.map((c) => c.id);
 
-  const curriculumIds = placedCurricula.map((c) => c.id);
+  const confirmedMappings = curriculumIds.length
+    ? await db
+        .select()
+        .from(curriculumDomainNodeMappings)
+        .where(
+          and(
+            inArray(curriculumDomainNodeMappings.curriculumId, curriculumIds),
+            eq(curriculumDomainNodeMappings.status, "confirmed"),
+          ),
+        )
+    : [];
 
   const topicRows = curriculumIds.length
     ? await db.select().from(topics).where(inArray(topics.curriculumId, curriculumIds))
@@ -152,17 +192,25 @@ export async function getDomainMapForSubject(subjectId: string): Promise<DomainN
     topicsByCurriculumId.set(topicRow.curriculumId, list);
   }
 
-  const curriculumTopics = placedCurricula.map((curriculum) => ({
-    domainNodeId: curriculum.domainNodeId!,
-    topics: (topicsByCurriculumId.get(curriculum.id) ?? []).map(toTopicForProgress),
+  const curriculumTopics = confirmedMappings.map((mapping) => ({
+    domainNodeId: mapping.domainNodeId,
+    topics: (topicsByCurriculumId.get(mapping.curriculumId) ?? []).map(toTopicForProgress),
   }));
 
   const curriculaByNodeId = new Map<string, { id: string; name: string }[]>();
 
-  for (const curriculum of placedCurricula) {
-    const list = curriculaByNodeId.get(curriculum.domainNodeId!) ?? [];
-    list.push({ id: curriculum.id, name: curriculum.name });
-    curriculaByNodeId.set(curriculum.domainNodeId!, list);
+  for (const mapping of confirmedMappings) {
+    const list = curriculaByNodeId.get(mapping.domainNodeId) ?? [];
+
+    if (list.some((entry) => entry.id === mapping.curriculumId)) {
+      continue;
+    }
+
+    list.push({
+      id: mapping.curriculumId,
+      name: curriculumNameById.get(mapping.curriculumId) ?? "",
+    });
+    curriculaByNodeId.set(mapping.domainNodeId, list);
   }
 
   const nodeRefs = nodeRows.map((row) => ({ id: row.id, parentId: row.parentId }));
@@ -192,6 +240,7 @@ export async function getDomainMapForSubject(subjectId: string): Promise<DomainN
       // percent, never derived from it (spec.md's Decisions #2).
       supersededAt: row.supersededAt ? row.supersededAt.toISOString() : null,
       supersededReason: row.supersededReason ?? null,
+      source: row.source as DomainNodeTreeItem["source"],
     };
   }
 
@@ -257,11 +306,106 @@ export async function mergeDomainNodes(
       return { error: "cycle" as const };
     }
 
-    const movedCurricula = await tx
-      .update(curricula)
-      .set({ domainNodeId: targetId })
-      .where(eq(curricula.domainNodeId, sourceId))
-      .returning({ id: curricula.id });
+    // decouple-curricula-from-domain-nodes (issue #84) — placement moved off
+    // curricula.domain_node_id onto the many-to-many
+    // curriculum_domain_node_mappings table, which (unlike the old single
+    // column) can hold several rows per curriculum at a single node (e.g. a
+    // rejected AI suggestion alongside a separately confirmed manual
+    // placement — the ordinary "AI suggests A and B, user confirms B,
+    // rejects A" flow). Re-pointing must therefore be status-aware on BOTH
+    // sides:
+    //
+    // - "already there" at the target only counts a CONFIRMED row. A stale
+    //   rejected/suggested row at the target must never block moving the
+    //   source's real confirmed placement over — otherwise the confirmed row
+    //   gets deleted as "redundant" against a row that was never the actual
+    //   placement, and the curriculum silently ends up with zero confirmed
+    //   mappings.
+    // - Per curriculum at the SOURCE, the confirmed row (if any) is the one
+    //   that gets re-pointed (or deduped against an existing confirmed
+    //   target row); every other row for that curriculum at the source is a
+    //   now-stale suggestion against a node that's about to be deleted, so
+    //   it's dropped rather than risking a nondeterministic pick between it
+    //   and the confirmed row.
+    const sourceMappingRows = await tx
+      .select()
+      .from(curriculumDomainNodeMappings)
+      .where(eq(curriculumDomainNodeMappings.domainNodeId, sourceId))
+      .orderBy(asc(curriculumDomainNodeMappings.createdAt));
+    const targetConfirmedMappingRows = await tx
+      .select({ curriculumId: curriculumDomainNodeMappings.curriculumId })
+      .from(curriculumDomainNodeMappings)
+      .where(
+        and(
+          eq(curriculumDomainNodeMappings.domainNodeId, targetId),
+          eq(curriculumDomainNodeMappings.status, "confirmed"),
+        ),
+      );
+    const targetConfirmedCurriculumIds = new Set(targetConfirmedMappingRows.map((row) => row.curriculumId));
+
+    const sourceRowsByCurriculum = new Map<string, typeof sourceMappingRows>();
+    for (const row of sourceMappingRows) {
+      const existing = sourceRowsByCurriculum.get(row.curriculumId);
+      if (existing) {
+        existing.push(row);
+      } else {
+        sourceRowsByCurriculum.set(row.curriculumId, [row]);
+      }
+    }
+
+    let movedCurriculaCount = 0;
+
+    for (const [curriculumId, rows] of sourceRowsByCurriculum) {
+      const confirmedRow = rows.find((row) => row.status === "confirmed");
+
+      // No confirmed row for this curriculum at the source at all — every
+      // row here is a still-pending suggestion or a rejected one, neither of
+      // which competes with a target-side confirmed placement (that's the
+      // targetConfirmedCurriculumIds check above, which only ever applies to
+      // a confirmed source row). Re-point them like domainTopicSuggestions
+      // below rather than deleting: a pending "suggested" row is an
+      // unresolved review item the mapping panel still needs to show, and
+      // "rejected rows are never deleted" is this table's own audit-trail
+      // convention (todo.md). Duplicates at the target are harmless — the
+      // table has no unique constraint on (curriculumId, domainNodeId), and
+      // every read path (getDomainMapForSubject) only ever looks at
+      // status = 'confirmed'.
+      if (!confirmedRow) {
+        await tx
+          .update(curriculumDomainNodeMappings)
+          .set({ domainNodeId: targetId })
+          .where(
+            inArray(
+              curriculumDomainNodeMappings.id,
+              rows.map((row) => row.id),
+            ),
+          );
+
+        continue;
+      }
+
+      const rowsToDrop = rows.filter((row) => row.id !== confirmedRow.id);
+
+      if (targetConfirmedCurriculumIds.has(curriculumId)) {
+        rowsToDrop.push(confirmedRow);
+      } else {
+        await tx
+          .update(curriculumDomainNodeMappings)
+          .set({ domainNodeId: targetId })
+          .where(eq(curriculumDomainNodeMappings.id, confirmedRow.id));
+        targetConfirmedCurriculumIds.add(curriculumId);
+        movedCurriculaCount += 1;
+      }
+
+      if (rowsToDrop.length > 0) {
+        await tx.delete(curriculumDomainNodeMappings).where(
+          inArray(
+            curriculumDomainNodeMappings.id,
+            rowsToDrop.map((row) => row.id),
+          ),
+        );
+      }
+    }
 
     const targetMaxOrderRow = (
       await tx
@@ -297,7 +441,7 @@ export async function mergeDomainNodes(
         sourceId,
         sourceName: sourceRow.name,
         reassignedCounts: {
-          curriculaMoved: movedCurricula.length,
+          curriculaMoved: movedCurriculaCount,
           childNodesMoved: movedChildNodes.length,
         },
       },
@@ -307,7 +451,7 @@ export async function mergeDomainNodes(
     return {
       targetDomainNodeId: targetId,
       sourceDomainNodeId: sourceId,
-      curriculaMoved: movedCurricula.length,
+      curriculaMoved: movedCurriculaCount,
       childNodesMoved: movedChildNodes.length,
     };
   });
@@ -406,39 +550,55 @@ export async function getPrioritySuggestion(
 // the node is never touched. Rejected rows are never deleted (spec.md's
 // Decisions #11) — status flips to "rejected", resolvedAt is set, the row
 // stays visible as "handled."
+//
+// Claimed first via `UPDATE ... WHERE status = 'pending' RETURNING *`, the
+// same pattern resolveDomainTopicSuggestion/resolveDomainSupersessionSuggestion
+// use. A concurrent double-accept is already idempotent here — accepting the
+// same suggestion twice just re-writes the same target_depth — but the guard
+// is added anyway for consistency with the rest of this file's concurrency
+// discipline, and so a double-click gets a clean `already_resolved` refusal
+// instead of a second silent write.
 export async function resolvePrioritySuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainPrioritySuggestion | null> {
+): Promise<DomainPrioritySuggestion | { error: ResolveDomainSuggestionError }> {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const existing = (
-      await tx
-        .select()
-        .from(domainPrioritySuggestions)
-        .where(eq(domainPrioritySuggestions.id, suggestionId))
-    )[0];
-
-    if (!existing) {
-      return null;
-    }
-
     const resolvedAt = new Date();
 
-    await tx
-      .update(domainPrioritySuggestions)
-      .set({ status, resolvedAt })
-      .where(eq(domainPrioritySuggestions.id, suggestionId));
+    const claimed = (
+      await tx
+        .update(domainPrioritySuggestions)
+        .set({ status, resolvedAt })
+        .where(
+          and(
+            eq(domainPrioritySuggestions.id, suggestionId),
+            eq(domainPrioritySuggestions.status, "pending"),
+          ),
+        )
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      const existing = (
+        await tx
+          .select()
+          .from(domainPrioritySuggestions)
+          .where(eq(domainPrioritySuggestions.id, suggestionId))
+      )[0];
+
+      return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
+    }
 
     if (status === "accepted") {
       await tx
         .update(domainNodes)
-        .set({ targetDepth: existing.suggestedTargetDepth })
-        .where(eq(domainNodes.id, existing.domainNodeId));
+        .set({ targetDepth: claimed.suggestedTargetDepth })
+        .where(eq(domainNodes.id, claimed.domainNodeId));
     }
 
-    return toDomainPrioritySuggestion({ ...existing, status, resolvedAt });
+    return toDomainPrioritySuggestion(claimed);
   });
 }
 
@@ -502,8 +662,8 @@ export interface InsertDomainTopicSuggestionParams {
 
 export async function insertDomainTopicSuggestion(
   params: InsertDomainTopicSuggestionParams,
+  db: DbExecutor = getDb(),
 ): Promise<DomainTopicSuggestion> {
-  const db = getDb();
   const id = newId("dtsug");
 
   await db.insert(domainTopicSuggestions).values({
@@ -553,57 +713,112 @@ export async function getDomainTopicSuggestion(
   return row ? toDomainTopicSuggestion(row) : null;
 }
 
+export type ResolveDomainSuggestionError = "not_found" | "already_resolved";
+
+// Only the topic resolver can hit this: it is the one that CREATES a
+// domain_nodes row, so it is the one that has to care whether the owning
+// subject still exists when the lock is finally held.
+export type ResolveDomainTopicSuggestionError =
+  | ResolveDomainSuggestionError
+  | "subject_not_found";
+
 // PATCH /domain-topic-suggestions/:id. Accepting inserts a new domain_nodes
 // row under proposed_parent_node_id (already a resolved real id — no
 // re-resolution needed) and sets created_domain_node_id + resolved_at on
 // the suggestion, in one transaction. Rejecting only resolves the
 // suggestion; the row is never deleted (mirrors item 7's Decisions #11).
+//
+// The suggestion is CLAIMED first, by an UPDATE ... WHERE status = 'pending'
+// whose zero-row result is what makes a double accept safe — under READ
+// COMMITTED the second transaction blocks on the row lock and then
+// re-evaluates that predicate against the committed row, so it can never
+// also insert a domain_nodes row and overwrite created_domain_node_id
+// (which would orphan the first inserted node). A plain read-then-act, as
+// this used to be, lets a double-click produce two real nodes.
+//
+// The whole claim-and-insert also runs under the owning subject's advisory
+// lock (the same one `insertDomainNode` and `createCurriculum` take), so an
+// accepted suggestion can no longer create a domain_nodes row under a
+// subject a concurrent merge is in the middle of deleting. Learning WHICH
+// subject to lock needs a read before the lock, so the suggestion is read
+// once outside it purely to pick the key; everything that decides the
+// outcome — the subject's existence and the pending claim — is re-read
+// inside. The subject check happens BEFORE the claim so that a vanished
+// subject leaves the suggestion pending rather than committing it as
+// accepted with no node behind it. Rejecting deliberately does not require
+// the subject to exist: it only marks a row resolved, and a pending
+// suggestion can outlive its subject.
 export async function resolveDomainTopicSuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainTopicSuggestion | null> {
+): Promise<DomainTopicSuggestion | { error: ResolveDomainTopicSuggestionError }> {
   const db = getDb();
 
-  return db.transaction(async (tx) => {
-    const existing = (
-      await tx
-        .select()
-        .from(domainTopicSuggestions)
-        .where(eq(domainTopicSuggestions.id, suggestionId))
-    )[0];
+  const preRead = (
+    await db.select().from(domainTopicSuggestions).where(eq(domainTopicSuggestions.id, suggestionId))
+  )[0];
 
-    if (!existing) {
-      return null;
-    }
+  if (!preRead) {
+    return { error: "not_found" as const };
+  }
 
+  return withSubjectLock(preRead.subjectId, async (tx) => {
     const resolvedAt = new Date();
-    let createdDomainNodeId: string | null = existing.createdDomainNodeId ?? null;
 
     if (status === "accepted") {
-      const nodeId = newId("dnode");
+      const subjectRow = (
+        await tx.select().from(subjects).where(eq(subjects.id, preRead.subjectId))
+      )[0];
 
-      await tx.insert(domainNodes).values({
-        id: nodeId,
-        subjectId: existing.subjectId,
-        parentId: existing.proposedParentNodeId,
-        name: existing.proposedNodeName,
-        order: 0,
-      });
-
-      createdDomainNodeId = nodeId;
+      if (!subjectRow) {
+        return { error: "subject_not_found" as const };
+      }
     }
+
+    const claimed = (
+      await tx
+        .update(domainTopicSuggestions)
+        .set({ status, resolvedAt })
+        .where(
+          and(
+            eq(domainTopicSuggestions.id, suggestionId),
+            eq(domainTopicSuggestions.status, "pending"),
+          ),
+        )
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      const existing = (
+        await tx
+          .select()
+          .from(domainTopicSuggestions)
+          .where(eq(domainTopicSuggestions.id, suggestionId))
+      )[0];
+
+      return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
+    }
+
+    if (status === "rejected") {
+      return toDomainTopicSuggestion(claimed);
+    }
+
+    const nodeId = newId("dnode");
+
+    await tx.insert(domainNodes).values({
+      id: nodeId,
+      subjectId: claimed.subjectId,
+      parentId: claimed.proposedParentNodeId,
+      name: claimed.proposedNodeName,
+      order: 0,
+    });
 
     await tx
       .update(domainTopicSuggestions)
-      .set({ status, resolvedAt, createdDomainNodeId })
+      .set({ createdDomainNodeId: nodeId })
       .where(eq(domainTopicSuggestions.id, suggestionId));
 
-    return toDomainTopicSuggestion({
-      ...existing,
-      status,
-      resolvedAt,
-      createdDomainNodeId,
-    });
+    return toDomainTopicSuggestion({ ...claimed, createdDomainNodeId: nodeId });
   });
 }
 
@@ -616,8 +831,8 @@ export interface InsertDomainSupersessionSuggestionParams {
 
 export async function insertDomainSupersessionSuggestion(
   params: InsertDomainSupersessionSuggestionParams,
+  db: DbExecutor = getDb(),
 ): Promise<DomainSupersessionSuggestion> {
-  const db = getDb();
   const id = newId("dssug");
 
   await db.insert(domainSupersessionSuggestions).values({
@@ -678,59 +893,78 @@ export async function getDomainSupersessionSuggestion(
 // PATCH /domain-supersession-suggestions/:id. Accepting writes a FLAG
 // (superseded_at/superseded_reason), never touches percent — the only write
 // path to those two columns (spec.md's Decisions #2). Rejecting only
-// resolves the suggestion; the node is never touched.
+// resolves the suggestion; the node is never touched. Same claim-first
+// pending guard as resolveDomainTopicSuggestion above, so a second accept
+// cannot re-stamp superseded_at with a later timestamp.
 export async function resolveDomainSupersessionSuggestion(
   suggestionId: string,
   status: "accepted" | "rejected",
-): Promise<DomainSupersessionSuggestion | null> {
+): Promise<DomainSupersessionSuggestion | { error: ResolveDomainSuggestionError }> {
   const db = getDb();
 
   return db.transaction(async (tx) => {
-    const existing = (
-      await tx
-        .select()
-        .from(domainSupersessionSuggestions)
-        .where(eq(domainSupersessionSuggestions.id, suggestionId))
-    )[0];
-
-    if (!existing) {
-      return null;
-    }
-
     const resolvedAt = new Date();
 
-    await tx
-      .update(domainSupersessionSuggestions)
-      .set({ status, resolvedAt })
-      .where(eq(domainSupersessionSuggestions.id, suggestionId));
+    const claimed = (
+      await tx
+        .update(domainSupersessionSuggestions)
+        .set({ status, resolvedAt })
+        .where(
+          and(
+            eq(domainSupersessionSuggestions.id, suggestionId),
+            eq(domainSupersessionSuggestions.status, "pending"),
+          ),
+        )
+        .returning()
+    )[0];
+
+    if (!claimed) {
+      const existing = (
+        await tx
+          .select()
+          .from(domainSupersessionSuggestions)
+          .where(eq(domainSupersessionSuggestions.id, suggestionId))
+      )[0];
+
+      return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
+    }
 
     if (status === "accepted") {
       await tx
         .update(domainNodes)
-        .set({ supersededAt: resolvedAt, supersededReason: existing.reason })
-        .where(eq(domainNodes.id, existing.domainNodeId));
+        .set({ supersededAt: resolvedAt, supersededReason: claimed.reason })
+        .where(eq(domainNodes.id, claimed.domainNodeId));
     }
 
-    return toDomainSupersessionSuggestion({ ...existing, status, resolvedAt });
+    return toDomainSupersessionSuggestion(claimed);
   });
 }
 
-// doc-changelog-scan (issue #49) — the per-tool watermark
+// doc-changelog-scan (issue #49) — the per-subject, per-tool watermark
 // (tracked_tool_scan_state). null last_content_hash = never successfully
-// scanned.
+// scanned. The subjectId half of the key is what keeps a scheduled run's
+// second subject from reading the first subject's already-advanced hash and
+// concluding nothing changed.
 export async function getTrackedToolScanState(
+  subjectId: string,
   toolKey: string,
-): Promise<{ toolKey: string; lastContentHash: string | null } | null> {
-  const db = getDb();
-
+  db: DbExecutor = getDb(),
+): Promise<{ subjectId: string; toolKey: string; lastContentHash: string | null } | null> {
   const row = (
     await db
       .select()
       .from(trackedToolScanState)
-      .where(eq(trackedToolScanState.toolKey, toolKey))
+      .where(
+        and(
+          eq(trackedToolScanState.subjectId, subjectId),
+          eq(trackedToolScanState.toolKey, toolKey),
+        ),
+      )
   )[0];
 
-  return row ? { toolKey: row.toolKey, lastContentHash: row.lastContentHash ?? null } : null;
+  return row
+    ? { subjectId: row.subjectId, toolKey: row.toolKey, lastContentHash: row.lastContentHash ?? null }
+    : null;
 }
 
 // Upserted only for tools INCLUDED in a successful agent call (spec.md's
@@ -738,17 +972,18 @@ export async function getTrackedToolScanState(
 // (already correct) or whose changed content was part of a FAILED agent
 // call (must stay retryable — SCENARIO 10).
 export async function upsertTrackedToolScanState(
+  subjectId: string,
   toolKey: string,
   contentHash: string,
+  db: DbExecutor = getDb(),
 ): Promise<void> {
-  const db = getDb();
   const now = new Date();
 
   await db
     .insert(trackedToolScanState)
-    .values({ toolKey, lastContentHash: contentHash, lastScannedAt: now })
+    .values({ subjectId, toolKey, lastContentHash: contentHash, lastScannedAt: now })
     .onConflictDoUpdate({
-      target: trackedToolScanState.toolKey,
+      target: [trackedToolScanState.subjectId, trackedToolScanState.toolKey],
       set: { lastContentHash: contentHash, lastScannedAt: now },
     });
 }

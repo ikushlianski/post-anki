@@ -3,23 +3,18 @@ type: todo
 branch: mobile-token-security
 task: "Secure token storage and session persistence on mobile (#67)"
 state: open
-updated: 2026-07-31
+updated: 2026-08-09
 ---
 # Todo: Secure token storage and session persistence on mobile (#67)
 
 ## Decisions to make
-Nothing to decide — all forks resolved during planning, see spec.md's "Decisions made
-autonomously".
+Nothing to decide — every open question already had a safe default applied during planning.
 
 ## To review / clarify
-Nothing to review — this item was planned unattended with standing autonomous-confirmation
-authorization; every open question had a safe, reversible default already applied.
+Nothing to review — every open question already had a safe, reversible default applied.
 
 ## Manual steps
-No manual steps required. No env vars, secrets, or infra outside IaC — this is a frontend-only
-change to `apps/mobile`.
+No manual steps required — this is a self-contained change to the mobile app.
 
 ## Post-deploy checks
-- [ ] Once a physical device is available (issue #65), confirm the "session ended" Connect
-      copy actually renders after a real token revocation on-device, not just under the
-      localStorage-fallback Playwright proof.
+- [ ] Once a real device is available, confirm the session-ended message appears correctly

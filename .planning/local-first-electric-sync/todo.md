@@ -1,16 +1,52 @@
-## Manual steps before this can actually run (nothing below was done autonomously — deploy/hosting decisions were explicitly deferred to you)
+## Manual steps before Electric sync can actually run
 
-### Local dev (do this first — lower risk, no cloud changes)
-- [ ] Confirm/enable logical replication on the Neon **`dev`** branch (only `main` was confirmed enabled tonight) — https://console.neon.tech/app/projects/cool-fog-32155538
-- [ ] `docker compose up -d electric` and confirm it connects (uses `ELECTRIC_DATABASE_URL` in the new root `.env`, derived from `apps/api/.env`'s pooled `DATABASE_URL` by stripping `-pooler` — sanity-check that string once)
-- [ ] `npm run dev`, open the board (`/`), confirm it still renders (SSR fallback works even with Electric down); once Electric is up, confirm it's syncing (no visual change expected yet — this is plumbing, not a UI change)
+Boxes are checked only where directly verified; anything unverified is left unchecked.
 
-### Production (defer until you've decided hosting — spec assumed self-host on Cloud Run; you can revisit this)
-- [ ] `pulumi config set --secret electricDatabaseUrl <neon-main-direct-connection-string>` (direct/non-pooled, same transformation as dev: strip `-pooler`)
-- [ ] `pulumi up` (new Electric Cloud Run service, `minScale:1`, private/IAM-gated — review the diff before applying, this is a new always-on billable service, unlike the other 3 which scale to zero)
-- [ ] Wire `ELECTRIC_SERVICE_URL` (from Pulumi's new `electricServiceUrl` export) into `apps/api`'s Cloud Run env vars in `.github/workflows/deploy.yml`
-- [ ] Do NOT set `ELECTRIC_AUTH_MODE` in production env vars — leave unset so it defaults to `"iam"` (Cloud Run service-to-service auth)
+---
 
-### Known gaps flagged by the implementing agents (not blockers, just things to check once live)
-- Electric's `live=true` long-poll requests (~20s) — confirm `google-auth-library`/`gaxios`'s default timeout doesn't cut them off in production
-- The apps/api → Electric leg is genuinely untested end-to-end (no live Electric service existed during this pass) — first real test happens when you bring `docker compose up electric` up locally
+## STOP — do not enable Electric in production until the shape allowlist has landed
+
+Live sync must restrict data access to an approved, fixed list before it can run in production.
+Right now nothing stops it from exposing every table in the database to any visitor, so turning
+it on before that restriction lands would be a serious data leak.
+
+Three separate safeguards currently keep production safe, and all three must stay in place until
+the access restriction is finished: the live connection is not configured, the feature switch is
+off, and the underlying service has never been started. The network permission needed later
+already exists; only this configuration is missing.
+
+---
+
+### Local dev
+
+- [x] Point local development at the correct database connection
+- [ ] Confirm live data syncing is turned on for the development database
+- [ ] Start the local sync service and confirm it connects to the development database
+- [ ] Confirm the app still works if live sync is down, and once it is back up
+
+### Production
+
+Complete these in order — later steps depend on the first one.
+
+- [ ] 1. Restrict live sync to only an approved, fixed list of data
+- [ ] 2. Give the production sync service its database connection details
+- [ ] 3. Redeploy the sync service's infrastructure so it starts successfully
+- [ ] 4. Turn on live sync for production only once the service is healthy, otherwise deployment intentionally fails
+- [ ] 5. Redeploy production and confirm the board and practice screens still work
+- [ ] 6. Never weaken production authentication; only local development may relax it
+
+#### Already done (was listed as outstanding, but isn't)
+
+- [x] Infrastructure is applied automatically on every push to the main branch
+- [x] The production sync service and its access permission already exist in the cloud project
+- [x] Deployment resolves the sync service address automatically, gated on the feature switch
+
+### Open questions / things to check once live
+
+- Confirm whether an unhealthy, never-ready service instance is still being billed
+- Confirm long-lived sync requests are not cut off early by a timeout in production
+- Test the connection to the real production sync service, not just a local stand-in
+
+## Notes
+
+- Historical build record kept in build-log.md.

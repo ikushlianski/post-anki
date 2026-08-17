@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildCurriculumSourceCandidates,
+  mergeCandidatesPreferringCurriculum,
   selectValidCandidates,
   partitionRegatherableCandidates,
   selectApprovedForCompile,
@@ -45,6 +47,79 @@ describe("selectValidCandidates", () => {
 
   it("returns an empty list when there are no citations", () => {
     expect(selectValidCandidates([CANDIDATE], [])).toEqual([]);
+  });
+});
+
+describe("buildCurriculumSourceCandidates", () => {
+  it("builds one candidate per citable url", () => {
+    const result = buildCurriculumSourceCandidates([
+      "https://example.com/a",
+      "https://example.com/b",
+    ]);
+
+    expect(result).toEqual([
+      {
+        title: "Curriculum source: https://example.com/a",
+        url: "https://example.com/a",
+        whySelected: "Already part of this curriculum's own stored sources.",
+      },
+      {
+        title: "Curriculum source: https://example.com/b",
+        url: "https://example.com/b",
+        whySelected: "Already part of this curriculum's own stored sources.",
+      },
+    ]);
+  });
+
+  it("caps at 6 candidates", () => {
+    const urls = Array.from({ length: 10 }, (_, i) => `https://example.com/${i}`);
+
+    expect(buildCurriculumSourceCandidates(urls)).toHaveLength(6);
+  });
+
+  it("returns an empty list for no citable urls", () => {
+    expect(buildCurriculumSourceCandidates([])).toEqual([]);
+  });
+});
+
+describe("mergeCandidatesPreferringCurriculum", () => {
+  const curriculumCandidate: ExtractedCandidate = {
+    title: "Curriculum source: https://example.com/shared",
+    url: "https://example.com/shared",
+    whySelected: "Already part of this curriculum's own stored sources.",
+  };
+  const webCandidate: ExtractedCandidate = {
+    title: "Web source",
+    url: "https://example.com/web-only",
+    whySelected: "Found via web search.",
+  };
+
+  it("keeps curriculum candidates first, web candidates supplement", () => {
+    const result = mergeCandidatesPreferringCurriculum([curriculumCandidate], [webCandidate]);
+
+    expect(result).toEqual([curriculumCandidate, webCandidate]);
+  });
+
+  it("never lets a web candidate replace a curriculum candidate with the same url", () => {
+    const duplicateFromWeb: ExtractedCandidate = {
+      title: "A different, web-discovered title for the same url",
+      url: curriculumCandidate.url,
+      whySelected: "Found via web search.",
+    };
+
+    const result = mergeCandidatesPreferringCurriculum([curriculumCandidate], [duplicateFromWeb]);
+
+    expect(result).toEqual([curriculumCandidate]);
+  });
+
+  it("returns only web candidates when there are no curriculum candidates", () => {
+    expect(mergeCandidatesPreferringCurriculum([], [webCandidate])).toEqual([webCandidate]);
+  });
+
+  it("returns only curriculum candidates when there are no web candidates", () => {
+    expect(mergeCandidatesPreferringCurriculum([curriculumCandidate], [])).toEqual([
+      curriculumCandidate,
+    ]);
   });
 });
 

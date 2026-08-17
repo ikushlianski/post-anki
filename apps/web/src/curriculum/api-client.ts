@@ -7,6 +7,7 @@ import type {
   CreateSubjectInput,
   Curriculum,
   CurriculumDetail,
+  CurriculumDomainNodeMapping,
   CurriculumStatus,
   DailyPushResult,
   Depth,
@@ -112,6 +113,25 @@ function mapDepth(beDepth: string): Depth {
   return DEPTH_FROM_BE[beDepth] ?? 'working'
 }
 
+function mapDepthNullable(beDepth: string | null): Depth | null {
+  return beDepth === null ? null : mapDepth(beDepth)
+}
+
+function mapCurriculumDomainNodeMapping(
+  mapping: be.CurriculumDomainNodeMapping,
+): CurriculumDomainNodeMapping {
+  return {
+    id: mapping.id,
+    curriculumId: mapping.curriculumId,
+    domainNodeId: mapping.domainNodeId,
+    depth: mapDepthNullable(mapping.depth),
+    status: mapping.status,
+    source: mapping.source,
+    createdAt: mapping.createdAt,
+    resolvedAt: mapping.resolvedAt,
+  }
+}
+
 function mapGap(gap: be.Gap): Gap {
   return {
     id: gap.id,
@@ -180,6 +200,8 @@ function mapTopic(topic: be.Topic): Topic {
     gaps,
     progress: mapProgress(topic.progress, gaps.length, gapsCovered),
     tags: (topic.tags ?? []).map(mapTagChip),
+    depthElectedAt: topic.depthElectedAt,
+    headroomOfferedAt: topic.headroomOfferedAt ?? null,
   }
 }
 
@@ -318,23 +340,61 @@ export async function listDocScanSuggestions(
   )
 }
 
+/**
+ * Both doc-scan resolve routes answer 409 `already_resolved` when the
+ * suggestion is no longer pending — the second tab, or the same user's own
+ * double-click. That is not a failure: the decision the caller asked for has
+ * been made, just not by this request, so the caller should drop the row
+ * exactly as it would on a 200 rather than leave it listed.
+ *
+ * Translated here into a plain discriminated result rather than left as a
+ * thrown `ApiError` for two reasons. It follows what `submitStructureTurn` /
+ * `resolveSupplementalResearch` already do with their own 409 guard codes
+ * below — narrow on `status` AND `code`, so an unrelated 409 still throws and
+ * `request()` keeps throwing on every non-2xx for every other caller. And the
+ * consumers are server functions whose return value crosses the
+ * TanStack RPC boundary, where an `Error` subclass loses its class identity
+ * and an `instanceof` check on the client would silently never match — a
+ * serializable object survives that crossing, an exception type does not.
+ */
+export type ResolveDocScanSuggestionResult<T> =
+  | { outcome: 'resolved'; suggestion: T }
+  | { outcome: 'already_resolved' }
+
+async function resolveDocScanSuggestion<T>(
+  path: string,
+  status: 'accepted' | 'rejected',
+): Promise<ResolveDocScanSuggestionResult<T>> {
+  try {
+    const suggestion = await request<T>(path, { method: 'PATCH', body: { status } })
+
+    return { outcome: 'resolved', suggestion }
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409 && err.code === 'already_resolved') {
+      return { outcome: 'already_resolved' }
+    }
+
+    throw err
+  }
+}
+
 export async function resolveDomainTopicSuggestion(
   suggestionId: string,
   status: 'accepted' | 'rejected',
-): Promise<be.DomainTopicSuggestion> {
-  return request<be.DomainTopicSuggestion>(`/domain-topic-suggestions/${suggestionId}`, {
-    method: 'PATCH',
-    body: { status },
-  })
+): Promise<ResolveDocScanSuggestionResult<be.DomainTopicSuggestion>> {
+  return resolveDocScanSuggestion<be.DomainTopicSuggestion>(
+    `/domain-topic-suggestions/${suggestionId}`,
+    status,
+  )
 }
 
 export async function resolveDomainSupersessionSuggestion(
   suggestionId: string,
   status: 'accepted' | 'rejected',
-): Promise<be.DomainSupersessionSuggestion> {
-  return request<be.DomainSupersessionSuggestion>(
+): Promise<ResolveDocScanSuggestionResult<be.DomainSupersessionSuggestion>> {
+  return resolveDocScanSuggestion<be.DomainSupersessionSuggestion>(
     `/domain-supersession-suggestions/${suggestionId}`,
-    { method: 'PATCH', body: { status } },
+    status,
   )
 }
 
@@ -418,10 +478,51 @@ export async function getCurriculumDetail(
       recommendedTopicId: detail.recommendedTopicId,
       hasCitableSources: detail.hasCitableSources,
       hasStructureDraftAttempt: detail.hasStructureDraftAttempt,
+      domainMappings: detail.domainMappings.map(mapCurriculumDomainNodeMapping),
     }
   } catch {
     return null
   }
+}
+
+// decouple-curricula-from-domain-nodes (issue #84) — the on-demand "Map to
+// taxonomy" trigger + suggestion review flow.
+
+export async function triggerCurriculumDomainMapping(
+  curriculumId: string,
+): Promise<CurriculumDomainNodeMapping[]> {
+  const rows = await request<be.CurriculumDomainNodeMapping[]>(
+    `/curricula/${curriculumId}/domain-mappings`,
+    { method: 'POST' },
+  )
+
+  return rows.map(mapCurriculumDomainNodeMapping)
+}
+
+export async function listCurriculumDomainMappings(
+  curriculumId: string,
+): Promise<CurriculumDomainNodeMapping[]> {
+  const rows = await request<be.CurriculumDomainNodeMapping[]>(
+    `/curricula/${curriculumId}/domain-mappings`,
+  )
+
+  return rows.map(mapCurriculumDomainNodeMapping)
+}
+
+export async function resolveCurriculumDomainMapping(
+  mappingId: string,
+  status: 'confirmed' | 'rejected',
+  depth?: Depth,
+): Promise<CurriculumDomainNodeMapping> {
+  const row = await request<be.CurriculumDomainNodeMapping>(
+    `/curriculum-domain-mappings/${mappingId}`,
+    {
+      method: 'PATCH',
+      body: { status, depth: depth ? DEPTH_TO_BE[depth] : undefined },
+    },
+  )
+
+  return mapCurriculumDomainNodeMapping(row)
 }
 
 export async function setCurriculumLearningStatus(
@@ -513,6 +614,18 @@ export async function mergeCurricula(
     method: 'POST',
     body: { sourceCurriculumId },
   })
+}
+
+export async function moveCurriculum(
+  curriculumId: string,
+  targetSubjectId: string,
+): Promise<Curriculum> {
+  const updated = await request<be.Curriculum>(`/curricula/${curriculumId}/move`, {
+    method: 'POST',
+    body: { targetSubjectId },
+  })
+
+  return mapCurriculum(updated)
 }
 
 export async function addSources(
@@ -907,7 +1020,7 @@ export async function getDailyPush(
       ? mapProbeQuestion(res.push.topicId, res.question)
       : null
 
-  return { push, question }
+  return { push, question, nudge: res.nudge }
 }
 
 export async function getCrossCutting(): Promise<ConcernSummary[]> {
@@ -1099,8 +1212,8 @@ export async function assignTag(
   tagId: string,
   nodeType: NodeType,
   nodeId: string,
-): Promise<void> {
-  await request(`/tags/${tagId}/assignments`, {
+): Promise<be.TagAssignment> {
+  return request<be.TagAssignment>(`/tags/${tagId}/assignments`, {
     method: 'POST',
     body: { nodeType, nodeId },
   })
@@ -1183,4 +1296,30 @@ export async function updateAdminSettings(
 
 export async function getAdminObservability(): Promise<be.AdminObservability> {
   return request<be.AdminObservability>('/admin/observability')
+}
+
+// ai-duplicate-detection (issue #63) additions below.
+
+export async function triggerSubjectDuplicateScan(): Promise<be.TriggerSubjectDuplicateScanResult> {
+  return request<be.TriggerSubjectDuplicateScanResult>('/subject-duplicate-scans', {
+    method: 'POST',
+  })
+}
+
+export async function listSubjectDuplicateSuggestions(
+  status?: be.SubjectDuplicateSuggestionStatus,
+): Promise<be.SubjectDuplicateSuggestion[]> {
+  const query = status ? `?status=${status}` : ''
+
+  return request<be.SubjectDuplicateSuggestion[]>(`/subject-duplicate-suggestions${query}`)
+}
+
+export async function resolveSubjectDuplicateSuggestion(
+  suggestionId: string,
+  input: be.ResolveSubjectDuplicateSuggestionInput,
+): Promise<be.SubjectDuplicateSuggestion> {
+  return request<be.SubjectDuplicateSuggestion>(
+    `/subject-duplicate-suggestions/${suggestionId}`,
+    { method: 'PATCH', body: input },
+  )
 }

@@ -28,6 +28,7 @@ function topic(overrides: Partial<Topic> & { id: string; maturity: number }): To
       attempts: maturity > 0 ? 1 : 0,
       lastInteractedAt: null,
     },
+    depthElectedAt: null,
     ...rest,
   };
 }
@@ -142,6 +143,42 @@ describe("domainNodeProgress", () => {
     // Flattened: [100, 0, 50, 50] -> average 50, not a naive per-branch
     // average (which would give a different number).
     expect(domainNodeProgress("target", nodes, curriculumTopics).percent).toBe(50)
+  })
+
+  // decouple-curricula-from-domain-nodes (issue #84), SCENARIO 9 — the fix
+  // the plan's own grill-plan review caught: a curriculum confirmed against
+  // two nodes that share a common ancestor must contribute its topics to
+  // that ancestor's rollup ONCE, not once per mapped descendant. Without a
+  // topic-id dedup, this ancestor's subtree walk sees both {domainNodeId,
+  // topics} entries and flattens both full topic lists together unchanged —
+  // double-counting the same curriculum's topics.
+  it("dedups a curriculum's topics by id before rolling up an ancestor shared by two of its mapped nodes", () => {
+    const nodes = [
+      { id: "frontend", parentId: null },
+      { id: "docker", parentId: "frontend" },
+      { id: "kubernetes", parentId: "frontend" },
+    ]
+
+    // One curriculum ("Container Fundamentals") confirmed against BOTH
+    // "docker" and "kubernetes" — its own three topics appear identically
+    // in both entries, since domainNodeProgress's call shape is one
+    // {domainNodeId, topics} entry per confirmed mapping, and the mapping
+    // is many-to-many for the same curriculum.
+    const sharedTopics = topics([100, 50, 0], "shared")
+    const curriculumTopics = [
+      { domainNodeId: "docker", topics: sharedTopics },
+      { domainNodeId: "kubernetes", topics: sharedTopics },
+    ]
+
+    // Deduped by topic id: exactly [100, 50, 0] once -> average 50. A
+    // double-counted flatten would instead average
+    // [100,50,0,100,50,0] -> still 50 by coincidence on percent, so this
+    // assertion checks topicsIncluded directly, which a double-count would
+    // report as 6, not 3.
+    const result = domainNodeProgress("frontend", nodes, curriculumTopics)
+
+    expect(result.topicsIncluded).toBe(3)
+    expect(result.percent).toBe(50)
   })
 })
 

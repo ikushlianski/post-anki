@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "curriculum_domain_node_mappings_live_pair_unique" ON "curriculum_domain_node_mappings" USING btree ("curriculum_id","domain_node_id") WHERE "curriculum_domain_node_mappings"."status" <> 'rejected';

@@ -31,10 +31,12 @@
     "db:generate:api": "npm run db:generate -w @post-anki/api",
     "db:migrate:api": "npm run db:migrate -w @post-anki/api",
     "db:seed:subjects": "npm run db:seed:subjects -w @post-anki/api",
+    "db:seed:domain-taxonomy": "npm run db:seed:domain-taxonomy -w @post-anki/api",
     "db:generate:bot": "npm run db:generate -w @post-anki/bot",
     "db:migrate:bot": "npm run db:migrate -w @post-anki/bot",
     "depcruise": "depcruise --config .dependency-cruiser.cjs --output-type err apps packages",
-    "check-no-dynamic-imports": "node scripts/check-no-dynamic-imports.mjs"
+    "check-no-dynamic-imports": "node scripts/check-no-dynamic-imports.mjs",
+    "check-web-node-builtins": "node scripts/check-web-node-builtins.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

@@ -129,6 +129,13 @@ export async function resolveDomainPlacement(
       name: parsed.nodeName,
     });
 
+    // A subject deleted (or merged away) while the agent was thinking is
+    // just another reason placement can't happen — same "unplaced, never
+    // blocking curriculum creation" fallback as an agent failure.
+    if ("error" in newNode) {
+      return { domainNodeId: null };
+    }
+
     const existingSiblingNames = new Set(
       existingNodes
         .filter((node) => node.parentId === parentId)
@@ -144,7 +151,16 @@ export async function resolveDomainPlacement(
       }
 
       existingSiblingNames.add(normalizedSuggestion);
-      await insertDomainNode({ subjectId: input.subjectId, parentId, name: suggestion });
+
+      const sibling = await insertDomainNode({
+        subjectId: input.subjectId,
+        parentId,
+        name: suggestion,
+      });
+
+      if ("error" in sibling) {
+        break;
+      }
     }
 
     return { domainNodeId: newNode.id };

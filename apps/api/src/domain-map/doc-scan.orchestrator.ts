@@ -13,6 +13,8 @@ import {
   upsertTrackedToolScanState,
 } from "./domain-map.repo.js";
 import { resolveNodePathByName, type NamedNode } from "./domain-node-name-resolver.js";
+import { withDocScanLock } from "./doc-scan-lock.js";
+import type { Tx } from "../shared/merge-lock.js";
 
 const SOURCE = "doc-scan";
 // Post-resolution insert cap (spec.md's step 5b) — the single enforced
@@ -102,7 +104,7 @@ function buildPrompt(flatNodes: FlatNode[], changedTools: ChangedTool[]): string
 // "scanned" despite producing nothing.
 export async function runDocScan(subjectId: string): Promise<DocScanResult> {
   const toolsScanned: string[] = [];
-  const changedTools: ChangedTool[] = [];
+  const fetchedTools: ChangedTool[] = [];
 
   for (const tool of TRACKED_TOOLS) {
     const fetched = await fetchTrackedTool(tool);
@@ -113,21 +115,65 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
     }
 
     toolsScanned.push(tool.toolKey);
+    fetchedTools.push({ tool, content: fetched.content, hash: fetched.hash });
+  }
 
-    const existingState = await getTrackedToolScanState(tool.toolKey);
+  if (fetchedTools.length === 0) {
+    return emptyResult(toolsScanned);
+  }
+
+  return withDocScanLock(
+    (tx) => scanFetchedTools(subjectId, toolsScanned, fetchedTools, tx),
+    () => {
+      // A manual "Scan now" firing while the weekly scheduler's run is still
+      // in flight (or a Cloud Scheduler retry overlapping its own first
+      // attempt) would otherwise read the same stale watermark and produce a
+      // duplicate set of pending suggestions on the review screen. Reads
+      // identically to "nothing changed", which is the same posture every
+      // other non-outcome of this job already has.
+      log.info({ subjectId }, "doc_scan_skipped_concurrent_run");
+
+      return emptyResult(toolsScanned);
+    },
+  );
+}
+
+// The locked critical section: the watermark read-compare-write, with the
+// single agent call and the suggestion inserts between the two halves. The
+// network-bound tracked-tool fetches deliberately happen BEFORE this, so the
+// advisory lock is never held across them.
+//
+// Every statement here runs on the lock's own transaction rather than
+// reaching back into the pool, so a scan costs one pooled connection and not
+// two — see doc-scan-lock.ts. It also means an exception escaping this
+// function rolls the suggestion inserts back along with the watermark
+// advance. The agent-failure path deliberately does NOT escape: it is caught
+// below and returns `agentError: true`, committing a transaction that
+// inserted nothing and advanced nothing, which is what keeps the changed
+// tools retryable next run (SCENARIO 10).
+async function scanFetchedTools(
+  subjectId: string,
+  toolsScanned: string[],
+  fetchedTools: ChangedTool[],
+  tx: Tx,
+): Promise<DocScanResult> {
+  const changedTools: ChangedTool[] = [];
+
+  for (const fetched of fetchedTools) {
+    const existingState = await getTrackedToolScanState(subjectId, fetched.tool.toolKey, tx);
 
     if (existingState?.lastContentHash === fetched.hash) {
       continue;
     }
 
-    changedTools.push({ tool, content: fetched.content, hash: fetched.hash });
+    changedTools.push(fetched);
   }
 
   if (changedTools.length === 0) {
     return emptyResult(toolsScanned);
   }
 
-  const tree = await getDomainMapForSubject(subjectId);
+  const tree = await getDomainMapForSubject(subjectId, tx);
   const flatNodes = flattenTree(tree);
   const prompt = buildPrompt(flatNodes, changedTools);
 
@@ -167,13 +213,16 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
 
     for (const topic of cappedTopics) {
       newTopicSuggestions.push(
-        await insertDomainTopicSuggestion({
-          subjectId,
-          proposedParentNodeId: topic.proposedParentNodeId,
-          proposedNodeName: topic.proposedNodeName,
-          reason: topic.reason,
-          source: SOURCE,
-        }),
+        await insertDomainTopicSuggestion(
+          {
+            subjectId,
+            proposedParentNodeId: topic.proposedParentNodeId,
+            proposedNodeName: topic.proposedNodeName,
+            reason: topic.reason,
+            source: SOURCE,
+          },
+          tx,
+        ),
       );
     }
 
@@ -181,17 +230,20 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
 
     for (const supersession of cappedSupersessions) {
       supersessionSuggestions.push(
-        await insertDomainSupersessionSuggestion({
-          subjectId,
-          domainNodeId: supersession.domainNodeId,
-          reason: supersession.reason,
-          source: SOURCE,
-        }),
+        await insertDomainSupersessionSuggestion(
+          {
+            subjectId,
+            domainNodeId: supersession.domainNodeId,
+            reason: supersession.reason,
+            source: SOURCE,
+          },
+          tx,
+        ),
       );
     }
 
     for (const changed of changedTools) {
-      await upsertTrackedToolScanState(changed.tool.toolKey, changed.hash);
+      await upsertTrackedToolScanState(subjectId, changed.tool.toolKey, changed.hash, tx);
     }
 
     return {
@@ -214,9 +266,13 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
 
 // Cron wrapper (spec.md "Scan mechanism (decided)") — one call to
 // runDocScan() per subject with at least one domain_nodes row (same
-// subject-gating precedent item 7 established). Per-tool fetch+hash work is
-// NOT deduplicated across subjects in v1 — deferred optimization, not
-// correctness-relevant at today's "exactly one gated subject" scale.
+// subject-gating precedent item 7 established). Each subject carries its own
+// watermark row per tool, so every subject in this loop compares against its
+// OWN last-seen hash; the loop stays sequential because the doc-scan
+// advisory lock is global (see doc-scan-lock.ts) and a parallel version
+// would simply skip every subject after the first. Per-tool fetch+hash work
+// is NOT deduplicated across subjects — deferred optimization, not
+// correctness-relevant at today's scale.
 export async function runDocScanForAllTrackedSubjects(): Promise<Record<string, DocScanResult>> {
   const subjectIds = await listSubjectIdsWithDomainNodes();
   const results: Record<string, DocScanResult> = {};

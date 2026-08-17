@@ -10,15 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodayRouteImport } from './routes/today'
+import { Route as StudySessionsRouteImport } from './routes/study-sessions'
+import { Route as NotesRouteImport } from './routes/notes'
+import { Route as MilestonesRouteImport } from './routes/milestones'
+import { Route as LearningPathsRouteImport } from './routes/learning-paths'
+import { Route as LearningListRouteImport } from './routes/learning-list'
 import { Route as DecideRouteImport } from './routes/decide'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ContentLibraryRouteImport } from './routes/content-library'
 import { Route as ConcernsRouteImport } from './routes/concerns'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as AdminObservabilityRouteImport } from './routes/admin-observability'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StudySessionsSessionIdRouteImport } from './routes/study-sessions.$sessionId'
 import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
+import { Route as LearningPathsPathIdRouteImport } from './routes/learning-paths.$pathId'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as ApiElectricShapeRouteImport } from './routes/api.electric-shape'
 import { Route as SubjectSubjectIdPriorityReviewRouteImport } from './routes/subject.$subjectId.priority-review'
@@ -33,6 +42,31 @@ const TodayRoute = TodayRouteImport.update({
   path: '/today',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudySessionsRoute = StudySessionsRouteImport.update({
+  id: '/study-sessions',
+  path: '/study-sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MilestonesRoute = MilestonesRouteImport.update({
+  id: '/milestones',
+  path: '/milestones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearningPathsRoute = LearningPathsRouteImport.update({
+  id: '/learning-paths',
+  path: '/learning-paths',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearningListRoute = LearningListRouteImport.update({
+  id: '/learning-list',
+  path: '/learning-list',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DecideRoute = DecideRouteImport.update({
   id: '/decide',
   path: '/decide',
@@ -43,9 +77,19 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContentLibraryRoute = ContentLibraryRouteImport.update({
+  id: '/content-library',
+  path: '/content-library',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConcernsRoute = ConcernsRouteImport.update({
   id: '/concerns',
   path: '/concerns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -63,6 +107,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudySessionsSessionIdRoute = StudySessionsSessionIdRouteImport.update({
+  id: '/$sessionId',
+  path: '/$sessionId',
+  getParentRoute: () => StudySessionsRoute,
+} as any)
 const ProbeTopicIdRoute = ProbeTopicIdRouteImport.update({
   id: '/probe/$topicId',
   path: '/probe/$topicId',
@@ -77,6 +126,11 @@ const LectureTopicIdRoute = LectureTopicIdRouteImport.update({
   id: '/lecture/$topicId',
   path: '/lecture/$topicId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LearningPathsPathIdRoute = LearningPathsPathIdRouteImport.update({
+  id: '/$pathId',
+  path: '/$pathId',
+  getParentRoute: () => LearningPathsRoute,
 } as any)
 const CurriculumCurriculumIdRoute = CurriculumCurriculumIdRouteImport.update({
   id: '/curriculum/$curriculumId',
@@ -127,15 +181,24 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
+  '/analytics': typeof AnalyticsRoute
   '/concerns': typeof ConcernsRoute
+  '/content-library': typeof ContentLibraryRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
+  '/learning-list': typeof LearningListRoute
+  '/learning-paths': typeof LearningPathsRouteWithChildren
+  '/milestones': typeof MilestonesRoute
+  '/notes': typeof NotesRoute
+  '/study-sessions': typeof StudySessionsRouteWithChildren
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
+  '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
@@ -147,15 +210,24 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
+  '/analytics': typeof AnalyticsRoute
   '/concerns': typeof ConcernsRoute
+  '/content-library': typeof ContentLibraryRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
+  '/learning-list': typeof LearningListRoute
+  '/learning-paths': typeof LearningPathsRouteWithChildren
+  '/milestones': typeof MilestonesRoute
+  '/notes': typeof NotesRoute
+  '/study-sessions': typeof StudySessionsRouteWithChildren
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
+  '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
@@ -168,15 +240,24 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
+  '/analytics': typeof AnalyticsRoute
   '/concerns': typeof ConcernsRoute
+  '/content-library': typeof ContentLibraryRoute
   '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
+  '/learning-list': typeof LearningListRoute
+  '/learning-paths': typeof LearningPathsRouteWithChildren
+  '/milestones': typeof MilestonesRoute
+  '/notes': typeof NotesRoute
+  '/study-sessions': typeof StudySessionsRouteWithChildren
   '/today': typeof TodayRoute
   '/api/electric-shape': typeof ApiElectricShapeRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
+  '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
+  '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId_/check-writing': typeof PracticeSubjectIdCheckWritingRoute
@@ -190,15 +271,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-observability'
     | '/admin-settings'
+    | '/analytics'
     | '/concerns'
+    | '/content-library'
     | '/dashboard'
     | '/decide'
+    | '/learning-list'
+    | '/learning-paths'
+    | '/milestones'
+    | '/notes'
+    | '/study-sessions'
     | '/today'
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
+    | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
     | '/probe/$topicId'
+    | '/study-sessions/$sessionId'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
     | '/practice/$subjectId/check-writing'
@@ -210,15 +300,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-observability'
     | '/admin-settings'
+    | '/analytics'
     | '/concerns'
+    | '/content-library'
     | '/dashboard'
     | '/decide'
+    | '/learning-list'
+    | '/learning-paths'
+    | '/milestones'
+    | '/notes'
+    | '/study-sessions'
     | '/today'
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
+    | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
     | '/probe/$topicId'
+    | '/study-sessions/$sessionId'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
     | '/practice/$subjectId/check-writing'
@@ -230,15 +329,24 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-observability'
     | '/admin-settings'
+    | '/analytics'
     | '/concerns'
+    | '/content-library'
     | '/dashboard'
     | '/decide'
+    | '/learning-list'
+    | '/learning-paths'
+    | '/milestones'
+    | '/notes'
+    | '/study-sessions'
     | '/today'
     | '/api/electric-shape'
     | '/curriculum/$curriculumId'
+    | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
     | '/probe/$topicId'
+    | '/study-sessions/$sessionId'
     | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/stats'
     | '/practice/$subjectId_/check-writing'
@@ -251,9 +359,16 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminObservabilityRoute: typeof AdminObservabilityRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AnalyticsRoute: typeof AnalyticsRoute
   ConcernsRoute: typeof ConcernsRoute
+  ContentLibraryRoute: typeof ContentLibraryRoute
   DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
+  LearningListRoute: typeof LearningListRoute
+  LearningPathsRoute: typeof LearningPathsRouteWithChildren
+  MilestonesRoute: typeof MilestonesRoute
+  NotesRoute: typeof NotesRoute
+  StudySessionsRoute: typeof StudySessionsRouteWithChildren
   TodayRoute: typeof TodayRoute
   ApiElectricShapeRoute: typeof ApiElectricShapeRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
@@ -277,6 +392,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TodayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/study-sessions': {
+      id: '/study-sessions'
+      path: '/study-sessions'
+      fullPath: '/study-sessions'
+      preLoaderRoute: typeof StudySessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/milestones': {
+      id: '/milestones'
+      path: '/milestones'
+      fullPath: '/milestones'
+      preLoaderRoute: typeof MilestonesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learning-paths': {
+      id: '/learning-paths'
+      path: '/learning-paths'
+      fullPath: '/learning-paths'
+      preLoaderRoute: typeof LearningPathsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learning-list': {
+      id: '/learning-list'
+      path: '/learning-list'
+      fullPath: '/learning-list'
+      preLoaderRoute: typeof LearningListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/decide': {
       id: '/decide'
       path: '/decide'
@@ -291,11 +441,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/content-library': {
+      id: '/content-library'
+      path: '/content-library'
+      fullPath: '/content-library'
+      preLoaderRoute: typeof ContentLibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/concerns': {
       id: '/concerns'
       path: '/concerns'
       fullPath: '/concerns'
       preLoaderRoute: typeof ConcernsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin-settings': {
@@ -319,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/study-sessions/$sessionId': {
+      id: '/study-sessions/$sessionId'
+      path: '/$sessionId'
+      fullPath: '/study-sessions/$sessionId'
+      preLoaderRoute: typeof StudySessionsSessionIdRouteImport
+      parentRoute: typeof StudySessionsRoute
+    }
     '/probe/$topicId': {
       id: '/probe/$topicId'
       path: '/probe/$topicId'
@@ -339,6 +510,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/lecture/$topicId'
       preLoaderRoute: typeof LectureTopicIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/learning-paths/$pathId': {
+      id: '/learning-paths/$pathId'
+      path: '/$pathId'
+      fullPath: '/learning-paths/$pathId'
+      preLoaderRoute: typeof LearningPathsPathIdRouteImport
+      parentRoute: typeof LearningPathsRoute
     }
     '/curriculum/$curriculumId': {
       id: '/curriculum/$curriculumId'
@@ -399,13 +577,44 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface LearningPathsRouteChildren {
+  LearningPathsPathIdRoute: typeof LearningPathsPathIdRoute
+}
+
+const LearningPathsRouteChildren: LearningPathsRouteChildren = {
+  LearningPathsPathIdRoute: LearningPathsPathIdRoute,
+}
+
+const LearningPathsRouteWithChildren = LearningPathsRoute._addFileChildren(
+  LearningPathsRouteChildren,
+)
+
+interface StudySessionsRouteChildren {
+  StudySessionsSessionIdRoute: typeof StudySessionsSessionIdRoute
+}
+
+const StudySessionsRouteChildren: StudySessionsRouteChildren = {
+  StudySessionsSessionIdRoute: StudySessionsSessionIdRoute,
+}
+
+const StudySessionsRouteWithChildren = StudySessionsRoute._addFileChildren(
+  StudySessionsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminObservabilityRoute: AdminObservabilityRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AnalyticsRoute: AnalyticsRoute,
   ConcernsRoute: ConcernsRoute,
+  ContentLibraryRoute: ContentLibraryRoute,
   DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,
+  LearningListRoute: LearningListRoute,
+  LearningPathsRoute: LearningPathsRouteWithChildren,
+  MilestonesRoute: MilestonesRoute,
+  NotesRoute: NotesRoute,
+  StudySessionsRoute: StudySessionsRouteWithChildren,
   TodayRoute: TodayRoute,
   ApiElectricShapeRoute: ApiElectricShapeRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,

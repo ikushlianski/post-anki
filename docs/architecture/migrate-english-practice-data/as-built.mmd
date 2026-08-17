@@ -1,0 +1,23 @@
+flowchart LR
+    Operator["Operator (human)\nruns CLI manually"]
+    CLI["migrate-english-practice-data.ts\napps/api/scripts/"]
+    SourceDB[("Source Neon DB\nsettings, phrases, attempts")]
+    SourceJSON["active/mastered-phrases.json\nSOURCE_LEARNING_DIR"]
+    Orchestrator["runMigration()\norchestrator.ts"]
+    PlanPhrases["planPhraseAndAttemptMigration()\nplan-phrases.ts"]
+    PlanPBE["planPhraseBankMigration()\nplan-phrase-bank.ts"]
+    TargetDB[("post-anki Neon DB\nphrases, attempts,\nphrase_bank_entries,\nphrase_bank_appearances")]
+    Panel["Existing PhraseBankPanel\napps/web (unchanged)"]
+
+    Operator -->|"SOURCE_DATABASE_URL\nDATABASE_URL\n--dry-run flag"| CLI
+    CLI --> Orchestrator
+    Orchestrator -->|"read-only"| SourceDB
+    Orchestrator -->|"read-only"| SourceJSON
+    Orchestrator -->|"reads existing rows\nfor idempotency check"| TargetDB
+    Orchestrator --> PlanPhrases
+    Orchestrator --> PlanPBE
+    PlanPhrases -->|"pure derive"| Orchestrator
+    PlanPBE -->|"pure derive,\nisAdjacent=null fix,\ncollision-insert fix"| Orchestrator
+    Orchestrator -->|"dry-run: print summary only"| CLI
+    Orchestrator -->|"live: 1 transaction,\nphrase_bank_entries\nbefore appearances"| TargetDB
+    TargetDB -.->|"existing query,\nzero new code"| Panel

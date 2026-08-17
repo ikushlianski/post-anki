@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { DepthLevel, DomainNodeTreeItem } from '@post-anki/shared'
-import { domainPriorityDistance } from '@post-anki/core'
+import { domainMasteryStatus, domainPriorityDistance } from '@post-anki/core'
 
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { TargetDepthControl } from './target-depth-control'
@@ -47,6 +47,7 @@ function DomainMapNode({
 }) {
   const [targetDepth, setTargetDepth] = useState<DepthLevel | null>(node.targetDepth)
   const priorityDistance = domainPriorityDistance(targetDepth, node.percent)
+  const masteryStatus = domainMasteryStatus(node.percent)
 
   return (
     <div
@@ -63,6 +64,14 @@ function DomainMapNode({
           >
             {node.percent}%
           </span>
+          {masteryStatus === 'gap' ? (
+            <span
+              data-testid={`domain-map-node-gap-badge-${node.id}`}
+              className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-rose-700"
+            >
+              0% — gap
+            </span>
+          ) : null}
           {node.supersededAt ? (
             <span
               data-testid={`domain-map-node-superseded-badge-${node.id}`}

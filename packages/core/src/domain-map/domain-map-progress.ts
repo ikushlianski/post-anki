@@ -54,9 +54,27 @@ export function domainNodeProgress(
     depth += 1;
   }
 
+  // decouple-curricula-from-domain-nodes (issue #84), SCENARIO 9 — curricula
+  // now map many-to-many onto domain nodes, so a single curriculum confirmed
+  // against two nodes that share this ancestor produces two
+  // {domainNodeId, topics} entries here, both landing in the subtree walk
+  // above with the SAME topic rows. Dedup by topic.id before handing the
+  // flattened list to moduleProgress(), or the shared ancestor's
+  // topicsIncluded/topicsMastered double-counts that curriculum's topics
+  // once per mapped descendant instead of once overall.
+  const seenTopicIds = new Set<string>();
   const topics = curriculumTopics
     .filter((entry) => subtreeIds.has(entry.domainNodeId))
-    .flatMap((entry) => entry.topics);
+    .flatMap((entry) => entry.topics)
+    .filter((topic) => {
+      if (seenTopicIds.has(topic.id)) {
+        return false;
+      }
+
+      seenTopicIds.add(topic.id);
+
+      return true;
+    });
 
   return moduleProgress(topics);
 }

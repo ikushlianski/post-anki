@@ -30,6 +30,7 @@ import {
   triggerDomainPriorityReview,
   updateDomainNodeTargetDepth,
 } from '../curriculum/api-client'
+import type { ResolveDocScanSuggestionResult } from '../curriculum/api-client'
 import type { Curriculum, Subject } from '../curriculum/model'
 
 // SSR-first, loader-seeded — deliberately not Electric-dependent (see
@@ -111,14 +112,18 @@ export const getDocScanSuggestions = createServerFn({ method: 'GET' })
     listDocScanSuggestions(data.subjectId, data.status),
   )
 
+// A 409 `already_resolved` arrives here as an `outcome` rather than a thrown
+// error (see api-client's resolveDocScanSuggestion), so the review panel's
+// catch block stays reserved for real failures and a suggestion another tab
+// already handled still leaves the list.
 export const resolveDocScanTopicSuggestion = createServerFn({ method: 'POST' })
   .inputValidator((data: { suggestionId: string; status: 'accepted' | 'rejected' }) => data)
-  .handler(({ data }): Promise<DomainTopicSuggestion> =>
+  .handler(({ data }): Promise<ResolveDocScanSuggestionResult<DomainTopicSuggestion>> =>
     resolveDomainTopicSuggestion(data.suggestionId, data.status),
   )
 
 export const resolveDocScanSupersessionSuggestion = createServerFn({ method: 'POST' })
   .inputValidator((data: { suggestionId: string; status: 'accepted' | 'rejected' }) => data)
-  .handler(({ data }): Promise<DomainSupersessionSuggestion> =>
+  .handler(({ data }): Promise<ResolveDocScanSuggestionResult<DomainSupersessionSuggestion>> =>
     resolveDomainSupersessionSuggestion(data.suggestionId, data.status),
   )

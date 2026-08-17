@@ -2,7 +2,55 @@
 
 Priority order — top is highest priority. `/grand-loop` picks the first `- [ ]` item.
 
-## Active build queue (2026-07-28) — plan-playwright → write-playwright-tests → review-playwright per item
+## Active build queue (2026-08-02) — URGENT: Static knowledge map foundation
+
+New priority (added 2026-08-02): Foundation for post-anki's vision as an IT career knowledge platform.
+These form a dependency chain: taxonomy → curriculum decoupling → progress separation → visualization.
+Blocks: learning capture (#78), highlight-comment (#80), curriculum augmentation (#81), recommender (#77).
+
+- [x] Design the objective IT knowledge taxonomy — hierarchical map of domains/competencies (#83) [→ done: .planning/design-knowledge-taxonomy/, verified 2026-08-04]
+      Why: Post-anki needs a static, objective taxonomy of IT knowledge independent of curricula
+      and user progress. Currently, domain nodes are dynamically created by curricula, mixing
+      "what exists to learn" with "what the user has chosen to study." This item designs the
+      foundational taxonomy (15-20 top domains, 3-4 levels deep) covering IT: networking, databases,
+      cloud, security, DevOps, and similar.
+      Done when: a documented, structured taxonomy exists (.yaml or .json, committed to the repo),
+      with 15+ domains organized hierarchically, each with a brief description and any
+      prerequisite markers.
+      Depends on: none (this is the foundation).
+
+- [x] Decouple curricula from domain node creation — map into static taxonomy instead (#84) [→ done: .planning/decouple-curricula-from-domain-nodes/, verified 2026-08-04 — survived red-team pass (4 fixes) + dual review (1 data-loss bug found+fixed+reverified)]
+      Why: Currently, creating a curriculum creates/shapes domain nodes. Flip this: domain nodes
+      should be static (seeded once), and curricula should map INTO them rather than create them.
+      Enables intelligent curriculum augmentation, prerequisite detection, and visualization.
+      Done when: curriculum creation now maps its topics into existing domain_nodes rather than
+      creating them, via an AI-assisted mapping step that the user can approve/adjust.
+      Depends on: #83 (static taxonomy must exist first).
+
+- [x] Separate progress overlay from structure — show mastery on top of static map (#85) [→ done: .planning/separate-progress-overlay-from-structure/, verified 2026-08-04 — built on #84's worktree, red-team pass (3 fixes) + independent re-verification]
+      Why: Currently, 'percent' shown in domain map derives from curricula structure (average of
+      topics in curricula you created). Decouple this: domain nodes are always shown (complete
+      taxonomy), and mastery is an overlay (what you've learned). Shows both 'knowledge areas exist
+      to learn' and 'you know X% of Y area.'
+      Done when: domain map shows all nodes even if user has no curriculum under them, mastery
+      appears as a color/badge separate from structure, and gaps (areas with 0% mastery) are visible
+      and actionable.
+      Depends on: #84 (must decouple curricula from node creation first).
+
+- [x] Visual knowledge map — graph/mind-map rendering of objective taxonomy with mastery overlay (#86) [→ done: .planning/visual-knowledge-map/, verified 2026-08-04 — red-team pass (7 fixes) + dual review, both independently re-verified clean]
+      Why: Current domain map is a text tree. Render it visually as a mind map or knowledge graph,
+      showing mastery as color, curricula as highlighted paths, gaps as empty areas. Makes the
+      landscape visible at a glance.
+      Done when: a visual representation (mind map, network graph, or treemap) exists and renders
+      the static taxonomy with mastery coloring, interactive drill-down, and mobile-responsive.
+      Depends on: #85 (must separate progress from structure first).
+
+- [x] Seed the initial static taxonomy into the database (#82 follow-up) [→ done: .planning/unassigned/seed-static-taxonomy/, verified 2026-08-04 — 3 red-team passes (9 fixes), 208 rows independently confirmed persisted in postanki_dev via direct SQL. Production subject placement still deferred to GitHub #84's open Decision 2.]
+      Why: Once the design and decoupling are done, populate the taxonomy so it's ready for use.
+      Done when: the taxonomy designed in #83 is seeded into domain_nodes, with no curricula
+      under the nodes yet (curriculum-to-node mappings are empty), and the structure is verified.
+
+## Previous active build queue (2026-07-28) — plan-playwright → write-playwright-tests → review-playwright per item
 
 Reordered from a longer business-value review: two known bugs moved to the front because the
 next two features attach to the exact surfaces they break; the two items with a concrete
@@ -273,8 +321,13 @@ on a human-only blocker rather than skipping past it.
       more than a small, bounded number of notifications per cycle.
       Needs real product/architecture planning first (scan source/frequency, how "supersedes"
       is judged, notification channel) — this entry queues the idea, it does not spec it. (#49)
-- [ ] Close a real deadlock window between the phrase-bank's two new locks, and wire its
+- [x] Close a real deadlock window between the phrase-bank's two new locks, and wire its
       concurrency tests into the normal test run.
+      [→ done 2026-08-01 (commit 2de6a78). Grading now takes the same advisory lock generation
+      takes, before its FOR UPDATE, via a single lockPhraseBankScope(). Proven with a real
+      Postgres 40P01: no-op the lock and the new test fails, restore it and it passes. Also
+      fixed four DB-backed test files that ran under NEITHER vitest config and so were silently
+      not executing at all; CI gained a Postgres service so these now re-run (commit d381622).]
       Why: `docs/architecture/phrase-bank-concurrency-fix/review.md` (found during `/debrief`
       2026-07-28) found that the plan's own self-grill incorrectly concluded the generation path's
       `pg_advisory_xact_lock` and the grading path's `SELECT ... FOR UPDATE` can never conflict —
@@ -312,7 +365,12 @@ on a human-only blocker rather than skipping past it.
       Needs real product/architecture planning first — how the split UI decides which children go
       where (manual assignment vs. a suggested split). This entry queues the idea, it does not
       spec it.
-- [ ] Close the `createCurriculum`-vs-merge race and harden the TagPicker's live-refresh gap.
+- [x] Close the `createCurriculum`-vs-merge race and harden the TagPicker's live-refresh gap.
+      [→ done 2026-08-01 (commit f1009b6). createCurriculum joins the merge advisory-lock space
+      via a new withSubjectLock and re-reads the subject inside it, so a lost race is a clean 404.
+      TagPicker seeds chips from the assign mutation response instead of relying on
+      router.invalidate(). The ~25% e2e flake was checked and does NOT share this root cause —
+      it is a pre-hydration click, traced separately.]
       Why: two real, non-blocking gaps found during `ontology-split-merge`'s build and review,
       both deliberately deferred rather than fixed inline: (1) `resolveDomainPlacement`/
       `createCurriculum` run as separate, un-transacted, unlocked statements, so a curriculum or
@@ -334,8 +392,15 @@ on a human-only blocker rather than skipping past it.
       assigning a tag updates the visible chip immediately, without a page reload, proven by an
       e2e test that does NOT navigate away before asserting.
 
-- [ ] Make a zero-suggestion priority review fail loudly instead of silently clearing the
+- [x] Make a zero-suggestion priority review fail loudly instead of silently clearing the
       "review due" banner.
+      [→ done 2026-08-01. `.min(1)` landed on `domainPriorityReviewAgentResultSchema` in
+      `packages/shared/src/domain-map.ts` (not the agent file the pointer named — the schema
+      never lived there); `setDue(false)` in the panel is now gated on a non-empty result;
+      migration `0028_massive_ultragirl` adds `domain_priority_suggestions(subject_id,
+      created_at DESC)`, applied to the local e2e Postgres only, NOT to Neon. Proven
+      red-then-green with 2 new tests in `domain-priority-review.orchestrator.test.ts` and a
+      new `apps/web/src/domain-map/priority-review-panel.test.tsx`.]
       Why: `docs/architecture/domain-priority-review/review.md` (found during `/debrief`
       2026-07-28) found the trigger handler unconditionally clears the "review due" indicator on
       any successful review call, including one that returns zero suggestions. The agent's prompt
@@ -383,7 +448,17 @@ on a human-only blocker rather than skipping past it.
       same transaction — proven by a test that deletes a gap with an active mastery row and
       confirms zero orphaned `gap_mastery` rows remain.
 
-- [ ] Give `tracked_tool_scan_state` a subject dimension before seeding a second gated subject.
+- [x] Give `tracked_tool_scan_state` a subject dimension before seeding a second gated subject.
+      [→ done 2026-08-01. Composite primary key on `(subject_id, tool_key)`, migration
+      `0030_groovy_madame_web` (hand-ordered: drizzle-kit emitted the ADD CONSTRAINT before the
+      ADD COLUMN and left the old PK's DROP commented out). Existing rows are attributed to the
+      sole gated subject when exactly one exists and dropped otherwise — a dropped watermark
+      costs one redundant scan, a wrongly attributed one reproduces the bug. Proven
+      red-then-green by `doc-scan-subject-watermark.integration.test.ts`: 1 agent call for 2
+      gated subjects before, 2 after, each subject with its own suggestions and its own 4
+      watermark rows. The test in `doc-scan.orchestrator.test.ts` that pinned the old
+      "exactly one subject wins" behaviour now asserts every gated subject gets a real call.
+      Applied to the local e2e DB only; Neon dev/prod still need it.]
       Why: `.planning/doc-changelog-scan/todo.md` (found during implementation, 2026-07-28) —
       the table is keyed by `tool_key` alone, so only the first of multiple gated subjects
       processed in a scheduled scan run ever gets real suggestions; every other subject silently
@@ -397,8 +472,13 @@ on a human-only blocker rather than skipping past it.
       Done when: two gated subjects both genuinely receive independent doc-scan suggestions in
       the same scheduled run, proven by a test exercising exactly that interleaving.
 
-- [ ] Close the doc-scan review screen's double-click duplicate-node bug and two related
+- [x] Close the doc-scan review screen's double-click duplicate-node bug and two related
       hardening gaps.
+      [→ done 2026-08-01 (commit 9d30491). Both resolvers claim their row with UPDATE ... WHERE
+      status = 'pending' RETURNING before any side effect; PATCH routes gained a 409. Per-item
+      in-flight disable held in a useRef (state alone lets two clicks in one React batch pass).
+      Watermark race closed with a NON-blocking pg_try_advisory_xact_lock, tracked-tool fetches
+      hoisted out so it cannot starve the 4-connection pool. infra now config.requireSecret().]
       Why: `docs/architecture/doc-changelog-scan/review.md` (found during `/debrief` 2026-07-28)
       found accepting a suggestion twice via a plain double-click can insert a duplicate real
       `domain_nodes` row — `resolveDomainTopicSuggestion()`/`resolveDomainSupersessionSuggestion()`
@@ -544,7 +624,12 @@ actions already existing to send an accepted suggestion to.
       undo, just enough for a human to manually reconstruct what happened.
       Needs real product/architecture planning first — whether this extends to a real undo or
       stays a read-only log for a first cut. This entry queues the idea, it does not spec it.
-- [ ] AI-assisted duplicate detection: surface likely-duplicate subjects. (#63)
+- [x] AI-assisted duplicate detection: surface likely-duplicate subjects. (#63)
+      [→ done: .planning/ai-duplicate-detection/, verified 2026-07-31 — 27 deriver + 9 backend
+      integration tests green, real OpenRouter embedding call confirmed working end-to-end
+      (scan/accept/reject all verified via real browser + real API), full regression sweep back
+      to baseline after a critical node:crypto browser-bundle regression was found and fixed.
+      review-playwright PASS (after fix), debrief sound.]
       Why: today a human has to notice a duplicate exists before merging it — the real "Webdev"
       vs. "Programming / Web Development" case was caught by a human glancing at the subject
       list, not surfaced by the system. Reuses the AI-proposes/human-accepts-or-rejects pattern
@@ -564,7 +649,12 @@ actions already existing to send an accepted suggestion to.
       (`/Users/ikushlianski/webdata/ilya-projects/ai-dev/docs/principles`) — bound the scan's
       cost per invocation (e.g. cap on subject count compared), no unbounded fan-out.
 
-- [ ] Fix the "+ tag" button's silent no-op click on a far-scrolled page position.
+- [x] Fix the "+ tag" button's silent no-op click on a far-scrolled page position.
+      [→ done 2026-08-01 (commit ebe95c8). Cause measured, not guessed: React 19 hydrates this
+      root progressively and the tree has no Suspense boundaries, so controls sit in the DOM
+      looking normal before their handler attaches. __TSR_ROUTER__ resolves ~180-220ms; the deep
+      button attaches ~290-500ms. Controls now render disabled until their own component hydrates.
+      Measured 0/5 -> 5/5 (y=5011px) and 0/5 -> 15/15 (y=44769px) on a single click, no retry.]
       Why: found while reviewing `curriculum-merge` (2026-07-31) — a click on a "+ tag" button
       roughly 3500px down a large curriculum page (the kind curriculum-merge itself now produces,
       8+ modules) can be silently swallowed even though the page's own hydration-ready flag has
@@ -581,7 +671,13 @@ actions already existing to send an accepted suggestion to.
       opens the tag picker on the first click, proven by removing the e2e action's retry logic and
       confirming the test still passes reliably.
 
-- [ ] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content.
+- [x] Make `clearCurriculumStructure` provenance-aware so it never deletes merged-in content.
+      [→ done 2026-08-01 (commit 59d7e6c). merged_from_curriculum_id on BOTH modules and topics
+      (a topic can be reparented between the two, so module-derived provenance alone would lose
+      it), written by mergeCurricula; clearCurriculumStructure takes a scope defaulting to "own".
+      Migration 0029, applied to the local e2e DB only — Neon dev and prod still need it.
+      RESIDUAL: mergeSourcesIntoCurriculum's success path still deletes merged-in modules as
+      "free" — same loss class, different trigger, needs a product decision. See .planning/todo.md.]
       Why: `docs/architecture/curriculum-merge/review.md` (found during `/debrief` 2026-07-31) —
       a real, ordinarily-reachable data-loss path, not a narrow timing race. A healthy curriculum
       that absorbed merged-in content (via `mergeCurricula`) can independently fail LATER through
@@ -623,7 +719,30 @@ actions already existing to send an accepted suggestion to.
       and the per-action retry workarounds already added for domain-map/tag-picker become provably
       unnecessary — remove them and confirm their tests still pass reliably.
 
-- [ ] Add a regression test for the mobile transport-security guard (`assertSecureUrl`).
+- [ ] Update two locked curriculum e2e tests (`strict-order-toggle`, `study-technology-doc-url`)
+      for the "conversational curriculum structure shaping" pipeline stage.
+      Why: found during `/review-playwright` re-verification on `ai-duplicate-detection`
+      (2026-07-31) — a prior review had lumped these two failures in with the unrelated
+      `waitForHydration` race above (they are not that race; both actually-hydration-race tests,
+      `merge-curricula-full-reassignment` and `merge-curriculum-target-picker-same-subject-only`,
+      pass). The real cause: commit `d7cb5f6` ("conversational curriculum structure shaping",
+      merged 2026-07-25, six days before this queue started) added a new mid-pipeline stage that
+      legitimately parks a curriculum at `shaping_structure` after a successful draft-structure
+      step (confirmed via the database: `curriculum_structure_turns` rows show `status: complete`
+      for these runs, not a stuck/failed step) — these two test files were written before that
+      stage existed and never account for it, so they hang/fail waiting for a state the pipeline
+      no longer reaches directly.
+      Pointers: the failing test files themselves (names above, in verification-repo), commit
+      `d7cb5f6` for what the new stage actually does and what a test needs to drive through it.
+      Done when: both tests account for the `shaping_structure` stage (either driving through it
+      or asserting the new intermediate state correctly) and pass reliably, not just once.
+
+- [x] Add a regression test for the mobile transport-security guard (`assertSecureUrl`).
+      [→ done 2026-08-01: `apps/mobile/src/api/client.test.ts`, 32 cases, plus the package's
+      first vitest setup (`vitest.config.ts` + `test` script, picked up by root `npm test`).
+      Both named bypasses are locked in. The guard was NOT found vulnerable to lookalike hosts;
+      two residual notes (Android `10.0.2.2` exemption, http-only denylist) are in
+      `.planning/todo.md` under "To review / clarify".]
       Why: found during `/review-playwright` on `ontology-audit-trail` (2026-07-31) — `apps/mobile`
       has zero automated test files, so the two real bypasses a prior debrief found and fixed in
       this guard (case-sensitive scheme check, embedded-userinfo/`@` host confusion — see
@@ -635,6 +754,72 @@ actions already existing to send an accepted suggestion to.
       Done when: a Vitest file co-located with `client.ts` asserts both bypasses are rejected and
       legitimate `https://`/loopback-`http://` URLs are still accepted, running in CI alongside the
       rest of the mobile package's checks.
+
+- [x] Add a build-time guard against Node-only imports leaking into the `apps/web` bundle.
+      [→ done 2026-08-01 (commit d381622). scripts/check-web-node-builtins.mjs, wired into CI's
+      test job. Scanning the emitted bundle does NOT work — rolldown tree-shakes the offending
+      module out of the chunks while the leak is still in the graph — so the guard runs the real
+      vite build and matches its resolve-time externalization warning. Proven by reintroducing
+      node:crypto (exit 1, names the file) and reverting (exit 0).]
+      Why: found during `/review-playwright` on `ai-duplicate-detection` (2026-07-31) — a new file
+      in `packages/core` used `node:crypto`, which Vite silently bundled into `apps/web` through
+      the package's root barrel export, breaking every page importing it (curriculum, domain-map,
+      lecture, probe, practice all crashed at runtime with "Module node:crypto has been
+      externalized for browser compatibility"). Fixed for this one file (swapped to a
+      dependency-free hash, commit `365b058`), but nothing stops the same mistake from shipping
+      again the next time someone adds a Node built-in to a `packages/core` file that's reachable
+      from the web root barrel.
+      Pointers: `apps/web`'s production build already surfaces this as an "externalized for
+      browser" warning during `vite build` — the gap is that nobody's build/CI step fails on that
+      warning today, it just scrolls past. `packages/core/src/index.ts` is the root barrel in
+      question.
+      Done when: a CI step (or a `vite build` flag) fails the build if any Node built-in gets
+      externalized into the `apps/web` bundle, verified by deliberately reintroducing a
+      `node:crypto` import in a test file and confirming the build now fails instead of
+      succeeding silently.
+
+## the-me-agent integration (2026-08-01) — flagged important by the user
+
+Two linked items, in dependency order: the MCP connection is the data source the recommendations
+need. The server half lives in the-me-agent's own wishlist (that repo has no GitHub remote, so no
+issue exists there — its `.planning/wishlist.md` top entry is the tracking artifact).
+
+- [ ] Connect post-anki to the-me-agent vault via MCP. (#76)
+      Why: post-anki's mentor agents know nothing about Ilya outside this app. the-me-agent owns
+      that knowledge — `notes/profile.md` plus the learning map built 2026-08-01
+      (`notes/web-dev/learning/`: per-category hands-on vs want-to-try files with project
+      evidence). An MCP boundary keeps the-me-agent the single owner of vault access and makes
+      post-anki a read-only consumer instead of duplicating profile facts into a second database.
+      Pointers: `apps/api/src/mastra/` (where an `@mastra/mcp` MCPClient wires in),
+      the-me-agent's `src/ask/read-note-tool.ts`/`vault-map.ts` (the guarded read-only tools its
+      server will wrap), todoist-todo-app (in-house precedent for a tested stdio MCP server),
+      `ai-dev/docs/principles/003-building-mcp-servers.md` (mandatory guidance).
+      Constraints already decided: read-only always; vault content is data, not instructions
+      (prompt-injection boundary); bounded tool-call fan-out per agent run.
+      Done when: a post-anki agent, in a real run, answers a question it could only answer via
+      the vault (e.g. names a want-to-try technology from `notes/web-dev/learning/`) through the
+      MCP client against a locally running the-me-agent server — proven by a test with the MCP
+      boundary mocked plus one real end-to-end invocation.
+      Blocked on: the-me-agent's MCP server existing (top entry of that repo's wishlist).
+
+- [ ] Recommend new courses to start from the me-agent learning map, with accept / later /
+      dismiss. (#77)
+      Why: post-anki only studies what was already added — nothing proposes what to start next.
+      The learning map records exactly that (want-to-try: vector DBs, chunking/RAG eval, Python
+      agent frameworks, LiteLLM, Ollama, …). Surface those as grounded course suggestions:
+      "hands-on with LangGraph and Mastra, never touched a vector DB — start a pgvector course?"
+      Pointers: `domain_priority_suggestions` / doc-scan review / duplicate detection (#63) — the
+      AI-proposes/human-reviews pattern to reuse (suggestion rows with a `source` discriminator +
+      a review surface); the existing subject/curriculum intake as the accept action. New here:
+      a third response state — "later" snoozes and resurfaces after a period; "dismiss" persists
+      and never re-suggests; existing pattern only has accept/reject.
+      Constraints already decided: on-demand or bounded cadence, never unattended firehose (same
+      anti-noise bar as #49, zero-unattended-spend precedent from #63); suggestions must cite
+      their learning-map evidence, not free-associate; bounded cost per scan.
+      Done when: a real run against the live MCP connection (#76) produces at least one course
+      suggestion grounded in a want-to-try entry; accepting creates the course via the existing
+      intake; "later" resurfaces after the snooze period; dismissed never returns — each proven
+      by a test.
 
 ## Everything else (unchanged order, resumes below the active queue above)
 
@@ -689,7 +874,7 @@ actions already existing to send an accepted suggestion to.
       Done when: a phrase that's been answered correctly 3 times non-adjacently is archived as
       mastered, and a struggling phrase gets re-surfaced according to the isolation-then-retry
       rule — visible in the UI, not just the database.
-- [ ] Migrate existing English practice data into post-anki's database.
+- [x] Migrate existing English practice data into post-anki's database. [→ done: .planning/migrate-english-practice-data/, verified 2026-08-04 — code + tests complete, live run deferred pending SOURCE_DATABASE_URL (see todo.md)]
       Why: the source app's Neon tables (`settings`, `phrases`, `attempts`) and the separate
       chat-session phrase-bank JSON files both hold real practice history that shouldn't be lost
       when the source app is retired. Do this last, once the English subject's schema in post-anki
@@ -783,3 +968,35 @@ actions already existing to send an accepted suggestion to.
       lightweight supplementary signal, not a primary driver.
       Needs a data-provider decision and real product/architecture planning — this entry queues
       the idea, it does not spec it, and is postponed until revisited. (#53)
+
+- [ ] Fix the shared local dev Postgres's migration 0027 being permanently skipped —
+      subject_duplicate_suggestions is missing, breaking the already-shipped duplicate-detection
+      feature locally.
+      Why: found during tonight's #86 build/review (2026-08-04) — drizzle-orm's Postgres migrator
+      only ever reads the SINGLE latest row from the migration-tracking table, then compares every
+      migration's own timestamp against that one fixed watermark for the whole batch; it never
+      checks per-migration whether that specific migration actually ran. The shared local dev
+      container (`post-anki-dev-db`, port 5437) has orphaned tracking rows with timestamps that
+      don't correspond to any migration currently in `apps/api/src/db/migrations/meta/_journal.json`
+      (confirmed via `git log -p` — a journal entry with one of those exact timestamps existed
+      historically and was removed during a migration-folder squash/renumbering at some point).
+      Those orphaned rows permanently raise the watermark past migration 0027's own timestamp, so
+      `npm run db:migrate` silently skips 0027 forever, for anyone, on every future run — not a
+      one-time fluke. `subjects.embedding`/`embedding_hash`/`embedded_at` (also from 0027) were
+      manually patched in twice tonight (#85 and #86's builds both hit this and worked around it
+      locally, without touching migration files or the tracking table) but
+      `subject_duplicate_suggestions` — the other table 0027 creates — is still missing, and the
+      already-merged AI-assisted duplicate-detection feature (`apps/api/src/subject-duplicate/`)
+      is currently broken against local dev as a result.
+      Pointers: `node_modules/drizzle-orm/pg-core/dialect.js:57-70` (the single-watermark
+      comparison logic), the `drizzle.drizzle_migrations_api` tracking table in the local
+      `post-anki-dev-db` container (has rows with timestamps `1785485869772`/`1785489603580` that
+      match no current journal entry), `apps/api/src/db/migrations/0027_amused_nightmare.sql` (the
+      skipped migration).
+      Done when: `subject_duplicate_suggestions` exists in the local dev database with its correct
+      unique index, `npm run db:migrate` no longer silently skips migration 0027 on a fresh clone,
+      and the fix addresses the root cause (the watermark/tracking gap) rather than another
+      one-off manual column patch.
+      Not urgent for production (Neon is unaffected — this is a local-dev-only container issue),
+      but worth fixing soon since it will keep resurfacing for every worktree/session that touches
+      this area, exactly as it did twice in one night.

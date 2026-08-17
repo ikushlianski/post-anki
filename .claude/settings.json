@@ -1,4 +1,28 @@
 {
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/ikushlianski/orca/workspaces/ai-dev/personal-skills-evolution-fork/.claude/skills/hooks/shared/completion_gate.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/ikushlianski/orca/workspaces/ai-dev/personal-skills-evolution-fork/.claude/skills/hooks/shared/completion_gate.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "deny": [
       "Read(/etc/**)",

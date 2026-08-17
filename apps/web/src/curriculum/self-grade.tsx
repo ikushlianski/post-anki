@@ -19,7 +19,7 @@ export function SelfGrade({
           type="button"
           disabled={disabled}
           onClick={() => onChange(value === grade ? null : grade)}
-          className={`h-7 w-7 rounded-full text-sm transition-colors disabled:opacity-50 ${
+          className={`h-7 w-7 rounded-full text-sm transition-colors disabled:opacity-40 ${
             value === grade
               ? 'bg-neutral-900 text-white'
               : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'

@@ -67,7 +67,17 @@ Drizzle migration.
 
 ## Scope boundary
 
-Out of scope for this plan: migrating the source app's real practice history, fixing the
-pre-existing Electric-sync single point of failure in general, quiz-mode integration, workplace
-scenario packs, and fuzzy/semantic deduplication of near-duplicate phrase-bank entries. See
-`.planning/phrase-bank-mastery/spec.md`'s "Scope boundary" for the full list and reasoning.
+Out of scope for this plan: fixing the pre-existing Electric-sync single point of failure in
+general, quiz-mode integration, workplace scenario packs, and fuzzy/semantic deduplication of
+near-duplicate phrase-bank entries. See `.planning/phrase-bank-mastery/spec.md`'s "Scope boundary"
+for the full list and reasoning.
+
+Migrating the source app's (`english-advanced`) real practice history was deferred by this plan but
+is no longer an open gap: a one-time, human-run import script
+(`apps/api/scripts/migrate-english-practice-data.ts`, real logic under
+`apps/api/src/migrate-english-practice-data/`) now exists to populate this exact table set
+(`phrases`, `attempts`, `phrase_bank_entries`, `phrase_bank_appearances`, `language_practice_settings`)
+from the retired source app's Neon database and local JSON phrase-bank files. It is run manually by
+the operator, who supplies the source database's own connection string — see
+`.planning/migrate-english-practice-data/` for the full spec, and that plan's `todo.md` for the
+live-run credential this build environment did not have.

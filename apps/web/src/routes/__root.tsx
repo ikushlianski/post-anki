@@ -35,6 +35,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootDocument,
 })
 
+const navLinkClass =
+  'text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900'
+
+function NavGroup({
+  label,
+  testId,
+  children,
+}: {
+  label: string
+  testId: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex items-baseline gap-x-3" data-testid={testId}>
+      <span className="text-[0.65rem] font-medium uppercase tracking-wider text-neutral-400">
+        {label}
+      </span>
+      {children}
+    </div>
+  )
+}
+
 function RootDocument({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
@@ -44,48 +66,61 @@ function RootDocument({ children }: { children: ReactNode }) {
       <body>
         <div className="min-h-full bg-neutral-50 text-neutral-900">
           <nav className="border-b border-neutral-200 bg-white">
-            <div className="mx-auto flex max-w-3xl flex-wrap items-baseline gap-x-4 gap-y-1 px-5 py-3 sm:px-8">
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-3 sm:px-8">
               <Link to="/" className="text-base font-semibold tracking-tight">
                 post·anki
               </Link>
-              <Link
-                to="/"
-                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
-                activeOptions={{ exact: true }}
-              >
-                Curricula
-              </Link>
-              <Link
-                to="/dashboard"
-                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/today"
-                search={{ mode: 'socratic' }}
-                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
-              >
-                Today
-              </Link>
-              <Link
-                to="/concerns"
-                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
-              >
-                Concerns
-              </Link>
-              <Link
-                to="/decide"
-                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
-              >
-                Decide
-              </Link>
-              <Link
-                to="/admin-settings"
-                className="text-sm text-neutral-500 hover:text-neutral-900 [&.active]:text-neutral-900"
-              >
-                Admin
-              </Link>
+              <NavGroup label="Study" testId="nav-group-study">
+                <Link
+                  to="/today"
+                  search={{ mode: 'socratic' }}
+                  className={navLinkClass}
+                >
+                  Today
+                </Link>
+                <Link to="/" className={navLinkClass} activeOptions={{ exact: true }}>
+                  Curricula
+                </Link>
+                <Link to="/dashboard" className={navLinkClass}>
+                  Dashboard
+                </Link>
+                <Link to="/study-sessions" className={navLinkClass}>
+                  Sessions
+                </Link>
+              </NavGroup>
+              <NavGroup label="Plan" testId="nav-group-plan">
+                <Link to="/learning-list" className={navLinkClass}>
+                  Learning list
+                </Link>
+                <Link to="/learning-paths" className={navLinkClass}>
+                  Paths
+                </Link>
+              </NavGroup>
+              <NavGroup label="Review" testId="nav-group-review">
+                <Link to="/notes" className={navLinkClass}>
+                  Notes
+                </Link>
+                <Link to="/analytics" className={navLinkClass}>
+                  Analytics
+                </Link>
+                <Link to="/milestones" className={navLinkClass}>
+                  Milestones
+                </Link>
+              </NavGroup>
+              <NavGroup label="Reference" testId="nav-group-reference">
+                <Link to="/content-library" className={navLinkClass}>
+                  Library
+                </Link>
+                <Link to="/concerns" className={navLinkClass}>
+                  Concerns
+                </Link>
+                <Link to="/decide" className={navLinkClass}>
+                  Decide
+                </Link>
+                <Link to="/admin-settings" className={navLinkClass}>
+                  Admin
+                </Link>
+              </NavGroup>
             </div>
           </nav>
           {children}

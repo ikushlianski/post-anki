@@ -20,6 +20,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { getTag, listTopicsForTag } from "../tag/tag.repo.js";
+import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 
 export type ProbeSessionRow = typeof probeSessions.$inferSelect;
 export type ProbeSessionQuestionRow = typeof probeSessionQuestions.$inferSelect;
@@ -391,12 +392,14 @@ async function getTagScopeContext(tagId: string): Promise<ScopeContext | null> {
   }
 
   const curriculumIds = Array.from(new Set(topicRows.map((t) => t.curriculumId)));
-  const curriculumRows = await db
-    .select()
-    .from(curricula)
-    .where(inArray(curricula.id, curriculumIds));
+  const [curriculumRows, dormantCurriculumIds] = await Promise.all([
+    db.select().from(curricula).where(inArray(curricula.id, curriculumIds)),
+    listDormantEntityIds("curriculum"),
+  ]);
   const confirmedIds = new Set(
-    curriculumRows.filter((c) => c.status === "confirmed").map((c) => c.id),
+    curriculumRows
+      .filter((c) => c.status === "confirmed" && !dormantCurriculumIds.has(c.id))
+      .map((c) => c.id),
   );
 
   const eligibleTopics = topicRows.filter((t) => confirmedIds.has(t.curriculumId));

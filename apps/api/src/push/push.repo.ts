@@ -4,14 +4,17 @@ import type { PushCandidate } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { curricula, gaps, topics } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
+import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 
 export async function gatherPushCandidates(): Promise<PushCandidate[]> {
   const db = getDb();
 
-  const confirmed = await db
-    .select()
-    .from(curricula)
-    .where(eq(curricula.status, "confirmed"));
+  const [allConfirmed, dormantCurriculumIds] = await Promise.all([
+    db.select().from(curricula).where(eq(curricula.status, "confirmed")),
+    listDormantEntityIds("curriculum"),
+  ]);
+
+  const confirmed = allConfirmed.filter((c) => !dormantCurriculumIds.has(c.id));
 
   if (confirmed.length === 0) {
     return [];

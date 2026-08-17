@@ -90,6 +90,12 @@ module.exports = {
       },
       to: {
         couldNotResolve: true,
+        // Vite's `?url`/`?raw`/`?worker`/`?inline` query-suffixed imports (e.g.
+        // `@xyflow/react/dist/style.css?url`, used to import an asset's resolved URL as a
+        // string) are a real, intentional bundler convention dependency-cruiser's static
+        // resolver doesn't understand — not a broken import. Excluded here rather than at
+        // each call site, since this is a class of false positive, not a one-off.
+        pathNot: "\\?(url|raw|worker|inline)$",
       },
     },
   ],

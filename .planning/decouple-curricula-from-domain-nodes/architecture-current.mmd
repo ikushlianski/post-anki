@@ -1,0 +1,24 @@
+flowchart TD
+classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+linkStyle default stroke:#455a64,stroke-width:1.5px
+classDef store fill:#fff9c4,stroke:#455a64,stroke-width:1.5px,color:#000
+classDef agent fill:#e0f2f1,stroke:#455a64,stroke-width:1.5px,color:#000
+
+CreateCurriculum["User creates a curriculum"]
+Placement["Resolve Domain Placement"]
+Explicit{"Node chosen explicitly?"}
+NormMatch{"Name matches an existing node?"}
+Agent["Sibling Discovery Agent"]:::agent
+NewNode["Insert new domain node"]
+Column["curricula.domain_node_id set (one node)"]
+Map["Subject Domain Map"]:::store
+
+CreateCurriculum --> Placement
+Placement --> Explicit
+Explicit -->|yes| Column
+Explicit -->|no| NormMatch
+NormMatch -->|yes| Column
+NormMatch -->|no| Agent
+Agent --> NewNode
+NewNode --> Column
+Column --> Map

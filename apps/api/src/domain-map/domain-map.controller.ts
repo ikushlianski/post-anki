@@ -23,6 +23,7 @@ import {
   resolveDomainTopicSuggestion,
   resolvePrioritySuggestion,
   updateDomainNodeTargetDepth,
+  type ResolveDomainTopicSuggestionError,
 } from "./domain-map.repo.js";
 import { triggerDomainPriorityReview } from "./domain-priority-review.orchestrator.js";
 import { runDocScan, runDocScanForAllTrackedSubjects } from "./doc-scan.orchestrator.js";
@@ -143,7 +144,9 @@ export async function handleListPrioritySuggestions(
 // PATCH /domain-priority-suggestions/:id — accept writes the node's target
 // depth in the same transaction; reject only resolves the suggestion,
 // leaving the node untouched. Both are persisted, never deleted
-// (spec.md's Decisions #11). SCENARIOS 6, 7.
+// (spec.md's Decisions #11). SCENARIOS 6, 7. Claimed first the same way as
+// the topic/supersession resolvers, so a double-click answers 409
+// already_resolved instead of silently re-applying.
 export async function handleResolvePrioritySuggestion(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -158,8 +161,8 @@ export async function handleResolvePrioritySuggestion(
 
   const updated = await resolvePrioritySuggestion(suggestionId, body.data.status);
 
-  if (!updated) {
-    sendError(res, 404, "not_found");
+  if ("error" in updated) {
+    sendResolveSuggestionError(res, updated.error);
     return;
   }
 
@@ -236,6 +239,26 @@ export async function handleListDocScanSuggestions(
   sendJson(res, 200, { newTopics, supersessions });
 }
 
+// A suggestion that is no longer pending is a 409, not a 404: the row is
+// there and already handled, which is exactly what a double-click's second
+// PATCH hits. Distinguishing the two is what lets the review panel tell
+// "someone else already resolved this" apart from "this id is wrong".
+// subject_not_found is a 404 too: the accept could not create its node
+// because the owning subject was merged or deleted out from under the
+// pending suggestion, so from the caller's side the thing it addressed is
+// gone. The suggestion is left pending in that case, never half-accepted.
+function sendResolveSuggestionError(
+  res: http.ServerResponse,
+  error: ResolveDomainTopicSuggestionError,
+): void {
+  if (error === "not_found" || error === "subject_not_found") {
+    sendError(res, 404, error);
+    return;
+  }
+
+  sendError(res, 409, "already_resolved");
+}
+
 // PATCH /domain-topic-suggestions/:id
 export async function handleResolveDomainTopicSuggestion(
   req: http.IncomingMessage,
@@ -251,8 +274,8 @@ export async function handleResolveDomainTopicSuggestion(
 
   const updated = await resolveDomainTopicSuggestion(suggestionId, body.data.status);
 
-  if (!updated) {
-    sendError(res, 404, "not_found");
+  if ("error" in updated) {
+    sendResolveSuggestionError(res, updated.error);
     return;
   }
 
@@ -274,8 +297,8 @@ export async function handleResolveDomainSupersessionSuggestion(
 
   const updated = await resolveDomainSupersessionSuggestion(suggestionId, body.data.status);
 
-  if (!updated) {
-    sendError(res, 404, "not_found");
+  if ("error" in updated) {
+    sendResolveSuggestionError(res, updated.error);
     return;
   }
 

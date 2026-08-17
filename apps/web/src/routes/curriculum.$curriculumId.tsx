@@ -19,6 +19,8 @@ import { ProgressBar } from '../curriculum/progress-bar'
 import { AddInline } from '../curriculum/shape-controls'
 import { AdaptiveSettings } from '../curriculum/adaptive-settings'
 import { CurriculumPlacementPanel } from '../domain-map/curriculum-placement-panel'
+import { CurriculumDomainMappingPanel } from '../curriculum/curriculum-domain-mapping-panel'
+import { useHydrated } from '../shared/use-hydrated'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
@@ -130,6 +132,12 @@ function CurriculumPage() {
         domainNodeId={curriculum.domainNodeId}
       />
 
+      <CurriculumDomainMappingPanel
+        curriculumId={curriculum.id}
+        subjectId={curriculum.subjectId}
+        initialMappings={detail.domainMappings}
+      />
+
       {editable && modules.length > 0 ? (
         <div className="mb-6">
           <AdaptiveSettings curriculum={curriculum} />
@@ -213,6 +221,7 @@ function CurriculumPage() {
 function AddModuleBar({ curriculumId }: { curriculumId: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const hydrated = useHydrated()
 
   async function add(title: string) {
     setBusy(true)
@@ -226,6 +235,7 @@ function AddModuleBar({ curriculumId }: { curriculumId: string }) {
       cta="+ Add module"
       placeholder="Module title…"
       busy={busy}
+      hydrated={hydrated}
       onAdd={add}
     />
   )

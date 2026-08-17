@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "domain_priority_suggestions_subject_created_at_idx" ON "domain_priority_suggestions" USING btree ("subject_id","created_at" DESC NULLS LAST);

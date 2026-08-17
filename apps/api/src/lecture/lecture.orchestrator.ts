@@ -1,14 +1,21 @@
 import type { LectureSourceCandidate } from "@post-anki/shared";
+import { capGroundingText, hasUsableGroundingText, isSafeSourceUrl } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import {
+  getCurriculumCitableUrls,
   getCurriculumContextForTopic,
+  getCurriculumGroundingText,
   getCurriculumPromptContext,
 } from "../curriculum/curriculum.repo.js";
 import { gatherLectureSourceGrounding } from "../curriculum/tech-research-grounding.js";
 import { resolveSourceText } from "../curriculum/source-fetch.js";
-import { selectValidCandidates } from "./lecture-rules.js";
+import {
+  buildCurriculumSourceCandidates,
+  mergeCandidatesPreferringCurriculum,
+  selectValidCandidates,
+} from "./lecture-rules.js";
 import { lectureSourceCandidatesPlanSchema } from "./lecture-source-candidates.schema.js";
 import { lecturePlanSchema } from "./lecture-plan.schema.js";
 import {
@@ -19,21 +26,35 @@ import {
   storeCandidateFetchedText,
 } from "./lecture-source-candidate.repo.js";
 import { replaceLectureContent, setLectureStatus } from "./lecture.repo.js";
+import {
+  resolveCourseGroundingSources,
+  type CourseGroundingSource,
+} from "./course-source-grounding.js";
 
-async function resolveCurriculumContext(topicId: string): Promise<string | undefined> {
+interface ResolvedCurriculumContext {
+  curriculumId: string;
+  label: string;
+}
+
+async function resolveCurriculumContext(
+  topicId: string,
+): Promise<ResolvedCurriculumContext | null> {
   const ctx = await getCurriculumContextForTopic(topicId);
 
   if (!ctx) {
-    return undefined;
+    return null;
   }
 
   const promptContext = await getCurriculumPromptContext(ctx.curriculumId);
 
   if (!promptContext) {
-    return undefined;
+    return null;
   }
 
-  return `${promptContext.curriculumName} (subject: ${promptContext.subjectName})`;
+  return {
+    curriculumId: ctx.curriculumId,
+    label: `${promptContext.curriculumName} (subject: ${promptContext.subjectName})`,
+  };
 }
 
 export async function gatherLectureSources(
@@ -45,12 +66,29 @@ export async function gatherLectureSources(
     throw new Error("topic not found for lecture source gathering");
   }
 
-  const curriculumContext = await resolveCurriculumContext(topicId);
-  const grounding = await gatherLectureSourceGrounding(topic.title, curriculumContext);
+  const curriculumCtx = await resolveCurriculumContext(topicId);
+
+  const curriculumGroundingText = curriculumCtx
+    ? await getCurriculumGroundingText(curriculumCtx.curriculumId)
+    : "";
+  const curriculumHasUsableGrounding = hasUsableGroundingText(curriculumGroundingText);
+
+  const curriculumCitableUrls =
+    curriculumHasUsableGrounding && curriculumCtx
+      ? (await getCurriculumCitableUrls(curriculumCtx.curriculumId)).filter(
+          (url) => isSafeSourceUrl(url).allowed,
+        )
+      : [];
+  const curriculumCandidates = buildCurriculumSourceCandidates(curriculumCitableUrls);
+
+  const grounding = await gatherLectureSourceGrounding(topic.title, curriculumCtx?.label);
 
   const prompt = [
     `Topic: ${topic.title}`,
-    curriculumContext ? `Curriculum context: ${curriculumContext}` : "",
+    curriculumCtx ? `Curriculum context: ${curriculumCtx.label}` : "",
+    curriculumHasUsableGrounding
+      ? `\nThis curriculum already has stored source material covering this topic:\n${capGroundingText(curriculumGroundingText)}`
+      : "",
     "",
     "Grounding notes from web search:",
     grounding.text.length > 0 ? grounding.text : "(no grounding notes found)",
@@ -66,10 +104,11 @@ export async function gatherLectureSources(
     structuredOutput: { schema: lectureSourceCandidatesPlanSchema },
   });
 
-  const validated = selectValidCandidates(
+  const webValidated = selectValidCandidates(
     result.object?.candidates ?? [],
     grounding.citations,
   );
+  const validated = mergeCandidatesPreferringCurriculum(curriculumCandidates, webValidated);
 
   await clearRegatherableCandidates(topicId);
   await insertLectureSourceCandidates(topicId, validated);
@@ -77,30 +116,43 @@ export async function gatherLectureSources(
   return listLectureSourceCandidates(topicId);
 }
 
+async function resolveApprovedCandidateSources(
+  topicId: string,
+): Promise<CourseGroundingSource[]> {
+  const approved = await listApprovedCandidatesForCompile(topicId);
+
+  return Promise.all(
+    approved.map(async (candidate) => {
+      if (candidate.fetchedText !== null) {
+        return { title: candidate.title, url: candidate.url, text: candidate.fetchedText };
+      }
+
+      const text = await resolveSourceText("url", candidate.url);
+      await storeCandidateFetchedText(candidate.id, text);
+
+      return { title: candidate.title, url: candidate.url, text };
+    }),
+  );
+}
+
 export async function compileLecture(topicId: string): Promise<void> {
   try {
-    const approved = await listApprovedCandidatesForCompile(topicId);
+    const ownSources = await resolveCourseGroundingSources(topicId);
+    const sourcesWithText = ownSources ?? (await resolveApprovedCandidateSources(topicId));
 
-    const sourcesWithText = await Promise.all(
-      approved.map(async (candidate) => {
-        if (candidate.fetchedText !== null) {
-          return { title: candidate.title, url: candidate.url, text: candidate.fetchedText };
-        }
+    const combinedSourceText = sourcesWithText.map((s) => s.text).join("\n\n");
 
-        const text = await resolveSourceText("url", candidate.url);
-        await storeCandidateFetchedText(candidate.id, text);
-
-        return { title: candidate.title, url: candidate.url, text };
-      }),
-    );
+    if (!hasUsableGroundingText(combinedSourceText)) {
+      log.warn({ topicId }, "lecture_compile_no_usable_grounding");
+      await setLectureStatus(topicId, "failed");
+      return;
+    }
 
     const prompt = [
       "Approved sources:",
-      sourcesWithText.length > 0
-        ? sourcesWithText
-            .map((s) => `# ${s.title} (${s.url})\n${s.text}`)
-            .join("\n\n---\n\n")
-        : "(no approved sources with usable text — produce your best-effort synthesis)",
+      sourcesWithText
+        .map((s) => `# ${s.title} (${s.url})\n${capGroundingText(s.text)}`)
+        .join("\n\n---\n\n"),
     ].join("\n");
 
     const agent = getMastra().getAgent(AGENT_KEYS.lectureCompiler);

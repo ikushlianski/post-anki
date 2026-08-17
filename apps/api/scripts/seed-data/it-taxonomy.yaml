@@ -1,0 +1,912 @@
+domains:
+  - id: networking
+    name: Networking
+    description: Network protocols, design, infrastructure, and communication fundamentals
+    prerequisites: []
+    children:
+      - id: tcp-ip
+        name: TCP/IP
+        description: Internet protocol suite fundamentals and core protocols
+        prerequisites: []
+        children:
+          - id: ipv4
+            name: IPv4
+            description: IPv4 addressing, subnetting, CIDR notation, and address allocation
+            prerequisites: []
+          - id: ipv6
+            name: IPv6
+            description: IPv6 addressing, adoption strategies, and migration
+            prerequisites: []
+          - id: dns
+            name: DNS
+            description: Domain name system, resolution, record types, and DNS security
+            prerequisites: [tcp-ip]
+      - id: routing
+        name: Routing
+        description: Routing protocols and network path determination
+        prerequisites: [tcp-ip]
+        children:
+          - id: static-routing
+            name: Static Routing
+            description: Manually configured routing rules and use cases
+            prerequisites: []
+          - id: dynamic-routing
+            name: Dynamic Routing
+            description: Automated routing protocols (BGP, OSPF, RIP)
+            prerequisites: [static-routing]
+      - id: network-security
+        name: Network Security
+        description: Firewalls, VPNs, intrusion detection, and network protection
+        prerequisites: []
+        children:
+          - id: firewalls
+            name: Firewalls
+            description: Firewall types, rules, and stateful inspection
+            prerequisites: []
+          - id: vpn
+            name: VPN
+            description: Virtual private networks, encryption, and secure tunneling
+            prerequisites: []
+      - id: network-design
+        name: Network Design
+        description: Network architecture, segmentation, and performance optimization
+        prerequisites: [tcp-ip, routing]
+        children:
+          - id: subnetting
+            name: Subnetting
+            description: Subnet design, planning, and address management
+            prerequisites: [ipv4]
+          - id: network-segmentation
+            name: Network Segmentation
+            description: VLAN design, broadcast domains, and traffic isolation
+            prerequisites: [subnetting]
+
+  - id: systems-administration
+    name: Systems Administration
+    description: Server management, operating systems, and system configuration
+    prerequisites: []
+    children:
+      - id: linux-administration
+        name: Linux Administration
+        description: Linux server management and administration
+        prerequisites: []
+        children:
+          - id: users-permissions
+            name: Users and Permissions
+            description: User management, groups, and file permissions
+            prerequisites: []
+          - id: package-management
+            name: Package Management
+            description: Package managers (apt, yum, pacman) and software installation
+            prerequisites: []
+          - id: system-services
+            name: System Services
+            description: Systemd, service management, and startup procedures
+            prerequisites: []
+      - id: windows-administration
+        name: Windows Administration
+        description: Windows server management and domain integration
+        prerequisites: []
+        children:
+          - id: active-directory
+            name: Active Directory
+            description: AD domain services, users, groups, and organizational units
+            prerequisites: []
+          - id: group-policy
+            name: Group Policy
+            description: GPO creation, application, and management
+            prerequisites: [active-directory]
+      - id: process-management
+        name: Process Management
+        description: Process control, scheduling, and resource allocation
+        prerequisites: []
+      - id: storage-management
+        name: Storage Management
+        description: Disk management, partitioning, file systems, and LVM
+        prerequisites: []
+
+  - id: databases
+    name: Databases
+    description: Database systems, design, optimization, and data management
+    prerequisites: []
+    children:
+      - id: relational-databases
+        name: Relational Databases
+        description: SQL databases and relational data modeling
+        prerequisites: []
+        children:
+          - id: sql-fundamentals
+            name: SQL Fundamentals
+            description: SQL queries, DML, DDL, and TCL statements
+            prerequisites: []
+          - id: normalization
+            name: Normalization
+            description: Database normalization, normal forms, and design principles
+            prerequisites: [sql-fundamentals]
+          - id: transactions-acid
+            name: Transactions & ACID
+            description: ACID properties, transaction control, and isolation levels
+            prerequisites: []
+      - id: nosql-databases
+        name: NoSQL Databases
+        description: Non-relational database systems and models
+        prerequisites: []
+        children:
+          - id: document-databases
+            name: Document Databases
+            description: MongoDB, document storage, and JSON-like data models
+            prerequisites: []
+          - id: key-value-stores
+            name: Key-Value Stores
+            description: Redis, Memcached, and in-memory data structures
+            prerequisites: []
+          - id: timeseries-databases
+            name: Time-Series Databases
+            description: InfluxDB, Prometheus, and time-ordered data
+            prerequisites: []
+      - id: database-design
+        name: Database Design
+        description: Schema design, modeling, and architectural patterns
+        prerequisites: []
+        children:
+          - id: schema-design
+            name: Schema Design
+            description: Table design, relationships, and data integrity
+            prerequisites: [relational-databases]
+          - id: indexing
+            name: Indexing
+            description: Index types, strategies, and query optimization
+            prerequisites: [schema-design]
+      - id: performance-optimization
+        name: Performance & Optimization
+        description: Query optimization, tuning, and scaling
+        prerequisites: []
+        children:
+          - id: query-optimization
+            name: Query Optimization
+            description: Query plans, optimization techniques, and performance analysis
+            prerequisites: [sql-fundamentals]
+          - id: replication-sharding
+            name: Replication & Sharding
+            description: Database replication, master-slave, sharding strategies
+            prerequisites: []
+          - id: backup-recovery
+            name: Backup & Recovery
+            description: Backup strategies, recovery procedures, and disaster recovery
+            prerequisites: []
+
+  - id: cloud-computing
+    name: Cloud Computing
+    description: Cloud platforms, service models, and cloud infrastructure
+    prerequisites: [networking, virtualization-containerization]
+    children:
+      - id: cloud-service-models
+        name: Cloud Service Models
+        description: IaaS, PaaS, SaaS, and service comparison
+        prerequisites: []
+        children:
+          - id: iaas
+            name: Infrastructure as a Service
+            description: IaaS platforms and virtual infrastructure
+            prerequisites: []
+          - id: paas
+            name: Platform as a Service
+            description: PaaS platforms and application deployment
+            prerequisites: []
+          - id: saas
+            name: Software as a Service
+            description: SaaS applications and managed services
+            prerequisites: []
+      - id: cloud-compute
+        name: Compute Resources
+        description: Virtual machines, containers, and serverless computing
+        prerequisites: []
+        children:
+          - id: virtual-machines
+            name: Virtual Machines
+            description: VM provisioning, sizing, and management
+            prerequisites: [iaas]
+          - id: containers-in-cloud
+            name: Containers
+            description: Container deployments on cloud platforms
+            prerequisites: []
+          - id: serverless
+            name: Serverless Computing
+            description: Functions as a Service, Lambda, and event-driven architectures
+            prerequisites: []
+      - id: cloud-storage
+        name: Storage & Databases
+        description: Cloud storage services and managed databases
+        prerequisites: []
+        children:
+          - id: object-storage
+            name: Object Storage
+            description: S3-like storage and blob storage services
+            prerequisites: []
+          - id: managed-databases
+            name: Managed Databases
+            description: Cloud-hosted relational and NoSQL databases
+            prerequisites: [databases]
+          - id: data-lakes
+            name: Data Lakes
+            description: Data lake architecture and analytics storage
+            prerequisites: []
+      - id: cloud-networking
+        name: Cloud Networking
+        description: Virtual networks, load balancing, and cloud connectivity
+        prerequisites: [networking]
+        children:
+          - id: vpcs-vnets
+            name: VPCs & Virtual Networks
+            description: Virtual private clouds, subnets, and network configuration
+            prerequisites: []
+          - id: load-balancing
+            name: Load Balancing
+            description: Load balancers, distribution strategies, and availability
+            prerequisites: []
+      - id: multi-cloud
+        name: Multi-Cloud
+        description: Multi-cloud strategies, hybrid cloud, and cloud portability
+        prerequisites: []
+
+  - id: devops-infrastructure
+    name: DevOps & Infrastructure
+    description: Continuous integration/deployment, automation, and operational practices
+    prerequisites: [networking, software-development]
+    children:
+      - id: cicd
+        name: CI/CD Pipelines
+        description: Continuous integration and continuous deployment
+        prerequisites: [software-development]
+        children:
+          - id: build-automation
+            name: Build Automation
+            description: Build pipelines, compilation, and artifact generation
+            prerequisites: []
+          - id: deployment-automation
+            name: Deployment Automation
+            description: Automated deployments, blue-green, canary, and rollback
+            prerequisites: [build-automation]
+          - id: testing-automation
+            name: Testing Automation
+            description: Automated testing in CI/CD pipelines
+            prerequisites: []
+      - id: containers
+        name: Containers & Container Registry
+        description: Container technology and image management
+        prerequisites: []
+        children:
+          - id: docker
+            name: Docker
+            description: Docker basics, images, containers, and Dockerfile
+            prerequisites: []
+          - id: container-registry
+            name: Container Registry
+            description: Image registries and container distribution
+            prerequisites: [docker]
+      - id: orchestration
+        name: Orchestration
+        description: Container orchestration and workload management
+        prerequisites: [containers]
+        children:
+          - id: kubernetes
+            name: Kubernetes
+            description: Kubernetes architecture, pods, services, and deployments
+            prerequisites: [docker]
+          - id: orchestration-concepts
+            name: Orchestration Concepts
+            description: Service discovery, scaling, and self-healing
+            prerequisites: [kubernetes]
+      - id: infrastructure-as-code
+        name: Infrastructure as Code
+        description: IaC tools and declarative infrastructure
+        prerequisites: [networking, systems-administration]
+        children:
+          - id: terraform
+            name: Terraform
+            description: Terraform configuration, state, and provisioning
+            prerequisites: []
+          - id: cloudformation-arm
+            name: CloudFormation & ARM
+            description: CloudFormation and Azure Resource Manager templates
+            prerequisites: []
+          - id: configuration-management
+            name: Configuration Management
+            description: Ansible, Puppet, Chef, and server configuration
+            prerequisites: []
+      - id: monitoring-logging
+        name: Monitoring & Logging
+        description: Operational observability and alerting
+        prerequisites: []
+        children:
+          - id: metrics-monitoring
+            name: Metrics & Monitoring
+            description: Metrics collection, time-series data, and dashboards
+            prerequisites: []
+          - id: log-aggregation-devops
+            name: Log Aggregation
+            description: Centralized logging, log collection, and analysis
+            prerequisites: []
+
+  - id: security-compliance
+    name: Security & Compliance
+    description: Security practices, cryptography, compliance, and risk management
+    prerequisites: []
+    children:
+      - id: cryptography
+        name: Cryptography
+        description: Cryptographic algorithms and protocols
+        prerequisites: []
+        children:
+          - id: symmetric-encryption
+            name: Symmetric Encryption
+            description: AES, DES, and shared-key encryption
+            prerequisites: []
+          - id: asymmetric-encryption
+            name: Asymmetric Encryption
+            description: RSA, elliptic curve, and public-key cryptography
+            prerequisites: []
+          - id: hashing
+            name: Hashing
+            description: SHA, MD5, and cryptographic hashing functions
+            prerequisites: []
+      - id: authentication-authorization
+        name: Authentication & Authorization
+        description: Identity verification and access control
+        prerequisites: []
+        children:
+          - id: authentication-methods
+            name: Authentication Methods
+            description: Passwords, MFA, biometrics, and authentication protocols
+            prerequisites: []
+          - id: authorization-models
+            name: Authorization Models
+            description: RBAC, ABAC, and permission models
+            prerequisites: []
+          - id: identity-management
+            name: Identity Management
+            description: IAM, directory services, and identity federation
+            prerequisites: [authentication-methods]
+      - id: threat-modeling
+        name: Threat Modeling & Risk Management
+        description: Threat assessment and vulnerability management
+        prerequisites: []
+        children:
+          - id: threat-identification
+            name: Threat Identification
+            description: Threat modeling techniques and frameworks
+            prerequisites: []
+          - id: vulnerability-assessment
+            name: Vulnerability Assessment
+            description: Scanning, testing, and vulnerability analysis
+            prerequisites: []
+          - id: risk-management
+            name: Risk Management
+            description: Risk assessment, mitigation, and compliance
+            prerequisites: [vulnerability-assessment]
+      - id: compliance-frameworks
+        name: Compliance & Standards
+        description: Regulatory frameworks and compliance requirements
+        prerequisites: []
+        children:
+          - id: gdpr
+            name: GDPR
+            description: General Data Protection Regulation and data privacy
+            prerequisites: []
+          - id: hipaa-pci
+            name: HIPAA & PCI-DSS
+            description: Healthcare and payment card compliance
+            prerequisites: []
+          - id: iso-27001
+            name: ISO 27001
+            description: Information security management systems
+            prerequisites: []
+      - id: application-security
+        name: Application Security
+        description: Secure coding and application-level security
+        prerequisites: [software-development]
+        children:
+          - id: owasp
+            name: OWASP Top 10
+            description: Common application vulnerabilities and mitigation
+            prerequisites: []
+          - id: secure-coding
+            name: Secure Coding
+            description: Security in development, code review, and secure practices
+            prerequisites: [owasp]
+
+  - id: software-development
+    name: Software Development
+    description: Programming, version control, design, testing, and debugging
+    prerequisites: []
+    children:
+      - id: programming-languages
+        name: Programming Languages
+        description: Programming paradigms and language categories
+        prerequisites: []
+        children:
+          - id: object-oriented
+            name: Object-Oriented Programming
+            description: OOP concepts, classes, inheritance, and polymorphism
+            prerequisites: []
+          - id: functional-programming
+            name: Functional Programming
+            description: FP paradigm, immutability, and pure functions
+            prerequisites: []
+          - id: scripting-languages
+            name: Scripting Languages
+            description: Python, Bash, PowerShell, and automation scripting
+            prerequisites: []
+      - id: version-control
+        name: Version Control
+        description: Git and distributed version control systems
+        prerequisites: []
+        children:
+          - id: git-fundamentals
+            name: Git Fundamentals
+            description: Git basics, commits, branches, and repositories
+            prerequisites: []
+          - id: git-workflows
+            name: Git Workflows
+            description: Branching strategies, PRs, and collaboration workflows
+            prerequisites: [git-fundamentals]
+      - id: design-patterns
+        name: Design Patterns & Architecture
+        description: Design patterns and architectural principles
+        prerequisites: [object-oriented]
+        children:
+          - id: gang-of-four
+            name: Gang of Four Patterns
+            description: Creational, structural, and behavioral design patterns
+            prerequisites: []
+          - id: architectural-patterns
+            name: Architectural Patterns
+            description: MVC, MVVM, microservices, and layered architecture
+            prerequisites: []
+      - id: testing
+        name: Testing & Quality Assurance
+        description: Testing methodologies and quality practices
+        prerequisites: []
+        children:
+          - id: unit-testing
+            name: Unit Testing
+            description: Unit test frameworks and test writing
+            prerequisites: []
+          - id: integration-testing
+            name: Integration Testing
+            description: Integration tests and component testing
+            prerequisites: [unit-testing]
+          - id: tdd
+            name: Test-Driven Development
+            description: TDD methodology and red-green-refactor cycle
+            prerequisites: [unit-testing]
+      - id: debugging-profiling
+        name: Debugging & Profiling
+        description: Debugging techniques and performance profiling
+        prerequisites: []
+
+  - id: data-analytics
+    name: Data & Analytics
+    description: Data warehousing, ETL, analytics, and business intelligence
+    prerequisites: [databases]
+    children:
+      - id: data-warehousing
+        name: Data Warehousing
+        description: Data warehouse architecture and design
+        prerequisites: [databases]
+        children:
+          - id: dimensional-modeling
+            name: Dimensional Modeling
+            description: Star schema, snowflake schema, and fact/dimension tables
+            prerequisites: []
+          - id: data-marts
+            name: Data Marts
+            description: Subject-area databases and data marts
+            prerequisites: [dimensional-modeling]
+      - id: etl-elt
+        name: ETL & Data Integration
+        description: Data pipelines and integration processes
+        prerequisites: []
+        children:
+          - id: data-pipelines
+            name: Data Pipelines
+            description: Pipeline orchestration and data flow
+            prerequisites: []
+          - id: data-quality
+            name: Data Quality & Validation
+            description: Data quality rules and validation processes
+            prerequisites: []
+      - id: big-data
+        name: Big Data
+        description: Large-scale data processing frameworks
+        prerequisites: []
+        children:
+          - id: hadoop-ecosystem
+            name: Hadoop Ecosystem
+            description: HDFS, MapReduce, and Hadoop components
+            prerequisites: []
+          - id: spark
+            name: Apache Spark
+            description: Spark architecture, RDDs, and DataFrames
+            prerequisites: []
+      - id: analytics-bi
+        name: Analytics & Business Intelligence
+        description: Data analysis and BI tools
+        prerequisites: [data-warehousing]
+        children:
+          - id: bi-tools
+            name: BI Tools & Platforms
+            description: Tableau, Power BI, Looker, and analytics platforms
+            prerequisites: []
+          - id: data-visualization
+            name: Data Visualization
+            description: Visualization design and storytelling with data
+            prerequisites: []
+      - id: data-science
+        name: Data Science & Statistics
+        description: Statistical analysis and machine learning
+        prerequisites: []
+        children:
+          - id: statistical-analysis
+            name: Statistical Analysis
+            description: Descriptive and inferential statistics
+            prerequisites: []
+          - id: model-development
+            name: Model Development
+            description: Predictive modeling and model evaluation
+            prerequisites: [statistical-analysis]
+
+  - id: it-service-management
+    name: IT Service Management
+    description: Service delivery, incident management, and IT operations
+    prerequisites: []
+    children:
+      - id: incident-management
+        name: Incident Management
+        description: Incident response and resolution
+        prerequisites: []
+        children:
+          - id: itil-incident
+            name: ITIL Incident Process
+            description: ITIL framework and incident handling
+            prerequisites: []
+          - id: oncall-procedures
+            name: On-Call Procedures
+            description: Escalation, on-call rotations, and incident response
+            prerequisites: []
+      - id: change-management
+        name: Change Management
+        description: Change control and deployment management
+        prerequisites: []
+        children:
+          - id: change-evaluation
+            name: Change Evaluation
+            description: Change assessment, approval, and CAB process
+            prerequisites: []
+          - id: change-scheduling
+            name: Change Scheduling & Execution
+            description: Maintenance windows and change deployment
+            prerequisites: [change-evaluation]
+      - id: sla-metrics
+        name: SLA & Service Metrics
+        description: Service level agreements and performance monitoring
+        prerequisites: []
+      - id: ticketing-systems
+        name: Ticketing & Service Portal
+        description: Ticketing systems and service request management
+        prerequisites: []
+      - id: service-catalog
+        name: Service Catalog
+        description: IT service definitions and service offering
+
+  - id: emerging-technologies
+    name: Emerging Technologies
+    description: Cutting-edge technologies and innovation areas
+    prerequisites: []
+    children:
+      - id: ai-ml
+        name: Artificial Intelligence & Machine Learning
+        description: AI and ML technologies and applications
+        prerequisites: []
+        children:
+          - id: machine-learning
+            name: Machine Learning
+            description: ML algorithms, supervised and unsupervised learning
+            prerequisites: []
+          - id: deep-learning
+            name: Deep Learning
+            description: Neural networks, transformers, and deep learning
+            prerequisites: [machine-learning]
+          - id: llms
+            name: Large Language Models
+            description: LLM architectures, fine-tuning, and prompt engineering
+            prerequisites: [deep-learning]
+      - id: blockchain
+        name: Blockchain & Distributed Ledger
+        description: Blockchain technology and cryptocurrency
+        prerequisites: []
+        children:
+          - id: consensus-mechanisms
+            name: Consensus Mechanisms
+            description: PoW, PoS, and distributed consensus algorithms
+            prerequisites: []
+          - id: smart-contracts
+            name: Smart Contracts
+            description: Smart contract development and blockchain platforms
+            prerequisites: [consensus-mechanisms]
+      - id: iot
+        name: Internet of Things
+        description: IoT devices, sensors, and IoT platforms
+        prerequisites: []
+      - id: quantum-computing
+        name: Quantum Computing
+        description: Quantum principles and quantum algorithms
+        prerequisites: []
+      - id: webassembly
+        name: WebAssembly
+        description: WASM, portable bytecode, and edge computing
+
+  - id: web-development
+    name: Web Development
+    description: Web technologies, frameworks, and full-stack development
+    prerequisites: [software-development]
+    children:
+      - id: frontend-development
+        name: Frontend Development
+        description: Client-side web development
+        prerequisites: []
+        children:
+          - id: html-css-js
+            name: HTML, CSS & JavaScript
+            description: Web standards, DOM, and client-side scripting
+            prerequisites: []
+          - id: frontend-frameworks
+            name: Frontend Frameworks
+            description: React, Vue, Angular, and framework concepts
+            prerequisites: [html-css-js]
+          - id: state-management
+            name: State Management
+            description: State management patterns and libraries
+            prerequisites: [frontend-frameworks]
+      - id: backend-development
+        name: Backend Development
+        description: Server-side web development
+        prerequisites: []
+        children:
+          - id: web-frameworks
+            name: Web Frameworks
+            description: Express, Django, Spring, and web frameworks
+            prerequisites: []
+          - id: rest-apis
+            name: REST APIs
+            description: RESTful architecture and API design
+            prerequisites: [web-frameworks]
+          - id: graphql
+            name: GraphQL
+            description: GraphQL query language and APIs
+            prerequisites: []
+      - id: web-standards
+        name: Web Standards & Performance
+        description: HTTP, performance, and web best practices
+        prerequisites: []
+        children:
+          - id: http-protocol
+            name: HTTP & HTTPS
+            description: HTTP protocol, status codes, and security
+            prerequisites: []
+          - id: web-performance
+            name: Web Performance
+            description: Performance optimization and monitoring
+            prerequisites: [http-protocol]
+          - id: seo
+            name: Search Engine Optimization
+            description: SEO fundamentals and best practices
+            prerequisites: []
+      - id: fullstack
+        name: Full-Stack Development
+        description: Full-stack project development and practices
+        prerequisites: [frontend-development, backend-development]
+
+  - id: mobile-development
+    name: Mobile Development
+    description: Native and cross-platform mobile application development
+    prerequisites: [software-development]
+    children:
+      - id: ios-development
+        name: iOS Development
+        description: Apple iOS application development
+        prerequisites: []
+        children:
+          - id: swift
+            name: Swift & iOS Frameworks
+            description: Swift language and iOS SDK
+            prerequisites: []
+          - id: ios-ui
+            name: iOS UI & UX
+            description: UIKit, SwiftUI, and iOS interface design
+            prerequisites: [swift]
+      - id: android-development
+        name: Android Development
+        description: Android application development
+        prerequisites: []
+        children:
+          - id: kotlin-java
+            name: Kotlin & Java
+            description: Kotlin and Java for Android
+            prerequisites: []
+          - id: android-framework
+            name: Android Framework & UI
+            description: Android SDK, Activities, and Material Design
+            prerequisites: [kotlin-java]
+      - id: cross-platform
+        name: Cross-Platform Frameworks
+        description: Shared codebase mobile development
+        prerequisites: []
+        children:
+          - id: react-native
+            name: React Native
+            description: React Native framework and native modules
+            prerequisites: []
+          - id: flutter
+            name: Flutter
+            description: Flutter framework and Dart language
+            prerequisites: []
+          - id: xamarin
+            name: Xamarin
+            description: Xamarin framework and C# for mobile
+            prerequisites: []
+      - id: mobile-design
+        name: Mobile App Design
+        description: Mobile UX and design principles
+        prerequisites: []
+      - id: mobile-performance
+        name: Mobile Performance & Optimization
+        description: Performance optimization and battery efficiency
+        prerequisites: []
+
+  - id: virtualization-containerization
+    name: Virtualization & Containerization
+    description: Virtual machines, hypervisors, and container technology
+    prerequisites: [systems-administration]
+    children:
+      - id: hypervisors
+        name: Hypervisors
+        description: Virtual machine monitors and hypervisor technology
+        prerequisites: []
+        children:
+          - id: type1-hypervisors
+            name: Type 1 Hypervisors
+            description: VMware ESXi, KVM, Hyper-V bare-metal
+            prerequisites: []
+          - id: type2-hypervisors
+            name: Type 2 Hypervisors
+            description: VirtualBox, VMware Workstation, and hosted hypervisors
+            prerequisites: []
+      - id: vm-management
+        name: Virtual Machine Management
+        description: VM provisioning, sizing, and lifecycle management
+        prerequisites: [hypervisors]
+      - id: container-technology
+        name: Container Technology
+        description: Container architecture and benefits
+        prerequisites: []
+        children:
+          - id: container-architecture
+            name: Container Architecture
+            description: Container concepts, isolation, and cgroups
+            prerequisites: []
+          - id: container-images
+            name: Container Images & Runtime
+            description: Container images, runtimes, and image formats
+            prerequisites: [container-architecture]
+      - id: resource-management
+        name: Resource Management
+        description: CPU, memory, and storage allocation and limits
+        prerequisites: []
+
+  - id: disaster-recovery
+    name: Disaster Recovery & Continuity
+    description: Business continuity, backup strategies, and recovery planning
+    prerequisites: [systems-administration, databases]
+    children:
+      - id: backup-strategies
+        name: Backup Strategies
+        description: Backup types and methods
+        prerequisites: []
+        children:
+          - id: backup-types
+            name: Backup Types
+            description: Full, incremental, differential, and snapshot backups
+            prerequisites: []
+          - id: backup-media
+            name: Backup Media & Storage
+            description: Backup media and offsite storage strategies
+            prerequisites: []
+      - id: redundancy-failover
+        name: Redundancy & Failover
+        description: High availability and automatic failover
+        prerequisites: []
+        children:
+          - id: high-availability
+            name: High Availability
+            description: HA architectures and failover mechanisms
+            prerequisites: []
+          - id: load-balancing-ha
+            name: Load Balancing for HA
+            description: Load balancers and traffic distribution
+            prerequisites: [high-availability]
+      - id: disaster-recovery-plan
+        name: Disaster Recovery Planning
+        description: DR strategy and recovery procedures
+        prerequisites: []
+        children:
+          - id: business-continuity
+            name: Business Continuity
+            description: BCP and continuity of operations
+            prerequisites: []
+          - id: rto-rpo
+            name: RTO & RPO
+            description: Recovery time and point objectives
+            prerequisites: [business-continuity]
+      - id: data-replication
+        name: Data Replication
+        description: Database and system replication for disaster recovery
+        prerequisites: [databases]
+
+  - id: observability-diagnostics
+    name: Observability & Diagnostics
+    description: Monitoring, logging, tracing, and system diagnostics
+    prerequisites: [systems-administration]
+    children:
+      - id: monitoring
+        name: Monitoring
+        description: System and application monitoring
+        prerequisites: []
+        children:
+          - id: metrics-collection
+            name: Metrics Collection
+            description: Metrics, instrumentation, and time-series data
+            prerequisites: []
+          - id: alerting
+            name: Alert Management
+            description: Alert rules, escalation, and notification
+            prerequisites: [metrics-collection]
+          - id: performance-monitoring
+            name: Performance Monitoring
+            description: Application and infrastructure performance
+            prerequisites: [metrics-collection]
+      - id: logging
+        name: Logging
+        description: Log collection and analysis
+        prerequisites: []
+        children:
+          - id: log-aggregation
+            name: Log Aggregation
+            description: Centralized logging, ELK stack, and log shipping
+            prerequisites: []
+          - id: log-analysis
+            name: Log Analysis & Searching
+            description: Log parsing, searching, and analytics
+            prerequisites: [log-aggregation]
+      - id: tracing
+        name: Distributed Tracing
+        description: Request tracing across systems
+        prerequisites: []
+        children:
+          - id: distributed-tracing
+            name: Distributed Tracing Fundamentals
+            description: Trace instrumentation and analysis
+            prerequisites: []
+      - id: debugging-tools
+        name: Debugging & Profiling Tools
+        description: Debugging and performance profiling tools
+        prerequisites: []
+        children:
+          - id: profiling
+            name: Performance Profiling
+            description: CPU profilers, memory profilers, and flame graphs
+            prerequisites: []
+          - id: debugging
+            name: Debugging Tools
+            description: Debuggers, breakpoints, and debugging techniques
+            prerequisites: []

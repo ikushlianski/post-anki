@@ -19,8 +19,6 @@ const INSTRUCTIONS = [
   "- Every citation you return must trace back to one of the approved sources you were actually given",
   "  — never cite a source you were not given, and never rely on your own general trained knowledge",
   "  as if it were one of the approved sources.",
-  "- If the approved sources' text is too thin to support a real briefing, still produce your best-effort",
-  "  synthesis of what is there rather than refusing outright.",
 ].join("\n");
 
 export function createLectureCompiler(): Agent {

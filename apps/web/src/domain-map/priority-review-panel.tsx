@@ -11,6 +11,7 @@ import {
   resolveDocScanTopicSuggestion,
   runDocScan,
 } from './domain-map.api'
+import { useResolvingSuggestions } from './use-resolving-suggestions'
 
 const DEPTH_LABEL: Record<string, string> = {
   awareness: 'Awareness',
@@ -57,6 +58,8 @@ export function PriorityReviewPanel({
   const [scanRanOnce, setScanRanOnce] = useState(false)
   const [docScanConfirmation, setDocScanConfirmation] = useState<string | null>(null)
 
+  const { claim, release, isResolving } = useResolvingSuggestions()
+
   async function scanNow() {
     if (scanning) {
       return
@@ -79,18 +82,36 @@ export function PriorityReviewPanel({
   }
 
   async function resolveNewTopic(suggestion: DomainTopicSuggestion, decision: 'accept' | 'reject') {
+    if (!claim(suggestion.id)) {
+      return
+    }
+
     const status = decision === 'accept' ? 'accepted' : 'rejected'
 
-    await resolveDocScanTopicSuggestion({ data: { suggestionId: suggestion.id, status } })
+    try {
+      const result = await resolveDocScanTopicSuggestion({
+        data: { suggestionId: suggestion.id, status },
+      })
 
-    setNewTopicSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
+      // `already_resolved` (a 409 from the second tab, or this user's own
+      // double-click) is a success as far as the list is concerned — the row
+      // has been decided and must go. The confirmation is NOT shown for it:
+      // the other tab may well have rejected the suggestion, so claiming the
+      // node was added would be a guess.
+      setNewTopicSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
 
-    if (decision === 'accept') {
-      const parentName = suggestion.proposedParentNodeId
-        ? (nodeNamesById[suggestion.proposedParentNodeId] ?? suggestion.proposedParentNodeId)
-        : 'the subject root'
-      setDocScanConfirmation(`${suggestion.proposedNodeName} added under ${parentName}`)
-      setTimeout(() => setDocScanConfirmation(null), 4000)
+      if (decision === 'accept' && result.outcome === 'resolved') {
+        const parentName = suggestion.proposedParentNodeId
+          ? (nodeNamesById[suggestion.proposedParentNodeId] ?? suggestion.proposedParentNodeId)
+          : 'the subject root'
+        setDocScanConfirmation(`${suggestion.proposedNodeName} added under ${parentName}`)
+        setTimeout(() => setDocScanConfirmation(null), 4000)
+      }
+    } catch {
+      // The row deliberately stays in the list on failure so the decision can
+      // be retried; `release` below re-enables its buttons.
+    } finally {
+      release(suggestion.id)
     }
   }
 
@@ -98,11 +119,21 @@ export function PriorityReviewPanel({
     suggestion: DomainSupersessionSuggestion,
     decision: 'accept' | 'reject',
   ) {
+    if (!claim(suggestion.id)) {
+      return
+    }
+
     const status = decision === 'accept' ? 'accepted' : 'rejected'
 
-    await resolveDocScanSupersessionSuggestion({ data: { suggestionId: suggestion.id, status } })
+    try {
+      await resolveDocScanSupersessionSuggestion({ data: { suggestionId: suggestion.id, status } })
 
-    setSupersessionSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
+      setSupersessionSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
+    } catch {
+      // Same retry posture as resolveNewTopic above.
+    } finally {
+      release(suggestion.id)
+    }
   }
 
   async function trigger() {
@@ -116,7 +147,14 @@ export function PriorityReviewPanel({
     try {
       const fresh = await triggerPriorityReview({ data: subjectId })
       setSuggestions((prev) => [...fresh, ...prev])
-      setDue(false)
+
+      // Only clear the banner when the review actually produced something.
+      // The server's own due-status comes from MAX(created_at) over inserted
+      // rows, so predicting due:false on an empty result desyncs the two until
+      // the next page load.
+      if (fresh.length > 0) {
+        setDue(false)
+      }
     } catch {
       setTriggerError('Review could not be completed — try again.')
     } finally {
@@ -125,18 +163,28 @@ export function PriorityReviewPanel({
   }
 
   async function resolve(suggestion: DomainPrioritySuggestion, decision: 'accept' | 'reject') {
+    if (!claim(suggestion.id)) {
+      return
+    }
+
     const status = decision === 'accept' ? 'accepted' : 'rejected'
 
-    await resolveSuggestionStatus({
-      data: { suggestionId: suggestion.id, status },
-    })
+    try {
+      await resolveSuggestionStatus({
+        data: { suggestionId: suggestion.id, status },
+      })
 
-    setSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
+      setSuggestions((prev) => prev.filter((item) => item.id !== suggestion.id))
 
-    if (decision === 'accept') {
-      const name = nodeNamesById[suggestion.domainNodeId] ?? suggestion.domainNodeId
-      setConfirmation(`Applied to ${name}`)
-      setTimeout(() => setConfirmation(null), 4000)
+      if (decision === 'accept') {
+        const name = nodeNamesById[suggestion.domainNodeId] ?? suggestion.domainNodeId
+        setConfirmation(`Applied to ${name}`)
+        setTimeout(() => setConfirmation(null), 4000)
+      }
+    } catch {
+      // Same retry posture as the doc-scan resolvers above.
+    } finally {
+      release(suggestion.id)
     }
   }
 
@@ -209,16 +257,18 @@ export function PriorityReviewPanel({
                 <button
                   type="button"
                   data-testid={`priority-review-suggestion-accept-${suggestion.id}`}
+                  disabled={isResolving(suggestion.id)}
                   onClick={() => resolve(suggestion, 'accept')}
-                  className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                  className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
                 >
                   Accept
                 </button>
                 <button
                   type="button"
                   data-testid={`priority-review-suggestion-reject-${suggestion.id}`}
+                  disabled={isResolving(suggestion.id)}
                   onClick={() => resolve(suggestion, 'reject')}
-                  className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600"
+                  className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600 disabled:opacity-50"
                 >
                   Reject
                 </button>
@@ -287,16 +337,18 @@ export function PriorityReviewPanel({
                     <button
                       type="button"
                       data-testid={`doc-scan-new-topic-accept-${suggestion.id}`}
+                      disabled={isResolving(suggestion.id)}
                       onClick={() => resolveNewTopic(suggestion, 'accept')}
-                      className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                      className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
                     >
                       Accept
                     </button>
                     <button
                       type="button"
                       data-testid={`doc-scan-new-topic-reject-${suggestion.id}`}
+                      disabled={isResolving(suggestion.id)}
                       onClick={() => resolveNewTopic(suggestion, 'reject')}
-                      className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600"
+                      className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600 disabled:opacity-50"
                     >
                       Reject
                     </button>
@@ -343,16 +395,18 @@ export function PriorityReviewPanel({
                     <button
                       type="button"
                       data-testid={`doc-scan-supersession-accept-${suggestion.id}`}
+                      disabled={isResolving(suggestion.id)}
                       onClick={() => resolveSupersession(suggestion, 'accept')}
-                      className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+                      className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
                     >
                       Accept
                     </button>
                     <button
                       type="button"
                       data-testid={`doc-scan-supersession-reject-${suggestion.id}`}
+                      disabled={isResolving(suggestion.id)}
                       onClick={() => resolveSupersession(suggestion, 'reject')}
-                      className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600"
+                      className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600 disabled:opacity-50"
                     >
                       Reject
                     </button>
