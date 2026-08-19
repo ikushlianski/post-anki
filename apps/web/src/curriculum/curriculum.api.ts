@@ -277,6 +277,7 @@ export const updateCurriculumSettings = createServerFn({ method: 'POST' })
       hinting: data.hinting,
       defaultDepth: data.defaultDepth,
       strictOrder: data.strictOrder,
+      modelTier: data.modelTier,
     }),
   )
 

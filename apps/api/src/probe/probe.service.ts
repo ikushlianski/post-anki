@@ -23,6 +23,7 @@ import {
   selectRecentFeedback,
 } from "@post-anki/core";
 import { getCalibrationCompletionForCurriculum } from "../probe-session/probe-session.repo.js";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import {
@@ -450,6 +451,7 @@ async function generateQuestion(
   try {
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: generatedQuestionSchema },
+      requestContext: new RequestContext([["curriculumId", topic.curriculumId]]),
     });
 
     if (result.object) {
@@ -504,6 +506,7 @@ async function evaluateAnswer(
     const agent = getMastra().getAgent(AGENT_KEYS.mentorEval);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: probeEvaluationSchema },
+      requestContext: new RequestContext([["curriculumId", topic.curriculumId]]),
     });
 
     if (result.object) {

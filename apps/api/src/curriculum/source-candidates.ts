@@ -2,6 +2,7 @@ import { dedupeSourceCandidates } from "@post-anki/core";
 import type { SourceKind } from "@post-anki/shared";
 import { gatherDocSiteCandidates } from "./doc-link-grounding.js";
 import { gatherTrustedSourceCandidates, resolveOfficialDocsUrl } from "./tech-research-grounding.js";
+import type { ResolveEffectiveModelTierScope } from "../mastra/tier-resolver.js";
 import { log } from "../shared/log.js";
 
 export interface GatheredSourceCandidate {
@@ -27,10 +28,11 @@ export interface GatherSourceCandidatesInput {
  */
 export async function gatherSourceCandidates(
   input: GatherSourceCandidatesInput,
+  scope: ResolveEffectiveModelTierScope = {},
 ): Promise<GatheredSourceCandidate[]> {
   const [docCandidates, searchCandidates] = await Promise.all([
-    resolveDocCandidates(input),
-    gatherTrustedSourceCandidates(input.name).catch((err) => {
+    resolveDocCandidates(input, scope),
+    gatherTrustedSourceCandidates(input.name, scope).catch((err) => {
       log.warn({ err, name: input.name }, "trusted_source_candidates_dispatch_failed");
       return [];
     }),
@@ -52,12 +54,13 @@ export async function gatherSourceCandidates(
 
 async function resolveDocCandidates(
   input: GatherSourceCandidatesInput,
+  scope: ResolveEffectiveModelTierScope,
 ): Promise<GatheredSourceCandidate[]> {
   if (input.docUrl) {
     return gatherDocSiteCandidates(input.docUrl);
   }
 
-  const resolvedUrl = await resolveOfficialDocsUrl(input.name).catch((err) => {
+  const resolvedUrl = await resolveOfficialDocsUrl(input.name, scope).catch((err) => {
     log.warn({ err, name: input.name }, "resolve_official_docs_url_dispatch_failed");
     return null;
   });

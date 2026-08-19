@@ -232,7 +232,7 @@ export async function generateDraftStructure(curriculumId: string): Promise<void
 
     const [sourceText, trustedSources] = await Promise.all([
       assembleAllSourceText(curriculumId),
-      gatherTrustedSourceCandidates(curriculum.name).catch((err) => {
+      gatherTrustedSourceCandidates(curriculum.name, { curriculumId, subjectId: curriculum.subjectId }).catch((err) => {
         log.warn({ err, curriculumId }, "structure_draft_trusted_search_failed");
         return [];
       }),
@@ -248,6 +248,7 @@ export async function generateDraftStructure(curriculumId: string): Promise<void
       () =>
         agent.generate(prompt, {
           structuredOutput: { schema: docResearchPlanSchema },
+          requestContext: new RequestContext([["curriculumId", curriculumId]]),
         }),
     );
 
@@ -446,6 +447,7 @@ async function surfaceSupplementalResearchCandidates(
 
     const candidates = await gatherTrustedSourceCandidates(
       `${curriculum.name}: ${researchGapLabels.join(", ")}`,
+      { curriculumId, subjectId: curriculum.subjectId },
     ).catch((err) => {
       log.warn({ err, curriculumId, researchGapLabels }, "structure_turn_supplemental_search_failed");
       return [] as TrustedSourceCandidate[];
@@ -582,7 +584,7 @@ async function runStructureEditorEdit(
     const [sourceText, allTurns, trustedSources] = await Promise.all([
       assembleAllSourceText(curriculumId),
       getStructureTurns(curriculumId),
-      gatherTrustedSourceCandidates(curriculum.name).catch((err) => {
+      gatherTrustedSourceCandidates(curriculum.name, { curriculumId, subjectId: curriculum.subjectId }).catch((err) => {
         log.warn({ err, curriculumId }, "structure_turn_trusted_search_failed");
         return [];
       }),
@@ -616,6 +618,7 @@ async function runStructureEditorEdit(
         () =>
           architect.generate(regenPrompt, {
             structuredOutput: { schema: docResearchPlanSchema },
+            requestContext: new RequestContext([["curriculumId", curriculumId]]),
           }),
       );
 
@@ -634,7 +637,11 @@ async function runStructureEditorEdit(
     // structure-editor agent's dynamically-resolved `tools` config (see
     // that agent's own comment for why `clientTools` is the wrong
     // mechanism here) — scoped to just this one `generate()` call.
-    const requestContext = new RequestContext([["structureEditorDeps", deps]]);
+    const requestContext = new RequestContext([
+      ["structureEditorDeps", deps],
+      ["curriculumId", curriculumId],
+      ["subjectId", curriculum.subjectId],
+    ]);
 
     const prompt = buildStructureToolTurnPrompt(
       ctx,

@@ -1,4 +1,5 @@
 import type { Pack, PracticeLevel } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
@@ -137,6 +138,7 @@ export async function generatePhraseBatch(
   // benefit (architecture.md).
   const result = await agent.generate(prompt, {
     structuredOutput: { schema: phraseBatchSchema },
+    requestContext: new RequestContext([["subjectId", subjectId]]),
   });
 
   if (!result.object) {

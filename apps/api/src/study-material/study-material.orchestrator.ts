@@ -1,4 +1,5 @@
 import type { StudyMaterialKind } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import {
   buildStudyMaterialPrompt,
   capGroundingText,
@@ -39,6 +40,7 @@ async function gatherAccumulatedTopicText(topicId: string): Promise<string> {
 
 async function gatherWebStudyMaterialGrounding(
   topicTitle: string,
+  curriculumId?: string,
 ): Promise<{ text: string; citations: string[] }> {
   const prompt = [
     `Search the web for real, citable, authoritative material to ground a study-material request`,
@@ -47,7 +49,12 @@ async function gatherWebStudyMaterialGrounding(
     `not a summary of the topic in general terms.`,
   ].join(" ");
 
-  const outcome = await webSearch(prompt, "study_material.web_grounding", { topicTitle });
+  const outcome = await webSearch(
+    prompt,
+    "study_material.web_grounding",
+    { topicTitle },
+    curriculumId ? { curriculumId } : {},
+  );
 
   if (!outcome.ok) {
     return { text: "", citations: [] };
@@ -84,7 +91,7 @@ async function gatherStudyMaterialGrounding(
     return { text: capGroundingText(combinedText), citations };
   }
 
-  const web = await gatherWebStudyMaterialGrounding(topicTitle);
+  const web = await gatherWebStudyMaterialGrounding(topicTitle, curriculumCtx?.curriculumId);
   combinedText = joinGroundingText(combinedText, web.text);
   citations = [...citations, ...web.citations];
 
@@ -115,10 +122,14 @@ export async function generateStudyMaterial(
     }
 
     const prompt = buildStudyMaterialPrompt(kind, topic.title, grounding.text, grounding.citations);
+    const curriculumCtx = await getCurriculumContextForTopic(topicId);
 
     const agent = getMastra().getAgent(AGENT_KEYS.studyMaterialWriter);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: studyMaterialPlanSchema },
+      requestContext: curriculumCtx
+        ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+        : undefined,
     });
 
     if (!result.object) {

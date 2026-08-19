@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const PHRASE_BATCH_INSTRUCTIONS = [
   "You write short Russian-to-English translation drills for a learner targeting",
@@ -76,7 +76,7 @@ export function createPhraseBatchAgent(): Agent {
     id: "phrase-batch-generate",
     name: "Phrase Batch Generator",
     instructions: PHRASE_BATCH_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }
 
@@ -87,6 +87,6 @@ export function createGradeBatchAgent(): Agent {
     id: "grade-batch",
     name: "Grade Batch",
     instructions: GRADE_BATCH_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

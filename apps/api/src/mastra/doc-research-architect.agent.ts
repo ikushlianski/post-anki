@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You SYNTHESIZE a leveled learning map for a named technology, for an architecture-judgment learning system.",
@@ -82,6 +82,6 @@ export function createDocResearchArchitect(): Agent {
     id: "doc-research-architect",
     name: "Doc Research Architect",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

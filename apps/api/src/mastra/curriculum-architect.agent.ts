@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You CAPTURE a curriculum from the learner's pasted material for an architecture-judgment learning system.",
@@ -49,6 +49,6 @@ export function createCurriculumArchitect(): Agent {
     id: "curriculum-architect",
     name: "Curriculum Architect",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

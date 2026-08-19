@@ -11,6 +11,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 
+import type { ModelTier } from '@post-anki/shared'
 import type { Curriculum, CurriculumStatus, Subject } from '../curriculum/model'
 import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
 import { StudyTechnologyForm } from '../curriculum/study-technology-form'
@@ -22,6 +23,7 @@ import {
 } from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { deleteSubject, mergeSubjects } from './subject.api'
+import { SubjectModelTier } from './subject-model-tier'
 import { useHydrated } from '../shared/use-hydrated'
 import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
 
@@ -29,10 +31,12 @@ export function SubjectSection({
   subject,
   curricula,
   allSubjects,
+  globalModelTier,
 }: {
   subject: Subject
   curricula: Curriculum[]
   allSubjects: Subject[]
+  globalModelTier: ModelTier
 }) {
   const router = useRouter()
   const [localOrder, setLocalOrder] = useState<string[]>(curricula.map((c) => c.id))
@@ -88,6 +92,14 @@ export function SubjectSection({
             curriculaCount={curricula.length}
           />
         </span>
+      </div>
+
+      <div className="mb-3">
+        <SubjectModelTier
+          subjectId={subject.id}
+          modelTier={subject.modelTier}
+          globalModelTier={globalModelTier}
+        />
       </div>
 
       {subject.kind === 'language-practice' ? (

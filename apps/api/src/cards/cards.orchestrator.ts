@@ -1,4 +1,5 @@
 import type { Gap } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
@@ -53,9 +54,10 @@ export async function compileCards(topicId: string): Promise<void> {
       throw new Error("topic not found for cards compilation");
     }
 
-    const [gaps, curriculumContext] = await Promise.all([
+    const [gaps, curriculumContext, curriculumCtx] = await Promise.all([
       listGapsForTopic(topicId),
       resolveCurriculumContext(topicId),
+      getCurriculumContextForTopic(topicId),
     ]);
 
     const prompt = buildCardsPrompt(topic, gaps, curriculumContext);
@@ -63,6 +65,9 @@ export async function compileCards(topicId: string): Promise<void> {
     const agent = getMastra().getAgent(AGENT_KEYS.cardsCompiler);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: cardsPlanSchema },
+      requestContext: curriculumCtx
+        ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+        : undefined,
     });
 
     if (!result.object) {

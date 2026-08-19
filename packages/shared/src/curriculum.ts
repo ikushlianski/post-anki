@@ -7,6 +7,7 @@ import { speedSchema } from "./adaptive";
 import { depthLevelSchema } from "./depth";
 import { levelSchema } from "./level";
 import { curriculumDomainNodeMappingSchema } from "./domain-map";
+import { modelTierSchema } from "./model-tier";
 
 const docUrlSchema = z
   .string()
@@ -57,6 +58,7 @@ export const curriculumSchema = z.object({
   // order within a subject. Scoped per subject. Assigned by nextOrder()
   // at create time; updated by reorder endpoint inside transaction.
   order: z.number().int(),
+  modelTier: modelTierSchema.nullable(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -103,6 +105,9 @@ export const updateCurriculumInput = z.object({
   // curriculum is attached under. A plain field update, same shape as
   // speed/hinting/defaultDepth; never restructures domain_nodes itself.
   domainNodeId: z.string().nullable().optional(),
+  // cost-tier-model-selection — explicit tier override at the curriculum
+  // level, or null to inherit the subject's tier (then the global default).
+  modelTier: modelTierSchema.nullable().optional(),
 });
 
 export type UpdateCurriculumInput = z.infer<typeof updateCurriculumInput>;

@@ -19,6 +19,7 @@ export * from "./socratic";
 export * from "./daily-push";
 export * from "./decide";
 export * from "./admin-settings";
+export * from "./model-tier";
 export * from "./admin-observability";
 export * from "./ontology-merge";
 export * from "./priority";

@@ -45,6 +45,7 @@ const SUBJECT: Subject = {
   name: 'Architecture Patterns',
   kind: 'architecture-mentor',
   requireSources: true,
+  modelTier: null,
 }
 
 const CURRICULUM: Curriculum = {
@@ -61,6 +62,7 @@ const CURRICULUM: Curriculum = {
   preAssessmentCompletedAt: null,
   domainNodeId: null,
   order: 1,
+  modelTier: null,
 }
 
 describe('SubjectSection', () => {
@@ -70,7 +72,7 @@ describe('SubjectSection', () => {
 
   it('should render knowledge map link for architecture-mentor subjects', () => {
     render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} />,
+      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
     )
 
     const link = screen.getByTestId('knowledge-map-link')
@@ -80,7 +82,7 @@ describe('SubjectSection', () => {
 
   it('should render priority review link for architecture-mentor subjects', () => {
     render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} />,
+      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
     )
 
     const link = screen.getByTestId('priority-review-link')
@@ -90,7 +92,7 @@ describe('SubjectSection', () => {
 
   it('should pass correct subjectId parameter to knowledge map link', () => {
     render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} />,
+      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
     )
 
     const link = screen.getByTestId('knowledge-map-link')
@@ -100,7 +102,7 @@ describe('SubjectSection', () => {
 
   it('should pass correct subjectId parameter to priority review link', () => {
     render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} />,
+      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
     )
 
     const link = screen.getByTestId('priority-review-link')
@@ -110,7 +112,7 @@ describe('SubjectSection', () => {
 
   it('should display subject name', () => {
     render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} />,
+      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
     )
 
     expect(screen.getByTestId('subject-name').textContent).toBe('Architecture Patterns')
@@ -122,6 +124,7 @@ describe('SubjectSection', () => {
         subject={SUBJECT}
         curricula={[CURRICULUM]}
         allSubjects={[SUBJECT]}
+        globalModelTier="cheap"
       />,
     )
 

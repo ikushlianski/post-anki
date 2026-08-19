@@ -1,6 +1,7 @@
 import type { CurriculumDomainNodeMapping, DomainNode } from "@post-anki/shared";
 import { domainTaxonomyMappingAgentResultSchema } from "@post-anki/shared";
 import { partitionMappingResult, resolveDomainNodeSource } from "@post-anki/core";
+import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { getCurriculum, getModuleProgressSnapshots } from "../curriculum/curriculum.repo.js";
 import {
@@ -95,6 +96,7 @@ export async function triggerCurriculumDomainMapping(
 
   const result = await agent.generate(prompt, {
     structuredOutput: { schema: domainTaxonomyMappingAgentResultSchema },
+    requestContext: new RequestContext([["curriculumId", curriculumId]]),
   });
 
   if (!result.object) {

@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 
+import { MODEL_TIER_LABEL, type ModelTier } from '@post-anki/shared'
 import type { Curriculum, Depth, Speed } from './model'
 import { updateCurriculumSettings } from './curriculum.api'
 import { curriculumDetailQuery } from './curriculum.queries'
 import { DepthSlider } from './depth-slider'
+
+const MODEL_TIERS: ModelTier[] = ['cheap', 'balanced', 'premium']
 
 const SPEEDS: Speed[] = ['slow', 'normal', 'fast']
 
@@ -21,7 +24,16 @@ const DEPTH_LABEL: Record<Depth, string> = {
   deep: 'Deep',
 }
 
-export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
+export function AdaptiveSettings({
+  curriculum,
+  inheritedModelTier,
+}: {
+  curriculum: Curriculum
+  // The tier this curriculum would resolve to if it had no override of its
+  // own — the subject's tier if set, else the global default. Shown next to
+  // "Inherit" so picking it never feels like a black box.
+  inheritedModelTier: ModelTier
+}) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
@@ -32,6 +44,7 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
     hinting?: boolean
     defaultDepth?: Depth
     strictOrder?: boolean
+    modelTier?: ModelTier | null
   }) {
     setBusy(true)
     await updateCurriculumSettings({
@@ -144,6 +157,43 @@ export function AdaptiveSettings({ curriculum }: { curriculum: Curriculum }) {
         >
           {curriculum.strictOrder ? 'On' : 'Off'}
         </button>
+      </div>
+
+      <div>
+        <p className="mb-1 text-xs text-neutral-400">
+          Model tier — which OpenRouter cost tier this curriculum's AI calls use
+        </p>
+        <div className="flex flex-wrap gap-1" data-testid="curriculum-model-tier">
+          <button
+            type="button"
+            disabled={busy}
+            data-testid="curriculum-model-tier-inherit"
+            onClick={() => update({ modelTier: null })}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+              curriculum.modelTier === null
+                ? 'bg-neutral-900 text-white'
+                : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+            }`}
+          >
+            Inherit (currently: {MODEL_TIER_LABEL[inheritedModelTier]})
+          </button>
+          {MODEL_TIERS.map((tier) => (
+            <button
+              key={tier}
+              type="button"
+              disabled={busy}
+              data-testid={`curriculum-model-tier-option-${tier}`}
+              onClick={() => update({ modelTier: tier })}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                curriculum.modelTier === tier
+                  ? 'bg-neutral-900 text-white'
+                  : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+              }`}
+            >
+              {MODEL_TIER_LABEL[tier]}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const LEARNING_LIST_CLASSIFIER_INSTRUCTIONS = [
   "You extract structured signals from a piece of captured learning material so that deterministic",
@@ -45,6 +45,6 @@ export function createLearningListClassifierAgent(): Agent {
     id: "learning-list-classifier",
     name: "Learning List Classifier",
     instructions: LEARNING_LIST_CLASSIFIER_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

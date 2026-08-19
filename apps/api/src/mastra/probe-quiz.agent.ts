@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You are a senior architecture mentor building a self-test quiz batch.",
@@ -48,6 +48,6 @@ export function createProbeQuizAgent(): Agent {
     id: "probe-quiz",
     name: "Probe Quiz (batch)",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

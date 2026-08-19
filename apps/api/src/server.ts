@@ -7,6 +7,7 @@ import {
   handleDeleteSubject,
   handleListSubjects,
   handleMergeSubjects,
+  handleUpdateSubject,
 } from "./subject/subject.controller.js";
 import {
   handleAddSources,
@@ -309,6 +310,8 @@ async function route(
       return handleCreateSubject(req, res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
+    case "updateSubject":
+      return handleUpdateSubject(req, res, id);
     case "mergeSubjects":
       return handleMergeSubjects(req, res, id);
     case "listCurricula":

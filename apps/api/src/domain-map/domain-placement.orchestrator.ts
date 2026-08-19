@@ -1,6 +1,7 @@
 import { normalizeTagName } from "@post-anki/core";
 import type { DomainNode } from "@post-anki/shared";
 import { siblingDiscoveryResultSchema } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { getDomainNode, insertDomainNode, listDomainNodesForSubject } from "./domain-map.repo.js";
@@ -114,6 +115,7 @@ export async function resolveDomainPlacement(
 
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: siblingDiscoveryResultSchema },
+      requestContext: new RequestContext([["subjectId", input.subjectId]]),
     });
 
     if (!result.object) {

@@ -1,5 +1,11 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
-import type { CreateSubjectInput, MergeSubjectsResult, Subject } from "@post-anki/shared";
+import type {
+  CreateSubjectInput,
+  MergeSubjectsResult,
+  ModelTier,
+  Subject,
+  UpdateSubjectInput,
+} from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import {
   curricula,
@@ -23,6 +29,7 @@ function toSubject(r: typeof subjects.$inferSelect): Subject {
     description: r.description ?? undefined,
     requireSources: r.requireSources,
     kind: r.kind as Subject["kind"],
+    modelTier: (r.modelTier as ModelTier | null) ?? null,
   };
 }
 
@@ -41,6 +48,36 @@ export async function getSubject(subjectId: string): Promise<Subject | null> {
   )[0];
 
   return row ? toSubject(row) : null;
+}
+
+export async function updateSubject(
+  subjectId: string,
+  input: UpdateSubjectInput,
+): Promise<Subject | null> {
+  if (input.modelTier === undefined) {
+    return getSubject(subjectId);
+  }
+
+  const row = (
+    await getDb()
+      .update(subjects)
+      .set({ modelTier: input.modelTier })
+      .where(eq(subjects.id, subjectId))
+      .returning()
+  )[0];
+
+  return row ? toSubject(row) : null;
+}
+
+export async function getSubjectModelTier(subjectId: string): Promise<ModelTier | null> {
+  const row = (
+    await getDb()
+      .select({ modelTier: subjects.modelTier })
+      .from(subjects)
+      .where(eq(subjects.id, subjectId))
+  )[0];
+
+  return (row?.modelTier as ModelTier | null) ?? null;
 }
 
 export interface SubjectForDuplicateScan {
@@ -89,6 +126,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     embedding: null,
     embeddingHash: null,
     embeddedAt: null,
+    modelTier: null,
   });
 }
 

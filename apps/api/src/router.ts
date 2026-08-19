@@ -4,6 +4,7 @@ export type RouteName =
   | "listSubjects"
   | "createSubject"
   | "deleteSubject"
+  | "updateSubject"
   | "mergeSubjects"
   | "listCurricula"
   | "createCurriculum"

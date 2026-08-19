@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const DOC_SCAN_INSTRUCTIONS = [
   "You are reviewing recent changelog/release content for a small set of tools the learner is",
@@ -40,6 +40,6 @@ export function createDocScanAgent(): Agent {
     id: "doc-scan",
     name: "Doc/Changelog Scan",
     instructions: DOC_SCAN_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

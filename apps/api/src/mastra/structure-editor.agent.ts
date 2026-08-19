@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import type { RequestContext } from "@mastra/core/request-context";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 import { createStructureEditorTools, type StructureEditorToolsDeps } from "./structure-editor-tools.js";
 
 // Phase 5's tool-calling structure editor — the first tool-using agent in
@@ -55,7 +55,7 @@ export function createStructureEditorAgent(): Agent {
     id: "structure-editor",
     name: "Structure Editor",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
     tools: ({ requestContext }: { requestContext: RequestContext }) => {
       const deps = requestContext.get("structureEditorDeps") as StructureEditorToolsDeps;
 

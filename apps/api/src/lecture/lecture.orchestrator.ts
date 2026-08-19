@@ -1,5 +1,6 @@
 import type { LectureSourceCandidate } from "@post-anki/shared";
 import { capGroundingText, hasUsableGroundingText, isSafeSourceUrl } from "@post-anki/core";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
@@ -81,7 +82,11 @@ export async function gatherLectureSources(
       : [];
   const curriculumCandidates = buildCurriculumSourceCandidates(curriculumCitableUrls);
 
-  const grounding = await gatherLectureSourceGrounding(topic.title, curriculumCtx?.label);
+  const grounding = await gatherLectureSourceGrounding(
+    topic.title,
+    curriculumCtx?.label,
+    curriculumCtx ? { curriculumId: curriculumCtx.curriculumId } : {},
+  );
 
   const prompt = [
     `Topic: ${topic.title}`,
@@ -102,6 +107,9 @@ export async function gatherLectureSources(
   const agent = getMastra().getAgent(AGENT_KEYS.lectureSourceSelector);
   const result = await agent.generate(prompt, {
     structuredOutput: { schema: lectureSourceCandidatesPlanSchema },
+    requestContext: curriculumCtx
+      ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+      : undefined,
   });
 
   const webValidated = selectValidCandidates(
@@ -137,6 +145,7 @@ async function resolveApprovedCandidateSources(
 
 export async function compileLecture(topicId: string): Promise<void> {
   try {
+    const curriculumCtx = await getCurriculumContextForTopic(topicId);
     const ownSources = await resolveCourseGroundingSources(topicId);
     const sourcesWithText = ownSources ?? (await resolveApprovedCandidateSources(topicId));
 
@@ -158,6 +167,9 @@ export async function compileLecture(topicId: string): Promise<void> {
     const agent = getMastra().getAgent(AGENT_KEYS.lectureCompiler);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: lecturePlanSchema },
+      requestContext: curriculumCtx
+        ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+        : undefined,
     });
 
     if (!result.object) {

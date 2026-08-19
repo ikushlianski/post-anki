@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modelTierSchema } from "./model-tier";
 
 export const subjectSchema = z.object({
   id: z.string(),
@@ -6,6 +7,7 @@ export const subjectSchema = z.object({
   description: z.string().optional(),
   requireSources: z.boolean(),
   kind: z.enum(["architecture-mentor", "language-practice"]).default("architecture-mentor"),
+  modelTier: modelTierSchema.nullable(),
 });
 
 export type Subject = z.infer<typeof subjectSchema>;
@@ -18,6 +20,12 @@ export const createSubjectInput = z.object({
 });
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>;
+
+export const updateSubjectInput = z.object({
+  modelTier: modelTierSchema.nullable().optional(),
+});
+
+export type UpdateSubjectInput = z.infer<typeof updateSubjectInput>;
 
 export const mergeSubjectsInput = z.object({
   sourceSubjectId: z.string(),

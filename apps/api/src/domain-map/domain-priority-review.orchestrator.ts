@@ -1,5 +1,6 @@
 import type { DepthLevel, DomainNodeTreeItem, DomainPrioritySuggestion } from "@post-anki/shared";
 import { domainPriorityReviewAgentResultSchema } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { getDomainMapForSubject, insertPrioritySuggestion } from "./domain-map.repo.js";
 import { resolveNodePathByName, type NamedNode } from "./domain-node-name-resolver.js";
@@ -66,6 +67,7 @@ export async function triggerDomainPriorityReview(
   const agent = getMastra().getAgent(AGENT_KEYS.domainPriorityReview);
   const result = await agent.generate(prompt, {
     structuredOutput: { schema: domainPriorityReviewAgentResultSchema },
+    requestContext: new RequestContext([["subjectId", subjectId]]),
   });
 
   if (!result.object) {

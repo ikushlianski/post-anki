@@ -13,6 +13,7 @@ import type {
   LearningStatus,
   Level,
   MergeCurriculaResult,
+  ModelTier,
   Module,
   ResearchCandidateApprovalStatus,
   Source,
@@ -205,6 +206,7 @@ export async function createCurriculum(
     preAssessmentCompletedAt: null,
     containerAreaNodeId: input.containerAreaNodeId ?? null,
     order: 0,
+    modelTier: null,
   };
   const domainNodeId = input.domainNodeId ?? null;
 
@@ -1207,6 +1209,10 @@ export async function updateCurriculum(
     patch.strictOrder = input.strictOrder;
   }
 
+  if (input.modelTier !== undefined) {
+    patch.modelTier = input.modelTier;
+  }
+
   if (input.domainNodeId !== undefined) {
     if (input.domainNodeId === null) {
       await rejectAllConfirmedForCurriculum(input.curriculumId);
@@ -1577,6 +1583,7 @@ export async function createSplitOutCurriculum(
     preAssessmentCompletedAt: null,
     containerAreaNodeId: null,
     order: 0,
+    modelTier: null,
   };
 
   return withSubjectLock(subjectId, async (tx) => {
@@ -2094,6 +2101,7 @@ function toCurriculum(
     strictOrder: boolean;
     preAssessmentCompletedAt: Date | null;
     order: number;
+    modelTier: string | null;
   },
   origin: CurriculumOrigin,
   // decouple-curricula-from-domain-nodes (issue #84) — no longer read off
@@ -2120,6 +2128,7 @@ function toCurriculum(
       : null,
     domainNodeId: primaryDomainNodeId,
     order: row.order,
+    modelTier: (row.modelTier as ModelTier | null) ?? null,
   };
 }
 
@@ -2202,4 +2211,28 @@ export async function setCurriculumConcern(
   db: DbExecutor = getDb(),
 ): Promise<void> {
   await db.update(curricula).set({ concern }).where(eq(curricula.id, curriculumId));
+}
+
+export interface CurriculumModelTierScope {
+  curriculumModelTier: ModelTier | null;
+  subjectId: string;
+}
+
+// cost-tier-model-selection — the one place that reads both levels of the
+// cascade above the global default for a given curriculum, so
+// resolveEffectiveModelTier (mastra/tier-resolver.ts) never duplicates this
+// join. Returns null if the curriculum doesn't exist.
+export async function getCurriculumModelTierScope(
+  curriculumId: string,
+): Promise<CurriculumModelTierScope | null> {
+  const row = (
+    await getDb()
+      .select({ modelTier: curricula.modelTier, subjectId: curricula.subjectId })
+      .from(curricula)
+      .where(eq(curricula.id, curriculumId))
+  )[0];
+
+  return row
+    ? { curriculumModelTier: (row.modelTier as ModelTier | null) ?? null, subjectId: row.subjectId }
+    : null;
 }

@@ -21,6 +21,8 @@ import { AdaptiveSettings } from '../curriculum/adaptive-settings'
 import { CurriculumPlacementPanel } from '../domain-map/curriculum-placement-panel'
 import { CurriculumDomainMappingPanel } from '../curriculum/curriculum-domain-mapping-panel'
 import { useHydrated } from '../shared/use-hydrated'
+import { listSubjects } from '../curriculum/api-client'
+import { getAdminSettings } from '../admin-settings/admin-settings.api'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
@@ -40,13 +42,22 @@ export const Route = createFileRoute('/curriculum/$curriculumId')({
       await context.queryClient.ensureQueryData(structureTurnsQuery(params.curriculumId))
     }
 
-    return detail
+    const [subjects, adminSettings] = await Promise.all([
+      listSubjects().catch(() => []),
+      getAdminSettings().catch(() => ({ testToggle: false, modelTier: 'cheap' as const })),
+    ])
+
+    const subject = detail ? subjects.find((s) => s.id === detail.curriculum.subjectId) : undefined
+    const subjectModelTier = subject?.modelTier ?? adminSettings.modelTier
+
+    return { ...detail, subjectModelTier }
   },
 })
 
 function CurriculumPage() {
   const { curriculumId } = Route.useParams()
   const { data: detail } = useSuspenseQuery(curriculumDetailQuery(curriculumId))
+  const { subjectModelTier } = Route.useLoaderData()
 
   if (!detail) {
     return (
@@ -140,7 +151,7 @@ function CurriculumPage() {
 
       {editable && modules.length > 0 ? (
         <div className="mb-6">
-          <AdaptiveSettings curriculum={curriculum} />
+          <AdaptiveSettings curriculum={curriculum} inheritedModelTier={subjectModelTier} />
         </div>
       ) : null}
 

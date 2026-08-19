@@ -1,7 +1,13 @@
 import type http from "node:http";
-import { createSubjectInput, mergeSubjectsInput } from "@post-anki/shared";
+import { createSubjectInput, mergeSubjectsInput, updateSubjectInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
-import { createSubject, deleteSubject, listSubjects, mergeSubjects } from "./subject.repo.js";
+import {
+  createSubject,
+  deleteSubject,
+  listSubjects,
+  mergeSubjects,
+  updateSubject,
+} from "./subject.repo.js";
 
 export async function handleListSubjects(
   res: http.ServerResponse,
@@ -21,6 +27,28 @@ export async function handleCreateSubject(
   }
 
   sendJson(res, 201, await createSubject(body.data));
+}
+
+export async function handleUpdateSubject(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  subjectId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, updateSubjectInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const updated = await updateSubject(subjectId, body.data);
+
+  if (!updated) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, updated);
 }
 
 export async function handleDeleteSubject(

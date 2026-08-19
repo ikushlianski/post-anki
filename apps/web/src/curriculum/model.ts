@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
-import type { CourseRefocusSuggestion as SharedCourseRefocusSuggestion, DailyPushNudge } from '@post-anki/shared'
+import {
+  modelTierSchema,
+  type CourseRefocusSuggestion as SharedCourseRefocusSuggestion,
+  type DailyPushNudge,
+} from '@post-anki/shared'
 
 export const subjectSchema = z.object({
   id: z.string(),
@@ -8,6 +12,7 @@ export const subjectSchema = z.object({
   description: z.string().optional(),
   requireSources: z.boolean(),
   kind: z.enum(['architecture-mentor', 'language-practice']).default('architecture-mentor'),
+  modelTier: modelTierSchema.nullable(),
 })
 
 export type Subject = z.infer<typeof subjectSchema>
@@ -70,6 +75,7 @@ export const curriculumSchema = z.object({
   preAssessmentCompletedAt: z.string().nullable(),
   domainNodeId: z.string().nullable(),
   order: z.number().int(),
+  modelTier: modelTierSchema.nullable(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
@@ -463,6 +469,7 @@ export const updateAdaptiveInput = z.object({
   hinting: z.boolean().optional(),
   defaultDepth: depthSchema.optional(),
   strictOrder: z.boolean().optional(),
+  modelTier: modelTierSchema.nullable().optional(),
 })
 
 export type UpdateAdaptiveInput = z.infer<typeof updateAdaptiveInput>

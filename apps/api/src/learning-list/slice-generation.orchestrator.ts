@@ -1,4 +1,5 @@
 import { eq, sql } from "drizzle-orm";
+import { RequestContext } from "@mastra/core/request-context";
 import {
   deriveModuleFillStates,
   extractSourceText,
@@ -184,6 +185,7 @@ async function generateFromTarget(
 
     result = await agent.generate(prompt, {
       structuredOutput: { schema: sliceGenerationPlanSchema },
+      requestContext: new RequestContext([["curriculumId", request.curriculumId]]),
     });
   } catch (err) {
     log.error(

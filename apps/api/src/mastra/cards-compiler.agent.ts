@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You COMPILE a set of review cards for a topic, for an architecture-judgment learning system.",
@@ -28,6 +28,6 @@ export function createCardsCompiler(): Agent {
     id: "cards-compiler",
     name: "Cards Compiler",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

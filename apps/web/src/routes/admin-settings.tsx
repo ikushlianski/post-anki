@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 
+import type { ModelTier } from '@post-anki/shared'
 import {
   getAdminSettings,
   updateAdminSettings,
 } from '../admin-settings/admin-settings.api'
 import { AdminSettingsToggle } from '../admin-settings/admin-settings-toggle'
+import { ModelTierSelect } from '../admin-settings/model-tier-select'
 
 export const Route = createFileRoute('/admin-settings')({
   component: AdminSettingsPage,
@@ -24,6 +26,13 @@ function AdminSettingsPage() {
     await router.invalidate()
   }
 
+  async function setModelTier(modelTier: ModelTier) {
+    setBusy(true)
+    await updateAdminSettings({ data: { modelTier } })
+    setBusy(false)
+    await router.invalidate()
+  }
+
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
@@ -34,6 +43,14 @@ function AdminSettingsPage() {
       </header>
 
       <div className="space-y-3">
+        <ModelTierSelect
+          label="Model tier"
+          description="Global default model cost tier for every AI call that has no subject/curriculum override."
+          value={settings.modelTier}
+          onChange={setModelTier}
+          disabled={busy}
+          testId="admin-settings-model-tier"
+        />
         <AdminSettingsToggle
           label="Test toggle"
           description="A placeholder switch for wiring up admin settings end to end."

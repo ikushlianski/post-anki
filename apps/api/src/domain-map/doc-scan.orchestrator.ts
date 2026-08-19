@@ -1,5 +1,6 @@
 import type { DomainNodeTreeItem, DomainSupersessionSuggestion, DomainTopicSuggestion } from "@post-anki/shared";
 import { docScanAgentResultSchema } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { TRACKED_TOOLS, type TrackedTool } from "./tracked-tools.js";
@@ -181,6 +182,7 @@ async function scanFetchedTools(
     const agent = getMastra().getAgent(AGENT_KEYS.docScan);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: docScanAgentResultSchema },
+      requestContext: new RequestContext([["subjectId", subjectId]]),
     });
 
     if (!result.object) {

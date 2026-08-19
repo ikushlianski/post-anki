@@ -29,6 +29,11 @@ export const subjects = pgTable("subjects", {
   embedding: jsonb("embedding").$type<number[]>(),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
+  // cost-tier-model-selection — nullable, no default: unset means "inherit
+  // the global admin-settings tier", a real state, never a sentinel string.
+  // Same app-level-validated text-column convention as `curricula.concern`
+  // (curated `modelTierSchema` enum from @post-anki/shared, not a pg enum).
+  modelTier: text("model_tier"),
 });
 
 export const curricula = pgTable(
@@ -54,6 +59,10 @@ export const curricula = pgTable(
     // app-level validated — deliberately NOT a pg enum, matching every other
     // enum-ish text column in this file.
     concern: text("concern"),
+    // cost-tier-model-selection — nullable, no default: unset means
+    // "inherit the subject's tier, then the global default", the same
+    // cascade-friendly real-null shape as `concern` above.
+    modelTier: text("model_tier"),
     // learning-list-fold-in — nullable, additive: marks a curriculum as the
     // implicit, single, per-Area catch-all container that a folded-in single
     // (learning-list destination `fold_in`) lands in, since `topics.
@@ -475,6 +484,10 @@ export const topics = pgTable("topics", {
 export const appSettings = pgTable("app_settings", {
   id: text("id").primaryKey(),
   testToggle: boolean("test_toggle").notNull().default(false),
+  // cost-tier-model-selection — global default, always set (no null state
+  // at this level, unlike subjects.modelTier/curricula.modelTier which
+  // inherit). Curated `modelTierSchema` enum from @post-anki/shared.
+  modelTier: text("model_tier").notNull().default("cheap"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

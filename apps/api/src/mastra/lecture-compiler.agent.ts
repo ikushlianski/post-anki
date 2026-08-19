@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You COMPILE a short, curated theory briefing for a topic, for an architecture-judgment learning",
@@ -28,6 +28,6 @@ export function createLectureCompiler(): Agent {
     id: "lecture-compiler",
     name: "Lecture Compiler",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

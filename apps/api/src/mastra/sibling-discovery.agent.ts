@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const SIBLING_DISCOVERY_INSTRUCTIONS = [
   "You are placing a new learning topic into an existing domain hierarchy — a tree that",
@@ -37,6 +37,6 @@ export function createSiblingDiscoveryAgent(): Agent {
     id: "sibling-discovery",
     name: "Sibling Discovery",
     instructions: SIBLING_DISCOVERY_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

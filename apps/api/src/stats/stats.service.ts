@@ -130,10 +130,12 @@ export async function generateRecommendations(
         .filter(Boolean)
         .join(" ");
 
-      const outcome = await webSearch(prompt, "stats.recommendation", {
-        topicId: topic.topicId,
-        topicTitle: topic.topicTitle,
-      });
+      const outcome = await webSearch(
+        prompt,
+        "stats.recommendation",
+        { topicId: topic.topicId, topicTitle: topic.topicTitle },
+        { curriculumId },
+      );
 
       if (!outcome.ok || outcome.text.length === 0) {
         log.warn({ topicId: topic.topicId, curriculumId }, "stats_recommendation_failed");

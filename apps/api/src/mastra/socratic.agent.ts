@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You are a senior architecture mentor teaching ONE concept at a time through conversation.",
@@ -32,6 +32,6 @@ export function createSocraticEvalAgent(): Agent {
     id: "socratic-eval",
     name: "Socratic Mentor (evaluate)",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

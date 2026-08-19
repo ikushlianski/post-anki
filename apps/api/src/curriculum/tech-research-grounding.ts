@@ -1,6 +1,11 @@
 import { isSafeSourceUrl } from "@post-anki/core";
 import { loadEnv, type Env } from "../shared/env.js";
 import { log } from "../shared/log.js";
+import {
+  resolveEffectiveModelTier,
+  type ResolveEffectiveModelTierScope,
+} from "../mastra/tier-resolver.js";
+import { tierToModelId } from "../mastra/model-tier.js";
 
 // This module calls OpenRouter directly via fetch() rather than through
 // Mastra's Agent (which resolves OPENROUTER_BASE_URL itself via
@@ -35,13 +40,20 @@ interface ChatResponse {
   error?: { message?: string };
 }
 
-function restModel(): string {
-  return loadEnv().CURRICULUM_MODEL.replace(/^openrouter\//, "");
+// cost-tier-model-selection — resolves the same tier cascade
+// (resolveEffectiveModelTier -> tierToModelId) every Mastra agent uses via
+// dynamicResolvedModel, not a second/duplicated cascade — this module just
+// can't reach it through Mastra's Agent since it bypasses Agent entirely.
+async function restModel(scope: ResolveEffectiveModelTierScope): Promise<string> {
+  const tier = await resolveEffectiveModelTier(scope);
+
+  return tierToModelId(tier).replace(/^openrouter\//, "");
 }
 
 async function gatherGrounding(
   instructionParts: string[],
   logContext: Record<string, unknown>,
+  scope: ResolveEffectiveModelTierScope,
 ): Promise<TechResearchGrounding> {
   const env = loadEnv();
   const controller = new AbortController();
@@ -56,7 +68,7 @@ async function gatherGrounding(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: restModel(),
+        model: await restModel(scope),
         tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
         messages: [
           {
@@ -92,6 +104,7 @@ async function gatherGrounding(
 export async function gatherTechResearchGrounding(
   technologyName: string,
   siteHost?: string,
+  scope: ResolveEffectiveModelTierScope = {},
 ): Promise<TechResearchGrounding> {
   const searchInstruction = siteHost
     ? `Search site:${siteHost} for current, authoritative information about the technology: ${technologyName}. Restrict results to that site.`
@@ -105,12 +118,14 @@ export async function gatherTechResearchGrounding(
       `and common pitfalls. Favour judgment over syntax.`,
     ],
     { technologyName },
+    scope,
   );
 }
 
 export async function gatherLectureSourceGrounding(
   topicTitle: string,
   curriculumContext?: string,
+  scope: ResolveEffectiveModelTierScope = {},
 ): Promise<TechResearchGrounding> {
   const contextSuffix = curriculumContext
     ? ` in the context of ${curriculumContext}`
@@ -125,6 +140,7 @@ export async function gatherLectureSourceGrounding(
       `can select the most relevant ones as lecture sources.`,
     ],
     { topicTitle },
+    scope,
   );
 }
 
@@ -162,7 +178,10 @@ const RESOLVE_DOCS_URL_TIMEOUT_MS = 20_000;
  * gathering simply skips the docs-chain tier in that case, it does not
  * fail the whole request (see architecture.md's Failure modes).
  */
-export async function resolveOfficialDocsUrl(technologyName: string): Promise<string | null> {
+export async function resolveOfficialDocsUrl(
+  technologyName: string,
+  scope: ResolveEffectiveModelTierScope = {},
+): Promise<string | null> {
   const env = loadEnv();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RESOLVE_DOCS_URL_TIMEOUT_MS);
@@ -176,7 +195,7 @@ export async function resolveOfficialDocsUrl(technologyName: string): Promise<st
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: restModel(),
+        model: await restModel(scope),
         tools: [{ type: "openrouter:web_search", max_results: 3 }],
         messages: [
           {
@@ -224,6 +243,7 @@ export interface TrustedSourceCandidate {
  */
 export async function gatherTrustedSourceCandidates(
   technologyName: string,
+  scope: ResolveEffectiveModelTierScope = {},
 ): Promise<TrustedSourceCandidate[]> {
   const env = loadEnv();
   const controller = new AbortController();
@@ -238,7 +258,7 @@ export async function gatherTrustedSourceCandidates(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: restModel(),
+        model: await restModel(scope),
         tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
         messages: [
           {

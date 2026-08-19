@@ -18,6 +18,7 @@ import {
   type SeriesVerdict,
 } from "@post-anki/shared";
 import { findCurriculumMappedToNode } from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
+import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { discoverGithubChapters, type GithubChapterDiscoveryResult } from "./github-chapters.js";
@@ -91,7 +92,10 @@ async function classifyCapturedItem(
   const [result, chapterDiscovery] = await Promise.all([
     agent.generate(
       buildClassificationPrompt(candidates, input.kind === "video" ? null : input.url, sourceText),
-      { structuredOutput: { schema: learningListClassificationSchema } },
+      {
+        structuredOutput: { schema: learningListClassificationSchema },
+        requestContext: new RequestContext([["subjectId", input.subjectId]]),
+      },
     ),
     input.kind === "video" ? Promise.resolve(NO_CHAPTERS_DISCOVERED) : discoverGithubChapters(input.url),
   ]);

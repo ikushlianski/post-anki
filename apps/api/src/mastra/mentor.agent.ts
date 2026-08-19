@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const ASK_INSTRUCTIONS = [
   "You are a senior architecture mentor running a Socratic probing session.",
@@ -64,7 +64,7 @@ export function createMentorAskAgent(): Agent {
     id: "mentor-ask",
     name: "Mentor (ask)",
     instructions: ASK_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }
 
@@ -75,6 +75,6 @@ export function createMentorEvalAgent(): Agent {
     id: "mentor-eval",
     name: "Mentor (evaluate)",
     instructions: EVAL_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

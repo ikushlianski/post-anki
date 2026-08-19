@@ -44,6 +44,7 @@ describe('mapSubjectRow', () => {
       description: 'TCP/IP and friends',
       requireSources: true,
       kind: 'architecture-mentor',
+      modelTier: null,
     })
   })
 

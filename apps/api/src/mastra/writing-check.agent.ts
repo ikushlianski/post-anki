@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const WRITING_CHECK_INSTRUCTIONS = [
   "You are grading a piece of freeform English writing (a Slack message, a PR",
@@ -31,6 +31,6 @@ export function createWritingCheckAgent(): Agent {
     id: "writing-check",
     name: "Writing Check",
     instructions: WRITING_CHECK_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

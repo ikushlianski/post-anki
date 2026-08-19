@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You EXTRACT a short list of candidate lecture sources from web-grounded research notes, for an",
@@ -32,6 +32,6 @@ export function createLectureSourceSelector(): Agent {
     id: "lecture-source-selector",
     name: "Lecture Source Selector",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

@@ -248,6 +248,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     preAssessmentCompletedAt: curriculum.preAssessmentCompletedAt,
     domainNodeId: curriculum.domainNodeId,
     order: curriculum.order,
+    modelTier: curriculum.modelTier,
   }
 }
 
@@ -443,6 +444,16 @@ export async function deleteSubject(subjectId: string): Promise<void> {
   await request(`/subjects/${subjectId}`, { method: 'DELETE' })
 }
 
+export async function updateSubjectModelTier(
+  subjectId: string,
+  modelTier: be.ModelTier | null,
+): Promise<Subject> {
+  return request<be.Subject>(`/subjects/${subjectId}`, {
+    method: 'PATCH',
+    body: { modelTier },
+  })
+}
+
 export interface MergeSubjectsResult {
   targetSubjectId: string
   sourceSubjectId: string
@@ -580,6 +591,7 @@ export async function updateCurriculumSettings(input: {
   hinting?: boolean
   defaultDepth?: Depth
   strictOrder?: boolean
+  modelTier?: be.ModelTier | null
 }): Promise<Curriculum> {
   const body: Record<string, unknown> = {}
 
@@ -597,6 +609,10 @@ export async function updateCurriculumSettings(input: {
 
   if (input.strictOrder !== undefined) {
     body.strictOrder = input.strictOrder
+  }
+
+  if (input.modelTier !== undefined) {
+    body.modelTier = input.modelTier
   }
 
   const updated = await request<be.Curriculum>(`/curricula/${input.curriculumId}`, {

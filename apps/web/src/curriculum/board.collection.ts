@@ -23,6 +23,7 @@ interface SubjectRow {
   description: string | null
   require_sources: boolean
   kind: string
+  model_tier?: string | null
 }
 
 interface CurriculumRow {
@@ -40,6 +41,7 @@ interface CurriculumRow {
   pre_assessment_completed_at: string | null
   domain_node_id: string | null
   order: number
+  model_tier?: string | null
 }
 
 interface CurriculumSourceRow {
@@ -100,6 +102,7 @@ export function mapSubjectRow(row: SubjectRow): Subject {
     description: row.description ?? undefined,
     requireSources: row.require_sources,
     kind: row.kind as Subject['kind'],
+    modelTier: (row.model_tier ?? null) as Subject['modelTier'],
   }
 }
 
@@ -140,5 +143,6 @@ export function mapCurriculumRow(
     // not Electric) is where a real placement value comes from.
     domainNodeId: row.domain_node_id ?? null,
     order: row.order,
+    modelTier: (row.model_tier ?? null) as Curriculum['modelTier'],
   }
 }

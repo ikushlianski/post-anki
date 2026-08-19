@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const LEARNING_LIST_SLICE_INSTRUCTIONS = [
   "You propose the next slice of study topics for a learning-list item, grounded strictly in the",
@@ -37,6 +37,6 @@ export function createLearningListSliceAgent(): Agent {
     id: "learning-list-slice",
     name: "Learning List Slice Generator",
     instructions: LEARNING_LIST_SLICE_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

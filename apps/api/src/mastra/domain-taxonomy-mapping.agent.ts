@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 // decouple-curricula-from-domain-nodes (issue #84) — unlike
 // sibling-discovery.agent.ts/domain-priority-review.agent.ts, this agent is
@@ -43,6 +43,6 @@ export function createDomainTaxonomyMappingAgent(): Agent {
     id: "domain-taxonomy-mapping",
     name: "Domain Taxonomy Mapping",
     instructions: DOMAIN_TAXONOMY_MAPPING_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

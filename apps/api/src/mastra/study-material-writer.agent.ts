@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const INSTRUCTIONS = [
   "You WRITE grounded study material — either a worked example or an analogy — for an",
@@ -31,6 +31,6 @@ export function createStudyMaterialWriter(): Agent {
     id: "study-material-writer",
     name: "Study Material Writer",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

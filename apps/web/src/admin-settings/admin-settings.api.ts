@@ -1,11 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
-import type { AdminSettings } from '@post-anki/shared'
+import { modelTierSchema, type AdminSettings } from '@post-anki/shared'
 import * as api from '../curriculum/api-client'
 
 const updateAdminSettingsInput = z.object({
-  testToggle: z.boolean(),
+  testToggle: z.boolean().optional(),
+  modelTier: modelTierSchema.optional(),
 })
 
 export const getAdminSettings = createServerFn({ method: 'GET' }).handler(

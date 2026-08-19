@@ -1,5 +1,6 @@
 import type { AskStudyChatInput, AskStudyChatResult } from "@post-anki/shared";
 import { summarizeLearningMap } from "@post-anki/core";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
@@ -60,11 +61,14 @@ export async function askStudyChat(
     .filter(Boolean)
     .join("\n");
 
+  const requestContext = new RequestContext([["curriculumId", ctx.curriculumId]]);
+
   try {
     if (promptContext?.subjectKind === "language-practice") {
       const agent = getMastra().getAgent(AGENT_KEYS.languageChat);
       const result = await agent.generate(prompt, {
         structuredOutput: { schema: languageChatReplySchema },
+        requestContext,
       });
       const reply = result.object?.languagePracticeReply?.trim();
 
@@ -73,7 +77,7 @@ export async function askStudyChat(
       }
     } else {
       const agent = getMastra().getAgent(AGENT_KEYS.studyChat);
-      const result = await agent.generate(prompt);
+      const result = await agent.generate(prompt, { requestContext });
       const reply = result.text?.trim();
 
       if (reply) {

@@ -21,6 +21,7 @@ import {
   nextGapToProbe,
   progressFromGaps,
 } from "@post-anki/core";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
@@ -181,6 +182,7 @@ export async function answerSocraticSession(
     turn.conceptLabel,
     input.answer,
     grounding,
+    session.curriculumId,
   );
 
   const priorTurns = await listTurnRows(session.id);
@@ -508,6 +510,7 @@ async function evaluateSocratic(
   conceptLabel: string,
   answer: string,
   grounding: string,
+  curriculumId?: string,
 ): Promise<SocraticEval> {
   const prompt = [
     `Topic: ${topicTitle}`,
@@ -524,6 +527,9 @@ async function evaluateSocratic(
     const agent = getMastra().getAgent(AGENT_KEYS.socraticEval);
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: socraticEvalSchema },
+      requestContext: curriculumId
+        ? new RequestContext([["curriculumId", curriculumId]])
+        : undefined,
     });
 
     if (result.object) {

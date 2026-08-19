@@ -1,4 +1,5 @@
 import type { SourceDraft } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import { curriculumPlanSchema, curriculumMergePlanSchema } from "./curriculum-plan.js";
@@ -63,6 +64,7 @@ export async function parseCurriculum(curriculumId: string): Promise<void> {
 
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: curriculumPlanSchema },
+      requestContext: new RequestContext([["curriculumId", curriculumId]]),
     });
 
     if (!result.object) {
@@ -132,7 +134,7 @@ export async function researchCurriculum(
       "",
     );
 
-    const candidates = await gatherSourceCandidates(input);
+    const candidates = await gatherSourceCandidates(input, { curriculumId });
 
     await insertPendingSources(
       curriculumId,
@@ -232,6 +234,7 @@ export async function mergeSourcesIntoCurriculum(
 
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: curriculumMergePlanSchema },
+      requestContext: new RequestContext([["curriculumId", curriculumId]]),
     });
 
     const fresh = result.object

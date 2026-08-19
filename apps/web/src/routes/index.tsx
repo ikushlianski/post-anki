@@ -18,12 +18,14 @@ import type {
 import { getBoard, getTree } from '../curriculum/curriculum.api'
 import { getStreak } from '../curriculum/stats.api'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
+import { getAdminSettings } from '../admin-settings/admin-settings.api'
 import type {
   Curriculum,
   CourseRefocusSuggestion,
   DashboardSubject,
   Subject,
 } from '../curriculum/model'
+import type { ModelTier } from '@post-anki/shared'
 import { SubjectSection } from '../subject/subject-section'
 import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
 import { ContinueSessionCard } from '../home/continue-session-card'
@@ -42,6 +44,7 @@ export const Route = createFileRoute('/')({
       learningPaths,
       tree,
       streak,
+      adminSettings,
     ] = await Promise.all([
       getBoard(),
       listCourseRefocusSuggestions().catch(() => []),
@@ -49,6 +52,7 @@ export const Route = createFileRoute('/')({
       listLearningPaths({ data: { onlyActive: true } }).catch(() => []),
       getTree().catch(() => []),
       getStreak().catch(() => null),
+      getAdminSettings().catch(() => ({ testToggle: false, modelTier: 'cheap' as const })),
     ])
 
     return {
@@ -58,6 +62,7 @@ export const Route = createFileRoute('/')({
       learningPaths,
       tree,
       streak,
+      globalModelTier: adminSettings.modelTier,
     }
   },
 })
@@ -93,6 +98,7 @@ function Home() {
         learningPaths={initial.learningPaths}
         tree={initial.tree}
         streak={initial.streak}
+        globalModelTier={initial.globalModelTier}
       />
     </>
   )
@@ -136,6 +142,7 @@ function HomeView({
   learningPaths,
   tree,
   streak,
+  globalModelTier,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
@@ -144,6 +151,7 @@ function HomeView({
   learningPaths: LearningPath[]
   tree: DashboardSubject[]
   streak: Streak | null
+  globalModelTier: ModelTier
 }) {
   const namesById: Record<string, string> = {}
 
@@ -195,6 +203,7 @@ function HomeView({
               subject={subject}
               curricula={curricula.filter((c) => c.subjectId === subject.id)}
               allSubjects={subjects}
+              globalModelTier={globalModelTier}
             />
           ))}
         </div>

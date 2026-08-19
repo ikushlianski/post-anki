@@ -5,6 +5,11 @@ import {
   getCurriculumCitableUrls,
   getCurriculumGroundingText,
 } from "../curriculum/curriculum.repo.js";
+import {
+  resolveEffectiveModelTier,
+  type ResolveEffectiveModelTierScope,
+} from "../mastra/tier-resolver.js";
+import { tierToModelId } from "../mastra/model-tier.js";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const TIMEOUT_MS = 45_000;
@@ -35,8 +40,12 @@ export type WebSearchOutcome =
   | { ok: true; text: string; citations: string[]; emptyErrorMessage?: string }
   | { ok: false; status?: number; error?: unknown };
 
-function restModel(): string {
-  return loadEnv().CURRICULUM_MODEL.replace(/^openrouter\//, "");
+// cost-tier-model-selection — same shared cascade as tech-research-
+// grounding.ts's restModel(), not a duplicated one.
+async function restModel(scope: ResolveEffectiveModelTierScope): Promise<string> {
+  const tier = await resolveEffectiveModelTier(scope);
+
+  return tierToModelId(tier).replace(/^openrouter\//, "");
 }
 
 export async function gatherProbeGrounding(
@@ -57,7 +66,7 @@ export async function gatherProbeGrounding(
     return { text: truncate(pasted), fromWeb: false, citations };
   }
 
-  const web = await webGround(topicTitle, focus);
+  const web = await webGround(topicTitle, focus, { curriculumId });
 
   log.info(
     {
@@ -83,9 +92,10 @@ export async function webSearch(
   prompt: string,
   spanName: string,
   spanAttrs: Record<string, unknown> = {},
+  scope: ResolveEffectiveModelTierScope = {},
 ): Promise<WebSearchOutcome> {
   const env = loadEnv();
-  const model = restModel();
+  const model = await restModel(scope);
   const endpoint = `${env.OPENROUTER_BASE_URL ?? DEFAULT_BASE_URL}/chat/completions`;
   const span = startTracingSpan(spanName, { ...spanAttrs, model });
   const controller = new AbortController();
@@ -135,6 +145,7 @@ export async function webSearch(
 async function webGround(
   topicTitle: string,
   focus: string,
+  scope: ResolveEffectiveModelTierScope = {},
 ): Promise<{ text: string; citations: string[] }> {
   const prompt = [
     `Search the web for current, authoritative information to ground a senior-level`,
@@ -143,7 +154,7 @@ async function webGround(
     `Favour judgment over syntax. Do not write the question itself.`,
   ].join(" ");
 
-  const outcome = await webSearch(prompt, "probe.web_grounding", { topicTitle, focus });
+  const outcome = await webSearch(prompt, "probe.web_grounding", { topicTitle, focus }, scope);
 
   if (!outcome.ok) {
     if (outcome.status !== undefined) {

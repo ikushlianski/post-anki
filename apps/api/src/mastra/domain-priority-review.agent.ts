@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicResolvedModel } from "./model.js";
 
 const DOMAIN_PRIORITY_REVIEW_INSTRUCTIONS = [
   "You are reviewing a learner's domain map to suggest which areas deserve more (or less)",
@@ -37,6 +37,6 @@ export function createDomainPriorityReviewAgent(): Agent {
     id: "domain-priority-review",
     name: "Domain Priority Review",
     instructions: DOMAIN_PRIORITY_REVIEW_INSTRUCTIONS,
-    model: resolveAgentModel(env),
+    model: dynamicResolvedModel(env),
   });
 }

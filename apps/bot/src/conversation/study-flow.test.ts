@@ -38,6 +38,7 @@ describe("startStudy", () => {
         name: "Quick Studies",
         requireSources: false,
         kind: "architecture-mentor",
+        modelTier: null,
       });
       vi.mocked(createStudyCurriculum).mockResolvedValue(undefined);
 
