@@ -12,6 +12,7 @@ import {
 import {
   applyGapVerdicts,
   buildFeedbackDigest,
+  isCalibrationRequiredForSocratic,
   isCalibrationStale,
   nextGapToProbe,
   normalizeApplicableArchetypes,
@@ -21,6 +22,7 @@ import {
   selectArchetype,
   selectRecentFeedback,
 } from "@post-anki/core";
+import { getCalibrationCompletionForCurriculum } from "../probe-session/probe-session.repo.js";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
 import {
@@ -50,6 +52,7 @@ import {
   getRecentSessionExchangesForGap,
 } from "../socratic/socratic.repo.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
+import { gatherPageGroundedQuestionContext } from "../topic/generate-page-questions.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
 import { localEvaluation, shouldScoreLocally } from "./probe-evaluation.js";
 
@@ -73,6 +76,24 @@ interface AskContext {
   priorLevelCoverage?: string[];
 }
 
+// S6's gate — reused by socratic.service.ts's startSocraticSession before it
+// creates a session, so Socratic dialogue for a topic never opens until
+// that topic's course has completed its calibration quiz at least once. A
+// topic with no curriculum context (shouldn't happen for a confirmed
+// curriculum, but the caller has already checked confirmation) is never
+// gated — nothing to calibrate against.
+export async function isSocraticGatedByCalibration(topicId: string): Promise<boolean> {
+  const ctx = await getCurriculumContextForTopic(topicId);
+
+  if (!ctx || !ctx.curriculumId) {
+    return false;
+  }
+
+  const completion = await getCalibrationCompletionForCurriculum(ctx.curriculumId);
+
+  return isCalibrationRequiredForSocratic(completion);
+}
+
 export async function startProbe(
   input: StartProbeInput,
   now: string = new Date().toISOString(),
@@ -91,7 +112,14 @@ export async function startProbe(
 
   const gaps = await listGapsForTopic(input.topicId);
   const gap = nextGapToProbe(gaps, rowDepth(topic));
-  const grounding = await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title);
+  // S3 — the topic-open path prefers the topic's own crawled source page
+  // (topics.sourceId) over curriculum-wide/web grounding, when one exists.
+  // This is what makes generation "lazy": the page's material is only ever
+  // touched here, the moment a learner opens the topic, never at crawl time.
+  const pageGrounding = topic.sourceId
+    ? await gatherPageGroundedQuestionContext(input.topicId)
+    : null;
+  const grounding = pageGrounding ?? (await gatherProbeGrounding(ctx.curriculumId, topic.title, topic.title));
   const priorLevelCoverage = await getLowerLevelCoverage(input.topicId);
 
   return buildQuestion(

@@ -15,10 +15,12 @@ interface ChatMessage {
 
 export function SocraticChat({ topicId }: { topicId: string }) {
   const router = useRouter()
-  const { data: session, isLoading } = useQuery({
+  const { data: startResult, isLoading } = useQuery({
     queryKey: ['socratic-session', topicId],
     queryFn: () => startSocraticSession({ data: { topicId } }),
   })
+
+  const session = startResult?.ok ? startResult.session : undefined
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [answer, setAnswer] = useState('')
@@ -108,6 +110,20 @@ export function SocraticChat({ topicId }: { topicId: string }) {
     return (
       <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4">
         <p className="text-sm text-neutral-400">The mentor is preparing a question…</p>
+      </div>
+    )
+  }
+
+  if (startResult && !startResult.ok && startResult.code === 'calibration_required') {
+    return (
+      <div
+        className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-4"
+        data-testid="socratic-calibration-required"
+      >
+        <p className="text-sm text-amber-900">
+          Take this course’s calibration quiz first — it sets your starting depth for each topic
+          before the mentor dialogue opens.
+        </p>
       </div>
     )
   }

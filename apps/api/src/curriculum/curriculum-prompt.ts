@@ -207,6 +207,10 @@ export function buildStructureDraftPrompt(
     trustedSourcesBlock(trustedSources),
     "",
     "Propose a FIRST DRAFT of the full learning map for this curriculum, following the two-step reasoning from your instructions: first the general topics (modules), then the subtopics within each.",
+    "",
+    "Granularity: each topic must represent one coherent concept a learner would study as a unit — never split finer than that. When source material spans many small pages (e.g. a crawled docs site), group pages that cover the same concept into a single topic instead of creating one topic per page.",
+    "",
+    "Provenance: the approved source material above marks each crawled page with a line like \"# <title> (SOURCE_URL: <url>)\". When a topic's content comes chiefly from one such page, set that topic's sourceUrl to the EXACT url from that marker. Set sourceUrl to null when the topic draws on pasted text with no such marker, spans several pages, or comes from your own trained knowledge.",
   ].join("\n");
 }
 

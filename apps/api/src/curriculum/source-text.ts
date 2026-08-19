@@ -21,7 +21,18 @@ export async function assembleAllSourceText(curriculumId: string): Promise<strin
         await storeFetchedText(row.id, text);
       }
 
-      return row.title ? `# ${row.title}\n${text}` : text;
+      // S2's provenance requirement — a link source's URL is embedded as a
+      // machine-parseable marker the structure-generation prompt asks the
+      // model to echo back per topic (as `sourceUrl`), so saveCurriculumPlan
+      // can resolve it to this source row's id and write topics.sourceId.
+      const header =
+        row.kind === "link"
+          ? `# ${row.title ?? row.value} (SOURCE_URL: ${row.value})`
+          : row.title
+            ? `# ${row.title}`
+            : null;
+
+      return header ? `${header}\n${text}` : text;
     }),
   );
 

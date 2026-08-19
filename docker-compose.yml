@@ -11,6 +11,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: post-anki-dev-db
+    command: ['postgres', '-c', 'wal_level=logical']
     environment:
       POSTGRES_USER: postanki
       POSTGRES_PASSWORD: postanki

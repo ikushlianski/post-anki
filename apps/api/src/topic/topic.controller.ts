@@ -13,6 +13,8 @@ import {
 } from "./topic.repo.js";
 import { getTopicRow } from "./topic-progress.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
+import { refetchSource } from "../content-library/content-library.service.js";
+import { log } from "../shared/log.js";
 
 export async function handleListTopicGaps(
   res: http.ServerResponse,
@@ -63,6 +65,23 @@ export async function handleUpdateTopic(
   if (!body.ok) {
     sendJson(res, 400, { error: "invalid_input", message: body.issues });
     return;
+  }
+
+  // S7 — accepting a "go deeper" offer (headroom-offer.tsx's onAccept)
+  // stamps learningStatus "going_deeper" on this same update call. Before
+  // writing the new elected depth, re-fetch the topic's own source page
+  // (not a fresh unrelated search) so the harder content generated at the
+  // new depth is grounded in current material. Best-effort: a failed
+  // re-fetch never blocks the depth election itself — refetchSource already
+  // never clobbers a previously-good fetchedText on failure.
+  if (body.data.learningStatus === "going_deeper") {
+    const existing = await getTopicRow(topicId);
+
+    if (existing?.sourceId) {
+      await refetchSource(existing.sourceId).catch((err) => {
+        log.error({ err, topicId, sourceId: existing.sourceId }, "go_deeper_refetch_failed");
+      });
+    }
   }
 
   const topic = await updateTopic({ ...body.data, topicId });

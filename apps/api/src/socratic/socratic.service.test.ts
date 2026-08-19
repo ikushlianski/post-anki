@@ -196,6 +196,7 @@ const buildProbeQuestionForGap = vi.fn(
 
 vi.mock("../probe/probe.service.js", () => ({
   buildProbeQuestionForGap: (...args: unknown[]) => buildProbeQuestionForGap(...args),
+  isSocraticGatedByCalibration: vi.fn(async () => false),
 }));
 
 vi.mock("../streak/streak.service.js", () => ({

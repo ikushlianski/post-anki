@@ -80,6 +80,10 @@ import {
   rejectAllConfirmedForCurriculum,
 } from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
 
+interface PlanTopic {
+  sourceUrl?: string | null;
+}
+
 interface PlanModule {
   title: string;
   level?: Level | null;
@@ -1243,6 +1247,15 @@ export async function saveCurriculumPlan(
   const defaultIncluded = options?.defaultIncluded ?? true;
   const preferredLevel = options?.preferredLevel ?? null;
 
+  // S2 provenance — resolves each topic's model-reported sourceUrl (the
+  // SOURCE_URL marker from source-text.ts, echoed back per
+  // curriculum-plan.ts's topicPlanSchema) to the sources row it names, so
+  // topics.sourceId can be written below. Built once per call, not per
+  // topic, to avoid an N+1 query against a curriculum that can have dozens
+  // of topics.
+  const sourceRows = await getCurriculumSourceRows(curriculumId);
+  const sourceIdByUrl = new Map(sourceRows.map((r) => [r.value, r.id]));
+
   for (const [moduleIndex, mod] of plan.modules.entries()) {
     const moduleId = newId("mod");
     const moduleLevel = (mod as PlanModule).level ?? null;
@@ -1272,6 +1285,8 @@ export async function saveCurriculumPlan(
       : defaultIncluded;
 
     for (const [topicIndex, top] of mod.topics.entries()) {
+      const sourceUrl = (top as PlanTopic).sourceUrl ?? null;
+
       await db.insert(topics).values({
         id: newId("top"),
         moduleId,
@@ -1281,6 +1296,7 @@ export async function saveCurriculumPlan(
         order: topicIndex + 1,
         depth: top.suggestedDepth,
         included,
+        sourceId: sourceUrl ? (sourceIdByUrl.get(sourceUrl) ?? null) : null,
       });
     }
   }

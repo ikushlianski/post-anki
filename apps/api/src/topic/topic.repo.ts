@@ -206,6 +206,25 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
   return true;
 }
 
+// The first real writer of topics.depth/depthElectedAt (S5) — invoked once
+// a course's calibration quiz completes, from
+// probe-session.service.ts's electDepthsOnCalibrationCompletion. Never
+// touches learningStatus/included, unlike updateTopic's broader patch —
+// depth election is purely about starting depth, not progress state.
+export async function electTopicDepths(
+  elected: { topicId: string; depth: DepthLevel }[],
+  now: string,
+): Promise<void> {
+  const db = getDb();
+
+  for (const { topicId, depth } of elected) {
+    await db
+      .update(topics)
+      .set({ depth, depthElectedAt: new Date(now) })
+      .where(eq(topics.id, topicId));
+  }
+}
+
 export async function reorderTopics(orderedIds: string[]): Promise<void> {
   const db = getDb();
 

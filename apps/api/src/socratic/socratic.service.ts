@@ -35,7 +35,7 @@ import {
 import { getCurriculumContextForTopic } from "../curriculum/curriculum.repo.js";
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
 import { recordAnswerActivity } from "../liveness/answer-activity.js";
-import { buildProbeQuestionForGap } from "../probe/probe.service.js";
+import { buildProbeQuestionForGap, isSocraticGatedByCalibration } from "../probe/probe.service.js";
 import {
   completeSocraticSession,
   createSocraticSession,
@@ -57,7 +57,11 @@ import {
   SESSION_IDLE_THRESHOLD_MS,
 } from "./session-summary.js";
 
-export type SocraticError = "not_found" | "not_confirmed" | "turn_not_found";
+export type SocraticError =
+  | "not_found"
+  | "not_confirmed"
+  | "turn_not_found"
+  | "calibration_required";
 
 // Soft checkpoint at 5+ exchanges (issue #27) — the literal number from the
 // issue itself, no per-depth scaling.
@@ -77,6 +81,10 @@ export async function startSocraticSession(
 
   if (!ctx || ctx.status !== "confirmed") {
     return { error: "not_confirmed" };
+  }
+
+  if (await isSocraticGatedByCalibration(input.topicId)) {
+    return { error: "calibration_required" };
   }
 
   if (!input.regenerate) {

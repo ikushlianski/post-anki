@@ -10,6 +10,7 @@ import type {
 import {
   deriveMultiQuizOutcome,
   deriveQuizOutcome,
+  electDepthFromCalibration,
   hasEarlyMasterySignal,
   isOneShotProbeScope,
   openGaps,
@@ -28,6 +29,7 @@ import {
   rowDepth,
   writeTopicProgress,
 } from "../topic/topic-progress.repo.js";
+import { electTopicDepths } from "../topic/topic.repo.js";
 import {
   appendQuestions,
   createSessionWithQuestions,
@@ -36,6 +38,7 @@ import {
   getQuestionRow,
   getScopeContext,
   getSessionRow,
+  listAnsweredTopicOutcomesForSession,
   loadSession,
   recordAnswer,
   releaseReplenish,
@@ -230,6 +233,17 @@ export async function answerProbeSession(
 
   const progress = await syncSessionCounters(input.sessionId, now);
 
+  // S5 — a curriculum-scope calibration quiz's completion is the first real
+  // writer of topics.depth/depthElectedAt. Guarded on session.completedAt
+  // (the pre-answer row fetched above) being null so this only fires once,
+  // the moment the quiz crosses from active to completed — never on a
+  // later answer replay against an already-completed session.
+  if (session.scope === "curriculum" && session.completedAt === null && progress.status === "completed") {
+    void electDepthsOnCalibrationCompletion(input.sessionId, now).catch((err) => {
+      log.error({ err, sessionId: input.sessionId }, "calibration_depth_election_failed");
+    });
+  }
+
   await recordActivityToday(now);
 
   // Fire-and-forget, same pattern the curriculum orchestrator already uses
@@ -254,6 +268,26 @@ export async function answerProbeSession(
     optionExplanations: question.optionExplanations ?? null,
     gapMastery,
   };
+}
+
+/**
+ * Elects each topic's starting depth from this curriculum-scope calibration
+ * session's per-topic answer record (S5), then writes it via
+ * electTopicDepths — topics.depth/depthElectedAt's first real writer.
+ * Fire-and-forget from answerProbeSession, same pattern as maybeReplenish:
+ * the learner sees their last answer's result immediately, this write
+ * trails a beat behind.
+ */
+async function electDepthsOnCalibrationCompletion(sessionId: string, now: string): Promise<void> {
+  const outcomes = await listAnsweredTopicOutcomesForSession(sessionId);
+
+  if (outcomes.length === 0) {
+    return;
+  }
+
+  const elected = electDepthFromCalibration(outcomes);
+
+  await electTopicDepths(elected, now);
 }
 
 /**

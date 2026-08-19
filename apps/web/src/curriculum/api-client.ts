@@ -1162,17 +1162,39 @@ export async function answerProbeSession(input: {
   }
 }
 
+export type StartSocraticSessionResult =
+  | { ok: true; session: be.SocraticSession }
+  | { ok: false; code: 'calibration_required' | 'not_confirmed' | 'not_found' | 'unknown' }
+
+// Surfaces the calibration gate (S6) as a distinct outcome instead of
+// collapsing every failure into null — SocraticChat needs to tell "the
+// server is unreachable" apart from "this course's calibration quiz isn't
+// done yet" so it can render the right state.
 export async function startSocraticSession(input: {
   topicId: string
   regenerate?: boolean
-}): Promise<be.SocraticSession | null> {
+}): Promise<StartSocraticSessionResult> {
   try {
-    return await request<be.SocraticSession>('/socratic-sessions', {
+    const session = await request<be.SocraticSession>('/socratic-sessions', {
       method: 'POST',
       body: input,
     })
-  } catch {
-    return null
+
+    return { ok: true, session }
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'calibration_required') {
+      return { ok: false, code: 'calibration_required' }
+    }
+
+    if (err instanceof ApiError && err.code === 'not_confirmed') {
+      return { ok: false, code: 'not_confirmed' }
+    }
+
+    if (err instanceof ApiError && err.code === 'not_found') {
+      return { ok: false, code: 'not_found' }
+    }
+
+    return { ok: false, code: 'unknown' }
   }
 }
 

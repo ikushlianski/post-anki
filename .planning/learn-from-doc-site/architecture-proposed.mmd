@@ -1,0 +1,21 @@
+flowchart TD
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+
+  A["Docs URL submitted<br/>under existing subject"]
+  B["Doc-site crawl<br/>(existing: gatherDocSiteCandidates)"]
+  C["Curriculum structure generation<br/>(existing, +granularity constraint)"]
+  D["Topic opened first time"]
+  E["Lazy page-grounded<br/>question generation (NEW)"]
+  F["Calibration quiz<br/>(existing probe-session scope,<br/>10-20 questions)"]
+  G["Depth election per topic<br/>(NEW writer for existing<br/>topics.depth/depthElectedAt)"]
+  H{"Socratic gate:<br/>calibration complete?"}
+  I["Socratic dialogue<br/>capped at elected depth<br/>(existing gap-generation cap)"]
+  J["Headroom offer<br/>(existing: availableDepth ⚠ elected)"]
+  K["Re-fetch original source page<br/>(existing: refetchLink)"]
+
+  A --> B --> C --> D --> E
+  C --> F --> G --> H
+  H -- "not yet" --> F
+  H -- "complete" --> I
+  I --> J -- "user accepts" --> K --> I

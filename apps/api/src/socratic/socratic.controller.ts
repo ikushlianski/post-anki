@@ -13,6 +13,7 @@ const STATUS: Record<SocraticError, number> = {
   not_found: 404,
   not_confirmed: 409,
   turn_not_found: 404,
+  calibration_required: 409,
 };
 
 export async function handleStartSocratic(

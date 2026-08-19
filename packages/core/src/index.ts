@@ -27,3 +27,5 @@ export * from "./content-library/index";
 export * from "./source-duplicate/index";
 export * from "./source-text/index";
 export * from "./github-book/index";
+export * from "./topic/elect-depth-from-calibration";
+export * from "./topic/is-calibration-required-for-socratic";
