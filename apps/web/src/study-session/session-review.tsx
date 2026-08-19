@@ -14,7 +14,7 @@ export function SessionReview({ session }: SessionReviewProps) {
   )
 
   return (
-    <div data-testid="session-review" className="rounded-xl border border-neutral-200 bg-white p-5">
+    <div data-testid="session-review" className="card">
       <h2 className="text-sm font-medium">
         {session.status === 'completed' ? 'Session complete' : 'Session ended'}
       </h2>

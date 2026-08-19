@@ -49,7 +49,7 @@ export function NudgePanel({ nudge, onRespond, onResponded }: NudgePanelProps) {
     <div
       data-testid="nudge-panel"
       data-entity-type={nudge.entityType}
-      className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4"
+      className="mb-6 alert alert-warning"
     >
       <p className="text-sm text-amber-950">
         Do you still want to learn{' '}

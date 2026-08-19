@@ -186,7 +186,7 @@ function CurriculumPage() {
             <ConfirmBar curriculumId={curriculum.id} studyable={studyable} />
           ) : null}
           {modules.length === 0 ? (
-            <p className="mb-4 rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
+            <p className="mb-4 card-empty">
               No modules yet. Add one below to start shaping this curriculum by
               hand.
             </p>

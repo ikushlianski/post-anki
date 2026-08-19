@@ -26,7 +26,7 @@ function ConcernsPage() {
       </header>
 
       {summaries.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
+        <div className="card-empty">
           No tagged gaps yet. Confirm a curriculum and the mentor’s gaps will
           roll up here by concern.
         </div>
@@ -41,7 +41,7 @@ function ConcernsPage() {
             return (
               <div
                 key={summary.concern}
-                className="rounded-xl border border-neutral-200 bg-white p-5"
+                className="card"
               >
                 <div className="mb-2 flex items-baseline justify-between gap-4">
                   <h3 className="text-base font-semibold tracking-tight">

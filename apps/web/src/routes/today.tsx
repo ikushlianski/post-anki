@@ -68,7 +68,7 @@ function OpenQuestionsBanner({
         <div
           key={question.id}
           data-testid={`open-question-banner-item-${question.id}`}
-          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          className="alert alert-warning"
         >
           <span className="font-medium">{question.questionText}</span>
           {question.topicTitle ? (
@@ -156,7 +156,7 @@ function TodayPage() {
       </header>
 
       {!push ? (
-        <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500">
+        <div className="card-empty">
           Nothing to push yet. Confirm a curriculum and mark a few gaps as
           wanted, and one will surface here.
         </div>

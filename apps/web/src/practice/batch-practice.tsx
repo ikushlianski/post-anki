@@ -9,10 +9,9 @@ import { BATCH_SIZE, PACK_LABELS } from './practice.constants'
 type GradedAttempt = Omit<PracticeAttempt, 'createdAt'>
 
 const VERDICT_STYLES: Record<string, string> = {
-  Ok: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-  NeedsReview:
-    'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  NeedsDeepDive: 'border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
+  Ok: 'alert alert-success',
+  NeedsReview: 'alert alert-warning',
+  NeedsDeepDive: 'alert alert-error',
 }
 
 const VERDICT_LABELS: Record<string, string> = {
@@ -141,7 +140,7 @@ export function BatchPractice({
           </p>
           <span
             data-testid="batch-pack-label"
-            className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800"
+            className="badge-neutral dark:bg-neutral-800"
           >
             {PACK_LABELS[phrases[0]?.pack ?? pack]}
           </span>
@@ -194,7 +193,7 @@ export function BatchPractice({
                   )}
                   <span
                     data-testid={`phrase-domain-${index}`}
-                    className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800"
+                    className="badge-neutral dark:bg-neutral-800"
                   >
                     {phrase.domain}
                   </span>
@@ -248,7 +247,7 @@ export function BatchPractice({
           data-testid="submit-chunk-button"
           disabled={!allChunkAnswered || isGrading}
           onClick={submitChunk}
-          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-white disabled:opacity-40 dark:bg-white dark:text-neutral-900"
+          className="self-start btn-primary disabled:opacity-40 dark:bg-white dark:text-neutral-900"
         >
           {isGrading ? 'Grading…' : 'Submit'}
         </button>
@@ -259,7 +258,7 @@ export function BatchPractice({
           type="button"
           data-testid="continue-chunk-button"
           onClick={continueToNextChunk}
-          className="self-start rounded-md bg-neutral-900 px-4 py-2 text-white dark:bg-white dark:text-neutral-900"
+          className="self-start btn-primary dark:bg-white dark:text-neutral-900"
         >
           Continue
         </button>

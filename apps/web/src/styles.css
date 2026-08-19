@@ -1,6 +1,94 @@
 
 @import "tailwindcss";
 
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.3125rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5625rem;
+  --text-2xl--line-height: 2rem;
+
+  --spacing: 0.22rem;
+}
+
+@utility btn {
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+@utility badge {
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-neutral-200 bg-white p-6;
+  }
+  .card-compact {
+    @apply rounded-lg border border-neutral-200 bg-white px-4 py-3;
+  }
+  .card-empty {
+    @apply rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500;
+  }
+
+  .alert {
+    @apply rounded-lg border px-4 py-3 text-sm;
+  }
+  .alert-info {
+    @apply border-neutral-300 bg-neutral-50 text-neutral-700;
+  }
+  .alert-warning {
+    @apply border-amber-300 bg-amber-50 text-amber-900;
+  }
+  .alert-error {
+    @apply border-red-300 bg-red-50 text-red-700;
+  }
+  .alert-success {
+    @apply border-emerald-300 bg-emerald-50 text-emerald-900;
+  }
+
+  .btn-primary {
+    @apply btn bg-neutral-900 px-4 py-2 text-white hover:bg-neutral-800 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply btn border border-neutral-300 bg-white px-4 py-2 text-neutral-900 hover:bg-neutral-50 disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply btn px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50;
+  }
+
+  .badge-neutral {
+    @apply badge bg-neutral-100 text-neutral-600;
+  }
+  .badge-indigo {
+    @apply badge bg-indigo-50 text-indigo-700;
+  }
+  .badge-amber {
+    @apply badge bg-amber-100 text-amber-800;
+  }
+  .badge-emerald {
+    @apply badge bg-emerald-100 text-emerald-800;
+  }
+  .badge-label {
+    @apply badge bg-neutral-900 px-2.5 py-0.5 text-[11px] uppercase text-white;
+  }
+
+  .input {
+    @apply rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-500;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

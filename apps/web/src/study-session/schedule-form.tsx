@@ -62,7 +62,7 @@ export function ScheduleForm({
     <form
       onSubmit={submit}
       data-testid="schedule-form"
-      className="rounded-xl border border-neutral-200 bg-white p-5"
+      className="card"
     >
       <h2 className="text-sm font-medium">Plan a study session</h2>
       <p className="mt-0.5 text-xs text-neutral-400">
@@ -97,7 +97,7 @@ export function ScheduleForm({
           value={targetId}
           onChange={(event) => setTargetId(event.target.value)}
           data-testid="schedule-target-id"
-          className="mt-3 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="mt-3 w-full input"
         >
           <option value="">Choose one…</option>
           {scopedOptions.map((option) => (
@@ -118,7 +118,7 @@ export function ScheduleForm({
         value={plannedDurationMinutes}
         onChange={(event) => setPlannedDurationMinutes(Number(event.target.value))}
         data-testid="schedule-duration"
-        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+        className="mt-1 w-full input"
       />
 
       <label className="mt-3 block text-xs text-neutral-500" htmlFor="schedule-for">
@@ -130,14 +130,14 @@ export function ScheduleForm({
         value={scheduledFor}
         onChange={(event) => setScheduledFor(event.target.value)}
         data-testid="schedule-for"
-        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+        className="mt-1 w-full input"
       />
 
       {error ? (
         <p
           role="alert"
           data-testid="schedule-error"
-          className="mt-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800"
+          className="mt-3 alert alert-error text-xs"
         >
           {error}
         </p>

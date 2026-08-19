@@ -17,7 +17,7 @@ export function FetchStateBadge({ state }: FetchStateBadgeProps) {
     <span
       data-testid="fetch-state-badge"
       data-state={state}
-      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${COLOR[state]}`}
+      className={`badge ${COLOR[state]}`}
     >
       {fetchStateLabel(state)}
     </span>

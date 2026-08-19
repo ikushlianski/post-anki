@@ -42,7 +42,7 @@ export function RoleTemplateBrowser({
     return (
       <p
         data-testid="role-template-empty"
-        className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500"
+        className="card-empty"
       >
         No role templates available yet.
       </p>

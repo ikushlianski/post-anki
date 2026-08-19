@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   curriculaCollection,
@@ -10,148 +9,58 @@ import {
   mapSubjectRow,
   subjectsCollection,
 } from '../curriculum/board.collection'
-import type { SubjectDuplicateSuggestion } from '@post-anki/shared'
+import type {
+  LearningPath,
+  Streak,
+  StudySessionListItem,
+} from '@post-anki/shared'
 
-import { getBoard, listTags, mergeTags } from '../curriculum/curriculum.api'
+import { getBoard, getTree } from '../curriculum/curriculum.api'
+import { getStreak } from '../curriculum/stats.api'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
-import type { Curriculum, CourseRefocusSuggestion, Subject, Tag } from '../curriculum/model'
-import { CreateSubjectForm } from '../subject/create-subject-form'
+import type {
+  Curriculum,
+  CourseRefocusSuggestion,
+  DashboardSubject,
+  Subject,
+} from '../curriculum/model'
 import { SubjectSection } from '../subject/subject-section'
 import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
-import { DuplicateScanPanel } from '../subject-duplicate/duplicate-scan-panel'
-import { listPendingDuplicateSuggestions } from '../subject-duplicate/subject-duplicate.api'
+import { ContinueSessionCard } from '../home/continue-session-card'
+import { selectResumableSession } from '../home/select-resumable-session'
+import { DashboardTree } from '../dashboard/dashboard-tree'
+import { listLearningPaths } from '../learning-path/learning-path.api'
+import { listStudySessions } from '../study-session/study-session.api'
 
 export const Route = createFileRoute('/')({
   component: Home,
   loader: async () => {
-    const [board, duplicateSuggestions, courseRefocusSuggestions] = await Promise.all([
+    const [
+      board,
+      courseRefocusSuggestions,
+      sessions,
+      learningPaths,
+      tree,
+      streak,
+    ] = await Promise.all([
       getBoard(),
-      listPendingDuplicateSuggestions({ data: 'pending' }),
       listCourseRefocusSuggestions().catch(() => []),
+      listStudySessions().catch(() => []),
+      listLearningPaths({ data: { onlyActive: true } }).catch(() => []),
+      getTree().catch(() => []),
+      getStreak().catch(() => null),
     ])
 
-    return { ...board, duplicateSuggestions, courseRefocusSuggestions }
+    return {
+      ...board,
+      courseRefocusSuggestions,
+      sessions,
+      learningPaths,
+      tree,
+      streak,
+    }
   },
 })
-
-function TagMergeControl({
-  tag,
-  allTags,
-  onMerged,
-}: {
-  tag: Tag
-  allTags: Tag[]
-  onMerged: () => void
-}) {
-  const [armed, setArmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [targetTagId, setTargetTagId] = useState('')
-
-  const options = allTags.filter((candidate) => candidate.id !== tag.id)
-
-  async function confirm() {
-    if (!targetTagId) {
-      return
-    }
-
-    setBusy(true)
-    await mergeTags({ data: { targetTagId, sourceTagId: tag.id } })
-    setBusy(false)
-    setArmed(false)
-    onMerged()
-  }
-
-  if (!armed) {
-    return (
-      <button
-        type="button"
-        data-testid={`tag-list-merge-button-${tag.id}`}
-        onClick={() => setArmed(true)}
-        className="text-indigo-400 hover:text-indigo-700"
-        aria-label={`Merge tag ${tag.name}`}
-      >
-        ⇄
-      </button>
-    )
-  }
-
-  return (
-    <span className="flex items-center gap-1">
-      <select
-        data-testid={`tag-list-merge-target-select-${tag.id}`}
-        value={targetTagId}
-        onChange={(event) => setTargetTagId(event.target.value)}
-        className="rounded-md border border-neutral-200 px-1 py-0.5 text-xs text-neutral-700"
-      >
-        <option value="">merge into…</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        disabled={busy || !targetTagId}
-        data-testid={`tag-list-merge-confirm-${tag.id}`}
-        onClick={confirm}
-        className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
-      >
-        ✓
-      </button>
-      <button
-        type="button"
-        data-testid={`tag-list-merge-cancel-${tag.id}`}
-        onClick={() => setArmed(false)}
-        className="text-neutral-400 hover:text-neutral-700"
-      >
-        ✕
-      </button>
-    </span>
-  )
-}
-
-function TagList() {
-  const queryClient = useQueryClient()
-  const { data: tags } = useQuery({
-    queryKey: ['tags'],
-    queryFn: () => listTags(),
-  })
-
-  if (!tags || tags.length === 0) {
-    return null
-  }
-
-  return (
-    <div className="mb-10" data-testid="tag-list">
-      <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        Cross-cutting tags
-      </h2>
-      <div className="flex flex-wrap gap-2">
-        {tags.map((tag) => (
-          <span
-            key={tag.id}
-            className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-sm text-indigo-700"
-          >
-            <Link
-              to="/probe/tag/$tagId"
-              params={{ tagId: tag.id }}
-              data-testid={`tag-list-item-${tag.id}`}
-              className="hover:underline"
-            >
-              #{tag.name}
-            </Link>
-            <TagMergeControl
-              tag={tag}
-              allTags={tags}
-              onMerged={() => queryClient.invalidateQueries({ queryKey: ['tags'] })}
-            />
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 interface LiveBoardData {
   subjects: Subject[]
@@ -179,8 +88,11 @@ function Home() {
       <HomeView
         subjects={live?.subjects ?? initial.subjects}
         curricula={live?.curricula ?? initial.curricula}
-        initialDuplicateSuggestions={initial.duplicateSuggestions}
         courseRefocusSuggestions={initial.courseRefocusSuggestions}
+        sessions={initial.sessions}
+        learningPaths={initial.learningPaths}
+        tree={initial.tree}
+        streak={initial.streak}
       />
     </>
   )
@@ -219,49 +131,74 @@ function LiveDataBridge({ onData }: { onData: (data: LiveBoardData) => void }) {
 function HomeView({
   subjects,
   curricula,
-  initialDuplicateSuggestions,
   courseRefocusSuggestions,
+  sessions,
+  learningPaths,
+  tree,
+  streak,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
-  initialDuplicateSuggestions: SubjectDuplicateSuggestion[]
   courseRefocusSuggestions: CourseRefocusSuggestion[]
+  sessions: StudySessionListItem[]
+  learningPaths: LearningPath[]
+  tree: DashboardSubject[]
+  streak: Streak | null
 }) {
+  const namesById: Record<string, string> = {}
+
+  for (const curriculum of curricula) {
+    namesById[curriculum.id] = curriculum.name
+  }
+
+  for (const path of learningPaths) {
+    namesById[path.id] = path.name
+  }
+
+  const resumableSession = selectResumableSession(sessions, new Date())
+
   return (
-    <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Curricula</h1>
+    <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Courses you decide are worth knowing — each built from sources you
-          provide, not from a model's memory.
+          Everything you're learning and where each piece stands. Change any
+          status to re-steer — drop a topic to Skipping, push one to Going
+          deeper, or mark it Done.
         </p>
       </header>
 
+      <ContinueSessionCard session={resumableSession} namesById={namesById} />
+
       <div className="mb-10">
-        <CreateSubjectForm />
+        <DashboardTree tree={tree} streak={streak} />
       </div>
 
       <div className="mb-10">
         <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
       </div>
 
-      <DuplicateScanPanel
-        initialSuggestions={initialDuplicateSuggestions}
-        allSubjects={subjects}
-      />
-
-      <TagList />
-
-      <div className="space-y-10">
-        {subjects.map((subject) => (
-          <SubjectSection
-            key={subject.id}
-            subject={subject}
-            curricula={curricula.filter((c) => c.subjectId === subject.id)}
-            allSubjects={subjects}
-          />
-        ))}
-      </div>
+      {subjects.length === 0 ? (
+        <div data-testid="home-empty-state" className="rounded-lg border border-neutral-200 bg-neutral-50 p-8 text-center">
+          <p className="text-neutral-600">
+            You haven't created a subject yet.{' '}
+            <Link to="/subjects/new" className="font-medium text-indigo-600 hover:text-indigo-700">
+              Create your first subject
+            </Link>
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-10">
+          {subjects.map((subject) => (
+            <SubjectSection
+              key={subject.id}
+              subject={subject}
+              curricula={curricula.filter((c) => c.subjectId === subject.id)}
+              allSubjects={subjects}
+            />
+          ))}
+        </div>
+      )}
     </main>
   )
 }

@@ -60,14 +60,14 @@ function DomainMapNode({
         <div className="flex items-center gap-2">
           <span
             data-testid={`domain-map-node-percent-${node.id}`}
-            className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
+            className="badge-neutral"
           >
             {node.percent}%
           </span>
           {masteryStatus === 'gap' ? (
             <span
               data-testid={`domain-map-node-gap-badge-${node.id}`}
-              className="rounded-full bg-rose-50 px-2 py-0.5 text-xs text-rose-700"
+              className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
             >
               0% — gap
             </span>
@@ -76,7 +76,7 @@ function DomainMapNode({
             <span
               data-testid={`domain-map-node-superseded-badge-${node.id}`}
               title={node.supersededReason ?? undefined}
-              className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700"
+              className="badge-amber"
             >
               possibly outdated
             </span>
@@ -84,7 +84,7 @@ function DomainMapNode({
           {priorityDistance !== null ? (
             <span
               data-testid={`domain-map-node-priority-distance-${node.id}`}
-              className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+              className="badge-amber"
             >
               {priorityDistance} to target
             </span>

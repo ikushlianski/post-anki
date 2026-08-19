@@ -95,7 +95,7 @@ export function SubjectSection({
           to="/practice/$subjectId"
           params={{ subjectId: subject.id }}
           data-testid="open-practice-link"
-          className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium hover:border-neutral-400"
+          className="flex items-center justify-between card-compact font-medium hover:border-neutral-400"
         >
           Open practice
         </Link>
@@ -106,7 +106,7 @@ export function SubjectSection({
               to="/subject/$subjectId/map"
               params={{ subjectId: subject.id }}
               data-testid="knowledge-map-link"
-              className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium hover:border-neutral-400"
+              className="flex items-center justify-between card-compact font-medium hover:border-neutral-400"
             >
               Knowledge map
             </Link>
@@ -114,7 +114,7 @@ export function SubjectSection({
               to="/subject/$subjectId/priority-review"
               params={{ subjectId: subject.id }}
               data-testid="priority-review-link"
-              className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium hover:border-neutral-400"
+              className="flex items-center justify-between card-compact font-medium hover:border-neutral-400"
             >
               Priority review
             </Link>
@@ -138,7 +138,7 @@ export function SubjectSection({
             </ul>
           </DndContext>
           {reorderError ? (
-            <div data-testid="reorder-error" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <div data-testid="reorder-error" className="mb-3 alert alert-error">
               {reorderError}
             </div>
           ) : null}
@@ -158,7 +158,7 @@ export function SubjectSection({
 
 function OriginBadge() {
   return (
-    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
+    <span className="badge-indigo">
       🔎 Researched
     </span>
   )
@@ -197,7 +197,7 @@ function SortableCurriculumItem({
       <Link
         to="/curriculum/$curriculumId"
         params={{ curriculumId: curriculum.id }}
-        className="flex flex-1 items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+        className="flex flex-1 items-center justify-between card-compact hover:border-neutral-400"
       >
         <span
           data-testid="curriculum-name"
@@ -573,7 +573,7 @@ function StatusBadge({ status }: { status: CurriculumStatus }) {
 
   return (
     <span
-      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs ${badge.className}`}
+      className={`shrink-0 whitespace-nowrap badge ${badge.className}`}
     >
       {badge.label}
     </span>

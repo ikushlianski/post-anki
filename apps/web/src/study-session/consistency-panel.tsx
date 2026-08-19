@@ -10,7 +10,7 @@ export function ConsistencyPanel({ consistency }: ConsistencyPanelProps) {
   return (
     <div
       data-testid="consistency-panel"
-      className="rounded-xl border border-neutral-200 bg-white p-4"
+      className="card-compact"
     >
       <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
         Consistency

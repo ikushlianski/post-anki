@@ -61,7 +61,7 @@ export function NoteCaptureBox({
     <form
       onSubmit={submit}
       data-testid="note-capture-box"
-      className="rounded-lg border border-neutral-200 bg-white p-4"
+      className="card"
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-neutral-600">
@@ -90,14 +90,14 @@ export function NoteCaptureBox({
           isHighlight ? 'Paste the passage, verbatim…' : 'Write what clicked…'
         }
         data-testid="note-capture-body"
-        className="mt-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+        className="input mt-2 w-full"
       />
 
       <select
         value={concern}
         onChange={(event) => setConcern(event.target.value as Concern | '')}
         data-testid="note-capture-concern"
-        className="mt-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-xs"
+        className="input mt-2 w-full text-xs"
       >
         <option value="">No concern tag</option>
         {CONCERNS.map((option) => (

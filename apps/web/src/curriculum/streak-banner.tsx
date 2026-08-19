@@ -5,7 +5,7 @@ export function StreakBanner({ streak }: { streak: Streak }) {
     return (
       <div
         data-testid="streak-banner"
-        className="mb-6 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500"
+        className="mb-6 card-compact text-neutral-500"
       >
         No streak yet — answer a question today to start one.
       </div>
@@ -15,7 +15,7 @@ export function StreakBanner({ streak }: { streak: Streak }) {
   return (
     <div
       data-testid="streak-banner"
-      className="mb-6 flex items-center gap-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm"
+      className="mb-6 flex items-center gap-4 alert alert-warning"
     >
       <span data-testid="streak-current" className="font-semibold text-orange-900">
         🔥 {streak.currentStreak} day{streak.currentStreak === 1 ? '' : 's'} streak

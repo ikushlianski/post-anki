@@ -113,7 +113,7 @@ export function SessionRunner({
         ending={ending}
         onEndNow={() => void handleEnd(true)}
       />
-      <div className="rounded-xl border border-neutral-900 bg-white p-6">
+      <div className="card border-neutral-900">
         <SessionQuestionSurface
           loading={loadingPush}
           pushResult={pushResult}

@@ -161,6 +161,7 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "GET", pattern: "/streak", name: "getStreak" },
+  { method: "GET", pattern: "/home/summary", name: "getHomeSummary" },
   { method: "POST", pattern: "/transcriptions", name: "createTranscription" },
   { method: "GET", pattern: "/electric/v1/shape", name: "getElectricShape" },
   { method: "GET", pattern: "/tags", name: "listTags" },

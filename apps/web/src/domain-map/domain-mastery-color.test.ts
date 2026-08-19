@@ -6,8 +6,8 @@ import { domainMasteryColor } from './domain-mastery-color'
 // percent === 0 vs. percent > 0 hard boundary gets a real, named unit test
 // (found during red-team review to need this, not a smoke check).
 describe('domainMasteryColor', () => {
-  it('renders a gap node in the fixed rose class regardless of status/percent mismatch', () => {
-    expect(domainMasteryColor('gap', 0)).toBe('bg-rose-100 text-rose-700 border-rose-300')
+  it('renders a gap node in the fixed red class regardless of status/percent mismatch', () => {
+    expect(domainMasteryColor('gap', 0)).toBe('bg-red-50 text-red-700 border-red-300')
   })
 
   it('renders a barely-started node on the progress side, distinct from the gap class', () => {

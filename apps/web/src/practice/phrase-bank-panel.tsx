@@ -12,13 +12,10 @@ const STATUS_LABELS: Record<PhraseBankStatus, string> = {
 }
 
 const STATUS_STYLES: Record<PhraseBankStatus, string> = {
-  new: 'border-neutral-300 bg-neutral-50 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400',
-  practicing:
-    'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300',
-  struggling:
-    'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  mastered:
-    'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  new: 'badge-neutral',
+  practicing: 'badge-indigo',
+  struggling: 'badge-amber',
+  mastered: 'badge-emerald',
 }
 
 export function phraseBankQuery(subjectId: string) {

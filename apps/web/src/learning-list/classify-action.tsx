@@ -42,9 +42,9 @@ export function ClassifyAction({
   return (
     <div
       data-testid="classify-action"
-      className="mt-3 rounded-lg border border-sky-300 bg-sky-50 p-4"
+      className="mt-3 alert alert-info"
     >
-      <p className="text-sm text-sky-900">
+      <p className="text-sm text-neutral-700">
         Discovered as part of a series but never read yet — pick a subject
         and classify it to see what to do with it.
       </p>

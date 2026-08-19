@@ -68,7 +68,7 @@ export function DomainMapGraphNode({ data }: NodeProps<DomainMapGraphNodeType>) 
             <span
               data-testid={`domain-map-graph-node-superseded-badge-${layoutNode.id}`}
               title={node.supersededReason ?? undefined}
-              className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] text-orange-700"
+              className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700"
             >
               possibly outdated
             </span>

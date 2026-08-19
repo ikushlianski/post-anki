@@ -23,7 +23,7 @@ export function DomainMapGraphDetailPanel({
   return (
     <div
       data-testid="domain-map-graph-detail-panel"
-      className="fixed inset-x-0 bottom-0 z-10 max-h-[70vh] overflow-y-auto rounded-t-xl border-t border-neutral-200 bg-white p-4 shadow-lg sm:inset-x-auto sm:right-4 sm:top-20 sm:bottom-auto sm:w-80 sm:rounded-xl sm:border"
+      className="fixed inset-x-0 bottom-0 z-10 max-h-[70vh] overflow-y-auto rounded-t-lg border-t border-neutral-200 bg-white p-4 shadow-lg sm:inset-x-auto sm:right-4 sm:top-20 sm:bottom-auto sm:w-80 sm:rounded-lg sm:border"
     >
       <div className="flex items-start justify-between gap-2">
         <h2 className="text-sm font-semibold">{node.name}</h2>
@@ -42,7 +42,7 @@ export function DomainMapGraphDetailPanel({
       ) : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+        <span className="badge-neutral">
           {node.percent}%
         </span>
         {status === 'gap' ? (
@@ -57,7 +57,7 @@ export function DomainMapGraphDetailPanel({
           <span
             data-testid="domain-map-graph-detail-panel-superseded-badge"
             title={node.supersededReason ?? undefined}
-            className="rounded-full bg-orange-50 px-2 py-0.5 text-xs text-orange-700"
+            className="badge-amber"
           >
             possibly outdated
           </span>
@@ -65,7 +65,7 @@ export function DomainMapGraphDetailPanel({
         {priorityDistance !== null ? (
           <span
             data-testid="domain-map-graph-detail-panel-priority-distance"
-            className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700"
+            className="badge-amber"
           >
             {priorityDistance} to target
           </span>

@@ -12,7 +12,7 @@ export function MilestonesGallery({ milestones }: MilestonesGalleryProps) {
     return (
       <p
         data-testid="milestones-empty"
-        className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500"
+        className="card-empty"
       >
         Nothing achieved yet — a curriculum or Area lands here the moment it's fully
         mastered.
@@ -28,9 +28,9 @@ export function MilestonesGallery({ milestones }: MilestonesGalleryProps) {
         <li
           key={milestone.id}
           data-testid="milestone-card"
-          className="rounded-xl border border-amber-200 bg-amber-50 p-4"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-4"
         >
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+          <span className="badge-amber">
             {entityTypeLabel(milestone.entityType)}
           </span>
           <h3 className="mt-2 text-sm font-medium text-neutral-900">

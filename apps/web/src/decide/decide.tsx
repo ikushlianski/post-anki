@@ -145,7 +145,7 @@ export function Decide() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-transparent">
+      <div className="space-y-3 card-compact dark:border-neutral-800 dark:bg-transparent">
         <div>
           <label className="text-xs text-neutral-400">The decision you're facing</label>
           <textarea
@@ -154,7 +154,7 @@ export function Decide() {
             onChange={(event) => setDecision(event.target.value)}
             placeholder="e.g. Should we move sessions from JWTs to server-side sessions?"
             rows={2}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700 dark:bg-transparent"
+            className="mt-1 w-full input dark:border-neutral-700 dark:bg-transparent"
           />
         </div>
         <div>
@@ -165,7 +165,7 @@ export function Decide() {
             onChange={(event) => setOpinion(event.target.value)}
             placeholder="Say where you currently lean and your reasoning."
             rows={4}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700 dark:bg-transparent"
+            className="mt-1 w-full input dark:border-neutral-700 dark:bg-transparent"
           />
         </div>
         <button
@@ -173,7 +173,7 @@ export function Decide() {
           data-testid="decide-submit-button"
           disabled={!canSubmit || busy}
           onClick={handleSubmit}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          className="btn-primary dark:bg-white dark:text-neutral-900"
         >
           {busy ? 'Evaluating…' : 'Challenge my thinking'}
         </button>
@@ -183,7 +183,7 @@ export function Decide() {
         <div
           data-testid="decide-result"
           data-verdict={result.verdict}
-          className="space-y-5 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800"
+          className="space-y-5 card-compact dark:border-neutral-800"
         >
           <div className="rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm text-white">
             <span className="text-neutral-400">Verdict · </span>
@@ -224,7 +224,7 @@ export function Decide() {
               key={session.id}
               data-testid={`decide-history-item-${index}`}
               data-verdict={session.verdict}
-              className="rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800"
+              className="card-compact text-sm dark:border-neutral-800"
             >
               <p className="font-medium">{session.decision}</p>
               <p className="mt-1 text-neutral-500">{session.verdict}</p>

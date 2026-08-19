@@ -69,7 +69,7 @@ export function LearningListItemRow({
       data-testid="learning-list-item"
       data-item-id={item.id}
       data-dormant={muted ? 'true' : 'false'}
-      className={`rounded-xl border p-4 ${
+      className={`rounded-lg border p-4 ${
         muted
           ? 'border-dashed border-neutral-300 bg-neutral-50 opacity-60'
           : 'border-neutral-200 bg-white'

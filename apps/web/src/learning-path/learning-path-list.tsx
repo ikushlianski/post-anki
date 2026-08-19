@@ -13,7 +13,7 @@ export function LearningPathList({ paths }: LearningPathListProps) {
     return (
       <p
         data-testid="learning-path-list-empty"
-        className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500"
+        className="card-empty"
       >
         You haven't started a learning path yet.
       </p>
@@ -31,7 +31,7 @@ export function LearningPathList({ paths }: LearningPathListProps) {
           >
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-medium text-neutral-900">{path.name}</h3>
-              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+              <span className="badge-neutral text-[11px]">
                 {pathStatusLabel(path.status)}
               </span>
             </div>

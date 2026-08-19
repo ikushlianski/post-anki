@@ -41,7 +41,7 @@ export function LearningListPanel({
     return (
       <p
         data-testid="learning-list-empty"
-        className="rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500"
+        className="card-empty"
       >
         Nothing captured yet. Paste an article, a series or a video above.
       </p>

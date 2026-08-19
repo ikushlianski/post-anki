@@ -87,7 +87,7 @@ function StartPrompt({
   return (
     <div
       data-testid="session-start-prompt"
-      className="rounded-xl border border-neutral-200 bg-white p-6 text-center"
+      className="card text-center"
     >
       <p className="mb-4 text-sm text-neutral-500">Ready when you are.</p>
       <button
@@ -100,7 +100,7 @@ function StartPrompt({
             }
           })
         }}
-        className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
+        className="btn-primary"
       >
         Start session
       </button>

@@ -22,7 +22,7 @@ export function CreateSubjectForm() {
     }
 
     setBusy(true)
-    await createSubject({
+    const subject = await createSubject({
       data: {
         name: name.trim(),
         description: description.trim() || undefined,
@@ -30,12 +30,8 @@ export function CreateSubjectForm() {
         kind,
       },
     })
-    setName('')
-    setDescription('')
-    setRequireSources(false)
-    setKind('architecture-mentor')
     setBusy(false)
-    await router.invalidate()
+    await router.navigate({ to: '/subject/$subjectId/map', params: { subjectId: subject.id } })
   }
 
   return (

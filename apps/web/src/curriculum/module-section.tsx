@@ -61,7 +61,7 @@ export function ModuleSection({
   }
 
   return (
-    <section className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-5">
+    <section className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-5">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex min-w-0 items-center gap-2">
           {editable ? (
@@ -112,7 +112,7 @@ export function ModuleSection({
             )}
           </h3>
           {levelBadgeLabel(module.level) ? (
-            <span className="shrink-0 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600">
+            <span className="shrink-0 badge-neutral">
               {levelBadgeLabel(module.level)}
             </span>
           ) : null}

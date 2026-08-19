@@ -12,7 +12,7 @@ import type { DomainMasteryStatus } from '@post-anki/core'
 // gradient through zero — reuses the SAME rose family the existing list
 // view's gap badge already uses (domain-map-tree.tsx), so "gap" reads
 // identically in both views.
-const GAP_CLASS = 'bg-rose-100 text-rose-700 border-rose-300'
+const GAP_CLASS = 'bg-red-50 text-red-700 border-red-300'
 
 // Five discrete steps on a green gradient, palest at just-above-0% to
 // solid/darkest at 100%, so a fully-mastered node and a barely-started node

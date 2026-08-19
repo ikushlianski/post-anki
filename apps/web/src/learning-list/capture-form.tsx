@@ -64,7 +64,7 @@ export function CaptureForm({
     <form
       onSubmit={submit}
       data-testid="learning-list-capture-form"
-      className="rounded-xl border border-neutral-200 bg-white p-5"
+      className="card"
     >
       <h2 className="text-sm font-medium">Capture something to learn</h2>
       <p className="mt-0.5 text-xs text-neutral-400">
@@ -99,7 +99,7 @@ export function CaptureForm({
         onChange={(event) => setUrl(event.target.value)}
         placeholder="https://…"
         data-testid="capture-url"
-        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+        className="mt-1 w-full input"
       />
 
       {kind === 'video' ? (
@@ -117,7 +117,7 @@ export function CaptureForm({
             rows={4}
             placeholder="Paste the description — it is the source text; no transcript is fetched."
             data-testid="capture-description"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className="mt-1 w-full input"
           />
         </>
       ) : null}
@@ -133,7 +133,7 @@ export function CaptureForm({
         value={subjectId}
         onChange={(event) => setSubjectId(event.target.value)}
         data-testid="capture-subject"
-        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+        className="mt-1 w-full input"
       >
         {subjects.map((subject) => (
           <option key={subject.id} value={subject.id}>
@@ -146,7 +146,7 @@ export function CaptureForm({
         <p
           role="alert"
           data-testid="capture-error"
-          className="mt-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-800"
+          className="mt-3 alert alert-error text-xs"
         >
           {error}
         </p>

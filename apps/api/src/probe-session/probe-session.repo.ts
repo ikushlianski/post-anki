@@ -224,6 +224,44 @@ export async function recordAnswer(
     .where(eq(probeSessionQuestions.id, questionId));
 }
 
+// Feeds electDepthFromCalibration (S5): every answered question's topic and
+// outcome for a session, regardless of gap — a calibration quiz's opening
+// question per topic has no gapId yet, so filtering on gap would drop it.
+export async function listAnsweredTopicOutcomesForSession(
+  sessionId: string,
+): Promise<{ topicId: string; correct: boolean }[]> {
+  const rows = await listQuestionRows(sessionId);
+
+  return rows
+    .filter((r) => r.topicId !== null && r.outcome !== null)
+    .map((r) => ({ topicId: r.topicId as string, correct: r.outcome === "pass" }));
+}
+
+// The Socratic gate's data source (S4, S6) — has this curriculum's
+// calibration quiz ever been completed? Any completed curriculum-scope
+// session counts, not just the most recent, since the gate is "has the
+// learner done this at least once", not "is the current session done".
+export async function getCalibrationCompletionForCurriculum(
+  curriculumId: string,
+): Promise<{ calibrationCompletedAt: string | null }> {
+  const rows = await getDb()
+    .select({ completedAt: probeSessions.completedAt })
+    .from(probeSessions)
+    .where(
+      and(
+        eq(probeSessions.scope, "curriculum"),
+        eq(probeSessions.scopeId, curriculumId),
+        eq(probeSessions.status, "completed"),
+      ),
+    )
+    .orderBy(desc(probeSessions.completedAt))
+    .limit(1);
+
+  const row = rows[0];
+
+  return { calibrationCompletedAt: row?.completedAt ? row.completedAt.toISOString() : null };
+}
+
 export async function syncSessionCounters(
   sessionId: string,
   now: string,
