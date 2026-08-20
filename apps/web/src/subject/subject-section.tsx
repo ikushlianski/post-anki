@@ -22,8 +22,6 @@ import {
   reorderCurricula,
 } from '../curriculum/curriculum.api'
 import { ConfirmDelete } from '../curriculum/shape-controls'
-import { deleteSubject, mergeSubjects } from './subject.api'
-import { SubjectModelTier } from './subject-model-tier'
 import { useHydrated } from '../shared/use-hydrated'
 import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
 
@@ -31,16 +29,16 @@ export function SubjectSection({
   subject,
   curricula,
   allSubjects,
-  globalModelTier,
 }: {
   subject: Subject
   curricula: Curriculum[]
   allSubjects: Subject[]
-  globalModelTier: ModelTier
+  globalModelTier?: ModelTier
 }) {
   const router = useRouter()
   const [localOrder, setLocalOrder] = useState<string[]>(curricula.map((c) => c.id))
   const [reorderError, setReorderError] = useState<string | null>(null)
+  const [studyFormOpen, setStudyFormOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -77,29 +75,23 @@ export function SubjectSection({
   return (
     <section data-testid="subject-card" data-subject-id={subject.id}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <h2
-          data-testid="subject-name"
-          className="min-w-0 truncate text-lg font-medium tracking-tight"
-        >
-          {subject.name}
-        </h2>
-        <span className="flex shrink-0 items-center gap-3">
-          {subject.kind === 'architecture-mentor' ? (
-            <MergeSubjectButton subject={subject} allSubjects={allSubjects} />
-          ) : null}
-          <DeleteSubjectButton
-            subjectId={subject.id}
-            curriculaCount={curricula.length}
-          />
-        </span>
-      </div>
-
-      <div className="mb-3">
-        <SubjectModelTier
-          subjectId={subject.id}
-          modelTier={subject.modelTier}
-          globalModelTier={globalModelTier}
-        />
+        {subject.kind === 'architecture-mentor' ? (
+          <button
+            type="button"
+            data-testid="subject-name"
+            onClick={() => setStudyFormOpen(true)}
+            className="min-w-0 truncate text-left text-lg font-medium tracking-tight hover:text-indigo-600"
+          >
+            {subject.name}
+          </button>
+        ) : (
+          <h2
+            data-testid="subject-name"
+            className="min-w-0 truncate text-lg font-medium tracking-tight"
+          >
+            {subject.name}
+          </h2>
+        )}
       </div>
 
       {subject.kind === 'language-practice' ? (
@@ -113,24 +105,6 @@ export function SubjectSection({
         </Link>
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap gap-3">
-            <Link
-              to="/subject/$subjectId/map"
-              params={{ subjectId: subject.id }}
-              data-testid="knowledge-map-link"
-              className="flex items-center justify-between card-compact font-medium hover:border-neutral-400"
-            >
-              Knowledge map
-            </Link>
-            <Link
-              to="/subject/$subjectId/priority-review"
-              params={{ subjectId: subject.id }}
-              data-testid="priority-review-link"
-              className="flex items-center justify-between card-compact font-medium hover:border-neutral-400"
-            >
-              Priority review
-            </Link>
-          </div>
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <ul className="mb-3 space-y-2">
               {curricula.length === 0 ? (
@@ -156,11 +130,20 @@ export function SubjectSection({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
-            <CreateCurriculumForm
-              subjectId={subject.id}
-              requireSources={subject.requireSources}
-            />
-            <StudyTechnologyForm subjectId={subject.id} />
+            {subject.requireSources ? (
+              <CreateCurriculumForm
+                subjectId={subject.id}
+                requireSources={subject.requireSources}
+                toggleLabel="+ Add curriculum"
+                toggleClassName="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+              />
+            ) : (
+              <StudyTechnologyForm
+                subjectId={subject.id}
+                open={studyFormOpen}
+                onOpenChange={setStudyFormOpen}
+              />
+            )}
           </div>
         </>
       )}
@@ -431,137 +414,6 @@ function MoveCurriculumButton({
   )
 }
 
-function MergeSubjectButton({
-  subject,
-  allSubjects,
-}: {
-  subject: Subject
-  allSubjects: Subject[]
-}) {
-  const router = useRouter()
-  const [armed, setArmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [targetSubjectId, setTargetSubjectId] = useState('')
-
-  const options = allSubjects.filter(
-    (candidate) => candidate.id !== subject.id && candidate.kind === 'architecture-mentor',
-  )
-
-  async function confirm() {
-    if (!targetSubjectId) {
-      return
-    }
-
-    setBusy(true)
-    await mergeSubjects({ data: { targetSubjectId, sourceSubjectId: subject.id } })
-    setBusy(false)
-    await router.invalidate()
-  }
-
-  if (!armed) {
-    return (
-      <button
-        type="button"
-        data-testid={`subject-merge-button-${subject.id}`}
-        onClick={() => setArmed(true)}
-        className="shrink-0 text-xs text-neutral-400 hover:text-indigo-600"
-      >
-        Merge into…
-      </button>
-    )
-  }
-
-  return (
-    <span className="flex shrink-0 items-center gap-2 text-xs">
-      <select
-        data-testid={`subject-merge-target-select-${subject.id}`}
-        value={targetSubjectId}
-        onChange={(event) => setTargetSubjectId(event.target.value)}
-        className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
-      >
-        <option value="">select target…</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        disabled={busy || !targetSubjectId}
-        data-testid={`subject-merge-confirm-${subject.id}`}
-        onClick={confirm}
-        className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
-      >
-        Confirm
-      </button>
-      <button
-        type="button"
-        data-testid={`subject-merge-cancel-${subject.id}`}
-        onClick={() => setArmed(false)}
-        className="text-neutral-400 hover:text-neutral-700"
-      >
-        cancel
-      </button>
-    </span>
-  )
-}
-
-function DeleteSubjectButton({
-  subjectId,
-  curriculaCount,
-}: {
-  subjectId: string
-  curriculaCount: number
-}) {
-  const router = useRouter()
-  const [armed, setArmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-
-  async function confirm() {
-    setBusy(true)
-    await deleteSubject({ data: subjectId })
-    setBusy(false)
-    await router.invalidate()
-  }
-
-  if (!armed) {
-    return (
-      <button
-        type="button"
-        onClick={() => setArmed(true)}
-        className="shrink-0 text-xs text-neutral-400 hover:text-red-600"
-      >
-        Delete subject
-      </button>
-    )
-  }
-
-  return (
-    <span className="flex shrink-0 items-center gap-2 text-xs">
-      <span className="text-neutral-500">
-        {curriculaCount > 0
-          ? `Also deletes ${curriculaCount} curricul${curriculaCount === 1 ? 'um' : 'a'}.`
-          : 'Delete this subject?'}
-      </span>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={confirm}
-        className="font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
-      >
-        Confirm
-      </button>
-      <button
-        type="button"
-        onClick={() => setArmed(false)}
-        className="text-neutral-400 hover:text-neutral-700"
-      >
-        cancel
-      </button>
-    </span>
-  )
-}
 
 const STATUS_BADGE: Record<CurriculumStatus, { label: string; className: string }> =
   {

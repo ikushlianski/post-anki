@@ -12,6 +12,7 @@ export function CreateCurriculumForm({
   domainNodeId,
   toggleLabel = '+ New curriculum',
   toggleTestId = 'curriculum-create-toggle',
+  toggleClassName = 'text-sm text-neutral-500 hover:text-neutral-900',
 }: {
   subjectId: string
   requireSources?: boolean
@@ -23,6 +24,7 @@ export function CreateCurriculumForm({
   domainNodeId?: string | null
   toggleLabel?: string
   toggleTestId?: string
+  toggleClassName?: string
 }) {
   const router = useRouter()
   const sourceRows = useSourceRows()
@@ -61,7 +63,7 @@ export function CreateCurriculumForm({
         type="button"
         data-testid={toggleTestId}
         onClick={() => setOpen(true)}
-        className="text-sm text-neutral-500 hover:text-neutral-900"
+        className={toggleClassName}
       >
         {toggleLabel}
       </button>

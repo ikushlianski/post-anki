@@ -15,22 +15,18 @@ import type {
   StudySessionListItem,
 } from '@post-anki/shared'
 
-import { getBoard, getTree } from '../curriculum/curriculum.api'
+import { getBoard } from '../curriculum/curriculum.api'
 import { getStreak } from '../curriculum/stats.api'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
-import { getAdminSettings } from '../admin-settings/admin-settings.api'
 import type {
   Curriculum,
   CourseRefocusSuggestion,
-  DashboardSubject,
   Subject,
 } from '../curriculum/model'
-import type { ModelTier } from '@post-anki/shared'
-import { SubjectSection } from '../subject/subject-section'
 import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
 import { ContinueSessionCard } from '../home/continue-session-card'
 import { selectResumableSession } from '../home/select-resumable-session'
-import { DashboardTree } from '../dashboard/dashboard-tree'
+import { StreakBanner } from '../curriculum/streak-banner'
 import { listLearningPaths } from '../learning-path/learning-path.api'
 import { listStudySessions } from '../study-session/study-session.api'
 
@@ -42,17 +38,13 @@ export const Route = createFileRoute('/')({
       courseRefocusSuggestions,
       sessions,
       learningPaths,
-      tree,
       streak,
-      adminSettings,
     ] = await Promise.all([
       getBoard(),
       listCourseRefocusSuggestions().catch(() => []),
       listStudySessions().catch(() => []),
       listLearningPaths({ data: { onlyActive: true } }).catch(() => []),
-      getTree().catch(() => []),
       getStreak().catch(() => null),
-      getAdminSettings().catch(() => ({ testToggle: false, modelTier: 'cheap' as const })),
     ])
 
     return {
@@ -60,9 +52,7 @@ export const Route = createFileRoute('/')({
       courseRefocusSuggestions,
       sessions,
       learningPaths,
-      tree,
       streak,
-      globalModelTier: adminSettings.modelTier,
     }
   },
 })
@@ -96,9 +86,7 @@ function Home() {
         courseRefocusSuggestions={initial.courseRefocusSuggestions}
         sessions={initial.sessions}
         learningPaths={initial.learningPaths}
-        tree={initial.tree}
         streak={initial.streak}
-        globalModelTier={initial.globalModelTier}
       />
     </>
   )
@@ -140,18 +128,14 @@ function HomeView({
   courseRefocusSuggestions,
   sessions,
   learningPaths,
-  tree,
   streak,
-  globalModelTier,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
   courseRefocusSuggestions: CourseRefocusSuggestion[]
   sessions: StudySessionListItem[]
   learningPaths: LearningPath[]
-  tree: DashboardSubject[]
   streak: Streak | null
-  globalModelTier: ModelTier
 }) {
   const namesById: Record<string, string> = {}
 
@@ -168,7 +152,7 @@ function HomeView({
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Home</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Everything you're learning and where each piece stands. Change any
           status to re-steer — drop a topic to Skipping, push one to Going
@@ -178,13 +162,15 @@ function HomeView({
 
       <ContinueSessionCard session={resumableSession} namesById={namesById} />
 
-      <div className="mb-10">
-        <DashboardTree tree={tree} streak={streak} />
-      </div>
+      {streak ? <StreakBanner streak={streak} /> : null}
 
       <div className="mb-10">
         <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
       </div>
+
+      <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
+        Your subjects
+      </h2>
 
       {subjects.length === 0 ? (
         <div data-testid="home-empty-state" className="rounded-lg border border-neutral-200 bg-neutral-50 p-8 text-center">
@@ -196,17 +182,29 @@ function HomeView({
           </p>
         </div>
       ) : (
-        <div className="space-y-10">
-          {subjects.map((subject) => (
-            <SubjectSection
-              key={subject.id}
-              subject={subject}
-              curricula={curricula.filter((c) => c.subjectId === subject.id)}
-              allSubjects={subjects}
-              globalModelTier={globalModelTier}
-            />
-          ))}
-        </div>
+        <ul className="space-y-2">
+          {subjects.map((subject) => {
+            const subjectCurricula = curricula.filter((c) => c.subjectId === subject.id)
+
+            return (
+              <li key={subject.id}>
+                <Link
+                  to="/subject/$subjectId"
+                  params={{ subjectId: subject.id }}
+                  data-testid="subject-name"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+                >
+                  <span className="font-medium tracking-tight">{subject.name}</span>
+                  <span className="text-sm text-neutral-400">
+                    {subjectCurricula.length === 0
+                      ? 'No curricula yet'
+                      : `${subjectCurricula.length} curricul${subjectCurricula.length === 1 ? 'um' : 'a'}`}
+                  </span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </main>
   )

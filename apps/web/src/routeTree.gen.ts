@@ -19,7 +19,6 @@ import { Route as LearningPathsRouteImport } from './routes/learning-paths'
 import { Route as LearningListRouteImport } from './routes/learning-list'
 import { Route as DuplicatesRouteImport } from './routes/duplicates'
 import { Route as DecideRouteImport } from './routes/decide'
-import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContentLibraryRouteImport } from './routes/content-library'
 import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -27,6 +26,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as AdminObservabilityRouteImport } from './routes/admin-observability'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SubjectsNewRouteImport } from './routes/subjects.new'
+import { Route as SubjectSubjectIdRouteImport } from './routes/subject.$subjectId'
 import { Route as StudySessionsSessionIdRouteImport } from './routes/study-sessions.$sessionId'
 import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
@@ -93,11 +93,6 @@ const DecideRoute = DecideRouteImport.update({
   path: '/decide',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ContentLibraryRoute = ContentLibraryRouteImport.update({
   id: '/content-library',
   path: '/content-library',
@@ -131,6 +126,11 @@ const IndexRoute = IndexRouteImport.update({
 const SubjectsNewRoute = SubjectsNewRouteImport.update({
   id: '/subjects/new',
   path: '/subjects/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubjectSubjectIdRoute = SubjectSubjectIdRouteImport.update({
+  id: '/subject/$subjectId',
+  path: '/subject/$subjectId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudySessionsSessionIdRoute = StudySessionsSessionIdRouteImport.update({
@@ -175,20 +175,20 @@ const ApiElectricShapeRoute = ApiElectricShapeRouteImport.update({
 } as any)
 const SubjectSubjectIdRecommendationsRoute =
   SubjectSubjectIdRecommendationsRouteImport.update({
-    id: '/subject/$subjectId/recommendations',
-    path: '/subject/$subjectId/recommendations',
-    getParentRoute: () => rootRouteImport,
+    id: '/recommendations',
+    path: '/recommendations',
+    getParentRoute: () => SubjectSubjectIdRoute,
   } as any)
 const SubjectSubjectIdPriorityReviewRoute =
   SubjectSubjectIdPriorityReviewRouteImport.update({
-    id: '/subject/$subjectId/priority-review',
-    path: '/subject/$subjectId/priority-review',
-    getParentRoute: () => rootRouteImport,
+    id: '/priority-review',
+    path: '/priority-review',
+    getParentRoute: () => SubjectSubjectIdRoute,
   } as any)
 const SubjectSubjectIdMapRoute = SubjectSubjectIdMapRouteImport.update({
-  id: '/subject/$subjectId/map',
-  path: '/subject/$subjectId/map',
-  getParentRoute: () => rootRouteImport,
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => SubjectSubjectIdRoute,
 } as any)
 const ProbeTagTagIdRoute = ProbeTagTagIdRouteImport.update({
   id: '/probe/tag/$tagId',
@@ -221,7 +221,6 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/concerns': typeof ConcernsRoute
   '/content-library': typeof ContentLibraryRoute
-  '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
   '/learning-list': typeof LearningListRoute
@@ -240,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
+  '/subject/$subjectId': typeof SubjectSubjectIdRouteWithChildren
   '/subjects/new': typeof SubjectsNewRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -256,7 +256,6 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/concerns': typeof ConcernsRoute
   '/content-library': typeof ContentLibraryRoute
-  '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
   '/learning-list': typeof LearningListRoute
@@ -275,6 +274,7 @@ export interface FileRoutesByTo {
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
+  '/subject/$subjectId': typeof SubjectSubjectIdRouteWithChildren
   '/subjects/new': typeof SubjectsNewRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -292,7 +292,6 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/concerns': typeof ConcernsRoute
   '/content-library': typeof ContentLibraryRoute
-  '/dashboard': typeof DashboardRoute
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
   '/learning-list': typeof LearningListRoute
@@ -311,6 +310,7 @@ export interface FileRoutesById {
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
   '/probe/$topicId': typeof ProbeTopicIdRoute
   '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
+  '/subject/$subjectId': typeof SubjectSubjectIdRouteWithChildren
   '/subjects/new': typeof SubjectsNewRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
@@ -329,7 +329,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/concerns'
     | '/content-library'
-    | '/dashboard'
     | '/decide'
     | '/duplicates'
     | '/learning-list'
@@ -348,6 +347,7 @@ export interface FileRouteTypes {
     | '/practice/$subjectId'
     | '/probe/$topicId'
     | '/study-sessions/$sessionId'
+    | '/subject/$subjectId'
     | '/subjects/new'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
@@ -364,7 +364,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/concerns'
     | '/content-library'
-    | '/dashboard'
     | '/decide'
     | '/duplicates'
     | '/learning-list'
@@ -383,6 +382,7 @@ export interface FileRouteTypes {
     | '/practice/$subjectId'
     | '/probe/$topicId'
     | '/study-sessions/$sessionId'
+    | '/subject/$subjectId'
     | '/subjects/new'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/stats'
@@ -399,7 +399,6 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/concerns'
     | '/content-library'
-    | '/dashboard'
     | '/decide'
     | '/duplicates'
     | '/learning-list'
@@ -418,6 +417,7 @@ export interface FileRouteTypes {
     | '/practice/$subjectId'
     | '/probe/$topicId'
     | '/study-sessions/$sessionId'
+    | '/subject/$subjectId'
     | '/subjects/new'
     | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/stats'
@@ -435,7 +435,6 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   ConcernsRoute: typeof ConcernsRoute
   ContentLibraryRoute: typeof ContentLibraryRoute
-  DashboardRoute: typeof DashboardRoute
   DecideRoute: typeof DecideRoute
   DuplicatesRoute: typeof DuplicatesRoute
   LearningListRoute: typeof LearningListRoute
@@ -452,14 +451,12 @@ export interface RootRouteChildren {
   LectureTopicIdRoute: typeof LectureTopicIdRoute
   PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
   ProbeTopicIdRoute: typeof ProbeTopicIdRoute
+  SubjectSubjectIdRoute: typeof SubjectSubjectIdRouteWithChildren
   SubjectsNewRoute: typeof SubjectsNewRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
   PracticeSubjectIdCheckWritingRoute: typeof PracticeSubjectIdCheckWritingRoute
   ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
-  SubjectSubjectIdMapRoute: typeof SubjectSubjectIdMapRoute
-  SubjectSubjectIdPriorityReviewRoute: typeof SubjectSubjectIdPriorityReviewRoute
-  SubjectSubjectIdRecommendationsRoute: typeof SubjectSubjectIdRecommendationsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -534,13 +531,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DecideRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/content-library': {
       id: '/content-library'
       path: '/content-library'
@@ -588,6 +578,13 @@ declare module '@tanstack/react-router' {
       path: '/subjects/new'
       fullPath: '/subjects/new'
       preLoaderRoute: typeof SubjectsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subject/$subjectId': {
+      id: '/subject/$subjectId'
+      path: '/subject/$subjectId'
+      fullPath: '/subject/$subjectId'
+      preLoaderRoute: typeof SubjectSubjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/study-sessions/$sessionId': {
@@ -648,24 +645,24 @@ declare module '@tanstack/react-router' {
     }
     '/subject/$subjectId/recommendations': {
       id: '/subject/$subjectId/recommendations'
-      path: '/subject/$subjectId/recommendations'
+      path: '/recommendations'
       fullPath: '/subject/$subjectId/recommendations'
       preLoaderRoute: typeof SubjectSubjectIdRecommendationsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SubjectSubjectIdRoute
     }
     '/subject/$subjectId/priority-review': {
       id: '/subject/$subjectId/priority-review'
-      path: '/subject/$subjectId/priority-review'
+      path: '/priority-review'
       fullPath: '/subject/$subjectId/priority-review'
       preLoaderRoute: typeof SubjectSubjectIdPriorityReviewRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SubjectSubjectIdRoute
     }
     '/subject/$subjectId/map': {
       id: '/subject/$subjectId/map'
-      path: '/subject/$subjectId/map'
+      path: '/map'
       fullPath: '/subject/$subjectId/map'
       preLoaderRoute: typeof SubjectSubjectIdMapRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SubjectSubjectIdRoute
     }
     '/probe/tag/$tagId': {
       id: '/probe/tag/$tagId'
@@ -722,6 +719,21 @@ const StudySessionsRouteWithChildren = StudySessionsRoute._addFileChildren(
   StudySessionsRouteChildren,
 )
 
+interface SubjectSubjectIdRouteChildren {
+  SubjectSubjectIdMapRoute: typeof SubjectSubjectIdMapRoute
+  SubjectSubjectIdPriorityReviewRoute: typeof SubjectSubjectIdPriorityReviewRoute
+  SubjectSubjectIdRecommendationsRoute: typeof SubjectSubjectIdRecommendationsRoute
+}
+
+const SubjectSubjectIdRouteChildren: SubjectSubjectIdRouteChildren = {
+  SubjectSubjectIdMapRoute: SubjectSubjectIdMapRoute,
+  SubjectSubjectIdPriorityReviewRoute: SubjectSubjectIdPriorityReviewRoute,
+  SubjectSubjectIdRecommendationsRoute: SubjectSubjectIdRecommendationsRoute,
+}
+
+const SubjectSubjectIdRouteWithChildren =
+  SubjectSubjectIdRoute._addFileChildren(SubjectSubjectIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminObservabilityRoute: AdminObservabilityRoute,
@@ -729,7 +741,6 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   ConcernsRoute: ConcernsRoute,
   ContentLibraryRoute: ContentLibraryRoute,
-  DashboardRoute: DashboardRoute,
   DecideRoute: DecideRoute,
   DuplicatesRoute: DuplicatesRoute,
   LearningListRoute: LearningListRoute,
@@ -746,14 +757,12 @@ const rootRouteChildren: RootRouteChildren = {
   LectureTopicIdRoute: LectureTopicIdRoute,
   PracticeSubjectIdRoute: PracticeSubjectIdRoute,
   ProbeTopicIdRoute: ProbeTopicIdRoute,
+  SubjectSubjectIdRoute: SubjectSubjectIdRouteWithChildren,
   SubjectsNewRoute: SubjectsNewRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
   PracticeSubjectIdCheckWritingRoute: PracticeSubjectIdCheckWritingRoute,
   ProbeTagTagIdRoute: ProbeTagTagIdRoute,
-  SubjectSubjectIdMapRoute: SubjectSubjectIdMapRoute,
-  SubjectSubjectIdPriorityReviewRoute: SubjectSubjectIdPriorityReviewRoute,
-  SubjectSubjectIdRecommendationsRoute: SubjectSubjectIdRecommendationsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

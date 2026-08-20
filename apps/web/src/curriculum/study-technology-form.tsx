@@ -24,9 +24,16 @@ function isValidHttpUrl(value: string): boolean {
 
 type EntryMode = 'search' | 'paste'
 
-export function StudyTechnologyForm({ subjectId }: { subjectId: string }) {
+export function StudyTechnologyForm({
+  subjectId,
+  open,
+  onOpenChange,
+}: {
+  subjectId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<EntryMode>('search')
   const [name, setName] = useState('')
   const [docUrl, setDocUrl] = useState('')
@@ -42,7 +49,7 @@ export function StudyTechnologyForm({ subjectId }: { subjectId: string }) {
     setPastedMaterial('')
     setLevel('medium')
     setError(null)
-    setOpen(false)
+    onOpenChange(false)
   }
 
   async function submit(event: FormEvent) {
@@ -108,7 +115,7 @@ export function StudyTechnologyForm({ subjectId }: { subjectId: string }) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         data-testid="study-technology-toggle"
         className="text-sm text-neutral-500 hover:text-neutral-900"
       >
