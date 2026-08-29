@@ -10,10 +10,15 @@ import {
   submitStructureTurnInput,
   updateCurriculumInput,
 } from "@post-anki/shared";
-import { draftProgressState, resolveDomainNodeSource } from "@post-anki/core";
+import {
+  draftProgressState,
+  resolveDomainNodeSource,
+  validateCategoryBelongsToSubject,
+} from "@post-anki/core";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getSubject } from "../subject/subject.repo.js";
+import { listCategoriesForSubject } from "../subject-category/subject-category.repo.js";
 import { resolveDomainPlacement } from "../domain-map/domain-placement.orchestrator.js";
 import { getDomainNode, listDomainNodesForSubject } from "../domain-map/domain-map.repo.js";
 import { startLivenessTracking } from "../liveness/liveness.repo.js";
@@ -193,6 +198,24 @@ export async function handleCreateCurriculum(
     }
   }
 
+  // subject-category-nesting, SCENARIO 12 — checked up front so a bad
+  // categoryId surfaces as a clear 400 rather than falling through to the
+  // repo's own re-check (which exists for the create/subject-merge race,
+  // not for input validation).
+  if (body.data.categoryId) {
+    const categories = await listCategoriesForSubject(body.data.subjectId);
+
+    if (!validateCategoryBelongsToSubject(body.data.categoryId, body.data.subjectId, categories)) {
+      sendError(
+        res,
+        400,
+        "category_wrong_subject",
+        "the target category does not belong to this curriculum's own subject",
+      );
+      return;
+    }
+  }
+
   const created = await createCurriculum({
     ...body.data,
     sources,
@@ -206,6 +229,11 @@ export async function handleCreateCurriculum(
   // merge's own lock, so this is the same 404 the pre-check would have sent,
   // just decided later and correctly.
   if ("error" in created) {
+    if (created.error === "category_wrong_subject") {
+      sendJson(res, 400, { error: created.error });
+      return;
+    }
+
     sendError(res, 404, created.error);
     return;
   }
@@ -585,7 +613,11 @@ export async function handleMoveCurriculum(
     return;
   }
 
-  const result = await moveCurriculumToSubject(curriculumId, body.data.targetSubjectId);
+  const result = await moveCurriculumToSubject(
+    curriculumId,
+    body.data.targetSubjectId,
+    body.data.categoryId,
+  );
 
   if ("error" in result) {
     if (result.error === "not_found" || result.error === "subject_not_found") {

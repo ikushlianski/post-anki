@@ -76,9 +76,27 @@ export const curriculumSchema = z.object({
   domainNodeId: z.string().nullable(),
   order: z.number().int(),
   modelTier: modelTierSchema.nullable(),
+  categoryId: z.string().nullable(),
 })
 
 export type Curriculum = z.infer<typeof curriculumSchema>
+
+export const subjectCategorySchema = z.object({
+  id: z.string(),
+  subjectId: z.string(),
+  parentId: z.string().nullable(),
+  name: z.string().min(1),
+})
+
+export type SubjectCategory = z.infer<typeof subjectCategorySchema>
+
+export const createSubjectCategoryInput = z.object({
+  subjectId: z.string(),
+  parentId: z.string().nullable().optional(),
+  name: z.string().min(1),
+})
+
+export type CreateSubjectCategoryInput = z.infer<typeof createSubjectCategoryInput>
 
 export const sourceKindSchema = z.enum(['link', 'text', 'web_research', 'llms_txt'])
 
@@ -362,6 +380,7 @@ export type MergeCurriculaInput = z.infer<typeof mergeCurriculaInput>
 export const moveCurriculumInput = z.object({
   curriculumId: z.string(),
   targetSubjectId: z.string(),
+  categoryId: z.string().nullable().optional(),
 })
 
 export type MoveCurriculumInput = z.infer<typeof moveCurriculumInput>
@@ -383,6 +402,7 @@ export const createCurriculumInput = z.object({
   pastedMaterial: z.string().min(1).nullable().optional(),
   preferredLevel: levelSchema.nullable().optional(),
   domainNodeId: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
 })
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>

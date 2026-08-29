@@ -42,6 +42,7 @@ import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
 import { Route as PracticeSubjectIdCheckWritingRouteImport } from './routes/practice.$subjectId_.check-writing'
 import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
 import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curriculum.$curriculumId_.assess'
+import { Route as SubjectSubjectIdCategoryCategoryIdRouteImport } from './routes/subject.$subjectId.category.$categoryId'
 
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
@@ -213,6 +214,12 @@ const CurriculumCurriculumIdAssessRoute =
     path: '/curriculum/$curriculumId/assess',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SubjectSubjectIdCategoryCategoryIdRoute =
+  SubjectSubjectIdCategoryCategoryIdRouteImport.update({
+    id: '/category/$categoryId',
+    path: '/category/$categoryId',
+    getParentRoute: () => SubjectSubjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
   '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
   '/subject/$subjectId/recommendations': typeof SubjectSubjectIdRecommendationsRoute
+  '/subject/$subjectId/category/$categoryId': typeof SubjectSubjectIdCategoryCategoryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
   '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
   '/subject/$subjectId/recommendations': typeof SubjectSubjectIdRecommendationsRoute
+  '/subject/$subjectId/category/$categoryId': typeof SubjectSubjectIdCategoryCategoryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/subject/$subjectId/map': typeof SubjectSubjectIdMapRoute
   '/subject/$subjectId/priority-review': typeof SubjectSubjectIdPriorityReviewRoute
   '/subject/$subjectId/recommendations': typeof SubjectSubjectIdRecommendationsRoute
+  '/subject/$subjectId/category/$categoryId': typeof SubjectSubjectIdCategoryCategoryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId/map'
     | '/subject/$subjectId/priority-review'
     | '/subject/$subjectId/recommendations'
+    | '/subject/$subjectId/category/$categoryId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId/map'
     | '/subject/$subjectId/priority-review'
     | '/subject/$subjectId/recommendations'
+    | '/subject/$subjectId/category/$categoryId'
   id:
     | '__root__'
     | '/'
@@ -426,6 +438,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId/map'
     | '/subject/$subjectId/priority-review'
     | '/subject/$subjectId/recommendations'
+    | '/subject/$subjectId/category/$categoryId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -692,6 +705,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdAssessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subject/$subjectId/category/$categoryId': {
+      id: '/subject/$subjectId/category/$categoryId'
+      path: '/category/$categoryId'
+      fullPath: '/subject/$subjectId/category/$categoryId'
+      preLoaderRoute: typeof SubjectSubjectIdCategoryCategoryIdRouteImport
+      parentRoute: typeof SubjectSubjectIdRoute
+    }
   }
 }
 
@@ -723,12 +743,15 @@ interface SubjectSubjectIdRouteChildren {
   SubjectSubjectIdMapRoute: typeof SubjectSubjectIdMapRoute
   SubjectSubjectIdPriorityReviewRoute: typeof SubjectSubjectIdPriorityReviewRoute
   SubjectSubjectIdRecommendationsRoute: typeof SubjectSubjectIdRecommendationsRoute
+  SubjectSubjectIdCategoryCategoryIdRoute: typeof SubjectSubjectIdCategoryCategoryIdRoute
 }
 
 const SubjectSubjectIdRouteChildren: SubjectSubjectIdRouteChildren = {
   SubjectSubjectIdMapRoute: SubjectSubjectIdMapRoute,
   SubjectSubjectIdPriorityReviewRoute: SubjectSubjectIdPriorityReviewRoute,
   SubjectSubjectIdRecommendationsRoute: SubjectSubjectIdRecommendationsRoute,
+  SubjectSubjectIdCategoryCategoryIdRoute:
+    SubjectSubjectIdCategoryCategoryIdRoute,
 }
 
 const SubjectSubjectIdRouteWithChildren =

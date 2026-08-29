@@ -67,6 +67,7 @@ export function TopicRow({
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const [controlsOpen, setControlsOpen] = useState(false)
   const hydrated = useHydrated()
   const toggleIncludedMutation = useToggleTopicIncluded(curriculumId)
   const included = topic.included
@@ -157,45 +158,62 @@ export function TopicRow({
             </div>
           ) : null}
         </div>
-        <button
-          type="button"
-          title={controlHint(includeState)}
-          disabled={isControlDisabled(includeState)}
-          data-testid={`topic-included-toggle-${topic.id}`}
-          onClick={toggleIncluded}
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-40 ${
-            included
-              ? 'bg-neutral-900 text-white'
-              : 'bg-neutral-200 text-neutral-600'
-          }`}
-        >
-          {included ? 'Included' : 'Skipped'}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            title={controlHint(includeState)}
+            disabled={isControlDisabled(includeState)}
+            data-testid={`topic-included-toggle-${topic.id}`}
+            onClick={toggleIncluded}
+            className={`rounded-full px-3 py-1 text-xs font-medium disabled:opacity-40 ${
+              included
+                ? 'bg-neutral-900 text-white'
+                : 'bg-neutral-200 text-neutral-600'
+            }`}
+          >
+            {included ? 'Included' : 'Skipped'}
+          </button>
+          {editable ? (
+            <button
+              type="button"
+              aria-label="Topic controls"
+              aria-expanded={controlsOpen}
+              data-testid={`topic-controls-toggle-${topic.id}`}
+              onClick={() => setControlsOpen((current) => !current)}
+              className={`rounded-full px-2 py-1 text-xs ${
+                controlsOpen
+                  ? 'bg-neutral-200 text-neutral-700'
+                  : 'text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700'
+              }`}
+            >
+              ⋯
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      {editable ? (
-        <TopicShapeBar
-          topic={topic}
-          topicOrder={topicOrder}
-          moduleId={moduleId}
-          curriculumId={curriculumId}
-          allModules={allModules}
-          hydrated={hydrated}
-        />
-      ) : null}
-
-      {editable ? (
-        <div className="mt-2">
-          <NodeCommentControl
-            busy={busy}
+      {editable && controlsOpen ? (
+        <>
+          <TopicShapeBar
+            topic={topic}
+            topicOrder={topicOrder}
+            moduleId={moduleId}
+            curriculumId={curriculumId}
+            allModules={allModules}
             hydrated={hydrated}
-            onSubmit={submitComment}
           />
-        </div>
+          <div className="mt-2">
+            <NodeCommentControl
+              busy={busy}
+              hydrated={hydrated}
+              onSubmit={submitComment}
+            />
+          </div>
+        </>
       ) : null}
 
       {included ? (
-        <div className="mt-3 space-y-4">
+        <div className="mt-3 space-y-3">
           <div>
             <span className="text-xs text-neutral-400">
               Your estimate (rough — the mentor weighs it, then tests it)

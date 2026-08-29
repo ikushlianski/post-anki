@@ -9,12 +9,17 @@ export const Route = createFileRoute('/subject/$subjectId')({
     const board = await getBoard()
     const subject = board.subjects.find((s) => s.id === params.subjectId) ?? null
 
-    return { subject, subjects: board.subjects, curricula: board.curricula }
+    return {
+      subject,
+      subjects: board.subjects,
+      curricula: board.curricula,
+      categories: board.categories,
+    }
   },
 })
 
 function SubjectDetailPage() {
-  const { subject, subjects, curricula } = Route.useLoaderData()
+  const { subject, subjects, curricula, categories } = Route.useLoaderData()
 
   if (!subject) {
     return (
@@ -41,6 +46,8 @@ function SubjectDetailPage() {
         subject={subject}
         curricula={curricula.filter((c) => c.subjectId === subject.id)}
         allSubjects={subjects}
+        categories={categories.filter((c) => c.subjectId === subject.id)}
+        allCategories={categories}
       />
     </main>
   )

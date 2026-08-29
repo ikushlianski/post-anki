@@ -33,6 +33,17 @@ done
 echo "[dev] applying migrations..."
 npm run db:migrate:api
 
+# Electric caches Postgres's schema at connect time. If it was already running
+# from a prior session, a migration applied just now (new/changed columns) is
+# invisible to it until it reconnects — shape requests then 400 with
+# "unknown reference <column>". Restarting it here after every migrate run
+# keeps it correct with zero manual steps. See docs/memories/local-dev-env.md.
+echo "[dev] restarting Electric to pick up any schema changes..."
+docker compose restart electric >/dev/null 2>&1 || true
+until [ "$(docker inspect -f '{{.State.Health.Status}}' post-anki-dev-electric 2>/dev/null)" = "healthy" ]; do
+  sleep 1
+done
+
 echo "[dev] launching api (:8030) + web (:3000) — Ctrl+C stops everything."
 npm run dev:apps &
 APP_PID=$!

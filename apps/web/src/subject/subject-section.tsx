@@ -12,9 +12,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 
 import type { ModelTier } from '@post-anki/shared'
-import type { Curriculum, CurriculumStatus, Subject } from '../curriculum/model'
-import { CreateCurriculumForm } from '../curriculum/create-curriculum-form'
-import { StudyTechnologyForm } from '../curriculum/study-technology-form'
+import { buildCategoryPickerOptions } from '@post-anki/core'
+import type { Curriculum, CurriculumStatus, Subject, SubjectCategory } from '../curriculum/model'
 import {
   deleteCurriculum,
   mergeCurricula,
@@ -24,21 +23,39 @@ import {
 import { ConfirmDelete } from '../curriculum/shape-controls'
 import { useHydrated } from '../shared/use-hydrated'
 import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
+import { CreateMaterialForm } from './create-material-form'
+
+// Mirrors the dashboard's subject-count treatment
+// (apps/web/src/routes/index.tsx) — "No curricula yet" for zero, otherwise
+// a singular-aware "N item(s)" count — rather than a bare "{n} item(s)"
+// with no zero-state phrasing.
+function formatItemCount(count: number): string {
+  if (count === 0) {
+    return 'No curricula yet'
+  }
+
+  return `${count} item${count === 1 ? '' : 's'}`
+}
 
 export function SubjectSection({
   subject,
   curricula,
   allSubjects,
+  categories = [],
+  allCategories = [],
 }: {
   subject: Subject
   curricula: Curriculum[]
   allSubjects: Subject[]
+  categories?: SubjectCategory[]
+  allCategories?: SubjectCategory[]
   globalModelTier?: ModelTier
 }) {
   const router = useRouter()
-  const [localOrder, setLocalOrder] = useState<string[]>(curricula.map((c) => c.id))
+  const uncategorized = curricula.filter((c) => c.categoryId === null)
+  const rootCategories = categories.filter((category) => category.parentId === null)
+  const [localOrder, setLocalOrder] = useState<string[]>(uncategorized.map((c) => c.id))
   const [reorderError, setReorderError] = useState<string | null>(null)
-  const [studyFormOpen, setStudyFormOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -74,26 +91,6 @@ export function SubjectSection({
 
   return (
     <section data-testid="subject-card" data-subject-id={subject.id}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        {subject.kind === 'architecture-mentor' ? (
-          <button
-            type="button"
-            data-testid="subject-name"
-            onClick={() => setStudyFormOpen(true)}
-            className="min-w-0 truncate text-left text-lg font-medium tracking-tight hover:text-indigo-600"
-          >
-            {subject.name}
-          </button>
-        ) : (
-          <h2
-            data-testid="subject-name"
-            className="min-w-0 truncate text-lg font-medium tracking-tight"
-          >
-            {subject.name}
-          </h2>
-        )}
-      </div>
-
       {subject.kind === 'language-practice' ? (
         <Link
           to="/practice/$subjectId"
@@ -105,18 +102,42 @@ export function SubjectSection({
         </Link>
       ) : (
         <>
+          {rootCategories.length > 0 ? (
+            <ul className="mb-3 space-y-2" data-testid="subject-categories">
+              {rootCategories.map((category) => (
+                <li key={category.id}>
+                  <Link
+                    to="/subject/$subjectId/category/$categoryId"
+                    params={{ subjectId: subject.id, categoryId: category.id }}
+                    data-testid={`category-link-${category.id}`}
+                    className="flex items-center justify-between card-compact hover:border-neutral-400"
+                  >
+                    <span className="text-sm font-medium">📁 {category.name}</span>
+                    <span className="text-sm text-neutral-400">
+                      {formatItemCount(
+                        curricula.filter((c) => c.categoryId === category.id).length +
+                          categories.filter((c) => c.parentId === category.id).length,
+                      )}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <ul className="mb-3 space-y-2">
-              {curricula.length === 0 ? (
+              {uncategorized.length === 0 && rootCategories.length === 0 ? (
                 <li className="text-sm text-neutral-400">No curricula yet.</li>
               ) : (
                 <SortableContext items={localOrder} strategy={verticalListSortingStrategy}>
-                  {curricula.map((curriculum) => (
+                  {uncategorized.map((curriculum) => (
                     <SortableCurriculumItem
                       key={curriculum.id}
                       curriculum={curriculum}
-                      allCurricula={curricula}
+                      allCurricula={uncategorized}
                       allSubjects={allSubjects}
+                      allCategories={allCategories}
                     />
                   ))}
                 </SortableContext>
@@ -130,20 +151,13 @@ export function SubjectSection({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-3">
-            {subject.requireSources ? (
-              <CreateCurriculumForm
-                subjectId={subject.id}
-                requireSources={subject.requireSources}
-                toggleLabel="+ Add curriculum"
-                toggleClassName="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-              />
-            ) : (
-              <StudyTechnologyForm
-                subjectId={subject.id}
-                open={studyFormOpen}
-                onOpenChange={setStudyFormOpen}
-              />
-            )}
+            <CreateMaterialForm
+              subjectId={subject.id}
+              subjectName={subject.name}
+              requireSources={subject.requireSources}
+              categories={categories}
+              defaultSelectedNodeId={null}
+            />
           </div>
         </>
       )}
@@ -163,10 +177,12 @@ function SortableCurriculumItem({
   curriculum,
   allCurricula,
   allSubjects,
+  allCategories,
 }: {
   curriculum: Curriculum
   allCurricula: Curriculum[]
   allSubjects: Subject[]
+  allCategories: SubjectCategory[]
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: curriculum.id,
@@ -205,10 +221,41 @@ function SortableCurriculumItem({
           <StatusBadge status={curriculum.status} />
         </span>
       </Link>
-      <MergeCurriculumButton curriculum={curriculum} curricula={allCurricula} />
-      <MoveCurriculumButton curriculum={curriculum} allSubjects={allSubjects} />
-      <DeleteCurriculumButton curriculumId={curriculum.id} />
+      <CurriculumRowActions
+        curriculum={curriculum}
+        allCurricula={allCurricula}
+        allSubjects={allSubjects}
+        allCategories={allCategories}
+      />
     </li>
+  )
+}
+
+// subject-category-nesting SCENARIO 9 — shared with the category detail
+// page (subject.$subjectId.category.$categoryId.tsx) so a curriculum
+// rendered inside a category also has a move/merge/delete path, not just
+// curricula rendered directly on the subject page.
+export function CurriculumRowActions({
+  curriculum,
+  allCurricula,
+  allSubjects,
+  allCategories,
+}: {
+  curriculum: Curriculum
+  allCurricula: Curriculum[]
+  allSubjects: Subject[]
+  allCategories: SubjectCategory[]
+}) {
+  return (
+    <span className="flex shrink-0 items-center gap-2">
+      <MergeCurriculumButton curriculum={curriculum} curricula={allCurricula} />
+      <MoveCurriculumButton
+        curriculum={curriculum}
+        allSubjects={allSubjects}
+        allCategories={allCategories}
+      />
+      <DeleteCurriculumButton curriculumId={curriculum.id} />
+    </span>
   )
 }
 
@@ -327,20 +374,30 @@ function MergeCurriculumButton({
 function MoveCurriculumButton({
   curriculum,
   allSubjects,
+  allCategories,
 }: {
   curriculum: Curriculum
   allSubjects: Subject[]
+  allCategories: SubjectCategory[]
 }) {
   const router = useRouter()
   const [armed, setArmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [targetSubjectId, setTargetSubjectId] = useState('')
+  const [targetCategoryId, setTargetCategoryId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const options = allSubjects.filter(
-    (candidate) =>
-      candidate.id !== curriculum.subjectId && candidate.kind === 'architecture-mentor',
-  )
+  // subject-category-nesting SCENARIO 9 — the curriculum's own subject stays
+  // in the list (unlike the older subject-to-subject move this control used
+  // to be) so a curriculum can be reassigned to a different category, or
+  // pulled back to no category, without a subject change. The backend
+  // relaxes its own same_subject rejection exactly when a category is
+  // specified (see curriculum.repo.ts moveCurriculumToSubject).
+  const options = allSubjects.filter((candidate) => candidate.kind === 'architecture-mentor')
+  const targetSubject = options.find((option) => option.id === targetSubjectId)
+  const categoryOptions = targetSubject
+    ? buildCategoryPickerOptions(allCategories, targetSubject.id, targetSubject.name)
+    : []
 
   async function confirm() {
     if (!targetSubjectId) {
@@ -351,7 +408,12 @@ function MoveCurriculumButton({
     setError(null)
 
     try {
-      await moveCurriculum({ data: { curriculumId: curriculum.id, targetSubjectId } })
+      // subject-category-nesting SCENARIO 8 — subject + category move as one
+      // atomic action; targetCategoryId defaults to the target subject's
+      // root (null) unless a category was explicitly chosen.
+      await moveCurriculum({
+        data: { curriculumId: curriculum.id, targetSubjectId, categoryId: targetCategoryId },
+      })
       await router.invalidate()
     } catch {
       setError("Couldn't move — pick a different subject and try again.")
@@ -378,7 +440,10 @@ function MoveCurriculumButton({
       <select
         data-testid={`curriculum-move-target-select-${curriculum.id}`}
         value={targetSubjectId}
-        onChange={(event) => setTargetSubjectId(event.target.value)}
+        onChange={(event) => {
+          setTargetSubjectId(event.target.value)
+          setTargetCategoryId(null)
+        }}
         className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
       >
         <option value="">select subject…</option>
@@ -388,6 +453,22 @@ function MoveCurriculumButton({
           </option>
         ))}
       </select>
+      {targetSubjectId ? (
+        <select
+          data-testid={`curriculum-move-category-select-${curriculum.id}`}
+          value={targetCategoryId ?? ''}
+          onChange={(event) =>
+            setTargetCategoryId(event.target.value === '' ? null : event.target.value)
+          }
+          className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
+        >
+          {categoryOptions.map((option) => (
+            <option key={option.nodeId ?? '__root__'} value={option.nodeId ?? ''}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : null}
       <button
         type="button"
         disabled={busy || !targetSubjectId}

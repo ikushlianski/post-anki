@@ -24,6 +24,22 @@ const SEED_SUBJECTS = [
   { name: "Spanish", description: "Beginner Spanish." },
   { name: "Swedish", description: "Swedish, not yet started." },
   { name: "Music", description: "Piano." },
+  {
+    name: "Databases",
+    description: "Postgres, data modeling, and storage systems — split out as its own subject.",
+  },
+  {
+    name: "Architecture",
+    description: "System design, service boundaries, and architectural decision-making.",
+  },
+  {
+    name: "Cloud Computing",
+    description: "AWS/GCP infrastructure, deployment, and cloud-native patterns.",
+  },
+  {
+    name: "AI",
+    description: "AI/ML systems, LLMs, and applied AI engineering.",
+  },
 ];
 
 async function main() {

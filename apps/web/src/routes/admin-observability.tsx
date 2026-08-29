@@ -80,7 +80,7 @@ function AdminObservabilityPage() {
           <p className="text-sm text-neutral-500">No events recorded yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-neutral-200">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm" data-testid="admin-observability-llm-events-table">
               <thead className="bg-neutral-50 text-xs uppercase text-neutral-500">
                 <tr>
                   <th className="px-4 py-2">Op</th>
@@ -93,11 +93,11 @@ function AdminObservabilityPage() {
               </thead>
               <tbody>
                 {data.recentEvents.map((e) => (
-                  <tr key={e.id} className="border-t border-neutral-200">
-                    <td className="px-4 py-2">{e.op}</td>
-                    <td className="px-4 py-2">{e.agentKey}</td>
-                    <td className="px-4 py-2">{e.curriculumName ?? e.curriculumId ?? '—'}</td>
-                    <td className="px-4 py-2">
+                  <tr key={e.id} className="border-t border-neutral-200" data-testid="admin-observability-llm-event-row">
+                    <td className="px-4 py-2" data-testid="admin-observability-llm-event-op">{e.op}</td>
+                    <td className="px-4 py-2" data-testid="admin-observability-llm-event-agent">{e.agentKey}</td>
+                    <td className="px-4 py-2" data-testid="admin-observability-llm-event-curriculum">{e.curriculumName ?? e.curriculumId ?? '—'}</td>
+                    <td className="px-4 py-2" data-testid="admin-observability-llm-event-result">
                       {e.success ? (
                         <span className="text-emerald-600">ok</span>
                       ) : (
@@ -106,7 +106,7 @@ function AdminObservabilityPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2">{formatDurationMs(e.durationMs)}</td>
+                    <td className="px-4 py-2" data-testid="admin-observability-llm-event-duration">{formatDurationMs(e.durationMs)}</td>
                     <td className="px-4 py-2 text-neutral-500">
                       {new Date(e.createdAt).toLocaleString()}
                     </td>

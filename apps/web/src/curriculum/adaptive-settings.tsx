@@ -24,6 +24,15 @@ const DEPTH_LABEL: Record<Depth, string> = {
   deep: 'Deep',
 }
 
+export function adaptiveSettingsSummary(curriculum: Curriculum): string {
+  return [
+    SPEED_LABEL[curriculum.speed],
+    curriculum.hinting ? 'hints on' : 'hints off',
+    `depth ${DEPTH_LABEL[curriculum.defaultDepth]}`,
+    `strict order ${curriculum.strictOrder ? 'on' : 'off'}`,
+  ].join(' · ')
+}
+
 export function AdaptiveSettings({
   curriculum,
   inheritedModelTier,
@@ -37,7 +46,6 @@ export function AdaptiveSettings({
   const router = useRouter()
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
-  const [open, setOpen] = useState(false)
 
   async function update(patch: {
     speed?: Speed
@@ -57,34 +65,11 @@ export function AdaptiveSettings({
     await router.invalidate()
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        data-testid="adaptive-settings-toggle"
-        onClick={() => setOpen(true)}
-        className="text-xs text-neutral-500 hover:text-neutral-900"
-      >
-        ⚙ Adaptive settings · {SPEED_LABEL[curriculum.speed]} ·{' '}
-        {curriculum.hinting ? 'hints on' : 'hints off'} · default depth{' '}
-        {DEPTH_LABEL[curriculum.defaultDepth]} · strict order{' '}
-        {curriculum.strictOrder ? 'on' : 'off'}
-      </button>
-    )
-  }
-
   return (
-    <div className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Adaptive settings</h3>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-xs text-neutral-400 hover:text-neutral-700"
-        >
-          Close
-        </button>
-      </div>
+    <div className="space-y-3" data-testid="adaptive-settings">
+      <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        Adaptive settings
+      </p>
 
       <div>
         <p className="mb-1 text-xs text-neutral-400">

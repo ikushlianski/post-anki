@@ -63,6 +63,7 @@ const CURRICULUM: Curriculum = {
   domainNodeId: null,
   order: 1,
   modelTier: null,
+  categoryId: null,
 }
 
 describe('SubjectSection', () => {
@@ -70,52 +71,12 @@ describe('SubjectSection', () => {
     vi.clearAllMocks()
   })
 
-  it('should render knowledge map link for architecture-mentor subjects', () => {
+  it('should show the unified add-material action for architecture-mentor subjects', () => {
     render(
       <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
     )
 
-    const link = screen.getByTestId('knowledge-map-link')
-    expect(link).toBeDefined()
-    expect(link.textContent).toContain('Knowledge map')
-  })
-
-  it('should render priority review link for architecture-mentor subjects', () => {
-    render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
-    )
-
-    const link = screen.getByTestId('priority-review-link')
-    expect(link).toBeDefined()
-    expect(link.textContent).toContain('Priority review')
-  })
-
-  it('should pass correct subjectId parameter to knowledge map link', () => {
-    render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
-    )
-
-    const link = screen.getByTestId('knowledge-map-link')
-    const params = JSON.parse(link.getAttribute('data-params') || '{}')
-    expect(params.subjectId).toBe(SUBJECT_ID)
-  })
-
-  it('should pass correct subjectId parameter to priority review link', () => {
-    render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
-    )
-
-    const link = screen.getByTestId('priority-review-link')
-    const params = JSON.parse(link.getAttribute('data-params') || '{}')
-    expect(params.subjectId).toBe(SUBJECT_ID)
-  })
-
-  it('should display subject name', () => {
-    render(
-      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
-    )
-
-    expect(screen.getByTestId('subject-name').textContent).toBe('Architecture Patterns')
+    expect(screen.getByTestId('create-material-toggle')).toBeDefined()
   })
 
   it('should display curriculum when provided', () => {

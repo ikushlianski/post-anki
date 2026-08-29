@@ -59,6 +59,10 @@ export const curriculumSchema = z.object({
   // at create time; updated by reorder endpoint inside transaction.
   order: z.number().int(),
   modelTier: modelTierSchema.nullable(),
+  // subject-category-nesting — which category (if any) this curriculum sits
+  // in, within its own subject. Null means "directly under the subject",
+  // the same real state every curriculum has today.
+  categoryId: z.string().nullable(),
 });
 
 export type Curriculum = z.infer<typeof curriculumSchema>;
@@ -77,6 +81,11 @@ export const createCurriculumInput = z.object({
   // the sibling-discovery agent — see apps/api/src/domain-map/
   // domain-placement.orchestrator.ts.
   domainNodeId: z.string().nullable().optional(),
+  // subject-category-nesting — the tree-position picker's selection.
+  // Absent/undefined and null both mean "directly under the subject".
+  // Validated against `subjectId` via validateCategoryBelongsToSubject
+  // before the write (SCENARIO 12).
+  categoryId: z.string().nullable().optional(),
 });
 
 export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>;
@@ -289,6 +298,14 @@ export type MergeCurriculaResult = z.infer<typeof mergeCurriculaResultSchema>;
 
 export const moveCurriculumInput = z.object({
   targetSubjectId: z.string(),
+  // subject-category-nesting — the target category within targetSubjectId,
+  // or null to place the curriculum directly under the subject.
+  // Absent/undefined means "leave the category untouched" ONLY when
+  // targetSubjectId is unchanged (a same-subject move that doesn't specify
+  // a category is a no-op on category); an actual subject change with no
+  // categoryId given resets category to null, since a category from the OLD
+  // subject can never carry over to a new one (see moveCurriculumToSubject).
+  categoryId: z.string().nullable().optional(),
 });
 
 export type MoveCurriculumInput = z.infer<typeof moveCurriculumInput>;

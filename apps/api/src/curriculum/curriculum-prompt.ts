@@ -5,6 +5,14 @@ export interface PromptContext {
   subjectDescription: string | null;
 }
 
+function existingTagsBlock(existingTags: string[]): string[] {
+  if (existingTags.length === 0) {
+    return ["Existing cross-cutting tags in use: (none yet — propose new ones sparingly)"];
+  }
+
+  return [`Existing cross-cutting tags in use — reuse one of these when it fits, propose a new one only when none do: ${existingTags.join(", ")}`];
+}
+
 function nonEmpty(value: string | null): string | null {
   if (!value) {
     return null;
@@ -39,7 +47,11 @@ function contextHeader(ctx: PromptContext): string[] {
   return lines;
 }
 
-export function buildParsePrompt(ctx: PromptContext, sourceText: string): string {
+export function buildParsePrompt(
+  ctx: PromptContext,
+  sourceText: string,
+  existingTags: string[] = [],
+): string {
   return [
     ...contextHeader(ctx),
     "",
@@ -47,6 +59,8 @@ export function buildParsePrompt(ctx: PromptContext, sourceText: string): string
     sourceText.length > 0
       ? sourceText
       : "(no sources pasted — propose a sensible module/topic skeleton for this curriculum, guided by the subject and curriculum context above)",
+    "",
+    ...existingTagsBlock(existingTags),
   ].join("\n");
 }
 
@@ -73,6 +87,7 @@ export function buildMergePrompt(
   ctx: PromptContext,
   lockedModules: LockedModuleOutline[],
   sourceText: string,
+  existingTags: string[] = [],
 ): string {
   return [
     ...contextHeader(ctx),
@@ -84,6 +99,8 @@ export function buildMergePrompt(
     sourceText.length > 0 ? sourceText : "(no source text available)",
     "",
     "Rebuild the REST of the curriculum from this material: revise and extend the not-yet-studied areas, and add any new modules/topics the material now warrants. Produce ONLY modules that are NOT in the locked list above. If the material adds nothing beyond what is locked, return an empty modules array.",
+    "",
+    ...existingTagsBlock(existingTags),
   ].join("\n");
 }
 
@@ -194,6 +211,7 @@ export function buildStructureDraftPrompt(
   ctx: PromptContext,
   sourceText: string,
   trustedSources: TrustedSourceRef[],
+  existingTags: string[] = [],
 ): string {
   return [
     ...contextHeader(ctx),
@@ -211,6 +229,8 @@ export function buildStructureDraftPrompt(
     "Granularity: each topic must represent one coherent concept a learner would study as a unit — never split finer than that. When source material spans many small pages (e.g. a crawled docs site), group pages that cover the same concept into a single topic instead of creating one topic per page.",
     "",
     "Provenance: the approved source material above marks each crawled page with a line like \"# <title> (SOURCE_URL: <url>)\". When a topic's content comes chiefly from one such page, set that topic's sourceUrl to the EXACT url from that marker. Set sourceUrl to null when the topic draws on pasted text with no such marker, spans several pages, or comes from your own trained knowledge.",
+    "",
+    ...existingTagsBlock(existingTags),
   ].join("\n");
 }
 
@@ -231,7 +251,11 @@ export function buildStructureToolTurnPrompt(
   turns: StructureTurnRef[],
   currentSnapshot: SnapshotOutline,
   studyTimeSummary: string,
-  options?: { researchGapLabels?: string[]; supplementalSources?: TrustedSourceRef[] },
+  options?: {
+    researchGapLabels?: string[];
+    supplementalSources?: TrustedSourceRef[];
+    existingTags?: string[];
+  },
 ): string {
   const lines = [
     ...contextHeader(ctx),
@@ -265,6 +289,8 @@ export function buildStructureToolTurnPrompt(
     "Conversation so far:",
     turnHistoryBlock(turns),
     "",
+    ...existingTagsBlock(options?.existingTags ?? []),
+    "",
     "Use your tools to make the edit(s) the learner's latest message above asks for, then reply with a short, plain summary of what you did.",
   );
 
@@ -282,6 +308,7 @@ export function buildStructureGuidedRegenPrompt(
   trustedSources: TrustedSourceRef[],
   currentSnapshot: SnapshotOutline,
   guidance: string,
+  existingTags: string[] = [],
 ): string {
   return [
     ...contextHeader(ctx),
@@ -300,5 +327,7 @@ export function buildStructureGuidedRegenPrompt(
     `Guidance for this revision: ${guidance}`,
     "",
     "Produce a REVISED full structure that directly addresses the guidance above. Keep what still makes sense as-is; change only what the guidance asks for.",
+    "",
+    ...existingTagsBlock(existingTags),
   ].join("\n");
 }

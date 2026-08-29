@@ -13,6 +13,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
     "db:seed:subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subjects.ts",
+    "db:seed:subject-categories": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subject-categories.ts",
     "migrate:english-practice-data": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate-english-practice-data.ts",
     "db:seed:domain-taxonomy": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-domain-taxonomy.ts",
     "verify:e2e": "tsx scripts/verify-e2e.ts"

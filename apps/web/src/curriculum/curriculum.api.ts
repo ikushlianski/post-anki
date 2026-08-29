@@ -8,6 +8,7 @@ import {
   assignTagInput,
   createCurriculumInput,
   createModuleInput,
+  createSubjectCategoryInput,
   createTagInput,
   createTopicInput,
   curateGapInput,
@@ -34,21 +35,31 @@ import type {
   DashboardSubject,
   QuestionKind,
   Subject,
+  SubjectCategory,
   Tag,
 } from './model'
 import type { CrossCuttingNudge, StructureTurn, TagAssignment } from '@post-anki/shared'
 import * as api from './api-client'
 
 export const getBoard = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<{ subjects: Subject[]; curricula: Curriculum[] }> => {
-    const [subjects, curricula] = await Promise.all([
+  async (): Promise<{
+    subjects: Subject[]
+    curricula: Curriculum[]
+    categories: SubjectCategory[]
+  }> => {
+    const [subjects, curricula, categories] = await Promise.all([
       api.listSubjects(),
       api.listCurricula(),
+      api.listAllSubjectCategories(),
     ])
 
-    return { subjects, curricula }
+    return { subjects, curricula, categories }
   },
 )
+
+export const createSubjectCategory = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => createSubjectCategoryInput.parse(data))
+  .handler(({ data }): Promise<SubjectCategory> => api.createSubjectCategory(data))
 
 export const getTree = createServerFn({ method: 'GET' }).handler(
   async (): Promise<DashboardSubject[]> => {
@@ -295,7 +306,9 @@ export const mergeCurricula = createServerFn({ method: 'POST' })
 
 export const moveCurriculum = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => moveCurriculumInput.parse(data))
-  .handler(({ data }) => api.moveCurriculum(data.curriculumId, data.targetSubjectId))
+  .handler(({ data }) =>
+    api.moveCurriculum(data.curriculumId, data.targetSubjectId, data.categoryId),
+  )
 
 export const nextQuestion = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => nextQuestionInput.parse(data))

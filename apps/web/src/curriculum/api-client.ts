@@ -5,6 +5,7 @@ import type {
   ConcernSummary,
   CourseRefocusSuggestion,
   CreateCurriculumInput,
+  CreateSubjectCategoryInput,
   CreateSubjectInput,
   Curriculum,
   CurriculumDetail,
@@ -23,6 +24,7 @@ import type {
   SourceDraft,
   Speed,
   Subject,
+  SubjectCategory,
   Tag,
   TagChip,
   Topic,
@@ -249,6 +251,7 @@ function mapCurriculum(curriculum: be.Curriculum): Curriculum {
     domainNodeId: curriculum.domainNodeId,
     order: curriculum.order,
     modelTier: curriculum.modelTier,
+    categoryId: curriculum.categoryId,
   }
 }
 
@@ -471,6 +474,25 @@ export async function mergeSubjects(
   })
 }
 
+export async function listSubjectCategories(subjectId: string): Promise<SubjectCategory[]> {
+  return request<be.SubjectCategory[]>(`/subjects/${subjectId}/categories`)
+}
+
+export async function listAllSubjectCategories(): Promise<SubjectCategory[]> {
+  return request<be.SubjectCategory[]>('/subject-categories')
+}
+
+export async function createSubjectCategory(
+  input: CreateSubjectCategoryInput,
+): Promise<SubjectCategory> {
+  const { subjectId, ...body } = input
+
+  return request<be.SubjectCategory>(`/subjects/${subjectId}/categories`, {
+    method: 'POST',
+    body,
+  })
+}
+
 export async function listCurricula(): Promise<Curriculum[]> {
   const list = await request<be.Curriculum[]>('/curricula')
 
@@ -672,10 +694,11 @@ export async function mergeCurricula(
 export async function moveCurriculum(
   curriculumId: string,
   targetSubjectId: string,
+  categoryId?: string | null,
 ): Promise<Curriculum> {
   const updated = await request<be.Curriculum>(`/curricula/${curriculumId}/move`, {
     method: 'POST',
-    body: { targetSubjectId },
+    body: { targetSubjectId, categoryId },
   })
 
   return mapCurriculum(updated)

@@ -2,99 +2,40 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import type { DomainNodeTreeItem } from '@post-anki/shared'
 
-import { changeCurriculumPlacement, getDomainMapForSubject } from './domain-map.api'
+import { changeCurriculumPlacement } from './domain-map.api'
+import { findDomainPath, flattenDomainOptions } from './domain-tree'
 
-interface FlatOption {
-  id: string
-  label: string
-  depth: number
-}
-
-function flatten(nodes: DomainNodeTreeItem[], depth = 0): FlatOption[] {
-  return nodes.flatMap((node) => [
-    { id: node.id, label: node.name, depth },
-    ...flatten(node.children, depth + 1),
-  ])
-}
-
-function findPath(
-  nodes: DomainNodeTreeItem[],
-  nodeId: string,
-  trail: string[] = [],
-): string[] | null {
-  for (const node of nodes) {
-    const nextTrail = [...trail, node.name]
-
-    if (node.id === nodeId) {
-      return nextTrail
-    }
-
-    const found = findPath(node.children, nodeId, nextTrail)
-
-    if (found) {
-      return found
-    }
-  }
-
-  return null
-}
-
-// Renders on the curriculum's own detail page (SCENARIO 5's "the created
-// curriculum's own page/settings shows curriculum-placement text plus a
-// change-placement-select control", SCENARIO 9's re-pointing UI). Only
-// renders once the subject's domain map has at least one node — a subject
-// with no tree at all (the other 7 non-gated subjects) has nothing to place
-// into, matching this plan's cost-gating story on the read side too.
+// Renders inside the curriculum detail page's settings disclosure. The
+// subject's domain tree is fetched once by that parent and handed down, so a
+// subject with no tree never reaches this panel at all.
 export function CurriculumPlacementPanel({
   curriculumId,
-  subjectId,
+  tree,
   domainNodeId,
 }: {
   curriculumId: string
-  subjectId: string
+  tree: DomainNodeTreeItem[]
   domainNodeId: string | null
 }) {
   const router = useRouter()
-  const [tree, setTree] = useState<DomainNodeTreeItem[] | null>(null)
   const [selected, setSelected] = useState<string>(domainNodeId ?? '')
   const [busy, setBusy] = useState(false)
   // Seeded from the mutation's own response rather than relying solely on
-  // router.invalidate() re-fetching the parent route's query in time — same
-  // "use the mutation response directly, treat invalidation as a live-update
-  // layer on top" fix shape as batch-practice-electric-fallback used
-  // elsewhere in this app for the identical class of race.
+  // router.invalidate() re-fetching the parent route's query in time.
   const [committedDomainNodeId, setCommittedDomainNodeId] = useState<string | null>(domainNodeId)
-
-  useEffect(() => {
-    let cancelled = false
-
-    getDomainMapForSubject({ data: subjectId }).then((result) => {
-      if (!cancelled) {
-        setTree(result)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [subjectId])
 
   useEffect(() => {
     setSelected(domainNodeId ?? '')
     setCommittedDomainNodeId(domainNodeId)
   }, [domainNodeId])
 
-  if (tree === null) {
-    return null
-  }
-
-  const options = flatten(tree)
+  const options = flattenDomainOptions(tree)
 
   if (options.length === 0) {
     return null
   }
 
-  const path = committedDomainNodeId ? findPath(tree, committedDomainNodeId) : null
+  const path = committedDomainNodeId ? findDomainPath(tree, committedDomainNodeId) : null
 
   async function submit() {
     setBusy(true)
@@ -107,16 +48,19 @@ export function CurriculumPlacementPanel({
   }
 
   return (
-    <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-3 text-sm">
-      <p data-testid="curriculum-placement" className="text-neutral-600">
+    <div className="text-sm">
+      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+        Placement
+      </p>
+      <p data-testid="curriculum-placement" className="text-xs text-neutral-500">
         {path ? `Placed under ${path.join(' > ')}` : 'Not placed in the domain map yet'}
       </p>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
         <select
           data-testid="change-placement-select"
           value={selected}
           onChange={(event) => setSelected(event.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+          className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
         >
           <option value="">— unplaced —</option>
           {options.map((option) => (

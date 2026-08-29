@@ -33,6 +33,7 @@ import {
   updateStructureTurn,
 } from "./curriculum.repo.js";
 import { assembleAllSourceText } from "./source-text.js";
+import { listTags } from "../tag/tag.repo.js";
 
 // Every real network/model call this module makes to an LLM agent goes
 // through this one retry wrapper — bounded (2 retries, 3 attempts total)
@@ -230,15 +231,16 @@ export async function generateDraftStructure(curriculumId: string): Promise<void
       throw new Error("curriculum context not found for draft structure generation");
     }
 
-    const [sourceText, trustedSources] = await Promise.all([
+    const [sourceText, trustedSources, existingTags] = await Promise.all([
       assembleAllSourceText(curriculumId),
       gatherTrustedSourceCandidates(curriculum.name, { curriculumId, subjectId: curriculum.subjectId }).catch((err) => {
         log.warn({ err, curriculumId }, "structure_draft_trusted_search_failed");
         return [];
       }),
+      listTags().then((tags) => tags.map((t) => t.name)),
     ]);
 
-    const prompt = buildStructureDraftPrompt(ctx, sourceText, trustedSources);
+    const prompt = buildStructureDraftPrompt(ctx, sourceText, trustedSources, existingTags);
     const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
 
     const result = await generateWithRetry(
@@ -581,13 +583,14 @@ async function runStructureEditorEdit(
       throw new Error("curriculum context not found for structure turn");
     }
 
-    const [sourceText, allTurns, trustedSources] = await Promise.all([
+    const [sourceText, allTurns, trustedSources, existingTags] = await Promise.all([
       assembleAllSourceText(curriculumId),
       getStructureTurns(curriculumId),
       gatherTrustedSourceCandidates(curriculum.name, { curriculumId, subjectId: curriculum.subjectId }).catch((err) => {
         log.warn({ err, curriculumId }, "structure_turn_trusted_search_failed");
         return [];
       }),
+      listTags().then((tags) => tags.map((t) => t.name)),
     ]);
 
     // Excludes this very turn's own "pending" placeholder, inserted above
@@ -608,7 +611,14 @@ async function runStructureEditorEdit(
     };
 
     const regenerateGuided = async (guidance: string): Promise<StructureSnapshot | null> => {
-      const regenPrompt = buildStructureGuidedRegenPrompt(ctx, sourceText, trustedSources, state.snapshot, guidance);
+      const regenPrompt = buildStructureGuidedRegenPrompt(
+        ctx,
+        sourceText,
+        trustedSources,
+        state.snapshot,
+        guidance,
+        existingTags,
+      );
       const architect = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
 
       const regenResult = await generateWithRetry(
@@ -650,7 +660,7 @@ async function runStructureEditorEdit(
       turns.map((t) => ({ role: t.role, message: t.message })),
       priorSnapshot,
       studyTimeSummary(priorSnapshot),
-      { researchGapLabels, supplementalSources },
+      { researchGapLabels, supplementalSources, existingTags },
     );
 
     const editorAgent = getMastra().getAgent(AGENT_KEYS.structureEditor);

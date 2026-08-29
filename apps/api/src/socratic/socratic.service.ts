@@ -417,7 +417,7 @@ async function openNextConcept(
   const gap = nextGapToProbe(gaps, rowDepth(topicRow));
 
   if (!gap) {
-    return null;
+    return makeOpeningTurn(sessionId, topicRow, now);
   }
 
   return makeTurnForGap(sessionId, topicRow, gap, now);
@@ -453,6 +453,34 @@ async function makeTurnForGap(
     createdAt: new Date(now),
     answeredAt: null,
     archetype: question?.archetype ?? null,
+  };
+
+  await insertTurn(turn);
+
+  return turn;
+}
+
+async function makeOpeningTurn(
+  sessionId: string,
+  topicRow: TopicRow,
+  now: string,
+): Promise<SocraticTurnRow> {
+  const prompt = `In your own words, walk me through ${topicRow.title} — and where you'd choose differently and why.`;
+
+  const order = (await listTurnRows(sessionId)).length + 1;
+  const turn: SocraticTurnRow = {
+    id: newId("sturn"),
+    sessionId,
+    gapId: null,
+    conceptLabel: topicRow.title,
+    order,
+    prompt,
+    answer: null,
+    degree: null,
+    action: null,
+    createdAt: new Date(now),
+    answeredAt: null,
+    archetype: null,
   };
 
   await insertTurn(turn);

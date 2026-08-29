@@ -17,9 +17,7 @@ import {
 import { ModuleSection } from '../curriculum/module-section'
 import { ProgressBar } from '../curriculum/progress-bar'
 import { AddInline } from '../curriculum/shape-controls'
-import { AdaptiveSettings } from '../curriculum/adaptive-settings'
-import { CurriculumPlacementPanel } from '../domain-map/curriculum-placement-panel'
-import { CurriculumDomainMappingPanel } from '../curriculum/curriculum-domain-mapping-panel'
+import { CurriculumSettingsPanel } from '../curriculum/curriculum-settings-panel'
 import { useHydrated } from '../shared/use-hydrated'
 import { listSubjects } from '../curriculum/api-client'
 import { getAdminSettings } from '../admin-settings/admin-settings.api'
@@ -98,7 +96,7 @@ function CurriculumPage() {
         ← All curricula
       </Link>
 
-      <header className="mb-6 mt-3">
+      <header className="mb-4 mt-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">
             {curriculum.name}
@@ -124,7 +122,7 @@ function CurriculumPage() {
         ) : null}
 
         {modules.length > 0 ? (
-          <div className="mt-4">
+          <div className="mt-3">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 text-xs text-neutral-400">
               <span>Overall progress · {curriculum.status}</span>
               <span>
@@ -137,26 +135,15 @@ function CurriculumPage() {
         ) : null}
       </header>
 
-      <CurriculumPlacementPanel
-        curriculumId={curriculum.id}
-        subjectId={curriculum.subjectId}
-        domainNodeId={curriculum.domainNodeId}
+      <CurriculumSettingsPanel
+        curriculum={curriculum}
+        domainMappings={detail.domainMappings}
+        inheritedModelTier={subjectModelTier}
+        showAdaptive={editable && modules.length > 0}
       />
-
-      <CurriculumDomainMappingPanel
-        curriculumId={curriculum.id}
-        subjectId={curriculum.subjectId}
-        initialMappings={detail.domainMappings}
-      />
-
-      {editable && modules.length > 0 ? (
-        <div className="mb-6">
-          <AdaptiveSettings curriculum={curriculum} inheritedModelTier={subjectModelTier} />
-        </div>
-      ) : null}
 
       {recommended && canProbe ? (
-        <div className="mb-6 rounded-lg border border-neutral-900 bg-neutral-900 px-4 py-3 text-sm text-white">
+        <div className="mb-5 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm text-white">
           <span className="text-neutral-400">Smart next step · </span>
           poke yourself on <span className="font-medium">{recommended.title}</span>{' '}
           — your weakest included topic right now.
@@ -164,16 +151,16 @@ function CurriculumPage() {
       ) : null}
 
       {!isAwaitingSourceApproval && !isShapingStructure ? (
-        <section className="mb-8">
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+        <section className="mb-6">
+          <h2 className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
             Sources
           </h2>
-          <ul className="space-y-1 text-sm">
+          <ul className="space-y-0.5 text-sm">
             {approvedSources.map((source) => (
               <SourceRow key={source.id} source={source} />
             ))}
           </ul>
-          <div className="mt-2">
+          <div className="mt-1.5">
             <AddSourcesForm curriculumId={curriculum.id} />
           </div>
         </section>
@@ -202,7 +189,7 @@ function CurriculumPage() {
               hand.
             </p>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {modules.map((module) => (
                 <ModuleSection
                   key={module.id}

@@ -79,6 +79,7 @@ function makeCurriculum(overrides: Partial<Curriculum> = {}): Curriculum {
     domainNodeId: null,
     order: 1,
     modelTier: null,
+    categoryId: null,
     ...overrides,
   };
 }

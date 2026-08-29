@@ -65,3 +65,29 @@ export async function withSubjectLock<T>(
     return run(tx);
   });
 }
+
+/**
+ * The pair-locking half of `withMergeLock`'s preamble (sorted advisory-lock
+ * pair, so two callers racing on the same pair in opposite directions never
+ * deadlock), without `withMergeLock`'s self-merge guard — for callers where
+ * the two ids being equal is a legitimate case to run, not one to reject.
+ * `moveCurriculumToSubject` uses this to lock a curriculum's target subject
+ * together with whatever its CURRENT subject turns out to be once that is
+ * known inside the transaction, rather than a pre-transaction peek that a
+ * concurrent write could have already made stale.
+ */
+export async function withPairLockAllowingEqual<T>(
+  idA: string,
+  idB: string,
+  run: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return getDb().transaction(async (tx) => {
+    const ids = idA === idB ? [idA] : [idA, idB].sort();
+
+    for (const id of ids) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${id})::bigint)`);
+    }
+
+    return run(tx);
+  });
+}

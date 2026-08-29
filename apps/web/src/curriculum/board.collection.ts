@@ -144,5 +144,12 @@ export function mapCurriculumRow(
     domainNodeId: row.domain_node_id ?? null,
     order: row.order,
     modelTier: (row.model_tier ?? null) as Curriculum['modelTier'],
+    // subject-category-nesting — categories are deliberately NOT part of the
+    // Electric shape registry (see spec.md's Decisions): the dashboard's
+    // live-sync board view renders subjects as a flat list with no category
+    // grouping, so this is normalized to null here rather than replicating
+    // a field nothing on this view reads. The subject/category detail pages
+    // (REST-backed, not Electric) are where a real categoryId comes from.
+    categoryId: null,
   }
 }

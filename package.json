@@ -36,7 +36,9 @@
     "db:migrate:bot": "npm run db:migrate -w @post-anki/bot",
     "depcruise": "depcruise --config .dependency-cruiser.cjs --output-type err apps packages",
     "check-no-dynamic-imports": "node scripts/check-no-dynamic-imports.mjs",
-    "check-web-node-builtins": "node scripts/check-web-node-builtins.mjs"
+    "check-web-node-builtins": "node scripts/check-web-node-builtins.mjs",
+    "e2e-local:mock-openrouter": "tsx e2e-local/mock-openrouter/server.ts",
+    "e2e-local:typecheck": "tsc --noEmit -p e2e-local/tsconfig.json"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

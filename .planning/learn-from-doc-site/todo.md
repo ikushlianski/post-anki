@@ -2,8 +2,8 @@
 type: todo
 branch: main
 task: learn-from-doc-site
-state: shipped
-updated: 2026-08-19
+state: needs-changes
+updated: 2026-08-21
 ---
 
 # Todo: Learn from a documentation site
@@ -16,11 +16,17 @@ made autonomously". Implementation can start.
 
 ## To review / clarify (not blockers, flagged for awareness)
 
-Nothing to review — all three prior items resolved during implementation, see Resolved.
+- Single-question calibration can elect deepest depth off one lucky guess.
+- `docker-compose.yml`'s `wal_level=logical` change unexplained by any plan file.
+- Archetype-rotation test's 3 other failures (AC22/AC25/AC32) not yet investigated.
 
 ## Coding tasks
 
-Nothing open — all 7 items shipped and reviewed, see Resolved.
+- Fix `topics.sourceId` never written for docs-site topics (schema + llms.txt gap).
+- Build missing S4 FE link from calibration-blocked screen to the quiz.
+- Fix go-deeper re-fetch failures being silently swallowed, never shown.
+- Fix depth-election race: gate opens before elected depths are written.
+- Fix `archetype-rotation.integration.test.ts` broken by new calibration gate.
 
 ## Manual steps / sequencing constraints
 
@@ -44,6 +50,7 @@ Nothing open — all 7 items shipped and reviewed, see Resolved.
 
 ## Resolved
 
+- 2026-08-21 — Re-review found provenance/go-deeper/FE-gap items falsely marked shipped; reopened.
 - 2026-08-19 — Reviewed and approved; all 7 coding tasks confirmed shipped (review.md).
 - 2026-08-19 — `depthElectedAt` now written on calibration completion, first real writer.
 - 2026-08-19 — Lazy question generation landed under new `apps/api/src/topic/`.

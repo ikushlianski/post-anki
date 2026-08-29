@@ -58,12 +58,22 @@ export async function findOrCreateAreaContainer(
   }
 
   try {
-    return await createCurriculum({
+    // No categoryId is ever passed here, so createCurriculum's
+    // "category_wrong_subject" outcome (subject-category-nesting) can never
+    // actually occur on this path — narrowed away rather than widening this
+    // function's own error union for an outcome it cannot produce.
+    const created = await createCurriculum({
       subjectId: params.subjectId,
       name: params.areaName,
       sources: [],
       containerAreaNodeId: params.areaNodeId,
     });
+
+    if ("error" in created && created.error === "category_wrong_subject") {
+      throw new Error("unreachable: findOrCreateAreaContainer never sets categoryId");
+    }
+
+    return created as Curriculum | { error: FindOrCreateAreaContainerError };
   } catch (err) {
     if (isUniqueViolation(err)) {
       const winner = await getAreaContainer(params.subjectId, params.areaNodeId);

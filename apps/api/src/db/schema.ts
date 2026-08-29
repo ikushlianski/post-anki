@@ -83,6 +83,13 @@ export const curricula = pgTable(
     // create time; reorder endpoint updates via assignOrders() inside
     // db.transaction(). Live-synced via Electric (no column allowlist).
     order: integer("order").notNull().default(0),
+    // subject-category-nesting — nullable, no default: null means "directly
+    // under the subject", the same real, permanent state every curriculum
+    // has today. No .references() FK, matching subjectId's own convention;
+    // cross-subject integrity is enforced app-side by
+    // validateCategoryBelongsToSubject, not the database. See
+    // subject_categories below.
+    categoryId: text("category_id"),
   },
   (table) => [
     // The find-or-create DB-level race guard (mirrors milestones_entity_
@@ -99,6 +106,23 @@ export const curricula = pgTable(
       .where(sql`${table.containerAreaNodeId} is not null`),
   ],
 );
+
+// subject-category-nesting — a second, independent self-referential tree
+// from domainNodes below: purely organizational (which subject a category
+// belongs to, which category if any is its parent, and a name), with none
+// of domainNodes' AI-suggestion/review/target-depth machinery. Nesting is
+// structurally unlimited (parentId can point at another category), but real
+// usage today is one level deep — see architecture.md. No .references() FK,
+// matching this schema's dominant convention; cross-subject integrity is
+// enforced by validateCategoryBelongsToSubject, not the database.
+export const subjectCategories = pgTable("subject_categories", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull(),
+  parentId: text("parent_id"),
+  name: text("name").notNull(),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // Self-referential tree, one forest per subject — sits between a subject and
 // its curricula, reflecting the real shape of a domain independent of what's

@@ -11,6 +11,7 @@ import {
   resolveRetryResearchSource,
 } from "./curriculum-rules.js";
 import { resolveSourceText } from "./source-fetch.js";
+import { listTags } from "../tag/tag.repo.js";
 import { assembleAllSourceText } from "./source-text.js";
 import { generateDraftStructure } from "./curriculum-structure.js";
 import {
@@ -58,9 +59,12 @@ export async function parseCurriculum(curriculumId: string): Promise<void> {
     }
 
     const rows = await getCurriculumSourceRows(curriculumId);
-    const sourceText = await resolveAndStore(rows);
+    const [sourceText, existingTags] = await Promise.all([
+      resolveAndStore(rows),
+      listTags().then((tags) => tags.map((t) => t.name)),
+    ]);
     const agent = getMastra().getAgent(AGENT_KEYS.curriculumArchitect);
-    const prompt = buildParsePrompt(ctx, sourceText);
+    const prompt = buildParsePrompt(ctx, sourceText, existingTags);
 
     const result = await agent.generate(prompt, {
       structuredOutput: { schema: curriculumPlanSchema },
@@ -222,6 +226,7 @@ export async function mergeSourcesIntoCurriculum(
       throw new Error("curriculum not found for merge");
     }
 
+    const existingTags = (await listTags()).map((t) => t.name);
     const agent = getMastra().getAgent(AGENT_KEYS.curriculumArchitect);
     const prompt = buildMergePrompt(
       ctx,
@@ -230,6 +235,7 @@ export async function mergeSourcesIntoCurriculum(
         topics: m.topics.map((t) => t.title),
       })),
       sourceText,
+      existingTags,
     );
 
     const result = await agent.generate(prompt, {

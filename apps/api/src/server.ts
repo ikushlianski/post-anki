@@ -10,6 +10,11 @@ import {
   handleUpdateSubject,
 } from "./subject/subject.controller.js";
 import {
+  handleCreateSubjectCategory,
+  handleListAllSubjectCategories,
+  handleListSubjectCategories,
+} from "./subject-category/subject-category.controller.js";
+import {
   handleAddSources,
   handleApproveSources,
   handleCompletePreAssessment,
@@ -314,6 +319,12 @@ async function route(
       return handleUpdateSubject(req, res, id);
     case "mergeSubjects":
       return handleMergeSubjects(req, res, id);
+    case "listSubjectCategories":
+      return handleListSubjectCategories(res, id);
+    case "listAllSubjectCategories":
+      return handleListAllSubjectCategories(res);
+    case "createSubjectCategory":
+      return handleCreateSubjectCategory(req, res, id);
     case "listCurricula":
       return handleListCurricula(res, url.searchParams.get("subjectId"));
     case "createCurriculum":

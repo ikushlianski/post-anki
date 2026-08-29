@@ -127,9 +127,9 @@ even render the "Take a quick level check" button is:
 
 ```
 curating / awaiting_source_approval
-  → POST /curricula/:id/approve-sources   (status: shaping_structure)
-  → (async) structure draft generated      (status: ready)
-  → POST /curricula/:id/confirm-structure  (redundant once ready, no-op path)
+  → POST /curricula/:id/approve-sources   (status: shaping_structure, triggers async draft generation)
+  → (async) structure draft generated      (status remains shaping_structure with modules: [])
+  → POST /curricula/:id/confirm-structure  (REQUIRED: materializes modules/topics, status: ready)
   → at least one topic PATCHed included:true
   → POST /curricula/:id/confirm            (status: confirmed — REQUIRED,
                                              prepareProbeSession 409s

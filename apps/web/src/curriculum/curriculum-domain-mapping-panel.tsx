@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { DomainNodeTreeItem } from '@post-anki/shared'
 
-import { getDomainMapForSubject } from '../domain-map/domain-map.api'
+import { flattenDomainNodeNames } from '../domain-map/domain-tree'
 import { resolveDomainMapping, triggerDomainMapping } from './curriculum-domain-mapping.api'
 import type { CurriculumDomainNodeMapping, Depth } from './model'
 
@@ -13,39 +13,19 @@ const DEPTH_LABEL: Record<Depth, string> = {
   deep: 'Deep',
 }
 
-function hasStaticTaxonomy(nodes: DomainNodeTreeItem[]): boolean {
-  return nodes.some((node) => node.source === 'static_taxonomy' || hasStaticTaxonomy(node.children))
-}
-
-function flattenNodeNames(nodes: DomainNodeTreeItem[]): Record<string, string> {
-  const names: Record<string, string> = {}
-
-  for (const node of nodes) {
-    names[node.id] = node.name
-    Object.assign(names, flattenNodeNames(node.children))
-  }
-
-  return names
-}
-
 // decouple-curricula-from-domain-nodes (issue #84), SCENARIOS 1-4, 6, 11,
-// 12. Renders on the curriculum detail page — only once we've confirmed the
-// curriculum's own subject has a static taxonomy to map into (a subject
-// with none has nothing this trigger could ever produce). Mirrors
-// priority-review-panel.tsx's trigger/list/accept/reject shape, adding a
-// per-suggestion depth-select (SCENARIO 4 — the value picked, not the AI's
-// original suggestion, is what gets written on accept).
+// 12. Renders inside the curriculum detail page's settings disclosure, which
+// only mounts it once the subject's tree is known to carry a static taxonomy.
 export function CurriculumDomainMappingPanel({
   curriculumId,
-  subjectId,
+  tree,
   initialMappings,
 }: {
   curriculumId: string
-  subjectId: string
+  tree: DomainNodeTreeItem[]
   initialMappings: CurriculumDomainNodeMapping[]
 }) {
-  const [taxonomyBacked, setTaxonomyBacked] = useState<boolean | null>(null)
-  const [nodeNamesById, setNodeNamesById] = useState<Record<string, string>>({})
+  const nodeNamesById = flattenDomainNodeNames(tree)
   const [suggestions, setSuggestions] = useState(
     initialMappings.filter((mapping) => mapping.status === 'suggested'),
   )
@@ -60,27 +40,6 @@ export function CurriculumDomainMappingPanel({
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [resolvingIds, setResolvingIds] = useState<readonly string[]>([])
   const [confirmation, setConfirmation] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-
-    getDomainMapForSubject({ data: subjectId }).then((tree) => {
-      if (cancelled) {
-        return
-      }
-
-      setTaxonomyBacked(hasStaticTaxonomy(tree))
-      setNodeNamesById(flattenNodeNames(tree))
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [subjectId])
-
-  if (taxonomyBacked !== true) {
-    return null
-  }
 
   async function trigger() {
     if (triggering) {
@@ -136,22 +95,25 @@ export function CurriculumDomainMappingPanel({
   }
 
   return (
-    <section data-testid="curriculum-domain-mapping-panel" className="mb-6 space-y-3">
-      <div className="flex items-center gap-3">
+    <section data-testid="curriculum-domain-mapping-panel" className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+        Taxonomy mapping
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           data-testid="trigger-domain-mapping"
           disabled={triggering}
           onClick={trigger}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 hover:border-neutral-500 disabled:opacity-50"
         >
           {triggering ? 'Mapping…' : 'Map to taxonomy'}
         </button>
-        {confirmation ? <span className="text-sm text-emerald-700">{confirmation}</span> : null}
+        {confirmation ? <span className="text-xs text-emerald-700">{confirmation}</span> : null}
       </div>
 
       {triggerError ? (
-        <p data-testid="domain-mapping-trigger-error" className="text-sm text-red-600">
+        <p data-testid="domain-mapping-trigger-error" className="text-xs text-red-600">
           {triggerError}
         </p>
       ) : null}

@@ -66,6 +66,10 @@ vi.mock("./source-text.js", () => ({
   assembleAllSourceText: vi.fn(async () => ""),
 }));
 
+vi.mock("../tag/tag.repo.js", () => ({
+  listTags: vi.fn(async () => []),
+}));
+
 vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
@@ -365,6 +369,7 @@ describe("resolveSupplementalResearch", () => {
       {
         researchGapLabels: ["Module 2"],
         supplementalSources: [{ url: "https://example.com/a", title: "A trusted source" }],
+        existingTags: [],
       },
     );
   });
@@ -394,7 +399,7 @@ describe("resolveSupplementalResearch", () => {
       expect.anything(),
       expect.anything(),
       expect.anything(),
-      { researchGapLabels: [], supplementalSources: [] },
+      { researchGapLabels: [], supplementalSources: [], existingTags: [] },
     );
   });
 

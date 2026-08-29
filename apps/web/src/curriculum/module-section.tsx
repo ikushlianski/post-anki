@@ -61,7 +61,7 @@ export function ModuleSection({
   }
 
   return (
-    <section className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-5">
+    <section className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex min-w-0 items-center gap-2">
           {editable ? (
@@ -134,7 +134,7 @@ export function ModuleSection({
         </div>
       </div>
 
-      <div className="mb-3">
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
         <TagPicker
           nodeType="module"
           nodeId={module.id}
@@ -142,10 +142,7 @@ export function ModuleSection({
           editable={editable}
           hydrated={hydrated}
         />
-      </div>
-
-      {editable ? (
-        <div className="mb-3">
+        {editable ? (
           <NodeCommentControl
             busy={busy}
             hydrated={hydrated}
@@ -153,12 +150,12 @@ export function ModuleSection({
               run(() => addModuleComment({ data: { moduleId: module.id, comment } }))
             }
           />
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <ProgressBar percent={module.progress.percent} />
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-2.5">
         {module.topics.map((topic) => (
           <TopicRow
             key={topic.id}

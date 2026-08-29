@@ -38,6 +38,7 @@ import {
   sortForDisplay,
   nextOrder,
   assignOrders,
+  validateCategoryBelongsToSubject,
 } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
@@ -50,6 +51,7 @@ import {
   socraticSessions,
   sources,
   structureResearchCandidates,
+  subjectCategories,
   subjects,
   topics,
 } from "../db/schema.js";
@@ -57,7 +59,12 @@ import { rowToGap } from "../gap/gap.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { deleteGapArchetypeStateForGapIds } from "../gap/gap-archetype.repo.js";
 import { newId } from "../shared/id.js";
-import { withMergeLock, withSubjectLock } from "../shared/merge-lock.js";
+import {
+  withMergeLock,
+  withSubjectLock,
+  withPairLockAllowingEqual,
+  type Tx,
+} from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
 import {
   resolveCurriculumOrigin,
@@ -152,7 +159,7 @@ export async function listCurricula(subjectId?: string): Promise<Curriculum[]> {
   );
 }
 
-export type CreateCurriculumError = "subject_not_found";
+export type CreateCurriculumError = "subject_not_found" | "category_wrong_subject";
 
 /**
  * Runs under the subject's advisory lock (the same lock space `mergeSubjects`
@@ -207,6 +214,7 @@ export async function createCurriculum(
     containerAreaNodeId: input.containerAreaNodeId ?? null,
     order: 0,
     modelTier: null,
+    categoryId: input.categoryId ?? null,
   };
   const domainNodeId = input.domainNodeId ?? null;
 
@@ -217,6 +225,22 @@ export async function createCurriculum(
 
     if (!subjectRow) {
       return { error: "subject_not_found" as const };
+    }
+
+    if (row.categoryId !== null) {
+      const subjectCategoryRows = await tx
+        .select()
+        .from(subjectCategories)
+        .where(eq(subjectCategories.subjectId, input.subjectId));
+      const categoryBelongs = validateCategoryBelongsToSubject(
+        row.categoryId,
+        input.subjectId,
+        subjectCategoryRows,
+      );
+
+      if (!categoryBelongs) {
+        return { error: "category_wrong_subject" as const };
+      }
     }
 
     if (!isContainer) {
@@ -956,7 +980,8 @@ export type MoveCurriculumError =
   | "not_found"
   | "subject_not_found"
   | "same_subject"
-  | "kind_mismatch";
+  | "kind_mismatch"
+  | "category_wrong_subject";
 
 /**
  * Reassigns a curriculum to a different subject (the "reorganize my
@@ -983,54 +1008,59 @@ export type MoveCurriculumError =
  * filter on the frontend.
  *
  * Locking mirrors `mergeSubjects`: the target subject's id and the
- * curriculum's OWN (pre-move) subject id are both taken via the same
- * sorted advisory-lock pair `withMergeLock` already uses for merges, so a
- * concurrent `mergeSubjects`/`deleteSubject` touching either subject
- * serializes against this move instead of racing it. The "own subject id"
- * half of that pair has to be read once, unlocked, before opening the
- * transaction — `withMergeLock` needs both lock ids up front, and the
- * curriculum's current subject isn't known ahead of time the way both ids
- * are for a subject-to-subject merge. A third actor moving this exact
- * curriculum again in the gap between that peek and the lock being granted
- * is a real but vanishingly unlikely race for a single-user tool, and it is
- * caught, not silently misapplied: the curriculum row is re-read again
- * INSIDE the lock, and every decision below (same_subject, the update, the
- * mapping wipe) is made off that authoritative re-read, never the stale
- * peeked value.
+ * curriculum's OWN (current) subject id are both taken via a sorted
+ * advisory-lock pair, so a concurrent `mergeSubjects`/`deleteSubject`
+ * touching either subject serializes against this move instead of racing
+ * it. The curriculum's current subject isn't known ahead of time the way
+ * both ids are for a subject-to-subject merge, so a pre-transaction peek
+ * picks a starting GUESS for which subject to lock alongside the target —
+ * but the lock actually taken, and every decision made under it
+ * (same_subject, the update, the mapping wipe), is always driven off a
+ * fresh re-read done AFTER the lock is held, never off that peek. If a
+ * concurrent write changed the curriculum's subject in the gap between the
+ * peek and the lock being granted, the guess was wrong: the re-read inside
+ * `withPairLockAllowingEqual` catches this (`freshRow.subjectId !== guess`),
+ * the transaction is abandoned without writing anything, and the loop
+ * retries with the freshly-observed subject id as its new guess. This
+ * guarantees the transaction that performs the actual write always holds
+ * the advisory lock for the curriculum's real current subject — never a
+ * stale one — closing the race the old peek-then-choose-lock version left
+ * open. `withPairLockAllowingEqual` (not `withMergeLock`) is used because
+ * the two lock ids being equal — a same-subject category-only move — is a
+ * legitimate case here, not one to reject the way `withMergeLock`'s
+ * self-merge guard would.
+ *
+ * subject-category-nesting (SCENARIO 8/9) — `targetCategoryId` folds a
+ * curriculum's subject move and its category reassignment into this one
+ * locked write, so the two can never briefly (or permanently) disagree.
+ * `undefined` means "category unspecified": for an actual subject change
+ * that resets category to null (a category from the OLD subject can never
+ * carry over — there is no cross-tree correspondence, same reasoning the
+ * domain-mapping wipe above already documents), for an unchanged subject it
+ * is the pre-existing true no-op (`same_subject`). A `null` or real category
+ * id is always honored explicitly, including when the subject is otherwise
+ * unchanged (SCENARIO 9's "reassign category without changing subject" —
+ * the reason `same_subject` is no longer returned once a category is
+ * specified).
  */
 export async function moveCurriculumToSubject(
   curriculumId: string,
   targetSubjectId: string,
+  targetCategoryId?: string | null,
 ): Promise<Curriculum | { error: MoveCurriculumError }> {
-  const peeked = (
-    await getDb()
-      .select({ subjectId: curricula.subjectId })
-      .from(curricula)
-      .where(eq(curricula.id, curriculumId))
-  )[0];
-
-  if (!peeked) {
-    return { error: "not_found" as const };
-  }
-
-  if (peeked.subjectId === targetSubjectId) {
-    return { error: "same_subject" as const };
-  }
+  const categorySpecified = targetCategoryId !== undefined;
 
   type MoveLockResult =
     | { error: MoveCurriculumError }
     | { row: typeof curricula.$inferSelect };
 
-  const locked = await withMergeLock(targetSubjectId, peeked.subjectId, async (tx): Promise<MoveLockResult> => {
-    const curriculumRow = (
-      await tx.select().from(curricula).where(eq(curricula.id, curriculumId))
-    )[0];
+  const runMoveWithRow = async (
+    tx: Tx,
+    curriculumRow: typeof curricula.$inferSelect,
+  ): Promise<MoveLockResult> => {
+    const subjectUnchanged = curriculumRow.subjectId === targetSubjectId;
 
-    if (!curriculumRow) {
-      return { error: "not_found" as const };
-    }
-
-    if (curriculumRow.subjectId === targetSubjectId) {
+    if (subjectUnchanged && !categorySpecified) {
       return { error: "same_subject" as const };
     }
 
@@ -1046,24 +1076,94 @@ export async function moveCurriculumToSubject(
       return { error: "kind_mismatch" as const };
     }
 
+    const categoryToWrite = categorySpecified ? (targetCategoryId ?? null) : null;
+
+    if (categoryToWrite !== null) {
+      const targetCategoryRows = await tx
+        .select()
+        .from(subjectCategories)
+        .where(eq(subjectCategories.subjectId, targetSubjectId));
+      const categoryBelongs = validateCategoryBelongsToSubject(
+        categoryToWrite,
+        targetSubjectId,
+        targetCategoryRows,
+      );
+
+      if (!categoryBelongs) {
+        return { error: "category_wrong_subject" as const };
+      }
+    }
+
     const updatedRow = (
       await tx
         .update(curricula)
-        .set({ subjectId: targetSubjectId })
+        .set({ subjectId: targetSubjectId, categoryId: categoryToWrite })
         .where(eq(curricula.id, curriculumId))
         .returning()
     )[0]!;
 
-    await deleteMappingsForCurriculum(curriculumId, tx);
+    if (!subjectUnchanged) {
+      await deleteMappingsForCurriculum(curriculumId, tx);
+    }
 
     return { row: updatedRow };
-  });
+  };
 
-  if ("error" in locked) {
-    return { error: locked.error === "self_merge" ? "same_subject" : locked.error };
+  const peeked = (
+    await getDb()
+      .select({ subjectId: curricula.subjectId })
+      .from(curricula)
+      .where(eq(curricula.id, curriculumId))
+  )[0];
+
+  if (!peeked) {
+    return { error: "not_found" as const };
   }
 
-  return toCurriculum(locked.row, await originFor(curriculumId), null);
+  let lockSubjectGuess = peeked.subjectId;
+
+  const MAX_ATTEMPTS = 5;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const guess = lockSubjectGuess;
+
+    type Attempt =
+      | { stale: true; freshSubjectId: string }
+      | { stale: false; result: MoveLockResult };
+
+    const attemptResult = await withPairLockAllowingEqual<Attempt>(
+      targetSubjectId,
+      guess,
+      async (tx) => {
+        const freshRow = (
+          await tx.select().from(curricula).where(eq(curricula.id, curriculumId))
+        )[0];
+
+        if (!freshRow) {
+          return { stale: false, result: { error: "not_found" as const } };
+        }
+
+        if (freshRow.subjectId !== guess) {
+          return { stale: true, freshSubjectId: freshRow.subjectId };
+        }
+
+        return { stale: false, result: await runMoveWithRow(tx, freshRow) };
+      },
+    );
+
+    if (attemptResult.stale) {
+      lockSubjectGuess = attemptResult.freshSubjectId;
+      continue;
+    }
+
+    if ("error" in attemptResult.result) {
+      return { error: attemptResult.result.error };
+    }
+
+    return toCurriculum(attemptResult.result.row, await originFor(curriculumId), null);
+  }
+
+  return { error: "not_found" as const };
 }
 
 export async function countModules(curriculumId: string): Promise<number> {
@@ -1584,6 +1684,7 @@ export async function createSplitOutCurriculum(
     containerAreaNodeId: null,
     order: 0,
     modelTier: null,
+    categoryId: null,
   };
 
   return withSubjectLock(subjectId, async (tx) => {
@@ -1609,6 +1710,13 @@ export async function reorderCurricula(
   orderedIds: string[],
 ): Promise<{ reordered: number } | { error: "invalid_id_set" }> {
   return withSubjectLock(subjectId, async (tx) => {
+    // subject-category-nesting — drag-to-reorder only ever operates over a
+    // subject's own uncategorized curricula (SubjectSection's DndContext);
+    // a curriculum filed into a category is displayed under that category,
+    // not in this orderable list, so the expected id set must be scoped the
+    // same way, or any subject with at least one categorized curriculum
+    // would reject every reorder as invalid_id_set (the payload never
+    // includes those ids in the first place).
     const existingRows = await tx
       .select()
       .from(curricula)
@@ -1616,6 +1724,7 @@ export async function reorderCurricula(
         and(
           eq(curricula.subjectId, subjectId),
           isNull(curricula.containerAreaNodeId),
+          isNull(curricula.categoryId),
         ),
       );
 
@@ -2102,6 +2211,7 @@ function toCurriculum(
     preAssessmentCompletedAt: Date | null;
     order: number;
     modelTier: string | null;
+    categoryId: string | null;
   },
   origin: CurriculumOrigin,
   // decouple-curricula-from-domain-nodes (issue #84) — no longer read off
@@ -2129,6 +2239,7 @@ function toCurriculum(
     domainNodeId: primaryDomainNodeId,
     order: row.order,
     modelTier: (row.modelTier as ModelTier | null) ?? null,
+    categoryId: row.categoryId,
   };
 }
 
