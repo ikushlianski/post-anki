@@ -44,7 +44,32 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' post-anki-dev-electric 2
   sleep 1
 done
 
-echo "[dev] launching api (:8030) + web (:3000) — Ctrl+C stops everything."
+# apps/web's `dev` script reads WEB_PORT via shell substitution
+# (`vite dev --port ${WEB_PORT:-3000}`), which resolves before vite itself
+# ever loads apps/web/.env.local — so if a developer has localized their
+# ports (e.g. via `devports localize post-anki`), it has to be exported into
+# THIS shell before npm run dev:apps starts, not left for vite to pick up on
+# its own. No file present (the common case) means WEB_PORT stays unset and
+# the script's own `:3000` default applies, unchanged from before.
+if [ -f apps/web/.env.local ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source apps/web/.env.local
+  set +a
+fi
+
+WEB_PORT="${WEB_PORT:-3000}"
+
+# The api process loads apps/api/.env.local itself (Node's own --env-file
+# flag, in apps/api/package.json's dev script) — it is never sourced into
+# THIS shell, since that file also carries real secrets (OPENROUTER_API_KEY,
+# Langfuse keys) that a top-level `dev.sh` process has no reason to hold.
+# Only its PORT line (if any) is worth reading here, purely to report the
+# right number below.
+API_PORT="$(grep -E '^PORT=' apps/api/.env.local 2>/dev/null | tail -1 | cut -d= -f2)"
+API_PORT="${API_PORT:-8030}"
+
+echo "[dev] launching api (:$API_PORT) + web (:$WEB_PORT) — Ctrl+C stops everything."
 npm run dev:apps &
 APP_PID=$!
 wait "$APP_PID"

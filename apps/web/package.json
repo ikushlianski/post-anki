@@ -6,7 +6,7 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "vite dev --port ${WEB_PORT:-3000}",
     "dev:e2e": "vite dev --port ${E2E_WEB_PORT:-3120}",
     "build": "vite build",
     "start": "node .output/server/index.mjs",
