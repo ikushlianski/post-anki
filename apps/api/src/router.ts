@@ -56,6 +56,7 @@ export type RouteName =
   | "markGapResurfaced"
   | "sweepAutoDeferGaps"
   | "dailyPush"
+  | "dueQueue"
   | "createDecideSession"
   | "listDecideSessions"
   | "resolveDecideBlindSpot"

@@ -3,9 +3,10 @@ import {
   questionKindSchema,
   type DailyPushNudge,
   type DailyPushResponse,
+  type DueQueueResponse,
   type QuestionKind,
 } from "@post-anki/shared";
-import { selectDailyPush, selectNudge, type NudgeCandidate } from "@post-anki/core";
+import { selectDailyPush, selectDueQueue, selectNudge, type NudgeCandidate } from "@post-anki/core";
 import { sendJson } from "../shared/http.js";
 import { buildProbeQuestionForGap } from "../probe/probe.service.js";
 import { gatherNudgeCandidates } from "../liveness/nudge.repo.js";
@@ -38,6 +39,16 @@ export async function handleDailyPush(
       ? { ...toNudgeSubject(selection.target), related: selection.related.map(toNudgeSubject) }
       : null,
   };
+
+  sendJson(res, 200, body);
+}
+
+export async function handleDueQueue(res: http.ServerResponse): Promise<void> {
+  const now = new Date().toISOString();
+  const candidates = await gatherPushCandidates();
+  const items = selectDueQueue(candidates, now);
+
+  const body: DueQueueResponse = { items };
 
   sendJson(res, 200, body);
 }

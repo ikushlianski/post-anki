@@ -31,6 +31,7 @@ import type {
   ConcernSummary,
   CreateCurriculumInput,
   Curriculum,
+  DailyPush,
   DailyPushResult,
   DashboardSubject,
   QuestionKind,
@@ -339,6 +340,10 @@ export const getDailyPush = createServerFn({ method: 'GET' })
     mode === 'quick_test' ? 'quick_test' : 'socratic',
   )
   .handler(({ data }): Promise<DailyPushResult> => api.getDailyPush(data))
+
+export const getDueQueue = createServerFn({ method: 'GET' }).handler(
+  (): Promise<DailyPush[]> => api.getDueQueue(),
+)
 
 export const getCrossCutting = createServerFn({ method: 'GET' }).handler(
   (): Promise<ConcernSummary[]> => api.getCrossCutting(),

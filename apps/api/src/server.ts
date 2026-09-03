@@ -80,7 +80,7 @@ import {
   handleMarkResurfaced,
   handleTriageGap,
 } from "./gap/gap.controller.js";
-import { handleDailyPush } from "./push/push.controller.js";
+import { handleDailyPush, handleDueQueue } from "./push/push.controller.js";
 import {
   handleCreateDecideSession,
   handleListDecideSessions,
@@ -423,6 +423,8 @@ async function route(
       return handleAutoDeferSweep(res);
     case "dailyPush":
       return handleDailyPush(res, url.searchParams.get("mode"));
+    case "dueQueue":
+      return handleDueQueue(res);
     case "createDecideSession":
       return handleCreateDecideSession(req, res);
     case "listDecideSessions":

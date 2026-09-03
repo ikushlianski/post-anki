@@ -11,6 +11,7 @@ import type {
   CurriculumDetail,
   CurriculumDomainNodeMapping,
   CurriculumStatus,
+  DailyPush,
   DailyPushResult,
   Depth,
   Gap,
@@ -1127,6 +1128,19 @@ export async function getDailyPush(
       : null
 
   return { push, question, nudge: res.nudge }
+}
+
+export async function getDueQueue(): Promise<DailyPush[]> {
+  const res = await request<be.DueQueueResponse>('/due-queue')
+
+  return res.items.map((item) => ({
+    topicId: item.topicId,
+    topicTitle: item.topicTitle,
+    curriculumId: item.curriculumId,
+    curriculumName: item.curriculumName,
+    gap: mapGap(item.gap),
+    reason: item.reason,
+  }))
 }
 
 export async function getCrossCutting(): Promise<ConcernSummary[]> {

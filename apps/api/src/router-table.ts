@@ -108,6 +108,7 @@ export const ROUTES: RouteDef[] = [
   },
   { method: "PATCH", pattern: /^\/gaps\/([^/]+)$/, name: "curateGap", param: "id" },
   { method: "GET", pattern: "/daily-push", name: "dailyPush" },
+  { method: "GET", pattern: "/due-queue", name: "dueQueue" },
   { method: "POST", pattern: "/decide-sessions", name: "createDecideSession" },
   { method: "GET", pattern: "/decide-sessions", name: "listDecideSessions" },
   {

@@ -40,3 +40,13 @@ export const dailyPushResponseSchema = z.object({
 });
 
 export type DailyPushResponse = z.infer<typeof dailyPushResponseSchema>;
+
+export const dueQueueItemSchema = dailyPushSchema;
+
+export type DueQueueItem = z.infer<typeof dueQueueItemSchema>;
+
+export const dueQueueResponseSchema = z.object({
+  items: z.array(dueQueueItemSchema),
+});
+
+export type DueQueueResponse = z.infer<typeof dueQueueResponseSchema>;

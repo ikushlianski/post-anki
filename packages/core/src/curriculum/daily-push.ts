@@ -23,6 +23,15 @@ export type DailyPushPick = {
   reason: "important" | "wanted" | "weakest" | "refresh";
 } | null;
 
+export type DueQueueItem = {
+  topicId: string;
+  topicTitle: string;
+  curriculumId: string;
+  curriculumName: string;
+  gap: Gap;
+  reason: "important" | "wanted" | "weakest" | "refresh";
+};
+
 export function isStale(lastEvaluatedAt: string | null, now: string): boolean {
   if (!lastEvaluatedAt) {
     return false;
@@ -94,6 +103,62 @@ export function selectDailyPush(
   }
 
   return null;
+}
+
+export function selectDueQueue(
+  candidates: PushCandidate[],
+  now: string,
+): DueQueueItem[] {
+  const open = candidates.flatMap((c) =>
+    openGaps(c.gaps, c.depth)
+      .filter((gap) => !isPushExcluded(gap, now))
+      .map((gap) => ({ c, gap })),
+  );
+
+  if (open.length > 0) {
+    const ranked = [...open].sort((a, b) => {
+      const aImportant = a.gap.triageState === "important";
+      const bImportant = b.gap.triageState === "important";
+
+      if (aImportant !== bImportant) {
+        return aImportant ? -1 : 1;
+      }
+
+      if (a.gap.wanted !== b.gap.wanted) {
+        return a.gap.wanted ? -1 : 1;
+      }
+
+      return rank(a.gap, a.c.depth) - rank(b.gap, b.c.depth);
+    });
+
+    return ranked.map((item) => toDueQueueItem(item.c, item.gap));
+  }
+
+  const refresh = candidates
+    .flatMap((c) => c.gaps.map((gap) => ({ c, gap })))
+    .filter((o) => o.gap.state === "covered" && isStale(o.gap.lastEvaluatedAt, now))
+    .sort(
+      (a, b) =>
+        new Date(a.gap.lastEvaluatedAt ?? 0).getTime() -
+        new Date(b.gap.lastEvaluatedAt ?? 0).getTime(),
+    );
+
+  return refresh.map((item) => toDueQueueItem(item.c, item.gap, "refresh"));
+}
+
+function toDueQueueItem(
+  c: PushCandidate,
+  gap: Gap,
+  reason?: DueQueueItem["reason"],
+): DueQueueItem {
+  return {
+    topicId: c.topicId,
+    topicTitle: c.topicTitle,
+    curriculumId: c.curriculumId,
+    curriculumName: c.curriculumName,
+    gap,
+    reason: reason ?? (gap.triageState === "important" ? "important" : gap.wanted ? "wanted" : "weakest"),
+  };
 }
 
 function rank(gap: Gap, depth: DepthLevel): number {

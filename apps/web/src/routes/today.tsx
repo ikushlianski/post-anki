@@ -2,9 +2,10 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import type { CrossCuttingNudge, OpenQuestion } from '@post-anki/shared'
 import { selectBannerQuestions } from '@post-anki/core'
 
-import type { DailyPushReason, QuestionKind } from '../curriculum/model'
+import type { DailyPush, DailyPushReason, QuestionKind } from '../curriculum/model'
 import {
   getDailyPush,
+  getDueQueue,
   getGapMasteryCrossCuttingNudges,
 } from '../curriculum/curriculum.api'
 import { ProbeAnswer } from '../curriculum/probe-answer'
@@ -20,13 +21,14 @@ export const Route = createFileRoute('/today')({
   }),
   loaderDeps: ({ search }) => ({ mode: search.mode }),
   loader: async ({ deps }) => {
-    const [push, nudges, openQuestions] = await Promise.all([
+    const [push, dueQueue, nudges, openQuestions] = await Promise.all([
       getDailyPush({ data: deps.mode }),
+      getDueQueue(),
       getGapMasteryCrossCuttingNudges(),
       listOpenQuestions({ data: { status: 'open', limit: OPEN_QUESTIONS_BANNER_LIMIT } }),
     ])
 
-    return { ...push, nudges, openQuestions }
+    return { ...push, dueQueue, nudges, openQuestions }
   },
   component: TodayPage,
 })
@@ -121,8 +123,51 @@ const REASON_LABEL: Record<DailyPushReason, string> = {
   refresh: 'Worth refreshing',
 }
 
+// Cross-subject due-today queue — every eligible gap across every subject,
+// separate from the single-pick "session opener" card below it (own
+// heading, own empty state, never merged into that card's markup).
+function DueQueueSection({ items }: { items: DailyPush[] }) {
+  if (items.length === 0) {
+    return (
+      <div
+        className="mb-8 rounded-lg border border-dashed border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-400"
+        data-testid="due-queue-empty"
+      >
+        Nothing due across your subjects right now.
+      </div>
+    )
+  }
+
+  return (
+    <section className="mb-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        Due today
+      </h2>
+      <div className="mt-2 space-y-2" data-testid="due-queue-list">
+        {items.map((item) => (
+          <Link
+            key={item.topicId}
+            to="/curriculum/$curriculumId"
+            params={{ curriculumId: item.curriculumId }}
+            data-testid={`due-queue-item-${item.topicId}`}
+            className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm hover:border-neutral-400"
+          >
+            <div>
+              <p className="font-medium text-neutral-900">{item.topicTitle}</p>
+              <p className="text-xs text-neutral-400">{item.curriculumName}</p>
+            </div>
+            <span className="inline-block shrink-0 rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
+              {REASON_LABEL[item.reason]}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function TodayPage() {
-  const { push, question, nudge, nudges, openQuestions } = Route.useLoaderData()
+  const { push, question, nudge, dueQueue, nudges, openQuestions } = Route.useLoaderData()
   const { mode } = Route.useSearch()
   const router = useRouter()
 
@@ -138,6 +183,7 @@ function TodayPage() {
       ) : null}
       <OpenQuestionsBanner items={openQuestions.items} totalCount={openQuestions.totalCount} />
       <CrossCuttingNudgeBanner nudges={nudges} />
+      <DueQueueSection items={dueQueue} />
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
@@ -161,7 +207,7 @@ function TodayPage() {
           wanted, and one will surface here.
         </div>
       ) : (
-        <div className="rounded-xl border border-neutral-900 bg-white p-6">
+        <div className="rounded-xl border border-neutral-900 bg-white p-6" data-testid="daily-push-pick">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-block rounded-full bg-neutral-900 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-white">
               {REASON_LABEL[push.reason]}
