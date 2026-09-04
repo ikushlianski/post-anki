@@ -206,11 +206,13 @@ export function ConfirmDelete({
   hydrated,
   label,
   onConfirm,
+  testId,
 }: {
   busy: boolean
   hydrated: boolean
   label: string
   onConfirm: () => void
+  testId?: string
 }) {
   const [armed, setArmed] = useState(false)
   const state = controlState({ editable: true, hydrated, busy })
@@ -224,6 +226,7 @@ export function ConfirmDelete({
         title={hint ?? label}
         disabled={disabled}
         onClick={() => setArmed(true)}
+        data-testid={testId ? `${testId}-button` : undefined}
         className="text-xs text-neutral-400 hover:text-red-600 disabled:opacity-40"
       >
         Delete
@@ -237,6 +240,7 @@ export function ConfirmDelete({
         type="button"
         disabled={disabled}
         onClick={onConfirm}
+        data-testid={testId ? `${testId}-confirm` : undefined}
         className="font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
       >
         Confirm
@@ -244,6 +248,7 @@ export function ConfirmDelete({
       <button
         type="button"
         onClick={() => setArmed(false)}
+        data-testid={testId ? `${testId}-cancel` : undefined}
         className="text-neutral-400 hover:text-neutral-700"
       >
         cancel

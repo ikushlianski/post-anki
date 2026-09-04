@@ -10,4 +10,4 @@
 - [x] Add global search by name across subjects, curricula, and topics.
   - [x] Phase 1: backend /search endpoint
   - [x] Phase 2: search box in header
-- [ ] Add a Delete-subject control to the web UI.
+- [x] Add a Delete-subject control to the web UI.

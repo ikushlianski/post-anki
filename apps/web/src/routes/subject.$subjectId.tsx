@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 
 import { getBoard } from '../curriculum/curriculum.api'
-import { SubjectSection } from '../subject/subject-section'
+import { DeleteSubjectButton, SubjectSection } from '../subject/subject-section'
 
 export const Route = createFileRoute('/subject/$subjectId')({
   component: SubjectDetailPage,
@@ -38,8 +38,9 @@ function SubjectDetailPage() {
         ← All subjects
       </Link>
 
-      <header className="mb-6 mt-3">
+      <header className="mb-6 mt-3 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{subject.name}</h1>
+        <DeleteSubjectButton subjectId={subject.id} />
       </header>
 
       <SubjectSection
