@@ -8,6 +8,8 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useState } from 'react'
 import { Sidebar } from '../nav/sidebar'
+import { GlobalSearch } from '../search/global-search'
+import { search } from '../curriculum/curriculum.api'
 
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
@@ -49,9 +51,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         <div className="flex min-h-full flex-col bg-neutral-50 text-neutral-900">
           <div className="border-b border-neutral-200 bg-white">
             <div className="flex items-center gap-x-3 px-5 py-3 sm:px-8">
-              <Link to="/" className="text-base font-semibold tracking-tight">
+              <Link to="/" className="shrink-0 text-base font-semibold tracking-tight">
                 post·anki
               </Link>
+              <GlobalSearch onSearch={(query) => search({ data: query })} />
               <button
                 type="button"
                 className="md:hidden"

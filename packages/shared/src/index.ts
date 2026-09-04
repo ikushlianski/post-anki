@@ -53,3 +53,4 @@ export * from "./source-duplicate";
 export * from "./transcription";
 export * from "./archetype";
 export * from "./subject-category";
+export * from "./search";

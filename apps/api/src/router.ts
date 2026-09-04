@@ -57,6 +57,7 @@ export type RouteName =
   | "sweepAutoDeferGaps"
   | "dailyPush"
   | "dueQueue"
+  | "search"
   | "createDecideSession"
   | "listDecideSessions"
   | "resolveDecideBlindSpot"

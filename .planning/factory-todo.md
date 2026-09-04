@@ -7,5 +7,7 @@
 - [x] Add a cross-subject due-today review queue, listing every due item.
   - [x] Phase 1: backend selectDueQueue + endpoint
   - [x] Phase 2: frontend list on /today
-- [ ] Add global search by name across subjects, curricula, and topics.
+- [x] Add global search by name across subjects, curricula, and topics.
+  - [x] Phase 1: backend /search endpoint
+  - [x] Phase 2: search box in header
 - [ ] Add a Delete-subject control to the web UI.

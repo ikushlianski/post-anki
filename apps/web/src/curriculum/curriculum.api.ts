@@ -39,7 +39,12 @@ import type {
   SubjectCategory,
   Tag,
 } from './model'
-import type { CrossCuttingNudge, StructureTurn, TagAssignment } from '@post-anki/shared'
+import type {
+  CrossCuttingNudge,
+  SearchResponse,
+  StructureTurn,
+  TagAssignment,
+} from '@post-anki/shared'
 import * as api from './api-client'
 
 export const getBoard = createServerFn({ method: 'GET' }).handler(
@@ -344,6 +349,10 @@ export const getDailyPush = createServerFn({ method: 'GET' })
 export const getDueQueue = createServerFn({ method: 'GET' }).handler(
   (): Promise<DailyPush[]> => api.getDueQueue(),
 )
+
+export const search = createServerFn({ method: 'GET' })
+  .inputValidator((query: unknown): string => z.string().parse(query))
+  .handler(({ data }): Promise<SearchResponse> => api.search(data))
 
 export const getCrossCutting = createServerFn({ method: 'GET' }).handler(
   (): Promise<ConcernSummary[]> => api.getCrossCutting(),

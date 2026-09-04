@@ -81,6 +81,7 @@ import {
   handleTriageGap,
 } from "./gap/gap.controller.js";
 import { handleDailyPush, handleDueQueue } from "./push/push.controller.js";
+import { handleSearch } from "./search/search.controller.js";
 import {
   handleCreateDecideSession,
   handleListDecideSessions,
@@ -425,6 +426,8 @@ async function route(
       return handleDailyPush(res, url.searchParams.get("mode"));
     case "dueQueue":
       return handleDueQueue(res);
+    case "search":
+      return handleSearch(res, url.searchParams.get("q"));
     case "createDecideSession":
       return handleCreateDecideSession(req, res);
     case "listDecideSessions":
