@@ -12,14 +12,14 @@ import { closeDb } from "../db/client.js";
 // cycle guard (isAncestor, packages/core/src/domain-map/domain-map-progress.ts)
 // before mergeDomainNodes ever reassigns a single row — see spec.md's
 // "Cycle-guard design". Real Postgres (the e2e docker-compose DB on
-// localhost:5436, never mocked), mirrors
+// localhost:5578, never mocked), mirrors
 // curriculum-merge-target-failed-precondition.integration.test.ts's own
 // "trip the guard -> assert error + zero mutation" shape.
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 

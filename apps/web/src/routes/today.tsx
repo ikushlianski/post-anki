@@ -2,11 +2,17 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import type { CrossCuttingNudge, OpenQuestion } from '@post-anki/shared'
 import { selectBannerQuestions } from '@post-anki/core'
 
-import type { DailyPush, DailyPushReason, QuestionKind } from '../curriculum/model'
+import type {
+  DailyPush,
+  DailyPushReason,
+  GapDueForResurface,
+  QuestionKind,
+} from '../curriculum/model'
 import {
   getDailyPush,
   getDueQueue,
   getGapMasteryCrossCuttingNudges,
+  getGapsDueForResurface,
 } from '../curriculum/curriculum.api'
 import { ProbeAnswer } from '../curriculum/probe-answer'
 import { listOpenQuestions } from '../open-questions/open-questions.api'
@@ -21,14 +27,15 @@ export const Route = createFileRoute('/today')({
   }),
   loaderDeps: ({ search }) => ({ mode: search.mode }),
   loader: async ({ deps }) => {
-    const [push, dueQueue, nudges, openQuestions] = await Promise.all([
+    const [push, dueQueue, nudges, openQuestions, gapsDueForResurface] = await Promise.all([
       getDailyPush({ data: deps.mode }),
       getDueQueue(),
       getGapMasteryCrossCuttingNudges(),
       listOpenQuestions({ data: { status: 'open', limit: OPEN_QUESTIONS_BANNER_LIMIT } }),
+      getGapsDueForResurface(),
     ])
 
-    return { ...push, dueQueue, nudges, openQuestions }
+    return { ...push, dueQueue, nudges, openQuestions, gapsDueForResurface }
   },
   component: TodayPage,
 })
@@ -166,8 +173,53 @@ function DueQueueSection({ items }: { items: DailyPush[] }) {
   )
 }
 
+// Read-only: actual resurfacing is still the bot's job.
+const RESURFACE_QUEUE_LABEL: Record<GapDueForResurface['queue'], string> = {
+  deferred: 'You said "later"',
+  'dismissed-checkin': 'Check-in was dismissed',
+}
+
+function GapsDueForResurfaceSection({ items }: { items: GapDueForResurface[] }) {
+  if (items.length === 0) {
+    return (
+      <div
+        className="mb-8 rounded-lg border border-dashed border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-400"
+        data-testid="gaps-due-for-resurface-empty"
+      >
+        No deferred gaps waiting to resurface.
+      </div>
+    )
+  }
+
+  return (
+    <section className="mb-8">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+        Due to resurface
+      </h2>
+      <div className="mt-2 space-y-2" data-testid="gaps-due-for-resurface-list">
+        {items.map((item) => (
+          <div
+            key={item.gap.id}
+            data-testid={`gaps-due-for-resurface-item-${item.gap.id}`}
+            className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm"
+          >
+            <div>
+              <p className="font-medium text-neutral-900">{item.gap.label}</p>
+              <p className="text-xs text-neutral-400">{item.tool}</p>
+            </div>
+            <span className="inline-block shrink-0 rounded-full bg-neutral-100 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
+              {RESURFACE_QUEUE_LABEL[item.queue]}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function TodayPage() {
-  const { push, question, nudge, dueQueue, nudges, openQuestions } = Route.useLoaderData()
+  const { push, question, nudge, dueQueue, nudges, openQuestions, gapsDueForResurface } =
+    Route.useLoaderData()
   const { mode } = Route.useSearch()
   const router = useRouter()
 
@@ -184,6 +236,7 @@ function TodayPage() {
       <OpenQuestionsBanner items={openQuestions.items} totalCount={openQuestions.totalCount} />
       <CrossCuttingNudgeBanner nudges={nudges} />
       <DueQueueSection items={dueQueue} />
+      <GapsDueForResurfaceSection items={gapsDueForResurface} />
       <header className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Today</h1>

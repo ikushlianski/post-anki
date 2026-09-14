@@ -11,6 +11,7 @@ import { createProbeQuizAgent } from "./probe-quiz.agent.js";
 import { createSocraticEvalAgent } from "./socratic.agent.js";
 import { createDocResearchArchitect } from "./doc-research-architect.agent.js";
 import { createStudyChatAgent } from "./study-chat.agent.js";
+import { createQaChatAgent } from "./qa-chat.agent.js";
 import { createStructureEditorAgent } from "./structure-editor.agent.js";
 import { createLanguageChatAgent } from "./language-chat.agent.js";
 import { createLectureSourceSelector } from "./lecture-source-selector.agent.js";
@@ -35,6 +36,7 @@ export const AGENT_KEYS = {
   socraticEval: "socraticEval",
   docResearchArchitect: "docResearchArchitect",
   studyChat: "studyChat",
+  qaChat: "qaChat",
   structureEditor: "structureEditor",
   languageChat: "languageChat",
   lectureSourceSelector: "lectureSourceSelector",
@@ -100,6 +102,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.socraticEval]: createSocraticEvalAgent(),
         [AGENT_KEYS.docResearchArchitect]: createDocResearchArchitect(),
         [AGENT_KEYS.studyChat]: createStudyChatAgent(),
+        [AGENT_KEYS.qaChat]: createQaChatAgent(),
         [AGENT_KEYS.structureEditor]: createStructureEditorAgent(),
         [AGENT_KEYS.languageChat]: createLanguageChatAgent(),
         [AGENT_KEYS.lectureSourceSelector]: createLectureSourceSelector(),

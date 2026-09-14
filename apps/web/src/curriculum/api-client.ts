@@ -15,6 +15,7 @@ import type {
   DailyPushResult,
   Depth,
   Gap,
+  GapDueForResurface,
   LearningStatus,
   Lecture,
   LectureSourceCandidate,
@@ -33,12 +34,57 @@ import type {
   TopicProgress,
 } from './model'
 
-const DEFAULT_API_BASE_URL = 'http://localhost:8030'
+const DEFAULT_API_BASE_URL = 'http://localhost:5560'
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+// Same hand-rolled parser as apps/bot/src/api/secure-url.ts and
+// apps/mobile/src/api/client.ts's assertSecureUrl — kept in sync manually
+// rather than shared cross-package, since it's a small, self-contained,
+// already-tested guard with no other cross-cutting dependency between apps.
+function extractProtocolAndHost(url: string): { protocol: string; host: string } {
+  const match = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\/(\[[^\]]+\]|[^/?#]+)/.exec(url)
+
+  if (!match) {
+    throw new Error(`Cannot parse API base URL: ${url}`)
+  }
+
+  const authority = match[2] ?? ''
+
+  if (authority.includes('@')) {
+    throw new Error(`Refusing to parse a URL with embedded userinfo: ${url}`)
+  }
+
+  const isBracketed = authority.startsWith('[')
+  const host = (isBracketed ? authority.replace(/^\[|\]$/g, '') : authority.split(':')[0]) ?? ''
+
+  return { protocol: `${(match[1] ?? '').toLowerCase()}:`, host: host.toLowerCase() }
+}
+
+export function assertSecureUrl(url: string): void {
+  const { protocol, host } = extractProtocolAndHost(url)
+
+  if (protocol === 'https:') {
+    return
+  }
+
+  if (protocol === 'http:' && LOOPBACK_HOSTS.has(host)) {
+    return
+  }
+
+  if (protocol === 'http:') {
+    throw new Error(`Refusing to send requests over plaintext HTTP to a non-local host: ${host}`)
+  }
+
+  throw new Error(`Refusing to send requests over a non-HTTPS scheme (${protocol}): ${url}`)
+}
 
 export function apiBaseUrl(): string {
   const url = process.env.API_BASE_URL
+  const resolved = (url && url.trim() !== '' ? url : DEFAULT_API_BASE_URL).replace(/\/$/, '')
 
-  return (url && url.trim() !== '' ? url : DEFAULT_API_BASE_URL).replace(/\/$/, '')
+  assertSecureUrl(resolved)
+
+  return resolved
 }
 
 export function authHeaders(): Record<string, string> {
@@ -458,6 +504,16 @@ export async function updateSubjectModelTier(
   })
 }
 
+export async function updateSubjectName(
+  subjectId: string,
+  name: string,
+): Promise<Subject> {
+  return request<be.Subject>(`/subjects/${subjectId}`, {
+    method: 'PATCH',
+    body: { name },
+  })
+}
+
 export interface MergeSubjectsResult {
   targetSubjectId: string
   sourceSubjectId: string
@@ -703,6 +759,38 @@ export async function moveCurriculum(
   })
 
   return mapCurriculum(updated)
+}
+
+export async function renameCurriculum(
+  curriculumId: string,
+  name: string,
+): Promise<Curriculum> {
+  const updated = await request<be.Curriculum>(`/curricula/${curriculumId}`, {
+    method: 'PATCH',
+    body: { name },
+  })
+
+  return mapCurriculum(updated)
+}
+
+export async function moveCategory(
+  categoryId: string,
+  parentId: string | null,
+): Promise<SubjectCategory> {
+  return request<be.SubjectCategory>(`/subject-categories/${categoryId}`, {
+    method: 'PATCH',
+    body: { parentId },
+  })
+}
+
+export async function renameCategory(
+  categoryId: string,
+  name: string,
+): Promise<SubjectCategory> {
+  return request<be.SubjectCategory>(`/subject-categories/${categoryId}/name`, {
+    method: 'PATCH',
+    body: { name },
+  })
 }
 
 export async function addSources(
@@ -1141,6 +1229,23 @@ export async function getDueQueue(): Promise<DailyPush[]> {
     gap: mapGap(item.gap),
     reason: item.reason,
   }))
+}
+
+export async function getGapsDueForResurface(): Promise<GapDueForResurface[]> {
+  const res = await request<be.GapsDueForResurfaceResponse>('/gaps/due-for-resurface')
+
+  return [
+    ...res.userDeferredDue.map((item) => ({
+      gap: mapGap(item.gap),
+      tool: item.tool,
+      queue: 'deferred' as const,
+    })),
+    ...res.dismissedCheckinDue.map((item) => ({
+      gap: mapGap(item.gap),
+      tool: item.tool,
+      queue: 'dismissed-checkin' as const,
+    })),
+  ]
 }
 
 export async function search(query: string): Promise<be.SearchResponse> {

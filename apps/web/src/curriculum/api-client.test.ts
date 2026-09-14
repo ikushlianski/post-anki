@@ -17,7 +17,7 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe('doc-scan suggestion resolvers', () => {
   beforeEach(() => {
-    process.env.API_BASE_URL = 'http://api.test'
+    process.env.API_BASE_URL = 'https://api.test'
     fetchMock.mockReset()
     vi.stubGlobal('fetch', fetchMock)
   })

@@ -57,6 +57,9 @@ describe('PriorityReviewPanel — review due banner', () => {
     })
 
     expect(screen.getByTestId('priority-review-due-banner')).toBeDefined()
+    expect(screen.getByTestId('priority-review-empty-state').textContent).toBe(
+      'No pending suggestions.',
+    )
   })
 
   it('keeps the banner up when a successful review produced no suggestions', async () => {
@@ -73,6 +76,24 @@ describe('PriorityReviewPanel — review due banner', () => {
     })
 
     expect(screen.getByTestId('priority-review-due-banner')).toBeDefined()
+  })
+
+  it('tells the user the review ran and found nothing, instead of looking like nothing happened', async () => {
+    mockedTriggerPriorityReview.mockResolvedValue([])
+
+    renderPanel()
+
+    expect(screen.getByTestId('priority-review-empty-state').textContent).toBe(
+      'No pending suggestions.',
+    )
+
+    screen.getByTestId('priority-review-trigger-button').click()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('priority-review-empty-state').textContent).toBe(
+        'No new suggestions from this review.',
+      )
+    })
   })
 
   it('clears the banner once a review returns at least one suggestion', async () => {

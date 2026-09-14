@@ -11,13 +11,28 @@ describe("electDepthFromCalibration", () => {
     const strong = elected.find((e) => e.topicId === "top_strong")!;
     const weak = elected.find((e) => e.topicId === "top_weak")!;
 
-    expect(strong.depth).toBe("deep");
+    expect(strong.depth).toBe("working");
     expect(weak.depth).toBe("awareness");
+  });
+
+  it("does not elect the deepest band off a single lucky guess", () => {
+    const elected = electDepthFromCalibration([{ topicId: "top1", correct: true }]);
+
+    expect(elected).toEqual([{ topicId: "top1", depth: "working" }]);
   });
 
   it("elects deep for a topic answered correctly across multiple calibration questions", () => {
     const elected = electDepthFromCalibration([
       { topicId: "top1", correct: true },
+      { topicId: "top1", correct: true },
+      { topicId: "top1", correct: true },
+    ]);
+
+    expect(elected).toEqual([{ topicId: "top1", depth: "deep" }]);
+  });
+
+  it("elects deep for a topic answered correctly across exactly two calibration questions", () => {
+    const elected = electDepthFromCalibration([
       { topicId: "top1", correct: true },
       { topicId: "top1", correct: true },
     ]);

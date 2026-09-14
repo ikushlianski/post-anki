@@ -71,6 +71,18 @@ describe("extractSameSiteLinks", () => {
 
     expect(links).toEqual([]);
   });
+
+  it("dedupes a trailing-slash and an explicit index.html variant of the same link", () => {
+    const html = `
+      <a href="/guides/">Guides</a>
+      <a href="/guides/index.html">Guides (index)</a>
+      <a href="/guides">Guides (no slash)</a>
+    `;
+
+    const links = extractSameSiteLinks(html, "https://docs.example.com", 10);
+
+    expect(links).toEqual(["https://docs.example.com/guides/"]);
+  });
 });
 
 describe("dedupeSourceCandidates", () => {
@@ -115,5 +127,46 @@ describe("dedupeSourceCandidates", () => {
 
   it("returns an empty array when given no candidates", () => {
     expect(dedupeSourceCandidates([])).toEqual([]);
+  });
+
+  it("treats a trailing-slash variant of the same page as a duplicate", () => {
+    const result = dedupeSourceCandidates([
+      { url: "https://docs.example.com/guides", title: "Guides", discoveryTier: "llms_txt" },
+      { url: "https://docs.example.com/guides/", title: "Guides (again)", discoveryTier: "crawl" },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.title).toBe("Guides");
+  });
+
+  it("treats http and https as the same page", () => {
+    const result = dedupeSourceCandidates([
+      { url: "http://docs.example.com/guides", title: "Guides", discoveryTier: "llms_txt" },
+      { url: "https://docs.example.com/guides", title: "Guides (again)", discoveryTier: "crawl" },
+    ]);
+
+    expect(result).toHaveLength(1);
+  });
+
+  it("treats an explicit index.html as the same page as its directory", () => {
+    const result = dedupeSourceCandidates([
+      { url: "https://docs.example.com/guides/", title: "Guides", discoveryTier: "llms_txt" },
+      {
+        url: "https://docs.example.com/guides/index.html",
+        title: "Guides (index)",
+        discoveryTier: "crawl",
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+  });
+
+  it("does not merge two genuinely different pages", () => {
+    const result = dedupeSourceCandidates([
+      { url: "https://docs.example.com/guides/a", title: "A", discoveryTier: "llms_txt" },
+      { url: "https://docs.example.com/guides/b", title: "B", discoveryTier: "crawl" },
+    ]);
+
+    expect(result).toHaveLength(2);
   });
 });

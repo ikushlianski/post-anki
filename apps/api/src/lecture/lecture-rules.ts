@@ -1,7 +1,36 @@
+import { DEPTH_INTENT, type DepthLevel } from "@post-anki/shared";
+
 export interface ExtractedCandidate {
   title: string;
   url: string;
   whySelected: string;
+}
+
+export interface LectureSourceWithText {
+  title: string;
+  url: string;
+  text: string;
+}
+
+// A topic elected as "awareness" and one elected as "deep" used to compile
+// through the identical prompt — depth data existed on the topic but never
+// reached lecture generation. This makes the target depth an explicit
+// instruction so a deep topic gets more sections/detail, an awareness one
+// stays terse.
+export function buildLectureCompilePrompt(
+  sourcesWithText: LectureSourceWithText[],
+  depth: DepthLevel,
+  capGroundingText: (text: string) => string,
+): string {
+  return [
+    `Target depth: ${depth} — ${DEPTH_INTENT[depth]}`,
+    "Write only as many sections, and only as much detail per section, as that target depth calls for.",
+    "",
+    "Approved sources:",
+    sourcesWithText
+      .map((s) => `# ${s.title} (${s.url})\n${capGroundingText(s.text)}`)
+      .join("\n\n---\n\n"),
+  ].join("\n");
 }
 
 const CURRICULUM_SOURCE_CANDIDATE_CAP = 6;

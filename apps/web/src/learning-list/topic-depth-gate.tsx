@@ -1,11 +1,17 @@
 import { useState } from 'react'
 
-import type { DepthLevel, LearningStatus } from '@post-anki/shared'
+import type { DepthLevel, GoDeeperRefetchOutcome, LearningStatus } from '@post-anki/shared'
 
 import { DepthPrompt } from './depth-prompt'
 import { HeadroomOffer } from './headroom-offer'
 import { electedDepthForTopic, nextDepthElectedAt } from './depth-choice'
 import { declineHeadroomOffer, electTopicDepth } from './learning-list.api'
+
+const SILENT_GO_DEEPER_OUTCOMES = new Set<GoDeeperRefetchOutcome>([
+  'ok',
+  'skipped',
+  'not_refetchable',
+])
 
 export interface TopicDepthGateProps {
   topicId: string
@@ -34,9 +40,11 @@ export function TopicDepthGate({
   const [now] = useState(() => new Date().toISOString())
   const [failed, setFailed] = useState(false)
   const [headroomFailed, setHeadroomFailed] = useState(false)
+  const [staleSourceNotice, setStaleSourceNotice] = useState(false)
 
   async function elect(next: DepthLevel, status: LearningStatus) {
     setFailed(false)
+    setStaleSourceNotice(false)
 
     const stampedAt = nextDepthElectedAt(electedAt, new Date().toISOString())
 
@@ -47,6 +55,12 @@ export function TopicDepthGate({
     if (!result.ok) {
       setFailed(true)
       return
+    }
+
+    const refetchOutcome = result.data.goDeeperRefetch?.outcome
+
+    if (refetchOutcome && !SILENT_GO_DEEPER_OUTCOMES.has(refetchOutcome)) {
+      setStaleSourceNotice(true)
     }
 
     setElected(next)
@@ -98,6 +112,15 @@ export function TopicDepthGate({
           className="mb-4 text-xs text-rose-700"
         >
           That preference was not saved — it may ask again. Try again.
+        </p>
+      ) : null}
+      {staleSourceNotice ? (
+        <p
+          role="status"
+          data-testid="go-deeper-stale-source-notice"
+          className="mb-4 text-xs text-amber-700"
+        >
+          Couldn't refresh the source page — using the last version.
         </p>
       ) : null}
     </>

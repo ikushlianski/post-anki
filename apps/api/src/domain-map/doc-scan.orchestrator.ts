@@ -2,6 +2,7 @@ import type { DomainNodeTreeItem, DomainSupersessionSuggestion, DomainTopicSugge
 import { docScanAgentResultSchema } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { TRACKED_TOOLS, type TrackedTool } from "./tracked-tools.js";
 import { fetchTrackedTool } from "./tracked-tool-fetcher.js";
@@ -180,10 +181,16 @@ async function scanFetchedTools(
 
   try {
     const agent = getMastra().getAgent(AGENT_KEYS.docScan);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: docScanAgentResultSchema },
-      requestContext: new RequestContext([["subjectId", subjectId]]),
-    });
+    const result = await generateWithRetry(
+      "doc_scan",
+      null,
+      AGENT_KEYS.docScan,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: docScanAgentResultSchema },
+          requestContext: new RequestContext([["subjectId", subjectId]]),
+        }),
+    );
 
     if (!result.object) {
       throw new Error("doc-scan agent returned no structured output");

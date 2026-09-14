@@ -1,6 +1,7 @@
 import type { DecideSession } from "@post-anki/shared";
 import { decideResultSchema } from "@post-anki/shared";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
 import { insertDecideSession } from "./decide.repo.js";
@@ -44,9 +45,15 @@ export async function submitDecideSession(
   let object: unknown;
 
   try {
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: decideResultSchema },
-    });
+    const result = await generateWithRetry(
+      "decide_evaluation",
+      null,
+      AGENT_KEYS.decide,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: decideResultSchema },
+        }),
+    );
 
     object = result.object;
   } catch (err) {

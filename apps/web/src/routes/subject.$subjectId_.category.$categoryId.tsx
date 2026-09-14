@@ -5,7 +5,7 @@ import { getBoard } from '../curriculum/curriculum.api'
 import { CreateMaterialForm } from '../subject/create-material-form'
 import { CurriculumRowActions } from '../subject/subject-section'
 
-export const Route = createFileRoute('/subject/$subjectId/category/$categoryId')({
+export const Route = createFileRoute('/subject/$subjectId_/category/$categoryId')({
   component: CategoryDetailPage,
   loader: async ({ params }) => {
     const board = await getBoard()

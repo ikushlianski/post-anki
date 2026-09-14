@@ -15,7 +15,7 @@ const envSchema = z.object({
   API_SHARED_SECRET: z.string().min(1).optional(),
   ELECTRIC_SERVICE_URL: z.string().min(1).optional(),
   ELECTRIC_AUTH_MODE: z.enum(["iam", "none"]).default("iam"),
-  PORT: z.coerce.number().int().positive().default(8030),
+  PORT: z.coerce.number().int().positive().default(5560),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   NODE_ENV: z.string().optional(),
   LANGFUSE_PUBLIC_KEY: z.string().optional(),
@@ -35,6 +35,12 @@ const envSchema = z.object({
      check is never exempted. Set only in verification-repo's e2e stage env,
      never in dev/prod. */
   E2E_SOURCE_FETCH_ALLOWED_ORIGINS: z.string().min(1).optional(),
+  // The web app's own origin, so the API can answer CORS preflights for
+  // browser-side fetches (client-side route navigation, mutations). Web and
+  // API are always separate origins — separate Cloud Run services in prod,
+  // separate ports in dev — so this is never optional in practice; it
+  // defaults to the local dev web port only.
+  WEB_ORIGIN: z.string().min(1).default("http://localhost:5540"),
 });
 
 export type Env = z.infer<typeof envSchema>;

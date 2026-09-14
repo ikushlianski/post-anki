@@ -1,0 +1,1 @@
+ALTER TABLE "sources" ADD COLUMN "merged_from_curriculum_id" text;

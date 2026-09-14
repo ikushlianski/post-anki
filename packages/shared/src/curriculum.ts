@@ -105,6 +105,7 @@ export type ApproveSourcesInput = z.infer<typeof approveSourcesInput>;
 
 export const updateCurriculumInput = z.object({
   curriculumId: z.string(),
+  name: z.string().trim().min(1).optional(),
   learningStatus: learningStatusSchema.optional(),
   speed: speedSchema.optional(),
   hinting: z.boolean().optional(),
@@ -154,6 +155,13 @@ export const structureSnapshotTopicSchema = z.object({
   title: z.string(),
   summary: z.string().nullable(),
   suggestedDepth: depthLevelSchema,
+  // S2 provenance — the SOURCE_URL marker (source-text.ts) of the crawled
+  // page this topic was grounded in, when the material came from a single
+  // identifiable page. Null when the topic draws on pasted text, several
+  // pages at once, or the model's own trained knowledge. Nullable (not
+  // plain-optional) — matches every other optional-under-strict-mode field
+  // in this schema (see `tags` on structureSnapshotModuleSchema below).
+  sourceUrl: z.string().nullable(),
 });
 
 export type StructureSnapshotTopic = z.infer<typeof structureSnapshotTopicSchema>;

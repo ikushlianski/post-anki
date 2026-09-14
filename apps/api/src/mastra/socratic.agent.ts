@@ -22,6 +22,8 @@ const INSTRUCTIONS = [
   "",
   "Teach, don't interrogate. Be precise about correctness, generous about wording. Keep every",
   "field short and conversational, not a lecture — this is a chat turn, not an essay.",
+  "Explain WHY an answer matters, not just whether it's right — the reasoning or tradeoff behind",
+  "the concept. Fold this into explanation and correctAnswer.",
   "Always fill every field even if a given one will not be shown.",
 ].join("\n");
 

@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import type { TopicRecommendation } from '@post-anki/shared'
 
 import { generateRecommendations } from './stats.api'
+import { safeHref } from '../shared/safe-href'
 
 export function RecommendationPanel({
   curriculumId,
@@ -73,25 +74,29 @@ export function RecommendationPanel({
         <p className="text-sm text-neutral-400">No recommendations yet.</p>
       ) : (
         <ul className="space-y-2">
-          {recommendations.map((rec) => (
-            <li
-              key={rec.topicId}
-              data-testid="recommendation-item"
-              className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
-            >
-              <p>{rec.text}</p>
-              {rec.citations.length > 0 ? (
-                <a
-                  href={rec.citations[0]}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-1 inline-block text-xs text-blue-600 underline underline-offset-2"
-                >
-                  {rec.citations[0]}
-                </a>
-              ) : null}
-            </li>
-          ))}
+          {recommendations.map((rec) => {
+            const citationHref = safeHref(rec.citations[0])
+
+            return (
+              <li
+                key={rec.topicId}
+                data-testid="recommendation-item"
+                className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm"
+              >
+                <p>{rec.text}</p>
+                {citationHref ? (
+                  <a
+                    href={citationHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-block text-xs text-blue-600 underline underline-offset-2"
+                  >
+                    {rec.citations[0]}
+                  </a>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>

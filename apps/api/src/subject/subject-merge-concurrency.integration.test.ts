@@ -9,7 +9,7 @@ import { closeDb } from "../db/client.js";
 // SCENARIO 5 (.planning/ontology-split-merge/scenarios.md) — the merge-vs-
 // merge concurrency race proof. Mirrors phrase-bank-concurrency-fix's own
 // integration-test pattern exactly: real Postgres (the e2e docker-compose DB
-// on localhost:5436, never mocked), two concurrent calls fired via
+// on localhost:5578, never mocked), two concurrent calls fired via
 // Promise.all against the real connection pool, DATABASE_URL required and
 // asserted local-only before anything opens a connection.
 //
@@ -24,7 +24,7 @@ import { closeDb } from "../db/client.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 

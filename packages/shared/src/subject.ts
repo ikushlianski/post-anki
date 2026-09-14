@@ -22,6 +22,7 @@ export const createSubjectInput = z.object({
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>;
 
 export const updateSubjectInput = z.object({
+  name: z.string().trim().min(1).optional(),
   modelTier: modelTierSchema.nullable().optional(),
 });
 

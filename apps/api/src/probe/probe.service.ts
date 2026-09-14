@@ -25,6 +25,7 @@ import {
 import { getCalibrationCompletionForCurriculum } from "../probe-session/probe-session.repo.js";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import {
   getTopicRow,
@@ -449,10 +450,16 @@ async function generateQuestion(
     .join("\n");
 
   try {
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: generatedQuestionSchema },
-      requestContext: new RequestContext([["curriculumId", topic.curriculumId]]),
-    });
+    const result = await generateWithRetry(
+      "probe_question_generate",
+      topic.curriculumId,
+      AGENT_KEYS.mentorAsk,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: generatedQuestionSchema },
+          requestContext: new RequestContext([["curriculumId", topic.curriculumId]]),
+        }),
+    );
 
     if (result.object) {
       if (archetypePlan) {
@@ -504,10 +511,16 @@ async function evaluateAnswer(
 
   try {
     const agent = getMastra().getAgent(AGENT_KEYS.mentorEval);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: probeEvaluationSchema },
-      requestContext: new RequestContext([["curriculumId", topic.curriculumId]]),
-    });
+    const result = await generateWithRetry(
+      "probe_answer_evaluate",
+      topic.curriculumId,
+      AGENT_KEYS.mentorEval,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: probeEvaluationSchema },
+          requestContext: new RequestContext([["curriculumId", topic.curriculumId]]),
+        }),
+    );
 
     if (result.object) {
       const validIds = new Set(open.map((g) => g.id));

@@ -88,6 +88,20 @@ describe("transcribeAudio", () => {
     expect(audioPart.input_audio.format).toBe("mp3");
   });
 
+  it("derives \"m4a\" for a mobile-recorded voice note's mime type", async () => {
+    const spy = mockFetch({ choices: [{ message: { content: "hi" } }] });
+    const { transcribeAudio } = await import("./transcription-client.js");
+
+    await transcribeAudio({ audioBase64: "abc123", mimeType: "audio/m4a" });
+
+    const body = JSON.parse(spy.mock.calls[0]![1]!.body as string);
+    const audioPart = body.messages[0].content.find(
+      (part: { type: string }) => part.type === "input_audio",
+    );
+
+    expect(audioPart.input_audio.format).toBe("m4a");
+  });
+
   it("applies the OPENROUTER_BASE_URL override exactly like embeddings-client.ts / tech-research-grounding.ts (AC 19)", async () => {
     envOverrides = { OPENROUTER_BASE_URL: "http://mock-openrouter.test" };
     const spy = mockFetch({ choices: [{ message: { content: "hi" } }] });

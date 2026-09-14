@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { Gap } from "@post-anki/shared";
-import { selectDailyPush, selectDueQueue, isStale, type PushCandidate } from "./daily-push";
+import {
+  selectDailyPush,
+  selectDueQueue,
+  selectRotatingDailyPush,
+  isStale,
+  type PushCandidate,
+} from "./daily-push";
 
 function gap(overrides: Partial<Gap> & { id: string }): Gap {
   return {
@@ -29,6 +35,7 @@ function candidate(overrides: Partial<PushCandidate> & { topicId: string }): Pus
     topicTitle: "T",
     curriculumId: "c",
     curriculumName: "C",
+    subjectId: overrides.curriculumId ?? "c",
     depth: "working",
     gaps: [],
     ...overrides,
@@ -106,6 +113,28 @@ describe("selectDailyPush", () => {
 
     expect(pick?.topicId).toBe("old");
     expect(pick?.reason).toBe("refresh");
+  });
+
+  it("never refreshes a gap the learner dismissed, even once it's stale and covered", () => {
+    const pick = selectDailyPush(
+      [
+        candidate({
+          topicId: "old",
+          gaps: [
+            gap({
+              id: "stale-dismissed",
+              state: "covered",
+              lastEvaluatedAt: "2026-01-01T00:00:00.000Z",
+              triageState: "dismissed",
+              dismissedAt: "2026-01-01T00:00:00.000Z",
+            }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(pick).toBeNull();
   });
 
   it("never accumulates a queue across repeated calls with the same unanswered gap present", () => {
@@ -240,6 +269,23 @@ describe("selectDailyPush", () => {
 
     expect(pick).toBeNull();
   });
+
+  it("does not immediately re-push the same gap right after a wrong answer, when an untouched gap of equal weight is also open", () => {
+    const pick = selectDailyPush(
+      [
+        candidate({
+          topicId: "t",
+          gaps: [
+            gap({ id: "just-answered-wrong", lastEvaluatedAt: "2026-05-30T23:59:00.000Z" }),
+            gap({ id: "untouched", lastEvaluatedAt: null }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(pick?.gap.id).toBe("untouched");
+  });
 });
 
 describe("selectDueQueue", () => {
@@ -372,6 +418,59 @@ describe("selectDueQueue", () => {
     expect(items[0]?.reason).toBe("refresh");
   });
 
+  it("surfaces a stale mastered gap in one subject even while another subject has an open gap", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "still-open",
+          curriculumId: "c-a",
+          gaps: [gap({ id: "open-gap" })],
+        }),
+        candidate({
+          topicId: "long-mastered",
+          curriculumId: "c-b",
+          gaps: [
+            gap({
+              id: "stale-gap",
+              state: "covered",
+              lastEvaluatedAt: "2026-01-01T00:00:00.000Z",
+            }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(items.map((i) => i.topicId)).toEqual(["still-open", "long-mastered"]);
+    expect(items.find((i) => i.topicId === "long-mastered")?.reason).toBe("refresh");
+  });
+
+  it("never lets a dismissed gap resurface via the refresh path once it goes stale and covered", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "still-open",
+          gaps: [gap({ id: "open-gap" })],
+        }),
+        candidate({
+          topicId: "dismissed-then-covered",
+          gaps: [
+            gap({
+              id: "stale-dismissed",
+              state: "covered",
+              lastEvaluatedAt: "2026-01-01T00:00:00.000Z",
+              triageState: "dismissed",
+              dismissedAt: "2026-01-01T00:00:00.000Z",
+            }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(items.map((i) => i.topicId)).toEqual(["still-open"]);
+  });
+
   it("never surfaces a dismissed or still-live-deferred gap", () => {
     const items = selectDueQueue(
       [
@@ -395,6 +494,132 @@ describe("selectDueQueue", () => {
 
     expect(items).toEqual([]);
   });
+
+  it("ranks a gap just answered wrong behind an equally-weighted untouched gap", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "t",
+          gaps: [
+            gap({ id: "just-answered-wrong", lastEvaluatedAt: "2026-05-30T23:59:00.000Z" }),
+            gap({ id: "untouched", lastEvaluatedAt: null }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(items.map((i) => i.gap.id)).toEqual(["untouched", "just-answered-wrong"]);
+  });
+
+  it("does not let one subject's large gap pile bury another subject's lone due gap", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "big-subject-topic",
+          curriculumId: "big-subject",
+          gaps: [
+            gap({ id: "big-1", wanted: true }),
+            gap({ id: "big-2", wanted: true }),
+            gap({ id: "big-3", wanted: true }),
+            gap({ id: "big-4", wanted: true }),
+            gap({ id: "big-5", wanted: true }),
+          ],
+        }),
+        candidate({
+          topicId: "small-subject-topic",
+          curriculumId: "small-subject",
+          gaps: [gap({ id: "small-1" })],
+        }),
+      ],
+      NOW,
+    );
+
+    const smallSubjectPosition = items.findIndex((i) => i.gap.id === "small-1");
+
+    expect(smallSubjectPosition).toBeLessThan(2);
+  });
+
+  it("does not let a subject's several courses jointly bury another subject's lone due gap", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "course-a-topic",
+          curriculumId: "big-subject-course-a",
+          subjectId: "big-subject",
+          gaps: [
+            gap({ id: "a-1", wanted: true }),
+            gap({ id: "a-2", wanted: true }),
+            gap({ id: "a-3", wanted: true }),
+          ],
+        }),
+        candidate({
+          topicId: "course-b-topic",
+          curriculumId: "big-subject-course-b",
+          subjectId: "big-subject",
+          gaps: [
+            gap({ id: "b-1", wanted: true }),
+            gap({ id: "b-2", wanted: true }),
+            gap({ id: "b-3", wanted: true }),
+          ],
+        }),
+        candidate({
+          topicId: "small-subject-topic",
+          curriculumId: "small-subject-course",
+          subjectId: "small-subject",
+          gaps: [gap({ id: "small-1" })],
+        }),
+      ],
+      NOW,
+    );
+
+    const smallSubjectPosition = items.findIndex((i) => i.gap.id === "small-1");
+
+    expect(smallSubjectPosition).toBeLessThan(2);
+  });
+
+  it("preserves a subject's own priority order while interleaving across subjects", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "a-topic",
+          curriculumId: "subject-a",
+          gaps: [
+            gap({ id: "a-important", triageState: "important" }),
+            gap({ id: "a-weak" }),
+          ],
+        }),
+        candidate({
+          topicId: "b-topic",
+          curriculumId: "subject-b",
+          gaps: [gap({ id: "b-1" })],
+        }),
+      ],
+      NOW,
+    );
+
+    const aOrder = items.filter((i) => i.curriculumId === "subject-a").map((i) => i.gap.id);
+
+    expect(aOrder).toEqual(["a-important", "a-weak"]);
+  });
+
+  it("leaves a single-subject queue's order unchanged by interleaving", () => {
+    const items = selectDueQueue(
+      [
+        candidate({
+          topicId: "only-topic",
+          gaps: [
+            gap({ id: "one", triageState: "important" }),
+            gap({ id: "two", wanted: true }),
+            gap({ id: "three" }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+
+    expect(items.map((i) => i.gap.id)).toEqual(["one", "two", "three"]);
+  });
 });
 
 describe("isStale", () => {
@@ -405,5 +630,90 @@ describe("isStale", () => {
   it("marks a gap stale only past the 90-day window", () => {
     expect(isStale("2026-05-01T00:00:00.000Z", NOW)).toBe(false);
     expect(isStale("2025-12-01T00:00:00.000Z", NOW)).toBe(true);
+  });
+});
+
+describe("selectRotatingDailyPush", () => {
+  function twoSubjectCandidates(): PushCandidate[] {
+    return [
+      candidate({
+        topicId: "a-topic",
+        curriculumId: "subject-a",
+        gaps: [gap({ id: "a-gap" })],
+      }),
+      candidate({
+        topicId: "b-topic",
+        curriculumId: "subject-b",
+        gaps: [gap({ id: "b-gap" })],
+      }),
+    ];
+  }
+
+  it("returns the same pick for repeated calls within the same day", () => {
+    const first = selectRotatingDailyPush(twoSubjectCandidates(), NOW);
+    const second = selectRotatingDailyPush(twoSubjectCandidates(), "2026-05-31T23:00:00.000Z");
+
+    expect(first?.gap.id).toBe(second?.gap.id);
+  });
+
+  it("rotates to a different subject on a different day", () => {
+    const today = selectRotatingDailyPush(twoSubjectCandidates(), NOW);
+    const tomorrow = selectRotatingDailyPush(twoSubjectCandidates(), "2026-06-01T00:00:00.000Z");
+
+    expect(today?.curriculumId).not.toBe(tomorrow?.curriculumId);
+  });
+
+  it("still returns a pick from another subject when today's chosen subject has nothing eligible", () => {
+    const candidates: PushCandidate[] = [
+      candidate({
+        topicId: "dismissed-topic",
+        curriculumId: "subject-a",
+        gaps: [gap({ id: "dismissed-gap", triageState: "dismissed" })],
+      }),
+      candidate({
+        topicId: "open-topic",
+        curriculumId: "subject-b",
+        gaps: [gap({ id: "open-gap" })],
+      }),
+    ];
+
+    const pick = selectRotatingDailyPush(candidates, NOW);
+
+    expect(pick?.gap.id).toBe("open-gap");
+  });
+
+  it("returns null when nothing is eligible anywhere", () => {
+    expect(selectRotatingDailyPush([], NOW)).toBeNull();
+  });
+
+  it("gives a subject with two courses the same turn share as a subject with one", () => {
+    const candidates: PushCandidate[] = [
+      candidate({
+        topicId: "course-a-topic",
+        curriculumId: "big-subject-course-a",
+        subjectId: "big-subject",
+        gaps: [gap({ id: "a-gap" })],
+      }),
+      candidate({
+        topicId: "course-b-topic",
+        curriculumId: "big-subject-course-b",
+        subjectId: "big-subject",
+        gaps: [gap({ id: "b-gap" })],
+      }),
+      candidate({
+        topicId: "small-topic",
+        curriculumId: "small-subject-course",
+        subjectId: "small-subject",
+        gaps: [gap({ id: "small-gap" })],
+      }),
+    ];
+
+    const days = [0, 1, 2, 3].map((offset) =>
+      new Date(new Date(NOW).getTime() + offset * 24 * 60 * 60 * 1000).toISOString(),
+    );
+    const picksBySubject = days.map((day) => selectRotatingDailyPush(candidates, day)?.curriculumId);
+    const smallSubjectTurns = picksBySubject.filter((id) => id === "small-subject-course").length;
+
+    expect(smallSubjectTurns).toBe(2);
   });
 });

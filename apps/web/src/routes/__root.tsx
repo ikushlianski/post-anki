@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '../nav/sidebar'
 import { GlobalSearch } from '../search/global-search'
 import { search } from '../curriculum/curriculum.api'
@@ -14,6 +14,12 @@ import { search } from '../curriculum/curriculum.api'
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import appCss from '../styles.css?url'
+
+declare global {
+  interface Window {
+    __APP_HYDRATED__?: boolean
+  }
+}
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -41,6 +47,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootDocument({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    window.__APP_HYDRATED__ = true
+  }, [])
 
   return (
     <html lang="en">

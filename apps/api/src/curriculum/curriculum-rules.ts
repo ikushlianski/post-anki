@@ -5,12 +5,17 @@ export interface TopicTouchState {
   learningStatus: string;
   selfGrade: number | null;
   included: boolean;
+  mergedFromCurriculumId: string | null;
+  hasUserDeclaredGap: boolean;
+  hasNote: boolean;
+  hasSessionHistory: boolean;
 }
 
 export interface ModuleTouchState {
   moduleId: string;
   title: string;
   learningStatus: string;
+  mergedFromCurriculumId: string | null;
   topics: TopicTouchState[];
 }
 
@@ -32,7 +37,10 @@ export function isTopicTouched(topic: TopicTouchState): boolean {
     topic.progressAttempts > 0 ||
     topic.learningStatus !== "not_started" ||
     topic.selfGrade !== null ||
-    topic.included === false
+    topic.included === false ||
+    topic.hasUserDeclaredGap ||
+    topic.hasNote ||
+    topic.hasSessionHistory
   );
 }
 
@@ -44,6 +52,18 @@ export function isModuleTouched(module: ModuleTouchState): boolean {
   return module.topics.some(isTopicTouched);
 }
 
+// A module merged in from an absorbed curriculum (or still holding a
+// merged-in topic) must survive "add more sources" the same way
+// `resolveClearTargets` already spares it from a structure clear — a
+// learner who hasn't touched it yet would otherwise see it silently
+// deleted and regenerated away.
+export function isModuleMergedIn(module: ModuleTouchState): boolean {
+  return (
+    module.mergedFromCurriculumId !== null ||
+    module.topics.some((t) => t.mergedFromCurriculumId !== null)
+  );
+}
+
 export function partitionModulesForMerge(
   modules: ModuleTouchState[],
 ): MergePartition {
@@ -51,7 +71,7 @@ export function partitionModulesForMerge(
   const freeModuleIds: string[] = [];
 
   for (const module of modules) {
-    if (isModuleTouched(module)) {
+    if (isModuleTouched(module) || isModuleMergedIn(module)) {
       lockedModules.push(module);
     } else {
       freeModuleIds.push(module.moduleId);
@@ -179,6 +199,7 @@ export function isPastedMaterialAndSourcesConflict(
 export interface PriorResearchSource {
   kind: string;
   value: string;
+  mergedFromCurriculumId?: string | null;
 }
 
 export type RetryResearchSource =
@@ -199,7 +220,9 @@ export function resolveRetryResearchSource(
   priorSources: PriorResearchSource[],
   curriculumName: string,
 ): RetryResearchSource {
-  const candidate = priorSources.find((row) => looksLikeAbsoluteUrl(row.value));
+  const ownSources = priorSources.filter((row) => !row.mergedFromCurriculumId);
+  const searchPool = ownSources.length > 0 ? ownSources : priorSources;
+  const candidate = searchPool.find((row) => looksLikeAbsoluteUrl(row.value));
 
   if (candidate) {
     return { mode: "url", docUrl: candidate.value, name: curriculumName };

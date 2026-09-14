@@ -6,7 +6,7 @@ Pure domain logic (progress, recommendation, attempt, gap, depth,
 learning-status derivers) lives in `@post-anki/core`; all request/response
 shapes are Zod schemas in `@post-anki/shared`.
 
-Run: `npm run dev -w @post-anki/api` (defaults to port `8030`).
+Run: `npm run dev -w @post-anki/api` (defaults to port `5560`).
 
 ## Endpoints
 
@@ -68,7 +68,7 @@ If `API_SHARED_SECRET` is set, every route except `/healthz` requires
 
 `DATABASE_URL` (Neon), `OPENROUTER_API_KEY`, `CURRICULUM_MODEL`
 (default `openrouter/google/gemini-2.5-flash`), `API_SHARED_SECRET` (optional),
-`PORT` (8030), `LOG_LEVEL`.
+`PORT` (5560), `LOG_LEVEL`.
 
 ## Migrations
 

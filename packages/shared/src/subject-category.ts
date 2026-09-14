@@ -20,3 +20,15 @@ export const createSubjectCategoryInput = z.object({
 });
 
 export type CreateSubjectCategoryInput = z.infer<typeof createSubjectCategoryInput>;
+
+export const moveCategoryInput = z.object({
+  parentId: z.string().nullable(),
+});
+
+export type MoveCategoryInput = z.infer<typeof moveCategoryInput>;
+
+export const renameCategoryInput = z.object({
+  name: z.string().trim().min(1),
+});
+
+export type RenameCategoryInput = z.infer<typeof renameCategoryInput>;

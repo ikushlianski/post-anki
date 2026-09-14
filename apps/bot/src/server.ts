@@ -6,7 +6,8 @@ import { createUpdateLru } from "./telegram/update-lru.js";
 import { sendMessage, sendChatAction } from "./telegram/bot.js";
 import { transcribeVoiceNote } from "./voice/voice-transcription.js";
 import { log } from "./telegram/log.js";
-import { getDailyPush, getGapsDueForResurface, submitAnswer } from "./api/client.js";
+import { getDailyPush, getDueQueue, getGapsDueForResurface, submitAnswer } from "./api/client.js";
+import { formatDailyDigest } from "./digest/daily-digest.js";
 import { runGapResurface } from "./gap-triage/gap-triage-flow.js";
 import { getPending, setPending, clearPending } from "./session/pending.repo.js";
 import { sendTodaysQuestion, type FlowDeps } from "./conversation/probe-flow.js";
@@ -29,6 +30,25 @@ const flow: FlowDeps = {
   setPending,
   clearPending,
 };
+
+async function buildDigestText(questionText: string): Promise<string> {
+  const [dueQueue, gapsDue] = await Promise.all([
+    getDueQueue().catch((err) => {
+      log.error({ err }, "due_queue_fetch_failed");
+      return { items: [] };
+    }),
+    getGapsDueForResurface().catch((err) => {
+      log.error({ err }, "gaps_due_fetch_failed");
+      return { userDeferredDue: [], dismissedCheckinDue: [] };
+    }),
+  ]);
+
+  return formatDailyDigest({
+    dueQueueCount: dueQueue.items.length,
+    gapsDueCount: gapsDue.userDeferredDue.length + gapsDue.dismissedCheckinDue.length,
+    questionText,
+  });
+}
 
 function main() {
   const env = loadEnv();
@@ -53,6 +73,7 @@ function main() {
 
       void clearChatContext(env.OWNER_TELEGRAM_CHAT_ID)
         .then(() => sendTodaysQuestion(env.OWNER_TELEGRAM_CHAT_ID, DEFAULT_MODE, flow))
+        .then((questionText) => buildDigestText(questionText))
         .then((text) => sendMessage(env.OWNER_TELEGRAM_CHAT_ID, text))
         .catch((err) => log.error({ err }, "daily_push_failed"));
 

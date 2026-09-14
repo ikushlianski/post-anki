@@ -21,12 +21,14 @@ export async function assembleAllSourceText(curriculumId: string): Promise<strin
         await storeFetchedText(row.id, text);
       }
 
-      // S2's provenance requirement — a link source's URL is embedded as a
-      // machine-parseable marker the structure-generation prompt asks the
-      // model to echo back per topic (as `sourceUrl`), so saveCurriculumPlan
-      // can resolve it to this source row's id and write topics.sourceId.
+      // S2's provenance requirement — a link/llms_txt source's URL is
+      // embedded as a machine-parseable marker the structure-generation
+      // prompt asks the model to echo back per topic (as `sourceUrl`), so
+      // saveCurriculumPlan can resolve it to this source row's id and write
+      // topics.sourceId. Both kinds cover docs-site crawling — see
+      // doc-link-grounding.ts.
       const header =
-        row.kind === "link"
+        row.kind === "link" || row.kind === "llms_txt"
           ? `# ${row.title ?? row.value} (SOURCE_URL: ${row.value})`
           : row.title
             ? `# ${row.title}`

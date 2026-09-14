@@ -2,6 +2,7 @@ import type { AskStudyChatInput, AskStudyChatResult } from "@post-anki/shared";
 import { summarizeLearningMap } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import {
@@ -66,10 +67,16 @@ export async function askStudyChat(
   try {
     if (promptContext?.subjectKind === "language-practice") {
       const agent = getMastra().getAgent(AGENT_KEYS.languageChat);
-      const result = await agent.generate(prompt, {
-        structuredOutput: { schema: languageChatReplySchema },
-        requestContext,
-      });
+      const result = await generateWithRetry(
+        "study_chat_language_reply",
+        ctx.curriculumId,
+        AGENT_KEYS.languageChat,
+        () =>
+          agent.generate(prompt, {
+            structuredOutput: { schema: languageChatReplySchema },
+            requestContext,
+          }),
+      );
       const reply = result.object?.languagePracticeReply?.trim();
 
       if (reply) {
@@ -77,7 +84,12 @@ export async function askStudyChat(
       }
     } else {
       const agent = getMastra().getAgent(AGENT_KEYS.studyChat);
-      const result = await agent.generate(prompt, { requestContext });
+      const result = await generateWithRetry(
+        "study_chat_general_reply",
+        ctx.curriculumId,
+        AGENT_KEYS.studyChat,
+        () => agent.generate(prompt, { requestContext }),
+      );
       const reply = result.text?.trim();
 
       if (reply) {

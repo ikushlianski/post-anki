@@ -10,7 +10,7 @@ import {
   listRoleTemplates,
 } from '../learning-path/learning-path.api'
 
-export const Route = createFileRoute('/learning-paths/$pathId')({
+export const Route = createFileRoute('/learning-paths_/$pathId')({
   component: LearningPathDetailPage,
   loader: async ({ params }) => {
     const [detailResult, templates, board] = await Promise.all([

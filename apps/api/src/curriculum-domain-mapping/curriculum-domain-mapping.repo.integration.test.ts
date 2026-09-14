@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
 
-// Real Postgres (the e2e docker-compose DB on localhost:5436, never mocked)
+// Real Postgres (the e2e docker-compose DB on localhost:5578, never mocked)
 // — SCENARIO 12's claim-first "WHERE status = 'suggested'" guard only means
 // anything against a real engine's row-level locking and READ COMMITTED
 // re-check, same reasoning as suggestion-double-resolve.integration.test.ts.
@@ -14,7 +14,7 @@ import { closeDb } from "../db/client.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 

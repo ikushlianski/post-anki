@@ -20,7 +20,7 @@ import { closeDb } from "../db/client.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 
@@ -178,6 +178,17 @@ function askObject(prompt: string, applicableArchetypes?: string[]) {
 describe("SCENARIO 6 — cross-surface LRU sharing and same-session continuation against real Postgres", () => {
   it("classifies once, continues within a session, rotates across sessions, and shares state with startProbe", async () => {
     const scenery = await seedTopicWithGap();
+
+    // The Socratic gate (isSocraticGatedByCalibration) requires a completed
+    // curriculum-scope calibration quiz before startSocraticSession will
+    // open a session — seed one directly so this scenario stays focused on
+    // archetype rotation rather than the calibration flow itself.
+    await client.query(
+      `INSERT INTO probe_sessions (id, scope, scope_id, curriculum_id, status, total, correct, answered, completed_at)
+       VALUES ($1, 'curriculum', $2, $2, 'completed', 1, 1, 1, now())`,
+      [id("calib"), scenery.curriculumId],
+    );
+
     const now1 = "2026-08-01T10:00:00.000Z";
     const now2 = "2026-08-01T10:05:00.000Z";
     const now3 = "2026-08-01T10:10:00.000Z";

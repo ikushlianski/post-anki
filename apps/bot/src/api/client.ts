@@ -6,6 +6,7 @@ import type {
   Curriculum,
   CurriculumDetail,
   DailyPushResponse,
+  DueQueueResponse,
   GapsDueForResurfaceResponse,
   ProbeResult,
   ProbeScope,
@@ -23,6 +24,7 @@ import type {
 const QUICK_STUDIES_SUBJECT_NAME = "Quick Studies";
 import type { SubmitAnswerInput } from "../conversation/flow-types.js";
 import { loadEnv } from "../env.js";
+import { assertSecureUrl } from "./secure-url.js";
 
 function headers(): Record<string, string> {
   const env = loadEnv();
@@ -38,6 +40,8 @@ function headers(): Record<string, string> {
 export async function getDailyPush(mode: QuestionKind): Promise<DailyPushResponse> {
   const env = loadEnv();
 
+  assertSecureUrl(env.API_BASE_URL);
+
   const res = await fetch(`${env.API_BASE_URL}/daily-push?mode=${mode}`, {
     headers: headers(),
   });
@@ -51,6 +55,8 @@ export async function getDailyPush(mode: QuestionKind): Promise<DailyPushRespons
 
 export async function submitAnswer(input: SubmitAnswerInput): Promise<ProbeResult> {
   const env = loadEnv();
+
+  assertSecureUrl(env.API_BASE_URL);
 
   const res = await fetch(
     `${env.API_BASE_URL}/topics/${input.topicId}/probe/answer`,
@@ -77,6 +83,8 @@ async function apiFetch<T>(
   init?: { method?: string; body?: unknown },
 ): Promise<T> {
   const env = loadEnv();
+
+  assertSecureUrl(env.API_BASE_URL);
 
   const res = await fetch(`${env.API_BASE_URL}${path}`, {
     method: init?.method ?? "GET",
@@ -211,6 +219,10 @@ export function triageGap(gapId: string, action: TriageAction): Promise<TriageGa
 
 export function getGapsDueForResurface(): Promise<GapsDueForResurfaceResponse> {
   return apiFetch<GapsDueForResurfaceResponse>("/gaps/due-for-resurface");
+}
+
+export function getDueQueue(): Promise<DueQueueResponse> {
+  return apiFetch<DueQueueResponse>("/due-queue");
 }
 
 export function markGapResurfaced(gapId: string, kind: ResurfaceKind): Promise<void> {

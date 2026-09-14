@@ -16,7 +16,7 @@ import { closeDb } from "../db/client.js";
 // zero ontology_merges rows) and the backend read-path ordering/limit proof
 // for listRecentOntologyMerges.
 //
-// Real Postgres (the e2e docker-compose DB on localhost:5436, never mocked),
+// Real Postgres (the e2e docker-compose DB on localhost:5578, never mocked),
 // mirrors tag-merge.integration.test.ts /
 // curriculum-merge-target-failed-precondition.integration.test.ts's own
 // harness shape exactly.
@@ -24,7 +24,7 @@ import { closeDb } from "../db/client.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 

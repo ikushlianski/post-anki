@@ -47,3 +47,23 @@ export const refetchSourceResultSchema = z.object({
 });
 
 export type RefetchSourceResult = z.infer<typeof refetchSourceResultSchema>;
+
+// PATCH /topics/:id's "going_deeper" re-fetch outcome. Superset of
+// refetchOutcomeSchema plus refetchSource's own error values and "skipped".
+export const goDeeperRefetchOutcomeSchema = z.enum([
+  "ok",
+  "blocked",
+  "http_error",
+  "network_error",
+  "not_found",
+  "not_refetchable",
+  "skipped",
+]);
+
+export type GoDeeperRefetchOutcome = z.infer<typeof goDeeperRefetchOutcomeSchema>;
+
+export const goDeeperRefetchResultSchema = z.object({
+  outcome: goDeeperRefetchOutcomeSchema,
+});
+
+export type GoDeeperRefetchResult = z.infer<typeof goDeeperRefetchResultSchema>;

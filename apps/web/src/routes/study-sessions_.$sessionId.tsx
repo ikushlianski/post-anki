@@ -12,7 +12,7 @@ import {
   startStudySession,
 } from '../study-session/study-session.api'
 
-export const Route = createFileRoute('/study-sessions/$sessionId')({
+export const Route = createFileRoute('/study-sessions_/$sessionId')({
   component: StudySessionDetailPage,
   loader: async ({ params }) => {
     const sessionResult = await getStudySession({ data: params.sessionId })

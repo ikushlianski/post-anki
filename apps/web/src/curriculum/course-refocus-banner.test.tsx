@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseRefocusBanner } from './course-refocus-banner'
 import type { CourseRefocusSuggestion } from './model'
+import type { LoadResult } from '../shared/load-result'
 
 vi.mock('./api-client', () => ({
   dismissCourseRefocusSuggestion: vi.fn().mockResolvedValue({ success: true }),
@@ -13,7 +14,7 @@ vi.mock('./api-client', () => ({
 describe('CourseRefocusBanner', () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-  function renderBanner(suggestions: CourseRefocusSuggestion[]) {
+  function renderBanner(suggestions: LoadResult<CourseRefocusSuggestion[]>) {
     return render(
       <QueryClientProvider client={queryClient}>
         <CourseRefocusBanner suggestions={suggestions} />
@@ -22,8 +23,15 @@ describe('CourseRefocusBanner', () => {
   }
 
   it('renders nothing when suggestions are empty', () => {
-    const { container } = renderBanner([])
+    const { container } = renderBanner({ ok: true, data: [] })
     expect(container.firstChild).toBeNull()
+  })
+
+  it('renders an error message when suggestions fail to load', () => {
+    renderBanner({ ok: false })
+
+    expect(screen.getByRole('alert')).toBeTruthy()
+    expect(screen.getByText(/couldn't load course suggestions/i)).toBeTruthy()
   })
 
   it('renders multiple suggestions including 2 from same subject', async () => {
@@ -54,7 +62,7 @@ describe('CourseRefocusBanner', () => {
       },
     ]
 
-    renderBanner(suggestions)
+    renderBanner({ ok: true, data: suggestions })
 
     expect(screen.getByText('Relational Database Fundamentals')).toBeTruthy()
     expect(screen.getByText('Query Optimization')).toBeTruthy()
@@ -74,7 +82,7 @@ describe('CourseRefocusBanner', () => {
       },
     ]
 
-    renderBanner(suggestions)
+    renderBanner({ ok: true, data: suggestions })
 
     const dismissButton = screen.getByRole('button', { name: /dismiss/i })
     await user.click(dismissButton)
@@ -96,7 +104,7 @@ describe('CourseRefocusBanner', () => {
       },
     ]
 
-    renderBanner(suggestions)
+    renderBanner({ ok: true, data: suggestions })
 
     expect(screen.getByText(/haven't studied this course in a while/i)).toBeTruthy()
   })
@@ -113,7 +121,7 @@ describe('CourseRefocusBanner', () => {
       },
     ]
 
-    renderBanner(suggestions)
+    renderBanner({ ok: true, data: suggestions })
 
     expect(screen.getByText(/new, high-priority course/i)).toBeTruthy()
   })
@@ -138,7 +146,7 @@ describe('CourseRefocusBanner', () => {
       },
     ]
 
-    const { container } = renderBanner(suggestions)
+    const { container } = renderBanner({ ok: true, data: suggestions })
 
     expect(container.textContent).not.toMatch(/\d+\s*(day|week|month)s?/i)
   })

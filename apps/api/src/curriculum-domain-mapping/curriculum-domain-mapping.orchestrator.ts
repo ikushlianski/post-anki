@@ -3,6 +3,7 @@ import { domainTaxonomyMappingAgentResultSchema } from "@post-anki/shared";
 import { partitionMappingResult, resolveDomainNodeSource } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { getCurriculum, getModuleProgressSnapshots } from "../curriculum/curriculum.repo.js";
 import {
   insertDomainTopicSuggestion,
@@ -94,10 +95,16 @@ export async function triggerCurriculumDomainMapping(
   const agent = getMastra().getAgent(AGENT_KEYS.domainTaxonomyMapping);
   const prompt = buildMappingPrompt(nodes, curriculum.name, topicTitles);
 
-  const result = await agent.generate(prompt, {
-    structuredOutput: { schema: domainTaxonomyMappingAgentResultSchema },
-    requestContext: new RequestContext([["curriculumId", curriculumId]]),
-  });
+  const result = await generateWithRetry(
+    "curriculum_domain_mapping",
+    curriculumId,
+    AGENT_KEYS.domainTaxonomyMapping,
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: domainTaxonomyMappingAgentResultSchema },
+        requestContext: new RequestContext([["curriculumId", curriculumId]]),
+      }),
+  );
 
   if (!result.object) {
     throw new Error("domain-taxonomy-mapping agent returned no structured output");

@@ -1162,3 +1162,44 @@ independently re-running the tests and reading the actual diff.
 Both units (curriculum-calibration-probe, anki-card-mode) implemented, independently
 spot-checked beyond each subagent's own report, and e2e-verified headless by the orchestrator
 directly. See the handoff report delivered to the user for the full scenario-level summary.
+
+## data-integrity-under-regeneration
+
+- [x] Stop 'add more sources' from locking every module on a never-released curriculum
+- [x] Keep quiz and Socratic session history when a topic or module is deleted
+- [x] Keep a studied topic when retry-research or reparse clears a curriculum
+- [x] Keep a learner's notes reachable after their topic, gap, or source is deleted
+- [x] Keep a learner's declared gaps when retry-research or reparse clears a curriculum
+- [x] Keep a learner's declared gaps when adding more sources regenerates a module
+- [x] Audit every other bulk modules/topics/sources delete-by-curriculumId for the same merge-provenance gap
+- [x] Fix retry-research's unordered pick of entry point among surviving merged sources
+
+## study-prioritization
+
+- [x] Rotate the daily push by subject too, not just by course
+- [x] Group the due queue by subject, not just by course, when spreading items out
+- [x] Rotate which subject the daily push picks from, instead of always the same one
+- [x] Stop one subject's large gap pile from starving another subject's queue
+- [x] Stop the daily push from repeating the same gap right after a wrong answer
+- [x] Let a stale mastered gap resurface even while another subject has open gaps
+- [x] Show the learner which gaps are due to resurface, not just backend-tracked
+- [x] Confirm due-queue/daily-push accounts for gap_mastery's own review schedule, not just triage
+
+## data-integrity-under-regeneration (round 2)
+
+- [x] Stop quiz regeneration from wiping past completed attempts, not just the stale unfinished one
+
+## safe-address-hardening
+
+- [x] Check the web app's own backend address for safety, like the bot and mobile clients already do
+- [x] Require a secure API address for the Telegram bot's own API client
+- [x] Stop the e2e SSRF-guard bypass from working outside the e2e stage
+- [x] Audit FE link rendering for unsafe href schemes, not just server fetch/citation paths
+- [x] Harden the two mobile-app address-safety gaps (local dev, non-secure connections)
+
+## doc-site-ingestion
+
+- [x] Stop retry-research from throwing away a learner's own manually added links
+- [x] Stop showing the same page twice under slightly different addresses in source review
+- [x] Show why each source was found (official docs vs. search) before approval.
+- [x] Confirm doc-site module/topic granularity isn't over- or under-fragmenting real courses

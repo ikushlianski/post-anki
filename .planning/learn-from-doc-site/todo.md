@@ -1,9 +1,9 @@
 ---
 type: todo
-branch: main
+branch: learn-from-doc-site
 task: learn-from-doc-site
-state: needs-changes
-updated: 2026-08-21
+state: shipped-pending-review
+updated: 2026-09-04
 ---
 
 # Todo: Learn from a documentation site
@@ -18,15 +18,14 @@ made autonomously". Implementation can start.
 
 - Single-question calibration can elect deepest depth off one lucky guess.
 - `docker-compose.yml`'s `wal_level=logical` change unexplained by any plan file.
-- Archetype-rotation test's 3 other failures (AC22/AC25/AC32) not yet investigated.
 
 ## Coding tasks
 
-- Fix `topics.sourceId` never written for docs-site topics (schema + llms.txt gap).
-- Build missing S4 FE link from calibration-blocked screen to the quiz.
-- Fix go-deeper re-fetch failures being silently swallowed, never shown.
-- Fix depth-election race: gate opens before elected depths are written.
-- Fix `archetype-rotation.integration.test.ts` broken by new calibration gate.
+- [x] Fix `topics.sourceId` never written for docs-site topics (schema + llms.txt gap).
+- [x] Build missing S4 FE link from calibration-blocked screen to the quiz.
+- [x] Fix go-deeper re-fetch failures being silently swallowed, never shown.
+- [x] Fix depth-election race: gate opens before elected depths are written.
+- [x] Fix `archetype-rotation.integration.test.ts` broken by new calibration gate.
 
 ## Manual steps / sequencing constraints
 
@@ -50,6 +49,11 @@ made autonomously". Implementation can start.
 
 ## Resolved
 
+- 2026-09-04 — All 5 reopened coding tasks shipped and independently verified: combined
+  `npx tsc --noEmit` clean across shared/core/api/web, 506 apps/api unit + 431 integration + 479
+  web + 963 core tests all green after the full batch landed together. AC22/25/32 in
+  `archetype-rotation.integration.test.ts` confirmed unrelated to calibration — they exercise
+  `startProbe`, which never calls the Socratic gate.
 - 2026-08-21 — Re-review found provenance/go-deeper/FE-gap items falsely marked shipped; reopened.
 - 2026-08-19 — Reviewed and approved; all 7 coding tasks confirmed shipped (review.md).
 - 2026-08-19 — `depthElectedAt` now written on calibration completion, first real writer.

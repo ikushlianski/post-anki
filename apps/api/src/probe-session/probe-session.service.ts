@@ -1,6 +1,7 @@
 import type {
   AnswerProbeSessionInput,
   AnswerProbeSessionResult,
+  CourseLengthRecommendationResult,
   PrepareProbeSessionInput,
   ProbeOutcome,
   ProbeScope,
@@ -16,6 +17,7 @@ import {
   openGaps,
   progressFromGaps,
   randomPermutation,
+  recommendCourseLength,
   shouldReplenish,
 } from "@post-anki/core";
 import { newId } from "../shared/id.js";
@@ -238,10 +240,14 @@ export async function answerProbeSession(
   // (the pre-answer row fetched above) being null so this only fires once,
   // the moment the quiz crosses from active to completed — never on a
   // later answer replay against an already-completed session.
+  let courseLengthRecommendation: CourseLengthRecommendationResult | null = null;
+
   if (session.scope === "curriculum" && session.completedAt === null && progress.status === "completed") {
-    void electDepthsOnCalibrationCompletion(input.sessionId, now).catch((err) => {
+    try {
+      courseLengthRecommendation = await electDepthsOnCalibrationCompletion(input.sessionId, now);
+    } catch (err) {
       log.error({ err, sessionId: input.sessionId }, "calibration_depth_election_failed");
-    });
+    }
   }
 
   await recordActivityToday(now);
@@ -267,6 +273,7 @@ export async function answerProbeSession(
     coveredGapLabels,
     optionExplanations: question.optionExplanations ?? null,
     gapMastery,
+    courseLengthRecommendation,
   };
 }
 
@@ -274,20 +281,24 @@ export async function answerProbeSession(
  * Elects each topic's starting depth from this curriculum-scope calibration
  * session's per-topic answer record (S5), then writes it via
  * electTopicDepths — topics.depth/depthElectedAt's first real writer.
- * Fire-and-forget from answerProbeSession, same pattern as maybeReplenish:
- * the learner sees their last answer's result immediately, this write
- * trails a beat behind.
+ * Awaited, unlike maybeReplenish: isSocraticGatedByCalibration reads
+ * completion as "depths are set", so they must land before the response does.
  */
-async function electDepthsOnCalibrationCompletion(sessionId: string, now: string): Promise<void> {
+async function electDepthsOnCalibrationCompletion(
+  sessionId: string,
+  now: string,
+): Promise<CourseLengthRecommendationResult | null> {
   const outcomes = await listAnsweredTopicOutcomesForSession(sessionId);
 
   if (outcomes.length === 0) {
-    return;
+    return null;
   }
 
   const elected = electDepthFromCalibration(outcomes);
 
   await electTopicDepths(elected, now);
+
+  return recommendCourseLength(elected.map((topic) => topic.depth));
 }
 
 /**

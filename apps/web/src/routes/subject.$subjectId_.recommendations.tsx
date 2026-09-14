@@ -9,7 +9,7 @@ import { RecommendationPanel } from '../domain-recommendation/recommendation-pan
 // deepen-widen-recommendations (issue #90) — SSR-first, loader-seeded, same
 // Electric-avoidance rationale as subject.$subjectId.priority-review.tsx:
 // this screen has no live-multi-client requirement.
-export const Route = createFileRoute('/subject/$subjectId/recommendations')({
+export const Route = createFileRoute('/subject/$subjectId_/recommendations')({
   component: RecommendationsPage,
   loader: async ({ params }) => {
     const [subject, tree, recommendations] = await Promise.all([

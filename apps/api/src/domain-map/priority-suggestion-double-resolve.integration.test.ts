@@ -15,7 +15,7 @@ import { closeDb } from "../db/client.js";
 // same target_depth), but before the fix it never refused the second call —
 // this proves the claim-first guard now makes it refuse cleanly instead.
 //
-// Real Postgres (the e2e docker-compose DB on localhost:5436, never mocked)
+// Real Postgres (the e2e docker-compose DB on localhost:5578, never mocked)
 // — a WHERE status = 'pending' claim only means anything against a real
 // engine's row-level locking and READ COMMITTED re-check.
 //
@@ -25,7 +25,7 @@ import { closeDb } from "../db/client.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 

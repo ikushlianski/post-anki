@@ -1,6 +1,7 @@
 import type { WritingCheck } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
 import { writingCheckAgentSchema } from "./writing-check.schemas.js";
@@ -21,10 +22,16 @@ export async function gradeAndStoreWritingCheck(
   const agent = getMastra().getAgent(AGENT_KEYS.writingCheck);
   const prompt = buildWritingCheckPrompt(text);
 
-  const result = await agent.generate(prompt, {
-    structuredOutput: { schema: writingCheckAgentSchema },
-    requestContext: new RequestContext([["subjectId", subjectId]]),
-  });
+  const result = await generateWithRetry(
+    "writing_check_grade",
+    null,
+    AGENT_KEYS.writingCheck,
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: writingCheckAgentSchema },
+        requestContext: new RequestContext([["subjectId", subjectId]]),
+      }),
+  );
 
   if (!result.object) {
     throw new Error("writing check agent returned no structured output");

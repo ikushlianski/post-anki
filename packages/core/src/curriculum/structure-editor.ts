@@ -33,7 +33,12 @@ export function applyAddModule(
   const newModule: StructureSnapshotModule = {
     title: input.title,
     level: "medium",
-    topics: input.topics.map((title) => ({ title, summary: null, suggestedDepth: "working" })),
+    topics: input.topics.map((title) => ({
+      title,
+      summary: null,
+      suggestedDepth: "working",
+      sourceUrl: null,
+    })),
     tags: [],
   };
 

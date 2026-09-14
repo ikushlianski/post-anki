@@ -330,6 +330,7 @@ export async function gatherStepPushCandidates(subtreeNodeIds: string[]): Promis
   }
 
   const curriculumName = new Map(liveCurricula.map((c) => [c.id, c.name]));
+  const curriculumSubjectId = new Map(liveCurricula.map((c) => [c.id, c.subjectId]));
   const liveCurriculumIds = liveCurricula.map((c) => c.id);
 
   const topicRows = (
@@ -350,6 +351,7 @@ export async function gatherStepPushCandidates(subtreeNodeIds: string[]): Promis
     topicTitle: t.title,
     curriculumId: t.curriculumId,
     curriculumName: curriculumName.get(t.curriculumId) ?? "",
+    subjectId: curriculumSubjectId.get(t.curriculumId) ?? "",
     depth: t.depth as DepthLevel,
     gaps: gapRows.filter((g) => g.topicId === t.id).map((g) => rowToGap(g)),
   }));

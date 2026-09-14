@@ -19,6 +19,7 @@ import {
   nextQuestionInput,
   recordAttemptInput,
   removeTagAssignmentInput,
+  renameCurriculumInput,
   reorderInput,
   reorderCurriculaInput,
   setCurriculumStatusInput,
@@ -34,6 +35,7 @@ import type {
   DailyPush,
   DailyPushResult,
   DashboardSubject,
+  GapDueForResurface,
   QuestionKind,
   Subject,
   SubjectCategory,
@@ -45,6 +47,7 @@ import type {
   StructureTurn,
   TagAssignment,
 } from '@post-anki/shared'
+import { moveCategoryInput, renameCategoryInput } from '@post-anki/shared'
 import * as api from './api-client'
 
 export const getBoard = createServerFn({ method: 'GET' }).handler(
@@ -316,6 +319,22 @@ export const moveCurriculum = createServerFn({ method: 'POST' })
     api.moveCurriculum(data.curriculumId, data.targetSubjectId, data.categoryId),
   )
 
+export const renameCurriculum = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => renameCurriculumInput.parse(data))
+  .handler(({ data }) => api.renameCurriculum(data.curriculumId, data.name))
+
+export const moveCategory = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) =>
+    moveCategoryInput.extend({ categoryId: z.string() }).parse(data),
+  )
+  .handler(({ data }) => api.moveCategory(data.categoryId, data.parentId))
+
+export const renameCategory = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) =>
+    renameCategoryInput.extend({ categoryId: z.string() }).parse(data),
+  )
+  .handler(({ data }) => api.renameCategory(data.categoryId, data.name))
+
 export const nextQuestion = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => nextQuestionInput.parse(data))
   .handler(({ data }) => api.startProbe(data.topicId, data.mode))
@@ -348,6 +367,10 @@ export const getDailyPush = createServerFn({ method: 'GET' })
 
 export const getDueQueue = createServerFn({ method: 'GET' }).handler(
   (): Promise<DailyPush[]> => api.getDueQueue(),
+)
+
+export const getGapsDueForResurface = createServerFn({ method: 'GET' }).handler(
+  (): Promise<GapDueForResurface[]> => api.getGapsDueForResurface(),
 )
 
 export const search = createServerFn({ method: 'GET' })

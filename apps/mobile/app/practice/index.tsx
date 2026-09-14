@@ -8,7 +8,7 @@ import { getPhraseBankDueCount } from "../../src/practice/practice.api";
 
 interface SubjectRow {
   subject: Subject;
-  dueCount: number;
+  dueCount: number | null;
 }
 
 export default function PracticeSubjectListScreen() {
@@ -23,12 +23,16 @@ export default function PracticeSubjectListScreen() {
     try {
       const subjects = await getSubjects();
       const languageSubjects = subjects.filter((s) => s.kind === "language-practice");
+      const mentorSubjects = subjects.filter((s) => s.kind !== "language-practice");
 
       const dueCounts = await Promise.all(
         languageSubjects.map((subject) => getPhraseBankDueCount(subject.id)),
       );
 
-      setRows(languageSubjects.map((subject, index) => ({ subject, dueCount: dueCounts[index] ?? 0 })));
+      setRows([
+        ...languageSubjects.map((subject, index) => ({ subject, dueCount: dueCounts[index] ?? 0 })),
+        ...mentorSubjects.map((subject) => ({ subject, dueCount: null })),
+      ]);
     } catch (err) {
       if (!(err instanceof ApiRequestError && err.status === 401)) {
         setLoadError("Couldn't reach Post Anki. Check your connection and try again.");
@@ -61,7 +65,7 @@ export default function PracticeSubjectListScreen() {
       ) : null}
 
       {!loading && !loadError && rows && rows.length === 0 ? (
-        <Text style={styles.muted}>No language-practice subjects yet.</Text>
+        <Text style={styles.muted}>No subjects yet.</Text>
       ) : null}
 
       {rows && rows.length > 0
@@ -69,11 +73,21 @@ export default function PracticeSubjectListScreen() {
             <TouchableOpacity
               key={subject.id}
               style={styles.row}
-              onPress={() => router.push(`/practice/${subject.id}`)}
+              onPress={() =>
+                router.push(
+                  subject.kind === "language-practice"
+                    ? `/practice/${subject.id}`
+                    : `/mentor/${subject.id}`,
+                )
+              }
             >
               <Text style={styles.subjectName}>{subject.name}</Text>
-              <Text style={dueCount > 0 ? styles.dueBadge : styles.startBadge}>
-                {dueCount > 0 ? `${dueCount} due` : "Start a new batch"}
+              <Text style={dueCount !== null && dueCount > 0 ? styles.dueBadge : styles.startBadge}>
+                {dueCount === null
+                  ? "Ask me something"
+                  : dueCount > 0
+                    ? `${dueCount} due`
+                    : "Start a new batch"}
               </Text>
             </TouchableOpacity>
           ))

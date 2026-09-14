@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { ProbeQuestion } from "@post-anki/shared";
+import { VoiceRecordButton } from "../voice/voice-record-button";
 
 export function QuestionView({
   question,
@@ -61,6 +62,9 @@ function SocraticQuestion({
   onSubmit: (answer: string) => void;
 }) {
   const [answer, setAnswer] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const blocked = submitting || voiceBusy;
 
   return (
     <View>
@@ -73,9 +77,19 @@ function SocraticQuestion({
         onChangeText={setAnswer}
         placeholder="Reason it through — say more than was asked."
       />
+      <VoiceRecordButton
+        disabled={submitting}
+        onBusyChange={setVoiceBusy}
+        onTranscribed={(text) => {
+          setVoiceError(null);
+          setAnswer((current) => (current.trim().length > 0 ? `${current} ${text}` : text));
+        }}
+        onError={setVoiceError}
+      />
+      {voiceError ? <Text style={styles.voiceError}>{voiceError}</Text> : null}
       <TouchableOpacity
-        disabled={submitting || answer.trim().length === 0}
-        style={[styles.submitButton, (submitting || answer.trim().length === 0) && styles.submitButtonDisabled]}
+        disabled={blocked || answer.trim().length === 0}
+        style={[styles.submitButton, (blocked || answer.trim().length === 0) && styles.submitButtonDisabled]}
         onPress={() => onSubmit(answer)}
       >
         <Text style={styles.submitText}>Submit answer</Text>
@@ -157,5 +171,10 @@ const styles = StyleSheet.create({
   submitText: {
     color: "#fff",
     fontWeight: "600",
+  },
+  voiceError: {
+    color: "#b91c1c",
+    fontSize: 12,
+    marginBottom: 12,
   },
 });

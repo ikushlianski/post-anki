@@ -4,11 +4,11 @@
 //   1. start the api:   npm run dev -w @post-anki/api   (needs apps/api/.env)
 //   2. run this:        npx tsx apps/api/scripts/verify-e2e.ts
 //
-// Env it reads: API_BASE_URL (default http://localhost:8030), API_SHARED_SECRET.
+// Env it reads: API_BASE_URL (default http://localhost:5560), API_SHARED_SECRET.
 // Exits non-zero on the first failed step so it can gate CI later.
 import process from "node:process";
 
-const BASE = process.env.API_BASE_URL ?? "http://localhost:8030";
+const BASE = process.env.API_BASE_URL ?? "http://localhost:5560";
 const SECRET = process.env.API_SHARED_SECRET;
 const headers: Record<string, string> = { "content-type": "application/json" };
 

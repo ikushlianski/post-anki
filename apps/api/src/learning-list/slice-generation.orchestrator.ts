@@ -17,6 +17,7 @@ import { assembleAllSourceText } from "../curriculum/source-text.js";
 import { getDb } from "../db/client.js";
 import { gaps, learningListItems, modules, topics } from "../db/schema.js";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { FETCH_TIMEOUT_MS, guardedFetchText } from "../shared/guarded-fetch.js";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
@@ -183,10 +184,16 @@ async function generateFromTarget(
   try {
     const agent = getMastra().getAgent(AGENT_KEYS.learningListSlice);
 
-    result = await agent.generate(prompt, {
-      structuredOutput: { schema: sliceGenerationPlanSchema },
-      requestContext: new RequestContext([["curriculumId", request.curriculumId]]),
-    });
+    result = await generateWithRetry(
+      "learning_list_slice_generate",
+      request.curriculumId,
+      AGENT_KEYS.learningListSlice,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: sliceGenerationPlanSchema },
+          requestContext: new RequestContext([["curriculumId", request.curriculumId]]),
+        }),
+    );
   } catch (err) {
     log.error(
       { err, itemId, curriculumId: request.curriculumId },

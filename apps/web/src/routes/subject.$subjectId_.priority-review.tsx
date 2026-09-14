@@ -13,7 +13,7 @@ import { PriorityReviewPanel } from '../domain-map/priority-review-panel'
 // doc-changelog-scan (issue #49) extends this same loader to also fetch
 // pending doc-scan suggestions alongside the existing loader data — required
 // for S5's Integration acceptance ("matches ... on a fresh page load").
-export const Route = createFileRoute('/subject/$subjectId/priority-review')({
+export const Route = createFileRoute('/subject/$subjectId_/priority-review')({
   component: PriorityReviewPage,
   loader: async ({ params }) => {
     const [subject, tree, suggestions, status, docScanSuggestions] = await Promise.all([

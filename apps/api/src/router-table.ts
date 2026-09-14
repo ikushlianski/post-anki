@@ -27,6 +27,8 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "GET", pattern: "/subject-categories", name: "listAllSubjectCategories" },
+  { method: "PATCH", pattern: /^\/subject-categories\/([^/]+)$/, name: "moveCategory", param: "id" },
+  { method: "PATCH", pattern: /^\/subject-categories\/([^/]+)\/name$/, name: "renameCategory", param: "id" },
   { method: "PATCH", pattern: /^\/subjects\/([^/]+)\/curricula\/order$/, name: "reorderCurricula", param: "id" },
   { method: "GET", pattern: "/curricula", name: "listCurricula" },
   { method: "POST", pattern: "/curricula", name: "createCurriculum" },
@@ -164,6 +166,7 @@ export const ROUTES: RouteDef[] = [
     name: "askStudyChat",
     param: "id",
   },
+  { method: "POST", pattern: "/qa-chat", name: "askQaChat" },
   {
     method: "GET",
     pattern: /^\/curricula\/([^/]+)\/stats$/,

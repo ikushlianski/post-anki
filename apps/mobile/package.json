@@ -5,7 +5,9 @@
   "dependencies": {
     "@post-anki/shared": "*",
     "expo": "~57.0.6",
+    "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.5",
+    "expo-file-system": "~57.0.7",
     "expo-linking": "~57.0.3",
     "expo-router": "~57.0.6",
     "expo-secure-store": "~57.0.1",

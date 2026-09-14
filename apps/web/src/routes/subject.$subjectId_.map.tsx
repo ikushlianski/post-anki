@@ -7,7 +7,7 @@ import { DomainMapTree } from '../domain-map/domain-map-tree'
 import { DomainMapGraph } from '../domain-map/domain-map-graph'
 import { DomainMapViewToggle, type DomainMapView } from '../domain-map/domain-map-view-toggle'
 
-export const Route = createFileRoute('/subject/$subjectId/map')({
+export const Route = createFileRoute('/subject/$subjectId_/map')({
   component: SubjectMapPage,
   // visual-knowledge-map (issue #86) — React Flow's own stylesheet, added via
   // THIS route's own head() + a `?url` import, mirroring __root.tsx's only

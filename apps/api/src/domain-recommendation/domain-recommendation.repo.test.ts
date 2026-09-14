@@ -26,7 +26,7 @@ import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 function withDatabaseName(connectionString: string, databaseName: string): string {
   const url = new URL(connectionString);

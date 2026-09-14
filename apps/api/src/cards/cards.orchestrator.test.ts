@@ -28,6 +28,8 @@ vi.mock("../gap/gap.repo.js", () => ({
 const cardsRepoState = {
   replaced: [] as { topicId: string; plan: unknown }[],
   statuses: [] as { topicId: string; status: string }[],
+  started: [] as string[],
+  hasExisting: false,
 };
 
 vi.mock("./cards.repo.js", () => ({
@@ -37,9 +39,13 @@ vi.mock("./cards.repo.js", () => ({
   setCardsStatus: vi.fn(async (topicId: string, status: string) => {
     cardsRepoState.statuses.push({ topicId, status });
   }),
+  hasCardsGeneratedOrInProgress: vi.fn(async () => cardsRepoState.hasExisting),
+  startGeneratingCards: vi.fn(async (topicId: string) => {
+    cardsRepoState.started.push(topicId);
+  }),
 }));
 
-import { buildCardsPrompt, compileCards } from "./cards.orchestrator.js";
+import { buildCardsPrompt, compileCards, maybeStartCardsInBackground } from "./cards.orchestrator.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 
@@ -70,6 +76,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   cardsRepoState.replaced = [];
   cardsRepoState.statuses = [];
+  cardsRepoState.started = [];
+  cardsRepoState.hasExisting = false;
 });
 
 describe("buildCardsPrompt", () => {
@@ -164,5 +172,30 @@ describe("compileCards", () => {
       expect(cardsRepoState.replaced).toHaveLength(0);
       expect(cardsRepoState.statuses).toEqual([{ topicId: "topic_missing", status: "failed" }]);
     });
+  });
+});
+
+describe("maybeStartCardsInBackground", () => {
+  it("starts generation for a topic with no card set yet", async () => {
+    cardsRepoState.hasExisting = false;
+    vi.mocked(getTopicRow).mockResolvedValue({ title: "CAP theorem", summary: null } as never);
+    vi.mocked(listGapsForTopic).mockResolvedValue([]);
+    mockAgentGenerate.mockResolvedValue({ object: { cards: [] } });
+
+    await maybeStartCardsInBackground("topic_1");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(cardsRepoState.started).toEqual(["topic_1"]);
+    expect(cardsRepoState.replaced).toHaveLength(1);
+  });
+
+  it("does nothing for a topic that already has cards ready or generating", async () => {
+    cardsRepoState.hasExisting = true;
+
+    await maybeStartCardsInBackground("topic_1");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(cardsRepoState.started).toHaveLength(0);
+    expect(mockAgentGenerate).not.toHaveBeenCalled();
   });
 });

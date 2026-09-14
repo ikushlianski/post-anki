@@ -13,6 +13,8 @@ import {
   handleCreateSubjectCategory,
   handleListAllSubjectCategories,
   handleListSubjectCategories,
+  handleMoveCategory,
+  handleRenameCategory,
 } from "./subject-category/subject-category.controller.js";
 import {
   handleAddSources,
@@ -105,6 +107,7 @@ import {
   handleResolveOpenQuestion,
 } from "./open-questions/open-questions.controller.js";
 import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
+import { handleAskQaChat } from "./qa-chat/qa-chat.controller.js";
 import {
   handleGenerateRecommendations,
   handleGetCurriculumStats,
@@ -262,6 +265,16 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   const path = url.pathname;
 
+  res.setHeader("Access-Control-Allow-Origin", loadEnv().WEB_ORIGIN);
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
+
+  if (method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   if (method === "GET" && path === "/_healthz") {
     sendJson(res, 200, { ok: true });
     return;
@@ -326,6 +339,10 @@ async function route(
       return handleListAllSubjectCategories(res);
     case "createSubjectCategory":
       return handleCreateSubjectCategory(req, res, id);
+    case "moveCategory":
+      return handleMoveCategory(req, res, id);
+    case "renameCategory":
+      return handleRenameCategory(req, res, id);
     case "listCurricula":
       return handleListCurricula(res, url.searchParams.get("subjectId"));
     case "createCurriculum":
@@ -423,7 +440,11 @@ async function route(
     case "sweepAutoDeferGaps":
       return handleAutoDeferSweep(res);
     case "dailyPush":
-      return handleDailyPush(res, url.searchParams.get("mode"));
+      return handleDailyPush(
+        res,
+        url.searchParams.get("mode"),
+        url.searchParams.get("subjectId"),
+      );
     case "dueQueue":
       return handleDueQueue(res);
     case "search":
@@ -462,6 +483,8 @@ async function route(
       return handleResolveOpenQuestion(req, res, id);
     case "askStudyChat":
       return handleAskStudyChat(req, res, id);
+    case "askQaChat":
+      return handleAskQaChat(req, res);
     case "getCurriculumStats":
       return handleGetCurriculumStats(res, id);
     case "generateRecommendations":

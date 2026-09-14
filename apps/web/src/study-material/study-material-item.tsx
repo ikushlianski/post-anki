@@ -1,6 +1,7 @@
 import type { StudyMaterial } from '@post-anki/shared'
 
 import { kindLabel } from './study-material-status'
+import { safeHref } from '../shared/safe-href'
 
 export function StudyMaterialItem({ material }: { material: StudyMaterial }) {
   return (
@@ -51,7 +52,7 @@ export function StudyMaterialItem({ material }: { material: StudyMaterial }) {
                 {material.citations.map((citation) => (
                   <li key={citation.url} data-testid="study-material-citation">
                     <a
-                      href={citation.url}
+                      href={safeHref(citation.url)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-sm text-neutral-700 underline"

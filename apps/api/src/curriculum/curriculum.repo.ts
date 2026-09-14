@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type {
   Concern,
   CreateCurriculumInput,
@@ -17,6 +17,7 @@ import type {
   Module,
   ResearchCandidateApprovalStatus,
   Source,
+  SourceDiscoveryTier,
   SourceDraft,
   Speed,
   SplitSuggestion,
@@ -47,6 +48,8 @@ import {
   gaps,
   gapMastery,
   modules,
+  notes,
+  probeSessionQuestions,
   probeSessions,
   socraticSessions,
   sources,
@@ -69,6 +72,7 @@ import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js
 import {
   resolveCurriculumOrigin,
   hasStudyableContent,
+  isTopicTouched,
   shouldIncludeTopicByDefault,
 } from "./curriculum-rules.js";
 import {
@@ -88,10 +92,6 @@ import {
   rejectAllConfirmedForCurriculum,
 } from "../curriculum-domain-mapping/curriculum-domain-mapping.repo.js";
 
-interface PlanTopic {
-  sourceUrl?: string | null;
-}
-
 interface PlanModule {
   title: string;
   level?: Level | null;
@@ -99,6 +99,7 @@ interface PlanModule {
     title: string;
     summary: string | null;
     suggestedDepth: DepthLevel;
+    sourceUrl?: string | null;
   }[];
   tags?: string[] | null;
 }
@@ -403,6 +404,7 @@ export interface CurriculumPromptContext {
   subjectName: string;
   subjectDescription: string | null;
   subjectKind: string;
+  defaultDepth: DepthLevel;
 }
 
 export async function getCurriculumPromptContext(
@@ -431,6 +433,7 @@ export async function getCurriculumPromptContext(
     subjectName: subjectRow?.name ?? "",
     subjectDescription: subjectRow?.description ?? null,
     subjectKind: subjectRow?.kind ?? "architecture-mentor",
+    defaultDepth: curriculumRow.defaultDepth as DepthLevel,
   };
 }
 
@@ -441,13 +444,103 @@ export interface MergeTopicSnapshot {
   learningStatus: string;
   selfGrade: number | null;
   included: boolean;
+  mergedFromCurriculumId: string | null;
+  hasUserDeclaredGap: boolean;
+  hasNote: boolean;
+  hasSessionHistory: boolean;
 }
 
 export interface MergeModuleSnapshot {
   moduleId: string;
   title: string;
   learningStatus: string;
+  mergedFromCurriculumId: string | null;
   topics: MergeTopicSnapshot[];
+}
+
+// A note attaches to a topic directly, or to a gap under one (nodeType
+// "topic" | "gap") — either way it becomes unreachable once its topic is
+// deleted, so both mutation paths that decide what to keep (merge, clear)
+// need to know which topics carry one before wiping them.
+async function topicIdsWithNotes(
+  topicIds: string[],
+  db: DbExecutor,
+): Promise<Set<string>> {
+  if (topicIds.length === 0) {
+    return new Set();
+  }
+
+  const gapRows = await db
+    .select({ id: gaps.id, topicId: gaps.topicId })
+    .from(gaps)
+    .where(inArray(gaps.topicId, topicIds));
+  const topicIdByGapId = new Map(gapRows.map((g) => [g.id, g.topicId]));
+  const gapIds = gapRows.map((g) => g.id);
+
+  const noteConditions = [and(eq(notes.nodeType, "topic"), inArray(notes.nodeId, topicIds))];
+
+  if (gapIds.length > 0) {
+    noteConditions.push(and(eq(notes.nodeType, "gap"), inArray(notes.nodeId, gapIds)));
+  }
+
+  const noteRows = await db
+    .select({ nodeType: notes.nodeType, nodeId: notes.nodeId })
+    .from(notes)
+    .where(or(...noteConditions));
+
+  const result = new Set<string>();
+
+  for (const row of noteRows) {
+    if (row.nodeType === "topic") {
+      result.add(row.nodeId);
+    } else {
+      const topicId = topicIdByGapId.get(row.nodeId);
+
+      if (topicId !== undefined) {
+        result.add(topicId);
+      }
+    }
+  }
+
+  return result;
+}
+
+// A quiz-answer history or Socratic transcript points back at its topic by
+// id with no cascade — deleting the topic doesn't delete these rows, it
+// just orphans them, so a mutation path deciding what to keep needs to know
+// which topics carry session history before wiping them, same as a note.
+async function topicIdsWithSessionHistory(
+  topicIds: string[],
+  db: DbExecutor,
+): Promise<Set<string>> {
+  if (topicIds.length === 0) {
+    return new Set();
+  }
+
+  const [probeRows, socraticRows] = await Promise.all([
+    db
+      .select({ topicId: probeSessionQuestions.topicId })
+      .from(probeSessionQuestions)
+      .where(inArray(probeSessionQuestions.topicId, topicIds)),
+    db
+      .select({ topicId: socraticSessions.topicId })
+      .from(socraticSessions)
+      .where(inArray(socraticSessions.topicId, topicIds)),
+  ]);
+
+  const result = new Set<string>();
+
+  for (const row of probeRows) {
+    if (row.topicId !== null) {
+      result.add(row.topicId);
+    }
+  }
+
+  for (const row of socraticRows) {
+    result.add(row.topicId);
+  }
+
+  return result;
 }
 
 export async function getModuleProgressSnapshots(
@@ -460,10 +553,24 @@ export async function getModuleProgressSnapshots(
     db.select().from(topics).where(eq(topics.curriculumId, curriculumId)),
   ]);
 
+  const topicIds = topicRows.map((t) => t.id);
+  const [userGapTopicIds, noteTopicIds, sessionHistoryTopicIds] = await Promise.all([
+    topicIds.length === 0
+      ? Promise.resolve(new Set<string>())
+      : db
+          .select({ topicId: gaps.topicId })
+          .from(gaps)
+          .where(and(inArray(gaps.topicId, topicIds), eq(gaps.origin, "user")))
+          .then((rows) => new Set(rows.map((g) => g.topicId))),
+    topicIdsWithNotes(topicIds, db),
+    topicIdsWithSessionHistory(topicIds, db),
+  ]);
+
   return moduleRows.map((m) => ({
     moduleId: m.id,
     title: m.title,
     learningStatus: m.learningStatus,
+    mergedFromCurriculumId: m.mergedFromCurriculumId,
     topics: topicRows
       .filter((t) => t.moduleId === m.id)
       .map((t) => ({
@@ -472,7 +579,15 @@ export async function getModuleProgressSnapshots(
         progressAttempts: t.progressAttempts,
         learningStatus: t.learningStatus,
         selfGrade: t.selfGrade,
-        included: t.included,
+        // confirmStructure creates every topic with included=false (not yet
+        // released) — can't read that as engagement here either. A real
+        // learner exclusion still locks the module via updateTopic's own
+        // learningStatus: "skipping" side effect, so nothing is lost.
+        included: true,
+        mergedFromCurriculumId: t.mergedFromCurriculumId,
+        hasUserDeclaredGap: userGapTopicIds.has(t.id),
+        hasNote: noteTopicIds.has(t.id),
+        hasSessionHistory: sessionHistoryTopicIds.has(t.id),
       })),
   }));
 }
@@ -519,6 +634,7 @@ export interface SourceRow {
   value: string;
   title: string | null;
   fetchedText: string | null;
+  mergedFromCurriculumId: string | null;
 }
 
 export async function getCurriculumSourceRows(
@@ -535,6 +651,7 @@ export async function getCurriculumSourceRows(
     value: r.value,
     title: r.title,
     fetchedText: r.fetchedText,
+    mergedFromCurriculumId: r.mergedFromCurriculumId,
   }));
 }
 
@@ -630,7 +747,10 @@ export type ClearStructureScope = "own" | "all";
  * surviving module survive with it, which is what keeps a topic the learner
  * added under a merged-in module after the merge. A topic whose module is
  * already gone still gets cleared, matching the delete-by-curriculum_id
- * sweep this replaces.
+ * sweep this replaces. A module also survives when one of its topics is
+ * `isTopicTouched` — any sign of study progress, a user-declared gap, an
+ * attached note, or quiz/Socratic session history — same reasoning as
+ * merge provenance.
  */
 async function resolveClearTargets(
   curriculumId: string,
@@ -646,6 +766,11 @@ async function resolveClearTargets(
       id: topics.id,
       moduleId: topics.moduleId,
       mergedFrom: topics.mergedFromCurriculumId,
+      title: topics.title,
+      progressStatus: topics.progressStatus,
+      progressAttempts: topics.progressAttempts,
+      learningStatus: topics.learningStatus,
+      selfGrade: topics.selfGrade,
     })
     .from(topics)
     .where(eq(topics.curriculumId, curriculumId));
@@ -657,12 +782,41 @@ async function resolveClearTargets(
     };
   }
 
+  const topicIdsForCurriculum = topicRows.map((t) => t.id);
+  const [userGapTopicIds, noteTopicIds, sessionHistoryTopicIds] = await Promise.all([
+    topicIdsForCurriculum.length === 0
+      ? Promise.resolve(new Set<string>())
+      : db
+          .select({ topicId: gaps.topicId })
+          .from(gaps)
+          .where(and(inArray(gaps.topicId, topicIdsForCurriculum), eq(gaps.origin, "user")))
+          .then((rows) => new Set(rows.map((g) => g.topicId))),
+    topicIdsWithNotes(topicIdsForCurriculum, db),
+    topicIdsWithSessionHistory(topicIdsForCurriculum, db),
+  ]);
+
   const survivingModuleIds = new Set(
     moduleRows.filter((m) => m.mergedFrom !== null).map((m) => m.id),
   );
 
   for (const topic of topicRows) {
-    if (topic.mergedFrom !== null) {
+    const touched = isTopicTouched({
+      title: topic.title,
+      progressStatus: topic.progressStatus,
+      progressAttempts: topic.progressAttempts,
+      learningStatus: topic.learningStatus,
+      selfGrade: topic.selfGrade,
+      // confirmStructure creates every topic with included=false (not yet
+      // released), indistinguishable here from a learner's real exclusion —
+      // so the clear path can't read `included` as an engagement signal.
+      included: true,
+      mergedFromCurriculumId: topic.mergedFrom,
+      hasUserDeclaredGap: userGapTopicIds.has(topic.id),
+      hasNote: noteTopicIds.has(topic.id),
+      hasSessionHistory: sessionHistoryTopicIds.has(topic.id),
+    });
+
+    if (topic.mergedFrom !== null || touched) {
       survivingModuleIds.add(topic.moduleId);
     }
   }
@@ -911,7 +1065,10 @@ export async function mergeCurricula(
 
     const movedSources = await tx
       .update(sources)
-      .set({ curriculumId: targetId })
+      .set({
+        curriculumId: targetId,
+        mergedFromCurriculumId: sql`coalesce(${sources.mergedFromCurriculumId}, ${sourceId})`,
+      })
       .where(eq(sources.curriculumId, sourceId))
       .returning({ id: sources.id });
 
@@ -1289,6 +1446,10 @@ export async function updateCurriculum(
 
   const patch: Partial<typeof curricula.$inferInsert> = {};
 
+  if (input.name !== undefined) {
+    patch.name = input.name;
+  }
+
   if (input.learningStatus !== undefined) {
     patch.learningStatus = input.learningStatus;
   }
@@ -1391,7 +1552,7 @@ export async function saveCurriculumPlan(
       : defaultIncluded;
 
     for (const [topicIndex, top] of mod.topics.entries()) {
-      const sourceUrl = (top as PlanTopic).sourceUrl ?? null;
+      const sourceUrl = top.sourceUrl ?? null;
 
       await db.insert(topics).values({
         id: newId("top"),
@@ -1456,16 +1617,57 @@ export async function insertApprovedTextSource(
 }
 
 /**
- * Wipes every source row (candidates, manually-added links, and the
- * origin-tracking marker alike) for a curriculum — used when retrying
- * research from scratch, since the whole sources table for a
- * research-triggered curriculum is candidate-gathering machinery, not
- * user-pasted material (that path is `parseCurriculum`, untouched here).
+ * Wipes every auto-discovered candidate and the origin-tracking marker this
+ * curriculum produced itself — used when retrying research from scratch,
+ * since that's all regenerable candidate-gathering machinery. Spares any
+ * source row merged in from an absorbed curriculum (`mergedFromCurriculumId`
+ * set), mirroring `resolveClearTargets`'s survivor logic for modules/topics,
+ * and any `kind: "link"` row with no `discoveryTier` — never produced by the
+ * discovery pipeline itself, so it's a learner-facing URL (hand-typed via
+ * "Add link", or captured by the learning-list approval flow) that a re-run
+ * can never bring back once deleted.
  */
 export async function deleteAllCurriculumSources(
   curriculumId: string,
 ): Promise<void> {
-  await getDb().delete(sources).where(eq(sources.curriculumId, curriculumId));
+  const db = getDb();
+  const ownSourceRows = await db
+    .select({ id: sources.id, kind: sources.kind, discoveryTier: sources.discoveryTier })
+    .from(sources)
+    .where(and(eq(sources.curriculumId, curriculumId), isNull(sources.mergedFromCurriculumId)));
+
+  if (ownSourceRows.length === 0) {
+    return;
+  }
+
+  const ownSourceIds = ownSourceRows.map((s) => s.id);
+  const noteSourceIds = new Set(
+    (
+      await db
+        .select({ nodeId: notes.nodeId })
+        .from(notes)
+        .where(and(eq(notes.nodeType, "source"), inArray(notes.nodeId, ownSourceIds)))
+    ).map((n) => n.nodeId),
+  );
+
+  // A learner-facing link (hand-typed, or captured via learning-list intake)
+  // always has `kind === "link"` and no discoveryTier (only the discovery
+  // pipeline stamps that column) — the same shape as this curriculum's own
+  // web_research/llms_txt origin marker EXCEPT for `kind`, so both
+  // conditions together are required to isolate it.
+  const manualLinkIds = new Set(
+    ownSourceRows
+      .filter((s) => s.kind === "link" && s.discoveryTier === null)
+      .map((s) => s.id),
+  );
+
+  const deletable = ownSourceIds.filter(
+    (id) => !noteSourceIds.has(id) && !manualLinkIds.has(id),
+  );
+
+  if (deletable.length > 0) {
+    await db.delete(sources).where(inArray(sources.id, deletable));
+  }
 }
 
 export interface PendingSourceDraft {
@@ -1473,6 +1675,7 @@ export interface PendingSourceDraft {
   url: string;
   title: string;
   fetchedText: string | null;
+  discoveryTier?: SourceDiscoveryTier | null;
 }
 
 export async function insertPendingSources(
@@ -1493,6 +1696,7 @@ export async function insertPendingSources(
         value: d.url,
         title: d.title,
         fetchedText: d.fetchedText,
+        discoveryTier: d.discoveryTier ?? null,
         approvalStatus: "pending",
       })),
     );
@@ -2243,7 +2447,7 @@ function toCurriculum(
   };
 }
 
-function toSource(row: typeof sources.$inferSelect): Source {
+export function toSource(row: typeof sources.$inferSelect): Source {
   return {
     id: row.id,
     curriculumId: row.curriculumId,
@@ -2251,6 +2455,7 @@ function toSource(row: typeof sources.$inferSelect): Source {
     value: row.value,
     title: row.title ?? undefined,
     approvalStatus: row.approvalStatus as Source["approvalStatus"],
+    discoveryTier: row.discoveryTier as SourceDiscoveryTier | null,
   };
 }
 

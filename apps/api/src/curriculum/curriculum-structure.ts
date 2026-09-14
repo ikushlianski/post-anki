@@ -1,10 +1,9 @@
-import pRetry from "p-retry";
 import type { Curriculum, SplitSuggestion, StructureSnapshot } from "@post-anki/shared";
 import { STALE_PENDING_TURN_AGE_MS, estimateStructureStudyTime } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
-import { recordLlmCallEvent } from "../llm-call-events/llm-call-events.repo.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import type { StructureEditorToolsDeps } from "../mastra/structure-editor-tools.js";
 import { docResearchPlanSchema } from "./curriculum-research-plan.js";
 import {
@@ -34,87 +33,6 @@ import {
 } from "./curriculum.repo.js";
 import { assembleAllSourceText } from "./source-text.js";
 import { listTags } from "../tag/tag.repo.js";
-
-// Every real network/model call this module makes to an LLM agent goes
-// through this one retry wrapper — bounded (2 retries, 3 attempts total)
-// with p-retry's default exponential backoff. Scoped strictly to the
-// generate() call itself, never to the surrounding orchestration: retrying
-// the whole turn would risk re-running tool side effects that already
-// landed (e.g. `splitModuleIntoNewCourse` creating a real new curriculum
-// row) a second time, which is exactly the failure mode
-// `structure-editor-tools.ts`'s safety boundary comment warns about.
-const AGENT_GENERATE_RETRIES = 2;
-
-/**
- * `recordLlmCallEvent` already catches its own DB-write failures (see
- * llm-call-events.repo.ts) — this second layer of defense exists purely so
- * that a bug in that guarantee, or any other unexpected rejection from the
- * observability call itself, can never surface as a `generateWithRetry`
- * failure. Observability plumbing must never break or mask the actual
- * LLM-call result.
- */
-async function safeRecordLlmCallEvent(
-  input: Parameters<typeof recordLlmCallEvent>[0],
-): Promise<void> {
-  try {
-    await recordLlmCallEvent(input);
-  } catch (err) {
-    log.warn(
-      { err, op: input.op, curriculumId: input.curriculumId },
-      "llm_call_event_record_failed",
-    );
-  }
-}
-
-async function generateWithRetry<T>(
-  op: string,
-  curriculumId: string,
-  agentKey: string,
-  fn: () => Promise<T>,
-): Promise<T> {
-  const startedAt = Date.now();
-
-  let result: T;
-
-  try {
-    result = await pRetry(fn, {
-      retries: AGENT_GENERATE_RETRIES,
-      onFailedAttempt: ({ error, attemptNumber, retriesLeft }) => {
-        log.warn(
-          { curriculumId, op, attempt: attemptNumber, retriesLeft, err: error },
-          "structure_agent_generate_retry",
-        );
-      },
-    });
-  } catch (err) {
-    // Written AFTER the whole retry sequence throws — reflects the final
-    // outcome of this `generateWithRetry` call, not each individual
-    // attempt (per-attempt detail already exists via `onFailedAttempt`'s
-    // pino log above; duplicating it at the DB layer would just grow the
-    // table for no new information).
-    await safeRecordLlmCallEvent({
-      curriculumId,
-      op,
-      agentKey,
-      durationMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: err instanceof Error ? err.message : String(err),
-    });
-
-    throw err;
-  }
-
-  await safeRecordLlmCallEvent({
-    curriculumId,
-    op,
-    agentKey,
-    durationMs: Date.now() - startedAt,
-    success: true,
-    errorMessage: null,
-  });
-
-  return result;
-}
 
 // Postgres's SQLSTATE for a unique-violation — surfaces here as the raw `pg`
 // driver error (drizzle-orm's node-postgres session rethrows it unchanged),

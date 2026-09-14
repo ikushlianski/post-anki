@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, or } from "drizzle-orm";
 import type {
   CurriculumStatus,
   DepthLevel,
@@ -283,6 +283,10 @@ export async function syncSessionCounters(
   return progress;
 }
 
+// "Regenerate" only means "give me a fresh unfinished quiz" — a completed,
+// graded session is real quiz history (and may back a calibration-gate or
+// mastery check elsewhere), so it survives here the same way a stale
+// unfinished session never does.
 export async function deleteSessionsForScope(
   scope: ProbeScope,
   scopeId: string,
@@ -292,7 +296,11 @@ export async function deleteSessionsForScope(
     .select({ id: probeSessions.id })
     .from(probeSessions)
     .where(
-      and(eq(probeSessions.scope, scope), eq(probeSessions.scopeId, scopeId)),
+      and(
+        eq(probeSessions.scope, scope),
+        eq(probeSessions.scopeId, scopeId),
+        ne(probeSessions.status, "completed"),
+      ),
     );
 
   const ids = rows.map((r) => r.id);

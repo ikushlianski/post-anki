@@ -2,8 +2,9 @@ import type { LectureSourceCandidate } from "@post-anki/shared";
 import { capGroundingText, hasUsableGroundingText, isSafeSourceUrl } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
-import { getTopicRow } from "../topic/topic-progress.repo.js";
+import { getTopicRow, rowDepth } from "../topic/topic-progress.repo.js";
 import {
   getCurriculumCitableUrls,
   getCurriculumContextForTopic,
@@ -12,8 +13,10 @@ import {
 } from "../curriculum/curriculum.repo.js";
 import { gatherLectureSourceGrounding } from "../curriculum/tech-research-grounding.js";
 import { resolveSourceText } from "../curriculum/source-fetch.js";
+import type { DepthLevel } from "@post-anki/shared";
 import {
   buildCurriculumSourceCandidates,
+  buildLectureCompilePrompt,
   mergeCandidatesPreferringCurriculum,
   selectValidCandidates,
 } from "./lecture-rules.js";
@@ -35,6 +38,7 @@ import {
 interface ResolvedCurriculumContext {
   curriculumId: string;
   label: string;
+  defaultDepth: DepthLevel;
 }
 
 async function resolveCurriculumContext(
@@ -55,6 +59,7 @@ async function resolveCurriculumContext(
   return {
     curriculumId: ctx.curriculumId,
     label: `${promptContext.curriculumName} (subject: ${promptContext.subjectName})`,
+    defaultDepth: promptContext.defaultDepth,
   };
 }
 
@@ -105,12 +110,18 @@ export async function gatherLectureSources(
     .join("\n");
 
   const agent = getMastra().getAgent(AGENT_KEYS.lectureSourceSelector);
-  const result = await agent.generate(prompt, {
-    structuredOutput: { schema: lectureSourceCandidatesPlanSchema },
-    requestContext: curriculumCtx
-      ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
-      : undefined,
-  });
+  const result = await generateWithRetry(
+    "lecture_source_selection",
+    curriculumCtx?.curriculumId ?? null,
+    AGENT_KEYS.lectureSourceSelector,
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: lectureSourceCandidatesPlanSchema },
+        requestContext: curriculumCtx
+          ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+          : undefined,
+      }),
+  );
 
   const webValidated = selectValidCandidates(
     result.object?.candidates ?? [],
@@ -145,7 +156,8 @@ async function resolveApprovedCandidateSources(
 
 export async function compileLecture(topicId: string): Promise<void> {
   try {
-    const curriculumCtx = await getCurriculumContextForTopic(topicId);
+    const topic = await getTopicRow(topicId);
+    const curriculumCtx = await resolveCurriculumContext(topicId);
     const ownSources = await resolveCourseGroundingSources(topicId);
     const sourcesWithText = ownSources ?? (await resolveApprovedCandidateSources(topicId));
 
@@ -157,20 +169,22 @@ export async function compileLecture(topicId: string): Promise<void> {
       return;
     }
 
-    const prompt = [
-      "Approved sources:",
-      sourcesWithText
-        .map((s) => `# ${s.title} (${s.url})\n${capGroundingText(s.text)}`)
-        .join("\n\n---\n\n"),
-    ].join("\n");
+    const depth: DepthLevel = topic ? rowDepth(topic) : curriculumCtx?.defaultDepth ?? "working";
+    const prompt = buildLectureCompilePrompt(sourcesWithText, depth, capGroundingText);
 
     const agent = getMastra().getAgent(AGENT_KEYS.lectureCompiler);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: lecturePlanSchema },
-      requestContext: curriculumCtx
-        ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
-        : undefined,
-    });
+    const result = await generateWithRetry(
+      "lecture_compile",
+      curriculumCtx?.curriculumId ?? null,
+      AGENT_KEYS.lectureCompiler,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: lecturePlanSchema },
+          requestContext: curriculumCtx
+            ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+            : undefined,
+        }),
+    );
 
     if (!result.object) {
       throw new Error("lecture compiler returned no structured plan");

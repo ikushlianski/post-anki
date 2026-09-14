@@ -1,5 +1,5 @@
 import { dedupeSourceCandidates } from "@post-anki/core";
-import type { SourceKind } from "@post-anki/shared";
+import type { SourceDiscoveryTier, SourceKind } from "@post-anki/shared";
 import { gatherDocSiteCandidates } from "./doc-link-grounding.js";
 import { gatherTrustedSourceCandidates, resolveOfficialDocsUrl } from "./tech-research-grounding.js";
 import type { ResolveEffectiveModelTierScope } from "../mastra/tier-resolver.js";
@@ -8,7 +8,7 @@ import { log } from "../shared/log.js";
 export interface GatheredSourceCandidate {
   url: string;
   title: string;
-  discoveryTier: string;
+  discoveryTier: SourceDiscoveryTier;
   kind: SourceKind;
   fetchedText: string | null;
 }

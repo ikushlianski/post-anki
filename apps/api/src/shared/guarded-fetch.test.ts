@@ -188,6 +188,20 @@ describe("guardedFetchText", () => {
       });
       expect(spy).not.toHaveBeenCalled();
     });
+
+    it("ignores a leaked e2e allowlist entirely when NODE_ENV is production", async () => {
+      mockLoadEnv.mockReturnValue({
+        E2E_SOURCE_FETCH_ALLOWED_ORIGINS: "http://169.254.169.254",
+        NODE_ENV: "production",
+      });
+      const spy = stubFetch(() => page("metadata"));
+
+      expect(await guardedFetchText("http://169.254.169.254/computeMetadata/v1/")).toMatchObject({
+        ok: false,
+        outcome: "blocked",
+      });
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   describe("a GitHub blob URL", () => {

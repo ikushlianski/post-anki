@@ -192,4 +192,31 @@ describe('CurriculumStructureChat drafting window', () => {
     })
     expect(invalidate).toHaveBeenCalledTimes(2)
   })
+
+  it('never turns an unsafe research candidate url into a clickable href', async () => {
+    mockedGetStructureTurns.mockResolvedValue([
+      turn({
+        id: 't1',
+        role: 'assistant',
+        status: 'complete',
+        structureSnapshot: { modules: [], strictOrder: false },
+        pendingResearchCandidates: [
+          {
+            id: 'cand_1',
+            label: 'source 1',
+            title: 'Malicious candidate',
+            value: 'javascript:alert(1)',
+            approvalStatus: 'pending',
+          },
+        ],
+      }),
+    ])
+
+    renderChat()
+
+    const row = await screen.findByTestId('research-candidate-row')
+    const link = row.querySelector('a')
+
+    expect(link?.hasAttribute('href')).toBe(false)
+  })
 })

@@ -257,6 +257,101 @@ export function ConfirmDelete({
   )
 }
 
+export function RenameButton({
+  value,
+  busy,
+  hydrated,
+  onSave,
+  testId,
+  error,
+}: {
+  value: string
+  busy: boolean
+  hydrated: boolean
+  onSave: (next: string) => Promise<boolean> | boolean
+  testId?: string
+  error?: string | null
+}) {
+  const [armed, setArmed] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const state = controlState({ editable: true, hydrated, busy })
+  const disabled = isControlDisabled(state)
+  const hint = controlHint(state)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+
+    const trimmed = draft.trim()
+
+    if (!trimmed || trimmed === value) {
+      setArmed(false)
+      return
+    }
+
+    // Stays armed on failure so the caller's error (rendered below) is
+    // visible next to the still-open form, instead of silently reverting
+    // to display mode looking successful.
+    const ok = await onSave(trimmed)
+
+    if (ok) {
+      setArmed(false)
+    }
+  }
+
+  if (!armed) {
+    return (
+      <button
+        type="button"
+        title={hint ?? 'Rename'}
+        disabled={disabled}
+        onClick={() => {
+          setDraft(value)
+          setArmed(true)
+        }}
+        data-testid={testId ? `${testId}-button` : undefined}
+        className="text-xs text-neutral-400 hover:text-indigo-600 disabled:opacity-40"
+      >
+        Rename
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={submit} className="flex items-center gap-1 text-xs">
+      <input
+        value={draft}
+        autoFocus
+        disabled={busy}
+        onChange={(event) => setDraft(event.target.value)}
+        data-testid={testId ? `${testId}-input` : undefined}
+        className="rounded border border-neutral-300 px-1.5 py-0.5 text-sm outline-none focus:border-neutral-500"
+      />
+      <button
+        type="submit"
+        disabled={busy || !draft.trim() || draft.trim() === value}
+        data-testid={testId ? `${testId}-confirm` : undefined}
+        className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
+      >
+        Confirm
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setArmed(false)}
+        data-testid={testId ? `${testId}-cancel` : undefined}
+        className="text-neutral-400 hover:text-neutral-700"
+      >
+        cancel
+      </button>
+      {error ? (
+        <span data-testid={testId ? `${testId}-error` : undefined} className="text-red-600">
+          {error}
+        </span>
+      ) : null}
+    </form>
+  )
+}
+
 export function AddInline({
   cta,
   placeholder,

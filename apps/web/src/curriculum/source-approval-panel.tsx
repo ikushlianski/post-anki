@@ -2,12 +2,19 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
-import type { Source } from './model'
+import type { Source, SourceDiscoveryTier } from './model'
 import { addSourcesToCurriculum, approveSources, removeSource } from './curriculum.api'
+import { safeHref } from '../shared/safe-href'
 
 const APPROVE_ERROR_MESSAGES: Record<'not_awaiting_approval' | 'no_approved_sources', string> = {
   not_awaiting_approval: 'This course is already generating — no need to approve again.',
   no_approved_sources: 'Approve or add at least one source, or generate without sources.',
+}
+
+const DISCOVERY_TIER_LABELS: Record<SourceDiscoveryTier, string> = {
+  llms_txt: 'Official docs',
+  docs_crawl: 'Docs site',
+  trusted_search: 'Web search',
 }
 
 function isValidHttpUrl(value: string): boolean {
@@ -102,14 +109,24 @@ export function SourceApprovalPanel({
               className="flex items-start justify-between gap-3 rounded-md border border-neutral-200 p-3 text-sm"
             >
               <div className="min-w-0">
-                <a
-                  href={source.value}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="break-words text-blue-600 underline underline-offset-2"
-                >
-                  {source.title ?? source.value}
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={safeHref(source.value)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 break-words text-blue-600 underline underline-offset-2"
+                  >
+                    {source.title ?? source.value}
+                  </a>
+                  {source.discoveryTier ? (
+                    <span
+                      data-testid="source-candidate-tier"
+                      className="shrink-0 whitespace-nowrap badge-neutral"
+                    >
+                      {DISCOVERY_TIER_LABELS[source.discoveryTier]}
+                    </span>
+                  ) : null}
+                </div>
                 {source.title && source.title !== source.value ? (
                   <p className="mt-0.5 truncate text-xs text-neutral-400">{source.value}</p>
                 ) : null}

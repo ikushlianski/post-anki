@@ -24,6 +24,9 @@ export interface LlmCallEventInput {
   durationMs: number;
   success: boolean;
   errorMessage: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
 }
 
 /**
@@ -45,6 +48,9 @@ export async function recordLlmCallEvent(input: LlmCallEventInput): Promise<void
         durationMs: input.durationMs,
         success: input.success,
         errorMessage: input.errorMessage,
+        promptTokens: input.promptTokens,
+        completionTokens: input.completionTokens,
+        totalTokens: input.totalTokens,
       });
   } catch (err) {
     log.warn(
@@ -78,6 +84,9 @@ export interface RecentLlmCallEvent {
   durationMs: number;
   success: boolean;
   errorMessage: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
   createdAt: string;
 }
 
@@ -96,6 +105,9 @@ export async function getRecentLlmCallEvents(limit = 50): Promise<RecentLlmCallE
     durationMs: r.durationMs,
     success: r.success,
     errorMessage: r.errorMessage,
+    promptTokens: r.promptTokens,
+    completionTokens: r.completionTokens,
+    totalTokens: r.totalTokens,
     createdAt: r.createdAt.toISOString(),
   }));
 }

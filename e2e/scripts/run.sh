@@ -59,7 +59,7 @@ npm run db:migrate -w @post-anki/api
 echo "▸ restarting Electric against the fresh database…"
 $COMPOSE -f e2e/docker-compose.yml up -d electric
 for i in $(seq 1 30); do
-  if curl -sf "http://localhost:${E2E_ELECTRIC_PORT:-3011}/v1/health" >/dev/null 2>&1; then
+  if curl -sf "http://localhost:${E2E_ELECTRIC_PORT:-5574}/v1/health" >/dev/null 2>&1; then
     echo "  ready"
     break
   fi

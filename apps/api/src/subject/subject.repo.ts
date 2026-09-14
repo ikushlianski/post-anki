@@ -54,14 +54,24 @@ export async function updateSubject(
   subjectId: string,
   input: UpdateSubjectInput,
 ): Promise<Subject | null> {
-  if (input.modelTier === undefined) {
+  const patch: Partial<typeof subjects.$inferInsert> = {};
+
+  if (input.name !== undefined) {
+    patch.name = input.name;
+  }
+
+  if (input.modelTier !== undefined) {
+    patch.modelTier = input.modelTier;
+  }
+
+  if (Object.keys(patch).length === 0) {
     return getSubject(subjectId);
   }
 
   const row = (
     await getDb()
       .update(subjects)
-      .set({ modelTier: input.modelTier })
+      .set(patch)
       .where(eq(subjects.id, subjectId))
       .returning()
   )[0];

@@ -19,6 +19,15 @@ export const updateSubjectModelTier = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => updateSubjectModelTierInput.parse(data))
   .handler(({ data }) => api.updateSubjectModelTier(data.subjectId, data.modelTier))
 
+const updateSubjectNameInput = z.object({
+  subjectId: z.string(),
+  name: z.string().min(1),
+})
+
+export const updateSubjectName = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => updateSubjectNameInput.parse(data))
+  .handler(({ data }) => api.updateSubjectName(data.subjectId, data.name))
+
 export const deleteSubject = createServerFn({ method: 'POST' })
   .inputValidator((subjectId: string) => z.string().parse(subjectId))
   .handler(async ({ data }) => {

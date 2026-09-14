@@ -10,10 +10,17 @@ export interface ElectedTopicDepth {
   depth: DepthLevel;
 }
 
+// A single correct answer on a 4-option question is ~25% likely to be a
+// lucky guess — the deepest band needs at least this many correct answers
+// before it's trustworthy signal rather than a coin flip.
+const MIN_QUESTIONS_FOR_DEEP = 2;
+
 // A topic's calibration accuracy elects its starting depth — reusing the
 // existing awareness/working/deep ladder rather than inventing a second
 // depth concept (spec's "Decisions made autonomously"). Thresholds:
-// perfect record -> deep, majority-correct -> working, anything else
+// perfect record across at least 2 questions -> deep (a single correct
+// answer is a ~25% coin flip on a 4-option question, not enough evidence
+// for the deepest band), majority-correct -> working, anything else
 // (including zero answers correct) -> awareness. Topics the calibration
 // quiz never asked about are simply absent from the result — the caller
 // decides what an unelected topic defaults to.
@@ -47,7 +54,7 @@ function depthForAccuracy(correct: number, total: number): DepthLevel {
 
   const accuracy = correct / total;
 
-  if (accuracy >= 1) {
+  if (accuracy >= 1 && total >= MIN_QUESTIONS_FOR_DEEP) {
     return "deep";
   }
 

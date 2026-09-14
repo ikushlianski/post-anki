@@ -6,7 +6,7 @@ import { curricula, gaps, topics } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
 import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 
-export async function gatherPushCandidates(): Promise<PushCandidate[]> {
+export async function gatherPushCandidates(subjectId?: string): Promise<PushCandidate[]> {
   const db = getDb();
 
   const [allConfirmed, dormantCurriculumIds] = await Promise.all([
@@ -14,13 +14,16 @@ export async function gatherPushCandidates(): Promise<PushCandidate[]> {
     listDormantEntityIds("curriculum"),
   ]);
 
-  const confirmed = allConfirmed.filter((c) => !dormantCurriculumIds.has(c.id));
+  const confirmed = allConfirmed
+    .filter((c) => !dormantCurriculumIds.has(c.id))
+    .filter((c) => subjectId === undefined || c.subjectId === subjectId);
 
   if (confirmed.length === 0) {
     return [];
   }
 
   const curriculumName = new Map(confirmed.map((c) => [c.id, c.name]));
+  const curriculumSubjectId = new Map(confirmed.map((c) => [c.id, c.subjectId]));
   const confirmedIds = confirmed.map((c) => c.id);
 
   const topicRows = (
@@ -41,6 +44,7 @@ export async function gatherPushCandidates(): Promise<PushCandidate[]> {
     topicTitle: t.title,
     curriculumId: t.curriculumId,
     curriculumName: curriculumName.get(t.curriculumId) ?? "",
+    subjectId: curriculumSubjectId.get(t.curriculumId) ?? "",
     depth: t.depth as DepthLevel,
     gaps: gapRows.filter((g) => g.topicId === t.id).map((g) => rowToGap(g)),
   }));

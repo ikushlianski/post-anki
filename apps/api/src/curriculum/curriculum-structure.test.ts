@@ -554,9 +554,12 @@ describe("generateWithRetry event logging", () => {
     gatherTrustedSourceCandidates.mockResolvedValue([]);
   });
 
-  it("records a successful generateDraftStructure call under the doc-research architect's agent key", async () => {
+  it("records a successful generateDraftStructure call under the doc-research architect's agent key, with real token usage", async () => {
     insertStructureTurn.mockResolvedValue("placeholder_turn_id");
-    agentGenerate.mockResolvedValue({ object: { modules: [], strictOrder: false } });
+    agentGenerate.mockResolvedValue({
+      object: { modules: [], strictOrder: false },
+      usage: { inputTokens: 1200, outputTokens: 340, totalTokens: 1540 },
+    });
 
     await generateDraftStructure("cur_1");
 
@@ -568,12 +571,15 @@ describe("generateWithRetry event logging", () => {
         agentKey: "docResearchArchitect",
         success: true,
         errorMessage: null,
+        promptTokens: 1200,
+        completionTokens: 340,
+        totalTokens: 1540,
       }),
     );
     expect(recordLlmCallEvent.mock.calls[0]![0].durationMs).toBeGreaterThanOrEqual(0);
   });
 
-  it("records a failed event once the retry sequence is exhausted, and still finalizes the turn as failed", async () => {
+  it("records a failed event once the retry sequence is exhausted, with no token usage, and still finalizes the turn as failed", async () => {
     insertStructureTurn.mockResolvedValue("placeholder_turn_id");
     agentGenerate.mockRejectedValue(new Error("model unavailable"));
 
@@ -587,6 +593,9 @@ describe("generateWithRetry event logging", () => {
         agentKey: "docResearchArchitect",
         success: false,
         errorMessage: "model unavailable",
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
       }),
     );
     expect(updateStructureTurn).toHaveBeenCalledWith(
@@ -605,7 +614,10 @@ describe("generateWithRetry event logging", () => {
     getStructureTurns.mockResolvedValue([priorTurn]);
     getLatestStructureSnapshot.mockResolvedValue({ modules: [], strictOrder: false });
     insertStructureTurn.mockResolvedValue("pending_turn_id");
-    agentGenerate.mockResolvedValue({ text: "Updated the draft." });
+    agentGenerate.mockResolvedValue({
+      text: "Updated the draft.",
+      usage: { inputTokens: 800, outputTokens: 120, totalTokens: 920 },
+    });
 
     await submitStructureTurn("cur_1", { message: "tweak module two" });
 
@@ -616,6 +628,33 @@ describe("generateWithRetry event logging", () => {
         agentKey: "structureEditor",
         success: true,
         errorMessage: null,
+        promptTokens: 800,
+        completionTokens: 120,
+        totalTokens: 920,
+      }),
+    );
+  });
+
+  it("stores null token counts when a successful call reports no usage data", async () => {
+    const priorTurn = makeTurn({
+      id: "turn_prior",
+      role: "assistant",
+      structureSnapshot: { modules: [], strictOrder: false },
+    });
+
+    getStructureTurns.mockResolvedValue([priorTurn]);
+    getLatestStructureSnapshot.mockResolvedValue({ modules: [], strictOrder: false });
+    insertStructureTurn.mockResolvedValue("pending_turn_id");
+    agentGenerate.mockResolvedValue({ text: "Updated the draft." });
+
+    await submitStructureTurn("cur_1", { message: "tweak module two" });
+
+    expect(recordLlmCallEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
       }),
     );
   });

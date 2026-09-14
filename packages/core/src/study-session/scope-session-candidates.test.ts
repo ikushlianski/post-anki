@@ -29,6 +29,7 @@ function candidate(overrides: Partial<PushCandidate> & { topicId: string; curric
   return {
     topicTitle: "T",
     curriculumName: "C",
+    subjectId: overrides.curriculumId,
     depth: "working",
     gaps: [],
     ...overrides,

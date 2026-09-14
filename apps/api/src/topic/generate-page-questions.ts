@@ -1,3 +1,4 @@
+import { isSafeSourceUrl } from "@post-anki/core";
 import { resolveCourseGroundingSources } from "../lecture/course-source-grounding.js";
 
 export interface PageGroundedContext {
@@ -31,6 +32,6 @@ export async function gatherPageGroundedQuestionContext(
 
   return {
     text: withText.map((s) => `${s.title} (${s.url}):\n${s.text}`).join("\n\n"),
-    citations: withText.map((s) => s.url),
+    citations: withText.map((s) => s.url).filter((url) => isSafeSourceUrl(url).allowed),
   };
 }

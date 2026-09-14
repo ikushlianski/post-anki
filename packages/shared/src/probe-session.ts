@@ -102,6 +102,17 @@ export type AnswerProbeSessionGapMasteryResult = z.infer<
   typeof answerProbeSessionGapMasteryResultSchema
 >;
 
+// Present only on the answer that completes a curriculum-wide calibration
+// quiz — never recomputed on a later replay against a completed session.
+export const courseLengthRecommendationResultSchema = z.object({
+  recommendation: z.enum(["short", "long"]),
+  alreadyKnownRatio: z.number(),
+});
+
+export type CourseLengthRecommendationResult = z.infer<
+  typeof courseLengthRecommendationResultSchema
+>;
+
 export const answerProbeSessionResultSchema = z.object({
   questionId: z.string(),
   outcome: probeOutcomeSchema,
@@ -114,6 +125,7 @@ export const answerProbeSessionResultSchema = z.object({
   coveredGapLabels: z.array(z.string()),
   optionExplanations: z.array(optionExplanationSchema).nullable(),
   gapMastery: answerProbeSessionGapMasteryResultSchema.nullable(),
+  courseLengthRecommendation: courseLengthRecommendationResultSchema.nullable(),
 });
 
 export type AnswerProbeSessionResult = z.infer<

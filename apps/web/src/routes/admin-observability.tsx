@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getAdminObservability } from '../admin-observability/admin-observability.api'
+import { formatTokens } from '../admin-observability/format-tokens'
 
 export const Route = createFileRoute('/admin-observability')({
   component: AdminObservabilityPage,
@@ -88,6 +89,7 @@ function AdminObservabilityPage() {
                   <th className="px-4 py-2">Curriculum</th>
                   <th className="px-4 py-2">Result</th>
                   <th className="px-4 py-2">Duration</th>
+                  <th className="px-4 py-2">Tokens (prompt / completion / total)</th>
                   <th className="px-4 py-2">When</th>
                 </tr>
               </thead>
@@ -107,6 +109,9 @@ function AdminObservabilityPage() {
                       )}
                     </td>
                     <td className="px-4 py-2" data-testid="admin-observability-llm-event-duration">{formatDurationMs(e.durationMs)}</td>
+                    <td className="px-4 py-2" data-testid="admin-observability-llm-event-tokens">
+                      {formatTokens(e.promptTokens, e.completionTokens, e.totalTokens)}
+                    </td>
                     <td className="px-4 py-2 text-neutral-500">
                       {new Date(e.createdAt).toLocaleString()}
                     </td>

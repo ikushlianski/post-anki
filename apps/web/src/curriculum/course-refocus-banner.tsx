@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { dismissCourseRefocusSuggestion } from './api-client'
 import type { CourseRefocusSuggestion } from './model'
+import type { LoadResult } from '../shared/load-result'
 
 interface CourseRefocusBannerProps {
-  suggestions: CourseRefocusSuggestion[]
+  suggestions: LoadResult<CourseRefocusSuggestion[]>
   onRefresh?: () => void
 }
 
@@ -20,7 +21,15 @@ export function CourseRefocusBanner({ suggestions, onRefresh }: CourseRefocusBan
     },
   })
 
-  const visibleSuggestions = suggestions.filter((s) => !dismissedIds.has(s.curriculumId))
+  if (!suggestions.ok) {
+    return (
+      <p role="alert" className="text-sm text-red-600">
+        Couldn't load course suggestions — try refreshing.
+      </p>
+    )
+  }
+
+  const visibleSuggestions = suggestions.data.filter((s) => !dismissedIds.has(s.curriculumId))
 
   if (visibleSuggestions.length === 0) {
     return null

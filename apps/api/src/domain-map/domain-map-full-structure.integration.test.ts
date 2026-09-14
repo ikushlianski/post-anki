@@ -7,7 +7,7 @@ import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
 
 // separate-progress-overlay-from-structure (issue #85), SCENARIO 1/5/6. Real
-// Postgres (the e2e docker-compose DB on localhost:5436, never mocked), same
+// Postgres (the e2e docker-compose DB on localhost:5578, never mocked), same
 // shape as domain-node-merge-concurrency.integration.test.ts: import
 // getDomainMapForSubject directly from domain-map.repo.js and seed rows via
 // raw SQL through a plain pg.Client, rather than the full
@@ -24,7 +24,7 @@ import { closeDb } from "../db/client.js";
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
-  "postgres://postanki:postanki@localhost:5436/postanki_e2e";
+  "postgres://postanki:postanki@localhost:5578/postanki_e2e";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 

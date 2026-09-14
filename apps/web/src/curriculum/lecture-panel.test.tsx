@@ -148,4 +148,46 @@ describe('LecturePanel', () => {
     expect(await screen.findByTestId('lecture-source-candidate')).toBeTruthy()
     expect(screen.getByTestId('lecture-compile-button').hasAttribute('disabled')).toBe(true)
   })
+
+  it('never turns an unsafe candidate url into a clickable href, even though it still shows the raw text', async () => {
+    mockedGetLecture.mockResolvedValue(null)
+    mockedCompileLecture.mockRejectedValueOnce(new Error('no own sources'))
+    mockedGatherLectureSources.mockResolvedValue([
+      {
+        id: 'cand-1',
+        topicId: TOPIC_ID,
+        title: 'Malicious source',
+        url: 'javascript:alert(1)',
+        whySelected: 'found via web',
+        reviewStatus: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ])
+
+    renderPanel()
+
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId('lecture-compile-start-button'))
+    })
+
+    fireEvent.click(await screen.findByTestId('lecture-gather-sources-button'))
+
+    const link = await screen.findByTestId('lecture-source-candidate-url')
+
+    expect(link.hasAttribute('href')).toBe(false)
+  })
+
+  it('never turns an unsafe citation url into a clickable href on a ready lecture', async () => {
+    mockedGetLecture.mockResolvedValue({
+      ...readyLecture(),
+      citations: [{ id: 'cite-1', lectureId: 'lec-1', title: 'Malicious citation', url: 'javascript:alert(1)' }],
+    })
+
+    renderPanel()
+
+    const citation = await screen.findByTestId('lecture-citation')
+    const link = citation.querySelector('a')
+
+    expect(link?.hasAttribute('href')).toBe(false)
+  })
 })

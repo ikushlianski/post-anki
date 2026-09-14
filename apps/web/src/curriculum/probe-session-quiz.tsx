@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { hasEarlyMasterySignal, isOneShotProbeScope, shouldReplenish } from '@post-anki/core'
+import { safeHref } from '../shared/safe-href'
 import type {
   AnswerProbeSessionGapMasteryResult,
+  CourseLengthRecommendationResult,
   OptionExplanation,
   ProbeScope,
   ProbeSession,
@@ -117,6 +119,9 @@ export function ProbeSessionQuiz({
   // feedback, cleared whenever the learner moves to the next question.
   const [lastGapMastery, setLastGapMastery] =
     useState<AnswerProbeSessionGapMasteryResult | null>(null)
+  // Set once, on the answer that completes the quiz; never cleared after.
+  const [courseLengthRecommendation, setCourseLengthRecommendation] =
+    useState<CourseLengthRecommendationResult | null>(null)
 
   useEffect(() => {
     if (session && currentQuestionId === null) {
@@ -175,6 +180,10 @@ export function ProbeSessionQuiz({
       })
 
       setLastGapMastery(result.gapMastery)
+
+      if (result.courseLengthRecommendation) {
+        setCourseLengthRecommendation(result.courseLengthRecommendation)
+      }
 
       if (result.coveredGapLabels.length > 0 || result.gapMastery) {
         void router.invalidate()
@@ -298,6 +307,7 @@ export function ProbeSessionQuiz({
         <p className="text-sm font-medium text-emerald-700">
           Quiz complete — {session.correct}/{session.total} correct.
         </p>
+        <CourseLengthRecommendationNotice recommendation={courseLengthRecommendation} />
       </div>
     )
   }
@@ -461,6 +471,28 @@ function GapMasteryFeedback({
   return null
 }
 
+// Present only on the calibration quiz's completing answer.
+function CourseLengthRecommendationNotice({
+  recommendation,
+}: {
+  recommendation: CourseLengthRecommendationResult | null
+}) {
+  if (!recommendation) {
+    return null
+  }
+
+  const message =
+    recommendation.recommendation === 'short'
+      ? 'You already know most of this — a short course covering the gaps should be enough.'
+      : "You're mostly new to this — a full-length course will build it up properly."
+
+  return (
+    <p className="mt-2 text-sm text-neutral-600" data-testid="course-length-recommendation">
+      {message}
+    </p>
+  )
+}
+
 function OptionExplanationText({
   explanation,
   index,
@@ -472,17 +504,19 @@ function OptionExplanationText({
     return null
   }
 
+  const citationHref = safeHref(explanation.citationUrl)
+
   return (
     <p
       className="mt-1 pl-1 text-xs text-neutral-500"
       data-testid={`quiz-option-explanation-${index}`}
     >
       {explanation.text}
-      {explanation.citationUrl ? (
+      {citationHref ? (
         <>
           {' '}
           <a
-            href={explanation.citationUrl}
+            href={citationHref}
             target="_blank"
             rel="noreferrer"
             className="text-neutral-700 underline"

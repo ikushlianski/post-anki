@@ -1,6 +1,7 @@
 import type { Pack, PracticeLevel } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
 import { getDb, type DbExecutor } from "../db/client.js";
@@ -136,10 +137,16 @@ export async function generatePhraseBatch(
   // it needs either, and holding one of the pool's 4 connections open for a
   // 1-5s external network call would be pure cost with no correctness
   // benefit (architecture.md).
-  const result = await agent.generate(prompt, {
-    structuredOutput: { schema: phraseBatchSchema },
-    requestContext: new RequestContext([["subjectId", subjectId]]),
-  });
+  const result = await generateWithRetry(
+    "phrase_batch_generate",
+    null,
+    AGENT_KEYS.phraseBatchGenerate,
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: phraseBatchSchema },
+        requestContext: new RequestContext([["subjectId", subjectId]]),
+      }),
+  );
 
   if (!result.object) {
     throw new Error("phrase batch agent returned no structured output");

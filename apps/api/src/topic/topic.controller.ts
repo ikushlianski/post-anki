@@ -1,4 +1,5 @@
 import type http from "node:http";
+import type { GoDeeperRefetchResult } from "@post-anki/shared";
 import {
   createTopicInput,
   reorderInput,
@@ -74,13 +75,28 @@ export async function handleUpdateTopic(
   // new depth is grounded in current material. Best-effort: a failed
   // re-fetch never blocks the depth election itself — refetchSource already
   // never clobbers a previously-good fetchedText on failure.
+  let goDeeperRefetch: GoDeeperRefetchResult | undefined;
+
   if (body.data.learningStatus === "going_deeper") {
     const existing = await getTopicRow(topicId);
 
     if (existing?.sourceId) {
-      await refetchSource(existing.sourceId).catch((err) => {
+      const result = await refetchSource(existing.sourceId).catch((err) => {
         log.error({ err, topicId, sourceId: existing.sourceId }, "go_deeper_refetch_failed");
+
+        return { error: "network_error" as const };
       });
+
+      goDeeperRefetch = { outcome: "error" in result ? result.error : result.outcome };
+
+      if (goDeeperRefetch.outcome !== "ok") {
+        log.warn(
+          { topicId, sourceId: existing.sourceId, outcome: goDeeperRefetch.outcome },
+          "go_deeper_refetch_not_ok",
+        );
+      }
+    } else {
+      goDeeperRefetch = { outcome: "skipped" };
     }
   }
 
@@ -91,7 +107,7 @@ export async function handleUpdateTopic(
     return;
   }
 
-  sendJson(res, 200, topic);
+  sendJson(res, 200, goDeeperRefetch ? { ...topic, goDeeperRefetch } : topic);
 }
 
 export async function handleDeleteTopic(

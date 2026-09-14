@@ -23,6 +23,7 @@ import {
 } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { newId } from "../shared/id.js";
 import { recordActivityToday } from "../streak/streak.service.js";
@@ -553,12 +554,18 @@ async function evaluateSocratic(
 
   try {
     const agent = getMastra().getAgent(AGENT_KEYS.socraticEval);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: socraticEvalSchema },
-      requestContext: curriculumId
-        ? new RequestContext([["curriculumId", curriculumId]])
-        : undefined,
-    });
+    const result = await generateWithRetry(
+      "socratic_eval",
+      curriculumId ?? null,
+      AGENT_KEYS.socraticEval,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: socraticEvalSchema },
+          requestContext: curriculumId
+            ? new RequestContext([["curriculumId", curriculumId]])
+            : undefined,
+        }),
+    );
 
     if (result.object) {
       return result.object;

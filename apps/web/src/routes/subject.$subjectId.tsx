@@ -1,7 +1,12 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 
+import type { Subject } from '../curriculum/model'
 import { getBoard } from '../curriculum/curriculum.api'
+import { updateSubjectName } from '../subject/subject.api'
 import { DeleteSubjectButton, SubjectSection } from '../subject/subject-section'
+import { RenameButton } from '../curriculum/shape-controls'
+import { useHydrated } from '../shared/use-hydrated'
 
 export const Route = createFileRoute('/subject/$subjectId')({
   component: SubjectDetailPage,
@@ -39,7 +44,10 @@ function SubjectDetailPage() {
       </Link>
 
       <header className="mb-6 mt-3 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{subject.name}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{subject.name}</h1>
+          <RenameSubjectButton subject={subject} />
+        </div>
         <DeleteSubjectButton subjectId={subject.id} />
       </header>
 
@@ -51,5 +59,39 @@ function SubjectDetailPage() {
         allCategories={categories}
       />
     </main>
+  )
+}
+
+function RenameSubjectButton({ subject }: { subject: Subject }) {
+  const router = useRouter()
+  const hydrated = useHydrated()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function saveName(next: string): Promise<boolean> {
+    setBusy(true)
+    setError(null)
+
+    try {
+      await updateSubjectName({ data: { subjectId: subject.id, name: next } })
+      await router.invalidate()
+      return true
+    } catch {
+      setError('Rename failed — try again.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <RenameButton
+      value={subject.name}
+      busy={busy}
+      hydrated={hydrated}
+      onSave={saveName}
+      error={error}
+      testId={`subject-rename-${subject.id}`}
+    />
   )
 }

@@ -3,6 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 
 import type { AttemptResult, Question, QuestionKind } from './model'
 import { nextQuestion, submitAttempt } from './curriculum.api'
+import { safeHref } from '../shared/safe-href'
 
 export function ProbeAnswer({
   topicId,
@@ -135,7 +136,7 @@ export function ProbeAnswer({
           {current.sources.map((url, index) => (
             <a
               key={index}
-              href={url}
+              href={safeHref(url)}
               target="_blank"
               rel="noreferrer"
               className="max-w-[14rem] truncate text-blue-600 underline underline-offset-2"

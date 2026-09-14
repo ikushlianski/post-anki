@@ -3,7 +3,7 @@ import { Link, createFileRoute, redirect, useRouter } from '@tanstack/react-rout
 import { useSuspenseQuery } from '@tanstack/react-query'
 
 import type { Source } from '../curriculum/model'
-import { createModule } from '../curriculum/curriculum.api'
+import { createModule, renameCurriculum } from '../curriculum/curriculum.api'
 import { curriculumDetailQuery, structureTurnsQuery } from '../curriculum/curriculum.queries'
 import { needsPreAssessment } from '../curriculum/pre-assessment'
 import { AddSourcesForm } from '../curriculum/add-sources-form'
@@ -16,11 +16,13 @@ import {
 } from '../curriculum/curriculum-lifecycle'
 import { ModuleSection } from '../curriculum/module-section'
 import { ProgressBar } from '../curriculum/progress-bar'
-import { AddInline } from '../curriculum/shape-controls'
+import { AddInline, RenameButton } from '../curriculum/shape-controls'
 import { CurriculumSettingsPanel } from '../curriculum/curriculum-settings-panel'
+import { safeHref } from '../shared/safe-href'
 import { useHydrated } from '../shared/use-hydrated'
 import { listSubjects } from '../curriculum/api-client'
 import { getAdminSettings } from '../admin-settings/admin-settings.api'
+import { settle } from '../shared/load-result'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
@@ -41,21 +43,24 @@ export const Route = createFileRoute('/curriculum/$curriculumId')({
     }
 
     const [subjects, adminSettings] = await Promise.all([
-      listSubjects().catch(() => []),
+      settle(listSubjects()),
       getAdminSettings().catch(() => ({ testToggle: false, modelTier: 'cheap' as const })),
     ])
 
-    const subject = detail ? subjects.find((s) => s.id === detail.curriculum.subjectId) : undefined
+    const subject =
+      subjects.ok && detail
+        ? subjects.data.find((s) => s.id === detail.curriculum.subjectId)
+        : undefined
     const subjectModelTier = subject?.modelTier ?? adminSettings.modelTier
 
-    return { ...detail, subjectModelTier }
+    return { ...detail, subjectModelTier, subjectsFailed: !subjects.ok }
   },
 })
 
 function CurriculumPage() {
   const { curriculumId } = Route.useParams()
   const { data: detail } = useSuspenseQuery(curriculumDetailQuery(curriculumId))
-  const { subjectModelTier } = Route.useLoaderData()
+  const { subjectModelTier, subjectsFailed } = Route.useLoaderData()
 
   if (!detail) {
     return (
@@ -101,6 +106,7 @@ function CurriculumPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             {curriculum.name}
           </h1>
+          <RenameCurriculumButton curriculum={curriculum} />
           {curriculum.origin === 'research' ? (
             <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs text-violet-700">
               🔎 Researched
@@ -134,6 +140,12 @@ function CurriculumPage() {
           </div>
         ) : null}
       </header>
+
+      {subjectsFailed ? (
+        <p role="alert" className="mb-4 text-sm text-red-600">
+          Couldn't load your subjects — try refreshing.
+        </p>
+      ) : null}
 
       <CurriculumSettingsPanel
         curriculum={curriculum}
@@ -216,6 +228,40 @@ function CurriculumPage() {
   )
 }
 
+function RenameCurriculumButton({ curriculum }: { curriculum: { id: string; name: string } }) {
+  const router = useRouter()
+  const hydrated = useHydrated()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function saveName(next: string): Promise<boolean> {
+    setBusy(true)
+    setError(null)
+
+    try {
+      await renameCurriculum({ data: { curriculumId: curriculum.id, name: next } })
+      await router.invalidate()
+      return true
+    } catch {
+      setError('Rename failed — try again.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <RenameButton
+      value={curriculum.name}
+      busy={busy}
+      hydrated={hydrated}
+      onSave={saveName}
+      error={error}
+      testId={`curriculum-rename-${curriculum.id}`}
+    />
+  )
+}
+
 function AddModuleBar({ curriculumId }: { curriculumId: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -244,7 +290,7 @@ function SourceRow({ source }: { source: Source }) {
     return (
       <li>
         <a
-          href={source.value}
+          href={safeHref(source.value)}
           target="_blank"
           rel="noreferrer"
           className="text-blue-600 underline underline-offset-2"

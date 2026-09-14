@@ -6,6 +6,7 @@ import { learningStatusSchema } from "./learning-status";
 import { gapSchema } from "./gap";
 import { prioritySchema } from "./priority";
 import { tagChipSchema } from "./tag";
+import { goDeeperRefetchResultSchema } from "./content-library";
 
 export const selfGradeSchema = z.number().int().min(1).max(5);
 
@@ -68,3 +69,11 @@ export const updateTopicInput = z.object({
 });
 
 export type UpdateTopicInput = z.infer<typeof updateTopicInput>;
+
+// PATCH /topics/:id's response — Topic plus goDeeperRefetch, present only
+// when this update carried learningStatus: "going_deeper".
+export const updateTopicResultSchema = topicSchema.extend({
+  goDeeperRefetch: goDeeperRefetchResultSchema.optional(),
+});
+
+export type UpdateTopicResult = z.infer<typeof updateTopicResultSchema>;

@@ -9,6 +9,7 @@ import {
   listLectureSourceCandidates,
   reviewLectureSourceCandidate,
 } from './lecture.api'
+import { safeHref } from '../shared/safe-href'
 
 function lectureQuery(topicId: string) {
   return queryOptions({
@@ -202,7 +203,7 @@ function LectureGatherReview({
                     {candidate.title}
                   </p>
                   <a
-                    href={candidate.url}
+                    href={safeHref(candidate.url)}
                     target="_blank"
                     rel="noreferrer"
                     data-testid="lecture-source-candidate-url"
@@ -352,7 +353,7 @@ function LectureReady({ lecture }: { lecture: Lecture }) {
             {lecture.citations.map((citation) => (
               <li key={citation.id} data-testid="lecture-citation">
                 <a
-                  href={citation.url}
+                  href={safeHref(citation.url)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-sm text-neutral-700 underline"

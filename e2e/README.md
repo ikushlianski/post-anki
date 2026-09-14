@@ -25,12 +25,12 @@ HEADED=true npm run dev:pw -- add-subject   # watch it
 npm run e2e:db:down                         # stop the local Postgres
 ```
 
-`dev:pw` (`e2e/scripts/run.sh`): brings up local Postgres (docker, host **:5436**, ephemeral
+`dev:pw` (`e2e/scripts/run.sh`): brings up local Postgres (docker, host **:5578**, ephemeral
 tmpfs), migrates the api schema into it, then hands off to verification-repo's Playwright config,
-whose `webServer` entries boot an **e2e api on :8031** (pointed at local Postgres), **web on
+whose `webServer` entries boot an **e2e api on :5570** (pointed at local Postgres), **web on
 :3100**, the local mock OpenRouter server on **:4999**, and the local mock docs site on **:4998**,
 run the tests, and tear the servers down. Local config in `e2e/.env` (copy from `.env.example`).
-No collision with normal dev (:8030/:3000).
+No collision with normal dev (:5560/:5540).
 
 **Cold-start gotcha (solved):** vite dev compiles modules on first hit, and `window.__TSR_ROUTER__`
 (the hydration signal actions wait on) is set slightly before the form's React handlers attach — so
@@ -75,7 +75,7 @@ yet built** — this is an honest gap, not a silent one.
 
 The app's normal DB is **cloud Neon** — the framework must never mutate it. So the e2e stack runs
 its **own local Postgres**:
-- `docker compose -f e2e/docker-compose.yml up -d` → Postgres on `localhost:5436`.
+- `docker compose -f e2e/docker-compose.yml up -d` → Postgres on `localhost:5578`.
 - API booted with `DATABASE_URL=<local Postgres>` + `db:migrate` against it.
 - Web talks to that API. UI writes land in **local** Postgres.
 - Test persistence layer connects to the same local DB; `assertTargetAllowed` refuses if the host

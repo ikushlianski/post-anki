@@ -32,6 +32,7 @@ function pendingSource(): Source {
     value: 'https://example.com/a',
     title: 'A trustworthy source',
     approvalStatus: 'pending',
+    discoveryTier: null,
   }
 }
 
@@ -91,5 +92,43 @@ describe('SourceApprovalPanel.approve', () => {
 
     expect(screen.getByTestId('source-approval-approve').hasAttribute('disabled')).toBe(false)
     expect(screen.getByText(/couldn't approve sources/i)).toBeTruthy()
+  })
+})
+
+describe('SourceApprovalPanel.candidateLinks', () => {
+  afterEach(cleanup)
+
+  it('never turns an unsafe source url into a clickable href', () => {
+    const source: Source = {
+      id: 'src_2',
+      curriculumId: CURRICULUM_ID,
+      kind: 'link',
+      value: 'javascript:alert(1)',
+      title: 'Malicious source',
+      approvalStatus: 'pending',
+      discoveryTier: null,
+    }
+
+    renderPanel([source])
+
+    const link = screen.getByTestId('source-candidate-row').querySelector('a')
+
+    expect(link?.hasAttribute('href')).toBe(false)
+  })
+})
+
+describe('SourceApprovalPanel.discoveryTier', () => {
+  afterEach(cleanup)
+
+  it('labels an llms_txt source as Official docs', () => {
+    renderPanel([{ ...pendingSource(), discoveryTier: 'llms_txt' }])
+
+    expect(screen.getByTestId('source-candidate-tier').textContent).toBe('Official docs')
+  })
+
+  it('renders no tier label for a legacy source with a null discoveryTier', () => {
+    renderPanel([pendingSource()])
+
+    expect(screen.queryByTestId('source-candidate-tier')).toBeNull()
   })
 })

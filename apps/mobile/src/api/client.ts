@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { clearStoredToken, getStoredToken } from "./token-storage";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8030";
+const DEFAULT_API_BASE_URL = "http://localhost:5560";
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "10.0.2.2"]);
 

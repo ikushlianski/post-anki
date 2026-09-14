@@ -6,7 +6,7 @@ services:
       DATABASE_URL: ${ELECTRIC_DATABASE_URL}
       ELECTRIC_INSECURE: 'true'
     ports:
-      - '${ELECTRIC_HOST_PORT:-3010}:3000'
+      - '${ELECTRIC_HOST_PORT:-5561}:3000'
 
   postgres:
     image: postgres:16-alpine
@@ -17,7 +17,7 @@ services:
       POSTGRES_PASSWORD: postanki
       POSTGRES_DB: postanki_dev
     ports:
-      - '5437:5432'
+      - '5562:5432'
     volumes:
       - post-anki-dev-db-data:/var/lib/postgresql/data
     healthcheck:

@@ -3,6 +3,7 @@ import type { DomainNode } from "@post-anki/shared";
 import { siblingDiscoveryResultSchema } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { getDomainNode, insertDomainNode, listDomainNodesForSubject } from "./domain-map.repo.js";
 import { resolveNodePathByName } from "./domain-node-name-resolver.js";
@@ -113,10 +114,16 @@ export async function resolveDomainPlacement(
     const agent = getMastra().getAgent(AGENT_KEYS.siblingDiscovery);
     const prompt = buildSiblingDiscoveryPrompt(existingNodes, input.name);
 
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: siblingDiscoveryResultSchema },
-      requestContext: new RequestContext([["subjectId", input.subjectId]]),
-    });
+    const result = await generateWithRetry(
+      "domain_placement",
+      null,
+      AGENT_KEYS.siblingDiscovery,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: siblingDiscoveryResultSchema },
+          requestContext: new RequestContext([["subjectId", input.subjectId]]),
+        }),
+    );
 
     if (!result.object) {
       throw new Error("sibling-discovery agent returned no structured output");

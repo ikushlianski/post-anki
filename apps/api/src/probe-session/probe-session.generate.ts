@@ -20,6 +20,7 @@ import {
   type GapMasteryDueInfo,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import {
@@ -591,9 +592,15 @@ async function runGeneration(
 
   try {
     const agent = getMastra().getAgent(AGENT_KEYS.probeQuizBatch);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: generatedProbeBatchSchema },
-    });
+    const result = await generateWithRetry(
+      "probe_batch_generate",
+      singleCurriculum ? (curriculumIds[0] ?? null) : null,
+      AGENT_KEYS.probeQuizBatch,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: generatedProbeBatchSchema },
+        }),
+    );
 
     if (result.object) {
       return {

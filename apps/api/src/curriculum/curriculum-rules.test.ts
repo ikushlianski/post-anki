@@ -3,6 +3,7 @@ import {
   isSourceMandateUnmet,
   isTopicTouched,
   isModuleTouched,
+  isModuleMergedIn,
   partitionModulesForMerge,
   filterOutLockedModules,
   hasStudyableContent,
@@ -28,10 +29,20 @@ const PRISTINE_TOPIC: TopicTouchState = {
   learningStatus: "not_started",
   selfGrade: null,
   included: true,
+  mergedFromCurriculumId: null,
+  hasUserDeclaredGap: false,
+  hasNote: false,
+  hasSessionHistory: false,
 };
 
 function pristineModule(id: string, title: string): ModuleTouchState {
-  return { moduleId: id, title, learningStatus: "not_started", topics: [PRISTINE_TOPIC] };
+  return {
+    moduleId: id,
+    title,
+    learningStatus: "not_started",
+    mergedFromCurriculumId: null,
+    topics: [PRISTINE_TOPIC],
+  };
 }
 
 describe("isSourceMandateUnmet", () => {
@@ -67,6 +78,18 @@ describe("isTopicTouched", () => {
       expect(isTopicTouched({ ...PRISTINE_TOPIC, progressStatus: "mastered" })).toBe(true);
       expect(isTopicTouched({ ...PRISTINE_TOPIC, learningStatus: "probing" })).toBe(true);
     });
+
+    it("counts a user-declared gap as touched, even with zero progress", () => {
+      expect(isTopicTouched({ ...PRISTINE_TOPIC, hasUserDeclaredGap: true })).toBe(true);
+    });
+
+    it("counts an attached note as touched, even with zero progress", () => {
+      expect(isTopicTouched({ ...PRISTINE_TOPIC, hasNote: true })).toBe(true);
+    });
+
+    it("counts quiz or Socratic session history as touched, even with zero progress", () => {
+      expect(isTopicTouched({ ...PRISTINE_TOPIC, hasSessionHistory: true })).toBe(true);
+    });
   });
 });
 
@@ -90,10 +113,31 @@ describe("isModuleTouched", () => {
           moduleId: "m1",
           title: "Mixed",
           learningStatus: "not_started",
+          mergedFromCurriculumId: null,
           topics: [PRISTINE_TOPIC, { ...PRISTINE_TOPIC, progressAttempts: 2 }],
         }),
       ).toBe(true);
     });
+  });
+});
+
+describe("isModuleMergedIn", () => {
+  it("is not merged-in when neither the module nor its topics carry a marker", () => {
+    expect(isModuleMergedIn(pristineModule("m1", "Own"))).toBe(false);
+  });
+
+  it("is merged-in when the module itself carries the marker", () => {
+    expect(
+      isModuleMergedIn({ ...pristineModule("m1", "Absorbed"), mergedFromCurriculumId: "c-old" }),
+    ).toBe(true);
+  });
+
+  it("is merged-in when a topic reparented under it carries the marker", () => {
+    const reparentedTopic: TopicTouchState = { ...PRISTINE_TOPIC, mergedFromCurriculumId: "c-old" };
+
+    expect(
+      isModuleMergedIn({ ...pristineModule("m1", "Own"), topics: [reparentedTopic] }),
+    ).toBe(true);
   });
 });
 
@@ -130,6 +174,28 @@ describe("partitionModulesForMerge", () => {
       ]);
 
       expect(freeModuleIds).toEqual(["m1", "m2"]);
+    });
+  });
+
+  describe("a module merged in from an absorbed curriculum with zero learner progress", () => {
+    it("locks it so 'add more sources' never deletes it", () => {
+      const mergedIn = { ...pristineModule("m1", "Absorbed"), mergedFromCurriculumId: "c-old" };
+      const fresh = pristineModule("m2", "Own");
+
+      const { lockedModules, freeModuleIds } = partitionModulesForMerge([mergedIn, fresh]);
+
+      expect(lockedModules.map((m) => m.moduleId)).toEqual(["m1"]);
+      expect(freeModuleIds).toEqual(["m2"]);
+    });
+
+    it("locks it via a reparented merged-in topic even when the module's own marker is null", () => {
+      const reparentedTopic: TopicTouchState = { ...PRISTINE_TOPIC, mergedFromCurriculumId: "c-old" };
+      const mergedIn = { ...pristineModule("m1", "Reparented"), topics: [reparentedTopic] };
+
+      const { lockedModules, freeModuleIds } = partitionModulesForMerge([mergedIn]);
+
+      expect(lockedModules.map((m) => m.moduleId)).toEqual(["m1"]);
+      expect(freeModuleIds).toEqual([]);
     });
   });
 });
@@ -385,6 +451,63 @@ describe("resolveRetryResearchSource", () => {
         mode: "name",
         name: "Temporal",
       });
+    });
+  });
+
+  describe("a curriculum with sources merged in from an absorbed curriculum", () => {
+    it("picks the curriculum's own source as the entry point, not a merged-in one that sorts first", () => {
+      const result = resolveRetryResearchSource(
+        [
+          {
+            kind: "web_research",
+            value: "https://docs.other-project.io",
+            mergedFromCurriculumId: "absorbed-curriculum-id",
+          },
+          { kind: "llms_txt", value: "https://docs.temporal.io/dev-guide", mergedFromCurriculumId: null },
+        ],
+        "Temporal",
+      );
+
+      expect(result).toEqual({
+        mode: "url",
+        docUrl: "https://docs.temporal.io/dev-guide",
+        name: "Temporal",
+      });
+    });
+
+    it("falls back to a merged-in source only when the curriculum has no surviving sources of its own", () => {
+      const result = resolveRetryResearchSource(
+        [
+          {
+            kind: "web_research",
+            value: "https://docs.other-project.io",
+            mergedFromCurriculumId: "absorbed-curriculum-id",
+          },
+        ],
+        "Temporal",
+      );
+
+      expect(result).toEqual({
+        mode: "url",
+        docUrl: "https://docs.other-project.io",
+        name: "Temporal",
+      });
+    });
+
+    it("prefers name-based retry over a merged-in URL when its own surviving sources are not URL-shaped", () => {
+      const result = resolveRetryResearchSource(
+        [
+          {
+            kind: "web_research",
+            value: "https://docs.other-project.io",
+            mergedFromCurriculumId: "absorbed-curriculum-id",
+          },
+          { kind: "web_research", value: "Temporal", mergedFromCurriculumId: null },
+        ],
+        "Temporal",
+      );
+
+      expect(result).toEqual({ mode: "name", name: "Temporal" });
     });
   });
 });

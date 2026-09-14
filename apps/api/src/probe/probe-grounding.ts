@@ -1,3 +1,4 @@
+import { isSafeSourceUrl } from "@post-anki/core";
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
 import { startTracingSpan } from "../mastra/mastra.js";
@@ -56,7 +57,9 @@ export async function gatherProbeGrounding(
   const pasted = (await getCurriculumGroundingText(curriculumId)).trim();
 
   if (pasted.length >= MIN_SOURCE_CHARS) {
-    const citations = await getCurriculumCitableUrls(curriculumId);
+    const citations = (await getCurriculumCitableUrls(curriculumId)).filter(
+      (url) => isSafeSourceUrl(url).allowed,
+    );
 
     log.info(
       { curriculumId, source: "pasted", chars: pasted.length, citations: citations.length },
@@ -180,7 +183,8 @@ function collectCitations(annotations?: Annotation[]): string[] {
 
   return annotations
     .map((a) => a.url_citation?.url)
-    .filter((u): u is string => Boolean(u));
+    .filter((u): u is string => Boolean(u))
+    .filter((url) => isSafeSourceUrl(url).allowed);
 }
 
 function truncate(text: string): string {

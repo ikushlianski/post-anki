@@ -48,6 +48,7 @@ export function PriorityReviewPanel({
   const [triggering, setTriggering] = useState(false)
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<string | null>(null)
+  const [reviewRanOnce, setReviewRanOnce] = useState(false)
 
   // doc-changelog-scan (issue #49) state below.
   const [newTopicSuggestions, setNewTopicSuggestions] = useState(initialNewTopicSuggestions)
@@ -147,6 +148,7 @@ export function PriorityReviewPanel({
     try {
       const fresh = await triggerPriorityReview({ data: subjectId })
       setSuggestions((prev) => [...fresh, ...prev])
+      setReviewRanOnce(true)
 
       // Only clear the banner when the review actually produced something.
       // The server's own due-status comes from MAX(created_at) over inserted
@@ -219,7 +221,9 @@ export function PriorityReviewPanel({
       ) : null}
 
       {suggestions.length === 0 ? (
-        <p className="text-sm text-neutral-500">No pending suggestions.</p>
+        <p data-testid="priority-review-empty-state" className="text-sm text-neutral-500">
+          {reviewRanOnce ? 'No new suggestions from this review.' : 'No pending suggestions.'}
+        </p>
       ) : (
         <ul className="space-y-2">
           {suggestions.map((suggestion) => (

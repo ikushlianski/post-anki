@@ -12,10 +12,10 @@ vi.mock("./token-storage", () => ({
 import { apiBaseUrl, apiFetch, assertSecureUrl, verifyToken } from "./client";
 
 const LOOPBACK_BASE_URLS = [
-  "http://localhost:8030",
-  "http://127.0.0.1:8030",
-  "http://[::1]:8030",
-  "http://10.0.2.2:8030",
+  "http://localhost:5560",
+  "http://127.0.0.1:5560",
+  "http://[::1]:5560",
+  "http://10.0.2.2:5560",
 ];
 
 describe("assertSecureUrl", () => {
@@ -64,12 +64,12 @@ describe("assertSecureUrl", () => {
     });
 
     it("accepts a loopback host regardless of casing", () => {
-      expect(() => assertSecureUrl("http://LOCALHOST:8030")).not.toThrow();
+      expect(() => assertSecureUrl("http://LOCALHOST:5560")).not.toThrow();
     });
 
     it.each([
       "http://localhost.evil.com",
-      "http://localhost.evil.com:8030",
+      "http://localhost.evil.com:5560",
       "http://127.0.0.1.evil.com",
       "http://10.0.2.2.evil.com",
       "http://localhosts",
@@ -89,7 +89,7 @@ describe("assertSecureUrl", () => {
   describe("embedded userinfo", () => {
     it("rejects a loopback host smuggled in as userinfo", () => {
       expect(() => assertSecureUrl("http://localhost@evil.com")).toThrow(/embedded userinfo/);
-      expect(() => assertSecureUrl("http://localhost:8030@evil.com")).toThrow(/embedded userinfo/);
+      expect(() => assertSecureUrl("http://localhost:5560@evil.com")).toThrow(/embedded userinfo/);
     });
 
     it("rejects userinfo on https too, rather than parsing it", () => {
@@ -100,7 +100,7 @@ describe("assertSecureUrl", () => {
   });
 
   describe("malformed input", () => {
-    it.each(["", "   ", "not a url", "localhost:8030", "//localhost:8030", "http://", "http:///v1"])(
+    it.each(["", "   ", "not a url", "localhost:5560", "//localhost:5560", "http://", "http:///v1"])(
       "refuses to accept the unparseable input %j",
       (url) => {
         expect(() => assertSecureUrl(url)).toThrow(/Cannot parse API base URL/);
@@ -124,7 +124,7 @@ describe("assertSecureUrl", () => {
     });
 
     it("rejects a non-https scheme even on a loopback host", () => {
-      expect(() => assertSecureUrl("ws://localhost:8030")).toThrow(/non-HTTPS scheme/);
+      expect(() => assertSecureUrl("ws://localhost:5560")).toThrow(/non-HTTPS scheme/);
     });
   });
 });

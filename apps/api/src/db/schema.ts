@@ -369,6 +369,11 @@ export const sources = pgTable("sources", {
   value: text("value").notNull(),
   title: text("title"),
   fetchedText: text("fetched_text"),
+  // source-discovery-tier — which discovery path surfaced this candidate
+  // ("llms_txt" | "docs_crawl" | "trusted_search", SourceDiscoveryTier from
+  // @post-anki/shared). Nullable, no default: a pre-migration source simply
+  // has no tier. Plain text, not a pg enum, matching this file's convention.
+  discoveryTier: text("discovery_tier"),
   approvalStatus: text("approval_status").notNull().default("approved"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   // content-library (module 5) — nullable, additive: a source that predates
@@ -392,23 +397,31 @@ export const sources = pgTable("sources", {
   embedding: jsonb("embedding").$type<number[]>(),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
+  // Same provenance marker as `modules.mergedFromCurriculumId`/
+  // `topics.mergedFromCurriculumId` below — see that comment. Guards
+  // `deleteAllCurriculumSources` (the "Retry research" recovery path) the
+  // same way `clearCurriculumStructure` is already guarded for modules/
+  // topics: a source row merged in from an absorbed curriculum survives.
+  mergedFromCurriculumId: text("merged_from_curriculum_id"),
 });
 
-// `mergedFromCurriculumId` (on modules AND topics) is the provenance marker
-// docs/architecture/curriculum-merge/review.md's "Proposed alternative" #1
-// asks for: NULL means "this row traces back to its curriculum's own
-// research/parse history", non-NULL names the curriculum a `mergeCurricula`
-// reassignment moved it in from. `clearCurriculumStructure` — the recovery
-// clear behind "Retry research"/"Reparse" — deletes only NULL-marked rows,
-// so a curriculum that failed after absorbing another one's content no
-// longer destroys that content on recovery. Deliberately NOT the
-// `ontology_merges` audit log: that stores per-merge counts, not row
-// identity, so it cannot answer "was THIS row merged in".
+// `mergedFromCurriculumId` (on modules, topics, AND sources) is the
+// provenance marker docs/architecture/curriculum-merge/review.md's
+// "Proposed alternative" #1 asks for: NULL means "this row traces back to
+// its curriculum's own research/parse history", non-NULL names the
+// curriculum a `mergeCurricula` reassignment moved it in from.
+// `clearCurriculumStructure` — the recovery clear behind "Retry
+// research"/"Reparse" — deletes only NULL-marked rows, so a curriculum
+// that failed after absorbing another one's content no longer destroys
+// that content on recovery. Deliberately NOT the `ontology_merges` audit
+// log: that stores per-merge counts, not row identity, so it cannot answer
+// "was THIS row merged in".
 //
-// It lives on both tables rather than modules alone because `updateTopic`
-// reparents a topic across modules (`updateTopicInput.moduleId`), so a
-// merged-in topic can end up under an original module and vice versa —
-// module-derived provenance alone would lose it.
+// It lives on modules and topics separately (rather than modules alone)
+// because `updateTopic` reparents a topic across modules
+// (`updateTopicInput.moduleId`), so a merged-in topic can end up under an
+// original module and vice versa — module-derived provenance alone would
+// lose it.
 export const modules = pgTable("modules", {
   id: text("id").primaryKey(),
   curriculumId: text("curriculum_id").notNull(),
@@ -814,7 +827,12 @@ interface StructureSnapshotJson {
   modules: {
     title: string;
     level: string;
-    topics: { title: string; summary: string | null; suggestedDepth: string }[];
+    topics: {
+      title: string;
+      summary: string | null;
+      suggestedDepth: string;
+      sourceUrl: string | null;
+    }[];
     tags: string[] | null;
   }[];
   strictOrder: boolean | null;
@@ -894,7 +912,9 @@ export const structureResearchCandidates = pgTable("structure_research_candidate
 // resolves or throws, never per-attempt (per-attempt detail already exists
 // via `onFailedAttempt`'s pino log). `curriculumId` is nullable since not
 // every future LLM call this table might record is curriculum-scoped, even
-// though today's three call sites always pass one.
+// though today's three call sites always pass one. The three token columns
+// are nullable because a failed call (no model response) has no usage data
+// to report.
 export const llmCallEvents = pgTable("llm_call_events", {
   id: text("id").primaryKey(),
   curriculumId: text("curriculum_id"),
@@ -903,6 +923,9 @@ export const llmCallEvents = pgTable("llm_call_events", {
   durationMs: integer("duration_ms").notNull(),
   success: boolean("success").notNull(),
   errorMessage: text("error_message"),
+  promptTokens: integer("prompt_tokens"),
+  completionTokens: integer("completion_tokens"),
+  totalTokens: integer("total_tokens"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

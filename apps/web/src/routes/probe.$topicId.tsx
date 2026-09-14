@@ -118,7 +118,7 @@ function ProbeRoom() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1">
           {mode === 'socratic' ? (
-            <SocraticChat key={topic.id} topicId={topic.id} />
+            <SocraticChat key={topic.id} topicId={topic.id} curriculumId={curriculumId} />
           ) : (
             <ProbeSessionQuiz
               key={topic.id}

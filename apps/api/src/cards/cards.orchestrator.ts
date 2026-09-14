@@ -1,6 +1,7 @@
 import type { Gap } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import {
@@ -9,7 +10,12 @@ import {
 } from "../curriculum/curriculum.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { cardsPlanSchema } from "./cards-plan.schema.js";
-import { replaceCardsContent, setCardsStatus } from "./cards.repo.js";
+import {
+  hasCardsGeneratedOrInProgress,
+  replaceCardsContent,
+  setCardsStatus,
+  startGeneratingCards,
+} from "./cards.repo.js";
 
 async function resolveCurriculumContext(topicId: string): Promise<string | undefined> {
   const ctx = await getCurriculumContextForTopic(topicId);
@@ -46,6 +52,19 @@ export function buildCardsPrompt(
     .join("\n");
 }
 
+// Unlike the explicit "Generate cards" button, a background trigger must
+// never queue a duplicate generation on top of one already ready or in flight.
+export async function maybeStartCardsInBackground(topicId: string): Promise<void> {
+  if (await hasCardsGeneratedOrInProgress(topicId)) {
+    return;
+  }
+
+  await startGeneratingCards(topicId);
+  void compileCards(topicId).catch((err) =>
+    log.error({ err, topicId }, "cards_compile_dispatch_failed"),
+  );
+}
+
 export async function compileCards(topicId: string): Promise<void> {
   try {
     const topic = await getTopicRow(topicId);
@@ -63,12 +82,18 @@ export async function compileCards(topicId: string): Promise<void> {
     const prompt = buildCardsPrompt(topic, gaps, curriculumContext);
 
     const agent = getMastra().getAgent(AGENT_KEYS.cardsCompiler);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: cardsPlanSchema },
-      requestContext: curriculumCtx
-        ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
-        : undefined,
-    });
+    const result = await generateWithRetry(
+      "cards_compile",
+      curriculumCtx?.curriculumId ?? null,
+      AGENT_KEYS.cardsCompiler,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: cardsPlanSchema },
+          requestContext: curriculumCtx
+            ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+            : undefined,
+        }),
+    );
 
     if (!result.object) {
       throw new Error("cards compiler returned no structured plan");

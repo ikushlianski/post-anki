@@ -328,6 +328,10 @@ export function buildStructureGuidedRegenPrompt(
     "",
     "Produce a REVISED full structure that directly addresses the guidance above. Keep what still makes sense as-is; change only what the guidance asks for.",
     "",
+    "Granularity: each topic must represent one coherent concept a learner would study as a unit — never split finer than that. When source material spans many small pages (e.g. a crawled docs site), group pages that cover the same concept into a single topic instead of creating one topic per page.",
+    "",
+    "Provenance: the approved source material above marks each crawled page with a line like \"# <title> (SOURCE_URL: <url>)\". When a topic's content comes chiefly from one such page, set that topic's sourceUrl to the EXACT url from that marker. Set sourceUrl to null when the topic draws on pasted text with no such marker, spans several pages, or comes from your own trained knowledge.",
+    "",
     ...existingTagsBlock(existingTags),
   ].join("\n");
 }

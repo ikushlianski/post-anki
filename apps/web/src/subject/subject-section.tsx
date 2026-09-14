@@ -3,28 +3,83 @@ import { Link, useRouter } from '@tanstack/react-router'
 import {
   DndContext,
   PointerSensor,
+  useDndContext,
+  useDraggable,
+  useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { CircleAlert, GripVertical } from 'lucide-react'
 
 import type { ModelTier } from '@post-anki/shared'
-import { buildCategoryPickerOptions } from '@post-anki/core'
+import { buildCategoryPickerOptions, wouldCreateCategoryCycle } from '@post-anki/core'
 import type { Curriculum, CurriculumStatus, Subject, SubjectCategory } from '../curriculum/model'
 import {
   deleteCurriculum,
   mergeCurricula,
+  moveCategory,
   moveCurriculum,
+  renameCategory,
   reorderCurricula,
 } from '../curriculum/curriculum.api'
 import { deleteSubject } from './subject.api'
-import { ConfirmDelete } from '../curriculum/shape-controls'
+import { ConfirmDelete, RenameButton } from '../curriculum/shape-controls'
 import { useHydrated } from '../shared/use-hydrated'
 import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
 import { CreateMaterialForm } from './create-material-form'
+
+type PendingMove =
+  | { kind: 'category'; sourceId: string; sourceName: string; targetId: string }
+  | {
+      kind: 'curriculum'
+      curriculumId: string
+      curriculumName: string
+      subjectId: string
+      targetId: string
+    }
+
+export function resolvePendingMove(
+  active: { id: string; type: unknown },
+  over: { id: string; type: unknown },
+  categories: SubjectCategory[],
+  curricula: Curriculum[],
+): PendingMove | null {
+  if (active.type === 'category' && over.type === 'category' && active.id !== over.id) {
+    if (wouldCreateCategoryCycle(active.id, over.id, categories)) {
+      return null
+    }
+
+    const source = categories.find((category) => category.id === active.id)
+    const target = categories.find((category) => category.id === over.id)
+
+    if (!source || !target) {
+      return null
+    }
+
+    return { kind: 'category', sourceId: source.id, sourceName: source.name, targetId: target.id }
+  }
+
+  if (active.type === 'curriculum' && over.type === 'category') {
+    const curriculum = curricula.find((c) => c.id === active.id)
+
+    if (!curriculum) {
+      return null
+    }
+
+    return {
+      kind: 'curriculum',
+      curriculumId: curriculum.id,
+      curriculumName: curriculum.name,
+      subjectId: curriculum.subjectId,
+      targetId: over.id,
+    }
+  }
+
+  return null
+}
 
 // Mirrors the dashboard's subject-count treatment
 // (apps/web/src/routes/index.tsx) — "No curricula yet" for zero, otherwise
@@ -57,6 +112,9 @@ export function SubjectSection({
   const rootCategories = categories.filter((category) => category.parentId === null)
   const [localOrder, setLocalOrder] = useState<string[]>(uncategorized.map((c) => c.id))
   const [reorderError, setReorderError] = useState<string | null>(null)
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
+  const [moveBusy, setMoveBusy] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -67,7 +125,28 @@ export function SubjectSection({
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
 
-    if (!over || active.id === over.id) {
+    if (!over) {
+      return
+    }
+
+    const pending = resolvePendingMove(
+      { id: String(active.id), type: active.data.current?.type },
+      { id: String(over.id), type: over.data.current?.type },
+      categories,
+      curricula,
+    )
+
+    if (pending) {
+      setMoveError(null)
+      setPendingMove(pending)
+
+      return
+    }
+
+    const activeType = active.data.current?.type
+    const overType = over.data.current?.type
+
+    if (activeType !== 'curriculum' || overType !== 'curriculum' || active.id === over.id) {
       return
     }
 
@@ -90,6 +169,43 @@ export function SubjectSection({
     }
   }
 
+  async function confirmMove() {
+    if (!pendingMove) {
+      return
+    }
+
+    setMoveBusy(true)
+    setMoveError(null)
+
+    try {
+      if (pendingMove.kind === 'category') {
+        await moveCategory({
+          data: { categoryId: pendingMove.sourceId, parentId: pendingMove.targetId },
+        })
+      } else {
+        await moveCurriculum({
+          data: {
+            curriculumId: pendingMove.curriculumId,
+            targetSubjectId: pendingMove.subjectId,
+            categoryId: pendingMove.targetId,
+          },
+        })
+      }
+
+      setPendingMove(null)
+      await router.invalidate()
+    } catch (error) {
+      setMoveError(error instanceof Error ? error.message : 'Move failed')
+    } finally {
+      setMoveBusy(false)
+    }
+  }
+
+  function cancelMove() {
+    setPendingMove(null)
+    setMoveError(null)
+  }
+
   return (
     <section data-testid="subject-card" data-subject-id={subject.id}>
       {subject.kind === 'language-practice' ? (
@@ -103,30 +219,26 @@ export function SubjectSection({
         </Link>
       ) : (
         <>
-          {rootCategories.length > 0 ? (
-            <ul className="mb-3 space-y-2" data-testid="subject-categories">
-              {rootCategories.map((category) => (
-                <li key={category.id}>
-                  <Link
-                    to="/subject/$subjectId/category/$categoryId"
-                    params={{ subjectId: subject.id, categoryId: category.id }}
-                    data-testid={`category-link-${category.id}`}
-                    className="flex items-center justify-between card-compact hover:border-neutral-400"
-                  >
-                    <span className="text-sm font-medium">📁 {category.name}</span>
-                    <span className="text-sm text-neutral-400">
-                      {formatItemCount(
-                        curricula.filter((c) => c.categoryId === category.id).length +
-                          categories.filter((c) => c.parentId === category.id).length,
-                      )}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            {rootCategories.length > 0 ? (
+              <ul className="mb-3 space-y-2" data-testid="subject-categories">
+                {rootCategories.map((category) => (
+                  <CategoryCard
+                    key={category.id}
+                    category={category}
+                    subject={subject}
+                    categories={categories}
+                    curricula={curricula}
+                    pendingMove={pendingMove?.targetId === category.id ? pendingMove : null}
+                    moveBusy={moveBusy}
+                    moveError={moveError}
+                    onConfirm={confirmMove}
+                    onCancel={cancelMove}
+                  />
+                ))}
+              </ul>
+            ) : null}
+
             <ul className="mb-3 space-y-2">
               {uncategorized.length === 0 && rootCategories.length === 0 ? (
                 <li className="text-sm text-neutral-400">No curricula yet.</li>
@@ -197,6 +309,145 @@ function OriginBadge() {
   )
 }
 
+function CategoryCard({
+  category,
+  subject,
+  categories,
+  curricula,
+  pendingMove,
+  moveBusy,
+  moveError,
+  onConfirm,
+  onCancel,
+}: {
+  category: SubjectCategory
+  subject: Subject
+  categories: SubjectCategory[]
+  curricula: Curriculum[]
+  pendingMove: PendingMove | null
+  moveBusy: boolean
+  moveError: string | null
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const { active } = useDndContext()
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: category.id,
+    data: { type: 'category' },
+  })
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: category.id,
+    data: { type: 'category' },
+  })
+  const router = useRouter()
+  const hydrated = useHydrated()
+  const [renameBusy, setRenameBusy] = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
+
+  async function saveName(next: string): Promise<boolean> {
+    setRenameBusy(true)
+    setRenameError(null)
+
+    try {
+      await renameCategory({ data: { categoryId: category.id, name: next } })
+      await router.invalidate()
+      return true
+    } catch {
+      setRenameError('Rename failed — try again.')
+      return false
+    } finally {
+      setRenameBusy(false)
+    }
+  }
+
+  const setRefs = (node: HTMLElement | null) => {
+    setDragRef(node)
+    setDropRef(node)
+  }
+
+  const cycleBlocked =
+    active?.data.current?.type === 'category' &&
+    wouldCreateCategoryCycle(String(active.id), category.id, categories)
+
+  const itemCount =
+    curricula.filter((c) => c.categoryId === category.id).length +
+    categories.filter((c) => c.parentId === category.id).length
+
+  return (
+    <li
+      ref={setRefs}
+      data-testid={`category-card-${category.id}`}
+      className={`${isOver ? 'ring-2 ring-indigo-400' : ''} ${
+        isDragging || cycleBlocked ? 'opacity-40' : ''
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="shrink-0 text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+          data-testid={`category-drag-handle-${category.id}`}
+          aria-label="Drag to nest"
+        >
+          <GripVertical size={16} />
+        </button>
+        <Link
+          to="/subject/$subjectId/category/$categoryId"
+          params={{ subjectId: subject.id, categoryId: category.id }}
+          data-testid={`category-link-${category.id}`}
+          className="flex flex-1 items-center justify-between card-compact hover:border-neutral-400"
+        >
+          <span className="text-sm font-medium">📁 {category.name}</span>
+          <span className="text-sm text-neutral-400">{formatItemCount(itemCount)}</span>
+        </Link>
+        <RenameButton
+          value={category.name}
+          busy={renameBusy}
+          hydrated={hydrated}
+          onSave={saveName}
+          error={renameError}
+          testId={`category-rename-${category.id}`}
+        />
+      </div>
+      {pendingMove ? (
+        <span
+          data-testid={`category-move-confirm-bar-${category.id}`}
+          className="mt-2 flex items-center gap-2 text-xs"
+        >
+          <span className="text-neutral-600">
+            {pendingMove.kind === 'category'
+              ? `Nest under ${category.name}?`
+              : `File under ${category.name}?`}
+          </span>
+          <button
+            type="button"
+            disabled={moveBusy}
+            data-testid={`category-move-confirm-${category.id}`}
+            onClick={onConfirm}
+            className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
+          >
+            confirm
+          </button>
+          <button
+            type="button"
+            data-testid={`category-move-cancel-${category.id}`}
+            onClick={onCancel}
+            className="text-neutral-400 hover:text-neutral-700"
+          >
+            cancel
+          </button>
+          {moveError ? (
+            <span data-testid={`category-move-error-${category.id}`} className="text-red-600">
+              {moveError}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+    </li>
+  )
+}
+
 function SortableCurriculumItem({
   curriculum,
   allCurricula,
@@ -210,6 +461,7 @@ function SortableCurriculumItem({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: curriculum.id,
+    data: { type: 'curriculum' },
   })
 
   const style = {
@@ -218,7 +470,12 @@ function SortableCurriculumItem({
   }
 
   return (
-    <li ref={setNodeRef} style={style} className="flex items-center gap-2">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2"
+      data-testid={`curriculum-item-${curriculum.id}`}
+    >
       <button
         type="button"
         className="shrink-0 text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing"
@@ -537,6 +794,12 @@ const STATUS_BADGE: Record<CurriculumStatus, { label: string; className: string 
     failed: { label: 'parse failed', className: 'bg-red-100 text-red-700' },
   }
 
+const NEEDS_DECISION: ReadonlySet<CurriculumStatus> = new Set([
+  'awaiting_source_approval',
+  'failed',
+  'ready',
+])
+
 function StatusBadge({ status }: { status: CurriculumStatus }) {
   const badge = STATUS_BADGE[status]
 
@@ -544,6 +807,14 @@ function StatusBadge({ status }: { status: CurriculumStatus }) {
     <span
       className={`shrink-0 whitespace-nowrap badge ${badge.className}`}
     >
+      {NEEDS_DECISION.has(status) ? (
+        <CircleAlert
+          size={14}
+          aria-hidden="true"
+          data-testid="needs-decision-icon"
+          className="mr-1 inline align-[-2px]"
+        />
+      ) : null}
       {badge.label}
     </span>
   )

@@ -14,7 +14,7 @@ services:
       POSTGRES_PASSWORD: postanki
       POSTGRES_DB: postanki_e2e
     ports:
-      - '5436:5432'
+      - '5578:5432'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postanki -d postanki_e2e']
       interval: 2s
@@ -33,7 +33,7 @@ services:
       DATABASE_URL: postgres://postanki:postanki@postgres:5432/postanki_e2e
       ELECTRIC_INSECURE: 'true'
     ports:
-      - '${E2E_ELECTRIC_PORT:-3011}:3000'
+      - '${E2E_ELECTRIC_PORT:-5574}:3000'
     depends_on:
       postgres:
         condition: service_healthy

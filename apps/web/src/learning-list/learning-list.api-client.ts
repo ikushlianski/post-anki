@@ -2,6 +2,7 @@ import type {
   CaptureLearningListItemInput,
   ChosenLearningListDestination,
   DepthLevel,
+  GoDeeperRefetchResult,
   LearningListItem,
   LearningStatus,
   LivenessStatus,
@@ -145,15 +146,18 @@ export async function electTopicDepth(input: {
   depth: DepthLevel
   learningStatus: LearningStatus
   depthElectedAt?: string
-}): Promise<ApiResult<null>> {
-  return requestDiscardingBody(`/topics/${input.topicId}`, {
-    method: 'PATCH',
-    body: {
-      depth: input.depth,
-      learningStatus: input.learningStatus,
-      depthElectedAt: input.depthElectedAt,
+}): Promise<ApiResult<{ goDeeperRefetch?: GoDeeperRefetchResult }>> {
+  return request<{ goDeeperRefetch?: GoDeeperRefetchResult }>(
+    `/topics/${input.topicId}`,
+    {
+      method: 'PATCH',
+      body: {
+        depth: input.depth,
+        learningStatus: input.learningStatus,
+        depthElectedAt: input.depthElectedAt,
+      },
     },
-  })
+  )
 }
 
 export async function declineHeadroomOffer(input: {

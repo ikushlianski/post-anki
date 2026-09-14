@@ -24,7 +24,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Post Anki uses your microphone to record a voice note for practice answers."
+        }
+      ]
     ]
   }
 }

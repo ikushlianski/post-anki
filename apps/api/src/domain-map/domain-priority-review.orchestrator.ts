@@ -2,6 +2,7 @@ import type { DepthLevel, DomainNodeTreeItem, DomainPrioritySuggestion } from "@
 import { domainPriorityReviewAgentResultSchema } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { AGENT_KEYS, getMastra } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { getDomainMapForSubject, insertPrioritySuggestion } from "./domain-map.repo.js";
 import { resolveNodePathByName, type NamedNode } from "./domain-node-name-resolver.js";
 
@@ -65,10 +66,16 @@ export async function triggerDomainPriorityReview(
   const prompt = buildPrompt(flatNodes);
 
   const agent = getMastra().getAgent(AGENT_KEYS.domainPriorityReview);
-  const result = await agent.generate(prompt, {
-    structuredOutput: { schema: domainPriorityReviewAgentResultSchema },
-    requestContext: new RequestContext([["subjectId", subjectId]]),
-  });
+  const result = await generateWithRetry(
+    "domain_priority_review",
+    null,
+    AGENT_KEYS.domainPriorityReview,
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: domainPriorityReviewAgentResultSchema },
+        requestContext: new RequestContext([["subjectId", subjectId]]),
+      }),
+  );
 
   if (!result.object) {
     throw new Error("domain-priority-review agent returned no structured output");

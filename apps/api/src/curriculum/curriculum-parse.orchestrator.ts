@@ -1,6 +1,7 @@
 import type { SourceDraft } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { curriculumPlanSchema, curriculumMergePlanSchema } from "./curriculum-plan.js";
 import { gatherSourceCandidates } from "./source-candidates.js";
@@ -66,10 +67,16 @@ export async function parseCurriculum(curriculumId: string): Promise<void> {
     const agent = getMastra().getAgent(AGENT_KEYS.curriculumArchitect);
     const prompt = buildParsePrompt(ctx, sourceText, existingTags);
 
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: curriculumPlanSchema },
-      requestContext: new RequestContext([["curriculumId", curriculumId]]),
-    });
+    const result = await generateWithRetry(
+      "curriculum_parse",
+      curriculumId,
+      AGENT_KEYS.curriculumArchitect,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: curriculumPlanSchema },
+          requestContext: new RequestContext([["curriculumId", curriculumId]]),
+        }),
+    );
 
     if (!result.object) {
       throw new Error("architect returned no structured plan");
@@ -147,6 +154,7 @@ export async function researchCurriculum(
         url: c.url,
         title: c.title,
         fetchedText: c.fetchedText,
+        discoveryTier: c.discoveryTier,
       })),
     );
 
@@ -190,7 +198,11 @@ export async function retryResearch(curriculumId: string): Promise<void> {
     const resolved = resolveRetryResearchSource(
       priorSourceRows
         .filter((row) => row.kind === "web_research" || row.kind === "llms_txt")
-        .map((row) => ({ kind: row.kind, value: row.value })),
+        .map((row) => ({
+          kind: row.kind,
+          value: row.value,
+          mergedFromCurriculumId: row.mergedFromCurriculumId,
+        })),
       curriculum.name,
     );
 
@@ -238,10 +250,16 @@ export async function mergeSourcesIntoCurriculum(
       existingTags,
     );
 
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: curriculumMergePlanSchema },
-      requestContext: new RequestContext([["curriculumId", curriculumId]]),
-    });
+    const result = await generateWithRetry(
+      "curriculum_merge",
+      curriculumId,
+      AGENT_KEYS.curriculumArchitect,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: curriculumMergePlanSchema },
+          requestContext: new RequestContext([["curriculumId", curriculumId]]),
+        }),
+    );
 
     const fresh = result.object
       ? filterOutLockedModules(

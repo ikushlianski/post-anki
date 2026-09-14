@@ -17,22 +17,26 @@ function snapshot(): StructureSnapshot {
         title: "Introduction",
         level: "basic",
         tags: [],
-        topics: [{ title: "Overview", summary: null, suggestedDepth: "working" }],
+        topics: [
+          { title: "Overview", summary: null, suggestedDepth: "working", sourceUrl: null },
+        ],
       },
       {
         title: "Security",
         level: "medium",
         tags: ["security"],
         topics: [
-          { title: "Encryption", summary: null, suggestedDepth: "working" },
-          { title: "Auth", summary: null, suggestedDepth: "deep" },
+          { title: "Encryption", summary: null, suggestedDepth: "working", sourceUrl: null },
+          { title: "Auth", summary: null, suggestedDepth: "deep", sourceUrl: null },
         ],
       },
       {
         title: "Advanced Topics",
         level: "advanced",
         tags: [],
-        topics: [{ title: "Internals", summary: null, suggestedDepth: "deep" }],
+        topics: [
+          { title: "Internals", summary: null, suggestedDepth: "deep", sourceUrl: null },
+        ],
       },
     ],
   };

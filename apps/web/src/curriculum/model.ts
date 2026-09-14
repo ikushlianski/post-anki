@@ -106,6 +106,10 @@ export const sourceApprovalStatusSchema = z.enum(['pending', 'approved'])
 
 export type SourceApprovalStatus = z.infer<typeof sourceApprovalStatusSchema>
 
+export const sourceDiscoveryTierSchema = z.enum(['llms_txt', 'docs_crawl', 'trusted_search'])
+
+export type SourceDiscoveryTier = z.infer<typeof sourceDiscoveryTierSchema>
+
 export const sourceSchema = z.object({
   id: z.string(),
   curriculumId: z.string(),
@@ -113,6 +117,7 @@ export const sourceSchema = z.object({
   value: z.string().min(1),
   title: z.string().optional(),
   approvalStatus: sourceApprovalStatusSchema,
+  discoveryTier: sourceDiscoveryTierSchema.nullable(),
 })
 
 export type Source = z.infer<typeof sourceSchema>
@@ -209,6 +214,12 @@ export const gapSchema = z.object({
 })
 
 export type Gap = z.infer<typeof gapSchema>
+
+export interface GapDueForResurface {
+  gap: Gap
+  tool: string
+  queue: 'deferred' | 'dismissed-checkin'
+}
 
 export const declareGapInput = z.object({
   topicId: z.string(),
@@ -384,6 +395,13 @@ export const moveCurriculumInput = z.object({
 })
 
 export type MoveCurriculumInput = z.infer<typeof moveCurriculumInput>
+
+export const renameCurriculumInput = z.object({
+  curriculumId: z.string(),
+  name: z.string().trim().min(1),
+})
+
+export type RenameCurriculumInput = z.infer<typeof renameCurriculumInput>
 
 const docUrlSchema = z
   .string()

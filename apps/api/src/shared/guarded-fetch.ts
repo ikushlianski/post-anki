@@ -116,10 +116,13 @@ export async function guardedFetchText(
 let cachedExemptRaw: string | undefined;
 let cachedExemptOrigins = new Set<string>();
 
+// The e2e stage never sets NODE_ENV=production (the Dockerfile/Cloud Run
+// deploy do) — the one signal available to keep a leaked allowlist closed.
 function exemptOrigins(): Set<string> {
-  const raw = loadEnv().E2E_SOURCE_FETCH_ALLOWED_ORIGINS;
+  const env = loadEnv();
+  const raw = env.E2E_SOURCE_FETCH_ALLOWED_ORIGINS;
 
-  if (!raw) {
+  if (!raw || env.NODE_ENV === "production") {
     return new Set();
   }
 

@@ -61,7 +61,7 @@ describe('TopicDepthGate — depth election', () => {
   })
 
   it('should stamp a fresh depthElectedAt on the first election', async () => {
-    mockedElectTopicDepth.mockResolvedValue({ ok: true, data: null })
+    mockedElectTopicDepth.mockResolvedValue({ ok: true, data: {} })
     renderGate({ depthElectedAt: null })
 
     fireEvent.click(screen.getByTestId('depth-choice-basics'))
@@ -76,7 +76,7 @@ describe('TopicDepthGate — depth election', () => {
   })
 
   it('should keep the original depthElectedAt when going deeper later', async () => {
-    mockedElectTopicDepth.mockResolvedValue({ ok: true, data: null })
+    mockedElectTopicDepth.mockResolvedValue({ ok: true, data: {} })
     renderGate({ depthElectedAt: '2026-08-01T10:00:00.000Z' })
 
     fireEvent.click(screen.getByTestId('headroom-accept'))
@@ -103,6 +103,54 @@ describe('TopicDepthGate — depth election', () => {
 
     await screen.findByTestId('depth-election-error')
     expect(onChanged).not.toHaveBeenCalled()
+  })
+
+  it('should surface a non-blocking notice when going deeper could not refresh the source', async () => {
+    mockedElectTopicDepth.mockResolvedValue({
+      ok: true,
+      data: { goDeeperRefetch: { outcome: 'http_error' } },
+    })
+    const { onChanged } = renderGate({
+      depthElectedAt: '2026-08-01T10:00:00.000Z',
+      headroomOfferedAt: '2026-06-01T10:00:00.000Z',
+    })
+
+    fireEvent.click(screen.getByTestId('headroom-accept'))
+
+    await screen.findByTestId('go-deeper-stale-source-notice')
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('should stay silent when going deeper refreshed the source successfully', async () => {
+    mockedElectTopicDepth.mockResolvedValue({
+      ok: true,
+      data: { goDeeperRefetch: { outcome: 'ok' } },
+    })
+    renderGate({
+      depthElectedAt: '2026-08-01T10:00:00.000Z',
+      headroomOfferedAt: '2026-06-01T10:00:00.000Z',
+    })
+
+    fireEvent.click(screen.getByTestId('headroom-accept'))
+
+    await waitFor(() => expect(mockedElectTopicDepth).toHaveBeenCalled())
+    expect(screen.queryByTestId('go-deeper-stale-source-notice')).toBeNull()
+  })
+
+  it('should stay silent when the topic had no re-fetchable source to refresh', async () => {
+    mockedElectTopicDepth.mockResolvedValue({
+      ok: true,
+      data: { goDeeperRefetch: { outcome: 'not_refetchable' } },
+    })
+    renderGate({
+      depthElectedAt: '2026-08-01T10:00:00.000Z',
+      headroomOfferedAt: '2026-06-01T10:00:00.000Z',
+    })
+
+    fireEvent.click(screen.getByTestId('headroom-accept'))
+
+    await waitFor(() => expect(mockedElectTopicDepth).toHaveBeenCalled())
+    expect(screen.queryByTestId('go-deeper-stale-source-notice')).toBeNull()
   })
 })
 

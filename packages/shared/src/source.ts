@@ -8,6 +8,10 @@ export const sourceApprovalStatusSchema = z.enum(["pending", "approved"]);
 
 export type SourceApprovalStatus = z.infer<typeof sourceApprovalStatusSchema>;
 
+export const sourceDiscoveryTierSchema = z.enum(["llms_txt", "docs_crawl", "trusted_search"]);
+
+export type SourceDiscoveryTier = z.infer<typeof sourceDiscoveryTierSchema>;
+
 export const sourceSchema = z.object({
   id: z.string(),
   curriculumId: z.string(),
@@ -15,6 +19,7 @@ export const sourceSchema = z.object({
   value: z.string().min(1),
   title: z.string().optional(),
   approvalStatus: sourceApprovalStatusSchema,
+  discoveryTier: sourceDiscoveryTierSchema.nullable(),
 });
 
 export type Source = z.infer<typeof sourceSchema>;

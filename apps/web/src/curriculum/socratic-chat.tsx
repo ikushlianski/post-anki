@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { answerSocraticSession, startSocraticSession } from './socratic.api'
@@ -13,7 +13,13 @@ interface ChatMessage {
   turnId?: string
 }
 
-export function SocraticChat({ topicId }: { topicId: string }) {
+export function SocraticChat({
+  topicId,
+  curriculumId,
+}: {
+  topicId: string
+  curriculumId: string
+}) {
   const router = useRouter()
   const { data: startResult, isLoading } = useQuery({
     queryKey: ['socratic-session', topicId],
@@ -124,6 +130,16 @@ export function SocraticChat({ topicId }: { topicId: string }) {
           Take this course’s calibration quiz first — it sets your starting depth for each topic
           before the mentor dialogue opens.
         </p>
+        {curriculumId ? (
+          <Link
+            to="/curriculum/$curriculumId/assess"
+            params={{ curriculumId }}
+            className="mt-2 inline-block text-sm font-medium text-amber-900 underline"
+            data-testid="socratic-calibration-required-link"
+          >
+            Take the calibration quiz
+          </Link>
+        ) : null}
       </div>
     )
   }

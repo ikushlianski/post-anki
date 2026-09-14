@@ -1,4 +1,5 @@
 import { isSafeSourceUrl } from "@post-anki/core";
+import type { SourceDiscoveryTier } from "@post-anki/shared";
 import { loadEnv, type Env } from "../shared/env.js";
 import { log } from "../shared/log.js";
 import {
@@ -151,7 +152,8 @@ function collectCitations(annotations?: Annotation[]): string[] {
 
   return annotations
     .map((a) => a.url_citation?.url)
-    .filter((u): u is string => Boolean(u));
+    .filter((u): u is string => Boolean(u))
+    .filter(isSafeCitationUrl);
 }
 
 function truncate(text: string): string {
@@ -231,7 +233,7 @@ export async function resolveOfficialDocsUrl(
 export interface TrustedSourceCandidate {
   url: string;
   title: string;
-  discoveryTier: "trusted_search";
+  discoveryTier: SourceDiscoveryTier;
 }
 
 /**

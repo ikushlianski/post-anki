@@ -7,6 +7,7 @@ import {
   isSafeSourceUrl,
 } from "@post-anki/core";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
@@ -125,12 +126,18 @@ export async function generateStudyMaterial(
     const curriculumCtx = await getCurriculumContextForTopic(topicId);
 
     const agent = getMastra().getAgent(AGENT_KEYS.studyMaterialWriter);
-    const result = await agent.generate(prompt, {
-      structuredOutput: { schema: studyMaterialPlanSchema },
-      requestContext: curriculumCtx
-        ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
-        : undefined,
-    });
+    const result = await generateWithRetry(
+      "study_material_generate",
+      curriculumCtx?.curriculumId ?? null,
+      AGENT_KEYS.studyMaterialWriter,
+      () =>
+        agent.generate(prompt, {
+          structuredOutput: { schema: studyMaterialPlanSchema },
+          requestContext: curriculumCtx
+            ? new RequestContext([["curriculumId", curriculumCtx.curriculumId]])
+            : undefined,
+        }),
+    );
 
     if (!result.object) {
       throw new Error("study material writer returned no structured plan");

@@ -2,7 +2,7 @@
 
 Reusable browser-driven actions, seeds, and mocks for **this repo's own dev-loop
 debugging** — running against whatever you already have up from `npm run dev`
-(web on :3002, api on :8030). This is deliberately not e2e/ (the Docker-backed,
+(web on :3002, api on :5560). This is deliberately not e2e/ (the Docker-backed,
 dedicated-port Playwright stack this repo's own package.json wires up via
 `npm run dev:pw`) and it is not verification-repo (the cross-project,
 CI-gated Playwright framework with ticket tags, artifact retention, and a
@@ -77,8 +77,8 @@ e2e-local/
 - **No `@TICKET` tags, no `tests/README.md`, no `captureProof`.** There's no
   ticket and no report to write intent into.
 - **Ports:** e2e-local always targets `npm run dev`'s ports (web :3002, api
-  :8030 — see `lib/env.ts`), not `e2e/`'s dedicated Docker-backed ports
-  (:3120 / :8031). If you need the isolated e2e Docker stack, use
+  :5560 — see `lib/env.ts`), not `e2e/`'s dedicated Docker-backed ports
+  (:5550 / :5570). If you need the isolated e2e Docker stack, use
   `npm run dev:pw` and verification-repo instead.
 
 ## Running an action

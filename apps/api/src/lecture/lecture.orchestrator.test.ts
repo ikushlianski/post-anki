@@ -13,6 +13,7 @@ const getTopicRow = vi.fn();
 
 vi.mock("../topic/topic-progress.repo.js", () => ({
   getTopicRow: (id: string) => getTopicRow(id),
+  rowDepth: (row: { depth: string }) => row.depth,
 }));
 
 const getCurriculumContextForTopic = vi.fn();
@@ -80,9 +81,9 @@ vi.mock("../shared/log.js", () => ({
 
 const { gatherLectureSources, compileLecture } = await import("./lecture.orchestrator.js");
 
-const TOPIC = { id: "t1", title: "TCP handshake" };
+const TOPIC = { id: "t1", title: "TCP handshake", depth: "working" };
 const CURRICULUM_CTX = { curriculumId: "c1", status: "confirmed", speed: "normal", hinting: false };
-const PROMPT_CTX = { curriculumName: "Networking", subjectName: "CS" };
+const PROMPT_CTX = { curriculumName: "Networking", subjectName: "CS", defaultDepth: "working" };
 
 describe("gatherLectureSources", () => {
   beforeEach(() => {
@@ -183,6 +184,9 @@ describe("compileLecture", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resolveCourseGroundingSources.mockResolvedValue(null);
+    getTopicRow.mockResolvedValue(TOPIC);
+    getCurriculumContextForTopic.mockResolvedValue(CURRICULUM_CTX);
+    getCurriculumPromptContext.mockResolvedValue(PROMPT_CTX);
   });
 
   it("refuses instead of fabricating when every approved source has zero usable grounding text", async () => {
@@ -230,6 +234,45 @@ describe("compileLecture", () => {
       title: "TCP handshake",
     }));
     expect(setLectureStatus).not.toHaveBeenCalled();
+  });
+
+  it("targets the topic's own elected depth in the compile prompt, not curriculum default", async () => {
+    getTopicRow.mockResolvedValue({ ...TOPIC, depth: "deep" });
+    listApprovedCandidatesForCompile.mockResolvedValue([
+      { id: "cand1", title: "Real source", url: "https://example.com/real", fetchedText: "x".repeat(250) },
+    ]);
+    generate.mockResolvedValue({
+      object: {
+        title: "TCP handshake",
+        sections: [{ heading: "Overview", body: "..." }],
+        citations: [{ title: "Real source", url: "https://example.com/real" }],
+      },
+    });
+
+    await compileLecture(TOPIC.id);
+
+    const [prompt] = generate.mock.calls[0]!;
+    expect(prompt).toContain("Target depth: deep");
+  });
+
+  it("falls back to the curriculum's default depth when the topic itself has none elected", async () => {
+    getTopicRow.mockResolvedValue(null);
+    getCurriculumPromptContext.mockResolvedValue({ ...PROMPT_CTX, defaultDepth: "awareness" });
+    listApprovedCandidatesForCompile.mockResolvedValue([
+      { id: "cand1", title: "Real source", url: "https://example.com/real", fetchedText: "x".repeat(250) },
+    ]);
+    generate.mockResolvedValue({
+      object: {
+        title: "TCP handshake",
+        sections: [{ heading: "Overview", body: "..." }],
+        citations: [{ title: "Real source", url: "https://example.com/real" }],
+      },
+    });
+
+    await compileLecture(TOPIC.id);
+
+    const [prompt] = generate.mock.calls[0]!;
+    expect(prompt).toContain("Target depth: awareness");
   });
 
   it("compiles from the course's own sources without ever consulting approved candidates", async () => {

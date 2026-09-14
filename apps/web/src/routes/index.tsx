@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
 
@@ -17,6 +18,8 @@ import type {
 
 import { getBoard } from '../curriculum/curriculum.api'
 import { getStreak } from '../curriculum/stats.api'
+import { settle, settleNullable } from '../shared/load-result'
+import type { LoadResult } from '../shared/load-result'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
 import type {
   Curriculum,
@@ -24,6 +27,7 @@ import type {
   Subject,
 } from '../curriculum/model'
 import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
+import { SourceApprovalBanner } from '../curriculum/source-approval-banner'
 import { ContinueSessionCard } from '../home/continue-session-card'
 import { selectResumableSession } from '../home/select-resumable-session'
 import { StreakBanner } from '../curriculum/streak-banner'
@@ -41,10 +45,10 @@ export const Route = createFileRoute('/')({
       streak,
     ] = await Promise.all([
       getBoard(),
-      listCourseRefocusSuggestions().catch(() => []),
-      listStudySessions().catch(() => []),
-      listLearningPaths({ data: { onlyActive: true } }).catch(() => []),
-      getStreak().catch(() => null),
+      settle(listCourseRefocusSuggestions()),
+      settle(listStudySessions()),
+      settle(listLearningPaths({ data: { onlyActive: true } })),
+      settleNullable(getStreak()),
     ])
 
     return {
@@ -92,6 +96,14 @@ function Home() {
   )
 }
 
+function LoadError({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="mb-6 text-sm text-red-600">
+      {children}
+    </p>
+  )
+}
+
 function LiveDataBridge({ onData }: { onData: (data: LiveBoardData) => void }) {
   const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
   const curriculaQuery = useLiveQuery((q) => q.from({ curriculum: curriculaCollection }), [])
@@ -132,10 +144,10 @@ function HomeView({
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
-  courseRefocusSuggestions: CourseRefocusSuggestion[]
-  sessions: StudySessionListItem[]
-  learningPaths: LearningPath[]
-  streak: Streak | null
+  courseRefocusSuggestions: LoadResult<CourseRefocusSuggestion[]>
+  sessions: LoadResult<StudySessionListItem[]>
+  learningPaths: LoadResult<LearningPath[]>
+  streak: LoadResult<Streak>
 }) {
   const namesById: Record<string, string> = {}
 
@@ -143,11 +155,15 @@ function HomeView({
     namesById[curriculum.id] = curriculum.name
   }
 
-  for (const path of learningPaths) {
-    namesById[path.id] = path.name
+  if (learningPaths.ok) {
+    for (const path of learningPaths.data) {
+      namesById[path.id] = path.name
+    }
   }
 
-  const resumableSession = selectResumableSession(sessions, new Date())
+  const resumableSession = sessions.ok
+    ? selectResumableSession(sessions.data, new Date())
+    : null
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
@@ -160,9 +176,23 @@ function HomeView({
         </p>
       </header>
 
-      <ContinueSessionCard session={resumableSession} namesById={namesById} />
+      {sessions.ok ? (
+        <ContinueSessionCard session={resumableSession} namesById={namesById} />
+      ) : (
+        <LoadError>Couldn't load your study sessions — try refreshing.</LoadError>
+      )}
 
-      {streak ? <StreakBanner streak={streak} /> : null}
+      {!learningPaths.ok ? (
+        <LoadError>Couldn't load your learning paths — try refreshing.</LoadError>
+      ) : null}
+
+      <SourceApprovalBanner curricula={curricula} />
+
+      {streak.ok ? (
+        <StreakBanner streak={streak.data} />
+      ) : (
+        <LoadError>Couldn't load your streak — try refreshing.</LoadError>
+      )}
 
       <div className="mb-10">
         <CourseRefocusBanner suggestions={courseRefocusSuggestions} />

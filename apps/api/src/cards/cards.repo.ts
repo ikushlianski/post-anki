@@ -69,6 +69,17 @@ export async function getCardsByTopic(topicId: string): Promise<TopicCardSet | n
   return rowToCardSet(row);
 }
 
+export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {
+  const row = (
+    await getDb()
+      .select({ status: topicCardSets.status })
+      .from(topicCardSets)
+      .where(eq(topicCardSets.topicId, topicId))
+  )[0];
+
+  return row !== undefined && (row.status === "ready" || row.status === "generating");
+}
+
 export async function startGeneratingCards(topicId: string): Promise<TopicCardSet> {
   const db = getDb();
 

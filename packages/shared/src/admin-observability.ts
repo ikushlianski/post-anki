@@ -19,6 +19,9 @@ export const llmCallEventSchema = z.object({
   durationMs: z.number(),
   success: z.boolean(),
   errorMessage: z.string().nullable(),
+  promptTokens: z.number().nullable(),
+  completionTokens: z.number().nullable(),
+  totalTokens: z.number().nullable(),
   createdAt: z.string(),
 });
 

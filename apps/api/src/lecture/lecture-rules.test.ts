@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCurriculumSourceCandidates,
+  buildLectureCompilePrompt,
   mergeCandidatesPreferringCurriculum,
   selectValidCandidates,
   partitionRegatherableCandidates,
@@ -9,6 +10,32 @@ import {
   type RegatherableCandidateRow,
   type ReviewableCandidateRow,
 } from "./lecture-rules.js";
+
+describe("buildLectureCompilePrompt", () => {
+  const SOURCES = [{ title: "Source A", url: "https://example.com/a", text: "Some source text." }];
+  const identity = (text: string) => text;
+
+  it("names the deep-target intent for a topic elected as deep", () => {
+    const prompt = buildLectureCompilePrompt(SOURCES, "deep", identity);
+
+    expect(prompt).toContain("Target depth: deep");
+    expect(prompt).toContain("Reason about internals and edge cases");
+  });
+
+  it("names the awareness-target intent for a topic elected as awareness", () => {
+    const prompt = buildLectureCompilePrompt(SOURCES, "awareness", identity);
+
+    expect(prompt).toContain("Target depth: awareness");
+    expect(prompt).toContain("Know the term and what it is for");
+  });
+
+  it("still includes every approved source", () => {
+    const prompt = buildLectureCompilePrompt(SOURCES, "working", identity);
+
+    expect(prompt).toContain("Source A (https://example.com/a)");
+    expect(prompt).toContain("Some source text.");
+  });
+});
 
 describe("selectValidCandidates", () => {
   const CANDIDATE: ExtractedCandidate = {

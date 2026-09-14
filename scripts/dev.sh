@@ -22,7 +22,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "[dev] starting dev Postgres (post-anki-dev-db on :5437)..."
+echo "[dev] starting dev Postgres (post-anki-dev-db on :5562)..."
 docker compose up -d
 
 echo "[dev] waiting for Postgres to be healthy..."
@@ -45,12 +45,12 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' post-anki-dev-electric 2
 done
 
 # apps/web's `dev` script reads WEB_PORT via shell substitution
-# (`vite dev --port ${WEB_PORT:-3000}`), which resolves before vite itself
+# (`vite dev --port ${WEB_PORT:-5540}`), which resolves before vite itself
 # ever loads apps/web/.env.local — so if a developer has localized their
 # ports (e.g. via `devports localize post-anki`), it has to be exported into
 # THIS shell before npm run dev:apps starts, not left for vite to pick up on
 # its own. No file present (the common case) means WEB_PORT stays unset and
-# the script's own `:3000` default applies, unchanged from before.
+# the script's own `:5540` default applies, unchanged from before.
 if [ -f apps/web/.env.local ]; then
   set -a
   # shellcheck disable=SC1091
@@ -58,7 +58,7 @@ if [ -f apps/web/.env.local ]; then
   set +a
 fi
 
-WEB_PORT="${WEB_PORT:-3000}"
+WEB_PORT="${WEB_PORT:-5540}"
 
 # The api process loads apps/api/.env.local itself (Node's own --env-file
 # flag, in apps/api/package.json's dev script) — it is never sourced into
@@ -67,7 +67,32 @@ WEB_PORT="${WEB_PORT:-3000}"
 # Only its PORT line (if any) is worth reading here, purely to report the
 # right number below.
 API_PORT="$(grep -E '^PORT=' apps/api/.env.local 2>/dev/null | tail -1 | cut -d= -f2)"
-API_PORT="${API_PORT:-8030}"
+API_PORT="${API_PORT:-5560}"
+
+# Gate role (devports/SKILL-CONTRACT.md): catch a localized .env.local drifting out of
+# sync with the machine-local port registry — the registry's own copy of these numbers
+# is a duplicate, not the source of truth, and it went stale silently for weeks before
+# `devports check` caught it on 2026-09-12. This never decides a port itself, never
+# fails the build, and is a total no-op on a machine with no registry installed (RC=3).
+DEVPORTS="$HOME/.claude/devports/cli.mjs"
+if [ -f "$DEVPORTS" ]; then
+  for envfile in apps/api/.env.local apps/web/.env.local; do
+    [ -f "$envfile" ] || continue
+    CHECK_JSON="$(node "$DEVPORTS" check post-anki --envfile "$envfile" --json 2>/dev/null)" || true
+    MISMATCH_COUNT="$(printf '%s' "$CHECK_JSON" | node -e '
+      let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{
+        try{const j=JSON.parse(d);console.log((j.mismatches||[]).length);}catch{console.log(0);}
+      });' 2>/dev/null)"
+    if [ "${MISMATCH_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+      echo "[dev] WARNING: $envfile has drifted from devports' registry — run \`devports localize post-anki\` or update registry.toml:"
+      printf '%s' "$CHECK_JSON" | node -e '
+        let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{
+          const j=JSON.parse(d);
+          for (const m of j.mismatches) console.log(`  ${m.env}=${m.actual} (registry expects ${m.expected} for role ${m.role})`);
+        });'
+    fi
+  done
+fi
 
 echo "[dev] launching api (:$API_PORT) + web (:$WEB_PORT) — Ctrl+C stops everything."
 npm run dev:apps &

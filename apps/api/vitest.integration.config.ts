@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 // Dedicated config for *.integration.test.ts files (real Postgres — the e2e
-// docker-compose DB on localhost:5436 — never mocked). Split out from
+// docker-compose DB on localhost:5578 — never mocked). Split out from
 // vitest.config.ts because this project's default config's own `exclude`
 // deliberately keeps these out of the fast `npm run test` sweep, and this
 // vitest version's CLI `--exclude` flag is additive-only (confirmed

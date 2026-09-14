@@ -11,6 +11,7 @@ import type {
 } from '@post-anki/shared'
 import { draftProgressState, estimateStructureStudyTime, isStalePendingTurn } from '@post-anki/core'
 import { confirmStructure, resolveSupplementalResearch, submitStructureTurn } from './curriculum.api'
+import { safeHref } from '../shared/safe-href'
 import { StructureDraftPending } from './curriculum-lifecycle'
 import { structureTurnsQuery } from './curriculum.queries'
 
@@ -403,7 +404,7 @@ export function CurriculumStructureChat({ curriculumId }: { curriculumId: string
                 >
                   <div className="min-w-0">
                     <a
-                      href={candidate.value}
+                      href={safeHref(candidate.value)}
                       target="_blank"
                       rel="noreferrer"
                       className="break-words text-blue-600 underline underline-offset-2"

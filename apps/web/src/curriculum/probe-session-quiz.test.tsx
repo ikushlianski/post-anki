@@ -154,6 +154,7 @@ describe('ProbeSessionQuiz sharing its cache with a sibling observer (curriculum
       coveredGapLabels: [],
       optionExplanations: null,
       gapMastery: null,
+      courseLengthRecommendation: null,
     })
 
     renderHarness()
@@ -175,6 +176,62 @@ describe('ProbeSessionQuiz sharing its cache with a sibling observer (curriculum
     // session returns null (getActiveSessionRow only matches "active" or
     // "replenishing") and would wipe the session both components just saw.
     expect(mockedGetActiveProbeSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a short/long course recommendation once the calibration quiz completes', async () => {
+    mockedGetActiveProbeSession.mockResolvedValue(null)
+    mockedPrepareProbeSession.mockResolvedValue(activeSession())
+    mockedAnswerProbeSession.mockResolvedValue({
+      questionId: 'q1',
+      outcome: 'pass',
+      correctAnswerIndex: 0,
+      correctAnswerIndexes: null,
+      correct: 1,
+      answered: 1,
+      total: 1,
+      status: 'completed',
+      coveredGapLabels: [],
+      optionExplanations: null,
+      gapMastery: null,
+      courseLengthRecommendation: { recommendation: 'short', alreadyKnownRatio: 0.8 },
+    })
+
+    renderHarness()
+
+    fireEvent.click(await screen.findByTestId('generate-quiz'))
+    fireEvent.click(await screen.findByTestId('quiz-option-0'))
+    fireEvent.click(await screen.findByTestId('quiz-next'))
+
+    const notice = await screen.findByTestId('course-length-recommendation')
+    expect(notice.textContent).toContain('already know most of this')
+  })
+
+  it('shows no course recommendation when the completing answer carries none', async () => {
+    mockedGetActiveProbeSession.mockResolvedValue(null)
+    mockedPrepareProbeSession.mockResolvedValue(activeSession())
+    mockedAnswerProbeSession.mockResolvedValue({
+      questionId: 'q1',
+      outcome: 'pass',
+      correctAnswerIndex: 0,
+      correctAnswerIndexes: null,
+      correct: 1,
+      answered: 1,
+      total: 1,
+      status: 'completed',
+      coveredGapLabels: [],
+      optionExplanations: null,
+      gapMastery: null,
+      courseLengthRecommendation: null,
+    })
+
+    renderHarness()
+
+    fireEvent.click(await screen.findByTestId('generate-quiz'))
+    fireEvent.click(await screen.findByTestId('quiz-option-0'))
+    fireEvent.click(await screen.findByTestId('quiz-next'))
+
+    await screen.findByTestId('quiz-complete')
+    expect(screen.queryByTestId('course-length-recommendation')).toBeNull()
   })
 })
 
@@ -207,6 +264,7 @@ describe('ProbeSessionQuiz skipping the replenish refetch once mastery is shown 
       coveredGapLabels: [],
       optionExplanations: null,
       gapMastery: null,
+      courseLengthRecommendation: null,
     })
 
     const { invalidateQueriesSpy } = renderTopicHarness()
@@ -232,6 +290,7 @@ describe('ProbeSessionQuiz skipping the replenish refetch once mastery is shown 
       coveredGapLabels: [],
       optionExplanations: null,
       gapMastery: null,
+      courseLengthRecommendation: null,
     })
 
     const { invalidateQueriesSpy } = renderTopicHarness()
@@ -246,5 +305,48 @@ describe('ProbeSessionQuiz skipping the replenish refetch once mastery is shown 
     // quiz-result rendering, since that race is not what this test is
     // proving.
     await waitFor(() => expect(invalidateQueriesSpy).toHaveBeenCalled())
+  })
+})
+
+describe('ProbeSessionQuiz option explanation citations', () => {
+  beforeEach(() => {
+    mockedGetActiveProbeSession.mockReset()
+    mockedPrepareProbeSession.mockReset()
+    mockedAnswerProbeSession.mockReset()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('never turns an unsafe explanation citation url into a clickable href', async () => {
+    mockedGetActiveProbeSession.mockResolvedValue(null)
+    mockedPrepareProbeSession.mockResolvedValue(activeSession())
+    mockedAnswerProbeSession.mockResolvedValue({
+      questionId: 'q1',
+      outcome: 'pass',
+      correctAnswerIndex: 0,
+      correctAnswerIndexes: null,
+      correct: 1,
+      answered: 1,
+      total: 1,
+      status: 'active',
+      coveredGapLabels: [],
+      optionExplanations: [
+        { text: 'because of the malicious source', citationUrl: 'javascript:alert(1)' },
+        { text: 'not this one', citationUrl: null },
+      ],
+      gapMastery: null,
+      courseLengthRecommendation: null,
+    })
+
+    renderHarness()
+
+    fireEvent.click(await screen.findByTestId('generate-quiz'))
+    fireEvent.click(await screen.findByTestId('quiz-option-0'))
+
+    await screen.findByTestId('quiz-option-explanation-0')
+
+    expect(screen.queryByTestId('quiz-option-citation-0')).toBeNull()
   })
 })

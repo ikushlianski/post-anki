@@ -183,6 +183,29 @@ describe("buildStructureDraftPrompt", () => {
       expect(prompt.toLowerCase()).toContain("nothing usable");
     });
   });
+
+  describe("with a many-small-pages crawled docs site as the source text", () => {
+    const CRAWLED_DOCS_SITE = Array.from(
+      { length: 12 },
+      (_, i) => `# Getting started ${i + 1} (SOURCE_URL: https://docs.example.com/page-${i + 1})\nSome page content.`,
+    ).join("\n\n---\n\n");
+
+    it("tells the agent to group same-concept pages into one topic instead of one topic per page", () => {
+      const prompt = buildStructureDraftPrompt(FULL_CONTEXT, CRAWLED_DOCS_SITE, []);
+
+      expect(prompt).toContain(
+        "group pages that cover the same concept into a single topic instead of creating one topic per page",
+      );
+    });
+
+    it("carries every crawled page's SOURCE_URL marker through so the agent can echo it back as sourceUrl", () => {
+      const prompt = buildStructureDraftPrompt(FULL_CONTEXT, CRAWLED_DOCS_SITE, []);
+
+      for (let i = 1; i <= 12; i++) {
+        expect(prompt).toContain(`SOURCE_URL: https://docs.example.com/page-${i}`);
+      }
+    });
+  });
 });
 
 const SNAPSHOT = {
@@ -255,5 +278,21 @@ describe("buildStructureGuidedRegenPrompt", () => {
     expect(prompt).toContain("Introduction");
     expect(prompt).toContain("Add more depth to the security topics.");
     expect(prompt.toLowerCase()).toContain("revised full structure");
+  });
+
+  it("repeats the same granularity and provenance guidance the draft prompt gives, since this also rebuilds from the crawled source", () => {
+    const prompt = buildStructureGuidedRegenPrompt(
+      FULL_CONTEXT,
+      "# Page (SOURCE_URL: https://docs.example.com/page)\ncontent",
+      [],
+      SNAPSHOT,
+      "Tighten the module list.",
+    );
+
+    expect(prompt).toContain(
+      "group pages that cover the same concept into a single topic instead of creating one topic per page",
+    );
+    expect(prompt).toContain("SOURCE_URL");
+    expect(prompt.toLowerCase()).toContain("provenance");
   });
 });

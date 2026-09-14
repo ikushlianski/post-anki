@@ -34,7 +34,7 @@ jobs:
           POSTGRES_PASSWORD: postanki
           POSTGRES_DB: postanki_e2e
         ports:
-          - 5436:5432
+          - 5578:5432
         options: >-
           --health-cmd "pg_isready -U postanki -d postanki_e2e"
           --health-interval 2s
@@ -56,7 +56,7 @@ jobs:
       # were written to catch would have gone unnoticed.
       - name: Integration tests (real Postgres)
         env:
-          DATABASE_URL: postgres://postanki:postanki@localhost:5436/postanki_e2e
+          DATABASE_URL: postgres://postanki:postanki@localhost:5578/postanki_e2e
         run: npm run test:integration -w @post-anki/api
 
       # Runs the real apps/web browser build and fails if any Node built-in gets externalized
@@ -245,6 +245,15 @@ jobs:
           if [ -n "${ELECTRIC_URL:-}" ]; then
             ELECTRIC_ARGS+=(--set-env-vars "ELECTRIC_SERVICE_URL=$ELECTRIC_URL")
           fi
+          # post-anki-web deploys after the API, so on a brand-new environment
+          # this resolves empty and the API falls back to its env schema's
+          # dev-only default — harmless, since there's no web traffic yet.
+          # Every deploy after the first picks up the real web origin here.
+          WEB_ORIGIN=$(gcloud run services describe post-anki-web --region ${{ vars.PROD_REGION }} --project ${{ vars.PROD_PROJECT_ID }} --format='value(status.url)' 2>/dev/null || true)
+          WEB_ORIGIN_ARGS=()
+          if [ -n "$WEB_ORIGIN" ]; then
+            WEB_ORIGIN_ARGS+=(--set-env-vars "WEB_ORIGIN=$WEB_ORIGIN")
+          fi
           gcloud run deploy post-anki-api \
             --image "$API_IMAGE" \
             --project ${{ vars.PROD_PROJECT_ID }} \
@@ -267,6 +276,7 @@ jobs:
             --set-env-vars "LANGFUSE_SECRET_KEY=${{ secrets.PROD_LANGFUSE_SECRET_KEY }}" \
             --set-env-vars "LANGFUSE_HOST=${{ vars.PROD_LANGFUSE_HOST || 'https://cloud.langfuse.com' }}" \
             "${ELECTRIC_ARGS[@]}" \
+            "${WEB_ORIGIN_ARGS[@]}" \
             --quiet
 
       - name: Verify API health

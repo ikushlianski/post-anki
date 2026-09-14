@@ -1,4 +1,5 @@
 import { extractSameSiteLinks } from "@post-anki/core";
+import type { SourceDiscoveryTier } from "@post-anki/shared";
 import { looksLikeLlmsTxtContent } from "./curriculum-rules.js";
 import { log } from "../shared/log.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
@@ -10,7 +11,7 @@ const CRAWL_LINK_CAP = 8;
 export interface DocSiteCandidate {
   url: string;
   title: string;
-  discoveryTier: "llms_txt" | "docs_crawl";
+  discoveryTier: SourceDiscoveryTier;
   kind: "llms_txt" | "link";
   fetchedText: string | null;
 }

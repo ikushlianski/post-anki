@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { CreateSubjectCategoryInput, SubjectCategory } from "@post-anki/shared";
-import { validateCategoryBelongsToSubject } from "@post-anki/core";
+import { validateCategoryBelongsToSubject, wouldCreateCategoryCycle } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { subjectCategories, subjects } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -76,4 +76,69 @@ export async function insertCategory(
   await getDb().insert(subjectCategories).values(row);
 
   return toSubjectCategory({ ...row, createdAt: new Date() });
+}
+
+export type MoveCategoryError =
+  | "category_not_found"
+  | "parent_not_found"
+  | "parent_wrong_subject"
+  | "would_create_cycle";
+
+export async function moveCategory(
+  categoryId: string,
+  parentId: string | null,
+): Promise<SubjectCategory | { error: MoveCategoryError }> {
+  const categoryRow = (
+    await getDb().select().from(subjectCategories).where(eq(subjectCategories.id, categoryId))
+  )[0];
+
+  if (!categoryRow) {
+    return { error: "category_not_found" as const };
+  }
+
+  if (parentId !== null) {
+    const allCategories = await listAllCategories();
+    const parentExists = allCategories.some((category) => category.id === parentId);
+
+    if (!parentExists) {
+      return { error: "parent_not_found" as const };
+    }
+
+    const parentBelongs = validateCategoryBelongsToSubject(
+      parentId,
+      categoryRow.subjectId,
+      allCategories,
+    );
+
+    if (!parentBelongs) {
+      return { error: "parent_wrong_subject" as const };
+    }
+
+    if (wouldCreateCategoryCycle(categoryId, parentId, allCategories)) {
+      return { error: "would_create_cycle" as const };
+    }
+  }
+
+  await getDb().update(subjectCategories).set({ parentId }).where(eq(subjectCategories.id, categoryId));
+
+  return toSubjectCategory({ ...categoryRow, parentId });
+}
+
+export type RenameCategoryError = "category_not_found";
+
+export async function renameCategory(
+  categoryId: string,
+  name: string,
+): Promise<SubjectCategory | { error: RenameCategoryError }> {
+  const categoryRow = (
+    await getDb().select().from(subjectCategories).where(eq(subjectCategories.id, categoryId))
+  )[0];
+
+  if (!categoryRow) {
+    return { error: "category_not_found" as const };
+  }
+
+  await getDb().update(subjectCategories).set({ name }).where(eq(subjectCategories.id, categoryId));
+
+  return toSubjectCategory({ ...categoryRow, name });
 }
