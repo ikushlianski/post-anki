@@ -2,7 +2,7 @@
   "sessionId": "37df9926-0718-4b34-87a1-c5e65d3a5155",
   "startedAt": "2026-09-14T22:39:25.000Z",
   "stopBoundHours": 6,
-  "status": "escalated",
+  "status": "running",
   "activeDirections": [
     "instant-study-cards",
     "ingestion-progress-visibility",
