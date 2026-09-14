@@ -68,6 +68,7 @@ updated: 2026-09-04
 Business and architecture-level open items only. Small mechanical gaps get fixed directly.
 
 Each root item below is one separate autonomous session, worked sequentially — not batched.
+- A newly created bare topic has no content yet — no valid trigger point at creation.
 
 ## Wishlist for the night
 
