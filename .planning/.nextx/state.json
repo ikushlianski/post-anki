@@ -6,9 +6,10 @@
   "activeDirections": [
     "instant-study-cards",
     "ingestion-progress-visibility",
-    "shareable-browser-search"
+    "shareable-browser-search",
+    "agentic-framework-and-tool-principles"
   ],
-  "lastHeartbeatAt": "2026-09-14T22:39:25.000Z",
+  "lastHeartbeatAt": "2026-09-14T22:43:54.000Z",
   "timeBoundBlocks": 0,
   "pushGranted": false
 }

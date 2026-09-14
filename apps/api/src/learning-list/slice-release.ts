@@ -5,6 +5,7 @@ import { getDb, type DbExecutor } from "../db/client.js";
 import { gaps, learningListItems, modules, topics } from "../db/schema.js";
 import { readLivenessStatus } from "../liveness/liveness.repo.js";
 import { log } from "../shared/log.js";
+import { maybeStartCardsInBackground } from "../cards/cards.orchestrator.js";
 import {
   advanceIngestionCursor,
   getLearningListItem,
@@ -241,6 +242,12 @@ export async function releaseNextSliceSafely(
   // curriculum's status update ran into trouble.
   if (released) {
     await confirmIfLearningListOwned(itemId);
+
+    for (const topicId of released.topicIds) {
+      void maybeStartCardsInBackground(topicId).catch((err) =>
+        log.error({ err, topicId }, "slice_release_cards_trigger_failed"),
+      );
+    }
   }
 
   return released;

@@ -17,6 +17,12 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+const mockMaybeStartCardsInBackground = vi.fn(async () => {});
+
+vi.mock("../cards/cards.orchestrator.js", () => ({
+  maybeStartCardsInBackground: mockMaybeStartCardsInBackground,
+}));
+
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
   process.env.E2E_DATABASE_URL ??
@@ -50,7 +56,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { releaseNextSlice } = await import("./slice-release.js");
+const { releaseNextSlice, releaseNextSliceSafely } = await import("./slice-release.js");
 const { startLivenessTracking } = await import("../liveness/liveness.repo.js");
 const { setTopicReleaseState } = await import("../topic/topic-progress.repo.js");
 
@@ -63,6 +69,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   mockAgentGenerate.mockReset();
+  mockMaybeStartCardsInBackground.mockClear();
 });
 
 afterAll(async () => {
@@ -359,6 +366,70 @@ describe("0.2 completion — releaseState is honoured by the release predicate",
     expect(released).not.toBeNull();
     expect(released?.topicIds[0]).not.toBe(topicIds[0]);
     expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("releaseNextSliceSafely — starts card generation for every released topic", () => {
+  async function insertCurriculumWithTopics(topicCount: number): Promise<{
+    curriculumId: string;
+    topicIds: string[];
+  }> {
+    const subjectId = `subj_${randomUUID()}`;
+    const curriculumId = `cur_${randomUUID()}`;
+    const moduleId = `mod_${randomUUID()}`;
+
+    await client.query(`INSERT INTO subjects (id, name) VALUES ($1, $2)`, [subjectId, "Web"]);
+    await client.query(
+      `INSERT INTO curricula (id, subject_id, name, status) VALUES ($1, $2, $3, 'confirmed')`,
+      [curriculumId, subjectId, "Captured series"],
+    );
+    await client.query(
+      `INSERT INTO modules (id, curriculum_id, title, "order") VALUES ($1, $2, $3, 1)`,
+      [moduleId, curriculumId, "Module 1"],
+    );
+
+    const topicIds: string[] = [];
+
+    for (let index = 0; index < topicCount; index += 1) {
+      const topicId = `top_${randomUUID()}`;
+
+      await client.query(
+        `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included)
+         VALUES ($1, $2, $3, $4, $5, false)`,
+        [topicId, moduleId, curriculumId, `Topic ${index + 1}`, index + 1],
+      );
+      topicIds.push(topicId);
+    }
+
+    return { curriculumId, topicIds };
+  }
+
+  it("fires the background cards trigger for each topic a release just included", async () => {
+    const { curriculumId, topicIds } = await insertCurriculumWithTopics(2);
+    const itemId = await insertLearningListItem({ curriculumId, questionCeiling: 24 });
+
+    await startLivenessTracking({ entityType: "learning_list_item", entityId: itemId });
+
+    const released = await releaseNextSliceSafely(itemId);
+
+    expect(released?.topicIds).toEqual(topicIds);
+    expect(mockMaybeStartCardsInBackground).toHaveBeenCalledTimes(topicIds.length);
+
+    for (const topicId of topicIds) {
+      expect(mockMaybeStartCardsInBackground).toHaveBeenCalledWith(topicId);
+    }
+  });
+
+  it("never fires the cards trigger when nothing releases", async () => {
+    const { curriculumId } = await insertCurriculumWithTopics(0);
+    const itemId = await insertLearningListItem({ curriculumId, questionCeiling: 0 });
+
+    await startLivenessTracking({ entityType: "learning_list_item", entityId: itemId });
+
+    const released = await releaseNextSliceSafely(itemId);
+
+    expect(released).toBeNull();
+    expect(mockMaybeStartCardsInBackground).not.toHaveBeenCalled();
   });
 });
 
