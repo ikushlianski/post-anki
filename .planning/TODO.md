@@ -19,6 +19,7 @@ updated: 2026-09-04
 - [x] Write a grounded doc on this app's own agent/tool-call conventions (model tiers, retry, cost logging, memory)
 
 ### Notes
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
 
 ## shareable-browser-search
