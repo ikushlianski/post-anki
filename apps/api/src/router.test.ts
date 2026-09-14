@@ -52,6 +52,13 @@ describe("resolveRoute", () => {
       expect(resolveRoute("DELETE", "/curricula/c1")).toEqual({ name: "deleteCurriculum", params: { id: "c1" } });
     });
 
+    it("resolves the curriculum cards-summary sub-route separately from plain getCurriculum", () => {
+      expect(resolveRoute("GET", "/curricula/c1/cards-summary")).toEqual({
+        name: "getCurriculumCardsSummary",
+        params: { id: "c1" },
+      });
+    });
+
     it("captures nested action routes", () => {
       expect(resolveRoute("POST", "/curricula/c1/confirm")).toEqual({ name: "confirmCurriculum", params: { id: "c1" } });
       expect(resolveRoute("POST", "/curricula/c1/merge")).toEqual({ name: "mergeCurricula", params: { id: "c1" } });

@@ -1585,6 +1585,17 @@ export async function compileCards(topicId: string): Promise<TopicCardSet> {
   return request<be.TopicCardSet>(`/topics/${topicId}/cards`, { method: 'POST' })
 }
 
+export interface CurriculumCardsSummary {
+  cardsReady: number
+  topicsGenerating: number
+}
+
+export async function getCurriculumCardsSummary(
+  curriculumId: string,
+): Promise<CurriculumCardsSummary> {
+  return request<CurriculumCardsSummary>(`/curricula/${curriculumId}/cards-summary`)
+}
+
 export async function getCards(topicId: string): Promise<TopicCardSet | null> {
   try {
     return await request<be.TopicCardSet>(`/topics/${topicId}/cards`)

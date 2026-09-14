@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import type { TopicCardSet } from './model'
 import * as api from './api-client'
+import type { CurriculumCardsSummary } from './api-client'
 
 export const compileCards = createServerFn({ method: 'POST' })
   .inputValidator((topicId: string) => z.string().parse(topicId))
@@ -11,3 +12,9 @@ export const compileCards = createServerFn({ method: 'POST' })
 export const getCards = createServerFn({ method: 'GET' })
   .inputValidator((topicId: string) => z.string().parse(topicId))
   .handler(({ data }): Promise<TopicCardSet | null> => api.getCards(data))
+
+export const getCurriculumCardsSummary = createServerFn({ method: 'GET' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(
+    ({ data }): Promise<CurriculumCardsSummary> => api.getCurriculumCardsSummary(data),
+  )

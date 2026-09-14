@@ -39,10 +39,10 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [x] Show plain-language progress instead of a raw status word while a course is being made
-- [ ] Refresh the course-structure draft view on its own once it's ready, instead of a manual reload
-- [ ] Show a running count of cards generated so far across the whole course, not just per topic
+- [x] Show a running count of cards generated so far across the whole course, not just per topic
 
 ### Notes
+- StructureDraftPending already auto-refreshes every 2.5s while a draft is pending — not a gap.
 
 
 ## instant-study-cards

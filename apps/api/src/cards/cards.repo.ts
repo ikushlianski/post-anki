@@ -1,8 +1,13 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { CardSetStatus, TopicCardSet } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { topicCardSets, topicCards, topicCardVariants } from "../db/schema.js";
+import { topicCardSets, topicCards, topicCardVariants, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+
+export interface CurriculumCardsSummary {
+  cardsReady: number;
+  topicsGenerating: number;
+}
 
 export interface CardsPlanContent {
   cards: {
@@ -67,6 +72,33 @@ export async function getCardsByTopic(topicId: string): Promise<TopicCardSet | n
   }
 
   return rowToCardSet(row);
+}
+
+// A curriculum-wide count, not a per-topic one — lets the course-level view
+// show "X cards ready so far" while the rest of the course's cards are
+// still being generated in the background, without opening each topic.
+export async function getCurriculumCardsSummary(
+  curriculumId: string,
+): Promise<CurriculumCardsSummary> {
+  const db = getDb();
+
+  const [cardsRow] = await db
+    .select({ count: sql<number>`count(${topicCards.id})::int` })
+    .from(topicCards)
+    .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
+    .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
+    .where(and(eq(topics.curriculumId, curriculumId), eq(topicCardSets.status, "ready")));
+
+  const [generatingRow] = await db
+    .select({ count: sql<number>`count(${topicCardSets.id})::int` })
+    .from(topicCardSets)
+    .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
+    .where(and(eq(topics.curriculumId, curriculumId), eq(topicCardSets.status, "generating")));
+
+  return {
+    cardsReady: cardsRow?.count ?? 0,
+    topicsGenerating: generatingRow?.count ?? 0,
+  };
 }
 
 export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {

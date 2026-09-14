@@ -17,6 +17,7 @@ import {
 import { ModuleSection } from '../curriculum/module-section'
 import { ProgressBar } from '../curriculum/progress-bar'
 import { describeCreationProgress } from '../curriculum/curriculum-creation-progress'
+import { CardsSummaryBadge } from '../curriculum/cards-summary-badge'
 import { AddInline, RenameButton } from '../curriculum/shape-controls'
 import { CurriculumSettingsPanel } from '../curriculum/curriculum-settings-panel'
 import { safeHref } from '../shared/safe-href'
@@ -128,6 +129,10 @@ function CurriculumPage() {
             {curriculum.description}
           </p>
         ) : null}
+
+        <div className="mt-1">
+          <CardsSummaryBadge curriculumId={curriculum.id} />
+        </div>
 
         {modules.length > 0 ? (
           <div className="mt-3">

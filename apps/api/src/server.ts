@@ -133,6 +133,7 @@ import {
 import {
   handleCompileCards,
   handleGetCards,
+  handleGetCurriculumCardsSummary,
 } from "./cards/cards.controller.js";
 import {
   handleCreateAttempts,
@@ -349,6 +350,8 @@ async function route(
       return handleCreateCurriculum(req, res);
     case "getCurriculum":
       return handleGetCurriculum(res, id);
+    case "getCurriculumCardsSummary":
+      return handleGetCurriculumCardsSummary(res, id);
     case "updateCurriculum":
       return handleUpdateCurriculum(req, res, id);
     case "deleteCurriculum":
