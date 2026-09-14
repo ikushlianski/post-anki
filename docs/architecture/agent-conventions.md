@@ -20,7 +20,7 @@ Every agent's `model:` field is the same function, `dynamicResolvedModel(env)`
 `subjectId`/`curriculumId` off the live `RequestContext` and resolves an effective tier
 (`resolveEffectiveModelTier`, `apps/api/src/mastra/tier-resolver.ts`): a curriculum's own tier
 override wins, then its subject's, then the global default (`admin_settings`). A call site with no
-subject/curriculum in scope (mentor, decide, socratic) falls straight to the global default. This
+subject/curriculum in scope (e.g. `decide`) falls straight to the global default. This
 is a business/cost lever — an admin can push weaker or stronger models at a subject or a single
 course without a deploy — not just a technical default.
 
