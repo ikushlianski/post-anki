@@ -7,6 +7,14 @@ export interface NoteSearchParams {
   domainNodeId?: string
 }
 
+export interface NotesSearchUrlState {
+  tab: 'search' | 'review'
+  query: string
+  concern?: Concern
+  domainNodeId?: string
+  subjectId?: string
+}
+
 export function buildNoteSearchParams(
   rawQuery: string,
   concern: Concern | '',

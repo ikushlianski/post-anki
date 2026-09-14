@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { CONCERNS, type Concern } from '@post-anki/shared'
 
@@ -12,6 +12,9 @@ export interface NotesSearchFormProps {
   domainNodeOptions: DomainNodeOption[]
   onSearch: (params: NoteSearchParams) => void
   busy: boolean
+  initialQuery?: string
+  initialConcern?: Concern
+  initialDomainNodeId?: string
 }
 
 export function NotesSearchForm({
@@ -21,10 +24,25 @@ export function NotesSearchForm({
   domainNodeOptions,
   onSearch,
   busy,
+  initialQuery = '',
+  initialConcern,
+  initialDomainNodeId = '',
 }: NotesSearchFormProps) {
-  const [query, setQuery] = useState('')
-  const [concern, setConcern] = useState<Concern | ''>('')
-  const [domainNodeId, setDomainNodeId] = useState('')
+  const [query, setQuery] = useState(initialQuery)
+  const [concern, setConcern] = useState<Concern | ''>(initialConcern ?? '')
+  const [domainNodeId, setDomainNodeId] = useState(initialDomainNodeId)
+
+  useEffect(() => {
+    setQuery(initialQuery)
+  }, [initialQuery])
+
+  useEffect(() => {
+    setConcern(initialConcern ?? '')
+  }, [initialConcern])
+
+  useEffect(() => {
+    setDomainNodeId(initialDomainNodeId)
+  }, [initialDomainNodeId])
 
   function submit(event: React.FormEvent) {
     event.preventDefault()

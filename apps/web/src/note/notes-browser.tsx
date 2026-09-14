@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { DomainNodeTreeItem, Note, NoteReviewResponse } from '@post-anki/shared'
 
 import { flattenDomainTree } from './note-taxonomy-options'
-import type { NoteSearchParams } from './note-search-params'
+import type { NoteSearchParams, NotesSearchUrlState } from './note-search-params'
 import { NotesReviewPanel } from './notes-review-panel'
 import { NotesSearchForm } from './notes-search-form'
 import { NotesSearchResults } from './notes-search-results'
@@ -14,6 +14,8 @@ export interface NotesBrowserProps {
   onSearch: (params: NoteSearchParams) => Promise<ApiResult<Note[]>>
   onLoadDomainMap: (subjectId: string) => Promise<DomainNodeTreeItem[]>
   onReview: (excludeIds: string[]) => Promise<ApiResult<NoteReviewResponse>>
+  initialSearch?: NotesSearchUrlState
+  onSearchStateChange?: (state: NotesSearchUrlState) => void
 }
 
 type Tab = 'search' | 'review'
@@ -23,13 +25,68 @@ export function NotesBrowser({
   onSearch,
   onLoadDomainMap,
   onReview,
+  initialSearch,
+  onSearchStateChange,
 }: NotesBrowserProps) {
-  const [tab, setTab] = useState<Tab>('search')
-  const [selectedSubjectId, setSelectedSubjectId] = useState('')
+  const [tab, setTab] = useState<Tab>(initialSearch?.tab ?? 'search')
+  const [selectedSubjectId, setSelectedSubjectId] = useState(initialSearch?.subjectId ?? '')
   const [domainTree, setDomainTree] = useState<DomainNodeTreeItem[]>([])
   const [results, setResults] = useState<Note[]>([])
   const [searched, setSearched] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [lastSearchParams, setLastSearchParams] = useState<NoteSearchParams | undefined>(
+    undefined,
+  )
+
+  useEffect(() => {
+    if (initialSearch === undefined) {
+      return
+    }
+
+    const incomingSubjectId = initialSearch.subjectId ?? ''
+
+    if (incomingSubjectId !== selectedSubjectId) {
+      setSelectedSubjectId(incomingSubjectId)
+
+      if (incomingSubjectId) {
+        void onLoadDomainMap(incomingSubjectId).then(setDomainTree)
+      } else {
+        setDomainTree([])
+      }
+    }
+
+    if (initialSearch.tab !== tab) {
+      setTab(initialSearch.tab)
+    }
+
+    const searchChanged =
+      initialSearch.query !== (lastSearchParams?.query ?? '') ||
+      initialSearch.concern !== lastSearchParams?.concern ||
+      initialSearch.domainNodeId !== lastSearchParams?.domainNodeId
+
+    if (initialSearch.query && searchChanged) {
+      void handleSearch(
+        {
+          query: initialSearch.query,
+          concern: initialSearch.concern,
+          domainNodeId: initialSearch.domainNodeId,
+        },
+        { syncUrl: false },
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSearch?.tab, initialSearch?.query, initialSearch?.concern, initialSearch?.domainNodeId, initialSearch?.subjectId])
+
+  function handleTabChange(nextTab: Tab) {
+    setTab(nextTab)
+    onSearchStateChange?.({
+      tab: nextTab,
+      query: lastSearchParams?.query ?? '',
+      concern: lastSearchParams?.concern,
+      domainNodeId: lastSearchParams?.domainNodeId,
+      subjectId: selectedSubjectId || undefined,
+    })
+  }
 
   async function handleSubjectChange(subjectId: string) {
     setSelectedSubjectId(subjectId)
@@ -44,7 +101,7 @@ export function NotesBrowser({
     setDomainTree(tree)
   }
 
-  async function handleSearch(params: NoteSearchParams) {
+  async function handleSearch(params: NoteSearchParams, options: { syncUrl?: boolean } = {}) {
     setBusy(true)
 
     const result = await onSearch(params)
@@ -52,6 +109,17 @@ export function NotesBrowser({
     setBusy(false)
     setSearched(true)
     setResults(result.ok ? result.data : [])
+    setLastSearchParams(params)
+
+    if (options.syncUrl !== false) {
+      onSearchStateChange?.({
+        tab: 'search',
+        query: params.query,
+        concern: params.concern,
+        domainNodeId: params.domainNodeId,
+        subjectId: selectedSubjectId || undefined,
+      })
+    }
   }
 
   return (
@@ -62,7 +130,7 @@ export function NotesBrowser({
           role="tab"
           aria-selected={tab === 'search'}
           data-testid="notes-tab-search"
-          onClick={() => setTab('search')}
+          onClick={() => handleTabChange('search')}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
             tab === 'search'
               ? 'bg-neutral-900 text-white'
@@ -76,7 +144,7 @@ export function NotesBrowser({
           role="tab"
           aria-selected={tab === 'review'}
           data-testid="notes-tab-review"
-          onClick={() => setTab('review')}
+          onClick={() => handleTabChange('review')}
           className={`rounded-md px-3 py-1.5 text-sm font-medium ${
             tab === 'review'
               ? 'bg-neutral-900 text-white'
@@ -97,6 +165,9 @@ export function NotesBrowser({
               domainNodeOptions={flattenDomainTree(domainTree)}
               onSearch={handleSearch}
               busy={busy}
+              initialQuery={initialSearch?.query}
+              initialConcern={initialSearch?.concern}
+              initialDomainNodeId={initialSearch?.domainNodeId}
             />
             <NotesSearchResults results={results} searched={searched} />
           </>

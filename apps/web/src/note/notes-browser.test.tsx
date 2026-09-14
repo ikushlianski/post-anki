@@ -13,7 +13,7 @@ function renderBrowser(overrides: Partial<Parameters<typeof NotesBrowser>[0]> = 
   const onLoadDomainMap = vi.fn().mockResolvedValue([])
   const onReview = vi.fn().mockResolvedValue({ ok: true, data: { note: null } })
 
-  render(
+  const { rerender } = render(
     <NotesBrowser
       subjects={SUBJECTS}
       onSearch={onSearch}
@@ -23,7 +23,22 @@ function renderBrowser(overrides: Partial<Parameters<typeof NotesBrowser>[0]> = 
     />,
   )
 
-  return { onSearch, onLoadDomainMap, onReview }
+  return {
+    onSearch,
+    onLoadDomainMap,
+    onReview,
+    rerenderWithSearch: (initialSearch: Parameters<typeof NotesBrowser>[0]['initialSearch']) =>
+      rerender(
+        <NotesBrowser
+          subjects={SUBJECTS}
+          onSearch={onSearch}
+          onLoadDomainMap={onLoadDomainMap}
+          onReview={onReview}
+          {...overrides}
+          initialSearch={initialSearch}
+        />,
+      ),
+  }
 }
 
 describe('NotesBrowser', () => {
@@ -66,5 +81,82 @@ describe('NotesBrowser', () => {
     expect(screen.getByTestId('notes-tab-search').getAttribute('aria-selected')).toBe(
       'true',
     )
+  })
+
+  it('should re-run the search from a bookmarked query without a second submit', async () => {
+    const { onSearch } = renderBrowser({
+      initialSearch: { tab: 'search', query: 'idempotency', concern: undefined, domainNodeId: undefined },
+    })
+
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenCalledWith({
+        query: 'idempotency',
+        concern: undefined,
+        domainNodeId: undefined,
+      }),
+    )
+    expect(screen.getByTestId('notes-search-query')).toHaveProperty('value', 'idempotency')
+  })
+
+  it('should report the searched query so the page URL can be bookmarked', async () => {
+    const onSearchStateChange = vi.fn()
+
+    renderBrowser({ onSearchStateChange })
+
+    fireEvent.change(screen.getByTestId('notes-search-query'), {
+      target: { value: 'idempotency' },
+    })
+    fireEvent.click(screen.getByTestId('notes-search-submit'))
+
+    await waitFor(() =>
+      expect(onSearchStateChange).toHaveBeenCalledWith({
+        tab: 'search',
+        query: 'idempotency',
+        concern: undefined,
+        domainNodeId: undefined,
+        subjectId: undefined,
+      }),
+    )
+  })
+
+  it('should re-run the search when navigating to a different bookmarked URL while still mounted', async () => {
+    const { onSearch, rerenderWithSearch } = renderBrowser({
+      initialSearch: { tab: 'search', query: 'idempotency', concern: undefined, domainNodeId: undefined },
+    })
+
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenCalledWith({
+        query: 'idempotency',
+        concern: undefined,
+        domainNodeId: undefined,
+      }),
+    )
+
+    rerenderWithSearch({ tab: 'search', query: 'backoff', concern: undefined, domainNodeId: undefined })
+
+    await waitFor(() =>
+      expect(onSearch).toHaveBeenCalledWith({
+        query: 'backoff',
+        concern: undefined,
+        domainNodeId: undefined,
+      }),
+    )
+    expect(screen.getByTestId('notes-search-query')).toHaveProperty('value', 'backoff')
+  })
+
+  it('should report the selected tab so switching tabs stays bookmarkable', () => {
+    const onSearchStateChange = vi.fn()
+
+    renderBrowser({ onSearchStateChange })
+
+    fireEvent.click(screen.getByTestId('notes-tab-review'))
+
+    expect(onSearchStateChange).toHaveBeenCalledWith({
+      tab: 'review',
+      query: '',
+      concern: undefined,
+      domainNodeId: undefined,
+      subjectId: undefined,
+    })
   })
 })

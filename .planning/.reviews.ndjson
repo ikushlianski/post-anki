@@ -35,3 +35,4 @@
 {"ts":"2026-09-14T22:55:03Z","direction":"instant-study-cards","itemText":"Start generating a topic's cards once course structure is confirmed, not on first open","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T23:02:48Z","direction":"ingestion-progress-visibility","itemText":"Show plain-language progress instead of a raw status word while a course is being made","verdict":"PASS","findings":[{"severity":"Low","note":"pre-existing draft/curating CuratingBanner text overlap with the new label is loose but not contradictory and not introduced by this change"}]}
 {"ts":"2026-09-14T23:16:53Z","direction":"ingestion-progress-visibility","itemText":"Show a running count of cards generated so far across the whole course, not just per topic","verdict":"PASS","findings":[]}
+{"ts":"2026-09-14T23:31:59Z","direction":"shareable-browser-search","itemText":"Make the notes search and filters shareable and bookmarkable via the page URL","verdict":"PASS","findings":[]}

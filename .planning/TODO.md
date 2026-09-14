@@ -26,8 +26,10 @@ updated: 2026-09-04
 - Out of scope: Adding new search capabilities beyond what already exists — only making the existing search/browse state linkable
 
 ### Coding tasks
+- [x] Make the notes search and filters shareable and bookmarkable via the page URL
 
 ### Notes
+- Global search lives in the root layout, not a route — not linkable, out of scope.
 
 
 ## ingestion-progress-visibility
