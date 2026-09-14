@@ -1,3 +1,5 @@
+import { formatTranscript } from "@post-anki/core";
+
 export interface PromptContext {
   curriculumName: string;
   curriculumDescription: string | null;
@@ -192,13 +194,10 @@ export interface StructureTurnRef {
 }
 
 function turnHistoryBlock(turns: StructureTurnRef[]): string {
-  if (turns.length === 0) {
-    return "(no conversation yet)";
-  }
-
-  return turns
-    .map((t) => `${t.role === "user" ? "Learner" : "Mentor"}: ${t.message}`)
-    .join("\n");
+  return formatTranscript(
+    turns.map((t) => ({ role: t.role, text: t.message })),
+    { assistantLabel: "Mentor", emptyText: "(no conversation yet)" },
+  );
 }
 
 /**

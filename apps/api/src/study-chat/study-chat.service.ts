@@ -1,5 +1,5 @@
 import type { AskStudyChatInput, AskStudyChatResult } from "@post-anki/shared";
-import { summarizeLearningMap } from "@post-anki/core";
+import { formatTranscript, summarizeLearningMap } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
@@ -17,13 +17,7 @@ export type StudyChatError = "not_found";
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 
 function transcriptBlock(transcript: AskStudyChatInput["transcript"]): string {
-  if (!transcript || transcript.length === 0) {
-    return "";
-  }
-
-  return transcript
-    .map((m) => `${m.role === "user" ? "Learner" : "Mentor"}: ${m.text}`)
-    .join("\n");
+  return formatTranscript(transcript ?? [], { assistantLabel: "Mentor" });
 }
 
 export async function askStudyChat(

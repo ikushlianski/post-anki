@@ -1,4 +1,5 @@
 import type { AskQaChatInput, AskQaChatResult } from "@post-anki/shared";
+import { formatTranscript } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
@@ -21,13 +22,7 @@ const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 const MAX_TOOL_STEPS = 4;
 
 function transcriptBlock(transcript: AskQaChatInput["transcript"]): string {
-  if (!transcript || transcript.length === 0) {
-    return "";
-  }
-
-  return transcript
-    .map((m) => `${m.role === "user" ? "Learner" : "Tutor"}: ${m.text}`)
-    .join("\n");
+  return formatTranscript(transcript ?? [], { assistantLabel: "Tutor" });
 }
 
 function curriculumLine(ctx: CurriculumPromptContext): string {

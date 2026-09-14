@@ -15,6 +15,8 @@ updated: 2026-09-04
 - Out of scope: Rewriting an existing, working agent from scratch just to match a new convention — apply this to new/missing pieces and real defects, not a wholesale rewrite
 
 ### Coding tasks
+- [x] Replace 3 duplicated ad-hoc conversation-history formatters with one shared, tested one
+- [x] Write a grounded doc on this app's own agent/tool-call conventions (model tiers, retry, cost logging, memory)
 
 ### Notes
 
