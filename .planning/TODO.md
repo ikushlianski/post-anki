@@ -38,6 +38,9 @@ updated: 2026-09-04
 - Out of scope: Changing the underlying ingestion pipeline's actual steps — only making its existing state and output visible as it happens
 
 ### Coding tasks
+- [x] Show plain-language progress instead of a raw status word while a course is being made
+- [ ] Refresh the course-structure draft view on its own once it's ready, instead of a manual reload
+- [ ] Show a running count of cards generated so far across the whole course, not just per topic
 
 ### Notes
 

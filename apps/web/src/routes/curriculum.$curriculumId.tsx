@@ -16,6 +16,7 @@ import {
 } from '../curriculum/curriculum-lifecycle'
 import { ModuleSection } from '../curriculum/module-section'
 import { ProgressBar } from '../curriculum/progress-bar'
+import { describeCreationProgress } from '../curriculum/curriculum-creation-progress'
 import { AddInline, RenameButton } from '../curriculum/shape-controls'
 import { CurriculumSettingsPanel } from '../curriculum/curriculum-settings-panel'
 import { safeHref } from '../shared/safe-href'
@@ -90,6 +91,7 @@ function CurriculumPage() {
   const recommended = modules
     .flatMap((module) => module.topics)
     .find((topic) => topic.id === recommendedTopicId)
+  const creationProgress = describeCreationProgress(curriculum.status)
   const studyable = modules.some(
     (module) =>
       module.topics.length === 0 || module.topics.some((topic) => topic.included),
@@ -159,6 +161,16 @@ function CurriculumPage() {
           <span className="text-neutral-400">Smart next step · </span>
           poke yourself on <span className="font-medium">{recommended.title}</span>{' '}
           — your weakest included topic right now.
+        </div>
+      ) : null}
+
+      {creationProgress ? (
+        <div className="mb-4" data-testid="creation-progress">
+          <div className="mb-1 flex items-center justify-between text-xs text-neutral-500">
+            <span>{creationProgress.label}</span>
+            <span>{creationProgress.percent}%</span>
+          </div>
+          <ProgressBar percent={creationProgress.percent} />
         </div>
       ) : null}
 

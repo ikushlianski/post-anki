@@ -33,3 +33,4 @@
 {"ts":"2026-09-14T22:43:59Z","direction":"instant-study-cards","itemText":"Skip starting new card generation when a topic's cards are already ready or in progress","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T22:49:15Z","direction":"instant-study-cards","itemText":"Start generating cards for topics a learning-list release just made available","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T22:55:03Z","direction":"instant-study-cards","itemText":"Start generating a topic's cards once course structure is confirmed, not on first open","verdict":"PASS","findings":[]}
+{"ts":"2026-09-14T23:02:48Z","direction":"ingestion-progress-visibility","itemText":"Show plain-language progress instead of a raw status word while a course is being made","verdict":"PASS","findings":[{"severity":"Low","note":"pre-existing draft/curating CuratingBanner text overlap with the new label is loose but not contradictory and not introduced by this change"}]}
