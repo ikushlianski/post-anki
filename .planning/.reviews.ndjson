@@ -32,3 +32,4 @@
 {"ts":"2026-09-13T07:26:50Z","direction":"doc-site-ingestion","itemText":"Stop showing the same page twice under slightly different addresses in source review","verdict":"PASS","findings":[{"severity":"Low","note":"host.toLowerCase() in normalizeForDedupe is a dead no-op since new URL() already lowercases the host; harmless, not fixed"}]}
 {"ts":"2026-09-14T22:43:59Z","direction":"instant-study-cards","itemText":"Skip starting new card generation when a topic's cards are already ready or in progress","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T22:49:15Z","direction":"instant-study-cards","itemText":"Start generating cards for topics a learning-list release just made available","verdict":"PASS","findings":[]}
+{"ts":"2026-09-14T22:55:03Z","direction":"instant-study-cards","itemText":"Start generating a topic's cards once course structure is confirmed, not on first open","verdict":"PASS","findings":[]}

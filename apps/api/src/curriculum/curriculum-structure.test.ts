@@ -22,6 +22,7 @@ const setCurriculumStatus = vi.fn();
 const setCurriculumStrictOrder = vi.fn();
 const setResearchCandidateStatuses = vi.fn();
 const updateStructureTurn = vi.fn();
+const listTopicIdsForCurriculum = vi.fn();
 
 vi.mock("./curriculum.repo.js", () => ({
   getCurriculum: (...args: unknown[]) => getCurriculum(...args),
@@ -37,6 +38,13 @@ vi.mock("./curriculum.repo.js", () => ({
   setCurriculumStrictOrder: (...args: unknown[]) => setCurriculumStrictOrder(...args),
   setResearchCandidateStatuses: (...args: unknown[]) => setResearchCandidateStatuses(...args),
   updateStructureTurn: (...args: unknown[]) => updateStructureTurn(...args),
+  listTopicIdsForCurriculum: (...args: unknown[]) => listTopicIdsForCurriculum(...args),
+}));
+
+const maybeStartCardsInBackground = vi.fn();
+
+vi.mock("../cards/cards.orchestrator.js", () => ({
+  maybeStartCardsInBackground: (...args: unknown[]) => maybeStartCardsInBackground(...args),
 }));
 
 const agentGenerate = vi.fn();
@@ -81,6 +89,7 @@ vi.mock("../llm-call-events/llm-call-events.repo.js", () => ({
 }));
 
 const {
+  confirmStructure,
   generateDraftStructure,
   resolveSupplementalResearch,
   retryDraftStructure,
@@ -426,6 +435,35 @@ describe("resolveSupplementalResearch", () => {
 
     expect(result).toEqual({ ok: false, code: "turn_in_progress" });
     expect(agentGenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirmStructure", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("starts background card generation for every topic once structure is confirmed", async () => {
+    getCurriculum.mockResolvedValue(curriculum);
+    getLatestStructureSnapshot.mockResolvedValue({ modules: [], strictOrder: false });
+    listTopicIdsForCurriculum.mockResolvedValue(["top_1", "top_2"]);
+    maybeStartCardsInBackground.mockResolvedValue(undefined);
+
+    await confirmStructure("cur_1");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(maybeStartCardsInBackground).toHaveBeenCalledTimes(2);
+    expect(maybeStartCardsInBackground).toHaveBeenCalledWith("top_1");
+    expect(maybeStartCardsInBackground).toHaveBeenCalledWith("top_2");
+  });
+
+  it("never starts card generation when the curriculum isn't in shaping_structure", async () => {
+    getCurriculum.mockResolvedValue({ ...curriculum, status: "ready" });
+
+    await confirmStructure("cur_1");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(maybeStartCardsInBackground).not.toHaveBeenCalled();
   });
 });
 

@@ -52,7 +52,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [x] Skip starting new card generation when a topic's cards are already ready or in progress
 - [x] Start generating cards for topics a learning-list release just made available
-- [ ] Start generating a topic's cards once course structure is confirmed, not on first open
+- [x] Start generating a topic's cards once course structure is confirmed, not on first open
 
 ### Notes
 

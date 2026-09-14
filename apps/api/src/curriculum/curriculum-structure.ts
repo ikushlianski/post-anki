@@ -24,6 +24,7 @@ import {
   getStructureTurns,
   insertStructureResearchCandidates,
   insertStructureTurn,
+  listTopicIdsForCurriculum,
   maxModuleOrder,
   saveCurriculumPlan,
   setCurriculumStatus,
@@ -32,6 +33,7 @@ import {
   updateStructureTurn,
 } from "./curriculum.repo.js";
 import { assembleAllSourceText } from "./source-text.js";
+import { maybeStartCardsInBackground } from "../cards/cards.orchestrator.js";
 import { listTags } from "../tag/tag.repo.js";
 
 // Postgres's SQLSTATE for a unique-violation — surfaces here as the raw `pg`
@@ -670,6 +672,14 @@ export async function confirmStructure(curriculumId: string): Promise<ConfirmStr
   });
   await setCurriculumStrictOrder(curriculumId, snapshot.strictOrder ?? false);
   await setCurriculumStatus(curriculumId, "ready");
+
+  const topicIds = await listTopicIdsForCurriculum(curriculumId);
+
+  for (const topicId of topicIds) {
+    void maybeStartCardsInBackground(topicId).catch((err) =>
+      log.error({ err, topicId }, "confirm_structure_cards_trigger_failed"),
+    );
+  }
 
   const updated = await getCurriculum(curriculumId);
 

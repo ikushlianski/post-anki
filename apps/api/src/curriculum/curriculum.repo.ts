@@ -884,6 +884,15 @@ export async function maxModuleOrder(curriculumId: string): Promise<number> {
   return row?.maxOrder ?? 0;
 }
 
+export async function listTopicIdsForCurriculum(curriculumId: string): Promise<string[]> {
+  const rows = await getDb()
+    .select({ id: topics.id })
+    .from(topics)
+    .where(eq(topics.curriculumId, curriculumId));
+
+  return rows.map((r) => r.id);
+}
+
 // A delete destroys a curriculum's whole module/topic/gap tree, then its
 // sources, then the curriculum row — three writes that must land together or
 // not at all, or a failure between them leaves a course whose content is
