@@ -2,14 +2,14 @@
   "sessionId": "37df9926-0718-4b34-87a1-c5e65d3a5155",
   "startedAt": "2026-09-14T22:39:25.000Z",
   "stopBoundHours": 6,
-  "status": "running",
+  "status": "escalated",
   "activeDirections": [
     "instant-study-cards",
     "ingestion-progress-visibility",
     "shareable-browser-search",
     "agentic-framework-and-tool-principles"
   ],
-  "lastHeartbeatAt": "2026-09-14T23:41:28.000Z",
+  "lastHeartbeatAt": "2026-09-14T23:51:37.000Z",
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,

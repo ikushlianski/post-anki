@@ -33,6 +33,7 @@ updated: 2026-09-04
 
 ### Notes
 - Global search lives in the root layout, not a route — not linkable, out of scope.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
 
 ## ingestion-progress-visibility
@@ -48,6 +49,7 @@ updated: 2026-09-04
 
 ### Notes
 - StructureDraftPending already auto-refreshes every 2.5s while a draft is pending — not a gap.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
 
 ## instant-study-cards
@@ -69,6 +71,7 @@ Business and architecture-level open items only. Small mechanical gaps get fixed
 
 Each root item below is one separate autonomous session, worked sequentially — not batched.
 - A newly created bare topic has no content yet — no valid trigger point at creation.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
 ## Wishlist for the night
 
