@@ -323,13 +323,10 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
-- [x] Cap chat transcripts sent to every LLM call at a bounded turn count
-- [x] Surface the new token-usage columns on the admin observability page
-- [x] Extend llm_call_events recording to the ~17 other agent.generate call sites with none
-- [x] Capture real token usage on llm_call_events for its 3 existing call sites
 
 ### Notes
 - No generation-result caching layer exists — needs a human call on invalidation policy first.
+- Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## discovery-and-navigation
@@ -340,15 +337,10 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
-- [x] Tell the learner when Scan now failed, not just when it's a duplicate run
-- [x] Fix the study-session and learning-path detail pages never actually rendering
-- [x] Fix the category, priority-review, recommendations, and domain-map pages never actually rendering
-- [x] Let categories be dragged onto each other to nest, with a confirm warning.
-  - [x] Phase 1: Nest one category under another on the backend
-  - [x] Phase 2: Drag categories and curricula onto categories, with confirm
 
 ### Notes
 - CORS bug fixed (WEB_ORIGIN header, server.ts:261) — was blocking browser-side fetches.
+- Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - A real item shipped under this direction after the exhaustion marker — re-evaluate next round.
 
