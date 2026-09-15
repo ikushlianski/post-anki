@@ -35,13 +35,13 @@ updated: 2026-09-04
 - Out of scope: Generating new cards or course content — browsing and finding what already exists, not authoring it
 
 ### Coding tasks
-- [ ] Let cards browser rows be drag-reordered, reusing the existing dnd-kit pattern
 - [ ] Rank topic/module search results by relevance, return top matches only
 - [ ] Add a topic/module search box that takes a plain-language query
 - [x] Add text search over the cards browser table
 - [x] Build a cards browser: table with question, answer, topic columns
 
 ### Notes
+- Card variants have no cross-topic order column — nothing for drag-reorder to persist to.
 
 
 ## agentic-framework-and-tool-principles
