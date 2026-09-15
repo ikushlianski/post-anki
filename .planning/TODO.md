@@ -104,7 +104,7 @@ Each root item below is one separate autonomous session, worked sequentially —
       Built and verified; blocked on citation links rendering without a safe-address check, a
       weakness that already exists in four other places. Work sits on branch
       module-topic-expand-web-search.
-  - [ ] Inventory every citation-link render site missing the safe-address check (4 existing + this one)
+  - [x] Inventory every citation-link render site missing the safe-address check (4 existing + this one)
   - [ ] Apply the existing safe-address check uniformly across all 5 sites
   - [ ] Re-verify the web-search suggestion feature end-to-end once citations are guarded
   - The safe-address check itself ships as item 10 of the active autonomous batch, issue #103 —
