@@ -16,7 +16,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Add a strict one-result-per-item rule to the grade-batch agent's instructions
-- [ ] Add a no-invent-URL rule to the QA chat agent's instructions
+- [x] Add a no-invent-URL rule to the QA chat agent's instructions
 - [x] Fix priority-review's unsatisfiable no-change fallback on fresh (all-unset) subjects
 - [x] Batch per-topic gap/feedback queries in quiz generation, not one-per-topic
 - [x] Check hot pages' DB queries for N+1 patterns
