@@ -32,6 +32,7 @@ export interface DocScanResult {
   toolsChanged: string[];
   agentCalled: boolean;
   agentError?: boolean;
+  concurrentRun?: boolean;
 }
 
 function emptyResult(toolsScanned: string[]): DocScanResult {
@@ -130,12 +131,13 @@ export async function runDocScan(subjectId: string): Promise<DocScanResult> {
       // A manual "Scan now" firing while the weekly scheduler's run is still
       // in flight (or a Cloud Scheduler retry overlapping its own first
       // attempt) would otherwise read the same stale watermark and produce a
-      // duplicate set of pending suggestions on the review screen. Reads
-      // identically to "nothing changed", which is the same posture every
-      // other non-outcome of this job already has.
+      // duplicate set of pending suggestions on the review screen — so the
+      // scan itself is still skipped. `concurrentRun: true` distinguishes
+      // this from a genuine zero-results scan for the caller, so a manual
+      // trigger doesn't look like silent failure.
       log.info({ subjectId }, "doc_scan_skipped_concurrent_run");
 
-      return emptyResult(toolsScanned);
+      return { ...emptyResult(toolsScanned), concurrentRun: true };
     },
   );
 }

@@ -8,6 +8,7 @@ import { PriorityReviewPanel } from './priority-review-panel'
 import {
   resolveDocScanSupersessionSuggestion,
   resolveDocScanTopicSuggestion,
+  runDocScan,
   triggerPriorityReview,
 } from './domain-map.api'
 
@@ -321,5 +322,58 @@ describe('PriorityReviewPanel — a suggestion someone else already resolved', (
     })
 
     expect(screen.getByTestId('doc-scan-supersession-dssug-1')).toBeDefined()
+  })
+})
+
+describe('PriorityReviewPanel — doc-scan concurrent-run signal', () => {
+  const mockedRunDocScan = vi.mocked(runDocScan)
+
+  beforeEach(() => {
+    mockedRunDocScan.mockReset()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('tells the learner a scan is already running instead of implying nothing was found', async () => {
+    mockedRunDocScan.mockResolvedValue({
+      newTopicSuggestions: [],
+      supersessionSuggestions: [],
+      toolsScanned: ['nextjs'],
+      toolsChanged: [],
+      agentCalled: false,
+      concurrentRun: true,
+    })
+
+    renderPanel()
+
+    screen.getByTestId('doc-scan-trigger-button').click()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('doc-scan-empty-state').textContent).toBe(
+        'A scan is already running for this subject — check back shortly.',
+      )
+    })
+  })
+
+  it('reports a plain "no new suggestions" when the scan genuinely ran and found nothing', async () => {
+    mockedRunDocScan.mockResolvedValue({
+      newTopicSuggestions: [],
+      supersessionSuggestions: [],
+      toolsScanned: ['nextjs'],
+      toolsChanged: [],
+      agentCalled: true,
+    })
+
+    renderPanel()
+
+    screen.getByTestId('doc-scan-trigger-button').click()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('doc-scan-empty-state').textContent).toBe(
+        'No new suggestions this scan.',
+      )
+    })
   })
 })

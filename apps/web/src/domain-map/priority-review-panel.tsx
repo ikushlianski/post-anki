@@ -57,6 +57,7 @@ export function PriorityReviewPanel({
   )
   const [scanning, setScanning] = useState(false)
   const [scanRanOnce, setScanRanOnce] = useState(false)
+  const [scanWasConcurrent, setScanWasConcurrent] = useState(false)
   const [docScanConfirmation, setDocScanConfirmation] = useState<string | null>(null)
 
   const { claim, release, isResolving } = useResolvingSuggestions()
@@ -72,6 +73,7 @@ export function PriorityReviewPanel({
       const result = await runDocScan({ data: subjectId })
       setNewTopicSuggestions((prev) => [...result.newTopicSuggestions, ...prev])
       setSupersessionSuggestions((prev) => [...result.supersessionSuggestions, ...prev])
+      setScanWasConcurrent(result.concurrentRun === true)
     } catch {
       // Silent-fallback posture (spec.md's Decisions #8): a failed scan
       // reads identically to "nothing changed" — the sections simply stay
@@ -301,8 +303,12 @@ export function PriorityReviewPanel({
         <div className="mt-3">
           <h2 className="text-sm font-semibold text-neutral-700">New topics found</h2>
           {newTopicSuggestions.length === 0 ? (
-            <p className="mt-1 text-sm text-neutral-500">
-              {scanRanOnce ? 'No new suggestions this scan.' : 'No pending suggestions.'}
+            <p data-testid="doc-scan-empty-state" className="mt-1 text-sm text-neutral-500">
+              {scanRanOnce && scanWasConcurrent
+                ? 'A scan is already running for this subject — check back shortly.'
+                : scanRanOnce
+                  ? 'No new suggestions this scan.'
+                  : 'No pending suggestions.'}
             </p>
           ) : (
             <ul className="mt-2 space-y-2">

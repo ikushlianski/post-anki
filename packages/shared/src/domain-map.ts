@@ -258,6 +258,7 @@ export const docScanResultSchema = z.object({
   toolsChanged: z.array(z.string()),
   agentCalled: z.boolean(),
   agentError: z.boolean().optional(),
+  concurrentRun: z.boolean().optional(),
 });
 
 export type DocScanResult = z.infer<typeof docScanResultSchema>;

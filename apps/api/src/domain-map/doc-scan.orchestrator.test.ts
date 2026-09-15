@@ -885,6 +885,7 @@ describe("runDocScan — two overlapping scans cannot both advance the same wate
 
     expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
     expect(results.filter((result) => result.agentCalled)).toHaveLength(1);
+    expect(results.filter((result) => result.concurrentRun === true)).toHaveLength(1);
 
     const { getDb } = await import("../db/client.js");
     const { domainSupersessionSuggestions, domainTopicSuggestions } = await import(
