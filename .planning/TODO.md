@@ -25,6 +25,7 @@ updated: 2026-09-04
 - [x] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
 
 ### Notes
+- practice.$subjectId's sequential loader is correct — settings fetch upserts, gating avoids a write for invalid subjects.
 
 
 ## content-browser-and-search
