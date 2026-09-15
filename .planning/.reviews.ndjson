@@ -49,3 +49,4 @@
 {"ts": "2026-09-15T23:45:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Review the ~24 agent prompts for grounding, tone, and accuracy gaps", "verdict": "PASS", "findings": []}
 {"ts": "2026-09-15T23:55:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Fix priority-review's unsatisfiable no-change fallback on fresh (all-unset) subjects", "verdict": "PASS", "findings": []}
 {"ts": "2026-09-16T00:00:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Add a no-invent-URL rule to the QA chat agent's instructions", "verdict": "PASS", "findings": []}
+{"ts": "2026-09-16T00:05:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Add a strict one-result-per-item rule to the grade-batch agent's instructions", "verdict": "PASS", "findings": []}

@@ -66,7 +66,10 @@ const GRADE_BATCH_INSTRUCTIONS = [
   "ones — even when the score is high.",
   "",
   "Grade each item independently, and return results in the exact same order the",
-  "items were given in the request.",
+  "items were given in the request. Return EXACTLY one graded result per item you",
+  "were given — never fewer (skipping/dropping an item) and never more (merging two",
+  "items into one). The caller reattaches each result to its own phrase purely by",
+  "position, so a missing, extra, or merged item silently corrupts every item after it.",
 ].join("\n");
 
 export function createPhraseBatchAgent(): Agent {
