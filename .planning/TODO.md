@@ -177,7 +177,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] A retry-research pass has no ordering guarantee over which surviving source becomes the new
       entry point, so it could in principle pick an absorbed course's URL over the target's own.
       Not data loss, surfaced while fixing the item above — needs a look separately.
-- [ ] A manual scan for new docs can return nothing while a scheduled scan runs for a different
+- [x] A manual scan for new docs can return nothing while a scheduled scan runs for a different
       subject, because scans are serialised across the whole app instead of per subject.
   - In progress as item 9 of the active autonomous batch, issue #103.
 - [x] The mobile app has two narrow address-safety gaps around local development and non-secure
