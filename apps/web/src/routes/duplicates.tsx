@@ -7,8 +7,10 @@ import { listPendingDuplicateSuggestions } from '../subject-duplicate/subject-du
 export const Route = createFileRoute('/duplicates')({
   component: DuplicatesPage,
   loader: async () => {
-    const board = await getBoard()
-    const duplicateSuggestions = await listPendingDuplicateSuggestions({ data: 'pending' })
+    const [board, duplicateSuggestions] = await Promise.all([
+      getBoard(),
+      listPendingDuplicateSuggestions({ data: 'pending' }),
+    ])
 
     return { subjects: board.subjects, duplicateSuggestions }
   },

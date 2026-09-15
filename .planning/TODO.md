@@ -15,6 +15,7 @@ updated: 2026-09-04
 - Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
 
 ### Coding tasks
+- [x] Parallelize the duplicates page's two independent loader fetches
 - [x] Add a strict one-result-per-item rule to the grade-batch agent's instructions
 - [x] Add a no-invent-URL rule to the QA chat agent's instructions
 - [x] Fix priority-review's unsatisfiable no-change fallback on fresh (all-unset) subjects
