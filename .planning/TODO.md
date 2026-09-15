@@ -15,7 +15,7 @@ updated: 2026-09-04
 - Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
 
 ### Coding tasks
-- [ ] Check hot pages' DB queries for N+1 patterns
+- [x] Check hot pages' DB queries for N+1 patterns
 - [ ] Profile and cut load time on the curriculum and dashboard pages
 - [ ] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
 
