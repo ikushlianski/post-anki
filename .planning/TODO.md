@@ -7,6 +7,39 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## prompt-and-performance-quality
+
+### Scope
+- LLM prompt quality across generation call sites — grounding, tone, accuracy
+- App performance — page load, query speed, bundle size
+- Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
+
+### Coding tasks
+- [ ] Check hot pages' DB queries for N+1 patterns
+- [ ] Profile and cut load time on the curriculum and dashboard pages
+- [ ] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
+
+### Notes
+
+
+## content-browser-and-search
+
+### Scope
+- A browsable cards table with question/answer/topic columns, searchable
+- Drag-and-drop for reordering or organizing browsed content
+- Natural-language topK search across topics and modules, ranked matches
+- Out of scope: Generating new cards or course content — browsing and finding what already exists, not authoring it
+
+### Coding tasks
+- [ ] Let cards browser rows be drag-reordered, reusing the existing dnd-kit pattern
+- [ ] Rank topic/module search results by relevance, return top matches only
+- [ ] Add a topic/module search box that takes a plain-language query
+- [ ] Add text search over the cards browser table
+- [ ] Build a cards browser: table with question, answer, topic columns
+
+### Notes
+
+
 ## agentic-framework-and-tool-principles
 
 ### Scope
