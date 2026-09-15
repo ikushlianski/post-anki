@@ -21,13 +21,9 @@
     "e2e-reliability",
     "curriculum-structure-quality"
   ],
-  "lastHeartbeatAt": "2026-09-15T00:37:46.000Z",
+  "lastHeartbeatAt": "2026-09-15T00:39:26.000Z",
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": [
-    "nextx",
-    "implement-factory",
-    "review-factory"
-  ]
+  "pendingSkillReload": []
 }
