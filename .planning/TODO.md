@@ -35,7 +35,7 @@ updated: 2026-09-04
 - Out of scope: Generating new cards or course content — browsing and finding what already exists, not authoring it
 
 ### Coding tasks
-- [ ] Rank topic/module search results by relevance, return top matches only
+- [x] Rank topic/module search results by relevance, return top matches only
 - [x] Add a topic/module search box that takes a plain-language query
 - [x] Add text search over the cards browser table
 - [x] Build a cards browser: table with question, answer, topic columns
