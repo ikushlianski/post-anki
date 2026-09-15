@@ -38,7 +38,7 @@ updated: 2026-09-04
 - [ ] Let cards browser rows be drag-reordered, reusing the existing dnd-kit pattern
 - [ ] Rank topic/module search results by relevance, return top matches only
 - [ ] Add a topic/module search box that takes a plain-language query
-- [ ] Add text search over the cards browser table
+- [x] Add text search over the cards browser table
 - [x] Build a cards browser: table with question, answer, topic columns
 
 ### Notes
