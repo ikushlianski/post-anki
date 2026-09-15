@@ -195,7 +195,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [ ] The cloud development database is missing recent updates, so the board fails to load
       against it. Needs someone with access to apply them.
 - [ ] Three database updates from the concurrency work exist only locally, not in the cloud.
-- [ ] Confirm Playwright gotcha notes got committed in verification-repo (outside this repo's
+- [x] Confirm Playwright gotcha notes got committed in verification-repo (outside this repo's
       autonomy).
 
 ## Post-deploy checks
