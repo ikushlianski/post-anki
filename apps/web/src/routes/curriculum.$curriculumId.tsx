@@ -29,6 +29,15 @@ import { settle } from '../shared/load-result'
 export const Route = createFileRoute('/curriculum/$curriculumId')({
   component: CurriculumPage,
   loader: async ({ params, context }) => {
+    // subjects/adminSettings don't depend on the curriculum detail fetch at
+    // all — only their later USE (picking this curriculum's own subject)
+    // does — so kick them off alongside it instead of after it, cutting one
+    // full network round-trip off this page's load time.
+    const subjectsAndSettingsPromise = Promise.all([
+      settle(listSubjects()),
+      getAdminSettings().catch(() => ({ testToggle: false, modelTier: 'cheap' as const })),
+    ])
+
     const detail = await context.queryClient.ensureQueryData(
       curriculumDetailQuery(params.curriculumId),
     )
@@ -44,10 +53,7 @@ export const Route = createFileRoute('/curriculum/$curriculumId')({
       await context.queryClient.ensureQueryData(structureTurnsQuery(params.curriculumId))
     }
 
-    const [subjects, adminSettings] = await Promise.all([
-      settle(listSubjects()),
-      getAdminSettings().catch(() => ({ testToggle: false, modelTier: 'cheap' as const })),
-    ])
+    const [subjects, adminSettings] = await subjectsAndSettingsPromise
 
     const subject =
       subjects.ok && detail
