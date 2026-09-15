@@ -180,10 +180,10 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [ ] A manual scan for new docs can return nothing while a scheduled scan runs for a different
       subject, because scans are serialised across the whole app instead of per subject.
   - In progress as item 9 of the active autonomous batch, issue #103.
-- [ ] The mobile app has two narrow address-safety gaps around local development and non-secure
+- [x] The mobile app has two narrow address-safety gaps around local development and non-secure
       connection types. Low real-world risk, not yet hardened.
-  - [ ] Identify the two gaps precisely (local-dev addresses, non-secure connection types)
-  - [ ] Harden both, matching the safe-address check pattern shipping as issue #103 item 10
+  - [x] Identify the two gaps precisely (local-dev addresses, non-secure connection types)
+  - [x] Harden both, matching the safe-address check pattern shipping as issue #103 item 10
 
 ## Manual steps
 
@@ -330,6 +330,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Capture real token usage on llm_call_events for its 3 existing call sites
 
 ### Notes
+- No generation-result caching layer exists — needs a human call on invalidation policy first.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## discovery-and-navigation
 
@@ -347,6 +349,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - CORS bug fixed (WEB_ORIGIN header, server.ts:261) — was blocking browser-side fetches.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## chat-driven-reorganization
 
@@ -376,6 +379,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - Chrome extension is unmerged on an abandoned branch — needs a human call on landing it
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## the-me-agent-integration
 
@@ -400,6 +404,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Fix waitForHydration to wait for real hydration, not router presence
 
 ### Notes
+- Blocked: this run cannot execute Playwright, so a flaky-test fix can't be verified.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## curriculum-structure-quality
 
@@ -413,4 +419,5 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - No grounded gaps found yet — swept structure code, prompts, editing tools.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
