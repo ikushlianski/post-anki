@@ -122,10 +122,18 @@ function CurriculumPage() {
             </span>
           ) : null}
           <Link
+            to="/curriculum/$curriculumId/cards"
+            params={{ curriculumId: curriculum.id }}
+            data-testid="cards-browser-link"
+            className="ml-auto text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+          >
+            Browse cards
+          </Link>
+          <Link
             to="/curriculum/$curriculumId/stats"
             params={{ curriculumId: curriculum.id }}
             data-testid="stats-page-link"
-            className="ml-auto text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+            className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
           >
             View stats
           </Link>

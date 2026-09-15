@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
+import type { CardBrowserRow } from '@post-anki/shared'
 import type { TopicCardSet } from './model'
 import * as api from './api-client'
 import type { CurriculumCardsSummary } from './api-client'
@@ -18,3 +19,7 @@ export const getCurriculumCardsSummary = createServerFn({ method: 'GET' })
   .handler(
     ({ data }): Promise<CurriculumCardsSummary> => api.getCurriculumCardsSummary(data),
   )
+
+export const listCurriculumCards = createServerFn({ method: 'GET' })
+  .inputValidator((curriculumId: string) => z.string().parse(curriculumId))
+  .handler(({ data }): Promise<CardBrowserRow[]> => api.listCurriculumCards(data))

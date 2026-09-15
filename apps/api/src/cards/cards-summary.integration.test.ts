@@ -43,7 +43,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { getCurriculumCardsSummary } = await import("./cards.repo.js");
+const { getCurriculumCardsSummary, listCardsForCurriculum } = await import("./cards.repo.js");
 
 let client: pg.Client;
 
@@ -118,6 +118,31 @@ async function insertCardSet(topicId: string, status: string, conceptCount: numb
   }
 }
 
+async function insertCardSetWithVariants(
+  topicId: string,
+  status: string,
+  variants: { prompt: string; answer: string }[],
+): Promise<void> {
+  const cardSetId = id("cardset");
+  const cardId = id("card");
+
+  await client.query(
+    `INSERT INTO topic_card_sets (id, topic_id, status) VALUES ($1, $2, $3)`,
+    [cardSetId, topicId, status],
+  );
+  await client.query(
+    `INSERT INTO topic_cards (id, card_set_id, "order", concept) VALUES ($1, $2, 1, $3)`,
+    [cardId, cardSetId, "Concept"],
+  );
+
+  for (let i = 0; i < variants.length; i += 1) {
+    await client.query(
+      `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer) VALUES ($1, $2, $3, $4, $5)`,
+      [id("variant"), cardId, i + 1, variants[i]!.prompt, variants[i]!.answer],
+    );
+  }
+}
+
 describe("getCurriculumCardsSummary", () => {
   it("sums ready cards across every topic and counts topics still generating", async () => {
     const curriculumId = await seedCurriculum();
@@ -164,5 +189,79 @@ describe("getCurriculumCardsSummary", () => {
     const summary = await getCurriculumCardsSummary(curriculumId);
 
     expect(summary).toEqual({ cardsReady: 2, topicsGenerating: 0 });
+  });
+});
+
+describe("listCardsForCurriculum", () => {
+  it("flattens every ready variant across topics, one row per variant, with the owning topic's title", async () => {
+    const curriculumId = await seedCurriculum();
+    const topicA = await insertTopic(curriculumId, "Topic A");
+    const topicB = await insertTopic(curriculumId, "Topic B");
+
+    await insertCardSetWithVariants(topicA, "ready", [
+      { prompt: "What is a closure?", answer: "A function bundled with its scope." },
+      { prompt: "What is hoisting?", answer: "Declarations moved to the top of scope." },
+    ]);
+    await insertCardSetWithVariants(topicB, "ready", [
+      { prompt: "What is a promise?", answer: "A future value from async work." },
+    ]);
+
+    const rows = await listCardsForCurriculum(curriculumId);
+
+    expect(rows).toHaveLength(3);
+    expect(rows.filter((r) => r.topicTitle === "Topic A")).toHaveLength(2);
+    expect(rows.filter((r) => r.topicTitle === "Topic B")).toHaveLength(1);
+    expect(rows.map((r) => r.prompt)).toContain("What is a closure?");
+    expect(rows.map((r) => r.answer)).toContain("A future value from async work.");
+  });
+
+  it("never includes a generating or failed card set's variants", async () => {
+    const curriculumId = await seedCurriculum();
+    const readyTopic = await insertTopic(curriculumId, "Ready topic");
+    const generatingTopic = await insertTopic(curriculumId, "Generating topic");
+    const failedTopic = await insertTopic(curriculumId, "Failed topic");
+
+    await insertCardSetWithVariants(readyTopic, "ready", [
+      { prompt: "Ready question", answer: "Ready answer" },
+    ]);
+    await insertCardSetWithVariants(generatingTopic, "generating", [
+      { prompt: "Should not appear", answer: "Should not appear" },
+    ]);
+    await insertCardSetWithVariants(failedTopic, "failed", [
+      { prompt: "Should not appear either", answer: "Should not appear either" },
+    ]);
+
+    const rows = await listCardsForCurriculum(curriculumId);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.prompt).toBe("Ready question");
+  });
+
+  it("never includes another curriculum's cards", async () => {
+    const curriculumId = await seedCurriculum();
+    const otherCurriculumId = await seedCurriculum();
+    const ownTopic = await insertTopic(curriculumId, "Own topic");
+    const otherTopic = await insertTopic(otherCurriculumId, "Other topic");
+
+    await insertCardSetWithVariants(ownTopic, "ready", [
+      { prompt: "Own question", answer: "Own answer" },
+    ]);
+    await insertCardSetWithVariants(otherTopic, "ready", [
+      { prompt: "Other question", answer: "Other answer" },
+    ]);
+
+    const rows = await listCardsForCurriculum(curriculumId);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.prompt).toBe("Own question");
+  });
+
+  it("returns an empty array for a curriculum with no cards generated yet", async () => {
+    const curriculumId = await seedCurriculum();
+    await insertTopic(curriculumId, "Untouched topic");
+
+    const rows = await listCardsForCurriculum(curriculumId);
+
+    expect(rows).toEqual([]);
   });
 });

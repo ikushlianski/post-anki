@@ -1596,6 +1596,10 @@ export async function getCurriculumCardsSummary(
   return request<CurriculumCardsSummary>(`/curricula/${curriculumId}/cards-summary`)
 }
 
+export async function listCurriculumCards(curriculumId: string): Promise<be.CardBrowserRow[]> {
+  return request<be.CardBrowserRow[]>(`/curricula/${curriculumId}/cards`)
+}
+
 export async function getCards(topicId: string): Promise<TopicCardSet | null> {
   try {
     return await request<be.TopicCardSet>(`/topics/${topicId}/cards`)

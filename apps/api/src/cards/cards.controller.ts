@@ -3,7 +3,12 @@ import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { compileCards } from "./cards.orchestrator.js";
-import { getCardsByTopic, getCurriculumCardsSummary, startGeneratingCards } from "./cards.repo.js";
+import {
+  getCardsByTopic,
+  getCurriculumCardsSummary,
+  listCardsForCurriculum,
+  startGeneratingCards,
+} from "./cards.repo.js";
 
 export async function handleCompileCards(
   res: http.ServerResponse,
@@ -46,4 +51,13 @@ export async function handleGetCurriculumCardsSummary(
   const summary = await getCurriculumCardsSummary(curriculumId);
 
   sendJson(res, 200, summary);
+}
+
+export async function handleListCurriculumCards(
+  res: http.ServerResponse,
+  curriculumId: string,
+): Promise<void> {
+  const rows = await listCardsForCurriculum(curriculumId);
+
+  sendJson(res, 200, rows);
 }

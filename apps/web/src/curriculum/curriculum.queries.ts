@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 
 import { getCurriculum, getStructureTurns } from './curriculum.api'
-import { getCurriculumCardsSummary } from './cards.api'
+import { getCurriculumCardsSummary, listCurriculumCards } from './cards.api'
 import { getCurriculumStats } from './stats.api'
 
 export const curriculumDetailQuery = (curriculumId: string) =>
@@ -31,4 +31,10 @@ export const curriculumStatsQuery = (curriculumId: string) =>
   queryOptions({
     queryKey: ['curriculum-stats', curriculumId],
     queryFn: () => getCurriculumStats({ data: curriculumId }),
+  })
+
+export const curriculumCardsBrowserQuery = (curriculumId: string) =>
+  queryOptions({
+    queryKey: ['curriculum-cards-browser', curriculumId],
+    queryFn: () => listCurriculumCards({ data: curriculumId }),
   })

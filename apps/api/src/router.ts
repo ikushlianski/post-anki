@@ -15,6 +15,7 @@ export type RouteName =
   | "createCurriculum"
   | "getCurriculum"
   | "getCurriculumCardsSummary"
+  | "listCurriculumCards"
   | "updateCurriculum"
   | "deleteCurriculum"
   | "mergeCurricula"

@@ -41,6 +41,7 @@ import { Route as SubjectSubjectIdMapRouteImport } from './routes/subject.$subje
 import { Route as ProbeTagTagIdRouteImport } from './routes/probe.tag.$tagId'
 import { Route as PracticeSubjectIdCheckWritingRouteImport } from './routes/practice.$subjectId_.check-writing'
 import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curriculum.$curriculumId_.stats'
+import { Route as CurriculumCurriculumIdCardsRouteImport } from './routes/curriculum.$curriculumId_.cards'
 import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curriculum.$curriculumId_.assess'
 import { Route as SubjectSubjectIdCategoryCategoryIdRouteImport } from './routes/subject.$subjectId_.category.$categoryId'
 
@@ -208,6 +209,12 @@ const CurriculumCurriculumIdStatsRoute =
     path: '/curriculum/$curriculumId/stats',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CurriculumCurriculumIdCardsRoute =
+  CurriculumCurriculumIdCardsRouteImport.update({
+    id: '/curriculum/$curriculumId_/cards',
+    path: '/curriculum/$curriculumId/cards',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CurriculumCurriculumIdAssessRoute =
   CurriculumCurriculumIdAssessRouteImport.update({
     id: '/curriculum/$curriculumId_/assess',
@@ -249,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
+  '/curriculum/$curriculumId/cards': typeof CurriculumCurriculumIdCardsRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
@@ -285,6 +293,7 @@ export interface FileRoutesByTo {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
+  '/curriculum/$curriculumId/cards': typeof CurriculumCurriculumIdCardsRoute
   '/curriculum/$curriculumId/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
@@ -322,6 +331,7 @@ export interface FileRoutesById {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
+  '/curriculum/$curriculumId_/cards': typeof CurriculumCurriculumIdCardsRoute
   '/curriculum/$curriculumId_/stats': typeof CurriculumCurriculumIdStatsRoute
   '/practice/$subjectId_/check-writing': typeof PracticeSubjectIdCheckWritingRoute
   '/probe/tag/$tagId': typeof ProbeTagTagIdRoute
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/curriculum/$curriculumId/assess'
+    | '/curriculum/$curriculumId/cards'
     | '/curriculum/$curriculumId/stats'
     | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
@@ -396,6 +407,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/curriculum/$curriculumId/assess'
+    | '/curriculum/$curriculumId/cards'
     | '/curriculum/$curriculumId/stats'
     | '/practice/$subjectId/check-writing'
     | '/probe/tag/$tagId'
@@ -432,6 +444,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/curriculum/$curriculumId_/assess'
+    | '/curriculum/$curriculumId_/cards'
     | '/curriculum/$curriculumId_/stats'
     | '/practice/$subjectId_/check-writing'
     | '/probe/tag/$tagId'
@@ -469,6 +482,7 @@ export interface RootRouteChildren {
   SubjectSubjectIdRoute: typeof SubjectSubjectIdRoute
   SubjectsNewRoute: typeof SubjectsNewRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
+  CurriculumCurriculumIdCardsRoute: typeof CurriculumCurriculumIdCardsRoute
   CurriculumCurriculumIdStatsRoute: typeof CurriculumCurriculumIdStatsRoute
   PracticeSubjectIdCheckWritingRoute: typeof PracticeSubjectIdCheckWritingRoute
   ProbeTagTagIdRoute: typeof ProbeTagTagIdRoute
@@ -704,6 +718,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdStatsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/curriculum/$curriculumId_/cards': {
+      id: '/curriculum/$curriculumId_/cards'
+      path: '/curriculum/$curriculumId/cards'
+      fullPath: '/curriculum/$curriculumId/cards'
+      preLoaderRoute: typeof CurriculumCurriculumIdCardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/curriculum/$curriculumId_/assess': {
       id: '/curriculum/$curriculumId_/assess'
       path: '/curriculum/$curriculumId/assess'
@@ -749,6 +770,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubjectSubjectIdRoute: SubjectSubjectIdRoute,
   SubjectsNewRoute: SubjectsNewRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
+  CurriculumCurriculumIdCardsRoute: CurriculumCurriculumIdCardsRoute,
   CurriculumCurriculumIdStatsRoute: CurriculumCurriculumIdStatsRoute,
   PracticeSubjectIdCheckWritingRoute: PracticeSubjectIdCheckWritingRoute,
   ProbeTagTagIdRoute: ProbeTagTagIdRoute,

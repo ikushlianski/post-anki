@@ -33,3 +33,17 @@ export const topicCardSetSchema = z.object({
 });
 
 export type TopicCardSet = z.infer<typeof topicCardSetSchema>;
+
+// One row per variant (a question/answer pair), carrying the owning
+// topic's title alongside — the flat shape the cards browser table renders.
+export const cardBrowserRowSchema = z.object({
+  variantId: z.string(),
+  cardId: z.string(),
+  concept: z.string(),
+  prompt: z.string(),
+  answer: z.string(),
+  topicId: z.string(),
+  topicTitle: z.string(),
+});
+
+export type CardBrowserRow = z.infer<typeof cardBrowserRowSchema>;

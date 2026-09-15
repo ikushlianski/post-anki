@@ -74,6 +74,12 @@ export const ROUTES: RouteDef[] = [
     name: "getCurriculumCardsSummary",
     param: "id",
   },
+  {
+    method: "GET",
+    pattern: /^\/curricula\/([^/]+)\/cards$/,
+    name: "listCurriculumCards",
+    param: "id",
+  },
   { method: "PATCH", pattern: /^\/curricula\/([^/]+)$/, name: "updateCurriculum", param: "id" },
   { method: "DELETE", pattern: /^\/curricula\/([^/]+)$/, name: "deleteCurriculum", param: "id" },
   { method: "PATCH", pattern: /^\/modules\/([^/]+)\/topics\/order$/, name: "reorderTopics", param: "id" },

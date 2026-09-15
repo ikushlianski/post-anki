@@ -39,7 +39,7 @@ updated: 2026-09-04
 - [ ] Rank topic/module search results by relevance, return top matches only
 - [ ] Add a topic/module search box that takes a plain-language query
 - [ ] Add text search over the cards browser table
-- [ ] Build a cards browser: table with question, answer, topic columns
+- [x] Build a cards browser: table with question, answer, topic columns
 
 ### Notes
 

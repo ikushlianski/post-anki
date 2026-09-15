@@ -32,3 +32,4 @@ export * from "./topic/recommend-course-length";
 export * from "./topic/is-calibration-required-for-socratic";
 export * from "./subject-category/index";
 export * from "./mastra/index";
+export * from "./cards/filter-card-browser-rows";
