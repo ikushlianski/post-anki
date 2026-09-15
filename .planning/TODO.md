@@ -195,10 +195,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [ ] The cloud development database is missing recent updates, so the board fails to load
       against it. Needs someone with access to apply them.
 - [ ] Three database updates from the concurrency work exist only locally, not in the cloud.
-- [ ] Uncommitted fixes sitting in the separate end-to-end test repo need reviewing and either
-      committing or discarding by hand.
-- [ ] A repeated-click workaround in the tag-picker end-to-end test can probably be simplified now
-      that the underlying timing bug is fixed.
 - [ ] Confirm Playwright gotcha notes got committed in verification-repo (outside this repo's
       autonomy).
 
@@ -422,4 +418,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - No grounded gaps found yet — swept structure code, prompts, editing tools.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+
+## Notes
+- Tag-picker's open click can be missed on a long page — hydration signal is global-only, no per-component fix yet.
 
