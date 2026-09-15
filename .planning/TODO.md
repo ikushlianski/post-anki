@@ -36,7 +36,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Rank topic/module search results by relevance, return top matches only
-- [ ] Add a topic/module search box that takes a plain-language query
+- [x] Add a topic/module search box that takes a plain-language query
 - [x] Add text search over the cards browser table
 - [x] Build a cards browser: table with question, answer, topic columns
 

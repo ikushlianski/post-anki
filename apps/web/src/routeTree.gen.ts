@@ -17,6 +17,7 @@ import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MilestonesRouteImport } from './routes/milestones'
 import { Route as LearningPathsRouteImport } from './routes/learning-paths'
 import { Route as LearningListRouteImport } from './routes/learning-list'
+import { Route as FindRouteImport } from './routes/find'
 import { Route as DuplicatesRouteImport } from './routes/duplicates'
 import { Route as DecideRouteImport } from './routes/decide'
 import { Route as ContentLibraryRouteImport } from './routes/content-library'
@@ -83,6 +84,11 @@ const LearningPathsRoute = LearningPathsRouteImport.update({
 const LearningListRoute = LearningListRouteImport.update({
   id: '/learning-list',
   path: '/learning-list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FindRoute = FindRouteImport.update({
+  id: '/find',
+  path: '/find',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DuplicatesRoute = DuplicatesRouteImport.update({
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/content-library': typeof ContentLibraryRoute
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
+  '/find': typeof FindRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
   '/milestones': typeof MilestonesRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/content-library': typeof ContentLibraryRoute
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
+  '/find': typeof FindRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
   '/milestones': typeof MilestonesRoute
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/content-library': typeof ContentLibraryRoute
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
+  '/find': typeof FindRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
   '/milestones': typeof MilestonesRoute
@@ -351,6 +360,7 @@ export interface FileRouteTypes {
     | '/content-library'
     | '/decide'
     | '/duplicates'
+    | '/find'
     | '/learning-list'
     | '/learning-paths'
     | '/milestones'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/content-library'
     | '/decide'
     | '/duplicates'
+    | '/find'
     | '/learning-list'
     | '/learning-paths'
     | '/milestones'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/content-library'
     | '/decide'
     | '/duplicates'
+    | '/find'
     | '/learning-list'
     | '/learning-paths'
     | '/milestones'
@@ -463,6 +475,7 @@ export interface RootRouteChildren {
   ContentLibraryRoute: typeof ContentLibraryRoute
   DecideRoute: typeof DecideRoute
   DuplicatesRoute: typeof DuplicatesRoute
+  FindRoute: typeof FindRoute
   LearningListRoute: typeof LearningListRoute
   LearningPathsRoute: typeof LearningPathsRoute
   MilestonesRoute: typeof MilestonesRoute
@@ -548,6 +561,13 @@ declare module '@tanstack/react-router' {
       path: '/learning-list'
       fullPath: '/learning-list'
       preLoaderRoute: typeof LearningListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/find': {
+      id: '/find'
+      path: '/find'
+      fullPath: '/find'
+      preLoaderRoute: typeof FindRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/duplicates': {
@@ -751,6 +771,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContentLibraryRoute: ContentLibraryRoute,
   DecideRoute: DecideRoute,
   DuplicatesRoute: DuplicatesRoute,
+  FindRoute: FindRoute,
   LearningListRoute: LearningListRoute,
   LearningPathsRoute: LearningPathsRoute,
   MilestonesRoute: MilestonesRoute,

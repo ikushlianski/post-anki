@@ -1252,6 +1252,14 @@ export async function search(query: string): Promise<be.SearchResponse> {
   return request<be.SearchResponse>(`/search?q=${encodeURIComponent(query)}`)
 }
 
+export async function searchTopicsAndModules(
+  query: string,
+): Promise<be.TopicModuleSearchResult[]> {
+  return request<be.TopicModuleSearchResult[]>(
+    `/search/topics-modules?q=${encodeURIComponent(query)}`,
+  )
+}
+
 export async function getCrossCutting(): Promise<ConcernSummary[]> {
   const { summaries } = await request<be.CrossCuttingResponse>('/cross-cutting')
 

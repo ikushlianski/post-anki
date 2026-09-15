@@ -39,7 +39,8 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { searchCurricula, searchSubjects, searchTopics } = await import("./search.repo.js");
+const { searchCurricula, searchSubjects, searchTopics, searchTopicsAndModulesRanked } =
+  await import("./search.repo.js");
 
 let client: pg.Client;
 
@@ -84,10 +85,11 @@ async function insertTopic(overrides: {
   moduleId: string;
   curriculumId: string;
   title: string;
+  summary?: string;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4, 1)`,
-    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, summary, "order") VALUES ($1, $2, $3, $4, $5, 1)`,
+    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title, overrides.summary ?? null],
   );
 }
 
@@ -192,5 +194,103 @@ describe("searchTopics", () => {
     const results = await searchTopics("recursive descent");
 
     expect(results.map((r) => r.id)).toContain("top_match_2");
+  });
+});
+
+describe("searchTopicsAndModulesRanked", () => {
+  it("ranks a title/summary match above a weaker summary-only match, across both topics and modules", async () => {
+    await insertSubject({ id: "sub_ranked_1", name: "Async Programming" });
+    await insertCurriculum({ id: "cur_ranked_1", subjectId: "sub_ranked_1", name: "Concurrency" });
+    await insertModule({ id: "mod_ranked_1", curriculumId: "cur_ranked_1", title: "Error handling" });
+
+    await insertTopic({
+      id: "top_ranked_strong",
+      moduleId: "mod_ranked_1",
+      curriculumId: "cur_ranked_1",
+      title: "Async error handling patterns",
+      summary: "Covers async error handling in depth.",
+    });
+    await insertTopic({
+      id: "top_ranked_weak",
+      moduleId: "mod_ranked_1",
+      curriculumId: "cur_ranked_1",
+      title: "Unrelated topic",
+      summary: "Briefly touches on async error handling in passing.",
+    });
+
+    const results = await searchTopicsAndModulesRanked("async error handling", 10);
+
+    const strongIndex = results.findIndex((r) => r.id === "top_ranked_strong");
+    const weakIndex = results.findIndex((r) => r.id === "top_ranked_weak");
+
+    expect(strongIndex).toBeGreaterThanOrEqual(0);
+    expect(weakIndex).toBeGreaterThanOrEqual(0);
+    expect(strongIndex).toBeLessThan(weakIndex);
+  });
+
+  it("includes matching modules alongside topics, tagged with the right kind", async () => {
+    await insertSubject({ id: "sub_ranked_2", name: "Databases" });
+    await insertCurriculum({ id: "cur_ranked_2", subjectId: "sub_ranked_2", name: "Query Planning" });
+    await insertModule({
+      id: "mod_ranked_match",
+      curriculumId: "cur_ranked_2",
+      title: "Index selection strategies",
+    });
+
+    const results = await searchTopicsAndModulesRanked("index selection", 10);
+
+    expect(results).toContainEqual(
+      expect.objectContaining({ id: "mod_ranked_match", kind: "module" }),
+    );
+  });
+
+  it("caps results at the given limit", async () => {
+    await insertSubject({ id: "sub_ranked_3", name: "Capped Search Subject" });
+    await insertCurriculum({ id: "cur_ranked_3", subjectId: "sub_ranked_3", name: "Capped Curriculum" });
+    await insertModule({ id: "mod_ranked_3", curriculumId: "cur_ranked_3", title: "Capped Module" });
+
+    for (let i = 0; i < 5; i += 1) {
+      await insertTopic({
+        id: `top_capped_${i}`,
+        moduleId: "mod_ranked_3",
+        curriculumId: "cur_ranked_3",
+        title: `Capped search marker topic ${i}`,
+      });
+    }
+
+    const results = await searchTopicsAndModulesRanked("capped search marker", 3);
+
+    expect(results.length).toBeLessThanOrEqual(3);
+  });
+
+  it("returns nothing for a query that matches neither a topic nor a module", async () => {
+    const results = await searchTopicsAndModulesRanked("zzz-no-such-thing-xyz-123", 10);
+
+    expect(results).toEqual([]);
+  });
+
+  it("ranks a strongly-matching module above a weakly-matching topic, across kinds", async () => {
+    await insertSubject({ id: "sub_ranked_4", name: "Cross-kind ranking subject" });
+    await insertCurriculum({ id: "cur_ranked_4", subjectId: "sub_ranked_4", name: "Cross-kind ranking" });
+    await insertModule({
+      id: "mod_ranked_cross_strong",
+      curriculumId: "cur_ranked_4",
+      title: "Memoization memoization memoization",
+    });
+    await insertTopic({
+      id: "top_ranked_cross_weak",
+      moduleId: "mod_ranked_cross_strong",
+      curriculumId: "cur_ranked_4",
+      title: "General topics including memoization somewhat",
+    });
+
+    const results = await searchTopicsAndModulesRanked("memoization", 10);
+
+    const topicIndex = results.findIndex((r) => r.id === "top_ranked_cross_weak");
+    const moduleIndex = results.findIndex((r) => r.id === "mod_ranked_cross_strong");
+
+    expect(topicIndex).toBeGreaterThanOrEqual(0);
+    expect(moduleIndex).toBeGreaterThanOrEqual(0);
+    expect(moduleIndex).toBeLessThan(topicIndex);
   });
 });

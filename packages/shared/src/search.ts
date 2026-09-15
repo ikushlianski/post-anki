@@ -20,3 +20,14 @@ export const searchResponseSchema = z.object({
 });
 
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
+
+export const topicModuleSearchResultSchema = z.object({
+  id: z.string(),
+  kind: z.enum(["topic", "module"]),
+  title: z.string(),
+  curriculumId: z.string(),
+  curriculumName: z.string(),
+  rank: z.number(),
+});
+
+export type TopicModuleSearchResult = z.infer<typeof topicModuleSearchResultSchema>;

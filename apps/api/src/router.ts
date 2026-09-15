@@ -62,6 +62,7 @@ export type RouteName =
   | "dailyPush"
   | "dueQueue"
   | "search"
+  | "searchTopicsAndModules"
   | "createDecideSession"
   | "listDecideSessions"
   | "resolveDecideBlindSpot"

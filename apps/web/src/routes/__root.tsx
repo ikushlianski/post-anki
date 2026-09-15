@@ -65,6 +65,13 @@ function RootDocument({ children }: { children: ReactNode }) {
                 post·anki
               </Link>
               <GlobalSearch onSearch={(query) => search({ data: query })} />
+              <Link
+                to="/find"
+                data-testid="find-page-link"
+                className="hidden shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900 sm:block"
+              >
+                Find
+              </Link>
               <button
                 type="button"
                 className="md:hidden"

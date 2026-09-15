@@ -124,6 +124,7 @@ export const ROUTES: RouteDef[] = [
   { method: "GET", pattern: "/daily-push", name: "dailyPush" },
   { method: "GET", pattern: "/due-queue", name: "dueQueue" },
   { method: "GET", pattern: "/search", name: "search" },
+  { method: "GET", pattern: "/search/topics-modules", name: "searchTopicsAndModules" },
   { method: "POST", pattern: "/decide-sessions", name: "createDecideSession" },
   { method: "GET", pattern: "/decide-sessions", name: "listDecideSessions" },
   {

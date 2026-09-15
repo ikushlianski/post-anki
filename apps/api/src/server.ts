@@ -83,7 +83,7 @@ import {
   handleTriageGap,
 } from "./gap/gap.controller.js";
 import { handleDailyPush, handleDueQueue } from "./push/push.controller.js";
-import { handleSearch } from "./search/search.controller.js";
+import { handleSearch, handleSearchTopicsAndModules } from "./search/search.controller.js";
 import {
   handleCreateDecideSession,
   handleListDecideSessions,
@@ -455,6 +455,12 @@ async function route(
       return handleDueQueue(res);
     case "search":
       return handleSearch(res, url.searchParams.get("q"));
+    case "searchTopicsAndModules":
+      return handleSearchTopicsAndModules(
+        res,
+        url.searchParams.get("q"),
+        url.searchParams.get("limit"),
+      );
     case "createDecideSession":
       return handleCreateDecideSession(req, res);
     case "listDecideSessions":

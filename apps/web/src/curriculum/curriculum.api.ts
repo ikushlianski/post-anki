@@ -46,6 +46,7 @@ import type {
   SearchResponse,
   StructureTurn,
   TagAssignment,
+  TopicModuleSearchResult,
 } from '@post-anki/shared'
 import { moveCategoryInput, renameCategoryInput } from '@post-anki/shared'
 import * as api from './api-client'
@@ -376,6 +377,12 @@ export const getGapsDueForResurface = createServerFn({ method: 'GET' }).handler(
 export const search = createServerFn({ method: 'GET' })
   .inputValidator((query: unknown): string => z.string().parse(query))
   .handler(({ data }): Promise<SearchResponse> => api.search(data))
+
+export const searchTopicsAndModules = createServerFn({ method: 'GET' })
+  .inputValidator((query: unknown): string => z.string().parse(query))
+  .handler(
+    ({ data }): Promise<TopicModuleSearchResult[]> => api.searchTopicsAndModules(data),
+  )
 
 export const getCrossCutting = createServerFn({ method: 'GET' }).handler(
   (): Promise<ConcernSummary[]> => api.getCrossCutting(),
