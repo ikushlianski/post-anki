@@ -4,12 +4,13 @@
   "stopBoundHours": 6,
   "status": "running",
   "activeDirections": [
+    "agentic-framework-and-tool-principles",
+    "data-integrity-under-regeneration",
+    "instant-study-cards",
+    "safe-address-hardening",
     "chat-driven-reorganization",
     "ingestion-progress-visibility",
-    "agentic-framework-and-tool-principles",
-    "shareable-browser-search",
-    "instant-study-cards",
-    "safe-address-hardening"
+    "shareable-browser-search"
   ],
   "lastHeartbeatAt": "2026-09-14T23:56:41.407Z",
   "timeBoundBlocks": 0,

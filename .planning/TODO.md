@@ -174,7 +174,7 @@ Each root item below is one separate autonomous session, worked sequentially —
       original source links.
   - Fixed as item 7, issue #103 — `sources.mergedFromCurriculumId` added (migration
     0050_happy_killraven), retry-research now spares merged-in sources.
-- [ ] A retry-research pass has no ordering guarantee over which surviving source becomes the new
+- [x] A retry-research pass has no ordering guarantee over which surviving source becomes the new
       entry point, so it could in principle pick an absorbed course's URL over the target's own.
       Not data loss, surfaced while fixing the item above — needs a look separately.
 - [ ] A manual scan for new docs can return nothing while a scheduled scan runs for a different
@@ -250,6 +250,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15) — deep audit found no unguarded bulk-delete/regenerate path.
 
 ## safe-address-hardening
 
@@ -265,6 +266,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Mobile gap already fixed pre-run — assertSecureUrl in client.ts blocks non-loopback HTTP.
 - 4 components rely only on the shared safeHref unit test, no dedicated component test yet.
 - Completed items archived to .planning/LOG.md.
+- Route file curriculum.$curriculumId.tsx has no dedicated safeHref test — no route-test pattern exists yet.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## study-prioritization
 
@@ -306,6 +309,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Source triage already exists: SourceApprovalPanel gates candidates pre-structure.
 - Out of scope: restoring approve/reject decisions across a retry — no record of prior decisions exists to restore.
 - Completed items archived to .planning/LOG.md.
+- Crawl fallback caps at 8 links with no signal — no message channel exists to surface it.
+- Entry-point ordering is already deterministic — resolveRetryResearchSource prefers own sources; flat note is stale.
 
 ## llm-cost-observability
 
@@ -350,6 +355,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Let a curriculum, subject, or category be renamed.
 
 ### Notes
+- Blocked: the only tool-calling chat surface is contractually read-only; needs a confirmation UX and a human decision.
 
 ## cross-surface-practice
 
