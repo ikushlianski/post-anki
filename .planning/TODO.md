@@ -404,6 +404,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - Blocked: this run cannot execute Playwright, so a flaky-test fix can't be verified.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- Tag-picker's open click can be missed on a long page — hydration signal is global-only, no per-component fix yet.
 
 ## curriculum-structure-quality
 
@@ -420,5 +421,4 @@ Each root item below is one separate autonomous session, worked sequentially —
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## Notes
-- Tag-picker's open click can be missed on a long page — hydration signal is global-only, no per-component fix yet.
 
