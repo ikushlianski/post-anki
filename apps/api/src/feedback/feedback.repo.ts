@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { ItemFeedback, ItemFeedbackRating, ItemFeedbackType } from "@post-anki/shared";
 import type { FeedbackRow } from "@post-anki/core";
 import { getDb } from "../db/client.js";
@@ -95,4 +95,39 @@ export async function getFeedbackForTopic(topicId: string): Promise<FeedbackRow[
     itemText: row.itemText,
     updatedAt: row.updatedAt.toISOString(),
   }));
+}
+
+// Batched sibling of getFeedbackForTopic — one query for every topic
+// instead of one per topic. The single query is already ordered desc by
+// updatedAt, so filtering each topic's rows out of it preserves the same
+// per-topic ordering getFeedbackForTopic guarantees.
+export async function getFeedbackForTopics(
+  topicIds: string[],
+): Promise<Map<string, FeedbackRow[]>> {
+  const byTopic = new Map<string, FeedbackRow[]>(topicIds.map((id) => [id, []]));
+
+  if (topicIds.length === 0) {
+    return byTopic;
+  }
+
+  const rows = await getDb()
+    .select()
+    .from(studyItemFeedback)
+    .where(inArray(studyItemFeedback.topicId, topicIds))
+    .orderBy(desc(studyItemFeedback.updatedAt));
+
+  for (const row of rows) {
+    if (!row.topicId) {
+      continue;
+    }
+
+    byTopic.get(row.topicId)?.push({
+      rating: row.rating as ItemFeedbackRating,
+      comment: row.comment,
+      itemText: row.itemText,
+      updatedAt: row.updatedAt.toISOString(),
+    });
+  }
+
+  return byTopic;
 }

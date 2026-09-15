@@ -73,6 +73,37 @@ export async function listGapsForTopic(topicId: string): Promise<Gap[]> {
   return gapRows.map((row) => rowToGap(row, masteryByGapId.get(row.id)));
 }
 
+// Batched sibling of listGapsForTopic — one query pair for every topic
+// instead of one pair per topic, for callers (quiz generation) that need
+// every topic's gaps at once. Always returns an entry for every requested
+// topicId, even when that topic has no gaps.
+export async function listGapsForTopics(topicIds: string[]): Promise<Map<string, Gap[]>> {
+  const byTopic = new Map<string, Gap[]>(topicIds.map((id) => [id, []]));
+
+  if (topicIds.length === 0) {
+    return byTopic;
+  }
+
+  const db = getDb();
+  const gapRows = await db.select().from(gaps).where(inArray(gaps.topicId, topicIds));
+
+  if (gapRows.length === 0) {
+    return byTopic;
+  }
+
+  const masteryRows = await db
+    .select()
+    .from(gapMastery)
+    .where(inArray(gapMastery.gapId, gapRows.map((g) => g.id)));
+  const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
+
+  for (const row of gapRows) {
+    byTopic.get(row.topicId)?.push(rowToGap(row, masteryByGapId.get(row.id)));
+  }
+
+  return byTopic;
+}
+
 export async function persistGaps(updated: Gap[]): Promise<void> {
   const db = getDb();
 

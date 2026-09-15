@@ -22,7 +22,7 @@ import {
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
-import { listGapsForTopic } from "../gap/gap.repo.js";
+import { listGapsForTopics } from "../gap/gap.repo.js";
 import {
   getTopicGapMasterySequenceNumbers,
   listGapMasteryForGapIds,
@@ -30,9 +30,9 @@ import {
 import { gatherProbeGrounding } from "../probe/probe-grounding.js";
 import {
   getCurriculumSourceRows,
-  getLowerLevelCoverage,
+  getLowerLevelCoverageForTopics,
 } from "../curriculum/curriculum.repo.js";
-import { getFeedbackForTopic } from "../feedback/feedback.repo.js";
+import { getFeedbackForTopics } from "../feedback/feedback.repo.js";
 import type { ScopeContext, ScopeTopic } from "./probe-session.repo.js";
 import { normalize } from "./probe-session.map.js";
 
@@ -317,31 +317,46 @@ interface TopicContext {
 }
 
 async function loadTopicContext(ctx: ScopeContext): Promise<TopicContext> {
-  const [gapLists, feedbackLists, priorLevelCoverageLists] = await Promise.all([
-    Promise.all(ctx.topics.map((t) => listGapsForTopic(t.id))),
-    Promise.all(ctx.topics.map((t) => getFeedbackForTopic(t.id))),
-    Promise.all(ctx.topics.map((t) => getLowerLevelCoverage(t.id))),
+  const topicIds = ctx.topics.map((t) => t.id);
+
+  const [gapsByTopic, feedbackByTopic, coverageByTopic] = await Promise.all([
+    listGapsForTopics(topicIds),
+    getFeedbackForTopics(topicIds),
+    getLowerLevelCoverageForTopics(topicIds),
   ]);
 
-  const [gapMasteryByTopic, gapMasterySequenceByTopic] = await Promise.all([
-    Promise.all(
-      gapLists.map(async (gaps) => {
-        const rows = await listGapMasteryForGapIds(gaps.map((g) => g.id));
+  const gapLists = topicIds.map((id) => gapsByTopic.get(id) ?? []);
+  const feedbackLists = topicIds.map((id) => feedbackByTopic.get(id) ?? []);
+  const priorLevelCoverageLists = topicIds.map((id) => coverageByTopic.get(id) ?? []);
 
-        return new Map<string, GapMasteryDueInfo>(
-          Array.from(rows.entries()).map(([gapId, row]) => [
-            gapId,
-            {
-              gapId,
-              status: row.status as GapMasteryDueInfo["status"],
-              scheduledForSequence: row.scheduledForSequence,
-            },
-          ]),
-        );
-      }),
-    ),
-    getTopicGapMasterySequenceNumbers(ctx.topics.map((t) => t.id)),
+  const allGapIds = gapLists.flatMap((gaps) => gaps.map((g) => g.id));
+
+  const [masteryRowsByGapId, gapMasterySequenceByTopic] = await Promise.all([
+    listGapMasteryForGapIds(allGapIds),
+    getTopicGapMasterySequenceNumbers(topicIds),
   ]);
+
+  const gapMasteryByTopic = gapLists.map(
+    (gaps) =>
+      new Map<string, GapMasteryDueInfo>(
+        gaps.flatMap((gap) => {
+          const row = masteryRowsByGapId.get(gap.id);
+
+          return row
+            ? [
+                [
+                  gap.id,
+                  {
+                    gapId: gap.id,
+                    status: row.status as GapMasteryDueInfo["status"],
+                    scheduledForSequence: row.scheduledForSequence,
+                  },
+                ] as const,
+              ]
+            : [];
+        }),
+      ),
+  );
 
   return { gapLists, feedbackLists, priorLevelCoverageLists, gapMasteryByTopic, gapMasterySequenceByTopic };
 }

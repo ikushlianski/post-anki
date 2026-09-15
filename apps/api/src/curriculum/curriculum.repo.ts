@@ -2375,6 +2375,73 @@ export async function getLowerLevelCoverage(
   return priorLevelCoverageLabels(currentLevel, moduleCoverages);
 }
 
+// Batched sibling of getLowerLevelCoverage — one covered-gaps-by-level query
+// per distinct curriculum instead of one per topic. getLowerLevelCoverage's
+// own "covered" gaps query is already curriculum-scoped, not topic-scoped
+// (eq(modules.curriculumId, topicRow.curriculumId)), so calling it once per
+// topic in the same curriculum reruns an identical query — this groups
+// topics by curriculum first and runs that query once per group.
+export async function getLowerLevelCoverageForTopics(
+  topicIds: string[],
+): Promise<Map<string, string[]>> {
+  const byTopic = new Map<string, string[]>(topicIds.map((id) => [id, []]));
+
+  if (topicIds.length === 0) {
+    return byTopic;
+  }
+
+  const db = getDb();
+  const topicRows = await db.select().from(topics).where(inArray(topics.id, topicIds));
+
+  if (topicRows.length === 0) {
+    return byTopic;
+  }
+
+  const moduleIds = Array.from(new Set(topicRows.map((t) => t.moduleId)));
+  const moduleRows = await db.select().from(modules).where(inArray(modules.id, moduleIds));
+  const levelByModuleId = new Map(moduleRows.map((m) => [m.id, m.level as Level | null]));
+
+  const topicsByCurriculum = new Map<string, (typeof topicRows)[number][]>();
+
+  for (const topicRow of topicRows) {
+    const group = topicsByCurriculum.get(topicRow.curriculumId) ?? [];
+    group.push(topicRow);
+    topicsByCurriculum.set(topicRow.curriculumId, group);
+  }
+
+  for (const [curriculumId, curriculumTopics] of topicsByCurriculum) {
+    const rows = await db
+      .select({ level: modules.level, label: gaps.label })
+      .from(gaps)
+      .innerJoin(topics, eq(gaps.topicId, topics.id))
+      .innerJoin(modules, eq(topics.moduleId, modules.id))
+      .where(and(eq(modules.curriculumId, curriculumId), eq(gaps.state, "covered")));
+
+    const coverageByLevel = new Map<string, string[]>();
+
+    for (const row of rows) {
+      if (!row.level) {
+        continue;
+      }
+
+      const list = coverageByLevel.get(row.level) ?? [];
+      list.push(row.label);
+      coverageByLevel.set(row.level, list);
+    }
+
+    const moduleCoverages = Array.from(coverageByLevel.entries()).map(
+      ([level, coveredLabels]) => ({ level: level as Level, coveredLabels }),
+    );
+
+    for (const topicRow of curriculumTopics) {
+      const currentLevel = levelByModuleId.get(topicRow.moduleId) ?? null;
+      byTopic.set(topicRow.id, priorLevelCoverageLabels(currentLevel, moduleCoverages));
+    }
+  }
+
+  return byTopic;
+}
+
 function buildModules(
   moduleRows: (typeof modules.$inferSelect)[],
   topicRows: (typeof topics.$inferSelect)[],
