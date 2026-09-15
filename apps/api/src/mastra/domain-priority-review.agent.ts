@@ -24,10 +24,14 @@ const DOMAIN_PRIORITY_REVIEW_INSTRUCTIONS = [
   "trend data, job postings, or documentation changelogs. Be honest and modest in your reasoning;",
   "never claim a suggestion is grounded in current events or data you don't actually have.",
   "",
-  "IMPORTANT: always return at least one suggestion, even if every node's current target depth",
-  "already looks reasonable to you. In that case return exactly one suggestion whose",
-  "suggestedTargetDepth equals that node's own current target depth, with a reason explaining why",
-  "no change is recommended — never return an empty list.",
+  "IMPORTANT: always return at least one suggestion, never an empty list.",
+  "- If at least one node already has a real target depth (not \"unset\") that looks reasonable to",
+  "  you, return one suggestion for that node whose suggestedTargetDepth equals its own current",
+  "  depth, with a reason explaining why no change is recommended.",
+  "- If every node's target depth is currently \"unset\", there is no 'no change' option available —",
+  "  suggestedTargetDepth can never be \"unset\" itself. Instead pick the node you consider most",
+  "  important and suggest a real target depth (\"awareness\", \"working\", or \"deep\") for it, with a",
+  "  reason grounded in the node's real-world importance.",
 ].join("\n");
 
 export function createDomainPriorityReviewAgent(): Agent {

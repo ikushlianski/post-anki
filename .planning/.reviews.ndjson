@@ -47,3 +47,4 @@
 {"ts": "2026-09-15T23:20:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Batch per-topic gap/feedback queries in quiz generation, not one-per-topic", "verdict": "PASS", "findings": []}
 {"ts": "2026-09-15T23:30:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Profile and cut load time on the curriculum and dashboard pages", "verdict": "PASS", "findings": []}
 {"ts": "2026-09-15T23:45:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Review the ~24 agent prompts for grounding, tone, and accuracy gaps", "verdict": "PASS", "findings": []}
+{"ts": "2026-09-15T23:55:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Fix priority-review's unsatisfiable no-change fallback on fresh (all-unset) subjects", "verdict": "PASS", "findings": []}
