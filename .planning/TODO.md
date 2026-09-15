@@ -187,7 +187,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ## Manual steps
 
-- [ ] Wire the API's database-backed test suite into the build pipeline.
+- [x] Wire the API's database-backed test suite into the build pipeline.
   - [ ] Confirm which test suite/config needs CI wiring (the integration config)
   - [ ] Add it to the existing CI workflow, with a real DB service in CI
   - [ ] Confirm it runs green in CI before merging
