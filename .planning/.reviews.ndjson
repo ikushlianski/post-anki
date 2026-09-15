@@ -39,3 +39,4 @@
 {"ts":"2026-09-14T23:39:15Z","direction":"agentic-framework-and-tool-principles","itemText":"Write a grounded doc on this app's own agent/tool-call conventions (model tiers, retry, cost logging, memory)","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T23:39:15Z","direction":"agentic-framework-and-tool-principles","itemText":"Replace 3 duplicated ad-hoc conversation-history formatters with one shared, tested one","verdict":"PASS","findings":[]}
 {"ts":"2026-09-15T03:06:00.000Z","direction":"safe-address-hardening","itemText":"Add missing link-safety tests for the remaining 4 components","verdict":"PASS","findings":[]}
+{"ts":"2026-09-15T03:19:30.000Z","direction":"llm-cost-observability","itemText":"Cap chat transcripts sent to every LLM call at a bounded turn count","verdict":"PASS","findings":[]}

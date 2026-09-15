@@ -281,6 +281,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - Completed items archived to .planning/LOG.md.
 - Ceiling-relative depth ranking and the dismissed-gap check-in revisit path are both intentional, not bugs.
+- No cross-subject ranking exists yet — needs a human call on what the ranking weighs first.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## calibration-and-depth-accuracy
 
@@ -295,6 +297,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - Open: should near-perfect (not flawless) multi-question accuracy elect deep? Needs a human call.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## doc-site-ingestion
 
@@ -311,6 +314,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Completed items archived to .planning/LOG.md.
 - Crawl fallback caps at 8 links with no signal — no message channel exists to surface it.
 - Entry-point ordering is already deterministic — resolveRetryResearchSource prefers own sources; flat note is stale.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 
 ## llm-cost-observability
 
@@ -320,6 +324,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
+- [x] Cap chat transcripts sent to every LLM call at a bounded turn count
 - [x] Surface the new token-usage columns on the admin observability page
 - [x] Extend llm_call_events recording to the ~17 other agent.generate call sites with none
 - [x] Capture real token usage on llm_call_events for its 3 existing call sites
@@ -356,6 +361,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Notes
 - Blocked: the only tool-calling chat surface is contractually read-only; needs a confirmation UX and a human decision.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-15) — blocked pending human call, see above.
 
 ## cross-surface-practice
 

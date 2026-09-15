@@ -36,4 +36,29 @@ describe("formatTranscript", () => {
 
     expect(block).toBe("");
   });
+
+  it("keeps only the most recent turns once the conversation exceeds the default cap", () => {
+    const turns = Array.from({ length: 30 }, (_, i) => ({
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      text: `turn ${i}`,
+    }));
+
+    const block = formatTranscript(turns, { assistantLabel: "Tutor" });
+
+    expect(block).not.toContain("turn 0\n");
+    expect(block.startsWith("Learner: turn 6")).toBe(true);
+    expect(block.endsWith("turn 29")).toBe(true);
+    expect(block.split("\n")).toHaveLength(24);
+  });
+
+  it("keeps the full history when a caller explicitly opts out of the cap", () => {
+    const turns = Array.from({ length: 30 }, (_, i) => ({
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+      text: `turn ${i}`,
+    }));
+
+    const block = formatTranscript(turns, { assistantLabel: "Tutor", maxTurns: Infinity });
+
+    expect(block.split("\n")).toHaveLength(30);
+  });
 });
