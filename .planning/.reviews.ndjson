@@ -46,3 +46,4 @@
 {"ts": "2026-09-15T23:10:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Check hot pages' DB queries for N+1 patterns", "verdict": "PASS", "findings": []}
 {"ts": "2026-09-15T23:20:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Batch per-topic gap/feedback queries in quiz generation, not one-per-topic", "verdict": "PASS", "findings": []}
 {"ts": "2026-09-15T23:30:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Profile and cut load time on the curriculum and dashboard pages", "verdict": "PASS", "findings": []}
+{"ts": "2026-09-15T23:45:00.000Z", "direction": "prompt-and-performance-quality", "itemText": "Review the ~24 agent prompts for grounding, tone, and accuracy gaps", "verdict": "PASS", "findings": []}

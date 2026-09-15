@@ -18,7 +18,7 @@ updated: 2026-09-04
 - [x] Batch per-topic gap/feedback queries in quiz generation, not one-per-topic
 - [x] Check hot pages' DB queries for N+1 patterns
 - [x] Profile and cut load time on the curriculum and dashboard pages
-- [ ] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
+- [x] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
 
 ### Notes
 
