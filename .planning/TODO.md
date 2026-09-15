@@ -256,6 +256,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: the two unmerged branches (curriculum-add-sources-easily, module-topic-expand-web-search) and building a new safety mechanism — only applying the existing one consistently
 
 ### Coding tasks
+- [x] Add a dedicated safeHref test for the curriculum route's source-link rendering
 - [x] Add missing link-safety tests for the remaining 4 components
 
 ### Notes
@@ -264,6 +265,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Completed items archived to .planning/LOG.md.
 - Route file curriculum.$curriculumId.tsx has no dedicated safeHref test — no route-test pattern exists yet.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- Only unguarded citation-render site left is on the unmerged module-topic-expand-web-search branch.
 
 ## study-prioritization
 

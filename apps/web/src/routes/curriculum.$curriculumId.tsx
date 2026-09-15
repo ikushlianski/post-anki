@@ -302,7 +302,7 @@ function AddModuleBar({ curriculumId }: { curriculumId: string }) {
   )
 }
 
-function SourceRow({ source }: { source: Source }) {
+export function SourceRow({ source }: { source: Source }) {
   if (source.kind === 'link') {
     return (
       <li>
