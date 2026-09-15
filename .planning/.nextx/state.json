@@ -2,18 +2,22 @@
   "sessionId": "37df9926-0718-4b34-87a1-c5e65d3a5155",
   "startedAt": "2026-09-14T22:39:25.000Z",
   "stopBoundHours": 6,
-  "status": "escalated",
+  "status": "running",
   "activeDirections": [
-    "instant-study-cards",
+    "chat-driven-reorganization",
     "ingestion-progress-visibility",
+    "agentic-framework-and-tool-principles",
     "shareable-browser-search",
-    "agentic-framework-and-tool-principles"
+    "instant-study-cards",
+    "safe-address-hardening"
   ],
-  "lastHeartbeatAt": "2026-09-14T23:51:37.000Z",
+  "lastHeartbeatAt": "2026-09-14T23:56:41.407Z",
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
   "pendingSkillReload": [
-    "nextx"
+    "nextx",
+    "implement-factory",
+    "review-factory"
   ]
 }

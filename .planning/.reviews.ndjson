@@ -38,3 +38,4 @@
 {"ts":"2026-09-14T23:31:59Z","direction":"shareable-browser-search","itemText":"Make the notes search and filters shareable and bookmarkable via the page URL","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T23:39:15Z","direction":"agentic-framework-and-tool-principles","itemText":"Write a grounded doc on this app's own agent/tool-call conventions (model tiers, retry, cost logging, memory)","verdict":"PASS","findings":[]}
 {"ts":"2026-09-14T23:39:15Z","direction":"agentic-framework-and-tool-principles","itemText":"Replace 3 duplicated ad-hoc conversation-history formatters with one shared, tested one","verdict":"PASS","findings":[]}
+{"ts":"2026-09-15T03:06:00.000Z","direction":"safe-address-hardening","itemText":"Add missing link-safety tests for the remaining 4 components","verdict":"PASS","findings":[]}

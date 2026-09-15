@@ -259,6 +259,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: the two unmerged branches (curriculum-add-sources-easily, module-topic-expand-web-search) and building a new safety mechanism — only applying the existing one consistently
 
 ### Coding tasks
+- [x] Add missing link-safety tests for the remaining 4 components
 
 ### Notes
 - Mobile gap already fixed pre-run — assertSecureUrl in client.ts blocks non-loopback HTTP.
