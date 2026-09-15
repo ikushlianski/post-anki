@@ -23,6 +23,26 @@ function depthLabel(depth: string | null): string {
   return depth ? (DEPTH_LABEL[depth] ?? depth) : 'unset'
 }
 
+function docScanEmptyMessage(
+  scanRanOnce: boolean,
+  scanWasConcurrent: boolean,
+  scanHadAgentError: boolean,
+): string {
+  if (!scanRanOnce) {
+    return 'No pending suggestions.'
+  }
+
+  if (scanWasConcurrent) {
+    return 'A scan is already running for this subject — check back shortly.'
+  }
+
+  if (scanHadAgentError) {
+    return 'The scan ran into a problem — try again in a moment.'
+  }
+
+  return 'No new suggestions this scan.'
+}
+
 // domain-priority-review (issue #52), SCENARIOS 5/6/7/9. Every suggestion is
 // visibly labeled as general-knowledge reasoning, not grounded in real
 // trend data (spec.md's Decisions #12) — an honest baseline that makes #49
@@ -58,6 +78,7 @@ export function PriorityReviewPanel({
   const [scanning, setScanning] = useState(false)
   const [scanRanOnce, setScanRanOnce] = useState(false)
   const [scanWasConcurrent, setScanWasConcurrent] = useState(false)
+  const [scanHadAgentError, setScanHadAgentError] = useState(false)
   const [docScanConfirmation, setDocScanConfirmation] = useState<string | null>(null)
 
   const { claim, release, isResolving } = useResolvingSuggestions()
@@ -74,6 +95,7 @@ export function PriorityReviewPanel({
       setNewTopicSuggestions((prev) => [...result.newTopicSuggestions, ...prev])
       setSupersessionSuggestions((prev) => [...result.supersessionSuggestions, ...prev])
       setScanWasConcurrent(result.concurrentRun === true)
+      setScanHadAgentError(result.agentError === true)
     } catch {
       // Silent-fallback posture (spec.md's Decisions #8): a failed scan
       // reads identically to "nothing changed" — the sections simply stay
@@ -304,11 +326,7 @@ export function PriorityReviewPanel({
           <h2 className="text-sm font-semibold text-neutral-700">New topics found</h2>
           {newTopicSuggestions.length === 0 ? (
             <p data-testid="doc-scan-empty-state" className="mt-1 text-sm text-neutral-500">
-              {scanRanOnce && scanWasConcurrent
-                ? 'A scan is already running for this subject — check back shortly.'
-                : scanRanOnce
-                  ? 'No new suggestions this scan.'
-                  : 'No pending suggestions.'}
+              {docScanEmptyMessage(scanRanOnce, scanWasConcurrent, scanHadAgentError)}
             </p>
           ) : (
             <ul className="mt-2 space-y-2">
@@ -372,8 +390,8 @@ export function PriorityReviewPanel({
         <div className="mt-4">
           <h2 className="text-sm font-semibold text-neutral-700">Possibly outdated</h2>
           {supersessionSuggestions.length === 0 ? (
-            <p className="mt-1 text-sm text-neutral-500">
-              {scanRanOnce ? 'No new suggestions this scan.' : 'No pending suggestions.'}
+            <p data-testid="doc-scan-supersession-empty-state" className="mt-1 text-sm text-neutral-500">
+              {docScanEmptyMessage(scanRanOnce, scanWasConcurrent, scanHadAgentError)}
             </p>
           ) : (
             <ul className="mt-2 space-y-2">

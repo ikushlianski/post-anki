@@ -4,17 +4,30 @@
   "stopBoundHours": 6,
   "status": "running",
   "activeDirections": [
-    "agentic-framework-and-tool-principles",
-    "data-integrity-under-regeneration",
     "instant-study-cards",
+    "ingestion-progress-visibility",
+    "shareable-browser-search",
+    "agentic-framework-and-tool-principles",
     "safe-address-hardening",
     "chat-driven-reorganization",
-    "ingestion-progress-visibility",
-    "shareable-browser-search"
+    "data-integrity-under-regeneration",
+    "study-prioritization",
+    "doc-site-ingestion",
+    "the-me-agent-integration",
+    "calibration-and-depth-accuracy",
+    "llm-cost-observability",
+    "discovery-and-navigation",
+    "cross-surface-practice",
+    "e2e-reliability",
+    "curriculum-structure-quality"
   ],
-  "lastHeartbeatAt": "2026-09-14T23:56:41.407Z",
+  "lastHeartbeatAt": "2026-09-15T00:28:35.846Z",
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": []
+  "pendingSkillReload": [
+    "nextx",
+    "implement-factory",
+    "review-factory"
+  ]
 }

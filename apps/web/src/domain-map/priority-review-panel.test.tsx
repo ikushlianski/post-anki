@@ -375,5 +375,34 @@ describe('PriorityReviewPanel — doc-scan concurrent-run signal', () => {
         'No new suggestions this scan.',
       )
     })
+
+    expect(screen.getByTestId('doc-scan-supersession-empty-state').textContent).toBe(
+      'No new suggestions this scan.',
+    )
+  })
+
+  it('tells the user the scan failed instead of implying nothing was found', async () => {
+    mockedRunDocScan.mockResolvedValue({
+      newTopicSuggestions: [],
+      supersessionSuggestions: [],
+      toolsScanned: ['nextjs'],
+      toolsChanged: [],
+      agentCalled: false,
+      agentError: true,
+    })
+
+    renderPanel()
+
+    screen.getByTestId('doc-scan-trigger-button').click()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('doc-scan-empty-state').textContent).toBe(
+        'The scan ran into a problem — try again in a moment.',
+      )
+    })
+
+    expect(screen.getByTestId('doc-scan-supersession-empty-state').textContent).toBe(
+      'The scan ran into a problem — try again in a moment.',
+    )
   })
 })

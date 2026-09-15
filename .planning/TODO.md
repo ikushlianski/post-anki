@@ -341,6 +341,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
+- [x] Tell the learner when Scan now failed, not just when it's a duplicate run
 - [x] Fix the study-session and learning-path detail pages never actually rendering
 - [x] Fix the category, priority-review, recommendations, and domain-map pages never actually rendering
 - [x] Let categories be dragged onto each other to nest, with a confirm warning.
@@ -350,6 +351,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - CORS bug fixed (WEB_ORIGIN header, server.ts:261) — was blocking browser-side fetches.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- A real item shipped under this direction after the exhaustion marker — re-evaluate next round.
 
 ## chat-driven-reorganization
 
