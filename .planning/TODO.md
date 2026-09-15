@@ -26,6 +26,7 @@ updated: 2026-09-04
 
 ### Notes
 - practice.$subjectId's sequential loader is correct — settings fetch upserts, gating avoids a write for invalid subjects.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-16)
 
 
 ## content-browser-and-search
@@ -44,6 +45,7 @@ updated: 2026-09-04
 
 ### Notes
 - Card variants have no cross-topic order column — nothing for drag-reorder to persist to.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-16)
 
 
 ## agentic-framework-and-tool-principles
