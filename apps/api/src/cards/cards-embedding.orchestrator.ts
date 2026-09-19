@@ -1,5 +1,5 @@
 import { hashContent, selectSubjectsForScan } from "@post-anki/core";
-import type { TriggerCardEmbeddingScanResult } from "@post-anki/shared";
+import type { EmbeddingScanCounts } from "@post-anki/shared";
 import { embedTexts } from "../shared/embeddings-client.js";
 import {
   listCardVariantsForEmbeddingScan,
@@ -18,7 +18,7 @@ function contentTextFor(variant: Pick<CardVariantForEmbeddingScan, "prompt" | "a
 
 async function embedVariants(
   variants: CardVariantForEmbeddingScan[],
-): Promise<TriggerCardEmbeddingScanResult> {
+): Promise<EmbeddingScanCounts> {
   const scanCandidates = variants.map((variant) => ({
     id: variant.id,
     contentHash: hashContent(contentTextFor(variant)),
@@ -50,7 +50,7 @@ async function embedVariants(
   return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
 }
 
-export async function triggerCardEmbeddingScan(): Promise<TriggerCardEmbeddingScanResult> {
+export async function triggerCardEmbeddingScan(): Promise<EmbeddingScanCounts> {
   return embedVariants(await listCardVariantsForEmbeddingScan());
 }
 

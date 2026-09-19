@@ -1,11 +1,12 @@
 import type http from "node:http";
 import { normalizeSearchQuery } from "@post-anki/core";
-import type { CardMatchResult } from "@post-anki/shared";
+import type { CardMatchResult, TriggerCardEmbeddingScanResult } from "@post-anki/shared";
 import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { compileCards } from "./cards.orchestrator.js";
 import { triggerCardEmbeddingScan } from "./cards-embedding.orchestrator.js";
+import { embedFacts } from "../facts/facts-embedding.orchestrator.js";
 import { findTopMatchingCards } from "./cards-retrieval.orchestrator.js";
 import {
   getCardsByTopic,
@@ -71,7 +72,10 @@ export async function handleListCurriculumCards(
 // A failure here is a real 502 — never a silent "nothing needed embedding".
 export async function handleTriggerCardEmbeddingScan(res: http.ServerResponse): Promise<void> {
   try {
-    const result = await triggerCardEmbeddingScan();
+    const cards = await triggerCardEmbeddingScan();
+    const factCounts = await embedFacts();
+
+    const result: TriggerCardEmbeddingScanResult = { ...cards, facts: factCounts };
 
     sendJson(res, 200, result);
   } catch (err) {

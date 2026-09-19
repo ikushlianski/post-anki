@@ -48,12 +48,17 @@ export const cardBrowserRowSchema = z.object({
 
 export type CardBrowserRow = z.infer<typeof cardBrowserRowSchema>;
 
-// POST /cards/embedding-scan response — mirrors
-// triggerSubjectDuplicateScanResultSchema's cost-visibility fields.
-export const triggerCardEmbeddingScanResultSchema = z.object({
+// Cost-visibility counts for one embedding scan, per entity.
+export const embeddingScanCountsSchema = z.object({
   embeddedCount: z.number().int().nonnegative(),
   reusedCount: z.number().int().nonnegative(),
   capped: z.boolean(),
+});
+
+export type EmbeddingScanCounts = z.infer<typeof embeddingScanCountsSchema>;
+
+export const triggerCardEmbeddingScanResultSchema = embeddingScanCountsSchema.extend({
+  facts: embeddingScanCountsSchema,
 });
 
 export type TriggerCardEmbeddingScanResult = z.infer<

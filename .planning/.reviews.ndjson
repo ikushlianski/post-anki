@@ -91,3 +91,4 @@
 {"ts":"2026-09-19T11:45:00Z","direction":"notion-deck-connectors","itemText":"Turn a table-style Notion database into individual cards","verdict":"PASS","findings":[],"summary":"covered by the reviewed reading-notes-router phases (commits cb40002, 1520549, d981d08)"}
 {"ts":"2026-09-19T11:45:00Z","direction":"notion-deck-connectors","itemText":"Turn a paragraph-style Notion page into individual cards","verdict":"PASS","findings":[],"summary":"covered by the reviewed reading-notes-router phases (commits cb40002, 1520549, d981d08)"}
 {"ts":"2026-09-19T11:45:00Z","direction":"notion-deck-connectors","itemText":"Let a deck be configured with a Notion page or database as its source","verdict":"PASS","findings":[],"summary":"covered by the reviewed reading-notes-router phases (commits cb40002, 1520549, d981d08)"}
+{"ts":"2026-09-19T12:30:00Z","direction":"grounded-knowledge-chat","itemText":"Embed facts","verdict":"PASS","findings":[]}

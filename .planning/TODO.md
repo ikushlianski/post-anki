@@ -71,6 +71,8 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Include Notion facts in the global chat's grounding alongside cards
+  - [x] Embed facts
+  - [ ] Retrieve and ground on facts
 - [x] Sort card tag names deterministically, add a multi-tag test
 - [x] Fix nondeterministic domainNodeName and add negative filter tests for card labels
 - [x] Surface a card's subject, tags, and confirmed domain node alongside its topic

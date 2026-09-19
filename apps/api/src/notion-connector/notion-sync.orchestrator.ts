@@ -1,6 +1,7 @@
 import type { NotionConnector, NotionItem, NotionSource } from "@post-anki/shared";
 import { filterByTag } from "@post-anki/core";
 import { log } from "../shared/log.js";
+import { embedFacts } from "../facts/facts-embedding.orchestrator.js";
 import { getNotionClient, readSourceItems } from "./notion.client.js";
 import { insertFact, listSyncedNotionIds, recordSynced } from "./notion-sync.repo.js";
 import { addProjectTodo, type ProjectTodoTarget } from "./project-todo.destination.js";
@@ -91,6 +92,8 @@ export async function runNotionSync(
       results.push({ connector: connector.name, imported: 0, skipped: 0, failed: -1 });
     }
   }
+
+  await embedFacts().catch((err) => log.error({ err }, "facts_embedding_failed"));
 
   return results;
 }

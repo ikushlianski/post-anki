@@ -38,6 +38,12 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
+const embedFacts = vi.fn().mockResolvedValue({ embeddedCount: 0, reusedCount: 0, capped: false });
+
+vi.mock("../facts/facts-embedding.orchestrator.js", () => ({
+  embedFacts: (...args: unknown[]) => embedFacts(...args),
+}));
+
 const { runNotionSync } = await import("./notion-sync.orchestrator.js");
 
 let client: pg.Client;
@@ -151,5 +157,24 @@ describe("runNotionSync", () => {
     await runNotionSync([{ ...spaConnector, removeAfterImport: true }], d);
 
     expect(d.removeItem).toHaveBeenCalledWith(spaConnector.source, id);
+  });
+
+  it("embeds facts once every connector has synced", async () => {
+    embedFacts.mockClear();
+    const d = deps([{ id: `b-${randomUUID()}`, text: "Compounding favours patience", tags: ["SPA"] }]);
+
+    await runNotionSync([spaConnector], d);
+
+    expect(embedFacts).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports a successful sync when embedding the facts fails", async () => {
+    embedFacts.mockRejectedValueOnce(new Error("embeddings down"));
+    const d = deps([{ id: `b-${randomUUID()}`, text: "Focus is a subtraction exercise", tags: ["SPA"] }]);
+
+    const [result] = await runNotionSync([spaConnector], d);
+
+    expect(result).toEqual({ connector: "biz-education-spa", imported: 1, skipped: 0, failed: 0 });
+    expect(await factBodies()).toContain("Focus is a subtraction exercise");
   });
 });
