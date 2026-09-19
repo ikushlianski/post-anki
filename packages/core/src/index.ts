@@ -35,3 +35,4 @@ export * from "./mastra/index";
 export * from "./cards/filter-card-browser-rows";
 export * from "./cards/rank-by-similarity";
 export * from "./shared/hash-content";
+export * from "./notion-connector/index";

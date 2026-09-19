@@ -1,0 +1,43 @@
+import { z } from "zod";
+
+export const notionSourceSchema = z.object({
+  kind: z.enum(["page", "database"]),
+  id: z.string().min(1),
+});
+
+export type NotionSource = z.infer<typeof notionSourceSchema>;
+
+export const notionDestinationSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("fact") }),
+  z.object({
+    kind: z.literal("project-todo"),
+    file: z.string().min(1),
+    direction: z.string().min(1),
+  }),
+]);
+
+export type NotionDestination = z.infer<typeof notionDestinationSchema>;
+
+export const notionConnectorSchema = z.object({
+  name: z.string().min(1),
+  source: notionSourceSchema,
+  tag: z.string().min(1),
+  destination: notionDestinationSchema,
+  removeAfterImport: z.boolean().default(false),
+});
+
+export type NotionConnector = z.infer<typeof notionConnectorSchema>;
+
+export const notionConnectorConfigSchema = z.object({
+  connectors: z.array(notionConnectorSchema),
+});
+
+export type NotionConnectorConfig = z.infer<typeof notionConnectorConfigSchema>;
+
+export const notionItemSchema = z.object({
+  id: z.string().min(1),
+  text: z.string(),
+  tags: z.array(z.string()),
+});
+
+export type NotionItem = z.infer<typeof notionItemSchema>;

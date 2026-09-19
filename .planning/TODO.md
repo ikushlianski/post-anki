@@ -18,6 +18,12 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
+- [ ] Build the Notion reading-notes router: config, reader, fact and todo destinations, LaunchAgent
+  - [x] Connector config and Notion reader
+  - [ ] Destinations and idempotent sync
+  - [ ] LaunchAgent and runner scripts
+- [ ] Save a Notion note tagged SPA as a fact in post-anki's production database
+- [ ] Route a Notion note tagged for a project, e.g. CRM, into that project's own backlog file
 - [ ] Pull the two seed Notion pages read-only and inspect their shape
 - [ ] Let a connector be configured to remove or keep an item after import
 - [ ] Let a connector only pull items matching a configured rule, e.g. a tag
@@ -30,6 +36,7 @@ updated: 2026-09-04
 ### Notes
 - Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
 - Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
+- Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
 
 
 ## local-first-sync

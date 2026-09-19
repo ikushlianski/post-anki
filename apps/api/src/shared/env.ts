@@ -41,6 +41,7 @@ const envSchema = z.object({
   // separate ports in dev — so this is never optional in practice; it
   // defaults to the local dev web port only.
   WEB_ORIGIN: z.string().min(1).default("http://localhost:5540"),
+  NOTION_TOKEN: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

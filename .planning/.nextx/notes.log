@@ -1,1 +1,2 @@
 2026-09-16T08:19:44.862Z time-bound gate: hard ceiling (7.5h) reached at 9h18m elapsed — ending regardless of backlog state. The 5h bound was a floor, not this stop. Persisting status "stopped" so a resumed session doesn't re-hit this same check.
+2026-09-19T07:57:11Z run ended by manual override: both active directions EXHAUSTED-AT-SCOPE, user present and directing interactively, all remaining open items human-blocked (Notion OAuth, Electric DB secret, wishlist branches). state.json moved to state.json.ended-2026-09-19 for the record.

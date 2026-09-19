@@ -1,0 +1,22 @@
+{
+  "connectors": [
+    {
+      "name": "biz-education-spa",
+      "source": { "kind": "page", "id": "REPLACE_WITH_PAGE_ID" },
+      "tag": "SPA",
+      "destination": { "kind": "fact" },
+      "removeAfterImport": false
+    },
+    {
+      "name": "inbox-crm",
+      "source": { "kind": "database", "id": "REPLACE_WITH_DATABASE_ID" },
+      "tag": "CRM",
+      "destination": {
+        "kind": "project-todo",
+        "file": "/Users/ikushlianski/webdata/ilya-projects/crm/.planning/todo.md",
+        "direction": "reading-notes"
+      },
+      "removeAfterImport": false
+    }
+  ]
+}
