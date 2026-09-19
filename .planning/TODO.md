@@ -62,7 +62,7 @@ updated: 2026-09-04
 - [ ] Let the learner allow general AI knowledge in chat, off by default
 - [ ] Build a global chat that answers strictly from the learner's own matched cards
 - [ ] Find the top-matching cards for a free-text query by vector similarity
-- [ ] Re-vectorize a card automatically when its question or answer text changes
+- [x] Re-vectorize a card automatically when its question or answer text changes
 - [x] Vectorize every card's question and answer text, store the embedding
   - [x] Add embedding columns to topic_card_variants, generate the migration
   - [x] Promote the embeddings HTTP client to a shared, generic location

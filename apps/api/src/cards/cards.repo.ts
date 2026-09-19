@@ -164,6 +164,22 @@ export async function updateCardVariantEmbedding(
     .where(eq(topicCardVariants.id, variantId));
 }
 
+export async function listCardVariantsForTopic(
+  topicId: string,
+): Promise<CardVariantForEmbeddingScan[]> {
+  return getDb()
+    .select({
+      id: topicCardVariants.id,
+      prompt: topicCardVariants.prompt,
+      answer: topicCardVariants.answer,
+      embeddingHash: topicCardVariants.embeddingHash,
+    })
+    .from(topicCardVariants)
+    .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
+    .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
+    .where(eq(topicCardSets.topicId, topicId));
+}
+
 export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {
   const row = (
     await getDb()

@@ -3,6 +3,7 @@ import type { TriggerCardEmbeddingScanResult } from "@post-anki/shared";
 import { embedTexts } from "../shared/embeddings-client.js";
 import {
   listCardVariantsForEmbeddingScan,
+  listCardVariantsForTopic,
   updateCardVariantEmbedding,
   type CardVariantForEmbeddingScan,
 } from "./cards.repo.js";
@@ -15,9 +16,9 @@ function contentTextFor(variant: Pick<CardVariantForEmbeddingScan, "prompt" | "a
   return `${variant.prompt}\n${variant.answer}`;
 }
 
-export async function triggerCardEmbeddingScan(): Promise<TriggerCardEmbeddingScanResult> {
-  const variants = await listCardVariantsForEmbeddingScan();
-
+async function embedVariants(
+  variants: CardVariantForEmbeddingScan[],
+): Promise<TriggerCardEmbeddingScanResult> {
   const scanCandidates = variants.map((variant) => ({
     id: variant.id,
     contentHash: hashContent(contentTextFor(variant)),
@@ -47,4 +48,13 @@ export async function triggerCardEmbeddingScan(): Promise<TriggerCardEmbeddingSc
   }
 
   return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
+}
+
+export async function triggerCardEmbeddingScan(): Promise<TriggerCardEmbeddingScanResult> {
+  return embedVariants(await listCardVariantsForEmbeddingScan());
+}
+
+// Scoped sibling of triggerCardEmbeddingScan — one topic's own variants only.
+export async function embedVariantsForTopic(topicId: string): Promise<void> {
+  await embedVariants(await listCardVariantsForTopic(topicId));
 }

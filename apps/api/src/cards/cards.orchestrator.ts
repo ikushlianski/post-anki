@@ -10,6 +10,7 @@ import {
 } from "../curriculum/curriculum.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { cardsPlanSchema } from "./cards-plan.schema.js";
+import { embedVariantsForTopic } from "./cards-embedding.orchestrator.js";
 import {
   hasCardsGeneratedOrInProgress,
   replaceCardsContent,
@@ -102,6 +103,12 @@ export async function compileCards(topicId: string): Promise<void> {
     await replaceCardsContent(topicId, result.object);
 
     log.info({ topicId, cards: result.object.cards.length }, "cards_compiled");
+
+    // Cards are usable without embeddings — a failure here never fails
+    // generation; the global scan can backfill anything missed.
+    await embedVariantsForTopic(topicId).catch((err) =>
+      log.error({ err, topicId }, "cards_embedding_failed"),
+    );
   } catch (err) {
     log.error({ err, topicId }, "cards_compile_failed");
     await setCardsStatus(topicId, "failed");
