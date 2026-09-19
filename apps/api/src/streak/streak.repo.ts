@@ -13,26 +13,30 @@ function rowToStreak(row: typeof userStreaks.$inferSelect): Streak {
   };
 }
 
+async function readStreakRow(): Promise<typeof userStreaks.$inferSelect | undefined> {
+  return (await getDb().select().from(userStreaks).where(eq(userStreaks.id, SINGLETON_ID)))[0];
+}
+
 export async function readOrCreateStreak(): Promise<Streak> {
-  const db = getDb();
-  const existing = (
-    await db.select().from(userStreaks).where(eq(userStreaks.id, SINGLETON_ID))
-  )[0];
+  const existing = await readStreakRow();
 
   if (existing) {
     return rowToStreak(existing);
   }
 
-  const row = {
-    id: SINGLETON_ID,
-    currentStreak: 0,
-    longestStreak: 0,
-    lastActiveDate: null,
-  };
+  // Two first-ever callers can race here; the loser must read the winner's row, not throw.
+  await getDb()
+    .insert(userStreaks)
+    .values({ id: SINGLETON_ID, currentStreak: 0, longestStreak: 0, lastActiveDate: null })
+    .onConflictDoNothing({ target: userStreaks.id });
 
-  await db.insert(userStreaks).values(row);
+  const created = await readStreakRow();
 
-  return rowToStreak(row as typeof userStreaks.$inferSelect);
+  if (!created) {
+    throw new Error("streak row missing after create");
+  }
+
+  return rowToStreak(created);
 }
 
 export async function writeStreak(streak: Streak): Promise<void> {

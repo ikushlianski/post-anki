@@ -5,10 +5,12 @@
   "status": "running",
   "activeDirections": [
     "grounded-knowledge-chat",
-    "local-first-sync"
+    "local-first-sync",
+    "e2e-reliability"
   ],
-  "lastHeartbeatAt": "2026-09-19T01:50:25.780Z",
-  "timeBoundBlocks": 0,
+  "lastHeartbeatAt": "2026-09-19T07:45:20.623Z",
+  "timeBoundBlocks": 2,
+  "lastBlockAt": "2026-09-19T07:50:01.773Z",
   "autoCommitEnabled": true,
   "pushGranted": false,
   "pendingSkillReload": []

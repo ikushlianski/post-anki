@@ -18,6 +18,7 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
+- [ ] Pull the two seed Notion pages read-only and inspect their shape
 - [ ] Let a connector be configured to remove or keep an item after import
 - [ ] Let a connector only pull items matching a configured rule, e.g. a tag
 - [ ] Run each Notion connector on its own schedule, unattended
@@ -28,6 +29,7 @@ updated: 2026-09-04
 
 ### Notes
 - Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
+- Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
 
 
 ## local-first-sync
@@ -47,6 +49,7 @@ updated: 2026-09-04
 ### Notes
 - Electric is fully built (dev, prod infra, 6 web collections) — prod never started, missing DB secret.
 - Blocked on the prod Electric DB secret — see Manual steps. Do not flip the flag before it's set.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-19) — blocked pending human call, see above.
 
 
 ## grounded-knowledge-chat
@@ -82,6 +85,7 @@ updated: 2026-09-04
   - [x] A card-embedding scan orchestrator, repo functions, and trigger endpoint
 
 ### Notes
+- EXHAUSTED-AT-SCOPE (round 1, 2026-09-19)
 
 
 ## prompt-and-performance-quality
@@ -305,7 +309,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ## Manual steps
 
 - [x] Wire the API's database-backed test suite into the build pipeline.
-  - [ ] Confirm which test suite/config needs CI wiring (the integration config)
+  - [x] Confirm which test suite/config needs CI wiring (the integration config)
   - [ ] Add it to the existing CI workflow, with a real DB service in CI
   - [ ] Confirm it runs green in CI before merging
 - [ ] If live sync goes to production: set its database secret, then turn on the feature switch.
@@ -512,6 +516,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: writing coverage for brand-new features — this is fixing what already exists
 
 ### Coding tasks
+- [ ] Make first-ever streak creation safe under two concurrent quiz answers
 - [x] Fix waitForHydration to wait for real hydration, not router presence
 
 ### Notes
