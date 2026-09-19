@@ -516,7 +516,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: writing coverage for brand-new features — this is fixing what already exists
 
 ### Coding tasks
-- [ ] Make first-ever streak creation safe under two concurrent quiz answers
+- [x] Make first-ever streak creation safe under two concurrent quiz answers
 - [x] Fix waitForHydration to wait for real hydration, not router presence
 
 ### Notes
