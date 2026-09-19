@@ -1,15 +1,20 @@
 import type http from "node:http";
+import { normalizeSearchQuery } from "@post-anki/core";
+import type { CardMatchResult } from "@post-anki/shared";
 import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { compileCards } from "./cards.orchestrator.js";
 import { triggerCardEmbeddingScan } from "./cards-embedding.orchestrator.js";
+import { findTopMatchingCards } from "./cards-retrieval.orchestrator.js";
 import {
   getCardsByTopic,
   getCurriculumCardsSummary,
   listCardsForCurriculum,
   startGeneratingCards,
 } from "./cards.repo.js";
+
+const CARD_MATCH_DEFAULT_LIMIT = 10;
 
 export async function handleCompileCards(
   res: http.ServerResponse,
@@ -76,4 +81,27 @@ export async function handleTriggerCardEmbeddingScan(res: http.ServerResponse): 
 
     sendError(res, 502, "scan_failed", message);
   }
+}
+
+export async function handleFindTopMatchingCards(
+  res: http.ServerResponse,
+  queryParam: string | null,
+  limitParam: string | null,
+): Promise<void> {
+  const normalized = normalizeSearchQuery(queryParam ?? "");
+
+  if (normalized === null) {
+    sendJson(res, 200, [] satisfies CardMatchResult[]);
+    return;
+  }
+
+  const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : NaN;
+  const limit =
+    Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 50)
+      : CARD_MATCH_DEFAULT_LIMIT;
+
+  const results = await findTopMatchingCards(normalized, limit);
+
+  sendJson(res, 200, results);
 }

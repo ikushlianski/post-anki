@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { CardBrowserRow, CardSetStatus, TopicCardSet } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { topicCardSets, topicCards, topicCardVariants, topics } from "../db/schema.js";
@@ -178,6 +178,34 @@ export async function listCardVariantsForTopic(
     .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
     .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
     .where(eq(topicCardSets.topicId, topicId));
+}
+
+export interface EmbeddedCardVariant {
+  id: string;
+  prompt: string;
+  answer: string;
+  embedding: number[];
+  topicId: string;
+  topicTitle: string;
+}
+
+export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]> {
+  const rows = await getDb()
+    .select({
+      id: topicCardVariants.id,
+      prompt: topicCardVariants.prompt,
+      answer: topicCardVariants.answer,
+      embedding: topicCardVariants.embedding,
+      topicId: topics.id,
+      topicTitle: topics.title,
+    })
+    .from(topicCardVariants)
+    .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
+    .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
+    .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
+    .where(isNotNull(topicCardVariants.embedding));
+
+  return rows.map((row) => ({ ...row, embedding: row.embedding! }));
 }
 
 export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {

@@ -132,6 +132,7 @@ import {
 } from "./lecture/lecture.controller.js";
 import {
   handleCompileCards,
+  handleFindTopMatchingCards,
   handleGetCards,
   handleGetCurriculumCardsSummary,
   handleListCurriculumCards,
@@ -358,6 +359,8 @@ async function route(
       return handleListCurriculumCards(res, id);
     case "triggerCardEmbeddingScan":
       return handleTriggerCardEmbeddingScan(res);
+    case "findTopMatchingCards":
+      return handleFindTopMatchingCards(res, url.searchParams.get("q"), url.searchParams.get("limit"));
     case "updateCurriculum":
       return handleUpdateCurriculum(req, res, id);
     case "deleteCurriculum":

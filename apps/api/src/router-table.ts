@@ -81,6 +81,7 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "POST", pattern: "/cards/embedding-scan", name: "triggerCardEmbeddingScan" },
+  { method: "GET", pattern: "/cards/matches", name: "findTopMatchingCards" },
   { method: "PATCH", pattern: /^\/curricula\/([^/]+)$/, name: "updateCurriculum", param: "id" },
   { method: "DELETE", pattern: /^\/curricula\/([^/]+)$/, name: "deleteCurriculum", param: "id" },
   { method: "PATCH", pattern: /^\/modules\/([^/]+)\/topics\/order$/, name: "reorderTopics", param: "id" },

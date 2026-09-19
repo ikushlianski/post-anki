@@ -59,3 +59,14 @@ export const triggerCardEmbeddingScanResultSchema = z.object({
 export type TriggerCardEmbeddingScanResult = z.infer<
   typeof triggerCardEmbeddingScanResultSchema
 >;
+
+export const cardMatchResultSchema = z.object({
+  variantId: z.string(),
+  prompt: z.string(),
+  answer: z.string(),
+  topicId: z.string(),
+  topicTitle: z.string(),
+  similarity: z.number(),
+});
+
+export type CardMatchResult = z.infer<typeof cardMatchResultSchema>;
