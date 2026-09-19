@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useProbePush } from "../../src/study/use-probe-push";
 import { QuestionView } from "../../src/study/question-view";
@@ -31,9 +31,17 @@ export default function MentorSubjectScreen() {
       {push?.question && !result ? (
         <View>
           {push.push ? (
-            <Text style={styles.context}>
-              {push.push.curriculumName} · {push.push.topicTitle}
-            </Text>
+            <View>
+              <Text style={styles.context}>
+                {push.push.curriculumName} · {push.push.topicTitle}
+              </Text>
+              <Text
+                style={styles.cardsLink}
+                onPress={() => router.push(`/cards/${push.push!.topicId}`)}
+              >
+                View cards for this topic →
+              </Text>
+            </View>
           ) : null}
           <QuestionView
             question={push.question}
@@ -115,5 +123,11 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontSize: 14,
     fontWeight: "600",
+  },
+  cardsLink: {
+    color: "#2563eb",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 12,
   },
 });
