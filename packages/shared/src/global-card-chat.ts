@@ -9,9 +9,15 @@ export const askGlobalCardChatInput = z.object({
 
 export type AskGlobalCardChatInput = z.infer<typeof askGlobalCardChatInput>;
 
+export const globalCardChatMatchedCardSchema = z.object({
+  variantId: z.string(),
+  prompt: z.string(),
+  topicTitle: z.string(),
+});
+
 export const askGlobalCardChatResultSchema = z.object({
   reply: z.string(),
-  matchedCardIds: z.array(z.string()),
+  matchedCards: z.array(globalCardChatMatchedCardSchema),
 });
 
 export type AskGlobalCardChatResult = z.infer<typeof askGlobalCardChatResultSchema>;

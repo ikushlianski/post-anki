@@ -123,7 +123,7 @@ describe('doc-scan suggestion resolvers', () => {
 
   describe('askGlobalCardChat', () => {
     it('forwards allowGeneralKnowledge in the request body when set', async () => {
-      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi', matchedCardIds: [] }))
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi', matchedCards: [] }))
 
       await askGlobalCardChat({ message: 'hi', allowGeneralKnowledge: true })
 
@@ -134,7 +134,7 @@ describe('doc-scan suggestion resolvers', () => {
     })
 
     it('sends allowGeneralKnowledge as undefined when the caller omits it', async () => {
-      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi', matchedCardIds: [] }))
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi', matchedCards: [] }))
 
       await askGlobalCardChat({ message: 'hi' })
 

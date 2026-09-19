@@ -34,7 +34,7 @@ describe('GlobalCardChatPanel', () => {
   it('answers a question with a reply grounded in the learner’s own cards', async () => {
     mockedAsk.mockResolvedValue({
       reply: 'A closure is a function bundled with its surrounding scope.',
-      matchedCardIds: ['variant-1'],
+      matchedCards: [{ variantId: 'variant-1', prompt: 'What is a closure?', topicTitle: 'JS' }],
     })
 
     const user = userEvent.setup()
@@ -56,7 +56,7 @@ describe('GlobalCardChatPanel', () => {
   it('sends allowGeneralKnowledge: true only after the learner turns the toggle on', async () => {
     mockedAsk.mockResolvedValue({
       reply: 'Beyond your cards: a monad is a design pattern for chaining computations.',
-      matchedCardIds: [],
+      matchedCards: [],
     })
 
     const user = userEvent.setup()

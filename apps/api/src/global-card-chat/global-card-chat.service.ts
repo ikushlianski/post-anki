@@ -36,7 +36,11 @@ export async function askGlobalCardChat(
 ): Promise<AskGlobalCardChatResult> {
   const matchedCards = await findTopMatchingCards(input.message, TOP_K_CARDS);
   const prompt = buildPrompt(input, matchedCards);
-  const matchedCardIds = matchedCards.map((c) => c.variantId);
+  const matchedCardsForDisplay = matchedCards.map((c) => ({
+    variantId: c.variantId,
+    prompt: c.prompt,
+    topicTitle: c.topicTitle,
+  }));
 
   const agent = getMastra().getAgent(AGENT_KEYS.globalCardChat);
   const requestContext = new RequestContext([
@@ -54,11 +58,11 @@ export async function askGlobalCardChat(
     const reply = result.text?.trim();
 
     if (reply) {
-      return { reply, matchedCardIds };
+      return { reply, matchedCards: matchedCardsForDisplay };
     }
   } catch (err) {
     log.error({ err }, "global_card_chat_failed");
   }
 
-  return { reply: FALLBACK_REPLY, matchedCardIds };
+  return { reply: FALLBACK_REPLY, matchedCards: matchedCardsForDisplay };
 }

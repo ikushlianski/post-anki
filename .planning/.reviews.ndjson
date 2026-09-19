@@ -69,3 +69,5 @@
 {"ts":"2026-09-19T03:05:00Z","direction":"grounded-knowledge-chat","itemText":"Backend opt-in flag","verdict":"PASS","findings":[]}
 {"ts":"2026-09-19T03:20:00Z","direction":"grounded-knowledge-chat","itemText":"Frontend toggle","verdict":"FAIL","findings":[{"severity":"critical","summary":"allowGeneralKnowledge dropped in apps/web/src/curriculum/api-client.ts's askGlobalCardChat before the HTTP call, so the toggle never reaches the backend","fixed":false}]}
 {"ts":"2026-09-19T03:35:00Z","direction":"grounded-knowledge-chat","itemText":"Frontend toggle","verdict":"PASS","findings":[]}
+{"ts":"2026-09-19T03:50:00Z","direction":"grounded-knowledge-chat","itemText":"Enrich chat response with card display data","verdict":"FAIL","findings":[{"severity":"high","summary":"apps/web/src/curriculum/api-client.test.ts still mocks the old matchedCardIds response shape for askGlobalCardChat, masking future regressions","fixed":false}]}
+{"ts":"2026-09-19T04:00:00Z","direction":"grounded-knowledge-chat","itemText":"Update api-client.test.ts's stale matchedCardIds mock to the new matchedCards shape","verdict":"PASS","findings":[]}

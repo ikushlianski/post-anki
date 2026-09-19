@@ -52,10 +52,12 @@ describe("askGlobalCardChat", () => {
     expect(prompt).not.toContain("scope chain");
   });
 
-  it("returns the matched card ids alongside the reply for later grounding display", async () => {
+  it("returns the matched cards' display data alongside the reply for later grounding display", async () => {
     const result = await askGlobalCardChat({ message: "What is a closure?" });
 
-    expect(result.matchedCardIds).toEqual(["v1"]);
+    expect(result.matchedCards).toEqual([
+      { variantId: "v1", prompt: "What is a closure?", topicTitle: "JS fundamentals" },
+    ]);
     expect(result.reply).toBe("A closure bundles a function with its scope.");
   });
 
@@ -68,7 +70,7 @@ describe("askGlobalCardChat", () => {
     const prompt = generate.mock.calls[0]![0] as string;
 
     expect(prompt).toContain("no cards matching");
-    expect(result.matchedCardIds).toEqual([]);
+    expect(result.matchedCards).toEqual([]);
     expect(result.reply).toBe("Your cards don't cover this yet.");
   });
 
@@ -78,7 +80,9 @@ describe("askGlobalCardChat", () => {
     const result = await askGlobalCardChat({ message: "What is a closure?" });
 
     expect(result.reply).toBe("I couldn't reach the tutor right now — try again.");
-    expect(result.matchedCardIds).toEqual(["v1"]);
+    expect(result.matchedCards).toEqual([
+      { variantId: "v1", prompt: "What is a closure?", topicTitle: "JS fundamentals" },
+    ]);
   });
 
   it("falls back to a stock reply when the agent call throws", async () => {

@@ -58,8 +58,11 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [x] Update api-client.test.ts's stale matchedCardIds mock to the new matchedCards shape
 - [x] Fix askGlobalCardChat in api-client.ts dropping allowGeneralKnowledge before the HTTP call
 - [ ] Show which cards grounded each chat answer, so it's never a black box
+  - [ ] Enrich chat response with card display data
+  - [ ] Render grounding cards under each reply
 - [x] Let the learner allow general AI knowledge in chat, off by default
   - [x] Backend opt-in flag
   - [x] Frontend toggle
