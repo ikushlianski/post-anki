@@ -7,6 +7,58 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## notion-deck-connectors
+
+### Scope
+- Configure a Notion page or database as the source for one deck's cards
+- Support both a plain paragraph-style page and a table/database-style page
+- New cards from a connector feed into the same vectorize-and-label pipeline as any other card
+- Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
+
+### Coding tasks
+- [ ] Let a deck's Notion source be re-synced to pick up edits
+- [ ] Turn a table-style Notion database into individual cards
+- [ ] Turn a paragraph-style Notion page into individual cards
+- [ ] Let a deck be configured with a Notion page or database as its source
+
+### Notes
+- Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
+
+
+## local-first-sync
+
+### Scope
+- Finish turning on the already-built Electric sync in production
+- Extend local-first sync to the existing mobile app, which is plain REST today
+- Out of scope: The Tauri desktop wrapper — already tracked separately, blocked on a missing Rust toolchain
+
+### Coding tasks
+- [ ] Sync cards to the mobile app locally instead of a plain network fetch
+- [ ] Turn on the prod Electric rollout flag once its database secret is set
+
+### Notes
+- Electric is fully built (dev, prod infra, 6 web collections) — prod never started, missing DB secret.
+
+
+## grounded-knowledge-chat
+
+### Scope
+- Vectorize every card's question/answer content, reusing the existing embeddings pattern
+- Label cards along existing dimensions only — subject, topic, tags, domain-map, no new taxonomy
+- A global AI chat that answers from the learner's own card knowledge first, general knowledge only if allowed
+- Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
+
+### Coding tasks
+- [ ] Show which cards grounded each chat answer, so it's never a black box
+- [ ] Let the learner allow general AI knowledge in chat, off by default
+- [ ] Build a global chat that answers strictly from the learner's own matched cards
+- [ ] Find the top-matching cards for a free-text query by vector similarity
+- [ ] Re-vectorize a card automatically when its question or answer text changes
+- [ ] Vectorize every card's question and answer text, store the embedding
+
+### Notes
+
+
 ## prompt-and-performance-quality
 
 ### Scope
@@ -91,6 +143,7 @@ updated: 2026-09-04
 ### Notes
 - StructureDraftPending already auto-refreshes every 2.5s while a draft is pending — not a gap.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
+- PAUSED (2026-09-19) — automated course-from-a-link creation is frozen for the knowledge-chat pivot.
 
 
 ## instant-study-cards
@@ -191,9 +244,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [ ] Turn on live-updating sync in production, or remove it entirely. It was deployed once and
       has never passed a health check since, so it currently serves no traffic. Check real
       billing before assuming it costs nothing.
-  - [ ] Decide: keep and fix, or remove — needs a human call before either path starts
-  - [ ] If keeping: verify the health check, set the DB secret, enable the feature switch
-  - [ ] If removing: strip the feature flag and its dead code
+  - [x] Decide: keep and fix, or remove — needs a human call before either path starts
 - [ ] Splitting a subject, course or tag into pieces needs product design first: how does the app
       decide which existing content goes where?
 - [ ] When discovering doc-site sources for an existing course, should candidates be saved
@@ -355,6 +406,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Crawl fallback caps at 8 links with no signal — no message channel exists to surface it.
 - Entry-point ordering is already deterministic — resolveRetryResearchSource prefers own sources; flat note is stale.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- PAUSED (2026-09-19) — automated course-from-a-link creation is frozen for the knowledge-chat pivot.
 
 ## llm-cost-observability
 
@@ -456,6 +508,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - No grounded gaps found yet — swept structure code, prompts, editing tools.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- PAUSED (2026-09-19) — automated course-from-a-link creation is frozen for the knowledge-chat pivot.
 
 ## Notes
 
