@@ -12,10 +12,15 @@ updated: 2026-09-04
 ### Scope
 - Configure a Notion page or database as the source for one deck's cards
 - Support both a plain paragraph-style page and a table/database-style page
+- Each connector runs on its own schedule (nightly, daily, or manual), unattended
+- Each connector has its own configurable rules: which items it pulls (e.g. by tag), and whether it removes or keeps an item in Notion once imported
 - New cards from a connector feed into the same vectorize-and-label pipeline as any other card
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
+- [ ] Let a connector be configured to remove or keep an item after import
+- [ ] Let a connector only pull items matching a configured rule, e.g. a tag
+- [ ] Run each Notion connector on its own schedule, unattended
 - [ ] Let a deck's Notion source be re-synced to pick up edits
 - [ ] Turn a table-style Notion database into individual cards
 - [ ] Turn a paragraph-style Notion page into individual cards
