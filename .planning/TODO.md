@@ -65,7 +65,7 @@ updated: 2026-09-04
 - [ ] Re-vectorize a card automatically when its question or answer text changes
 - [ ] Vectorize every card's question and answer text, store the embedding
   - [x] Add embedding columns to topic_card_variants, generate the migration
-  - [ ] Promote the embeddings HTTP client to a shared, generic location
+  - [x] Promote the embeddings HTTP client to a shared, generic location
   - [ ] A card-embedding scan orchestrator, repo functions, and trigger endpoint
 
 ### Notes
