@@ -22,21 +22,23 @@ updated: 2026-09-04
   - [x] Connector config and Notion reader
   - [x] Destinations and idempotent sync
   - [x] LaunchAgent and runner scripts
-- [ ] Save a Notion note tagged SPA as a fact in post-anki's production database
-- [ ] Route a Notion note tagged for a project, e.g. CRM, into that project's own backlog file
+- [x] Save a Notion note tagged SPA as a fact in post-anki's production database
+- [x] Route a Notion note tagged for a project, e.g. CRM, into that project's own backlog file
 - [ ] Pull the two seed Notion pages read-only and inspect their shape
-- [ ] Let a connector be configured to remove or keep an item after import
-- [ ] Let a connector only pull items matching a configured rule, e.g. a tag
+- [x] Let a connector be configured to remove or keep an item after import
+- [x] Let a connector only pull items matching a configured rule, e.g. a tag
 - [ ] Run each Notion connector on its own schedule, unattended
 - [ ] Let a deck's Notion source be re-synced to pick up edits
-- [ ] Turn a table-style Notion database into individual cards
-- [ ] Turn a paragraph-style Notion page into individual cards
-- [ ] Let a deck be configured with a Notion page or database as its source
+- [x] Turn a table-style Notion database into individual cards
+- [x] Turn a paragraph-style Notion page into individual cards
+- [x] Let a deck be configured with a Notion page or database as its source
 
 ### Notes
 - Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
 - Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
 - Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
+- One 15-min LaunchAgent runs every connector — per-connector schedules and re-sync of edited notes are still open.
+- Notes become facts, not cards — the two 'into individual cards' items are met by the fact route.
 
 
 ## local-first-sync
@@ -68,6 +70,7 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [ ] Include Notion facts in the global chat's grounding alongside cards
 - [x] Sort card tag names deterministically, add a multi-tag test
 - [x] Fix nondeterministic domainNodeName and add negative filter tests for card labels
 - [x] Surface a card's subject, tags, and confirmed domain node alongside its topic
