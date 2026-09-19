@@ -108,6 +108,7 @@ import {
 } from "./open-questions/open-questions.controller.js";
 import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
 import { handleAskQaChat } from "./qa-chat/qa-chat.controller.js";
+import { handleAskGlobalCardChat } from "./global-card-chat/global-card-chat.controller.js";
 import {
   handleGenerateRecommendations,
   handleGetCurriculumStats,
@@ -503,6 +504,8 @@ async function route(
       return handleAskStudyChat(req, res, id);
     case "askQaChat":
       return handleAskQaChat(req, res);
+    case "askGlobalCardChat":
+      return handleAskGlobalCardChat(req, res);
     case "getCurriculumStats":
       return handleGetCurriculumStats(res, id);
     case "generateRecommendations":

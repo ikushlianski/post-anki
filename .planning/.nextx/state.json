@@ -7,13 +7,9 @@
     "grounded-knowledge-chat",
     "local-first-sync"
   ],
-  "lastHeartbeatAt": "2026-09-19T01:49:59.863Z",
+  "lastHeartbeatAt": "2026-09-19T01:50:25.780Z",
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": [
-    "nextx",
-    "implement-factory",
-    "review-factory"
-  ]
+  "pendingSkillReload": []
 }

@@ -81,6 +81,7 @@ export type RouteName =
   | "resolveOpenQuestion"
   | "askStudyChat"
   | "askQaChat"
+  | "askGlobalCardChat"
   | "getCurriculumStats"
   | "generateRecommendations"
   | "getStreak"

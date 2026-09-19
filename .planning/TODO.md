@@ -61,6 +61,9 @@ updated: 2026-09-04
 - [ ] Show which cards grounded each chat answer, so it's never a black box
 - [ ] Let the learner allow general AI knowledge in chat, off by default
 - [ ] Build a global chat that answers strictly from the learner's own matched cards
+  - [ ] Card-grounded chat endpoint
+  - [ ] Minimal global chat UI
+  - [ ] Tests for card-only grounding
 - [x] Find the top-matching cards for a free-text query by vector similarity
 - [x] Re-vectorize a card automatically when its question or answer text changes
 - [x] Vectorize every card's question and answer text, store the embedding
