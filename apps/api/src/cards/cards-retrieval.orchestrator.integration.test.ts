@@ -64,11 +64,18 @@ function id(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
 
+interface SeededCardVariant {
+  variantId: string;
+  topicId: string;
+  curriculumId: string;
+  subjectId: string;
+}
+
 async function seedTopicWithCardVariant(
   prompt: string,
   answer: string,
   embedding: number[] | null,
-): Promise<string> {
+): Promise<SeededCardVariant> {
   const subjectId = id("subj");
   const curriculumId = id("curr");
   const moduleId = id("mod");
@@ -108,7 +115,53 @@ async function seedTopicWithCardVariant(
     [variantId, cardId, prompt, answer, embedding ? JSON.stringify(embedding) : null],
   );
 
-  return variantId;
+  return { variantId, topicId, curriculumId, subjectId };
+}
+
+async function tagNode(nodeType: string, nodeId: string, tagName: string): Promise<void> {
+  const tagId = id("tag");
+
+  await client.query(`INSERT INTO tags (id, name, normalized_name) VALUES ($1, $2, $3)`, [
+    tagId,
+    tagName,
+    tagName.toLowerCase(),
+  ]);
+  await client.query(
+    `INSERT INTO tag_assignments (id, tag_id, node_type, node_id) VALUES ($1, $2, $3, $4)`,
+    [id("tagassign"), tagId, nodeType, nodeId],
+  );
+}
+
+async function tagTopic(topicId: string, tagName: string): Promise<void> {
+  await tagNode("topic", topicId, tagName);
+}
+
+async function mapDomainNode(
+  curriculumId: string,
+  subjectId: string,
+  nodeName: string,
+  status: "confirmed" | "pending" | "rejected",
+): Promise<void> {
+  const domainNodeId = id("domainnode");
+
+  await client.query(`INSERT INTO domain_nodes (id, subject_id, name) VALUES ($1, $2, $3)`, [
+    domainNodeId,
+    subjectId,
+    nodeName,
+  ]);
+  await client.query(
+    `INSERT INTO curriculum_domain_node_mappings (id, curriculum_id, domain_node_id, status)
+     VALUES ($1, $2, $3, $4)`,
+    [id("mapping"), curriculumId, domainNodeId, status],
+  );
+}
+
+async function confirmDomainMapping(
+  curriculumId: string,
+  subjectId: string,
+  nodeName: string,
+): Promise<void> {
+  await mapDomainNode(curriculumId, subjectId, nodeName, "confirmed");
 }
 
 const originalFetch = global.fetch;
@@ -142,13 +195,13 @@ describe("findTopMatchingCards", () => {
   });
 
   it("ranks the closest-matching card highest", async () => {
-    const closeId = await seedTopicWithCardVariant("What is a closure?", "A bundled scope.", [1, 0]);
-    const farId = await seedTopicWithCardVariant("What is CSS?", "Styling language.", [0, 1]);
+    const close = await seedTopicWithCardVariant("What is a closure?", "A bundled scope.", [1, 0]);
+    const far = await seedTopicWithCardVariant("What is CSS?", "Styling language.", [0, 1]);
 
     const results = await findTopMatchingCards("closures", 10);
 
-    expect(results[0]!.variantId).toBe(closeId);
-    expect(results.map((r) => r.variantId)).toContain(farId);
+    expect(results[0]!.variantId).toBe(close.variantId);
+    expect(results.map((r) => r.variantId)).toContain(far.variantId);
     expect(results[0]!.similarity).toBeGreaterThan(results[1]!.similarity);
   });
 
@@ -163,13 +216,91 @@ describe("findTopMatchingCards", () => {
   });
 
   it("excludes variants with no embedding yet", async () => {
-    const embeddedId = await seedTopicWithCardVariant("Embedded", "Answer", [1, 0]);
-    const unembeddedId = await seedTopicWithCardVariant("Not embedded 2", "Answer", null);
+    const embedded = await seedTopicWithCardVariant("Embedded", "Answer", [1, 0]);
+    const unembedded = await seedTopicWithCardVariant("Not embedded 2", "Answer", null);
 
     const results = await findTopMatchingCards("anything", 1000);
     const ids = results.map((r) => r.variantId);
 
-    expect(ids).toContain(embeddedId);
-    expect(ids).not.toContain(unembeddedId);
+    expect(ids).toContain(embedded.variantId);
+    expect(ids).not.toContain(unembedded.variantId);
+  });
+
+  it("carries a card's subject, tags, and confirmed domain node alongside its topic", async () => {
+    const tagged = await seedTopicWithCardVariant("What is a promise?", "A future value.", [1, 0]);
+
+    await tagTopic(tagged.topicId, "javascript");
+    await confirmDomainMapping(tagged.curriculumId, tagged.subjectId, "Async programming");
+
+    const results = await findTopMatchingCards("promise", 10);
+    const match = results.find((r) => r.variantId === tagged.variantId);
+
+    expect(match?.subjectId).toBe(tagged.subjectId);
+    expect(match?.subjectName).toBe("Retrieval test subject");
+    expect(match?.tags).toEqual(["javascript"]);
+    expect(match?.domainNodeNames).toEqual(["Async programming"]);
+  });
+
+  it("returns empty tags and no domain nodes when neither exists", async () => {
+    const bare = await seedTopicWithCardVariant("What is a symbol?", "A unique primitive.", [1, 0]);
+
+    const results = await findTopMatchingCards("symbol", 10);
+    const match = results.find((r) => r.variantId === bare.variantId);
+
+    expect(match?.subjectId).toBe(bare.subjectId);
+    expect(match?.tags).toEqual([]);
+    expect(match?.domainNodeNames).toEqual([]);
+  });
+
+  it("excludes a tag assigned under a different node type, even at the same node id", async () => {
+    const seeded = await seedTopicWithCardVariant("What is a module?", "A unit of code.", [1, 0]);
+
+    await tagNode("module", seeded.topicId, "module-scoped-tag");
+
+    const results = await findTopMatchingCards("module", 10);
+    const match = results.find((r) => r.variantId === seeded.variantId);
+
+    expect(match?.tags).toEqual([]);
+  });
+
+  it("excludes a domain-node mapping that isn't confirmed", async () => {
+    const seeded = await seedTopicWithCardVariant("What is pending?", "Not yet confirmed.", [1, 0]);
+
+    await mapDomainNode(seeded.curriculumId, seeded.subjectId, "Pending node", "pending");
+
+    const results = await findTopMatchingCards("pending", 10);
+    const match = results.find((r) => r.variantId === seeded.variantId);
+
+    expect(match?.domainNodeNames).toEqual([]);
+  });
+
+  it("surfaces every confirmed domain node for a curriculum, in a stable sorted order", async () => {
+    const seeded = await seedTopicWithCardVariant("What is a tree?", "A hierarchy.", [1, 0]);
+
+    await confirmDomainMapping(seeded.curriculumId, seeded.subjectId, "Zeta node");
+    await confirmDomainMapping(seeded.curriculumId, seeded.subjectId, "Alpha node");
+
+    const first = await findTopMatchingCards("tree", 10);
+    const second = await findTopMatchingCards("tree", 10);
+    const firstMatch = first.find((r) => r.variantId === seeded.variantId);
+    const secondMatch = second.find((r) => r.variantId === seeded.variantId);
+
+    expect(firstMatch?.domainNodeNames).toEqual(["Alpha node", "Zeta node"]);
+    expect(secondMatch?.domainNodeNames).toEqual(["Alpha node", "Zeta node"]);
+  });
+
+  it("surfaces every tag on a topic, in a stable sorted order", async () => {
+    const seeded = await seedTopicWithCardVariant("What is a set?", "A unique collection.", [1, 0]);
+
+    await tagTopic(seeded.topicId, "zeta-tag");
+    await tagTopic(seeded.topicId, "alpha-tag");
+
+    const first = await findTopMatchingCards("set", 100);
+    const second = await findTopMatchingCards("set", 100);
+    const firstMatch = first.find((r) => r.variantId === seeded.variantId);
+    const secondMatch = second.find((r) => r.variantId === seeded.variantId);
+
+    expect(firstMatch?.tags).toEqual(["alpha-tag", "zeta-tag"]);
+    expect(secondMatch?.tags).toEqual(["alpha-tag", "zeta-tag"]);
   });
 });

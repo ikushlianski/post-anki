@@ -1,7 +1,18 @@
 import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { CardBrowserRow, CardSetStatus, TopicCardSet } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { topicCardSets, topicCards, topicCardVariants, topics } from "../db/schema.js";
+import {
+  topicCardSets,
+  topicCards,
+  topicCardVariants,
+  topics,
+  curricula,
+  subjects,
+  tags,
+  tagAssignments,
+  curriculumDomainNodeMappings,
+  domainNodes,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 export interface CurriculumCardsSummary {
@@ -187,6 +198,112 @@ export interface EmbeddedCardVariant {
   embedding: number[];
   topicId: string;
   topicTitle: string;
+  subjectId: string;
+  subjectName: string;
+  tags: string[];
+  domainNodeNames: string[];
+}
+
+// Batched per-table lookups (not a single join), matching tag.repo.ts/
+// domain-map.repo.ts's own pattern for a topic/curriculum with zero matches.
+async function labelsForCardVariants(
+  rows: { topicId: string; curriculumId: string }[],
+): Promise<{
+  subjectIdByCurriculumId: Map<string, string>;
+  subjectNameById: Map<string, string>;
+  tagNamesByTopicId: Map<string, string[]>;
+  domainNodeNamesByCurriculumId: Map<string, string[]>;
+}> {
+  const db = getDb();
+  const curriculumIds = [...new Set(rows.map((r) => r.curriculumId))];
+  const topicIds = [...new Set(rows.map((r) => r.topicId))];
+
+  const curriculumRows = curriculumIds.length
+    ? await db
+        .select({ id: curricula.id, subjectId: curricula.subjectId })
+        .from(curricula)
+        .where(inArray(curricula.id, curriculumIds))
+    : [];
+  const subjectIdByCurriculumId = new Map(curriculumRows.map((r) => [r.id, r.subjectId]));
+  const subjectIds = [...new Set(curriculumRows.map((r) => r.subjectId))];
+
+  const subjectRows = subjectIds.length
+    ? await db.select({ id: subjects.id, name: subjects.name }).from(subjects).where(
+        inArray(subjects.id, subjectIds),
+      )
+    : [];
+  const subjectNameById = new Map(subjectRows.map((r) => [r.id, r.name]));
+
+  const assignmentRows = topicIds.length
+    ? await db
+        .select({ tagId: tagAssignments.tagId, nodeId: tagAssignments.nodeId })
+        .from(tagAssignments)
+        .where(and(eq(tagAssignments.nodeType, "topic"), inArray(tagAssignments.nodeId, topicIds)))
+    : [];
+  const tagIds = [...new Set(assignmentRows.map((r) => r.tagId))];
+
+  const tagRows = tagIds.length
+    ? await db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.id, tagIds))
+    : [];
+  const tagNameById = new Map(tagRows.map((r) => [r.id, r.name]));
+
+  const tagNamesByTopicId = new Map<string, string[]>();
+  for (const assignment of assignmentRows) {
+    const name = tagNameById.get(assignment.tagId);
+    if (!name) {
+      continue;
+    }
+    const existing = tagNamesByTopicId.get(assignment.nodeId) ?? [];
+    existing.push(name);
+    tagNamesByTopicId.set(assignment.nodeId, existing);
+  }
+  for (const names of tagNamesByTopicId.values()) {
+    names.sort();
+  }
+
+  const confirmedMappingRows = curriculumIds.length
+    ? await db
+        .select({
+          curriculumId: curriculumDomainNodeMappings.curriculumId,
+          domainNodeId: curriculumDomainNodeMappings.domainNodeId,
+        })
+        .from(curriculumDomainNodeMappings)
+        .where(
+          and(
+            inArray(curriculumDomainNodeMappings.curriculumId, curriculumIds),
+            eq(curriculumDomainNodeMappings.status, "confirmed"),
+          ),
+        )
+    : [];
+  const domainNodeIds = [...new Set(confirmedMappingRows.map((r) => r.domainNodeId))];
+
+  const domainNodeRows = domainNodeIds.length
+    ? await db
+        .select({ id: domainNodes.id, name: domainNodes.name })
+        .from(domainNodes)
+        .where(inArray(domainNodes.id, domainNodeIds))
+    : [];
+  const domainNodeNameById = new Map(domainNodeRows.map((r) => [r.id, r.name]));
+
+  // A curriculum can have multiple confirmed domain nodes (see domain-map.repo.ts) — surface all,
+  // sorted, for a stable order.
+  const domainNodeNamesByCurriculumId = new Map<string, string[]>();
+  for (const mapping of confirmedMappingRows) {
+    const name = domainNodeNameById.get(mapping.domainNodeId);
+    if (!name) {
+      continue;
+    }
+    const existing = domainNodeNamesByCurriculumId.get(mapping.curriculumId) ?? [];
+    if (!existing.includes(name)) {
+      existing.push(name);
+    }
+    domainNodeNamesByCurriculumId.set(mapping.curriculumId, existing);
+  }
+  for (const names of domainNodeNamesByCurriculumId.values()) {
+    names.sort();
+  }
+
+  return { subjectIdByCurriculumId, subjectNameById, tagNamesByTopicId, domainNodeNamesByCurriculumId };
 }
 
 export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]> {
@@ -198,6 +315,7 @@ export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]>
       embedding: topicCardVariants.embedding,
       topicId: topics.id,
       topicTitle: topics.title,
+      curriculumId: topics.curriculumId,
     })
     .from(topicCardVariants)
     .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
@@ -205,7 +323,25 @@ export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]>
     .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
     .where(isNotNull(topicCardVariants.embedding));
 
-  return rows.map((row) => ({ ...row, embedding: row.embedding! }));
+  const { subjectIdByCurriculumId, subjectNameById, tagNamesByTopicId, domainNodeNamesByCurriculumId } =
+    await labelsForCardVariants(rows);
+
+  return rows.map((row) => {
+    const subjectId = subjectIdByCurriculumId.get(row.curriculumId) ?? "";
+
+    return {
+      id: row.id,
+      prompt: row.prompt,
+      answer: row.answer,
+      embedding: row.embedding!,
+      topicId: row.topicId,
+      topicTitle: row.topicTitle,
+      subjectId,
+      subjectName: subjectNameById.get(subjectId) ?? "",
+      tags: tagNamesByTopicId.get(row.topicId) ?? [],
+      domainNodeNames: domainNodeNamesByCurriculumId.get(row.curriculumId) ?? [],
+    };
+  });
 }
 
 export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {

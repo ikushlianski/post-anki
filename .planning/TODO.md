@@ -58,6 +58,9 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [x] Sort card tag names deterministically, add a multi-tag test
+- [ ] Fix nondeterministic domainNodeName and add negative filter tests for card labels
+- [ ] Surface a card's subject, tags, and confirmed domain node alongside its topic
 - [x] Default matchedCards to empty array so the grounding line never silently disappears
 - [x] Update api-client.test.ts's stale matchedCardIds mock to the new matchedCards shape
 - [x] Fix askGlobalCardChat in api-client.ts dropping allowGeneralKnowledge before the HTTP call

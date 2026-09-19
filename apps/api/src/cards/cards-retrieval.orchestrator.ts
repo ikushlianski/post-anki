@@ -23,5 +23,9 @@ export async function findTopMatchingCards(
     topicId: variant.topicId,
     topicTitle: variant.topicTitle,
     similarity: variant.similarity,
+    subjectId: variant.subjectId,
+    subjectName: variant.subjectName,
+    tags: variant.tags,
+    domainNodeNames: variant.domainNodeNames,
   }));
 }

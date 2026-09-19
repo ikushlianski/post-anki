@@ -67,6 +67,10 @@ export const cardMatchResultSchema = z.object({
   topicId: z.string(),
   topicTitle: z.string(),
   similarity: z.number(),
+  subjectId: z.string(),
+  subjectName: z.string(),
+  tags: z.array(z.string()),
+  domainNodeNames: z.array(z.string()),
 });
 
 export type CardMatchResult = z.infer<typeof cardMatchResultSchema>;
