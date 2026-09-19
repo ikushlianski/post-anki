@@ -60,9 +60,9 @@ updated: 2026-09-04
 ### Coding tasks
 - [x] Fix askGlobalCardChat in api-client.ts dropping allowGeneralKnowledge before the HTTP call
 - [ ] Show which cards grounded each chat answer, so it's never a black box
-- [ ] Let the learner allow general AI knowledge in chat, off by default
+- [x] Let the learner allow general AI knowledge in chat, off by default
   - [x] Backend opt-in flag
-  - [ ] Frontend toggle
+  - [x] Frontend toggle
 - [x] Build a global chat that answers strictly from the learner's own matched cards
   - [x] Card-grounded chat endpoint
   - [x] Minimal global chat UI
