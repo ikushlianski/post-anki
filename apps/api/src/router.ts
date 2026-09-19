@@ -16,6 +16,7 @@ export type RouteName =
   | "getCurriculum"
   | "getCurriculumCardsSummary"
   | "listCurriculumCards"
+  | "triggerCardEmbeddingScan"
   | "updateCurriculum"
   | "deleteCurriculum"
   | "mergeCurricula"

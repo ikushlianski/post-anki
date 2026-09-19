@@ -1,0 +1,50 @@
+import { hashContent, selectSubjectsForScan } from "@post-anki/core";
+import type { TriggerCardEmbeddingScanResult } from "@post-anki/shared";
+import { embedTexts } from "../shared/embeddings-client.js";
+import {
+  listCardVariantsForEmbeddingScan,
+  updateCardVariantEmbedding,
+  type CardVariantForEmbeddingScan,
+} from "./cards.repo.js";
+
+// Bounds only the paid embedding call this run, per scan (mirrors
+// subject-duplicate.orchestrator.ts's own EMBEDDING_CAP).
+const EMBEDDING_CAP = 200;
+
+function contentTextFor(variant: Pick<CardVariantForEmbeddingScan, "prompt" | "answer">): string {
+  return `${variant.prompt}\n${variant.answer}`;
+}
+
+export async function triggerCardEmbeddingScan(): Promise<TriggerCardEmbeddingScanResult> {
+  const variants = await listCardVariantsForEmbeddingScan();
+
+  const scanCandidates = variants.map((variant) => ({
+    id: variant.id,
+    contentHash: hashContent(contentTextFor(variant)),
+    cachedHash: variant.embeddingHash,
+  }));
+
+  const { toEmbed, reused, capped } = selectSubjectsForScan(scanCandidates, EMBEDDING_CAP);
+
+  if (toEmbed.length > 0) {
+    const variantsById = new Map(variants.map((variant) => [variant.id, variant]));
+    const toEmbedItems = toEmbed.map((id) => ({
+      id,
+      text: contentTextFor(variantsById.get(id)!),
+    }));
+
+    const freshlyEmbedded = await embedTexts(toEmbedItems);
+
+    for (const result of freshlyEmbedded) {
+      const variant = variantsById.get(result.id)!;
+
+      await updateCardVariantEmbedding(
+        result.id,
+        result.embedding,
+        hashContent(contentTextFor(variant)),
+      );
+    }
+  }
+
+  return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
+}

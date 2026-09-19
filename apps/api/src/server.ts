@@ -135,6 +135,7 @@ import {
   handleGetCards,
   handleGetCurriculumCardsSummary,
   handleListCurriculumCards,
+  handleTriggerCardEmbeddingScan,
 } from "./cards/cards.controller.js";
 import {
   handleCreateAttempts,
@@ -355,6 +356,8 @@ async function route(
       return handleGetCurriculumCardsSummary(res, id);
     case "listCurriculumCards":
       return handleListCurriculumCards(res, id);
+    case "triggerCardEmbeddingScan":
+      return handleTriggerCardEmbeddingScan(res);
     case "updateCurriculum":
       return handleUpdateCurriculum(req, res, id);
     case "deleteCurriculum":

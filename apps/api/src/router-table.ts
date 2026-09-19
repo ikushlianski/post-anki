@@ -80,6 +80,7 @@ export const ROUTES: RouteDef[] = [
     name: "listCurriculumCards",
     param: "id",
   },
+  { method: "POST", pattern: "/cards/embedding-scan", name: "triggerCardEmbeddingScan" },
   { method: "PATCH", pattern: /^\/curricula\/([^/]+)$/, name: "updateCurriculum", param: "id" },
   { method: "DELETE", pattern: /^\/curricula\/([^/]+)$/, name: "deleteCurriculum", param: "id" },
   { method: "PATCH", pattern: /^\/modules\/([^/]+)\/topics\/order$/, name: "reorderTopics", param: "id" },

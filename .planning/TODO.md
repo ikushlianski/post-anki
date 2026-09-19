@@ -63,10 +63,10 @@ updated: 2026-09-04
 - [ ] Build a global chat that answers strictly from the learner's own matched cards
 - [ ] Find the top-matching cards for a free-text query by vector similarity
 - [ ] Re-vectorize a card automatically when its question or answer text changes
-- [ ] Vectorize every card's question and answer text, store the embedding
+- [x] Vectorize every card's question and answer text, store the embedding
   - [x] Add embedding columns to topic_card_variants, generate the migration
   - [x] Promote the embeddings HTTP client to a shared, generic location
-  - [ ] A card-embedding scan orchestrator, repo functions, and trigger endpoint
+  - [x] A card-embedding scan orchestrator, repo functions, and trigger endpoint
 
 ### Notes
 

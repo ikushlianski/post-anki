@@ -3,6 +3,7 @@ import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { compileCards } from "./cards.orchestrator.js";
+import { triggerCardEmbeddingScan } from "./cards-embedding.orchestrator.js";
 import {
   getCardsByTopic,
   getCurriculumCardsSummary,
@@ -60,4 +61,19 @@ export async function handleListCurriculumCards(
   const rows = await listCardsForCurriculum(curriculumId);
 
   sendJson(res, 200, rows);
+}
+
+// A failure here is a real 502 — never a silent "nothing needed embedding".
+export async function handleTriggerCardEmbeddingScan(res: http.ServerResponse): Promise<void> {
+  try {
+    const result = await triggerCardEmbeddingScan();
+
+    sendJson(res, 200, result);
+  } catch (err) {
+    log.error({ err }, "card_embedding_scan_failed");
+
+    const message = err instanceof Error ? err.message : "card embedding scan failed";
+
+    sendError(res, 502, "scan_failed", message);
+  }
 }

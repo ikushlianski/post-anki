@@ -135,6 +135,35 @@ export async function listCardsForCurriculum(curriculumId: string): Promise<Card
   }));
 }
 
+export interface CardVariantForEmbeddingScan {
+  id: string;
+  prompt: string;
+  answer: string;
+  embeddingHash: string | null;
+}
+
+export async function listCardVariantsForEmbeddingScan(): Promise<CardVariantForEmbeddingScan[]> {
+  return getDb()
+    .select({
+      id: topicCardVariants.id,
+      prompt: topicCardVariants.prompt,
+      answer: topicCardVariants.answer,
+      embeddingHash: topicCardVariants.embeddingHash,
+    })
+    .from(topicCardVariants);
+}
+
+export async function updateCardVariantEmbedding(
+  variantId: string,
+  embedding: number[],
+  hash: string,
+): Promise<void> {
+  await getDb()
+    .update(topicCardVariants)
+    .set({ embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .where(eq(topicCardVariants.id, variantId));
+}
+
 export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {
   const row = (
     await getDb()
