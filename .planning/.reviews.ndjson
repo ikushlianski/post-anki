@@ -66,3 +66,4 @@
 {"ts":"2026-09-19T02:20:00Z","direction":"grounded-knowledge-chat","itemText":"Card-grounded chat endpoint","verdict":"PASS","findings":[]}
 {"ts":"2026-09-19T02:35:00Z","direction":"grounded-knowledge-chat","itemText":"Minimal global chat UI","verdict":"PASS","findings":[]}
 {"ts":"2026-09-19T02:45:00Z","direction":"grounded-knowledge-chat","itemText":"Tests for card-only grounding","verdict":"PASS","findings":[]}
+{"ts":"2026-09-19T03:05:00Z","direction":"grounded-knowledge-chat","itemText":"Backend opt-in flag","verdict":"PASS","findings":[]}

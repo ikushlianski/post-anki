@@ -4,6 +4,7 @@ import type {
   CardMatchResult,
 } from "@post-anki/shared";
 import { formatTranscript } from "@post-anki/core";
+import { RequestContext } from "@mastra/core/request-context";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
@@ -38,13 +39,16 @@ export async function askGlobalCardChat(
   const matchedCardIds = matchedCards.map((c) => c.variantId);
 
   const agent = getMastra().getAgent(AGENT_KEYS.globalCardChat);
+  const requestContext = new RequestContext([
+    ["allowGeneralKnowledge", input.allowGeneralKnowledge ?? false],
+  ]);
 
   try {
     const result = await generateWithRetry(
       "global_card_chat_reply",
       null,
       AGENT_KEYS.globalCardChat,
-      () => agent.generate(prompt),
+      () => agent.generate(prompt, { requestContext }),
     );
 
     const reply = result.text?.trim();

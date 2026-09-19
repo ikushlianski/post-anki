@@ -88,4 +88,20 @@ describe("askGlobalCardChat", () => {
 
     expect(result.reply).toBe("I couldn't reach the tutor right now — try again.");
   });
+
+  it("defaults the agent to cards-only when allowGeneralKnowledge is omitted", async () => {
+    await askGlobalCardChat({ message: "What is a closure?" });
+
+    const { requestContext } = generate.mock.calls[0]![1];
+
+    expect(requestContext.get("allowGeneralKnowledge")).toBe(false);
+  });
+
+  it("passes allowGeneralKnowledge through to the agent when explicitly set", async () => {
+    await askGlobalCardChat({ message: "What is a closure?", allowGeneralKnowledge: true });
+
+    const { requestContext } = generate.mock.calls[0]![1];
+
+    expect(requestContext.get("allowGeneralKnowledge")).toBe(true);
+  });
 });

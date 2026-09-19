@@ -4,6 +4,7 @@ import { chatMessageSchema } from "./study-chat";
 export const askGlobalCardChatInput = z.object({
   message: z.string().min(1),
   transcript: z.array(chatMessageSchema).optional(),
+  allowGeneralKnowledge: z.boolean().optional(),
 });
 
 export type AskGlobalCardChatInput = z.infer<typeof askGlobalCardChatInput>;
