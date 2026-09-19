@@ -46,6 +46,7 @@ updated: 2026-09-04
 
 ### Notes
 - Electric is fully built (dev, prod infra, 6 web collections) — prod never started, missing DB secret.
+- Blocked on the prod Electric DB secret — see Manual steps. Do not flip the flag before it's set.
 
 
 ## grounded-knowledge-chat
