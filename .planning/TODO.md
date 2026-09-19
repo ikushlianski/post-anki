@@ -62,7 +62,7 @@ updated: 2026-09-04
 - [ ] Let the learner allow general AI knowledge in chat, off by default
 - [ ] Build a global chat that answers strictly from the learner's own matched cards
   - [x] Card-grounded chat endpoint
-  - [ ] Minimal global chat UI
+  - [x] Minimal global chat UI
   - [ ] Tests for card-only grounding
 - [x] Find the top-matching cards for a free-text query by vector similarity
 - [x] Re-vectorize a card automatically when its question or answer text changes

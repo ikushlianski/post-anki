@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react'
 import { Sidebar } from '../nav/sidebar'
 import { GlobalSearch } from '../search/global-search'
 import { search } from '../curriculum/curriculum.api'
+import { GlobalCardChatPanel } from '../global-card-chat/global-card-chat-panel'
 
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
@@ -118,6 +119,7 @@ function RootDocument({ children }: { children: ReactNode }) {
             </>
           ) : null}
         </div>
+        <GlobalCardChatPanel />
         {import.meta.env.DEV ? (
           <TanStackDevtools
             config={{
