@@ -1,31 +1,60 @@
 import { rankBySimilarity } from "@post-anki/core";
 import type { CardMatchResult } from "@post-anki/shared";
 import { embedTexts } from "../shared/embeddings-client.js";
-import { listEmbeddedCardVariants } from "./cards.repo.js";
+import { listEmbeddedFacts, type EmbeddedFact } from "../facts/facts.repo.js";
+import { listEmbeddedCardVariants, type EmbeddedCardVariant } from "./cards.repo.js";
+
+type Candidate =
+  | ({ kind: "card" } & EmbeddedCardVariant)
+  | ({ kind: "fact" } & EmbeddedFact);
+
+function toMatch(candidate: Candidate & { similarity: number }): CardMatchResult {
+  if (candidate.kind === "fact") {
+    return {
+      variantId: candidate.id,
+      kind: "fact",
+      prompt: candidate.body,
+      answer: "",
+      topicId: "facts",
+      topicTitle: "Reading notes",
+      similarity: candidate.similarity,
+      subjectId: "",
+      subjectName: "",
+      tags: candidate.tags,
+      domainNodeNames: [],
+    };
+  }
+
+  return {
+    variantId: candidate.id,
+    kind: "card",
+    prompt: candidate.prompt,
+    answer: candidate.answer,
+    topicId: candidate.topicId,
+    topicTitle: candidate.topicTitle,
+    similarity: candidate.similarity,
+    subjectId: candidate.subjectId,
+    subjectName: candidate.subjectName,
+    tags: candidate.tags,
+    domainNodeNames: candidate.domainNodeNames,
+  };
+}
 
 export async function findTopMatchingCards(
   query: string,
   topK: number,
 ): Promise<CardMatchResult[]> {
-  const variants = await listEmbeddedCardVariants();
+  const [variants, facts] = await Promise.all([listEmbeddedCardVariants(), listEmbeddedFacts()]);
+  const candidates: Candidate[] = [
+    ...variants.map((variant) => ({ kind: "card" as const, ...variant })),
+    ...facts.map((fact) => ({ kind: "fact" as const, ...fact })),
+  ];
 
-  if (variants.length === 0) {
+  if (candidates.length === 0) {
     return [];
   }
 
   const [embedded] = await embedTexts([{ id: "query", text: query }]);
-  const ranked = rankBySimilarity(embedded!.embedding, variants, topK);
 
-  return ranked.map((variant) => ({
-    variantId: variant.id,
-    prompt: variant.prompt,
-    answer: variant.answer,
-    topicId: variant.topicId,
-    topicTitle: variant.topicTitle,
-    similarity: variant.similarity,
-    subjectId: variant.subjectId,
-    subjectName: variant.subjectName,
-    tags: variant.tags,
-    domainNodeNames: variant.domainNodeNames,
-  }));
+  return rankBySimilarity(embedded!.embedding, candidates, topK).map(toMatch);
 }

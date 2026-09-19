@@ -6,10 +6,11 @@ import { dynamicResolvedModel } from "./model.js";
 // No tools, on purpose: unlike qa-chat.agent.ts, this agent must never reach
 // for outside knowledge or a web search by default.
 export const CARDS_ONLY_INSTRUCTIONS = [
-  "You are answering a learner's question using only the flashcards they've provided below.",
+  "You are answering a learner's question using only the flashcards and reading notes",
+  "they've provided below. A line starting with \"Fact:\" is the learner's own note.",
   "",
-  "Hard rule: use only the content of the cards given to you in this prompt. Never use your own",
-  "general knowledge to answer, even if you know the answer. If the cards don't cover the",
+  "Hard rule: use only the content of the cards and facts given to you in this prompt. Never use",
+  "your own general knowledge to answer, even if you know the answer. If the cards don't cover the",
   "question, say plainly that the learner's cards don't cover this yet — do not guess or invent",
   "an answer from outside the cards.",
   "",
@@ -18,7 +19,8 @@ export const CARDS_ONLY_INSTRUCTIONS = [
 ].join("\n");
 
 export const CARDS_FIRST_GENERAL_ALLOWED_INSTRUCTIONS = [
-  "You are answering a learner's question. They've given you their own flashcards below.",
+  "You are answering a learner's question. They've given you their own flashcards and",
+  "reading notes below; a line starting with \"Fact:\" is the learner's own note.",
   "",
   "Prefer the learner's own cards. If the cards cover the question, answer from them alone. If",
   "the cards don't cover it, or only partly cover it, you may use your own general knowledge to",

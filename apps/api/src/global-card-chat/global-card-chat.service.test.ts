@@ -27,13 +27,35 @@ const { askGlobalCardChat } = await import("./global-card-chat.service.js");
 const MATCHED_CARDS = [
   {
     variantId: "v1",
+    kind: "card" as const,
     prompt: "What is a closure?",
     answer: "A function bundled with its lexical scope.",
     topicId: "t1",
     topicTitle: "JS fundamentals",
     similarity: 0.9,
+    subjectId: "s1",
+    subjectName: "JavaScript",
+    tags: [],
+    domainNodeNames: [],
   },
 ];
+
+const LONG_FACT_BODY =
+  "Pricing pages convert best when the anchor plan sits in the middle and the annual toggle is on by default, per the SaaS playbook";
+
+const MATCHED_FACT = {
+  variantId: "fact_1",
+  kind: "fact" as const,
+  prompt: LONG_FACT_BODY,
+  answer: "",
+  topicId: "facts",
+  topicTitle: "Reading notes",
+  similarity: 0.95,
+  subjectId: "",
+  subjectName: "",
+  tags: ["SPA"],
+  domainNodeNames: [],
+};
 
 describe("askGlobalCardChat", () => {
   beforeEach(() => {
@@ -107,5 +129,30 @@ describe("askGlobalCardChat", () => {
     const { requestContext } = generate.mock.calls[0]![1];
 
     expect(requestContext.get("allowGeneralKnowledge")).toBe(true);
+  });
+
+  it("presents a reading note to the agent as a fact, not a question and answer", async () => {
+    findTopMatchingCards.mockResolvedValue([MATCHED_FACT]);
+
+    await askGlobalCardChat({ message: "How should I lay out a pricing page?" });
+
+    const prompt = generate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain(`- Fact: ${LONG_FACT_BODY}`);
+    expect(prompt).not.toContain("A: ");
+  });
+
+  it("shows a reading note in the grounding by a short preview under Reading notes", async () => {
+    findTopMatchingCards.mockResolvedValue([MATCHED_FACT]);
+
+    const result = await askGlobalCardChat({ message: "How should I lay out a pricing page?" });
+
+    expect(result.matchedCards).toEqual([
+      {
+        variantId: "fact_1",
+        prompt: `${LONG_FACT_BODY.slice(0, 80)}…`,
+        topicTitle: "Reading notes",
+      },
+    ]);
   });
 });

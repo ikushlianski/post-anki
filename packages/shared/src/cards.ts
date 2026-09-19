@@ -67,6 +67,7 @@ export type TriggerCardEmbeddingScanResult = z.infer<
 
 export const cardMatchResultSchema = z.object({
   variantId: z.string(),
+  kind: z.enum(["card", "fact"]),
   prompt: z.string(),
   answer: z.string(),
   topicId: z.string(),

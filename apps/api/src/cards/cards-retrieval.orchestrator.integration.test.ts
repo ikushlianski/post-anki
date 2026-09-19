@@ -164,6 +164,17 @@ async function confirmDomainMapping(
   await mapDomainNode(curriculumId, subjectId, nodeName, "confirmed");
 }
 
+async function seedFact(body: string, embedding: number[] | null, tags: string[] = []): Promise<string> {
+  const factId = id("fact");
+
+  await client.query(
+    `INSERT INTO facts (id, body, source, source_ref, tags, embedding) VALUES ($1, $2, 'notion', $3, $4, $5)`,
+    [factId, body, `notion:${factId}`, JSON.stringify(tags), embedding ? JSON.stringify(embedding) : null],
+  );
+
+  return factId;
+}
+
 const originalFetch = global.fetch;
 
 beforeEach(() => {
@@ -302,5 +313,38 @@ describe("findTopMatchingCards", () => {
 
     expect(firstMatch?.tags).toEqual(["alpha-tag", "zeta-tag"]);
     expect(secondMatch?.tags).toEqual(["alpha-tag", "zeta-tag"]);
+  });
+
+  it("ranks a matching reading note above an unrelated card and marks it as a fact", async () => {
+    const factId = await seedFact("Anchor the middle plan on a pricing page", [1, 0], ["SPA"]);
+    const far = await seedTopicWithCardVariant("What is CSS grid?", "A layout system.", [0, 1]);
+
+    const results = await findTopMatchingCards("pricing page layout", 100);
+    const factMatch = results.find((r) => r.variantId === factId);
+    const cardMatch = results.find((r) => r.variantId === far.variantId);
+
+    expect(factMatch).toEqual({
+      variantId: factId,
+      kind: "fact",
+      prompt: "Anchor the middle plan on a pricing page",
+      answer: "",
+      topicId: "facts",
+      topicTitle: "Reading notes",
+      similarity: 1,
+      subjectId: "",
+      subjectName: "",
+      tags: ["SPA"],
+      domainNodeNames: [],
+    });
+    expect(cardMatch?.kind).toBe("card");
+    expect(results.indexOf(factMatch!)).toBeLessThan(results.indexOf(cardMatch!));
+  });
+
+  it("excludes a reading note that has no embedding yet", async () => {
+    const factId = await seedFact("Not yet embedded", null);
+
+    const results = await findTopMatchingCards("anything", 100);
+
+    expect(results.map((r) => r.variantId)).not.toContain(factId);
   });
 });

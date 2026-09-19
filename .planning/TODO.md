@@ -70,9 +70,9 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
-- [ ] Include Notion facts in the global chat's grounding alongside cards
+- [x] Include Notion facts in the global chat's grounding alongside cards
   - [x] Embed facts
-  - [ ] Retrieve and ground on facts
+  - [x] Retrieve and ground on facts
 - [x] Sort card tag names deterministically, add a multi-tag test
 - [x] Fix nondeterministic domainNodeName and add negative filter tests for card labels
 - [x] Surface a card's subject, tags, and confirmed domain node alongside its topic

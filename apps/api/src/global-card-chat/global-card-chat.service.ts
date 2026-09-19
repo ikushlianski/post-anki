@@ -12,15 +12,22 @@ import { findTopMatchingCards } from "../cards/cards-retrieval.orchestrator.js";
 
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 const TOP_K_CARDS = 5;
+const FACT_PREVIEW_CHARS = 80;
+
+function factPreview(body: string): string {
+  return body.length > FACT_PREVIEW_CHARS ? `${body.slice(0, FACT_PREVIEW_CHARS)}…` : body;
+}
 
 function cardsBlock(cards: CardMatchResult[]): string {
   if (cards.length === 0) {
     return "The learner has no cards matching this question.";
   }
 
-  const lines = cards.map((c) => `- Q: ${c.prompt}\n  A: ${c.answer}`);
+  const lines = cards.map((c) =>
+    c.kind === "fact" ? `- Fact: ${c.prompt}` : `- Q: ${c.prompt}\n  A: ${c.answer}`,
+  );
 
-  return ["Cards from the learner's own deck:", ...lines].join("\n");
+  return ["Cards and facts from the learner's own notes:", ...lines].join("\n");
 }
 
 function buildPrompt(input: AskGlobalCardChatInput, cards: CardMatchResult[]): string {
@@ -38,7 +45,7 @@ export async function askGlobalCardChat(
   const prompt = buildPrompt(input, matchedCards);
   const matchedCardsForDisplay = matchedCards.map((c) => ({
     variantId: c.variantId,
-    prompt: c.prompt,
+    prompt: c.kind === "fact" ? factPreview(c.prompt) : c.prompt,
     topicTitle: c.topicTitle,
   }));
 
