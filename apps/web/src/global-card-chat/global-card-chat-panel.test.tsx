@@ -77,6 +77,54 @@ describe('GlobalCardChatPanel', () => {
     })
   })
 
+  it('shows which cards grounded a reply', async () => {
+    mockedAsk.mockResolvedValue({
+      reply: 'A closure is a function bundled with its surrounding scope.',
+      matchedCards: [{ variantId: 'variant-1', prompt: 'What is a closure?', topicTitle: 'JS' }],
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness()
+
+    await user.click(screen.getByTestId('global-card-chat-open'))
+    await user.type(screen.getByTestId('global-card-chat-input'), 'What is a closure?')
+    await user.click(screen.getByTestId('global-card-chat-send'))
+
+    expect(await screen.findByText('Grounded in: What is a closure?')).toBeTruthy()
+  })
+
+  it('shows an honest message when no cards grounded the reply', async () => {
+    mockedAsk.mockResolvedValue({
+      reply: 'Beyond your cards: a monad is a design pattern for chaining computations.',
+      matchedCards: [],
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness()
+
+    await user.click(screen.getByTestId('global-card-chat-open'))
+    await user.type(screen.getByTestId('global-card-chat-input'), 'What is a monad?')
+    await user.click(screen.getByTestId('global-card-chat-send'))
+
+    expect(await screen.findByText('Not grounded in any of your cards')).toBeTruthy()
+  })
+
+  it('still shows an honest grounding message when the response omits matchedCards', async () => {
+    mockedAsk.mockResolvedValue({ reply: 'A closure bundles a function with its scope.' } as never)
+
+    const user = userEvent.setup()
+
+    renderHarness()
+
+    await user.click(screen.getByTestId('global-card-chat-open'))
+    await user.type(screen.getByTestId('global-card-chat-input'), 'What is a closure?')
+    await user.click(screen.getByTestId('global-card-chat-send'))
+
+    expect(await screen.findByText('Not grounded in any of your cards')).toBeTruthy()
+  })
+
   it('falls back to a plain retry message when the endpoint returns nothing', async () => {
     mockedAsk.mockResolvedValue(null)
 

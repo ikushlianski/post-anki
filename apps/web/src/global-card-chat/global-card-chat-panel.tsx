@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import type { ChatMessage } from '@post-anki/shared'
+import type { ChatMessage, GlobalCardChatMatchedCard } from '@post-anki/shared'
 
 import { askGlobalCardChat } from './global-card-chat.api'
 
@@ -10,6 +10,15 @@ interface PanelMessage {
   id: string
   role: 'user' | 'assistant'
   text: string
+  matchedCards?: GlobalCardChatMatchedCard[]
+}
+
+function groundingLine(matchedCards: GlobalCardChatMatchedCard[]): string {
+  if (matchedCards.length === 0) {
+    return 'Not grounded in any of your cards'
+  }
+
+  return `Grounded in: ${matchedCards.map((card) => card.prompt).join(', ')}`
 }
 
 export function GlobalCardChatPanel() {
@@ -59,6 +68,7 @@ export function GlobalCardChatPanel() {
               id: `assistant-${Date.now()}`,
               role: 'assistant',
               text: result?.reply ?? FALLBACK_REPLY,
+              matchedCards: result ? (result.matchedCards ?? []) : undefined,
             },
           ])
           scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
@@ -141,6 +151,11 @@ export function GlobalCardChatPanel() {
             >
               {message.text}
             </div>
+            {message.role === 'assistant' && message.matchedCards ? (
+              <p data-testid="global-card-chat-grounding" className="mt-1 text-xs text-neutral-400">
+                {groundingLine(message.matchedCards)}
+              </p>
+            ) : null}
           </div>
         ))}
 

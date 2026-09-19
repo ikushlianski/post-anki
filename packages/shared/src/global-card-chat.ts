@@ -15,6 +15,8 @@ export const globalCardChatMatchedCardSchema = z.object({
   topicTitle: z.string(),
 });
 
+export type GlobalCardChatMatchedCard = z.infer<typeof globalCardChatMatchedCardSchema>;
+
 export const askGlobalCardChatResultSchema = z.object({
   reply: z.string(),
   matchedCards: z.array(globalCardChatMatchedCardSchema),
