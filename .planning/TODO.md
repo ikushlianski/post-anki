@@ -310,7 +310,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 - [x] Wire the API's database-backed test suite into the build pipeline.
   - [x] Confirm which test suite/config needs CI wiring (the integration config)
-  - [ ] Add it to the existing CI workflow, with a real DB service in CI
+  - [x] Add it to the existing CI workflow, with a real DB service in CI
   - [ ] Confirm it runs green in CI before merging
 - [ ] If live sync goes to production: set its database secret, then turn on the feature switch.
 - [ ] The cloud development database is missing recent updates, so the board fails to load
