@@ -21,7 +21,7 @@ export type NotionDestination = z.infer<typeof notionDestinationSchema>;
 export const notionConnectorSchema = z.object({
   name: z.string().min(1),
   source: notionSourceSchema,
-  tag: z.string().min(1),
+  tag: z.string().regex(/^[A-Z0-9]{2,8}$/),
   destination: notionDestinationSchema,
   removeAfterImport: z.boolean().default(false),
 });

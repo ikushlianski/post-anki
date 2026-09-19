@@ -20,7 +20,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Build the Notion reading-notes router: config, reader, fact and todo destinations, LaunchAgent
   - [x] Connector config and Notion reader
-  - [ ] Destinations and idempotent sync
+  - [x] Destinations and idempotent sync
   - [ ] LaunchAgent and runner scripts
 - [ ] Save a Notion note tagged SPA as a fact in post-anki's production database
 - [ ] Route a Notion note tagged for a project, e.g. CRM, into that project's own backlog file

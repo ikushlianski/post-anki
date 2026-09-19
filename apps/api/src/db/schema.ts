@@ -1005,6 +1005,25 @@ export const topicCardVariants = pgTable("topic_card_variants", {
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
 });
 
+export const facts = pgTable("facts", {
+  id: text("id").primaryKey(),
+  body: text("body").notNull(),
+  source: text("source").notNull(),
+  sourceRef: text("source_ref").notNull().unique(),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  embedding: jsonb("embedding").$type<number[]>(),
+  embeddingHash: text("embedding_hash"),
+  embeddedAt: timestamp("embedded_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const notionSyncItems = pgTable("notion_sync_items", {
+  notionId: text("notion_id").primaryKey(),
+  connector: text("connector").notNull(),
+  destination: text("destination").notNull(),
+  importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const languagePracticeSettings = pgTable("language_practice_settings", {
   subjectId: text("subject_id").primaryKey(),
   level: text("level").notNull().default("B1_B2"),
