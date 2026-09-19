@@ -998,6 +998,11 @@ export const topicCardVariants = pgTable("topic_card_variants", {
   order: integer("order").notNull(),
   prompt: text("prompt").notNull(),
   answer: text("answer").notNull(),
+  // Mirrors subjects.embedding/embeddingHash/embeddedAt — nullable, additive,
+  // no backfill; embeddingHash lets a scan skip re-embedding unchanged text.
+  embedding: jsonb("embedding").$type<number[]>(),
+  embeddingHash: text("embedding_hash"),
+  embeddedAt: timestamp("embedded_at", { withTimezone: true }),
 });
 
 export const languagePracticeSettings = pgTable("language_practice_settings", {
