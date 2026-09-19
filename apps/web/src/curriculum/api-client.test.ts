@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ApiError,
+  askGlobalCardChat,
   resolveDomainSupersessionSuggestion,
   resolveDomainTopicSuggestion,
 } from './api-client'
@@ -117,6 +118,30 @@ describe('doc-scan suggestion resolvers', () => {
       await expect(resolveDomainSupersessionSuggestion('sug-2', 'rejected')).rejects.toThrow(
         'fetch failed',
       )
+    })
+  })
+
+  describe('askGlobalCardChat', () => {
+    it('forwards allowGeneralKnowledge in the request body when set', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi', matchedCardIds: [] }))
+
+      await askGlobalCardChat({ message: 'hi', allowGeneralKnowledge: true })
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      const body = JSON.parse(init.body as string)
+
+      expect(body.allowGeneralKnowledge).toBe(true)
+    })
+
+    it('sends allowGeneralKnowledge as undefined when the caller omits it', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi', matchedCardIds: [] }))
+
+      await askGlobalCardChat({ message: 'hi' })
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      const body = JSON.parse(init.body as string)
+
+      expect(body.allowGeneralKnowledge).toBeUndefined()
     })
   })
 })

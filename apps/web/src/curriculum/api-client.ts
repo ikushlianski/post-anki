@@ -1473,14 +1473,17 @@ export async function askStudyChat(input: {
   }
 }
 
-export async function askGlobalCardChat(input: {
-  message: string
-  transcript?: be.ChatMessage[]
-}): Promise<be.AskGlobalCardChatResult | null> {
+export async function askGlobalCardChat(
+  input: be.AskGlobalCardChatInput,
+): Promise<be.AskGlobalCardChatResult | null> {
   try {
     return await request<be.AskGlobalCardChatResult>('/global-card-chat', {
       method: 'POST',
-      body: { message: input.message, transcript: input.transcript },
+      body: {
+        message: input.message,
+        transcript: input.transcript,
+        allowGeneralKnowledge: input.allowGeneralKnowledge,
+      },
     })
   } catch {
     return null

@@ -58,6 +58,7 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [x] Fix askGlobalCardChat in api-client.ts dropping allowGeneralKnowledge before the HTTP call
 - [ ] Show which cards grounded each chat answer, so it's never a black box
 - [ ] Let the learner allow general AI knowledge in chat, off by default
   - [x] Backend opt-in flag

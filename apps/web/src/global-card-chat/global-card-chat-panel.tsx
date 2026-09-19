@@ -16,12 +16,21 @@ export function GlobalCardChatPanel() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
+  const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (vars: { message: string; transcript: ChatMessage[] }) =>
+    mutationFn: (vars: {
+      message: string
+      transcript: ChatMessage[]
+      allowGeneralKnowledge: boolean
+    }) =>
       askGlobalCardChat({
-        data: { message: vars.message, transcript: vars.transcript },
+        data: {
+          message: vars.message,
+          transcript: vars.transcript,
+          allowGeneralKnowledge: vars.allowGeneralKnowledge,
+        },
       }),
   })
 
@@ -41,7 +50,7 @@ export function GlobalCardChatPanel() {
     setDraft('')
 
     mutation.mutate(
-      { message: text, transcript },
+      { message: text, transcript, allowGeneralKnowledge },
       {
         onSuccess: (result) => {
           setMessages((prev) => [
@@ -89,6 +98,20 @@ export function GlobalCardChatPanel() {
           ✕
         </button>
       </div>
+
+      <label className="flex items-center gap-2 border-b border-neutral-200 px-3 py-2 text-xs text-neutral-500">
+        <input
+          type="checkbox"
+          data-testid="global-card-chat-allow-general-knowledge"
+          checked={allowGeneralKnowledge}
+          onChange={(event) => setAllowGeneralKnowledge(event.target.checked)}
+        />
+        <span>
+          Allow general AI knowledge
+          <br />
+          <span className="text-neutral-400">off: answers only from your own cards</span>
+        </span>
+      </label>
 
       <div
         ref={scrollRef}

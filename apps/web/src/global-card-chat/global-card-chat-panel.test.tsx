@@ -49,7 +49,31 @@ describe('GlobalCardChatPanel', () => {
       await screen.findByText('A closure is a function bundled with its surrounding scope.'),
     ).toBeTruthy()
     expect(mockedAsk).toHaveBeenCalledWith({
-      data: { message: 'What is a closure?', transcript: [] },
+      data: { message: 'What is a closure?', transcript: [], allowGeneralKnowledge: false },
+    })
+  })
+
+  it('sends allowGeneralKnowledge: true only after the learner turns the toggle on', async () => {
+    mockedAsk.mockResolvedValue({
+      reply: 'Beyond your cards: a monad is a design pattern for chaining computations.',
+      matchedCardIds: [],
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness()
+
+    await user.click(screen.getByTestId('global-card-chat-open'))
+    await user.click(screen.getByTestId('global-card-chat-allow-general-knowledge'))
+    await user.type(screen.getByTestId('global-card-chat-input'), 'What is a monad?')
+    await user.click(screen.getByTestId('global-card-chat-send'))
+
+    await screen.findByText(
+      'Beyond your cards: a monad is a design pattern for chaining computations.',
+    )
+
+    expect(mockedAsk).toHaveBeenCalledWith({
+      data: { message: 'What is a monad?', transcript: [], allowGeneralKnowledge: true },
     })
   })
 
