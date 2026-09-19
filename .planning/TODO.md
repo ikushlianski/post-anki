@@ -39,7 +39,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Sync cards to the mobile app locally instead of a plain network fetch
-  - [ ] Expose card tables through the Electric shape registry
+  - [x] Expose card tables through the Electric shape registry
   - [ ] Add the Electric client and a mobile cards collection
   - [ ] Join into a per-topic card view and render it
 - [ ] Turn on the prod Electric rollout flag once its database secret is set

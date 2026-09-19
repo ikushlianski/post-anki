@@ -39,4 +39,19 @@ describe("buildElectricShapeQuery — shapes without a where clause", () => {
     expect(result.ok).toBe(true);
     expect((result as { ok: true; query: string }).query).toContain("columns=id%2Ccurriculum_id%2Ckind");
   });
+
+  it.each(["topic_card_sets", "topic_cards", "topic_card_variants"])(
+    "exposes %s as a valid, unrestricted shape",
+    (table) => {
+      const result = buildElectricShapeQuery(`?table=${table}`);
+
+      expect(result.ok).toBe(true);
+
+      const params = new URLSearchParams((result as { ok: true; query: string }).query.slice(1));
+
+      expect(params.get("table")).toBe(table);
+      expect(params.has("where")).toBe(false);
+      expect(params.has("columns")).toBe(false);
+    },
+  );
 });

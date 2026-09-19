@@ -24,6 +24,9 @@ const SHAPE_REGISTRY = new Map<string, ShapeDefinition>([
   ["attempts", { table: "attempts" }],
   ["language_practice_settings", { table: "language_practice_settings" }],
   ["course_refocus_dismissals", { table: "course_refocus_dismissals" }],
+  ["topic_card_sets", { table: "topic_card_sets" }],
+  ["topic_cards", { table: "topic_cards" }],
+  ["topic_card_variants", { table: "topic_card_variants" }],
 ]);
 
 // Cursor/pagination/transport state that ShapeStream maintains across the
