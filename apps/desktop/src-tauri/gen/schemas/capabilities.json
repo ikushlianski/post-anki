@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Capability for the main window — no remote URL pattern is granted, so apps/web's pages run with zero native bridge access, exactly as they would in a regular browser tab. See docs/architecture/tauri-desktop-app.md's Security decision.","local":true,"windows":["main"],"permissions":["core:default"]}}

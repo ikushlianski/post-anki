@@ -7,6 +7,37 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## biz-education-distiller
+
+### Scope
+- Every 15 min, pull up to 20 PA-tagged Biz Education items not yet marked synced
+- Skip any item that contains a question
+- Classify each with a cheap AI model: fits an existing deck, or needs a new one
+- Fit items become facts linked to that topic; unplaced items land in an inbox with a suggested hierarchy spot
+- Mark a Notion row synced via a real Notion property once processed — never remove or archive it
+- Out of scope: The generic notion-deck-connectors router and its facts/CRM routing — this is a separate, Biz-Education-specific pipeline
+
+### Coding tasks
+- [ ] Run the Biz Education distiller as its own 15-minute connector
+- [ ] Mark a processed Notion row synced without deleting or archiving it
+- [ ] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot
+- [ ] Save a fitting row as a fact linked to its matched deck topic
+- [ ] Classify a row as fitting an existing deck or needing a new one
+- [ ] Pick the cheapest working OpenRouter model for classifying each row
+- [ ] Skip a pulled row if its text contains a question
+- [ ] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
+  - [x] Pull, filter, and pick the classification model
+  - [ ] Classify, save facts, and file inbox suggestions
+  - [ ] Mark synced and schedule
+
+### Notes
+- Biz Education data source: collection://3cddec4d-fc6e-805c-93ea-000bc235a121, real Tags option is PA.
+- A cheap OpenRouter tier already exists (tierToModelId 'cheap' = deepseek-v4-flash) — reuse it, don't add a new model.
+- Marking synced needs a write-capable Notion token — current one may be read-only.
+- PostAnki Synced (date) property already added to Biz Education — read/filter on it, don't recreate.
+- Confirm apps/api's own NOTION_TOKEN can write pages.update before wiring the sync-mark step.
+
+
 ## notion-deck-connectors
 
 ### Scope

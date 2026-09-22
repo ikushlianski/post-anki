@@ -1,0 +1,16 @@
+{
+  "name": "@post-anki/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.1",
+    "vitest": "^4.1.5"
+  }
+}

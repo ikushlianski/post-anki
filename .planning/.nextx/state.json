@@ -1,0 +1,14 @@
+{
+  "sessionId": "37df9926-0718-4b34-87a1-c5e65d3a5155",
+  "startedAt": "2026-09-22T01:03:44.000Z",
+  "stopBoundHours": 10,
+  "status": "running",
+  "activeDirections": [
+    "biz-education-distiller"
+  ],
+  "lastHeartbeatAt": "2026-09-22T01:09:21.210Z",
+  "timeBoundBlocks": 0,
+  "autoCommitEnabled": true,
+  "pushGranted": false,
+  "pendingSkillReload": []
+}
