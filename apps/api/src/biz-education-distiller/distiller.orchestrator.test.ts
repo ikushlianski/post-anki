@@ -18,6 +18,7 @@ function buildDeps(overrides: Partial<DistillerDeps>): DistillerDeps {
     classify: vi.fn(),
     insertFact: vi.fn().mockResolvedValue(undefined),
     insertInboxRow: vi.fn().mockResolvedValue(undefined),
+    markSynced: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -81,5 +82,37 @@ describe("distillBizEducation", () => {
     expect(result.failed).toEqual(["bad"]);
     expect(result.processed).toEqual(["good"]);
     expect(deps.insertFact).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks synced only rows that were actually processed", async () => {
+    const deps = buildDeps({
+      fetchRows: vi
+        .fn()
+        .mockResolvedValue([row("q1", "Is this a question?"), row("r4", "A plain fact.")]),
+      classify: vi.fn().mockResolvedValue({ matchedTopicId: "topic_3", suggestedPlacement: null }),
+    });
+
+    const result = await distillBizEducation(deps);
+
+    expect(result.processed).toEqual(["r4"]);
+    expect(deps.markSynced).toHaveBeenCalledTimes(1);
+    expect(deps.markSynced).toHaveBeenCalledWith("r4");
+  });
+
+  it("isolates one row's mark-synced failure from the rest of the batch", async () => {
+    const deps = buildDeps({
+      fetchRows: vi.fn().mockResolvedValue([row("s1", "Fact one."), row("s2", "Fact two.")]),
+      classify: vi.fn().mockResolvedValue({ matchedTopicId: "topic_4", suggestedPlacement: null }),
+      markSynced: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("notion write failed"))
+        .mockResolvedValueOnce(undefined),
+    });
+
+    const result = await distillBizEducation(deps);
+
+    expect(result.processed).toEqual(["s1", "s2"]);
+    expect(result.markSyncedFailed).toEqual(["s1"]);
+    expect(deps.markSynced).toHaveBeenCalledTimes(2);
   });
 });

@@ -25,10 +25,10 @@ updated: 2026-09-04
 - [x] Classify a row as fitting an existing deck or needing a new one
 - [x] Pick the cheapest working OpenRouter model for classifying each row
 - [ ] Skip a pulled row if its text contains a question
-- [ ] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
+- [x] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
   - [x] Pull, filter, and pick the classification model
   - [x] Classify, save facts, and file inbox suggestions
-  - [ ] Mark synced and schedule
+  - [x] Mark synced and schedule
 
 ### Notes
 - Biz Education data source: collection://3cddec4d-fc6e-805c-93ea-000bc235a121, real Tags option is PA.

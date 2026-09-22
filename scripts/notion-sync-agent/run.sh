@@ -18,4 +18,12 @@ fi
 cd "$REPO_ROOT" || exit 1
 
 npm run notion:sync -w @post-anki/api 2>&1 | stamp
-exit "${PIPESTATUS[0]}"
+sync_status="${PIPESTATUS[0]}"
+
+npm run biz-education:distill -w @post-anki/api 2>&1 | stamp
+distill_status="${PIPESTATUS[0]}"
+
+if [ "$sync_status" -ne 0 ]; then
+  exit "$sync_status"
+fi
+exit "$distill_status"

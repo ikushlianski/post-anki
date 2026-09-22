@@ -5,6 +5,7 @@ import { listUnsyncedTaggedRows, type BizEducationRow } from "./biz-education.cl
 import { classifyRow, type ClassificationResult } from "./classify-row.js";
 import type { HierarchyTopic } from "./distiller.repo.js";
 import { insertContentInboxRow, listHierarchyForClassification } from "./distiller.repo.js";
+import { markRowSynced } from "./mark-row-synced.js";
 
 export interface DistillerDeps {
   fetchRows: () => Promise<BizEducationRow[]>;
@@ -22,6 +23,7 @@ export interface DistillerDeps {
     sourceRef: string;
     suggestedPlacement: string;
   }) => Promise<void>;
+  markSynced: (pageId: string) => Promise<void>;
 }
 
 export function defaultDistillerDeps(): DistillerDeps {
@@ -31,14 +33,15 @@ export function defaultDistillerDeps(): DistillerDeps {
     classify: classifyRow,
     insertFact: insertFactWithTopic,
     insertInboxRow: insertContentInboxRow,
+    markSynced: markRowSynced,
   };
 }
 
-// Phase 3 marks Notion synced only for ids in `processed`, never skipped/failed.
 export interface DistillResult {
   processed: string[];
   skipped: string[];
   failed: string[];
+  markSyncedFailed: string[];
 }
 
 async function distillRow(row: BizEducationRow, deps: DistillerDeps): Promise<void> {
@@ -68,7 +71,7 @@ export async function distillBizEducation(
   deps: DistillerDeps = defaultDistillerDeps(),
 ): Promise<DistillResult> {
   const pulled = await deps.fetchRows();
-  const result: DistillResult = { processed: [], skipped: [], failed: [] };
+  const result: DistillResult = { processed: [], skipped: [], failed: [], markSyncedFailed: [] };
 
   for (const row of pulled) {
     if (containsQuestion(row.text)) {
@@ -82,6 +85,15 @@ export async function distillBizEducation(
     } catch (err) {
       result.failed.push(row.id);
       log.error({ err, notionId: row.id }, "biz_education_distill_row_failed");
+    }
+  }
+
+  for (const id of result.processed) {
+    try {
+      await deps.markSynced(id);
+    } catch (err) {
+      result.markSyncedFailed.push(id);
+      log.error({ err, notionId: id }, "biz_education_mark_synced_failed");
     }
   }
 
