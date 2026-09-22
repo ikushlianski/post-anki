@@ -18,13 +18,13 @@ updated: 2026-09-04
 - Out of scope: The generic notion-deck-connectors router and its facts/CRM routing — this is a separate, Biz-Education-specific pipeline
 
 ### Coding tasks
-- [ ] Run the Biz Education distiller as its own 15-minute connector
-- [ ] Mark a processed Notion row synced without deleting or archiving it
+- [x] Run the Biz Education distiller as its own 15-minute connector
+- [x] Mark a processed Notion row synced without deleting or archiving it
 - [x] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot
 - [x] Save a fitting row as a fact linked to its matched deck topic
 - [x] Classify a row as fitting an existing deck or needing a new one
 - [x] Pick the cheapest working OpenRouter model for classifying each row
-- [ ] Skip a pulled row if its text contains a question
+- [x] Skip a pulled row if its text contains a question
 - [x] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
   - [x] Pull, filter, and pick the classification model
   - [x] Classify, save facts, and file inbox suggestions
