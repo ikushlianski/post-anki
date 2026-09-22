@@ -1,6 +1,7 @@
 import { ROUTES } from "./router-table.js";
 
 export type RouteName =
+  | "listContentInbox"
   | "listSubjects"
   | "createSubject"
   | "deleteSubject"

@@ -1015,6 +1015,17 @@ export const facts = pgTable("facts", {
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Set only when the distiller matched this fact to a topic; no FK, matching this schema's convention.
+  topicId: text("topic_id"),
+});
+
+// A distiller row that didn't match a topic; suggestedPlacement is never auto-applied.
+export const contentInbox = pgTable("content_inbox", {
+  id: text("id").primaryKey(),
+  body: text("body").notNull(),
+  sourceRef: text("source_ref").notNull().unique(),
+  suggestedPlacement: text("suggested_placement").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const notionSyncItems = pgTable("notion_sync_items", {

@@ -21,13 +21,13 @@ updated: 2026-09-04
 - [ ] Run the Biz Education distiller as its own 15-minute connector
 - [ ] Mark a processed Notion row synced without deleting or archiving it
 - [ ] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot
-- [ ] Save a fitting row as a fact linked to its matched deck topic
+- [x] Save a fitting row as a fact linked to its matched deck topic
 - [ ] Classify a row as fitting an existing deck or needing a new one
 - [ ] Pick the cheapest working OpenRouter model for classifying each row
 - [ ] Skip a pulled row if its text contains a question
 - [ ] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
   - [x] Pull, filter, and pick the classification model
-  - [ ] Classify, save facts, and file inbox suggestions
+  - [x] Classify, save facts, and file inbox suggestions
   - [ ] Mark synced and schedule
 
 ### Notes

@@ -225,6 +225,7 @@ import {
   handleResolveSourceDuplicateSuggestion,
   handleTriggerSourceDuplicateScan,
 } from "./source-duplicate/source-duplicate.controller.js";
+import { handleListContentInbox } from "./biz-education-distiller/content-inbox.controller.js";
 import { handleGetMilestones } from "./milestone/milestone.controller.js";
 import {
   handleListStudyMaterials,
@@ -674,6 +675,8 @@ async function route(
       return handleListLibrarySources(res);
     case "refetchSource":
       return handleRefetchSource(res, id);
+    case "listContentInbox":
+      return handleListContentInbox(res);
     case "triggerSourceDuplicateScan":
       return handleTriggerSourceDuplicateScan(res);
     case "listSourceDuplicateSuggestions":

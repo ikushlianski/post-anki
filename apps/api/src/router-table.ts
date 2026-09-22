@@ -53,6 +53,7 @@ export const ROUTES: RouteDef[] = [
     name: "refetchSource",
     param: "id",
   },
+  { method: "GET", pattern: "/content-inbox", name: "listContentInbox" },
   { method: "POST", pattern: "/source-duplicate-scans", name: "triggerSourceDuplicateScan" },
   {
     method: "GET",

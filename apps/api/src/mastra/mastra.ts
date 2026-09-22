@@ -27,6 +27,7 @@ import { createDomainTaxonomyMappingAgent } from "./domain-taxonomy-mapping.agen
 import { createLearningListClassifierAgent } from "./learning-list-classifier.agent.js";
 import { createLearningListSliceAgent } from "./learning-list-slice.agent.js";
 import { createStudyMaterialWriter } from "./study-material-writer.agent.js";
+import { createBizEducationClassifierAgent } from "./biz-education-classifier.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -54,6 +55,7 @@ export const AGENT_KEYS = {
   learningListClassifier: "learningListClassifier",
   learningListSlice: "learningListSlice",
   studyMaterialWriter: "studyMaterialWriter",
+  bizEducationClassifier: "bizEducationClassifier",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -121,6 +123,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.learningListClassifier]: createLearningListClassifierAgent(),
         [AGENT_KEYS.learningListSlice]: createLearningListSliceAgent(),
         [AGENT_KEYS.studyMaterialWriter]: createStudyMaterialWriter(),
+        [AGENT_KEYS.bizEducationClassifier]: createBizEducationClassifierAgent(),
       },
       ...(observability ? { observability } : {}),
     });

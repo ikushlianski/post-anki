@@ -94,3 +94,4 @@
 {"ts":"2026-09-19T12:30:00Z","direction":"grounded-knowledge-chat","itemText":"Embed facts","verdict":"PASS","findings":[]}
 {"ts":"2026-09-19T13:10:00Z","direction":"grounded-knowledge-chat","itemText":"Retrieve and ground on facts","verdict":"PASS","findings":[]}
 {"direction":"biz-education-distiller","item":"Pull, filter, and pick the classification model","verdict":"PASS","reviewer":"Explore(fallback for reviewer-readonly)","timestamp":"2026-09-22T01:20:00.000Z","citation":"apps/api/src/biz-education-distiller/biz-education.client.ts:29"}
+{"direction":"biz-education-distiller","item":"Classify, save facts, and file inbox suggestions","verdict":"PASS","reviewer":"Explore(fallback for reviewer-readonly)","timestamp":"2026-09-22T01:35:00.000Z","citation":"apps/api/src/biz-education-distiller/distiller.orchestrator.ts:65","note":"initial FAIL was comment-length only (schema.ts), fixed and confirmed; all functional/test findings PASS"}
