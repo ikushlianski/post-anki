@@ -6,6 +6,7 @@ describe("resolveRoute", () => {
     it("matches collection routes by method", () => {
       expect(resolveRoute("GET", "/subjects")?.name).toBe("listSubjects");
       expect(resolveRoute("POST", "/subjects")?.name).toBe("createSubject");
+      expect(resolveRoute("POST", "/knowledge-sources")?.name).toBe("createKnowledgeSource");
       expect(resolveRoute("GET", "/curricula")?.name).toBe("listCurricula");
       expect(resolveRoute("POST", "/gaps")?.name).toBe("declareGap");
       // issue #33's sweep endpoint — the only caller is the

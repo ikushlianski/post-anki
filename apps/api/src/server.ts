@@ -9,6 +9,7 @@ import {
   handleMergeSubjects,
   handleUpdateSubject,
 } from "./subject/subject.controller.js";
+import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import {
   handleCreateSubjectCategory,
   handleListAllSubjectCategories,
@@ -333,6 +334,8 @@ async function route(
       return handleListSubjects(res);
     case "createSubject":
       return handleCreateSubject(req, res);
+    case "createKnowledgeSource":
+      return handleCreateKnowledgeSource(req, res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "updateSubject":

@@ -4,6 +4,7 @@ export type RouteName =
   | "listContentInbox"
   | "listSubjects"
   | "createSubject"
+  | "createKnowledgeSource"
   | "deleteSubject"
   | "updateSubject"
   | "mergeSubjects"

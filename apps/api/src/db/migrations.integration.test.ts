@@ -245,3 +245,49 @@ describe("migrations — real FK and unique-index enforcement (SCENARIO 1)", () 
     });
   });
 });
+
+// SCENARIO (.planning/prose-knowledge-fisher--accept-pasted-prose/scenarios.md) —
+// proves the 0056 migration applies cleanly against real Postgres (this file's
+// beforeAll already runs every migration, including 0056, against a fresh
+// throwaway database) and that knowledge_sources' real columns match schema.ts.
+describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept-pasted-prose)", () => {
+  it("creates knowledge_sources with the columns schema.ts declares", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable, column_default
+         FROM information_schema.columns
+        WHERE table_name = 'knowledge_sources'
+        ORDER BY ordinal_position`,
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({ column_name: "id", data_type: "text", is_nullable: "NO" }),
+      expect.objectContaining({ column_name: "kind", data_type: "text", is_nullable: "NO" }),
+      expect.objectContaining({ column_name: "raw_text", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({
+        column_name: "status",
+        data_type: "text",
+        is_nullable: "NO",
+        column_default: "'pending'::text",
+      }),
+      expect.objectContaining({ column_name: "created_at", data_type: "timestamp with time zone", is_nullable: "NO" }),
+    ]);
+  });
+
+  it("inserts and round-trips a prose knowledge source through raw SQL, matching the repo's own insert shape", async () => {
+    const id = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', $2, 'pending')`,
+      [id, "Some pasted prose for the migration test."],
+    );
+
+    const { rows } = await client.query(`SELECT * FROM knowledge_sources WHERE id = $1`, [id]);
+
+    expect(rows[0]).toMatchObject({
+      id,
+      kind: "prose",
+      raw_text: "Some pasted prose for the migration test.",
+      status: "pending",
+    });
+  });
+});

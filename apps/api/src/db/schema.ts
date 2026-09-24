@@ -1028,6 +1028,15 @@ export const contentInbox = pgTable("content_inbox", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Raw submitted text (prose now, notion later) awaiting bit-detection.
+export const knowledgeSources = pgTable("knowledge_sources", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  rawText: text("raw_text"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const notionSyncItems = pgTable("notion_sync_items", {
   notionId: text("notion_id").primaryKey(),
   connector: text("connector").notNull(),
