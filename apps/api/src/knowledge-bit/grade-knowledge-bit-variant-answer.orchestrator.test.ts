@@ -17,6 +17,10 @@ vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
 
+vi.mock("../tag/tag.repo.js", () => ({
+  listAssignmentsForNodes: vi.fn(),
+}));
+
 const { getQuestionVariantById, insertVariantAttempt } = await import(
   "./knowledge-bit-variant-attempt.repo.js"
 );
@@ -26,9 +30,14 @@ const { runKnowledgeBitAnswerGrader } = await import(
 const { runKnowledgeBitFollowupGenerator } = await import(
   "../mastra/knowledge-bit-followup-generator.agent.js"
 );
+const { listAssignmentsForNodes } = await import("../tag/tag.repo.js");
 const { gradeKnowledgeBitVariantAnswer } = await import(
   "./grade-knowledge-bit-variant-answer.orchestrator.js"
 );
+
+function fakeAssignment(tagId: string) {
+  return { id: `tga_${tagId}`, tagId, nodeType: "knowledgeBit" as const, nodeId: "kb_1", createdAt: new Date().toISOString() };
+}
 
 describe("gradeKnowledgeBitVariantAnswer", () => {
   beforeEach(() => {
@@ -38,6 +47,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
   it("grades a correct answer, stores the attempt, and returns the grade", async () => {
     const variant = {
       id: "kbqv_1",
+      knowledgeBitId: "kb_1",
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
@@ -52,6 +62,10 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
       followUpQuestion: "What would change if Y were reversed?",
     });
+    vi.mocked(listAssignmentsForNodes).mockResolvedValue([
+      fakeAssignment("tag_x"),
+      fakeAssignment("tag_y"),
+    ]);
 
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_1", "Because of Y, precisely.");
 
@@ -76,18 +90,21 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       "Ok",
       "Captures the reasoning.",
     );
+    expect(listAssignmentsForNodes).toHaveBeenCalledWith(["kb_1"]);
     expect(result).toEqual({
       ok: true,
       score: 9,
       verdict: "Ok",
       feedback: "Captures the reasoning.",
       followUpQuestion: "What would change if Y were reversed?",
+      tagIds: ["tag_x", "tag_y"],
     });
   });
 
   it("grades an incomplete answer and still records the lower-scoring attempt", async () => {
     const variant = {
       id: "kbqv_2",
+      knowledgeBitId: "kb_2",
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
@@ -102,6 +119,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
       followUpQuestion: "What actual mechanism connects X and Y?",
     });
+    vi.mocked(listAssignmentsForNodes).mockResolvedValue([]);
 
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_2", "I don't really know.");
 
@@ -122,12 +140,14 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       verdict: "NeedsDeepDive",
       feedback: "Missing the actual mechanism.",
       followUpQuestion: "What actual mechanism connects X and Y?",
+      tagIds: [],
     });
   });
 
   it("passes the fill_in_the_blank kind through to the grader, not defaulting to wh_question", async () => {
     const variant = {
       id: "kbqv_fb",
+      knowledgeBitId: "kb_fb",
       kind: "fill_in_the_blank" as const,
       prompt: "An initial price ____ shifts what feels fair later.",
       answer: "anchor",
@@ -142,6 +162,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
       followUpQuestion: "What other decision could an anchor distort?",
     });
+    vi.mocked(listAssignmentsForNodes).mockResolvedValue([fakeAssignment("tag_pricing")]);
 
     await gradeKnowledgeBitVariantAnswer("kbqv_fb", "anchor");
 
@@ -164,6 +185,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
   it("still returns the already-graded, already-stored grade when follow-up generation fails", async () => {
     const variant = {
       id: "kbqv_4",
+      knowledgeBitId: "kb_4",
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
@@ -176,6 +198,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       feedback: "Captures the reasoning.",
     });
     vi.mocked(runKnowledgeBitFollowupGenerator).mockRejectedValue(new Error("provider down"));
+    vi.mocked(listAssignmentsForNodes).mockResolvedValue([]);
 
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_4", "Because of Y.");
 
@@ -188,6 +211,42 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       verdict: "Ok",
       feedback: "Captures the reasoning.",
       followUpQuestion: null,
+      tagIds: [],
+    });
+  });
+
+  it("still returns the already-graded grade with an empty tagIds when tag lookup fails", async () => {
+    const variant = {
+      id: "kbqv_5",
+      knowledgeBitId: "kb_5",
+      kind: "wh_question" as const,
+      prompt: "Why does X happen?",
+      answer: "Because of Y.",
+    };
+
+    vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
+    vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
+      score: 9,
+      verdict: "Ok",
+      feedback: "Captures the reasoning.",
+    });
+    vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
+      followUpQuestion: "What if Y were reversed?",
+    });
+    vi.mocked(listAssignmentsForNodes).mockRejectedValue(new Error("db down"));
+
+    const result = await gradeKnowledgeBitVariantAnswer("kbqv_5", "Because of Y.");
+
+    expect(insertVariantAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ score: 9, verdict: "Ok" }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      score: 9,
+      verdict: "Ok",
+      feedback: "Captures the reasoning.",
+      followUpQuestion: "What if Y were reversed?",
+      tagIds: [],
     });
   });
 
@@ -200,11 +259,13 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     expect(runKnowledgeBitAnswerGrader).not.toHaveBeenCalled();
     expect(insertVariantAttempt).not.toHaveBeenCalled();
     expect(runKnowledgeBitFollowupGenerator).not.toHaveBeenCalled();
+    expect(listAssignmentsForNodes).not.toHaveBeenCalled();
   });
 
   it("grades against the variant's own prompt/answer, not any other text", async () => {
     const variant = {
       id: "kbqv_3",
+      knowledgeBitId: "kb_3",
       kind: "wh_question" as const,
       prompt: "Specific question?",
       answer: "Specific answer.",
@@ -219,6 +280,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
       followUpQuestion: "What is still unclear?",
     });
+    vi.mocked(listAssignmentsForNodes).mockResolvedValue([]);
 
     await gradeKnowledgeBitVariantAnswer("kbqv_3", "My answer");
 

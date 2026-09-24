@@ -78,7 +78,9 @@ updated: 2026-09-04
   - [x] Phase 2: orchestrator wiring
   - [x] Phase 3: tests
 - [x] Embed each generated question and answer, linked back to its source knowledge bit
-- [ ] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
+- [x] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
+  - [x] Phase 1: repo and orchestrator wiring
+  - [x] Phase 2: tests
 - [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
 - [ ] Track a dynamic knowledge-level per tag from scored answers
 - [ ] Surface where the learner is strong, weak, or shallow by tag and topic

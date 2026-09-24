@@ -1,6 +1,7 @@
 import { runKnowledgeBitAnswerGrader } from "../mastra/knowledge-bit-answer-grader.agent.js";
 import { runKnowledgeBitFollowupGenerator } from "../mastra/knowledge-bit-followup-generator.agent.js";
 import { log } from "../shared/log.js";
+import { listAssignmentsForNodes } from "../tag/tag.repo.js";
 import {
   getQuestionVariantById,
   insertVariantAttempt,
@@ -8,7 +9,7 @@ import {
 import type { KnowledgeBitAnswerGraderResult } from "../mastra/knowledge-bit-answer-grader.agent.js";
 
 export type GradeKnowledgeBitVariantAnswerResult =
-  | ({ ok: true; followUpQuestion: string | null } & KnowledgeBitAnswerGraderResult)
+  | ({ ok: true; followUpQuestion: string | null; tagIds: string[] } & KnowledgeBitAnswerGraderResult)
   | { ok: false; error: "variant_not_found" };
 
 export async function gradeKnowledgeBitVariantAnswer(
@@ -55,5 +56,17 @@ export async function gradeKnowledgeBitVariantAnswer(
     log.error({ err, variantId }, "knowledge_bit_followup_generation_failed");
   }
 
-  return { ok: true, ...grade, followUpQuestion };
+  // Same fail-soft rule as the follow-up question above — a tag-lookup error must not turn an
+  // already-graded, already-persisted answer into an error response.
+  let tagIds: string[] = [];
+
+  try {
+    const assignments = await listAssignmentsForNodes([variant.knowledgeBitId]);
+
+    tagIds = assignments.map((assignment) => assignment.tagId);
+  } catch (err) {
+    log.error({ err, variantId }, "knowledge_bit_variant_answer_tag_lookup_failed");
+  }
+
+  return { ok: true, ...grade, followUpQuestion, tagIds };
 }

@@ -99,7 +99,7 @@ async function seedVariant(
 }
 
 describe("getQuestionVariantById (real Postgres)", () => {
-  it("returns the variant's id, kind, prompt, and answer", async () => {
+  it("returns the variant's id, knowledgeBitId, kind, prompt, and answer", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with a variant to grade");
     const variantId = await seedVariant(bitId, "Why does this matter?", "Because of X.");
@@ -108,6 +108,7 @@ describe("getQuestionVariantById (real Postgres)", () => {
 
     expect(row).toEqual({
       id: variantId,
+      knowledgeBitId: bitId,
       kind: "wh_question",
       prompt: "Why does this matter?",
       answer: "Because of X.",

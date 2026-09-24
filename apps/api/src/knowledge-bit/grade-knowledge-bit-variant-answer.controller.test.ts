@@ -56,6 +56,7 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
       verdict: "Ok",
       feedback: "Good.",
       followUpQuestion: "What would happen if this were reversed?",
+      tagIds: ["tag_x"],
     });
 
     const req = fakeReq({ userAnswer: "Because of Y." });
@@ -71,6 +72,7 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
       verdict: "Ok",
       feedback: "Good.",
       followUpQuestion: "What would happen if this were reversed?",
+      tagIds: ["tag_x"],
     });
   });
 

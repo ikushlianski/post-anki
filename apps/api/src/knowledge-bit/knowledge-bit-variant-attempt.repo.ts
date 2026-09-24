@@ -6,6 +6,7 @@ import { newId } from "../shared/id.js";
 
 export interface QuestionVariantForGrading {
   id: string;
+  knowledgeBitId: string;
   kind: KnowledgeBitQuestionVariantKind;
   prompt: string;
   answer: string;
@@ -18,6 +19,7 @@ export async function getQuestionVariantById(
   const rows = await db
     .select({
       id: knowledgeBitQuestionVariants.id,
+      knowledgeBitId: knowledgeBitQuestionVariants.knowledgeBitId,
       kind: knowledgeBitQuestionVariants.kind,
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
