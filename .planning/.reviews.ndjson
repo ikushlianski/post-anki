@@ -115,3 +115,4 @@
 {"slug":"tag-mastery","direction":"prose-knowledge-fisher","outcome":"FAIL","timestamp":"2026-09-24T09:50:41.000Z","note":"missing createdAt tiebreak in getTagMasteryLevels ordering, nondeterministic fold on tied timestamps"}
 {"slug":"tag-mastery","direction":"prose-knowledge-fisher","outcome":"PASS","timestamp":"2026-09-24T09:52:11.000Z","note":"tiebreak fix verified independently, all 7 scenarios covered, tsc+vitest clean"}
 {"slug":"tag-strength-surface-phase1","direction":"prose-knowledge-fisher","outcome":"PASS","timestamp":"2026-09-24T09:58:38.000Z","note":"GET /tags/mastery endpoint, zero-attempt default confirmed, no schema change, no server-side remap"}
+{"slug":"tag-strength-surface-phase2","direction":"prose-knowledge-fisher","outcome":"PASS","timestamp":"2026-09-24T10:02:32.000Z","note":"strength badge UI, client-only remap confirmed, RTL test substituted for Playwright (repo has none), browser check disclosed as skipped (no access)"}
