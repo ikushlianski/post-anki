@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, topics, curricula, subjects } from "../db/schema.js";
 import { createTopic } from "../topic/topic.repo.js";
@@ -102,7 +102,7 @@ export async function listPendingPlacementSuggestions(
         isNull(knowledgeBits.placementSuggestionResolvedAt),
       ),
     )
-    .orderBy(asc(knowledgeBits.createdAt))
+    .orderBy(desc(knowledgeBits.createdAt))
     .limit(limit);
 
   return rows.map((row) => ({ ...row, placementSuggestion: row.placementSuggestion as string }));
@@ -113,9 +113,14 @@ export type ResolvePlacementSuggestionResult =
   | { outcome: "accepted"; topicId: string }
   | { error: "not_found" | "already_resolved" | "module_not_found" | "invalid_input" };
 
+class ModuleNotFoundInTransaction extends Error {}
+
 // Claim-then-act, same shape as resolveDomainTopicSuggestion: the conditional UPDATE below is
 // the only thing that can ever claim a given bit, so a concurrent second call always loses and
-// gets already_resolved instead of double-creating a topic.
+// gets already_resolved instead of double-creating a topic. Everything after the claim — the
+// topic insert and the topicId write-back — runs inside the same db.transaction as the claim
+// itself (createTopic takes the same tx executor), so a crash or error between steps rolls the
+// claim back too instead of leaving the bit permanently stamped resolved with no topic.
 export async function resolvePlacementSuggestion(
   id: string,
   decision: "accepted" | "rejected",
@@ -127,45 +132,55 @@ export async function resolvePlacementSuggestion(
     return { error: "invalid_input" };
   }
 
-  const claimed = (
-    await db
-      .update(knowledgeBits)
-      .set({ placementSuggestionResolvedAt: new Date() })
-      .where(
-        and(
-          eq(knowledgeBits.id, id),
-          isNotNull(knowledgeBits.placementSuggestion),
-          isNull(knowledgeBits.topicId),
-          isNull(knowledgeBits.placementSuggestionResolvedAt),
-        ),
-      )
-      .returning()
-  )[0];
+  try {
+    return await db.transaction(async (tx) => {
+      const claimed = (
+        await tx
+          .update(knowledgeBits)
+          .set({ placementSuggestionResolvedAt: new Date() })
+          .where(
+            and(
+              eq(knowledgeBits.id, id),
+              isNotNull(knowledgeBits.placementSuggestion),
+              isNull(knowledgeBits.topicId),
+              isNull(knowledgeBits.placementSuggestionResolvedAt),
+            ),
+          )
+          .returning()
+      )[0];
 
-  if (!claimed) {
-    const existing = (
-      await db.select().from(knowledgeBits).where(eq(knowledgeBits.id, id))
-    )[0];
+      if (!claimed) {
+        const existing = (
+          await tx.select().from(knowledgeBits).where(eq(knowledgeBits.id, id))
+        )[0];
 
-    return { error: existing ? "already_resolved" : "not_found" };
+        return { error: existing ? ("already_resolved" as const) : ("not_found" as const) };
+      }
+
+      if (decision === "rejected") {
+        return { outcome: "rejected" as const };
+      }
+
+      const topic = await createTopic(
+        { moduleId: moduleId as string, title: title as string },
+        tx,
+      );
+
+      if (!topic) {
+        // Throwing is what actually rolls the claim UPDATE back — drizzle only rolls back a
+        // transaction on a thrown error, never on a normal return value.
+        throw new ModuleNotFoundInTransaction();
+      }
+
+      await tx.update(knowledgeBits).set({ topicId: topic.id }).where(eq(knowledgeBits.id, id));
+
+      return { outcome: "accepted" as const, topicId: topic.id };
+    });
+  } catch (err) {
+    if (err instanceof ModuleNotFoundInTransaction) {
+      return { error: "module_not_found" };
+    }
+
+    throw err;
   }
-
-  if (decision === "rejected") {
-    return { outcome: "rejected" };
-  }
-
-  const topic = await createTopic({ moduleId: moduleId as string, title: title as string });
-
-  if (!topic) {
-    await db
-      .update(knowledgeBits)
-      .set({ placementSuggestionResolvedAt: null })
-      .where(eq(knowledgeBits.id, id));
-
-    return { error: "module_not_found" };
-  }
-
-  await db.update(knowledgeBits).set({ topicId: topic.id }).where(eq(knowledgeBits.id, id));
-
-  return { outcome: "accepted", topicId: topic.id };
 }

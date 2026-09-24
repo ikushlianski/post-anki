@@ -8,7 +8,7 @@ import type {
   UpdateTopicInput,
 } from "@post-anki/shared";
 import { nextOrder, assignOrders } from "@post-anki/core";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { gaps, modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { deleteLectureForTopic } from "../lecture/lecture.repo.js";
@@ -42,9 +42,10 @@ function rowToTopic(row: typeof topics.$inferSelect): Topic {
   };
 }
 
-export async function createTopic(input: CreateTopicInput): Promise<Topic | null> {
-  const db = getDb();
-
+export async function createTopic(
+  input: CreateTopicInput,
+  db: DbExecutor = getDb(),
+): Promise<Topic | null> {
   const moduleRow = (
     await db.select().from(modules).where(eq(modules.id, input.moduleId))
   )[0];

@@ -276,6 +276,21 @@ describe("listPendingPlacementSuggestions (real Postgres)", () => {
       placementSuggestion: "Try X",
     });
   });
+
+  it("orders pending suggestions newest first", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const olderId = await seedKnowledgeBit(sourceId, 0, "Older suggestion", null, "Try old");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const newerId = await seedKnowledgeBit(sourceId, 1, "Newer suggestion", null, "Try new");
+
+    const rows = await listPendingPlacementSuggestions(1000);
+    const olderIndex = rows.findIndex((row) => row.id === olderId);
+    const newerIndex = rows.findIndex((row) => row.id === newerId);
+
+    expect(newerIndex).toBeLessThan(olderIndex);
+  });
 });
 
 describe("resolvePlacementSuggestion (real Postgres)", () => {
@@ -368,6 +383,82 @@ describe("resolvePlacementSuggestion (real Postgres)", () => {
     const result = await resolvePlacementSuggestion(bitId, "rejected");
 
     expect(result).toEqual({ error: "already_resolved" });
+  });
+
+  it("returns already_resolved on an accept attempted against a bit already accepted", async () => {
+    const subjectId = await seedSubject("Double Accept Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Double Accept Curriculum");
+    const moduleId = await seedModule(curriculumId, "Double Accept Module");
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to double-accept", null, "Try X");
+
+    const first = await resolvePlacementSuggestion(bitId, "accepted", moduleId, "First Topic");
+
+    expect(first).toMatchObject({ outcome: "accepted" });
+
+    const second = await resolvePlacementSuggestion(bitId, "accepted", moduleId, "Second Topic");
+
+    expect(second).toEqual({ error: "already_resolved" });
+
+    const { rows: topicRows } = await client.query(
+      `SELECT id FROM topics WHERE module_id = $1`,
+      [moduleId],
+    );
+
+    expect(topicRows).toHaveLength(1);
+  });
+
+  it("returns invalid_input when accepting without a moduleId or title", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit missing accept fields", null, "Try X");
+
+    const noModule = await resolvePlacementSuggestion(bitId, "accepted", undefined, "A Title");
+
+    expect(noModule).toEqual({ error: "invalid_input" });
+
+    const noTitle = await resolvePlacementSuggestion(bitId, "accepted", "mod_whatever", undefined);
+
+    expect(noTitle).toEqual({ error: "invalid_input" });
+
+    // Neither invalid attempt claimed the bit — it's still resolvable afterward.
+    const rejected = await resolvePlacementSuggestion(bitId, "rejected");
+
+    expect(rejected).toEqual({ outcome: "rejected" });
+  });
+
+  it("creates exactly one topic when two accepts race on the same bit", async () => {
+    const subjectId = await seedSubject("Race Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Race Curriculum");
+    const moduleId = await seedModule(curriculumId, "Race Module");
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit under race", null, "Try X");
+
+    const [first, second] = await Promise.all([
+      resolvePlacementSuggestion(bitId, "accepted", moduleId, "Racer A"),
+      resolvePlacementSuggestion(bitId, "accepted", moduleId, "Racer B"),
+    ]);
+
+    const outcomes = [first, second];
+    const accepted = outcomes.filter(
+      (result): result is { outcome: "accepted"; topicId: string } =>
+        "outcome" in result && result.outcome === "accepted",
+    );
+    const alreadyResolved = outcomes.filter(
+      (result) => "error" in result && result.error === "already_resolved",
+    );
+
+    expect(accepted).toHaveLength(1);
+    expect(alreadyResolved).toHaveLength(1);
+
+    const { rows: topicRows } = await client.query(
+      `SELECT id FROM topics WHERE module_id = $1`,
+      [moduleId],
+    );
+
+    expect(topicRows).toHaveLength(1);
+    expect(topicRows[0]!.id).toBe(accepted[0]!.topicId);
   });
 });
 
