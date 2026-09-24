@@ -92,7 +92,9 @@ updated: 2026-09-04
 - [x] Surface where the learner is strong, weak, or shallow by tag and topic
   - [x] Phase 1: tag-mastery endpoint
   - [x] Phase 2: tag-strength badge UI
-- [ ] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
+- [x] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
+  - [x] Phase 1: weak-tags panel and wiring
+  - [x] Phase 2: tag-deepen-panel tests
 - [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
 
 ### Notes
