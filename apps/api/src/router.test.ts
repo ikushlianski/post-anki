@@ -318,6 +318,16 @@ describe("resolveRoute", () => {
         params: { id: "sd1" },
       });
     });
+
+    it("matches the placement-suggestions list and resolve routes", () => {
+      expect(resolveRoute("GET", "/knowledge-bits/placement-suggestions")?.name).toBe(
+        "listPendingPlacementSuggestions",
+      );
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb1/placement-suggestion")).toEqual({
+        name: "resolvePlacementSuggestion",
+        params: { id: "kb1" },
+      });
+    });
   });
 
   describe("study-session routes", () => {

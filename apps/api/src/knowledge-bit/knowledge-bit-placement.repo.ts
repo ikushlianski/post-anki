@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import type { PendingPlacementSuggestion } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, topics, curricula, subjects } from "../db/schema.js";
 import { createTopic } from "../topic/topic.repo.js";
@@ -76,12 +77,6 @@ export async function markKnowledgeBitPlacementFailed(
     .update(knowledgeBits)
     .set({ placementFailedAt: new Date() })
     .where(eq(knowledgeBits.id, id));
-}
-
-export interface PendingPlacementSuggestion {
-  id: string;
-  body: string;
-  placementSuggestion: string;
 }
 
 export async function listPendingPlacementSuggestions(

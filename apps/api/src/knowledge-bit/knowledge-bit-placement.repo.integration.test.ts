@@ -378,15 +378,57 @@ describe("resolvePlacementSuggestion (real Postgres)", () => {
     expect(retry).toEqual({ outcome: "rejected" });
   });
 
-  it("returns already_resolved on a second call against an already-decided bit", async () => {
+  it("returns already_resolved on a second call, never re-stamping the resolved timestamp", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to double-resolve", null, "Try X");
 
     await resolvePlacementSuggestion(bitId, "rejected");
 
+    const { rows: firstRows } = await client.query(
+      `SELECT placement_suggestion_resolved_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+    const firstStamp = firstRows[0]!.placement_suggestion_resolved_at;
+
     const result = await resolvePlacementSuggestion(bitId, "rejected");
 
     expect(result).toEqual({ error: "already_resolved" });
+
+    const { rows: secondRows } = await client.query(
+      `SELECT placement_suggestion_resolved_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(secondRows[0]!.placement_suggestion_resolved_at).toEqual(firstStamp);
+  });
+
+  it("returns already_resolved and creates no topic when accepting after a reject", async () => {
+    const subjectId = await seedSubject("Reject Then Accept Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Reject Then Accept Curriculum");
+    const moduleId = await seedModule(curriculumId, "Reject Then Accept Module");
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit rejected then re-accepted", null, "Try X");
+
+    await resolvePlacementSuggestion(bitId, "rejected");
+
+    const result = await resolvePlacementSuggestion(bitId, "accepted", moduleId, "Should Not Exist");
+
+    expect(result).toEqual({ error: "already_resolved" });
+
+    const { rows: bitRows } = await client.query(
+      `SELECT topic_id FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(bitRows[0]!.topic_id).toBeNull();
+
+    const { rows: topicRows } = await client.query(
+      `SELECT id FROM topics WHERE module_id = $1`,
+      [moduleId],
+    );
+
+    expect(topicRows).toHaveLength(0);
   });
 
   it("returns already_resolved on an accept attempted against a bit already accepted", async () => {

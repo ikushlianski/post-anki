@@ -29,6 +29,17 @@ export const ROUTES: RouteDef[] = [
     pattern: "/knowledge-bits/placement-scan",
     name: "triggerKnowledgeBitPlacementScan",
   },
+  {
+    method: "GET",
+    pattern: "/knowledge-bits/placement-suggestions",
+    name: "listPendingPlacementSuggestions",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/knowledge-bits\/([^/]+)\/placement-suggestion$/,
+    name: "resolvePlacementSuggestion",
+    param: "id",
+  },
   { method: "DELETE", pattern: /^\/subjects\/([^/]+)$/, name: "deleteSubject", param: "id" },
   { method: "PATCH", pattern: /^\/subjects\/([^/]+)$/, name: "updateSubject", param: "id" },
   { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },
