@@ -7,7 +7,7 @@
 - None open.
 
 ## Coding tasks
-- Fix listKnowledgeBitsForTaggingScan test — mock hides an AND/OR predicate bug
+- Add orchestrator test proving close-match candidates persist the resolved tag id, not the raw name
 - [x] Add `TagNodeType` union in shared/tag.ts, widen assignTag/addTagAssignment to accept it
 - [x] Add `taggedAt`/`tagFailedAt` columns to `knowledgeBits` in schema.ts, generate + apply migration
 - [x] Add `knowledge-bit-tagging.repo.ts` with the selection query and the two status-write functions
