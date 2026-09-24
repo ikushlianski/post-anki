@@ -1069,6 +1069,11 @@ export const knowledgeBits = pgTable(
     ordinal: integer("ordinal").notNull(),
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Mirrors topicCardVariants.embedding/embeddingHash/embeddedAt — nullable,
+    // additive, no backfill; embeddingHash skips re-embedding unchanged text.
+    embedding: jsonb("embedding").$type<number[]>(),
+    embeddingHash: text("embedding_hash"),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(

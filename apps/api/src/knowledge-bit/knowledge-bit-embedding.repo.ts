@@ -1,0 +1,37 @@
+import { asc, eq, isNull } from "drizzle-orm";
+import { getDb, type DbExecutor } from "../db/client.js";
+import { knowledgeBits } from "../db/schema.js";
+
+export interface KnowledgeBitForEmbeddingScan {
+  id: string;
+  body: string;
+  embeddingHash: string | null;
+}
+
+export async function listKnowledgeBitsForEmbeddingScan(
+  limit: number,
+  db: DbExecutor = getDb(),
+): Promise<KnowledgeBitForEmbeddingScan[]> {
+  return db
+    .select({
+      id: knowledgeBits.id,
+      body: knowledgeBits.body,
+      embeddingHash: knowledgeBits.embeddingHash,
+    })
+    .from(knowledgeBits)
+    .where(isNull(knowledgeBits.embeddedAt))
+    .orderBy(asc(knowledgeBits.createdAt))
+    .limit(limit);
+}
+
+export async function updateKnowledgeBitEmbedding(
+  id: string,
+  embedding: number[],
+  embeddingHash: string,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db
+    .update(knowledgeBits)
+    .set({ embedding, embeddingHash, embeddedAt: new Date() })
+    .where(eq(knowledgeBits.id, id));
+}
