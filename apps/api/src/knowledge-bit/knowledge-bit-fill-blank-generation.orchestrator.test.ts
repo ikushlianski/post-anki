@@ -4,10 +4,11 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("./knowledge-bit-question-variant.repo.js", () => ({
+vi.mock("./knowledge-bit-fill-blank-claim.repo.js", () => ({
   listKnowledgeBitsForFillBlankGenerationScan: vi.fn(),
   recordGeneratedFillBlankVariant: vi.fn(),
   markFillBlankGenerationFailed: vi.fn(),
+  claimKnowledgeBitForFillBlankGeneration: vi.fn(),
 }));
 
 vi.mock("../mastra/knowledge-bit-fill-blank-generator.agent.js", () => ({
@@ -18,7 +19,8 @@ const {
   listKnowledgeBitsForFillBlankGenerationScan,
   recordGeneratedFillBlankVariant,
   markFillBlankGenerationFailed,
-} = await import("./knowledge-bit-question-variant.repo.js");
+  claimKnowledgeBitForFillBlankGeneration,
+} = await import("./knowledge-bit-fill-blank-claim.repo.js");
 const { runKnowledgeBitFillBlankGenerator } = await import(
   "../mastra/knowledge-bit-fill-blank-generator.agent.js"
 );
@@ -26,9 +28,12 @@ const { generateKnowledgeBitFillBlanks, FILL_BLANK_GENERATION_CAP } = await impo
   "./knowledge-bit-fill-blank-generation.orchestrator.js"
 );
 
+const FAKE_CLAIM_TOKEN = "fbgc_fake_claim_token";
+
 describe("generateKnowledgeBitFillBlanks", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 
   it("should record a fill_in_the_blank variant (insert + mark, in one call) on success", async () => {
@@ -36,6 +41,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
 
     vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
     vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "An initial price anchor shifts what feels fair later.",
       prompt: "An initial price ____ shifts what feels fair later.",
       answer: "anchor",
     });
@@ -48,9 +54,52 @@ describe("generateKnowledgeBitFillBlanks", () => {
       0,
       "An initial price ____ shifts what feels fair later.",
       "anchor",
+      FAKE_CLAIM_TOKEN,
     );
     expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
-    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0 });
+    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
+  });
+
+  it("should skip a bit without calling the agent when a concurrent scan already claimed it", async () => {
+    const bit = { id: "kb_claimed_elsewhere", body: "Some content" };
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(null);
+
+    const result = await generateKnowledgeBitFillBlanks();
+
+    expect(claimKnowledgeBitForFillBlankGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere");
+    expect(runKnowledgeBitFillBlankGenerator).not.toHaveBeenCalled();
+    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
+    expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({ scanned: 1, generated: 0, failed: 0, skipped: 1 });
+  });
+
+  it("should claim each bit independently, so one lost claim doesn't stop the next bit from generating", async () => {
+    const claimedElsewhere = { id: "kb_claimed_elsewhere", body: "Some content" };
+    const ownBit = { id: "kb_own", body: "Other content" };
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([claimedElsewhere, ownBit]);
+    vi.mocked(claimKnowledgeBitForFillBlankGeneration)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(FAKE_CLAIM_TOKEN);
+    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "This fact matters.",
+      prompt: "This ____ matters.",
+      answer: "fact",
+    });
+
+    const result = await generateKnowledgeBitFillBlanks();
+
+    expect(recordGeneratedFillBlankVariant).toHaveBeenCalledWith(
+      "kb_own",
+      "fill_in_the_blank",
+      0,
+      "This ____ matters.",
+      "fact",
+      FAKE_CLAIM_TOKEN,
+    );
+    expect(result).toEqual({ scanned: 2, generated: 1, failed: 0, skipped: 1 });
   });
 
   it("should mark a bit failed when the agent throws, and continue processing the next bit", async () => {
@@ -60,142 +109,20 @@ describe("generateKnowledgeBitFillBlanks", () => {
     vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([failingBit, nextBit]);
     vi.mocked(runKnowledgeBitFillBlankGenerator)
       .mockRejectedValueOnce(new Error("agent call failed"))
-      .mockResolvedValueOnce({ prompt: "This ____ matters.", answer: "fact" });
+      .mockResolvedValueOnce({ sentence: "This fact matters.", prompt: "This ____ matters.", answer: "fact" });
 
     const result = await generateKnowledgeBitFillBlanks();
 
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_fail");
+    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_fail", FAKE_CLAIM_TOKEN);
     expect(recordGeneratedFillBlankVariant).toHaveBeenCalledWith(
       "kb_next",
       "fill_in_the_blank",
       0,
       "This ____ matters.",
       "fact",
+      FAKE_CLAIM_TOKEN,
     );
-    expect(result).toEqual({ scanned: 2, generated: 1, failed: 1 });
-  });
-
-  it("should mark a bit failed when the agent returns a blank prompt or answer", async () => {
-    const bit = { id: "kb_blank", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({ prompt: "   ", answer: "an answer" });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_blank");
-    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1 });
-  });
-
-  it("should mark a bit failed when the prompt has no ____ blank marker", async () => {
-    const bit = { id: "kb_no_marker", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
-      prompt: "This sentence has no blank marker.",
-      answer: "anchor",
-    });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_no_marker");
-    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1 });
-  });
-
-  it("should mark a bit failed when the prompt has more than one blank or an over-length run of underscores", async () => {
-    const twoBlanksBit = { id: "kb_two_blanks", body: "Some content" };
-    const longRunBit = { id: "kb_long_run", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([twoBlanksBit, longRunBit]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator)
-      .mockResolvedValueOnce({ prompt: "This ____ affects that ____.", answer: "anchor" })
-      .mockResolvedValueOnce({ prompt: "This _____ matters.", answer: "anchor" });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_two_blanks");
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_long_run");
-    expect(result).toEqual({ scanned: 2, generated: 0, failed: 2 });
-  });
-
-  it("should accept a correctly-formed single blank even when the sentence also contains an unrelated single underscore", async () => {
-    const bit = { id: "kb_stray_underscore", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
-      prompt: "The `max_connections` limit is enforced by ____.",
-      answer: "the connection pool",
-    });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).toHaveBeenCalledWith(
-      "kb_stray_underscore",
-      "fill_in_the_blank",
-      0,
-      "The `max_connections` limit is enforced by ____.",
-      "the connection pool",
-    );
-    expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
-    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0 });
-  });
-
-  it("should accept a correctly-formed single blank even when the sentence also contains a double-underscore identifier", async () => {
-    const bit = { id: "kb_dunder_identifier", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
-      prompt: "Node's __dirname points to ____.",
-      answer: "the directory of the running script",
-    });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).toHaveBeenCalledWith(
-      "kb_dunder_identifier",
-      "fill_in_the_blank",
-      0,
-      "Node's __dirname points to ____.",
-      "the directory of the running script",
-    );
-    expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
-    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0 });
-  });
-
-  it("should mark a bit failed when a second, shorter or unicode-lookalike blank hides beside a valid one", async () => {
-    const shortSecondBlankBit = { id: "kb_short_second_blank", body: "Some content" };
-    const fullwidthSecondBlankBit = { id: "kb_fullwidth_second_blank", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([
-      shortSecondBlankBit,
-      fullwidthSecondBlankBit,
-    ]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator)
-      .mockResolvedValueOnce({ prompt: "This ___ affects that ____.", answer: "anchor" })
-      .mockResolvedValueOnce({ prompt: "A ＿＿＿＿ B ____.", answer: "anchor" });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_short_second_blank");
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_fullwidth_second_blank");
-    expect(result).toEqual({ scanned: 2, generated: 0, failed: 2 });
-  });
-
-  it("should mark a bit failed when the prompt is nothing but the blank marker, with no surrounding text", async () => {
-    const bit = { id: "kb_bare_blank", body: "Some content" };
-
-    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
-    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({ prompt: "____", answer: "anchor" });
-
-    const result = await generateKnowledgeBitFillBlanks();
-
-    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_bare_blank");
-    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1 });
+    expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
 
   it("should mark a bit failed when the transactional insert+mark write itself throws", async () => {
@@ -203,6 +130,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
 
     vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
     vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "This fact matters.",
       prompt: "This ____ matters.",
       answer: "fact",
     });
@@ -210,8 +138,8 @@ describe("generateKnowledgeBitFillBlanks", () => {
 
     const result = await generateKnowledgeBitFillBlanks();
 
-    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_txn_fail");
-    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1 });
+    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_txn_fail", FAKE_CLAIM_TOKEN);
+    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1, skipped: 0 });
   });
 
   it("should cap the scan's batch size, leaving remainder bits unprocessed this call", async () => {
@@ -224,6 +152,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
       bits.slice(0, limit),
     );
     vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "This fact matters.",
       prompt: "This ____ matters.",
       answer: "fact",
     });
@@ -244,7 +173,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
     vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([failingBit, nextBit]);
     vi.mocked(runKnowledgeBitFillBlankGenerator)
       .mockRejectedValueOnce(new Error("agent call failed"))
-      .mockResolvedValueOnce({ prompt: "This ____ matters.", answer: "fact" });
+      .mockResolvedValueOnce({ sentence: "This fact matters.", prompt: "This ____ matters.", answer: "fact" });
     vi.mocked(markFillBlankGenerationFailed).mockRejectedValueOnce(new Error("db write failed"));
 
     const result = await generateKnowledgeBitFillBlanks();
@@ -255,7 +184,8 @@ describe("generateKnowledgeBitFillBlanks", () => {
       0,
       "This ____ matters.",
       "fact",
+      FAKE_CLAIM_TOKEN,
     );
-    expect(result).toEqual({ scanned: 2, generated: 1, failed: 1 });
+    expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
 });

@@ -43,10 +43,6 @@ const {
   markWhQuestionGenerated,
   markWhQuestionGenerationFailed,
   recordGeneratedQuestionVariant,
-  listKnowledgeBitsForFillBlankGenerationScan,
-  markFillBlankGenerated,
-  markFillBlankGenerationFailed,
-  recordGeneratedFillBlankVariant,
   listQuestionVariantsForEmbeddingScan,
   updateQuestionVariantEmbedding,
 } = await import("./knowledge-bit-question-variant.repo.js");
@@ -86,26 +82,14 @@ async function seedKnowledgeBit(
   body: string,
   whQuestionGeneratedAt: Date | null = null,
   whQuestionGenerationFailedAt: Date | null = null,
-  fillBlankGeneratedAt: Date | null = null,
-  fillBlankGenerationFailedAt: Date | null = null,
 ): Promise<string> {
   const id = `kb_${randomUUID()}`;
 
   await client.query(
     `INSERT INTO knowledge_bits
-       (id, knowledge_source_id, ordinal, body, wh_question_generated_at, wh_question_generation_failed_at,
-        fill_blank_generated_at, fill_blank_generation_failed_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [
-      id,
-      knowledgeSourceId,
-      ordinal,
-      body,
-      whQuestionGeneratedAt,
-      whQuestionGenerationFailedAt,
-      fillBlankGeneratedAt,
-      fillBlankGenerationFailedAt,
-    ],
+       (id, knowledge_source_id, ordinal, body, wh_question_generated_at, wh_question_generation_failed_at)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, knowledgeSourceId, ordinal, body, whQuestionGeneratedAt, whQuestionGenerationFailedAt],
   );
 
   return id;
@@ -203,106 +187,6 @@ describe("recordGeneratedQuestionVariant (real Postgres)", () => {
     await expect(
       insertQuestionVariant(bitId, "wh_question", 0, "Second question?", "Second answer."),
     ).rejects.toThrow();
-  });
-});
-
-describe("listKnowledgeBitsForFillBlankGenerationScan (real Postgres)", () => {
-  it("returns exactly the bits with fillBlankGeneratedAt IS NULL AND fillBlankGenerationFailedAt IS NULL", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const untouchedId = await seedKnowledgeBit(sourceId, 0, "An ungenerated bit");
-
-    const generatedId = await seedKnowledgeBit(sourceId, 1, "An already-generated bit", null, null, new Date(), null);
-    const failedId = await seedKnowledgeBit(sourceId, 2, "A permanently-failed bit", null, null, null, new Date());
-
-    const rows = await listKnowledgeBitsForFillBlankGenerationScan(1000);
-    const ids = rows.map((row) => row.id);
-
-    expect(rows).toContainEqual({ id: untouchedId, body: "An ungenerated bit" });
-    expect(ids).not.toContain(generatedId);
-    expect(ids).not.toContain(failedId);
-  });
-});
-
-describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)", () => {
-  it("persists fillBlankGeneratedAt on read-back after marking a bit generated", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark generated");
-
-    await markFillBlankGenerated(id);
-
-    const { rows } = await client.query(
-      `SELECT fill_blank_generated_at FROM knowledge_bits WHERE id = $1`,
-      [id],
-    );
-
-    expect(rows[0]!.fill_blank_generated_at).toBeInstanceOf(Date);
-  });
-
-  it("persists fillBlankGenerationFailedAt on read-back after marking a bit failed", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark failed");
-
-    await markFillBlankGenerationFailed(id);
-
-    const { rows } = await client.query(
-      `SELECT fill_blank_generation_failed_at FROM knowledge_bits WHERE id = $1`,
-      [id],
-    );
-
-    expect(rows[0]!.fill_blank_generation_failed_at).toBeInstanceOf(Date);
-  });
-});
-
-describe("recordGeneratedFillBlankVariant (real Postgres)", () => {
-  it("inserts the variant and stamps fillBlankGeneratedAt in one transaction", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to record a fill-blank for");
-
-    await recordGeneratedFillBlankVariant(
-      bitId,
-      "fill_in_the_blank",
-      0,
-      "This ____ matters.",
-      "fact",
-    );
-
-    const { rows: variantRows } = await client.query(
-      `SELECT knowledge_bit_id, kind, "order" FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1`,
-      [bitId],
-    );
-    const { rows: bitRows } = await client.query(
-      `SELECT fill_blank_generated_at FROM knowledge_bits WHERE id = $1`,
-      [bitId],
-    );
-
-    expect(variantRows).toHaveLength(1);
-    expect(bitRows[0]!.fill_blank_generated_at).toBeInstanceOf(Date);
-  });
-
-  it("rejects a second fill_in_the_blank variant for the same bit and slot via the unique index", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit that already has a fill-blank variant");
-
-    await insertQuestionVariant(bitId, "fill_in_the_blank", 0, "First ____ sentence.", "prompt");
-
-    await expect(
-      insertQuestionVariant(bitId, "fill_in_the_blank", 0, "Second ____ sentence.", "prompt"),
-    ).rejects.toThrow();
-  });
-
-  it("allows a wh_question row and a fill_in_the_blank row to coexist for the same bit", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit that gets both variant kinds");
-
-    await recordGeneratedQuestionVariant(bitId, "wh_question", 0, "Why?", "Because.");
-    await recordGeneratedFillBlankVariant(bitId, "fill_in_the_blank", 0, "This ____ matters.", "fact");
-
-    const { rows } = await client.query(
-      `SELECT kind FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1 ORDER BY kind`,
-      [bitId],
-    );
-
-    expect(rows.map((row) => row.kind)).toEqual(["fill_in_the_blank", "wh_question"]);
   });
 });
 

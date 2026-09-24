@@ -1,0 +1,2 @@
+ALTER TABLE "knowledge_bits" ADD COLUMN "fill_blank_generation_attempts" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "knowledge_bits" ADD COLUMN "fill_blank_generation_claimed_at" timestamp with time zone;

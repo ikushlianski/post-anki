@@ -1,0 +1,1 @@
+ALTER TABLE "knowledge_bits" ADD COLUMN "fill_blank_generation_claim_token" text;

@@ -6,13 +6,10 @@
   "activeDirections": [
     "data-integrity-under-regeneration"
   ],
-  "lastHeartbeatAt": "2026-09-24T16:28:05.324Z",
-  "timeBoundBlocks": 0,
+  "lastHeartbeatAt": "2026-09-24T22:58:46.487Z",
+  "timeBoundBlocks": 7,
+  "lastBlockAt": "2026-09-24T22:24:43.552Z",
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": [
-    "nextx",
-    "implement-factory",
-    "review-factory"
-  ]
+  "pendingSkillReload": []
 }

@@ -90,62 +90,6 @@ export async function markWhQuestionGenerationFailed(
     .where(eq(knowledgeBits.id, id));
 }
 
-export async function listKnowledgeBitsForFillBlankGenerationScan(
-  limit: number,
-  db: DbExecutor = getDb(),
-): Promise<KnowledgeBitForQuestionGenerationScan[]> {
-  return db
-    .select({
-      id: knowledgeBits.id,
-      body: knowledgeBits.body,
-    })
-    .from(knowledgeBits)
-    .where(
-      and(
-        isNull(knowledgeBits.fillBlankGeneratedAt),
-        isNull(knowledgeBits.fillBlankGenerationFailedAt),
-      ),
-    )
-    .orderBy(asc(knowledgeBits.createdAt))
-    .limit(limit);
-}
-
-export async function markFillBlankGenerated(
-  id: string,
-  db: DbExecutor = getDb(),
-): Promise<void> {
-  await db
-    .update(knowledgeBits)
-    .set({ fillBlankGeneratedAt: new Date() })
-    .where(eq(knowledgeBits.id, id));
-}
-
-export async function markFillBlankGenerationFailed(
-  id: string,
-  db: DbExecutor = getDb(),
-): Promise<void> {
-  await db
-    .update(knowledgeBits)
-    .set({ fillBlankGenerationFailedAt: new Date() })
-    .where(eq(knowledgeBits.id, id));
-}
-
-// Same atomicity guarantee as recordGeneratedQuestionVariant, mirrored for the independent
-// fill_in_the_blank generation pass over the same bits.
-export async function recordGeneratedFillBlankVariant(
-  knowledgeBitId: string,
-  kind: KnowledgeBitQuestionVariantKind,
-  order: number,
-  prompt: string,
-  answer: string,
-  db: Db = getDb(),
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx);
-    await markFillBlankGenerated(knowledgeBitId, tx);
-  });
-}
-
 export interface QuestionVariantForEmbeddingScan {
   id: string;
   prompt: string;

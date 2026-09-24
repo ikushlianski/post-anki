@@ -35,8 +35,9 @@ describe("buildKnowledgeBitFillBlankGeneratorPrompt", () => {
 });
 
 describe("knowledgeBitFillBlankGeneratorResultSchema", () => {
-  it("accepts a non-empty prompt and answer", () => {
+  it("accepts a non-empty sentence, prompt, and answer", () => {
     const result = knowledgeBitFillBlankGeneratorResultSchema.safeParse({
+      sentence: "An initial price anchor shifts what feels fair later.",
       prompt: "An initial price ____ shifts what feels fair later.",
       answer: "anchor",
     });
@@ -44,8 +45,19 @@ describe("knowledgeBitFillBlankGeneratorResultSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("rejects a blank sentence", () => {
+    const result = knowledgeBitFillBlankGeneratorResultSchema.safeParse({
+      sentence: "",
+      prompt: "An initial price ____ shifts what feels fair later.",
+      answer: "anchor",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("rejects a blank prompt", () => {
     const result = knowledgeBitFillBlankGeneratorResultSchema.safeParse({
+      sentence: "An initial price anchor shifts what feels fair later.",
       prompt: "",
       answer: "anchor",
     });
@@ -55,6 +67,7 @@ describe("knowledgeBitFillBlankGeneratorResultSchema", () => {
 
   it("rejects a blank answer", () => {
     const result = knowledgeBitFillBlankGeneratorResultSchema.safeParse({
+      sentence: "An initial price anchor shifts what feels fair later.",
       prompt: "An initial price ____ shifts what feels fair later.",
       answer: "",
     });
@@ -67,6 +80,7 @@ describe("runKnowledgeBitFillBlankGenerator", () => {
   it("passes the delimited prompt to the agent and returns a valid prompt/answer pair", async () => {
     generateMock.mockResolvedValueOnce({
       object: {
+        sentence: "An initial price anchor shifts what feels fair later.",
         prompt: "An initial price ____ shifts what feels fair later.",
         answer: "anchor",
       },
@@ -75,6 +89,7 @@ describe("runKnowledgeBitFillBlankGenerator", () => {
     const result = await runKnowledgeBitFillBlankGenerator("Anchoring biases price perception.");
 
     expect(result).toEqual({
+      sentence: "An initial price anchor shifts what feels fair later.",
       prompt: "An initial price ____ shifts what feels fair later.",
       answer: "anchor",
     });

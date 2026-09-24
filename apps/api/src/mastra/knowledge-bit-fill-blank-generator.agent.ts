@@ -20,10 +20,13 @@ const INSTRUCTIONS = [
   "for the bit's WHY or mechanism — the one whose absence makes the sentence genuinely require",
   "understanding, not a random noun anyone could guess from surrounding context.",
   "",
-  "Return two fields: `prompt` is the full sentence with the ____ blank in it, and `answer` is",
-  "exactly the word or short phrase you removed to create that blank — nothing more, nothing",
-  "less, and not a restatement or explanation of it. Reading `prompt` with `answer` substituted",
-  "back into the ____ must reproduce a complete, correct sentence.",
+  "Return three fields: `sentence` is the complete, correct sentence with no blank in it at all.",
+  "`prompt` is that exact same sentence, except the load-bearing term is replaced with the",
+  "literal text ____ (four underscores) in place of the removed word or phrase — everything else",
+  "must be character-for-character identical to `sentence`. `answer` is exactly the word or short",
+  "phrase you removed to create that blank — nothing more, nothing less, and not a restatement or",
+  "explanation of it. Substituting `answer` for the ____ in `prompt` must reproduce `sentence`",
+  "exactly.",
 ].join("\n");
 
 export function buildKnowledgeBitFillBlankGeneratorPrompt(bitBody: string): string {
@@ -31,6 +34,7 @@ export function buildKnowledgeBitFillBlankGeneratorPrompt(bitBody: string): stri
 }
 
 export const knowledgeBitFillBlankGeneratorResultSchema = z.object({
+  sentence: z.string().min(1).describe("The complete, correct sentence with no blank in it."),
   prompt: z.string().min(1).describe("The sentence with exactly one ____ blank in it."),
   answer: z
     .string()

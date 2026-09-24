@@ -1097,9 +1097,20 @@ export const knowledgeBits = pgTable(
     // Same terminal-state convention, tracked independently of whQuestion* since this is a
     // separate generation pass (kind="fill_in_the_blank") over the same bits.
     fillBlankGeneratedAt: timestamp("fill_blank_generated_at", { withTimezone: true }),
+    // Set on each failed attempt; the bit stays retryable until fillBlankGenerationAttempts hits
+    // its cap, unlike the older *FailedAt-alone convention above.
     fillBlankGenerationFailedAt: timestamp("fill_blank_generation_failed_at", {
       withTimezone: true,
     }),
+    fillBlankGenerationAttempts: integer("fill_blank_generation_attempts").notNull().default(0),
+    // Set before the LLM call, cleared on success/failure — the claim-then-act guard against two
+    // concurrent scans both paying for the same bit. Stale claims become unclaimed again.
+    fillBlankGenerationClaimedAt: timestamp("fill_blank_generation_claimed_at", {
+      withTimezone: true,
+    }),
+    // The real claim-ownership identity (fillBlankGenerationClaimedAt alone is only
+    // millisecond-resolution, so two near-simultaneous claims could collide on it).
+    fillBlankGenerationClaimToken: text("fill_blank_generation_claim_token"),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(

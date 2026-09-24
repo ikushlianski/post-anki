@@ -122,6 +122,7 @@ updated: 2026-09-04
 - Stuck (2026-09-24): fill-in-the-blank-variant hit 3 review-factory FAILs, don't re-dispatch. Code landed unreviewed in a395949 (swept by an unrelated mark-done); one more regex bug found and fixed manually after that (f6fe80f) — needs a fresh review pass before trusting it fully
 - Resolved (2026-09-24): follow-up-question — Pass 1 FAIL fixed fail-soft, Pass 2 PASS; advisor then found the prompt was kind-blind
 - Blocked (2026-09-24): topic-tracking item — progressMaturity is gap-derived, no safe write path for bits
+- Fresh review of fill-in-the-blank ran: FAIL on correctness and tests, 4th straight failure, stuck
 
 
 ## biz-education-distiller
@@ -460,6 +461,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new merge/regenerate features themselves — only hardening existing mutation paths against data loss
 
 ### Coding tasks
+- [x] Update stale knowledge_bits column-snapshot test to match current schema
+- [ ] Fix wh-question generation: same concurrent-scan race and permanent-fail-mark bug as fill-blank
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
@@ -573,6 +576,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: non-reorganize chat features (Socratic dialogue, Q&A) — those are separate directions
 
 ### Coding tasks
+- [ ] Add an endpoint for chat scoped to one knowledge item, proposing a split into 2-5
 - [x] Add a rename control to the curriculum detail page
 - [x] Let a curriculum, subject, or category be renamed.
 
@@ -588,6 +592,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: building a brand-new surface from scratch — hardening/extending existing ones
 
 ### Coding tasks
+- [ ] Add an endpoint to turn a highlighted chat excerpt into a candidate inbox knowledge item
 - [x] Let a mentor-subject learner practice probe questions from the mobile app
 - [x] Let the learner record and submit a voice note from the app
 

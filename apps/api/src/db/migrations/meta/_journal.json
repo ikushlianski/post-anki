@@ -491,6 +491,20 @@
       "when": 1790266553470,
       "tag": "0069_exotic_ultimo",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1790288024003,
+      "tag": "0070_round_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790288969522,
+      "tag": "0071_complete_sleeper",
+      "breakpoints": true
     }
   ]
 }
