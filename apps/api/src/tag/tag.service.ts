@@ -2,14 +2,20 @@ import type { MergeTagsResult, Tag, TagAssignment, TagNodeType } from "@post-ank
 import {
   assignTag,
   getTag,
+  getTagMasteryStatuses,
   listTags,
   removeTagAssignment,
   resolveOrCreateTag,
+  type TagMasteryStatusRow,
 } from "./tag.repo.js";
 import { type MergeTagsError, mergeTags } from "./tag-merge.repo.js";
 
 export async function getAllTags(): Promise<Tag[]> {
   return listTags();
+}
+
+export async function getAllTagMasteryStatuses(): Promise<TagMasteryStatusRow[]> {
+  return getTagMasteryStatuses();
 }
 
 export async function createOrGetTag(name: string): Promise<Tag> {

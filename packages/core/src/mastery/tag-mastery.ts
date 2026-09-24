@@ -4,7 +4,7 @@
 // persist between calls.
 import { applyAttemptToMasteryEntry, type MasteryEntryState } from "./mastery-state.js";
 
-const DEFAULT_TAG_MASTERY_ENTRY: MasteryEntryState = {
+export const DEFAULT_TAG_MASTERY_ENTRY: MasteryEntryState = {
   status: "new",
   masteryStage: 0,
   correctCountInCycle: 0,

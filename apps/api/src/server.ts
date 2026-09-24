@@ -134,6 +134,7 @@ import { handleGetElectricShape } from "./electric/electric-proxy.controller.js"
 import {
   handleAssignTag,
   handleCreateTag,
+  handleGetTagMastery,
   handleListTags,
   handleMergeTags,
   handleRemoveTagAssignment,
@@ -559,6 +560,8 @@ async function route(
       return handleGetElectricShape(res, url.search);
     case "listTags":
       return handleListTags(res);
+    case "getTagMastery":
+      return handleGetTagMastery(res);
     case "createTag":
       return handleCreateTag(req, res);
     case "assignTag":

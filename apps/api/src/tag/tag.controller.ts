@@ -5,6 +5,7 @@ import {
   addTagAssignment,
   createOrGetTag,
   deleteTagAssignment,
+  getAllTagMasteryStatuses,
   getAllTags,
   mergeTagsService,
 } from "./tag.service.js";
@@ -13,6 +14,12 @@ export async function handleListTags(res: http.ServerResponse): Promise<void> {
   const tags = await getAllTags();
 
   sendJson(res, 200, tags);
+}
+
+export async function handleGetTagMastery(res: http.ServerResponse): Promise<void> {
+  const statuses = await getAllTagMasteryStatuses();
+
+  sendJson(res, 200, statuses);
 }
 
 export async function handleCreateTag(

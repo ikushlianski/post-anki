@@ -251,6 +251,7 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/transcriptions", name: "createTranscription" },
   { method: "GET", pattern: "/electric/v1/shape", name: "getElectricShape" },
   { method: "GET", pattern: "/tags", name: "listTags" },
+  { method: "GET", pattern: "/tags/mastery", name: "getTagMastery" },
   { method: "POST", pattern: "/tags", name: "createTag" },
   {
     method: "POST",

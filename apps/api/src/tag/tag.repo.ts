@@ -1,6 +1,11 @@
 import { and, asc, eq, inArray, or } from "drizzle-orm";
 import type { Tag, TagAssignment, TagNodeType } from "@post-anki/shared";
-import { foldTagMastery, normalizeTagName, type MasteryEntryState } from "@post-anki/core";
+import {
+  DEFAULT_TAG_MASTERY_ENTRY,
+  foldTagMastery,
+  normalizeTagName,
+  type MasteryEntryState,
+} from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
   knowledgeBitQuestionVariants,
@@ -299,5 +304,29 @@ export async function getTagMasteryLevels(
   }
 
   return result;
+}
+
+export interface TagMasteryStatusRow {
+  tagId: string;
+  name: string;
+  status: MasteryEntryState["status"];
+}
+
+/**
+ * Every tag with its mastery status, including one with zero scored attempts — getTagMasteryLevels
+ * leaves those out of its map by design, so this fills in DEFAULT_TAG_MASTERY_ENTRY's "new" status
+ * for any tag missing from it. Read-time only, no persistence.
+ */
+export async function getTagMasteryStatuses(
+  db: DbExecutor = getDb(),
+): Promise<TagMasteryStatusRow[]> {
+  const allTags = await listTags(db);
+  const levels = await getTagMasteryLevels(allTags.map((tag) => tag.id));
+
+  return allTags.map((tag) => ({
+    tagId: tag.id,
+    name: tag.name,
+    status: (levels.get(tag.id) ?? DEFAULT_TAG_MASTERY_ENTRY).status,
+  }));
 }
 
