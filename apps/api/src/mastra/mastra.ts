@@ -29,6 +29,7 @@ import { createLearningListSliceAgent } from "./learning-list-slice.agent.js";
 import { createStudyMaterialWriter } from "./study-material-writer.agent.js";
 import { createBizEducationClassifierAgent } from "./biz-education-classifier.agent.js";
 import { createTagAutoAssignAgent } from "./tag-auto-assign.agent.js";
+import { createKnowledgeBitDetectorAgent } from "./knowledge-bit-detector.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -58,6 +59,7 @@ export const AGENT_KEYS = {
   studyMaterialWriter: "studyMaterialWriter",
   bizEducationClassifier: "bizEducationClassifier",
   tagAutoAssign: "tagAutoAssign",
+  knowledgeBitDetector: "knowledgeBitDetector",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -127,6 +129,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.studyMaterialWriter]: createStudyMaterialWriter(),
         [AGENT_KEYS.bizEducationClassifier]: createBizEducationClassifierAgent(),
         [AGENT_KEYS.tagAutoAssign]: createTagAutoAssignAgent(),
+        [AGENT_KEYS.knowledgeBitDetector]: createKnowledgeBitDetectorAgent(),
       },
       ...(observability ? { observability } : {}),
     });
