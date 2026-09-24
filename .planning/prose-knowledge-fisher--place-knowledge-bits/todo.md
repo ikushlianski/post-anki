@@ -17,7 +17,7 @@
 - [x] Add `knowledge-bit-placement.orchestrator.ts` that places each bit, validates the matched topic id against the sent list, isolates per-bit failures, caps the batch
 - [x] Wire a `POST /knowledge-bits/placement-scan` trigger route through router-table/router/server
 - [x] Add unit tests for the orchestrator covering match, suggestion, hallucinated-id fallback, per-bit failure isolation, and batch cap
-- [ ] Add a real-Postgres integration test for the selection query, filtered topic listing, and a full placement write-back, in its own file
+- [x] Add a real-Postgres integration test for the selection query, filtered topic listing, and a full placement write-back, in its own file
 
 ## Manual steps
 - None.
