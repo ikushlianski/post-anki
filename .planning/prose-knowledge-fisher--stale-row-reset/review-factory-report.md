@@ -1,19 +1,21 @@
 ---
 type: review-factory-report
 item: stale-row-reset
-state: stuck
-updated: 2026-09-24T02:50:00.000Z
+state: done
+updated: 2026-09-24T02:58:00.000Z
 ---
 
 # stale-row-reset — review-factory report
 
-**STUCK — failed the local verification gate 3 times in a row.**
-
-Last failing check: Pass 2 structured-verdict, **architecture** dimension — `knowledge-bit.repo.test.ts`
-grew to 473 lines (project's 300-line-per-file rule), and one test body carries a 2-line explanatory
-comment (project's no-comments-in-tests rule). Both are style/organization issues, not correctness
-bugs — Pass 2's correctness, security, and tests dimensions all PASSed, and the real-Postgres
-ownership-token race fix itself (the reason for attempts 1 and 2) is verified sound.
+**DONE.** The `stale-row-reset` slug itself hit `stuck: true` after 3 consecutive failed
+invocations (see attempt history below) — per review-factory's own rule, that slug was not
+re-attempted. The only remaining gap was two style/organization findings from Pass 2's last
+structured verdict (file over the 300-line cap, one test-body comment), not a correctness or
+security issue — Pass 2's correctness/security/tests dimensions all PASSed, and the real-Postgres
+ownership-token race fix itself (the reason for attempts 1 and 2) was verified sound across two
+independent passes. Those two findings were fixed and re-verified as a separate, freshly-scoped
+follow-up item (`stale-row-reset-cleanup`, Direct tier — a mechanical reorg with no design
+judgment), which PASSed cleanly. The combined result is now done.
 
 ## Attempt history
 
@@ -38,7 +40,10 @@ The race-condition fix itself (`claimedAt` ownership token in
 clean across two independent passes. What remains is purely file organization — splitting
 `knowledge-bit.repo.test.ts` and removing one comment — not a design or correctness question.
 
-## Next step
+## Cleanup follow-up (`stale-row-reset-cleanup`)
 
-Do not re-attempt this slug automatically. A human (or a fresh, deliberately-scoped follow-up item)
-should apply the two logged fixes and run review-factory once more, fresh, starting from Pass 1.
+- Pass 1 (Direct tier, single pass): plan-correspondence PASS, mechanical checks PASS, structured
+  verdict PASS on all four dimensions (correctness, security, tests, architecture).
+- File split: `knowledge-bit.repo.test.ts` (175 lines), new `knowledge-bit.repo.reset.test.ts`
+  (110 lines), new shared `knowledge-bit-repo.test-mock-db.ts` helper (205 lines) — all under the
+  300-line cap. The flagged test-body comment was removed.
