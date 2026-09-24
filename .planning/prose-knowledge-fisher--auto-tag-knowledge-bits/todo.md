@@ -8,9 +8,9 @@
 
 ## Coding tasks
 - Fix listKnowledgeBitsForTaggingScan test — mock hides an AND/OR predicate bug
-- [ ] Add `TagNodeType` union in shared/tag.ts, widen assignTag/addTagAssignment to accept it
-- [ ] Add `taggedAt`/`tagFailedAt` columns to `knowledgeBits` in schema.ts, generate + apply migration
-- [ ] Add `knowledge-bit-tagging.repo.ts` with the selection query and the two status-write functions
+- [x] Add `TagNodeType` union in shared/tag.ts, widen assignTag/addTagAssignment to accept it
+- [x] Add `taggedAt`/`tagFailedAt` columns to `knowledgeBits` in schema.ts, generate + apply migration
+- [x] Add `knowledge-bit-tagging.repo.ts` with the selection query and the two status-write functions
 - [ ] Add `knowledge-bit-tagger.agent.ts`, a cheap-tier classifier returning up to 3 candidate tag names
 - [ ] Add `knowledge-bit-tagging.orchestrator.ts` that tags each bit, isolates per-bit failures, caps the batch
 - [ ] Wire a `POST /knowledge-bits/tagging-scan` trigger route through router-table/router/server
