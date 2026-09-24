@@ -461,8 +461,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new merge/regenerate features themselves — only hardening existing mutation paths against data loss
 
 ### Coding tasks
+- [ ] Fix stale comment: fill-blank-claim.repo.ts still calls wh_question failure permanent
 - [x] Update stale knowledge_bits column-snapshot test to match current schema
-- [ ] Fix wh-question generation: same concurrent-scan race and permanent-fail-mark bug as fill-blank
+- [x] Fix wh-question generation: same concurrent-scan race and permanent-fail-mark bug as fill-blank
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
@@ -576,7 +577,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: non-reorganize chat features (Socratic dialogue, Q&A) — those are separate directions
 
 ### Coding tasks
-- [ ] Add an endpoint for chat scoped to one knowledge item, proposing a split into 2-5
+- [ ] Add POST /knowledge-bits/:id/chat, mirroring qa-chat's service and transcript shape
 - [x] Add a rename control to the curriculum detail page
 - [x] Let a curriculum, subject, or category be renamed.
 
@@ -592,7 +593,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: building a brand-new surface from scratch — hardening/extending existing ones
 
 ### Coding tasks
-- [ ] Add an endpoint to turn a highlighted chat excerpt into a candidate inbox knowledge item
 - [x] Let a mentor-subject learner practice probe questions from the mobile app
 - [x] Let the learner record and submit a voice note from the app
 

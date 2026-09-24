@@ -37,9 +37,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
-const { insertQuestionVariant, recordGeneratedQuestionVariant } = await import(
-  "./knowledge-bit-question-variant.repo.js"
-);
+const { insertQuestionVariant } = await import("./knowledge-bit-question-variant.repo.js");
 const {
   markFillBlankGenerated,
   markFillBlankGenerationFailed,
@@ -47,6 +45,8 @@ const {
   claimKnowledgeBitForFillBlankGeneration,
   FillBlankGenerationClaimLostError,
 } = await import("./knowledge-bit-fill-blank-claim.repo.js");
+const { recordGeneratedQuestionVariant, claimKnowledgeBitForWhQuestionGeneration } =
+  await import("./knowledge-bit-wh-question-claim.repo.js");
 
 let client: pg.Client;
 
@@ -73,7 +73,6 @@ async function seedKnowledgeSource(): Promise<string> {
     `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Some prose.', 'pending')`,
     [id],
   );
-
   return id;
 }
 
@@ -285,8 +284,9 @@ describe("recordGeneratedFillBlankVariant (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit that gets both variant kinds");
     const claimToken = (await claimKnowledgeBitForFillBlankGeneration(bitId)) as string;
+    const whClaimToken = (await claimKnowledgeBitForWhQuestionGeneration(bitId)) as string;
 
-    await recordGeneratedQuestionVariant(bitId, "wh_question", 0, "Why?", "Because.");
+    await recordGeneratedQuestionVariant(bitId, "wh_question", 0, "Why?", "Because.", whClaimToken);
     await recordGeneratedFillBlankVariant(bitId, "fill_in_the_blank", 0, "This ____ matters.", "fact", claimToken);
 
     const { rows } = await client.query(

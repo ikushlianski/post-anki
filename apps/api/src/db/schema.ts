@@ -1089,7 +1089,7 @@ export const knowledgeBits = pgTable(
       withTimezone: true,
     }),
     // Set once a wh_question variant has been generated (or generation failed) for this bit —
-    // same *GeneratedAt/*FailedAt terminal-state convention as taggedAt/tagFailedAt above.
+    // failure is retryable up to whQuestionGenerationAttempts' cap, same convention as fillBlank*.
     whQuestionGeneratedAt: timestamp("wh_question_generated_at", { withTimezone: true }),
     whQuestionGenerationFailedAt: timestamp("wh_question_generation_failed_at", {
       withTimezone: true,
@@ -1098,7 +1098,7 @@ export const knowledgeBits = pgTable(
     // separate generation pass (kind="fill_in_the_blank") over the same bits.
     fillBlankGeneratedAt: timestamp("fill_blank_generated_at", { withTimezone: true }),
     // Set on each failed attempt; the bit stays retryable until fillBlankGenerationAttempts hits
-    // its cap, unlike the older *FailedAt-alone convention above.
+    // its cap.
     fillBlankGenerationFailedAt: timestamp("fill_blank_generation_failed_at", {
       withTimezone: true,
     }),
@@ -1111,6 +1111,12 @@ export const knowledgeBits = pgTable(
     // The real claim-ownership identity (fillBlankGenerationClaimedAt alone is only
     // millisecond-resolution, so two near-simultaneous claims could collide on it).
     fillBlankGenerationClaimToken: text("fill_blank_generation_claim_token"),
+    // Same claim-then-act + attempts-cap-retry pattern as fillBlank*, mirrored for wh_question.
+    whQuestionGenerationAttempts: integer("wh_question_generation_attempts").notNull().default(0),
+    whQuestionGenerationClaimedAt: timestamp("wh_question_generation_claimed_at", {
+      withTimezone: true,
+    }),
+    whQuestionGenerationClaimToken: text("wh_question_generation_claim_token"),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(

@@ -38,11 +38,7 @@ process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
 const {
-  listKnowledgeBitsForQuestionGenerationScan,
   insertQuestionVariant,
-  markWhQuestionGenerated,
-  markWhQuestionGenerationFailed,
-  recordGeneratedQuestionVariant,
   listQuestionVariantsForEmbeddingScan,
   updateQuestionVariantEmbedding,
 } = await import("./knowledge-bit-question-variant.repo.js");
@@ -76,40 +72,18 @@ async function seedKnowledgeSource(): Promise<string> {
   return id;
 }
 
-async function seedKnowledgeBit(
-  knowledgeSourceId: string,
-  ordinal: number,
-  body: string,
-  whQuestionGeneratedAt: Date | null = null,
-  whQuestionGenerationFailedAt: Date | null = null,
-): Promise<string> {
+async function seedKnowledgeBit(knowledgeSourceId: string, ordinal: number, body: string): Promise<string> {
   const id = `kb_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bits
-       (id, knowledge_source_id, ordinal, body, wh_question_generated_at, wh_question_generation_failed_at)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [id, knowledgeSourceId, ordinal, body, whQuestionGeneratedAt, whQuestionGenerationFailedAt],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES ($1, $2, $3, $4)`,
+    [id, knowledgeSourceId, ordinal, body],
   );
 
   return id;
 }
 
-describe("listKnowledgeBitsForQuestionGenerationScan (real Postgres)", () => {
-  it("returns exactly the bits with whQuestionGeneratedAt IS NULL AND whQuestionGenerationFailedAt IS NULL", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const untouchedId = await seedKnowledgeBit(sourceId, 0, "An ungenerated bit");
-
-    await seedKnowledgeBit(sourceId, 1, "An already-generated bit", new Date(), null);
-    await seedKnowledgeBit(sourceId, 2, "A permanently-failed bit", null, new Date());
-
-    const rows = await listKnowledgeBitsForQuestionGenerationScan(100);
-
-    expect(rows).toEqual([{ id: untouchedId, body: "An ungenerated bit" }]);
-  });
-});
-
-describe("insertQuestionVariant + markWhQuestionGenerated (real Postgres)", () => {
+describe("insertQuestionVariant (real Postgres)", () => {
   it("persists a wh_question variant row tied to the bit", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to generate a question for");
@@ -127,66 +101,6 @@ describe("insertQuestionVariant + markWhQuestionGenerated (real Postgres)", () =
     expect(rows[0]!.order).toBe(0);
     expect(rows[0]!.prompt).toBe("Why does this matter?");
     expect(rows[0]!.answer).toBe("Because of X.");
-  });
-
-  it("persists whQuestionGeneratedAt on read-back after marking a bit generated", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark generated");
-
-    await markWhQuestionGenerated(id);
-
-    const { rows } = await client.query(
-      `SELECT wh_question_generated_at FROM knowledge_bits WHERE id = $1`,
-      [id],
-    );
-
-    expect(rows[0]!.wh_question_generated_at).toBeInstanceOf(Date);
-  });
-
-  it("persists whQuestionGenerationFailedAt on read-back after marking a bit failed", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark failed");
-
-    await markWhQuestionGenerationFailed(id);
-
-    const { rows } = await client.query(
-      `SELECT wh_question_generation_failed_at FROM knowledge_bits WHERE id = $1`,
-      [id],
-    );
-
-    expect(rows[0]!.wh_question_generation_failed_at).toBeInstanceOf(Date);
-  });
-});
-
-describe("recordGeneratedQuestionVariant (real Postgres)", () => {
-  it("inserts the variant and stamps whQuestionGeneratedAt in one transaction", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to record a question for");
-
-    await recordGeneratedQuestionVariant(bitId, "wh_question", 0, "Why does this matter?", "Because of X.");
-
-    const { rows: variantRows } = await client.query(
-      `SELECT knowledge_bit_id, kind, "order" FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1`,
-      [bitId],
-    );
-    const { rows: bitRows } = await client.query(
-      `SELECT wh_question_generated_at FROM knowledge_bits WHERE id = $1`,
-      [bitId],
-    );
-
-    expect(variantRows).toHaveLength(1);
-    expect(bitRows[0]!.wh_question_generated_at).toBeInstanceOf(Date);
-  });
-
-  it("rejects a second variant for the same bit, kind, and slot via the unique index", async () => {
-    const sourceId = await seedKnowledgeSource();
-    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit that already has a variant");
-
-    await insertQuestionVariant(bitId, "wh_question", 0, "First question?", "First answer.");
-
-    await expect(
-      insertQuestionVariant(bitId, "wh_question", 0, "Second question?", "Second answer."),
-    ).rejects.toThrow();
   });
 });
 

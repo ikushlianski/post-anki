@@ -2,10 +2,11 @@ import { z } from "zod";
 import { log } from "../shared/log.js";
 import { runKnowledgeBitQuestionGenerator } from "../mastra/knowledge-bit-question-generator.agent.js";
 import {
-  listKnowledgeBitsForQuestionGenerationScan,
+  listKnowledgeBitsForWhQuestionGenerationScan,
   recordGeneratedQuestionVariant,
   markWhQuestionGenerationFailed,
-} from "./knowledge-bit-question-variant.repo.js";
+  claimKnowledgeBitForWhQuestionGeneration,
+} from "./knowledge-bit-wh-question-claim.repo.js";
 
 // Kept well below the embedding scan's cap — this hits a paid LLM call per bit.
 export const QUESTION_GENERATION_CAP = 50;
@@ -16,15 +17,26 @@ export interface QuestionGenerationScanCounts {
   scanned: number;
   generated: number;
   failed: number;
+  skipped: number;
 }
 
 export async function generateKnowledgeBitQuestions(): Promise<QuestionGenerationScanCounts> {
-  const bits = await listKnowledgeBitsForQuestionGenerationScan(QUESTION_GENERATION_CAP);
+  const bits = await listKnowledgeBitsForWhQuestionGenerationScan(QUESTION_GENERATION_CAP);
 
   let generated = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const bit of bits) {
+    // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
+    // finished) this bit makes this claim fail, and we skip it without paying for a generation.
+    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(bit.id);
+
+    if (!claimToken) {
+      skipped += 1;
+      continue;
+    }
+
     try {
       const result = await runKnowledgeBitQuestionGenerator(bit.body);
       const question = questionTextSchema.safeParse(result.question);
@@ -34,13 +46,20 @@ export async function generateKnowledgeBitQuestions(): Promise<QuestionGeneratio
         throw new Error("knowledge_bit_question_generation_invalid_output");
       }
 
-      await recordGeneratedQuestionVariant(bit.id, "wh_question", 0, question.data, answer.data);
+      await recordGeneratedQuestionVariant(
+        bit.id,
+        "wh_question",
+        0,
+        question.data,
+        answer.data,
+        claimToken,
+      );
       generated += 1;
     } catch (err) {
       log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_question_generation_failed");
 
       try {
-        await markWhQuestionGenerationFailed(bit.id);
+        await markWhQuestionGenerationFailed(bit.id, claimToken);
       } catch (markErr) {
         log.warn(
           { err: markErr, knowledgeBitId: bit.id },
@@ -52,5 +71,5 @@ export async function generateKnowledgeBitQuestions(): Promise<QuestionGeneratio
     }
   }
 
-  return { scanned: bits.length, generated, failed };
+  return { scanned: bits.length, generated, failed, skipped };
 }
