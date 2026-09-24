@@ -9,7 +9,7 @@
 ## Coding tasks
 - [x] Add a unit test for the placer agent's refine/parse/throw behavior
 - [x] Add `topicId`/`placementSuggestion`/`placementCheckedAt`/`placementFailedAt` columns to `knowledgeBits`, generate + apply migration
-- [ ] Add `knowledge-bit-placer.agent.ts`, a cheap-tier classifier returning a matched topic id or a placement suggestion
+- [x] Add `knowledge-bit-placer.agent.ts`, a cheap-tier classifier returning a matched topic id or a placement suggestion
 - [ ] Add `knowledge-bit-placement.repo.ts` with the filtered topic listing, selection query, and the three status-write functions
 - [ ] Add `knowledge-bit-placement.orchestrator.ts` that places each bit, validates the matched topic id against the sent list, isolates per-bit failures, caps the batch
 - [ ] Wire a `POST /knowledge-bits/placement-scan` trigger route through router-table/router/server
