@@ -1045,6 +1045,10 @@ export const knowledgeSources = pgTable(
     // Set only when bit-detection marks this source "failed", so it's
     // explainable instead of silently stuck.
     failureReason: text("failure_reason"),
+    // Bumped on every status-changing write (claim, fail, mark detected,
+    // stale reset), so a row stuck in "processing" past a threshold can be
+    // reclaimed instead of stuck forever.
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(

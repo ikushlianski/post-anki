@@ -4,17 +4,20 @@ import {
   claimPendingKnowledgeSources,
   insertKnowledgeBitsAndMarkDetected,
   markKnowledgeSourceFailed,
+  resetStaleProcessingKnowledgeSources,
   type PendingKnowledgeSource,
 } from "./knowledge-bit.repo.js";
 
 export const DETECT_BITS_BATCH_CAP = 20;
 export const MAX_SOURCE_CHARS = 50_000;
+export const STALE_PROCESSING_THRESHOLD_MS = 15 * 60 * 1000;
 
 export interface DetectKnowledgeBitsDeps {
   claim: (limit: number) => Promise<PendingKnowledgeSource[]>;
   detect: (sourceText: string) => Promise<string[]>;
-  insertBitsAndMarkDetected: (sourceId: string, bits: string[]) => Promise<void>;
-  markFailed: (id: string, reason: string) => Promise<void>;
+  insertBitsAndMarkDetected: (sourceId: string, bits: string[], claimedAt: Date) => Promise<void>;
+  markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
+  resetStale: (staleAfterMs: number) => Promise<number>;
 }
 
 export function defaultDetectKnowledgeBitsDeps(): DetectKnowledgeBitsDeps {
@@ -23,6 +26,7 @@ export function defaultDetectKnowledgeBitsDeps(): DetectKnowledgeBitsDeps {
     detect: runKnowledgeBitDetector,
     insertBitsAndMarkDetected: insertKnowledgeBitsAndMarkDetected,
     markFailed: markKnowledgeSourceFailed,
+    resetStale: resetStaleProcessingKnowledgeSources,
   };
 }
 
@@ -45,13 +49,13 @@ async function detectBitsForSource(
   const rawText = source.rawText;
 
   if (!rawText || rawText.length === 0) {
-    await deps.markFailed(source.id, "source_empty");
+    await deps.markFailed(source.id, "source_empty", source.claimedAt);
 
     return "failed";
   }
 
   if (rawText.length > MAX_SOURCE_CHARS) {
-    await deps.markFailed(source.id, "source_too_long");
+    await deps.markFailed(source.id, "source_too_long", source.claimedAt);
 
     return "failed";
   }
@@ -59,12 +63,12 @@ async function detectBitsForSource(
   try {
     const bits = await deps.detect(rawText);
 
-    await deps.insertBitsAndMarkDetected(source.id, bits);
+    await deps.insertBitsAndMarkDetected(source.id, bits, source.claimedAt);
 
     return "detected";
   } catch (err) {
     log.error({ err, knowledgeSourceId: source.id }, "knowledge_bit_detection_failed");
-    await deps.markFailed(source.id, truncateReason(err));
+    await deps.markFailed(source.id, truncateReason(err), source.claimedAt);
 
     return "failed";
   }
@@ -74,6 +78,8 @@ export async function detectKnowledgeBits(
   deps: DetectKnowledgeBitsDeps = defaultDetectKnowledgeBitsDeps(),
 ): Promise<DetectKnowledgeBitsResult> {
   const result: DetectKnowledgeBitsResult = { processed: 0, detected: 0, failed: 0 };
+
+  await deps.resetStale(STALE_PROCESSING_THRESHOLD_MS);
 
   while (result.processed < DETECT_BITS_BATCH_CAP) {
     const claimed = await deps.claim(1);

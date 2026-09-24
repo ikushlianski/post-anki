@@ -8,6 +8,10 @@ import * as schema from "./schema.js";
 import {
   claimPendingKnowledgeSources,
   insertKnowledgeBits,
+  insertKnowledgeBitsAndMarkDetected,
+  markKnowledgeSourceBitsDetected,
+  markKnowledgeSourceFailed,
+  resetStaleProcessingKnowledgeSources,
 } from "../knowledge-bit/knowledge-bit.repo.js";
 
 // SCENARIO 1 (.planning/phrase-bank-concurrency-fix/scenarios.md) — migration-diff
@@ -282,6 +286,11 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       expect.objectContaining({ column_name: "notion_database_id", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "notion_page_id", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "failure_reason", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({
+        column_name: "updated_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "NO",
+      }),
     ]);
   });
 
@@ -465,6 +474,27 @@ describe("migrations — knowledge_sources.failure_reason (prose-knowledge-fishe
 // proves knowledge_bits' real columns match schema.ts and that its unique
 // index on (knowledge_source_id, ordinal) actually rejects a duplicate pair
 // at the database level, not just in app code.
+// SCENARIO (.planning/prose-knowledge-fisher--stale-row-reset/scenarios.md) —
+// proves the 0060 migration applies cleanly against real Postgres and that
+// knowledge_sources.updated_at's real column shape matches schema.ts.
+describe("migrations — knowledge_sources.updated_at (prose-knowledge-fisher--stale-row-reset)", () => {
+  it("adds updated_at as a not-null, now()-defaulted timestamptz column", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable, column_default
+         FROM information_schema.columns
+        WHERE table_name = 'knowledge_sources' AND column_name = 'updated_at'`,
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      column_name: "updated_at",
+      data_type: "timestamp with time zone",
+      is_nullable: "NO",
+    });
+    expect(rows[0].column_default).toMatch(/now\(\)/);
+  });
+});
+
 describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-knowledge-bits)", () => {
   it("creates knowledge_bits with the columns schema.ts declares", async () => {
     const { rows } = await client.query(
@@ -599,5 +629,198 @@ describe("migrations — insertKnowledgeBits idempotent re-detection (prose-know
       { ordinal: 1, body: "Second bit." },
       { ordinal: 2, body: "Third bit." },
     ]);
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--stale-row-reset/scenarios.md) —
+// proves resetStaleProcessingKnowledgeSources' WHERE clause against real
+// Postgres: a stale processing row is reset, a fresh one and rows in other
+// statuses are left alone, regardless of how old their updated_at is.
+describe("migrations — resetStaleProcessingKnowledgeSources (prose-knowledge-fisher--stale-row-reset)", () => {
+  const STALE_MS = 15 * 60 * 1000;
+
+  async function insertSource(overrides: {
+    id: string;
+    status: string;
+    failureReason?: string | null;
+  }): Promise<void> {
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status, failure_reason)
+       VALUES ($1, 'prose', 'Some prose.', $2, $3)`,
+      [overrides.id, overrides.status, overrides.failureReason ?? null],
+    );
+  }
+
+  async function backdate(id: string, interval: string): Promise<void> {
+    await client.query(
+      `UPDATE knowledge_sources SET updated_at = now() - $2::interval WHERE id = $1`,
+      [id, interval],
+    );
+  }
+
+  it("resets a processing row older than the threshold to pending and clears its failure reason", async () => {
+    const staleId = `ks_migtest_${randomUUID()}`;
+
+    await insertSource({ id: staleId, status: "processing", failureReason: "some reason" });
+    await backdate(staleId, "1 hour");
+
+    const count = await resetStaleProcessingKnowledgeSources(STALE_MS, testDb);
+
+    expect(count).toBeGreaterThanOrEqual(1);
+
+    const { rows } = await client.query(
+      `SELECT status, failure_reason FROM knowledge_sources WHERE id = $1`,
+      [staleId],
+    );
+
+    expect(rows[0]).toMatchObject({ status: "pending", failure_reason: null });
+  });
+
+  it("leaves a recently-claimed processing row untouched", async () => {
+    const freshId = `ks_migtest_${randomUUID()}`;
+
+    await insertSource({ id: freshId, status: "processing" });
+    await backdate(freshId, "1 minute");
+
+    await resetStaleProcessingKnowledgeSources(STALE_MS, testDb);
+
+    const { rows } = await client.query(`SELECT status FROM knowledge_sources WHERE id = $1`, [
+      freshId,
+    ]);
+
+    expect(rows[0].status).toBe("processing");
+  });
+
+  it.each(["pending", "bits_detected", "failed"])(
+    "never touches a %s row regardless of how old its updated_at is",
+    async (status) => {
+      const id = `ks_migtest_${randomUUID()}`;
+
+      await insertSource({ id, status });
+      await backdate(id, "1 hour");
+
+      await resetStaleProcessingKnowledgeSources(STALE_MS, testDb);
+
+      const { rows } = await client.query(`SELECT status FROM knowledge_sources WHERE id = $1`, [
+        id,
+      ]);
+
+      expect(rows[0].status).toBe(status);
+    },
+  );
+
+  it("makes a reset row claimable again on the very next claim call", async () => {
+    const staleId = `ks_migtest_${randomUUID()}`;
+
+    await insertSource({ id: staleId, status: "processing" });
+    await backdate(staleId, "1 hour");
+
+    await resetStaleProcessingKnowledgeSources(STALE_MS, testDb);
+    const claimed = await claimPendingKnowledgeSources(1000, testDb);
+
+    expect(claimed.some((row) => row.id === staleId)).toBe(true);
+
+    const { rows } = await client.query(`SELECT status FROM knowledge_sources WHERE id = $1`, [
+      staleId,
+    ]);
+
+    expect(rows[0].status).toBe("processing");
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--stale-row-reset/scenarios.md) —
+// proves the claimedAt ownership token round-trips through a real timestamptz
+// column (claim, then a write using the returned token succeeds) and that a
+// stale token — captured before a reset reclaims the row — is rejected as a
+// no-op once someone else has claimed it, against real Postgres rather than
+// the unit tests' mock.
+describe("migrations — claimedAt ownership token (prose-knowledge-fisher--stale-row-reset)", () => {
+  const STALE_MS = 15 * 60 * 1000;
+
+  it("lets a write through when the claim token still matches the stored updated_at", async () => {
+    const sourceId = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Some prose.', 'pending')`,
+      [sourceId],
+    );
+
+    const claimResults = await claimPendingKnowledgeSources(1000, testDb);
+    const claimed = claimResults.find((row) => row.id === sourceId);
+
+    expect(claimed).toBeDefined();
+
+    const changed = await markKnowledgeSourceFailed(
+      sourceId,
+      "source_too_long",
+      claimed!.claimedAt,
+      testDb,
+    );
+
+    expect(changed).toBe(true);
+
+    const { rows } = await client.query(
+      `SELECT status, failure_reason FROM knowledge_sources WHERE id = $1`,
+      [sourceId],
+    );
+
+    expect(rows[0]).toMatchObject({ status: "failed", failure_reason: "source_too_long" });
+  });
+
+  it("rejects a stale claim token as a no-op once a reset has let another scan reclaim the row", async () => {
+    const sourceId = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Some prose.', 'pending')`,
+      [sourceId],
+    );
+
+    const firstClaimResults = await claimPendingKnowledgeSources(1000, testDb);
+    const firstClaim = firstClaimResults.find((row) => row.id === sourceId);
+
+    expect(firstClaim).toBeDefined();
+
+    const staleToken = firstClaim!.claimedAt;
+
+    await client.query(`UPDATE knowledge_sources SET updated_at = now() - '1 hour'::interval WHERE id = $1`, [
+      sourceId,
+    ]);
+    await resetStaleProcessingKnowledgeSources(STALE_MS, testDb);
+
+    const reclaimResults = await claimPendingKnowledgeSources(1000, testDb);
+    const secondClaim = reclaimResults.find((row) => row.id === sourceId);
+
+    expect(secondClaim).toBeDefined();
+
+    await expect(
+      insertKnowledgeBitsAndMarkDetected(sourceId, ["A bit from the stale attempt."], staleToken, testDb),
+    ).rejects.toThrow("knowledge_source_reclaimed");
+
+    const failedWithStaleToken = await markKnowledgeSourceFailed(
+      sourceId,
+      "provider error from stale attempt",
+      staleToken,
+      testDb,
+    );
+
+    expect(failedWithStaleToken).toBe(false);
+
+    const { rows: bitRows } = await client.query(
+      `SELECT body FROM knowledge_bits WHERE knowledge_source_id = $1`,
+      [sourceId],
+    );
+
+    expect(bitRows).toHaveLength(0);
+
+    const { rows: sourceRows } = await client.query(
+      `SELECT status FROM knowledge_sources WHERE id = $1`,
+      [sourceId],
+    );
+
+    expect(sourceRows[0].status).toBe("processing");
+
+    const succeeded = await markKnowledgeSourceBitsDetected(sourceId, secondClaim!.claimedAt, testDb);
+
+    expect(succeeded).toBe(true);
   });
 });

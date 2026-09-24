@@ -8,12 +8,17 @@ import {
   detectKnowledgeBits,
   DETECT_BITS_BATCH_CAP,
   MAX_SOURCE_CHARS,
+  STALE_PROCESSING_THRESHOLD_MS,
   type DetectKnowledgeBitsDeps,
 } from "./detect-knowledge-bits.orchestrator.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
 
+let nextClaimedAt = 0;
+
 function source(id: string, rawText: string | null): PendingKnowledgeSource {
-  return { id, rawText };
+  nextClaimedAt += 1;
+
+  return { id, rawText, claimedAt: new Date(nextClaimedAt) };
 }
 
 function claimOneAtATime(sources: PendingKnowledgeSource[]): DetectKnowledgeBitsDeps["claim"] {
@@ -31,7 +36,8 @@ function buildDeps(overrides: Partial<DetectKnowledgeBitsDeps>): DetectKnowledge
     claim: vi.fn().mockResolvedValue([]),
     detect: vi.fn(),
     insertBitsAndMarkDetected: vi.fn().mockResolvedValue(undefined),
-    markFailed: vi.fn().mockResolvedValue(undefined),
+    markFailed: vi.fn().mockResolvedValue(true),
+    resetStale: vi.fn().mockResolvedValue(0),
     ...overrides,
   };
 }
@@ -46,6 +52,28 @@ describe("detectKnowledgeBits", () => {
     expect(deps.detect).not.toHaveBeenCalled();
   });
 
+  it("resets stale processing sources once, before the claim loop starts", async () => {
+    const calls: string[] = [];
+    const deps = buildDeps({
+      claim: vi.fn().mockImplementation(async () => {
+        calls.push("claim");
+
+        return [];
+      }),
+      resetStale: vi.fn().mockImplementation(async (staleAfterMs: number) => {
+        calls.push(`resetStale:${staleAfterMs}`);
+
+        return 0;
+      }),
+    });
+
+    await detectKnowledgeBits(deps);
+
+    expect(deps.resetStale).toHaveBeenCalledTimes(1);
+    expect(deps.resetStale).toHaveBeenCalledWith(STALE_PROCESSING_THRESHOLD_MS);
+    expect(calls[0]).toBe(`resetStale:${STALE_PROCESSING_THRESHOLD_MS}`);
+  });
+
   it("detects bits for every claimed source on the happy path", async () => {
     const deps = buildDeps({
       claim: claimOneAtATime([source("s1", "First source text."), source("s2", "Second source text.")]),
@@ -58,8 +86,12 @@ describe("detectKnowledgeBits", () => {
     const result = await detectKnowledgeBits(deps);
 
     expect(result).toEqual({ processed: 2, detected: 2, failed: 0 });
-    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("s1", ["bit a", "bit b"]);
-    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("s2", ["bit c"]);
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
+      "s1",
+      ["bit a", "bit b"],
+      expect.any(Date),
+    );
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("s2", ["bit c"], expect.any(Date));
     expect(deps.markFailed).not.toHaveBeenCalled();
   });
 
@@ -73,7 +105,7 @@ describe("detectKnowledgeBits", () => {
 
     expect(result).toEqual({ processed: 1, detected: 0, failed: 1 });
     expect(deps.detect).not.toHaveBeenCalled();
-    expect(deps.markFailed).toHaveBeenCalledWith("big", "source_too_long");
+    expect(deps.markFailed).toHaveBeenCalledWith("big", "source_too_long", expect.any(Date));
   });
 
   it("marks an empty or null source failed with source_empty and never calls the detector", async () => {
@@ -85,8 +117,8 @@ describe("detectKnowledgeBits", () => {
 
     expect(result).toEqual({ processed: 2, detected: 0, failed: 2 });
     expect(deps.detect).not.toHaveBeenCalled();
-    expect(deps.markFailed).toHaveBeenCalledWith("empty1", "source_empty");
-    expect(deps.markFailed).toHaveBeenCalledWith("empty2", "source_empty");
+    expect(deps.markFailed).toHaveBeenCalledWith("empty1", "source_empty", expect.any(Date));
+    expect(deps.markFailed).toHaveBeenCalledWith("empty2", "source_empty", expect.any(Date));
   });
 
   it("isolates one source's provider error from the rest of the batch", async () => {
@@ -101,9 +133,17 @@ describe("detectKnowledgeBits", () => {
     const result = await detectKnowledgeBits(deps);
 
     expect(result).toEqual({ processed: 2, detected: 1, failed: 1 });
-    expect(deps.markFailed).toHaveBeenCalledWith("bad", "provider rate limited");
-    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("good", ["a fine bit"]);
-    expect(deps.insertBitsAndMarkDetected).not.toHaveBeenCalledWith("bad", expect.anything());
+    expect(deps.markFailed).toHaveBeenCalledWith("bad", "provider rate limited", expect.any(Date));
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
+      "good",
+      ["a fine bit"],
+      expect.any(Date),
+    );
+    expect(deps.insertBitsAndMarkDetected).not.toHaveBeenCalledWith(
+      "bad",
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   it("keeps processing the rest of the batch when marking one source failed itself throws", async () => {
@@ -119,7 +159,11 @@ describe("detectKnowledgeBits", () => {
     const result = await detectKnowledgeBits(deps);
 
     expect(result).toEqual({ processed: 2, detected: 1, failed: 1 });
-    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("good", ["a fine bit"]);
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
+      "good",
+      ["a fine bit"],
+      expect.any(Date),
+    );
   });
 
   it("accepts a source exactly at the length limit without marking it too long", async () => {

@@ -421,6 +421,13 @@
       "when": 1790214093509,
       "tag": "0059_sparkling_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790216716399,
+      "tag": "0060_hard_alex_wilder",
+      "breakpoints": true
     }
   ]
 }
