@@ -278,7 +278,7 @@ export async function getTagMasteryLevels(
     .where(
       and(eq(tagAssignments.nodeType, "knowledgeBit"), inArray(tagAssignments.tagId, tagIds)),
     )
-    .orderBy(asc(knowledgeBitVariantAttempts.createdAt));
+    .orderBy(asc(knowledgeBitVariantAttempts.createdAt), asc(knowledgeBitVariantAttempts.id));
 
   const attemptsByTag = new Map<string, { verdict: string }[]>();
 

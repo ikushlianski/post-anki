@@ -171,6 +171,36 @@ describe("getTagMasteryLevels (real Postgres)", () => {
     expect(levels.get(tagB.id)?.status).toBe("struggling");
   });
 
+  it("breaks a created_at tie deterministically by id, not by chance row order", async () => {
+    const tag = await resolveOrCreateTag(`tie-${randomUUID()}`);
+    const bit = await seedKnowledgeBit("Tie bit");
+    const variant = await seedVariant(bit, "Why tie?");
+
+    await assignTag(tag.id, "knowledgeBit", bit);
+
+    const sameTimestamp = new Date();
+    const earlierId = "kbva_0_tie";
+    const laterId = "kbva_1_tie";
+
+    await client.query(
+      `INSERT INTO knowledge_bit_variant_attempts (id, variant_id, user_answer, score, verdict, feedback, created_at)
+       VALUES ($1, $2, 'first', 2, 'NeedsDeepDive', 'fb', $3)`,
+      [earlierId, variant, sameTimestamp],
+    );
+    await client.query(
+      `INSERT INTO knowledge_bit_variant_attempts (id, variant_id, user_answer, score, verdict, feedback, created_at)
+       VALUES ($1, $2, 'second', 9, 'Ok', 'fb', $3)`,
+      [laterId, variant, sameTimestamp],
+    );
+
+    const first = await getTagMasteryLevels([tag.id]);
+    const second = await getTagMasteryLevels([tag.id]);
+
+    expect(first.get(tag.id)).toEqual(second.get(tag.id));
+    expect(first.get(tag.id)?.status).toBe("practicing");
+    expect(first.get(tag.id)?.masteryStage).toBe(1);
+  });
+
   it("excludes attempts against an untagged bit from every tag's fold", async () => {
     const tag = await resolveOrCreateTag(`untagged-sibling-${randomUUID()}`);
     const taggedBit = await seedKnowledgeBit("Tagged bit");
