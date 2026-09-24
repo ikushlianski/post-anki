@@ -7,6 +7,7 @@ export type RouteName =
   | "createKnowledgeSource"
   | "createKnowledgeSourceFromNotion"
   | "detectKnowledgeBits"
+  | "triggerKnowledgeBitEmbeddingScan"
   | "deleteSubject"
   | "updateSubject"
   | "mergeSubjects"

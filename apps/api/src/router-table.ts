@@ -14,6 +14,11 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/knowledge-sources", name: "createKnowledgeSource" },
   { method: "POST", pattern: "/knowledge-sources/notion", name: "createKnowledgeSourceFromNotion" },
   { method: "POST", pattern: "/knowledge-sources/detect-bits", name: "detectKnowledgeBits" },
+  {
+    method: "POST",
+    pattern: "/knowledge-bits/embedding-scan",
+    name: "triggerKnowledgeBitEmbeddingScan",
+  },
   { method: "DELETE", pattern: /^\/subjects\/([^/]+)$/, name: "deleteSubject", param: "id" },
   { method: "PATCH", pattern: /^\/subjects\/([^/]+)$/, name: "updateSubject", param: "id" },
   { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },

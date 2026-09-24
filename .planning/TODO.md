@@ -39,10 +39,10 @@ updated: 2026-09-04
   - [x] Phase 1: schema, migration, and repo
   - [x] Phase 2: LLM detector agent and scan orchestrator
   - [x] Phase 3: route wiring and tests
-- [ ] Embed each submitted knowledge bit into the existing vector pipeline
+- [x] Embed each submitted knowledge bit into the existing vector pipeline
   - [x] Phase 1: schema, migration, and embedding repo
   - [x] Phase 2: embedding scan orchestrator
-  - [ ] Phase 3: trigger route and tests
+  - [x] Phase 3: trigger route and tests
 - [ ] Auto-tag each detected knowledge bit from the shared taxonomy
 - [ ] Reuse an existing close-match tag instead of minting a near-duplicate
 - [ ] Place each knowledge bit into the existing subject, curriculum, and topic it fits

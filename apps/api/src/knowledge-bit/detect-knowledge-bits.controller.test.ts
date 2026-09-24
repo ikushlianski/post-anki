@@ -6,12 +6,19 @@ vi.mock("../shared/log.js", () => ({
 }));
 
 const mockDetectKnowledgeBits = vi.fn();
+const mockEmbedKnowledgeBits = vi.fn();
 
 vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({
   detectKnowledgeBits: (...args: unknown[]) => mockDetectKnowledgeBits(...args),
 }));
 
-const { handleDetectKnowledgeBits } = await import("./detect-knowledge-bits.controller.js");
+vi.mock("./knowledge-bit-embedding.orchestrator.js", () => ({
+  embedKnowledgeBits: (...args: unknown[]) => mockEmbedKnowledgeBits(...args),
+}));
+
+const { handleDetectKnowledgeBits, handleTriggerKnowledgeBitEmbeddingScan } = await import(
+  "./detect-knowledge-bits.controller.js"
+);
 
 function fakeRes(): http.ServerResponse & { status: number | null; body: unknown } {
   const res = {
@@ -66,5 +73,33 @@ describe("handleDetectKnowledgeBits", () => {
     expect((res.body as { message: string }).message).toBe(
       "knowledge bit detection scan failed",
     );
+  });
+});
+
+describe("handleTriggerKnowledgeBitEmbeddingScan", () => {
+  it("returns 200 with the scan counts on success", async () => {
+    mockEmbedKnowledgeBits.mockResolvedValue({
+      embeddedCount: 2,
+      reusedCount: 1,
+      capped: false,
+    });
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitEmbeddingScan(res);
+
+    expect(mockEmbedKnowledgeBits).toHaveBeenCalledWith();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ embeddedCount: 2, reusedCount: 1, capped: false });
+  });
+
+  it("returns 502 with an error message when the scan throws, never a silent 200", async () => {
+    mockEmbedKnowledgeBits.mockRejectedValue(new Error("embedding provider down"));
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitEmbeddingScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { error: string }).error).toBe("scan_failed");
+    expect((res.body as { message: string }).message).toBe("embedding provider down");
   });
 });
