@@ -1076,6 +1076,13 @@ export const knowledgeBits = pgTable(
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
     taggedAt: timestamp("tagged_at", { withTimezone: true }),
     tagFailedAt: timestamp("tag_failed_at", { withTimezone: true }),
+    // Set only when the placement scan matched this bit to a topic; no FK, matching this schema's convention.
+    topicId: text("topic_id"),
+    placementSuggestion: text("placement_suggestion"),
+    // Set whenever a placement scan produces either a match (topicId) or a suggestion
+    // (placementSuggestion) — i.e. this bit has been processed, don't rescan it.
+    placementCheckedAt: timestamp("placement_checked_at", { withTimezone: true }),
+    placementFailedAt: timestamp("placement_failed_at", { withTimezone: true }),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(

@@ -49,6 +49,10 @@ updated: 2026-09-04
   - [x] Phase 3: trigger route and tests
 - [x] Reuse an existing close-match tag instead of minting a near-duplicate
 - [ ] Place each knowledge bit into the existing subject, curriculum, and topic it fits
+  - [x] Phase 1: placement schema and migration
+  - [ ] Phase 2: placement agent and repo
+  - [ ] Phase 3: placement orchestrator and tests
+  - [ ] Phase 4: placement trigger route and integration test
 - [ ] Suggest a new hierarchy spot when no existing topic fits a bit
 - [ ] Generate a Wh-question variant for each knowledge bit
 - [ ] Generate a fill-in-the-blank variant for each knowledge bit

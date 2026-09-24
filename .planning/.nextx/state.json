@@ -10,7 +10,5 @@
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": [
-    "nextx"
-  ]
+  "pendingSkillReload": []
 }
