@@ -1,4 +1,4 @@
-import type { MergeTagsResult, NodeType, Tag, TagAssignment } from "@post-anki/shared";
+import type { MergeTagsResult, Tag, TagAssignment, TagNodeType } from "@post-anki/shared";
 import {
   assignTag,
   getTag,
@@ -20,7 +20,7 @@ export type AssignTagError = "tag_not_found";
 
 export async function addTagAssignment(
   tagId: string,
-  nodeType: NodeType,
+  nodeType: TagNodeType,
   nodeId: string,
 ): Promise<TagAssignment | { error: AssignTagError }> {
   const tag = await getTag(tagId);

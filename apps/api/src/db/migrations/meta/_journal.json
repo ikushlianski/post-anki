@@ -435,6 +435,13 @@
       "when": 1790219271694,
       "tag": "0061_clever_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790221675218,
+      "tag": "0062_new_sunfire",
+      "breakpoints": true
     }
   ]
 }

@@ -6,9 +6,11 @@
   "activeDirections": [
     "prose-knowledge-fisher"
   ],
-  "lastHeartbeatAt": "2026-09-24T03:12:52.207Z",
+  "lastHeartbeatAt": "2026-09-24T03:50:14.633Z",
   "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": []
+  "pendingSkillReload": [
+    "nextx"
+  ]
 }

@@ -1074,6 +1074,8 @@ export const knowledgeBits = pgTable(
     embedding: jsonb("embedding").$type<number[]>(),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
+    taggedAt: timestamp("tagged_at", { withTimezone: true }),
+    tagFailedAt: timestamp("tag_failed_at", { withTimezone: true }),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(

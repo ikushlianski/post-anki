@@ -1,5 +1,5 @@
 import { and, eq, inArray, or } from "drizzle-orm";
-import type { NodeType, Tag, TagAssignment } from "@post-anki/shared";
+import type { Tag, TagAssignment, TagNodeType } from "@post-anki/shared";
 import { normalizeTagName } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { tagAssignments, tags, topics } from "../db/schema.js";
@@ -17,7 +17,7 @@ function rowToAssignment(row: typeof tagAssignments.$inferSelect): TagAssignment
   return {
     id: row.id,
     tagId: row.tagId,
-    nodeType: row.nodeType as NodeType,
+    nodeType: row.nodeType as TagNodeType,
     nodeId: row.nodeId,
     createdAt: row.createdAt.toISOString(),
   };
@@ -89,7 +89,7 @@ export async function resolveOrCreateTag(name: string, db: DbExecutor = getDb())
 
 export async function assignTag(
   tagId: string,
-  nodeType: NodeType,
+  nodeType: TagNodeType,
   nodeId: string,
 ): Promise<TagAssignment> {
   const db = getDb();

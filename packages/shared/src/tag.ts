@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { nodeTypeSchema } from "./node-feedback";
 
+export const tagNodeTypeSchema = z.union([nodeTypeSchema, z.literal("knowledgeBit")]);
+
+export type TagNodeType = z.infer<typeof tagNodeTypeSchema>;
+
 export const tagSchema = z.object({
   id: z.string(),
   name: z.string().min(1),
@@ -12,7 +16,7 @@ export type Tag = z.infer<typeof tagSchema>;
 export const tagAssignmentSchema = z.object({
   id: z.string(),
   tagId: z.string(),
-  nodeType: nodeTypeSchema,
+  nodeType: tagNodeTypeSchema,
   nodeId: z.string(),
   createdAt: z.string(),
 });
@@ -38,7 +42,7 @@ export const createTagInput = z.object({
 export type CreateTagInput = z.infer<typeof createTagInput>;
 
 export const assignTagInput = z.object({
-  nodeType: nodeTypeSchema,
+  nodeType: tagNodeTypeSchema,
   nodeId: z.string(),
 });
 
