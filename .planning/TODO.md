@@ -54,7 +54,7 @@ updated: 2026-09-04
   - [x] Phase 3: placement orchestrator and tests
   - [x] Phase 4: placement trigger route and integration test
 - [ ] Suggest a new hierarchy spot when no existing topic fits a bit
-  - [ ] Phase 1: suggestion resolution schema and repo
+  - [x] Phase 1: suggestion resolution schema and repo
   - [ ] Phase 2: suggestion review route
   - [ ] Phase 3: admin panel for accept and reject
 - [ ] Generate a Wh-question variant for each knowledge bit
