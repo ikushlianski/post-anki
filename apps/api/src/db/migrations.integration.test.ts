@@ -4,6 +4,11 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "./assert-local-db-target.js";
+import * as schema from "./schema.js";
+import {
+  claimPendingKnowledgeSources,
+  insertKnowledgeBits,
+} from "../knowledge-bit/knowledge-bit.repo.js";
 
 // SCENARIO 1 (.planning/phrase-bank-concurrency-fix/scenarios.md) — migration-diff
 // proof. This test applies every migration under apps/api/src/db/migrations/
@@ -40,6 +45,9 @@ const TEST_DATABASE_URL = withDatabaseName(BASE_DATABASE_URL, TEST_DB_NAME);
 let adminPool: pg.Pool;
 let testPool: pg.Pool;
 let client: pg.Client;
+// Passed explicitly to repo functions' optional DbExecutor param, so they
+// run against this test's own throwaway database, not the shared pool.
+let testDb: ReturnType<typeof drizzle<typeof schema>>;
 
 beforeAll(async () => {
   adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
@@ -49,6 +57,7 @@ beforeAll(async () => {
   testPool = new pg.Pool({ connectionString: TEST_DATABASE_URL });
 
   const db = drizzle(testPool);
+  testDb = drizzle(testPool, { schema });
 
   await migrate(db, {
     migrationsFolder: new URL("./migrations", import.meta.url).pathname,
@@ -272,6 +281,7 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       expect.objectContaining({ column_name: "created_at", data_type: "timestamp with time zone", is_nullable: "NO" }),
       expect.objectContaining({ column_name: "notion_database_id", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "notion_page_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "failure_reason", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
@@ -413,5 +423,181 @@ describe("migrations — knowledge_sources.notion_page_id (prose-knowledge-fishe
     );
 
     expect(rows).toHaveLength(1);
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--detect-knowledge-bits/scenarios.md) —
+// proves the new migration applies cleanly against real Postgres and that
+// knowledge_sources.failure_reason's real column shape matches schema.ts.
+describe("migrations — knowledge_sources.failure_reason (prose-knowledge-fisher--detect-knowledge-bits)", () => {
+  it("adds failure_reason as a nullable text column", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable
+         FROM information_schema.columns
+        WHERE table_name = 'knowledge_sources' AND column_name = 'failure_reason'`,
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        column_name: "failure_reason",
+        data_type: "text",
+        is_nullable: "YES",
+      }),
+    ]);
+  });
+
+  it("round-trips a failed source with a failure reason", async () => {
+    const id = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status, failure_reason)
+       VALUES ($1, 'prose', $2, 'failed', $3)`,
+      [id, "Some prose that was too long.", "source_too_long"],
+    );
+
+    const { rows } = await client.query(`SELECT * FROM knowledge_sources WHERE id = $1`, [id]);
+
+    expect(rows[0]).toMatchObject({ id, status: "failed", failure_reason: "source_too_long" });
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--detect-knowledge-bits/scenarios.md) —
+// proves knowledge_bits' real columns match schema.ts and that its unique
+// index on (knowledge_source_id, ordinal) actually rejects a duplicate pair
+// at the database level, not just in app code.
+describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-knowledge-bits)", () => {
+  it("creates knowledge_bits with the columns schema.ts declares", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable, column_default
+         FROM information_schema.columns
+        WHERE table_name = 'knowledge_bits'
+        ORDER BY ordinal_position`,
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({ column_name: "id", data_type: "text", is_nullable: "NO" }),
+      expect.objectContaining({
+        column_name: "knowledge_source_id",
+        data_type: "text",
+        is_nullable: "NO",
+      }),
+      expect.objectContaining({ column_name: "ordinal", data_type: "integer", is_nullable: "NO" }),
+      expect.objectContaining({ column_name: "body", data_type: "text", is_nullable: "NO" }),
+      expect.objectContaining({
+        column_name: "created_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "NO",
+      }),
+    ]);
+  });
+
+  it("rejects a second row with the same (knowledge_source_id, ordinal) pair (23505)", async () => {
+    const sourceId = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
+       VALUES ($1, $2, 0, 'First bit.')`,
+      [`kb_migtest_${randomUUID()}`, sourceId],
+    );
+
+    await expect(
+      client.query(
+        `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
+         VALUES ($1, $2, 0, 'Duplicate ordinal.')`,
+        [`kb_migtest_${randomUUID()}`, sourceId],
+      ),
+    ).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("allows the same ordinal across two different sources", async () => {
+    const sourceA = `ks_migtest_${randomUUID()}`;
+    const sourceB = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
+       VALUES ($1, $2, 0, 'First source, bit 0.')`,
+      [`kb_migtest_${randomUUID()}`, sourceA],
+    );
+
+    await expect(
+      client.query(
+        `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
+         VALUES ($1, $2, 0, 'Second source, bit 0.')`,
+        [`kb_migtest_${randomUUID()}`, sourceB],
+      ),
+    ).resolves.toBeDefined();
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--detect-knowledge-bits/scenarios.md) —
+// "Two concurrent scan runs never both claim the same source" — proved
+// against the REAL claimPendingKnowledgeSources repo function (not a raw-SQL
+// simulation), run twice concurrently via Promise.all.
+describe("migrations — claimPendingKnowledgeSources atomic claim (prose-knowledge-fisher--detect-knowledge-bits)", () => {
+  it("never lets two concurrent calls both claim the same source", async () => {
+    const sourceA = `ks_migtest_${randomUUID()}`;
+    const sourceB = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Source A.', 'pending')`,
+      [sourceA],
+    );
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Source B.', 'pending')`,
+      [sourceB],
+    );
+
+    // Limit is generous since the shared test database can carry other
+    // tests' pending rows; the assertion below filters down to just ours.
+    const [firstClaim, secondClaim] = await Promise.all([
+      claimPendingKnowledgeSources(1000, testDb),
+      claimPendingKnowledgeSources(1000, testDb),
+    ]);
+
+    const ourIds = new Set([sourceA, sourceB]);
+    const claimedIds = [...firstClaim, ...secondClaim]
+      .map((row) => row.id)
+      .filter((id) => ourIds.has(id))
+      .sort();
+
+    expect(claimedIds).toEqual([sourceA, sourceB].sort());
+
+    const { rows } = await client.query(
+      `SELECT id, status FROM knowledge_sources WHERE id = ANY($1)`,
+      [[sourceA, sourceB]],
+    );
+
+    expect(rows.every((row) => row.status === "processing")).toBe(true);
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--detect-knowledge-bits/scenarios.md) —
+// "Re-detecting the same source twice ... never duplicates bits" — proved
+// against the REAL insertKnowledgeBits repo function, called twice with the
+// same sourceId + bits.
+describe("migrations — insertKnowledgeBits idempotent re-detection (prose-knowledge-fisher--detect-knowledge-bits)", () => {
+  it("keeps exactly one row per bit when the same source is detected twice", async () => {
+    const sourceId = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Some prose.', 'pending')`,
+      [sourceId],
+    );
+
+    const bits = ["First bit.", "Second bit.", "Third bit."];
+
+    await insertKnowledgeBits(sourceId, bits, testDb);
+    await insertKnowledgeBits(sourceId, bits, testDb);
+
+    const { rows } = await client.query(
+      `SELECT ordinal, body FROM knowledge_bits WHERE knowledge_source_id = $1 ORDER BY ordinal`,
+      [sourceId],
+    );
+
+    expect(rows).toEqual([
+      { ordinal: 0, body: "First bit." },
+      { ordinal: 1, body: "Second bit." },
+      { ordinal: 2, body: "Third bit." },
+    ]);
   });
 });

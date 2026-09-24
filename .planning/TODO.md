@@ -33,11 +33,10 @@ updated: 2026-09-04
   - [x] Phase 1: schema and migration
   - [x] Phase 2: repo and controller
   - [x] Phase 3: route wiring and tests
-- [ ] Accept a Notion database as a prose knowledge source, alongside pasted text
-  - [ ] Phase 1: schema and migration
-  - [ ] Phase 2: repo and controller
-  - [ ] Phase 3: route wiring and tests
 - [ ] Auto-detect distinct knowledge bits inside a block of prose
+  - [x] Phase 1: schema, migration, and repo
+  - [ ] Phase 2: LLM detector agent and scan orchestrator
+  - [ ] Phase 3: route wiring and tests
 - [ ] Embed each submitted knowledge bit into the existing vector pipeline
 - [ ] Auto-tag each detected knowledge bit from the shared taxonomy
 - [ ] Reuse an existing close-match tag instead of minting a near-duplicate
@@ -53,6 +52,7 @@ updated: 2026-09-04
 - [ ] Track a dynamic knowledge-level per tag from scored answers
 - [ ] Surface where the learner is strong, weak, or shallow by tag and topic
 - [ ] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
+- [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
 
 ### Notes
 - Per learning-brain's rule, deepen advice stays pull-only — never a push notification or a waiting-count badge
@@ -60,6 +60,7 @@ updated: 2026-09-04
 - Default call: reordered items by dependency, rewrote 4 toward reuse after an overlap audit
 - Embeddings: cheapest provider. Classification/placement calls: cheapest model that can classify + search, below cheap-tier if one exists
 - STUCK (2026-09-24): tag-taxonomy-cap hit 3 review FAILs — don't re-attempt, work the 4 split-out items
+- Stuck (2026-09-24): accept-notion-source hit 3 review failures — do not re-dispatch
 
 
 ## biz-education-distiller

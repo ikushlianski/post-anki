@@ -1042,10 +1042,34 @@ export const knowledgeSources = pgTable(
     // Set only for kind: "notion" rows: the source Notion page id, unique so
     // re-importing the same database is a no-op instead of duplicating rows.
     notionPageId: text("notion_page_id"),
+    // Set only when bit-detection marks this source "failed", so it's
+    // explainable instead of silently stuck.
+    failureReason: text("failure_reason"),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(
       table.notionPageId,
+    ),
+  }),
+);
+
+// One row per detected knowledge bit; staging table, not `facts` (see
+// detect-knowledge-bits/architecture.md's "Why a separate knowledge_bits table").
+export const knowledgeBits = pgTable(
+  "knowledge_bits",
+  {
+    id: text("id").primaryKey(),
+    knowledgeSourceId: text("knowledge_source_id").notNull(),
+    // The bit's position within its source — the idempotency key alongside
+    // knowledgeSourceId below, so re-running detection can never duplicate.
+    ordinal: integer("ordinal").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(
+      table.knowledgeSourceId,
+      table.ordinal,
     ),
   }),
 );
