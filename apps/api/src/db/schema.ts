@@ -1153,6 +1153,20 @@ export const knowledgeBitVariantAttempts = pgTable("knowledge_bit_variant_attemp
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// One row per knowledge bit, upserted after every graded attempt — simplified SM-2: ease starts
+// at 2.5, a good/ok answer grows the interval by roughly that factor and nudges ease up; a shaky
+// answer grows the interval only a little, capped low; a failed answer resets the interval short.
+// This is what a due-today queue reads from, never knowledgeBitVariantAttempts directly (that
+// stays an append-only attempt log).
+export const knowledgeBitSchedules = pgTable("knowledge_bit_schedules", {
+  knowledgeBitId: text("knowledge_bit_id").primaryKey(),
+  easeFactor: real("ease_factor").notNull().default(2.5),
+  intervalDays: real("interval_days").notNull().default(0),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull().defaultNow(),
+  lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+  reviewCount: integer("review_count").notNull().default(0),
+});
+
 export const notionSyncItems = pgTable("notion_sync_items", {
   notionId: text("notion_id").primaryKey(),
   connector: text("connector").notNull(),

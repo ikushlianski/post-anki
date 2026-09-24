@@ -16,6 +16,23 @@ import { getTopicRow } from "./topic-progress.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
 import { refetchSource } from "../content-library/content-library.service.js";
 import { log } from "../shared/log.js";
+import { listTopicsWithDueCounts } from "../knowledge-bit/topic-due.repo.js";
+
+const DEFAULT_DUE_TOPICS_LIMIT = 5;
+const MAX_DUE_TOPICS_LIMIT = 50;
+
+export async function handleListDueTopics(
+  res: http.ServerResponse,
+  limitParam: string | null,
+): Promise<void> {
+  const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : NaN;
+  const limit =
+    Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, MAX_DUE_TOPICS_LIMIT)
+      : DEFAULT_DUE_TOPICS_LIMIT;
+
+  sendJson(res, 200, await listTopicsWithDueCounts(limit));
+}
 
 export async function handleListTopicGaps(
   res: http.ServerResponse,

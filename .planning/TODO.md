@@ -7,6 +7,21 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## spaced-repetition-scheduling
+
+### Scope
+- Per-knowledge-bit review scheduling with a simple SM-2-style interval, ease factor, and due date, rolled up to topic, module, and curriculum for a due count
+- Out of scope: Cross-subject ranking or priority weighting across different topics - that is study-prioritization's own open call
+
+### Coding tasks
+- [ ] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
+- [ ] Roll bit due-dates up to a topic-level due count
+- [x] Add per-bit SM-2-style interval, ease factor, and due date, updated from each answer's grade
+
+### Notes
+- Balance goal: no due-pile guilt, but no skimming past a bit before it is truly known
+
+
 ## prose-knowledge-fisher
 
 ### Scope

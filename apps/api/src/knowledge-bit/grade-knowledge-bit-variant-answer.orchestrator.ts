@@ -6,6 +6,7 @@ import {
   getQuestionVariantById,
   insertVariantAttempt,
 } from "./knowledge-bit-variant-attempt.repo.js";
+import { reviewKnowledgeBitSchedule } from "./knowledge-bit-schedule.repo.js";
 import type { KnowledgeBitAnswerGraderResult } from "../mastra/knowledge-bit-answer-grader.agent.js";
 
 export type GradeKnowledgeBitVariantAnswerResult =
@@ -38,9 +39,9 @@ export async function gradeKnowledgeBitVariantAnswer(
   });
 
   // Already-graded, already-persisted answer must not turn into an error response just because
-  // the follow-up question or the tag lookup failed — fail soft on each independently, and run
-  // them concurrently since neither depends on the other's result.
-  const [followUpSettled, tagsSettled] = await Promise.allSettled([
+  // the follow-up question, tag lookup, or schedule update failed — fail soft on each
+  // independently, and run them concurrently since none depends on another's result.
+  const [followUpSettled, tagsSettled, scheduleSettled] = await Promise.allSettled([
     runKnowledgeBitFollowupGenerator(
       variant.kind,
       variant.prompt,
@@ -50,7 +51,15 @@ export async function gradeKnowledgeBitVariantAnswer(
       grade.feedback,
     ),
     listAssignmentsForNodes([variant.knowledgeBitId]),
+    reviewKnowledgeBitSchedule(variant.knowledgeBitId, grade.verdict),
   ]);
+
+  if (scheduleSettled.status === "rejected") {
+    log.error(
+      { err: scheduleSettled.reason, variantId },
+      "knowledge_bit_schedule_update_failed",
+    );
+  }
 
   let followUpQuestion: string | null = null;
 

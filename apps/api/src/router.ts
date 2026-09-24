@@ -57,6 +57,7 @@ export type RouteName =
   | "deleteModule"
   | "updateTopic"
   | "deleteTopic"
+  | "listDueTopics"
   | "listTopicGaps"
   | "addModuleComment"
   | "addTopicComment"

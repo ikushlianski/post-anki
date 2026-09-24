@@ -21,6 +21,10 @@ vi.mock("../tag/tag.repo.js", () => ({
   listAssignmentsForNodes: vi.fn(),
 }));
 
+vi.mock("./knowledge-bit-schedule.repo.js", () => ({
+  reviewKnowledgeBitSchedule: vi.fn(),
+}));
+
 const { getQuestionVariantById, insertVariantAttempt } = await import(
   "./knowledge-bit-variant-attempt.repo.js"
 );
@@ -31,6 +35,7 @@ const { runKnowledgeBitFollowupGenerator } = await import(
   "../mastra/knowledge-bit-followup-generator.agent.js"
 );
 const { listAssignmentsForNodes } = await import("../tag/tag.repo.js");
+const { reviewKnowledgeBitSchedule } = await import("./knowledge-bit-schedule.repo.js");
 const { gradeKnowledgeBitVariantAnswer } = await import(
   "./grade-knowledge-bit-variant-answer.orchestrator.js"
 );
@@ -91,6 +96,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       "Captures the reasoning.",
     );
     expect(listAssignmentsForNodes).toHaveBeenCalledWith(["kb_1"]);
+    expect(reviewKnowledgeBitSchedule).toHaveBeenCalledWith("kb_1", "Ok");
     expect(result).toEqual({
       ok: true,
       score: 9,

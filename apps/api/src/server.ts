@@ -66,6 +66,7 @@ import {
 import {
   handleCreateTopic,
   handleDeleteTopic,
+  handleListDueTopics,
   handleListTopicGaps,
   handleReorderTopics,
   handleUpdateTopic,
@@ -455,6 +456,8 @@ async function route(
       return handleUpdateTopic(req, res, id);
     case "deleteTopic":
       return handleDeleteTopic(res, id);
+    case "listDueTopics":
+      return handleListDueTopics(res, url.searchParams.get("limit"));
     case "listTopicGaps":
       return handleListTopicGaps(res, id);
     case "addModuleComment":
