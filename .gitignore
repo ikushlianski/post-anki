@@ -16,6 +16,7 @@ e2e/.auth/
 .review-factory-state.json
 .review-factory-digest-input.json
 .review-factory-mechanical-specs.*.json
+.planning/.nextx/dispatch-lock.json
 docker-compose.override.yml
 .claude/worktrees/
 .claude/scheduled_tasks.lock
