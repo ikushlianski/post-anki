@@ -7,6 +7,7 @@
 - None open.
 
 ## Coding tasks
+- [x] Fix the invalid_input controller test to actually exercise the repo error mapping
 - [x] Tighten resolvePlacementSuggestionInput to a discriminated union on status
 - [x] Make the repo return the shared PendingPlacementSuggestion type, not a duplicate
 - [x] Add router.test.ts resolution tests for the two new placement-suggestion routes

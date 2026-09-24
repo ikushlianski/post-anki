@@ -305,12 +305,26 @@ describe("handleResolvePlacementSuggestion", () => {
     expect((res.body as { error: string }).error).toBe("already_resolved");
   });
 
-  it("returns 400 for invalid_input from the repo", async () => {
-    mockResolvePlacementSuggestion.mockResolvedValue({ error: "invalid_input" });
-
+  it("returns 400 when the schema rejects an accept with no moduleId or title", async () => {
     const res = fakeRes();
     await handleResolvePlacementSuggestion(fakeReq({ status: "accepted" }), res, "kb_1");
 
+    expect(res.status).toBe(400);
+    expect((res.body as { error: string }).error).toBe("invalid_input");
+    expect(mockResolvePlacementSuggestion).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when the repo itself reports invalid_input on a schema-valid body", async () => {
+    mockResolvePlacementSuggestion.mockResolvedValue({ error: "invalid_input" });
+
+    const res = fakeRes();
+    await handleResolvePlacementSuggestion(
+      fakeReq({ status: "accepted", moduleId: "mod_1", title: "T" }),
+      res,
+      "kb_1",
+    );
+
+    expect(mockResolvePlacementSuggestion).toHaveBeenCalledWith("kb_1", "accepted", "mod_1", "T");
     expect(res.status).toBe(400);
     expect((res.body as { error: string }).error).toBe("invalid_input");
   });
