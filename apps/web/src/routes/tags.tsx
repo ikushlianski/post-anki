@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { TagList } from '../subject/tag-list'
+import { TagDeepenList } from '../subject/tag-deepen-list'
 
 export const Route = createFileRoute('/tags')({
   component: TagsPage,
@@ -17,6 +18,7 @@ function TagsPage() {
         </p>
       </header>
 
+      <TagDeepenList />
       <TagList />
     </main>
   )
