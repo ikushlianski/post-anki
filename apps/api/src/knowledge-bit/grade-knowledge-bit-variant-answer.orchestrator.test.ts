@@ -69,6 +69,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       feedback: "Captures the reasoning.",
     });
     expect(runKnowledgeBitFollowupGenerator).toHaveBeenCalledWith(
+      variant.kind,
       variant.prompt,
       variant.answer,
       "Because of Y, precisely.",
@@ -108,6 +109,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       expect.objectContaining({ score: 3, verdict: "NeedsDeepDive" }),
     );
     expect(runKnowledgeBitFollowupGenerator).toHaveBeenCalledWith(
+      variant.kind,
       variant.prompt,
       variant.answer,
       "I don't really know.",
@@ -148,6 +150,14 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       variant.prompt,
       variant.answer,
       "anchor",
+    );
+    expect(runKnowledgeBitFollowupGenerator).toHaveBeenCalledWith(
+      "fill_in_the_blank",
+      variant.prompt,
+      variant.answer,
+      "anchor",
+      "Ok",
+      "Exact term.",
     );
   });
 

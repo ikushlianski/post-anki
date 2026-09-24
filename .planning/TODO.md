@@ -93,7 +93,7 @@ updated: 2026-09-04
 - STUCK (2026-09-24): tag-taxonomy-cap hit 3 review FAILs — don't re-attempt, work the 4 split-out items
 - Stuck (2026-09-24): accept-notion-source hit 3 review failures — do not re-dispatch
 - Stuck (2026-09-24): fill-in-the-blank-variant hit 3 review-factory FAILs, don't re-dispatch. Code landed unreviewed in a395949 (swept by an unrelated mark-done); one more regex bug found and fixed manually after that (f6fe80f) — needs a fresh review pass before trusting it fully
-- Resolved (2026-09-24): follow-up-question item shipped, cleared 2 independent review passes (a fail-soft fix for follow-up-generation errors was needed)
+- Resolved (2026-09-24): follow-up-question — Pass 1 FAIL fixed fail-soft, Pass 2 PASS; advisor then found the prompt was kind-blind
 
 
 ## biz-education-distiller

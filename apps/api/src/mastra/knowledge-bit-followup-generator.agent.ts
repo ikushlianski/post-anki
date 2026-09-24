@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { z } from "zod";
-import { verdictSchema, type Verdict } from "@post-anki/shared";
+import type { Verdict, KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { loadEnv } from "../shared/env.js";
 import { resolveAgentModel } from "./model.js";
 import { generateWithRetry } from "./generate-with-retry.js";
@@ -20,15 +20,22 @@ const INSTRUCTIONS = [
   "",
   "The verdict, given in <verdict>, tells you where to aim. For `NeedsReview` or `NeedsDeepDive`,",
   "target the specific gap named in <feedback> — ask the question that would force the learner to",
-  "surface the reasoning they missed. For `Ok`, the learner already has the reasoning behind this",
-  "fact — push one level deeper: a consequence, an edge case, or a related mechanism the original",
-  "question didn't touch, still grounded only in what <reference_answer> and <feedback> support.",
+  "surface the reasoning they missed, grounded in <question>, <reference_answer>, and <feedback>.",
+  "",
+  "For `Ok`, what to ask next depends on <kind>. For `wh_question`, the learner already has the",
+  "reasoning behind this fact — push one level deeper: a consequence, an edge case, or a related",
+  "mechanism the original question didn't touch, grounded in <reference_answer> and <feedback>.",
+  "For `fill_in_the_blank`, `Ok` only means the learner named the right term — the WHY was never",
+  "asked. Ask the WHY: why is the fact in <question> (with the blank filled in) true, or why does",
+  "it matter — grounded in <question> as well as <reference_answer> and <feedback>, since the",
+  "reference answer for this kind is just the bare term and the actual fact lives in <question>.",
   "",
   "Return `followUpQuestion`: one open question, in your own words, that cannot be answered by",
   "quoting the reference answer back verbatim.",
 ].join("\n");
 
 export function buildKnowledgeBitFollowupGeneratorPrompt(
+  kind: KnowledgeBitQuestionVariantKind,
   question: string,
   referenceAnswer: string,
   learnerAnswer: string,
@@ -36,6 +43,9 @@ export function buildKnowledgeBitFollowupGeneratorPrompt(
   feedback: string,
 ): string {
   return [
+    "<kind>",
+    kind,
+    "</kind>",
     "<question>",
     question,
     "</question>",
@@ -74,6 +84,7 @@ export function createKnowledgeBitFollowupGeneratorAgent(): Agent {
 }
 
 export async function runKnowledgeBitFollowupGenerator(
+  kind: KnowledgeBitQuestionVariantKind,
   question: string,
   referenceAnswer: string,
   learnerAnswer: string,
@@ -82,6 +93,7 @@ export async function runKnowledgeBitFollowupGenerator(
 ): Promise<KnowledgeBitFollowupGeneratorResult> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitFollowupGenerator);
   const prompt = buildKnowledgeBitFollowupGeneratorPrompt(
+    kind,
     question,
     referenceAnswer,
     learnerAnswer,

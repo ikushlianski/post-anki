@@ -42,6 +42,7 @@ export async function gradeKnowledgeBitVariantAnswer(
 
   try {
     const followUp = await runKnowledgeBitFollowupGenerator(
+      variant.kind,
       variant.prompt,
       variant.answer,
       userAnswer,
