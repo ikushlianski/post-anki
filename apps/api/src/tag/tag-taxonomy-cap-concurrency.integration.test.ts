@@ -46,7 +46,8 @@ await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
 
-const { resolveTagUnderCapGuard, listTags } = await import("./tag.repo.js");
+const { listTags } = await import("./tag.repo.js");
+const { resolveTagUnderCapGuard } = await import("./tag-cap-guard.repo.js");
 const { newId } = await import("../shared/id.js");
 const { getDb } = await import("../db/client.js");
 const { tags } = await import("../db/schema.js");
@@ -139,5 +140,26 @@ describe("resolveTagUnderCapGuard concurrency", () => {
 
     expect(result.id).toBe(target.id);
     expect(result.name).not.toBe(alphabeticallyFirst.name);
+  });
+
+  it("falls through to the same last-resort tag when the forced matcher throws, once at the cap", async () => {
+    const before = await listTags();
+
+    expect(before.length).toBe(TAG_TAXONOMY_CAP);
+
+    const throwingMatcher = async () => {
+      throw new Error("simulated LLM failure");
+    };
+
+    const result = await resolveTagUnderCapGuard(
+      "yet another concept forcing a throw",
+      null,
+      throwingMatcher,
+    );
+
+    const after = await listTags();
+
+    expect(after.length).toBe(TAG_TAXONOMY_CAP);
+    expect(result.id).toBe(before[0]!.id);
   });
 });

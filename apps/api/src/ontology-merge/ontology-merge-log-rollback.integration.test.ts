@@ -75,7 +75,7 @@ vi.mock("../ontology-merge/ontology-merge.repo.js", () => ({
   insertOntologyMergeLog: vi.fn().mockRejectedValue(new Error(SIMULATED_FAILURE_MESSAGE)),
 }));
 
-const { mergeTags } = await import("../tag/tag.repo.js");
+const { mergeTags } = await import("../tag/tag-merge.repo.js");
 const { mergeDomainNodes } = await import("../domain-map/domain-map.repo.js");
 
 let client: pg.Client;

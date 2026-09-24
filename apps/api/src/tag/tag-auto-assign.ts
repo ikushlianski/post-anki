@@ -1,6 +1,7 @@
 import type { Tag } from "@post-anki/shared";
 import { isUnderTaxonomyCap, normalizeTagName } from "@post-anki/core";
-import { listTags, resolveTagUnderCapGuard } from "./tag.repo.js";
+import { listTags } from "./tag.repo.js";
+import { resolveTagUnderCapGuard } from "./tag-cap-guard.repo.js";
 import { matchClosestTag } from "./match-closest-tag.js";
 
 export interface TagAutoAssignDeps {

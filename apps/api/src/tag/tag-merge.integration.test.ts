@@ -54,7 +54,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { mergeTags } = await import("./tag.repo.js");
+const { mergeTags } = await import("./tag-merge.repo.js");
 const { getActiveSessionRow } = await import("../probe-session/probe-session.repo.js");
 
 let client: pg.Client;

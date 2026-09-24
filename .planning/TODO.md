@@ -23,9 +23,9 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [x] Get the tag-cap concurrency integration test actually running against real Postgres locally
-- [ ] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
-- [ ] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
-- [ ] Fix resolveOrCreateTag's race-recovery re-select when called inside an already-aborted transaction
+- [x] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
+- [x] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
+- [x] Fix resolveOrCreateTag's race-recovery re-select when called inside an already-aborted transaction
 - [x] Make the at-cap fallback pick the semantically nearest tag, not the alphabetically-first one
 - [x] Make tag-cap assignment atomic against a concurrent call at the cap boundary
 - [x] Validate the LLM's matched tag name against the real tag list before reusing it

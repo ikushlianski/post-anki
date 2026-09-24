@@ -3,11 +3,10 @@ import {
   assignTag,
   getTag,
   listTags,
-  type MergeTagsError,
-  mergeTags,
   removeTagAssignment,
   resolveOrCreateTag,
 } from "./tag.repo.js";
+import { type MergeTagsError, mergeTags } from "./tag-merge.repo.js";
 
 export async function getAllTags(): Promise<Tag[]> {
   return listTags();

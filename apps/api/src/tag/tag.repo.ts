@@ -1,12 +1,9 @@
-import { and, eq, inArray, or, sql } from "drizzle-orm";
-import type { MergeTagsResult, NodeType, Tag, TagAssignment } from "@post-anki/shared";
-import { isUnderTaxonomyCap, normalizeTagName } from "@post-anki/core";
+import { and, eq, inArray, or } from "drizzle-orm";
+import type { NodeType, Tag, TagAssignment } from "@post-anki/shared";
+import { normalizeTagName } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { tagAssignments, tags, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { withMergeLock, withNamedLock } from "../shared/merge-lock.js";
-import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
-import { matchClosestTag } from "./match-closest-tag.js";
 
 function rowToTag(row: typeof tags.$inferSelect): Tag {
   return {
@@ -63,7 +60,15 @@ export async function resolveOrCreateTag(name: string, db: DbExecutor = getDb())
   };
 
   try {
-    await db.insert(tags).values(row);
+    // Nested inside a SAVEPOINT (drizzle-orm/node-postgres implements a
+    // nested .transaction() call this way) so a unique-violation here only
+    // rolls back this insert, not the whole transaction — otherwise, when
+    // `db` is an already-open tx (e.g. resolveTagUnderCapGuard's held
+    // lock), a real race would abort that outer transaction (Postgres
+    // 25P02) and the re-select below would throw instead of recovering.
+    await db.transaction(async (nestedTx) => {
+      await nestedTx.insert(tags).values(row);
+    });
   } catch {
     // A concurrent request created the same normalized tag first — read it
     // back instead of erroring, since the outcome (this tag exists) is the
@@ -80,75 +85,6 @@ export async function resolveOrCreateTag(name: string, db: DbExecutor = getDb())
   }
 
   return rowToTag({ ...row, createdAt: new Date() });
-}
-
-const TAG_TAXONOMY_CAP_LOCK_KEY = "tag_taxonomy_cap";
-
-export type MatchClosestTagFn = typeof matchClosestTag;
-
-/**
- * The single write path for auto-tag assignment once a candidate name and an
- * (untrusted) LLM-suggested `matchedName` are known — re-reads the tag list
- * fresh under a whole-table advisory lock (`withNamedLock`) so a concurrent
- * call at cap-1 can never both pass the under-cap check, and never trusts
- * `matchedName` unless it's a real member of that fresh list, closing the
- * gap a stale/hallucinated LLM answer would otherwise open (SCENARIO 4/5,
- * prose-knowledge-fisher--tag-taxonomy-cap). At cap with no valid pre-supplied
- * match (a hallucinated/stale name, or the snapshot-vs-fresh-count race), a
- * second, forced classification call picks the real nearest tag from the
- * fresh list — array order (`freshTags[0]`) is only ever a last-resort
- * fallback if that forced call itself fails to return a real member.
- */
-export async function resolveTagUnderCapGuard(
-  candidateName: string,
-  matchedName: string | null,
-  matcher: MatchClosestTagFn = matchClosestTag,
-): Promise<Tag> {
-  return withNamedLock(TAG_TAXONOMY_CAP_LOCK_KEY, async (tx) => {
-    const trimmedCandidate = candidateName.trim();
-    const normalizedCandidate = normalizeTagName(trimmedCandidate);
-    const freshTags = await listTags(tx);
-
-    const exactMatch = freshTags.find((tag) => tag.normalizedName === normalizedCandidate);
-
-    if (exactMatch) {
-      return exactMatch;
-    }
-
-    const findRealMatch = (name: string | null) => {
-      if (!name) {
-        return undefined;
-      }
-
-      const normalizedMatch = normalizeTagName(name.trim());
-
-      return freshTags.find((tag) => tag.normalizedName === normalizedMatch);
-    };
-
-    const realMatch = findRealMatch(matchedName);
-
-    if (realMatch) {
-      return realMatch;
-    }
-
-    if (isUnderTaxonomyCap(freshTags.length)) {
-      return resolveOrCreateTag(trimmedCandidate, tx);
-    }
-
-    if (freshTags.length === 0) {
-      return resolveOrCreateTag(trimmedCandidate, tx);
-    }
-
-    const forced = await matcher(
-      trimmedCandidate,
-      undefined,
-      freshTags.map((tag) => tag.name),
-      true,
-    );
-    const forcedMatch = findRealMatch(forced.matchedTagName);
-
-    return forcedMatch ?? freshTags[0]!;
-  });
 }
 
 export async function assignTag(
@@ -305,70 +241,3 @@ export async function listTopicsForTag(tagId: string): Promise<TagTopicRow[]> {
   }));
 }
 
-export type MergeTagsError = "self_merge" | "not_found";
-
-/**
- * Absorbs `sourceId` into `targetId`. Order matters: the dedupe delete (step
- * 1 below) MUST run before the bulk reassignment UPDATE (step 2), or the
- * bulk update would collide with `tag_assignments_tag_node_unique` on the
- * very rows the dedupe step exists to clear first (a node already carrying
- * both tags). Also reassigns any active/historical tag-scoped
- * `probe_sessions.scope_id` — without it, a session becomes silently
- * unreachable (not deleted, just orphaned from `getActiveSessionRow`'s
- * lookup) the moment its tag is merged away.
- */
-export async function mergeTags(
-  targetId: string,
-  sourceId: string,
-): Promise<MergeTagsResult | { error: MergeTagsError }> {
-  return withMergeLock(targetId, sourceId, async (tx) => {
-    const targetRow = (await tx.select().from(tags).where(eq(tags.id, targetId)))[0];
-    const sourceRow = (await tx.select().from(tags).where(eq(tags.id, sourceId)))[0];
-
-    if (!targetRow || !sourceRow) {
-      return { error: "not_found" as const };
-    }
-
-    const dedupedResult = await tx.execute(sql`
-      DELETE FROM tag_assignments
-      WHERE tag_id = ${sourceId}
-        AND (node_type, node_id) IN (
-          SELECT node_type, node_id FROM tag_assignments WHERE tag_id = ${targetId}
-        )
-    `);
-    const assignmentsDeduped = dedupedResult.rowCount ?? 0;
-
-    const movedResult = await tx.execute(sql`
-      UPDATE tag_assignments SET tag_id = ${targetId} WHERE tag_id = ${sourceId}
-    `);
-    const assignmentsMoved = movedResult.rowCount ?? 0;
-
-    const sessionsResult = await tx.execute(sql`
-      UPDATE probe_sessions SET scope_id = ${targetId}
-      WHERE scope = 'tag' AND scope_id = ${sourceId}
-    `);
-    const sessionsMoved = sessionsResult.rowCount ?? 0;
-
-    await tx.delete(tags).where(eq(tags.id, sourceId));
-
-    await insertOntologyMergeLog(
-      {
-        entityType: "tag",
-        targetId,
-        targetName: targetRow.name,
-        sourceId,
-        sourceName: sourceRow.name,
-        reassignedCounts: { assignmentsMoved, assignmentsDeduped, sessionsMoved },
-      },
-      tx,
-    );
-
-    return {
-      targetTagId: targetId,
-      sourceTagId: sourceId,
-      assignmentsMoved,
-      assignmentsDeduped,
-      sessionsMoved,
-    };
-  });
-}

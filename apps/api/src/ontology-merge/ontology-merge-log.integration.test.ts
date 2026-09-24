@@ -59,7 +59,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { mergeTags } = await import("../tag/tag.repo.js");
+const { mergeTags } = await import("../tag/tag-merge.repo.js");
 const { mergeCurricula } = await import("../curriculum/curriculum.repo.js");
 const { mergeDomainNodes } = await import("../domain-map/domain-map.repo.js");
 const { insertOntologyMergeLog, listRecentOntologyMerges } = await import(
