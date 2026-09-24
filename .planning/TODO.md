@@ -33,10 +33,10 @@ updated: 2026-09-04
   - [x] Phase 1: schema and migration
   - [x] Phase 2: repo and controller
   - [x] Phase 3: route wiring and tests
-- [ ] Auto-detect distinct knowledge bits inside a block of prose
+- [x] Auto-detect distinct knowledge bits inside a block of prose
   - [x] Phase 1: schema, migration, and repo
   - [x] Phase 2: LLM detector agent and scan orchestrator
-  - [ ] Phase 3: route wiring and tests
+  - [x] Phase 3: route wiring and tests
 - [ ] Embed each submitted knowledge bit into the existing vector pipeline
 - [ ] Auto-tag each detected knowledge bit from the shared taxonomy
 - [ ] Reuse an existing close-match tag instead of minting a near-duplicate
