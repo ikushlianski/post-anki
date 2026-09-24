@@ -29,14 +29,13 @@ export async function generateKnowledgeBitFillBlanks(): Promise<FillBlankGenerat
       const result = await runKnowledgeBitFillBlankGenerator(bit.body);
       const prompt = fillBlankTextSchema.safeParse(result.prompt);
       const answer = fillBlankTextSchema.safeParse(result.answer);
-      // Exactly one standalone blank of exactly four underscores, with real text around it — a
-      // second blank (any length, any underscore-like character), a bare blank with no context,
-      // or an underscore embedded in a word (an identifier like max_connections) must not count.
-      const standaloneBlank = /(?<![\p{L}\p{N}])[_＿]+(?![\p{L}\p{N}])/gu;
-      const blankRuns = prompt.success ? (prompt.data.match(standaloneBlank) ?? []) : [];
-      const hasExactlyOneBlank = blankRuns.length === 1 && blankRuns[0] === "____";
+      // A token is a pure-underscore blank only if it has no letters/digits mixed in — this is
+      // what tells "____" apart from an identifier like __dirname or max_connections.
+      const tokens = prompt.success ? (prompt.data.match(/[\p{L}\p{N}_＿]+/gu) ?? []) : [];
+      const blankTokens = tokens.filter((token) => /^[_＿]+$/u.test(token));
+      const hasExactlyOneBlank = blankTokens.length === 1 && blankTokens[0] === "____";
       const hasSurroundingText =
-        prompt.success && prompt.data.replace(standaloneBlank, "").trim().length > 0;
+        prompt.success && hasExactlyOneBlank && prompt.data.replace("____", "").trim().length > 0;
 
       if (!prompt.success || !answer.success || !hasExactlyOneBlank || !hasSurroundingText) {
         throw new Error("knowledge_bit_fill_blank_generation_invalid_output");

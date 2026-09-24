@@ -143,6 +143,28 @@ describe("generateKnowledgeBitFillBlanks", () => {
     expect(result).toEqual({ scanned: 1, generated: 1, failed: 0 });
   });
 
+  it("should accept a correctly-formed single blank even when the sentence also contains a double-underscore identifier", async () => {
+    const bit = { id: "kb_dunder_identifier", body: "Some content" };
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      prompt: "Node's __dirname points to ____.",
+      answer: "the directory of the running script",
+    });
+
+    const result = await generateKnowledgeBitFillBlanks();
+
+    expect(recordGeneratedFillBlankVariant).toHaveBeenCalledWith(
+      "kb_dunder_identifier",
+      "fill_in_the_blank",
+      0,
+      "Node's __dirname points to ____.",
+      "the directory of the running script",
+    );
+    expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0 });
+  });
+
   it("should mark a bit failed when a second, shorter or unicode-lookalike blank hides beside a valid one", async () => {
     const shortSecondBlankBit = { id: "kb_short_second_blank", body: "Some content" };
     const fullwidthSecondBlankBit = { id: "kb_fullwidth_second_blank", body: "Some content" };
