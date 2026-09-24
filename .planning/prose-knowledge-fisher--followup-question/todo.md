@@ -18,4 +18,7 @@
 - None — no schema change, additive response field only.
 
 ## Resolved
-- None yet.
+- Review found: a follow-up-generation failure (provider error/invalid output) propagated as an
+  unguarded throw, turning an already-graded, already-persisted attempt into a 502 to the client —
+  a retry would then double-insert the attempt row. Fixed by wrapping the follow-up call in
+  try/catch, logging the failure, and returning `followUpQuestion: null` instead of erroring.

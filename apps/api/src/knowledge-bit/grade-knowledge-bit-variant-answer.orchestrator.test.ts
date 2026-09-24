@@ -13,6 +13,10 @@ vi.mock("../mastra/knowledge-bit-followup-generator.agent.js", () => ({
   runKnowledgeBitFollowupGenerator: vi.fn(),
 }));
 
+vi.mock("../shared/log.js", () => ({
+  log: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}));
+
 const { getQuestionVariantById, insertVariantAttempt } = await import(
   "./knowledge-bit-variant-attempt.repo.js"
 );
@@ -145,6 +149,36 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       variant.answer,
       "anchor",
     );
+  });
+
+  it("still returns the already-graded, already-stored grade when follow-up generation fails", async () => {
+    const variant = {
+      id: "kbqv_4",
+      kind: "wh_question" as const,
+      prompt: "Why does X happen?",
+      answer: "Because of Y.",
+    };
+
+    vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
+    vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
+      score: 9,
+      verdict: "Ok",
+      feedback: "Captures the reasoning.",
+    });
+    vi.mocked(runKnowledgeBitFollowupGenerator).mockRejectedValue(new Error("provider down"));
+
+    const result = await gradeKnowledgeBitVariantAnswer("kbqv_4", "Because of Y.");
+
+    expect(insertVariantAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ score: 9, verdict: "Ok" }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      score: 9,
+      verdict: "Ok",
+      feedback: "Captures the reasoning.",
+      followUpQuestion: null,
+    });
   });
 
   it("returns variant_not_found and never grades or inserts when the variant doesn't exist", async () => {
