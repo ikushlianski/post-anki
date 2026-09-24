@@ -1083,6 +1083,11 @@ export const knowledgeBits = pgTable(
     // (placementSuggestion) — i.e. this bit has been processed, don't rescan it.
     placementCheckedAt: timestamp("placement_checked_at", { withTimezone: true }),
     placementFailedAt: timestamp("placement_failed_at", { withTimezone: true }),
+    // Set when an admin accepts or rejects a placementSuggestion. A pending suggestion is
+    // placementSuggestion IS NOT NULL AND topicId IS NULL AND placementSuggestionResolvedAt IS NULL.
+    placementSuggestionResolvedAt: timestamp("placement_suggestion_resolved_at", {
+      withTimezone: true,
+    }),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(

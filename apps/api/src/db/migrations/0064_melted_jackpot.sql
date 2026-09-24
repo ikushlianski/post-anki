@@ -1,0 +1,1 @@
+ALTER TABLE "knowledge_bits" ADD COLUMN "placement_suggestion_resolved_at" timestamp with time zone;

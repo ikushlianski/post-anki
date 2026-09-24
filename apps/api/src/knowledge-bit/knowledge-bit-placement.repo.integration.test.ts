@@ -43,6 +43,8 @@ const {
   markKnowledgeBitMatched,
   markKnowledgeBitSuggested,
   markKnowledgeBitPlacementFailed,
+  listPendingPlacementSuggestions,
+  resolvePlacementSuggestion,
 } = await import("./knowledge-bit-placement.repo.js");
 
 let client: pg.Client;
@@ -82,13 +84,14 @@ async function seedKnowledgeBit(
   placementSuggestion: string | null = null,
   placementCheckedAt: Date | null = null,
   placementFailedAt: Date | null = null,
+  placementSuggestionResolvedAt: Date | null = null,
 ): Promise<string> {
   const id = `kb_${randomUUID()}`;
 
   await client.query(
     `INSERT INTO knowledge_bits
-       (id, knowledge_source_id, ordinal, body, topic_id, placement_suggestion, placement_checked_at, placement_failed_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       (id, knowledge_source_id, ordinal, body, topic_id, placement_suggestion, placement_checked_at, placement_failed_at, placement_suggestion_resolved_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       id,
       knowledgeSourceId,
@@ -98,6 +101,7 @@ async function seedKnowledgeBit(
       placementSuggestion,
       placementCheckedAt,
       placementFailedAt,
+      placementSuggestionResolvedAt,
     ],
   );
 
@@ -139,6 +143,17 @@ async function seedTopic(
     `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included)
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [id, moduleId, curriculumId, title, 0, included],
+  );
+
+  return id;
+}
+
+async function seedModule(curriculumId: string, title: string): Promise<string> {
+  const id = `mod_${randomUUID()}`;
+
+  await client.query(
+    `INSERT INTO modules (id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4)`,
+    [id, curriculumId, title, 0],
   );
 
   return id;
@@ -229,6 +244,130 @@ describe("markKnowledgeBitSuggested (real Postgres)", () => {
 
     expect(rows[0]!.placement_suggestion).toBe("Create a new topic under Subject > Curriculum");
     expect(rows[0]!.placement_checked_at).toBeInstanceOf(Date);
+  });
+});
+
+describe("listPendingPlacementSuggestions (real Postgres)", () => {
+  it("returns only bits with a suggestion, no topic, and no resolution timestamp", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const pendingId = await seedKnowledgeBit(sourceId, 0, "A pending suggestion", null, "Try X");
+
+    const matchedId = await seedKnowledgeBit(sourceId, 1, "A matched bit", "topic_already_matched");
+    const resolvedId = await seedKnowledgeBit(
+      sourceId,
+      2,
+      "An already-resolved suggestion",
+      null,
+      "Try Y",
+      null,
+      null,
+      new Date(),
+    );
+
+    const rows = await listPendingPlacementSuggestions(1000);
+    const ids = rows.map((row) => row.id);
+
+    expect(ids).toContain(pendingId);
+    expect(ids).not.toContain(matchedId);
+    expect(ids).not.toContain(resolvedId);
+    expect(rows.find((row) => row.id === pendingId)).toEqual({
+      id: pendingId,
+      body: "A pending suggestion",
+      placementSuggestion: "Try X",
+    });
+  });
+});
+
+describe("resolvePlacementSuggestion (real Postgres)", () => {
+  it("returns not_found for a bit id that does not exist", async () => {
+    const result = await resolvePlacementSuggestion("kb_does_not_exist", "rejected");
+
+    expect(result).toEqual({ error: "not_found" });
+  });
+
+  it("rejects a suggestion by stamping placementSuggestionResolvedAt, leaving topicId null", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to reject", null, "Try X");
+
+    const result = await resolvePlacementSuggestion(bitId, "rejected");
+
+    expect(result).toEqual({ outcome: "rejected" });
+
+    const { rows } = await client.query(
+      `SELECT topic_id, placement_suggestion_resolved_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.topic_id).toBeNull();
+    expect(rows[0]!.placement_suggestion_resolved_at).toBeInstanceOf(Date);
+  });
+
+  it("accepts a suggestion by creating a real topic and linking the bit to it", async () => {
+    const subjectId = await seedSubject("Accept Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Accept Curriculum");
+    const moduleId = await seedModule(curriculumId, "Accept Module");
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to accept", null, "Try X");
+
+    const result = await resolvePlacementSuggestion(bitId, "accepted", moduleId, "New Topic");
+
+    expect(result).toMatchObject({ outcome: "accepted" });
+
+    const topicId = (result as { outcome: "accepted"; topicId: string }).topicId;
+
+    const { rows: topicRows } = await client.query(
+      `SELECT title, module_id FROM topics WHERE id = $1`,
+      [topicId],
+    );
+
+    expect(topicRows[0]!.title).toBe("New Topic");
+    expect(topicRows[0]!.module_id).toBe(moduleId);
+
+    const { rows: bitRows } = await client.query(
+      `SELECT topic_id, placement_suggestion_resolved_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(bitRows[0]!.topic_id).toBe(topicId);
+    expect(bitRows[0]!.placement_suggestion_resolved_at).toBeInstanceOf(Date);
+  });
+
+  it("rolls back the claim when the given moduleId does not resolve to a real module", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with a bad module", null, "Try X");
+
+    const result = await resolvePlacementSuggestion(
+      bitId,
+      "accepted",
+      "mod_does_not_exist",
+      "New Topic",
+    );
+
+    expect(result).toEqual({ error: "module_not_found" });
+
+    const { rows } = await client.query(
+      `SELECT topic_id, placement_suggestion_resolved_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.topic_id).toBeNull();
+    expect(rows[0]!.placement_suggestion_resolved_at).toBeNull();
+
+    const retry = await resolvePlacementSuggestion(bitId, "rejected");
+
+    expect(retry).toEqual({ outcome: "rejected" });
+  });
+
+  it("returns already_resolved on a second call against an already-decided bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to double-resolve", null, "Try X");
+
+    await resolvePlacementSuggestion(bitId, "rejected");
+
+    const result = await resolvePlacementSuggestion(bitId, "rejected");
+
+    expect(result).toEqual({ error: "already_resolved" });
   });
 });
 
