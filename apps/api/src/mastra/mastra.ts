@@ -33,6 +33,7 @@ import { createKnowledgeBitDetectorAgent } from "./knowledge-bit-detector.agent.
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
 import { createKnowledgeBitPlacerAgent } from "./knowledge-bit-placer.agent.js";
 import { createKnowledgeBitQuestionGeneratorAgent } from "./knowledge-bit-question-generator.agent.js";
+import { createKnowledgeBitFillBlankGeneratorAgent } from "./knowledge-bit-fill-blank-generator.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -66,6 +67,7 @@ export const AGENT_KEYS = {
   knowledgeBitTagger: "knowledgeBitTagger",
   knowledgeBitPlacer: "knowledgeBitPlacer",
   knowledgeBitQuestionGenerator: "knowledgeBitQuestionGenerator",
+  knowledgeBitFillBlankGenerator: "knowledgeBitFillBlankGenerator",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -139,6 +141,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),
         [AGENT_KEYS.knowledgeBitPlacer]: createKnowledgeBitPlacerAgent(),
         [AGENT_KEYS.knowledgeBitQuestionGenerator]: createKnowledgeBitQuestionGeneratorAgent(),
+        [AGENT_KEYS.knowledgeBitFillBlankGenerator]: createKnowledgeBitFillBlankGeneratorAgent(),
       },
       ...(observability ? { observability } : {}),
     });

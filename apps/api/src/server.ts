@@ -16,6 +16,7 @@ import {
   handleTriggerKnowledgeBitEmbeddingScan,
   handleTriggerKnowledgeBitTaggingScan,
   handleTriggerKnowledgeBitQuestionGenerationScan,
+  handleTriggerKnowledgeBitFillBlankGenerationScan,
   handleTriggerKnowledgeBitPlacementScan,
   handleListPendingPlacementSuggestions,
   handleResolvePlacementSuggestion,
@@ -356,6 +357,8 @@ async function route(
       return handleTriggerKnowledgeBitTaggingScan(res);
     case "triggerKnowledgeBitQuestionGenerationScan":
       return handleTriggerKnowledgeBitQuestionGenerationScan(res);
+    case "triggerKnowledgeBitFillBlankGenerationScan":
+      return handleTriggerKnowledgeBitFillBlankGenerationScan(res);
     case "triggerKnowledgeBitPlacementScan":
       return handleTriggerKnowledgeBitPlacementScan(res);
     case "listPendingPlacementSuggestions":

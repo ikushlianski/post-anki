@@ -63,7 +63,11 @@ updated: 2026-09-04
   - [x] Phase 3: orchestrator and route
   - [x] Phase 4: tests
 - [ ] Generate a fill-in-the-blank variant for each knowledge bit
-- [ ] Write a knowledge-fisher prompt that probes for the why behind a bit
+  - [ ] Phase 1: schema and migration
+  - [ ] Phase 2: fill-blank agent and repo
+  - [ ] Phase 3: orchestrator and route
+  - [ ] Phase 4: tests
+- [x] Write a knowledge-fisher prompt that probes for the why behind a bit
 - [ ] Ask a knowledge-fisher follow-up question after the learner answers
 - [ ] Embed each generated question and answer, linked back to its source knowledge bit
 - [ ] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
@@ -80,6 +84,7 @@ updated: 2026-09-04
 - Embeddings: cheapest provider. Classification/placement calls: cheapest model that can classify + search, below cheap-tier if one exists
 - STUCK (2026-09-24): tag-taxonomy-cap hit 3 review FAILs — don't re-attempt, work the 4 split-out items
 - Stuck (2026-09-24): accept-notion-source hit 3 review failures — do not re-dispatch
+- Stuck (2026-09-24): fill-in-the-blank-variant hit 3 review-factory FAILs (all real bugs, all fixed: answer-equals-blank contract, then two rounds of blank-marker regex false-positives/negatives). Code is now believed correct (empirically verified against every known edge case) but not independently re-reviewed and not marked done — don't re-dispatch review-factory for this slug; if picked up again, either accept the risk and mark-done by hand with a citation, or treat as a fresh item needing one clean review pass
 
 
 ## biz-education-distiller

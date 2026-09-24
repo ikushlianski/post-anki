@@ -1094,6 +1094,12 @@ export const knowledgeBits = pgTable(
     whQuestionGenerationFailedAt: timestamp("wh_question_generation_failed_at", {
       withTimezone: true,
     }),
+    // Same terminal-state convention, tracked independently of whQuestion* since this is a
+    // separate generation pass (kind="fill_in_the_blank") over the same bits.
+    fillBlankGeneratedAt: timestamp("fill_blank_generated_at", { withTimezone: true }),
+    fillBlankGenerationFailedAt: timestamp("fill_blank_generation_failed_at", {
+      withTimezone: true,
+    }),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(
@@ -1103,9 +1109,9 @@ export const knowledgeBits = pgTable(
   }),
 );
 
-// One row per generated question variant for a knowledge bit (kind="wh_question" for now — a
-// later item adds "fill_in_the_blank" reusing this same table). No FK on knowledgeBitId, matching
-// this schema's existing no-FK convention on knowledgeBits-adjacent tables.
+// One row per generated question variant for a knowledge bit — kind is "wh_question" or
+// "fill_in_the_blank", each independently scanned and reusing this same table. No FK on
+// knowledgeBitId, matching this schema's existing no-FK convention on knowledgeBits-adjacent tables.
 export const knowledgeBitQuestionVariants = pgTable(
   "knowledge_bit_question_variants",
   {

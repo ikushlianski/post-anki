@@ -35,6 +35,11 @@ export const ROUTES: RouteDef[] = [
     name: "triggerKnowledgeBitQuestionGenerationScan",
   },
   {
+    method: "POST",
+    pattern: "/knowledge-bits/fill-blank-generation-scan",
+    name: "triggerKnowledgeBitFillBlankGenerationScan",
+  },
+  {
     method: "GET",
     pattern: "/knowledge-bits/placement-suggestions",
     name: "listPendingPlacementSuggestions",
