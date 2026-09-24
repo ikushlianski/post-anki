@@ -9,6 +9,7 @@ export type RouteName =
   | "detectKnowledgeBits"
   | "triggerKnowledgeBitEmbeddingScan"
   | "triggerKnowledgeBitTaggingScan"
+  | "triggerKnowledgeBitQuestionGenerationScan"
   | "triggerKnowledgeBitPlacementScan"
   | "listPendingPlacementSuggestions"
   | "resolvePlacementSuggestion"

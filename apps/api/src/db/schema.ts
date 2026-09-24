@@ -1088,6 +1088,12 @@ export const knowledgeBits = pgTable(
     placementSuggestionResolvedAt: timestamp("placement_suggestion_resolved_at", {
       withTimezone: true,
     }),
+    // Set once a wh_question variant has been generated (or generation failed) for this bit —
+    // same *GeneratedAt/*FailedAt terminal-state convention as taggedAt/tagFailedAt above.
+    whQuestionGeneratedAt: timestamp("wh_question_generated_at", { withTimezone: true }),
+    whQuestionGenerationFailedAt: timestamp("wh_question_generation_failed_at", {
+      withTimezone: true,
+    }),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(
@@ -1095,6 +1101,36 @@ export const knowledgeBits = pgTable(
       table.ordinal,
     ),
   }),
+);
+
+// One row per generated question variant for a knowledge bit (kind="wh_question" for now — a
+// later item adds "fill_in_the_blank" reusing this same table). No FK on knowledgeBitId, matching
+// this schema's existing no-FK convention on knowledgeBits-adjacent tables.
+export const knowledgeBitQuestionVariants = pgTable(
+  "knowledge_bit_question_variants",
+  {
+    id: text("id").primaryKey(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    kind: text("kind").notNull(),
+    order: integer("order").notNull(),
+    prompt: text("prompt").notNull(),
+    answer: text("answer").notNull(),
+    // Populated by a later backlog item ("Embed each generated question and answer...") — added now
+    // so that item is additive, mirrors topicCardVariants.embedding/embeddingHash/embeddedAt.
+    embedding: jsonb("embedding").$type<number[]>(),
+    embeddingHash: text("embedding_hash"),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One variant per (bit, kind, slot) — the DB-level guarantee a concurrent scan or a
+    // mark-write failure after a successful insert can't otherwise defeat.
+    uniqueIndex("knowledge_bit_question_variants_bit_kind_order_unique").on(
+      table.knowledgeBitId,
+      table.kind,
+      table.order,
+    ),
+  ],
 );
 
 export const notionSyncItems = pgTable("notion_sync_items", {

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "knowledge_bit_question_variants_bit_kind_order_unique" ON "knowledge_bit_question_variants" USING btree ("knowledge_bit_id","kind","order");

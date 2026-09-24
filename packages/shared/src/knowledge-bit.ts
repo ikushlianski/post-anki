@@ -17,3 +17,8 @@ export const resolvePlacementSuggestionInput = z.discriminatedUnion("status", [
 ]);
 
 export type ResolvePlacementSuggestionInput = z.infer<typeof resolvePlacementSuggestionInput>;
+
+// knowledge_bit_question_variants.kind — a later item adds "fill_in_the_blank" reusing this table.
+export const knowledgeBitQuestionVariantKindSchema = z.enum(["wh_question"]);
+
+export type KnowledgeBitQuestionVariantKind = z.infer<typeof knowledgeBitQuestionVariantKindSchema>;

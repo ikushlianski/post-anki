@@ -10,6 +10,7 @@ const mockDetectKnowledgeBits = vi.fn();
 const mockEmbedKnowledgeBits = vi.fn();
 const mockTagKnowledgeBits = vi.fn();
 const mockPlaceKnowledgeBits = vi.fn();
+const mockGenerateKnowledgeBitQuestions = vi.fn();
 const mockListPendingPlacementSuggestions = vi.fn();
 const mockResolvePlacementSuggestion = vi.fn();
 
@@ -29,6 +30,10 @@ vi.mock("./knowledge-bit-placement.orchestrator.js", () => ({
   placeKnowledgeBits: (...args: unknown[]) => mockPlaceKnowledgeBits(...args),
 }));
 
+vi.mock("./knowledge-bit-question-generation.orchestrator.js", () => ({
+  generateKnowledgeBitQuestions: (...args: unknown[]) => mockGenerateKnowledgeBitQuestions(...args),
+}));
+
 vi.mock("./knowledge-bit-placement.repo.js", () => ({
   listPendingPlacementSuggestions: (...args: unknown[]) =>
     mockListPendingPlacementSuggestions(...args),
@@ -40,6 +45,7 @@ const {
   handleTriggerKnowledgeBitEmbeddingScan,
   handleTriggerKnowledgeBitTaggingScan,
   handleTriggerKnowledgeBitPlacementScan,
+  handleTriggerKnowledgeBitQuestionGenerationScan,
   handleListPendingPlacementSuggestions,
   handleResolvePlacementSuggestion,
 } = await import("./detect-knowledge-bits.controller.js");
@@ -171,6 +177,42 @@ describe("handleTriggerKnowledgeBitTaggingScan", () => {
     expect(res.status).toBe(502);
     expect((res.body as { message: string }).message).toBe(
       "knowledge bit tagging scan failed",
+    );
+  });
+});
+
+describe("handleTriggerKnowledgeBitQuestionGenerationScan", () => {
+  it("returns 200 with the scan counts on success", async () => {
+    mockGenerateKnowledgeBitQuestions.mockResolvedValue({ scanned: 3, generated: 2, failed: 1 });
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitQuestionGenerationScan(res);
+
+    expect(mockGenerateKnowledgeBitQuestions).toHaveBeenCalledWith();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ scanned: 3, generated: 2, failed: 1 });
+  });
+
+  it("returns 502 with an error message when the scan throws, never a silent 200", async () => {
+    mockGenerateKnowledgeBitQuestions.mockRejectedValue(new Error("question generator provider down"));
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitQuestionGenerationScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { error: string }).error).toBe("scan_failed");
+    expect((res.body as { message: string }).message).toBe("question generator provider down");
+  });
+
+  it("falls back to a generic message when the thrown value is not an Error instance", async () => {
+    mockGenerateKnowledgeBitQuestions.mockRejectedValue("boom");
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitQuestionGenerationScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { message: string }).message).toBe(
+      "knowledge bit question generation scan failed",
     );
   });
 });

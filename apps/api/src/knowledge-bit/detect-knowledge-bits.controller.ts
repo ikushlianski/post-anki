@@ -6,6 +6,7 @@ import { detectKnowledgeBits } from "./detect-knowledge-bits.orchestrator.js";
 import { embedKnowledgeBits } from "./knowledge-bit-embedding.orchestrator.js";
 import { tagKnowledgeBits } from "./knowledge-bit-tagging.orchestrator.js";
 import { placeKnowledgeBits } from "./knowledge-bit-placement.orchestrator.js";
+import { generateKnowledgeBitQuestions } from "./knowledge-bit-question-generation.orchestrator.js";
 import {
   listPendingPlacementSuggestions,
   resolvePlacementSuggestion,
@@ -73,6 +74,24 @@ export async function handleTriggerKnowledgeBitPlacementScan(
     log.error({ err }, "knowledge_bit_placement_scan_failed");
 
     const message = err instanceof Error ? err.message : "knowledge bit placement scan failed";
+
+    sendError(res, 502, "scan_failed", message);
+  }
+}
+
+// A failure here is a real 502 — never a silent "nothing needed generating".
+export async function handleTriggerKnowledgeBitQuestionGenerationScan(
+  res: http.ServerResponse,
+): Promise<void> {
+  try {
+    const result = await generateKnowledgeBitQuestions();
+
+    sendJson(res, 200, result);
+  } catch (err) {
+    log.error({ err }, "knowledge_bit_question_generation_scan_failed");
+
+    const message =
+      err instanceof Error ? err.message : "knowledge bit question generation scan failed";
 
     sendError(res, 502, "scan_failed", message);
   }
