@@ -15,6 +15,7 @@ export type RouteName =
   | "triggerKnowledgeBitPlacementScan"
   | "listPendingPlacementSuggestions"
   | "resolvePlacementSuggestion"
+  | "gradeKnowledgeBitVariantAnswer"
   | "deleteSubject"
   | "updateSubject"
   | "mergeSubjects"

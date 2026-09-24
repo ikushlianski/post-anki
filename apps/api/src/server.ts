@@ -22,6 +22,7 @@ import {
   handleListPendingPlacementSuggestions,
   handleResolvePlacementSuggestion,
 } from "./knowledge-bit/detect-knowledge-bits.controller.js";
+import { handleGradeKnowledgeBitVariantAnswer } from "./knowledge-bit/grade-knowledge-bit-variant-answer.controller.js";
 import {
   handleCreateSubjectCategory,
   handleListAllSubjectCategories,
@@ -368,6 +369,8 @@ async function route(
       return handleListPendingPlacementSuggestions(res);
     case "resolvePlacementSuggestion":
       return handleResolvePlacementSuggestion(req, res, id);
+    case "gradeKnowledgeBitVariantAnswer":
+      return handleGradeKnowledgeBitVariantAnswer(req, res, id);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "updateSubject":

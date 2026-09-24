@@ -25,7 +25,7 @@ updated: 2026-09-04
 - [ ] Record each learner answer to a question variant with a score and verdict
   - [x] Phase 1: schema and migration
   - [x] Phase 2: grader agent and repo
-  - [ ] Phase 3: orchestrator and route
+  - [x] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
 - [x] Wrap knowledge-bit insert and status update in one transaction
 - [x] Add a stale-processing-row reset so a crashed knowledge-bit scan doesn't strand a row forever
