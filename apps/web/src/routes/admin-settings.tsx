@@ -8,14 +8,25 @@ import {
 } from '../admin-settings/admin-settings.api'
 import { AdminSettingsToggle } from '../admin-settings/admin-settings-toggle'
 import { ModelTierSelect } from '../admin-settings/model-tier-select'
+import { getPendingPlacementSuggestions } from '../knowledge-bit/knowledge-bit.api'
+import { PlacementSuggestionsPanel } from '../knowledge-bit/placement-suggestions-panel'
+import { getBoard } from '../curriculum/curriculum.api'
 
 export const Route = createFileRoute('/admin-settings')({
   component: AdminSettingsPage,
-  loader: () => getAdminSettings(),
+  loader: async () => {
+    const [settings, placementSuggestions, board] = await Promise.all([
+      getAdminSettings(),
+      getPendingPlacementSuggestions(),
+      getBoard(),
+    ])
+
+    return { settings, placementSuggestions, board }
+  },
 })
 
 function AdminSettingsPage() {
-  const settings = Route.useLoaderData()
+  const { settings, placementSuggestions, board } = Route.useLoaderData()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
 
@@ -59,6 +70,20 @@ function AdminSettingsPage() {
           disabled={busy}
         />
       </div>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold tracking-tight">Placement suggestions</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Knowledge bits with no existing topic match — accept into a module or reject.
+        </p>
+        <div className="mt-3">
+          <PlacementSuggestionsPanel
+            initialSuggestions={placementSuggestions}
+            subjects={board.subjects}
+            curricula={board.curricula}
+          />
+        </div>
+      </section>
     </main>
   )
 }

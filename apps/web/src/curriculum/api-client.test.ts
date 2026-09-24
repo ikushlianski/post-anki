@@ -5,6 +5,7 @@ import {
   askGlobalCardChat,
   resolveDomainSupersessionSuggestion,
   resolveDomainTopicSuggestion,
+  resolvePlacementSuggestion,
 } from './api-client'
 
 const fetchMock = vi.fn()
@@ -117,6 +118,40 @@ describe('doc-scan suggestion resolvers', () => {
 
       await expect(resolveDomainSupersessionSuggestion('sug-2', 'rejected')).rejects.toThrow(
         'fetch failed',
+      )
+    })
+  })
+
+  describe('resolvePlacementSuggestion', () => {
+    it('reports the outcome on a 200', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { outcome: 'accepted', topicId: 'top-1' }))
+
+      const result = await resolvePlacementSuggestion('kb-1', 'accepted', 'mod-1', 'Title')
+
+      expect(result).toEqual({ outcome: 'accepted', topicId: 'top-1' })
+    })
+
+    it('reports already_resolved instead of throwing on a 409', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(409, { error: 'already_resolved' }))
+
+      const result = await resolvePlacementSuggestion('kb-1', 'rejected')
+
+      expect(result).toEqual({ outcome: 'already_resolved' })
+    })
+
+    it('does not swallow a 409 that is not already_resolved', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(409, { error: 'turn_in_progress' }))
+
+      await expect(resolvePlacementSuggestion('kb-1', 'rejected')).rejects.toBeInstanceOf(
+        ApiError,
+      )
+    })
+
+    it('still throws on a 404', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(404, { error: 'not_found' }))
+
+      await expect(resolvePlacementSuggestion('kb-1', 'rejected')).rejects.toBeInstanceOf(
+        ApiError,
       )
     })
   })

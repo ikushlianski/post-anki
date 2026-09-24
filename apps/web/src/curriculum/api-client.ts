@@ -452,6 +452,45 @@ export async function resolveDomainSupersessionSuggestion(
   )
 }
 
+// review-placement-suggestions additions below.
+
+export async function listPendingPlacementSuggestions(): Promise<be.PendingPlacementSuggestion[]> {
+  return request<be.PendingPlacementSuggestion[]>('/knowledge-bits/placement-suggestions')
+}
+
+export type ResolvePlacementSuggestionResult =
+  | { outcome: 'accepted'; topicId: string }
+  | { outcome: 'rejected' }
+  | { outcome: 'already_resolved' }
+
+// Same 409-as-outcome translation as resolveDocScanSuggestion above — the
+// second tab or a double-click reading `already_resolved` is a decided row,
+// not a failure, so the panel should drop it exactly like a 200.
+export async function resolvePlacementSuggestion(
+  bitId: string,
+  status: 'accepted' | 'rejected',
+  moduleId?: string,
+  title?: string,
+): Promise<ResolvePlacementSuggestionResult> {
+  try {
+    const body =
+      status === 'accepted' ? { status, moduleId, title } : { status }
+
+    const result = await request<{ outcome: 'accepted'; topicId: string } | { outcome: 'rejected' }>(
+      `/knowledge-bits/${bitId}/placement-suggestion`,
+      { method: 'PATCH', body },
+    )
+
+    return result
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409 && err.code === 'already_resolved') {
+      return { outcome: 'already_resolved' }
+    }
+
+    throw err
+  }
+}
+
 // deepen-widen-recommendations (issue #90) additions below.
 
 export async function triggerDomainRecommendations(
