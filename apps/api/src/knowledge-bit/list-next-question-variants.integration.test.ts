@@ -130,6 +130,13 @@ async function recordAttempt(variantId: string) {
   });
 }
 
+async function seedSchedule(knowledgeBitId: string, dueAt: Date): Promise<void> {
+  await client.query(
+    `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at) VALUES ($1, $2)`,
+    [knowledgeBitId, dueAt.toISOString()],
+  );
+}
+
 describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
   it("returns a never-attempted variant before an already-attempted one", async () => {
     const attemptedBit = await seedKnowledgeBit("Queue-order bit, attempted");
@@ -182,5 +189,22 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     const rows = await listNextQuestionVariantsToAnswer(10, { topicId });
 
     expect(rows.map((row) => row.variantId)).toEqual([inTopicVariant]);
+  });
+
+  it("within a topic, serves an overdue bit before a not-yet-due bit even when the latter has fewer attempts", async () => {
+    const topicId = await seedTopic("Queue topic due-first");
+    const overdueBit = await seedKnowledgeBit("Overdue bit for queue", topicId);
+    const notYetDueBit = await seedKnowledgeBit("Not-yet-due bit for queue", topicId);
+    const overdueVariant = await seedVariant(overdueBit, "Overdue question?");
+    const notYetDueVariant = await seedVariant(notYetDueBit, "Not-yet-due question?");
+
+    await seedSchedule(overdueBit, new Date(Date.now() - 24 * 60 * 60 * 1000));
+    await seedSchedule(notYetDueBit, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    await recordAttempt(overdueVariant);
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { topicId });
+    const orderedIds = rows.map((row) => row.variantId);
+
+    expect(orderedIds.indexOf(overdueVariant)).toBeLessThan(orderedIds.indexOf(notYetDueVariant));
   });
 });

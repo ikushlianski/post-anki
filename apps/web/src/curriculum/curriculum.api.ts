@@ -67,6 +67,10 @@ export const getBoard = createServerFn({ method: 'GET' }).handler(
   },
 )
 
+export const getDueTopics = createServerFn({ method: 'GET' })
+  .inputValidator((data: { limit?: number } | undefined) => data)
+  .handler(({ data }): Promise<api.DueTopic[]> => api.listDueTopics(data?.limit))
+
 export const createSubjectCategory = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => createSubjectCategoryInput.parse(data))
   .handler(({ data }): Promise<SubjectCategory> => api.createSubjectCategory(data))

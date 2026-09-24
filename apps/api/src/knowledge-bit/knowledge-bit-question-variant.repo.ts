@@ -1,9 +1,10 @@
-import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type Db, type DbExecutor } from "../db/client.js";
 import {
   knowledgeBits,
   knowledgeBitQuestionVariants,
+  knowledgeBitSchedules,
   knowledgeBitVariantAttempts,
   tagAssignments,
 } from "../db/schema.js";
@@ -189,6 +190,12 @@ export interface NextQuestionVariantsFilter {
  * variant's own createdAt — never-answered variants surface before over-practiced ones, and the
  * whole set cycles back around once every variant has been seen at least once. No scheduling
  * state, no due list — read-time only, per answer-screen/plan.md's explicit non-goal.
+ *
+ * Scoped to a single topic (the "tap a pressing topic, resume studying it" home-screen flow) is
+ * the one exception: there the caller already knows this topic is due from the schedule rollup, so
+ * the queue also sorts a bit's own due state first — never-reviewed-or-overdue bits ahead of
+ * not-yet-due ones — before falling back to the same fair-cycling order. Otherwise a topic could
+ * show "N due" while serving already-comfortable bits ahead of the ones that earned that count.
  */
 export async function listNextQuestionVariantsToAnswer(
   limit: number,
@@ -196,6 +203,7 @@ export async function listNextQuestionVariantsToAnswer(
   db: DbExecutor = getDb(),
 ): Promise<NextQuestionVariantRow[]> {
   const attemptCount = count(knowledgeBitVariantAttempts.id);
+  const dueRank = sql<number>`min(case when ${knowledgeBitSchedules.knowledgeBitId} is null or ${knowledgeBitSchedules.dueAt} <= now() then 0 else 1 end)`;
   const selection = {
     variantId: knowledgeBitQuestionVariants.id,
     kind: knowledgeBitQuestionVariants.kind,
@@ -211,6 +219,10 @@ export async function listNextQuestionVariantsToAnswer(
     .leftJoin(
       knowledgeBitVariantAttempts,
       eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
+    )
+    .leftJoin(
+      knowledgeBitSchedules,
+      eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
     );
 
   const condition = filter?.topicId
@@ -241,7 +253,11 @@ export async function listNextQuestionVariantsToAnswer(
       knowledgeBits.id,
       knowledgeBits.body,
     )
-    .orderBy(asc(attemptCount), asc(knowledgeBitQuestionVariants.createdAt))
+    .orderBy(
+      ...(filter?.topicId ? [asc(dueRank)] : []),
+      asc(attemptCount),
+      asc(knowledgeBitQuestionVariants.createdAt),
+    )
     .limit(limit);
 
   return rows.map((row) => ({ ...row, kind: row.kind as KnowledgeBitQuestionVariantKind }));

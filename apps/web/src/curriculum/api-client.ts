@@ -1610,6 +1610,18 @@ export async function listNextQuestionVariants(
   )
 }
 
+export interface DueTopic {
+  topicId: string
+  title: string
+  dueCount: number
+}
+
+export async function listDueTopics(limit?: number): Promise<DueTopic[]> {
+  const query = limit !== undefined ? `?limit=${limit}` : ''
+
+  return request<DueTopic[]>(`/topics/due${query}`)
+}
+
 export type GradeQuestionVariantAnswerResult =
   | {
       ok: true

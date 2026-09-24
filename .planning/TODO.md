@@ -14,7 +14,7 @@ updated: 2026-09-04
 - Out of scope: Cross-subject ranking or priority weighting across different topics - that is study-prioritization's own open call
 
 ### Coding tasks
-- [ ] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
+- [x] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
 - [x] Roll bit due-dates up to a topic-level due count
 - [x] Add per-bit SM-2-style interval, ease factor, and due date, updated from each answer's grade
 

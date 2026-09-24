@@ -16,11 +16,12 @@ import type {
   StudySessionListItem,
 } from '@post-anki/shared'
 
-import { getBoard } from '../curriculum/curriculum.api'
+import { getBoard, getDueTopics } from '../curriculum/curriculum.api'
 import { getStreak } from '../curriculum/stats.api'
 import { settle, settleNullable } from '../shared/load-result'
 import type { LoadResult } from '../shared/load-result'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
+import type { DueTopic } from '../curriculum/api-client'
 import type {
   Curriculum,
   CourseRefocusSuggestion,
@@ -43,12 +44,14 @@ export const Route = createFileRoute('/')({
       sessions,
       learningPaths,
       streak,
+      dueTopics,
     ] = await Promise.all([
       getBoard(),
       settle(listCourseRefocusSuggestions()),
       settle(listStudySessions()),
       settle(listLearningPaths({ data: { onlyActive: true } })),
       settleNullable(getStreak()),
+      settle(getDueTopics({ data: { limit: 5 } })),
     ])
 
     return {
@@ -57,6 +60,7 @@ export const Route = createFileRoute('/')({
       sessions,
       learningPaths,
       streak,
+      dueTopics,
     }
   },
 })
@@ -91,6 +95,7 @@ function Home() {
         sessions={initial.sessions}
         learningPaths={initial.learningPaths}
         streak={initial.streak}
+        dueTopics={initial.dueTopics}
       />
     </>
   )
@@ -141,6 +146,7 @@ function HomeView({
   sessions,
   learningPaths,
   streak,
+  dueTopics,
 }: {
   subjects: Subject[]
   curricula: Curriculum[]
@@ -148,6 +154,7 @@ function HomeView({
   sessions: LoadResult<StudySessionListItem[]>
   learningPaths: LoadResult<LearningPath[]>
   streak: LoadResult<Streak>
+  dueTopics: LoadResult<DueTopic[]>
 }) {
   const namesById: Record<string, string> = {}
 
@@ -181,6 +188,31 @@ function HomeView({
       ) : (
         <LoadError>Couldn't load your study sessions — try refreshing.</LoadError>
       )}
+
+      {dueTopics.ok && dueTopics.data.length > 0 ? (
+        <div data-testid="due-topics-section" className="mb-6">
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Most pressing topics
+          </h2>
+          <ul className="space-y-2">
+            {dueTopics.data.map((topic) => (
+              <li key={topic.topicId}>
+                <Link
+                  to="/knowledge/answer"
+                  search={{ topicId: topic.topicId }}
+                  data-testid="due-topic-link"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
+                >
+                  <span className="font-medium tracking-tight">{topic.title}</span>
+                  <span className="text-sm text-neutral-400">
+                    {topic.dueCount} due
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {!learningPaths.ok ? (
         <LoadError>Couldn't load your learning paths — try refreshing.</LoadError>
