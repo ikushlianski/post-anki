@@ -10,6 +10,7 @@ import {
   handleUpdateSubject,
 } from "./subject/subject.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
+import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
 import {
   handleCreateSubjectCategory,
   handleListAllSubjectCategories,
@@ -336,6 +337,8 @@ async function route(
       return handleCreateSubject(req, res);
     case "createKnowledgeSource":
       return handleCreateKnowledgeSource(req, res);
+    case "createKnowledgeSourceFromNotion":
+      return handleCreateKnowledgeSourceFromNotion(req, res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "updateSubject":

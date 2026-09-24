@@ -1,0 +1,2 @@
+ALTER TABLE "knowledge_sources" ADD COLUMN "notion_page_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "knowledge_sources_notion_page_id_unique" ON "knowledge_sources" USING btree ("notion_page_id");

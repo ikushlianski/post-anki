@@ -1028,14 +1028,27 @@ export const contentInbox = pgTable("content_inbox", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// Raw submitted text (prose now, notion later) awaiting bit-detection.
-export const knowledgeSources = pgTable("knowledge_sources", {
-  id: text("id").primaryKey(),
-  kind: text("kind").notNull(),
-  rawText: text("raw_text"),
-  status: text("status").notNull().default("pending"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+// Raw submitted text (prose, notion) awaiting bit-detection.
+export const knowledgeSources = pgTable(
+  "knowledge_sources",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    rawText: text("raw_text"),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Set only for kind: "notion" rows: the Notion data source it came from.
+    notionDatabaseId: text("notion_database_id"),
+    // Set only for kind: "notion" rows: the source Notion page id, unique so
+    // re-importing the same database is a no-op instead of duplicating rows.
+    notionPageId: text("notion_page_id"),
+  },
+  (table) => ({
+    notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(
+      table.notionPageId,
+    ),
+  }),
+);
 
 export const notionSyncItems = pgTable("notion_sync_items", {
   notionId: text("notion_id").primaryKey(),

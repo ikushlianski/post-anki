@@ -5,6 +5,7 @@ export type RouteName =
   | "listSubjects"
   | "createSubject"
   | "createKnowledgeSource"
+  | "createKnowledgeSourceFromNotion"
   | "deleteSubject"
   | "updateSubject"
   | "mergeSubjects"

@@ -270,6 +270,8 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
         column_default: "'pending'::text",
       }),
       expect.objectContaining({ column_name: "created_at", data_type: "timestamp with time zone", is_nullable: "NO" }),
+      expect.objectContaining({ column_name: "notion_database_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "notion_page_id", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
@@ -289,5 +291,104 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       raw_text: "Some pasted prose for the migration test.",
       status: "pending",
     });
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--accept-notion-source/scenarios.md) —
+// proves the new migration applies cleanly against real Postgres and that
+// knowledge_sources.notion_database_id's real column shape matches schema.ts.
+describe("migrations — knowledge_sources.notion_database_id (prose-knowledge-fisher--accept-notion-source)", () => {
+  it("adds notion_database_id as a nullable text column", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable
+         FROM information_schema.columns
+        WHERE table_name = 'knowledge_sources' AND column_name = 'notion_database_id'`,
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        column_name: "notion_database_id",
+        data_type: "text",
+        is_nullable: "YES",
+      }),
+    ]);
+  });
+
+  it("inserts and round-trips a notion knowledge source with a non-null notion_database_id", async () => {
+    const id = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status, notion_database_id)
+       VALUES ($1, 'notion', $2, 'pending', $3)`,
+      [id, "A row imported from Notion.", "ds-migration-test"],
+    );
+
+    const { rows } = await client.query(`SELECT * FROM knowledge_sources WHERE id = $1`, [id]);
+
+    expect(rows[0]).toMatchObject({
+      id,
+      kind: "notion",
+      raw_text: "A row imported from Notion.",
+      status: "pending",
+      notion_database_id: "ds-migration-test",
+    });
+  });
+});
+
+// SCENARIO (.planning/prose-knowledge-fisher--accept-notion-source/scenarios.md) —
+// proves notion_page_id's real column shape and its unique index actually
+// reject a duplicate page id at the database level, not just in app code.
+describe("migrations — knowledge_sources.notion_page_id (prose-knowledge-fisher--accept-notion-source)", () => {
+  it("adds notion_page_id as a nullable text column", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable
+         FROM information_schema.columns
+        WHERE table_name = 'knowledge_sources' AND column_name = 'notion_page_id'`,
+    );
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        column_name: "notion_page_id",
+        data_type: "text",
+        is_nullable: "YES",
+      }),
+    ]);
+  });
+
+  it("rejects a second row that reuses an already-imported notion_page_id", async () => {
+    const pageId = `page-migtest-${randomUUID()}`;
+    const firstId = `ks_migtest_${randomUUID()}`;
+    const secondId = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status, notion_page_id)
+       VALUES ($1, 'notion', $2, 'pending', $3)`,
+      [firstId, "First import of this page.", pageId],
+    );
+
+    await expect(
+      client.query(
+        `INSERT INTO knowledge_sources (id, kind, raw_text, status, notion_page_id)
+         VALUES ($1, 'notion', $2, 'pending', $3)`,
+        [secondId, "Duplicate import of the same page.", pageId],
+      ),
+    ).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("allows multiple rows with a null notion_page_id (e.g. pasted-prose sources)", async () => {
+    const firstId = `ks_migtest_${randomUUID()}`;
+    const secondId = `ks_migtest_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', $2, 'pending')`,
+      [firstId, "Pasted prose one."],
+    );
+
+    await expect(
+      client.query(
+        `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', $2, 'pending')`,
+        [secondId, "Pasted prose two."],
+      ),
+    ).resolves.toBeDefined();
   });
 });

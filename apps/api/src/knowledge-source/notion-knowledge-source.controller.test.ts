@@ -1,0 +1,134 @@
+import { Readable } from "node:stream";
+import type http from "node:http";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockQuery = vi.fn();
+const mockInsertKnowledgeSourcesFromNotion = vi.fn();
+
+vi.mock("../notion-connector/notion.client.js", () => ({
+  getNotionClient: () => ({ dataSources: { query: mockQuery } }),
+}));
+
+vi.mock("./knowledge-source.repo.js", () => ({
+  insertKnowledgeSourcesFromNotion: (...args: unknown[]) =>
+    mockInsertKnowledgeSourcesFromNotion(...args),
+}));
+
+const { handleCreateKnowledgeSourceFromNotion } = await import(
+  "./notion-knowledge-source.controller.js"
+);
+
+function row(id: string, title: string) {
+  return {
+    object: "page",
+    url: `https://notion.so/${id}`,
+    id,
+    created_time: "2026-09-24T00:00:00.000Z",
+    properties: {
+      Note: { type: "title", title: [{ plain_text: title }] },
+      Tags: { type: "multi_select", multi_select: [] },
+    },
+  };
+}
+
+function fakeReq(body: unknown): http.IncomingMessage {
+  const readable = new Readable({
+    read() {
+      this.push(JSON.stringify(body));
+      this.push(null);
+    },
+  });
+
+  return readable as unknown as http.IncomingMessage;
+}
+
+function fakeRes(): http.ServerResponse & { status: number | null; body: unknown } {
+  const res = {
+    status: null as number | null,
+    body: undefined as unknown,
+    writeHead(status: number) {
+      res.status = status;
+      return res;
+    },
+    end(payload?: string) {
+      res.body = payload ? JSON.parse(payload) : undefined;
+    },
+  };
+
+  return res as unknown as http.ServerResponse & { status: number | null; body: unknown };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("handleCreateKnowledgeSourceFromNotion", () => {
+  it("imports every row from the given Notion data source, returning the created count", async () => {
+    mockQuery.mockResolvedValue({
+      results: [row("r-1", "Idea one"), row("r-2", "Idea two"), row("r-3", "Idea three")],
+      has_more: false,
+      next_cursor: null,
+    });
+    mockInsertKnowledgeSourcesFromNotion.mockResolvedValue([
+      { id: "ks_1", kind: "notion", rawText: "Idea one", status: "pending", createdAt: new Date() },
+      { id: "ks_2", kind: "notion", rawText: "Idea two", status: "pending", createdAt: new Date() },
+      { id: "ks_3", kind: "notion", rawText: "Idea three", status: "pending", createdAt: new Date() },
+    ]);
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "ds-1" }), res);
+
+    expect(mockQuery).toHaveBeenCalledWith(expect.objectContaining({ data_source_id: "ds-1" }));
+    expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith(
+      [
+        { id: "r-1", text: "Idea one", tags: [] },
+        { id: "r-2", text: "Idea two", tags: [] },
+        { id: "r-3", text: "Idea three", tags: [] },
+      ],
+      "ds-1",
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ created: 3 });
+  });
+
+  it("returns created: 0 and inserts nothing for a database with no rows", async () => {
+    mockQuery.mockResolvedValue({ results: [], has_more: false, next_cursor: null });
+    mockInsertKnowledgeSourcesFromNotion.mockResolvedValue([]);
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "ds-empty" }), res);
+
+    expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith([], "ds-empty");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ created: 0 });
+  });
+
+  it("400s when dataSourceId is missing from the body", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({}), res);
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
+  });
+
+  it("400s on a whitespace-only dataSourceId, without calling Notion or inserting anything", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "   " }), res);
+
+    expect(res.status).toBe(400);
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
+  });
+
+  it("400s (not 500) when Notion rejects the data source id, without inserting anything", async () => {
+    mockQuery.mockRejectedValue(new Error("object_not_found"));
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "bad-id" }), res);
+
+    expect(res.status).toBe(400);
+    expect((res.body as { error: string }).error).toBe("invalid_notion_source");
+    expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
+  });
+});

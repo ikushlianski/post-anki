@@ -34,6 +34,9 @@ updated: 2026-09-04
   - [x] Phase 2: repo and controller
   - [x] Phase 3: route wiring and tests
 - [ ] Accept a Notion database as a prose knowledge source, alongside pasted text
+  - [ ] Phase 1: schema and migration
+  - [ ] Phase 2: repo and controller
+  - [ ] Phase 3: route wiring and tests
 - [ ] Auto-detect distinct knowledge bits inside a block of prose
 - [ ] Embed each submitted knowledge bit into the existing vector pipeline
 - [ ] Auto-tag each detected knowledge bit from the shared taxonomy
