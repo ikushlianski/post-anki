@@ -84,7 +84,8 @@ updated: 2026-09-04
 - Embeddings: cheapest provider. Classification/placement calls: cheapest model that can classify + search, below cheap-tier if one exists
 - STUCK (2026-09-24): tag-taxonomy-cap hit 3 review FAILs — don't re-attempt, work the 4 split-out items
 - Stuck (2026-09-24): accept-notion-source hit 3 review failures — do not re-dispatch
-- Stuck (2026-09-24): fill-in-the-blank-variant hit 3 review-factory FAILs (all real bugs, all fixed: answer-equals-blank contract, then two rounds of blank-marker regex false-positives/negatives). Code is now believed correct (empirically verified against every known edge case) but not independently re-reviewed and not marked done — don't re-dispatch review-factory for this slug; if picked up again, either accept the risk and mark-done by hand with a citation, or treat as a fresh item needing one clean review pass
+- Stuck (2026-09-24): fill-in-the-blank-variant hit 3 review-factory FAILs, don't re-dispatch. Code landed unreviewed in a395949 (swept by an unrelated mark-done); one more regex bug found and fixed manually after that (f6fe80f) — needs a fresh review pass before trusting it fully
+- Blocked (2026-09-24): "Ask a knowledge-fisher follow-up question" needs a learner-answer-history store for variants (none exists — attempts table is phrase-only); skipped to embedding item instead
 
 
 ## biz-education-distiller
