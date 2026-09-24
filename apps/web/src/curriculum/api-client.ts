@@ -1576,6 +1576,64 @@ export async function listTagMasteryStatuses(): Promise<TagMasteryStatus[]> {
   return request<TagMasteryStatus[]>('/tags/mastery')
 }
 
+export interface NextQuestionVariant {
+  variantId: string
+  kind: 'wh_question' | 'fill_in_the_blank'
+  prompt: string
+  knowledgeBitId: string
+  bitBody: string
+}
+
+export async function listNextQuestionVariants(
+  limit?: number,
+  tagId?: string,
+): Promise<NextQuestionVariant[]> {
+  const params = new URLSearchParams()
+
+  if (limit !== undefined) {
+    params.set('limit', String(limit))
+  }
+
+  if (tagId !== undefined) {
+    params.set('tagId', tagId)
+  }
+
+  const query = params.toString()
+
+  return request<NextQuestionVariant[]>(
+    `/knowledge-bits/question-variants/next${query ? `?${query}` : ''}`,
+  )
+}
+
+export type GradeQuestionVariantAnswerResult =
+  | {
+      ok: true
+      score: number
+      verdict: 'Ok' | 'NeedsReview' | 'NeedsDeepDive'
+      feedback: string
+      followUpQuestion: string | null
+      tagIds: string[]
+    }
+  | { ok: false; error: string }
+
+export async function gradeQuestionVariantAnswer(
+  variantId: string,
+  userAnswer: string,
+): Promise<GradeQuestionVariantAnswerResult> {
+  try {
+    return await request<GradeQuestionVariantAnswerResult>(
+      `/knowledge-bits/question-variants/${variantId}/answers`,
+      { method: 'POST', body: { userAnswer } },
+    )
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return { ok: false, error: err.code ?? 'unknown' }
+    }
+
+    throw err
+  }
+}
+
 export async function createOrGetTag(name: string): Promise<Tag> {
   const tag = await request<be.Tag>('/tags', { method: 'POST', body: { name } })
 

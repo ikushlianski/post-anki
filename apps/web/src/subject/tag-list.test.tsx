@@ -12,15 +12,22 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({
     to,
     params,
+    search,
     children,
     'data-testid': testId,
   }: {
     to: string
-    params: Record<string, string>
+    params?: Record<string, string>
+    search?: Record<string, string>
     children: ReactNode
     'data-testid': string
   }) => (
-    <a href={to} data-testid={testId} data-params={JSON.stringify(params)}>
+    <a
+      href={to}
+      data-testid={testId}
+      data-params={JSON.stringify(params)}
+      data-search={JSON.stringify(search)}
+    >
       {children}
     </a>
   ),
@@ -69,5 +76,18 @@ describe('TagList strength badges', () => {
     expect((await screen.findByTestId('tag-list-strength-tag-untested')).textContent).toBe(
       'untested',
     )
+  })
+
+  it('links the strength badge into the answer screen scoped to the tag', async () => {
+    mockedListTags.mockResolvedValue([{ id: 'tag-strong', name: 'Strong', normalizedName: 'strong' }])
+    mockedListTagMasteryStatuses.mockResolvedValue([
+      { tagId: 'tag-strong', name: 'Strong', status: 'mastered' },
+    ])
+
+    renderWithClient(<TagList />)
+
+    const link = await screen.findByTestId('tag-list-strength-link-tag-strong')
+    expect(link.getAttribute('href')).toBe('/knowledge/answer')
+    expect(link.getAttribute('data-search')).toBe(JSON.stringify({ tagId: 'tag-strong' }))
   })
 })

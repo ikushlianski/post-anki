@@ -16,6 +16,9 @@ export function Sidebar() {
           <ApprovalCountBadge />
         </span>
       </Link>
+      <Link to="/knowledge/answer" className={navLinkClass} data-testid="nav-knowledge-answer">
+        Answer knowledge bits
+      </Link>
     </nav>
   )
 }

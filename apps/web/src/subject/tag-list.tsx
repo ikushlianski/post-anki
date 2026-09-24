@@ -139,11 +139,20 @@ export function TagList() {
             >
               #{tag.name}
             </Link>
-            <TagStrengthBadge tag={tag} statusByTagId={statusByTagId} />
+            <Link
+              to="/knowledge/answer"
+              search={{ tagId: tag.id }}
+              data-testid={`tag-list-strength-link-${tag.id}`}
+            >
+              <TagStrengthBadge tag={tag} statusByTagId={statusByTagId} />
+            </Link>
             <TagMergeControl
               tag={tag}
               allTags={tags}
-              onMerged={() => queryClient.invalidateQueries({ queryKey: ['tags'] })}
+              onMerged={() => {
+                void queryClient.invalidateQueries({ queryKey: ['tags'] })
+                void queryClient.invalidateQueries({ queryKey: ['tags-mastery'] })
+              }}
             />
           </span>
         ))}
