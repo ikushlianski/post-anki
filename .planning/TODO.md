@@ -342,7 +342,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
 ## Wishlist for the night
-- [ ] Build a simple React Native app for easy, low-pressure learning and repetition, not cramming
 
 
 ## Decisions to make
@@ -541,6 +540,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
+- [x] Show which tag or topic a search result belongs to
+- [x] Let global search also find cards by tag name
+- [x] Let global search also find knowledge bits by their text
 
 ### Notes
 - CORS bug fixed (WEB_ORIGIN header, server.ts:261) — was blocking browser-side fetches.

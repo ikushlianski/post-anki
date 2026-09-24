@@ -1,17 +1,14 @@
 {
   "sessionId": "dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8",
-  "startedAt": "2026-09-23T23:53:43.000Z",
-  "stopBoundHours": 10,
+  "startedAt": "2026-09-24T15:30:32.000Z",
+  "stopBoundHours": 15,
   "status": "running",
   "activeDirections": [
-    "prose-knowledge-fisher"
+    "data-integrity-under-regeneration"
   ],
-  "lastHeartbeatAt": "2026-09-24T10:16:16.779Z",
-  "timeBoundBlocks": 2,
-  "lastBlockAt": "2026-09-24T05:20:43.327Z",
+  "lastHeartbeatAt": "2026-09-24T15:44:00.000Z",
+  "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": [
-    "nextx"
-  ]
+  "pendingSkillReload": []
 }
