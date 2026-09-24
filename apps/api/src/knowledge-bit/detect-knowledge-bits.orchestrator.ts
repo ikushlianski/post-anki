@@ -2,8 +2,7 @@ import { log } from "../shared/log.js";
 import { runKnowledgeBitDetector } from "../mastra/knowledge-bit-detector.agent.js";
 import {
   claimPendingKnowledgeSources,
-  insertKnowledgeBits,
-  markKnowledgeSourceBitsDetected,
+  insertKnowledgeBitsAndMarkDetected,
   markKnowledgeSourceFailed,
   type PendingKnowledgeSource,
 } from "./knowledge-bit.repo.js";
@@ -14,18 +13,16 @@ export const MAX_SOURCE_CHARS = 50_000;
 export interface DetectKnowledgeBitsDeps {
   claim: (limit: number) => Promise<PendingKnowledgeSource[]>;
   detect: (sourceText: string) => Promise<string[]>;
-  insertBits: (sourceId: string, bits: string[]) => Promise<void>;
+  insertBitsAndMarkDetected: (sourceId: string, bits: string[]) => Promise<void>;
   markFailed: (id: string, reason: string) => Promise<void>;
-  markBitsDetected: (id: string) => Promise<void>;
 }
 
 export function defaultDetectKnowledgeBitsDeps(): DetectKnowledgeBitsDeps {
   return {
     claim: claimPendingKnowledgeSources,
     detect: runKnowledgeBitDetector,
-    insertBits: insertKnowledgeBits,
+    insertBitsAndMarkDetected: insertKnowledgeBitsAndMarkDetected,
     markFailed: markKnowledgeSourceFailed,
-    markBitsDetected: markKnowledgeSourceBitsDetected,
   };
 }
 
@@ -62,8 +59,7 @@ async function detectBitsForSource(
   try {
     const bits = await deps.detect(rawText);
 
-    await deps.insertBits(source.id, bits);
-    await deps.markBitsDetected(source.id);
+    await deps.insertBitsAndMarkDetected(source.id, bits);
 
     return "detected";
   } catch (err) {

@@ -8,7 +8,7 @@
 
 ## Coding tasks
 - [ ] Add a stale-processing-row reset for crashed scans
-- [ ] Wrap bit insert and bits_detected update in one transaction
+- [x] Wrap bit insert and bits_detected update in one transaction
 - [x] Claim one source per loop iteration to avoid stranding rows in processing
 - [x] Add `failureReason` to `knowledgeSources`, add `knowledgeBits` table + unique index in schema.ts
 - [x] Generate and apply migration

@@ -79,3 +79,14 @@ export async function markKnowledgeSourceBitsDetected(
     .set({ status: "bits_detected", failureReason: null })
     .where(and(eq(knowledgeSources.id, id), eq(knowledgeSources.status, "processing")));
 }
+
+export async function insertKnowledgeBitsAndMarkDetected(
+  sourceId: string,
+  bits: string[],
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await insertKnowledgeBits(sourceId, bits, tx);
+    await markKnowledgeSourceBitsDetected(sourceId, tx);
+  });
+}

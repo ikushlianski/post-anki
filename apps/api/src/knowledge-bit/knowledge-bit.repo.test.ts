@@ -74,8 +74,8 @@ function toPredicate(cond: unknown): (row: Record<string, unknown>) => boolean {
   return (row) => pairs.every(([col, value]) => row[columnByDbName[col] ?? col] === value);
 }
 
-vi.mock("../db/client.js", () => ({
-  getDb: () => ({
+function buildMockDb(): Record<string, unknown> {
+  return {
     select: (_cols?: unknown) => ({
       from: () => ({
         where: (cond: unknown) => {
@@ -148,7 +148,12 @@ vi.mock("../db/client.js", () => ({
         },
       }),
     }),
-  }),
+    transaction: async (cb: (tx: Record<string, unknown>) => Promise<void>) => cb(buildMockDb()),
+  };
+}
+
+vi.mock("../db/client.js", () => ({
+  getDb: () => buildMockDb(),
 }));
 
 const {
@@ -156,6 +161,7 @@ const {
   claimPendingKnowledgeSources,
   markKnowledgeSourceFailed,
   markKnowledgeSourceBitsDetected,
+  insertKnowledgeBitsAndMarkDetected,
 } = await import("./knowledge-bit.repo.js");
 
 function seedSource(overrides: Partial<SourceRow> & { id: string }): SourceRow {
@@ -272,5 +278,16 @@ describe("markKnowledgeSourceBitsDetected", () => {
       status: "failed",
       failureReason: "source_too_long",
     });
+  });
+});
+
+describe("insertKnowledgeBitsAndMarkDetected", () => {
+  it("inserts the bits and marks the source detected together", async () => {
+    seedSource({ id: "ks_1", status: "processing" });
+
+    await insertKnowledgeBitsAndMarkDetected("ks_1", ["First bit.", "Second bit."]);
+
+    expect(state.bits).toHaveLength(2);
+    expect(state.sources.get("ks_1")?.status).toBe("bits_detected");
   });
 });

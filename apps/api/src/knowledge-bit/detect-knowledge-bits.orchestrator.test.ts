@@ -30,9 +30,8 @@ function buildDeps(overrides: Partial<DetectKnowledgeBitsDeps>): DetectKnowledge
   return {
     claim: vi.fn().mockResolvedValue([]),
     detect: vi.fn(),
-    insertBits: vi.fn().mockResolvedValue(undefined),
+    insertBitsAndMarkDetected: vi.fn().mockResolvedValue(undefined),
     markFailed: vi.fn().mockResolvedValue(undefined),
-    markBitsDetected: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -59,10 +58,8 @@ describe("detectKnowledgeBits", () => {
     const result = await detectKnowledgeBits(deps);
 
     expect(result).toEqual({ processed: 2, detected: 2, failed: 0 });
-    expect(deps.insertBits).toHaveBeenCalledWith("s1", ["bit a", "bit b"]);
-    expect(deps.insertBits).toHaveBeenCalledWith("s2", ["bit c"]);
-    expect(deps.markBitsDetected).toHaveBeenCalledWith("s1");
-    expect(deps.markBitsDetected).toHaveBeenCalledWith("s2");
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("s1", ["bit a", "bit b"]);
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("s2", ["bit c"]);
     expect(deps.markFailed).not.toHaveBeenCalled();
   });
 
@@ -105,8 +102,8 @@ describe("detectKnowledgeBits", () => {
 
     expect(result).toEqual({ processed: 2, detected: 1, failed: 1 });
     expect(deps.markFailed).toHaveBeenCalledWith("bad", "provider rate limited");
-    expect(deps.markBitsDetected).toHaveBeenCalledWith("good");
-    expect(deps.markBitsDetected).not.toHaveBeenCalledWith("bad");
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("good", ["a fine bit"]);
+    expect(deps.insertBitsAndMarkDetected).not.toHaveBeenCalledWith("bad", expect.anything());
   });
 
   it("keeps processing the rest of the batch when marking one source failed itself throws", async () => {
@@ -122,7 +119,7 @@ describe("detectKnowledgeBits", () => {
     const result = await detectKnowledgeBits(deps);
 
     expect(result).toEqual({ processed: 2, detected: 1, failed: 1 });
-    expect(deps.markBitsDetected).toHaveBeenCalledWith("good");
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("good", ["a fine bit"]);
   });
 
   it("accepts a source exactly at the length limit without marking it too long", async () => {
