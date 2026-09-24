@@ -47,6 +47,8 @@ const {
   markFillBlankGenerated,
   markFillBlankGenerationFailed,
   recordGeneratedFillBlankVariant,
+  listQuestionVariantsForEmbeddingScan,
+  updateQuestionVariantEmbedding,
 } = await import("./knowledge-bit-question-variant.repo.js");
 
 let client: pg.Client;
@@ -301,5 +303,74 @@ describe("recordGeneratedFillBlankVariant (real Postgres)", () => {
     );
 
     expect(rows.map((row) => row.kind)).toEqual(["fill_in_the_blank", "wh_question"]);
+  });
+});
+
+describe("listQuestionVariantsForEmbeddingScan (real Postgres)", () => {
+  it("returns exactly the variants with embeddedAt IS NULL", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with variants");
+
+    await insertQuestionVariant(bitId, "wh_question", 0, "Why unembedded scan A?", "Because.");
+    await insertQuestionVariant(
+      bitId,
+      "fill_in_the_blank",
+      0,
+      "This unembedded scan B ____ matters.",
+      "fact",
+    );
+
+    const rows = await listQuestionVariantsForEmbeddingScan(1000);
+    const matching = rows.filter(
+      (row) => row.prompt === "Why unembedded scan A?" || row.prompt === "This unembedded scan B ____ matters.",
+    );
+
+    expect(matching).toHaveLength(2);
+    expect(matching.every((row) => row.embeddingHash === null)).toBe(true);
+  });
+
+  it("excludes a variant already embedded", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with an embedded variant");
+
+    await insertQuestionVariant(bitId, "wh_question", 0, "Already embedded?", "Yes.");
+
+    const { rows: variantRows } = await client.query(
+      `SELECT id FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1`,
+      [bitId],
+    );
+    const variantId = variantRows[0]!.id as string;
+
+    await updateQuestionVariantEmbedding(variantId, [1, 2, 3], "abc123");
+
+    const rows = await listQuestionVariantsForEmbeddingScan(1000);
+
+    expect(rows.map((row) => row.id)).not.toContain(variantId);
+  });
+});
+
+describe("updateQuestionVariantEmbedding (real Postgres)", () => {
+  it("persists embedding/embeddingHash/embeddedAt on read-back", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to embed a variant for");
+
+    await insertQuestionVariant(bitId, "wh_question", 0, "Why embed this?", "To search later.");
+
+    const { rows: variantRows } = await client.query(
+      `SELECT id FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1`,
+      [bitId],
+    );
+    const variantId = variantRows[0]!.id as string;
+
+    await updateQuestionVariantEmbedding(variantId, [1, 2, 3], "hash123");
+
+    const { rows } = await client.query(
+      `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bit_question_variants WHERE id = $1`,
+      [variantId],
+    );
+
+    expect(rows[0]!.embedding).toEqual([1, 2, 3]);
+    expect(rows[0]!.embedding_hash).toBe("hash123");
+    expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
   });
 });

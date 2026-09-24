@@ -11,6 +11,7 @@ export type RouteName =
   | "triggerKnowledgeBitTaggingScan"
   | "triggerKnowledgeBitQuestionGenerationScan"
   | "triggerKnowledgeBitFillBlankGenerationScan"
+  | "triggerKnowledgeBitQuestionVariantEmbeddingScan"
   | "triggerKnowledgeBitPlacementScan"
   | "listPendingPlacementSuggestions"
   | "resolvePlacementSuggestion"

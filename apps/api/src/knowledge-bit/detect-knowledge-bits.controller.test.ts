@@ -12,6 +12,7 @@ const mockTagKnowledgeBits = vi.fn();
 const mockPlaceKnowledgeBits = vi.fn();
 const mockGenerateKnowledgeBitQuestions = vi.fn();
 const mockGenerateKnowledgeBitFillBlanks = vi.fn();
+const mockEmbedKnowledgeBitQuestionVariants = vi.fn();
 const mockListPendingPlacementSuggestions = vi.fn();
 const mockResolvePlacementSuggestion = vi.fn();
 
@@ -39,6 +40,11 @@ vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
   generateKnowledgeBitFillBlanks: (...args: unknown[]) => mockGenerateKnowledgeBitFillBlanks(...args),
 }));
 
+vi.mock("./knowledge-bit-question-variant-embedding.orchestrator.js", () => ({
+  embedKnowledgeBitQuestionVariants: (...args: unknown[]) =>
+    mockEmbedKnowledgeBitQuestionVariants(...args),
+}));
+
 vi.mock("./knowledge-bit-placement.repo.js", () => ({
   listPendingPlacementSuggestions: (...args: unknown[]) =>
     mockListPendingPlacementSuggestions(...args),
@@ -52,6 +58,7 @@ const {
   handleTriggerKnowledgeBitPlacementScan,
   handleTriggerKnowledgeBitQuestionGenerationScan,
   handleTriggerKnowledgeBitFillBlankGenerationScan,
+  handleTriggerKnowledgeBitQuestionVariantEmbeddingScan,
   handleListPendingPlacementSuggestions,
   handleResolvePlacementSuggestion,
 } = await import("./detect-knowledge-bits.controller.js");
@@ -255,6 +262,46 @@ describe("handleTriggerKnowledgeBitFillBlankGenerationScan", () => {
     expect(res.status).toBe(502);
     expect((res.body as { message: string }).message).toBe(
       "knowledge bit fill blank generation scan failed",
+    );
+  });
+});
+
+describe("handleTriggerKnowledgeBitQuestionVariantEmbeddingScan", () => {
+  it("returns 200 with the scan counts on success", async () => {
+    mockEmbedKnowledgeBitQuestionVariants.mockResolvedValue({
+      embeddedCount: 2,
+      reusedCount: 1,
+      capped: false,
+    });
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitQuestionVariantEmbeddingScan(res);
+
+    expect(mockEmbedKnowledgeBitQuestionVariants).toHaveBeenCalledWith();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ embeddedCount: 2, reusedCount: 1, capped: false });
+  });
+
+  it("returns 502 with an error message when the scan throws, never a silent 200", async () => {
+    mockEmbedKnowledgeBitQuestionVariants.mockRejectedValue(new Error("embedding provider down"));
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitQuestionVariantEmbeddingScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { error: string }).error).toBe("scan_failed");
+    expect((res.body as { message: string }).message).toBe("embedding provider down");
+  });
+
+  it("falls back to a generic message when the thrown value is not an Error instance", async () => {
+    mockEmbedKnowledgeBitQuestionVariants.mockRejectedValue("boom");
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitQuestionVariantEmbeddingScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { message: string }).message).toBe(
+      "knowledge bit question variant embedding scan failed",
     );
   });
 });

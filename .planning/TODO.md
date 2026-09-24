@@ -69,7 +69,7 @@ updated: 2026-09-04
   - [ ] Phase 4: tests
 - [x] Write a knowledge-fisher prompt that probes for the why behind a bit
 - [ ] Ask a knowledge-fisher follow-up question after the learner answers
-- [ ] Embed each generated question and answer, linked back to its source knowledge bit
+- [x] Embed each generated question and answer, linked back to its source knowledge bit
 - [ ] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
 - [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
 - [ ] Track a dynamic knowledge-level per tag from scored answers

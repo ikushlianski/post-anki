@@ -139,3 +139,39 @@ export async function recordGeneratedFillBlankVariant(
     await markFillBlankGenerated(knowledgeBitId, tx);
   });
 }
+
+export interface QuestionVariantForEmbeddingScan {
+  id: string;
+  prompt: string;
+  answer: string;
+  embeddingHash: string | null;
+}
+
+export async function listQuestionVariantsForEmbeddingScan(
+  limit: number,
+  db: DbExecutor = getDb(),
+): Promise<QuestionVariantForEmbeddingScan[]> {
+  return db
+    .select({
+      id: knowledgeBitQuestionVariants.id,
+      prompt: knowledgeBitQuestionVariants.prompt,
+      answer: knowledgeBitQuestionVariants.answer,
+      embeddingHash: knowledgeBitQuestionVariants.embeddingHash,
+    })
+    .from(knowledgeBitQuestionVariants)
+    .where(isNull(knowledgeBitQuestionVariants.embeddedAt))
+    .orderBy(asc(knowledgeBitQuestionVariants.createdAt))
+    .limit(limit);
+}
+
+export async function updateQuestionVariantEmbedding(
+  id: string,
+  embedding: number[],
+  embeddingHash: string,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db
+    .update(knowledgeBitQuestionVariants)
+    .set({ embedding, embeddingHash, embeddedAt: new Date() })
+    .where(eq(knowledgeBitQuestionVariants.id, id));
+}
