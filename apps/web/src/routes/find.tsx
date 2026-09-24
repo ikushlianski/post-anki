@@ -83,18 +83,37 @@ export function FindPage() {
               className="rounded-lg border border-neutral-200 bg-white p-3"
             >
               <div className="flex items-center justify-between gap-2">
-                <Link
-                  to="/curriculum/$curriculumId"
-                  params={{ curriculumId: result.curriculumId }}
-                  className="text-sm font-medium underline underline-offset-2 hover:text-neutral-900"
-                >
-                  {result.title}
-                </Link>
+                {result.curriculumId ? (
+                  <Link
+                    to="/curriculum/$curriculumId"
+                    params={{ curriculumId: result.curriculumId }}
+                    className="text-sm font-medium underline underline-offset-2 hover:text-neutral-900"
+                  >
+                    {result.title}
+                  </Link>
+                ) : (
+                  <span className="text-sm font-medium">{result.title}</span>
+                )}
                 <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
                   {result.kind}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-neutral-400">{result.curriculumName}</p>
+              <p className="mt-1 text-xs text-neutral-400">
+                {result.curriculumName ?? 'Not yet placed in a course'}
+              </p>
+              {result.tags.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {result.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      data-testid={`find-result-tag-${result.kind}-${result.id}-${tag}`}
+                      className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

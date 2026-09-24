@@ -8,6 +8,7 @@ import {
   searchTopics,
   searchTopicsAndModulesRanked,
 } from "./search.repo.js";
+import { searchByTagNameAcrossNodes, searchKnowledgeBitsRanked } from "./search-tag-and-bit.repo.js";
 
 const TOPIC_MODULE_SEARCH_DEFAULT_LIMIT = 10;
 
@@ -55,7 +56,26 @@ export async function handleSearchTopicsAndModules(
       ? Math.min(parsedLimit, 50)
       : TOPIC_MODULE_SEARCH_DEFAULT_LIMIT;
 
-  const results = await searchTopicsAndModulesRanked(normalized, limit);
+  const [titleMatches, bitMatches, tagMatches] = await Promise.all([
+    searchTopicsAndModulesRanked(normalized, limit),
+    searchKnowledgeBitsRanked(normalized, limit),
+    searchByTagNameAcrossNodes(normalized, limit),
+  ]);
+
+  const byKindAndId = new Map<string, TopicModuleSearchResult>();
+
+  for (const result of [...titleMatches, ...bitMatches, ...tagMatches]) {
+    const key = `${result.kind}-${result.id}`;
+    const existing = byKindAndId.get(key);
+
+    if (!existing || result.rank > existing.rank) {
+      byKindAndId.set(key, result);
+    }
+  }
+
+  const results = Array.from(byKindAndId.values())
+    .sort((a, b) => b.rank - a.rank)
+    .slice(0, limit);
 
   sendJson(res, 200, results);
 }

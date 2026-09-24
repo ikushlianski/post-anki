@@ -27,6 +27,7 @@ function result(overrides: Partial<TopicModuleSearchResult> = {}): TopicModuleSe
     curriculumId: 'cur_1',
     curriculumName: 'Concurrency',
     rank: 0.5,
+    tags: [],
     ...overrides,
   }
 }
@@ -108,5 +109,43 @@ describe('FindPage', () => {
     })
 
     expect(screen.getByTestId('find-result-topic-top_1')).toBeDefined()
+  })
+
+  it('renders an unplaced knowledge-bit result as plain text, not a broken curriculum link', async () => {
+    mockedSearch.mockResolvedValue([
+      result({
+        id: 'bit_1',
+        kind: 'bit',
+        title: 'Isolate the component from the world using an HTTP interceptor',
+        curriculumId: null,
+        curriculumName: null,
+      }),
+    ])
+
+    render(<FindPage />)
+
+    await userEvent.type(screen.getByTestId('find-search-input'), 'isolate')
+    await userEvent.click(screen.getByTestId('find-search-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('find-result-bit-bit_1')).toBeDefined()
+    })
+
+    expect(screen.getByText('Not yet placed in a course')).toBeDefined()
+  })
+
+  it('shows every matched tag on a search result', async () => {
+    mockedSearch.mockResolvedValue([result({ tags: ['performance', 'security'] })])
+
+    render(<FindPage />)
+
+    await userEvent.type(screen.getByTestId('find-search-input'), 'async')
+    await userEvent.click(screen.getByTestId('find-search-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('find-result-tag-topic-top_1-performance')).toBeDefined()
+    })
+
+    expect(screen.getByTestId('find-result-tag-topic-top_1-security')).toBeDefined()
   })
 })
