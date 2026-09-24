@@ -57,8 +57,8 @@ updated: 2026-09-04
   - [x] Phase 1: suggestion resolution schema and repo
   - [x] Phase 2: suggestion review route
   - [x] Phase 3: admin panel for accept and reject
-- [ ] Generate a Wh-question variant for each knowledge bit
-  - [ ] Phase 1: schema and migration
+- [x] Generate a Wh-question variant for each knowledge bit
+  - [x] Phase 1: schema and migration
   - [x] Phase 2: knowledge-fisher agent
   - [x] Phase 3: orchestrator and route
   - [x] Phase 4: tests
