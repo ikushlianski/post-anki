@@ -1,8 +1,14 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import type { Tag, TagAssignment, TagNodeType } from "@post-anki/shared";
-import { normalizeTagName } from "@post-anki/core";
+import { foldTagMastery, normalizeTagName, type MasteryEntryState } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { tagAssignments, tags, topics } from "../db/schema.js";
+import {
+  knowledgeBitQuestionVariants,
+  knowledgeBitVariantAttempts,
+  tagAssignments,
+  tags,
+  topics,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 function rowToTag(row: typeof tags.$inferSelect): Tag {
@@ -239,5 +245,59 @@ export async function listTopicsForTag(tagId: string): Promise<TagTopicRow[]> {
     curriculumId: row.curriculumId,
     priority: row.priority,
   }));
+}
+
+/**
+ * Read-time mastery level per tag, folded from every scored knowledge-bit answer reachable from
+ * that tag (tagAssignments(nodeType="knowledgeBit") -> knowledgeBitQuestionVariants ->
+ * knowledgeBitVariantAttempts), ordered by createdAt ascending. No persisted cursor — a tag with
+ * no attempts simply never appears in the returned map (caller treats a miss as the default "new"
+ * entry, matching foldTagMastery's own behavior on an empty list).
+ */
+export async function getTagMasteryLevels(
+  tagIds: string[],
+): Promise<Map<string, MasteryEntryState>> {
+  if (tagIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await getDb()
+    .select({
+      tagId: tagAssignments.tagId,
+      verdict: knowledgeBitVariantAttempts.verdict,
+    })
+    .from(tagAssignments)
+    .innerJoin(
+      knowledgeBitQuestionVariants,
+      eq(knowledgeBitQuestionVariants.knowledgeBitId, tagAssignments.nodeId),
+    )
+    .innerJoin(
+      knowledgeBitVariantAttempts,
+      eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
+    )
+    .where(
+      and(eq(tagAssignments.nodeType, "knowledgeBit"), inArray(tagAssignments.tagId, tagIds)),
+    )
+    .orderBy(asc(knowledgeBitVariantAttempts.createdAt));
+
+  const attemptsByTag = new Map<string, { verdict: string }[]>();
+
+  for (const row of rows) {
+    const existing = attemptsByTag.get(row.tagId);
+
+    if (existing) {
+      existing.push({ verdict: row.verdict });
+    } else {
+      attemptsByTag.set(row.tagId, [{ verdict: row.verdict }]);
+    }
+  }
+
+  const result = new Map<string, MasteryEntryState>();
+
+  for (const [tagId, attempts] of attemptsByTag) {
+    result.set(tagId, foldTagMastery(attempts));
+  }
+
+  return result;
 }
 

@@ -83,6 +83,8 @@ updated: 2026-09-04
   - [x] Phase 2: tests
 - [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
 - [ ] Track a dynamic knowledge-level per tag from scored answers
+  - [x] Phase 1: repo query and mastery fold
+  - [ ] Phase 2: tests
 - [ ] Surface where the learner is strong, weak, or shallow by tag and topic
 - [ ] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
 - [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
