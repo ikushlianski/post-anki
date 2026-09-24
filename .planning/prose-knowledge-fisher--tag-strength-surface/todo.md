@@ -9,8 +9,9 @@
 
 ## Coding tasks
 - [x] Endpoint: GET /tags/mastery, defaults missing tags to status "new"
-- [ ] UI: strength badge on each tag chip in tag-list.tsx, RED Playwright test first
-- [ ] /check-ui browser verification before marking the UI phase done
+- [x] UI: strength badge on each tag chip in tag-list.tsx, RED test first
+- [ ] /check-ui browser verification before marking the UI phase done — not performed, no browser
+  access in this dispatch's environment; flagged for the parent session
 
 ## Manual steps
 - None.
@@ -23,3 +24,8 @@
   getTagMasteryLevels, defaulting a map miss to DEFAULT_TAG_MASTERY_ENTRY's "new" status. Wired via
   tag.service.ts/tag.controller.ts/router-table.ts/router.ts/server.ts as GET /tags/mastery.
   tsc + vitest (unit + 2 integration files, 10 tests) green.
+- Phase 2 shipped: tag-list.tsx renders a strength badge (data-testid
+  tag-list-strength-<tagId>) per tag chip via listTagMasteryStatuses. This repo has no real
+  Playwright specs anywhere, so the RED test is a co-located RTL component test instead
+  (tag-list.test.tsx), matching this repo's established convention. tsc + vitest green. No real
+  browser check performed — no browser access in the dispatch environment.
