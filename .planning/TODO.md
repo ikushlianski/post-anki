@@ -30,9 +30,9 @@ updated: 2026-09-04
 - [x] Make tag-cap assignment atomic against a concurrent call at the cap boundary
 - [x] Validate the LLM's matched tag name against the real tag list before reusing it
 - [x] Accept a pasted block of prose as a knowledge source
-  - [ ] Phase 1: schema and migration
-  - [ ] Phase 2: repo and controller
-  - [ ] Phase 3: route wiring and tests
+  - [x] Phase 1: schema and migration
+  - [x] Phase 2: repo and controller
+  - [x] Phase 3: route wiring and tests
 - [ ] Accept a Notion database as a prose knowledge source, alongside pasted text
 - [ ] Auto-detect distinct knowledge bits inside a block of prose
 - [ ] Embed each submitted knowledge bit into the existing vector pipeline
