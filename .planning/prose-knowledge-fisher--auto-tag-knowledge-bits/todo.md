@@ -12,9 +12,9 @@
 - [x] Add `knowledge-bit-tagging.repo.ts` with the selection query and the two status-write functions
 - [x] Add `knowledge-bit-tagger.agent.ts`, a cheap-tier classifier returning up to 3 candidate tag names
 - [x] Add `knowledge-bit-tagging.orchestrator.ts` that tags each bit, isolates per-bit failures, caps the batch
-- [ ] Wire a `POST /knowledge-bits/tagging-scan` trigger route through router-table/router/server
+- [x] Wire a `POST /knowledge-bits/tagging-scan` trigger route through router-table/router/server
 - [x] Add unit tests for the orchestrator covering tag-and-mark-tagged, close-match reuse, per-bit failure isolation, and batch cap
-- [ ] Add a real-Postgres integration test for the selection query and a full tag-assignment write-back, in its own file
+- [x] Add a real-Postgres integration test for the selection query and a full tag-assignment write-back, in its own file
 
 ## Manual steps
 - None.
