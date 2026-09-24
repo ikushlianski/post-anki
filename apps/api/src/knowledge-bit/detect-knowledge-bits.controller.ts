@@ -3,6 +3,7 @@ import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { detectKnowledgeBits } from "./detect-knowledge-bits.orchestrator.js";
 import { embedKnowledgeBits } from "./knowledge-bit-embedding.orchestrator.js";
+import { tagKnowledgeBits } from "./knowledge-bit-tagging.orchestrator.js";
 
 // A failure here is a real 502 — never a silent "nothing needed detecting".
 export async function handleDetectKnowledgeBits(res: http.ServerResponse): Promise<void> {
@@ -31,6 +32,23 @@ export async function handleTriggerKnowledgeBitEmbeddingScan(
     log.error({ err }, "knowledge_bit_embedding_scan_failed");
 
     const message = err instanceof Error ? err.message : "knowledge bit embedding scan failed";
+
+    sendError(res, 502, "scan_failed", message);
+  }
+}
+
+// A failure here is a real 502 — never a silent "nothing needed tagging".
+export async function handleTriggerKnowledgeBitTaggingScan(
+  res: http.ServerResponse,
+): Promise<void> {
+  try {
+    const result = await tagKnowledgeBits();
+
+    sendJson(res, 200, result);
+  } catch (err) {
+    log.error({ err }, "knowledge_bit_tagging_scan_failed");
+
+    const message = err instanceof Error ? err.message : "knowledge bit tagging scan failed";
 
     sendError(res, 502, "scan_failed", message);
   }

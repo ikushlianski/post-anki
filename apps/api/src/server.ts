@@ -14,6 +14,7 @@ import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion
 import {
   handleDetectKnowledgeBits,
   handleTriggerKnowledgeBitEmbeddingScan,
+  handleTriggerKnowledgeBitTaggingScan,
 } from "./knowledge-bit/detect-knowledge-bits.controller.js";
 import {
   handleCreateSubjectCategory,
@@ -347,6 +348,8 @@ async function route(
       return handleDetectKnowledgeBits(res);
     case "triggerKnowledgeBitEmbeddingScan":
       return handleTriggerKnowledgeBitEmbeddingScan(res);
+    case "triggerKnowledgeBitTaggingScan":
+      return handleTriggerKnowledgeBitTaggingScan(res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "updateSubject":

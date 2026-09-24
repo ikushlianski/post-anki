@@ -7,6 +7,7 @@ vi.mock("../shared/log.js", () => ({
 
 const mockDetectKnowledgeBits = vi.fn();
 const mockEmbedKnowledgeBits = vi.fn();
+const mockTagKnowledgeBits = vi.fn();
 
 vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({
   detectKnowledgeBits: (...args: unknown[]) => mockDetectKnowledgeBits(...args),
@@ -16,9 +17,15 @@ vi.mock("./knowledge-bit-embedding.orchestrator.js", () => ({
   embedKnowledgeBits: (...args: unknown[]) => mockEmbedKnowledgeBits(...args),
 }));
 
-const { handleDetectKnowledgeBits, handleTriggerKnowledgeBitEmbeddingScan } = await import(
-  "./detect-knowledge-bits.controller.js"
-);
+vi.mock("./knowledge-bit-tagging.orchestrator.js", () => ({
+  tagKnowledgeBits: (...args: unknown[]) => mockTagKnowledgeBits(...args),
+}));
+
+const {
+  handleDetectKnowledgeBits,
+  handleTriggerKnowledgeBitEmbeddingScan,
+  handleTriggerKnowledgeBitTaggingScan,
+} = await import("./detect-knowledge-bits.controller.js");
 
 function fakeRes(): http.ServerResponse & { status: number | null; body: unknown } {
   const res = {
@@ -101,5 +108,41 @@ describe("handleTriggerKnowledgeBitEmbeddingScan", () => {
     expect(res.status).toBe(502);
     expect((res.body as { error: string }).error).toBe("scan_failed");
     expect((res.body as { message: string }).message).toBe("embedding provider down");
+  });
+});
+
+describe("handleTriggerKnowledgeBitTaggingScan", () => {
+  it("returns 200 with the scan counts on success", async () => {
+    mockTagKnowledgeBits.mockResolvedValue({ scanned: 3, tagged: 2, failed: 1 });
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitTaggingScan(res);
+
+    expect(mockTagKnowledgeBits).toHaveBeenCalledWith();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ scanned: 3, tagged: 2, failed: 1 });
+  });
+
+  it("returns 502 with an error message when the scan throws, never a silent 200", async () => {
+    mockTagKnowledgeBits.mockRejectedValue(new Error("tagger provider down"));
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitTaggingScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { error: string }).error).toBe("scan_failed");
+    expect((res.body as { message: string }).message).toBe("tagger provider down");
+  });
+
+  it("falls back to a generic message when the thrown value is not an Error instance", async () => {
+    mockTagKnowledgeBits.mockRejectedValue("boom");
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitTaggingScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { message: string }).message).toBe(
+      "knowledge bit tagging scan failed",
+    );
   });
 });
