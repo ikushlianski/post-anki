@@ -9,11 +9,18 @@ vi.mock("../mastra/knowledge-bit-answer-grader.agent.js", () => ({
   runKnowledgeBitAnswerGrader: vi.fn(),
 }));
 
+vi.mock("../mastra/knowledge-bit-followup-generator.agent.js", () => ({
+  runKnowledgeBitFollowupGenerator: vi.fn(),
+}));
+
 const { getQuestionVariantById, insertVariantAttempt } = await import(
   "./knowledge-bit-variant-attempt.repo.js"
 );
 const { runKnowledgeBitAnswerGrader } = await import(
   "../mastra/knowledge-bit-answer-grader.agent.js"
+);
+const { runKnowledgeBitFollowupGenerator } = await import(
+  "../mastra/knowledge-bit-followup-generator.agent.js"
 );
 const { gradeKnowledgeBitVariantAnswer } = await import(
   "./grade-knowledge-bit-variant-answer.orchestrator.js"
@@ -38,6 +45,9 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       verdict: "Ok",
       feedback: "Captures the reasoning.",
     });
+    vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
+      followUpQuestion: "What would change if Y were reversed?",
+    });
 
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_1", "Because of Y, precisely.");
 
@@ -54,11 +64,19 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       verdict: "Ok",
       feedback: "Captures the reasoning.",
     });
+    expect(runKnowledgeBitFollowupGenerator).toHaveBeenCalledWith(
+      variant.prompt,
+      variant.answer,
+      "Because of Y, precisely.",
+      "Ok",
+      "Captures the reasoning.",
+    );
     expect(result).toEqual({
       ok: true,
       score: 9,
       verdict: "Ok",
       feedback: "Captures the reasoning.",
+      followUpQuestion: "What would change if Y were reversed?",
     });
   });
 
@@ -76,17 +94,28 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       verdict: "NeedsDeepDive",
       feedback: "Missing the actual mechanism.",
     });
+    vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
+      followUpQuestion: "What actual mechanism connects X and Y?",
+    });
 
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_2", "I don't really know.");
 
     expect(insertVariantAttempt).toHaveBeenCalledWith(
       expect.objectContaining({ score: 3, verdict: "NeedsDeepDive" }),
     );
+    expect(runKnowledgeBitFollowupGenerator).toHaveBeenCalledWith(
+      variant.prompt,
+      variant.answer,
+      "I don't really know.",
+      "NeedsDeepDive",
+      "Missing the actual mechanism.",
+    );
     expect(result).toEqual({
       ok: true,
       score: 3,
       verdict: "NeedsDeepDive",
       feedback: "Missing the actual mechanism.",
+      followUpQuestion: "What actual mechanism connects X and Y?",
     });
   });
 
@@ -103,6 +132,9 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       score: 10,
       verdict: "Ok",
       feedback: "Exact term.",
+    });
+    vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
+      followUpQuestion: "What other decision could an anchor distort?",
     });
 
     await gradeKnowledgeBitVariantAnswer("kbqv_fb", "anchor");
@@ -123,6 +155,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     expect(result).toEqual({ ok: false, error: "variant_not_found" });
     expect(runKnowledgeBitAnswerGrader).not.toHaveBeenCalled();
     expect(insertVariantAttempt).not.toHaveBeenCalled();
+    expect(runKnowledgeBitFollowupGenerator).not.toHaveBeenCalled();
   });
 
   it("grades against the variant's own prompt/answer, not any other text", async () => {
@@ -138,6 +171,9 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       score: 5,
       verdict: "NeedsReview",
       feedback: "Partially right.",
+    });
+    vi.mocked(runKnowledgeBitFollowupGenerator).mockResolvedValue({
+      followUpQuestion: "What is still unclear?",
     });
 
     await gradeKnowledgeBitVariantAnswer("kbqv_3", "My answer");

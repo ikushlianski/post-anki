@@ -1,4 +1,5 @@
 import { runKnowledgeBitAnswerGrader } from "../mastra/knowledge-bit-answer-grader.agent.js";
+import { runKnowledgeBitFollowupGenerator } from "../mastra/knowledge-bit-followup-generator.agent.js";
 import {
   getQuestionVariantById,
   insertVariantAttempt,
@@ -6,7 +7,7 @@ import {
 import type { KnowledgeBitAnswerGraderResult } from "../mastra/knowledge-bit-answer-grader.agent.js";
 
 export type GradeKnowledgeBitVariantAnswerResult =
-  | ({ ok: true } & KnowledgeBitAnswerGraderResult)
+  | ({ ok: true; followUpQuestion: string } & KnowledgeBitAnswerGraderResult)
   | { ok: false; error: "variant_not_found" };
 
 export async function gradeKnowledgeBitVariantAnswer(
@@ -34,5 +35,13 @@ export async function gradeKnowledgeBitVariantAnswer(
     feedback: grade.feedback,
   });
 
-  return { ok: true, ...grade };
+  const { followUpQuestion } = await runKnowledgeBitFollowupGenerator(
+    variant.prompt,
+    variant.answer,
+    userAnswer,
+    grade.verdict,
+    grade.feedback,
+  );
+
+  return { ok: true, ...grade, followUpQuestion };
 }

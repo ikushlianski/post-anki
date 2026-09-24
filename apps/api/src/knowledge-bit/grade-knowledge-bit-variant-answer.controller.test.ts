@@ -55,6 +55,7 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
       score: 8,
       verdict: "Ok",
       feedback: "Good.",
+      followUpQuestion: "What would happen if this were reversed?",
     });
 
     const req = fakeReq({ userAnswer: "Because of Y." });
@@ -64,7 +65,13 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
 
     expect(mockGradeKnowledgeBitVariantAnswer).toHaveBeenCalledWith("kbqv_1", "Because of Y.");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, score: 8, verdict: "Ok", feedback: "Good." });
+    expect(res.body).toEqual({
+      ok: true,
+      score: 8,
+      verdict: "Ok",
+      feedback: "Good.",
+      followUpQuestion: "What would happen if this were reversed?",
+    });
   });
 
   it("returns 400 on an empty userAnswer, never reaching the orchestrator", async () => {

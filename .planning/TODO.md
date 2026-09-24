@@ -73,10 +73,10 @@ updated: 2026-09-04
   - [ ] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
 - [x] Write a knowledge-fisher prompt that probes for the why behind a bit
-- [ ] Ask a knowledge-fisher follow-up question after the learner answers
+- [x] Ask a knowledge-fisher follow-up question after the learner answers
   - [x] Phase 1: followup-generator agent
-  - [ ] Phase 2: orchestrator wiring
-  - [ ] Phase 3: tests
+  - [x] Phase 2: orchestrator wiring
+  - [x] Phase 3: tests
 - [x] Embed each generated question and answer, linked back to its source knowledge bit
 - [ ] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
 - [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
