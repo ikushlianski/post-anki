@@ -100,6 +100,7 @@ export async function listPendingPlacementSuggestions(
         isNotNull(knowledgeBits.placementSuggestion),
         isNull(knowledgeBits.topicId),
         isNull(knowledgeBits.placementSuggestionResolvedAt),
+        isNull(knowledgeBits.placementFailedAt),
       ),
     )
     .orderBy(desc(knowledgeBits.createdAt))
@@ -115,12 +116,8 @@ export type ResolvePlacementSuggestionResult =
 
 class ModuleNotFoundInTransaction extends Error {}
 
-// Claim-then-act, same shape as resolveDomainTopicSuggestion: the conditional UPDATE below is
-// the only thing that can ever claim a given bit, so a concurrent second call always loses and
-// gets already_resolved instead of double-creating a topic. Everything after the claim — the
-// topic insert and the topicId write-back — runs inside the same db.transaction as the claim
-// itself (createTopic takes the same tx executor), so a crash or error between steps rolls the
-// claim back too instead of leaving the bit permanently stamped resolved with no topic.
+// Claim-then-act (mirrors resolveDomainTopicSuggestion); the claim, topic insert, and
+// topicId write-back share one db.transaction so a failure anywhere rolls the claim back too.
 export async function resolvePlacementSuggestion(
   id: string,
   decision: "accepted" | "rejected",

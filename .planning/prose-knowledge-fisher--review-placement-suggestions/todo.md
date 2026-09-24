@@ -7,6 +7,7 @@
 - None open.
 
 ## Coding tasks
+- [x] Add a test proving a placementFailedAt bit never appears in the pending suggestions list
 - [x] Add tests for invalid_input and a second accept after a successful accept
 - [x] Add a concurrency test proving two parallel accepts create only one topic
 - [x] Sort pending placement suggestions newest first, not oldest first

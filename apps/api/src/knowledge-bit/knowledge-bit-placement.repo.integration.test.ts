@@ -263,6 +263,9 @@ describe("listPendingPlacementSuggestions (real Postgres)", () => {
       null,
       new Date(),
     );
+    // Worst case for the failed-bit exclusion: a placementFailedAt bit that also somehow carries
+    // a placementSuggestion — the isNull(placementFailedAt) filter must exclude it regardless.
+    const failedId = await seedKnowledgeBit(sourceId, 3, "A failed bit", null, "Try Z", null, new Date());
 
     const rows = await listPendingPlacementSuggestions(1000);
     const ids = rows.map((row) => row.id);
@@ -270,6 +273,7 @@ describe("listPendingPlacementSuggestions (real Postgres)", () => {
     expect(ids).toContain(pendingId);
     expect(ids).not.toContain(matchedId);
     expect(ids).not.toContain(resolvedId);
+    expect(ids).not.toContain(failedId);
     expect(rows.find((row) => row.id === pendingId)).toEqual({
       id: pendingId,
       body: "A pending suggestion",
