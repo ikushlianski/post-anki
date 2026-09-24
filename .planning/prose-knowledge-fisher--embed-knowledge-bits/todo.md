@@ -7,8 +7,8 @@
 - None open.
 
 ## Coding tasks
-- [ ] Add `embedding`/`embeddingHash`/`embeddedAt` columns to `knowledgeBits` in schema.ts, generate + apply migration
-- [ ] Add `knowledge-bit-embedding.repo.ts` with the selection query and the write-back update
+- [x] Add `embedding`/`embeddingHash`/`embeddedAt` columns to `knowledgeBits` in schema.ts, generate + apply migration
+- [x] Add `knowledge-bit-embedding.repo.ts` with the selection query and the write-back update
 - [ ] Add `knowledge-bit-embedding.orchestrator.ts` that hashes, skips unchanged, caps the batch, embeds, writes back
 - [ ] Wire a `POST /knowledge-bits/embedding-scan` trigger route through router-table/router/server
 - [ ] Add unit tests for the orchestrator covering embed, skip-on-matching-hash, and batch cap
