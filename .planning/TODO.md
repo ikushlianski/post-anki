@@ -22,7 +22,7 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
-- [ ] Get the tag-cap concurrency integration test actually running against real Postgres locally
+- [x] Get the tag-cap concurrency integration test actually running against real Postgres locally
 - [ ] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
 - [ ] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
 - [ ] Fix resolveOrCreateTag's race-recovery re-select when called inside an already-aborted transaction
