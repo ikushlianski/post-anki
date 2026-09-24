@@ -7,6 +7,10 @@
 - None open.
 
 ## Coding tasks
+- [x] Add a test proving a real Notion API error maps to 500, not 400
+- [x] Only map real bad-dataSourceId Notion errors to 400, let genuine outages/bugs surface as 500
+- [x] Tell the caller when an import was truncated at the row cap, not silently drop rows
+- [x] Stop unbounded Notion database reads before the 500-row cap is applied
 - [x] Return 400, not 500, when the Notion data source id is invalid
 - [x] Cap a single Notion import at 500 rows
 - [x] Dedupe re-imported Notion pages via a unique notionPageId column

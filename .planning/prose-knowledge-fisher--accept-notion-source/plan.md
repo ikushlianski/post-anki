@@ -15,18 +15,22 @@ provenance already used elsewhere in this schema (e.g. `facts.sourceRef`); `noti
 dedupe key that stops a re-import of the same database from duplicating every row.
 
 `POST /knowledge-sources/notion` with `{ "dataSourceId": string }` body:
-1. `collectAllDataSourceRows(getNotionClient(), { data_source_id: dataSourceId })`, filter
-   `isFullPage`, wrapped in try/catch — a bad/inaccessible `dataSourceId` or any Notion-side error
-   returns `400 {error: "invalid_notion_source"}`, never an opaque 500
+1. `iterateAllDataSourceRows(getNotionClient(), { data_source_id: dataSourceId })`, filtering
+   `isFullPage`, **stopping once `MAX_ROWS_PER_IMPORT + 1` full pages are collected** — a large
+   database no longer costs a full crawl just to import its first page. Wrapped in try/catch, but
+   only a narrow allowlist of Notion error codes (`object_not_found`, `unauthorized`,
+   `restricted_resource`, `validation_error`, `invalid_request_url` — i.e. actually "the id is bad")
+   maps to `400 {error: "invalid_notion_source"}`; everything else (rate limits, Notion outages, a
+   misconfigured client) re-throws to the outer request handler's real `500` + logged error
 2. `itemsFromDatabaseRows(rows)` → `{id, text, tags}[]` (existing helper, same one biz-education
-   uses)
-3. Insert up to `MAX_ROWS_PER_IMPORT = 500` rows per call (caps unbounded Notion crawls and the
-   downstream LLM bit-detection cost they'd feed): one `knowledge_sources` row per item, `kind:
-   "notion"`, `rawText: item.text`, `notionDatabaseId: dataSourceId`, `notionPageId: item.id`, via
+   uses), capped at `MAX_ROWS_PER_IMPORT` if the read hit the stop point
+3. Insert one `knowledge_sources` row per item: `kind: "notion"`, `rawText: item.text`,
+   `notionDatabaseId: dataSourceId`, `notionPageId: item.id`, via
    `.onConflictDoNothing({target: notionPageId}).returning()` — a page already imported in an
-   earlier call is silently skipped, not duplicated
-4. Return `{ created: number }` — count of rows actually inserted (post-dedupe, post-cap), not the
-   full row list
+   earlier call is silently skipped, not duplicated (also backstop-capped at
+   `MAX_ROWS_PER_IMPORT` in the repo itself, in case this function is ever called from elsewhere)
+4. Return `{ created: number, truncated: boolean }` — count of rows actually inserted (post-dedupe,
+   post-cap), and whether the database had more rows than the cap allowed in this one call
 
 No sync-marking, no PA-tag filter — those stay biz-education-distiller-specific concerns tied to
 its own workflow; this endpoint is a generic bulk importer for any Notion database the learner

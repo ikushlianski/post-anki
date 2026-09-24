@@ -10,11 +10,27 @@
 ## Dedupe, cap, and error-mapping (added after review round 1)
 - `notionPageId` (unique-indexed) is the dedupe key: `.onConflictDoNothing({target: notionPageId})`
   means a repeat import of the same database only inserts pages not already pulled in — without
-  this, re-running the import silently duplicated every row
+  this, re-running the import silently duplicated every row. Safe under concurrent/racing imports
+  too (proved against real Postgres, not just simulated in a mock)
 - `MAX_ROWS_PER_IMPORT = 500` caps a single call so one request can't trigger an unbounded Notion
   crawl or an unbounded batch of pending rows feeding future LLM bit-detection cost
-- The Notion-fetch step is wrapped in try/catch: a bad/inaccessible `dataSourceId` is a client input
-  problem from this endpoint's perspective, so it returns 400, not an opaque 500
+- The Notion-fetch step is wrapped in try/catch, but only a narrow allowlist of error codes means
+  "the dataSourceId is actually bad" — everything else re-throws to a real, logged 500
+
+## Round-2 fixes (structured-verdict FAIL)
+Round 1's fix still had two gaps a second review round found:
+1. **The cap was applied after the Notion read, not before it** — `collectAllDataSourceRows`
+   crawled the entire database into memory before the 500-row slice ran, so the resource-exhaustion
+   risk (request time, memory, Notion API quota) was still unbounded. Fixed by switching to
+   `iterateAllDataSourceRows` and breaking out of the loop once `MAX_ROWS_PER_IMPORT + 1` rows are
+   collected — the read itself now stops at the cap, not just the insert.
+2. **Every Notion-fetch failure mapped to 400**, including a missing `NOTION_TOKEN`, rate limiting,
+   and genuine Notion outages — real bugs were silently reported to the caller as "bad id" and never
+   reached the app's `request_failed` logger. Fixed with an explicit allowlist of Notion API error
+   codes (`object_not_found`, `unauthorized`, `restricted_resource`, `validation_error`,
+   `invalid_request_url`) that map to 400; every other error re-throws.
+3. Rows past the cap were silently dropped with no signal to the caller. The response now includes
+   `truncated: boolean` so a caller importing a database larger than the cap can tell.
 
 ## Why reuse the Notion connector, not a new client
 `apps/api/src/notion-connector/notion.client.ts` already wraps auth (`NOTION_TOKEN`) and exposes

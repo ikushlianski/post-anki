@@ -26,12 +26,9 @@ export async function insertKnowledgeSource(rawText: string): Promise<KnowledgeS
   };
 }
 
-// Caps a single import so one call can't crawl an unbounded Notion database
-// into an unbounded batch of pending rows (and an unbounded downstream
-// bit-detection/LLM cost) — matches the spirit of biz-education's own
-// MAX_ROWS cap, just sized for a one-shot user-triggered import rather than
-// a recurring 20-row sync poll.
-const MAX_ROWS_PER_IMPORT = 500;
+// Backstop cap — the controller already stops reading from Notion at this
+// limit; this slice guards the insert itself if it's ever called otherwise.
+export const MAX_ROWS_PER_IMPORT = 500;
 
 export async function insertKnowledgeSourcesFromNotion(
   items: { id: string; text: string }[],

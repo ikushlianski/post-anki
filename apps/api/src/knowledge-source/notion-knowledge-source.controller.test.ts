@@ -1,6 +1,19 @@
 import { Readable } from "node:stream";
 import type http from "node:http";
+import { APIErrorCode, APIResponseError } from "@notionhq/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+function notionError(code: APIErrorCode, status = 400): APIResponseError {
+  return new APIResponseError({
+    code,
+    status,
+    message: code,
+    headers: new Headers(),
+    rawBodyText: code,
+    additional_data: undefined,
+    request_id: undefined,
+  });
+}
 
 const mockQuery = vi.fn();
 const mockInsertKnowledgeSourcesFromNotion = vi.fn();
@@ -12,6 +25,7 @@ vi.mock("../notion-connector/notion.client.js", () => ({
 vi.mock("./knowledge-source.repo.js", () => ({
   insertKnowledgeSourcesFromNotion: (...args: unknown[]) =>
     mockInsertKnowledgeSourcesFromNotion(...args),
+  MAX_ROWS_PER_IMPORT: 500,
 }));
 
 const { handleCreateKnowledgeSourceFromNotion } = await import(
@@ -88,7 +102,7 @@ describe("handleCreateKnowledgeSourceFromNotion", () => {
       "ds-1",
     );
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ created: 3 });
+    expect(res.body).toEqual({ created: 3, truncated: false });
   });
 
   it("returns created: 0 and inserts nothing for a database with no rows", async () => {
@@ -100,7 +114,32 @@ describe("handleCreateKnowledgeSourceFromNotion", () => {
 
     expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith([], "ds-empty");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ created: 0 });
+    expect(res.body).toEqual({ created: 0, truncated: false });
+  });
+
+  it("stops reading from Notion at the row cap and reports truncated: true, instead of crawling the whole database", async () => {
+    const rows = Array.from({ length: 501 }, (_, i) => row(`r-${i}`, `Idea ${i}`));
+    mockQuery.mockResolvedValue({ results: rows, has_more: false, next_cursor: null });
+    mockInsertKnowledgeSourcesFromNotion.mockResolvedValue(
+      Array.from({ length: 500 }, (_, i) => ({
+        id: `ks_${i}`,
+        kind: "notion",
+        rawText: `Idea ${i}`,
+        status: "pending",
+        createdAt: new Date(),
+      })),
+    );
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "ds-big" }), res);
+
+    expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: "r-0" })]),
+      "ds-big",
+    );
+    expect((mockInsertKnowledgeSourcesFromNotion.mock.calls[0]?.[0] as unknown[]).length).toBe(500);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ created: 500, truncated: true });
   });
 
   it("400s when dataSourceId is missing from the body", async () => {
@@ -122,13 +161,31 @@ describe("handleCreateKnowledgeSourceFromNotion", () => {
   });
 
   it("400s (not 500) when Notion rejects the data source id, without inserting anything", async () => {
-    mockQuery.mockRejectedValue(new Error("object_not_found"));
+    mockQuery.mockRejectedValue(notionError(APIErrorCode.ObjectNotFound));
 
     const res = fakeRes();
     await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "bad-id" }), res);
 
     expect(res.status).toBe(400);
     expect((res.body as { error: string }).error).toBe("invalid_notion_source");
+    expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
+  });
+
+  it("re-throws a real Notion API error that isn't about a bad dataSourceId (e.g. rate limiting), instead of masking it as a 400", async () => {
+    mockQuery.mockRejectedValue(notionError(APIErrorCode.RateLimited, 429));
+
+    await expect(
+      handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "ds-1" }), fakeRes()),
+    ).rejects.toMatchObject({ code: APIErrorCode.RateLimited });
+    expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
+  });
+
+  it("re-throws a plain error from a misconfigured Notion client (e.g. missing token), instead of masking it as a 400", async () => {
+    mockQuery.mockRejectedValue(new Error("NOTION_TOKEN is not set"));
+
+    await expect(
+      handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: "ds-1" }), fakeRes()),
+    ).rejects.toThrow("NOTION_TOKEN is not set");
     expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
   });
 });

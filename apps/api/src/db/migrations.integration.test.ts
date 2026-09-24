@@ -391,4 +391,27 @@ describe("migrations — knowledge_sources.notion_page_id (prose-knowledge-fishe
       ),
     ).resolves.toBeDefined();
   });
+
+  it("keeps exactly one row when two concurrent imports race to insert the same notion_page_id with ON CONFLICT DO NOTHING", async () => {
+    const pageId = `page-race-${randomUUID()}`;
+    const insertOnConflict = (id: string, text: string) =>
+      testPool.query(
+        `INSERT INTO knowledge_sources (id, kind, raw_text, status, notion_page_id)
+         VALUES ($1, 'notion', $2, 'pending', $3)
+         ON CONFLICT (notion_page_id) DO NOTHING`,
+        [id, text, pageId],
+      );
+
+    await Promise.all([
+      insertOnConflict(`ks_race_${randomUUID()}`, "First racer."),
+      insertOnConflict(`ks_race_${randomUUID()}`, "Second racer."),
+    ]);
+
+    const { rows } = await client.query(
+      `SELECT id FROM knowledge_sources WHERE notion_page_id = $1`,
+      [pageId],
+    );
+
+    expect(rows).toHaveLength(1);
+  });
 });
