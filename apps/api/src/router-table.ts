@@ -24,6 +24,11 @@ export const ROUTES: RouteDef[] = [
     pattern: "/knowledge-bits/tagging-scan",
     name: "triggerKnowledgeBitTaggingScan",
   },
+  {
+    method: "POST",
+    pattern: "/knowledge-bits/placement-scan",
+    name: "triggerKnowledgeBitPlacementScan",
+  },
   { method: "DELETE", pattern: /^\/subjects\/([^/]+)$/, name: "deleteSubject", param: "id" },
   { method: "PATCH", pattern: /^\/subjects\/([^/]+)$/, name: "updateSubject", param: "id" },
   { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },

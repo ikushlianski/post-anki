@@ -8,6 +8,7 @@ vi.mock("../shared/log.js", () => ({
 const mockDetectKnowledgeBits = vi.fn();
 const mockEmbedKnowledgeBits = vi.fn();
 const mockTagKnowledgeBits = vi.fn();
+const mockPlaceKnowledgeBits = vi.fn();
 
 vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({
   detectKnowledgeBits: (...args: unknown[]) => mockDetectKnowledgeBits(...args),
@@ -21,10 +22,15 @@ vi.mock("./knowledge-bit-tagging.orchestrator.js", () => ({
   tagKnowledgeBits: (...args: unknown[]) => mockTagKnowledgeBits(...args),
 }));
 
+vi.mock("./knowledge-bit-placement.orchestrator.js", () => ({
+  placeKnowledgeBits: (...args: unknown[]) => mockPlaceKnowledgeBits(...args),
+}));
+
 const {
   handleDetectKnowledgeBits,
   handleTriggerKnowledgeBitEmbeddingScan,
   handleTriggerKnowledgeBitTaggingScan,
+  handleTriggerKnowledgeBitPlacementScan,
 } = await import("./detect-knowledge-bits.controller.js");
 
 function fakeRes(): http.ServerResponse & { status: number | null; body: unknown } {
@@ -143,6 +149,42 @@ describe("handleTriggerKnowledgeBitTaggingScan", () => {
     expect(res.status).toBe(502);
     expect((res.body as { message: string }).message).toBe(
       "knowledge bit tagging scan failed",
+    );
+  });
+});
+
+describe("handleTriggerKnowledgeBitPlacementScan", () => {
+  it("returns 200 with the scan counts on success", async () => {
+    mockPlaceKnowledgeBits.mockResolvedValue({ scanned: 3, matched: 1, suggested: 1, failed: 1 });
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitPlacementScan(res);
+
+    expect(mockPlaceKnowledgeBits).toHaveBeenCalledWith();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ scanned: 3, matched: 1, suggested: 1, failed: 1 });
+  });
+
+  it("returns 502 with an error message when the scan throws, never a silent 200", async () => {
+    mockPlaceKnowledgeBits.mockRejectedValue(new Error("placer provider down"));
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitPlacementScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { error: string }).error).toBe("scan_failed");
+    expect((res.body as { message: string }).message).toBe("placer provider down");
+  });
+
+  it("falls back to a generic message when the thrown value is not an Error instance", async () => {
+    mockPlaceKnowledgeBits.mockRejectedValue("boom");
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitPlacementScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { message: string }).message).toBe(
+      "knowledge bit placement scan failed",
     );
   });
 });

@@ -15,6 +15,7 @@ import {
   handleDetectKnowledgeBits,
   handleTriggerKnowledgeBitEmbeddingScan,
   handleTriggerKnowledgeBitTaggingScan,
+  handleTriggerKnowledgeBitPlacementScan,
 } from "./knowledge-bit/detect-knowledge-bits.controller.js";
 import {
   handleCreateSubjectCategory,
@@ -350,6 +351,8 @@ async function route(
       return handleTriggerKnowledgeBitEmbeddingScan(res);
     case "triggerKnowledgeBitTaggingScan":
       return handleTriggerKnowledgeBitTaggingScan(res);
+    case "triggerKnowledgeBitPlacementScan":
+      return handleTriggerKnowledgeBitPlacementScan(res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "updateSubject":

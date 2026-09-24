@@ -6,9 +6,14 @@
   "activeDirections": [
     "prose-knowledge-fisher"
   ],
-  "lastHeartbeatAt": "2026-09-24T03:50:14.633Z",
-  "timeBoundBlocks": 0,
+  "lastHeartbeatAt": "2026-09-24T05:20:44.072Z",
+  "timeBoundBlocks": 2,
+  "lastBlockAt": "2026-09-24T05:20:43.327Z",
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": []
+  "pendingSkillReload": [
+    "nextx",
+    "implement-factory",
+    "review-factory"
+  ]
 }
