@@ -7,7 +7,7 @@
 - None open.
 
 ## Coding tasks
-- [ ] Extend the integration test to cover suggested and failed write-backs
+- [x] Extend the integration test to cover suggested and failed write-backs
 - [x] Add a unit test for the placement-scan route handler's 200/502 paths
 - [x] Reject a blank or over-long placement suggestion instead of writing it
 - [x] Add a unit test for the placer agent's refine/parse/throw behavior
