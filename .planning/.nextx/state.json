@@ -12,8 +12,6 @@
   "autoCommitEnabled": true,
   "pushGranted": false,
   "pendingSkillReload": [
-    "nextx",
-    "implement-factory",
-    "review-factory"
+    "nextx"
   ]
 }

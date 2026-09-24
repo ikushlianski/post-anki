@@ -5,8 +5,7 @@ import { knowledgeBits } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { insertQuestionVariant, type KnowledgeBitForQuestionGenerationScan } from "./knowledge-bit-question-variant.repo.js";
 
-// A failed bit stays a candidate until it hits the attempts cap, unlike the wh_question pipeline's
-// older, permanent *FailedAt-alone exclusion.
+// A failed bit stays a candidate until it hits the attempts cap.
 export const FILL_BLANK_GENERATION_MAX_ATTEMPTS = 3;
 
 // A claim older than this is treated as abandoned and becomes claimable again.
