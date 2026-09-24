@@ -24,19 +24,33 @@ import {
 } from "./knowledge-bit-answer-grader.agent.js";
 
 describe("buildKnowledgeBitAnswerGraderPrompt", () => {
-  it("wraps question, reference answer, and learner answer in their own delimiters", () => {
+  it("wraps kind, question, reference answer, and learner answer in their own delimiters", () => {
     const prompt = buildKnowledgeBitAnswerGraderPrompt(
+      "wh_question",
       "Why does anchoring shift perceived value?",
       "The first number seen recalibrates the comparison baseline.",
       "Because you compare everything to the first price you saw.",
     );
 
+    expect(prompt).toContain("<kind>");
+    expect(prompt).toContain("wh_question");
     expect(prompt).toContain("<question>");
     expect(prompt).toContain("Why does anchoring shift perceived value?");
     expect(prompt).toContain("<reference_answer>");
     expect(prompt).toContain("The first number seen recalibrates the comparison baseline.");
     expect(prompt).toContain("<learner_answer>");
     expect(prompt).toContain("Because you compare everything to the first price you saw.");
+  });
+
+  it("carries fill_in_the_blank through as the kind, not defaulting to wh_question", () => {
+    const prompt = buildKnowledgeBitAnswerGraderPrompt(
+      "fill_in_the_blank",
+      "An initial price ____ shifts what feels fair later.",
+      "anchor",
+      "anchor",
+    );
+
+    expect(prompt).toContain("<kind>\nfill_in_the_blank\n</kind>");
   });
 });
 
@@ -89,6 +103,7 @@ describe("runKnowledgeBitAnswerGrader", () => {
     });
 
     const result = await runKnowledgeBitAnswerGrader(
+      "wh_question",
       "Why does anchoring shift perceived value?",
       "The first number seen recalibrates the comparison baseline.",
       "Because of the first price seen.",
@@ -109,7 +124,7 @@ describe("runKnowledgeBitAnswerGrader", () => {
     });
 
     await expect(
-      runKnowledgeBitAnswerGrader("Q", "Reference", "Answer"),
+      runKnowledgeBitAnswerGrader("wh_question", "Q", "Reference", "Answer"),
     ).rejects.toThrow("knowledge_bit_answer_grader_invalid_output");
   });
 });

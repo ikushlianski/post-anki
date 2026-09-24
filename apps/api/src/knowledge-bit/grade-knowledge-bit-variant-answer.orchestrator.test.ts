@@ -25,7 +25,12 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
   });
 
   it("grades a correct answer, stores the attempt, and returns the grade", async () => {
-    const variant = { id: "kbqv_1", prompt: "Why does X happen?", answer: "Because of Y." };
+    const variant = {
+      id: "kbqv_1",
+      kind: "wh_question" as const,
+      prompt: "Why does X happen?",
+      answer: "Because of Y.",
+    };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
     vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
@@ -37,6 +42,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_1", "Because of Y, precisely.");
 
     expect(runKnowledgeBitAnswerGrader).toHaveBeenCalledWith(
+      variant.kind,
       variant.prompt,
       variant.answer,
       "Because of Y, precisely.",
@@ -57,7 +63,12 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
   });
 
   it("grades an incomplete answer and still records the lower-scoring attempt", async () => {
-    const variant = { id: "kbqv_2", prompt: "Why does X happen?", answer: "Because of Y." };
+    const variant = {
+      id: "kbqv_2",
+      kind: "wh_question" as const,
+      prompt: "Why does X happen?",
+      answer: "Because of Y.",
+    };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
     vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
@@ -79,6 +90,31 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     });
   });
 
+  it("passes the fill_in_the_blank kind through to the grader, not defaulting to wh_question", async () => {
+    const variant = {
+      id: "kbqv_fb",
+      kind: "fill_in_the_blank" as const,
+      prompt: "An initial price ____ shifts what feels fair later.",
+      answer: "anchor",
+    };
+
+    vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
+    vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
+      score: 10,
+      verdict: "Ok",
+      feedback: "Exact term.",
+    });
+
+    await gradeKnowledgeBitVariantAnswer("kbqv_fb", "anchor");
+
+    expect(runKnowledgeBitAnswerGrader).toHaveBeenCalledWith(
+      "fill_in_the_blank",
+      variant.prompt,
+      variant.answer,
+      "anchor",
+    );
+  });
+
   it("returns variant_not_found and never grades or inserts when the variant doesn't exist", async () => {
     vi.mocked(getQuestionVariantById).mockResolvedValue(null);
 
@@ -90,7 +126,12 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
   });
 
   it("grades against the variant's own prompt/answer, not any other text", async () => {
-    const variant = { id: "kbqv_3", prompt: "Specific question?", answer: "Specific answer." };
+    const variant = {
+      id: "kbqv_3",
+      kind: "wh_question" as const,
+      prompt: "Specific question?",
+      answer: "Specific answer.",
+    };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
     vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
@@ -101,7 +142,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
 
     await gradeKnowledgeBitVariantAnswer("kbqv_3", "My answer");
 
-    const [question, referenceAnswer] = vi.mocked(runKnowledgeBitAnswerGrader).mock.calls[0]!;
+    const [, question, referenceAnswer] = vi.mocked(runKnowledgeBitAnswerGrader).mock.calls[0]!;
     expect(question).toBe("Specific question?");
     expect(referenceAnswer).toBe("Specific answer.");
   });

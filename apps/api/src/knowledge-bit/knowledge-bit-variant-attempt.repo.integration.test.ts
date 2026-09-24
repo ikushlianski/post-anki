@@ -82,26 +82,51 @@ async function seedKnowledgeBit(knowledgeSourceId: string, ordinal: number, body
   return id;
 }
 
-async function seedVariant(bitId: string, prompt: string, answer: string): Promise<string> {
-  await insertQuestionVariant(bitId, "wh_question", 0, prompt, answer);
+async function seedVariant(
+  bitId: string,
+  prompt: string,
+  answer: string,
+  kind: "wh_question" | "fill_in_the_blank" = "wh_question",
+): Promise<string> {
+  await insertQuestionVariant(bitId, kind, 0, prompt, answer);
 
   const { rows } = await client.query(
-    `SELECT id FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1`,
-    [bitId],
+    `SELECT id FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1 AND kind = $2`,
+    [bitId, kind],
   );
 
   return rows[0]!.id as string;
 }
 
 describe("getQuestionVariantById (real Postgres)", () => {
-  it("returns the variant's id, prompt, and answer", async () => {
+  it("returns the variant's id, kind, prompt, and answer", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with a variant to grade");
     const variantId = await seedVariant(bitId, "Why does this matter?", "Because of X.");
 
     const row = await getQuestionVariantById(variantId);
 
-    expect(row).toEqual({ id: variantId, prompt: "Why does this matter?", answer: "Because of X." });
+    expect(row).toEqual({
+      id: variantId,
+      kind: "wh_question",
+      prompt: "Why does this matter?",
+      answer: "Because of X.",
+    });
+  });
+
+  it("returns kind fill_in_the_blank for a fill-blank variant, not defaulting to wh_question", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with a fill-blank variant to grade");
+    const variantId = await seedVariant(
+      bitId,
+      "An initial price ____ shifts what feels fair later.",
+      "anchor",
+      "fill_in_the_blank",
+    );
+
+    const row = await getQuestionVariantById(variantId);
+
+    expect(row?.kind).toBe("fill_in_the_blank");
   });
 
   it("returns null for a variant id that doesn't exist", async () => {

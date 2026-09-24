@@ -19,7 +19,12 @@ export async function gradeKnowledgeBitVariantAnswer(
     return { ok: false, error: "variant_not_found" };
   }
 
-  const grade = await runKnowledgeBitAnswerGrader(variant.prompt, variant.answer, userAnswer);
+  const grade = await runKnowledgeBitAnswerGrader(
+    variant.kind,
+    variant.prompt,
+    variant.answer,
+    userAnswer,
+  );
 
   await insertVariantAttempt({
     variantId,

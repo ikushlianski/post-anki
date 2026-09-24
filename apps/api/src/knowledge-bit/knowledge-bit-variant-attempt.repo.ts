@@ -1,11 +1,12 @@
 import { eq } from "drizzle-orm";
-import type { Verdict } from "@post-anki/shared";
+import type { KnowledgeBitQuestionVariantKind, Verdict } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitQuestionVariants, knowledgeBitVariantAttempts } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 export interface QuestionVariantForGrading {
   id: string;
+  kind: KnowledgeBitQuestionVariantKind;
   prompt: string;
   answer: string;
 }
@@ -17,6 +18,7 @@ export async function getQuestionVariantById(
   const rows = await db
     .select({
       id: knowledgeBitQuestionVariants.id,
+      kind: knowledgeBitQuestionVariants.kind,
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
     })
@@ -24,7 +26,9 @@ export async function getQuestionVariantById(
     .where(eq(knowledgeBitQuestionVariants.id, id))
     .limit(1);
 
-  return rows[0] ?? null;
+  const row = rows[0];
+
+  return row ? { ...row, kind: row.kind as KnowledgeBitQuestionVariantKind } : null;
 }
 
 export interface VariantAttemptInsertRow {
