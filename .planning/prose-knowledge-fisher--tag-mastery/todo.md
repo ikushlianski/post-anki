@@ -27,3 +27,6 @@
   both having a sub-item literally named "Phase 2: tests" made it silently no-op against the wrong
   (already-checked) one. Hand-edited .planning/TODO.md directly for this one case instead — a real
   CLI limitation (duplicate sub-item text across unrelated roots), not a policy violation.
+- Pass 1 FAIL: getTagMasteryLevels had no tiebreak for attempts sharing a created_at timestamp,
+  nondeterministic fold. Fixed with a secondary `asc(id)` sort (commit 70c4406) plus a dedicated
+  tie test. Pass 2 PASS, independently verified.
