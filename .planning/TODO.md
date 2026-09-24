@@ -24,7 +24,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Build a screen where the learner can actually answer knowledge-bit questions
   - [x] Phase 1: next-batch endpoint
-  - [ ] Phase 2: answer screen UI
+  - [x] Phase 2: answer screen UI
   - [ ] Phase 3: answer-screen tests
 - [x] Record each learner answer to a question variant with a score and verdict
   - [x] Phase 1: schema and migration
