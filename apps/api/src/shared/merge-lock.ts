@@ -67,6 +67,21 @@ export async function withSubjectLock<T>(
 }
 
 /**
+ * A single, fixed-key advisory lock for a shared, whole-table invariant (not
+ * a per-entity one) — e.g. "the tags table never exceeds its taxonomy cap".
+ * Every caller enforcing that invariant locks the same `lockKey`, so a
+ * check-then-insert race between two concurrent callers is serialized
+ * instead of both passing the check before either inserts.
+ */
+export async function withNamedLock<T>(lockKey: string, run: (tx: Tx) => Promise<T>): Promise<T> {
+  return getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockKey})::bigint)`);
+
+    return run(tx);
+  });
+}
+
+/**
  * The pair-locking half of `withMergeLock`'s preamble (sorted advisory-lock
  * pair, so two callers racing on the same pair in opposite directions never
  * deadlock), without `withMergeLock`'s self-merge guard — for callers where

@@ -15,6 +15,7 @@ e2e/.auth/
 /playwright-report/
 .review-factory-state.json
 .review-factory-digest-input.json
+.review-factory-mechanical-specs.*.json
 docker-compose.override.yml
 .claude/worktrees/
 .claude/scheduled_tasks.lock

@@ -7,6 +7,55 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## prose-knowledge-fisher
+
+### Scope
+- Accept raw prose or a Notion database as a knowledge source, not just structured rows
+- Auto-detect distinct knowledge bits inside a block of prose
+- Auto-tag each bit from one shared taxonomy of roughly 20-50 tags, reusing and growing it rather than inventing tags per bit
+- Place each bit into the existing subject-curriculum-topic hierarchy, same as any other card
+- Generate a few question variants per bit (open Wh-questions, fill-in-the-blank, others) probing the why, not just the fact
+- Ask follow-up questions as a knowledge fisher persona that digs for the reasoning behind a fact
+- Track per-tag and per-topic knowledge strength from how the learner answers, and update it as new answers come in
+- Use that tracked strength to advise the learner where to go deeper
+- Out of scope: The existing Biz Education Notion pipeline and generic notion-deck-connectors router stay separate pipelines
+- Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
+
+### Coding tasks
+- [ ] Get the tag-cap concurrency integration test actually running against real Postgres locally
+- [ ] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
+- [ ] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
+- [ ] Fix resolveOrCreateTag's race-recovery re-select when called inside an already-aborted transaction
+- [x] Make the at-cap fallback pick the semantically nearest tag, not the alphabetically-first one
+- [x] Make tag-cap assignment atomic against a concurrent call at the cap boundary
+- [x] Validate the LLM's matched tag name against the real tag list before reusing it
+- [ ] Accept a pasted block of prose as a knowledge source
+- [ ] Accept a Notion database as a prose knowledge source, alongside pasted text
+- [ ] Auto-detect distinct knowledge bits inside a block of prose
+- [ ] Embed each submitted knowledge bit into the existing vector pipeline
+- [ ] Auto-tag each detected knowledge bit from the shared taxonomy
+- [ ] Reuse an existing close-match tag instead of minting a near-duplicate
+- [ ] Place each knowledge bit into the existing subject, curriculum, and topic it fits
+- [ ] Suggest a new hierarchy spot when no existing topic fits a bit
+- [ ] Generate a Wh-question variant for each knowledge bit
+- [ ] Generate a fill-in-the-blank variant for each knowledge bit
+- [ ] Write a knowledge-fisher prompt that probes for the why behind a bit
+- [ ] Ask a knowledge-fisher follow-up question after the learner answers
+- [ ] Embed each generated question and answer, linked back to its source knowledge bit
+- [ ] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
+- [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
+- [ ] Track a dynamic knowledge-level per tag from scored answers
+- [ ] Surface where the learner is strong, weak, or shallow by tag and topic
+- [ ] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
+
+### Notes
+- Per learning-brain's rule, deepen advice stays pull-only — never a push notification or a waiting-count badge
+- Reuse tags table (schema.ts:791), biz-education's classifier, gap-mastery, and domain-recommendations — don't rebuild
+- Default call: reordered items by dependency, rewrote 4 toward reuse after an overlap audit
+- Embeddings: cheapest provider. Classification/placement calls: cheapest model that can classify + search, below cheap-tier if one exists
+- STUCK (2026-09-24): tag-taxonomy-cap hit 3 review FAILs — don't re-attempt, work the 4 split-out items
+
+
 ## biz-education-distiller
 
 ### Scope
@@ -240,71 +289,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
 ## Wishlist for the night
+- [ ] Build a simple React Native app for easy, low-pressure learning and repetition, not cramming
 
-- [ ] Simplify the dashboard to show only the courses I actually started — STUCK, needs a human
-      look. The home page is proven never to invent courses from taxonomy data; the separate
-      dashboard page still has no such guarantee. Work sits on branch
-      dashboard-self-initiated-only.
-  - [ ] Diagnose why the dashboard page can invent courses from taxonomy data unlike the home page
-    - [ ] Compare the home page's course-list query against the dashboard page's
-    - [ ] Identify where taxonomy-derived rows leak in as pseudo-courses
-  - [ ] Apply the home page's "never invent from taxonomy" guarantee to the dashboard page
-  - [ ] Add a locked e2e test, then get human confirmation of the visual result before merging
-- [x] One easy-to-manage dashboard tree of subjects, courses, modules and topics. Built and
-      verified on branch dashboard-unified-tree, NOT yet merged — the live app still shows the
-      old separate dashboard page.
-- [ ] Drag a course card onto a different subject to move it there. The dropdown alternative
-      works; the drag itself fails intermittently under independent review and needs a human
-      watching a real browser to finish diagnosing.
-  - [ ] Reproduce the intermittent drag failure in a real browser session
-    - [ ] Capture exact repro steps and failure rate
-  - [ ] Diagnose root cause (DnD timing vs hydration, or an event-listener race)
-  - [ ] Fix, then confirm stability across repeated manual tries — needs human confirmation
-- [ ] Make it easy to add sources to a course — STUCK, needs a human look. The paste-a-docs-link
-      flow works, but review found a second place elsewhere that fetches a user-supplied address
-      without the same protection, plus no test coverage for the new discovery step. Work sits on
-      branch curriculum-add-sources-easily.
-  - In progress as item 10 of the active autonomous batch, GitHub issue #103 — no separate
-    breakdown here to avoid duplicate tracking.
-- [ ] Let a module or topic suggest its own children from web search — STUCK, needs a human look.
-      Built and verified; blocked on citation links rendering without a safe-address check, a
-      weakness that already exists in four other places. Work sits on branch
-      module-topic-expand-web-search.
-  - [x] Inventory every citation-link render site missing the safe-address check (4 existing + this one)
-  - [ ] Apply the existing safe-address check uniformly across all 5 sites
-  - [ ] Re-verify the web-search suggestion feature end-to-end once citations are guarded
-  - The safe-address check itself ships as item 10 of the active autonomous batch, issue #103 —
-    this item is the feature that check unblocks.
-- [ ] Let me chat with the structure of my knowledge — move things, merge them, reorganise.
-  - [ ] Scope which reorganize operations ship first (move, merge, split, rename) vs later
-  - [ ] Design the chat-driven interaction, with confirmation before any destructive move
-  - [ ] Implement the backend reorganize operations, wired to the chat surface
-    - [ ] One deriver per operation (move/merge/split), unit-tested in isolation
-    - [ ] Chat tool-call wiring that confirms before calling a destructive operation
-  - [ ] FE surface plus e2e coverage for at least the move and merge paths
-- [ ] Update two locked e2e tests for curriculum structure-shaping pipeline stage.
-  - [ ] Identify the two locked tests and what changed in the pipeline stage
-  - [ ] Update their assertions to match current behavior without weakening coverage
-- [ ] Add subject/tag split fast-follow to ontology-split-merge; include cycle guard.
-  - [ ] Review ontology-split-merge's existing split/merge implementation
-  - [ ] Add the fast-follow split path for subject/tag
-  - [ ] Add a cycle guard so a split/merge chain can't cycle back on itself
-- [ ] Connect post-anki to the-me-agent vault via MCP for mentor context.
-  - [ ] Confirm the-me-agent's MCP surface and auth model
-  - [ ] Wire an MCP client into post-anki's mentor/Socratic context assembly
-  - [ ] Scope which vault data is safe and useful to pull in per session
-- [ ] Recommend courses from the-me-agent's learning map, with accept/later/dismiss.
-  - Depends on the MCP connection above landing first.
-  - [ ] Define the recommendation surface — where it's shown, how often
-  - [ ] Backend: pull candidate topics from the-me-agent's learning map
-  - [ ] FE: accept/later/dismiss actions, with the choice persisted
-- [x] Add one daily Telegram touchpoint digesting all practice surfaces.
-  - [x] Scope what "all practice surfaces" means for the digest (due queue, probes, gaps)
-  - [x] Backend: compose the daily digest message
-  - [x] Wire into the existing Telegram bot's scheduled-send mechanism
-- [ ] Merge Tauri desktop app worktree once Rust toolchain is installed.
-      [→ .claude/worktrees/tauri-desktop-app]
-  - Manual step (install the Rust toolchain) blocks this — not a coding session on its own.
 
 ## Decisions to make
 
