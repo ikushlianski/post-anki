@@ -1139,6 +1139,20 @@ export const knowledgeBitQuestionVariants = pgTable(
   ],
 );
 
+// One row per learner attempt at a knowledge-bit question variant — never updated, only inserted,
+// so spaced-repetition re-answering is a new row rather than overwriting the last verdict. Plain
+// text variantId, no FK, matching this schema's dominant cross-table convention (gaps.topicId,
+// gapMastery.lastCorrectSessionId, knowledgeBits.knowledgeSourceId).
+export const knowledgeBitVariantAttempts = pgTable("knowledge_bit_variant_attempts", {
+  id: text("id").primaryKey(),
+  variantId: text("variant_id").notNull(),
+  userAnswer: text("user_answer").notNull(),
+  score: integer("score").notNull(),
+  verdict: text("verdict").notNull(),
+  feedback: text("feedback").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const notionSyncItems = pgTable("notion_sync_items", {
   notionId: text("notion_id").primaryKey(),
   connector: text("connector").notNull(),

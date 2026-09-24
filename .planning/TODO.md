@@ -22,6 +22,11 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [ ] Record each learner answer to a question variant with a score and verdict
+  - [x] Phase 1: schema and migration
+  - [ ] Phase 2: grader agent and repo
+  - [ ] Phase 3: orchestrator and route
+  - [ ] Phase 4: tests
 - [x] Wrap knowledge-bit insert and status update in one transaction
 - [x] Add a stale-processing-row reset so a crashed knowledge-bit scan doesn't strand a row forever
 - [x] Get the tag-cap concurrency integration test actually running against real Postgres locally
