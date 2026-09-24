@@ -7,9 +7,9 @@
 - None open.
 
 ## Coding tasks
-- [ ] Select knowledgeBitId in getQuestionVariantById
-- [ ] Wire tagIds lookup into grade-knowledge-bit-variant-answer orchestrator
-- [ ] Tests: repo, orchestrator (tags/no-tags/not-found paths), controller
+- [x] Select knowledgeBitId in getQuestionVariantById
+- [x] Wire tagIds lookup into grade-knowledge-bit-variant-answer orchestrator
+- [x] Tests: repo, orchestrator (tags/no-tags/not-found paths), controller
 
 ## Manual steps
 - None.
@@ -18,4 +18,6 @@
 - None — no schema change, additive response field only.
 
 ## Resolved
-- None yet.
+- Applied the fail-soft pattern proactively (before review, based on the earlier lesson from the
+  follow-up-question item) — a tag-lookup DB error can't turn an already-graded, already-persisted
+  answer into a 502. Independent review PASS, no findings.
