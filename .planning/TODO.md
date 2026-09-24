@@ -47,7 +47,7 @@ updated: 2026-09-04
   - [x] Phase 1: shared type, schema, migration, and repo
   - [x] Phase 2: tagger agent and scan orchestrator
   - [x] Phase 3: trigger route and tests
-- [ ] Reuse an existing close-match tag instead of minting a near-duplicate
+- [x] Reuse an existing close-match tag instead of minting a near-duplicate
 - [ ] Place each knowledge bit into the existing subject, curriculum, and topic it fits
 - [ ] Suggest a new hierarchy spot when no existing topic fits a bit
 - [ ] Generate a Wh-question variant for each knowledge bit
