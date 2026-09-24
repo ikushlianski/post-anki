@@ -23,7 +23,11 @@
 - Phase 1 shipped: apps/api/src/tag/tag.repo.ts:getTagMasteryStatuses composes listTags +
   getTagMasteryLevels, defaulting a map miss to DEFAULT_TAG_MASTERY_ENTRY's "new" status. Wired via
   tag.service.ts/tag.controller.ts/router-table.ts/router.ts/server.ts as GET /tags/mastery.
-  tsc + vitest (unit + 2 integration files, 10 tests) green.
+  tsc + vitest (unit + 2 integration files, 10 tests) green. Reviewed PASS.
+- Phase 2 shipped: tag-list.tsx renders a client-only strength badge (strong/shallow/weak/
+  untested), RTL test substituted for Playwright (repo has none). No real-browser check — no
+  browser access available in this run's environment, disclosed rather than skipped silently.
+  Reviewed PASS.
 - Phase 2 shipped: tag-list.tsx renders a strength badge (data-testid
   tag-list-strength-<tagId>) per tag chip via listTagMasteryStatuses. This repo has no real
   Playwright specs anywhere, so the RED test is a co-located RTL component test instead
