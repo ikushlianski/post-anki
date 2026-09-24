@@ -22,6 +22,8 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [ ] Wrap knowledge-bit insert and status update in one transaction
+- [ ] Add a stale-processing-row reset so a crashed knowledge-bit scan doesn't strand a row forever
 - [x] Get the tag-cap concurrency integration test actually running against real Postgres locally
 - [x] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
 - [x] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
