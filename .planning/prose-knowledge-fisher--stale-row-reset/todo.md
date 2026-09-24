@@ -7,9 +7,9 @@
 - None open.
 
 ## Coding tasks
-- Remove the explanatory comment inside the late-finishing-attempt test body
-- Split knowledge-bit.repo.test.ts (473 lines) into smaller co-located test files, under 300 lines each
-- Add a real-Postgres integration test proving a claimed token round-trips and a stale token is rejected after reclaim
+- [x] Remove the explanatory comment inside the late-finishing-attempt test body
+- [x] Split knowledge-bit.repo.test.ts (473 lines) into smaller co-located test files, under 300 lines each
+- [x] Add a real-Postgres integration test proving a claimed token round-trips and a stale token is rejected after reclaim
 - [x] Guard final writes with the claim's own updatedAt so a reclaimed row can't be corrupted
 - [x] Add `updatedAt` column to `knowledgeSources` in schema.ts, generate + apply migration
 - [x] Set `updatedAt` on every status-changing write (claim, markFailed, insertBitsAndMarkDetected)
