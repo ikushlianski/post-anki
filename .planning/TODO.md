@@ -61,7 +61,7 @@ updated: 2026-09-04
   - [ ] Phase 1: schema and migration
   - [x] Phase 2: knowledge-fisher agent
   - [x] Phase 3: orchestrator and route
-  - [ ] Phase 4: tests
+  - [x] Phase 4: tests
 - [ ] Generate a fill-in-the-blank variant for each knowledge bit
 - [ ] Write a knowledge-fisher prompt that probes for the why behind a bit
 - [ ] Ask a knowledge-fisher follow-up question after the learner answers
