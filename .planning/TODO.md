@@ -86,7 +86,7 @@ updated: 2026-09-04
   - [x] Phase 1: repo query and mastery fold
   - [x] Phase 2: tests
 - [ ] Surface where the learner is strong, weak, or shallow by tag and topic
-  - [ ] Phase 1: tag-mastery endpoint
+  - [x] Phase 1: tag-mastery endpoint
   - [ ] Phase 2: tag-strength badge UI
 - [ ] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
 - [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
