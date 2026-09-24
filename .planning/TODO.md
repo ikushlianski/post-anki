@@ -24,7 +24,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Record each learner answer to a question variant with a score and verdict
   - [x] Phase 1: schema and migration
-  - [ ] Phase 2: grader agent and repo
+  - [x] Phase 2: grader agent and repo
   - [ ] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
 - [x] Wrap knowledge-bit insert and status update in one transaction
