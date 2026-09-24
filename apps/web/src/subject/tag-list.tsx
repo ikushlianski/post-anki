@@ -2,8 +2,29 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { listTags, mergeTags } from '../curriculum/curriculum.api'
+import { listTagMasteryStatuses, listTags, mergeTags } from '../curriculum/curriculum.api'
+import type { TagMasteryStatus } from '../curriculum/api-client'
 import type { Tag } from '../curriculum/model'
+
+const STRENGTH_LABEL: Record<TagMasteryStatus['status'], string> = {
+  new: 'untested',
+  practicing: 'shallow',
+  struggling: 'weak',
+  mastered: 'strong',
+}
+
+function TagStrengthBadge({ tag, statusByTagId }: { tag: Tag; statusByTagId: Map<string, TagMasteryStatus['status']> }) {
+  const status = statusByTagId.get(tag.id) ?? 'new'
+
+  return (
+    <span
+      data-testid={`tag-list-strength-${tag.id}`}
+      className="text-xs font-medium text-indigo-400"
+    >
+      {STRENGTH_LABEL[status]}
+    </span>
+  )
+}
 
 function TagMergeControl({
   tag,
@@ -88,10 +109,16 @@ export function TagList() {
     queryKey: ['tags'],
     queryFn: () => listTags(),
   })
+  const { data: masteryStatuses } = useQuery({
+    queryKey: ['tags-mastery'],
+    queryFn: () => listTagMasteryStatuses(),
+  })
 
   if (!tags || tags.length === 0) {
     return null
   }
+
+  const statusByTagId = new Map((masteryStatuses ?? []).map((row) => [row.tagId, row.status]))
 
   return (
     <div className="mb-10" data-testid="tag-list">
@@ -112,6 +139,7 @@ export function TagList() {
             >
               #{tag.name}
             </Link>
+            <TagStrengthBadge tag={tag} statusByTagId={statusByTagId} />
             <TagMergeControl
               tag={tag}
               allTags={tags}

@@ -1566,6 +1566,16 @@ export async function listTags(): Promise<Tag[]> {
   return rows.map(mapTag)
 }
 
+export interface TagMasteryStatus {
+  tagId: string
+  name: string
+  status: 'new' | 'practicing' | 'struggling' | 'mastered'
+}
+
+export async function listTagMasteryStatuses(): Promise<TagMasteryStatus[]> {
+  return request<TagMasteryStatus[]>('/tags/mastery')
+}
+
 export async function createOrGetTag(name: string): Promise<Tag> {
   const tag = await request<be.Tag>('/tags', { method: 'POST', body: { name } })
 

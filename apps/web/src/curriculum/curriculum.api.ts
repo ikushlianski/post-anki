@@ -396,6 +396,10 @@ export const listTags = createServerFn({ method: 'GET' }).handler(
   (): Promise<Tag[]> => api.listTags(),
 )
 
+export const listTagMasteryStatuses = createServerFn({ method: 'GET' }).handler(
+  (): Promise<api.TagMasteryStatus[]> => api.listTagMasteryStatuses(),
+)
+
 export const createOrGetTag = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => createTagInput.parse(data))
   .handler(({ data }): Promise<Tag> => api.createOrGetTag(data.name))
