@@ -5,7 +5,7 @@ import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/re
 import type { ReactNode } from 'react'
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (config: { component: () => JSX.Element }) => ({
+  createFileRoute: () => (config: { component: () => ReactNode }) => ({
     useSearch: () => ({ tagId: undefined }),
     component: config.component,
   }),
@@ -19,7 +19,7 @@ import { Route } from './knowledge.answer'
 const mockedGetNextQuestionVariants = vi.mocked(getNextQuestionVariants)
 const mockedGradeQuestionVariant = vi.mocked(gradeQuestionVariant)
 
-const AnswerScreen = Route.component as () => JSX.Element
+const AnswerScreen = (Route as unknown as { component: () => ReactNode }).component
 
 function renderWithClient(ui: ReactNode) {
   const queryClient = new QueryClient({

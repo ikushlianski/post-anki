@@ -49,12 +49,16 @@ function AnswerScreen() {
       return
     }
 
-    const outcome = await gradeMutation.mutateAsync({
-      variantId: current.variantId,
-      userAnswer: draft,
-    })
+    try {
+      const outcome = await gradeMutation.mutateAsync({
+        variantId: current.variantId,
+        userAnswer: draft,
+      })
 
-    setResult(outcome)
+      setResult(outcome)
+    } catch {
+      setResult({ ok: false, error: 'grading_failed' })
+    }
   }
 
   function next() {
