@@ -5,7 +5,8 @@
 - [ ] A bit with no real topic fit gets `placementSuggestion` set to the agent's one-sentence
       suggestion and `placementCheckedAt` set; `topicId` stays null.
 - [ ] A placer response naming a `matchedTopicId` NOT present in the topic list sent this call is
-      treated as invalid: falls back to `suggestedPlacement` when present, else marks the bit failed.
+      treated as invalid and marks the bit failed. (No fallback-to-suggestion branch: the placer
+      agent's own refine guarantees `suggestedPlacement` is null whenever `matchedTopicId` is set.)
 - [ ] A bit whose placer call throws is marked `placementFailedAt` and does not stop the batch —
       the next bit in the scan still gets processed.
 - [ ] The selection query only returns bits with both `placementCheckedAt` and `placementFailedAt`

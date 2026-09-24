@@ -73,11 +73,18 @@ bit" (capture half only — see Non-goals).
    agent's output against the refine above; **validate `matchedTopicId` against the real id set
    sent in this call** (same hallucination-guard lesson as the existing tagging orchestrator/
    TODO's "Validate the LLM's matched tag name" item) — a `matchedTopicId` not present in the sent
-   list is treated as invalid: if `suggestedPlacement` is also present, fall back to the
-   suggestion; if not, mark failed. On a genuine match: `markKnowledgeBitMatched`. On a genuine
-   suggestion: `markKnowledgeBitSuggested`. On failure: `markKnowledgeBitPlacementFailed`, wrapped
-   in its own nested try/catch so a failed-mark write error can't abort the batch (same pattern as
-   the tagging orchestrator). Per-scan cap via a named constant (`PLACEMENT_CAP`).
+   list is treated as invalid and the bit is marked failed. **No fallback-to-suggestion branch on a
+   hallucinated id**: the placer agent's own zod `.refine()` (Phase 2, shipped) already guarantees
+   `matchedTopicId` and `suggestedPlacement` are never both non-null in the same response, so when
+   `matchedTopicId` is present (and therefore invalid), `suggestedPlacement` is structurally always
+   null in that same response — a "fall back to it" branch would be dead code. On a genuine match:
+   `markKnowledgeBitMatched`. On a genuine suggestion (non-blank, non-empty after trim, under 300
+   chars — a blank/oversized suggestion is rejected the same as a hallucinated id, since writing it
+   would otherwise permanently remove the bit from the scan queue with nothing usable):
+   `markKnowledgeBitSuggested`. On failure (agent throws, output fails the refine, `matchedTopicId`
+   doesn't match the sent list, or the suggestion fails validation): `markKnowledgeBitPlacementFailed`,
+   wrapped in its own nested try/catch so a failed-mark write error can't abort the batch (same
+   pattern as the tagging orchestrator). Per-scan cap via a named constant (`PLACEMENT_CAP`).
 6. **Trigger route** — `POST /knowledge-bits/placement-scan`, same shape/auth as the tagging-scan
    route. **`write-phases` must use a phase name unique across this direction's other items** —
    e.g. `"Phase 3: placement trigger route and tests"`, not the bare `"Phase 3: trigger route and

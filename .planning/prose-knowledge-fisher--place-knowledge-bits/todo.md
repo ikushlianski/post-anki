@@ -7,6 +7,7 @@
 - None open.
 
 ## Coding tasks
+- [x] Reject a blank or over-long placement suggestion instead of writing it
 - [x] Add a unit test for the placer agent's refine/parse/throw behavior
 - [x] Add `topicId`/`placementSuggestion`/`placementCheckedAt`/`placementFailedAt` columns to `knowledgeBits`, generate + apply migration
 - [x] Add `knowledge-bit-placer.agent.ts`, a cheap-tier classifier returning a matched topic id or a placement suggestion
