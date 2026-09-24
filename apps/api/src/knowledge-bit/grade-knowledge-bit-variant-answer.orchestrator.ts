@@ -38,34 +38,34 @@ export async function gradeKnowledgeBitVariantAnswer(
   });
 
   // Already-graded, already-persisted answer must not turn into an error response just because
-  // the follow-up question failed to generate — fail soft and omit it instead.
-  let followUpQuestion: string | null = null;
-
-  try {
-    const followUp = await runKnowledgeBitFollowupGenerator(
+  // the follow-up question or the tag lookup failed — fail soft on each independently, and run
+  // them concurrently since neither depends on the other's result.
+  const [followUpSettled, tagsSettled] = await Promise.allSettled([
+    runKnowledgeBitFollowupGenerator(
       variant.kind,
       variant.prompt,
       variant.answer,
       userAnswer,
       grade.verdict,
       grade.feedback,
-    );
+    ),
+    listAssignmentsForNodes([variant.knowledgeBitId]),
+  ]);
 
-    followUpQuestion = followUp.followUpQuestion;
-  } catch (err) {
-    log.error({ err, variantId }, "knowledge_bit_followup_generation_failed");
+  let followUpQuestion: string | null = null;
+
+  if (followUpSettled.status === "fulfilled") {
+    followUpQuestion = followUpSettled.value.followUpQuestion;
+  } else {
+    log.error({ err: followUpSettled.reason, variantId }, "knowledge_bit_followup_generation_failed");
   }
 
-  // Same fail-soft rule as the follow-up question above — a tag-lookup error must not turn an
-  // already-graded, already-persisted answer into an error response.
   let tagIds: string[] = [];
 
-  try {
-    const assignments = await listAssignmentsForNodes([variant.knowledgeBitId]);
-
-    tagIds = assignments.map((assignment) => assignment.tagId);
-  } catch (err) {
-    log.error({ err, variantId }, "knowledge_bit_variant_answer_tag_lookup_failed");
+  if (tagsSettled.status === "fulfilled") {
+    tagIds = tagsSettled.value.map((assignment) => assignment.tagId);
+  } else {
+    log.error({ err: tagsSettled.reason, variantId }, "knowledge_bit_variant_answer_tag_lookup_failed");
   }
 
   return { ok: true, ...grade, followUpQuestion, tagIds };
