@@ -1,7 +1,12 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull } from "drizzle-orm";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type Db, type DbExecutor } from "../db/client.js";
-import { knowledgeBits, knowledgeBitQuestionVariants } from "../db/schema.js";
+import {
+  knowledgeBits,
+  knowledgeBitQuestionVariants,
+  knowledgeBitVariantAttempts,
+  tagAssignments,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 export interface KnowledgeBitForQuestionGenerationScan {
@@ -162,6 +167,81 @@ export async function listQuestionVariantsForEmbeddingScan(
     .where(isNull(knowledgeBitQuestionVariants.embeddedAt))
     .orderBy(asc(knowledgeBitQuestionVariants.createdAt))
     .limit(limit);
+}
+
+export interface NextQuestionVariantRow {
+  variantId: string;
+  kind: KnowledgeBitQuestionVariantKind;
+  prompt: string;
+  knowledgeBitId: string;
+  bitBody: string;
+}
+
+/**
+ * Fair, cycling answer queue: variants with fewer past attempts come first, ties broken by the
+ * variant's own createdAt — never-answered variants surface before over-practiced ones, and the
+ * whole set cycles back around once every variant has been seen at least once. No scheduling
+ * state, no due list — read-time only, per answer-screen/plan.md's explicit non-goal.
+ */
+export async function listNextQuestionVariantsToAnswer(
+  limit: number,
+  tagId: string | undefined,
+  db: DbExecutor = getDb(),
+): Promise<NextQuestionVariantRow[]> {
+  const attemptCount = count(knowledgeBitVariantAttempts.id);
+  const selection = {
+    variantId: knowledgeBitQuestionVariants.id,
+    kind: knowledgeBitQuestionVariants.kind,
+    prompt: knowledgeBitQuestionVariants.prompt,
+    knowledgeBitId: knowledgeBits.id,
+    bitBody: knowledgeBits.body,
+  };
+
+  const base = db
+    .select(selection)
+    .from(knowledgeBitQuestionVariants)
+    .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
+    .leftJoin(
+      knowledgeBitVariantAttempts,
+      eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
+    );
+
+  const rows = tagId
+    ? await base
+        .where(
+          inArray(
+            knowledgeBits.id,
+            db
+              .select({ id: tagAssignments.nodeId })
+              .from(tagAssignments)
+              .where(
+                and(eq(tagAssignments.tagId, tagId), eq(tagAssignments.nodeType, "knowledgeBit")),
+              ),
+          ),
+        )
+        .groupBy(
+          knowledgeBitQuestionVariants.id,
+          knowledgeBitQuestionVariants.kind,
+          knowledgeBitQuestionVariants.prompt,
+          knowledgeBitQuestionVariants.createdAt,
+          knowledgeBits.id,
+          knowledgeBits.body,
+        )
+        .orderBy(asc(attemptCount), asc(knowledgeBitQuestionVariants.createdAt))
+        .limit(limit)
+    : await base
+        .groupBy(
+          knowledgeBitQuestionVariants.id,
+          knowledgeBitQuestionVariants.kind,
+          knowledgeBitQuestionVariants.prompt,
+          knowledgeBitQuestionVariants.createdAt,
+          knowledgeBits.id,
+          knowledgeBits.body,
+        )
+        .orderBy(asc(attemptCount), asc(knowledgeBitQuestionVariants.createdAt))
+        .limit(limit);
+
+  return rows.map((row) => ({ ...row, kind: row.kind as KnowledgeBitQuestionVariantKind }));
 }
 
 export async function updateQuestionVariantEmbedding(

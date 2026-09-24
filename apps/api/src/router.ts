@@ -16,6 +16,7 @@ export type RouteName =
   | "listPendingPlacementSuggestions"
   | "resolvePlacementSuggestion"
   | "gradeKnowledgeBitVariantAnswer"
+  | "listNextKnowledgeBitQuestionVariants"
   | "deleteSubject"
   | "updateSubject"
   | "mergeSubjects"
