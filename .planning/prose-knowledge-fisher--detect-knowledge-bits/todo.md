@@ -15,11 +15,11 @@
 - [x] Add knowledge-bit.repo.ts: insertKnowledgeBits, claimPendingKnowledgeSources, markKnowledgeSourceFailed, markKnowledgeSourceBitsDetected
 - [x] Add knowledge-bit-detector.agent.ts (cheap-tier LLM call, structured output, injection-guard delimiters)
 - [x] Add detect-knowledge-bits.orchestrator.ts (batch scan, atomic claim, length guard, provider-error handling)
-- [ ] Add detect-knowledge-bits.controller.ts for POST /knowledge-sources/detect-bits
-- [ ] Wire route: router-table.ts, router.ts, server.ts
-- [ ] Add .max(50000) to the pasted-prose text field in knowledge-source.controller.ts
-- [ ] Add unit tests for repo, agent, orchestrator, controller
-- [ ] Add router.test.ts coverage for the new route
+- [x] Add detect-knowledge-bits.controller.ts for POST /knowledge-sources/detect-bits
+- [x] Wire route: router-table.ts, router.ts, server.ts
+- [x] Add .max(50000) to the pasted-prose text field in knowledge-source.controller.ts
+- [x] Add unit tests for repo, agent, orchestrator, controller
+- [x] Add router.test.ts coverage for the new route
 - [x] Add real-Postgres tests: migration shape, atomic claim under concurrency, idempotent bit insert — via the real repo functions, not raw SQL
 
 ## Manual steps

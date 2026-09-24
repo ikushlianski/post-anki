@@ -4,7 +4,7 @@ import { readJsonBody, sendJson } from "../shared/http.js";
 import { insertKnowledgeSource } from "./knowledge-source.repo.js";
 
 const createKnowledgeSourceInput = z.object({
-  text: z.string(),
+  text: z.string().max(50_000),
 });
 
 export async function handleCreateKnowledgeSource(

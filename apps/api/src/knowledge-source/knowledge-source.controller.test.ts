@@ -66,6 +66,30 @@ describe("handleCreateKnowledgeSource", () => {
     expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
   });
 
+  it("400s when text exceeds 50,000 characters, without inserting anything", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: "x".repeat(50_001) }), res);
+
+    expect(res.status).toBe(400);
+    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+  });
+
+  it("accepts text at exactly the 50,000 character limit", async () => {
+    mockInsertKnowledgeSource.mockResolvedValue({
+      id: "ks_1",
+      kind: "prose",
+      rawText: "x".repeat(50_000),
+      status: "pending",
+      createdAt: new Date("2026-09-24T00:00:00.000Z"),
+    });
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: "x".repeat(50_000) }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("x".repeat(50_000));
+  });
+
   it("trims surrounding whitespace before storing and returns 201 with the created row", async () => {
     mockInsertKnowledgeSource.mockResolvedValue({
       id: "ks_1",

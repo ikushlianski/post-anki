@@ -10,6 +10,9 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/knowledge-sources/notion")?.name).toBe(
         "createKnowledgeSourceFromNotion",
       );
+      expect(resolveRoute("POST", "/knowledge-sources/detect-bits")?.name).toBe(
+        "detectKnowledgeBits",
+      );
       expect(resolveRoute("GET", "/curricula")?.name).toBe("listCurricula");
       expect(resolveRoute("POST", "/gaps")?.name).toBe("declareGap");
       // issue #33's sweep endpoint — the only caller is the

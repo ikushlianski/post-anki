@@ -11,6 +11,7 @@ import {
 } from "./subject/subject.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
+import { handleDetectKnowledgeBits } from "./knowledge-bit/detect-knowledge-bits.controller.js";
 import {
   handleCreateSubjectCategory,
   handleListAllSubjectCategories,
@@ -339,6 +340,8 @@ async function route(
       return handleCreateKnowledgeSource(req, res);
     case "createKnowledgeSourceFromNotion":
       return handleCreateKnowledgeSourceFromNotion(req, res);
+    case "detectKnowledgeBits":
+      return handleDetectKnowledgeBits(res);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "updateSubject":
