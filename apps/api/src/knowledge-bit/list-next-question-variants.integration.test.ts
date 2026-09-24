@@ -65,7 +65,7 @@ function id(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
 
-async function seedKnowledgeBit(body: string): Promise<string> {
+async function seedKnowledgeBit(body: string, topicId?: string): Promise<string> {
   const sourceId = id("ksrc");
   const bitId = id("kb");
 
@@ -74,11 +74,39 @@ async function seedKnowledgeBit(body: string): Promise<string> {
     [sourceId, body],
   );
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES ($1, $2, 0, $3)`,
-    [bitId, sourceId, body],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id) VALUES ($1, $2, 0, $3, $4)`,
+    [bitId, sourceId, body, topicId ?? null],
   );
 
   return bitId;
+}
+
+async function seedTopic(title: string): Promise<string> {
+  const subjectId = id("sub");
+  const curriculumId = id("cur");
+  const moduleId = id("mod");
+  const topicId = id("top");
+
+  await client.query(`INSERT INTO subjects (id, name, require_sources) VALUES ($1, $2, false)`, [
+    subjectId,
+    title,
+  ]);
+  await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`, [
+    curriculumId,
+    subjectId,
+    title,
+  ]);
+  await client.query(`INSERT INTO modules (id, curriculum_id, title, "order") VALUES ($1, $2, $3, 1)`, [
+    moduleId,
+    curriculumId,
+    title,
+  ]);
+  await client.query(
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4, 1)`,
+    [topicId, moduleId, curriculumId, title],
+  );
+
+  return topicId;
 }
 
 async function seedVariant(bitId: string, prompt: string): Promise<string> {
@@ -130,7 +158,7 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
 
     await assignTag(tag.id, "knowledgeBit", taggedBit);
 
-    const rows = await listNextQuestionVariantsToAnswer(10, tag.id);
+    const rows = await listNextQuestionVariantsToAnswer(10, { tagId: tag.id });
 
     expect(rows.map((row) => row.variantId)).toEqual([taggedVariant]);
   });
@@ -138,8 +166,21 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
   it("returns an empty array, not an error, when a tag has no assigned bits", async () => {
     const emptyTag = await resolveOrCreateTag(`empty-queue-tag-${randomUUID()}`);
 
-    const rows = await listNextQuestionVariantsToAnswer(10, emptyTag.id);
+    const rows = await listNextQuestionVariantsToAnswer(10, { tagId: emptyTag.id });
 
     expect(rows).toEqual([]);
+  });
+
+  it("scopes to only variants whose bit belongs to the given topicId", async () => {
+    const topicId = await seedTopic("Queue topic scope");
+    const otherTopicId = await seedTopic("Queue topic scope, other");
+    const inTopicBit = await seedKnowledgeBit("In-topic bit for queue", topicId);
+    const otherTopicBit = await seedKnowledgeBit("Other-topic bit for queue", otherTopicId);
+    const inTopicVariant = await seedVariant(inTopicBit, "In-topic question?");
+    await seedVariant(otherTopicBit, "Other-topic question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { topicId });
+
+    expect(rows.map((row) => row.variantId)).toEqual([inTopicVariant]);
   });
 });

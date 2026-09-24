@@ -10,31 +10,33 @@ import type { GradeQuestionVariantAnswerResult } from '../curriculum/api-client'
 
 interface AnswerScreenSearch {
   tagId?: string
+  topicId?: string
 }
 
 export const Route = createFileRoute('/knowledge/answer')({
   validateSearch: (search: Record<string, unknown>): AnswerScreenSearch => ({
     tagId: typeof search.tagId === 'string' ? search.tagId : undefined,
+    topicId: typeof search.topicId === 'string' ? search.topicId : undefined,
   }),
   component: AnswerScreen,
 })
 
 const BATCH_LIMIT = 5
 
-function answerQueueQueryKey(tagId: string | undefined) {
-  return ['knowledge-answer-queue', tagId ?? null] as const
+function answerQueueQueryKey(tagId: string | undefined, topicId: string | undefined) {
+  return ['knowledge-answer-queue', tagId ?? null, topicId ?? null] as const
 }
 
 function AnswerScreen() {
-  const { tagId } = Route.useSearch()
+  const { tagId, topicId } = Route.useSearch()
   const queryClient = useQueryClient()
   const [index, setIndex] = useState(0)
   const [draft, setDraft] = useState('')
   const [result, setResult] = useState<GradeQuestionVariantAnswerResult | null>(null)
 
   const { data: batch, isLoading } = useQuery({
-    queryKey: answerQueueQueryKey(tagId),
-    queryFn: () => getNextQuestionVariants({ data: { limit: BATCH_LIMIT, tagId } }),
+    queryKey: answerQueueQueryKey(tagId, topicId),
+    queryFn: () => getNextQuestionVariants({ data: { limit: BATCH_LIMIT, tagId, topicId } }),
   })
 
   const gradeMutation = useMutation({
@@ -71,7 +73,7 @@ function AnswerScreen() {
     }
 
     setIndex(0)
-    void queryClient.invalidateQueries({ queryKey: answerQueueQueryKey(tagId) })
+    void queryClient.invalidateQueries({ queryKey: answerQueueQueryKey(tagId, topicId) })
   }
 
   return (

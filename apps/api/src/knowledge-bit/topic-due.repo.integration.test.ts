@@ -119,6 +119,14 @@ async function insertSchedule(overrides: { knowledgeBitId: string; dueAt: Date }
   );
 }
 
+async function insertQuestionVariant(overrides: { id: string; knowledgeBitId: string }): Promise<void> {
+  await client.query(
+    `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer)
+     VALUES ($1, $2, 'wh_question', 0, 'A prompt?', 'An answer')`,
+    [overrides.id, overrides.knowledgeBitId],
+  );
+}
+
 describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
   it("counts a never-reviewed bit as due, and an overdue bit, but not a bit due in the future", async () => {
     await insertSubject({ id: "sub_due_1", name: "Testing" });
@@ -152,6 +160,10 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
       body: "Not due for another month",
       topicId: "top_due_1",
     });
+
+    await insertQuestionVariant({ id: "qv_due_new", knowledgeBitId: "bit_due_new" });
+    await insertQuestionVariant({ id: "qv_due_overdue", knowledgeBitId: "bit_due_overdue" });
+    await insertQuestionVariant({ id: "qv_due_future", knowledgeBitId: "bit_due_future" });
 
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -194,5 +206,32 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
     const ranked = await listTopicsWithDueCounts(50);
 
     expect(ranked.find((row) => row.topicId === "top_due_caught_up")).toBeUndefined();
+  });
+
+  it("excludes a never-reviewed bit with no generated question variant from the due count", async () => {
+    await insertSubject({ id: "sub_due_3", name: "Testing 3" });
+    await insertCurriculum({ id: "cur_due_3", subjectId: "sub_due_3", name: "Scheduling 3" });
+    await insertModule({ id: "mod_due_3", curriculumId: "cur_due_3", title: "Reviews 3" });
+    await insertTopic({
+      id: "top_due_ungenerated",
+      moduleId: "mod_due_3",
+      curriculumId: "cur_due_3",
+      title: "Still generating",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_ungenerated",
+      knowledgeSourceId: "src_due_3",
+      ordinal: 1,
+      body: "Placed but never generated a question",
+      topicId: "top_due_ungenerated",
+    });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_ungenerated")).toBeUndefined();
+
+    const scoped = await getDueCountsForTopics(["top_due_ungenerated"]);
+
+    expect(scoped.get("top_due_ungenerated")).toBeUndefined();
   });
 });

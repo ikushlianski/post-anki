@@ -15,7 +15,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
-- [ ] Roll bit due-dates up to a topic-level due count
+- [x] Roll bit due-dates up to a topic-level due count
 - [x] Add per-bit SM-2-style interval, ease factor, and due date, updated from each answer's grade
 
 ### Notes

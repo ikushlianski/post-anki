@@ -12,8 +12,9 @@ export async function handleListNextKnowledgeBitQuestionVariants(
   const rawLimit = params.get("limit");
   const limit = rawLimit && Number.isInteger(Number(rawLimit)) ? Number(rawLimit) : DEFAULT_LIMIT;
   const tagId = params.get("tagId") ?? undefined;
+  const topicId = params.get("topicId") ?? undefined;
 
-  const variants = await listNextQuestionVariantsToAnswer(limit, tagId);
+  const variants = await listNextQuestionVariantsToAnswer(limit, { tagId, topicId });
 
   sendJson(res, 200, variants);
 }

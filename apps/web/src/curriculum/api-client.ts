@@ -1587,6 +1587,7 @@ export interface NextQuestionVariant {
 export async function listNextQuestionVariants(
   limit?: number,
   tagId?: string,
+  topicId?: string,
 ): Promise<NextQuestionVariant[]> {
   const params = new URLSearchParams()
 
@@ -1596,6 +1597,10 @@ export async function listNextQuestionVariants(
 
   if (tagId !== undefined) {
     params.set('tagId', tagId)
+  }
+
+  if (topicId !== undefined) {
+    params.set('topicId', topicId)
   }
 
   const query = params.toString()

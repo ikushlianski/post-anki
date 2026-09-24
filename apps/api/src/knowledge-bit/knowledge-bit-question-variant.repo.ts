@@ -177,6 +177,13 @@ export interface NextQuestionVariantRow {
   bitBody: string;
 }
 
+export interface NextQuestionVariantsFilter {
+  tagId?: string;
+  // Scopes the queue to one topic's bits — what "tap a pressing topic, resume studying it" on
+  // the home screen resolves to. Mutually exclusive with tagId in practice (the caller picks one).
+  topicId?: string;
+}
+
 /**
  * Fair, cycling answer queue: variants with fewer past attempts come first, ties broken by the
  * variant's own createdAt — never-answered variants surface before over-practiced ones, and the
@@ -185,7 +192,7 @@ export interface NextQuestionVariantRow {
  */
 export async function listNextQuestionVariantsToAnswer(
   limit: number,
-  tagId: string | undefined,
+  filter: NextQuestionVariantsFilter | undefined,
   db: DbExecutor = getDb(),
 ): Promise<NextQuestionVariantRow[]> {
   const attemptCount = count(knowledgeBitVariantAttempts.id);
@@ -206,40 +213,36 @@ export async function listNextQuestionVariantsToAnswer(
       eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
     );
 
-  const rows = tagId
-    ? await base
-        .where(
-          inArray(
-            knowledgeBits.id,
-            db
-              .select({ id: tagAssignments.nodeId })
-              .from(tagAssignments)
-              .where(
-                and(eq(tagAssignments.tagId, tagId), eq(tagAssignments.nodeType, "knowledgeBit")),
+  const condition = filter?.topicId
+    ? eq(knowledgeBits.topicId, filter.topicId)
+    : filter?.tagId
+      ? inArray(
+          knowledgeBits.id,
+          db
+            .select({ id: tagAssignments.nodeId })
+            .from(tagAssignments)
+            .where(
+              and(
+                eq(tagAssignments.tagId, filter.tagId),
+                eq(tagAssignments.nodeType, "knowledgeBit"),
               ),
-          ),
+            ),
         )
-        .groupBy(
-          knowledgeBitQuestionVariants.id,
-          knowledgeBitQuestionVariants.kind,
-          knowledgeBitQuestionVariants.prompt,
-          knowledgeBitQuestionVariants.createdAt,
-          knowledgeBits.id,
-          knowledgeBits.body,
-        )
-        .orderBy(asc(attemptCount), asc(knowledgeBitQuestionVariants.createdAt))
-        .limit(limit)
-    : await base
-        .groupBy(
-          knowledgeBitQuestionVariants.id,
-          knowledgeBitQuestionVariants.kind,
-          knowledgeBitQuestionVariants.prompt,
-          knowledgeBitQuestionVariants.createdAt,
-          knowledgeBits.id,
-          knowledgeBits.body,
-        )
-        .orderBy(asc(attemptCount), asc(knowledgeBitQuestionVariants.createdAt))
-        .limit(limit);
+      : undefined;
+
+  const filtered = condition ? base.where(condition) : base;
+
+  const rows = await filtered
+    .groupBy(
+      knowledgeBitQuestionVariants.id,
+      knowledgeBitQuestionVariants.kind,
+      knowledgeBitQuestionVariants.prompt,
+      knowledgeBitQuestionVariants.createdAt,
+      knowledgeBits.id,
+      knowledgeBits.body,
+    )
+    .orderBy(asc(attemptCount), asc(knowledgeBitQuestionVariants.createdAt))
+    .limit(limit);
 
   return rows.map((row) => ({ ...row, kind: row.kind as KnowledgeBitQuestionVariantKind }));
 }
