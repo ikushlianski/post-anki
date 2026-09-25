@@ -24,6 +24,12 @@ vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+const webSearch = vi.fn();
+
+vi.mock("../probe/probe-grounding.js", () => ({
+  webSearch: (...args: unknown[]) => webSearch(...args),
+}));
+
 const { askKnowledgeBitChat } = await import("./knowledge-bit-chat.service.js");
 
 describe("askKnowledgeBitChat", () => {
@@ -34,6 +40,11 @@ describe("askKnowledgeBitChat", () => {
       body: "TCP uses a three-way handshake to establish a connection.",
     });
     generate.mockResolvedValue({ text: "It uses SYN, SYN-ACK, ACK." });
+    webSearch.mockResolvedValue({
+      ok: true,
+      text: "web text",
+      citations: ["https://example.com/web"],
+    });
   });
 
   it("grounds the reply on the knowledge item's own body", async () => {
@@ -91,5 +102,69 @@ describe("askKnowledgeBitChat", () => {
     const result = await askKnowledgeBitChat("kb_1", { message: "hi" });
 
     expect(result).toEqual({ reply: "I couldn't reach the tutor right now — try again." });
+  });
+
+  it("wires a knowledgeBitChatDeps context entry and maxSteps when allowWebSearch is true", async () => {
+    generate.mockImplementation(async (_prompt, opts) => {
+      const deps = opts.requestContext.get("knowledgeBitChatDeps");
+
+      await deps.searchWeb("recent TCP RFC updates");
+
+      return { text: "Current guidance says…" };
+    });
+
+    await askKnowledgeBitChat("kb_1", {
+      message: "What changed recently?",
+      allowWebSearch: true,
+    });
+
+    expect(webSearch).toHaveBeenCalledTimes(1);
+    expect(webSearch.mock.calls[0]?.[2]).toEqual({
+      query: "recent TCP RFC updates",
+      knowledgeBitId: "kb_1",
+    });
+    expect(generate).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ maxSteps: 4 }),
+    );
+  });
+
+  it("does not wire a knowledgeBitChatDeps context entry or maxSteps when allowWebSearch is false", async () => {
+    await askKnowledgeBitChat("kb_1", { message: "How does TCP connect?" });
+
+    const requestContext = generate.mock.calls[0]![1].requestContext;
+
+    expect(requestContext.get("knowledgeBitChatDeps")).toBeUndefined();
+    expect(generate.mock.calls[0]![1]).not.toHaveProperty("maxSteps");
+  });
+
+  it("forwards allowGeneralKnowledge into the request context when set", async () => {
+    await askKnowledgeBitChat("kb_1", {
+      message: "How does TCP connect?",
+      allowGeneralKnowledge: true,
+    });
+
+    const requestContext = generate.mock.calls[0]![1].requestContext;
+
+    expect(requestContext.get("allowGeneralKnowledge")).toBe(true);
+  });
+
+  it("returns empty text and citations when the web search call fails", async () => {
+    webSearch.mockResolvedValue({ ok: false, status: 500 });
+    generate.mockImplementation(async (_prompt, opts) => {
+      const deps = opts.requestContext.get("knowledgeBitChatDeps");
+      const outcome = await deps.searchWeb("recent TCP RFC updates");
+
+      expect(outcome).toEqual({ text: "", citations: [] });
+
+      return { text: "Fell back to the item's own content." };
+    });
+
+    const result = await askKnowledgeBitChat("kb_1", {
+      message: "What changed recently?",
+      allowWebSearch: true,
+    });
+
+    expect(result).toEqual({ reply: "Fell back to the item's own content." });
   });
 });

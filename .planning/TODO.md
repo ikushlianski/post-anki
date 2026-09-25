@@ -249,6 +249,8 @@ updated: 2026-09-04
   - [x] Promote the embeddings HTTP client to a shared, generic location
   - [x] A card-embedding scan orchestrator, repo functions, and trigger endpoint
 - [ ] Let per-item chat opt into the model's own knowledge or a web search, on request
+  - [x] Phase 1: schema, tools, dynamic agent, service wiring
+  - [ ] Phase 2: tests for every scenario
 - [ ] Let per-item chat create a new knowledge item or edit the current one from its answer
 
 ### Notes

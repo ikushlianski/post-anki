@@ -125,3 +125,4 @@
 {"timestamp":"2026-09-24T23:51:36.000Z","direction":"data-integrity-under-regeneration","slug":"wh-question-retry-and-claim-concurrency","outcome":"PASS","done":true,"streak":2,"stuck":false,"tier":"Guarded"}
 {"timestamp":"2026-09-24T23:52:58.000Z","direction":"data-integrity-under-regeneration","slug":"stale-comment-fill-blank-claim-repo","outcome":"PASS","done":true,"tier":"Direct"}
 {"timestamp":"2026-09-25T11:41:22.000Z","direction":"grounded-knowledge-chat","slug":"grounded-knowledge-chat--single-item-chat","outcome":"PASS","done":true,"streak":2,"stuck":false,"tier":"Contracted"}
+{"timestamp":"2026-09-25T15:20:00.000Z","direction":"grounded-knowledge-chat","slug":"grounded-knowledge-chat--opt-in-knowledge-web-search","outcome":"PASS","done":true,"streak":2,"stuck":false,"tier":"Contracted"}

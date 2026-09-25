@@ -50,9 +50,33 @@ describe("handleAskKnowledgeBitChat", () => {
 
     await handleAskKnowledgeBitChat(req, res, "kb_1");
 
-    expect(askKnowledgeBitChat).toHaveBeenCalledWith("kb_1", { message: "How does TCP connect?" });
+    expect(askKnowledgeBitChat).toHaveBeenCalledWith("kb_1", {
+      message: "How does TCP connect?",
+      allowGeneralKnowledge: false,
+      allowWebSearch: false,
+    });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ reply: "It uses a three-way handshake." });
+  });
+
+  it("forwards true opt-in flags from the request body to the service", async () => {
+    askKnowledgeBitChat.mockResolvedValue({ reply: "Current guidance says…" });
+
+    const req = fakeReq({
+      message: "What changed recently?",
+      allowGeneralKnowledge: true,
+      allowWebSearch: true,
+    });
+    const res = fakeRes();
+
+    await handleAskKnowledgeBitChat(req, res, "kb_1");
+
+    expect(askKnowledgeBitChat).toHaveBeenCalledWith("kb_1", {
+      message: "What changed recently?",
+      allowGeneralKnowledge: true,
+      allowWebSearch: true,
+    });
+    expect(res.status).toBe(200);
   });
 
   it("returns 404 not_found when the service reports the bit is missing", async () => {

@@ -1,0 +1,2 @@
+Phase 1: schema, tools, dynamic agent, service wiring
+Phase 2: tests for every scenario

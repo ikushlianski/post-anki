@@ -6,9 +6,9 @@
   "activeDirections": [
     "grounded-knowledge-chat"
   ],
+  "lastHeartbeatAt": "2026-09-25T11:45:50.361Z",
+  "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "timeBoundBlocks": 0,
-  "maxDispatches": 60,
-  "dispatchCount": 0
+  "pendingSkillReload": []
 }
