@@ -241,6 +241,12 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/qa-chat", name: "askQaChat" },
   { method: "POST", pattern: "/global-card-chat", name: "askGlobalCardChat" },
   {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/chat$/,
+    name: "askKnowledgeBitChat",
+    param: "id",
+  },
+  {
     method: "GET",
     pattern: /^\/curricula\/([^/]+)\/stats$/,
     name: "getCurriculumStats",

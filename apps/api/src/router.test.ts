@@ -75,6 +75,14 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/topics/t1/study-chat")).toEqual({ name: "askStudyChat", params: { id: "t1" } });
     });
 
+    it("resolves POST /knowledge-bits/:id/chat to the knowledge-bit-scoped chat handler", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat")).toEqual({
+        name: "askKnowledgeBitChat",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat")).toBeNull();
+    });
+
     it("captures the source-approval routes", () => {
       expect(resolveRoute("POST", "/curricula/c1/approve-sources")).toEqual({
         name: "approveSources",

@@ -3,6 +3,24 @@ import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
+export interface KnowledgeBitRow {
+  id: string;
+  body: string;
+}
+
+export async function getKnowledgeBitById(
+  id: string,
+  db: DbExecutor = getDb(),
+): Promise<KnowledgeBitRow | null> {
+  const rows = await db
+    .select({ id: knowledgeBits.id, body: knowledgeBits.body })
+    .from(knowledgeBits)
+    .where(eq(knowledgeBits.id, id))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
 export async function insertKnowledgeBits(
   sourceId: string,
   bits: string[],

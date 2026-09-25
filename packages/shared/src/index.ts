@@ -41,6 +41,7 @@ export * from "./practice";
 export * from "./phrase-bank";
 export * from "./domain-map";
 export * from "./knowledge-bit";
+export * from "./knowledge-bit-chat";
 export * from "./domain-recommendation";
 export * from "./subject-duplicate";
 export * from "./learning-list";

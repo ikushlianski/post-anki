@@ -37,6 +37,7 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [ ] Extract optional short background/clarifying text alongside Q&A from inbox content
 - [x] Build a screen where the learner can actually answer knowledge-bit questions
   - [x] Phase 1: next-batch endpoint
   - [x] Phase 2: answer screen UI
@@ -219,6 +220,9 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [x] Let the learner chat with a single knowledge item, grounded on it only by default
+  - [ ] Phase 1: repo, schemas, agent, service, controller, route
+  - [ ] Phase 2: tests for every scenario
 - [x] Include Notion facts in the global chat's grounding alongside cards
   - [x] Embed facts
   - [x] Retrieve and ground on facts
@@ -244,6 +248,8 @@ updated: 2026-09-04
   - [x] Add embedding columns to topic_card_variants, generate the migration
   - [x] Promote the embeddings HTTP client to a shared, generic location
   - [x] A card-embedding scan orchestrator, repo functions, and trigger endpoint
+- [ ] Let per-item chat opt into the model's own knowledge or a web search, on request
+- [ ] Let per-item chat create a new knowledge item or edit the current one from its answer
 
 ### Notes
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-19)
@@ -577,7 +583,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: non-reorganize chat features (Socratic dialogue, Q&A) — those are separate directions
 
 ### Coding tasks
-- [ ] Add POST /knowledge-bits/:id/chat, mirroring qa-chat's service and transcript shape
 - [x] Add a rename control to the curriculum detail page
 - [x] Let a curriculum, subject, or category be renamed.
 

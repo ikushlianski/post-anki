@@ -1,0 +1,2 @@
+Phase 1: repo, schemas, agent, service, controller, route
+Phase 2: tests for every scenario
