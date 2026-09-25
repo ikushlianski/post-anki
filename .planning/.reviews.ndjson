@@ -126,3 +126,10 @@
 {"timestamp":"2026-09-24T23:52:58.000Z","direction":"data-integrity-under-regeneration","slug":"stale-comment-fill-blank-claim-repo","outcome":"PASS","done":true,"tier":"Direct"}
 {"timestamp":"2026-09-25T11:41:22.000Z","direction":"grounded-knowledge-chat","slug":"grounded-knowledge-chat--single-item-chat","outcome":"PASS","done":true,"streak":2,"stuck":false,"tier":"Contracted"}
 {"timestamp":"2026-09-25T15:20:00.000Z","direction":"grounded-knowledge-chat","slug":"grounded-knowledge-chat--opt-in-knowledge-web-search","outcome":"PASS","done":true,"streak":2,"stuck":false,"tier":"Contracted"}
+{"timestamp":"2026-09-25T15:21:00.000Z","direction":"grounded-knowledge-chat","slug":"grounded-knowledge-chat--opt-in-knowledge-web-search","item":"Let per-item chat opt into the model's own knowledge or a web search, on request","outcome":"PASS","done":true}
+{"timestamp":"2026-09-25T15:21:00.000Z","direction":"grounded-knowledge-chat","slug":"grounded-knowledge-chat--opt-in-knowledge-web-search","item":"Phase 2: tests for every scenario","outcome":"PASS","done":true}
+{"ts":"2026-09-25T15:22:00.000Z","itemText":"Let per-item chat opt into the model's own knowledge or a web search, on request","verdict":"PASS","findings":[]}
+{"ts":"2026-09-25T15:22:00.000Z","itemText":"Phase 2: tests for every scenario","verdict":"PASS","findings":[]}
+{"ts":"2026-09-25T15:23:00.000Z","itemText":"Phase 1: schema and migration","verdict":"PASS","findings":[]}
+{"ts":"2026-09-25T15:23:00.000Z","itemText":"Phase 3: orchestrator and route","verdict":"PASS","findings":[]}
+{"ts":"2026-09-25T15:23:00.000Z","itemText":"Phase 4: tests","verdict":"PASS","findings":[]}
