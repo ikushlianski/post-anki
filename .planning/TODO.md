@@ -222,7 +222,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [x] Let the learner chat with a single knowledge item, grounded on it only by default
   - [x] Phase 1: repo, schemas, agent, service, controller, route
-  - [ ] Phase 2: tests for every scenario
+  - [x] Phase 2: tests for every scenario
 - [x] Include Notion facts in the global chat's grounding alongside cards
   - [x] Embed facts
   - [x] Retrieve and ground on facts
