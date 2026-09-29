@@ -253,10 +253,10 @@ updated: 2026-09-04
 - [x] Let per-item chat opt into the model's own knowledge or a web search, on request
   - [x] Phase 1: schema, tools, dynamic agent, service wiring
   - [x] Phase 2: tests for every scenario
-- [ ] Let per-item chat create a new knowledge item or edit the current one from its answer
+- [x] Let per-item chat create a new knowledge item or edit the current one from its answer
   - [x] Phase 1: draft endpoint for new-item or edited-body text
   - [x] Phase 2: edit endpoint that resets derived generation state
-  - [ ] Phase 3: tests for draft and edit scenarios
+  - [x] Phase 3: tests for draft and edit scenarios
 
 ### Notes
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-19)
