@@ -220,6 +220,7 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [ ] Stop editing a knowledge item from wiping its manually-assigned tags
 - [x] Add claim-token guards to embedding and tagging writes, like wh-question/fill-blank already have
 - [x] Let the learner chat with a single knowledge item, grounded on it only by default
   - [x] Phase 1: repo, schemas, agent, service, controller, route
@@ -253,7 +254,7 @@ updated: 2026-09-04
   - [x] Phase 1: schema, tools, dynamic agent, service wiring
   - [x] Phase 2: tests for every scenario
 - [ ] Let per-item chat create a new knowledge item or edit the current one from its answer
-  - [ ] Phase 1: draft endpoint for new-item or edited-body text
+  - [x] Phase 1: draft endpoint for new-item or edited-body text
   - [ ] Phase 2: edit endpoint that resets derived generation state
   - [ ] Phase 3: tests for draft and edit scenarios
 
