@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { Pack, PracticeLevel, PracticeSettings } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { attempts, languagePracticeSettings, phrases } from "../db/schema.js";
@@ -103,4 +103,14 @@ export async function getPhrasesByIds(phraseIds: string[]): Promise<PhraseSelect
   }
 
   return getDb().select().from(phrases).where(inArray(phrases.id, phraseIds));
+}
+
+// sequenceNumber is only unique per (subject, level, pack), so order by the
+// unique index's own columns for stable paging.
+export async function listPhrasesForSubject(subjectId: string): Promise<PhraseSelectRow[]> {
+  return getDb()
+    .select()
+    .from(phrases)
+    .where(eq(phrases.subjectId, subjectId))
+    .orderBy(asc(phrases.level), asc(phrases.pack), asc(phrases.sequenceNumber), asc(phrases.id));
 }

@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import type { CardBrowserRow, CardSetStatus, TopicCardSet } from "@post-anki/shared";
+import type { CardSetStatus, TopicCardSet } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
   topicCardSets,
@@ -110,40 +110,6 @@ export async function getCurriculumCardsSummary(
     cardsReady: cardsRow?.count ?? 0,
     topicsGenerating: generatingRow?.count ?? 0,
   };
-}
-
-// The cards browser's own read — every ready variant across the whole
-// curriculum, flattened to one row each, in a single joined query.
-export async function listCardsForCurriculum(curriculumId: string): Promise<CardBrowserRow[]> {
-  const rows = await getDb()
-    .select({
-      variantId: topicCardVariants.id,
-      variantOrder: topicCardVariants.order,
-      cardId: topicCards.id,
-      cardOrder: topicCards.order,
-      concept: topicCards.concept,
-      prompt: topicCardVariants.prompt,
-      answer: topicCardVariants.answer,
-      topicId: topics.id,
-      topicOrder: topics.order,
-      topicTitle: topics.title,
-    })
-    .from(topicCardVariants)
-    .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
-    .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
-    .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
-    .where(and(eq(topics.curriculumId, curriculumId), eq(topicCardSets.status, "ready")))
-    .orderBy(asc(topics.order), asc(topicCards.order), asc(topicCardVariants.order));
-
-  return rows.map((row) => ({
-    variantId: row.variantId,
-    cardId: row.cardId,
-    concept: row.concept,
-    prompt: row.prompt,
-    answer: row.answer,
-    topicId: row.topicId,
-    topicTitle: row.topicTitle,
-  }));
 }
 
 export interface CardVariantForEmbeddingScan {

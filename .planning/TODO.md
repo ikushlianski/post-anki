@@ -19,7 +19,7 @@ updated: 2026-09-04
 - [ ] Build an MCP server exposing decks and course/module/section knowledge items
   - [x] Phase 1: MCP endpoint behind the shared token
   - [x] Phase 2: Course browsing tools
-  - [ ] Phase 3: Card and deck content tools
+  - [x] Phase 3: Card and deck content tools
   - [ ] Phase 4: Knowledge item search
 
 ### Notes

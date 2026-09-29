@@ -8,12 +8,8 @@ import { compileCards } from "./cards.orchestrator.js";
 import { triggerCardEmbeddingScan } from "./cards-embedding.orchestrator.js";
 import { embedFacts } from "../facts/facts-embedding.orchestrator.js";
 import { findTopMatchingCards } from "./cards-retrieval.orchestrator.js";
-import {
-  getCardsByTopic,
-  getCurriculumCardsSummary,
-  listCardsForCurriculum,
-  startGeneratingCards,
-} from "./cards.repo.js";
+import { getCardsByTopic, getCurriculumCardsSummary, startGeneratingCards } from "./cards.repo.js";
+import { listCardsForCurriculum } from "./list-cards-for-curriculum.repo.js";
 
 const CARD_MATCH_DEFAULT_LIMIT = 10;
 

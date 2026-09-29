@@ -29,9 +29,10 @@
     "e2e-reliability",
     "curriculum-structure-quality"
   ],
-  "lastHeartbeatAt": "2026-09-29T19:17:46.123Z",
-  "timeBoundBlocks": 0,
+  "lastHeartbeatAt": "2026-09-29T22:55:57.837Z",
+  "timeBoundBlocks": 2,
   "autoCommitEnabled": true,
   "pushGranted": false,
-  "pendingSkillReload": []
+  "pendingSkillReload": [],
+  "lastBlockAt": "2026-09-29T21:59:42.032Z"
 }
