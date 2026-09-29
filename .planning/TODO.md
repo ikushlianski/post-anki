@@ -255,7 +255,7 @@ updated: 2026-09-04
   - [x] Phase 2: tests for every scenario
 - [ ] Let per-item chat create a new knowledge item or edit the current one from its answer
   - [x] Phase 1: draft endpoint for new-item or edited-body text
-  - [ ] Phase 2: edit endpoint that resets derived generation state
+  - [x] Phase 2: edit endpoint that resets derived generation state
   - [ ] Phase 3: tests for draft and edit scenarios
 
 ### Notes
