@@ -108,15 +108,18 @@ async function seedFullyDerivedKnowledgeBit(
   return id;
 }
 
-async function seedTagAssignment(knowledgeBitId: string): Promise<string> {
+async function seedTagAssignment(
+  knowledgeBitId: string,
+  source: "auto" | "manual" = "auto",
+): Promise<string> {
   const tagId = `tag_${randomUUID()}`;
   const assignmentId = `tga_${randomUUID()}`;
   const name = `Original tag ${tagId}`;
 
   await client.query(`INSERT INTO tags (id, name, normalized_name) VALUES ($1, $2, $2)`, [tagId, name]);
   await client.query(
-    `INSERT INTO tag_assignments (id, tag_id, node_type, node_id) VALUES ($1, $2, 'knowledgeBit', $3)`,
-    [assignmentId, tagId, knowledgeBitId],
+    `INSERT INTO tag_assignments (id, tag_id, node_type, node_id, source) VALUES ($1, $2, 'knowledgeBit', $3, $4)`,
+    [assignmentId, tagId, knowledgeBitId, source],
   );
 
   return assignmentId;
@@ -274,6 +277,23 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     );
 
     expect(rows).toHaveLength(0);
+  });
+
+  it("deletes an auto-tagged assignment but keeps a manually-assigned tag in place", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+    const autoAssignmentId = await seedTagAssignment(id, "auto");
+    const manualAssignmentId = await seedTagAssignment(id, "manual");
+
+    await updateKnowledgeBitBody(id, "Revised body.");
+
+    const { rows } = await client.query(
+      `SELECT id FROM tag_assignments WHERE node_type = 'knowledgeBit' AND node_id = $1`,
+      [id],
+    );
+
+    expect(rows.map((row) => row.id)).toEqual([manualAssignmentId]);
+    expect(rows.map((row) => row.id)).not.toContain(autoAssignmentId);
   });
 
   it("leaves other bits' tag assignments untouched", async () => {

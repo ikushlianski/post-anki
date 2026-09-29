@@ -7,6 +7,20 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## mcp-content-access
+
+### Scope
+- Expose post-anki's decks and course/module/section knowledge items through an MCP server, so any MCP client can read a learner's content
+- Read-only access first: list/browse/search decks, courses, modules, sections, and individual knowledge items
+- Out of scope for now: MCP write access (creating/editing content), auth beyond the app's existing per-user model
+- Out of scope: Building a new UI for this — MCP clients are the interface
+
+### Coding tasks
+- [ ] Build an MCP server exposing decks and course/module/section knowledge items
+
+### Notes
+
+
 ## spaced-repetition-scheduling
 
 ### Scope
@@ -220,7 +234,11 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
-- [ ] Stop editing a knowledge item from wiping its manually-assigned tags
+- [x] Stop editing a knowledge item from wiping its manually-assigned tags
+  - [x] Phase 1: schema migration, source column, backfill default
+  - [x] Phase 2: source-aware assign/upgrade/reset write paths
+  - [x] Phase 3: tag-merge provenance preservation
+  - [x] Phase 4: tests for every scenario
 - [x] Add claim-token guards to embedding and tagging writes, like wh-question/fill-blank already have
 - [x] Let the learner chat with a single knowledge item, grounded on it only by default
   - [x] Phase 1: repo, schemas, agent, service, controller, route

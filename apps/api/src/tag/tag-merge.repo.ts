@@ -28,6 +28,15 @@ export async function mergeTags(
       return { error: "not_found" as const };
     }
 
+    await tx.execute(sql`
+      UPDATE tag_assignments SET source = 'manual'
+      WHERE tag_id = ${targetId}
+        AND (node_type, node_id) IN (
+          SELECT node_type, node_id FROM tag_assignments
+          WHERE tag_id = ${sourceId} AND source = 'manual'
+        )
+    `);
+
     const dedupedResult = await tx.execute(sql`
       DELETE FROM tag_assignments
       WHERE tag_id = ${sourceId}

@@ -98,39 +98,49 @@ export async function resolveOrCreateTag(name: string, db: DbExecutor = getDb())
   return rowToTag({ ...row, createdAt: new Date() });
 }
 
+// Manual path — always upgrades to source "manual", even on conflict with an existing auto row.
 export async function assignTag(
   tagId: string,
   nodeType: TagNodeType,
   nodeId: string,
   db: DbExecutor = getDb(),
 ): Promise<TagAssignment> {
-  const existing = (
-    await db
-      .select()
-      .from(tagAssignments)
-      .where(
-        and(
-          eq(tagAssignments.tagId, tagId),
-          eq(tagAssignments.nodeType, nodeType),
-          eq(tagAssignments.nodeId, nodeId),
-        ),
-      )
-  )[0];
-
-  if (existing) {
-    return rowToAssignment(existing);
-  }
-
   const row = {
     id: newId("tga"),
     tagId,
     nodeType,
     nodeId,
+    source: "manual" as const,
   };
 
-  await db.insert(tagAssignments).values(row);
+  const inserted = (
+    await db
+      .insert(tagAssignments)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [tagAssignments.tagId, tagAssignments.nodeType, tagAssignments.nodeId],
+        set: { source: "manual" },
+      })
+      .returning()
+  )[0]!;
 
-  return rowToAssignment({ ...row, createdAt: new Date() });
+  return rowToAssignment(inserted);
+}
+
+// Auto path (AI-proposed tags: curriculum module tags, knowledge-bit auto-tagging) — never
+// downgrades an existing manual row, since onConflictDoNothing leaves it untouched.
+export async function assignAutoTag(
+  tagId: string,
+  nodeType: TagNodeType,
+  nodeId: string,
+  db: DbExecutor = getDb(),
+): Promise<void> {
+  await db
+    .insert(tagAssignments)
+    .values({ id: newId("tga"), tagId, nodeType, nodeId, source: "auto" })
+    .onConflictDoNothing({
+      target: [tagAssignments.tagId, tagAssignments.nodeType, tagAssignments.nodeId],
+    });
 }
 
 export async function removeTagAssignment(

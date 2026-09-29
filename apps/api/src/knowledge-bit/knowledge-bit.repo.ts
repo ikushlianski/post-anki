@@ -189,7 +189,13 @@ export async function updateKnowledgeBitBody(
 
     await tx
       .delete(tagAssignments)
-      .where(and(eq(tagAssignments.nodeType, "knowledgeBit"), eq(tagAssignments.nodeId, id)));
+      .where(
+        and(
+          eq(tagAssignments.nodeType, "knowledgeBit"),
+          eq(tagAssignments.nodeId, id),
+          eq(tagAssignments.source, "auto"),
+        ),
+      );
 
     return true;
   });

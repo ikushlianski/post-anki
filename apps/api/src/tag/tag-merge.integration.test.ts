@@ -87,10 +87,15 @@ async function insertTag(tagId: string, name: string): Promise<void> {
   );
 }
 
-async function insertAssignment(tagId: string, nodeType: "module" | "topic", nodeId: string): Promise<void> {
+async function insertAssignment(
+  tagId: string,
+  nodeType: "module" | "topic",
+  nodeId: string,
+  source: "auto" | "manual" = "auto",
+): Promise<void> {
   await client.query(
-    `INSERT INTO tag_assignments (id, tag_id, node_type, node_id) VALUES ($1, $2, $3, $4)`,
-    [id("tga"), tagId, nodeType, nodeId],
+    `INSERT INTO tag_assignments (id, tag_id, node_type, node_id, source) VALUES ($1, $2, $3, $4, $5)`,
+    [id("tga"), tagId, nodeType, nodeId, source],
   );
 }
 
@@ -154,6 +159,56 @@ describe("SCENARIO 3 — merging two tags dedupes a double-tagged node and moves
       sourceTagId,
     ]);
     expect(sourceTagRows[0]!.n).toBe(0);
+  });
+});
+
+describe("mergeTags provenance — a manual source-side duplicate upgrades the surviving target row", () => {
+  it("upgrades the surviving target row to manual when the source-side duplicate was manual", async () => {
+    const targetTagId = id("tag");
+    const sourceTagId = id("tag");
+    const sharedNodeId = id("topic");
+
+    await insertTag(targetTagId, `target-manual-${randomUUID()}`);
+    await insertTag(sourceTagId, `source-manual-${randomUUID()}`);
+
+    await insertAssignment(targetTagId, "topic", sharedNodeId, "auto");
+    await insertAssignment(sourceTagId, "topic", sharedNodeId, "manual");
+
+    const result = (await mergeTags(targetTagId, sourceTagId)) as MergeOutcome;
+
+    expect(result.error).toBeUndefined();
+
+    const { rows } = await client.query(
+      `SELECT source FROM tag_assignments WHERE tag_id = $1 AND node_type = 'topic' AND node_id = $2`,
+      [targetTagId, sharedNodeId],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.source).toBe("manual");
+  });
+
+  it("leaves the target row's own source alone when neither side was manual", async () => {
+    const targetTagId = id("tag");
+    const sourceTagId = id("tag");
+    const sharedNodeId = id("topic");
+
+    await insertTag(targetTagId, `target-auto-${randomUUID()}`);
+    await insertTag(sourceTagId, `source-auto-${randomUUID()}`);
+
+    await insertAssignment(targetTagId, "topic", sharedNodeId, "auto");
+    await insertAssignment(sourceTagId, "topic", sharedNodeId, "auto");
+
+    const result = (await mergeTags(targetTagId, sourceTagId)) as MergeOutcome;
+
+    expect(result.error).toBeUndefined();
+
+    const { rows } = await client.query(
+      `SELECT source FROM tag_assignments WHERE tag_id = $1 AND node_type = 'topic' AND node_id = $2`,
+      [targetTagId, sharedNodeId],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.source).toBe("auto");
   });
 });
 

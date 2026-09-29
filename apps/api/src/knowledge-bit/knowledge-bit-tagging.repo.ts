@@ -1,7 +1,7 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
-import { assignTag } from "../tag/tag.repo.js";
+import { assignAutoTag } from "../tag/tag.repo.js";
 
 export interface KnowledgeBitForTaggingScan {
   id: string;
@@ -64,7 +64,7 @@ export async function assignTagsAndMarkTagged(
     }
 
     for (const tagId of tagIds) {
-      await assignTag(tagId, "knowledgeBit", id, tx);
+      await assignAutoTag(tagId, "knowledgeBit", id, tx);
     }
 
     await markKnowledgeBitTagged(id, expectedBody, tx);

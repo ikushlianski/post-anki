@@ -79,7 +79,7 @@ import {
   getTagsByIds,
   listAssignmentsForNodes,
   resolveOrCreateTag,
-  assignTag,
+  assignAutoTag,
 } from "../tag/tag.repo.js";
 import type { CurriculumPlan } from "./curriculum-plan.js";
 import type { DocResearchPlan } from "./curriculum-research-plan.js";
@@ -1553,7 +1553,7 @@ export async function saveCurriculumPlan(
 
       const tag = await resolveOrCreateTag(tagName);
 
-      await assignTag(tag.id, "module", moduleId);
+      await assignAutoTag(tag.id, "module", moduleId);
     }
 
     const included = preferredLevel

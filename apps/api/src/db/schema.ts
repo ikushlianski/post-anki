@@ -806,6 +806,7 @@ export const tagAssignments = pgTable(
     tagId: text("tag_id").notNull(),
     nodeType: text("node_type").notNull(),
     nodeId: text("node_id").notNull(),
+    source: text("source").notNull().default("manual").$type<"auto" | "manual">(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

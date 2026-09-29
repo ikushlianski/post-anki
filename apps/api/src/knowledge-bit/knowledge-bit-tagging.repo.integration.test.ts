@@ -43,7 +43,7 @@ const {
   markKnowledgeBitTagFailed,
   assignTagsAndMarkTagged,
 } = await import("./knowledge-bit-tagging.repo.js");
-const { assignTag, resolveOrCreateTag } = await import("../tag/tag.repo.js");
+const { assignTag, assignAutoTag, resolveOrCreateTag } = await import("../tag/tag.repo.js");
 
 let client: pg.Client;
 let pauseClient: pg.Client;
@@ -182,6 +182,41 @@ describe("markKnowledgeBitTagged + assignTag (real Postgres)", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.node_type).toBe("knowledgeBit");
     expect(rows[0]!.node_id).toBe(bitId);
+  });
+});
+
+describe("assignAutoTag (real Postgres)", () => {
+  it("inserts a fresh row with source 'auto' when no prior assignment exists", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 2, "A bit to auto-tag");
+    const tag = await resolveOrCreateTag("auto-insert-tag");
+
+    await assignAutoTag(tag.id, "knowledgeBit", bitId);
+
+    const { rows } = await client.query(
+      `SELECT source FROM tag_assignments WHERE tag_id = $1 AND node_id = $2`,
+      [tag.id, bitId],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.source).toBe("auto");
+  });
+
+  it("never downgrades an existing manual row back to auto", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 3, "A bit with a manual tag");
+    const tag = await resolveOrCreateTag("no-downgrade-tag");
+
+    await assignTag(tag.id, "knowledgeBit", bitId);
+    await assignAutoTag(tag.id, "knowledgeBit", bitId);
+
+    const { rows } = await client.query(
+      `SELECT source FROM tag_assignments WHERE tag_id = $1 AND node_id = $2`,
+      [tag.id, bitId],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.source).toBe("manual");
   });
 });
 
