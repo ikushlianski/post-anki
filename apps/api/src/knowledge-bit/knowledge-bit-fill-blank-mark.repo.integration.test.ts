@@ -91,7 +91,7 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
   it("persists fillBlankGeneratedAt on read-back after marking a bit generated", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark generated");
-    const claimToken = await claimKnowledgeBitForFillBlankGeneration(id);
+    const claimToken = await claimKnowledgeBitForFillBlankGeneration(id, "A bit to mark generated");
 
     await markFillBlankGenerated(id, claimToken as string);
 
@@ -106,7 +106,7 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
   it("persists fillBlankGenerationFailedAt on read-back after marking a bit failed", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark failed");
-    const claimToken = await claimKnowledgeBitForFillBlankGeneration(id);
+    const claimToken = await claimKnowledgeBitForFillBlankGeneration(id, "A bit to mark failed");
 
     await markFillBlankGenerationFailed(id, claimToken as string);
 
@@ -122,9 +122,9 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to fail twice");
 
-    const firstClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const firstClaim = (await claimKnowledgeBitForFillBlankGeneration(id, "A bit to fail twice")) as string;
     await markFillBlankGenerationFailed(id, firstClaim);
-    const secondClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const secondClaim = (await claimKnowledgeBitForFillBlankGeneration(id, "A bit to fail twice")) as string;
     await markFillBlankGenerationFailed(id, secondClaim);
 
     const { rows } = await client.query(
@@ -140,9 +140,9 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit that fails then succeeds");
 
-    const firstClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const firstClaim = (await claimKnowledgeBitForFillBlankGeneration(id, "A bit that fails then succeeds")) as string;
     await markFillBlankGenerationFailed(id, firstClaim);
-    const secondClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const secondClaim = (await claimKnowledgeBitForFillBlankGeneration(id, "A bit that fails then succeeds")) as string;
     await markFillBlankGenerated(id, secondClaim);
 
     const { rows } = await client.query(
@@ -160,13 +160,13 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit two scans race to finish");
 
-    const scanAClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const scanAClaim = (await claimKnowledgeBitForFillBlankGeneration(id, "A bit two scans race to finish")) as string;
 
     await client.query(
       `UPDATE knowledge_bits SET fill_blank_generation_claimed_at = $1 WHERE id = $2`,
       [new Date(Date.now() - 60 * 60 * 1000), id],
     );
-    const scanBClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const scanBClaim = (await claimKnowledgeBitForFillBlankGeneration(id, "A bit two scans race to finish")) as string;
     await recordGeneratedFillBlankVariant(id, "fill_in_the_blank", 0, "This ____ matters.", "fact", scanBClaim);
 
     await expect(markFillBlankGenerationFailed(id, scanAClaim)).rejects.toThrow(
@@ -188,13 +188,19 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit whose claim moves on before either scan resolves it");
 
-    const scanAClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const scanAClaim = (await claimKnowledgeBitForFillBlankGeneration(
+      id,
+      "A bit whose claim moves on before either scan resolves it",
+    )) as string;
 
     await client.query(
       `UPDATE knowledge_bits SET fill_blank_generation_claimed_at = $1 WHERE id = $2`,
       [new Date(Date.now() - 60 * 60 * 1000), id],
     );
-    const scanBClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const scanBClaim = (await claimKnowledgeBitForFillBlankGeneration(
+      id,
+      "A bit whose claim moves on before either scan resolves it",
+    )) as string;
 
     await expect(markFillBlankGenerationFailed(id, scanAClaim)).rejects.toThrow(
       FillBlankGenerationClaimLostError,
@@ -215,13 +221,16 @@ describe("markFillBlankGenerated / markFillBlankGenerationFailed (real Postgres)
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit where the loser's insert finishes first");
 
-    const scanAClaim = (await claimKnowledgeBitForFillBlankGeneration(id)) as string;
+    const scanAClaim = (await claimKnowledgeBitForFillBlankGeneration(
+      id,
+      "A bit where the loser's insert finishes first",
+    )) as string;
 
     await client.query(
       `UPDATE knowledge_bits SET fill_blank_generation_claimed_at = $1 WHERE id = $2`,
       [new Date(Date.now() - 60 * 60 * 1000), id],
     );
-    await claimKnowledgeBitForFillBlankGeneration(id);
+    await claimKnowledgeBitForFillBlankGeneration(id, "A bit where the loser's insert finishes first");
 
     await expect(
       recordGeneratedFillBlankVariant(id, "fill_in_the_blank", 0, "This ____ matters.", "fact", scanAClaim),
@@ -245,7 +254,7 @@ describe("recordGeneratedFillBlankVariant (real Postgres)", () => {
   it("inserts the variant and stamps fillBlankGeneratedAt in one transaction", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to record a fill-blank for");
-    const claimToken = (await claimKnowledgeBitForFillBlankGeneration(bitId)) as string;
+    const claimToken = (await claimKnowledgeBitForFillBlankGeneration(bitId, "A bit to record a fill-blank for")) as string;
 
     await recordGeneratedFillBlankVariant(
       bitId,
@@ -283,8 +292,8 @@ describe("recordGeneratedFillBlankVariant (real Postgres)", () => {
   it("allows a wh_question row and a fill_in_the_blank row to coexist for the same bit", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit that gets both variant kinds");
-    const claimToken = (await claimKnowledgeBitForFillBlankGeneration(bitId)) as string;
-    const whClaimToken = (await claimKnowledgeBitForWhQuestionGeneration(bitId)) as string;
+    const claimToken = (await claimKnowledgeBitForFillBlankGeneration(bitId, "A bit that gets both variant kinds")) as string;
+    const whClaimToken = (await claimKnowledgeBitForWhQuestionGeneration(bitId, "A bit that gets both variant kinds")) as string;
 
     await recordGeneratedQuestionVariant(bitId, "wh_question", 0, "Why?", "Because.", whClaimToken);
     await recordGeneratedFillBlankVariant(bitId, "fill_in_the_blank", 0, "This ____ matters.", "fact", claimToken);

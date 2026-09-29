@@ -24,11 +24,9 @@ export async function embedKnowledgeBits(): Promise<EmbeddingScanCounts> {
     const embedded = await embedTexts(toEmbed.map((id) => ({ id, text: bodyById.get(id)! })));
 
     for (const result of embedded) {
-      await updateKnowledgeBitEmbedding(
-        result.id,
-        result.embedding,
-        hashContent(bodyById.get(result.id)!),
-      );
+      const body = bodyById.get(result.id)!;
+
+      await updateKnowledgeBitEmbedding(result.id, result.embedding, hashContent(body), body);
     }
   }
 

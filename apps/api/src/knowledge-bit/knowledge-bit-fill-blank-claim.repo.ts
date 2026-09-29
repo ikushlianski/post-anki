@@ -44,8 +44,11 @@ export async function listKnowledgeBitsForFillBlankGenerationScan(
 
 // Atomic claim-then-act (mirrors resolvePlacementSuggestion): the UPDATE's WHERE re-checks every
 // candidate condition, so only one of two racing scans wins. Token, not timestamp, is the identity.
+// Also re-checks body against what the scan read, so a concurrent edit (which resets these columns
+// to null) can't let a stale claim through the same window before the reset lands.
 export async function claimKnowledgeBitForFillBlankGeneration(
   id: string,
+  expectedBody: string,
   db: DbExecutor = getDb(),
 ): Promise<string | null> {
   const claimToken = newId("fbgc");
@@ -55,6 +58,7 @@ export async function claimKnowledgeBitForFillBlankGeneration(
     .where(
       and(
         eq(knowledgeBits.id, id),
+        eq(knowledgeBits.body, expectedBody),
         isNull(knowledgeBits.fillBlankGeneratedAt),
         or(
           isNull(knowledgeBits.fillBlankGenerationFailedAt),

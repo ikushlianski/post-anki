@@ -218,7 +218,7 @@ describe("markKnowledgeBitMatched (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to match");
 
-    await markKnowledgeBitMatched(bitId, topicId);
+    await markKnowledgeBitMatched(bitId, topicId, "A bit to match");
 
     const { rows } = await client.query(
       `SELECT topic_id, placement_checked_at FROM knowledge_bits WHERE id = $1`,
@@ -228,6 +228,30 @@ describe("markKnowledgeBitMatched (real Postgres)", () => {
     expect(rows[0]!.topic_id).toBe(topicId);
     expect(rows[0]!.placement_checked_at).toBeInstanceOf(Date);
   });
+
+  it("should leave topicId and placementCheckedAt null when the body was edited after the scan read it", async () => {
+    const subjectId = await seedSubject("Stale Match Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Stale Match Curriculum");
+    const topicId = await seedTopic(curriculumId, "Stale Match Topic", true);
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "The original body");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      bitId,
+    ]);
+
+    await markKnowledgeBitMatched(bitId, topicId, "The original body");
+
+    const { rows } = await client.query(
+      `SELECT topic_id, placement_checked_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.topic_id).toBeNull();
+    expect(rows[0]!.placement_checked_at).toBeNull();
+  });
 });
 
 describe("markKnowledgeBitSuggested (real Postgres)", () => {
@@ -235,7 +259,11 @@ describe("markKnowledgeBitSuggested (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with no home yet");
 
-    await markKnowledgeBitSuggested(bitId, "Create a new topic under Subject > Curriculum");
+    await markKnowledgeBitSuggested(
+      bitId,
+      "Create a new topic under Subject > Curriculum",
+      "A bit with no home yet",
+    );
 
     const { rows } = await client.query(
       `SELECT placement_suggestion, placement_checked_at FROM knowledge_bits WHERE id = $1`,
@@ -244,6 +272,26 @@ describe("markKnowledgeBitSuggested (real Postgres)", () => {
 
     expect(rows[0]!.placement_suggestion).toBe("Create a new topic under Subject > Curriculum");
     expect(rows[0]!.placement_checked_at).toBeInstanceOf(Date);
+  });
+
+  it("should leave placementSuggestion and placementCheckedAt null when the body was edited after the scan read it", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "The original body");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      bitId,
+    ]);
+
+    await markKnowledgeBitSuggested(bitId, "A suggestion", "The original body");
+
+    const { rows } = await client.query(
+      `SELECT placement_suggestion, placement_checked_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.placement_suggestion).toBeNull();
+    expect(rows[0]!.placement_checked_at).toBeNull();
   });
 });
 
@@ -513,7 +561,7 @@ describe("markKnowledgeBitPlacementFailed (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit that fails to place");
 
-    await markKnowledgeBitPlacementFailed(bitId);
+    await markKnowledgeBitPlacementFailed(bitId, "A bit that fails to place");
 
     const { rows } = await client.query(
       `SELECT placement_failed_at FROM knowledge_bits WHERE id = $1`,
@@ -521,5 +569,24 @@ describe("markKnowledgeBitPlacementFailed (real Postgres)", () => {
     );
 
     expect(rows[0]!.placement_failed_at).toBeInstanceOf(Date);
+  });
+
+  it("should leave placementFailedAt null when the body was edited after the scan read it", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "The original body");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      bitId,
+    ]);
+
+    await markKnowledgeBitPlacementFailed(bitId, "The original body");
+
+    const { rows } = await client.query(
+      `SELECT placement_failed_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.placement_failed_at).toBeNull();
   });
 });

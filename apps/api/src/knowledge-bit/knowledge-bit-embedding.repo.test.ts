@@ -33,6 +33,19 @@ function extractEqId(cond: unknown): string | undefined {
   return params[paramIndex] as string;
 }
 
+function extractEqBody(cond: unknown): string | undefined {
+  const match = renderSql(cond).match(/"body" = \$(\d+)/);
+
+  if (!match) {
+    return undefined;
+  }
+
+  const paramIndex = Number(match[1]) - 1;
+  const params = dialect.sqlToQuery(cond as Parameters<PgDialect["sqlToQuery"]>[0]).params;
+
+  return params[paramIndex] as string;
+}
+
 function buildMockDb(): Record<string, unknown> {
   return {
     select: (_cols?: unknown) => ({
@@ -73,7 +86,10 @@ function buildMockDb(): Record<string, unknown> {
       set: (patch: Partial<BitRow>) => ({
         where: (cond: unknown) => {
           const targetId = extractEqId(cond);
-          const row = mockDbState.bits.find((bit) => bit.id === targetId);
+          const targetBody = extractEqBody(cond);
+          const row = mockDbState.bits.find(
+            (bit) => bit.id === targetId && bit.body === targetBody,
+          );
 
           if (row) {
             Object.assign(row, patch);
@@ -140,9 +156,9 @@ describe("listKnowledgeBitsForEmbeddingScan", () => {
 
 describe("updateKnowledgeBitEmbedding", () => {
   it("writes the embedding, hash, and embeddedAt together", async () => {
-    seedBit({ id: "kb_1" });
+    seedBit({ id: "kb_1", body: "some bit text" });
 
-    await updateKnowledgeBitEmbedding("kb_1", [0.1, 0.2, 0.3], "hash_abc");
+    await updateKnowledgeBitEmbedding("kb_1", [0.1, 0.2, 0.3], "hash_abc", "some bit text");
 
     const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
 
@@ -151,5 +167,17 @@ describe("updateKnowledgeBitEmbedding", () => {
       embeddingHash: "hash_abc",
     });
     expect(row?.embeddedAt).toBeInstanceOf(Date);
+  });
+
+  it("should leave embeddedAt null when the body no longer matches what the scan read", async () => {
+    seedBit({ id: "kb_1", body: "the new body after an edit" });
+
+    await updateKnowledgeBitEmbedding("kb_1", [0.1, 0.2, 0.3], "hash_abc", "the old body");
+
+    const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
+
+    expect(row?.embeddedAt).toBeNull();
+    expect(row?.embedding).toBeNull();
+    expect(row?.embeddingHash).toBeNull();
   });
 });

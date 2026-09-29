@@ -71,7 +71,7 @@ export async function generateKnowledgeBitFillBlanks(): Promise<FillBlankGenerat
   for (const bit of bits) {
     // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
     // finished) this bit makes this claim fail, and we skip it without paying for a generation.
-    const claimToken = await claimKnowledgeBitForFillBlankGeneration(bit.id);
+    const claimToken = await claimKnowledgeBitForFillBlankGeneration(bit.id, bit.body);
 
     if (!claimToken) {
       skipped += 1;

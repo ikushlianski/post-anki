@@ -6,7 +6,7 @@ vi.mock("../shared/log.js", () => ({
 
 vi.mock("./knowledge-bit-tagging.repo.js", () => ({
   listKnowledgeBitsForTaggingScan: vi.fn(),
-  markKnowledgeBitTagged: vi.fn(),
+  assignTagsAndMarkTagged: vi.fn(),
   markKnowledgeBitTagFailed: vi.fn(),
 }));
 
@@ -20,17 +20,16 @@ vi.mock("../tag/tag-auto-assign.js", () => ({
 
 vi.mock("../tag/tag.repo.js", () => ({
   listTags: vi.fn(),
-  assignTag: vi.fn(),
 }));
 
 const {
   listKnowledgeBitsForTaggingScan,
-  markKnowledgeBitTagged,
+  assignTagsAndMarkTagged,
   markKnowledgeBitTagFailed,
 } = await import("./knowledge-bit-tagging.repo.js");
 const { runKnowledgeBitTagger } = await import("../mastra/knowledge-bit-tagger.agent.js");
 const { assignTagForAutoTag } = await import("../tag/tag-auto-assign.js");
-const { listTags, assignTag } = await import("../tag/tag.repo.js");
+const { listTags } = await import("../tag/tag.repo.js");
 const { tagKnowledgeBits, TAGGING_CAP } = await import("./knowledge-bit-tagging.orchestrator.js");
 
 function tag(id: string, name: string) {
@@ -41,6 +40,7 @@ describe("tagKnowledgeBits", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(listTags).mockResolvedValue([]);
+    vi.mocked(assignTagsAndMarkTagged).mockResolvedValue(true);
   });
 
   it("should assign 1-3 tags to a bit with no tags yet and mark it tagged", async () => {
@@ -54,9 +54,11 @@ describe("tagKnowledgeBits", () => {
 
     expect(assignTagForAutoTag).toHaveBeenCalledWith("pricing", bit.body);
     expect(assignTagForAutoTag).toHaveBeenCalledWith("psychology", bit.body);
-    expect(assignTag).toHaveBeenCalledWith("pricing", "knowledgeBit", "kb_1");
-    expect(assignTag).toHaveBeenCalledWith("psychology", "knowledgeBit", "kb_1");
-    expect(markKnowledgeBitTagged).toHaveBeenCalledWith("kb_1");
+    expect(assignTagsAndMarkTagged).toHaveBeenCalledWith(
+      "kb_1",
+      ["pricing", "psychology"],
+      bit.body,
+    );
     expect(markKnowledgeBitTagFailed).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, tagged: 1, failed: 0 });
   });
@@ -85,8 +87,7 @@ describe("tagKnowledgeBits", () => {
     await tagKnowledgeBits();
 
     expect(assignTagForAutoTag).toHaveBeenCalledWith("pricing psych", bit.body);
-    expect(assignTag).toHaveBeenCalledWith("tag_pricing", "knowledgeBit", "kb_close");
-    expect(assignTag).not.toHaveBeenCalledWith("pricing psych", "knowledgeBit", "kb_close");
+    expect(assignTagsAndMarkTagged).toHaveBeenCalledWith("kb_close", ["tag_pricing"], bit.body);
   });
 
   it("should mark a bit failed when the tagger agent throws, and continue processing the next bit", async () => {
@@ -101,8 +102,8 @@ describe("tagKnowledgeBits", () => {
 
     const result = await tagKnowledgeBits();
 
-    expect(markKnowledgeBitTagFailed).toHaveBeenCalledWith("kb_fail");
-    expect(markKnowledgeBitTagged).toHaveBeenCalledWith("kb_next");
+    expect(markKnowledgeBitTagFailed).toHaveBeenCalledWith("kb_fail", failingBit.body);
+    expect(assignTagsAndMarkTagged).toHaveBeenCalledWith("kb_next", ["marketing"], nextBit.body);
     expect(result).toEqual({ scanned: 2, tagged: 1, failed: 1 });
   });
 
@@ -115,8 +116,8 @@ describe("tagKnowledgeBits", () => {
     const result = await tagKnowledgeBits();
 
     expect(assignTagForAutoTag).not.toHaveBeenCalled();
-    expect(markKnowledgeBitTagFailed).toHaveBeenCalledWith("kb_3");
-    expect(markKnowledgeBitTagged).not.toHaveBeenCalled();
+    expect(markKnowledgeBitTagFailed).toHaveBeenCalledWith("kb_3", bit.body);
+    expect(assignTagsAndMarkTagged).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, tagged: 0, failed: 1 });
   });
 
@@ -139,8 +140,15 @@ describe("tagKnowledgeBits", () => {
     expect(requestedLimit).toBe(TAGGING_CAP);
     expect(result.scanned).toBe(TAGGING_CAP);
     expect(runKnowledgeBitTagger).toHaveBeenCalledTimes(TAGGING_CAP);
-    expect(markKnowledgeBitTagged).not.toHaveBeenCalledWith(`kb_${TAGGING_CAP}`);
-    expect(markKnowledgeBitTagFailed).not.toHaveBeenCalledWith(`kb_${TAGGING_CAP}`);
+    expect(assignTagsAndMarkTagged).not.toHaveBeenCalledWith(
+      `kb_${TAGGING_CAP}`,
+      expect.anything(),
+      `Body ${TAGGING_CAP}`,
+    );
+    expect(markKnowledgeBitTagFailed).not.toHaveBeenCalledWith(
+      `kb_${TAGGING_CAP}`,
+      `Body ${TAGGING_CAP}`,
+    );
   });
 
   it("should never let a markKnowledgeBitTagFailed write failure abort the rest of the batch", async () => {
@@ -156,7 +164,21 @@ describe("tagKnowledgeBits", () => {
 
     const result = await tagKnowledgeBits();
 
-    expect(markKnowledgeBitTagged).toHaveBeenCalledWith("kb_next");
+    expect(assignTagsAndMarkTagged).toHaveBeenCalledWith("kb_next", ["marketing"], nextBit.body);
     expect(result).toEqual({ scanned: 2, tagged: 1, failed: 1 });
+  });
+
+  it("should count a bit whose body changed since the scan read it as neither tagged nor failed", async () => {
+    const bit = { id: "kb_stale", body: "The body the scan read" };
+
+    vi.mocked(listKnowledgeBitsForTaggingScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitTagger).mockResolvedValue(["pricing"]);
+    vi.mocked(assignTagForAutoTag).mockImplementation(async (name: string) => tag(name, name));
+    vi.mocked(assignTagsAndMarkTagged).mockResolvedValue(false);
+
+    const result = await tagKnowledgeBits();
+
+    expect(markKnowledgeBitTagFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({ scanned: 1, tagged: 0, failed: 0 });
   });
 });

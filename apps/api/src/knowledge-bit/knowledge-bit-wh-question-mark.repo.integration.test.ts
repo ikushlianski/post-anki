@@ -90,7 +90,7 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
   it("persists whQuestionGeneratedAt on read-back after marking a bit generated", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark generated");
-    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id);
+    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id, "A bit to mark generated");
 
     await markWhQuestionGenerated(id, claimToken as string);
 
@@ -105,7 +105,7 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
   it("persists whQuestionGenerationFailedAt on read-back after marking a bit failed", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to mark failed");
-    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id);
+    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id, "A bit to mark failed");
 
     await markWhQuestionGenerationFailed(id, claimToken as string);
 
@@ -121,9 +121,9 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to fail twice");
 
-    const firstClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const firstClaim = (await claimKnowledgeBitForWhQuestionGeneration(id, "A bit to fail twice")) as string;
     await markWhQuestionGenerationFailed(id, firstClaim);
-    const secondClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const secondClaim = (await claimKnowledgeBitForWhQuestionGeneration(id, "A bit to fail twice")) as string;
     await markWhQuestionGenerationFailed(id, secondClaim);
 
     const { rows } = await client.query(
@@ -139,9 +139,9 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit that fails then succeeds");
 
-    const firstClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const firstClaim = (await claimKnowledgeBitForWhQuestionGeneration(id, "A bit that fails then succeeds")) as string;
     await markWhQuestionGenerationFailed(id, firstClaim);
-    const secondClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const secondClaim = (await claimKnowledgeBitForWhQuestionGeneration(id, "A bit that fails then succeeds")) as string;
     await markWhQuestionGenerated(id, secondClaim);
 
     const { rows } = await client.query(
@@ -159,13 +159,13 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit two scans race to finish");
 
-    const scanAClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const scanAClaim = (await claimKnowledgeBitForWhQuestionGeneration(id, "A bit two scans race to finish")) as string;
 
     await client.query(
       `UPDATE knowledge_bits SET wh_question_generation_claimed_at = $1 WHERE id = $2`,
       [new Date(Date.now() - 60 * 60 * 1000), id],
     );
-    const scanBClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const scanBClaim = (await claimKnowledgeBitForWhQuestionGeneration(id, "A bit two scans race to finish")) as string;
     await recordGeneratedQuestionVariant(id, "wh_question", 0, "Why?", "Because.", scanBClaim);
 
     await expect(markWhQuestionGenerationFailed(id, scanAClaim)).rejects.toThrow(
@@ -187,13 +187,19 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit whose claim moves on before either scan resolves it");
 
-    const scanAClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const scanAClaim = (await claimKnowledgeBitForWhQuestionGeneration(
+      id,
+      "A bit whose claim moves on before either scan resolves it",
+    )) as string;
 
     await client.query(
       `UPDATE knowledge_bits SET wh_question_generation_claimed_at = $1 WHERE id = $2`,
       [new Date(Date.now() - 60 * 60 * 1000), id],
     );
-    const scanBClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const scanBClaim = (await claimKnowledgeBitForWhQuestionGeneration(
+      id,
+      "A bit whose claim moves on before either scan resolves it",
+    )) as string;
 
     await expect(markWhQuestionGenerationFailed(id, scanAClaim)).rejects.toThrow(
       WhQuestionGenerationClaimLostError,
@@ -214,13 +220,16 @@ describe("markWhQuestionGenerated / markWhQuestionGenerationFailed (real Postgre
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit where the loser's insert finishes first");
 
-    const scanAClaim = (await claimKnowledgeBitForWhQuestionGeneration(id)) as string;
+    const scanAClaim = (await claimKnowledgeBitForWhQuestionGeneration(
+      id,
+      "A bit where the loser's insert finishes first",
+    )) as string;
 
     await client.query(
       `UPDATE knowledge_bits SET wh_question_generation_claimed_at = $1 WHERE id = $2`,
       [new Date(Date.now() - 60 * 60 * 1000), id],
     );
-    await claimKnowledgeBitForWhQuestionGeneration(id);
+    await claimKnowledgeBitForWhQuestionGeneration(id, "A bit where the loser's insert finishes first");
 
     await expect(
       recordGeneratedQuestionVariant(id, "wh_question", 0, "Why?", "Because.", scanAClaim),
@@ -244,7 +253,7 @@ describe("recordGeneratedQuestionVariant (real Postgres)", () => {
   it("inserts the variant and stamps whQuestionGeneratedAt in one transaction", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to record a question for");
-    const claimToken = (await claimKnowledgeBitForWhQuestionGeneration(bitId)) as string;
+    const claimToken = (await claimKnowledgeBitForWhQuestionGeneration(bitId, "A bit to record a question for")) as string;
 
     await recordGeneratedQuestionVariant(bitId, "wh_question", 0, "Why does this matter?", "Because of X.", claimToken);
 

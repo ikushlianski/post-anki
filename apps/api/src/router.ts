@@ -98,6 +98,8 @@ export type RouteName =
   | "askQaChat"
   | "askGlobalCardChat"
   | "askKnowledgeBitChat"
+  | "draftKnowledgeBitChat"
+  | "editKnowledgeBit"
   | "getCurriculumStats"
   | "generateRecommendations"
   | "getStreak"

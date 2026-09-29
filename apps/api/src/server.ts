@@ -126,6 +126,8 @@ import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
 import { handleAskQaChat } from "./qa-chat/qa-chat.controller.js";
 import { handleAskGlobalCardChat } from "./global-card-chat/global-card-chat.controller.js";
 import { handleAskKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat.controller.js";
+import { handleDraftKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat-draft.controller.js";
+import { handleEditKnowledgeBit } from "./knowledge-bit/knowledge-bit-edit.controller.js";
 import {
   handleGenerateRecommendations,
   handleGetCurriculumStats,
@@ -555,6 +557,10 @@ async function route(
       return handleAskGlobalCardChat(req, res);
     case "askKnowledgeBitChat":
       return handleAskKnowledgeBitChat(req, res, id);
+    case "draftKnowledgeBitChat":
+      return handleDraftKnowledgeBitChat(req, res, id);
+    case "editKnowledgeBit":
+      return handleEditKnowledgeBit(req, res, id);
     case "getCurriculumStats":
       return handleGetCurriculumStats(res, id);
     case "generateRecommendations":

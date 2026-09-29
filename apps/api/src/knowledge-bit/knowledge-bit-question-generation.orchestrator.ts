@@ -30,7 +30,7 @@ export async function generateKnowledgeBitQuestions(): Promise<QuestionGeneratio
   for (const bit of bits) {
     // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
     // finished) this bit makes this claim fail, and we skip it without paying for a generation.
-    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(bit.id);
+    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(bit.id, bit.body);
 
     if (!claimToken) {
       skipped += 1;

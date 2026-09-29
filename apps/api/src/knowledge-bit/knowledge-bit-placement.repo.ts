@@ -47,36 +47,40 @@ export async function listTopicsForPlacement(
     .where(and(eq(topics.included, true), isNull(curricula.containerAreaNodeId)));
 }
 
+// Body guard: no-ops if the body changed since the scan read it, so the next scan retries.
 export async function markKnowledgeBitMatched(
   id: string,
   topicId: string,
+  expectedBody: string,
   db: DbExecutor = getDb(),
 ): Promise<void> {
   await db
     .update(knowledgeBits)
     .set({ topicId, placementCheckedAt: new Date() })
-    .where(eq(knowledgeBits.id, id));
+    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
 }
 
 export async function markKnowledgeBitSuggested(
   id: string,
   suggestion: string,
+  expectedBody: string,
   db: DbExecutor = getDb(),
 ): Promise<void> {
   await db
     .update(knowledgeBits)
     .set({ placementSuggestion: suggestion, placementCheckedAt: new Date() })
-    .where(eq(knowledgeBits.id, id));
+    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
 }
 
 export async function markKnowledgeBitPlacementFailed(
   id: string,
+  expectedBody: string,
   db: DbExecutor = getDb(),
 ): Promise<void> {
   await db
     .update(knowledgeBits)
     .set({ placementFailedAt: new Date() })
-    .where(eq(knowledgeBits.id, id));
+    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
 }
 
 export async function listPendingPlacementSuggestions(

@@ -54,7 +54,7 @@ describe("placeKnowledgeBits", () => {
 
     const result = await placeKnowledgeBits();
 
-    expect(markKnowledgeBitMatched).toHaveBeenCalledWith("kb_1", "topic_1");
+    expect(markKnowledgeBitMatched).toHaveBeenCalledWith("kb_1", "topic_1", bit.body);
     expect(markKnowledgeBitSuggested).not.toHaveBeenCalled();
     expect(markKnowledgeBitPlacementFailed).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, matched: 1, suggested: 0, failed: 0 });
@@ -74,6 +74,7 @@ describe("placeKnowledgeBits", () => {
     expect(markKnowledgeBitSuggested).toHaveBeenCalledWith(
       "kb_2",
       "Create a new topic under Subject > Curriculum",
+      bit.body,
     );
     expect(markKnowledgeBitMatched).not.toHaveBeenCalled();
     expect(markKnowledgeBitPlacementFailed).not.toHaveBeenCalled();
@@ -91,7 +92,7 @@ describe("placeKnowledgeBits", () => {
 
     const result = await placeKnowledgeBits();
 
-    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_hallucinated");
+    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_hallucinated", bit.body);
     expect(markKnowledgeBitMatched).not.toHaveBeenCalled();
     expect(markKnowledgeBitSuggested).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, matched: 0, suggested: 0, failed: 1 });
@@ -108,7 +109,7 @@ describe("placeKnowledgeBits", () => {
 
     const result = await placeKnowledgeBits();
 
-    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_blank");
+    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_blank", bit.body);
     expect(markKnowledgeBitSuggested).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, matched: 0, suggested: 0, failed: 1 });
   });
@@ -124,7 +125,7 @@ describe("placeKnowledgeBits", () => {
 
     const result = await placeKnowledgeBits();
 
-    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_long");
+    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_long", bit.body);
     expect(markKnowledgeBitSuggested).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, matched: 0, suggested: 0, failed: 1 });
   });
@@ -143,6 +144,7 @@ describe("placeKnowledgeBits", () => {
     expect(markKnowledgeBitSuggested).toHaveBeenCalledWith(
       "kb_padded",
       "Create a new topic under Subject > Curriculum",
+      bit.body,
     );
   });
 
@@ -157,8 +159,8 @@ describe("placeKnowledgeBits", () => {
 
     const result = await placeKnowledgeBits();
 
-    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_fail");
-    expect(markKnowledgeBitMatched).toHaveBeenCalledWith("kb_next", "topic_1");
+    expect(markKnowledgeBitPlacementFailed).toHaveBeenCalledWith("kb_fail", failingBit.body);
+    expect(markKnowledgeBitMatched).toHaveBeenCalledWith("kb_next", "topic_1", nextBit.body);
     expect(result).toEqual({ scanned: 2, matched: 1, suggested: 0, failed: 1 });
   });
 
@@ -203,7 +205,11 @@ describe("placeKnowledgeBits", () => {
     expect(requestedLimit).toBe(PLACEMENT_CAP);
     expect(result.scanned).toBe(PLACEMENT_CAP);
     expect(runKnowledgeBitPlacer).toHaveBeenCalledTimes(PLACEMENT_CAP);
-    expect(markKnowledgeBitMatched).not.toHaveBeenCalledWith(`kb_${PLACEMENT_CAP}`, "topic_1");
+    expect(markKnowledgeBitMatched).not.toHaveBeenCalledWith(
+      `kb_${PLACEMENT_CAP}`,
+      "topic_1",
+      `Body ${PLACEMENT_CAP}`,
+    );
   });
 
   it("should never let a markKnowledgeBitPlacementFailed write failure abort the rest of the batch", async () => {
@@ -218,7 +224,7 @@ describe("placeKnowledgeBits", () => {
 
     const result = await placeKnowledgeBits();
 
-    expect(markKnowledgeBitMatched).toHaveBeenCalledWith("kb_next", "topic_1");
+    expect(markKnowledgeBitMatched).toHaveBeenCalledWith("kb_next", "topic_1", nextBit.body);
     expect(result).toEqual({ scanned: 2, matched: 1, suggested: 0, failed: 1 });
   });
 });

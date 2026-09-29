@@ -68,7 +68,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
 
     const result = await generateKnowledgeBitFillBlanks();
 
-    expect(claimKnowledgeBitForFillBlankGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere");
+    expect(claimKnowledgeBitForFillBlankGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere", "Some content");
     expect(runKnowledgeBitFillBlankGenerator).not.toHaveBeenCalled();
     expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
     expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();

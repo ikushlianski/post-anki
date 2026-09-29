@@ -32,6 +32,19 @@ function extractEqId(cond: unknown): string | undefined {
   return params[paramIndex] as string;
 }
 
+function extractEqBody(cond: unknown): string | undefined {
+  const match = renderSql(cond).match(/"body" = \$(\d+)/);
+
+  if (!match) {
+    return undefined;
+  }
+
+  const paramIndex = Number(match[1]) - 1;
+  const params = dialect.sqlToQuery(cond as Parameters<PgDialect["sqlToQuery"]>[0]).params;
+
+  return params[paramIndex] as string;
+}
+
 function buildMockDb(): Record<string, unknown> {
   return {
     select: (_cols?: unknown) => ({
@@ -76,7 +89,10 @@ function buildMockDb(): Record<string, unknown> {
       set: (patch: Partial<BitRow>) => ({
         where: (cond: unknown) => {
           const targetId = extractEqId(cond);
-          const row = mockDbState.bits.find((bit) => bit.id === targetId);
+          const targetBody = extractEqBody(cond);
+          const row = mockDbState.bits.find(
+            (bit) => bit.id === targetId && bit.body === targetBody,
+          );
 
           if (row) {
             Object.assign(row, patch);
@@ -145,24 +161,44 @@ describe("listKnowledgeBitsForTaggingScan", () => {
 
 describe("markKnowledgeBitTagged", () => {
   it("sets taggedAt", async () => {
-    seedBit({ id: "kb_1" });
+    seedBit({ id: "kb_1", body: "some bit text" });
 
-    await markKnowledgeBitTagged("kb_1");
+    await markKnowledgeBitTagged("kb_1", "some bit text");
 
     const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
 
     expect(row?.taggedAt).toBeInstanceOf(Date);
   });
+
+  it("should leave taggedAt null when the body no longer matches what the scan read", async () => {
+    seedBit({ id: "kb_1", body: "the new body after an edit" });
+
+    await markKnowledgeBitTagged("kb_1", "the old body");
+
+    const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
+
+    expect(row?.taggedAt).toBeNull();
+  });
 });
 
 describe("markKnowledgeBitTagFailed", () => {
   it("sets tagFailedAt", async () => {
-    seedBit({ id: "kb_1" });
+    seedBit({ id: "kb_1", body: "some bit text" });
 
-    await markKnowledgeBitTagFailed("kb_1");
+    await markKnowledgeBitTagFailed("kb_1", "some bit text");
 
     const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
 
     expect(row?.tagFailedAt).toBeInstanceOf(Date);
+  });
+
+  it("should leave tagFailedAt null when the body no longer matches what the scan read", async () => {
+    seedBit({ id: "kb_1", body: "the new body after an edit" });
+
+    await markKnowledgeBitTagFailed("kb_1", "the old body");
+
+    const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
+
+    expect(row?.tagFailedAt).toBeNull();
   });
 });

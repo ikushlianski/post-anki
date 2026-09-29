@@ -15,3 +15,22 @@ export const askKnowledgeBitChatResultSchema = z.object({
 });
 
 export type AskKnowledgeBitChatResult = z.infer<typeof askKnowledgeBitChatResultSchema>;
+
+export const draftKnowledgeBitChatInput = z.object({
+  transcript: z.array(chatMessageSchema),
+  mode: z.enum(["create", "edit"]),
+});
+
+export type DraftKnowledgeBitChatInput = z.input<typeof draftKnowledgeBitChatInput>;
+
+export const draftKnowledgeBitChatResultSchema = z.object({
+  proposedBody: z.string(),
+});
+
+export type DraftKnowledgeBitChatResult = z.infer<typeof draftKnowledgeBitChatResultSchema>;
+
+export const editKnowledgeBitInput = z.object({
+  body: z.string().trim().min(1),
+});
+
+export type EditKnowledgeBitInput = z.input<typeof editKnowledgeBitInput>;

@@ -202,7 +202,7 @@ describe("claimKnowledgeBitForWhQuestionGeneration (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to claim");
 
-    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id);
+    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id, "A bit to claim");
 
     expect(typeof claimToken).toBe("string");
 
@@ -220,8 +220,8 @@ describe("claimKnowledgeBitForWhQuestionGeneration (real Postgres)", () => {
     const id = await seedKnowledgeBit(sourceId, 0, "A bit two scans race to claim");
 
     const [first, second] = await Promise.all([
-      claimKnowledgeBitForWhQuestionGeneration(id),
-      claimKnowledgeBitForWhQuestionGeneration(id),
+      claimKnowledgeBitForWhQuestionGeneration(id, "A bit two scans race to claim"),
+      claimKnowledgeBitForWhQuestionGeneration(id, "A bit two scans race to claim"),
     ]);
 
     expect([first, second].filter(Boolean)).toHaveLength(1);
@@ -231,7 +231,7 @@ describe("claimKnowledgeBitForWhQuestionGeneration (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit already claimed", null, null, 0, new Date());
 
-    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id);
+    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id, "A bit already claimed");
 
     expect(claimed).toBeNull();
   });
@@ -241,7 +241,7 @@ describe("claimKnowledgeBitForWhQuestionGeneration (real Postgres)", () => {
     const staleClaimAt = new Date(Date.now() - 60 * 60 * 1000);
     const id = await seedKnowledgeBit(sourceId, 0, "A bit with a stale claim", null, null, 0, staleClaimAt);
 
-    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id);
+    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id, "A bit with a stale claim");
 
     expect(typeof claimed).toBe("string");
   });
@@ -257,8 +257,25 @@ describe("claimKnowledgeBitForWhQuestionGeneration (real Postgres)", () => {
       WH_QUESTION_GENERATION_MAX_ATTEMPTS,
     );
 
-    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id);
+    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id, "An exhausted bit");
 
     expect(claimed).toBeNull();
+  });
+
+  it("refuses to claim a bit whose body no longer matches what the scan read", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "Original body");
+
+    const claimed = await claimKnowledgeBitForWhQuestionGeneration(id, "Stale body the scan read earlier");
+
+    expect(claimed).toBeNull();
+
+    const { rows } = await client.query(
+      `SELECT wh_question_generation_claimed_at, wh_question_generation_claim_token FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.wh_question_generation_claimed_at).toBeNull();
+    expect(rows[0]!.wh_question_generation_claim_token).toBeNull();
   });
 });

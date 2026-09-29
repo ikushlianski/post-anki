@@ -67,7 +67,7 @@ describe("generateKnowledgeBitQuestions", () => {
 
     const result = await generateKnowledgeBitQuestions();
 
-    expect(claimKnowledgeBitForWhQuestionGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere");
+    expect(claimKnowledgeBitForWhQuestionGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere", "Some content");
     expect(runKnowledgeBitQuestionGenerator).not.toHaveBeenCalled();
     expect(recordGeneratedQuestionVariant).not.toHaveBeenCalled();
     expect(markWhQuestionGenerationFailed).not.toHaveBeenCalled();

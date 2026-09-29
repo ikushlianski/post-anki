@@ -66,6 +66,12 @@ export const ROUTES: RouteDef[] = [
     name: "gradeKnowledgeBitVariantAnswer",
     param: "id",
   },
+  {
+    method: "PATCH",
+    pattern: /^\/knowledge-bits\/([^/]+)$/,
+    name: "editKnowledgeBit",
+    param: "id",
+  },
   { method: "DELETE", pattern: /^\/subjects\/([^/]+)$/, name: "deleteSubject", param: "id" },
   { method: "PATCH", pattern: /^\/subjects\/([^/]+)$/, name: "updateSubject", param: "id" },
   { method: "POST", pattern: /^\/subjects\/([^/]+)\/merge$/, name: "mergeSubjects", param: "id" },
@@ -244,6 +250,12 @@ export const ROUTES: RouteDef[] = [
     method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/chat$/,
     name: "askKnowledgeBitChat",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/chat\/draft$/,
+    name: "draftKnowledgeBitChat",
     param: "id",
   },
   {

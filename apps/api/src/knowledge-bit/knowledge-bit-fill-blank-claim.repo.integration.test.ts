@@ -182,7 +182,7 @@ describe("claimKnowledgeBitForFillBlankGeneration (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to claim");
 
-    const claimToken = await claimKnowledgeBitForFillBlankGeneration(id);
+    const claimToken = await claimKnowledgeBitForFillBlankGeneration(id, "A bit to claim");
 
     expect(typeof claimToken).toBe("string");
 
@@ -200,8 +200,8 @@ describe("claimKnowledgeBitForFillBlankGeneration (real Postgres)", () => {
     const id = await seedKnowledgeBit(sourceId, 0, "A bit two scans race to claim");
 
     const [first, second] = await Promise.all([
-      claimKnowledgeBitForFillBlankGeneration(id),
-      claimKnowledgeBitForFillBlankGeneration(id),
+      claimKnowledgeBitForFillBlankGeneration(id, "A bit two scans race to claim"),
+      claimKnowledgeBitForFillBlankGeneration(id, "A bit two scans race to claim"),
     ]);
 
     expect([first, second].filter(Boolean)).toHaveLength(1);
@@ -211,7 +211,7 @@ describe("claimKnowledgeBitForFillBlankGeneration (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit already claimed", null, null, 0, new Date());
 
-    const claimed = await claimKnowledgeBitForFillBlankGeneration(id);
+    const claimed = await claimKnowledgeBitForFillBlankGeneration(id, "A bit already claimed");
 
     expect(claimed).toBeNull();
   });
@@ -221,7 +221,7 @@ describe("claimKnowledgeBitForFillBlankGeneration (real Postgres)", () => {
     const staleClaimAt = new Date(Date.now() - 60 * 60 * 1000);
     const id = await seedKnowledgeBit(sourceId, 0, "A bit with a stale claim", null, null, 0, staleClaimAt);
 
-    const claimed = await claimKnowledgeBitForFillBlankGeneration(id);
+    const claimed = await claimKnowledgeBitForFillBlankGeneration(id, "A bit with a stale claim");
 
     expect(typeof claimed).toBe("string");
   });
@@ -237,8 +237,25 @@ describe("claimKnowledgeBitForFillBlankGeneration (real Postgres)", () => {
       FILL_BLANK_GENERATION_MAX_ATTEMPTS,
     );
 
-    const claimed = await claimKnowledgeBitForFillBlankGeneration(id);
+    const claimed = await claimKnowledgeBitForFillBlankGeneration(id, "An exhausted bit");
 
     expect(claimed).toBeNull();
+  });
+
+  it("refuses to claim a bit whose body no longer matches what the scan read", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "Original body");
+
+    const claimed = await claimKnowledgeBitForFillBlankGeneration(id, "Stale body the scan read earlier");
+
+    expect(claimed).toBeNull();
+
+    const { rows } = await client.query(
+      `SELECT fill_blank_generation_claimed_at, fill_blank_generation_claim_token FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.fill_blank_generation_claimed_at).toBeNull();
+    expect(rows[0]!.fill_blank_generation_claim_token).toBeNull();
   });
 });

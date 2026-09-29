@@ -34,6 +34,7 @@ describe("embedKnowledgeBits", () => {
       "kb_1",
       [1, 2, 3],
       hashContent(bit.body),
+      bit.body,
     );
     expect(result).toEqual({ embeddedCount: 1, reusedCount: 0, capped: false });
   });
@@ -97,11 +98,13 @@ describe("embedKnowledgeBits", () => {
       "kb_b",
       [2, 2, 2],
       hashContent(bitB.body),
+      bitB.body,
     );
     expect(updateKnowledgeBitEmbedding).toHaveBeenCalledWith(
       "kb_a",
       [1, 1, 1],
       hashContent(bitA.body),
+      bitA.body,
     );
   });
 

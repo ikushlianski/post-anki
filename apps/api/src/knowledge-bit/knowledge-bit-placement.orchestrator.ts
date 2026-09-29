@@ -44,24 +44,24 @@ export async function placeKnowledgeBits(): Promise<PlacementScanCounts> {
 
       if (matchedTopicId !== null) {
         if (topicIds.has(matchedTopicId)) {
-          await markKnowledgeBitMatched(bit.id, matchedTopicId);
+          await markKnowledgeBitMatched(bit.id, matchedTopicId, bit.body);
           matched += 1;
         } else {
-          await markKnowledgeBitPlacementFailed(bit.id);
+          await markKnowledgeBitPlacementFailed(bit.id, bit.body);
           failed += 1;
         }
       } else if (suggestedPlacement !== null && isUsableSuggestion(suggestedPlacement)) {
-        await markKnowledgeBitSuggested(bit.id, suggestedPlacement.trim());
+        await markKnowledgeBitSuggested(bit.id, suggestedPlacement.trim(), bit.body);
         suggested += 1;
       } else {
-        await markKnowledgeBitPlacementFailed(bit.id);
+        await markKnowledgeBitPlacementFailed(bit.id, bit.body);
         failed += 1;
       }
     } catch (err) {
       log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_placement_failed");
 
       try {
-        await markKnowledgeBitPlacementFailed(bit.id);
+        await markKnowledgeBitPlacementFailed(bit.id, bit.body);
       } catch (markErr) {
         log.warn(
           { err: markErr, knowledgeBitId: bit.id },

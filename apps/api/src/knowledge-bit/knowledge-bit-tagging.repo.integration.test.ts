@@ -37,19 +37,26 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
-const { listKnowledgeBitsForTaggingScan, markKnowledgeBitTagged } = await import(
-  "./knowledge-bit-tagging.repo.js"
-);
+const {
+  listKnowledgeBitsForTaggingScan,
+  markKnowledgeBitTagged,
+  markKnowledgeBitTagFailed,
+  assignTagsAndMarkTagged,
+} = await import("./knowledge-bit-tagging.repo.js");
 const { assignTag, resolveOrCreateTag } = await import("../tag/tag.repo.js");
 
 let client: pg.Client;
+let pauseClient: pg.Client;
 
 beforeAll(async () => {
   client = new pg.Client({ connectionString: DATABASE_URL });
   await client.connect();
+  pauseClient = new pg.Client({ connectionString: DATABASE_URL });
+  await pauseClient.connect();
 }, 30_000);
 
 afterAll(async () => {
+  await pauseClient?.end();
   await client?.end();
   await closeDb();
   await adminPool.query(
@@ -108,7 +115,7 @@ describe("markKnowledgeBitTagged + assignTag (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to tag");
 
-    await markKnowledgeBitTagged(id);
+    await markKnowledgeBitTagged(id, "A bit to tag");
 
     const { rows } = await client.query(
       `SELECT tagged_at FROM knowledge_bits WHERE id = $1`,
@@ -116,6 +123,43 @@ describe("markKnowledgeBitTagged + assignTag (real Postgres)", () => {
     );
 
     expect(rows[0]!.tagged_at).toBeInstanceOf(Date);
+  });
+
+  it("should leave taggedAt null when the body was edited after the scan read it", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "The original body");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      id,
+    ]);
+
+    await markKnowledgeBitTagged(id, "The original body");
+
+    const { rows } = await client.query(`SELECT tagged_at FROM knowledge_bits WHERE id = $1`, [
+      id,
+    ]);
+
+    expect(rows[0]!.tagged_at).toBeNull();
+  });
+
+  it("should leave tagFailedAt null when the body was edited after the scan read it", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "The original body");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      id,
+    ]);
+
+    await markKnowledgeBitTagFailed(id, "The original body");
+
+    const { rows } = await client.query(
+      `SELECT tag_failed_at FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.tag_failed_at).toBeNull();
   });
 
   it("writes a real tag_assignments row when assignTag is called directly, reusing an existing tag by name and no-oping a duplicate assignment", async () => {
@@ -139,4 +183,129 @@ describe("markKnowledgeBitTagged + assignTag (real Postgres)", () => {
     expect(rows[0]!.node_type).toBe("knowledgeBit");
     expect(rows[0]!.node_id).toBe(bitId);
   });
+});
+
+// Blocks until assignTagsAndMarkTagged's `SELECT ... FOR UPDATE` is genuinely
+// parked behind pauseClient's held lock — polling the server's own wait
+// state rather than sleeping a guessed interval, so the race window is
+// proven open before the concurrent edit is committed into it.
+async function waitForBlockedTaggingSelect(): Promise<void> {
+  const deadline = Date.now() + 15_000;
+
+  while (Date.now() < deadline) {
+    const { rows } = await client.query(
+      `SELECT count(*)::int AS n FROM pg_stat_activity
+       WHERE wait_event_type = 'Lock' AND query ILIKE '%from "knowledge_bits"%for update%'`,
+    );
+
+    if ((rows[0]!.n as number) > 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error("assignTagsAndMarkTagged never blocked on its row lock — race window never opened");
+}
+
+describe("assignTagsAndMarkTagged (real Postgres)", () => {
+  it("inserts every tag assignment and marks the bit tagged when the body still matches", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to tag transactionally");
+    const tagA = await resolveOrCreateTag("txn-tag-a");
+    const tagB = await resolveOrCreateTag("txn-tag-b");
+
+    const result = await assignTagsAndMarkTagged(
+      bitId,
+      [tagA.id, tagB.id],
+      "A bit to tag transactionally",
+    );
+
+    expect(result).toBe(true);
+
+    const { rows: assignmentRows } = await client.query(
+      `SELECT tag_id FROM tag_assignments WHERE node_id = $1 ORDER BY tag_id`,
+      [bitId],
+    );
+
+    expect(assignmentRows.map((r) => r.tag_id).sort()).toEqual([tagA.id, tagB.id].sort());
+
+    const { rows: bitRows } = await client.query(
+      `SELECT tagged_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(bitRows[0]!.tagged_at).toBeInstanceOf(Date);
+  });
+
+  it("inserts no tag_assignments and leaves taggedAt null when the body already changed before the call", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "The original body");
+    const tag = await resolveOrCreateTag("stale-body-tag");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      bitId,
+    ]);
+
+    const result = await assignTagsAndMarkTagged(bitId, [tag.id], "The original body");
+
+    expect(result).toBe(false);
+
+    const { rows: assignmentRows } = await client.query(
+      `SELECT tag_id FROM tag_assignments WHERE node_id = $1`,
+      [bitId],
+    );
+
+    expect(assignmentRows).toHaveLength(0);
+
+    const { rows: bitRows } = await client.query(
+      `SELECT tagged_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(bitRows[0]!.tagged_at).toBeNull();
+  });
+
+  it("inserts no tag_assignments when a concurrent body edit commits while this call is waiting on the row lock", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "The body read by the scan");
+    const tag = await resolveOrCreateTag("race-tag");
+
+    await pauseClient.query("BEGIN");
+    await pauseClient.query(`SELECT id FROM knowledge_bits WHERE id = $1 FOR UPDATE`, [bitId]);
+
+    const assignPromise = assignTagsAndMarkTagged(bitId, [tag.id], "The body read by the scan");
+
+    await waitForBlockedTaggingSelect();
+
+    // Simulates updateKnowledgeBitBody's own sequence: the bit's body is
+    // updated, then its existing tag_assignments are deleted, all before the
+    // row lock is released.
+    await pauseClient.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      bitId,
+    ]);
+    await pauseClient.query(`DELETE FROM tag_assignments WHERE node_id = $1`, [bitId]);
+    await pauseClient.query("COMMIT");
+
+    const result = await assignPromise;
+
+    expect(result).toBe(false);
+
+    const { rows: assignmentRows } = await client.query(
+      `SELECT tag_id FROM tag_assignments WHERE node_id = $1`,
+      [bitId],
+    );
+
+    expect(assignmentRows).toHaveLength(0);
+
+    const { rows: bitRows } = await client.query(
+      `SELECT tagged_at, body FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(bitRows[0]!.tagged_at).toBeNull();
+    expect(bitRows[0]!.body).toBe("The edited body");
+  }, 20_000);
 });

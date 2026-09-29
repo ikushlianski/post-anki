@@ -220,6 +220,7 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [x] Add claim-token guards to embedding and tagging writes, like wh-question/fill-blank already have
 - [x] Let the learner chat with a single knowledge item, grounded on it only by default
   - [x] Phase 1: repo, schemas, agent, service, controller, route
   - [x] Phase 2: tests for every scenario
@@ -252,6 +253,9 @@ updated: 2026-09-04
   - [x] Phase 1: schema, tools, dynamic agent, service wiring
   - [x] Phase 2: tests for every scenario
 - [ ] Let per-item chat create a new knowledge item or edit the current one from its answer
+  - [ ] Phase 1: draft endpoint for new-item or edited-body text
+  - [ ] Phase 2: edit endpoint that resets derived generation state
+  - [ ] Phase 3: tests for draft and edit scenarios
 
 ### Notes
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-19)
@@ -265,6 +269,7 @@ updated: 2026-09-04
 - Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
 
 ### Coding tasks
+- [ ] Add the same untrusted-content guard to QA chat's web-search tool as knowledge-bit chat has
 - [x] Parallelize the duplicates page's two independent loader fetches
 - [x] Add a strict one-result-per-item rule to the grade-batch agent's instructions
 - [x] Add a no-invent-URL rule to the QA chat agent's instructions
@@ -511,6 +516,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Ceiling-relative depth ranking and the dismissed-gap check-in revisit path are both intentional, not bugs.
 - No cross-subject ranking exists yet — needs a human call on what the ranking weighs first.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
 
 ## calibration-and-depth-accuracy
 
@@ -558,6 +564,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - No generation-result caching layer exists — needs a human call on invalidation policy first.
 - Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
 
 ## discovery-and-navigation
 
@@ -618,6 +625,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - MCP is stdio-only; post-anki runs on Cloud Run — no prod path without a networked transport
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-12)
+- EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
 
 ## e2e-reliability
 

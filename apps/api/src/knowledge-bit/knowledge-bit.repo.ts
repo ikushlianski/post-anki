@@ -1,6 +1,11 @@
 import { and, eq, lt } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { knowledgeBits, knowledgeSources } from "../db/schema.js";
+import {
+  knowledgeBits,
+  knowledgeBitQuestionVariants,
+  knowledgeSources,
+  tagAssignments,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 export interface KnowledgeBitRow {
@@ -138,6 +143,55 @@ export async function insertKnowledgeBitsAndMarkDetected(
     }
 
     await insertKnowledgeBits(sourceId, bits, tx);
+  });
+}
+
+export async function updateKnowledgeBitBody(
+  id: string,
+  body: string,
+  db: DbExecutor = getDb(),
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .update(knowledgeBits)
+      .set({
+        body,
+        embedding: null,
+        embeddingHash: null,
+        embeddedAt: null,
+        taggedAt: null,
+        tagFailedAt: null,
+        placementSuggestion: null,
+        placementCheckedAt: null,
+        placementFailedAt: null,
+        placementSuggestionResolvedAt: null,
+        whQuestionGeneratedAt: null,
+        whQuestionGenerationFailedAt: null,
+        whQuestionGenerationAttempts: 0,
+        whQuestionGenerationClaimedAt: null,
+        whQuestionGenerationClaimToken: null,
+        fillBlankGeneratedAt: null,
+        fillBlankGenerationFailedAt: null,
+        fillBlankGenerationAttempts: 0,
+        fillBlankGenerationClaimedAt: null,
+        fillBlankGenerationClaimToken: null,
+      })
+      .where(eq(knowledgeBits.id, id))
+      .returning({ id: knowledgeBits.id });
+
+    if (rows.length === 0) {
+      return false;
+    }
+
+    await tx
+      .delete(knowledgeBitQuestionVariants)
+      .where(eq(knowledgeBitQuestionVariants.knowledgeBitId, id));
+
+    await tx
+      .delete(tagAssignments)
+      .where(and(eq(tagAssignments.nodeType, "knowledgeBit"), eq(tagAssignments.nodeId, id)));
+
+    return true;
   });
 }
 

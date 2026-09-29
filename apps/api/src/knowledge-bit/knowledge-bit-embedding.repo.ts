@@ -1,4 +1,4 @@
-import { asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
 
@@ -24,14 +24,16 @@ export async function listKnowledgeBitsForEmbeddingScan(
     .limit(limit);
 }
 
+// Body guard: no-ops if the body changed since the scan read it, so the next scan retries.
 export async function updateKnowledgeBitEmbedding(
   id: string,
   embedding: number[],
   embeddingHash: string,
+  expectedBody: string,
   db: DbExecutor = getDb(),
 ): Promise<void> {
   await db
     .update(knowledgeBits)
     .set({ embedding, embeddingHash, embeddedAt: new Date() })
-    .where(eq(knowledgeBits.id, id));
+    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
 }

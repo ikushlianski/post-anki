@@ -83,6 +83,22 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat")).toBeNull();
     });
 
+    it("resolves POST /knowledge-bits/:id/chat/draft to the knowledge-bit-scoped draft chat handler", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat/draft")).toEqual({
+        name: "draftKnowledgeBitChat",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat/draft")).toBeNull();
+    });
+
+    it("resolves PATCH /knowledge-bits/:id to the knowledge-bit edit handler", () => {
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")).toEqual({
+        name: "editKnowledgeBit",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1")).toBeNull();
+    });
+
     it("captures the source-approval routes", () => {
       expect(resolveRoute("POST", "/curricula/c1/approve-sources")).toEqual({
         name: "approveSources",

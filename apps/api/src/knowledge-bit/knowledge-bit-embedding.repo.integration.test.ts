@@ -124,7 +124,7 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to embed");
 
-    await updateKnowledgeBitEmbedding(id, [0.1, 0.2, 0.3], "hash_abc");
+    await updateKnowledgeBitEmbedding(id, [0.1, 0.2, 0.3], "hash_abc", "A bit to embed");
 
     const { rows } = await client.query(
       `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
@@ -134,5 +134,26 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
     expect(rows[0]!.embedding).toEqual([0.1, 0.2, 0.3]);
     expect(rows[0]!.embedding_hash).toBe("hash_abc");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
+  });
+
+  it("should leave embeddedAt null when the body was edited after the scan read it", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "The original body");
+
+    await client.query(`UPDATE knowledge_bits SET body = $1 WHERE id = $2`, [
+      "The edited body",
+      id,
+    ]);
+
+    await updateKnowledgeBitEmbedding(id, [0.1, 0.2, 0.3], "hash_abc", "The original body");
+
+    const { rows } = await client.query(
+      `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.embedding).toBeNull();
+    expect(rows[0]!.embedding_hash).toBeNull();
+    expect(rows[0]!.embedded_at).toBeNull();
   });
 });

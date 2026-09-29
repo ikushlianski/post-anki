@@ -102,9 +102,8 @@ export async function assignTag(
   tagId: string,
   nodeType: TagNodeType,
   nodeId: string,
+  db: DbExecutor = getDb(),
 ): Promise<TagAssignment> {
-  const db = getDb();
-
   const existing = (
     await db
       .select()
