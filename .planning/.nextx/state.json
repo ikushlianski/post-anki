@@ -4,6 +4,7 @@
   "stopBoundHours": 10,
   "status": "running",
   "activeDirections": [
+    "mcp-content-access",
     "study-prioritization",
     "llm-cost-observability",
     "the-me-agent-integration",

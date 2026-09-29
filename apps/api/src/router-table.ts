@@ -9,6 +9,9 @@ export interface RouteDef {
 }
 
 export const ROUTES: RouteDef[] = [
+  { method: "POST", pattern: "/mcp", name: "mcp" },
+  { method: "GET", pattern: "/mcp", name: "mcpMethodNotAllowed" },
+  { method: "DELETE", pattern: "/mcp", name: "mcpMethodNotAllowed" },
   { method: "GET", pattern: "/subjects", name: "listSubjects" },
   { method: "POST", pattern: "/subjects", name: "createSubject" },
   { method: "POST", pattern: "/knowledge-sources", name: "createKnowledgeSource" },

@@ -1,6 +1,8 @@
 import { ROUTES } from "./router-table.js";
 
 export type RouteName =
+  | "mcp"
+  | "mcpMethodNotAllowed"
   | "listContentInbox"
   | "listSubjects"
   | "createSubject"
