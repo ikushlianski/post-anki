@@ -14,7 +14,6 @@ Nothing open — see Resolved.
 - Verify the "not-found is an `isError: true` tool result, not a JSON-RPC error" rule against the current MCP spec's tool-error section.
 
 ## Coding tasks
-- [ ] Phase 2: add a course-outline repo in `curriculum/` (modules → topics with ids, order, and card-set status) plus the `list_courses` and `get_course_structure` tools, with not-found handling
 - [ ] Phase 3: add the `get_topic_cards` and `list_course_cards` tools (paged, clamped at 200), a subject-scoped deck-item repo in `practice/`, and `get_deck_items`
 - [ ] Phase 4: add a card-text search repo in `cards/` (ready sets only, escaped wildcards, capped) plus `search_knowledge_items`, which merges in the existing course/topic name search
 - [ ] Each phase: co-located vitest tests for its scenarios.md lines, then `npx tsc --noEmit` and lint at zero issues
@@ -38,3 +37,7 @@ Nothing open — see Resolved.
 - Phase 1 review round 3 fix: `list_decks` input shape is also a zod schema now (`listDecksInputSchema`), same pattern as the output side, for consistency going into phases 2-4.
 - Phase 1 review round 4, Opus structured-verdict fix: added a real success-path test calling `list_decks` through the MCP client, not just the repo function directly, plus a rejected-input test.
 - Phase 1 done: review-factory Pass 1 and Pass 2 both PASSed clean (2 consecutive), marked done in .planning/TODO.md.
+- Phase 2 deviation from plan.md's table: `list_courses`'s `subjectName` is `string | null`, not `string` — `curricula.subject_id` has no DB foreign key, so an orphaned course is real and gets `null` rather than a silent `""`.
+- Phase 2 review round 1 fix: added a rejected-empty-`curriculumId` test for `get_course_structure` through the real MCP client, matching Phase 1's precedent.
+- Phase 2 review round 2 fix: that test now seeds a curriculum that would succeed if it reached the DB, so `isError` can only come from input rejection, not the not-found branch.
+- Phase 2 done: review-factory Pass 1 and Pass 2 both PASSed clean (2 consecutive), marked done in .planning/TODO.md.

@@ -42,6 +42,21 @@ export async function listSubjects(): Promise<Subject[]> {
   return rows.map(toSubject);
 }
 
+// Batches name lookups for a known set of subject ids, e.g. paging a list of
+// courses without fetching every subject in the workspace.
+export async function getSubjectNamesByIds(subjectIds: string[]): Promise<Map<string, string>> {
+  if (subjectIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await getDb()
+    .select({ id: subjects.id, name: subjects.name })
+    .from(subjects)
+    .where(inArray(subjects.id, subjectIds));
+
+  return new Map(rows.map((row) => [row.id, row.name]));
+}
+
 export async function getSubject(subjectId: string): Promise<Subject | null> {
   const row = (
     await getDb().select().from(subjects).where(eq(subjects.id, subjectId))
