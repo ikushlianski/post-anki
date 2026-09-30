@@ -79,8 +79,11 @@ describe("detectKnowledgeBits", () => {
       claim: claimOneAtATime([source("s1", "First source text."), source("s2", "Second source text.")]),
       detect: vi
         .fn()
-        .mockResolvedValueOnce(["bit a", "bit b"])
-        .mockResolvedValueOnce(["bit c"]),
+        .mockResolvedValueOnce([
+          { text: "bit a", background: null },
+          { text: "bit b", background: null },
+        ])
+        .mockResolvedValueOnce([{ text: "bit c", background: null }]),
     });
 
     const result = await detectKnowledgeBits(deps);
@@ -88,10 +91,17 @@ describe("detectKnowledgeBits", () => {
     expect(result).toEqual({ processed: 2, detected: 2, failed: 0 });
     expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
       "s1",
-      ["bit a", "bit b"],
+      [
+        { text: "bit a", background: null },
+        { text: "bit b", background: null },
+      ],
       expect.any(Date),
     );
-    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith("s2", ["bit c"], expect.any(Date));
+    expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
+      "s2",
+      [{ text: "bit c", background: null }],
+      expect.any(Date),
+    );
     expect(deps.markFailed).not.toHaveBeenCalled();
   });
 
@@ -127,7 +137,7 @@ describe("detectKnowledgeBits", () => {
       detect: vi
         .fn()
         .mockRejectedValueOnce(new Error("provider rate limited"))
-        .mockResolvedValueOnce(["a fine bit"]),
+        .mockResolvedValueOnce([{ text: "a fine bit", background: null }]),
     });
 
     const result = await detectKnowledgeBits(deps);
@@ -136,7 +146,7 @@ describe("detectKnowledgeBits", () => {
     expect(deps.markFailed).toHaveBeenCalledWith("bad", "provider rate limited", expect.any(Date));
     expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
       "good",
-      ["a fine bit"],
+      [{ text: "a fine bit", background: null }],
       expect.any(Date),
     );
     expect(deps.insertBitsAndMarkDetected).not.toHaveBeenCalledWith(
@@ -152,7 +162,7 @@ describe("detectKnowledgeBits", () => {
       detect: vi
         .fn()
         .mockRejectedValueOnce(new Error("provider rate limited"))
-        .mockResolvedValueOnce(["a fine bit"]),
+        .mockResolvedValueOnce([{ text: "a fine bit", background: null }]),
       markFailed: vi.fn().mockRejectedValueOnce(new Error("db write failed")),
     });
 
@@ -161,7 +171,7 @@ describe("detectKnowledgeBits", () => {
     expect(result).toEqual({ processed: 2, detected: 1, failed: 1 });
     expect(deps.insertBitsAndMarkDetected).toHaveBeenCalledWith(
       "good",
-      ["a fine bit"],
+      [{ text: "a fine bit", background: null }],
       expect.any(Date),
     );
   });
@@ -170,7 +180,7 @@ describe("detectKnowledgeBits", () => {
     const boundary = "x".repeat(MAX_SOURCE_CHARS);
     const deps = buildDeps({
       claim: claimOneAtATime([source("boundary", boundary)]),
-      detect: vi.fn().mockResolvedValueOnce(["a bit"]),
+      detect: vi.fn().mockResolvedValueOnce([{ text: "a bit", background: null }]),
     });
 
     const result = await detectKnowledgeBits(deps);
@@ -185,7 +195,7 @@ describe("detectKnowledgeBits", () => {
       .mockImplementation(async () => [source(`s-${Math.random()}`, "Some source text.")]);
     const deps = buildDeps({
       claim,
-      detect: vi.fn().mockResolvedValue(["a bit"]),
+      detect: vi.fn().mockResolvedValue([{ text: "a bit", background: null }]),
     });
 
     const result = await detectKnowledgeBits(deps);

@@ -57,7 +57,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Extract optional short background/clarifying text alongside Q&A from inbox content
   - [x] Phase 1: schema and migration
-  - [ ] Phase 2: detector schema and orchestrator wiring
+  - [x] Phase 2: detector schema and orchestrator wiring
   - [ ] Phase 3: repo persistence and next-batch exposure
   - [ ] Phase 4: tests
 - [x] Build a screen where the learner can actually answer knowledge-bit questions

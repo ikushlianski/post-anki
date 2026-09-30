@@ -27,6 +27,13 @@ const INSTRUCTIONS = [
   "",
   "Each bit must stand on its own without the rest of the source. Never a full paragraph, never a",
   "trivial word or phrase fragment. Return between 1 and 20 bits.",
+  "",
+  "Bits still must stand alone as written — `background` is not a place to offload context a bit",
+  "could just as easily state itself. Only add `background` for the rare bit that stays genuinely",
+  "under-specified even after good extraction (e.g. it names a term the source only defines",
+  "elsewhere, or its point can't be understood without a fact stated a few sentences away). Keep",
+  "`background` short — aim under 500 characters — and explicitly set it to null for every bit that",
+  "already stands on its own; do not add it to every bit.",
 ].join("\n");
 
 export function buildKnowledgeBitDetectorPrompt(sourceText: string): string {
@@ -34,10 +41,23 @@ export function buildKnowledgeBitDetectorPrompt(sourceText: string): string {
 }
 
 export const knowledgeBitDetectorResultSchema = z.object({
-  bits: z.array(z.string().min(1)).min(1).max(20),
+  bits: z
+    .array(
+      z.object({
+        text: z.string().min(1).max(2000),
+        background: z.string().min(1).max(500).nullable(),
+      }),
+    )
+    .min(1)
+    .max(20),
 });
 
 export type KnowledgeBitDetectorResult = z.infer<typeof knowledgeBitDetectorResultSchema>;
+
+export interface DetectedKnowledgeBit {
+  text: string;
+  background: string | null;
+}
 
 export function createKnowledgeBitDetectorAgent(): Agent {
   const env = loadEnv();
@@ -50,7 +70,7 @@ export function createKnowledgeBitDetectorAgent(): Agent {
   });
 }
 
-export async function runKnowledgeBitDetector(sourceText: string): Promise<string[]> {
+export async function runKnowledgeBitDetector(sourceText: string): Promise<DetectedKnowledgeBit[]> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitDetector);
   const prompt = buildKnowledgeBitDetectorPrompt(sourceText);
 
@@ -67,5 +87,8 @@ export async function runKnowledgeBitDetector(sourceText: string): Promise<strin
     throw new Error(`knowledge_bit_detector_invalid_output: ${parsed.error.message}`);
   }
 
-  return parsed.data.bits;
+  return parsed.data.bits.map((bit) => ({
+    text: bit.text,
+    background: bit.background,
+  }));
 }

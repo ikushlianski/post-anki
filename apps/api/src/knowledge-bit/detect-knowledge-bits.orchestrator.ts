@@ -1,5 +1,8 @@
 import { log } from "../shared/log.js";
-import { runKnowledgeBitDetector } from "../mastra/knowledge-bit-detector.agent.js";
+import {
+  runKnowledgeBitDetector,
+  type DetectedKnowledgeBit,
+} from "../mastra/knowledge-bit-detector.agent.js";
 import {
   claimPendingKnowledgeSources,
   insertKnowledgeBitsAndMarkDetected,
@@ -14,8 +17,12 @@ export const STALE_PROCESSING_THRESHOLD_MS = 15 * 60 * 1000;
 
 export interface DetectKnowledgeBitsDeps {
   claim: (limit: number) => Promise<PendingKnowledgeSource[]>;
-  detect: (sourceText: string) => Promise<string[]>;
-  insertBitsAndMarkDetected: (sourceId: string, bits: string[], claimedAt: Date) => Promise<void>;
+  detect: (sourceText: string) => Promise<DetectedKnowledgeBit[]>;
+  insertBitsAndMarkDetected: (
+    sourceId: string,
+    bits: DetectedKnowledgeBit[],
+    claimedAt: Date,
+  ) => Promise<void>;
   markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
   resetStale: (staleAfterMs: number) => Promise<number>;
 }

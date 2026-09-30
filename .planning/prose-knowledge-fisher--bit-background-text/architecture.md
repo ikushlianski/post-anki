@@ -21,7 +21,8 @@ conventions. Generated via the project's `db:generate` script, applied via `db:m
 hand-written migration file, never pushed directly.
 
 `knowledgeBitDetectorResultSchema.bits` changes shape from `z.array(z.string())` to
-`z.array(z.object({ text: z.string().min(1).max(2000), background: z.string().min(1).max(500).nullable().optional() }))`,
+`z.array(z.object({ text: z.string().min(1).max(2000), background: z.string().min(1).max(500).nullable() }))`
+(bare `.nullable()`, no `.optional()` — required for Mastra's strict structured output),
 same `min(1).max(20)` array bound as before. `runKnowledgeBitDetector`'s return type becomes
 `DetectedKnowledgeBit[]` (`{ text: string; background: string | null }`).
 
