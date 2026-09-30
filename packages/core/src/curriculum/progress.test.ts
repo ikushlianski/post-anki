@@ -86,6 +86,7 @@ describe("curriculumProgress", () => {
         learningStatus: "not_started",
         level: null,
         progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
+        dueCount: 0,
         topics: [
           topic({ id: "a", moduleId: "m1", progress: { status: "mastered", maturity: 100, attempts: 4, lastInteractedAt: "t" } }),
         ],
@@ -99,6 +100,7 @@ describe("curriculumProgress", () => {
         learningStatus: "not_started",
         level: null,
         progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
+        dueCount: 0,
         topics: [
           topic({ id: "b", moduleId: "m2", progress: { status: "not_started", maturity: 0, attempts: 0, lastInteractedAt: null } }),
         ],

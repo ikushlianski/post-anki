@@ -59,6 +59,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
+import { getDueCountsForModules } from "../knowledge-bit/topic-due.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { deleteGapArchetypeStateForGapIds } from "../gap/gap-archetype.repo.js";
 import { newId } from "../shared/id.js";
@@ -2193,9 +2194,9 @@ export async function getCurriculumDetail(
       : [];
   const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
 
-  const tagsByNode = await loadTagsByNode([
-    ...moduleRows.map((m) => m.id),
-    ...topicRows.map((t) => t.id),
+  const [tagsByNode, dueCountByModuleId] = await Promise.all([
+    loadTagsByNode([...moduleRows.map((m) => m.id), ...topicRows.map((t) => t.id)]),
+    getDueCountsForModules(moduleRows.map((m) => m.id)),
   ]);
 
   const assembledModules = buildModules(
@@ -2205,6 +2206,7 @@ export async function getCurriculumDetail(
     curriculumRow.strictOrder,
     tagsByNode,
     masteryByGapId,
+    dueCountByModuleId,
   );
 
   const [citableUrls, hasStructureDraftAttempt, domainMappings] = await Promise.all([
@@ -2229,6 +2231,7 @@ export async function getCurriculumDetail(
     sources: sourceRows.map(toSource),
     modules: assembledModules,
     progress: curriculumProgress(assembledModules),
+    dueCount: assembledModules.reduce((sum, m) => sum + m.dueCount, 0),
     recommendedTopicId: recommendedTopicId(assembledModules),
     hasCitableSources: citableUrls.length > 0,
     hasStructureDraftAttempt,
@@ -2449,6 +2452,7 @@ function buildModules(
   strictOrder: boolean,
   tagsByNode: Map<string, TagChip[]> = new Map(),
   masteryByGapId: Map<string, typeof gapMastery.$inferSelect> = new Map(),
+  dueCountByModuleId: Map<string, number> = new Map(),
 ): Module[] {
   return sortForDisplay(moduleRows, strictOrder).map((m) => {
     const moduleTopics = sortForDisplay(
@@ -2471,6 +2475,7 @@ function buildModules(
       level: (m.level as Level | null) ?? null,
       topics: moduleTopics,
       progress: moduleProgress(moduleTopics),
+      dueCount: dueCountByModuleId.get(m.id) ?? 0,
       tags: tagsByNode.get(`module:${m.id}`) ?? [],
     };
   });

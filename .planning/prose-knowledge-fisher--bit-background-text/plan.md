@@ -25,11 +25,13 @@ surfaces it through the existing next-batch API the answer screen already reads.
 
 ## Design
 1. `knowledgeBitDetectorResultSchema`'s `bits` field changes from `z.array(z.string())` to
-   `z.array(z.object({ text: z.string().min(1).max(2000), background: z.string().min(1).max(500).nullable() }))`
+   `z.array(z.object({ text: z.string().min(1), background: z.string().nullable() }))`
    (bare `.nullable()`, no `.optional()` — this codebase's Mastra structured-output schemas must
    have every property in `required`, matching `knowledge-bit-placer.agent.ts`'s convention),
-   min 1 / max 20 as before. Instructions gain one short paragraph: add `background` only when the
-   bit genuinely loses meaning without nearby context from the source; omit it otherwise.
+   min 1 / max 20 as before. Instructions gain one short paragraph: emit `background` only when the
+   bit genuinely loses meaning without nearby context from the source; emit `null` otherwise. A
+   post-parse `sanitizeBackground` step (empty/whitespace → `null`, over 500 chars → truncated to
+   500) normalizes the model's output rather than rejecting the whole detection response.
 2. `runKnowledgeBitDetector`'s return type changes to match — `DetectedKnowledgeBit[]`.
 3. `DetectKnowledgeBitsDeps.detect`/`insertBitsAndMarkDetected` and `insertKnowledgeBits`/
    `insertKnowledgeBitsAndMarkDetected` (knowledge-bit.repo.ts) take the new bit shape and persist

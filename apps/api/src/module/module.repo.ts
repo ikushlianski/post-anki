@@ -40,6 +40,7 @@ export async function createModule(input: CreateModuleInput): Promise<Module> {
     level: null,
     topics: [],
     progress: moduleProgress([]),
+    dueCount: 0,
   };
 }
 

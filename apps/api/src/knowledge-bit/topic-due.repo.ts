@@ -71,3 +71,28 @@ export async function getDueCountsForTopics(
 
   return new Map(rows.map((row) => [row.topicId, row.dueCount]));
 }
+
+// Module-level rollup, scoped to included topics only — the same exclusion
+// moduleProgress/curriculumProgress apply next to this count on the badge.
+export async function getDueCountsForModules(
+  moduleIds: string[],
+  db: DbExecutor = getDb(),
+): Promise<Map<string, number>> {
+  if (moduleIds.length === 0) {
+    return new Map();
+  }
+
+  const dueCount = sql<number>`count(${knowledgeBits.id})::int`;
+
+  const rows = await db
+    .select({ moduleId: topics.moduleId, dueCount })
+    .from(knowledgeBits)
+    .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .where(
+      and(inArray(topics.moduleId, moduleIds), eq(topics.included, true), dueCondition(db)),
+    )
+    .groupBy(topics.moduleId);
+
+  return new Map(rows.map((row) => [row.moduleId, row.dueCount]));
+}

@@ -267,6 +267,7 @@ function mapModule(module: be.Module): Module {
     level: module.level,
     topics: module.topics.map(mapTopic),
     progress: module.progress,
+    dueCount: module.dueCount,
     tags: (module.tags ?? []).map(mapTagChip),
   }
 }
@@ -641,6 +642,7 @@ export async function getCurriculumDetail(
       sources: detail.sources,
       modules: detail.modules.map(mapModule),
       progress: detail.progress,
+      dueCount: detail.dueCount,
       recommendedTopicId: detail.recommendedTopicId,
       hasCitableSources: detail.hasCitableSources,
       hasStructureDraftAttempt: detail.hasStructureDraftAttempt,

@@ -16,6 +16,7 @@ import {
 } from '../curriculum/curriculum-lifecycle'
 import { ModuleSection } from '../curriculum/module-section'
 import { ProgressBar } from '../curriculum/progress-bar'
+import { CurriculumProgressSummary } from '../curriculum/curriculum-progress-summary'
 import { describeCreationProgress } from '../curriculum/curriculum-creation-progress'
 import { CardsSummaryBadge } from '../curriculum/cards-summary-badge'
 import { AddInline, RenameButton } from '../curriculum/shape-controls'
@@ -81,7 +82,7 @@ function CurriculumPage() {
     )
   }
 
-  const { curriculum, sources, modules, progress, recommendedTopicId } = detail
+  const { curriculum, sources, modules, progress, dueCount, recommendedTopicId } = detail
   const canProbe = curriculum.status === 'confirmed'
   const editable =
     curriculum.status === 'ready' || curriculum.status === 'confirmed'
@@ -149,16 +150,11 @@ function CurriculumPage() {
         </div>
 
         {modules.length > 0 ? (
-          <div className="mt-3">
-            <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 text-xs text-neutral-400">
-              <span>Overall progress · {curriculum.status}</span>
-              <span>
-                {progress.topicsMastered}/{progress.topicsIncluded} topics
-                mastered · {progress.percent}%
-              </span>
-            </div>
-            <ProgressBar percent={progress.percent} />
-          </div>
+          <CurriculumProgressSummary
+            status={curriculum.status}
+            progress={progress}
+            dueCount={dueCount}
+          />
         ) : null}
       </header>
 

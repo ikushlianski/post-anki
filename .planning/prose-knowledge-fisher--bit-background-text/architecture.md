@@ -21,10 +21,14 @@ conventions. Generated via the project's `db:generate` script, applied via `db:m
 hand-written migration file, never pushed directly.
 
 `knowledgeBitDetectorResultSchema.bits` changes shape from `z.array(z.string())` to
-`z.array(z.object({ text: z.string().min(1).max(2000), background: z.string().min(1).max(500).nullable() }))`
+`z.array(z.object({ text: z.string().min(1), background: z.string().nullable() }))`
 (bare `.nullable()`, no `.optional()` — required for Mastra's strict structured output),
-same `min(1).max(20)` array bound as before. `runKnowledgeBitDetector`'s return type becomes
-`DetectedKnowledgeBit[]` (`{ text: string; background: string | null }`).
+same `min(1).max(20)` array bound as before. A post-parse `sanitizeBackground` step normalizes
+empty/whitespace to `null` and truncates over-500-char values, rather than rejecting the whole
+detection response over one bit's out-of-range field. `runKnowledgeBitDetector`'s return type
+becomes `DetectedKnowledgeBit[]` (`{ text: string; background: string | null }`), defined in
+`apps/api/src/knowledge-bit/detected-knowledge-bit.ts` — not re-exported from `mastra/`, so the
+repo layer never imports from the agent layer.
 
 `DetectKnowledgeBitsDeps.detect`/`insertBitsAndMarkDetected` and `insertKnowledgeBits`/
 `insertKnowledgeBitsAndMarkDetected` take the new bit shape through to persistence.

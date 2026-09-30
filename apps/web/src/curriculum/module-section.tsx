@@ -121,7 +121,7 @@ export function ModuleSection({
         <div className="flex items-center gap-3">
           <span className="text-xs text-neutral-400">
             {module.progress.topicsMastered}/{module.progress.topicsIncluded}{' '}
-            mastered · {module.progress.percent}%
+            mastered · {module.progress.percent}% · {module.dueCount} due
           </span>
           {editable ? (
             <ConfirmDelete

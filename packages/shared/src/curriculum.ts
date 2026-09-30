@@ -127,6 +127,9 @@ export const curriculumDetailSchema = z.object({
   sources: z.array(sourceSchema),
   modules: z.array(moduleSchema),
   progress: curriculumProgressSchema,
+  // Sum of this curriculum's modules' dueCount — never fetched separately,
+  // so the two displayed numbers can't diverge.
+  dueCount: z.number().int(),
   recommendedTopicId: z.string().nullable(),
   hasCitableSources: z.boolean(),
   // True once `generateDraftStructure` has been attempted at least once for

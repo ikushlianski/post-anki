@@ -316,6 +316,7 @@ export const moduleSchema = z.object({
   level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
+  dueCount: z.number().int(),
   tags: z.array(tagChipSchema).optional(),
 })
 
@@ -357,6 +358,7 @@ export const curriculumDetailSchema = z.object({
   sources: z.array(sourceSchema),
   modules: z.array(moduleSchema),
   progress: curriculumProgressSchema,
+  dueCount: z.number().int(),
   recommendedTopicId: z.string().nullable(),
   hasCitableSources: z.boolean(),
   hasStructureDraftAttempt: z.boolean(),

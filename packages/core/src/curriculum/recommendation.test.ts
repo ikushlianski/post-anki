@@ -34,6 +34,7 @@ function moduleOf(topics: Topic[]): Module {
     learningStatus: "not_started",
     level: null,
     progress: { topicsIncluded: 0, topicsMastered: 0, percent: 0 },
+    dueCount: 0,
     topics,
   };
 }

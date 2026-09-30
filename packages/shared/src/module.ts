@@ -16,6 +16,9 @@ export const moduleSchema = z.object({
   level: levelSchema.nullable(),
   topics: z.array(topicSchema),
   progress: moduleProgressSchema,
+  // Rollup of this module's topics' due bit counts — surfaced next to
+  // progress since it tracks review state, not mastery.
+  dueCount: z.number().int(),
   tags: z.array(tagChipSchema).optional(),
 });
 

@@ -39,7 +39,10 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { listTopicsWithDueCounts, getDueCountsForTopics } = await import("./topic-due.repo.js");
+const { listTopicsWithDueCounts, getDueCountsForTopics, getDueCountsForModules } = await import(
+  "./topic-due.repo.js"
+);
+const { getCurriculumDetail } = await import("../curriculum/curriculum.repo.js");
 
 let client: pg.Client;
 
@@ -92,10 +95,11 @@ async function insertTopic(overrides: {
   moduleId: string;
   curriculumId: string;
   title: string;
+  included?: boolean;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4, 1)`,
-    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included) VALUES ($1, $2, $3, $4, 1, $5)`,
+    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title, overrides.included ?? true],
   );
 }
 
@@ -233,5 +237,211 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
     const scoped = await getDueCountsForTopics(["top_due_ungenerated"]);
 
     expect(scoped.get("top_due_ungenerated")).toBeUndefined();
+  });
+});
+
+describe("getDueCountsForModules", () => {
+  it("sums due bits across two topics in one module", async () => {
+    await insertSubject({ id: "sub_due_4", name: "Testing 4" });
+    await insertCurriculum({ id: "cur_due_4", subjectId: "sub_due_4", name: "Scheduling 4" });
+    await insertModule({ id: "mod_due_4a", curriculumId: "cur_due_4", title: "Reviews 4a" });
+    await insertModule({ id: "mod_due_4b", curriculumId: "cur_due_4", title: "Reviews 4b" });
+    await insertTopic({
+      id: "top_due_4a1",
+      moduleId: "mod_due_4a",
+      curriculumId: "cur_due_4",
+      title: "Topic 4a1",
+    });
+    await insertTopic({
+      id: "top_due_4a2",
+      moduleId: "mod_due_4a",
+      curriculumId: "cur_due_4",
+      title: "Topic 4a2",
+    });
+    await insertTopic({
+      id: "top_due_4b1",
+      moduleId: "mod_due_4b",
+      curriculumId: "cur_due_4",
+      title: "Topic 4b1",
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_4a1",
+      knowledgeSourceId: "src_due_4",
+      ordinal: 1,
+      body: "Never reviewed yet",
+      topicId: "top_due_4a1",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_4a2",
+      knowledgeSourceId: "src_due_4",
+      ordinal: 2,
+      body: "Never reviewed yet either",
+      topicId: "top_due_4a2",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_4b1",
+      knowledgeSourceId: "src_due_4",
+      ordinal: 3,
+      body: "Never reviewed yet as well",
+      topicId: "top_due_4b1",
+    });
+
+    await insertQuestionVariant({ id: "qv_due_4a1", knowledgeBitId: "bit_due_4a1" });
+    await insertQuestionVariant({ id: "qv_due_4a2", knowledgeBitId: "bit_due_4a2" });
+    await insertQuestionVariant({ id: "qv_due_4b1", knowledgeBitId: "bit_due_4b1" });
+
+    const moduleDue = await getDueCountsForModules(["mod_due_4a", "mod_due_4b"]);
+
+    expect(moduleDue.get("mod_due_4a")).toBe(2);
+    expect(moduleDue.get("mod_due_4b")).toBe(1);
+  });
+
+  it("excludes a module whose only bit is due in the future, and a bit with no generated question variant", async () => {
+    await insertSubject({ id: "sub_due_5", name: "Testing 5" });
+    await insertCurriculum({ id: "cur_due_5", subjectId: "sub_due_5", name: "Scheduling 5" });
+    await insertModule({ id: "mod_due_5", curriculumId: "cur_due_5", title: "Reviews 5" });
+    await insertTopic({
+      id: "top_due_5_future",
+      moduleId: "mod_due_5",
+      curriculumId: "cur_due_5",
+      title: "Not due for a while",
+    });
+    await insertTopic({
+      id: "top_due_5_ungenerated",
+      moduleId: "mod_due_5",
+      curriculumId: "cur_due_5",
+      title: "Still generating",
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_5_future",
+      knowledgeSourceId: "src_due_5",
+      ordinal: 1,
+      body: "Reviewed and not due for a while",
+      topicId: "top_due_5_future",
+    });
+    await insertQuestionVariant({ id: "qv_due_5_future", knowledgeBitId: "bit_due_5_future" });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_5_future",
+      dueAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_5_ungenerated",
+      knowledgeSourceId: "src_due_5",
+      ordinal: 2,
+      body: "Placed but never generated a question",
+      topicId: "top_due_5_ungenerated",
+    });
+
+    const moduleDue = await getDueCountsForModules(["mod_due_5"]);
+
+    expect(moduleDue.get("mod_due_5")).toBeUndefined();
+  });
+
+  it("excludes a topic excluded from the active plan (included = false) from the module's due count", async () => {
+    await insertSubject({ id: "sub_due_6", name: "Testing 6" });
+    await insertCurriculum({ id: "cur_due_6", subjectId: "sub_due_6", name: "Scheduling 6" });
+    await insertModule({ id: "mod_due_6", curriculumId: "cur_due_6", title: "Reviews 6" });
+    await insertTopic({
+      id: "top_due_6_included",
+      moduleId: "mod_due_6",
+      curriculumId: "cur_due_6",
+      title: "Kept in the plan",
+      included: true,
+    });
+    await insertTopic({
+      id: "top_due_6_excluded",
+      moduleId: "mod_due_6",
+      curriculumId: "cur_due_6",
+      title: "Dropped from the plan",
+      included: false,
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_6_included",
+      knowledgeSourceId: "src_due_6",
+      ordinal: 1,
+      body: "Never reviewed yet",
+      topicId: "top_due_6_included",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_6_excluded",
+      knowledgeSourceId: "src_due_6",
+      ordinal: 2,
+      body: "Never reviewed yet either",
+      topicId: "top_due_6_excluded",
+    });
+    await insertQuestionVariant({ id: "qv_due_6_included", knowledgeBitId: "bit_due_6_included" });
+    await insertQuestionVariant({ id: "qv_due_6_excluded", knowledgeBitId: "bit_due_6_excluded" });
+
+    const moduleDue = await getDueCountsForModules(["mod_due_6"]);
+
+    expect(moduleDue.get("mod_due_6")).toBe(1);
+  });
+});
+
+describe("getCurriculumDetail dueCount", () => {
+  it("scopes the module dueCount to included topics, and sums the curriculum dueCount from the modules", async () => {
+    await insertSubject({ id: "sub_due_7", name: "Testing 7" });
+    await insertCurriculum({ id: "cur_due_7", subjectId: "sub_due_7", name: "Scheduling 7" });
+    await insertModule({ id: "mod_due_7a", curriculumId: "cur_due_7", title: "Reviews 7a" });
+    await insertModule({ id: "mod_due_7b", curriculumId: "cur_due_7", title: "Reviews 7b" });
+    await insertTopic({
+      id: "top_due_7a_included",
+      moduleId: "mod_due_7a",
+      curriculumId: "cur_due_7",
+      title: "Kept in the plan",
+      included: true,
+    });
+    await insertTopic({
+      id: "top_due_7a_excluded",
+      moduleId: "mod_due_7a",
+      curriculumId: "cur_due_7",
+      title: "Dropped from the plan",
+      included: false,
+    });
+    await insertTopic({
+      id: "top_due_7b1",
+      moduleId: "mod_due_7b",
+      curriculumId: "cur_due_7",
+      title: "Topic 7b1",
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_7a_included",
+      knowledgeSourceId: "src_due_7",
+      ordinal: 1,
+      body: "Never reviewed yet",
+      topicId: "top_due_7a_included",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_7a_excluded",
+      knowledgeSourceId: "src_due_7",
+      ordinal: 2,
+      body: "Never reviewed yet either",
+      topicId: "top_due_7a_excluded",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_7b1",
+      knowledgeSourceId: "src_due_7",
+      ordinal: 3,
+      body: "Never reviewed yet as well",
+      topicId: "top_due_7b1",
+    });
+
+    await insertQuestionVariant({ id: "qv_due_7a_included", knowledgeBitId: "bit_due_7a_included" });
+    await insertQuestionVariant({ id: "qv_due_7a_excluded", knowledgeBitId: "bit_due_7a_excluded" });
+    await insertQuestionVariant({ id: "qv_due_7b1", knowledgeBitId: "bit_due_7b1" });
+
+    const detail = await getCurriculumDetail("cur_due_7");
+
+    const moduleA = detail?.modules.find((m) => m.id === "mod_due_7a");
+    const moduleB = detail?.modules.find((m) => m.id === "mod_due_7b");
+
+    expect(moduleA?.dueCount).toBe(1);
+    expect(moduleB?.dueCount).toBe(1);
+    expect(detail?.dueCount).toBe(2);
   });
 });
