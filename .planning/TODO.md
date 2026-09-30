@@ -292,7 +292,7 @@ updated: 2026-09-04
 - Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
 
 ### Coding tasks
-- [ ] Add the same untrusted-content guard to QA chat's web-search tool as knowledge-bit chat has
+- [x] Add the same untrusted-content guard to QA chat's web-search tool as knowledge-bit chat has
 - [x] Parallelize the duplicates page's two independent loader fetches
 - [x] Add a strict one-result-per-item rule to the grade-batch agent's instructions
 - [x] Add a no-invent-URL rule to the QA chat agent's instructions
@@ -649,6 +649,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - MCP is stdio-only; post-anki runs on Cloud Run — no prod path without a networked transport
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-12)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
+- post-anki now has a networked MCP transport — re-check this blocker once live in prod.
 
 ## e2e-reliability
 
