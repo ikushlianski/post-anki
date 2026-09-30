@@ -107,7 +107,7 @@ updated: 2026-09-04
   - [x] Phase 4: tests
 - [x] Generate a fill-in-the-blank variant for each knowledge bit
   - [ ] Phase 1: schema and migration
-  - [ ] Phase 2: fill-blank agent and repo
+  - [x] Phase 2: fill-blank agent and repo
   - [ ] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
 - [x] Write a knowledge-fisher prompt that probes for the why behind a bit
