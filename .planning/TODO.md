@@ -105,7 +105,7 @@ updated: 2026-09-04
   - [x] Phase 2: knowledge-fisher agent
   - [x] Phase 3: orchestrator and route
   - [x] Phase 4: tests
-- [ ] Generate a fill-in-the-blank variant for each knowledge bit
+- [x] Generate a fill-in-the-blank variant for each knowledge bit
   - [ ] Phase 1: schema and migration
   - [ ] Phase 2: fill-blank agent and repo
   - [ ] Phase 3: orchestrator and route
