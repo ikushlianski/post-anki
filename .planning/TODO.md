@@ -16,11 +16,11 @@ updated: 2026-09-04
 - Out of scope: Building a new UI for this — MCP clients are the interface
 
 ### Coding tasks
-- [ ] Build an MCP server exposing decks and course/module/section knowledge items
+- [x] Build an MCP server exposing decks and course/module/section knowledge items
   - [x] Phase 1: MCP endpoint behind the shared token
   - [x] Phase 2: Course browsing tools
   - [x] Phase 3: Card and deck content tools
-  - [ ] Phase 4: Knowledge item search
+  - [x] Phase 4: Knowledge item search
 
 ### Notes
 

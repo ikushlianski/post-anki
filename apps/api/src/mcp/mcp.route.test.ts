@@ -93,6 +93,7 @@ describe("POST /mcp tools", () => {
       "get_topic_cards",
       "list_course_cards",
       "get_deck_items",
+      "search_knowledge_items",
     ];
 
     expect(tools.map((tool) => tool.name)).toEqual(expect.arrayContaining(expectedToolNames));

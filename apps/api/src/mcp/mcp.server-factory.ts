@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerBrowseTools } from "./register-browse-tools.js";
 import { registerCardsTools } from "./register-cards-tools.js";
+import { registerSearchTools } from "./register-search-tools.js";
 
 // Stateless transport (mcp.route.ts) makes a fresh server per request, so
 // this factory carries no per-connection state of its own.
@@ -12,6 +13,7 @@ export function createMcpServer(): McpServer {
 
   registerBrowseTools(server);
   registerCardsTools(server);
+  registerSearchTools(server);
 
   return server;
 }
