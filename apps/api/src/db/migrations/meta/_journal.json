@@ -519,6 +519,13 @@
       "when": 1790708644384,
       "tag": "0073_nosy_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790731015612,
+      "tag": "0074_wide_azazel",
+      "breakpoints": true
     }
   ]
 }
