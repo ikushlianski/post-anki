@@ -55,11 +55,11 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
-- [ ] Extract optional short background/clarifying text alongside Q&A from inbox content
+- [x] Extract optional short background/clarifying text alongside Q&A from inbox content
   - [x] Phase 1: schema and migration
   - [x] Phase 2: detector schema and orchestrator wiring
   - [x] Phase 3: repo persistence and next-batch exposure
-  - [ ] Phase 4: tests
+  - [x] Phase 4: tests
 - [x] Build a screen where the learner can actually answer knowledge-bit questions
   - [x] Phase 1: next-batch endpoint
   - [x] Phase 2: answer screen UI

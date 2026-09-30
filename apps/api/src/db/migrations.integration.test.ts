@@ -606,18 +606,31 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         data_type: "text",
         is_nullable: "YES",
       }),
-      expect.objectContaining({ column_name: "background", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({
+        column_name: "background",
+        data_type: "text",
+        is_nullable: "YES",
+        column_default: null,
+      }),
     ]);
   });
 
   it("rejects a second row with the same (knowledge_source_id, ordinal) pair (23505)", async () => {
     const sourceId = `ks_migtest_${randomUUID()}`;
+    const bitId = `kb_migtest_${randomUUID()}`;
 
     await client.query(
       `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
        VALUES ($1, $2, 0, 'First bit.')`,
-      [`kb_migtest_${randomUUID()}`, sourceId],
+      [bitId, sourceId],
     );
+
+    const { rows: backgroundRows } = await client.query(
+      `SELECT background FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(backgroundRows[0].background).toBeNull();
 
     await expect(
       client.query(
@@ -631,20 +644,34 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
   it("allows the same ordinal across two different sources", async () => {
     const sourceA = `ks_migtest_${randomUUID()}`;
     const sourceB = `ks_migtest_${randomUUID()}`;
+    const bitA = `kb_migtest_${randomUUID()}`;
+    const bitB = `kb_migtest_${randomUUID()}`;
 
     await client.query(
       `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
        VALUES ($1, $2, 0, 'First source, bit 0.')`,
-      [`kb_migtest_${randomUUID()}`, sourceA],
+      [bitA, sourceA],
     );
 
     await expect(
       client.query(
         `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body)
          VALUES ($1, $2, 0, 'Second source, bit 0.')`,
-        [`kb_migtest_${randomUUID()}`, sourceB],
+        [bitB, sourceB],
       ),
     ).resolves.toBeDefined();
+
+    const { rows: backgroundRowsA } = await client.query(
+      `SELECT background FROM knowledge_bits WHERE id = $1`,
+      [bitA],
+    );
+    const { rows: backgroundRowsB } = await client.query(
+      `SELECT background FROM knowledge_bits WHERE id = $1`,
+      [bitB],
+    );
+
+    expect(backgroundRowsA[0].background).toBeNull();
+    expect(backgroundRowsB[0].background).toBeNull();
   });
 });
 

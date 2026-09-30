@@ -206,6 +206,16 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(row?.background).toBe(backgroundText);
   });
 
+  it("returns null background for a bit seeded with no background text", async () => {
+    const bitId = await seedKnowledgeBit("No-background bit for queue");
+    const variantId = await seedVariant(bitId, "No-background question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, undefined);
+    const row = rows.find((row) => row.variantId === variantId);
+
+    expect(row?.background).toBeNull();
+  });
+
   it("within a topic, serves an overdue bit before a not-yet-due bit even when the latter has fewer attempts", async () => {
     const topicId = await seedTopic("Queue topic due-first");
     const overdueBit = await seedKnowledgeBit("Overdue bit for queue", topicId);
