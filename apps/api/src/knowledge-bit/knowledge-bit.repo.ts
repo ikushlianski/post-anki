@@ -7,7 +7,7 @@ import {
   tagAssignments,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import type { DetectedKnowledgeBit } from "../mastra/knowledge-bit-detector.agent.js";
+import type { DetectedKnowledgeBit } from "./detected-knowledge-bit.js";
 
 export interface KnowledgeBitRow {
   id: string;

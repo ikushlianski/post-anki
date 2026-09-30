@@ -5,6 +5,7 @@ import { resolveAgentModel } from "./model.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import type { DetectedKnowledgeBit } from "../knowledge-bit/detected-knowledge-bit.js";
 
 const DETECTOR_MODEL = tierToModelId("cheap");
 
@@ -44,8 +45,8 @@ export const knowledgeBitDetectorResultSchema = z.object({
   bits: z
     .array(
       z.object({
-        text: z.string().min(1).max(2000),
-        background: z.string().min(1).max(500).nullable(),
+        text: z.string().min(1),
+        background: z.string().nullable(),
       }),
     )
     .min(1)
@@ -54,9 +55,12 @@ export const knowledgeBitDetectorResultSchema = z.object({
 
 export type KnowledgeBitDetectorResult = z.infer<typeof knowledgeBitDetectorResultSchema>;
 
-export interface DetectedKnowledgeBit {
-  text: string;
-  background: string | null;
+function sanitizeBackground(background: string | null): string | null {
+  if (background === null || background.trim().length === 0) {
+    return null;
+  }
+
+  return background.slice(0, 500);
 }
 
 export function createKnowledgeBitDetectorAgent(): Agent {
@@ -89,6 +93,6 @@ export async function runKnowledgeBitDetector(sourceText: string): Promise<Detec
 
   return parsed.data.bits.map((bit) => ({
     text: bit.text,
-    background: bit.background,
+    background: sanitizeBackground(bit.background),
   }));
 }

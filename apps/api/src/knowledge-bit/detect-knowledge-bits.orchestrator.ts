@@ -1,8 +1,6 @@
 import { log } from "../shared/log.js";
-import {
-  runKnowledgeBitDetector,
-  type DetectedKnowledgeBit,
-} from "../mastra/knowledge-bit-detector.agent.js";
+import { runKnowledgeBitDetector } from "../mastra/knowledge-bit-detector.agent.js";
+import type { DetectedKnowledgeBit } from "./detected-knowledge-bit.js";
 import {
   claimPendingKnowledgeSources,
   insertKnowledgeBitsAndMarkDetected,

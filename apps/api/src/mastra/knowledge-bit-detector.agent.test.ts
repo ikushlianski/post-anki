@@ -82,7 +82,7 @@ describe("runKnowledgeBitDetector", () => {
     ]);
   });
 
-  it("normalizes an explicit null background for a self-contained bit", async () => {
+  it("keeps a null background for a self-contained bit", async () => {
     generateMock.mockResolvedValueOnce({
       object: {
         bits: [{ text: "Photosynthesis converts light into chemical energy.", background: null }],
@@ -94,6 +94,60 @@ describe("runKnowledgeBitDetector", () => {
     expect(bits).toEqual([
       { text: "Photosynthesis converts light into chemical energy.", background: null },
     ]);
+  });
+
+  it("should keep the source detectable when the model returns an empty-string background", async () => {
+    generateMock.mockResolvedValueOnce({
+      object: {
+        bits: [{ text: "Bit with an empty background.", background: "" }],
+      },
+    });
+
+    const bits = await runKnowledgeBitDetector("Some source prose to extract from.");
+
+    expect(bits).toEqual([{ text: "Bit with an empty background.", background: null }]);
+  });
+
+  it("should keep the source detectable when the model returns a whitespace-only background", async () => {
+    generateMock.mockResolvedValueOnce({
+      object: {
+        bits: [{ text: "Bit with a blank background.", background: "   " }],
+      },
+    });
+
+    const bits = await runKnowledgeBitDetector("Some source prose to extract from.");
+
+    expect(bits).toEqual([{ text: "Bit with a blank background.", background: null }]);
+  });
+
+  it("should truncate an oversized background to 500 characters instead of rejecting the bit", async () => {
+    const longBackground = "a".repeat(600);
+
+    generateMock.mockResolvedValueOnce({
+      object: {
+        bits: [{ text: "Bit with an oversized background.", background: longBackground }],
+      },
+    });
+
+    const bits = await runKnowledgeBitDetector("Some source prose to extract from.");
+
+    expect(bits).toHaveLength(1);
+    expect(bits[0]?.background).toHaveLength(500);
+    expect(bits[0]?.background).toBe(longBackground.slice(0, 500));
+  });
+
+  it("should accept a bit whose text is longer than 2000 characters", async () => {
+    const longText = "b".repeat(2500);
+
+    generateMock.mockResolvedValueOnce({
+      object: {
+        bits: [{ text: longText, background: null }],
+      },
+    });
+
+    const bits = await runKnowledgeBitDetector("Some source prose to extract from.");
+
+    expect(bits).toEqual([{ text: longText, background: null }]);
   });
 
   it("throws when the agent returns an output that fails schema validation", async () => {

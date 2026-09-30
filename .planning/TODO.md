@@ -146,6 +146,7 @@ updated: 2026-09-04
 - Resolved (2026-09-24): follow-up-question — Pass 1 FAIL fixed fail-soft, Pass 2 PASS; advisor then found the prompt was kind-blind
 - Blocked (2026-09-24): topic-tracking item — progressMaturity is gap-derived, no safe write path for bits
 - Fresh review of fill-in-the-blank ran: FAIL on correctness and tests, 4th straight failure, stuck
+- Possible unblock for topic-tracking: read-time fold of bit attempts, no progressMaturity write — needs human sign-off.
 
 
 ## biz-education-distiller
