@@ -606,6 +606,7 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         data_type: "text",
         is_nullable: "YES",
       }),
+      expect.objectContaining({ column_name: "background", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
@@ -702,7 +703,11 @@ describe("migrations — insertKnowledgeBits idempotent re-detection (prose-know
       [sourceId],
     );
 
-    const bits = ["First bit.", "Second bit.", "Third bit."];
+    const bits = [
+      { text: "First bit.", background: null },
+      { text: "Second bit.", background: null },
+      { text: "Third bit.", background: null },
+    ];
 
     await insertKnowledgeBits(sourceId, bits, testDb);
     await insertKnowledgeBits(sourceId, bits, testDb);
@@ -881,7 +886,12 @@ describe("migrations — claimedAt ownership token (prose-knowledge-fisher--stal
     expect(secondClaim).toBeDefined();
 
     await expect(
-      insertKnowledgeBitsAndMarkDetected(sourceId, ["A bit from the stale attempt."], staleToken, testDb),
+      insertKnowledgeBitsAndMarkDetected(
+        sourceId,
+        [{ text: "A bit from the stale attempt.", background: null }],
+        staleToken,
+        testDb,
+      ),
     ).rejects.toThrow("knowledge_source_reclaimed");
 
     const failedWithStaleToken = await markKnowledgeSourceFailed(

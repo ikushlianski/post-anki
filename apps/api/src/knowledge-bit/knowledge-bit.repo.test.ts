@@ -19,18 +19,44 @@ beforeEach(() => {
 
 describe("insertKnowledgeBits", () => {
   it("inserts one row per bit, ordinal matching the array index", async () => {
-    await insertKnowledgeBits("ks_1", ["First bit.", "Second bit.", "Third bit."]);
+    await insertKnowledgeBits("ks_1", [
+      { text: "First bit.", background: null },
+      { text: "Second bit.", background: null },
+      { text: "Third bit.", background: null },
+    ]);
 
     expect(mockDbState.bits).toEqual([
-      { id: expect.stringMatching(/^kb_/), knowledgeSourceId: "ks_1", ordinal: 0, body: "First bit." },
-      { id: expect.stringMatching(/^kb_/), knowledgeSourceId: "ks_1", ordinal: 1, body: "Second bit." },
-      { id: expect.stringMatching(/^kb_/), knowledgeSourceId: "ks_1", ordinal: 2, body: "Third bit." },
+      { id: expect.stringMatching(/^kb_/), knowledgeSourceId: "ks_1", ordinal: 0, body: "First bit.", background: null },
+      { id: expect.stringMatching(/^kb_/), knowledgeSourceId: "ks_1", ordinal: 1, body: "Second bit.", background: null },
+      { id: expect.stringMatching(/^kb_/), knowledgeSourceId: "ks_1", ordinal: 2, body: "Third bit.", background: null },
+    ]);
+  });
+
+  it("persists a non-null background string exactly as given", async () => {
+    await insertKnowledgeBits("ks_1", [
+      { text: "Bit with background.", background: "Context the reader needs first." },
+    ]);
+
+    expect(mockDbState.bits).toEqual([
+      {
+        id: expect.stringMatching(/^kb_/),
+        knowledgeSourceId: "ks_1",
+        ordinal: 0,
+        body: "Bit with background.",
+        background: "Context the reader needs first.",
+      },
     ]);
   });
 
   it("skips a bit whose (sourceId, ordinal) already exists instead of duplicating it", async () => {
-    await insertKnowledgeBits("ks_1", ["First bit.", "Second bit."]);
-    await insertKnowledgeBits("ks_1", ["First bit re-detected.", "Second bit re-detected."]);
+    await insertKnowledgeBits("ks_1", [
+      { text: "First bit.", background: null },
+      { text: "Second bit.", background: null },
+    ]);
+    await insertKnowledgeBits("ks_1", [
+      { text: "First bit re-detected.", background: null },
+      { text: "Second bit re-detected.", background: null },
+    ]);
 
     expect(mockDbState.bits).toHaveLength(2);
     expect(mockDbState.bits.map((bit) => bit.body)).toEqual(["First bit.", "Second bit."]);
@@ -155,7 +181,14 @@ describe("insertKnowledgeBitsAndMarkDetected", () => {
   it("inserts the bits and marks the source detected together when the claim is still owned", async () => {
     const source = seedSource({ id: "ks_1", status: "processing" });
 
-    await insertKnowledgeBitsAndMarkDetected("ks_1", ["First bit.", "Second bit."], source.updatedAt);
+    await insertKnowledgeBitsAndMarkDetected(
+      "ks_1",
+      [
+        { text: "First bit.", background: null },
+        { text: "Second bit.", background: null },
+      ],
+      source.updatedAt,
+    );
 
     expect(mockDbState.bits).toHaveLength(2);
     expect(mockDbState.sources.get("ks_1")?.status).toBe("bits_detected");
@@ -166,7 +199,11 @@ describe("insertKnowledgeBitsAndMarkDetected", () => {
     const staleToken = new Date(2019, 0, 1);
 
     await expect(
-      insertKnowledgeBitsAndMarkDetected("ks_1", ["A bit that must not land."], staleToken),
+      insertKnowledgeBitsAndMarkDetected(
+        "ks_1",
+        [{ text: "A bit that must not land.", background: null }],
+        staleToken,
+      ),
     ).rejects.toThrow("knowledge_source_reclaimed");
 
     expect(mockDbState.bits).toHaveLength(0);

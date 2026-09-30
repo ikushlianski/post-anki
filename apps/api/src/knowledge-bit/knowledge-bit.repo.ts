@@ -7,6 +7,7 @@ import {
   tagAssignments,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import type { DetectedKnowledgeBit } from "../mastra/knowledge-bit-detector.agent.js";
 
 export interface KnowledgeBitRow {
   id: string;
@@ -28,18 +29,19 @@ export async function getKnowledgeBitById(
 
 export async function insertKnowledgeBits(
   sourceId: string,
-  bits: string[],
+  bits: DetectedKnowledgeBit[],
   db: DbExecutor = getDb(),
 ): Promise<void> {
   if (bits.length === 0) {
     return;
   }
 
-  const rows = bits.map((body, ordinal) => ({
+  const rows = bits.map((bit, ordinal) => ({
     id: newId("kb"),
     knowledgeSourceId: sourceId,
     ordinal,
-    body,
+    body: bit.text,
+    background: bit.background,
   }));
 
   await db
@@ -131,7 +133,7 @@ export async function markKnowledgeSourceBitsDetected(
 
 export async function insertKnowledgeBitsAndMarkDetected(
   sourceId: string,
-  bits: string[],
+  bits: DetectedKnowledgeBit[],
   claimedAt: Date,
   db: DbExecutor = getDb(),
 ): Promise<void> {

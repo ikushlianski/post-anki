@@ -11,6 +11,7 @@ interface BitRow {
   knowledgeSourceId: string;
   ordinal: number;
   body: string;
+  background: string | null;
 }
 
 export const mockDbState = {

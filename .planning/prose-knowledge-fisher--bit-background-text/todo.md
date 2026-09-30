@@ -12,6 +12,9 @@ Nothing open — see plan.md's "Decisions made autonomously".
 Nothing open.
 
 ## Coding tasks
+- [ ] No real-Postgres test covers listNextQuestionVariantsToAnswer's background select/groupBy.
+- [ ] Add a GET-route test proving next-batch JSON response includes background
+- [ ] No test proves a non-null background round-trips through insert/select (all fixtures use null)
 - [ ] Persist `background` in `insertKnowledgeBits`/`insertKnowledgeBitsAndMarkDetected`
 - [ ] Expose `background` in `listNextQuestionVariantsToAnswer` and its row type
 - [ ] Co-located vitest tests for every scenarios.md line, then `npx tsc --noEmit` and lint at zero issues

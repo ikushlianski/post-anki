@@ -98,7 +98,7 @@ describe("resetStaleProcessingKnowledgeSources", () => {
     await expect(
       insertKnowledgeBitsAndMarkDetected(
         "ks_1",
-        ["Bit from the late first attempt."],
+        [{ text: "Bit from the late first attempt.", background: null }],
         staleFirstAttemptToken,
       ),
     ).rejects.toThrow("knowledge_source_reclaimed");

@@ -65,7 +65,11 @@ function id(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
 
-async function seedKnowledgeBit(body: string, topicId?: string): Promise<string> {
+async function seedKnowledgeBit(
+  body: string,
+  topicId?: string,
+  background?: string,
+): Promise<string> {
   const sourceId = id("ksrc");
   const bitId = id("kb");
 
@@ -74,8 +78,8 @@ async function seedKnowledgeBit(body: string, topicId?: string): Promise<string>
     [sourceId, body],
   );
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id) VALUES ($1, $2, 0, $3, $4)`,
-    [bitId, sourceId, body, topicId ?? null],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, background) VALUES ($1, $2, 0, $3, $4, $5)`,
+    [bitId, sourceId, body, topicId ?? null, background ?? null],
   );
 
   return bitId;
@@ -189,6 +193,17 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     const rows = await listNextQuestionVariantsToAnswer(10, { topicId });
 
     expect(rows.map((row) => row.variantId)).toEqual([inTopicVariant]);
+  });
+
+  it("returns the seeded bit's background text on its row", async () => {
+    const backgroundText = `Background context ${randomUUID()}`;
+    const bitId = await seedKnowledgeBit("Background bit for queue", undefined, backgroundText);
+    const variantId = await seedVariant(bitId, "Background question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, undefined);
+    const row = rows.find((row) => row.variantId === variantId);
+
+    expect(row?.background).toBe(backgroundText);
   });
 
   it("within a topic, serves an overdue bit before a not-yet-due bit even when the latter has fewer attempts", async () => {

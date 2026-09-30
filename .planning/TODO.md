@@ -58,7 +58,7 @@ updated: 2026-09-04
 - [ ] Extract optional short background/clarifying text alongside Q&A from inbox content
   - [x] Phase 1: schema and migration
   - [x] Phase 2: detector schema and orchestrator wiring
-  - [ ] Phase 3: repo persistence and next-batch exposure
+  - [x] Phase 3: repo persistence and next-batch exposure
   - [ ] Phase 4: tests
 - [x] Build a screen where the learner can actually answer knowledge-bit questions
   - [x] Phase 1: next-batch endpoint

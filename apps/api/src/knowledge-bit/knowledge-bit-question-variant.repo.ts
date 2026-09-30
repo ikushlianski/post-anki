@@ -63,6 +63,7 @@ export interface NextQuestionVariantRow {
   prompt: string;
   knowledgeBitId: string;
   bitBody: string;
+  background: string | null;
 }
 
 export interface NextQuestionVariantsFilter {
@@ -97,6 +98,7 @@ export async function listNextQuestionVariantsToAnswer(
     prompt: knowledgeBitQuestionVariants.prompt,
     knowledgeBitId: knowledgeBits.id,
     bitBody: knowledgeBits.body,
+    background: knowledgeBits.background,
   };
 
   const base = db
@@ -139,6 +141,7 @@ export async function listNextQuestionVariantsToAnswer(
       knowledgeBitQuestionVariants.createdAt,
       knowledgeBits.id,
       knowledgeBits.body,
+      knowledgeBits.background,
     )
     .orderBy(
       ...(filter?.topicId ? [asc(dueRank)] : []),
