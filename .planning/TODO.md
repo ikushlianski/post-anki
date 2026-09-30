@@ -35,7 +35,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Show a curriculum's due count on its curriculum page
 - [ ] Show a module's due count on its module or course page
-- [ ] Roll module due-counts up to a curriculum-level due count
+- [x] Roll module due-counts up to a curriculum-level due count
 - [x] Roll topic due-counts up to a module-level due count
 - [x] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
 - [x] Roll bit due-dates up to a topic-level due count
