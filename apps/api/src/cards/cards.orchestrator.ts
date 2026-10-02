@@ -3,6 +3,7 @@ import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
+import { withSubjectLock } from "../shared/merge-lock.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import {
   getCurriculumContextForTopic,
@@ -55,12 +56,21 @@ export function buildCardsPrompt(
 
 // Unlike the explicit "Generate cards" button, a background trigger must
 // never queue a duplicate generation on top of one already ready or in flight.
+// Serialized per topic via withSubjectLock.
 export async function maybeStartCardsInBackground(topicId: string): Promise<void> {
-  if (await hasCardsGeneratedOrInProgress(topicId)) {
+  const alreadyClaimed = await withSubjectLock(topicId, async (tx) => {
+    if (await hasCardsGeneratedOrInProgress(topicId, tx)) {
+      return true;
+    }
+
+    await startGeneratingCards(topicId, tx);
+    return false;
+  });
+
+  if (alreadyClaimed) {
     return;
   }
 
-  await startGeneratingCards(topicId);
   void compileCards(topicId).catch((err) =>
     log.error({ err, topicId }, "cards_compile_dispatch_failed"),
   );

@@ -27,9 +27,10 @@ export interface CardsPlanContent {
   }[];
 }
 
-async function rowToCardSet(row: typeof topicCardSets.$inferSelect): Promise<TopicCardSet> {
-  const db = getDb();
-
+async function rowToCardSet(
+  row: typeof topicCardSets.$inferSelect,
+  db: DbExecutor = getDb(),
+): Promise<TopicCardSet> {
   const cardRows = await db
     .select()
     .from(topicCards)
@@ -310,9 +311,12 @@ export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]>
   });
 }
 
-export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<boolean> {
+export async function hasCardsGeneratedOrInProgress(
+  topicId: string,
+  db: DbExecutor = getDb(),
+): Promise<boolean> {
   const row = (
-    await getDb()
+    await db
       .select({ status: topicCardSets.status })
       .from(topicCardSets)
       .where(eq(topicCardSets.topicId, topicId))
@@ -321,9 +325,10 @@ export async function hasCardsGeneratedOrInProgress(topicId: string): Promise<bo
   return row !== undefined && (row.status === "ready" || row.status === "generating");
 }
 
-export async function startGeneratingCards(topicId: string): Promise<TopicCardSet> {
-  const db = getDb();
-
+export async function startGeneratingCards(
+  topicId: string,
+  db: DbExecutor = getDb(),
+): Promise<TopicCardSet> {
   const rows = await db
     .insert(topicCardSets)
     .values({ id: newId("cardset"), topicId, status: "generating" })
@@ -333,7 +338,7 @@ export async function startGeneratingCards(topicId: string): Promise<TopicCardSe
     })
     .returning();
 
-  return rowToCardSet(rows[0]!);
+  return rowToCardSet(rows[0]!, db);
 }
 
 export async function replaceCardsContent(

@@ -12,6 +12,12 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+vi.mock("../shared/merge-lock.js", () => ({
+  withSubjectLock: vi.fn(async (_subjectId: string, run: (tx: unknown) => Promise<unknown>) =>
+    run(undefined),
+  ),
+}));
+
 vi.mock("../topic/topic-progress.repo.js", () => ({
   getTopicRow: vi.fn(),
 }));

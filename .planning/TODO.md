@@ -425,6 +425,7 @@ updated: 2026-09-04
 - Out of scope: Rebuilding the cards agent's variant-generation approach itself — the concept + 3-5 rephrased-variants design already exists and stays as-is
 
 ### Coding tasks
+- [x] Guard concurrent card-generation triggers for the same topic from duplicating LLM work
 - [x] Skip starting new card generation when a topic's cards are already ready or in progress
 - [x] Start generating cards for topics a learning-list release just made available
 - [x] Start generating a topic's cards once course structure is confirmed, not on first open
