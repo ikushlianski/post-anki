@@ -158,3 +158,4 @@
 {"timestamp":"2026-10-02T17:40:07.000Z","direction":"discovery-and-navigation","item":"unplaced-bit-search-link","tier":"Direct","verdict":"PASS"}
 {"timestamp":"2026-10-02T17:56:41.000Z","direction":"discovery-and-navigation","item":"tag-page-browse","tier":"Direct","verdict":"FAIL","reason":"flipped default view from quiz to browse for every existing caller, unauthorized"}
 {"timestamp":"2026-10-02T17:59:37.000Z","direction":"discovery-and-navigation","item":"tag-page-browse-retry","tier":"Direct","verdict":"PASS"}
+{"timestamp":"2026-10-02T18:10:00.000Z","direction":"grounded-knowledge-chat","item":"Stop a failed card-embedding lookup from crashing the global chat with a 500","verdict":"PASS","citation":"apps/api/src/global-card-chat/global-card-chat.service.ts:52-83"}

@@ -73,6 +73,18 @@ export function GlobalCardChatPanel() {
           ])
           scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
         },
+        onError: () => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              text: FALLBACK_REPLY,
+              matchedCards: undefined,
+            },
+          ])
+          scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
+        },
       },
     )
   }

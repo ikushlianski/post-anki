@@ -140,4 +140,21 @@ describe('GlobalCardChatPanel', () => {
       await screen.findByText("I couldn't reach the tutor right now — try again."),
     ).toBeTruthy()
   })
+
+  it('should show a fallback message and clear the typing indicator when the request fails', async () => {
+    mockedAsk.mockRejectedValue(new Error('network error'))
+
+    const user = userEvent.setup()
+
+    renderHarness()
+
+    await user.click(screen.getByTestId('global-card-chat-open'))
+    await user.type(screen.getByTestId('global-card-chat-input'), 'What is hoisting?')
+    await user.click(screen.getByTestId('global-card-chat-send'))
+
+    expect(
+      await screen.findByText("I couldn't reach the tutor right now — try again."),
+    ).toBeTruthy()
+    expect(screen.queryByTestId('global-card-chat-typing-indicator')).toBeFalsy()
+  })
 })

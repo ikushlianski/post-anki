@@ -275,7 +275,7 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
-- [ ] Show an error in the global chat instead of leaving a question unanswered
+- [x] Show an error in the global chat instead of leaving a question unanswered
 - [x] Stop a failed card-embedding lookup from crashing the global chat with a 500
 - [x] Stop editing a knowledge item from wiping its manually-assigned tags
   - [x] Phase 1: schema migration, source column, backfill default
