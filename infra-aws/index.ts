@@ -13,7 +13,6 @@ const databaseUrl = config.requireSecret("databaseUrl"); // Neon pooled — for 
 const electricDatabaseUrl = config.requireSecret("electricDatabaseUrl"); // Neon direct — logical replication
 const openrouterApiKey = config.requireSecret("openrouterApiKey");
 const apiSharedSecret = config.requireSecret("apiSharedSecret");
-const electricSecret = config.requireSecret("electricSecret");
 
 const API_IMAGE_PORT = 8030;
 const ELECTRIC_IMAGE = "electricsql/electric:1.7.7";
@@ -151,10 +150,6 @@ const apiSharedSecretParam = new aws.ssm.Parameter("api-shared-secret", {
   type: "SecureString",
   value: apiSharedSecret,
 });
-const electricSecretParam = new aws.ssm.Parameter("electric-secret", {
-  type: "SecureString",
-  value: electricSecret,
-});
 
 new aws.iam.RolePolicy("post-anki-task-execution-role-ssm-read", {
   role: executionRole.id,
@@ -163,16 +158,21 @@ new aws.iam.RolePolicy("post-anki-task-execution-role-ssm-read", {
     electricDatabaseUrlParam.arn,
     openrouterApiKeyParam.arn,
     apiSharedSecretParam.arn,
-    electricSecretParam.arn,
-  ]).apply(([a, b, c, d, e]) =>
+  ]).apply(([a, b, c, d]) =>
     JSON.stringify({
       Version: "2012-10-17",
-      Statement: [{ Effect: "Allow", Action: "ssm:GetParameters", Resource: [a, b, c, d, e] }],
+      Statement: [{ Effect: "Allow", Action: "ssm:GetParameters", Resource: [a, b, c, d] }],
     })
   ),
 });
 
 // --- electric-sync service (shared, reusable — any future app on this same DB reuses it) ---
+//
+// No GCP IAM equivalent exists on AWS, and the api's electric-proxy.service.ts only knows how to
+// authenticate via Google's IAM identity tokens or skip auth entirely (ELECTRIC_AUTH_MODE=none).
+// Security here comes from the security groups alone (electric-sg only accepts traffic from
+// api-sg) — the same trust model GCP's own Electric Cloud Run service already uses
+// (ELECTRIC_INSECURE=true, gated on Cloud Run IAM instead of a security group).
 
 const electricTaskDefinition = new aws.ecs.TaskDefinition("electric-sync-task", {
   family: "post-anki-electric-sync",
@@ -186,11 +186,11 @@ const electricTaskDefinition = new aws.ecs.TaskDefinition("electric-sync-task", 
       name: "electric-sync",
       image: ELECTRIC_IMAGE,
       portMappings: [{ containerPort: ELECTRIC_PORT }],
-      environment: [{ name: "ELECTRIC_PORT", value: `${ELECTRIC_PORT}` }],
-      secrets: [
-        { name: "DATABASE_URL", valueFrom: electricDatabaseUrlParam.arn },
-        { name: "ELECTRIC_SECRET", valueFrom: electricSecretParam.arn },
+      environment: [
+        { name: "ELECTRIC_PORT", value: `${ELECTRIC_PORT}` },
+        { name: "ELECTRIC_INSECURE", value: "true" },
       ],
+      secrets: [{ name: "DATABASE_URL", valueFrom: electricDatabaseUrlParam.arn }],
       logConfiguration: {
         logDriver: "awslogs",
         options: {
@@ -233,6 +233,7 @@ const apiTaskDefinition = new aws.ecs.TaskDefinition("api-task", {
       environment: [
         { name: "PORT", value: `${API_IMAGE_PORT}` },
         { name: "ELECTRIC_SERVICE_URL", value: `http://electric-sync.post-anki.internal:${ELECTRIC_PORT}` },
+        { name: "ELECTRIC_AUTH_MODE", value: "none" },
       ],
       secrets: [
         { name: "DATABASE_URL", valueFrom: databaseUrlParam.arn },

@@ -21,7 +21,7 @@ updated: 2026-09-04
 - [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today
 - [x] Package the API as a container image for the Fargate service
 - [x] Write the shared AWS infrastructure: one ECS cluster and ALB, both apps as services
-- [ ] Test the Fargate-hosted API and sync end to end locally before deploying
+- [x] Test the Fargate-hosted API and sync end to end locally before deploying
 - [ ] Set up AWS credentials and the secrets the new backend needs
 - [ ] Deploy the Fargate services and confirm the API and sync both come up healthy
 - [ ] Confirm Neon logical replication is on before pointing Electric at it
