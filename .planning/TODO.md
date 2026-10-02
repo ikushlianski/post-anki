@@ -256,6 +256,7 @@ updated: 2026-09-04
 - [x] Let a deck be configured with a Notion page or database as its source
 
 ### Notes
+- Seed-page pull stalled this session — Notion MCP not logged in, needs human /login
 - Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
 - Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
 - Notes become facts, not cards — the two 'into individual cards' items are met by the fact route.
@@ -572,10 +573,12 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: the two unmerged branches (curriculum-add-sources-easily, module-topic-expand-web-search) and building a new safety mechanism — only applying the existing one consistently
 
 ### Coding tasks
+- [x] Normalize a trailing-dot hostname before the blocked-host check so localhost. isn't missed
 - [x] Add a dedicated safeHref test for the curriculum route's source-link rendering
 - [x] Add missing link-safety tests for the remaining 4 components
 
 ### Notes
+- DNS-rebinding (no IP pinning) is a separate gap — new mechanism, needs human call
 - Mobile gap already fixed pre-run — assertSecureUrl in client.ts blocks non-loopback HTTP.
 - 4 components rely only on the shared safeHref unit test, no dedicated component test yet.
 - Completed items archived to .planning/LOG.md.

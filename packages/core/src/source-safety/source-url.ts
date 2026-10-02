@@ -55,7 +55,8 @@ export function isSafeSourceUrl(url: string): SourceUrlVerdict {
     );
   }
 
-  const host = parsed.hostname.toLowerCase();
+  const lowercased = parsed.hostname.toLowerCase();
+  const host = lowercased.replace(/\.+$/, "");
 
   if (host.length === 0) {
     return reject("malformed_url", "this address has no host");

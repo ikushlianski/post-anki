@@ -102,6 +102,24 @@ describe("isSafeSourceUrl", () => {
       expect(isSafeSourceUrl("http://[1:2:3::4::5]/").allowed).toBe(false);
       expect(isSafeSourceUrl("http://[zzzz::1]/").allowed).toBe(false);
     });
+
+    it("rejects internal hosts spelled with a trailing DNS root dot", () => {
+      expect(reasonFor("http://localhost./")).toBe("blocked_host");
+      expect(reasonFor("http://metadata.google.internal./")).toBe("blocked_host");
+      expect(reasonFor("http://vault.internal./")).toBe("blocked_host");
+      expect(reasonFor("http://redis./")).toBe("blocked_host");
+    });
+
+    it("rejects internal hosts even with more than one trailing dot", () => {
+      expect(reasonFor("http://localhost../")).toBe("blocked_host");
+      expect(reasonFor("http://redis../")).toBe("blocked_host");
+    });
+  });
+
+  describe("a trailing DNS root dot on an otherwise public hostname", () => {
+    it("still allows the address, since the dot just denotes the DNS root", () => {
+      expect(isSafeSourceUrl("http://example.com./").allowed).toBe(true);
+    });
   });
 
   describe("the rejection a caller shows the learner", () => {
