@@ -157,3 +157,4 @@
 {"timestamp":"2026-10-02T17:29:30.000Z","direction":"discovery-and-navigation","item":"header-search-broadening-retry","tier":"Direct","verdict":"PASS"}
 {"timestamp":"2026-10-02T17:40:07.000Z","direction":"discovery-and-navigation","item":"unplaced-bit-search-link","tier":"Direct","verdict":"PASS"}
 {"timestamp":"2026-10-02T17:56:41.000Z","direction":"discovery-and-navigation","item":"tag-page-browse","tier":"Direct","verdict":"FAIL","reason":"flipped default view from quiz to browse for every existing caller, unauthorized"}
+{"timestamp":"2026-10-02T17:59:37.000Z","direction":"discovery-and-navigation","item":"tag-page-browse-retry","tier":"Direct","verdict":"PASS"}

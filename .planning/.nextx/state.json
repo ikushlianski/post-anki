@@ -12,13 +12,15 @@
     "llm-cost-observability",
     "the-me-agent-integration"
   ],
-  "lastHeartbeatAt": "2026-10-02T16:43:18.534Z",
+  "lastHeartbeatAt": "2026-10-02T18:08:19.711Z",
   "timeBoundBlocks": 1,
   "autoCommitEnabled": true,
   "pushGranted": false,
   "maxDispatches": 60,
   "dispatchCount": 0,
-  "pendingSkillReload": [],
+  "pendingSkillReload": [
+    "nextx"
+  ],
   "lastBlockAt": "2026-10-02T16:09:22.850Z",
   "stoppedReason": "every-active-direction-at-ceiling"
 }

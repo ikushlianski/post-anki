@@ -115,6 +115,16 @@ describe("askGlobalCardChat", () => {
     expect(result.reply).toBe("I couldn't reach the tutor right now — try again.");
   });
 
+  it("still replies with fallback when card lookup fails", async () => {
+    findTopMatchingCards.mockRejectedValue(new Error("embeddings API down"));
+    generate.mockResolvedValue({ text: "I couldn't find your cards, but here's a general answer." });
+
+    const result = await askGlobalCardChat({ message: "What is a closure?" });
+
+    expect(result.reply).toBe("I couldn't find your cards, but here's a general answer.");
+    expect(result.matchedCards).toEqual([]);
+  });
+
   it("defaults the agent to cards-only when allowGeneralKnowledge is omitted", async () => {
     await askGlobalCardChat({ message: "What is a closure?" });
 

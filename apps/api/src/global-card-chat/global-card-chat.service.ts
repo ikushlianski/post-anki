@@ -41,18 +41,27 @@ function buildPrompt(input: AskGlobalCardChatInput, cards: CardMatchResult[]): s
 export async function askGlobalCardChat(
   input: AskGlobalCardChatInput,
 ): Promise<AskGlobalCardChatResult> {
-  const matchedCards = await findTopMatchingCards(input.message, TOP_K_CARDS);
-  const prompt = buildPrompt(input, matchedCards);
-  const matchedCardsForDisplay = matchedCards.map((c) => ({
-    variantId: c.variantId,
-    prompt: c.kind === "fact" ? factPreview(c.prompt) : c.prompt,
-    topicTitle: c.topicTitle,
-  }));
-
   const agent = getMastra().getAgent(AGENT_KEYS.globalCardChat);
   const requestContext = new RequestContext([
     ["allowGeneralKnowledge", input.allowGeneralKnowledge ?? false],
   ]);
+
+  let matchedCards: CardMatchResult[] = [];
+  let matchedCardsForDisplay: AskGlobalCardChatResult["matchedCards"] = [];
+
+  try {
+    matchedCards = await findTopMatchingCards(input.message, TOP_K_CARDS);
+    matchedCardsForDisplay = matchedCards.map((c) => ({
+      variantId: c.variantId,
+      prompt: c.kind === "fact" ? factPreview(c.prompt) : c.prompt,
+      topicTitle: c.topicTitle,
+    }));
+  } catch (err) {
+    log.error({ err }, "global_card_chat_card_lookup_failed");
+    // Continue with no matched cards
+  }
+
+  const prompt = buildPrompt(input, matchedCards);
 
   try {
     const result = await generateWithRetry(
