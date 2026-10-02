@@ -43,6 +43,7 @@ updated: 2026-09-04
 - Out of scope: Building a new UI for this — MCP clients are the interface
 
 ### Coding tasks
+- [x] Let MCP's search_knowledge_items also find modules, tags, and knowledge bits
 - [x] Build an MCP server exposing decks and course/module/section knowledge items
   - [x] Phase 1: MCP endpoint behind the shared token
   - [x] Phase 2: Course browsing tools

@@ -13,7 +13,7 @@ export function registerSearchTools(server: McpServer): void {
     {
       title: "Search knowledge items",
       description:
-        "Search ready study cards by concept/prompt/answer text, plus matching course and topic names, read-only.",
+        "Search ready study cards by concept/prompt/answer text, plus matching course and topic names, topic/module titles and knowledge-bit text by full-text relevance, and tag names across topics, modules, and knowledge bits, read-only.",
       inputSchema: searchKnowledgeItemsInputSchema.shape,
       outputSchema: searchKnowledgeItemsResultSchema.shape,
       annotations: {

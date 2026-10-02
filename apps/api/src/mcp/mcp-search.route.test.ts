@@ -51,6 +51,12 @@ vi.mock("../search/search.repo.js", () => ({
 
     return state.topicRows;
   }),
+  searchTopicsAndModulesRanked: vi.fn(async () => []),
+}));
+
+vi.mock("../search/search-tag-and-bit.repo.js", () => ({
+  searchKnowledgeBitsRanked: vi.fn(async () => []),
+  searchByTagNameAcrossNodes: vi.fn(async () => []),
 }));
 
 vi.mock("../api-token/api-token.repo.js", async () => {
@@ -139,6 +145,9 @@ describe("POST /mcp search_knowledge_items", () => {
       cards: state.cardRows,
       courses: state.courseRows,
       topics: state.topicRows,
+      rankedTopics: [],
+      modules: [],
+      knowledgeBits: [],
     });
     expect(state.capturedQuery).toBe("closure");
     expect(state.capturedCardLimit).toBe(7);

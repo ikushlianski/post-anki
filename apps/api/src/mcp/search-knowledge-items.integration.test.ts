@@ -189,4 +189,56 @@ describe("searchKnowledgeItems", () => {
     expect(result.courses.map((course) => course.id)).toEqual([literalCurriculumId]);
     expect(result.topics.map((topic) => topic.id)).toEqual([literalTopicId]);
   });
+
+  it("finds a module by its title through the full-text ranked search", async () => {
+    const subjectId = id("sub");
+    const curriculumId = id("target");
+    const moduleId = id("mod");
+
+    await client.query(`INSERT INTO subjects (id, name) VALUES ($1, $2)`, [subjectId, "Web"]);
+    await client.query(
+      `INSERT INTO curricula (id, subject_id, name, status) VALUES ($1, $2, $3, 'confirmed')`,
+      [curriculumId, subjectId, "Backend fundamentals"],
+    );
+    await client.query(
+      `INSERT INTO modules (id, curriculum_id, title, "order") VALUES ($1, $2, $3, 1)`,
+      [moduleId, curriculumId, "Distributed consensus algorithms"],
+    );
+
+    const result = await searchKnowledgeItems({ query: "distributed consensus" });
+
+    expect(result.modules.map((module) => module.id)).toContain(moduleId);
+  });
+
+  it("finds a knowledge bit by its body text through the full-text ranked search", async () => {
+    const bitId = id("bit");
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES ($1, $2, 1, $3)`,
+      [bitId, id("src"), "Vector clocks order concurrent events without a shared timekeeper"],
+    );
+
+    const result = await searchKnowledgeItems({ query: "vector clocks concurrent" });
+
+    expect(result.knowledgeBits.map((bit) => bit.id)).toContain(bitId);
+  });
+
+  it("finds a topic by a tag name assigned to it, surfaced in rankedTopics", async () => {
+    const { topicId } = await seedTopic("Resilience engineering", "Timeout budgets");
+    const tagId = id("tag");
+
+    await client.query(`INSERT INTO tags (id, name, normalized_name) VALUES ($1, $2, $3)`, [
+      tagId,
+      "chaos-engineering-drill",
+      "chaos-engineering-drill",
+    ]);
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id) VALUES ($1, $2, $3, $4)`,
+      [id("ta"), tagId, "topic", topicId],
+    );
+
+    const result = await searchKnowledgeItems({ query: "chaos-engineering-drill" });
+
+    expect(result.rankedTopics.map((topic) => topic.id)).toContain(topicId);
+  });
 });
