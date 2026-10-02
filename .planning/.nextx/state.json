@@ -1,7 +1,7 @@
 {
   "sessionId": "dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8",
   "startedAt": "2026-10-02T16:08:32.000Z",
-  "stopBoundHours": 10,
+  "stopBoundHours": 20,
   "status": "running",
   "activeDirections": [
     "aws-electric-fargate-deploy",
@@ -12,13 +12,11 @@
     "llm-cost-observability",
     "the-me-agent-integration"
   ],
-  "lastHeartbeatAt": "2026-10-02T19:53:17.363Z",
-  "timeBoundBlocks": 2,
+  "lastHeartbeatAt": "2026-10-02T20:33:25Z",
+  "timeBoundBlocks": 0,
   "autoCommitEnabled": true,
   "pushGranted": false,
   "maxDispatches": 60,
   "dispatchCount": 0,
-  "pendingSkillReload": [],
-  "lastBlockAt": "2026-10-02T19:25:18.213Z",
-  "stoppedReason": "every-active-direction-at-ceiling"
+  "pendingSkillReload": []
 }

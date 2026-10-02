@@ -5,9 +5,9 @@ const state = vi.hoisted(() => ({
   existingNotionPageIds: new Set<string>(),
 }));
 
-// insertKnowledgeSource awaits `.values(row)` directly (no further chaining);
-// insertKnowledgeSourcesFromNotion chains `.values(rows).onConflictDoNothing().returning()`.
-// Route each `.values()` call to the right shape by whether it got one row or an array.
+// insertKnowledgeSource/insertKnowledgeSources await `.values(rowOrRows)` directly (no further
+// chaining); insertKnowledgeSourcesFromNotion chains `.values(rows).onConflictDoNothing().returning()`.
+// The array branch records rows immediately so both the plain-await and chained callers see them.
 vi.mock("../db/client.js", () => ({
   getDb: () => ({
     insert: () => ({
@@ -16,6 +16,8 @@ vi.mock("../db/client.js", () => ({
           state.insertedRows.push(rowOrRows);
           return Promise.resolve();
         }
+
+        state.insertedRows.push(...rowOrRows);
 
         return {
           onConflictDoNothing: () => ({
@@ -26,7 +28,7 @@ vi.mock("../db/client.js", () => ({
                 return !(notionPageId && state.existingNotionPageIds.has(notionPageId));
               });
 
-              state.insertedRows.push(...accepted);
+              state.insertedRows = state.insertedRows.filter((row) => accepted.includes(row));
 
               return accepted.map((row) => ({ ...row, createdAt: new Date() }));
             },
@@ -37,9 +39,8 @@ vi.mock("../db/client.js", () => ({
   }),
 }));
 
-const { insertKnowledgeSource, insertKnowledgeSourcesFromNotion } = await import(
-  "./knowledge-source.repo.js"
-);
+const { insertKnowledgeSource, insertKnowledgeSources, insertKnowledgeSourcesFromNotion } =
+  await import("./knowledge-source.repo.js");
 
 describe("insertKnowledgeSource", () => {
   beforeEach(() => {
@@ -65,6 +66,40 @@ describe("insertKnowledgeSource", () => {
     });
     expect(created.id).toMatch(/^ks_/);
     expect(created.createdAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("insertKnowledgeSources", () => {
+  beforeEach(() => {
+    state.insertedRows = [];
+    state.existingNotionPageIds = new Set();
+  });
+
+  it("stores each text as its own pending prose knowledge source", async () => {
+    const created = await insertKnowledgeSources(["First idea.", "Second idea."]);
+
+    expect(state.insertedRows).toEqual([
+      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "First idea.", status: "pending" },
+      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "Second idea.", status: "pending" },
+    ]);
+    expect(created).toHaveLength(2);
+    expect(created.every((row) => row.createdAt instanceof Date)).toBe(true);
+  });
+
+  it("inserts nothing and returns an empty array for an empty batch", async () => {
+    const created = await insertKnowledgeSources([]);
+
+    expect(state.insertedRows).toEqual([]);
+    expect(created).toEqual([]);
+  });
+
+  it("caps a single batch at 100 sources so one submission can't queue an unbounded batch", async () => {
+    const texts = Array.from({ length: 150 }, (_, i) => `Idea ${i}`);
+
+    const created = await insertKnowledgeSources(texts);
+
+    expect(state.insertedRows).toHaveLength(100);
+    expect(created).toHaveLength(100);
   });
 });
 

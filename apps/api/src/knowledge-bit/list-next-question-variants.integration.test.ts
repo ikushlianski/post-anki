@@ -239,6 +239,16 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(rows.map((row) => row.variantId)).toEqual([targetVariant]);
   });
 
+  it("excludes a bit fetched directly by knowledgeBitId when its topic was dropped", async () => {
+    const droppedTopicId = await seedTopic("Direct queue topic dropped", "skipping");
+    const droppedBit = await seedKnowledgeBit("Dropped-topic bit for direct queue", droppedTopicId);
+    await seedVariant(droppedBit, "Dropped-topic direct question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: droppedBit });
+
+    expect(rows).toEqual([]);
+  });
+
   it("returns the seeded bit's background text on its row", async () => {
     const backgroundText = `Background context ${randomUUID()}`;
     const bitId = await seedKnowledgeBit("Background bit for queue", undefined, backgroundText);

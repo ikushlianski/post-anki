@@ -26,6 +26,27 @@ export async function insertKnowledgeSource(rawText: string): Promise<KnowledgeS
   };
 }
 
+// Batch counterpart to insertKnowledgeSource — one submission, several separate prose sources,
+// each detected into its own knowledge bits independently once the scan picks it up.
+export const MAX_SOURCES_PER_BATCH_ADD = 100;
+
+export async function insertKnowledgeSources(rawTexts: string[]): Promise<KnowledgeSource[]> {
+  if (rawTexts.length === 0) {
+    return [];
+  }
+
+  const rows = rawTexts.slice(0, MAX_SOURCES_PER_BATCH_ADD).map((rawText) => ({
+    id: newId("ks"),
+    kind: "prose",
+    rawText,
+    status: "pending",
+  }));
+
+  await getDb().insert(knowledgeSources).values(rows);
+
+  return rows.map((row) => ({ ...row, createdAt: new Date() }));
+}
+
 // Backstop cap — the controller already stops reading from Notion at this
 // limit; this slice guards the insert itself if it's ever called otherwise.
 export const MAX_ROWS_PER_IMPORT = 500;

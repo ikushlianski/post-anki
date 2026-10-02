@@ -431,6 +431,86 @@ describe("getDueCountsForModules", () => {
 
     expect(moduleDue.get("mod_due_6")).toBe(1);
   });
+
+  it("excludes a dropped topic from the module's due count even if included was reset to true", async () => {
+    await insertSubject({ id: "sub_due_dropped_module", name: "Testing dropped module" });
+    await insertCurriculum({
+      id: "cur_due_dropped_module",
+      subjectId: "sub_due_dropped_module",
+      name: "Scheduling dropped module",
+    });
+    await insertModule({
+      id: "mod_due_dropped_module",
+      curriculumId: "cur_due_dropped_module",
+      title: "Reviews dropped module",
+    });
+    await insertTopic({
+      id: "top_due_dropped_module",
+      moduleId: "mod_due_dropped_module",
+      curriculumId: "cur_due_dropped_module",
+      title: "Re-included but still dropped",
+      included: true,
+      learningStatus: "skipping",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_dropped_module",
+      knowledgeSourceId: "src_due_dropped_module",
+      ordinal: 1,
+      body: "Never reviewed yet",
+      topicId: "top_due_dropped_module",
+    });
+    await insertQuestionVariant({
+      id: "qv_due_dropped_module",
+      knowledgeBitId: "bit_due_dropped_module",
+    });
+
+    const moduleDue = await getDueCountsForModules(["mod_due_dropped_module"]);
+
+    expect(moduleDue.get("mod_due_dropped_module")).toBeUndefined();
+  });
+});
+
+describe("getDueCountsForTopics", () => {
+  it("excludes a dropped topic from the scoped lookup", async () => {
+    await insertSubject({ id: "sub_due_dropped_scoped", name: "Testing dropped scoped" });
+    await insertCurriculum({
+      id: "cur_due_dropped_scoped",
+      subjectId: "sub_due_dropped_scoped",
+      name: "Scheduling dropped scoped",
+    });
+    await insertModule({
+      id: "mod_due_dropped_scoped",
+      curriculumId: "cur_due_dropped_scoped",
+      title: "Reviews dropped scoped",
+    });
+    await insertTopic({
+      id: "top_due_dropped_scoped",
+      moduleId: "mod_due_dropped_scoped",
+      curriculumId: "cur_due_dropped_scoped",
+      title: "Deliberately dropped",
+      included: false,
+      learningStatus: "skipping",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_dropped_scoped",
+      knowledgeSourceId: "src_due_dropped_scoped",
+      ordinal: 1,
+      body: "Was due yesterday but the topic was dropped",
+      topicId: "top_due_dropped_scoped",
+    });
+    await insertQuestionVariant({
+      id: "qv_due_dropped_scoped",
+      knowledgeBitId: "bit_due_dropped_scoped",
+    });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_dropped_scoped",
+      dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    const scoped = await getDueCountsForTopics(["top_due_dropped_scoped"]);
+
+    expect(scoped.get("top_due_dropped_scoped")).toBeUndefined();
+  });
 });
 
 describe("getCurriculumDetail dueCount", () => {

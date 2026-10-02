@@ -8,6 +8,10 @@ import { gaps, knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedule
 // have at least one generated question variant: that's the only thing the practice queue can
 // ever actually serve, so a bit stuck in generation (pending, or permanently failed) would
 // otherwise inflate a topic's due count with nothing a learner can act on.
+//
+// A topic that's either not yet released (`included = false`) or deliberately dropped
+// (`learningStatus = "skipping"`) never counts as due, in every due-count query — not just
+// some of them. Every caller must already join `topics` for this to apply.
 function dueCondition(db: DbExecutor) {
   const hasQuestionVariant = exists(
     db
@@ -19,6 +23,8 @@ function dueCondition(db: DbExecutor) {
   return and(
     hasQuestionVariant,
     or(isNull(knowledgeBitSchedules.knowledgeBitId), lte(knowledgeBitSchedules.dueAt, new Date())),
+    eq(topics.included, true),
+    ne(topics.learningStatus, "skipping"),
   );
 }
 
@@ -33,9 +39,6 @@ export interface TopicDueCount {
 //
 // Default ranking (no product input): oldest overdue bit first, unreviewed = most overdue;
 // open-gap count breaks ties, computed in the same query so LIMIT never cuts it off early.
-//
-// A topic the learner deliberately dropped (learningStatus "skipping") never counts as due —
-// the home screen's "most pressing" list must never nudge them back toward it.
 export async function listTopicsWithDueCounts(
   limit: number,
   db: DbExecutor = getDb(),
@@ -52,7 +55,7 @@ export async function listTopicsWithDueCounts(
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .where(and(ne(topics.learningStatus, "skipping"), dueCondition(db)))
+    .where(dueCondition(db))
     .groupBy(topics.id, topics.title)
     .orderBy(
       sql`min(coalesce(${knowledgeBitSchedules.dueAt}, '-infinity'::timestamptz)) asc`,
@@ -86,8 +89,8 @@ export async function getDueCountsForTopics(
   return new Map(rows.map((row) => [row.topicId, row.dueCount]));
 }
 
-// Module-level rollup, scoped to included topics only — the same exclusion
-// moduleProgress/curriculumProgress apply next to this count on the badge.
+// Module-level rollup — the same included/dropped exclusion moduleProgress/curriculumProgress
+// apply next to this count on the badge, now centralized in dueCondition.
 export async function getDueCountsForModules(
   moduleIds: string[],
   db: DbExecutor = getDb(),
@@ -103,9 +106,7 @@ export async function getDueCountsForModules(
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .where(
-      and(inArray(topics.moduleId, moduleIds), eq(topics.included, true), dueCondition(db)),
-    )
+    .where(and(inArray(topics.moduleId, moduleIds), dueCondition(db)))
     .groupBy(topics.moduleId);
 
   return new Map(rows.map((row) => [row.moduleId, row.dueCount]));
