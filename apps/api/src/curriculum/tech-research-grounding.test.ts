@@ -8,8 +8,10 @@ vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+const resolveEffectiveModelTierImpl = vi.fn().mockResolvedValue("standard");
+
 vi.mock("../mastra/tier-resolver.js", () => ({
-  resolveEffectiveModelTier: async () => "standard",
+  resolveEffectiveModelTier: (...args: unknown[]) => resolveEffectiveModelTierImpl(...args),
 }));
 
 vi.mock("../mastra/model-tier.js", () => ({
@@ -47,6 +49,7 @@ describe("gatherTechResearchGrounding citation safety", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveModelTierImpl.mockResolvedValue("standard");
   });
 
   afterEach(() => {
@@ -86,6 +89,7 @@ describe("gatherTechResearchGrounding retry and cost recording", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveModelTierImpl.mockResolvedValue("standard");
     recordLlmCallEvent.mockResolvedValue(undefined);
   });
 
@@ -143,6 +147,18 @@ describe("gatherTechResearchGrounding retry and cost recording", () => {
       expect.objectContaining({ success: false }),
     );
   });
+
+  it("falls back to empty grounding when restModel rejects without throwing", async () => {
+    resolveEffectiveModelTierImpl.mockRejectedValue(new Error("tier resolution failed"));
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => chatResponseWith(["https://example.com/docs"]),
+    }) as unknown as typeof fetch;
+
+    const result = await gatherTechResearchGrounding("SomeTech");
+
+    expect(result).toEqual({ text: "", citations: [] });
+  });
 });
 
 describe("resolveOfficialDocsUrl retry and cost recording", () => {
@@ -150,6 +166,7 @@ describe("resolveOfficialDocsUrl retry and cost recording", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveModelTierImpl.mockResolvedValue("standard");
     recordLlmCallEvent.mockResolvedValue(undefined);
   });
 
@@ -223,6 +240,7 @@ describe("gatherTrustedSourceCandidates retry and cost recording", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveEffectiveModelTierImpl.mockResolvedValue("standard");
     recordLlmCallEvent.mockResolvedValue(undefined);
   });
 

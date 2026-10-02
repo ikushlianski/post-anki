@@ -72,7 +72,6 @@ async function gatherGrounding(
   scope: ResolveEffectiveModelTierScope,
 ): Promise<TechResearchGrounding> {
   const env = loadEnv();
-  const model = await restModel(scope);
   const curriculumId = scope.curriculumId ?? null;
 
   const attempt = async (): Promise<TechResearchGrounding & { usage: GenerateUsage }> => {
@@ -88,7 +87,7 @@ async function gatherGrounding(
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          model,
+          model: await restModel(scope),
           tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
           messages: [
             {
