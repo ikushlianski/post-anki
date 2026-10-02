@@ -9,6 +9,7 @@ import {
   searchTopicsAndModulesRanked,
 } from "./search.repo.js";
 import { searchByTagNameAcrossNodes, searchKnowledgeBitsRanked } from "./search-tag-and-bit.repo.js";
+import { listNodesByTagId } from "./list-nodes-by-tag.repo.js";
 
 const TOPIC_MODULE_SEARCH_DEFAULT_LIMIT = 10;
 
@@ -76,6 +77,13 @@ export async function handleSearchTopicsAndModules(
   const results = Array.from(byKindAndId.values())
     .sort((a, b) => b.rank - a.rank)
     .slice(0, limit);
+
+  sendJson(res, 200, results);
+}
+
+// Browse everything under one exact tag id — not a name search.
+export async function handleListTagNodes(res: http.ServerResponse, tagId: string): Promise<void> {
+  const results = await listNodesByTagId(tagId);
 
   sendJson(res, 200, results);
 }

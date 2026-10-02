@@ -404,6 +404,12 @@ export const listTagMasteryStatuses = createServerFn({ method: 'GET' }).handler(
   (): Promise<api.TagMasteryStatus[]> => api.listTagMasteryStatuses(),
 )
 
+export const listTagNodes = createServerFn({ method: 'GET' })
+  .inputValidator((tagId: unknown): string => z.string().parse(tagId))
+  .handler(
+    ({ data }): Promise<TopicModuleSearchResult[]> => api.listTagNodes(data),
+  )
+
 export const createOrGetTag = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => createTagInput.parse(data))
   .handler(({ data }): Promise<Tag> => api.createOrGetTag(data.name))

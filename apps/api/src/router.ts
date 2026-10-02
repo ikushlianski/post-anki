@@ -110,6 +110,7 @@ export type RouteName =
   | "getElectricShape"
   | "listTags"
   | "getTagMastery"
+  | "listTagNodes"
   | "createTag"
   | "assignTag"
   | "removeTagAssignment"

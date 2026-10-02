@@ -1301,6 +1301,10 @@ export async function searchTopicsAndModules(
   )
 }
 
+export async function listTagNodes(tagId: string): Promise<be.TopicModuleSearchResult[]> {
+  return request<be.TopicModuleSearchResult[]>(`/tags/${encodeURIComponent(tagId)}/nodes`)
+}
+
 export async function getCrossCutting(): Promise<ConcernSummary[]> {
   const { summaries } = await request<be.CrossCuttingResponse>('/cross-cutting')
 

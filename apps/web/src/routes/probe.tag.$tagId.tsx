@@ -3,14 +3,23 @@ import { useQuery } from '@tanstack/react-query'
 
 import { listTags } from '../curriculum/curriculum.api'
 import { ProbeSessionQuiz } from '../curriculum/probe-session-quiz'
+import { TagNodeBrowser } from '../curriculum/tag-node-browser'
+import type { Tag } from '../curriculum/model'
+
+type TagRoomView = 'browse' | 'practice'
 
 export const Route = createFileRoute('/probe/tag/$tagId')({
+  validateSearch: (search: Record<string, unknown>): { view?: TagRoomView } => ({
+    view: search.view === 'browse' ? 'browse' : 'practice',
+  }),
   loader: () => listTags(),
   component: TagProbeRoom,
 })
 
 function TagProbeRoom() {
   const { tagId } = Route.useParams()
+  const { view: rawView } = Route.useSearch()
+  const view: TagRoomView = rawView ?? 'practice'
   const { data: tags } = useQuery({
     queryKey: ['tags'],
     queryFn: () => listTags(),
@@ -43,14 +52,50 @@ function TagProbeRoom() {
           #{tag.name}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Questions drawn from every module or topic tagged #{tag.name},
-          across every course that has it.
+          {view === 'browse'
+            ? `Every topic, module, and knowledge bit tagged #${tag.name}, across every course that has it.`
+            : `Questions drawn from every module or topic tagged #${tag.name}, across every course that has it.`}
         </p>
       </header>
 
+      <ViewToggle tag={tag} view={view} />
+
       <div className="min-w-0 flex-1">
-        <ProbeSessionQuiz key={tag.id} scope="tag" scopeId={tag.id} />
+        {view === 'browse' ? (
+          <TagNodeBrowser key={tag.id} tagId={tag.id} />
+        ) : (
+          <ProbeSessionQuiz key={tag.id} scope="tag" scopeId={tag.id} />
+        )}
       </div>
     </main>
+  )
+}
+
+export function ViewToggle({ tag, view }: { tag: Tag; view: TagRoomView }) {
+  const base = 'rounded-md px-2.5 py-1 text-xs font-medium'
+  const on = 'bg-neutral-900 text-white'
+  const off = 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
+
+  return (
+    <div className="mt-3 flex gap-1">
+      <Link
+        to="/probe/tag/$tagId"
+        params={{ tagId: tag.id }}
+        search={{ view: 'browse' }}
+        className={`${base} ${view === 'browse' ? on : off}`}
+        data-testid="tag-room-view-browse"
+      >
+        Browse
+      </Link>
+      <Link
+        to="/probe/tag/$tagId"
+        params={{ tagId: tag.id }}
+        search={{ view: 'practice' }}
+        className={`${base} ${view === 'practice' ? on : off}`}
+        data-testid="tag-room-view-practice"
+      >
+        Practice
+      </Link>
+    </div>
   )
 }

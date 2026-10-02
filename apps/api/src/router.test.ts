@@ -180,6 +180,14 @@ describe("resolveRoute", () => {
       });
     });
 
+    it("distinguishes the tag-nodes browse route from /tags/mastery", () => {
+      expect(resolveRoute("GET", "/tags/tag1/nodes")).toEqual({
+        name: "listTagNodes",
+        params: { id: "tag1" },
+      });
+      expect(resolveRoute("GET", "/tags/mastery")?.name).toBe("getTagMastery");
+    });
+
     it("captures the blind-spot id on the decide-mode PATCH route", () => {
       expect(resolveRoute("PATCH", "/decide-blind-spots/bs1")).toEqual({
         name: "resolveDecideBlindSpot",

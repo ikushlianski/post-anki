@@ -99,7 +99,11 @@ import {
   handleTriageGap,
 } from "./gap/gap.controller.js";
 import { handleDailyPush, handleDueQueue } from "./push/push.controller.js";
-import { handleSearch, handleSearchTopicsAndModules } from "./search/search.controller.js";
+import {
+  handleListTagNodes,
+  handleSearch,
+  handleSearchTopicsAndModules,
+} from "./search/search.controller.js";
 import {
   handleCreateDecideSession,
   handleListDecideSessions,
@@ -584,6 +588,8 @@ async function route(
       return handleListTags(res);
     case "getTagMastery":
       return handleGetTagMastery(res);
+    case "listTagNodes":
+      return handleListTagNodes(res, id);
     case "createTag":
       return handleCreateTag(req, res);
     case "assignTag":

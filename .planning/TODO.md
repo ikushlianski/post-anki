@@ -641,7 +641,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
-- [ ] Let a tag page browse everything tagged with it, not just probe questions
+- [x] Let a tag page browse everything tagged with it, not just probe questions
 - [x] Make an unplaced knowledge bit in search results actually openable
 - [x] Make the header search bar also find modules, knowledge bits, and tags
 - [x] Show which tag or topic a search result belongs to
