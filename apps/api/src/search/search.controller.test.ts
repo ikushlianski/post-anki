@@ -47,26 +47,42 @@ beforeEach(() => {
 
 describe("handleListTagNodes", () => {
   it("returns every topic, module, and knowledge bit the repo found for that tag id", async () => {
-    mockListNodesByTagId.mockResolvedValue([
-      node({ id: "top_1", kind: "topic" }),
-      node({ id: "bit_1", kind: "bit" }),
-    ]);
+    mockListNodesByTagId.mockResolvedValue({
+      nodes: [node({ id: "top_1", kind: "topic" }), node({ id: "bit_1", kind: "bit" })],
+      capped: false,
+    });
 
     const res = fakeRes();
     await handleListTagNodes(res, "tag_perf_1");
 
     expect(mockListNodesByTagId).toHaveBeenCalledWith("tag_perf_1");
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
+    expect(res.body).toEqual({
+      nodes: [node({ id: "top_1", kind: "topic" }), node({ id: "bit_1", kind: "bit" })],
+      capped: false,
+    });
+  });
+
+  it("passes through capped: true when the repo hit the cap", async () => {
+    mockListNodesByTagId.mockResolvedValue({
+      nodes: [node({ id: "top_1", kind: "topic" })],
+      capped: true,
+    });
+
+    const res = fakeRes();
+    await handleListTagNodes(res, "tag_perf_1");
+
+    expect(res.status).toBe(200);
+    expect((res.body as { capped: boolean }).capped).toBe(true);
   });
 
   it("returns an empty list, not an error, for a tag id with no assignments", async () => {
-    mockListNodesByTagId.mockResolvedValue([]);
+    mockListNodesByTagId.mockResolvedValue({ nodes: [], capped: false });
 
     const res = fakeRes();
     await handleListTagNodes(res, "tag_unknown");
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ nodes: [], capped: false });
   });
 });

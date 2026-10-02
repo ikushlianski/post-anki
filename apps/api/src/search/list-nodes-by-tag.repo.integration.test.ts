@@ -39,7 +39,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { listNodesByTagId } = await import("./list-nodes-by-tag.repo.js");
+const { listNodesByTagId, LIST_TAG_NODES_LIMIT } = await import("./list-nodes-by-tag.repo.js");
 
 let client: pg.Client;
 
@@ -155,13 +155,14 @@ describe("listNodesByTagId", () => {
     await insertTagAssignment({ id: "ta_2", tagId: "tag_perf_1", nodeType: "module", nodeId: "mod_list_1" });
     await insertTagAssignment({ id: "ta_3", tagId: "tag_perf_1", nodeType: "knowledgeBit", nodeId: "bit_list_1" });
 
-    const results = await listNodesByTagId("tag_perf_1");
+    const { nodes, capped } = await listNodesByTagId("tag_perf_1");
 
-    const kinds = results.map((r) => r.kind).sort();
+    const kinds = nodes.map((r) => r.kind).sort();
     expect(kinds).toEqual(["bit", "module", "topic"]);
-    for (const result of results) {
-      expect(result.tags.map((tag) => tag.name)).toContain("performance");
-      expect(result.tags.map((tag) => tag.id)).toContain("tag_perf_1");
+    expect(capped).toBe(false);
+    for (const node of nodes) {
+      expect(node.tags.map((tag) => tag.name)).toContain("performance");
+      expect(node.tags.map((tag) => tag.id)).toContain("tag_perf_1");
     }
   });
 
@@ -191,10 +192,10 @@ describe("listNodesByTagId", () => {
       nodeId: "top_list_2b",
     });
 
-    const results = await listNodesByTagId("tag_perf_2");
+    const { nodes } = await listNodesByTagId("tag_perf_2");
 
-    expect(results).toHaveLength(1);
-    expect(results[0]?.id).toBe("top_list_2a");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.id).toBe("top_list_2a");
   });
 
   it("returns a null curriculum context for an unplaced knowledge bit", async () => {
@@ -212,16 +213,101 @@ describe("listNodesByTagId", () => {
       nodeId: "bit_list_unplaced_1",
     });
 
-    const results = await listNodesByTagId("tag_unplaced_1");
+    const { nodes } = await listNodesByTagId("tag_unplaced_1");
 
-    expect(results).toHaveLength(1);
-    expect(results[0]?.curriculumId).toBeNull();
-    expect(results[0]?.curriculumName).toBeNull();
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.curriculumId).toBeNull();
+    expect(nodes[0]?.curriculumName).toBeNull();
   });
 
   it("returns nothing for a tag id that doesn't exist", async () => {
-    const results = await listNodesByTagId("tag_does_not_exist");
+    const { nodes, capped } = await listNodesByTagId("tag_does_not_exist");
 
-    expect(results).toEqual([]);
+    expect(nodes).toEqual([]);
+    expect(capped).toBe(false);
+  });
+
+  it("caps the result at LIST_TAG_NODES_LIMIT and reports capped: true when a tag has more assignments than the limit", async () => {
+    await insertTag({ id: "tag_cap_over", name: "overcapacity" });
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
+       SELECT 'bit_cap_over_' || g, 'src_cap_over_' || g, 1, 'Capped bit ' || g, NULL
+       FROM generate_series(1, $1) AS g`,
+      [LIST_TAG_NODES_LIMIT + 1],
+    );
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id)
+       SELECT 'ta_cap_over_' || g, $1, 'knowledgeBit', 'bit_cap_over_' || g
+       FROM generate_series(1, $2) AS g`,
+      ["tag_cap_over", LIST_TAG_NODES_LIMIT + 1],
+    );
+
+    const { nodes, capped } = await listNodesByTagId("tag_cap_over");
+
+    expect(nodes).toHaveLength(LIST_TAG_NODES_LIMIT);
+    expect(capped).toBe(true);
+  });
+
+  it("does not report capped when a tag has exactly LIST_TAG_NODES_LIMIT assignments", async () => {
+    await insertTag({ id: "tag_cap_exact", name: "exactcapacity" });
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
+       SELECT 'bit_cap_exact_' || g, 'src_cap_exact_' || g, 1, 'Exact bit ' || g, NULL
+       FROM generate_series(1, $1) AS g`,
+      [LIST_TAG_NODES_LIMIT],
+    );
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id)
+       SELECT 'ta_cap_exact_' || g, $1, 'knowledgeBit', 'bit_cap_exact_' || g
+       FROM generate_series(1, $2) AS g`,
+      ["tag_cap_exact", LIST_TAG_NODES_LIMIT],
+    );
+
+    const { nodes, capped } = await listNodesByTagId("tag_cap_exact");
+
+    expect(nodes).toHaveLength(LIST_TAG_NODES_LIMIT);
+    expect(capped).toBe(false);
+  });
+
+  it("keeps topics ahead of bits in the capped set, matching the kind ordering the browse UI displays", async () => {
+    await insertSubject({ id: "sub_cap_kind", name: "Kind ordering" });
+    await insertCurriculum({ id: "cur_cap_kind", subjectId: "sub_cap_kind", name: "Kind ordering" });
+    await insertModule({ id: "mod_cap_kind", curriculumId: "cur_cap_kind", title: "Kind ordering" });
+    await insertTag({ id: "tag_cap_kind", name: "kindordering" });
+
+    for (let i = 0; i < 3; i += 1) {
+      const topicId = `top_cap_kind_${i}`;
+
+      await insertTopic({
+        id: topicId,
+        moduleId: "mod_cap_kind",
+        curriculumId: "cur_cap_kind",
+        title: `Kind ordering topic ${i}`,
+      });
+      await insertTagAssignment({
+        id: `ta_cap_kind_topic_${i}`,
+        tagId: "tag_cap_kind",
+        nodeType: "topic",
+        nodeId: topicId,
+      });
+    }
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
+       SELECT 'bit_cap_kind_' || g, 'src_cap_kind_' || g, 1, 'Kind ordering bit ' || g, NULL
+       FROM generate_series(1, $1) AS g`,
+      [LIST_TAG_NODES_LIMIT + 1],
+    );
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id)
+       SELECT 'ta_cap_kind_bit_' || g, $1, 'knowledgeBit', 'bit_cap_kind_' || g
+       FROM generate_series(1, $2) AS g`,
+      ["tag_cap_kind", LIST_TAG_NODES_LIMIT + 1],
+    );
+
+    const { nodes, capped } = await listNodesByTagId("tag_cap_kind");
+
+    expect(capped).toBe(true);
+    expect(nodes.filter((node) => node.kind === "topic")).toHaveLength(3);
   });
 });

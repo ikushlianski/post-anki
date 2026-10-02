@@ -1,5 +1,5 @@
 import type http from "node:http";
-import type { SearchResponse, TopicModuleSearchResult } from "@post-anki/shared";
+import type { ListTagNodesResponse, SearchResponse, TopicModuleSearchResult } from "@post-anki/shared";
 import { normalizeSearchQuery } from "@post-anki/core";
 import { sendJson } from "../shared/http.js";
 import {
@@ -85,5 +85,5 @@ export async function handleSearchTopicsAndModules(
 export async function handleListTagNodes(res: http.ServerResponse, tagId: string): Promise<void> {
   const results = await listNodesByTagId(tagId);
 
-  sendJson(res, 200, results);
+  sendJson(res, 200, results satisfies ListTagNodesResponse);
 }

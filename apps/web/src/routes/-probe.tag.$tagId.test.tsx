@@ -82,10 +82,13 @@ describe('TagNodeBrowser', () => {
   })
 
   it('shows every topic, module, and bit tagged this tag', async () => {
-    mockedListTagNodes.mockResolvedValue([
-      node({ id: 'top_1', kind: 'topic' }),
-      node({ id: 'bit_1', kind: 'bit', title: 'Retry budgets cap cascading failure' }),
-    ])
+    mockedListTagNodes.mockResolvedValue({
+      nodes: [
+        node({ id: 'top_1', kind: 'topic' }),
+        node({ id: 'bit_1', kind: 'bit', title: 'Retry budgets cap cascading failure' }),
+      ],
+      capped: false,
+    })
 
     renderWithClient(<TagNodeBrowser tagId="tag_perf_1" />)
 
@@ -98,15 +101,18 @@ describe('TagNodeBrowser', () => {
   })
 
   it('links an unplaced knowledge bit straight to the answer queue, scoped to just that bit', async () => {
-    mockedListTagNodes.mockResolvedValue([
-      node({
-        id: 'bit_2',
-        kind: 'bit',
-        title: 'Isolate with an HTTP interceptor',
-        curriculumId: null,
-        curriculumName: null,
-      }),
-    ])
+    mockedListTagNodes.mockResolvedValue({
+      nodes: [
+        node({
+          id: 'bit_2',
+          kind: 'bit',
+          title: 'Isolate with an HTTP interceptor',
+          curriculumId: null,
+          curriculumName: null,
+        }),
+      ],
+      capped: false,
+    })
 
     renderWithClient(<TagNodeBrowser tagId="tag_perf_1" />)
 
@@ -122,9 +128,10 @@ describe('TagNodeBrowser', () => {
   })
 
   it('renders an unplaced topic as plain text, not a dead link', async () => {
-    mockedListTagNodes.mockResolvedValue([
-      node({ id: 'top_2', kind: 'topic', curriculumId: null, curriculumName: null }),
-    ])
+    mockedListTagNodes.mockResolvedValue({
+      nodes: [node({ id: 'top_2', kind: 'topic', curriculumId: null, curriculumName: null })],
+      capped: false,
+    })
 
     renderWithClient(<TagNodeBrowser tagId="tag_perf_1" />)
 
@@ -138,7 +145,7 @@ describe('TagNodeBrowser', () => {
   })
 
   it('shows an empty-state message, not a blank screen, when nothing is tagged', async () => {
-    mockedListTagNodes.mockResolvedValue([])
+    mockedListTagNodes.mockResolvedValue({ nodes: [], capped: false })
 
     renderWithClient(<TagNodeBrowser tagId="tag_perf_1" />)
 
@@ -157,6 +164,28 @@ describe('TagNodeBrowser', () => {
     })
 
     expect(screen.queryByTestId('tag-browse-empty')).toBeNull()
+  })
+
+  it('shows a capped notice when the backend reports more nodes than it returned', async () => {
+    mockedListTagNodes.mockResolvedValue({ nodes: [node({ id: 'top_1', kind: 'topic' })], capped: true })
+
+    renderWithClient(<TagNodeBrowser tagId="tag_perf_1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tag-browse-capped')).toBeDefined()
+    })
+  })
+
+  it('does not show a capped notice when the backend returned everything tagged', async () => {
+    mockedListTagNodes.mockResolvedValue({ nodes: [node({ id: 'top_1', kind: 'topic' })], capped: false })
+
+    renderWithClient(<TagNodeBrowser tagId="tag_perf_1" />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tag-browse-result-topic-top_1')).toBeDefined()
+    })
+
+    expect(screen.queryByTestId('tag-browse-capped')).toBeNull()
   })
 })
 
@@ -185,7 +214,7 @@ describe('TagProbeRoom default view', () => {
 
   it('switches to Browse once it is explicitly requested via ?view=browse', async () => {
     mockedListTags.mockResolvedValue([{ id: 'tag_1', name: 'performance', normalizedName: 'performance' }])
-    mockedListTagNodes.mockResolvedValue([node()])
+    mockedListTagNodes.mockResolvedValue({ nodes: [node()], capped: false })
     mockUseSearch.mockReturnValue({ view: 'browse' })
 
     renderWithClient(<TagProbeRoom />)

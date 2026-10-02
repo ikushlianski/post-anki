@@ -664,6 +664,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
+- [x] Cap the tag-page browse view so a heavily-tagged item doesn't load everything at once
 - [x] Make a tag shown in search results clickable, linking to its tag page
 - [x] Let a tag page browse everything tagged with it, not just probe questions
 - [x] Make an unplaced knowledge bit in search results actually openable

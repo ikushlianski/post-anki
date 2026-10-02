@@ -39,3 +39,10 @@ export const topicModuleSearchResultSchema = z.object({
 });
 
 export type TopicModuleSearchResult = z.infer<typeof topicModuleSearchResultSchema>;
+
+export const listTagNodesResponseSchema = z.object({
+  nodes: z.array(topicModuleSearchResultSchema),
+  capped: z.boolean(),
+});
+
+export type ListTagNodesResponse = z.infer<typeof listTagNodesResponseSchema>;

@@ -1,5 +1,5 @@
-import { eq, inArray } from "drizzle-orm";
-import type { TopicModuleSearchResult } from "@post-anki/shared";
+import { eq, inArray, sql } from "drizzle-orm";
+import type { ListTagNodesResponse, TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, topics } from "../db/schema.js";
 import { tagsByNode } from "./search-tag-and-bit.repo.js";
@@ -10,9 +10,11 @@ const KIND_ORDER: Record<TopicModuleSearchResult["kind"], number> = {
   bit: 2,
 };
 
-// Exact-tag-id browse, vs. searchByTagNameAcrossNodes's name-substring search.
-// No rank/limit; sorted by kind then title instead.
-export async function listNodesByTagId(tagId: string): Promise<TopicModuleSearchResult[]> {
+// Personal-app scale cap, not real pagination — see search.ts's ListTagNodesResponse.
+export const LIST_TAG_NODES_LIMIT = 500;
+
+// Exact-tag-id browse; capped at LIST_TAG_NODES_LIMIT, ordered by kind then id so the cut is stable.
+export async function listNodesByTagId(tagId: string): Promise<ListTagNodesResponse> {
   const db = getDb();
 
   const assignmentRows = await db
@@ -21,15 +23,29 @@ export async function listNodesByTagId(tagId: string): Promise<TopicModuleSearch
       nodeId: tagAssignments.nodeId,
     })
     .from(tagAssignments)
-    .where(eq(tagAssignments.tagId, tagId));
+    .where(eq(tagAssignments.tagId, tagId))
+    .orderBy(
+      sql`case ${tagAssignments.nodeType} when 'topic' then 0 when 'module' then 1 when 'knowledgeBit' then 2 else 3 end`,
+      tagAssignments.nodeId,
+    )
+    .limit(LIST_TAG_NODES_LIMIT + 1);
 
-  if (assignmentRows.length === 0) {
-    return [];
+  const capped = assignmentRows.length > LIST_TAG_NODES_LIMIT;
+  const cappedAssignmentRows = capped
+    ? assignmentRows.slice(0, LIST_TAG_NODES_LIMIT)
+    : assignmentRows;
+
+  if (cappedAssignmentRows.length === 0) {
+    return { nodes: [], capped: false };
   }
 
-  const topicIds = assignmentRows.filter((a) => a.nodeType === "topic").map((a) => a.nodeId);
-  const moduleIds = assignmentRows.filter((a) => a.nodeType === "module").map((a) => a.nodeId);
-  const bitIds = assignmentRows.filter((a) => a.nodeType === "knowledgeBit").map((a) => a.nodeId);
+  const topicIds = cappedAssignmentRows.filter((a) => a.nodeType === "topic").map((a) => a.nodeId);
+  const moduleIds = cappedAssignmentRows
+    .filter((a) => a.nodeType === "module")
+    .map((a) => a.nodeId);
+  const bitIds = cappedAssignmentRows
+    .filter((a) => a.nodeType === "knowledgeBit")
+    .map((a) => a.nodeId);
 
   const [topicRows, moduleRows, bitRows] = await Promise.all([
     topicIds.length > 0
@@ -113,9 +129,11 @@ export async function listNodesByTagId(tagId: string): Promise<TopicModuleSearch
     })),
   ];
 
-  return merged.sort((a, b) => {
+  const nodes = merged.sort((a, b) => {
     const kindDelta = KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
 
     return kindDelta !== 0 ? kindDelta : a.title.localeCompare(b.title);
   });
+
+  return { nodes, capped };
 }

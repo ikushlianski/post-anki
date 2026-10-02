@@ -43,6 +43,7 @@ import type {
 } from './model'
 import type {
   CrossCuttingNudge,
+  ListTagNodesResponse,
   SearchResponse,
   StructureTurn,
   TagAssignment,
@@ -407,7 +408,7 @@ export const listTagMasteryStatuses = createServerFn({ method: 'GET' }).handler(
 export const listTagNodes = createServerFn({ method: 'GET' })
   .inputValidator((tagId: unknown): string => z.string().parse(tagId))
   .handler(
-    ({ data }): Promise<TopicModuleSearchResult[]> => api.listTagNodes(data),
+    ({ data }): Promise<ListTagNodesResponse> => api.listTagNodes(data),
   )
 
 export const createOrGetTag = createServerFn({ method: 'POST' })
