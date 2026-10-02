@@ -19,7 +19,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today
-- [ ] Package the API as a container image for the Fargate service
+- [x] Package the API as a container image for the Fargate service
 - [ ] Write the shared AWS infrastructure: one ECS cluster and ALB, both apps as services
 - [ ] Test the Fargate-hosted API and sync end to end locally before deploying
 - [ ] Set up AWS credentials and the secrets the new backend needs
@@ -28,6 +28,7 @@ updated: 2026-09-04
 - [ ] Point the custom domain at the new backend once everything else works
 
 ### Notes
+- Bot can't run locally without a Telegram bot token and webhook secret
 
 
 ## mcp-content-access
