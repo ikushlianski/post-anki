@@ -61,6 +61,7 @@ updated: 2026-09-04
 - Out of scope: Cross-subject ranking or priority weighting across different topics - that is study-prioritization's own open call
 
 ### Coding tasks
+- [x] Guard concurrent schedule writes to the same knowledge bit from clobbering each other
 - [x] Show a curriculum's due count on its curriculum page
 - [x] Show a module's due count on its module or course page
 - [x] Roll module due-counts up to a curriculum-level due count

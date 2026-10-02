@@ -53,42 +53,50 @@ export function computeNextSchedule(current: ScheduleState, verdict: Verdict): S
 }
 
 // Upserted after every graded attempt (see grade-knowledge-bit-variant-answer.orchestrator.ts) —
-// reads the prior state (defaulting to a fresh schedule for a never-reviewed bit), computes the
-// next ease/interval/due date, and writes it back in one row per bit.
+// reads the prior state, computes the next ease/interval/due date, and writes it back in one row
+// per bit. Serialized per bit via an advisory lock (mirrors applyGapMasteryAttempt in
+// gap-mastery.repo.ts), so two variants of the same bit graded concurrently can't clobber each other.
 export async function reviewKnowledgeBitSchedule(
   knowledgeBitId: string,
   verdict: Verdict,
   db: DbExecutor = getDb(),
 ): Promise<void> {
-  const existing = await db
-    .select({ easeFactor: knowledgeBitSchedules.easeFactor, intervalDays: knowledgeBitSchedules.intervalDays })
-    .from(knowledgeBitSchedules)
-    .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
-    .limit(1);
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${knowledgeBitId})::bigint)`);
 
-  const current: ScheduleState = existing[0] ?? { easeFactor: 2.5, intervalDays: 0 };
-  const next = computeNextSchedule(current, verdict);
-  const now = new Date();
-  const dueAt = new Date(now.getTime() + next.intervalDays * 24 * 60 * 60 * 1000);
+    const existing = await tx
+      .select({
+        easeFactor: knowledgeBitSchedules.easeFactor,
+        intervalDays: knowledgeBitSchedules.intervalDays,
+      })
+      .from(knowledgeBitSchedules)
+      .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
+      .limit(1);
 
-  await db
-    .insert(knowledgeBitSchedules)
-    .values({
-      knowledgeBitId,
-      easeFactor: next.easeFactor,
-      intervalDays: next.intervalDays,
-      dueAt,
-      lastReviewedAt: now,
-      reviewCount: 1,
-    })
-    .onConflictDoUpdate({
-      target: knowledgeBitSchedules.knowledgeBitId,
-      set: {
+    const current: ScheduleState = existing[0] ?? { easeFactor: 2.5, intervalDays: 0 };
+    const next = computeNextSchedule(current, verdict);
+    const now = new Date();
+    const dueAt = new Date(now.getTime() + next.intervalDays * 24 * 60 * 60 * 1000);
+
+    await tx
+      .insert(knowledgeBitSchedules)
+      .values({
+        knowledgeBitId,
         easeFactor: next.easeFactor,
         intervalDays: next.intervalDays,
         dueAt,
         lastReviewedAt: now,
-        reviewCount: sql`${knowledgeBitSchedules.reviewCount} + 1`,
-      },
-    });
+        reviewCount: 1,
+      })
+      .onConflictDoUpdate({
+        target: knowledgeBitSchedules.knowledgeBitId,
+        set: {
+          easeFactor: next.easeFactor,
+          intervalDays: next.intervalDays,
+          dueAt,
+          lastReviewedAt: now,
+          reviewCount: sql`${knowledgeBitSchedules.reviewCount} + 1`,
+        },
+      });
+  });
 }
