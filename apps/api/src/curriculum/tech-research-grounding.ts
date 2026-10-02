@@ -74,7 +74,7 @@ async function gatherGrounding(
   const env = loadEnv();
   const curriculumId = scope.curriculumId ?? null;
 
-  const attempt = async (): Promise<TechResearchGrounding & { usage: GenerateUsage }> => {
+  const attempt = async (model: string): Promise<TechResearchGrounding & { usage: GenerateUsage }> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -87,7 +87,7 @@ async function gatherGrounding(
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          model: await restModel(scope),
+          model,
           tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
           messages: [
             {
@@ -130,11 +130,12 @@ async function gatherGrounding(
   };
 
   try {
+    const model = await restModel(scope);
     const { usage: _usage, ...grounding } = await generateWithRetry(
       "tech_research_grounding",
       curriculumId,
       "tech-research-grounding",
-      attempt,
+      () => attempt(model),
     );
 
     return grounding;

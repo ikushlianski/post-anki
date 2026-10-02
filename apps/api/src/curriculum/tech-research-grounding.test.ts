@@ -159,6 +159,23 @@ describe("gatherTechResearchGrounding retry and cost recording", () => {
 
     expect(result).toEqual({ text: "", citations: [] });
   });
+
+  it("calls restModel exactly once per gatherGrounding call, even when retries happen", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => chatResponseWith(["https://example.com/docs"]),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await gatherTechResearchGrounding("SomeTech");
+
+    expect(resolveEffectiveModelTierImpl).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe("resolveOfficialDocsUrl retry and cost recording", () => {
