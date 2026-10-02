@@ -39,7 +39,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { searchCurricula, searchSubjects, searchTopics, searchTopicsAndModulesRanked } =
+const { searchCurricula, searchSubjects, searchTopics, searchTopicsAndModulesRanked, SEARCH_NAME_MATCH_LIMIT } =
   await import("./search.repo.js");
 
 let client: pg.Client;
@@ -163,6 +163,20 @@ describe("searchCurricula", () => {
 
     expect(results.map((r) => r.id)).not.toContain("cur_container_1");
   });
+
+  it("caps the result at SEARCH_NAME_MATCH_LIMIT instead of pulling every matching row", async () => {
+    await insertSubject({ id: "sub_cur_cap", name: "Capped curricula subject" });
+    await client.query(
+      `INSERT INTO curricula (id, subject_id, name)
+       SELECT 'cur_cap_over_' || lpad(g::text, 4, '0'), 'sub_cur_cap', 'Cap search marker curriculum ' || lpad(g::text, 4, '0')
+       FROM generate_series(1, $1) AS g`,
+      [SEARCH_NAME_MATCH_LIMIT + 1],
+    );
+
+    const results = await searchCurricula("Cap search marker curriculum");
+
+    expect(results).toHaveLength(SEARCH_NAME_MATCH_LIMIT);
+  });
 });
 
 describe("searchTopics", () => {
@@ -194,6 +208,22 @@ describe("searchTopics", () => {
     const results = await searchTopics("recursive descent");
 
     expect(results.map((r) => r.id)).toContain("top_match_2");
+  });
+
+  it("caps the result at SEARCH_NAME_MATCH_LIMIT instead of pulling every matching row", async () => {
+    await insertSubject({ id: "sub_top_cap", name: "Capped topics subject" });
+    await insertCurriculum({ id: "cur_top_cap", subjectId: "sub_top_cap", name: "Capped topics curriculum" });
+    await insertModule({ id: "mod_top_cap", curriculumId: "cur_top_cap", title: "Capped topics module" });
+    await client.query(
+      `INSERT INTO topics (id, module_id, curriculum_id, title, "order")
+       SELECT 'top_cap_over_' || lpad(g::text, 4, '0'), 'mod_top_cap', 'cur_top_cap', 'Cap search marker topic ' || lpad(g::text, 4, '0'), 1
+       FROM generate_series(1, $1) AS g`,
+      [SEARCH_NAME_MATCH_LIMIT + 1],
+    );
+
+    const results = await searchTopics("Cap search marker topic");
+
+    expect(results).toHaveLength(SEARCH_NAME_MATCH_LIMIT);
   });
 });
 

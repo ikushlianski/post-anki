@@ -80,6 +80,15 @@ export async function searchKnowledgeBitsRanked(
 // stronger signal than partial full-text overlap, so a tag hit always sorts to the top.
 const TAG_NAME_MATCH_RANK = 1;
 
+// A query matching 50+ distinct tag names by substring is already a degenerate case — caps the
+// tags themselves before the (potentially much larger) assignment lookup below ever runs.
+const TAG_NAME_MATCH_LIMIT = 50;
+
+// Personal-app scale cap on the tag-assignment lookup, matching LIST_TAG_NODES_LIMIT's
+// precedent (list-nodes-by-tag.repo.ts) so a tag with a huge assignment count can't pull the
+// whole table into memory before merged.slice(0, limit) runs below.
+const TAG_ASSIGNMENT_MATCH_LIMIT = 500;
+
 // Lets the same search query match a tag's name directly, surfacing every topic, module, and
 // knowledge bit assigned that tag — "find cards by tag name" alongside the title/body match above.
 export async function searchByTagNameAcrossNodes(
@@ -91,7 +100,9 @@ export async function searchByTagNameAcrossNodes(
   const matchingTags = await db
     .select({ id: tags.id, name: tags.name })
     .from(tags)
-    .where(ilike(tags.name, `%${query}%`));
+    .where(ilike(tags.name, `%${query}%`))
+    .orderBy(tags.name, tags.id)
+    .limit(TAG_NAME_MATCH_LIMIT);
 
   if (matchingTags.length === 0) {
     return [];
@@ -100,6 +111,8 @@ export async function searchByTagNameAcrossNodes(
   const tagIds = matchingTags.map((tag) => tag.id);
   const tagNameById = new Map(matchingTags.map((tag) => [tag.id, tag.name]));
 
+  // Kind-first ordering (topic, then module, then bit) mirrors merged.slice(0, limit) below —
+  // a tag with hundreds of bit assignments must not push a topic out of this cap.
   const assignmentRows = await db
     .select({
       tagId: tagAssignments.tagId,
@@ -107,7 +120,13 @@ export async function searchByTagNameAcrossNodes(
       nodeId: tagAssignments.nodeId,
     })
     .from(tagAssignments)
-    .where(inArray(tagAssignments.tagId, tagIds));
+    .where(inArray(tagAssignments.tagId, tagIds))
+    .orderBy(
+      sql`case ${tagAssignments.nodeType} when 'topic' then 0 when 'module' then 1 when 'knowledgeBit' then 2 else 3 end`,
+      tagAssignments.tagId,
+      tagAssignments.nodeId,
+    )
+    .limit(TAG_ASSIGNMENT_MATCH_LIMIT);
 
   const matchedTagsByNode = new Map<string, SearchResultTag[]>();
 
@@ -139,6 +158,7 @@ export async function searchByTagNameAcrossNodes(
           .from(topics)
           .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
           .where(inArray(topics.id, topicIds))
+          .orderBy(topics.id)
       : Promise.resolve([]),
     moduleIds.length > 0
       ? db
@@ -151,6 +171,7 @@ export async function searchByTagNameAcrossNodes(
           .from(modules)
           .innerJoin(curricula, eq(curricula.id, modules.curriculumId))
           .where(inArray(modules.id, moduleIds))
+          .orderBy(modules.id)
       : Promise.resolve([]),
     bitIds.length > 0
       ? db
@@ -164,6 +185,7 @@ export async function searchByTagNameAcrossNodes(
           .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
           .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
           .where(inArray(knowledgeBits.id, bitIds))
+          .orderBy(knowledgeBits.id)
       : Promise.resolve([]),
   ]);
 

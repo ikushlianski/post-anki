@@ -213,4 +213,83 @@ describe("searchByTagNameAcrossNodes", () => {
 
     expect(results).toEqual([]);
   });
+
+  it("caps matching tags at 50 instead of pulling every matching tag row", async () => {
+    await client.query(
+      `INSERT INTO tags (id, name, normalized_name)
+       SELECT 'tag_name_cap_' || lpad(g::text, 4, '0'), 'tagnamecapmarker' || lpad(g::text, 4, '0'), 'tagnamecapmarker' || lpad(g::text, 4, '0')
+       FROM generate_series(1, 51) AS g`,
+    );
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
+       SELECT 'bit_tag_name_cap_' || lpad(g::text, 4, '0'), 'src_tag_name_cap_' || lpad(g::text, 4, '0'), 1, 'Tag name cap marker bit ' || lpad(g::text, 4, '0'), NULL
+       FROM generate_series(1, 51) AS g`,
+    );
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id)
+       SELECT 'ta_tag_name_cap_' || g, 'tag_name_cap_' || lpad(g::text, 4, '0'), 'knowledgeBit', 'bit_tag_name_cap_' || lpad(g::text, 4, '0')
+       FROM generate_series(1, 51) AS g`,
+    );
+
+    const results = await searchByTagNameAcrossNodes("tagnamecapmarker", 1000);
+
+    expect(results).toHaveLength(50);
+  });
+
+  it("caps tag assignments at 500 instead of pulling every assignment row", async () => {
+    await insertTag({ id: "tag_assignment_cap", name: "assignmentcapmarker" });
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
+       SELECT 'bit_assignment_cap_' || g, 'src_assignment_cap_' || g, 1, 'Assignment cap marker bit ' || g, NULL
+       FROM generate_series(1, 501) AS g`,
+    );
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id)
+       SELECT 'ta_assignment_cap_' || g, 'tag_assignment_cap', 'knowledgeBit', 'bit_assignment_cap_' || g
+       FROM generate_series(1, 501) AS g`,
+    );
+
+    const results = await searchByTagNameAcrossNodes("assignmentcapmarker", 1000);
+
+    expect(results).toHaveLength(500);
+  });
+
+  it("keeps topics ahead of bits when the assignment cap is hit, matching the final merge order", async () => {
+    await insertSubject({ id: "sub_kind_cap", name: "Kind cap subject" });
+    await insertCurriculum({ id: "cur_kind_cap", subjectId: "sub_kind_cap", name: "Kind cap curriculum" });
+    await insertModule({ id: "mod_kind_cap", curriculumId: "cur_kind_cap", title: "Kind cap module" });
+    await insertTag({ id: "tag_kind_cap", name: "kindcapmarker" });
+
+    for (let i = 0; i < 3; i += 1) {
+      const topicId = `top_kind_cap_${i}`;
+
+      await insertTopic({
+        id: topicId,
+        moduleId: "mod_kind_cap",
+        curriculumId: "cur_kind_cap",
+        title: `Kind cap topic ${i}`,
+      });
+      await insertTagAssignment({
+        id: `ta_kind_cap_topic_${i}`,
+        tagId: "tag_kind_cap",
+        nodeType: "topic",
+        nodeId: topicId,
+      });
+    }
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
+       SELECT 'bit_kind_cap_' || g, 'src_kind_cap_' || g, 1, 'Kind cap bit ' || g, NULL
+       FROM generate_series(1, 501) AS g`,
+    );
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id)
+       SELECT 'ta_kind_cap_bit_' || g, 'tag_kind_cap', 'knowledgeBit', 'bit_kind_cap_' || g
+       FROM generate_series(1, 501) AS g`,
+    );
+
+    const results = await searchByTagNameAcrossNodes("kindcapmarker", 1000);
+
+    expect(results.filter((r) => r.kind === "topic")).toHaveLength(3);
+  });
 });

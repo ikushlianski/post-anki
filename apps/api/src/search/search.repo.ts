@@ -20,6 +20,12 @@ export interface SearchTopicResult {
   curriculumId: string;
 }
 
+// Personal-app scale cap on the plain name-match queries below, well above
+// SEARCH_KNOWLEDGE_ITEMS_MAX_LIMIT (200) so a legitimate match is never cut
+// before the caller's own sort-then-slice(0, limit) runs — see
+// LIST_TAG_NODES_LIMIT in list-nodes-by-tag.repo.ts for the same shape.
+export const SEARCH_NAME_MATCH_LIMIT = 500;
+
 export async function searchSubjects(query: string): Promise<SearchSubjectResult[]> {
   return getDb()
     .select({ id: subjects.id, name: subjects.name })
@@ -34,14 +40,18 @@ export async function searchCurricula(query: string): Promise<SearchCurriculumRe
   return getDb()
     .select({ id: curricula.id, name: curricula.name })
     .from(curricula)
-    .where(and(isNull(curricula.containerAreaNodeId), ilike(curricula.name, `%${query}%`)));
+    .where(and(isNull(curricula.containerAreaNodeId), ilike(curricula.name, `%${query}%`)))
+    .orderBy(curricula.name, curricula.id)
+    .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 
 export async function searchTopics(query: string): Promise<SearchTopicResult[]> {
   return getDb()
     .select({ id: topics.id, title: topics.title, curriculumId: topics.curriculumId })
     .from(topics)
-    .where(ilike(topics.title, `%${query}%`));
+    .where(ilike(topics.title, `%${query}%`))
+    .orderBy(topics.title, topics.id)
+    .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 
 // A ranked, capped complement to searchTopics above — native Postgres
