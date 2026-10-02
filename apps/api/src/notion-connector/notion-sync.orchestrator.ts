@@ -120,6 +120,12 @@ export async function runNotionSync(
 
   for (const connector of connectors) {
     const { intervalMinutes } = connector;
+
+    if (!connector.enabled) {
+      log.info({ connector: connector.name }, "notion_sync_connector_disabled");
+      continue;
+    }
+
     const now = deps.now();
 
     try {

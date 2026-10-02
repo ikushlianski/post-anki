@@ -233,7 +233,7 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
-- [ ] Let a connector be set to a fully off cadence, not just nightly/daily/manual
+- [x] Let a connector be set to a fully off cadence, not just nightly/daily/manual
 - [x] Build the Notion reading-notes router: config, reader, fact and todo destinations, LaunchAgent
   - [x] Connector config and Notion reader
   - [x] Destinations and idempotent sync

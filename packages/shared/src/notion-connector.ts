@@ -25,6 +25,7 @@ export const notionConnectorSchema = z.object({
   destination: notionDestinationSchema,
   removeAfterImport: z.boolean().default(false),
   intervalMinutes: z.number().int().positive().optional(),
+  enabled: z.boolean().default(true),
 });
 
 export type NotionConnector = z.infer<typeof notionConnectorSchema>;

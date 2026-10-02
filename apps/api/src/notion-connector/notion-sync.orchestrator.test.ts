@@ -17,6 +17,7 @@ const dailyConnector: NotionConnector = {
   destination: { kind: "fact" },
   removeAfterImport: false,
   intervalMinutes: 24 * 60,
+  enabled: true,
 };
 
 const defaultCadenceConnector: NotionConnector = {
@@ -25,6 +26,16 @@ const defaultCadenceConnector: NotionConnector = {
   tag: "SPA",
   destination: { kind: "fact" },
   removeAfterImport: false,
+  enabled: true,
+};
+
+const disabledConnector: NotionConnector = {
+  name: "paused-connector",
+  source: { kind: "page", id: "page-3" },
+  tag: "SPA",
+  destination: { kind: "fact" },
+  removeAfterImport: false,
+  enabled: false,
 };
 
 function deps(lastRunAt: Date | null, now: Date) {
@@ -83,6 +94,18 @@ describe("runNotionSync", () => {
     expect(results).toEqual([{ connector: "biz-education-spa", imported: 0, skipped: 0, failed: 0 }]);
     expect(d.readItems).toHaveBeenCalledTimes(1);
     expect(d.lastRunAt).not.toHaveBeenCalled();
+    expect(d.recordRun).not.toHaveBeenCalled();
+  });
+
+  it("should skip a disabled connector entirely, never checking its cadence or reading items", async () => {
+    const now = new Date("2026-10-02T12:00:00Z");
+    const d = deps(null, now);
+
+    const results = await runNotionSync([disabledConnector], d);
+
+    expect(results).toEqual([]);
+    expect(d.lastRunAt).not.toHaveBeenCalled();
+    expect(d.readItems).not.toHaveBeenCalled();
     expect(d.recordRun).not.toHaveBeenCalled();
   });
 });

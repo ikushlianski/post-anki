@@ -70,6 +70,7 @@ const spaConnector: NotionConnector = {
   tag: "SPA",
   destination: { kind: "fact" },
   removeAfterImport: false,
+  enabled: true,
 };
 
 const crmConnector: NotionConnector = {
@@ -78,6 +79,7 @@ const crmConnector: NotionConnector = {
   tag: "CRM",
   destination: { kind: "project-todo", file: "/tmp/crm/todo.md", direction: "reading-notes" },
   removeAfterImport: false,
+  enabled: true,
 };
 
 const EDITED_AT = "2026-10-01T00:00:00.000Z";
