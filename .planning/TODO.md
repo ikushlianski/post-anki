@@ -91,6 +91,8 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [ ] Prove the detector splits multiple knowledge bits from one sentence
+- [x] Build a web screen to paste plain-text knowledge, single or batch
 - [x] Let one submission add several separate prose knowledge sources at once
 - [x] Extract optional short background/clarifying text alongside Q&A from inbox content
   - [x] Phase 1: schema and migration
@@ -185,6 +187,7 @@ updated: 2026-09-04
 - Fresh review of fill-in-the-blank ran: FAIL on correctness and tests, 4th straight failure, stuck
 - Possible unblock for topic-tracking: read-time fold of bit attempts, no progressMaturity write — needs human sign-off.
 - EXHAUSTED-AT-SCOPE (round 2, 2026-10-02) - fill-blank and notion-ingestion stuck, topic-tracking needs human sign-off per its own plan folder
+- Cheap tier picks cheapest DeepSeek, not literally cheapest OpenRouter model — deliberate, confirmed scope (spec.md:76-78)
 
 
 ## biz-education-distiller
@@ -230,6 +233,7 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
+- [ ] Let a connector be set to a fully off cadence, not just nightly/daily/manual
 - [x] Build the Notion reading-notes router: config, reader, fact and todo destinations, LaunchAgent
   - [x] Connector config and Notion reader
   - [x] Destinations and idempotent sync
@@ -246,12 +250,11 @@ updated: 2026-09-04
 - [x] Let a deck be configured with a Notion page or database as its source
 
 ### Notes
-- Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
 - Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
 - Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
-- One 15-min LaunchAgent runs every connector — per-connector schedules and re-sync of edited notes are still open.
 - Notes become facts, not cards — the two 'into individual cards' items are met by the fact route.
 - Interval scheduling now works, but a fully off cadence option is still missing
+- Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
 
 
 ## local-first-sync
@@ -591,10 +594,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Notes
 - Completed items archived to .planning/LOG.md.
 - Ceiling-relative depth ranking and the dismissed-gap check-in revisit path are both intentional, not bugs.
-- No cross-subject ranking exists yet — needs a human call on what the ranking weighs first.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
-- included and learningStatus=skipping can diverge (slice-release.ts re-includes without clearing it) - due rollups may need the same guard
 - Chat card retrieval ignores dropped topics too - hide or keep? Needs a human call
 
 ## calibration-and-depth-accuracy

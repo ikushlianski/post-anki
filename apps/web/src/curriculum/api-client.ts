@@ -530,6 +530,22 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
   return request<be.Subject>('/subjects', { method: 'POST', body: input })
 }
 
+export interface KnowledgeSource {
+  id: string
+  kind: string
+  rawText: string | null
+  status: string
+  createdAt: string
+}
+
+export async function createKnowledgeSource(text: string): Promise<KnowledgeSource> {
+  return request<KnowledgeSource>('/knowledge-sources', { method: 'POST', body: { text } })
+}
+
+export async function createKnowledgeSources(texts: string[]): Promise<KnowledgeSource[]> {
+  return request<KnowledgeSource[]>('/knowledge-sources', { method: 'POST', body: { texts } })
+}
+
 export async function deleteSubject(subjectId: string): Promise<void> {
   await request(`/subjects/${subjectId}`, { method: 'DELETE' })
 }

@@ -25,6 +25,7 @@ import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as AdminObservabilityRouteImport } from './routes/admin-observability'
+import { Route as AddKnowledgeRouteImport } from './routes/add-knowledge'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SubjectsNewRouteImport } from './routes/subjects.new'
 import { Route as SubjectSubjectIdRouteImport } from './routes/subject.$subjectId'
@@ -125,6 +126,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminObservabilityRoute = AdminObservabilityRouteImport.update({
   id: '/admin-observability',
   path: '/admin-observability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AddKnowledgeRoute = AddKnowledgeRouteImport.update({
+  id: '/add-knowledge',
+  path: '/add-knowledge',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -242,6 +248,7 @@ const SubjectSubjectIdCategoryCategoryIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/add-knowledge': typeof AddKnowledgeRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/analytics': typeof AnalyticsRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/add-knowledge': typeof AddKnowledgeRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/analytics': typeof AnalyticsRoute
@@ -321,6 +329,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/add-knowledge': typeof AddKnowledgeRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/analytics': typeof AnalyticsRoute
@@ -362,6 +371,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/add-knowledge'
     | '/admin-observability'
     | '/admin-settings'
     | '/analytics'
@@ -401,6 +411,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/add-knowledge'
     | '/admin-observability'
     | '/admin-settings'
     | '/analytics'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/add-knowledge'
     | '/admin-observability'
     | '/admin-settings'
     | '/analytics'
@@ -480,6 +492,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AddKnowledgeRoute: typeof AddKnowledgeRoute
   AdminObservabilityRoute: typeof AdminObservabilityRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AnalyticsRoute: typeof AnalyticsRoute
@@ -630,6 +643,13 @@ declare module '@tanstack/react-router' {
       path: '/admin-observability'
       fullPath: '/admin-observability'
       preLoaderRoute: typeof AdminObservabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/add-knowledge': {
+      id: '/add-knowledge'
+      path: '/add-knowledge'
+      fullPath: '/add-knowledge'
+      preLoaderRoute: typeof AddKnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -784,6 +804,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AddKnowledgeRoute: AddKnowledgeRoute,
   AdminObservabilityRoute: AdminObservabilityRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AnalyticsRoute: AnalyticsRoute,

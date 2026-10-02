@@ -19,6 +19,9 @@ export function Sidebar() {
       <Link to="/knowledge/answer" className={navLinkClass} data-testid="nav-knowledge-answer">
         Answer knowledge bits
       </Link>
+      <Link to="/add-knowledge" className={navLinkClass} data-testid="nav-add-knowledge">
+        Add knowledge
+      </Link>
     </nav>
   )
 }
