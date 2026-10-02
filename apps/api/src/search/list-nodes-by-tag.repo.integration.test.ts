@@ -160,7 +160,8 @@ describe("listNodesByTagId", () => {
     const kinds = results.map((r) => r.kind).sort();
     expect(kinds).toEqual(["bit", "module", "topic"]);
     for (const result of results) {
-      expect(result.tags).toContain("performance");
+      expect(result.tags.map((tag) => tag.name)).toContain("performance");
+      expect(result.tags.map((tag) => tag.id)).toContain("tag_perf_1");
     }
   });
 

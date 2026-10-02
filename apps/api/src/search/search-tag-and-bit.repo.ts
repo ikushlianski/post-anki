@@ -1,30 +1,31 @@
 import { and, eq, ilike, inArray, sql } from "drizzle-orm";
-import type { TopicModuleSearchResult } from "@post-anki/shared";
+import type { SearchResultTag, TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, tags, topics } from "../db/schema.js";
 
-// Batches every tag name attached to a set of nodes of one kind — reused by every search path
-// below so a topic/module/bit result can show which tag(s) it belongs to.
-export async function tagNamesByNode(
+// Batches every tag (id and name, so a result can link to its tag page) attached to a set of
+// nodes of one kind — reused by every search path below so a topic/module/bit result can show
+// which tag(s) it belongs to.
+export async function tagsByNode(
   db: ReturnType<typeof getDb>,
   nodeType: "topic" | "module" | "knowledgeBit",
   nodeIds: string[],
-): Promise<Map<string, string[]>> {
+): Promise<Map<string, SearchResultTag[]>> {
   if (nodeIds.length === 0) {
     return new Map();
   }
 
   const rows = await db
-    .select({ nodeId: tagAssignments.nodeId, name: tags.name })
+    .select({ nodeId: tagAssignments.nodeId, id: tags.id, name: tags.name })
     .from(tagAssignments)
     .innerJoin(tags, eq(tags.id, tagAssignments.tagId))
     .where(and(eq(tagAssignments.nodeType, nodeType), inArray(tagAssignments.nodeId, nodeIds)));
 
-  const map = new Map<string, string[]>();
+  const map = new Map<string, SearchResultTag[]>();
 
   for (const row of rows) {
     const existing = map.get(row.nodeId) ?? [];
-    existing.push(row.name);
+    existing.push({ id: row.id, name: row.name });
     map.set(row.nodeId, existing);
   }
 
@@ -58,7 +59,7 @@ export async function searchKnowledgeBitsRanked(
     .orderBy(sql`${bitRank} DESC`)
     .limit(limit);
 
-  const bitTags = await tagNamesByNode(
+  const bitTags = await tagsByNode(
     db,
     "knowledgeBit",
     rows.map((row) => row.id),
@@ -108,7 +109,7 @@ export async function searchByTagNameAcrossNodes(
     .from(tagAssignments)
     .where(inArray(tagAssignments.tagId, tagIds));
 
-  const matchedTagNamesByNode = new Map<string, string[]>();
+  const matchedTagsByNode = new Map<string, SearchResultTag[]>();
 
   for (const assignment of assignmentRows) {
     const name = tagNameById.get(assignment.tagId);
@@ -117,9 +118,9 @@ export async function searchByTagNameAcrossNodes(
       continue;
     }
 
-    const existing = matchedTagNamesByNode.get(assignment.nodeId) ?? [];
-    existing.push(name);
-    matchedTagNamesByNode.set(assignment.nodeId, existing);
+    const existing = matchedTagsByNode.get(assignment.nodeId) ?? [];
+    existing.push({ id: assignment.tagId, name });
+    matchedTagsByNode.set(assignment.nodeId, existing);
   }
 
   const topicIds = assignmentRows.filter((a) => a.nodeType === "topic").map((a) => a.nodeId);
@@ -170,17 +171,17 @@ export async function searchByTagNameAcrossNodes(
   // unrelated tags too, and dropping them here would under-report what matchedTagNamesByNode
   // (the subset that actually matched the query) alone would show.
   const [topicTags, moduleTags, bitTags] = await Promise.all([
-    tagNamesByNode(
+    tagsByNode(
       db,
       "topic",
       topicRows.map((row) => row.id),
     ),
-    tagNamesByNode(
+    tagsByNode(
       db,
       "module",
       moduleRows.map((row) => row.id),
     ),
-    tagNamesByNode(
+    tagsByNode(
       db,
       "knowledgeBit",
       bitRows.map((row) => row.id),
@@ -192,13 +193,13 @@ export async function searchByTagNameAcrossNodes(
       ...row,
       kind: "topic" as const,
       rank: TAG_NAME_MATCH_RANK,
-      tags: topicTags.get(row.id) ?? matchedTagNamesByNode.get(row.id) ?? [],
+      tags: topicTags.get(row.id) ?? matchedTagsByNode.get(row.id) ?? [],
     })),
     ...moduleRows.map((row) => ({
       ...row,
       kind: "module" as const,
       rank: TAG_NAME_MATCH_RANK,
-      tags: moduleTags.get(row.id) ?? matchedTagNamesByNode.get(row.id) ?? [],
+      tags: moduleTags.get(row.id) ?? matchedTagsByNode.get(row.id) ?? [],
     })),
     ...bitRows.map((row) => ({
       id: row.id,
@@ -207,7 +208,7 @@ export async function searchByTagNameAcrossNodes(
       curriculumId: row.curriculumId,
       curriculumName: row.curriculumName,
       rank: TAG_NAME_MATCH_RANK,
-      tags: bitTags.get(row.id) ?? matchedTagNamesByNode.get(row.id) ?? [],
+      tags: bitTags.get(row.id) ?? matchedTagsByNode.get(row.id) ?? [],
     })),
   ];
 

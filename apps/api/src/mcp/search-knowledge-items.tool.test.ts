@@ -153,7 +153,7 @@ describe("searchKnowledgeItems", () => {
     ];
     state.bitRows = [];
     state.tagNodeRows = [
-      { id: "top_dup", kind: "topic", title: "Retry budgets", curriculumId: null, curriculumName: null, rank: 1, tags: ["reliability"] },
+      { id: "top_dup", kind: "topic", title: "Retry budgets", curriculumId: null, curriculumName: null, rank: 1, tags: [{ id: "tag_1", name: "reliability" }] },
     ];
 
     const result = await searchKnowledgeItems({ query: "retry" });

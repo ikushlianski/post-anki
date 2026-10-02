@@ -243,12 +243,15 @@ function ResultGroup({
           {item.tags.length > 0 ? (
             <div className="mt-1 flex flex-wrap gap-1">
               {item.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700"
+                <Link
+                  key={tag.id}
+                  to="/probe/tag/$tagId"
+                  params={{ tagId: tag.id }}
+                  onClick={onSelect}
+                  className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 hover:bg-indigo-100"
                 >
-                  {tag}
-                </span>
+                  {tag.name}
+                </Link>
               ))}
             </div>
           ) : null}

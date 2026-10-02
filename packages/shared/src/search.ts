@@ -21,6 +21,13 @@ export const searchResponseSchema = z.object({
 
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
+export const searchResultTagSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export type SearchResultTag = z.infer<typeof searchResultTagSchema>;
+
 export const topicModuleSearchResultSchema = z.object({
   id: z.string(),
   kind: z.enum(["topic", "module", "bit"]),
@@ -28,7 +35,7 @@ export const topicModuleSearchResultSchema = z.object({
   curriculumId: z.string().nullable(),
   curriculumName: z.string().nullable(),
   rank: z.number(),
-  tags: z.array(z.string()),
+  tags: z.array(searchResultTagSchema),
 });
 
 export type TopicModuleSearchResult = z.infer<typeof topicModuleSearchResultSchema>;

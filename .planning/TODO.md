@@ -32,6 +32,7 @@ updated: 2026-09-04
 ### Notes
 - Bot can't run locally without a Telegram bot token and webhook secret
 - Scope decision changed: web and bot now move to AWS too, GCP is being retired
+- EXHAUSTED-AT-SCOPE (round 1, 2026-10-02) - IaC complete end to end, only live AWS credentials and manual cutover remain
 
 
 ## mcp-content-access
@@ -641,7 +642,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
-- Follow-up: resolveOfficialDocsUrl and gatherTrustedSourceCandidates have their own unwrapped direct-fetch calls, same gap
+- Re-checked 2026-10-02: resolveOfficialDocsUrl and gatherTrustedSourceCandidates already wrap generateWithRetry, stale note removed
 
 ## discovery-and-navigation
 
@@ -651,6 +652,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
+- [x] Make a tag shown in search results clickable, linking to its tag page
 - [x] Let a tag page browse everything tagged with it, not just probe questions
 - [x] Make an unplaced knowledge bit in search results actually openable
 - [x] Make the header search bar also find modules, knowledge bits, and tags

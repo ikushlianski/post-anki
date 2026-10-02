@@ -187,9 +187,18 @@ describe('GlobalSearch', () => {
   })
 
   it('should show every matched tag on a placed search result that still links to its course', async () => {
-    const onSearch = vi
-      .fn()
-      .mockResolvedValue(emptyResults({ items: [result({ tags: ['performance', 'security'] })] }))
+    const onSearch = vi.fn().mockResolvedValue(
+      emptyResults({
+        items: [
+          result({
+            tags: [
+              { id: 'tag_performance', name: 'performance' },
+              { id: 'tag_security', name: 'security' },
+            ],
+          }),
+        ],
+      }),
+    )
 
     render(<GlobalSearch onSearch={onSearch} />)
 
@@ -203,7 +212,25 @@ describe('GlobalSearch', () => {
 
     expect(within(row).getByText('performance')).toBeDefined()
     expect(within(row).getByText('security')).toBeDefined()
-    expect(within(row).getByRole('link')).toBeDefined()
+    expect(within(row).getAllByRole('link')).toHaveLength(3)
+  })
+
+  it('should link a matched tag on a search result to its tag page', async () => {
+    const onSearch = vi
+      .fn()
+      .mockResolvedValue(
+        emptyResults({ items: [result({ tags: [{ id: 'tag_performance', name: 'performance' }] })] }),
+      )
+
+    render(<GlobalSearch onSearch={onSearch} />)
+
+    await userEvent.type(screen.getByTestId('global-search-input'), 'async')
+
+    const row = await waitFor(() => screen.getByTestId('global-search-result-topic-top_1'))
+    const tagLink = within(row).getByText('performance')
+
+    expect(tagLink.getAttribute('data-to')).toBe('/probe/tag/$tagId')
+    expect(tagLink.getAttribute('data-params')).toBe(JSON.stringify({ tagId: 'tag_performance' }))
   })
 
   it('should close the results panel when a result link is clicked', async () => {

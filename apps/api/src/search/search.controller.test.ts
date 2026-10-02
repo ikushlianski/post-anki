@@ -36,7 +36,7 @@ function node(overrides: Partial<TopicModuleSearchResult> & { id: string }): Top
     curriculumId: "cur_1",
     curriculumName: "Reliability",
     rank: 0,
-    tags: ["performance"],
+    tags: [{ id: "tag_performance", name: "performance" }],
     ...overrides,
   };
 }

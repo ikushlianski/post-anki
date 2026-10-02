@@ -2,7 +2,7 @@ import { and, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, modules, subjects, topics } from "../db/schema.js";
-import { tagNamesByNode } from "./search-tag-and-bit.repo.js";
+import { tagsByNode } from "./search-tag-and-bit.repo.js";
 
 export interface SearchSubjectResult {
   id: string;
@@ -88,12 +88,12 @@ export async function searchTopicsAndModulesRanked(
   ]);
 
   const [topicTags, moduleTags] = await Promise.all([
-    tagNamesByNode(
+    tagsByNode(
       db,
       "topic",
       topicRows.map((row) => row.id),
     ),
-    tagNamesByNode(
+    tagsByNode(
       db,
       "module",
       moduleRows.map((row) => row.id),

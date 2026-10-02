@@ -186,7 +186,14 @@ describe('FindPage', () => {
   })
 
   it('shows every matched tag on a search result', async () => {
-    mockedSearch.mockResolvedValue([result({ tags: ['performance', 'security'] })])
+    mockedSearch.mockResolvedValue([
+      result({
+        tags: [
+          { id: 'tag_performance', name: 'performance' },
+          { id: 'tag_security', name: 'security' },
+        ],
+      }),
+    ])
 
     render(<FindPage />)
 
@@ -198,5 +205,19 @@ describe('FindPage', () => {
     })
 
     expect(screen.getByTestId('find-result-tag-topic-top_1-security')).toBeDefined()
+  })
+
+  it('links a matched tag to its tag page', async () => {
+    mockedSearch.mockResolvedValue([result({ tags: [{ id: 'tag_performance', name: 'performance' }] })])
+
+    render(<FindPage />)
+
+    await userEvent.type(screen.getByTestId('find-search-input'), 'async')
+    await userEvent.click(screen.getByTestId('find-search-button'))
+
+    const tagLink = await waitFor(() => screen.getByTestId('find-result-tag-topic-top_1-performance'))
+
+    expect(tagLink.getAttribute('data-to')).toBe('/probe/tag/$tagId')
+    expect(tagLink.getAttribute('data-params')).toBe(JSON.stringify({ tagId: 'tag_performance' }))
   })
 })

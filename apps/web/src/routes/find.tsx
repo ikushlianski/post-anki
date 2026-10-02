@@ -112,13 +112,15 @@ export function FindPage() {
               {result.tags.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {result.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      data-testid={`find-result-tag-${result.kind}-${result.id}-${tag}`}
-                      className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700"
+                    <Link
+                      key={tag.id}
+                      to="/probe/tag/$tagId"
+                      params={{ tagId: tag.id }}
+                      data-testid={`find-result-tag-${result.kind}-${result.id}-${tag.name}`}
+                      className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 hover:bg-indigo-100"
                     >
-                      {tag}
-                    </span>
+                      {tag.name}
+                    </Link>
                   ))}
                 </div>
               ) : null}

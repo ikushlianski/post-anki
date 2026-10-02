@@ -2,7 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, topics } from "../db/schema.js";
-import { tagNamesByNode } from "./search-tag-and-bit.repo.js";
+import { tagsByNode } from "./search-tag-and-bit.repo.js";
 
 const KIND_ORDER: Record<TopicModuleSearchResult["kind"], number> = {
   topic: 0,
@@ -72,17 +72,17 @@ export async function listNodesByTagId(tagId: string): Promise<TopicModuleSearch
   ]);
 
   const [topicTags, moduleTags, bitTags] = await Promise.all([
-    tagNamesByNode(
+    tagsByNode(
       db,
       "topic",
       topicRows.map((row) => row.id),
     ),
-    tagNamesByNode(
+    tagsByNode(
       db,
       "module",
       moduleRows.map((row) => row.id),
     ),
-    tagNamesByNode(
+    tagsByNode(
       db,
       "knowledgeBit",
       bitRows.map((row) => row.id),
