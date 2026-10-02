@@ -1,3 +1,4 @@
+import { AbortError } from "p-retry";
 import { isSafeSourceUrl } from "@post-anki/core";
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
@@ -11,6 +12,7 @@ import {
   type ResolveEffectiveModelTierScope,
 } from "../mastra/tier-resolver.js";
 import { tierToModelId } from "../mastra/model-tier.js";
+import { generateWithRetry, type GenerateUsage } from "../mastra/generate-with-retry.js";
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const TIMEOUT_MS = 45_000;
@@ -35,11 +37,25 @@ interface Annotation {
 interface ChatResponse {
   choices?: { message?: { content?: string; annotations?: Annotation[] } }[];
   error?: { message?: string };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 }
 
 export type WebSearchOutcome =
   | { ok: true; text: string; citations: string[]; emptyErrorMessage?: string }
   | { ok: false; status?: number; error?: unknown };
+
+// Preserves the HTTP status through generateWithRetry's retry boundary so
+// webSearch's final catch can still tell an HTTP failure from a network one.
+class WebSearchHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`probe web search request failed with ${status}`);
+    this.name = "WebSearchHttpError";
+  }
+}
 
 // cost-tier-model-selection — same shared cascade as tech-research-
 // grounding.ts's restModel(), not a duplicated one.
@@ -47,6 +63,14 @@ async function restModel(scope: ResolveEffectiveModelTierScope): Promise<string>
   const tier = await resolveEffectiveModelTier(scope);
 
   return tierToModelId(tier).replace(/^openrouter\//, "");
+}
+
+function toGenerateUsage(usage: ChatResponse["usage"]): GenerateUsage {
+  return {
+    inputTokens: usage?.prompt_tokens,
+    outputTokens: usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+  };
 }
 
 export async function gatherProbeGrounding(
@@ -101,47 +125,85 @@ export async function webSearch(
   const model = await restModel(scope);
   const endpoint = `${env.OPENROUTER_BASE_URL ?? DEFAULT_BASE_URL}/chat/completions`;
   const span = startTracingSpan(spanName, { ...spanAttrs, model });
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const curriculumId = scope.curriculumId ?? null;
+
+  const attempt = async (): Promise<{
+    text: string;
+    citations: string[];
+    emptyErrorMessage?: string;
+    usage: GenerateUsage;
+  }> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      if (!res.ok) {
+        // 4xx other than 429 is a non-transient request problem (bad auth,
+        // bad payload) — retrying it just spends two more paid attempts on
+        // something that will fail identically every time.
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new AbortError(new WebSearchHttpError(res.status));
+        }
+
+        throw new WebSearchHttpError(res.status);
+      }
+
+      const data = (await res.json()) as ChatResponse;
+      const message = data.choices?.[0]?.message;
+      const body = message?.content?.trim() ?? "";
+
+      return {
+        text: truncate(body),
+        citations: collectCitations(message?.annotations),
+        emptyErrorMessage: data.error?.message,
+        usage: toGenerateUsage(data.usage),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
   try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!res.ok) {
-      span?.end({ output: { outcome: "http_error", status: res.status } });
-
-      return { ok: false, status: res.status };
-    }
-
-    const data = (await res.json()) as ChatResponse;
-    const message = data.choices?.[0]?.message;
-    const body = message?.content?.trim() ?? "";
-    const text = truncate(body);
-    const citations = collectCitations(message?.annotations);
+    const { usage: _usage, ...outcome } = await generateWithRetry(
+      "probe_web_search",
+      curriculumId,
+      "probe-web-search",
+      attempt,
+    );
 
     span?.end({
-      output: { outcome: body.length === 0 ? "empty" : "ok", chars: text.length, citations: citations.length },
+      output: {
+        outcome: outcome.text.length === 0 ? "empty" : "ok",
+        chars: outcome.text.length,
+        citations: outcome.citations.length,
+      },
     });
 
-    return { ok: true, text, citations, emptyErrorMessage: data.error?.message };
+    return { ok: true, ...outcome };
   } catch (err) {
+    if (err instanceof WebSearchHttpError) {
+      span?.end({ output: { outcome: "http_error", status: err.status } });
+
+      return { ok: false, status: err.status };
+    }
+
     span?.error({ error: err instanceof Error ? err : new Error(String(err)) });
 
     return { ok: false, error: err };
-  } finally {
-    clearTimeout(timer);
   }
 }
 

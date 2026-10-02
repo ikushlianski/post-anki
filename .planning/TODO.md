@@ -620,7 +620,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
-- [ ] Add retry and cost logging to the probe web-search LLM calls
+- [x] Add retry and cost logging to the probe web-search LLM calls
 - [x] Add retry and cost logging to the tech-research web-search LLM calls
 
 ### Notes
@@ -628,6 +628,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
+- Follow-up: resolveOfficialDocsUrl and gatherTrustedSourceCandidates have their own unwrapped direct-fetch calls, same gap
 
 ## discovery-and-navigation
 
