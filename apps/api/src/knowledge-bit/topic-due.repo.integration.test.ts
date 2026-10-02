@@ -43,6 +43,7 @@ const { listTopicsWithDueCounts, getDueCountsForTopics, getDueCountsForModules }
   "./topic-due.repo.js"
 );
 const { getCurriculumDetail } = await import("../curriculum/curriculum.repo.js");
+const { startLivenessTracking, recordNudgeResponse } = await import("../liveness/liveness.repo.js");
 
 let client: pg.Client;
 
@@ -74,12 +75,12 @@ async function insertCurriculum(overrides: {
   id: string;
   subjectId: string;
   name: string;
+  status?: string;
 }): Promise<void> {
-  await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, $3)`, [
-    overrides.id,
-    overrides.subjectId,
-    overrides.name,
-  ]);
+  await client.query(
+    `INSERT INTO curricula (id, subject_id, name, status) VALUES ($1, $2, $3, $4)`,
+    [overrides.id, overrides.subjectId, overrides.name, overrides.status ?? "confirmed"],
+  );
 }
 
 async function insertModule(overrides: { id: string; curriculumId: string; title: string }): Promise<void> {
@@ -289,6 +290,122 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
 
     expect(ranked.find((row) => row.topicId === "top_due_dropped")).toBeUndefined();
   });
+
+  it("omits a topic under a draft (not yet confirmed) curriculum, even with an overdue bit", async () => {
+    await insertSubject({ id: "sub_due_draft", name: "Testing draft" });
+    await insertCurriculum({
+      id: "cur_due_draft",
+      subjectId: "sub_due_draft",
+      name: "Scheduling draft",
+      status: "draft",
+    });
+    await insertModule({ id: "mod_due_draft", curriculumId: "cur_due_draft", title: "Reviews draft" });
+    await insertTopic({
+      id: "top_due_draft",
+      moduleId: "mod_due_draft",
+      curriculumId: "cur_due_draft",
+      title: "Not yet confirmed",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_draft",
+      knowledgeSourceId: "src_due_draft",
+      ordinal: 1,
+      body: "Was due yesterday but the curriculum is still a draft",
+      topicId: "top_due_draft",
+    });
+    await insertQuestionVariant({ id: "qv_due_draft", knowledgeBitId: "bit_due_draft" });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_draft",
+      dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_draft")).toBeUndefined();
+
+    const scoped = await getDueCountsForTopics(["top_due_draft"]);
+
+    expect(scoped.get("top_due_draft")).toBeUndefined();
+  });
+
+  it("omits a topic under a dormant curriculum, even with an overdue bit", async () => {
+    await insertSubject({ id: "sub_due_dormant", name: "Testing dormant" });
+    await insertCurriculum({
+      id: "cur_due_dormant",
+      subjectId: "sub_due_dormant",
+      name: "Scheduling dormant",
+    });
+    await insertModule({ id: "mod_due_dormant", curriculumId: "cur_due_dormant", title: "Reviews dormant" });
+    await insertTopic({
+      id: "top_due_dormant",
+      moduleId: "mod_due_dormant",
+      curriculumId: "cur_due_dormant",
+      title: "Nudge dismissed",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_dormant",
+      knowledgeSourceId: "src_due_dormant",
+      ordinal: 1,
+      body: "Was due yesterday but the curriculum is dormant",
+      topicId: "top_due_dormant",
+    });
+    await insertQuestionVariant({ id: "qv_due_dormant", knowledgeBitId: "bit_due_dormant" });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_dormant",
+      dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    await startLivenessTracking({ entityType: "curriculum", entityId: "cur_due_dormant" });
+    await recordNudgeResponse({ entityType: "curriculum", entityId: "cur_due_dormant" }, "no");
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_dormant")).toBeUndefined();
+
+    const scoped = await getDueCountsForTopics(["top_due_dormant"]);
+
+    expect(scoped.get("top_due_dormant")).toBeUndefined();
+  });
+
+  it("still surfaces a topic under a confirmed, non-dormant curriculum with an overdue bit (regression)", async () => {
+    await insertSubject({ id: "sub_due_confirmed", name: "Testing confirmed" });
+    await insertCurriculum({
+      id: "cur_due_confirmed",
+      subjectId: "sub_due_confirmed",
+      name: "Scheduling confirmed",
+    });
+    await insertModule({
+      id: "mod_due_confirmed",
+      curriculumId: "cur_due_confirmed",
+      title: "Reviews confirmed",
+    });
+    await insertTopic({
+      id: "top_due_confirmed",
+      moduleId: "mod_due_confirmed",
+      curriculumId: "cur_due_confirmed",
+      title: "Confirmed and active",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_confirmed",
+      knowledgeSourceId: "src_due_confirmed",
+      ordinal: 1,
+      body: "Was due yesterday on a confirmed, active curriculum",
+      topicId: "top_due_confirmed",
+    });
+    await insertQuestionVariant({ id: "qv_due_confirmed", knowledgeBitId: "bit_due_confirmed" });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_confirmed",
+      dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_confirmed")).toMatchObject({ dueCount: 1 });
+
+    const scoped = await getDueCountsForTopics(["top_due_confirmed"]);
+
+    expect(scoped.get("top_due_confirmed")).toBe(1);
+  });
 });
 
 describe("getDueCountsForModules", () => {
@@ -467,6 +584,83 @@ describe("getDueCountsForModules", () => {
     const moduleDue = await getDueCountsForModules(["mod_due_dropped_module"]);
 
     expect(moduleDue.get("mod_due_dropped_module")).toBeUndefined();
+  });
+
+  it("excludes a module whose curriculum is still a draft from the due count", async () => {
+    await insertSubject({ id: "sub_due_draft_module", name: "Testing draft module" });
+    await insertCurriculum({
+      id: "cur_due_draft_module",
+      subjectId: "sub_due_draft_module",
+      name: "Scheduling draft module",
+      status: "draft",
+    });
+    await insertModule({
+      id: "mod_due_draft_module",
+      curriculumId: "cur_due_draft_module",
+      title: "Reviews draft module",
+    });
+    await insertTopic({
+      id: "top_due_draft_module",
+      moduleId: "mod_due_draft_module",
+      curriculumId: "cur_due_draft_module",
+      title: "Not yet confirmed",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_draft_module",
+      knowledgeSourceId: "src_due_draft_module",
+      ordinal: 1,
+      body: "Never reviewed yet",
+      topicId: "top_due_draft_module",
+    });
+    await insertQuestionVariant({
+      id: "qv_due_draft_module",
+      knowledgeBitId: "bit_due_draft_module",
+    });
+
+    const moduleDue = await getDueCountsForModules(["mod_due_draft_module"]);
+
+    expect(moduleDue.get("mod_due_draft_module")).toBeUndefined();
+  });
+
+  it("excludes a module whose curriculum is dormant from the due count", async () => {
+    await insertSubject({ id: "sub_due_dormant_module", name: "Testing dormant module" });
+    await insertCurriculum({
+      id: "cur_due_dormant_module",
+      subjectId: "sub_due_dormant_module",
+      name: "Scheduling dormant module",
+    });
+    await insertModule({
+      id: "mod_due_dormant_module",
+      curriculumId: "cur_due_dormant_module",
+      title: "Reviews dormant module",
+    });
+    await insertTopic({
+      id: "top_due_dormant_module",
+      moduleId: "mod_due_dormant_module",
+      curriculumId: "cur_due_dormant_module",
+      title: "Nudge dismissed",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_dormant_module",
+      knowledgeSourceId: "src_due_dormant_module",
+      ordinal: 1,
+      body: "Never reviewed yet",
+      topicId: "top_due_dormant_module",
+    });
+    await insertQuestionVariant({
+      id: "qv_due_dormant_module",
+      knowledgeBitId: "bit_due_dormant_module",
+    });
+
+    await startLivenessTracking({ entityType: "curriculum", entityId: "cur_due_dormant_module" });
+    await recordNudgeResponse(
+      { entityType: "curriculum", entityId: "cur_due_dormant_module" },
+      "no",
+    );
+
+    const moduleDue = await getDueCountsForModules(["mod_due_dormant_module"]);
+
+    expect(moduleDue.get("mod_due_dormant_module")).toBeUndefined();
   });
 });
 

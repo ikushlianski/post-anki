@@ -34,7 +34,7 @@
   "autoCommitEnabled": true,
   "pushGranted": false,
   "maxDispatches": 60,
-  "dispatchCount": 7,
+  "dispatchCount": 8,
   "pendingSkillReload": [],
   "lastBlockAt": "2026-10-02T21:28:43.072Z"
 }

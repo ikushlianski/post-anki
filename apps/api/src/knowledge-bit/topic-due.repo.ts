@@ -1,6 +1,14 @@
-import { and, eq, exists, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { gaps, knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedules, topics } from "../db/schema.js";
+import {
+  curricula,
+  gaps,
+  knowledgeBitQuestionVariants,
+  knowledgeBits,
+  knowledgeBitSchedules,
+  topics,
+} from "../db/schema.js";
+import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 
 // A bit counts as due if it has never been reviewed yet (no schedule row) or its due date has
 // passed — same "unreviewed counts as due" convention Anki uses, so a topic made only of fresh
@@ -9,8 +17,12 @@ import { gaps, knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedule
 // ever actually serve, so a bit stuck in generation (pending, or permanently failed) would
 // otherwise inflate a topic's due count with nothing a learner can act on.
 //
-// Also excludes a topic that's not yet released or deliberately dropped. Callers must join `topics`.
-function dueCondition(db: DbExecutor) {
+// Also excludes a topic that's not yet released or deliberately dropped, and a topic whose
+// curriculum is still a draft (not yet confirmed by the learner) or dormant (the learner
+// dismissed a nudge for it) — same two checks gatherPushCandidates applies on the gap-based due
+// path (push.repo.ts). Callers must join `topics` and `curricula`, and pass the dormant
+// curriculum id set fetched via listDormantEntityIds("curriculum").
+function dueCondition(db: DbExecutor, dormantCurriculumIds: Set<string>) {
   const hasQuestionVariant = exists(
     db
       .select({ one: sql`1` })
@@ -28,6 +40,10 @@ function dueCondition(db: DbExecutor) {
     or(isNull(knowledgeBitSchedules.knowledgeBitId), lte(knowledgeBitSchedules.dueAt, new Date())),
     eq(topics.included, true),
     ne(topics.learningStatus, "skipping"),
+    eq(curricula.status, "confirmed"),
+    dormantCurriculumIds.size > 0
+      ? notInArray(topics.curriculumId, Array.from(dormantCurriculumIds))
+      : undefined,
   );
 }
 
@@ -52,13 +68,15 @@ export async function listTopicsWithDueCounts(
   const openGapCount = sql<number>`(
     select count(*)::int from ${gaps} where ${gaps.topicId} = ${topics.id} and ${gaps.state} = 'open'
   )`;
+  const dormantCurriculumIds = await listDormantEntityIds("curriculum", db);
 
   return db
     .select({ topicId: topics.id, title: topics.title, dueCount, openGapCount })
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .where(dueCondition(db))
+    .where(dueCondition(db, dormantCurriculumIds))
     .groupBy(topics.id, topics.title)
     .orderBy(
       sql`min(coalesce(${knowledgeBitSchedules.dueAt}, '-infinity'::timestamptz)) asc`,
@@ -80,13 +98,15 @@ export async function getDueCountsForTopics(
   }
 
   const dueCount = sql<number>`count(${knowledgeBits.id})::int`;
+  const dormantCurriculumIds = await listDormantEntityIds("curriculum", db);
 
   const rows = await db
     .select({ topicId: topics.id, dueCount })
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .where(and(inArray(topics.id, topicIds), dueCondition(db)))
+    .where(and(inArray(topics.id, topicIds), dueCondition(db, dormantCurriculumIds)))
     .groupBy(topics.id);
 
   return new Map(rows.map((row) => [row.topicId, row.dueCount]));
@@ -102,13 +122,15 @@ export async function getDueCountsForModules(
   }
 
   const dueCount = sql<number>`count(${knowledgeBits.id})::int`;
+  const dormantCurriculumIds = await listDormantEntityIds("curriculum", db);
 
   const rows = await db
     .select({ moduleId: topics.moduleId, dueCount })
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .where(and(inArray(topics.moduleId, moduleIds), dueCondition(db)))
+    .where(and(inArray(topics.moduleId, moduleIds), dueCondition(db, dormantCurriculumIds)))
     .groupBy(topics.moduleId);
 
   return new Map(rows.map((row) => [row.moduleId, row.dueCount]));

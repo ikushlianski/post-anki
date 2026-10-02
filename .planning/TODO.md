@@ -597,12 +597,14 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new study modalities — only ranking/selection logic
 
 ### Coding tasks
+- [x] Stop a draft or dormant curriculum's knowledge bits from showing as due
 - [x] Make every due-count query agree on excluding a dropped topic
 - [x] Also stop the default and tag-scoped answer queue from serving a dropped topic's bits
 - [x] Stop a dropped topic's due list and queued questions from still surfacing
 - [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
 
 ### Notes
+- Knowledge-bit due review never joins the cross-subject queue — needs a human design call
 - Completed items archived to .planning/LOG.md.
 - Ceiling-relative depth ranking and the dismissed-gap check-in revisit path are both intentional, not bugs.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
