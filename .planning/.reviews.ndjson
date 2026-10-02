@@ -172,3 +172,4 @@
 {"item":"Also stop the default and tag-scoped answer queue from serving a dropped topic's bits","direction":"study-prioritization","verdict":"PASS","timestamp":"2026-10-02T23:20:00Z"}
 {"item":"Let one submission add several separate prose knowledge sources at once","direction":"prose-knowledge-fisher","verdict":"PASS","timestamp":"2026-10-02T20:42:48Z"}
 {"item":"Make every due-count query agree on excluding a dropped topic","direction":"study-prioritization","verdict":"PASS","timestamp":"2026-10-02T20:48:06Z"}
+{"item":"Fix leftover untracked test-isolation bugs and router-ignore naming for probe-tag and curriculum-cards tests","direction":"discovery-and-navigation","verdict":"PASS","timestamp":"2026-10-02T20:54:46Z"}
