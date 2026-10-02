@@ -125,6 +125,7 @@ function CurriculumPage() {
           <Link
             to="/curriculum/$curriculumId/cards"
             params={{ curriculumId: curriculum.id }}
+            search={{ search: '' }}
             data-testid="cards-browser-link"
             className="ml-auto text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
           >

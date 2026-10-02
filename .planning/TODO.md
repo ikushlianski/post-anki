@@ -382,6 +382,7 @@ updated: 2026-09-04
 
 ### Notes
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
+- EXHAUSTED-AT-SCOPE (round 2, 2026-10-02) — one dup found, routed to spaced-repetition-scheduling, fixed
 
 
 ## shareable-browser-search
@@ -391,6 +392,7 @@ updated: 2026-09-04
 - Out of scope: Adding new search capabilities beyond what already exists — only making the existing search/browse state linkable
 
 ### Coding tasks
+- [x] Make the cards-browser table's search text shareable via the page URL
 - [x] Make the notes search and filters shareable and bookmarkable via the page URL
 
 ### Notes

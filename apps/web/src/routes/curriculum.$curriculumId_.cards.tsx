@@ -1,11 +1,18 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { filterCardBrowserRows } from '@post-anki/core'
 
 import { curriculumCardsBrowserQuery, curriculumDetailQuery } from '../curriculum/curriculum.queries'
 
+interface CardsBrowserSearchState {
+  search: string
+}
+
 export const Route = createFileRoute('/curriculum/$curriculumId_/cards')({
+  validateSearch: (search: Record<string, unknown>): CardsBrowserSearchState => ({
+    search: typeof search.search === 'string' ? search.search : '',
+  }),
   component: CardsBrowserPage,
   loader: ({ params, context }) =>
     Promise.all([
@@ -16,9 +23,10 @@ export const Route = createFileRoute('/curriculum/$curriculumId_/cards')({
 
 function CardsBrowserPage() {
   const { curriculumId } = Route.useParams()
+  const { search } = Route.useSearch()
+  const navigate = Route.useNavigate()
   const { data: detail } = useSuspenseQuery(curriculumDetailQuery(curriculumId))
   const { data: rows } = useSuspenseQuery(curriculumCardsBrowserQuery(curriculumId))
-  const [search, setSearch] = useState('')
 
   const filteredRows = useMemo(() => filterCardBrowserRows(rows, search), [rows, search])
 
@@ -49,7 +57,7 @@ function CardsBrowserPage() {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => navigate({ search: { search: e.target.value }, replace: true })}
           placeholder="Search question, answer, or topic…"
           data-testid="cards-browser-search"
           className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
