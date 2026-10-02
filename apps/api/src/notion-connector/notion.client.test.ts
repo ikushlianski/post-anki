@@ -2,8 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import type { Client } from "@notionhq/client";
 import { readSourceItems } from "./notion.client.js";
 
+const EDITED_AT = "2026-10-01T00:00:00.000Z";
+
 function paragraph(id: string, text: string) {
-  return { object: "block", id, type: "paragraph", paragraph: { rich_text: [{ plain_text: text }] } };
+  return {
+    object: "block",
+    id,
+    type: "paragraph",
+    last_edited_time: EDITED_AT,
+    paragraph: { rich_text: [{ plain_text: text }] },
+  };
 }
 
 function stubClient(overrides: Record<string, unknown>): Client {
@@ -32,8 +40,8 @@ describe("readSourceItems", () => {
     );
 
     expect(items).toEqual([
-      { id: "b1", text: "first", tags: ["SPA"] },
-      { id: "b2", text: "second", tags: [] },
+      { id: "b1", text: "first", tags: ["SPA"], lastEditedTime: EDITED_AT },
+      { id: "b2", text: "second", tags: [], lastEditedTime: EDITED_AT },
     ]);
     expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ start_cursor: "c2" }));
   });
@@ -45,6 +53,7 @@ describe("readSourceItems", () => {
           object: "page",
           url: "https://notion.so/r1",
           id: "r1",
+          last_edited_time: EDITED_AT,
           properties: {
             Name: { type: "title", title: [{ plain_text: "Ship it" }] },
             Tags: { type: "multi_select", multi_select: [{ name: "CRM" }] },
@@ -64,7 +73,7 @@ describe("readSourceItems", () => {
       client,
     );
 
-    expect(items).toEqual([{ id: "r1", text: "Ship it", tags: ["CRM"] }]);
+    expect(items).toEqual([{ id: "r1", text: "Ship it", tags: ["CRM"], lastEditedTime: EDITED_AT }]);
     expect(query).toHaveBeenCalledWith(expect.objectContaining({ data_source_id: "ds1" }));
   });
 

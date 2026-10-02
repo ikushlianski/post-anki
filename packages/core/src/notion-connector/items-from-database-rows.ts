@@ -11,6 +11,7 @@ interface PropertyLike {
 export interface DatabaseRowLike {
   id: string;
   properties: Record<string, PropertyLike>;
+  last_edited_time: string;
 }
 
 function titleOf(row: DatabaseRowLike): string {
@@ -45,7 +46,7 @@ export function itemsFromDatabaseRows(rows: readonly DatabaseRowLike[]): NotionI
       continue;
     }
 
-    items.push({ id: row.id, text, tags: tagsOf(row) });
+    items.push({ id: row.id, text, tags: tagsOf(row), lastEditedTime: row.last_edited_time });
   }
 
   return items;

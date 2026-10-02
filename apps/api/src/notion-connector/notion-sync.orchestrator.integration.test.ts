@@ -80,6 +80,9 @@ const crmConnector: NotionConnector = {
   removeAfterImport: false,
 };
 
+const EDITED_AT = "2026-10-01T00:00:00.000Z";
+const EDITED_LATER = "2026-10-02T00:00:00.000Z";
+
 function deps(items: NotionItem[]) {
   return {
     readItems: vi.fn().mockResolvedValue(items),
@@ -100,8 +103,8 @@ async function factBodies(): Promise<string[]> {
 describe("runNotionSync", () => {
   it("turns SPA-tagged notes into facts and ignores untagged ones", async () => {
     const d = deps([
-      { id: `b-${randomUUID()}`, text: "Price anchors shape perceived value", tags: ["SPA"] },
-      { id: `b-${randomUUID()}`, text: "Untagged musing", tags: [] },
+      { id: `b-${randomUUID()}`, text: "Price anchors shape perceived value", tags: ["SPA"], lastEditedTime: EDITED_AT },
+      { id: `b-${randomUUID()}`, text: "Untagged musing", tags: [], lastEditedTime: EDITED_AT },
     ]);
 
     const [result] = await runNotionSync([spaConnector], d);
@@ -114,7 +117,7 @@ describe("runNotionSync", () => {
 
   it("imports each note only once across repeated runs", async () => {
     const id = `b-${randomUUID()}`;
-    const d = deps([{ id, text: "Retention beats acquisition", tags: ["SPA"] }]);
+    const d = deps([{ id, text: "Retention beats acquisition", tags: ["SPA"], lastEditedTime: EDITED_AT }]);
 
     await runNotionSync([spaConnector], d);
     const [second] = await runNotionSync([spaConnector], d);
@@ -128,8 +131,37 @@ describe("runNotionSync", () => {
     expect(rows[0]!.n).toBe(1);
   });
 
+  it("re-syncs a fact when the Notion source was edited after it was first imported", async () => {
+    const id = `b-${randomUUID()}`;
+    const d = deps([{ id, text: "Original wording", tags: ["SPA"], lastEditedTime: EDITED_AT }]);
+
+    await runNotionSync([spaConnector], d);
+
+    d.readItems.mockResolvedValue([{ id, text: "Edited wording", tags: ["SPA"], lastEditedTime: EDITED_LATER }]);
+    const [second] = await runNotionSync([spaConnector], d);
+
+    expect(second).toEqual({ connector: "biz-education-spa", imported: 1, skipped: 0, failed: 0 });
+    expect(await factBodies()).toContain("Edited wording");
+    expect(await factBodies()).not.toContain("Original wording");
+  });
+
+  it("never duplicates a project-todo line when its Notion source is edited", async () => {
+    const id = `r-${randomUUID()}`;
+    const d = deps([{ id, text: "Original ask", tags: ["CRM"], lastEditedTime: EDITED_AT }]);
+
+    await runNotionSync([crmConnector], d);
+
+    d.readItems.mockResolvedValue([{ id, text: "Edited ask", tags: ["CRM"], lastEditedTime: EDITED_LATER }]);
+    const [second] = await runNotionSync([crmConnector], d);
+
+    expect(second).toEqual({ connector: "inbox-crm", imported: 0, skipped: 1, failed: 0 });
+    expect(d.addTodo).toHaveBeenCalledTimes(1);
+  });
+
   it("sends CRM-tagged notes to the project backlog and never to facts", async () => {
-    const d = deps([{ id: `r-${randomUUID()}`, text: "Call lost leads within a day", tags: ["crm"] }]);
+    const d = deps([
+      { id: `r-${randomUUID()}`, text: "Call lost leads within a day", tags: ["crm"], lastEditedTime: EDITED_AT },
+    ]);
 
     const [result] = await runNotionSync([crmConnector], d);
 
@@ -143,8 +175,8 @@ describe("runNotionSync", () => {
 
   it("keeps going when one note fails and reports the failure", async () => {
     const d = deps([
-      { id: `r-${randomUUID()}`, text: "First", tags: ["CRM"] },
-      { id: `r-${randomUUID()}`, text: "Second", tags: ["CRM"] },
+      { id: `r-${randomUUID()}`, text: "First", tags: ["CRM"], lastEditedTime: EDITED_AT },
+      { id: `r-${randomUUID()}`, text: "Second", tags: ["CRM"], lastEditedTime: EDITED_AT },
     ]);
     d.addTodo.mockRejectedValueOnce(new Error("cli down")).mockResolvedValueOnce(undefined);
 
@@ -155,7 +187,7 @@ describe("runNotionSync", () => {
 
   it("removes a note from Notion after import only when the connector says so", async () => {
     const id = `b-${randomUUID()}`;
-    const d = deps([{ id, text: "Ship weekly", tags: ["SPA"] }]);
+    const d = deps([{ id, text: "Ship weekly", tags: ["SPA"], lastEditedTime: EDITED_AT }]);
 
     await runNotionSync([{ ...spaConnector, removeAfterImport: true }], d);
 
@@ -164,7 +196,7 @@ describe("runNotionSync", () => {
 
   it("embeds facts once every connector has synced", async () => {
     embedFacts.mockClear();
-    const d = deps([{ id: `b-${randomUUID()}`, text: "Compounding favours patience", tags: ["SPA"] }]);
+    const d = deps([{ id: `b-${randomUUID()}`, text: "Compounding favours patience", tags: ["SPA"], lastEditedTime: EDITED_AT }]);
 
     await runNotionSync([spaConnector], d);
 
@@ -173,7 +205,7 @@ describe("runNotionSync", () => {
 
   it("still reports a successful sync when embedding the facts fails", async () => {
     embedFacts.mockRejectedValueOnce(new Error("embeddings down"));
-    const d = deps([{ id: `b-${randomUUID()}`, text: "Focus is a subtraction exercise", tags: ["SPA"] }]);
+    const d = deps([{ id: `b-${randomUUID()}`, text: "Focus is a subtraction exercise", tags: ["SPA"], lastEditedTime: EDITED_AT }]);
 
     const [result] = await runNotionSync([spaConnector], d);
 

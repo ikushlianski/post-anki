@@ -15,6 +15,7 @@ type TextBlockType = (typeof TEXT_BLOCK_TYPES)[number];
 export interface BlockLike {
   id: string;
   type: string;
+  last_edited_time: string;
   [key: string]: unknown;
 }
 
@@ -42,7 +43,7 @@ export function itemsFromBlocks(blocks: readonly BlockLike[]): NotionItem[] {
       continue;
     }
 
-    items.push({ id: block.id, text: body, tags: tag ? [tag] : [] });
+    items.push({ id: block.id, text: body, tags: tag ? [tag] : [], lastEditedTime: block.last_edited_time });
   }
 
   return items;

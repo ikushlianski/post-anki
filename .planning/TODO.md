@@ -237,7 +237,7 @@ updated: 2026-09-04
 - [x] Let a connector be configured to remove or keep an item after import
 - [x] Let a connector only pull items matching a configured rule, e.g. a tag
 - [x] Run each Notion connector on its own schedule, unattended
-- [ ] Let a deck's Notion source be re-synced to pick up edits
+- [x] Let a deck's Notion source be re-synced to pick up edits
 - [x] Turn a table-style Notion database into individual cards
 - [x] Turn a paragraph-style Notion page into individual cards
 - [x] Let a deck be configured with a Notion page or database as its source
@@ -248,6 +248,7 @@ updated: 2026-09-04
 - Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
 - One 15-min LaunchAgent runs every connector — per-connector schedules and re-sync of edited notes are still open.
 - Notes become facts, not cards — the two 'into individual cards' items are met by the fact route.
+- Interval scheduling now works, but a fully off cadence option is still missing
 
 
 ## local-first-sync

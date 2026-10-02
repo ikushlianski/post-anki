@@ -39,6 +39,7 @@ export const notionItemSchema = z.object({
   id: z.string().min(1),
   text: z.string(),
   tags: z.array(z.string()),
+  lastEditedTime: z.string(),
 });
 
 export type NotionItem = z.infer<typeof notionItemSchema>;

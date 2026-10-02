@@ -1,0 +1,1 @@
+ALTER TABLE "notion_sync_items" ADD COLUMN "last_edited_time" timestamp with time zone;

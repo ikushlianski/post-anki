@@ -6,7 +6,7 @@ import { getNotionClient, readSourceItems } from "./notion.client.js";
 import {
   insertFact,
   lastConnectorRunAt,
-  listSyncedNotionIds,
+  listSyncedNotionItems,
   recordConnectorRun,
   recordSynced,
 } from "./notion-sync.repo.js";
@@ -69,7 +69,7 @@ async function routeItem(connector: NotionConnector, item: NotionItem, deps: Not
     await deps.addTodo({ file: destination.file, direction: destination.direction }, item.text);
   }
 
-  await recordSynced(item.id, connector.name, destination.kind);
+  await recordSynced(item.id, connector.name, destination.kind, new Date(item.lastEditedTime));
 
   if (connector.removeAfterImport) {
     await deps.removeItem(connector.source, item.id);
@@ -81,13 +81,21 @@ export async function syncConnector(
   deps: NotionSyncDeps,
 ): Promise<ConnectorSyncResult> {
   const tagged = filterByTag(await deps.readItems(connector.source), connector.tag);
-  const alreadySynced = await listSyncedNotionIds(tagged.map((item) => item.id));
+  const alreadySynced = await listSyncedNotionItems(tagged.map((item) => item.id));
   const result: ConnectorSyncResult = { connector: connector.name, imported: 0, skipped: 0, failed: 0 };
 
   for (const item of tagged) {
     if (alreadySynced.has(item.id)) {
-      result.skipped += 1;
-      continue;
+      const syncedEditedTime = alreadySynced.get(item.id);
+      const editedSinceSync = syncedEditedTime && new Date(item.lastEditedTime).getTime() > syncedEditedTime.getTime();
+      // Only a fact destination can safely absorb a re-sync: insertFact upserts on sourceRef, while
+      // a project-todo destination has no update path and would append a duplicate line.
+      const canReSync = connector.destination.kind === "fact" && editedSinceSync;
+
+      if (!canReSync) {
+        result.skipped += 1;
+        continue;
+      }
     }
 
     try {

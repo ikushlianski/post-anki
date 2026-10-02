@@ -1191,6 +1191,7 @@ export const notionSyncItems = pgTable("notion_sync_items", {
   connector: text("connector").notNull(),
   destination: text("destination").notNull(),
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+  lastEditedTime: timestamp("last_edited_time", { withTimezone: true }),
 });
 
 export const notionConnectorRuns = pgTable("notion_connector_runs", {

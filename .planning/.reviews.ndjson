@@ -165,3 +165,5 @@
 {"timestamp":"2026-10-02T18:50:00.000Z","direction":"spaced-repetition-scheduling","item":"Have the new schedule-write lock reuse withNamedLock instead of inlining it","verdict":"PASS","citation":"apps/api/src/knowledge-bit/knowledge-bit-schedule.repo.ts:63-98"}
 {"timestamp":"2026-10-02T19:00:00.000Z","direction":"shareable-browser-search","item":"Make the cards-browser table's search text shareable via the page URL","verdict":"PASS","citation":"apps/web/src/routes/curriculum.$curriculumId_.cards.tsx:8-31"}
 {"timestamp":"2026-10-02T19:15:00.000Z","direction":"instant-study-cards","item":"Guard concurrent card-generation triggers for the same topic from duplicating LLM work","verdict":"PASS","citation":"apps/api/src/cards/cards.orchestrator.ts:60-77"}
+{"timestamp":"2026-10-02T19:40:00.000Z","direction":"notion-deck-connectors","item":"Run each Notion connector on its own schedule, unattended","verdict":"PASS","citation":"apps/api/src/notion-connector/notion-sync.orchestrator.ts:113-139"}
+{"item":"Let a decks Notion source be re-synced to pick up edits","direction":"notion-deck-connectors","verdict":"PASS","timestamp":"2026-10-02T22:35:00Z"}

@@ -10,35 +10,39 @@ export interface InsertFactInput {
   tags: string[];
 }
 
-export async function listSyncedNotionIds(ids: string[]): Promise<Set<string>> {
+export async function listSyncedNotionItems(ids: string[]): Promise<Map<string, Date | null>> {
   if (ids.length === 0) {
-    return new Set();
+    return new Map();
   }
 
   const rows = await getDb()
-    .select({ notionId: notionSyncItems.notionId })
+    .select({ notionId: notionSyncItems.notionId, lastEditedTime: notionSyncItems.lastEditedTime })
     .from(notionSyncItems)
     .where(inArray(notionSyncItems.notionId, ids));
 
-  return new Set(rows.map((row) => row.notionId));
+  return new Map(rows.map((row) => [row.notionId, row.lastEditedTime]));
 }
 
 export async function recordSynced(
   notionId: string,
   connector: string,
   destination: string,
+  lastEditedTime: Date,
 ): Promise<void> {
   await getDb()
     .insert(notionSyncItems)
-    .values({ notionId, connector, destination })
-    .onConflictDoNothing({ target: notionSyncItems.notionId });
+    .values({ notionId, connector, destination, lastEditedTime })
+    .onConflictDoUpdate({ target: notionSyncItems.notionId, set: { lastEditedTime } });
 }
 
 export async function insertFact(input: InsertFactInput): Promise<void> {
   await getDb()
     .insert(facts)
     .values({ id: newId("fact"), ...input })
-    .onConflictDoNothing({ target: facts.sourceRef });
+    .onConflictDoUpdate({
+      target: facts.sourceRef,
+      set: { body: input.body, tags: input.tags },
+    });
 }
 
 export async function lastConnectorRunAt(connector: string): Promise<Date | null> {
