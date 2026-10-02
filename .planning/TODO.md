@@ -7,6 +7,29 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## aws-electric-fargate-deploy
+
+### Scope
+- Move the API backend to AWS ECS Fargate, not Lambda
+- Out of scope: Splitting into multiple sync tasks before a second real app with its own database exists
+- Lambda doesn't fit the API's fire-and-forget background work (card compile, curriculum create)
+- Self-host Electric sync on one shared, reusable Fargate service in the same ECS cluster
+- Keep the Telegram bot webhook and the SSR web app on GCP Cloud Run for now
+- Reuse the existing AWS Route53 domain for the new backend
+
+### Coding tasks
+- [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today
+- [ ] Package the API as a container image for the Fargate service
+- [ ] Write the shared AWS infrastructure: one ECS cluster and ALB, both apps as services
+- [ ] Test the Fargate-hosted API and sync end to end locally before deploying
+- [ ] Set up AWS credentials and the secrets the new backend needs
+- [ ] Deploy the Fargate services and confirm the API and sync both come up healthy
+- [ ] Confirm Neon logical replication is on before pointing Electric at it
+- [ ] Point the custom domain at the new backend once everything else works
+
+### Notes
+
+
 ## mcp-content-access
 
 ### Scope
