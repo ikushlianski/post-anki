@@ -18,6 +18,7 @@ updated: 2026-09-04
 - Reuse the existing AWS Route53 domain for the new backend
 
 ### Coding tasks
+- [x] Set WEB_ORIGIN for the API service so CORS doesn't fall back to localhost
 - [ ] Shut down the live GCP backend once AWS is deployed and verified
 - [x] Generalize the AWS stack so any future app can share the same Fargate cluster
 - [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today

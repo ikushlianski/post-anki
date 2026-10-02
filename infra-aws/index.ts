@@ -372,6 +372,8 @@ const apiFargateService = addFargateHttpService({
     { name: "PORT", value: `${API_PORT}` },
     { name: "ELECTRIC_SERVICE_URL", value: `http://electric-sync.post-anki.internal:${ELECTRIC_PORT}` },
     { name: "ELECTRIC_AUTH_MODE", value: "none" },
+    // Without this, CORS falls back to its localhost default, blocking real browser traffic.
+    { name: "WEB_ORIGIN", value: `https://${webHostname}` },
   ],
   secrets: [
     { name: "DATABASE_URL", valueFrom: databaseUrlParam.arn },
