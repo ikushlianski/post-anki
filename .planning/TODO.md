@@ -74,6 +74,8 @@ updated: 2026-09-04
 
 ### Notes
 - Balance goal: no due-pile guilt, but no skimming past a bit before it is truly known
+- Checked: schedule updates per variant answer, not per bit/session — matches Scope wording, not a bug
+- getDueCountsForTopics has no caller — built for a scoped detail view never shipped
 
 
 ## prose-knowledge-fisher
