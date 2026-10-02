@@ -61,6 +61,7 @@ updated: 2026-09-04
 - Out of scope: Cross-subject ranking or priority weighting across different topics - that is study-prioritization's own open call
 
 ### Coding tasks
+- [x] Have the new schedule-write lock reuse withNamedLock instead of inlining it
 - [x] Guard concurrent schedule writes to the same knowledge bit from clobbering each other
 - [x] Show a curriculum's due count on its curriculum page
 - [x] Show a module's due count on its module or course page
@@ -212,6 +213,7 @@ updated: 2026-09-04
 - Marking synced needs a write-capable Notion token — current one may be read-only.
 - PostAnki Synced (date) property already added to Biz Education — read/filter on it, don't recreate.
 - Confirm apps/api's own NOTION_TOKEN can write pages.update before wiring the sync-mark step.
+- EXHAUSTED-AT-SCOPE (round 1, 2026-10-02)
 
 
 ## notion-deck-connectors

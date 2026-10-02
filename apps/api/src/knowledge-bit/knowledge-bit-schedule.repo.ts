@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import type { Verdict } from "@post-anki/shared";
-import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitSchedules } from "../db/schema.js";
+import { withSubjectLock } from "../shared/merge-lock.js";
 
 const MIN_EASE_FACTOR = 1.3;
 const MAX_EASE_FACTOR = 3.0;
@@ -54,16 +54,13 @@ export function computeNextSchedule(current: ScheduleState, verdict: Verdict): S
 
 // Upserted after every graded attempt (see grade-knowledge-bit-variant-answer.orchestrator.ts) —
 // reads the prior state, computes the next ease/interval/due date, and writes it back in one row
-// per bit. Serialized per bit via an advisory lock (mirrors applyGapMasteryAttempt in
-// gap-mastery.repo.ts), so two variants of the same bit graded concurrently can't clobber each other.
+// per bit. Serialized per bit via withSubjectLock, so two variants of the same bit graded
+// concurrently can't clobber each other.
 export async function reviewKnowledgeBitSchedule(
   knowledgeBitId: string,
   verdict: Verdict,
-  db: DbExecutor = getDb(),
 ): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${knowledgeBitId})::bigint)`);
-
+  await withSubjectLock(knowledgeBitId, async (tx) => {
     const existing = await tx
       .select({
         easeFactor: knowledgeBitSchedules.easeFactor,
