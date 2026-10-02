@@ -18,6 +18,8 @@ updated: 2026-09-04
 - Reuse the existing AWS Route53 domain for the new backend
 
 ### Coding tasks
+- [ ] Shut down the live GCP backend once AWS is deployed and verified
+- [x] Generalize the AWS stack so any future app can share the same Fargate cluster
 - [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today
 - [x] Package the API as a container image for the Fargate service
 - [x] Write the shared AWS infrastructure: one ECS cluster and ALB, both apps as services
@@ -29,6 +31,7 @@ updated: 2026-09-04
 
 ### Notes
 - Bot can't run locally without a Telegram bot token and webhook secret
+- Scope decision changed: web and bot now move to AWS too, GCP is being retired
 
 
 ## mcp-content-access
@@ -567,6 +570,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new study modalities — only ranking/selection logic
 
 ### Coding tasks
+- [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
@@ -684,6 +688,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-12)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
 - post-anki now has a networked MCP transport — re-check this blocker once live in prod.
+- EXHAUSTED-AT-SCOPE (round 3, 2026-10-02) — re-verified: vault MCP is stdio + local SQLite/notes, no network path yet
 
 ## e2e-reliability
 

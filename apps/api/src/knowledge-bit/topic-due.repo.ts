@@ -1,6 +1,6 @@
 import { and, eq, exists, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedules, topics } from "../db/schema.js";
+import { gaps, knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedules, topics } from "../db/schema.js";
 
 // A bit counts as due if it has never been reviewed yet (no schedule row) or its due date has
 // passed — same "unreviewed counts as due" convention Anki uses, so a topic made only of fresh
@@ -30,6 +30,9 @@ export interface TopicDueCount {
 
 // The topic-level rollup of per-bit due state — a topic with no knowledge bits, or with bits but
 // none due, is simply absent from the result rather than returned with dueCount: 0.
+//
+// Default ranking (no product input): oldest overdue bit first, unreviewed = most overdue;
+// open-gap count breaks ties, computed in the same query so LIMIT never cuts it off early.
 export async function listTopicsWithDueCounts(
   limit: number,
   db: DbExecutor = getDb(),
@@ -37,16 +40,24 @@ export async function listTopicsWithDueCounts(
   // Postgres count() returns bigint, which node-postgres surfaces as a string — cast to int so
   // callers get a real number, not "2".
   const dueCount = sql<number>`count(${knowledgeBits.id})::int`;
+  const openGapCount = sql<number>`(
+    select count(*)::int from ${gaps} where ${gaps.topicId} = ${topics.id} and ${gaps.state} = 'open'
+  )`;
 
   return db
-    .select({ topicId: topics.id, title: topics.title, dueCount })
+    .select({ topicId: topics.id, title: topics.title, dueCount, openGapCount })
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
     .where(dueCondition(db))
     .groupBy(topics.id, topics.title)
-    .orderBy(sql`count(${knowledgeBits.id}) desc`)
-    .limit(limit);
+    .orderBy(
+      sql`min(coalesce(${knowledgeBitSchedules.dueAt}, '-infinity'::timestamptz)) asc`,
+      sql`${openGapCount} desc`,
+      sql`count(${knowledgeBits.id}) desc`,
+    )
+    .limit(limit)
+    .then((rows) => rows.map(({ topicId, title, dueCount: count }) => ({ topicId, title, dueCount: count })));
 }
 
 // Scoped lookup for a known set of topics (e.g. a course/deck detail view), rather than the

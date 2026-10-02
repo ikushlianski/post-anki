@@ -1,8 +1,15 @@
 config:
   aws:region: us-east-1
   post-anki-infra-aws:domain: ilya.online
+  # Optional overrides (defaults shown — only set these to deviate):
+  #   post-anki-infra-aws:apiHostname = api.postanki.ilya.online
+  #   post-anki-infra-aws:webHostname = postanki.ilya.online
+  #   post-anki-infra-aws:botHostname = bot.postanki.ilya.online
   # Set before the first `pulumi up`:
   #   pulumi config set --secret databaseUrl <Neon pooled connection string>
   #   pulumi config set --secret electricDatabaseUrl <Neon direct connection string>
   #   pulumi config set --secret openrouterApiKey <key>
   #   pulumi config set --secret apiSharedSecret <secret>
+  #   pulumi config set --secret telegramBotToken <token from @BotFather>
+  #   pulumi config set --secret telegramWebhookSecret <secret>
+  #   pulumi config set --secret ownerTelegramChatId <chat id>

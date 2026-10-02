@@ -131,6 +131,18 @@ async function insertQuestionVariant(overrides: { id: string; knowledgeBitId: st
   );
 }
 
+async function insertGap(overrides: {
+  id: string;
+  topicId: string;
+  label: string;
+  state: "open" | "covered" | "skipped";
+}): Promise<void> {
+  await client.query(
+    `INSERT INTO gaps (id, topic_id, label, state) VALUES ($1, $2, $3, $4)`,
+    [overrides.id, overrides.topicId, overrides.label, overrides.state],
+  );
+}
+
 describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
   it("counts a never-reviewed bit as due, and an overdue bit, but not a bit due in the future", async () => {
     await insertSubject({ id: "sub_due_1", name: "Testing" });
@@ -443,5 +455,178 @@ describe("getCurriculumDetail dueCount", () => {
     expect(moduleA?.dueCount).toBe(1);
     expect(moduleB?.dueCount).toBe(1);
     expect(detail?.dueCount).toBe(2);
+  });
+});
+
+describe("listTopicsWithDueCounts cross-subject ranking", () => {
+  it("ranks a topic with an older overdue bit above one with a newer overdue bit, even with fewer due bits", async () => {
+    await insertSubject({ id: "sub_due_8", name: "Testing 8" });
+    await insertCurriculum({ id: "cur_due_8", subjectId: "sub_due_8", name: "Scheduling 8" });
+    await insertModule({ id: "mod_due_8", curriculumId: "cur_due_8", title: "Reviews 8" });
+
+    await insertTopic({
+      id: "top_due_8_old",
+      moduleId: "mod_due_8",
+      curriculumId: "cur_due_8",
+      title: "Long overdue",
+    });
+    await insertTopic({
+      id: "top_due_8_new",
+      moduleId: "mod_due_8",
+      curriculumId: "cur_due_8",
+      title: "Recently overdue",
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_8_old",
+      knowledgeSourceId: "src_due_8",
+      ordinal: 1,
+      body: "Waiting ten days",
+      topicId: "top_due_8_old",
+    });
+
+    await insertKnowledgeBit({
+      id: "bit_due_8_new_1",
+      knowledgeSourceId: "src_due_8",
+      ordinal: 2,
+      body: "Waiting one day, bit one",
+      topicId: "top_due_8_new",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_8_new_2",
+      knowledgeSourceId: "src_due_8",
+      ordinal: 3,
+      body: "Waiting one day, bit two",
+      topicId: "top_due_8_new",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_8_new_3",
+      knowledgeSourceId: "src_due_8",
+      ordinal: 4,
+      body: "Waiting one day, bit three",
+      topicId: "top_due_8_new",
+    });
+
+    await insertQuestionVariant({ id: "qv_due_8_old", knowledgeBitId: "bit_due_8_old" });
+    await insertQuestionVariant({ id: "qv_due_8_new_1", knowledgeBitId: "bit_due_8_new_1" });
+    await insertQuestionVariant({ id: "qv_due_8_new_2", knowledgeBitId: "bit_due_8_new_2" });
+    await insertQuestionVariant({ id: "qv_due_8_new_3", knowledgeBitId: "bit_due_8_new_3" });
+
+    await insertSchedule({
+      knowledgeBitId: "bit_due_8_old",
+      dueAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_8_new_1",
+      dueAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_8_new_2",
+      dueAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_8_new_3",
+      dueAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    const oldIndex = ranked.findIndex((row) => row.topicId === "top_due_8_old");
+    const newIndex = ranked.findIndex((row) => row.topicId === "top_due_8_new");
+
+    expect(oldIndex).toBeGreaterThanOrEqual(0);
+    expect(newIndex).toBeGreaterThanOrEqual(0);
+    expect(oldIndex).toBeLessThan(newIndex);
+  });
+
+  it("ranks the topic with more open gaps first among topics with the same oldestDueAt", async () => {
+    await insertSubject({ id: "sub_due_9", name: "Testing 9" });
+    await insertCurriculum({ id: "cur_due_9", subjectId: "sub_due_9", name: "Scheduling 9" });
+    await insertModule({ id: "mod_due_9", curriculumId: "cur_due_9", title: "Reviews 9" });
+
+    await insertTopic({
+      id: "top_due_9_more_gaps",
+      moduleId: "mod_due_9",
+      curriculumId: "cur_due_9",
+      title: "More open gaps",
+    });
+    await insertTopic({
+      id: "top_due_9_fewer_gaps",
+      moduleId: "mod_due_9",
+      curriculumId: "cur_due_9",
+      title: "Fewer open gaps",
+    });
+
+    const sharedDueAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+
+    await insertKnowledgeBit({
+      id: "bit_due_9_more_gaps",
+      knowledgeSourceId: "src_due_9",
+      ordinal: 1,
+      body: "Topic with more open gaps",
+      topicId: "top_due_9_more_gaps",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_9_fewer_gaps_1",
+      knowledgeSourceId: "src_due_9",
+      ordinal: 2,
+      body: "Topic with fewer open gaps, bit one",
+      topicId: "top_due_9_fewer_gaps",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_9_fewer_gaps_2",
+      knowledgeSourceId: "src_due_9",
+      ordinal: 3,
+      body: "Topic with fewer open gaps, bit two",
+      topicId: "top_due_9_fewer_gaps",
+    });
+
+    await insertQuestionVariant({ id: "qv_due_9_more_gaps", knowledgeBitId: "bit_due_9_more_gaps" });
+    await insertQuestionVariant({
+      id: "qv_due_9_fewer_gaps_1",
+      knowledgeBitId: "bit_due_9_fewer_gaps_1",
+    });
+    await insertQuestionVariant({
+      id: "qv_due_9_fewer_gaps_2",
+      knowledgeBitId: "bit_due_9_fewer_gaps_2",
+    });
+
+    await insertSchedule({ knowledgeBitId: "bit_due_9_more_gaps", dueAt: sharedDueAt });
+    await insertSchedule({ knowledgeBitId: "bit_due_9_fewer_gaps_1", dueAt: sharedDueAt });
+    await insertSchedule({ knowledgeBitId: "bit_due_9_fewer_gaps_2", dueAt: sharedDueAt });
+
+    await insertGap({
+      id: "gap_due_9_open_1",
+      topicId: "top_due_9_more_gaps",
+      label: "Open gap one",
+      state: "open",
+    });
+    await insertGap({
+      id: "gap_due_9_open_2",
+      topicId: "top_due_9_more_gaps",
+      label: "Open gap two",
+      state: "open",
+    });
+    await insertGap({
+      id: "gap_due_9_covered",
+      topicId: "top_due_9_fewer_gaps",
+      label: "Covered gap",
+      state: "covered",
+    });
+    await insertGap({
+      id: "gap_due_9_skipped",
+      topicId: "top_due_9_fewer_gaps",
+      label: "Skipped gap",
+      state: "skipped",
+    });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    const moreGapsIndex = ranked.findIndex((row) => row.topicId === "top_due_9_more_gaps");
+    const fewerGapsIndex = ranked.findIndex((row) => row.topicId === "top_due_9_fewer_gaps");
+
+    expect(moreGapsIndex).toBeGreaterThanOrEqual(0);
+    expect(fewerGapsIndex).toBeGreaterThanOrEqual(0);
+    expect(moreGapsIndex).toBeLessThan(fewerGapsIndex);
   });
 });
