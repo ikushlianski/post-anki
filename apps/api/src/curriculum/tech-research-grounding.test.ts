@@ -22,7 +22,8 @@ vi.mock("../llm-call-events/llm-call-events.repo.js", () => ({
   recordLlmCallEvent: (...args: unknown[]) => recordLlmCallEvent(...args),
 }));
 
-const { gatherTechResearchGrounding } = await import("./tech-research-grounding.js");
+const { gatherTechResearchGrounding, resolveOfficialDocsUrl, gatherTrustedSourceCandidates } =
+  await import("./tech-research-grounding.js");
 
 function chatResponseWith(
   urls: (string | undefined)[],
@@ -141,5 +142,157 @@ describe("gatherTechResearchGrounding retry and cost recording", () => {
     expect(recordLlmCallEvent).toHaveBeenCalledWith(
       expect.objectContaining({ success: false }),
     );
+  });
+});
+
+describe("resolveOfficialDocsUrl retry and cost recording", () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    recordLlmCallEvent.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("returns the resolved docs URL when a transient failure succeeds on retry", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => chatResponseWith(["https://docs.example.com"]),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await resolveOfficialDocsUrl("SomeTech");
+
+    expect(result).toBe("https://docs.example.com");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes token usage through to the recorded llm call event", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () =>
+        chatResponseWith(["https://docs.example.com"], {
+          prompt_tokens: 50,
+          completion_tokens: 10,
+          total_tokens: 60,
+        }),
+    }) as unknown as typeof fetch;
+
+    await resolveOfficialDocsUrl("SomeTech");
+
+    expect(recordLlmCallEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        promptTokens: 50,
+        completionTokens: 10,
+        totalTokens: 60,
+      }),
+    );
+  });
+
+  it("falls back to null without throwing when every attempt fails", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("ECONNRESET")) as unknown as typeof fetch;
+
+    const result = await resolveOfficialDocsUrl("SomeTech");
+
+    expect(result).toBeNull();
+    expect(recordLlmCallEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false }),
+    );
+  });
+
+  it("exhausts after a single attempt on a non-retryable 4xx", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400 });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await resolveOfficialDocsUrl("SomeTech");
+
+    expect(result).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("gatherTrustedSourceCandidates retry and cost recording", () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    recordLlmCallEvent.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("returns trusted source candidates when a transient failure succeeds on retry", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => chatResponseWith(["https://blog.example.com/post"]),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await gatherTrustedSourceCandidates("SomeTech");
+
+    expect(result).toEqual([
+      {
+        url: "https://blog.example.com/post",
+        title: "Trusted source (blog/paper): https://blog.example.com/post",
+        discoveryTier: "trusted_search",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes token usage through to the recorded llm call event", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () =>
+        chatResponseWith(["https://blog.example.com/post"], {
+          prompt_tokens: 80,
+          completion_tokens: 20,
+          total_tokens: 100,
+        }),
+    }) as unknown as typeof fetch;
+
+    await gatherTrustedSourceCandidates("SomeTech");
+
+    expect(recordLlmCallEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        promptTokens: 80,
+        completionTokens: 20,
+        totalTokens: 100,
+      }),
+    );
+  });
+
+  it("falls back to an empty array without throwing when every attempt fails", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("ECONNRESET")) as unknown as typeof fetch;
+
+    const result = await gatherTrustedSourceCandidates("SomeTech");
+
+    expect(result).toEqual([]);
+    expect(recordLlmCallEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false }),
+    );
+  });
+
+  it("exhausts after a single attempt on a non-retryable 4xx", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400 });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await gatherTrustedSourceCandidates("SomeTech");
+
+    expect(result).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

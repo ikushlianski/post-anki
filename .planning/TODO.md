@@ -620,6 +620,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
+- [x] Add retry and cost logging to the two remaining tech-research direct-fetch LLM calls
 - [x] Add retry and cost logging to the probe web-search LLM calls
 - [x] Add retry and cost logging to the tech-research web-search LLM calls
 

@@ -228,48 +228,69 @@ export async function resolveOfficialDocsUrl(
   scope: ResolveEffectiveModelTierScope = {},
 ): Promise<string | null> {
   const env = loadEnv();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), RESOLVE_DOCS_URL_TIMEOUT_MS);
+  const curriculumId = scope.curriculumId ?? null;
+
+  const attempt = async (model: string): Promise<{ url: string | null; usage: GenerateUsage }> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), RESOLVE_DOCS_URL_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(endpointUrl(env), {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: "openrouter:web_search", max_results: 3 }],
+          messages: [
+            {
+              role: "user",
+              content: `Find the single official documentation homepage URL for the technology "${technologyName}". Reply with only that URL and nothing else.`,
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        log.warn({ status: res.status, technologyName }, "resolve_official_docs_url_http_error");
+
+        // Non-429 4xx is non-transient — retrying wastes paid attempts.
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new AbortError(`resolve official docs url request failed with ${res.status}`);
+        }
+
+        throw new Error(`resolve official docs url request failed with ${res.status}`);
+      }
+
+      const data = (await res.json()) as ChatResponse;
+      const message = data.choices?.[0]?.message;
+      const fromCitation = collectCitations(message?.annotations).find(isSafeCitationUrl);
+
+      return {
+        url: fromCitation ?? extractFirstUrl(message?.content ?? ""),
+        usage: toGenerateUsage(data.usage),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
   try {
-    const res = await fetch(endpointUrl(env), {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: await restModel(scope),
-        tools: [{ type: "openrouter:web_search", max_results: 3 }],
-        messages: [
-          {
-            role: "user",
-            content: `Find the single official documentation homepage URL for the technology "${technologyName}". Reply with only that URL and nothing else.`,
-          },
-        ],
-      }),
-    });
+    const model = await restModel(scope);
+    const { usage: _usage, url } = await generateWithRetry(
+      "resolve_official_docs_url",
+      curriculumId,
+      "resolve-official-docs-url",
+      () => attempt(model),
+    );
 
-    if (!res.ok) {
-      log.warn({ status: res.status, technologyName }, "resolve_official_docs_url_http_error");
-      return null;
-    }
-
-    const data = (await res.json()) as ChatResponse;
-    const message = data.choices?.[0]?.message;
-    const fromCitation = collectCitations(message?.annotations).find(isSafeCitationUrl);
-
-    if (fromCitation) {
-      return fromCitation;
-    }
-
-    return extractFirstUrl(message?.content ?? "");
+    return url;
   } catch (err) {
     log.warn({ err, technologyName }, "resolve_official_docs_url_failed");
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -291,54 +312,84 @@ export async function gatherTrustedSourceCandidates(
   scope: ResolveEffectiveModelTierScope = {},
 ): Promise<TrustedSourceCandidate[]> {
   const env = loadEnv();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const curriculumId = scope.curriculumId ?? null;
+
+  const attempt = async (
+    model: string,
+  ): Promise<{
+    candidates: TrustedSourceCandidate[];
+    usage: GenerateUsage;
+  }> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const res = await fetch(endpointUrl(env), {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
+          messages: [
+            {
+              role: "user",
+              content: [
+                `Search for official engineering blog posts, well-established company engineering`,
+                `blogs, and research papers about: ${technologyName}.`,
+                `Examples of the kind of source to prefer (non-exhaustive — search broadly, this is`,
+                `just illustrative): OpenAI, Anthropic, Google/Gemini, and Vercel engineering blogs.`,
+                `Prefer primary, authoritative sources over tutorials, forum posts, or SEO content.`,
+              ].join(" "),
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        log.warn({ status: res.status, technologyName }, "trusted_source_candidates_http_error");
+
+        // Non-429 4xx is non-transient — retrying wastes paid attempts.
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new AbortError(`trusted source candidates request failed with ${res.status}`);
+        }
+
+        throw new Error(`trusted source candidates request failed with ${res.status}`);
+      }
+
+      const data = (await res.json()) as ChatResponse;
+      const citations = collectCitations(data.choices?.[0]?.message?.annotations);
+
+      return {
+        candidates: citations
+          .filter(isSafeCitationUrl)
+          .map((url) => ({
+            url,
+            title: `Trusted source (blog/paper): ${url}`,
+            discoveryTier: "trusted_search" as const,
+          })),
+        usage: toGenerateUsage(data.usage),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
   try {
-    const res = await fetch(endpointUrl(env), {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: await restModel(scope),
-        tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
-        messages: [
-          {
-            role: "user",
-            content: [
-              `Search for official engineering blog posts, well-established company engineering`,
-              `blogs, and research papers about: ${technologyName}.`,
-              `Examples of the kind of source to prefer (non-exhaustive — search broadly, this is`,
-              `just illustrative): OpenAI, Anthropic, Google/Gemini, and Vercel engineering blogs.`,
-              `Prefer primary, authoritative sources over tutorials, forum posts, or SEO content.`,
-            ].join(" "),
-          },
-        ],
-      }),
-    });
+    const model = await restModel(scope);
+    const { usage: _usage, candidates } = await generateWithRetry(
+      "gather_trusted_source_candidates",
+      curriculumId,
+      "gather-trusted-source-candidates",
+      () => attempt(model),
+    );
 
-    if (!res.ok) {
-      log.warn({ status: res.status, technologyName }, "trusted_source_candidates_http_error");
-      return [];
-    }
-
-    const data = (await res.json()) as ChatResponse;
-    const citations = collectCitations(data.choices?.[0]?.message?.annotations);
-
-    return citations
-      .filter(isSafeCitationUrl)
-      .map((url) => ({
-        url,
-        title: `Trusted source (blog/paper): ${url}`,
-        discoveryTier: "trusted_search" as const,
-      }));
+    return candidates;
   } catch (err) {
     log.warn({ err, technologyName }, "trusted_source_candidates_failed");
     return [];
-  } finally {
-    clearTimeout(timer);
   }
 }
