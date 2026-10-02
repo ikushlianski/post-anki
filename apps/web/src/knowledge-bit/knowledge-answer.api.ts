@@ -10,9 +10,12 @@ import type {
 } from '../curriculum/api-client'
 
 export const getNextQuestionVariants = createServerFn({ method: 'GET' })
-  .inputValidator((data: { limit?: number; tagId?: string; topicId?: string }) => data)
+  .inputValidator(
+    (data: { limit?: number; tagId?: string; topicId?: string; knowledgeBitId?: string }) =>
+      data,
+  )
   .handler(({ data }): Promise<NextQuestionVariant[]> =>
-    listNextQuestionVariants(data.limit, data.tagId, data.topicId),
+    listNextQuestionVariants(data.limit, data.tagId, data.topicId, data.knowledgeBitId),
   )
 
 export const gradeQuestionVariant = createServerFn({ method: 'POST' })

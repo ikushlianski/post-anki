@@ -13,12 +13,25 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({
     children,
     onClick,
+    to,
+    search,
+    params,
     ...rest
   }: {
     children: ReactNode
     onClick?: () => void
+    to?: string
+    search?: Record<string, unknown>
+    params?: Record<string, unknown>
   } & Record<string, unknown>) => (
-    <a href="#" onClick={onClick} {...rest}>
+    <a
+      href="#"
+      onClick={onClick}
+      data-to={to}
+      data-search={search ? JSON.stringify(search) : undefined}
+      data-params={params ? JSON.stringify(params) : undefined}
+      {...rest}
+    >
       {children}
     </a>
   ),
@@ -114,7 +127,7 @@ describe('GlobalSearch', () => {
     expect(screen.getByTestId('global-search-result-topic-top_1')).toBeDefined()
   })
 
-  it('should render an unplaced knowledge bit as plain text, not a broken curriculum link', async () => {
+  it('should link an unplaced knowledge bit to the answer queue, scoped to just that bit', async () => {
     const onSearch = vi.fn().mockResolvedValue(
       emptyResults({
         items: [
@@ -138,9 +151,39 @@ describe('GlobalSearch', () => {
     })
 
     const row = screen.getByTestId('global-search-result-bit-bit_1')
+    const link = within(row).getByRole('link')
+
+    expect(link.getAttribute('data-to')).toBe('/knowledge/answer')
+    expect(JSON.parse(link.getAttribute('data-search')!)).toEqual({ knowledgeBitId: 'bit_1' })
+    expect(within(row).getByText('Not yet placed in a course')).toBeDefined()
+  })
+
+  it('should render an unplaced topic as plain text, not a link to the answer queue', async () => {
+    const onSearch = vi.fn().mockResolvedValue(
+      emptyResults({
+        items: [
+          result({
+            id: 'top_2',
+            kind: 'topic',
+            title: 'Unplaced topic',
+            curriculumId: null,
+            curriculumName: null,
+          }),
+        ],
+      }),
+    )
+
+    render(<GlobalSearch onSearch={onSearch} />)
+
+    await userEvent.type(screen.getByTestId('global-search-input'), 'unplaced')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('global-search-result-topic-top_2')).toBeDefined()
+    })
+
+    const row = screen.getByTestId('global-search-result-topic-top_2')
 
     expect(within(row).queryByRole('link')).toBeNull()
-    expect(within(row).getByText('Not yet placed in a course')).toBeDefined()
   })
 
   it('should show every matched tag on a placed search result that still links to its course', async () => {

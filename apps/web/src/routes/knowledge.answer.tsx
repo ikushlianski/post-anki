@@ -11,32 +11,45 @@ import type { GradeQuestionVariantAnswerResult } from '../curriculum/api-client'
 interface AnswerScreenSearch {
   tagId?: string
   topicId?: string
+  knowledgeBitId?: string
 }
 
 export const Route = createFileRoute('/knowledge/answer')({
   validateSearch: (search: Record<string, unknown>): AnswerScreenSearch => ({
     tagId: typeof search.tagId === 'string' ? search.tagId : undefined,
     topicId: typeof search.topicId === 'string' ? search.topicId : undefined,
+    knowledgeBitId:
+      typeof search.knowledgeBitId === 'string' ? search.knowledgeBitId : undefined,
   }),
   component: AnswerScreen,
 })
 
 const BATCH_LIMIT = 5
 
-function answerQueueQueryKey(tagId: string | undefined, topicId: string | undefined) {
-  return ['knowledge-answer-queue', tagId ?? null, topicId ?? null] as const
+function answerQueueQueryKey(
+  tagId: string | undefined,
+  topicId: string | undefined,
+  knowledgeBitId: string | undefined,
+) {
+  return [
+    'knowledge-answer-queue',
+    tagId ?? null,
+    topicId ?? null,
+    knowledgeBitId ?? null,
+  ] as const
 }
 
 function AnswerScreen() {
-  const { tagId, topicId } = Route.useSearch()
+  const { tagId, topicId, knowledgeBitId } = Route.useSearch()
   const queryClient = useQueryClient()
   const [index, setIndex] = useState(0)
   const [draft, setDraft] = useState('')
   const [result, setResult] = useState<GradeQuestionVariantAnswerResult | null>(null)
 
   const { data: batch, isLoading } = useQuery({
-    queryKey: answerQueueQueryKey(tagId, topicId),
-    queryFn: () => getNextQuestionVariants({ data: { limit: BATCH_LIMIT, tagId, topicId } }),
+    queryKey: answerQueueQueryKey(tagId, topicId, knowledgeBitId),
+    queryFn: () =>
+      getNextQuestionVariants({ data: { limit: BATCH_LIMIT, tagId, topicId, knowledgeBitId } }),
   })
 
   const gradeMutation = useMutation({
@@ -73,7 +86,9 @@ function AnswerScreen() {
     }
 
     setIndex(0)
-    void queryClient.invalidateQueries({ queryKey: answerQueueQueryKey(tagId, topicId) })
+    void queryClient.invalidateQueries({
+      queryKey: answerQueueQueryKey(tagId, topicId, knowledgeBitId),
+    })
   }
 
   return (

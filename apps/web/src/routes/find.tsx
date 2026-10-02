@@ -91,6 +91,14 @@ export function FindPage() {
                   >
                     {result.title}
                   </Link>
+                ) : result.kind === 'bit' ? (
+                  <Link
+                    to="/knowledge/answer"
+                    search={{ knowledgeBitId: result.id }}
+                    className="text-sm font-medium underline underline-offset-2 hover:text-neutral-900"
+                  >
+                    {result.title}
+                  </Link>
                 ) : (
                   <span className="text-sm font-medium">{result.title}</span>
                 )}

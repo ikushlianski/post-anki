@@ -80,4 +80,19 @@ describe("GET /knowledge-bits/question-variants/next", () => {
       },
     ]);
   });
+
+  it("passes a knowledgeBitId query param through to the repo filter", async () => {
+    const { listNextQuestionVariantsToAnswer } = await import(
+      "./knowledge-bit-question-variant.repo.js"
+    );
+
+    await fetch(`${baseUrl}/knowledge-bits/question-variants/next?knowledgeBitId=kb_1`, {
+      headers: { authorization: `Bearer ${SHARED_SECRET}` },
+    });
+
+    expect(listNextQuestionVariantsToAnswer).toHaveBeenCalledWith(
+      5,
+      expect.objectContaining({ knowledgeBitId: "kb_1" }),
+    );
+  });
 });

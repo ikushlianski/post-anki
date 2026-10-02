@@ -1590,6 +1590,7 @@ export async function listNextQuestionVariants(
   limit?: number,
   tagId?: string,
   topicId?: string,
+  knowledgeBitId?: string,
 ): Promise<NextQuestionVariant[]> {
   const params = new URLSearchParams()
 
@@ -1603,6 +1604,10 @@ export async function listNextQuestionVariants(
 
   if (topicId !== undefined) {
     params.set('topicId', topicId)
+  }
+
+  if (knowledgeBitId !== undefined) {
+    params.set('knowledgeBitId', knowledgeBitId)
   }
 
   const query = params.toString()

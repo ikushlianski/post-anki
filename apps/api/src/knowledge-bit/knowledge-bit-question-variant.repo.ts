@@ -71,6 +71,9 @@ export interface NextQuestionVariantsFilter {
   // Scopes the queue to one topic's bits — what "tap a pressing topic, resume studying it" on
   // the home screen resolves to. Mutually exclusive with tagId in practice (the caller picks one).
   topicId?: string;
+  // Scopes the queue to a single bit — what a search result without a curriculum placement links
+  // to. Takes priority over tagId/topicId if more than one is somehow present.
+  knowledgeBitId?: string;
 }
 
 /**
@@ -114,22 +117,24 @@ export async function listNextQuestionVariantsToAnswer(
       eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
     );
 
-  const condition = filter?.topicId
-    ? eq(knowledgeBits.topicId, filter.topicId)
-    : filter?.tagId
-      ? inArray(
-          knowledgeBits.id,
-          db
-            .select({ id: tagAssignments.nodeId })
-            .from(tagAssignments)
-            .where(
-              and(
-                eq(tagAssignments.tagId, filter.tagId),
-                eq(tagAssignments.nodeType, "knowledgeBit"),
+  const condition = filter?.knowledgeBitId
+    ? eq(knowledgeBits.id, filter.knowledgeBitId)
+    : filter?.topicId
+      ? eq(knowledgeBits.topicId, filter.topicId)
+      : filter?.tagId
+        ? inArray(
+            knowledgeBits.id,
+            db
+              .select({ id: tagAssignments.nodeId })
+              .from(tagAssignments)
+              .where(
+                and(
+                  eq(tagAssignments.tagId, filter.tagId),
+                  eq(tagAssignments.nodeType, "knowledgeBit"),
+                ),
               ),
-            ),
-        )
-      : undefined;
+          )
+        : undefined;
 
   const filtered = condition ? base.where(condition) : base;
 

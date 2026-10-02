@@ -225,6 +225,15 @@ function ResultGroup({
             >
               {item.title}
             </Link>
+          ) : item.kind === 'bit' ? (
+            <Link
+              to="/knowledge/answer"
+              search={{ knowledgeBitId: item.id }}
+              onClick={onSelect}
+              className="block font-medium underline underline-offset-2 hover:text-neutral-900"
+            >
+              {item.title}
+            </Link>
           ) : (
             <span className="block font-medium">{item.title}</span>
           )}

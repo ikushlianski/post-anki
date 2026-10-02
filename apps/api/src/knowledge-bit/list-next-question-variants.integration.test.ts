@@ -195,6 +195,17 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(rows.map((row) => row.variantId)).toEqual([inTopicVariant]);
   });
 
+  it("scopes to only variants whose bit matches the given knowledgeBitId", async () => {
+    const targetBit = await seedKnowledgeBit("Target bit for queue");
+    const otherBit = await seedKnowledgeBit("Other bit for queue");
+    const targetVariant = await seedVariant(targetBit, "Target question?");
+    await seedVariant(otherBit, "Other question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: targetBit });
+
+    expect(rows.map((row) => row.variantId)).toEqual([targetVariant]);
+  });
+
   it("returns the seeded bit's background text on its row", async () => {
     const backgroundText = `Background context ${randomUUID()}`;
     const bitId = await seedKnowledgeBit("Background bit for queue", undefined, backgroundText);
