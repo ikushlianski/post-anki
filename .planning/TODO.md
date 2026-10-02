@@ -236,7 +236,7 @@ updated: 2026-09-04
 - [ ] Pull the two seed Notion pages read-only and inspect their shape
 - [x] Let a connector be configured to remove or keep an item after import
 - [x] Let a connector only pull items matching a configured rule, e.g. a tag
-- [ ] Run each Notion connector on its own schedule, unattended
+- [x] Run each Notion connector on its own schedule, unattended
 - [ ] Let a deck's Notion source be re-synced to pick up edits
 - [x] Turn a table-style Notion database into individual cards
 - [x] Turn a paragraph-style Notion page into individual cards

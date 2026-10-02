@@ -3,13 +3,22 @@ import { filterByTag } from "@post-anki/core";
 import { log } from "../shared/log.js";
 import { embedFacts } from "../facts/facts-embedding.orchestrator.js";
 import { getNotionClient, readSourceItems } from "./notion.client.js";
-import { insertFact, listSyncedNotionIds, recordSynced } from "./notion-sync.repo.js";
+import {
+  insertFact,
+  lastConnectorRunAt,
+  listSyncedNotionIds,
+  recordConnectorRun,
+  recordSynced,
+} from "./notion-sync.repo.js";
 import { addProjectTodo, type ProjectTodoTarget } from "./project-todo.destination.js";
 
 export interface NotionSyncDeps {
   readItems: (source: NotionSource) => Promise<NotionItem[]>;
   addTodo: (target: ProjectTodoTarget, text: string) => Promise<void>;
   removeItem: (source: NotionSource, itemId: string) => Promise<void>;
+  lastRunAt: (connector: string) => Promise<Date | null>;
+  recordRun: (connector: string, at: Date) => Promise<void>;
+  now: () => Date;
 }
 
 export interface ConnectorSyncResult {
@@ -31,7 +40,24 @@ export async function removeNotionItem(source: NotionSource, itemId: string): Pr
 }
 
 export function defaultNotionSyncDeps(): NotionSyncDeps {
-  return { readItems: readSourceItems, addTodo: addProjectTodo, removeItem: removeNotionItem };
+  return {
+    readItems: readSourceItems,
+    addTodo: addProjectTodo,
+    removeItem: removeNotionItem,
+    lastRunAt: lastConnectorRunAt,
+    recordRun: recordConnectorRun,
+    now: () => new Date(),
+  };
+}
+
+const DUE_TOLERANCE_MS = 60_000;
+
+function isDue(lastRunAt: Date | null, intervalMinutes: number, now: Date): boolean {
+  if (!lastRunAt) {
+    return true;
+  }
+
+  return now.getTime() - lastRunAt.getTime() >= intervalMinutes * 60_000 - DUE_TOLERANCE_MS;
 }
 
 async function routeItem(connector: NotionConnector, item: NotionItem, deps: NotionSyncDeps): Promise<void> {
@@ -85,11 +111,30 @@ export async function runNotionSync(
   const results: ConnectorSyncResult[] = [];
 
   for (const connector of connectors) {
+    const { intervalMinutes } = connector;
+    const now = deps.now();
+
     try {
+      if (intervalMinutes !== undefined) {
+        const lastRunAt = await deps.lastRunAt(connector.name);
+
+        if (!isDue(lastRunAt, intervalMinutes, now)) {
+          log.info({ connector: connector.name, intervalMinutes }, "notion_sync_connector_not_due");
+          continue;
+        }
+      }
+
       results.push(await syncConnector(connector, deps));
     } catch (err) {
       log.error({ err, connector: connector.name }, "notion_sync_connector_failed");
       results.push({ connector: connector.name, imported: 0, skipped: 0, failed: -1 });
+      continue;
+    }
+
+    if (intervalMinutes !== undefined) {
+      await deps.recordRun(connector.name, now).catch((err) => {
+        log.error({ err, connector: connector.name }, "notion_sync_record_run_failed");
+      });
     }
   }
 

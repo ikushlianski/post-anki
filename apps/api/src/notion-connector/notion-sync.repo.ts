@@ -1,6 +1,6 @@
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getDb } from "../db/client.js";
-import { facts, notionSyncItems } from "../db/schema.js";
+import { facts, notionConnectorRuns, notionSyncItems } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 export interface InsertFactInput {
@@ -39,4 +39,20 @@ export async function insertFact(input: InsertFactInput): Promise<void> {
     .insert(facts)
     .values({ id: newId("fact"), ...input })
     .onConflictDoNothing({ target: facts.sourceRef });
+}
+
+export async function lastConnectorRunAt(connector: string): Promise<Date | null> {
+  const [row] = await getDb()
+    .select({ lastRunAt: notionConnectorRuns.lastRunAt })
+    .from(notionConnectorRuns)
+    .where(eq(notionConnectorRuns.connector, connector));
+
+  return row?.lastRunAt ?? null;
+}
+
+export async function recordConnectorRun(connector: string, at: Date): Promise<void> {
+  await getDb()
+    .insert(notionConnectorRuns)
+    .values({ connector, lastRunAt: at })
+    .onConflictDoUpdate({ target: notionConnectorRuns.connector, set: { lastRunAt: at } });
 }

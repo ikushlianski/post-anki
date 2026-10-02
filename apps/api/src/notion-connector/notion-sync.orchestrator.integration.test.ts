@@ -85,6 +85,9 @@ function deps(items: NotionItem[]) {
     readItems: vi.fn().mockResolvedValue(items),
     addTodo: vi.fn().mockResolvedValue(undefined),
     removeItem: vi.fn().mockResolvedValue(undefined),
+    lastRunAt: vi.fn().mockResolvedValue(null),
+    recordRun: vi.fn().mockResolvedValue(undefined),
+    now: () => new Date(),
   };
 }
 

@@ -16,7 +16,9 @@ skipped, never replayed. Nothing is deployed.
      Notion (page menu → Connections).
    - `DATABASE_URL` — the production Postgres URL (facts and sync records are written there).
 2. Fill `notion-connectors.json`: each connector's `source.id` is a Notion page or database id, or its
-   full URL. The sample ids beginning with `REPLACE_WITH_` are refused until replaced.
+   full URL. The sample ids beginning with `REPLACE_WITH_` are refused until replaced. A connector can
+   set its own `intervalMinutes` (e.g. `1440` for nightly) to run less often than the agent's 15-minute
+   tick; omitting it keeps the previous every-tick behaviour.
 3. Install:
 
    ```sh

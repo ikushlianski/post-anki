@@ -526,6 +526,13 @@
       "when": 1790731015612,
       "tag": "0074_wide_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1790968449325,
+      "tag": "0075_first_guardian",
+      "breakpoints": true
     }
   ]
 }

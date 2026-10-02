@@ -1193,6 +1193,11 @@ export const notionSyncItems = pgTable("notion_sync_items", {
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const notionConnectorRuns = pgTable("notion_connector_runs", {
+  connector: text("connector").primaryKey(),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
+});
+
 export const languagePracticeSettings = pgTable("language_practice_settings", {
   subjectId: text("subject_id").primaryKey(),
   level: text("level").notNull().default("B1_B2"),

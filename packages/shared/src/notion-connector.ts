@@ -24,6 +24,7 @@ export const notionConnectorSchema = z.object({
   tag: z.string().regex(/^[A-Z0-9]{2,8}$/),
   destination: notionDestinationSchema,
   removeAfterImport: z.boolean().default(false),
+  intervalMinutes: z.number().int().positive().optional(),
 });
 
 export type NotionConnector = z.infer<typeof notionConnectorSchema>;
