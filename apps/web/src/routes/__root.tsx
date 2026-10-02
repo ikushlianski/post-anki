@@ -9,7 +9,8 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useEffect, useState } from 'react'
 import { Sidebar } from '../nav/sidebar'
 import { GlobalSearch } from '../search/global-search'
-import { search } from '../curriculum/curriculum.api'
+import { combineHeaderSearch } from '../search/header-search'
+import { search, searchTopicsAndModules } from '../curriculum/curriculum.api'
 import { GlobalCardChatPanel } from '../global-card-chat/global-card-chat-panel'
 
 import type { QueryClient } from '@tanstack/react-query'
@@ -21,6 +22,11 @@ declare global {
     __APP_HYDRATED__?: boolean
   }
 }
+
+const headerSearch = combineHeaderSearch(
+  (query) => search({ data: query }),
+  (query) => searchTopicsAndModules({ data: query }),
+)
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -65,7 +71,7 @@ function RootDocument({ children }: { children: ReactNode }) {
               <Link to="/" className="shrink-0 text-base font-semibold tracking-tight">
                 post·anki
               </Link>
-              <GlobalSearch onSearch={(query) => search({ data: query })} />
+              <GlobalSearch onSearch={headerSearch} />
               <Link
                 to="/find"
                 data-testid="find-page-link"

@@ -152,3 +152,5 @@
 {"timestamp":"2026-10-02T16:51:29.000Z","direction":"llm-cost-observability","item":"probe-grounding-retry-cost","tier":"Direct","verdict":"PASS"}
 {"timestamp":"2026-10-02T17:00:16.000Z","direction":"llm-cost-observability","item":"tech-research-grounding-remaining-fetches","tier":"Direct","verdict":"PASS"}
 {"timestamp":"2026-10-02T17:06:52.000Z","direction":"llm-cost-observability","item":"gatherGrounding-restModel-guard","tier":"Direct","verdict":"PASS"}
+{"timestamp":"2026-10-02T17:09:47.000Z","direction":"llm-cost-observability","item":"gatherGrounding-single-tier-resolution","tier":"Direct","verdict":"PASS"}
+{"timestamp":"2026-10-02T17:24:12.000Z","direction":"discovery-and-navigation","item":"header-search-broadening","tier":"Direct","verdict":"FAIL","reason":"replaced subject/curriculum search instead of adding to it"}

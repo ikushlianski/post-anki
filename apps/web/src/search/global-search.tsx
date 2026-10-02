@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 
-import type { SearchResponse, SearchResultItem, SearchTopicResult } from '@post-anki/shared'
+import type { ReactNode } from 'react'
+import type { SearchResultItem, TopicModuleSearchResult } from '@post-anki/shared'
+import type { HeaderSearchResults } from './header-search'
 
 const DEBOUNCE_MS = 300
 
 export interface GlobalSearchProps {
-  onSearch: (query: string) => Promise<SearchResponse>
+  onSearch: (query: string) => Promise<HeaderSearchResults>
 }
 
 export function GlobalSearch({ onSearch }: GlobalSearchProps) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResponse | null>(null)
+  const [results, setResults] = useState<HeaderSearchResults | null>(null)
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const onSearchRef = useRef(onSearch)
@@ -78,7 +79,7 @@ export function GlobalSearch({ onSearch }: GlobalSearchProps) {
             setOpen(true)
           }
         }}
-        placeholder="Search subjects, curricula, topics…"
+        placeholder="Search subjects, curricula, topics, modules, bits, tags…"
         data-testid="global-search-input"
         aria-label="Search"
         className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
@@ -100,15 +101,21 @@ export function GlobalSearch({ onSearch }: GlobalSearchProps) {
   )
 }
 
+const GROUP_LABELS: Record<TopicModuleSearchResult['kind'], string> = {
+  topic: 'Topics',
+  module: 'Modules',
+  bit: 'Knowledge bits',
+}
+
 function SearchResultsList({
   results,
   onSelect,
 }: {
-  results: SearchResponse
+  results: HeaderSearchResults
   onSelect: () => void
 }) {
   const hasResults =
-    results.subjects.length > 0 || results.curricula.length > 0 || results.topics.length > 0
+    results.subjects.length > 0 || results.curricula.length > 0 || results.items.length > 0
 
   if (!hasResults) {
     return <p className="px-3 py-2 text-sm text-neutral-500">No results</p>
@@ -116,7 +123,7 @@ function SearchResultsList({
 
   return (
     <>
-      <ResultGroup
+      <LegacyResultGroup
         label="Subjects"
         items={results.subjects}
         renderItem={(subject) => (
@@ -133,7 +140,7 @@ function SearchResultsList({
         )}
       />
 
-      <ResultGroup
+      <LegacyResultGroup
         label="Curricula"
         items={results.curricula}
         renderItem={(curriculum) => (
@@ -150,34 +157,26 @@ function SearchResultsList({
         )}
       />
 
-      <ResultGroup
-        label="Topics"
-        items={results.topics}
-        renderItem={(topic: SearchTopicResult) => (
-          <Link
-            key={topic.id}
-            to="/curriculum/$curriculumId"
-            params={{ curriculumId: topic.curriculumId }}
-            data-testid={`global-search-result-topic-${topic.id}`}
-            onClick={onSelect}
-            className="block px-3 py-2 text-sm hover:bg-neutral-50"
-          >
-            {topic.label}
-          </Link>
-        )}
-      />
+      {(['topic', 'module', 'bit'] as const).map((kind) => (
+        <ResultGroup
+          key={kind}
+          label={GROUP_LABELS[kind]}
+          items={results.items.filter((result) => result.kind === kind)}
+          onSelect={onSelect}
+        />
+      ))}
     </>
   )
 }
 
-function ResultGroup<T extends SearchResultItem>({
+function LegacyResultGroup({
   label,
   items,
   renderItem,
 }: {
   label: string
-  items: T[]
-  renderItem: (item: T) => ReactNode
+  items: SearchResultItem[]
+  renderItem: (item: SearchResultItem) => ReactNode
 }) {
   if (items.length === 0) {
     return null
@@ -189,6 +188,63 @@ function ResultGroup<T extends SearchResultItem>({
         {label}
       </p>
       {items.map(renderItem)}
+    </div>
+  )
+}
+
+function ResultGroup({
+  label,
+  items,
+  onSelect,
+}: {
+  label: string
+  items: TopicModuleSearchResult[]
+  onSelect: () => void
+}) {
+  if (items.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="border-b border-neutral-100 py-1 last:border-b-0">
+      <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+        {label}
+      </p>
+      {items.map((item) => (
+        <div
+          key={`${item.kind}-${item.id}`}
+          data-testid={`global-search-result-${item.kind}-${item.id}`}
+          className="px-3 py-2 text-sm hover:bg-neutral-50"
+        >
+          {item.curriculumId ? (
+            <Link
+              to="/curriculum/$curriculumId"
+              params={{ curriculumId: item.curriculumId }}
+              onClick={onSelect}
+              className="block font-medium underline underline-offset-2 hover:text-neutral-900"
+            >
+              {item.title}
+            </Link>
+          ) : (
+            <span className="block font-medium">{item.title}</span>
+          )}
+          <p className="mt-0.5 text-xs text-neutral-400">
+            {item.curriculumName ?? 'Not yet placed in a course'}
+          </p>
+          {item.tags.length > 0 ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
     </div>
   )
 }
