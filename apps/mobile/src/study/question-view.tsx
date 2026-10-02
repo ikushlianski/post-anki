@@ -2,6 +2,7 @@ import { useState } from "react";
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { ProbeQuestion } from "@post-anki/shared";
 import { VoiceRecordButton } from "../voice/voice-record-button";
+import { scoreQuickTestSelection, type SelfOutcome } from "./score-quick-test";
 
 export function QuestionView({
   question,
@@ -10,7 +11,7 @@ export function QuestionView({
 }: {
   question: ProbeQuestion;
   submitting: boolean;
-  onSubmit: (answer: string) => void;
+  onSubmit: (answer: string, selfOutcome?: SelfOutcome) => void;
 }) {
   if (question.kind === "quick_test") {
     return <QuickTestQuestion question={question} submitting={submitting} onSubmit={onSubmit} />;
@@ -26,7 +27,7 @@ function QuickTestQuestion({
 }: {
   question: ProbeQuestion;
   submitting: boolean;
-  onSubmit: (answer: string) => void;
+  onSubmit: (answer: string, selfOutcome?: SelfOutcome) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -41,7 +42,7 @@ function QuickTestQuestion({
             style={[styles.option, selected === index && styles.optionSelected]}
             onPress={() => {
               setSelected(index);
-              onSubmit(String(index));
+              onSubmit(String(index), scoreQuickTestSelection(question, index));
             }}
           >
             <Text style={styles.optionText}>{option}</Text>
@@ -59,7 +60,7 @@ function SocraticQuestion({
 }: {
   question: ProbeQuestion;
   submitting: boolean;
-  onSubmit: (answer: string) => void;
+  onSubmit: (answer: string, selfOutcome?: SelfOutcome) => void;
 }) {
   const [answer, setAnswer] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);

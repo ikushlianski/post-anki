@@ -563,6 +563,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Fix wh-question generation: same concurrent-scan race and permanent-fail-mark bug as fill-blank
 
 ### Notes
+- Edit-vs-answer race (no row lock) is a precondition to fix before wiring UI/MCP to this endpoint
 - Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15) — deep audit found no unguarded bulk-delete/regenerate path.
 
@@ -708,10 +709,12 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: building a brand-new surface from scratch — hardening/extending existing ones
 
 ### Coding tasks
+- [x] Fix mobile quick-test practice always scoring as failed, reopening answered gaps
 - [x] Let a mentor-subject learner practice probe questions from the mobile app
 - [x] Let the learner record and submit a voice note from the app
 
 ### Notes
+- Bot probe-flow has the same selfOutcome gap, but quick_test mode is unreachable there today
 - Chrome extension is unmerged on an abandoned branch — needs a human call on landing it
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 

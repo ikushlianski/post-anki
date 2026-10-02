@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DailyPushResponse, ProbeResult } from "@post-anki/shared";
 import { ApiRequestError, apiFetch } from "../api/client";
 import { submitProbeAnswer } from "./answer-submit";
+import type { SelfOutcome } from "./score-quick-test";
 
 export function useProbePush(subjectId?: string) {
   const [push, setPush] = useState<DailyPushResponse | null>(null);
@@ -40,7 +41,7 @@ export function useProbePush(subjectId?: string) {
     void load();
   }, [load]);
 
-  async function handleSubmit(answer: string) {
+  async function handleSubmit(answer: string, selfOutcome?: SelfOutcome) {
     if (!push?.push || !push.question || submittingRef.current) {
       return;
     }
@@ -55,6 +56,7 @@ export function useProbePush(subjectId?: string) {
         gapId: push.question.gapId,
         mode: push.question.kind,
         answer,
+        selfOutcome,
       });
 
       setResult(res);
