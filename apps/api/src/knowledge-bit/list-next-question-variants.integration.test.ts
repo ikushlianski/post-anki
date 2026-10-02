@@ -85,7 +85,7 @@ async function seedKnowledgeBit(
   return bitId;
 }
 
-async function seedTopic(title: string): Promise<string> {
+async function seedTopic(title: string, learningStatus?: string): Promise<string> {
   const subjectId = id("sub");
   const curriculumId = id("cur");
   const moduleId = id("mod");
@@ -106,8 +106,9 @@ async function seedTopic(title: string): Promise<string> {
     title,
   ]);
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4, 1)`,
-    [topicId, moduleId, curriculumId, title],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", learning_status)
+     VALUES ($1, $2, $3, $4, 1, $5)`,
+    [topicId, moduleId, curriculumId, title, learningStatus ?? "not_started"],
   );
 
   return topicId;
@@ -193,6 +194,16 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     const rows = await listNextQuestionVariantsToAnswer(10, { topicId });
 
     expect(rows.map((row) => row.variantId)).toEqual([inTopicVariant]);
+  });
+
+  it("returns nothing for a topic the learner deliberately dropped", async () => {
+    const droppedTopicId = await seedTopic("Queue topic dropped", "skipping");
+    const droppedBit = await seedKnowledgeBit("Dropped-topic bit for queue", droppedTopicId);
+    await seedVariant(droppedBit, "Dropped-topic question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { topicId: droppedTopicId });
+
+    expect(rows).toEqual([]);
   });
 
   it("scopes to only variants whose bit matches the given knowledgeBitId", async () => {

@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, exists, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
@@ -7,6 +7,7 @@ import {
   knowledgeBitSchedules,
   knowledgeBitVariantAttempts,
   tagAssignments,
+  topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
@@ -117,10 +118,21 @@ export async function listNextQuestionVariantsToAnswer(
       eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
     );
 
+  // A topic the learner deliberately dropped (learningStatus "skipping") must never serve
+  // questions through this topic-scoped path either — same rule as the due-list rollup.
+  const topicNotDropped = filter?.topicId
+    ? exists(
+        db
+          .select({ one: sql`1` })
+          .from(topics)
+          .where(and(eq(topics.id, filter.topicId), ne(topics.learningStatus, "skipping"))),
+      )
+    : undefined;
+
   const condition = filter?.knowledgeBitId
     ? eq(knowledgeBits.id, filter.knowledgeBitId)
     : filter?.topicId
-      ? eq(knowledgeBits.topicId, filter.topicId)
+      ? and(eq(knowledgeBits.topicId, filter.topicId), topicNotDropped)
       : filter?.tagId
         ? inArray(
             knowledgeBits.id,

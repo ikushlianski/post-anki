@@ -96,10 +96,19 @@ async function insertTopic(overrides: {
   curriculumId: string;
   title: string;
   included?: boolean;
+  learningStatus?: string;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included) VALUES ($1, $2, $3, $4, 1, $5)`,
-    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title, overrides.included ?? true],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included, learning_status)
+     VALUES ($1, $2, $3, $4, 1, $5, $6)`,
+    [
+      overrides.id,
+      overrides.moduleId,
+      overrides.curriculumId,
+      overrides.title,
+      overrides.included ?? true,
+      overrides.learningStatus ?? "not_started",
+    ],
   );
 }
 
@@ -249,6 +258,36 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
     const scoped = await getDueCountsForTopics(["top_due_ungenerated"]);
 
     expect(scoped.get("top_due_ungenerated")).toBeUndefined();
+  });
+
+  it("omits a topic the learner deliberately dropped, even with overdue bits", async () => {
+    await insertSubject({ id: "sub_due_dropped", name: "Testing dropped" });
+    await insertCurriculum({ id: "cur_due_dropped", subjectId: "sub_due_dropped", name: "Scheduling dropped" });
+    await insertModule({ id: "mod_due_dropped", curriculumId: "cur_due_dropped", title: "Reviews dropped" });
+    await insertTopic({
+      id: "top_due_dropped",
+      moduleId: "mod_due_dropped",
+      curriculumId: "cur_due_dropped",
+      title: "Deliberately dropped",
+      included: false,
+      learningStatus: "skipping",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_dropped",
+      knowledgeSourceId: "src_due_dropped",
+      ordinal: 1,
+      body: "Was due yesterday but the topic was dropped",
+      topicId: "top_due_dropped",
+    });
+    await insertQuestionVariant({ id: "qv_due_dropped", knowledgeBitId: "bit_due_dropped" });
+    await insertSchedule({
+      knowledgeBitId: "bit_due_dropped",
+      dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_dropped")).toBeUndefined();
   });
 });
 

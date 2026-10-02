@@ -18,10 +18,7 @@
   "pushGranted": false,
   "maxDispatches": 60,
   "dispatchCount": 0,
-  "pendingSkillReload": [
-    "nextx",
-    "implement-factory"
-  ],
+  "pendingSkillReload": [],
   "lastBlockAt": "2026-10-02T19:25:18.213Z",
   "stoppedReason": "every-active-direction-at-ceiling"
 }

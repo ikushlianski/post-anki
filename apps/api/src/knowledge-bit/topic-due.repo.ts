@@ -1,4 +1,4 @@
-import { and, eq, exists, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { gaps, knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedules, topics } from "../db/schema.js";
 
@@ -33,6 +33,9 @@ export interface TopicDueCount {
 //
 // Default ranking (no product input): oldest overdue bit first, unreviewed = most overdue;
 // open-gap count breaks ties, computed in the same query so LIMIT never cuts it off early.
+//
+// A topic the learner deliberately dropped (learningStatus "skipping") never counts as due —
+// the home screen's "most pressing" list must never nudge them back toward it.
 export async function listTopicsWithDueCounts(
   limit: number,
   db: DbExecutor = getDb(),
@@ -49,7 +52,7 @@ export async function listTopicsWithDueCounts(
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .where(dueCondition(db))
+    .where(and(ne(topics.learningStatus, "skipping"), dueCondition(db)))
     .groupBy(topics.id, topics.title)
     .orderBy(
       sql`min(coalesce(${knowledgeBitSchedules.dueAt}, '-infinity'::timestamptz)) asc`,

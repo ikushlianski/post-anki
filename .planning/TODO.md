@@ -183,6 +183,7 @@ updated: 2026-09-04
 - Blocked (2026-09-24): topic-tracking item — progressMaturity is gap-derived, no safe write path for bits
 - Fresh review of fill-in-the-blank ran: FAIL on correctness and tests, 4th straight failure, stuck
 - Possible unblock for topic-tracking: read-time fold of bit attempts, no progressMaturity write — needs human sign-off.
+- EXHAUSTED-AT-SCOPE (round 2, 2026-10-02) - fill-blank and notion-ingestion stuck, topic-tracking needs human sign-off per its own plan folder
 
 
 ## biz-education-distiller
@@ -581,6 +582,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new study modalities — only ranking/selection logic
 
 ### Coding tasks
+- [x] Stop a dropped topic's due list and queued questions from still surfacing
 - [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
 
 ### Notes
