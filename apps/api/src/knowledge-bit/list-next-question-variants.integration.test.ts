@@ -175,12 +175,34 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(rows.map((row) => row.variantId)).toEqual([taggedVariant]);
   });
 
+  it("excludes a tagged bit whose topic was deliberately dropped", async () => {
+    const tag = await resolveOrCreateTag(`dropped-topic-tag-${randomUUID()}`);
+    const droppedTopicId = await seedTopic("Tag queue topic dropped", "skipping");
+    const droppedBit = await seedKnowledgeBit("Dropped-topic tagged bit for queue", droppedTopicId);
+    await seedVariant(droppedBit, "Dropped-topic tagged question?");
+    await assignTag(tag.id, "knowledgeBit", droppedBit);
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { tagId: tag.id });
+
+    expect(rows).toEqual([]);
+  });
+
   it("returns an empty array, not an error, when a tag has no assigned bits", async () => {
     const emptyTag = await resolveOrCreateTag(`empty-queue-tag-${randomUUID()}`);
 
     const rows = await listNextQuestionVariantsToAnswer(10, { tagId: emptyTag.id });
 
     expect(rows).toEqual([]);
+  });
+
+  it("excludes a dropped-topic bit from the default, unfiltered queue", async () => {
+    const droppedTopicId = await seedTopic("Default queue topic dropped", "skipping");
+    const droppedBit = await seedKnowledgeBit("Dropped-topic bit for default queue", droppedTopicId);
+    const droppedVariant = await seedVariant(droppedBit, "Dropped-topic default question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(500, undefined);
+
+    expect(rows.map((row) => row.variantId)).not.toContain(droppedVariant);
   });
 
   it("scopes to only variants whose bit belongs to the given topicId", async () => {

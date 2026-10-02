@@ -582,6 +582,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new study modalities — only ranking/selection logic
 
 ### Coding tasks
+- [x] Also stop the default and tag-scoped answer queue from serving a dropped topic's bits
 - [x] Stop a dropped topic's due list and queued questions from still surfacing
 - [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
 
@@ -591,6 +592,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - No cross-subject ranking exists yet — needs a human call on what the ranking weighs first.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-09-29)
+- included and learningStatus=skipping can diverge (slice-release.ts re-includes without clearing it) - due rollups may need the same guard
 
 ## calibration-and-depth-accuracy
 
