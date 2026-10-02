@@ -20,7 +20,19 @@ vi.mock("./generate-with-retry.js", () => ({
 import {
   buildKnowledgeBitDetectorPrompt,
   runKnowledgeBitDetector,
+  INSTRUCTIONS,
 } from "./knowledge-bit-detector.agent.js";
+
+describe("INSTRUCTIONS", () => {
+  it("directs the model to split multiple facts in the same sentence into separate bits", () => {
+    expect(INSTRUCTIONS).toContain(
+      "never bundle multiple separate facts into one",
+    );
+    expect(INSTRUCTIONS).toContain(
+      "bit just because they appear in the same sentence or paragraph.",
+    );
+  });
+});
 
 describe("buildKnowledgeBitDetectorPrompt", () => {
   it("wraps the source text in <source> delimiters", () => {
@@ -58,6 +70,34 @@ describe("runKnowledgeBitDetector", () => {
     expect(prompt).toContain("<source>");
     expect(prompt).toContain("</source>");
     expect(prompt).toContain("Some source prose to extract from.");
+  });
+
+  it("returns every bit the model extracts from a single-sentence source without merging or dropping them", async () => {
+    generateMock.mockResolvedValueOnce({
+      object: {
+        bits: [
+          { text: "Redis caches hot keys in memory, which cuts database load.", background: null },
+          { text: "Caching hot keys in memory also reduces p99 latency.", background: null },
+        ],
+      },
+    });
+
+    const bits = await runKnowledgeBitDetector(
+      "Redis caches hot keys in memory, which cuts database load and also reduces p99 latency.",
+    );
+
+    expect(bits).toEqual([
+      { text: "Redis caches hot keys in memory, which cuts database load.", background: null },
+      { text: "Caching hot keys in memory also reduces p99 latency.", background: null },
+    ]);
+
+    const [prompt] = generateMock.mock.calls.at(-1) as [string, unknown];
+
+    expect(prompt).toContain("<source>");
+    expect(prompt).toContain("</source>");
+    expect(prompt).toContain(
+      "Redis caches hot keys in memory, which cuts database load and also reduces p99 latency.",
+    );
   });
 
   it("keeps a non-null background for a bit that genuinely needs nearby context", async () => {

@@ -9,7 +9,7 @@ import type { DetectedKnowledgeBit } from "../knowledge-bit/detected-knowledge-b
 
 const DETECTOR_MODEL = tierToModelId("cheap");
 
-const INSTRUCTIONS = [
+export const INSTRUCTIONS = [
   "You are a knowledge fisher. You split a block of prose into distinct, self-contained knowledge",
   "bits — each one a single piece of knowledge worth confirming the reader actually understands and",
   "agrees is worth keeping, not a paragraph summary.",

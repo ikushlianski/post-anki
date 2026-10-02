@@ -91,7 +91,7 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
-- [ ] Prove the detector splits multiple knowledge bits from one sentence
+- [x] Prove the detector splits multiple knowledge bits from one sentence
 - [x] Build a web screen to paste plain-text knowledge, single or batch
 - [x] Let one submission add several separate prose knowledge sources at once
 - [x] Extract optional short background/clarifying text alongside Q&A from inbox content
