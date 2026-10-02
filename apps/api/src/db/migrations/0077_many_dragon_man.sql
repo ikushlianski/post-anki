@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS "knowledge_bit_question_variants_bit_kind_order_unique";--> statement-breakpoint
+ALTER TABLE "knowledge_bit_question_variants" ADD COLUMN "superseded_at" timestamp with time zone;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "knowledge_bit_question_variants_bit_kind_order_unique" ON "knowledge_bit_question_variants" USING btree ("knowledge_bit_id","kind","order") WHERE "knowledge_bit_question_variants"."superseded_at" is null;

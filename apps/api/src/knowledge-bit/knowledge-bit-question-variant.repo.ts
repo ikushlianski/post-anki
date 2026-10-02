@@ -53,7 +53,12 @@ export async function listQuestionVariantsForEmbeddingScan(
       embeddingHash: knowledgeBitQuestionVariants.embeddingHash,
     })
     .from(knowledgeBitQuestionVariants)
-    .where(isNull(knowledgeBitQuestionVariants.embeddedAt))
+    .where(
+      and(
+        isNull(knowledgeBitQuestionVariants.embeddedAt),
+        isNull(knowledgeBitQuestionVariants.supersededAt),
+      ),
+    )
     .orderBy(asc(knowledgeBitQuestionVariants.createdAt))
     .limit(limit);
 }
@@ -123,6 +128,9 @@ export async function listNextQuestionVariantsToAnswer(
   // questions, regardless of which filter reached it — a bit with no topic placement is
   // unaffected, since topics.learningStatus is null for it.
   const topicNotDropped = or(isNull(knowledgeBits.topicId), ne(topics.learningStatus, "skipping"));
+  // A superseded variant belongs to a since-edited body — never serve its stale prompt, even
+  // though its attempt history stays joinable for mastery/scheduling elsewhere.
+  const variantActive = isNull(knowledgeBitQuestionVariants.supersededAt);
 
   const scopeCondition = filter?.knowledgeBitId
     ? eq(knowledgeBits.id, filter.knowledgeBitId)
@@ -143,7 +151,9 @@ export async function listNextQuestionVariantsToAnswer(
           )
         : undefined;
 
-  const condition = scopeCondition ? and(scopeCondition, topicNotDropped) : topicNotDropped;
+  const condition = scopeCondition
+    ? and(scopeCondition, topicNotDropped, variantActive)
+    : and(topicNotDropped, variantActive);
 
   const filtered = base.where(condition);
 

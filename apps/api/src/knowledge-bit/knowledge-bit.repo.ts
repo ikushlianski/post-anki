@@ -1,8 +1,9 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, exists, isNull, lt, not, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
   knowledgeBits,
   knowledgeBitQuestionVariants,
+  knowledgeBitVariantAttempts,
   knowledgeSources,
   tagAssignments,
 } from "../db/schema.js";
@@ -185,9 +186,32 @@ export async function updateKnowledgeBitBody(
       return false;
     }
 
+    const hasAttempt = exists(
+      tx
+        .select({ one: sql`1` })
+        .from(knowledgeBitVariantAttempts)
+        .where(eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id)),
+    );
+
+    // A variant with real learner attempts attached can't be deleted outright — attempts have no
+    // FK to this table, so deleting the row would orphan that history permanently. Detach it
+    // instead (supersededAt), which also frees its (bit, kind, order) slot for regeneration, since
+    // the unique index only covers non-superseded rows. The isNull guard keeps the original
+    // supersededAt if this bit's body is edited again before regeneration catches up.
+    await tx
+      .update(knowledgeBitQuestionVariants)
+      .set({ supersededAt: new Date() })
+      .where(
+        and(
+          eq(knowledgeBitQuestionVariants.knowledgeBitId, id),
+          isNull(knowledgeBitQuestionVariants.supersededAt),
+          hasAttempt,
+        ),
+      );
+
     await tx
       .delete(knowledgeBitQuestionVariants)
-      .where(eq(knowledgeBitQuestionVariants.knowledgeBitId, id));
+      .where(and(eq(knowledgeBitQuestionVariants.knowledgeBitId, id), not(hasAttempt)));
 
     await tx
       .delete(tagAssignments)

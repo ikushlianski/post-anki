@@ -239,6 +239,20 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(rows.map((row) => row.variantId)).toEqual([targetVariant]);
   });
 
+  it("excludes a superseded variant left behind by a body edit, even though it still has attempts", async () => {
+    const bitId = await seedKnowledgeBit("Superseded-variant bit for queue");
+    const staleVariant = await seedVariant(bitId, "Stale question?");
+    await recordAttempt(staleVariant);
+    await client.query(
+      `UPDATE knowledge_bit_question_variants SET superseded_at = now() WHERE id = $1`,
+      [staleVariant],
+    );
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: bitId });
+
+    expect(rows).toEqual([]);
+  });
+
   it("excludes a bit fetched directly by knowledgeBitId when its topic was dropped", async () => {
     const droppedTopicId = await seedTopic("Direct queue topic dropped", "skipping");
     const droppedBit = await seedKnowledgeBit("Dropped-topic bit for direct queue", droppedTopicId);

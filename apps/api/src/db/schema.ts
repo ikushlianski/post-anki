@@ -1146,15 +1146,19 @@ export const knowledgeBitQuestionVariants = pgTable(
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Set instead of deleting when a body edit would otherwise drop a variant that already has
+    // real learner attempts attached (knowledgeBitVariantAttempts.variantId has no FK to this
+    // table, so deleting the row would orphan that history). Null means "still the active variant
+    // for this slot" — the unique index below only enforces one-per-slot among those.
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
   },
   (table) => [
-    // One variant per (bit, kind, slot) — the DB-level guarantee a concurrent scan or a
-    // mark-write failure after a successful insert can't otherwise defeat.
-    uniqueIndex("knowledge_bit_question_variants_bit_kind_order_unique").on(
-      table.knowledgeBitId,
-      table.kind,
-      table.order,
-    ),
+    // One *active* variant per (bit, kind, slot) — scoped to non-superseded rows so a body edit
+    // can leave an answered-and-superseded row in place for the same slot while regeneration still
+    // inserts a fresh active row without a conflict.
+    uniqueIndex("knowledge_bit_question_variants_bit_kind_order_unique")
+      .on(table.knowledgeBitId, table.kind, table.order)
+      .where(sql`${table.supersededAt} is null`),
   ],
 );
 

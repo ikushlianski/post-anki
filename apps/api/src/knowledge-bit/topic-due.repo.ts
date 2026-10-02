@@ -15,7 +15,12 @@ function dueCondition(db: DbExecutor) {
     db
       .select({ one: sql`1` })
       .from(knowledgeBitQuestionVariants)
-      .where(eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBits.id)),
+      .where(
+        and(
+          eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBits.id),
+          isNull(knowledgeBitQuestionVariants.supersededAt),
+        ),
+      ),
   );
 
   return and(

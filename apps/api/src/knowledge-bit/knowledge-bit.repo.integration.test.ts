@@ -38,6 +38,7 @@ process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
 const { updateKnowledgeBitBody } = await import("./knowledge-bit.repo.js");
+const { insertQuestionVariant } = await import("./knowledge-bit-question-variant.repo.js");
 
 let client: pg.Client;
 
@@ -132,6 +133,18 @@ async function seedQuestionVariant(knowledgeBitId: string, kind: string, order: 
     `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer)
      VALUES ($1, $2, $3, $4, 'A prompt', 'An answer')`,
     [id, knowledgeBitId, kind, order],
+  );
+
+  return id;
+}
+
+async function seedVariantAttempt(variantId: string): Promise<string> {
+  const id = `kbvattempt_${randomUUID()}`;
+
+  await client.query(
+    `INSERT INTO knowledge_bit_variant_attempts (id, variant_id, user_answer, score, verdict, feedback)
+     VALUES ($1, $2, 'My answer', 1, 'correct', 'Nice work')`,
+    [id, variantId],
   );
 
   return id;
@@ -307,6 +320,94 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     const { rows } = await client.query(`SELECT id FROM tag_assignments WHERE id = $1`, [otherAssignmentId]);
 
     expect(rows).toHaveLength(1);
+  });
+
+  it("deletes a variant with zero attempts (regression check)", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+    const variantId = await seedQuestionVariant(id, "wh_question", 0);
+
+    await updateKnowledgeBitBody(id, "Revised body.");
+
+    const { rows } = await client.query(
+      `SELECT id FROM knowledge_bit_question_variants WHERE id = $1`,
+      [variantId],
+    );
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it("supersedes instead of deleting a variant that has a recorded learner attempt, keeping the attempt reachable", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+    const variantId = await seedQuestionVariant(id, "wh_question", 0);
+    const attemptId = await seedVariantAttempt(variantId);
+
+    await updateKnowledgeBitBody(id, "Revised body.");
+
+    // "Not orphaned" here means: the attempt's variantId still joins to a real row in
+    // knowledge_bit_question_variants, so the attempt is still reachable by that join — the row
+    // itself is marked superseded rather than deleted.
+    const { rows } = await client.query(
+      `SELECT v.id, v.superseded_at
+       FROM knowledge_bit_variant_attempts a
+       JOIN knowledge_bit_question_variants v ON v.id = a.variant_id
+       WHERE a.id = $1`,
+      [attemptId],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.id).toBe(variantId);
+    expect(rows[0]!.superseded_at).not.toBeNull();
+  });
+
+  it("does not re-supersede an already-superseded variant's timestamp on a second edit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+    const variantId = await seedQuestionVariant(id, "wh_question", 0);
+    await seedVariantAttempt(variantId);
+
+    await updateKnowledgeBitBody(id, "Revised body 1.");
+
+    const first = await client.query(
+      `SELECT superseded_at FROM knowledge_bit_question_variants WHERE id = $1`,
+      [variantId],
+    );
+    const firstSupersededAt = first.rows[0]!.superseded_at;
+
+    await updateKnowledgeBitBody(id, "Revised body 2.");
+
+    const second = await client.query(
+      `SELECT superseded_at FROM knowledge_bit_question_variants WHERE id = $1`,
+      [variantId],
+    );
+
+    expect(second.rows[0]!.superseded_at).toEqual(firstSupersededAt);
+  });
+
+  it("lets regeneration insert a fresh active variant for the same slot after the old answered one was superseded", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+    const variantId = await seedQuestionVariant(id, "wh_question", 0);
+    await seedVariantAttempt(variantId);
+
+    await updateKnowledgeBitBody(id, "Revised body.");
+
+    await expect(
+      insertQuestionVariant(id, "wh_question", 0, "A new prompt", "A new answer"),
+    ).resolves.not.toThrow();
+
+    const { rows } = await client.query(
+      `SELECT id, superseded_at FROM knowledge_bit_question_variants
+       WHERE knowledge_bit_id = $1 AND kind = 'wh_question' AND "order" = 0
+       ORDER BY created_at ASC`,
+      [id],
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.id).toBe(variantId);
+    expect(rows[0]!.superseded_at).not.toBeNull();
+    expect(rows[1]!.superseded_at).toBeNull();
   });
 
   it("returns false for a missing id and writes nothing, including no dependent-row delete", async () => {
