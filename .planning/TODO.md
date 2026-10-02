@@ -188,7 +188,7 @@ updated: 2026-09-04
 - Fresh review of fill-in-the-blank ran: FAIL on correctness and tests, 4th straight failure, stuck
 - Possible unblock for topic-tracking: read-time fold of bit attempts, no progressMaturity write — needs human sign-off.
 - EXHAUSTED-AT-SCOPE (round 2, 2026-10-02) - fill-blank and notion-ingestion stuck, topic-tracking needs human sign-off per its own plan folder
-- Cheap tier picks cheapest DeepSeek, not literally cheapest OpenRouter model — deliberate, confirmed scope (spec.md:76-78)
+- Checked live: cheaper OpenRouter models split sentences into bad fragments — keeping deepseek-v4-flash
 
 
 ## biz-education-distiller
