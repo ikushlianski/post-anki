@@ -30,7 +30,9 @@ export async function searchSubjects(query: string): Promise<SearchSubjectResult
   return getDb()
     .select({ id: subjects.id, name: subjects.name })
     .from(subjects)
-    .where(ilike(subjects.name, `%${query}%`));
+    .where(ilike(subjects.name, `%${query}%`))
+    .orderBy(subjects.name, subjects.id)
+    .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 
 // learning-list-fold-in — mirrors listCurricula's exclusion of container

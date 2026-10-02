@@ -123,6 +123,19 @@ describe("searchSubjects", () => {
 
     expect(results.map((r) => r.id)).toContain("sub_match_2");
   });
+
+  it("caps the result at SEARCH_NAME_MATCH_LIMIT instead of pulling every matching row", async () => {
+    await client.query(
+      `INSERT INTO subjects (id, name)
+       SELECT 'sub_cap_over_' || lpad(g::text, 4, '0'), 'Cap search marker subject ' || lpad(g::text, 4, '0')
+       FROM generate_series(1, $1) AS g`,
+      [SEARCH_NAME_MATCH_LIMIT + 1],
+    );
+
+    const results = await searchSubjects("Cap search marker subject");
+
+    expect(results).toHaveLength(SEARCH_NAME_MATCH_LIMIT);
+  });
 });
 
 describe("searchCurricula", () => {
