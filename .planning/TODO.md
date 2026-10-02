@@ -24,7 +24,7 @@ updated: 2026-09-04
 - [x] Test the Fargate-hosted API and sync end to end locally before deploying
 - [ ] Set up AWS credentials and the secrets the new backend needs
 - [ ] Deploy the Fargate services and confirm the API and sync both come up healthy
-- [ ] Confirm Neon logical replication is on before pointing Electric at it
+- [x] Confirm Neon logical replication is on before pointing Electric at it
 - [ ] Point the custom domain at the new backend once everything else works
 
 ### Notes
