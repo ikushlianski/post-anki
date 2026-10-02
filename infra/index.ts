@@ -47,6 +47,7 @@ const knowledgeBitFillBlankGenSchedule =
   config.get("knowledgeBitFillBlankGenSchedule") ?? "*/5 * * * *";
 const knowledgeBitVariantEmbedSchedule =
   config.get("knowledgeBitVariantEmbedSchedule") ?? "*/5 * * * *";
+const cardEmbeddingScanSchedule = config.get("cardEmbeddingScanSchedule") ?? "0 */6 * * *";
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -561,6 +562,25 @@ const knowledgeBitVariantEmbedJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+// cardEmbeddingScanJob — backfill-only safety net for card variants with failed inline embeddings.
+const cardEmbeddingScanJob = new gcp.cloudscheduler.Job(
+  "card-embedding-scan",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-card-embedding-scan",
+    schedule: cardEmbeddingScanSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/cards/embedding-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -588,3 +608,4 @@ export const knowledgeBitPlaceJobName = knowledgeBitPlaceJob.name;
 export const knowledgeBitQuestionGenJobName = knowledgeBitQuestionGenJob.name;
 export const knowledgeBitFillBlankGenJobName = knowledgeBitFillBlankGenJob.name;
 export const knowledgeBitVariantEmbedJobName = knowledgeBitVariantEmbedJob.name;
+export const cardEmbeddingScanJobName = cardEmbeddingScanJob.name;
