@@ -1,0 +1,6 @@
+name: post-anki-infra-aws
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: AWS infrastructure for post-anki — shared ECS Fargate cluster + ALB, api + electric-sync services

@@ -1,0 +1,9 @@
+config:
+  aws:region: us-east-1
+  post-anki-infra-aws:domain: ilya.online
+  # Set before the first `pulumi up`:
+  #   pulumi config set --secret databaseUrl <Neon pooled connection string>
+  #   pulumi config set --secret electricDatabaseUrl <Neon direct connection string>
+  #   pulumi config set --secret openrouterApiKey <key>
+  #   pulumi config set --secret apiSharedSecret <secret>
+  #   pulumi config set --secret electricSecret <secret>
