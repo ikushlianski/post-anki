@@ -36,6 +36,17 @@ const autoDeferSweepTimeZone = config.get("autoDeferSweepTimeZone") ?? "Europe/W
 // Ilya in .planning/27-session-end-summary/todo.md).
 const sessionIdleSweepSchedule = config.get("sessionIdleSweepSchedule") ?? "*/5 * * * *";
 const sessionIdleSweepTimeZone = config.get("sessionIdleSweepTimeZone") ?? "Europe/Warsaw";
+const knowledgeBitPipelineTimeZone = config.get("knowledgeBitPipelineTimeZone") ?? "Europe/Warsaw";
+const knowledgeBitDetectSchedule = config.get("knowledgeBitDetectSchedule") ?? "*/5 * * * *";
+const knowledgeBitEmbedSchedule = config.get("knowledgeBitEmbedSchedule") ?? "*/5 * * * *";
+const knowledgeBitTagSchedule = config.get("knowledgeBitTagSchedule") ?? "*/5 * * * *";
+const knowledgeBitPlaceSchedule = config.get("knowledgeBitPlaceSchedule") ?? "*/5 * * * *";
+const knowledgeBitQuestionGenSchedule =
+  config.get("knowledgeBitQuestionGenSchedule") ?? "*/5 * * * *";
+const knowledgeBitFillBlankGenSchedule =
+  config.get("knowledgeBitFillBlankGenSchedule") ?? "*/5 * * * *";
+const knowledgeBitVariantEmbedSchedule =
+  config.get("knowledgeBitVariantEmbedSchedule") ?? "*/5 * * * *";
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -419,6 +430,137 @@ const autoDeferSweepJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+// Knowledge-bit pipeline scan jobs — these 7 trigger-only routes had no
+// scheduler, so an inserted bit sat "pending" forever. Mirror docScanJob's
+// apiSharedSecret bearer + 300s attemptDeadline (worst case: several LLM
+// calls per item), but on sessionIdleSweepJob's 5-minute cadence since a
+// learner expects this processed within minutes, not by next week's scan.
+const knowledgeBitDetectJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-detect",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-detect",
+    schedule: knowledgeBitDetectSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-sources/detect-bits`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+const knowledgeBitEmbedJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-embed",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-embed",
+    schedule: knowledgeBitEmbedSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/embedding-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+const knowledgeBitTagJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-tag",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-tag",
+    schedule: knowledgeBitTagSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/tagging-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+const knowledgeBitPlaceJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-place",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-place",
+    schedule: knowledgeBitPlaceSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/placement-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+const knowledgeBitQuestionGenJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-question-gen",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-question-gen",
+    schedule: knowledgeBitQuestionGenSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/question-generation-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+const knowledgeBitFillBlankGenJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-fill-blank-gen",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-fill-blank-gen",
+    schedule: knowledgeBitFillBlankGenSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/fill-blank-generation-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+const knowledgeBitVariantEmbedJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-variant-embed",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-variant-embed",
+    schedule: knowledgeBitVariantEmbedSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/question-variants/embedding-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -439,3 +581,10 @@ export const gapResurfaceJobName = gapResurfaceJob.name;
 export const docScanJobName = docScanJob.name;
 export const autoDeferSweepJobName = autoDeferSweepJob.name;
 export const sessionIdleSweepJobName = sessionIdleSweepJob.name;
+export const knowledgeBitDetectJobName = knowledgeBitDetectJob.name;
+export const knowledgeBitEmbedJobName = knowledgeBitEmbedJob.name;
+export const knowledgeBitTagJobName = knowledgeBitTagJob.name;
+export const knowledgeBitPlaceJobName = knowledgeBitPlaceJob.name;
+export const knowledgeBitQuestionGenJobName = knowledgeBitQuestionGenJob.name;
+export const knowledgeBitFillBlankGenJobName = knowledgeBitFillBlankGenJob.name;
+export const knowledgeBitVariantEmbedJobName = knowledgeBitVariantEmbedJob.name;

@@ -91,6 +91,7 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [x] Wire a scheduled job so pasted/imported knowledge actually gets processed automatically
 - [x] Prove the detector splits multiple knowledge bits from one sentence
 - [x] Build a web screen to paste plain-text knowledge, single or batch
 - [x] Let one submission add several separate prose knowledge sources at once
@@ -253,7 +254,6 @@ updated: 2026-09-04
 - Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
 - Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
 - Notes become facts, not cards — the two 'into individual cards' items are met by the fact route.
-- Interval scheduling now works, but a fully off cadence option is still missing
 - Blocked on the Notion MCP being connected — no live Notion access yet, do not start real work.
 
 
