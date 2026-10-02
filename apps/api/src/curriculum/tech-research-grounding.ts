@@ -1,3 +1,4 @@
+import { AbortError } from "p-retry";
 import { isSafeSourceUrl } from "@post-anki/core";
 import type { SourceDiscoveryTier } from "@post-anki/shared";
 import { loadEnv, type Env } from "../shared/env.js";
@@ -7,6 +8,7 @@ import {
   type ResolveEffectiveModelTierScope,
 } from "../mastra/tier-resolver.js";
 import { tierToModelId } from "../mastra/model-tier.js";
+import { generateWithRetry, type GenerateUsage } from "../mastra/generate-with-retry.js";
 
 // This module calls OpenRouter directly via fetch() rather than through
 // Mastra's Agent (which resolves OPENROUTER_BASE_URL itself via
@@ -39,6 +41,19 @@ interface Annotation {
 interface ChatResponse {
   choices?: { message?: { content?: string; annotations?: Annotation[] } }[];
   error?: { message?: string };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+function toGenerateUsage(usage: ChatResponse["usage"]): GenerateUsage {
+  return {
+    inputTokens: usage?.prompt_tokens,
+    outputTokens: usage?.completion_tokens,
+    totalTokens: usage?.total_tokens,
+  };
 }
 
 // cost-tier-model-selection — resolves the same tier cascade
@@ -57,48 +72,76 @@ async function gatherGrounding(
   scope: ResolveEffectiveModelTierScope,
 ): Promise<TechResearchGrounding> {
   const env = loadEnv();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const model = await restModel(scope);
+  const curriculumId = scope.curriculumId ?? null;
+
+  const attempt = async (): Promise<TechResearchGrounding & { usage: GenerateUsage }> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const res = await fetch(endpointUrl(env), {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
+          messages: [
+            {
+              role: "user",
+              content: instructionParts.join(" "),
+            },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        log.warn({ ...logContext, status: res.status }, "tech_research_ground_http_error");
+
+        // 4xx other than 429 is a non-transient request problem (bad auth,
+        // bad payload) — retrying it just spends two more paid attempts on
+        // something that will fail identically every time.
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new AbortError(`tech research grounding request failed with ${res.status}`);
+        }
+
+        throw new Error(`tech research grounding request failed with ${res.status}`);
+      }
+
+      const data = (await res.json()) as ChatResponse;
+      const message = data.choices?.[0]?.message;
+      const body = message?.content?.trim() ?? "";
+
+      if (body.length === 0) {
+        log.warn({ ...logContext, error: data.error?.message }, "tech_research_ground_empty");
+      }
+
+      return {
+        text: truncate(body),
+        citations: collectCitations(message?.annotations),
+        usage: toGenerateUsage(data.usage),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
 
   try {
-    const res = await fetch(endpointUrl(env), {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: await restModel(scope),
-        tools: [{ type: "openrouter:web_search", max_results: MAX_RESULTS }],
-        messages: [
-          {
-            role: "user",
-            content: instructionParts.join(" "),
-          },
-        ],
-      }),
-    });
+    const { usage: _usage, ...grounding } = await generateWithRetry(
+      "tech_research_grounding",
+      curriculumId,
+      "tech-research-grounding",
+      attempt,
+    );
 
-    if (!res.ok) {
-      log.warn({ ...logContext, status: res.status }, "tech_research_ground_http_error");
-      return { text: "", citations: [] };
-    }
-
-    const data = (await res.json()) as ChatResponse;
-    const message = data.choices?.[0]?.message;
-    const body = message?.content?.trim() ?? "";
-
-    if (body.length === 0) {
-      log.warn({ ...logContext, error: data.error?.message }, "tech_research_ground_empty");
-    }
-
-    return { text: truncate(body), citations: collectCitations(message?.annotations) };
+    return grounding;
   } catch (err) {
     log.warn({ ...logContext, err }, "tech_research_ground_failed");
     return { text: "", citations: [] };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
