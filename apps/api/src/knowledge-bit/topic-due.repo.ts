@@ -9,9 +9,7 @@ import { gaps, knowledgeBitQuestionVariants, knowledgeBits, knowledgeBitSchedule
 // ever actually serve, so a bit stuck in generation (pending, or permanently failed) would
 // otherwise inflate a topic's due count with nothing a learner can act on.
 //
-// A topic that's either not yet released (`included = false`) or deliberately dropped
-// (`learningStatus = "skipping"`) never counts as due, in every due-count query — not just
-// some of them. Every caller must already join `topics` for this to apply.
+// Also excludes a topic that's not yet released or deliberately dropped. Callers must join `topics`.
 function dueCondition(db: DbExecutor) {
   const hasQuestionVariant = exists(
     db
@@ -89,8 +87,7 @@ export async function getDueCountsForTopics(
   return new Map(rows.map((row) => [row.topicId, row.dueCount]));
 }
 
-// Module-level rollup — the same included/dropped exclusion moduleProgress/curriculumProgress
-// apply next to this count on the badge, now centralized in dueCondition.
+// Module-level rollup, shown as a badge next to moduleProgress/curriculumProgress.
 export async function getDueCountsForModules(
   moduleIds: string[],
   db: DbExecutor = getDb(),
