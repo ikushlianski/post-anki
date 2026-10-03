@@ -51,9 +51,15 @@ vi.mock("./cards.repo.js", () => ({
   }),
 }));
 
-import { buildCardsPrompt, compileCards, maybeStartCardsInBackground } from "./cards.orchestrator.js";
+import {
+  buildCardsPrompt,
+  compileCards,
+  maybeStartCardsInBackground,
+  startCardsForTopicsWithConcurrencyCap,
+} from "./cards.orchestrator.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { listGapsForTopic } from "../gap/gap.repo.js";
+import { startGeneratingCards } from "./cards.repo.js";
 
 function gap(label: string): Gap {
   return {
@@ -203,5 +209,92 @@ describe("maybeStartCardsInBackground", () => {
 
     expect(cardsRepoState.started).toHaveLength(0);
     expect(mockAgentGenerate).not.toHaveBeenCalled();
+  });
+});
+
+describe("startCardsForTopicsWithConcurrencyCap", () => {
+  it("never lets more than 3 topics start simultaneously", async () => {
+    const topicIds = Array.from({ length: 8 }, (_, i) => `topic_${i}`);
+    let callIndex = 0;
+    const resolvers: Array<() => void> = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    vi.mocked(getTopicRow).mockResolvedValue({
+      title: "Test topic",
+      summary: "Test summary",
+    } as never);
+    vi.mocked(listGapsForTopic).mockResolvedValue([]);
+
+    mockAgentGenerate.mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+
+      const index = callIndex++;
+      await new Promise<void>((resolve) => {
+        resolvers[index] = () => {
+          inFlight -= 1;
+          resolve();
+        };
+      });
+
+      return { object: { cards: [{ concept: "Test", variants: [] }] } };
+    });
+
+    const promise = startCardsForTopicsWithConcurrencyCap(topicIds);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    resolvers.slice(0, 3).forEach((r) => r());
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    resolvers.slice(3, 6).forEach((r) => r());
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    resolvers.slice(6, 8).forEach((r) => r());
+
+    await promise;
+
+    expect(mockAgentGenerate).toHaveBeenCalledTimes(8);
+    expect(maxInFlight).toBeLessThanOrEqual(3);
+  });
+
+  it("continues batching across later batches when one topic's startGeneratingCards call rejects", async () => {
+    const topicIds = Array.from({ length: 7 }, (_, i) => `topic_${i}`);
+
+    vi.mocked(getTopicRow).mockResolvedValue({
+      title: "Test topic",
+      summary: "Test summary",
+    } as never);
+    vi.mocked(listGapsForTopic).mockResolvedValue([]);
+    mockAgentGenerate.mockResolvedValue({ object: { cards: [{ concept: "Test", variants: [] }] } });
+    vi.mocked(startGeneratingCards).mockImplementation(async (topicId: string) => {
+      if (topicId === "topic_3") {
+        throw new Error("startGeneratingCards failed");
+      }
+
+      cardsRepoState.started.push(topicId);
+      return {
+        id: `cardset_${topicId}`,
+        topicId,
+        status: "generating",
+        createdAt: new Date().toISOString(),
+        cards: [],
+      } as never;
+    });
+
+    await startCardsForTopicsWithConcurrencyCap(topicIds);
+
+    expect(cardsRepoState.started).toEqual([
+      "topic_0",
+      "topic_1",
+      "topic_2",
+      "topic_4",
+      "topic_5",
+      "topic_6",
+    ]);
+    expect(cardsRepoState.replaced.map((r) => r.topicId)).toEqual(
+      expect.arrayContaining(["topic_0", "topic_1", "topic_2", "topic_4", "topic_5", "topic_6"]),
+    );
+    expect(cardsRepoState.replaced).not.toContainEqual(expect.objectContaining({ topicId: "topic_3" }));
   });
 });
