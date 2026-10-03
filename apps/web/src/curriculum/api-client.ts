@@ -1560,6 +1560,27 @@ export async function askGlobalCardChat(
   }
 }
 
+export async function askKnowledgeBitChat(
+  knowledgeBitId: string,
+  input: be.AskKnowledgeBitChatInput,
+): Promise<be.AskKnowledgeBitChatResult | null> {
+  try {
+    return await request<be.AskKnowledgeBitChatResult>(
+      `/knowledge-bits/${knowledgeBitId}/chat`,
+      {
+        method: 'POST',
+        body: {
+          message: input.message,
+          transcript: input.transcript,
+          allowGeneralKnowledge: input.allowGeneralKnowledge,
+        },
+      },
+    )
+  } catch {
+    return null
+  }
+}
+
 export async function getCurriculumStats(
   curriculumId: string,
 ): Promise<be.CurriculumStats | null> {

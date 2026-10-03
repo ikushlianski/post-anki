@@ -6,6 +6,7 @@ import {
   getNextQuestionVariants,
   gradeQuestionVariant,
 } from '../knowledge-bit/knowledge-answer.api'
+import { KnowledgeBitChatPanel } from '../knowledge-bit/knowledge-bit-chat-panel'
 import type { GradeQuestionVariantAnswerResult } from '../curriculum/api-client'
 
 interface AnswerScreenSearch {
@@ -110,6 +111,11 @@ function AnswerScreen() {
         <div data-testid="answer-screen-question" className="flex flex-col gap-4">
           <p className="text-sm text-neutral-600">{current.bitBody}</p>
           <p className="font-medium">{current.prompt}</p>
+
+          <KnowledgeBitChatPanel
+            key={current.knowledgeBitId}
+            knowledgeBitId={current.knowledgeBitId}
+          />
 
           {!result && (
             <>

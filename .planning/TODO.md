@@ -16,14 +16,9 @@ updated: 2026-09-04
 - Add a timed mock-exam practice mode with a score summary at the end
 
 ### Coding tasks
-- [x] Make a timed-out exam actually block answering, not just hide the quiz
-- [x] Stop a late answer from reopening a closed-out exam session
-- [x] Let the learner pick which subject or tag a mock exam draws from
-- [x] Build a mock-exam session: fixed question count, timer, final score
-- [x] Add a link field to the add-knowledge screen alongside paste
-- [x] Let a knowledge source be a web link, fetched safely and turned into text
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Today: paste-text source exists, no URL source. Only socratic/quick_test probing, no exam mode
 - Working in dependency order (link source, then UI, then exam, then picker), not file order
 
@@ -39,19 +34,13 @@ updated: 2026-09-04
 - Reuse the existing AWS Route53 domain for the new backend
 
 ### Coding tasks
-- [x] Set WEB_ORIGIN for the API service so CORS doesn't fall back to localhost
 - [ ] Shut down the live GCP backend once AWS is deployed and verified
-- [x] Generalize the AWS stack so any future app can share the same Fargate cluster
-- [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today
-- [x] Package the API as a container image for the Fargate service
-- [x] Write the shared AWS infrastructure: one ECS cluster and ALB, both apps as services
-- [x] Test the Fargate-hosted API and sync end to end locally before deploying
 - [ ] Set up AWS credentials and the secrets the new backend needs
 - [ ] Deploy the Fargate services and confirm the API and sync both come up healthy
-- [x] Confirm Neon logical replication is on before pointing Electric at it
 - [ ] Point the custom domain at the new backend once everything else works
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Bot can't run locally without a Telegram bot token and webhook secret
 - Scope decision changed: web and bot now move to AWS too, GCP is being retired
 - EXHAUSTED-AT-SCOPE (round 1, 2026-10-02) - IaC complete end to end, only live AWS credentials and manual cutover remain
@@ -66,18 +55,9 @@ updated: 2026-09-04
 - Out of scope: Building a new UI for this — MCP clients are the interface
 
 ### Coding tasks
-- [x] Compare the shared API secret with a timing-safe check, not plain ===
-- [x] Stop an unawaited last-used write from crashing the whole API on a DB blip
-- [x] Cap searchSubjects too — same unbounded-query bug class, still untouched
-- [x] Cap unbounded tag/curriculum/topic search queries before the MCP tool slices results
-- [x] Let MCP's search_knowledge_items also find modules, tags, and knowledge bits
-- [x] Build an MCP server exposing decks and course/module/section knowledge items
-  - [x] Phase 1: MCP endpoint behind the shared token
-  - [x] Phase 2: Course browsing tools
-  - [x] Phase 3: Card and deck content tools
-  - [x] Phase 4: Knowledge item search
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Pre-existing: unset API_SHARED_SECRET lets every request through — confirm prod always sets it
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-30)
 
@@ -89,17 +69,9 @@ updated: 2026-09-04
 - Out of scope: Cross-subject ranking or priority weighting across different topics - that is study-prioritization's own open call
 
 ### Coding tasks
-- [x] Have the new schedule-write lock reuse withNamedLock instead of inlining it
-- [x] Guard concurrent schedule writes to the same knowledge bit from clobbering each other
-- [x] Show a curriculum's due count on its curriculum page
-- [x] Show a module's due count on its module or course page
-- [x] Roll module due-counts up to a curriculum-level due count
-- [x] Roll topic due-counts up to a module-level due count
-- [x] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
-- [x] Roll bit due-dates up to a topic-level due count
-- [x] Add per-bit SM-2-style interval, ease factor, and due date, updated from each answer's grade
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Balance goal: no due-pile guilt, but no skimming past a bit before it is truly known
 - Checked: schedule updates per variant answer, not per bit/session — matches Scope wording, not a bug
 - getDueCountsForTopics has no caller — built for a scoped detail view never shipped
@@ -120,91 +92,16 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
-- [x] Wire a scheduled job so pasted/imported knowledge actually gets processed automatically
-- [x] Prove the detector splits multiple knowledge bits from one sentence
-- [x] Build a web screen to paste plain-text knowledge, single or batch
-- [x] Let one submission add several separate prose knowledge sources at once
-- [x] Extract optional short background/clarifying text alongside Q&A from inbox content
-  - [x] Phase 1: schema and migration
-  - [x] Phase 2: detector schema and orchestrator wiring
-  - [x] Phase 3: repo persistence and next-batch exposure
-  - [x] Phase 4: tests
-- [x] Build a screen where the learner can actually answer knowledge-bit questions
-  - [x] Phase 1: next-batch endpoint
-  - [x] Phase 2: answer screen UI
-  - [x] Phase 3: answer-screen tests
-- [x] Record each learner answer to a question variant with a score and verdict
-  - [x] Phase 1: schema and migration
-  - [x] Phase 2: grader agent and repo
-  - [x] Phase 3: orchestrator and route
-  - [x] Phase 4: tests
-- [x] Wrap knowledge-bit insert and status update in one transaction
-- [x] Add a stale-processing-row reset so a crashed knowledge-bit scan doesn't strand a row forever
-- [x] Get the tag-cap concurrency integration test actually running against real Postgres locally
-- [x] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
-- [x] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
-- [x] Fix resolveOrCreateTag's race-recovery re-select when called inside an already-aborted transaction
-- [x] Make the at-cap fallback pick the semantically nearest tag, not the alphabetically-first one
-- [x] Make tag-cap assignment atomic against a concurrent call at the cap boundary
-- [x] Validate the LLM's matched tag name against the real tag list before reusing it
-- [x] Accept a pasted block of prose as a knowledge source
-  - [x] Phase 1: schema and migration
-  - [x] Phase 2: repo and controller
-  - [x] Phase 3: route wiring and tests
-- [x] Auto-detect distinct knowledge bits inside a block of prose
-  - [x] Phase 1: schema, migration, and repo
-  - [x] Phase 2: LLM detector agent and scan orchestrator
-  - [x] Phase 3: route wiring and tests
-- [x] Embed each submitted knowledge bit into the existing vector pipeline
-  - [x] Phase 1: schema, migration, and embedding repo
-  - [x] Phase 2: embedding scan orchestrator
-  - [x] Phase 3: trigger route and tests
-- [x] Auto-tag each detected knowledge bit from the shared taxonomy
-  - [x] Phase 1: shared type, schema, migration, and repo
-  - [x] Phase 2: tagger agent and scan orchestrator
-  - [x] Phase 3: trigger route and tests
-- [x] Reuse an existing close-match tag instead of minting a near-duplicate
-- [x] Place each knowledge bit into the existing subject, curriculum, and topic it fits
-  - [x] Phase 1: placement schema and migration
-  - [x] Phase 2: placement agent and repo
-  - [x] Phase 3: placement orchestrator and tests
-  - [x] Phase 4: placement trigger route and integration test
-- [x] Suggest a new hierarchy spot when no existing topic fits a bit
-  - [x] Phase 1: suggestion resolution schema and repo
-  - [x] Phase 2: suggestion review route
-  - [x] Phase 3: admin panel for accept and reject
-- [x] Generate a Wh-question variant for each knowledge bit
-  - [x] Phase 1: schema and migration
-  - [x] Phase 2: knowledge-fisher agent
-  - [x] Phase 3: orchestrator and route
-  - [x] Phase 4: tests
 - [x] Generate a fill-in-the-blank variant for each knowledge bit
   - [ ] Phase 1: schema and migration
   - [x] Phase 2: fill-blank agent and repo
   - [ ] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
-- [x] Write a knowledge-fisher prompt that probes for the why behind a bit
-- [x] Ask a knowledge-fisher follow-up question after the learner answers
-  - [x] Phase 1: followup-generator agent
-  - [x] Phase 2: orchestrator wiring
-  - [x] Phase 3: tests
-- [x] Embed each generated question and answer, linked back to its source knowledge bit
-- [x] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
-  - [x] Phase 1: repo and orchestrator wiring
-  - [x] Phase 2: tests
 - [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
-- [x] Track a dynamic knowledge-level per tag from scored answers
-  - [x] Phase 1: repo query and mastery fold
-  - [x] Phase 2: tests
-- [x] Surface where the learner is strong, weak, or shallow by tag and topic
-  - [x] Phase 1: tag-mastery endpoint
-  - [x] Phase 2: tag-strength badge UI
-- [x] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
-  - [x] Phase 1: weak-tags panel and wiring
-  - [x] Phase 2: tag-deepen-panel tests
 - [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Per learning-brain's rule, deepen advice stays pull-only — never a push notification or a waiting-count badge
 - Reuse tags table (schema.ts:791), biz-education's classifier, gap-mastery, and domain-recommendations — don't rebuild
 - Default call: reordered items by dependency, rewrote 4 toward reuse after an overlap audit
@@ -232,24 +129,9 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Wire NOTION_TOKEN into the deployed API before the 15-min job goes live
-- [x] Decide how a row that fails every run stops permanently blocking the 20-row window
-- [x] Fix skipped or failed rows permanently blocking the 20-row sync window
-- [x] Validate a classified row's matched topic actually exists before saving its fact
-- [x] Add a real 15-minute scheduled trigger — it currently only runs via a manual script
-- [x] Cap or filter the Notion read instead of paging the whole data source every run
-- [x] Run the Biz Education distiller as its own 15-minute connector
-- [x] Mark a processed Notion row synced without deleting or archiving it
-- [x] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot
-- [x] Save a fitting row as a fact linked to its matched deck topic
-- [x] Classify a row as fitting an existing deck or needing a new one
-- [x] Pick the cheapest working OpenRouter model for classifying each row
-- [x] Skip a pulled row if its text contains a question
-- [x] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
-  - [x] Pull, filter, and pick the classification model
-  - [x] Classify, save facts, and file inbox suggestions
-  - [x] Mark synced and schedule
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Confirm Notion's Tags filter is case-sensitive — a lowercase "pa" tag might now be silently excluded
 - Biz Education data source: collection://3cddec4d-fc6e-805c-93ea-000bc235a121, real Tags option is PA.
 - A cheap OpenRouter tier already exists (tierToModelId 'cheap' = deepseek-v4-flash) — reuse it, don't add a new model.
@@ -270,23 +152,10 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
-- [x] Let a connector be set to a fully off cadence, not just nightly/daily/manual
-- [x] Build the Notion reading-notes router: config, reader, fact and todo destinations, LaunchAgent
-  - [x] Connector config and Notion reader
-  - [x] Destinations and idempotent sync
-  - [x] LaunchAgent and runner scripts
-- [x] Save a Notion note tagged SPA as a fact in post-anki's production database
-- [x] Route a Notion note tagged for a project, e.g. CRM, into that project's own backlog file
 - [ ] Pull the two seed Notion pages read-only and inspect their shape
-- [x] Let a connector be configured to remove or keep an item after import
-- [x] Let a connector only pull items matching a configured rule, e.g. a tag
-- [x] Run each Notion connector on its own schedule, unattended
-- [x] Let a deck's Notion source be re-synced to pick up edits
-- [x] Turn a table-style Notion database into individual cards
-- [x] Turn a paragraph-style Notion page into individual cards
-- [x] Let a deck be configured with a Notion page or database as its source
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Seed-page pull stalled this session — Notion MCP not logged in, needs human /login
 - Schedule is a 15-min macOS LaunchAgent with a read-only Notion token, no deploy — off means skipped, never replayed.
 - Open: approve @notionhq/client (official SDK, read-only token) for the app-side pull — not in TECH-STACK-BY-PROJECT.md yet.
@@ -302,13 +171,10 @@ updated: 2026-09-04
 - Out of scope: The Tauri desktop wrapper — already tracked separately, blocked on a missing Rust toolchain
 
 ### Coding tasks
-- [x] Sync cards to the mobile app locally instead of a plain network fetch
-  - [x] Expose card tables through the Electric shape registry
-  - [x] Add the Electric client and a mobile cards collection
-  - [x] Join into a per-topic card view and render it
 - [ ] Turn on the prod Electric rollout flag once its database secret is set
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Electric is fully built (dev, prod infra, 6 web collections) — prod never started, missing DB secret.
 - Blocked on the prod Electric DB secret — see Manual steps. Do not flip the flag before it's set.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-19) — blocked pending human call, see above.
@@ -323,53 +189,16 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
-- [x] Tell a failed card lookup apart from a genuine no-match in the global chat
-- [x] Add a minimum-similarity cutoff so 'Grounded in' only lists genuinely relevant cards
-- [x] Show an error in the global chat instead of leaving a question unanswered
-- [x] Stop a failed card-embedding lookup from crashing the global chat with a 500
-- [x] Stop editing a knowledge item from wiping its manually-assigned tags
-  - [x] Phase 1: schema migration, source column, backfill default
-  - [x] Phase 2: source-aware assign/upgrade/reset write paths
-  - [x] Phase 3: tag-merge provenance preservation
-  - [x] Phase 4: tests for every scenario
-- [x] Add claim-token guards to embedding and tagging writes, like wh-question/fill-blank already have
-- [x] Let the learner chat with a single knowledge item, grounded on it only by default
-  - [x] Phase 1: repo, schemas, agent, service, controller, route
-  - [x] Phase 2: tests for every scenario
-- [x] Include Notion facts in the global chat's grounding alongside cards
-  - [x] Embed facts
-  - [x] Retrieve and ground on facts
-- [x] Sort card tag names deterministically, add a multi-tag test
+- [x] Add a UI entry point to chat with a single knowledge item
 - [x] Fix nondeterministic domainNodeName and add negative filter tests for card labels
 - [x] Surface a card's subject, tags, and confirmed domain node alongside its topic
-- [x] Default matchedCards to empty array so the grounding line never silently disappears
-- [x] Update api-client.test.ts's stale matchedCardIds mock to the new matchedCards shape
-- [x] Fix askGlobalCardChat in api-client.ts dropping allowGeneralKnowledge before the HTTP call
 - [x] Show which cards grounded each chat answer, so it's never a black box
   - [x] Enrich chat response with card display data
   - [x] Render grounding cards under each reply
-- [x] Let the learner allow general AI knowledge in chat, off by default
-  - [x] Backend opt-in flag
-  - [x] Frontend toggle
-- [x] Build a global chat that answers strictly from the learner's own matched cards
-  - [x] Card-grounded chat endpoint
-  - [x] Minimal global chat UI
-  - [x] Tests for card-only grounding
-- [x] Find the top-matching cards for a free-text query by vector similarity
-- [x] Re-vectorize a card automatically when its question or answer text changes
-- [x] Vectorize every card's question and answer text, store the embedding
-  - [x] Add embedding columns to topic_card_variants, generate the migration
-  - [x] Promote the embeddings HTTP client to a shared, generic location
-  - [x] A card-embedding scan orchestrator, repo functions, and trigger endpoint
-- [x] Let per-item chat opt into the model's own knowledge or a web search, on request
-  - [x] Phase 1: schema, tools, dynamic agent, service wiring
-  - [x] Phase 2: tests for every scenario
-- [x] Let per-item chat create a new knowledge item or edit the current one from its answer
-  - [x] Phase 1: draft endpoint for new-item or edited-body text
-  - [x] Phase 2: edit endpoint that resets derived generation state
-  - [x] Phase 3: tests for draft and edit scenarios
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
+- 4 items above kept unarchived on purpose: review-factory findings on record for them were never marked fixed, even though later shipped items addressed the same defects — needs a fresh review pass before archiving, not a silent drop.
 - On a card-lookup failure, the tutor's own prompt still says 'no cards matching' — contradicts the new UI message
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-19)
 
@@ -382,18 +211,9 @@ updated: 2026-09-04
 - Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
 
 ### Coding tasks
-- [x] Add the untrusted-content guard to global card chat too — it ingests externally-sourced facts
-- [x] Add the same untrusted-content guard to QA chat's web-search tool as knowledge-bit chat has
-- [x] Parallelize the duplicates page's two independent loader fetches
-- [x] Add a strict one-result-per-item rule to the grade-batch agent's instructions
-- [x] Add a no-invent-URL rule to the QA chat agent's instructions
-- [x] Fix priority-review's unsatisfiable no-change fallback on fresh (all-unset) subjects
-- [x] Batch per-topic gap/feedback queries in quiz generation, not one-per-topic
-- [x] Check hot pages' DB queries for N+1 patterns
-- [x] Profile and cut load time on the curriculum and dashboard pages
-- [x] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - practice.$subjectId's sequential loader is correct — settings fetch upserts, gating avoids a write for invalid subjects.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-16)
 
@@ -407,13 +227,9 @@ updated: 2026-09-04
 - Out of scope: Generating new cards or course content — browsing and finding what already exists, not authoring it
 
 ### Coding tasks
-- [x] Index topic, module, and knowledge-bit text search like notes already does
-- [x] Rank topic/module search results by relevance, return top matches only
-- [x] Add a topic/module search box that takes a plain-language query
-- [x] Add text search over the cards browser table
-- [x] Build a cards browser: table with question, answer, topic columns
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Cards-browser table has no pagination/limit — low priority, curriculum-scoped so bounded
 - Card variants have no cross-topic order column — nothing for drag-reorder to persist to.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-16)
@@ -427,10 +243,9 @@ updated: 2026-09-04
 - Out of scope: Rewriting an existing, working agent from scratch just to match a new convention — apply this to new/missing pieces and real defects, not a wholesale rewrite
 
 ### Coding tasks
-- [x] Replace 3 duplicated ad-hoc conversation-history formatters with one shared, tested one
-- [x] Write a grounded doc on this app's own agent/tool-call conventions (model tiers, retry, cost logging, memory)
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 - EXHAUSTED-AT-SCOPE (round 2, 2026-10-02) — one dup found, routed to spaced-repetition-scheduling, fixed
 
@@ -442,12 +257,9 @@ updated: 2026-09-04
 - Out of scope: Adding new search capabilities beyond what already exists — only making the existing search/browse state linkable
 
 ### Coding tasks
-- [x] Load the area dropdown on a shared notes-search link, not just on manual change
-- [x] Fix numeric-looking shared search terms getting silently dropped
-- [x] Make the cards-browser table's search text shareable via the page URL
-- [x] Make the notes search and filters shareable and bookmarkable via the page URL
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Manual subject pick doesn't update the URL — a later URL change could revert it
 - Global search lives in the root layout, not a route — not linkable, out of scope.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
@@ -461,10 +273,9 @@ updated: 2026-09-04
 - Out of scope: Changing the underlying ingestion pipeline's actual steps — only making its existing state and output visible as it happens
 
 ### Coding tasks
-- [x] Show plain-language progress instead of a raw status word while a course is being made
-- [x] Show a running count of cards generated so far across the whole course, not just per topic
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - StructureDraftPending already auto-refreshes every 2.5s while a draft is pending — not a gap.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 - PAUSED (2026-09-19) — automated course-from-a-link creation is frozen for the knowledge-chat pivot.
@@ -478,19 +289,9 @@ updated: 2026-09-04
 - Out of scope: Rebuilding the cards agent's variant-generation approach itself — the concept + 3-5 rephrased-variants design already exists and stays as-is
 
 ### Coding tasks
-- [x] Add a unit test for the card-generation concurrency cap that runs without Postgres
-- [x] Cap concurrency on slice-release's card-generation fan-out the same way
-- [x] Add an integration test confirming structure-confirm's fan-out only triggers cards for included topics
-- [x] Recover a topic stuck generating forever after a crashed card-generation run
-- [x] Stop the manual generate button racing a background card-generation run
-- [x] Cap concurrency and skip not-yet-included topics when confirming course structure
-- [x] Wire a scheduled job so missed card embeddings actually get backfilled
-- [x] Guard concurrent card-generation triggers for the same topic from duplicating LLM work
-- [x] Skip starting new card generation when a topic's cards are already ready or in progress
-- [x] Start generating cards for topics a learning-list release just made available
-- [x] Start generating a topic's cards once course structure is confirmed, not on first open
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 
 
 - updatedAt isn't refreshed mid-run, so an unusually slow run could get reclaimed early
@@ -604,12 +405,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new merge/regenerate features themselves — only hardening existing mutation paths against data loss
 
 ### Coding tasks
-- [x] Protect manually-tagged modules from the add-sources merge path the same way
-- [x] Stop retry/reparse from silently orphaning a manually-tagged topic's tags
-- [x] Stop a knowledge-bit edit from deleting question variants a learner already answered
-- [x] Fix stale comment: fill-blank-claim.repo.ts still calls wh_question failure permanent
-- [x] Update stale knowledge_bits column-snapshot test to match current schema
-- [x] Fix wh-question generation: same concurrent-scan race and permanent-fail-mark bug as fill-blank
 
 ### Notes
 - Edit-vs-answer race (no row lock) is a precondition to fix before wiring UI/MCP to this endpoint
@@ -624,9 +419,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: the two unmerged branches (curriculum-add-sources-easily, module-topic-expand-web-search) and building a new safety mechanism — only applying the existing one consistently
 
 ### Coding tasks
-- [x] Normalize a trailing-dot hostname before the blocked-host check so localhost. isn't missed
-- [x] Add a dedicated safeHref test for the curriculum route's source-link rendering
-- [x] Add missing link-safety tests for the remaining 4 components
 
 ### Notes
 - DNS-rebinding (no IP pinning) is a separate gap — new mechanism, needs human call
@@ -648,12 +440,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new study modalities — only ranking/selection logic
 
 ### Coding tasks
-- [x] Stop a slice release from resurrecting a dropped topic into the daily push queue
-- [x] Stop a draft or dormant curriculum's knowledge bits from showing as due
-- [x] Make every due-count query agree on excluding a dropped topic
-- [x] Also stop the default and tag-scoped answer queue from serving a dropped topic's bits
-- [x] Stop a dropped topic's due list and queued questions from still surfacing
-- [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
 
 ### Notes
 - listNextQuestionVariantsToAnswer also skips the confirmed/dormant filter via direct topicId
@@ -672,11 +458,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new quiz question types — only depth-signal accuracy
 
 ### Coding tasks
-- [x] Stop a calibration retake from silently downgrading an already-elected depth
-- [x] After calibration, recommend a short or long course from per-topic depth.
-- [x] Stop single-question calibration electing deep depth off one lucky guess
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Open: should near-perfect (not flawless) multi-question accuracy elect deep? Needs a human call.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - Open: no learner-facing signal when a retake is kept-not-overwritten by the new depth guard. Needs a human call.
@@ -707,16 +491,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
-- [x] Cap the curriculum structure-chat message length too (submitStructureTurnInput)
-- [x] Cap pasted chat/transcript/edit text length before it reaches the model
-- [x] Cap the topic-hierarchy list sent into placement and biz-education prompts
-- [x] Count every tool-calling step's cost, not just the last one
-- [x] Log cost and stop retrying bad requests in the embedding client
-- [x] Stop tech-research grounding retrying its own model-tier lookup on every attempt
-- [x] Fix tech-research grounding's model-tier lookup so a failure there can't crash the caller
-- [x] Add retry and cost logging to the two remaining tech-research direct-fetch LLM calls
-- [x] Add retry and cost logging to the probe web-search LLM calls
-- [x] Add retry and cost logging to the tech-research web-search LLM calls
 
 ### Notes
 - Message-length cap doesn't bound transcript array item count — total prompt size still unbounded
@@ -736,14 +510,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 
 ### Coding tasks
 - [ ] Hide declined topics and unconfirmed curricula from global search and tag browse
-- [x] Cap the tag-page browse view so a heavily-tagged item doesn't load everything at once
-- [x] Make a tag shown in search results clickable, linking to its tag page
-- [x] Let a tag page browse everything tagged with it, not just probe questions
-- [x] Make an unplaced knowledge bit in search results actually openable
-- [x] Make the header search bar also find modules, knowledge bits, and tags
-- [x] Show which tag or topic a search result belongs to
-- [x] Let global search also find cards by tag name
-- [x] Let global search also find knowledge bits by their text
 
 ### Notes
 - CORS bug fixed (WEB_ORIGIN header, server.ts:261) — was blocking browser-side fetches.
@@ -761,10 +527,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: non-reorganize chat features (Socratic dialogue, Q&A) — those are separate directions
 
 ### Coding tasks
-- [x] Add a rename control to the curriculum detail page
-- [x] Let a curriculum, subject, or category be renamed.
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Blocked: the only tool-calling chat surface is contractually read-only; needs a confirmation UX and a human decision.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15) — blocked pending human call, see above.
 
@@ -776,12 +541,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: building a brand-new surface from scratch — hardening/extending existing ones
 
 ### Coding tasks
-- [x] Stop resurface digest nagging about gaps on dropped topics
-- [x] Fix mobile quick-test practice always scoring as failed, reopening answered gaps
-- [x] Let a mentor-subject learner practice probe questions from the mobile app
-- [x] Let the learner record and submit a voice note from the app
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Bot probe-flow has the same selfOutcome gap, but quick_test mode is unreachable there today
 - Chrome extension is unmerged on an abandoned branch — needs a human call on landing it
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
@@ -810,10 +572,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: writing coverage for brand-new features — this is fixing what already exists
 
 ### Coding tasks
-- [x] Make first-ever streak creation safe under two concurrent quiz answers
-- [x] Fix waitForHydration to wait for real hydration, not router presence
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - Blocked: this run cannot execute Playwright, so a flaky-test fix can't be verified.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - Tag-picker's open click can be missed on a long page — hydration signal is global-only, no per-component fix yet.
@@ -828,9 +589,9 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: the ingestion mechanism itself (doc-site-ingestion's job) — this is about quality of what gets drafted
 
 ### Coding tasks
-- [x] Make lecture depth (awareness/working/deep) actually change what gets written.
 
 ### Notes
+- Completed items archived to .planning/LOG.md.
 - No grounded gaps found yet — swept structure code, prompts, editing tools.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - PAUSED (2026-09-19) — automated course-from-a-link creation is frozen for the knowledge-chat pivot.

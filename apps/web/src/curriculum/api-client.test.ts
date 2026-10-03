@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiError,
   askGlobalCardChat,
+  askKnowledgeBitChat,
   resolveDomainSupersessionSuggestion,
   resolveDomainTopicSuggestion,
   resolvePlacementSuggestion,
@@ -177,6 +178,48 @@ describe('doc-scan suggestion resolvers', () => {
       const body = JSON.parse(init.body as string)
 
       expect(body.allowGeneralKnowledge).toBeUndefined()
+    })
+  })
+
+  describe('askKnowledgeBitChat', () => {
+    it('posts to the bit-scoped chat endpoint with the message and transcript', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'it means X' }))
+
+      const result = await askKnowledgeBitChat('bit-1', { message: 'what does this mean?' })
+
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      const body = JSON.parse(init.body as string)
+
+      expect(url).toBe('https://api.test/knowledge-bits/bit-1/chat')
+      expect(body.message).toBe('what does this mean?')
+      expect(result).toEqual({ reply: 'it means X' })
+    })
+
+    it('forwards allowGeneralKnowledge in the request body when set', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'hi' }))
+
+      await askKnowledgeBitChat('bit-1', { message: 'hi', allowGeneralKnowledge: true })
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      const body = JSON.parse(init.body as string)
+
+      expect(body.allowGeneralKnowledge).toBe(true)
+    })
+
+    it('returns null instead of throwing when the request fails', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(404, { error: 'not_found' }))
+
+      const result = await askKnowledgeBitChat('bit-missing', { message: 'hi' })
+
+      expect(result).toBeNull()
+    })
+
+    it('returns null when the network call itself fails', async () => {
+      fetchMock.mockRejectedValue(new TypeError('fetch failed'))
+
+      const result = await askKnowledgeBitChat('bit-1', { message: 'hi' })
+
+      expect(result).toBeNull()
     })
   })
 })

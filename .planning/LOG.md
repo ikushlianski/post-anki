@@ -1219,3 +1219,264 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - [x] Let categories be dragged onto each other to nest, with a confirm warning.
   - [x] Phase 1: Nest one category under another on the backend
   - [x] Phase 2: Drag categories and curricula onto categories, with confirm
+
+## exam-prep-from-sources
+
+- [x] Make a timed-out exam actually block answering, not just hide the quiz
+- [x] Stop a late answer from reopening a closed-out exam session
+- [x] Let the learner pick which subject or tag a mock exam draws from
+- [x] Build a mock-exam session: fixed question count, timer, final score
+- [x] Add a link field to the add-knowledge screen alongside paste
+- [x] Let a knowledge source be a web link, fetched safely and turned into text
+
+## aws-electric-fargate-deploy
+
+- [x] Set WEB_ORIGIN for the API service so CORS doesn't fall back to localhost
+- [x] Generalize the AWS stack so any future app can share the same Fargate cluster
+- [x] Confirm the local Mac dev stack (web, api, bot) runs correctly end to end today
+- [x] Package the API as a container image for the Fargate service
+- [x] Write the shared AWS infrastructure: one ECS cluster and ALB, both apps as services
+- [x] Test the Fargate-hosted API and sync end to end locally before deploying
+- [x] Confirm Neon logical replication is on before pointing Electric at it
+
+## mcp-content-access
+
+- [x] Compare the shared API secret with a timing-safe check, not plain ===
+- [x] Stop an unawaited last-used write from crashing the whole API on a DB blip
+- [x] Cap searchSubjects too — same unbounded-query bug class, still untouched
+- [x] Cap unbounded tag/curriculum/topic search queries before the MCP tool slices results
+- [x] Let MCP's search_knowledge_items also find modules, tags, and knowledge bits
+- [x] Build an MCP server exposing decks and course/module/section knowledge items
+  - [x] Phase 1: MCP endpoint behind the shared token
+  - [x] Phase 2: Course browsing tools
+  - [x] Phase 3: Card and deck content tools
+  - [x] Phase 4: Knowledge item search
+
+## spaced-repetition-scheduling
+
+- [x] Have the new schedule-write lock reuse withNamedLock instead of inlining it
+- [x] Guard concurrent schedule writes to the same knowledge bit from clobbering each other
+- [x] Show a curriculum's due count on its curriculum page
+- [x] Show a module's due count on its module or course page
+- [x] Roll module due-counts up to a curriculum-level due count
+- [x] Roll topic due-counts up to a module-level due count
+- [x] Build a top-5-most-pressing-topics home screen, tap one to resume studying it
+- [x] Roll bit due-dates up to a topic-level due count
+- [x] Add per-bit SM-2-style interval, ease factor, and due date, updated from each answer's grade
+
+## prose-knowledge-fisher
+
+- [x] Wire a scheduled job so pasted/imported knowledge actually gets processed automatically
+- [x] Prove the detector splits multiple knowledge bits from one sentence
+- [x] Build a web screen to paste plain-text knowledge, single or batch
+- [x] Let one submission add several separate prose knowledge sources at once
+- [x] Extract optional short background/clarifying text alongside Q&A from inbox content
+- [x] Build a screen where the learner can actually answer knowledge-bit questions
+- [x] Record each learner answer to a question variant with a score and verdict
+- [x] Wrap knowledge-bit insert and status update in one transaction
+- [x] Add a stale-processing-row reset so a crashed knowledge-bit scan doesn't strand a row forever
+- [x] Get the tag-cap concurrency integration test actually running against real Postgres locally
+- [x] Split tag.repo.ts's new cap-guard logic into its own file, back under the 300-line cap
+- [x] Catch a thrown error from the forced tag matcher instead of letting it skip the last-resort fallback
+- [x] Fix resolveOrCreateTag's race-recovery re-select when called inside an already-aborted transaction
+- [x] Make the at-cap fallback pick the semantically nearest tag, not the alphabetically-first one
+- [x] Make tag-cap assignment atomic against a concurrent call at the cap boundary
+- [x] Validate the LLM's matched tag name against the real tag list before reusing it
+- [x] Accept a pasted block of prose as a knowledge source
+- [x] Auto-detect distinct knowledge bits inside a block of prose
+- [x] Embed each submitted knowledge bit into the existing vector pipeline
+- [x] Auto-tag each detected knowledge bit from the shared taxonomy
+- [x] Reuse an existing close-match tag instead of minting a near-duplicate
+- [x] Place each knowledge bit into the existing subject, curriculum, and topic it fits
+- [x] Suggest a new hierarchy spot when no existing topic fits a bit
+- [x] Generate a Wh-question variant for each knowledge bit
+- [x] Write a knowledge-fisher prompt that probes for the why behind a bit
+- [x] Ask a knowledge-fisher follow-up question after the learner answers
+- [x] Embed each generated question and answer, linked back to its source knowledge bit
+- [x] Score each answer against its bit's tags, reusing existing per-topic scoring for the topic side
+- [x] Track a dynamic knowledge-level per tag from scored answers
+- [x] Surface where the learner is strong, weak, or shallow by tag and topic
+- [x] Extend the existing deepen-recommendation flow to tag-level strength, pull-only
+
+## biz-education-distiller
+
+- [x] Decide how a row that fails every run stops permanently blocking the 20-row window
+- [x] Fix skipped or failed rows permanently blocking the 20-row sync window
+- [x] Validate a classified row's matched topic actually exists before saving its fact
+- [x] Add a real 15-minute scheduled trigger — it currently only runs via a manual script
+- [x] Cap or filter the Notion read instead of paging the whole data source every run
+- [x] Run the Biz Education distiller as its own 15-minute connector
+- [x] Mark a processed Notion row synced without deleting or archiving it
+- [x] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot
+- [x] Save a fitting row as a fact linked to its matched deck topic
+- [x] Classify a row as fitting an existing deck or needing a new one
+- [x] Pick the cheapest working OpenRouter model for classifying each row
+- [x] Skip a pulled row if its text contains a question
+- [x] Pull up to 20 PA-tagged, not-yet-synced Biz Education rows per run
+
+## notion-deck-connectors
+
+- [x] Let a connector be set to a fully off cadence, not just nightly/daily/manual
+- [x] Build the Notion reading-notes router: config, reader, fact and todo destinations, LaunchAgent
+- [x] Save a Notion note tagged SPA as a fact in post-anki's production database
+- [x] Route a Notion note tagged for a project, e.g. CRM, into that project's own backlog file
+- [x] Let a connector be configured to remove or keep an item after import
+- [x] Let a connector only pull items matching a configured rule, e.g. a tag
+- [x] Run each Notion connector on its own schedule, unattended
+- [x] Let a deck's Notion source be re-synced to pick up edits
+- [x] Turn a table-style Notion database into individual cards
+- [x] Turn a paragraph-style Notion page into individual cards
+- [x] Let a deck be configured with a Notion page or database as its source
+
+## local-first-sync
+
+- [x] Sync cards to the mobile app locally instead of a plain network fetch
+
+## grounded-knowledge-chat (round 2)
+
+- [x] Tell a failed card lookup apart from a genuine no-match in the global chat
+- [x] Add a minimum-similarity cutoff so 'Grounded in' only lists genuinely relevant cards
+- [x] Show an error in the global chat instead of leaving a question unanswered
+- [x] Stop a failed card-embedding lookup from crashing the global chat with a 500
+- [x] Stop editing a knowledge item from wiping its manually-assigned tags
+- [x] Add claim-token guards to embedding and tagging writes, like wh-question/fill-blank already have
+- [x] Let the learner chat with a single knowledge item, grounded on it only by default
+- [x] Include Notion facts in the global chat's grounding alongside cards
+- [x] Sort card tag names deterministically, add a multi-tag test
+- [x] Default matchedCards to empty array so the grounding line never silently disappears
+- [x] Update api-client.test.ts's stale matchedCardIds mock to the new matchedCards shape
+- [x] Fix askGlobalCardChat in api-client.ts dropping allowGeneralKnowledge before the HTTP call
+- [x] Let the learner allow general AI knowledge in chat, off by default
+- [x] Build a global chat that answers strictly from the learner's own matched cards
+- [x] Find the top-matching cards for a free-text query by vector similarity
+- [x] Re-vectorize a card automatically when its question or answer text changes
+- [x] Vectorize every card's question and answer text, store the embedding
+- [x] Let per-item chat opt into the model's own knowledge or a web search, on request
+- [x] Let per-item chat create a new knowledge item or edit the current one from its answer
+
+## prompt-and-performance-quality
+
+- [x] Add the untrusted-content guard to global card chat too — it ingests externally-sourced facts
+- [x] Add the same untrusted-content guard to QA chat's web-search tool as knowledge-bit chat has
+- [x] Parallelize the duplicates page's two independent loader fetches
+- [x] Add a strict one-result-per-item rule to the grade-batch agent's instructions
+- [x] Add a no-invent-URL rule to the QA chat agent's instructions
+- [x] Fix priority-review's unsatisfiable no-change fallback on fresh (all-unset) subjects
+- [x] Batch per-topic gap/feedback queries in quiz generation, not one-per-topic
+- [x] Check hot pages' DB queries for N+1 patterns
+- [x] Profile and cut load time on the curriculum and dashboard pages
+- [x] Review the ~24 agent prompts for grounding, tone, and accuracy gaps
+
+## content-browser-and-search
+
+- [x] Index topic, module, and knowledge-bit text search like notes already does
+- [x] Rank topic/module search results by relevance, return top matches only
+- [x] Add a topic/module search box that takes a plain-language query
+- [x] Add text search over the cards browser table
+- [x] Build a cards browser: table with question, answer, topic columns
+
+## agentic-framework-and-tool-principles
+
+- [x] Replace 3 duplicated ad-hoc conversation-history formatters with one shared, tested one
+- [x] Write a grounded doc on this app's own agent/tool-call conventions (model tiers, retry, cost logging, memory)
+
+## shareable-browser-search
+
+- [x] Load the area dropdown on a shared notes-search link, not just on manual change
+- [x] Fix numeric-looking shared search terms getting silently dropped
+- [x] Make the cards-browser table's search text shareable via the page URL
+- [x] Make the notes search and filters shareable and bookmarkable via the page URL
+
+## ingestion-progress-visibility
+
+- [x] Show plain-language progress instead of a raw status word while a course is being made
+- [x] Show a running count of cards generated so far across the whole course, not just per topic
+
+## instant-study-cards
+
+- [x] Add a unit test for the card-generation concurrency cap that runs without Postgres
+- [x] Cap concurrency on slice-release's card-generation fan-out the same way
+- [x] Add an integration test confirming structure-confirm's fan-out only triggers cards for included topics
+- [x] Recover a topic stuck generating forever after a crashed card-generation run
+- [x] Stop the manual generate button racing a background card-generation run
+- [x] Cap concurrency and skip not-yet-included topics when confirming course structure
+- [x] Wire a scheduled job so missed card embeddings actually get backfilled
+- [x] Guard concurrent card-generation triggers for the same topic from duplicating LLM work
+- [x] Skip starting new card generation when a topic's cards are already ready or in progress
+- [x] Start generating cards for topics a learning-list release just made available
+- [x] Start generating a topic's cards once course structure is confirmed, not on first open
+
+## data-integrity-under-regeneration (round 3)
+
+- [x] Protect manually-tagged modules from the add-sources merge path the same way
+- [x] Stop retry/reparse from silently orphaning a manually-tagged topic's tags
+- [x] Stop a knowledge-bit edit from deleting question variants a learner already answered
+- [x] Fix stale comment: fill-blank-claim.repo.ts still calls wh_question failure permanent
+- [x] Update stale knowledge_bits column-snapshot test to match current schema
+- [x] Fix wh-question generation: same concurrent-scan race and permanent-fail-mark bug as fill-blank
+
+## safe-address-hardening (round 2)
+
+- [x] Normalize a trailing-dot hostname before the blocked-host check so localhost. isn't missed
+- [x] Add a dedicated safeHref test for the curriculum route's source-link rendering
+- [x] Add missing link-safety tests for the remaining 4 components
+
+## study-prioritization (round 2)
+
+- [x] Stop a slice release from resurrecting a dropped topic into the daily push queue
+- [x] Stop a draft or dormant curriculum's knowledge bits from showing as due
+- [x] Make every due-count query agree on excluding a dropped topic
+- [x] Also stop the default and tag-scoped answer queue from serving a dropped topic's bits
+- [x] Stop a dropped topic's due list and queued questions from still surfacing
+- [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
+
+## calibration-and-depth-accuracy
+
+- [x] Stop a calibration retake from silently downgrading an already-elected depth
+- [x] After calibration, recommend a short or long course from per-topic depth.
+- [x] Stop single-question calibration electing deep depth off one lucky guess
+
+## llm-cost-observability (round 2)
+
+- [x] Cap the curriculum structure-chat message length too (submitStructureTurnInput)
+- [x] Cap pasted chat/transcript/edit text length before it reaches the model
+- [x] Cap the topic-hierarchy list sent into placement and biz-education prompts
+- [x] Count every tool-calling step's cost, not just the last one
+- [x] Log cost and stop retrying bad requests in the embedding client
+- [x] Stop tech-research grounding retrying its own model-tier lookup on every attempt
+- [x] Fix tech-research grounding's model-tier lookup so a failure there can't crash the caller
+- [x] Add retry and cost logging to the two remaining tech-research direct-fetch LLM calls
+- [x] Add retry and cost logging to the probe web-search LLM calls
+- [x] Add retry and cost logging to the tech-research web-search LLM calls
+
+## discovery-and-navigation (round 2)
+
+- [x] Cap the tag-page browse view so a heavily-tagged item doesn't load everything at once
+- [x] Make a tag shown in search results clickable, linking to its tag page
+- [x] Let a tag page browse everything tagged with it, not just probe questions
+- [x] Make an unplaced knowledge bit in search results actually openable
+- [x] Make the header search bar also find modules, knowledge bits, and tags
+- [x] Show which tag or topic a search result belongs to
+- [x] Let global search also find cards by tag name
+- [x] Let global search also find knowledge bits by their text
+
+## chat-driven-reorganization
+
+- [x] Add a rename control to the curriculum detail page
+- [x] Let a curriculum, subject, or category be renamed.
+
+## cross-surface-practice
+
+- [x] Stop resurface digest nagging about gaps on dropped topics
+- [x] Fix mobile quick-test practice always scoring as failed, reopening answered gaps
+- [x] Let a mentor-subject learner practice probe questions from the mobile app
+- [x] Let the learner record and submit a voice note from the app
+
+## e2e-reliability
+
+- [x] Make first-ever streak creation safe under two concurrent quiz answers
+- [x] Fix waitForHydration to wait for real hydration, not router presence
+
+## curriculum-structure-quality
+
+- [x] Make lecture depth (awareness/working/deep) actually change what gets written.
