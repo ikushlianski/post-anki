@@ -797,6 +797,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - Tag-picker's open click can be missed on a long page — hydration signal is global-only, no per-component fix yet.
 - No 'locked test' convention found in verification-repo — that item is unresolvable here.
+- Stale: tag-picker already uses per-component useHydrated gate, not global-only
 
 ## curriculum-structure-quality
 
