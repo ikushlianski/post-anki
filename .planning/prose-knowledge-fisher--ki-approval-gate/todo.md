@@ -13,6 +13,8 @@ Nothing to decide — see spec.md's "Decision made autonomously."
 Nothing to review.
 
 ## Coding tasks
+- [ ] Close the scan-vs-reject race that can link a just-rejected bit
+- [ ] Clear topicId when rejecting a bit that was already placed
 - [ ] Test the rejected-bit variant-edit guard leaves the row untouched
 - [ ] Re-check a variant is still active after taking the bit lock on edit
 - [ ] Add a DB check constraint on approval_state's allowed values
