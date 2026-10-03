@@ -19,7 +19,7 @@ describe("editKnowledgeBit", () => {
     const result = await editKnowledgeBit("missing", { body: "Revised body." });
 
     expect(result).toEqual({ error: "not_found" });
-    expect(updateKnowledgeBitBody).toHaveBeenCalledWith("missing", "Revised body.");
+    expect(updateKnowledgeBitBody).toHaveBeenCalledWith("missing", "Revised body.", undefined);
   });
 
   it("returns ok when the repo updates the row", async () => {
@@ -28,6 +28,18 @@ describe("editKnowledgeBit", () => {
     const result = await editKnowledgeBit("kb_1", { body: "Revised body." });
 
     expect(result).toEqual({ ok: true });
-    expect(updateKnowledgeBitBody).toHaveBeenCalledWith("kb_1", "Revised body.");
+    expect(updateKnowledgeBitBody).toHaveBeenCalledWith("kb_1", "Revised body.", undefined);
+  });
+
+  it("passes the background through to the repo when provided", async () => {
+    updateKnowledgeBitBody.mockResolvedValue(true);
+
+    await editKnowledgeBit("kb_1", { body: "Revised body.", background: "Revised background." });
+
+    expect(updateKnowledgeBitBody).toHaveBeenCalledWith(
+      "kb_1",
+      "Revised body.",
+      "Revised background.",
+    );
   });
 });

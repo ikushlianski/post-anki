@@ -1,0 +1,1 @@
+ALTER TABLE "knowledge_bits" ADD COLUMN "approval_state" text DEFAULT 'pending' NOT NULL;

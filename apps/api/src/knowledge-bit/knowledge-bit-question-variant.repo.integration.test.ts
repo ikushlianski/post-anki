@@ -145,6 +145,25 @@ describe("listQuestionVariantsForEmbeddingScan (real Postgres)", () => {
 
     expect(rows.map((row) => row.id)).not.toContain(variantId);
   });
+
+  it("excludes a variant whose bit was rejected, includes one still pending", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const rejectedBitId = await seedKnowledgeBit(sourceId, 0, "A rejected bit");
+    const pendingBitId = await seedKnowledgeBit(sourceId, 1, "A pending bit");
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      rejectedBitId,
+    ]);
+
+    await insertQuestionVariant(rejectedBitId, "wh_question", 0, "Rejected scan prompt?", "No.");
+    await insertQuestionVariant(pendingBitId, "wh_question", 0, "Pending scan prompt?", "Yes.");
+
+    const rows = await listQuestionVariantsForEmbeddingScan(1000);
+    const prompts = rows.map((row) => row.prompt);
+
+    expect(prompts).not.toContain("Rejected scan prompt?");
+    expect(prompts).toContain("Pending scan prompt?");
+  });
 });
 
 describe("updateQuestionVariantEmbedding (real Postgres)", () => {

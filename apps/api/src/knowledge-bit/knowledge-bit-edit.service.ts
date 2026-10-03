@@ -7,7 +7,7 @@ export async function editKnowledgeBit(
   id: string,
   input: EditKnowledgeBitInput,
 ): Promise<{ ok: true } | { error: EditKnowledgeBitError }> {
-  const updated = await updateKnowledgeBitBody(id, input.body);
+  const updated = await updateKnowledgeBitBody(id, input.body, input.background);
 
   if (!updated) {
     return { error: "not_found" };

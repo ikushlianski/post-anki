@@ -150,6 +150,24 @@ async function seedVariantAttempt(variantId: string): Promise<string> {
   return id;
 }
 
+// Scenario 11 (existing bits default to pending, not grandfathered approved) is covered by
+// migrations.integration.test.ts's own assertion that approval_state is
+// `NOT NULL DEFAULT 'pending'` — that's what actually backfills every pre-existing row when the
+// column lands, which a fresh per-test database can't otherwise reproduce.
+describe("knowledge_bits.approval_state default (real Postgres)", () => {
+  it("should default a newly-inserted bit to pending", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+
+    const { rows } = await client.query(
+      `SELECT approval_state FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.approval_state).toBe("pending");
+  });
+});
+
 describe("updateKnowledgeBitBody (real Postgres)", () => {
   it("updates the body and returns true when the row exists", async () => {
     const sourceId = await seedKnowledgeSource();
@@ -162,6 +180,67 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     const { rows } = await client.query(`SELECT body FROM knowledge_bits WHERE id = $1`, [id]);
 
     expect(rows[0]!.body).toBe("Revised body.");
+  });
+
+  it("should update the background in place when provided", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+
+    await updateKnowledgeBitBody(id, "Revised body.", "Revised background.");
+
+    const { rows } = await client.query(
+      `SELECT background FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.background).toBe("Revised background.");
+  });
+
+  it("should update only the background and leave generation state and variants untouched when the body is unchanged", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+    const variantId = await seedQuestionVariant(id, "wh_question", 0);
+
+    const updated = await updateKnowledgeBitBody(id, "Original body.", "Revised background.");
+
+    expect(updated).toBe(true);
+
+    const { rows } = await client.query(
+      `SELECT background, embedded_at, tagged_at, wh_question_generated_at
+       FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.background).toBe("Revised background.");
+    expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
+    expect(rows[0]!.tagged_at).toBeInstanceOf(Date);
+    expect(rows[0]!.wh_question_generated_at).toBeInstanceOf(Date);
+
+    const { rows: variantRows } = await client.query(
+      `SELECT id FROM knowledge_bit_question_variants WHERE id = $1`,
+      [variantId],
+    );
+
+    expect(variantRows).toHaveLength(1);
+  });
+
+  it("should leave the background untouched when not provided", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+
+    await client.query(`UPDATE knowledge_bits SET background = $1 WHERE id = $2`, [
+      "Original background.",
+      id,
+    ]);
+
+    await updateKnowledgeBitBody(id, "Revised body.");
+
+    const { rows } = await client.query(
+      `SELECT background FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.background).toBe("Original background.");
   });
 
   it("resets embedding, tagging, and placement columns to null", async () => {

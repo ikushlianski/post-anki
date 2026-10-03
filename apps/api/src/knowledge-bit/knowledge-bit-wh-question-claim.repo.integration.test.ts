@@ -117,6 +117,22 @@ describe("listKnowledgeBitsForWhQuestionGenerationScan (real Postgres)", () => {
     expect(ids).not.toContain(generatedId);
   });
 
+  it("should exclude a rejected bit and still include a pending bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const pendingId = await seedKnowledgeBit(sourceId, 10, "A pending bit");
+    const rejectedId = await seedKnowledgeBit(sourceId, 11, "A rejected bit");
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      rejectedId,
+    ]);
+
+    const rows = await listKnowledgeBitsForWhQuestionGenerationScan(1000);
+    const ids = rows.map((row) => row.id);
+
+    expect(ids).toContain(pendingId);
+    expect(ids).not.toContain(rejectedId);
+  });
+
   it("includes a bit that failed once and is still under the attempts cap", async () => {
     const sourceId = await seedKnowledgeSource();
     const retryableId = await seedKnowledgeBit(
@@ -213,6 +229,19 @@ describe("claimKnowledgeBitForWhQuestionGeneration (real Postgres)", () => {
 
     expect(rows[0]!.wh_question_generation_claimed_at).toBeInstanceOf(Date);
     expect(rows[0]!.wh_question_generation_claim_token).toBe(claimToken);
+  });
+
+  it("should refuse to claim a rejected bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "A rejected bit");
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      id,
+    ]);
+
+    const claimToken = await claimKnowledgeBitForWhQuestionGeneration(id, "A rejected bit");
+
+    expect(claimToken).toBeNull();
   });
 
   it("only lets one of two racing claims win, so a concurrent scan never double-charges", async () => {

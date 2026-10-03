@@ -3,3 +3,4 @@
 {"ts":"2026-10-03T20:34:55.396Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":"prose-knowledge-fisher","itemText":"Block unapproved bits from answering, chat, and search until accepted"}
 {"ts":"2026-10-03T20:40:20.187Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":"aws-electric-fargate-deploy","itemText":"Replace the Pulumi AWS stack with Serverless Container Framework for Fargate"}
 {"ts":"2026-10-03T20:48:48.342Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":"prose-knowledge-fisher","itemText":"Feed prose-sourced bits into the existing per-topic knowledge tracking"}
+{"ts":"2026-10-03T21:24:58.846Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":"prose-knowledge-fisher","itemText":"Phase 1: approval column and approve/reject/edit API"}

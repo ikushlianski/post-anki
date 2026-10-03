@@ -117,6 +117,22 @@ describe("listKnowledgeBitsForEmbeddingScan (real Postgres)", () => {
       { id: unembeddedId, body: "An unembedded bit", embeddingHash: null },
     ]);
   });
+
+  it("should exclude a rejected bit and still include a pending bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const pendingId = await seedKnowledgeBit(sourceId, 2, "A pending bit");
+    const rejectedId = await seedKnowledgeBit(sourceId, 3, "A rejected bit");
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      rejectedId,
+    ]);
+
+    const rows = await listKnowledgeBitsForEmbeddingScan(100);
+    const ids = rows.map((row) => row.id);
+
+    expect(ids).toContain(pendingId);
+    expect(ids).not.toContain(rejectedId);
+  });
 });
 
 describe("updateKnowledgeBitEmbedding (real Postgres)", () => {

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import type { PendingPlacementSuggestion } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, topics, curricula, subjects } from "../db/schema.js";
@@ -19,7 +19,13 @@ export async function listKnowledgeBitsForPlacementScan(
       body: knowledgeBits.body,
     })
     .from(knowledgeBits)
-    .where(and(isNull(knowledgeBits.placementCheckedAt), isNull(knowledgeBits.placementFailedAt)))
+    .where(
+      and(
+        isNull(knowledgeBits.placementCheckedAt),
+        isNull(knowledgeBits.placementFailedAt),
+        ne(knowledgeBits.approvalState, "rejected"),
+      ),
+    )
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
 }

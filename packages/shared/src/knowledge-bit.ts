@@ -22,3 +22,38 @@ export type ResolvePlacementSuggestionInput = z.infer<typeof resolvePlacementSug
 export const knowledgeBitQuestionVariantKindSchema = z.enum(["wh_question", "fill_in_the_blank"]);
 
 export type KnowledgeBitQuestionVariantKind = z.infer<typeof knowledgeBitQuestionVariantKindSchema>;
+
+// knowledge_bits.approval_state
+export const knowledgeBitApprovalStateSchema = z.enum(["pending", "approved", "rejected"]);
+
+export type KnowledgeBitApprovalState = z.infer<typeof knowledgeBitApprovalStateSchema>;
+
+// PATCH /knowledge-bits/question-variants/:id
+export const editKnowledgeBitQuestionVariantInput = z.object({
+  prompt: z.string().trim().min(1),
+  answer: z.string().trim().min(1),
+});
+
+export type EditKnowledgeBitQuestionVariantInput = z.input<
+  typeof editKnowledgeBitQuestionVariantInput
+>;
+
+export interface PendingKnowledgeBitQuestionVariant {
+  id: string;
+  kind: KnowledgeBitQuestionVariantKind;
+  prompt: string;
+  answer: string;
+}
+
+export interface PendingKnowledgeBitForReview {
+  id: string;
+  body: string;
+  background: string | null;
+  variants: PendingKnowledgeBitQuestionVariant[];
+}
+
+export interface PendingKnowledgeSourceForReview {
+  knowledgeSourceId: string;
+  sourceText: string | null;
+  bits: PendingKnowledgeBitForReview[];
+}

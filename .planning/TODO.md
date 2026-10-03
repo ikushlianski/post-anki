@@ -93,9 +93,10 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
-- [ ] Block unapproved bits from answering, chat, and search until accepted
-- [ ] Build a review screen: source text, each bit's Q&A and example, approve/reject/edit
 - [ ] Hold new knowledge bits as pending until the learner approves each one
+  - [x] Phase 1: approval column and approve/reject/edit API
+  - [ ] Phase 2: block learner-facing surfaces
+  - [ ] Phase 3: review screen
 - [x] Generate a fill-in-the-blank variant for each knowledge bit
   - [ ] Phase 1: schema and migration
   - [x] Phase 2: fill-blank agent and repo

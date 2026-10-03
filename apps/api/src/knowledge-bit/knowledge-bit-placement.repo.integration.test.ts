@@ -180,6 +180,22 @@ describe("listKnowledgeBitsForPlacementScan (real Postgres)", () => {
 
     expect(rows).toEqual([{ id: untouchedId, body: "An unplaced bit" }]);
   });
+
+  it("should exclude a rejected bit and still include a pending bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const pendingId = await seedKnowledgeBit(sourceId, 3, "A pending bit");
+    const rejectedId = await seedKnowledgeBit(sourceId, 4, "A rejected bit");
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      rejectedId,
+    ]);
+
+    const rows = await listKnowledgeBitsForPlacementScan(100);
+    const ids = rows.map((row) => row.id);
+
+    expect(ids).toContain(pendingId);
+    expect(ids).not.toContain(rejectedId);
+  });
 });
 
 describe("listTopicsForPlacement (real Postgres)", () => {

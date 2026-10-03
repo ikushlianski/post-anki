@@ -53,10 +53,12 @@ export async function listQuestionVariantsForEmbeddingScan(
       embeddingHash: knowledgeBitQuestionVariants.embeddingHash,
     })
     .from(knowledgeBitQuestionVariants)
+    .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
     .where(
       and(
         isNull(knowledgeBitQuestionVariants.embeddedAt),
         isNull(knowledgeBitQuestionVariants.supersededAt),
+        ne(knowledgeBits.approvalState, "rejected"),
       ),
     )
     .orderBy(asc(knowledgeBitQuestionVariants.createdAt))

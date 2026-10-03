@@ -1106,6 +1106,9 @@ export const knowledgeBits = pgTable(
     ordinal: integer("ordinal").notNull(),
     body: text("body").notNull(),
     background: text("background"),
+    // Bit-level review gate (ki-approval-gate/spec.md) — distinct from knowledgeSources.status's
+    // own "pending", which means "not yet detected". Every row, old and new, defaults here.
+    approvalState: text("approval_state").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // Mirrors topicCardVariants.embedding/embeddingHash/embeddedAt — nullable,
     // additive, no backfill; embeddingHash skips re-embedding unchanged text.

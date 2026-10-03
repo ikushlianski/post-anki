@@ -34,6 +34,7 @@ export type DraftKnowledgeBitChatResult = z.infer<typeof draftKnowledgeBitChatRe
 
 export const editKnowledgeBitInput = z.object({
   body: z.string().trim().min(1).max(MAX_KNOWLEDGE_BIT_BODY_CHARS),
+  background: z.string().trim().min(1).max(MAX_KNOWLEDGE_BIT_BODY_CHARS).nullable().optional(),
 });
 
 export type EditKnowledgeBitInput = z.input<typeof editKnowledgeBitInput>;

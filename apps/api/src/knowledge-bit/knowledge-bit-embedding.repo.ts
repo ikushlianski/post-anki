@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
 
@@ -19,7 +19,7 @@ export async function listKnowledgeBitsForEmbeddingScan(
       embeddingHash: knowledgeBits.embeddingHash,
     })
     .from(knowledgeBits)
-    .where(isNull(knowledgeBits.embeddedAt))
+    .where(and(isNull(knowledgeBits.embeddedAt), ne(knowledgeBits.approvalState, "rejected")))
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
 }

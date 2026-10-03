@@ -152,13 +152,37 @@ export async function insertKnowledgeBitsAndMarkDetected(
 export async function updateKnowledgeBitBody(
   id: string,
   body: string,
+  background?: string | null,
   db: DbExecutor = getDb(),
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    const current = (
+      await tx
+        .select({ body: knowledgeBits.body })
+        .from(knowledgeBits)
+        .where(eq(knowledgeBits.id, id))
+        .for("update")
+    )[0];
+
+    if (!current) {
+      return false;
+    }
+
+    // A background-only edit (body unchanged) skips the cascade below — every scan's candidate
+    // query reads only `body`, so nothing derived from it is actually stale.
+    if (current.body === body) {
+      if (background !== undefined) {
+        await tx.update(knowledgeBits).set({ background }).where(eq(knowledgeBits.id, id));
+      }
+
+      return true;
+    }
+
     const rows = await tx
       .update(knowledgeBits)
       .set({
         body,
+        ...(background !== undefined ? { background } : {}),
         embedding: null,
         embeddingHash: null,
         embeddedAt: null,

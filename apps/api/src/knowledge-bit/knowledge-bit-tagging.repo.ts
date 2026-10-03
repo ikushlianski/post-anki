@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
 import { assignAutoTag } from "../tag/tag.repo.js";
@@ -18,7 +18,13 @@ export async function listKnowledgeBitsForTaggingScan(
       body: knowledgeBits.body,
     })
     .from(knowledgeBits)
-    .where(and(isNull(knowledgeBits.taggedAt), isNull(knowledgeBits.tagFailedAt)))
+    .where(
+      and(
+        isNull(knowledgeBits.taggedAt),
+        isNull(knowledgeBits.tagFailedAt),
+        ne(knowledgeBits.approvalState, "rejected"),
+      ),
+    )
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
 }

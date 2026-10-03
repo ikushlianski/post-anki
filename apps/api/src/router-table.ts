@@ -58,6 +58,11 @@ export const ROUTES: RouteDef[] = [
     name: "listNextKnowledgeBitQuestionVariants",
   },
   {
+    method: "GET",
+    pattern: "/knowledge-bits/pending-review",
+    name: "listPendingKnowledgeBitsForReview",
+  },
+  {
     method: "PATCH",
     pattern: /^\/knowledge-bits\/([^/]+)\/placement-suggestion$/,
     name: "resolvePlacementSuggestion",
@@ -67,6 +72,24 @@ export const ROUTES: RouteDef[] = [
     method: "POST",
     pattern: /^\/knowledge-bits\/question-variants\/([^/]+)\/answers$/,
     name: "gradeKnowledgeBitVariantAnswer",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/knowledge-bits\/question-variants\/([^/]+)$/,
+    name: "editKnowledgeBitQuestionVariant",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/approve$/,
+    name: "approveKnowledgeBit",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/reject$/,
+    name: "rejectKnowledgeBit",
     param: "id",
   },
   {
