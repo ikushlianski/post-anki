@@ -32,6 +32,7 @@
     "@post-anki/shared": "*",
     "drizzle-orm": "^0.36.0",
     "google-auth-library": "^10.9.0",
+    "html-to-text": "^10.0.1",
     "p-retry": "^7.1.1",
     "pg": "^8.13.0",
     "pino": "^9.5.0",
@@ -39,6 +40,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/html-to-text": "^9.0.4",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.28.0",

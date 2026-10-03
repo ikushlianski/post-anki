@@ -1,6 +1,8 @@
 import type http from "node:http";
 import { z } from "zod";
+import { convert } from "html-to-text";
 import { readJsonBody, sendJson } from "../shared/http.js";
+import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
 import {
   insertKnowledgeSource,
   insertKnowledgeSources,
@@ -9,6 +11,10 @@ import {
 
 const singleTextInput = z.object({ text: z.string().max(50_000) });
 const batchTextInput = z.object({ texts: z.array(z.string().max(50_000)).min(1) });
+const urlInput = z.object({ url: z.string().url() }).strict();
+
+const URL_FETCH_TIMEOUT_MS = 8_000;
+const MAX_URL_SOURCE_CHARS = 50_000;
 
 export async function handleCreateKnowledgeSource(
   req: http.IncomingMessage,
@@ -16,6 +22,35 @@ export async function handleCreateKnowledgeSource(
 ): Promise<void> {
   const rawBody = await readJsonBody(req, z.unknown());
   const isBatch = rawBody.ok && typeof rawBody.data === "object" && rawBody.data !== null && "texts" in rawBody.data;
+  const isUrl = rawBody.ok && typeof rawBody.data === "object" && rawBody.data !== null && "url" in rawBody.data;
+
+  if (isUrl) {
+    const body = urlInput.safeParse(rawBody.ok ? rawBody.data : undefined);
+
+    if (!body.success) {
+      const issues = body.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+
+      sendJson(res, 400, { error: "invalid_input", message: issues });
+      return;
+    }
+
+    const html = await fetchWithTimeout(body.data.url, URL_FETCH_TIMEOUT_MS);
+
+    if (html === null) {
+      sendJson(res, 400, { error: "fetch_failed" });
+      return;
+    }
+
+    const extractedText = truncateText(convert(html).trim(), MAX_URL_SOURCE_CHARS);
+
+    if (extractedText.length === 0) {
+      sendJson(res, 400, { error: "empty_content" });
+      return;
+    }
+
+    sendJson(res, 201, await insertKnowledgeSource(extractedText));
+    return;
+  }
 
   if (isBatch) {
     const body = batchTextInput.safeParse(rawBody.ok ? rawBody.data : undefined);

@@ -19,7 +19,7 @@ updated: 2026-09-04
 - [ ] Let the learner pick which subject or tag a mock exam draws from
 - [ ] Build a mock-exam session: fixed question count, timer, final score
 - [ ] Add a link field to the add-knowledge screen alongside paste
-- [ ] Let a knowledge source be a web link, fetched safely and turned into text
+- [x] Let a knowledge source be a web link, fetched safely and turned into text
 
 ### Notes
 - Today: paste-text source exists, no URL source. Only socratic/quick_test probing, no exam mode
