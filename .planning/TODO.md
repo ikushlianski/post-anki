@@ -651,12 +651,14 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new quiz question types — only depth-signal accuracy
 
 ### Coding tasks
+- [x] Stop a calibration retake from silently downgrading an already-elected depth
 - [x] After calibration, recommend a short or long course from per-topic depth.
 - [x] Stop single-question calibration electing deep depth off one lucky guess
 
 ### Notes
 - Open: should near-perfect (not flawless) multi-question accuracy elect deep? Needs a human call.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- Open: no learner-facing signal when a retake is kept-not-overwritten by the new depth guard. Needs a human call.
 
 ## doc-site-ingestion
 

@@ -46,7 +46,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { createTopic, updateTopic } = await import("./topic.repo.js");
+const { createTopic, updateTopic, electTopicDepths } = await import("./topic.repo.js");
 const {
   getTopicRow,
   rowReleaseState,
@@ -240,5 +240,61 @@ describe("topic-progress.repo — headroomOfferedAt accessor (lms-buildout 0.5)"
     const row = await getTopicRow(topicId);
 
     expect(rowHeadroomOfferedAt(row!)).toBe(offeredAt);
+  });
+});
+
+describe("electTopicDepths — retakes never silently lower an elected depth", () => {
+  let subjectId: string;
+  let curriculumId: string;
+  let moduleId: string;
+
+  beforeAll(async () => {
+    subjectId = id("sub");
+    curriculumId = id("curr");
+    moduleId = id("mod");
+
+    await insertSubject(subjectId);
+    await insertCurriculum(curriculumId, subjectId);
+    await insertModule(moduleId, curriculumId);
+  });
+
+  it("keeps a topic already elected 'deep' when a retake comes back 'awareness'", async () => {
+    const created = await createTopic({ moduleId, title: "Already deep" });
+    const firstElectionAt = new Date("2026-01-01T00:00:00.000Z").toISOString();
+    const retakeAt = new Date("2026-01-02T00:00:00.000Z").toISOString();
+
+    await electTopicDepths([{ topicId: created!.id, depth: "deep" }], firstElectionAt);
+    await electTopicDepths([{ topicId: created!.id, depth: "awareness" }], retakeAt);
+
+    const row = await getTopicRow(created!.id);
+
+    expect(row?.depth).toBe("deep");
+    expect(row?.depthElectedAt?.toISOString()).toBe(firstElectionAt);
+  });
+
+  it("upgrades a topic already elected 'awareness' when a retake comes back 'deep'", async () => {
+    const created = await createTopic({ moduleId, title: "Already awareness" });
+    const firstElectionAt = new Date("2026-01-01T00:00:00.000Z").toISOString();
+    const retakeAt = new Date("2026-01-02T00:00:00.000Z").toISOString();
+
+    await electTopicDepths([{ topicId: created!.id, depth: "awareness" }], firstElectionAt);
+    await electTopicDepths([{ topicId: created!.id, depth: "deep" }], retakeAt);
+
+    const row = await getTopicRow(created!.id);
+
+    expect(row?.depth).toBe("deep");
+    expect(row?.depthElectedAt?.toISOString()).toBe(retakeAt);
+  });
+
+  it("writes the first election normally regardless of value", async () => {
+    const created = await createTopic({ moduleId, title: "Never elected" });
+    const electedAt = new Date("2026-01-01T00:00:00.000Z").toISOString();
+
+    await electTopicDepths([{ topicId: created!.id, depth: "awareness" }], electedAt);
+
+    const row = await getTopicRow(created!.id);
+
+    expect(row?.depth).toBe("awareness");
+    expect(row?.depthElectedAt?.toISOString()).toBe(electedAt);
   });
 });

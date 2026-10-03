@@ -296,9 +296,11 @@ async function electDepthsOnCalibrationCompletion(
 
   const elected = electDepthFromCalibration(outcomes);
 
-  await electTopicDepths(elected, now);
+  const effectiveDepths = await electTopicDepths(elected, now);
 
-  return recommendCourseLength(elected.map((topic) => topic.depth));
+  return recommendCourseLength(
+    elected.map((topic) => effectiveDepths[topic.topicId] ?? topic.depth),
+  );
 }
 
 /**

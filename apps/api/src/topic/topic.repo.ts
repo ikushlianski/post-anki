@@ -1,11 +1,13 @@
-import { eq } from "drizzle-orm";
-import type {
-  CreateTopicInput,
-  DepthLevel,
-  LearningStatus,
-  Topic,
-  TopicProgressStatus,
-  UpdateTopicInput,
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import {
+  DEPTH_RANK,
+  depthLevelSchema,
+  type CreateTopicInput,
+  type DepthLevel,
+  type LearningStatus,
+  type Topic,
+  type TopicProgressStatus,
+  type UpdateTopicInput,
 } from "@post-anki/shared";
 import { nextOrder, assignOrders } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
@@ -209,21 +211,39 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
 
 // The first real writer of topics.depth/depthElectedAt (S5) — invoked once
 // a course's calibration quiz completes, from
-// probe-session.service.ts's electDepthsOnCalibrationCompletion. Never
-// touches learningStatus/included, unlike updateTopic's broader patch —
-// depth election is purely about starting depth, not progress state.
+// probe-session.service.ts's electDepthsOnCalibrationCompletion. A retake
+// can only confirm or raise an already-elected depth, never lower it — the
+// WHERE clause below only applies the write when the topic was never
+// elected or the new depth's rank is >= its current rank.
 export async function electTopicDepths(
   elected: { topicId: string; depth: DepthLevel }[],
   now: string,
-): Promise<void> {
+): Promise<Record<string, DepthLevel>> {
   const db = getDb();
 
   for (const { topicId, depth } of elected) {
+    const atLeastAsDeep = depthLevelSchema.options.filter(
+      (candidate) => DEPTH_RANK[candidate] <= DEPTH_RANK[depth],
+    );
+
     await db
       .update(topics)
       .set({ depth, depthElectedAt: new Date(now) })
-      .where(eq(topics.id, topicId));
+      .where(
+        and(
+          eq(topics.id, topicId),
+          or(isNull(topics.depthElectedAt), inArray(topics.depth, atLeastAsDeep)),
+        ),
+      );
   }
+
+  const topicIds = elected.map((topic) => topic.topicId);
+  const rows = await db
+    .select({ id: topics.id, depth: topics.depth })
+    .from(topics)
+    .where(inArray(topics.id, topicIds));
+
+  return Object.fromEntries(rows.map((row) => [row.id, row.depth as DepthLevel]));
 }
 
 export async function reorderTopics(orderedIds: string[]): Promise<void> {
