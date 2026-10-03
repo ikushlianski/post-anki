@@ -35,7 +35,6 @@ updated: 2026-09-04
 - Reuse the existing AWS Route53 domain for the new backend
 
 ### Coding tasks
-- [ ] SCF can't host Electric privately (routing required, no cluster reuse) — stay on Pulumi
 - [ ] Replace the Pulumi AWS stack with Serverless Container Framework for Fargate
 - [ ] Shut down the live GCP backend once AWS is deployed and verified
 - [ ] Set up AWS credentials and the secrets the new backend needs
@@ -47,6 +46,7 @@ updated: 2026-09-04
 - Bot can't run locally without a Telegram bot token and webhook secret
 - Scope decision changed: web and bot now move to AWS too, GCP is being retired
 - EXHAUSTED-AT-SCOPE (round 1, 2026-10-02) - IaC complete end to end, only live AWS credentials and manual cutover remain
+- Open decision: SCF can't route Electric privately — pick Pulumi, SCF+shared-secret, or wait for SCF
 
 
 ## mcp-content-access

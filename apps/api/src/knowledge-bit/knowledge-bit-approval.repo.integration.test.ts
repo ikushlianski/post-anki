@@ -149,6 +149,15 @@ describe("approveKnowledgeBit (real Postgres)", () => {
 
     expect(rows[0]!.approval_state).toBe("rejected");
   });
+
+  it("should return true on a retried approve of a bit that is already approved", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "Already approved", null, "approved");
+
+    const approved = await approveKnowledgeBit(id);
+
+    expect(approved).toBe(true);
+  });
 });
 
 describe("rejectKnowledgeBit (real Postgres)", () => {
@@ -188,6 +197,15 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
     );
 
     expect(rows[0]!.approval_state).toBe("approved");
+  });
+
+  it("should return true on a retried reject of a bit that is already rejected", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "Already rejected", null, "rejected");
+
+    const rejected = await rejectKnowledgeBit(id);
+
+    expect(rejected).toBe(true);
   });
 });
 

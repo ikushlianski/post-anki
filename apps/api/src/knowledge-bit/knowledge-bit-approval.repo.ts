@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import type {
   KnowledgeBitQuestionVariantKind,
   PendingKnowledgeSourceForReview,
@@ -11,10 +11,9 @@ import { newId } from "../shared/id.js";
 // browse a knowledge bit must apply this, so a bit stays invisible until a human approves it.
 export const bitApproved = eq(knowledgeBits.approvalState, "approved");
 
-// Only a still-pending bit can be approved or rejected — once a decision is made it's final, so
-// a stale/double click can never flip an already-rejected bit to approved (or vice versa).
-const bitPending = eq(knowledgeBits.approvalState, "pending");
-
+// A decision, once made, can't flip to the other decision — but retrying the same one (the
+// panel keeps a row listed and lets the reviewer click again after a lost response) must still
+// succeed, so only the cross-transition is blocked, not a repeat of the same outcome.
 export async function approveKnowledgeBit(
   id: string,
   db: DbExecutor = getDb(),
@@ -22,7 +21,7 @@ export async function approveKnowledgeBit(
   const rows = await db
     .update(knowledgeBits)
     .set({ approvalState: "approved" })
-    .where(and(eq(knowledgeBits.id, id), bitPending))
+    .where(and(eq(knowledgeBits.id, id), ne(knowledgeBits.approvalState, "rejected")))
     .returning({ id: knowledgeBits.id });
 
   return rows.length > 0;
@@ -32,7 +31,7 @@ export async function rejectKnowledgeBit(id: string, db: DbExecutor = getDb()): 
   const rows = await db
     .update(knowledgeBits)
     .set({ approvalState: "rejected" })
-    .where(and(eq(knowledgeBits.id, id), bitPending))
+    .where(and(eq(knowledgeBits.id, id), ne(knowledgeBits.approvalState, "approved")))
     .returning({ id: knowledgeBits.id });
 
   return rows.length > 0;

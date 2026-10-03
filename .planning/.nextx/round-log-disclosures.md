@@ -37,3 +37,28 @@
   Separately confirmed: the `serverless` CLI (which SCF rides on) is Serverless Framework v4,
   which community reports (not SCF's own docs — labeled Assumption) say requires `serverless
   login` even on the free tier; never run this autonomously regardless.
+- A real third SCF option, confirmed via Electric's own docs (electric.ax/docs/api/config):
+  `ELECTRIC_SECRET` is documented for self-hosted Electric too, required unless
+  `ELECTRIC_INSECURE=true`. Electric could sit behind SCF's required ALB routing authenticated by
+  a shared secret instead of a security group — but the api's `electric-proxy.service.ts` would
+  need a code change to send that secret, which doesn't exist today. Not attempted this run; named
+  as an option in the final report, not built.
+
+- Commits `ae99796` (approve/reject-pending guard) and `040c161` (hide-rejected-from-placement-
+  queue) auto-committed via `mark-done` before an independent review ran — both items were marked
+  `[x]` ahead of review-factory, a self-certification gap. Closed retroactively: a Guarded-tier
+  review (slug `ki-approval-gate-server-guards`, diff-base `e0ab9406`) ran both passes — Pass 1
+  PASS (plan-correspondence, mechanical checks, Opus structured verdict, 3 non-blocking findings),
+  Pass 2 PASS (same, streak 2, `done:true`) — confirming both `[x]` items hold. Opus's non-blocking
+  findings from both passes logged as new backlog items (edit-guard-on-question-variants,
+  placement-accept-on-rejected-bit, 404-vs-409 on blocked actions, missing DB check constraint on
+  approval_state) — not fixed this run.
+- Unlogged-until-now judgment call, since corrected: the first version of the approve/reject guard
+  blocked every cross-click, including a harmless retry of the same decision after a lost response
+  (re-approving an already-approved bit). Narrowed to block only the actual cross-transition
+  (approved→rejected or rejected→approved) so retries stay idempotent — `knowledge-bit-approval.repo.ts`.
+- The edit-guard (`updateKnowledgeBitBody` now requires `approvalState === "pending"`) was checked
+  against every real caller in the repo (`apps/`, `packages/`) before relying on it — the only live
+  caller of `PATCH /knowledge-bits/:id` is the review screen (`knowledge-bit-review.api.ts` →
+  `editKnowledgeBit` web client). No other surface (web, MCP server, bot, extension) calls this
+  route, so the guard is not a regression anywhere else.
