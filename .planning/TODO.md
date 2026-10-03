@@ -211,7 +211,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Wire NOTION_TOKEN into the deployed API before the 15-min job goes live
-- [ ] Decide how a row that fails every run stops permanently blocking the 20-row window
+- [x] Decide how a row that fails every run stops permanently blocking the 20-row window
 - [x] Fix skipped or failed rows permanently blocking the 20-row sync window
 - [x] Validate a classified row's matched topic actually exists before saving its fact
 - [x] Add a real 15-minute scheduled trigger — it currently only runs via a manual script
@@ -229,6 +229,7 @@ updated: 2026-09-04
   - [x] Mark synced and schedule
 
 ### Notes
+- Confirm Notion's Tags filter is case-sensitive — a lowercase "pa" tag might now be silently excluded
 - Biz Education data source: collection://3cddec4d-fc6e-805c-93ea-000bc235a121, real Tags option is PA.
 - A cheap OpenRouter tier already exists (tierToModelId 'cheap' = deepseek-v4-flash) — reuse it, don't add a new model.
 - Marking synced needs a write-capable Notion token — current one may be read-only.
