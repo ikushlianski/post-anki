@@ -45,6 +45,7 @@ const {
   markKnowledgeBitPlacementFailed,
   listPendingPlacementSuggestions,
   resolvePlacementSuggestion,
+  TOPIC_HIERARCHY_PROMPT_LIMIT,
 } = await import("./knowledge-bit-placement.repo.js");
 
 let client: pg.Client;
@@ -206,6 +207,39 @@ describe("listTopicsForPlacement (real Postgres)", () => {
         subjectName: "Placement Subject",
       },
     ]);
+  });
+
+  it(`caps the returned rows at TOPIC_HIERARCHY_PROMPT_LIMIT (${TOPIC_HIERARCHY_PROMPT_LIMIT})`, async () => {
+    const subjectId = await seedSubject("Cap Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Cap Curriculum");
+    const moduleId = `mod_${randomUUID()}`;
+
+    await client.query(`INSERT INTO modules (id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4)`, [
+      moduleId,
+      curriculumId,
+      "Cap Module",
+      0,
+    ]);
+
+    const topicCount = TOPIC_HIERARCHY_PROMPT_LIMIT + 1;
+    const values: string[] = [];
+    const params: unknown[] = [];
+
+    for (let i = 0; i < topicCount; i++) {
+      const base = params.length;
+
+      values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`);
+      params.push(`topic_${randomUUID()}`, moduleId, curriculumId, `Cap Topic ${i}`, i, true);
+    }
+
+    await client.query(
+      `INSERT INTO topics (id, module_id, curriculum_id, title, "order", included) VALUES ${values.join(", ")}`,
+      params,
+    );
+
+    const rows = await listTopicsForPlacement();
+
+    expect(rows).toHaveLength(TOPIC_HIERARCHY_PROMPT_LIMIT);
   });
 });
 

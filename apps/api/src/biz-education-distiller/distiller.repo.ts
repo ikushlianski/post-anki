@@ -10,6 +10,10 @@ export interface HierarchyTopic {
   subjectName: string;
 }
 
+// Personal-app scale cap on the topic hierarchy fed into the classification prompt — see
+// SEARCH_NAME_MATCH_LIMIT in search.repo.ts for the same shape.
+export const TOPIC_HIERARCHY_PROMPT_LIMIT = 500;
+
 export async function listHierarchyForClassification(): Promise<HierarchyTopic[]> {
   const rows = await getDb()
     .select({
@@ -20,7 +24,9 @@ export async function listHierarchyForClassification(): Promise<HierarchyTopic[]
     })
     .from(topics)
     .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-    .innerJoin(subjects, eq(subjects.id, curricula.subjectId));
+    .innerJoin(subjects, eq(subjects.id, curricula.subjectId))
+    .orderBy(topics.id)
+    .limit(TOPIC_HIERARCHY_PROMPT_LIMIT);
 
   return rows;
 }

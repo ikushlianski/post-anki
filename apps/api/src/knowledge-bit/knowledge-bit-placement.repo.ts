@@ -31,6 +31,10 @@ export interface TopicForPlacement {
   subjectName: string;
 }
 
+// Personal-app scale cap on the topic hierarchy fed into the placement prompt — see
+// SEARCH_NAME_MATCH_LIMIT in search.repo.ts for the same shape.
+export const TOPIC_HIERARCHY_PROMPT_LIMIT = 500;
+
 export async function listTopicsForPlacement(
   db: DbExecutor = getDb(),
 ): Promise<TopicForPlacement[]> {
@@ -44,7 +48,9 @@ export async function listTopicsForPlacement(
     .from(topics)
     .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
     .innerJoin(subjects, eq(subjects.id, curricula.subjectId))
-    .where(and(eq(topics.included, true), isNull(curricula.containerAreaNodeId)));
+    .where(and(eq(topics.included, true), isNull(curricula.containerAreaNodeId)))
+    .orderBy(topics.id)
+    .limit(TOPIC_HIERARCHY_PROMPT_LIMIT);
 }
 
 // Body guard: no-ops if the body changed since the scan read it, so the next scan retries.
