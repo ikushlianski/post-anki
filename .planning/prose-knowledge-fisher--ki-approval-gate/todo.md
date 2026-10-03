@@ -13,6 +13,8 @@ Nothing to decide — see spec.md's "Decision made autonomously."
 Nothing to review.
 
 ## Coding tasks
+- Phase 3 review slug stuck (3 FAILs) — needs a fresh review attempt
+- Clear stale Q&A locally when a bit-text edit changes the body (server deletes variants)
 - [ ] Phase 1: schema column + migration + approve/reject/edit API
 - [ ] Phase 2: block every learner-facing surface with the shared predicate
 - [ ] Phase 3: review screen UI

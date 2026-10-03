@@ -16,11 +16,14 @@ updated: 2026-09-04
 - Add a timed mock-exam practice mode with a score summary at the end
 
 ### Coding tasks
+- [x] Add a timed mock-exam mode that scores answers and shows a summary
+- [x] Let a learner pick exam mode alongside existing practice modes
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
-- Today: paste-text source exists, no URL source. Only socratic/quick_test probing, no exam mode
-- Working in dependency order (link source, then UI, then exam, then picker), not file order
+- Link-as-source already shipped (UI toggle + createKnowledgeSourceFromUrl + server fetch/extract) — Notes below were stale, corrected 2026-10-04
+- Only socratic/quick_test probing exists; no timed exam mode yet
+- Working in dependency order (exam mode, then picker), not file order
 
 
 ## aws-electric-fargate-deploy

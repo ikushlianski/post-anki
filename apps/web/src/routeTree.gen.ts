@@ -17,6 +17,7 @@ import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MilestonesRouteImport } from './routes/milestones'
 import { Route as LearningPathsRouteImport } from './routes/learning-paths'
 import { Route as LearningListRouteImport } from './routes/learning-list'
+import { Route as KnowledgeBitReviewRouteImport } from './routes/knowledge-bit-review'
 import { Route as FindRouteImport } from './routes/find'
 import { Route as DuplicatesRouteImport } from './routes/duplicates'
 import { Route as DecideRouteImport } from './routes/decide'
@@ -87,6 +88,11 @@ const LearningPathsRoute = LearningPathsRouteImport.update({
 const LearningListRoute = LearningListRouteImport.update({
   id: '/learning-list',
   path: '/learning-list',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeBitReviewRoute = KnowledgeBitReviewRouteImport.update({
+  id: '/knowledge-bit-review',
+  path: '/knowledge-bit-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FindRoute = FindRouteImport.update({
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
   '/find': typeof FindRoute
+  '/knowledge-bit-review': typeof KnowledgeBitReviewRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
   '/milestones': typeof MilestonesRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
   '/find': typeof FindRoute
+  '/knowledge-bit-review': typeof KnowledgeBitReviewRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
   '/milestones': typeof MilestonesRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/decide': typeof DecideRoute
   '/duplicates': typeof DuplicatesRoute
   '/find': typeof FindRoute
+  '/knowledge-bit-review': typeof KnowledgeBitReviewRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
   '/milestones': typeof MilestonesRoute
@@ -390,6 +399,7 @@ export interface FileRouteTypes {
     | '/decide'
     | '/duplicates'
     | '/find'
+    | '/knowledge-bit-review'
     | '/learning-list'
     | '/learning-paths'
     | '/milestones'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/decide'
     | '/duplicates'
     | '/find'
+    | '/knowledge-bit-review'
     | '/learning-list'
     | '/learning-paths'
     | '/milestones'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/decide'
     | '/duplicates'
     | '/find'
+    | '/knowledge-bit-review'
     | '/learning-list'
     | '/learning-paths'
     | '/milestones'
@@ -514,6 +526,7 @@ export interface RootRouteChildren {
   DecideRoute: typeof DecideRoute
   DuplicatesRoute: typeof DuplicatesRoute
   FindRoute: typeof FindRoute
+  KnowledgeBitReviewRoute: typeof KnowledgeBitReviewRoute
   LearningListRoute: typeof LearningListRoute
   LearningPathsRoute: typeof LearningPathsRoute
   MilestonesRoute: typeof MilestonesRoute
@@ -601,6 +614,13 @@ declare module '@tanstack/react-router' {
       path: '/learning-list'
       fullPath: '/learning-list'
       preLoaderRoute: typeof LearningListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge-bit-review': {
+      id: '/knowledge-bit-review'
+      path: '/knowledge-bit-review'
+      fullPath: '/knowledge-bit-review'
+      preLoaderRoute: typeof KnowledgeBitReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/find': {
@@ -834,6 +854,7 @@ const rootRouteChildren: RootRouteChildren = {
   DecideRoute: DecideRoute,
   DuplicatesRoute: DuplicatesRoute,
   FindRoute: FindRoute,
+  KnowledgeBitReviewRoute: KnowledgeBitReviewRoute,
   LearningListRoute: LearningListRoute,
   LearningPathsRoute: LearningPathsRoute,
   MilestonesRoute: MilestonesRoute,

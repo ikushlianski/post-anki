@@ -492,6 +492,44 @@ export async function resolvePlacementSuggestion(
   }
 }
 
+// ki-approval-gate (review screen) additions below.
+
+export async function listPendingKnowledgeBitsForReview(): Promise<
+  be.PendingKnowledgeSourceForReview[]
+> {
+  return request<be.PendingKnowledgeSourceForReview[]>('/knowledge-bits/pending-review')
+}
+
+export async function approveKnowledgeBit(bitId: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/knowledge-bits/${bitId}/approve`, { method: 'POST' })
+}
+
+export async function rejectKnowledgeBit(bitId: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/knowledge-bits/${bitId}/reject`, { method: 'POST' })
+}
+
+export async function editKnowledgeBitQuestionVariant(
+  variantId: string,
+  prompt: string,
+  answer: string,
+): Promise<{ ok: true; variantId: string }> {
+  return request<{ ok: true; variantId: string }>(
+    `/knowledge-bits/question-variants/${variantId}`,
+    { method: 'PATCH', body: { prompt, answer } },
+  )
+}
+
+export async function editKnowledgeBit(
+  bitId: string,
+  body: string,
+  background: string | null,
+): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/knowledge-bits/${bitId}`, {
+    method: 'PATCH',
+    body: { body, background },
+  })
+}
+
 // deepen-widen-recommendations (issue #90) additions below.
 
 export async function triggerDomainRecommendations(
