@@ -344,6 +344,24 @@ describe("0.2 completion — releaseState is honoured by the release predicate",
     expect(released?.topicIds).toEqual(topicIds);
   });
 
+  it("never resurrects a topic the learner dropped after it was already released", async () => {
+    const { curriculumId, topicIds } = await insertCurriculumWithTopics(2);
+    const itemId = await insertLearningListItem({ curriculumId, questionCeiling: 24 });
+
+    await client.query(
+      `UPDATE topics SET learning_status = 'skipping' WHERE id = $1`,
+      [topicIds[0]!],
+    );
+    await startLivenessTracking({ entityType: "learning_list_item", entityId: itemId });
+
+    const released = await releaseNextSlice(itemId);
+
+    expect(released?.topicIds).toEqual([topicIds[1]]);
+    const included = await includedTopics(curriculumId);
+
+    expect(included.map((row) => row.id)).toEqual([topicIds[1]]);
+  });
+
   it("falls back to real generation once every remaining pre-drafted topic is declined", async () => {
     const { curriculumId, topicIds } = await insertCurriculumWithTopics(1);
     const itemId = await insertLearningListItem({ curriculumId, questionCeiling: 24 });

@@ -627,6 +627,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new study modalities — only ranking/selection logic
 
 ### Coding tasks
+- [x] Stop a slice release from resurrecting a dropped topic into the daily push queue
 - [x] Stop a draft or dormant curriculum's knowledge bits from showing as due
 - [x] Make every due-count query agree on excluding a dropped topic
 - [x] Also stop the default and tag-scoped answer queue from serving a dropped topic's bits

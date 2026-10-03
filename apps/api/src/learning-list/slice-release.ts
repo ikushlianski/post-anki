@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { nextIngestionSlice, QUESTIONS_PER_TOPIC } from "@post-anki/core";
 import { confirmCurriculum, getCurriculum, setCurriculumStatus } from "../curriculum/curriculum.repo.js";
 import { getDb, type DbExecutor } from "../db/client.js";
@@ -30,6 +30,9 @@ export type { ReleasedSlice };
 // silently drop every NULL row too (SQL: NULL != 'declined' is NULL, not
 // true), which is exactly the bug this predicate exists to avoid — hence
 // `IS DISTINCT FROM`.
+//
+// `learningStatus != 'skipping'` excludes a topic the learner already dropped;
+// drop never touches `releaseState`, so without this check it would resurface.
 async function nextUnreleasedTopicIds(
   curriculumId: string,
   limit: number,
@@ -43,6 +46,7 @@ async function nextUnreleasedTopicIds(
       and(
         eq(topics.curriculumId, curriculumId),
         eq(topics.included, false),
+        ne(topics.learningStatus, "skipping"),
         sql`${topics.releaseState} IS DISTINCT FROM 'declined'`,
       ),
     )

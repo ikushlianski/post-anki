@@ -28,7 +28,7 @@ export async function gatherPushCandidates(subjectId?: string): Promise<PushCand
 
   const topicRows = (
     await db.select().from(topics).where(inArray(topics.curriculumId, confirmedIds))
-  ).filter((t) => t.included);
+  ).filter((t) => t.included && t.learningStatus !== "skipping");
 
   if (topicRows.length === 0) {
     return [];

@@ -141,6 +141,22 @@ describe("SCENARIO 11 — a paused course decays but stays in the daily push", (
   }, 30_000);
 });
 
+describe("a dropped topic never resurfaces in the daily push", () => {
+  it("excludes a topic the learner dropped even if a slice release left it marked included", async () => {
+    const subjectId = await seedSubject();
+    const curriculumId = await seedStudiableCurriculum(subjectId, "Resurrected but dropped");
+
+    await client.query(
+      `UPDATE topics SET included = true, learning_status = 'skipping' WHERE curriculum_id = $1`,
+      [curriculumId],
+    );
+
+    const candidates = await gatherPushCandidates();
+
+    expect(candidates.map((c) => c.curriculumId)).not.toContain(curriculumId);
+  }, 30_000);
+});
+
 interface CapturedResponse {
   status: number;
   body: unknown;
