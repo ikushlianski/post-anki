@@ -755,6 +755,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: building a brand-new surface from scratch — hardening/extending existing ones
 
 ### Coding tasks
+- [x] Stop resurface digest nagging about gaps on dropped topics
 - [x] Fix mobile quick-test practice always scoring as failed, reopening answered gaps
 - [x] Let a mentor-subject learner practice probe questions from the mobile app
 - [x] Let the learner record and submit a voice note from the app

@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type {
   GapDueForResurfaceItem,
   GapsDueForResurfaceResponse,
@@ -15,7 +15,36 @@ import {
 } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { curricula, gaps, subjects, topics } from "../db/schema.js";
+import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 import { rowToGap } from "./gap.repo.js";
+
+// Mirrors gatherPushCandidates' live-topic gate (push.repo.ts): confirmed,
+// not dormant, included, not skipping.
+async function listLiveTopicIds(): Promise<Set<string>> {
+  const db = getDb();
+
+  const [allConfirmed, dormantCurriculumIds] = await Promise.all([
+    db.select({ id: curricula.id }).from(curricula).where(eq(curricula.status, "confirmed")),
+    listDormantEntityIds("curriculum"),
+  ]);
+
+  const confirmedIds = allConfirmed
+    .map((c) => c.id)
+    .filter((curriculumId) => !dormantCurriculumIds.has(curriculumId));
+
+  if (confirmedIds.length === 0) {
+    return new Set();
+  }
+
+  const topicRows = await db
+    .select({ id: topics.id, included: topics.included, learningStatus: topics.learningStatus })
+    .from(topics)
+    .where(inArray(topics.curriculumId, confirmedIds));
+
+  return new Set(
+    topicRows.filter((t) => t.included && t.learningStatus !== "skipping").map((t) => t.id),
+  );
+}
 
 // The tool (subject) name a gap belongs to, resolved via the same
 // gap -> topic -> curriculum -> subject join gap-mastery.repo.ts's
@@ -81,13 +110,15 @@ export async function triageGapLocked(
 
 // Read-only (AC18) — calling this twice with no intervening mark-resurfaced
 // call returns the identical candidate set both times. Candidates are
-// narrowed by `triageState` at the SQL layer, then the exact boundary logic
-// unit-tested in isolation (gap.ts's isResurfaceDue/isDismissedCheckinDue)
-// decides due-ness, so there is only one place that encodes "is it due yet."
+// narrowed by `triageState` and live-topic membership at the SQL layer, then
+// the exact boundary logic unit-tested in isolation (gap.ts's
+// isResurfaceDue/isDismissedCheckinDue) decides due-ness, so there is only
+// one place that encodes "is it due yet."
 export async function listGapsDueForResurface(now: string): Promise<GapsDueForResurfaceResponse> {
   const db = getDb();
 
-  const [deferredCandidates, dismissedCandidates] = await Promise.all([
+  const [liveTopicIds, deferredCandidates, dismissedCandidates] = await Promise.all([
+    listLiveTopicIds(),
     db
       .select({ gap: gaps, tool: subjects.name })
       .from(gaps)
@@ -105,12 +136,14 @@ export async function listGapsDueForResurface(now: string): Promise<GapsDueForRe
   ]);
 
   const userDeferredDue: GapDueForResurfaceItem[] = deferredCandidates
+    .filter((row) => liveTopicIds.has(row.gap.topicId))
     .filter((row) =>
       isResurfaceDue(row.gap.deferredUntil ? row.gap.deferredUntil.toISOString() : null, now),
     )
     .map((row) => ({ gap: rowToGap(row.gap), tool: row.tool }));
 
   const dismissedCheckinDue: GapDueForResurfaceItem[] = dismissedCandidates
+    .filter((row) => liveTopicIds.has(row.gap.topicId))
     .filter((row) =>
       isDismissedCheckinDue(
         row.gap.dismissedAt ? row.gap.dismissedAt.toISOString() : null,

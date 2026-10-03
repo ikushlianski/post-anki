@@ -174,6 +174,45 @@ describe("SCENARIO 5/6 — listGapsDueForResurface is read-only (AC18)", () => {
   }, 30_000);
 });
 
+describe("a dropped topic's gaps never resurface", () => {
+  it("excludes a deferred gap once its topic is dropped (included = false)", async () => {
+    const { topicId } = await seedTopic();
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const gapId = await seedGap(topicId, { triageState: "user_deferred", deferredUntil: past });
+
+    const beforeDrop = await listGapsDueForResurface(new Date().toISOString());
+
+    expect(beforeDrop.userDeferredDue.find((c) => c.gap.id === gapId)).toBeDefined();
+
+    await client.query(`UPDATE topics SET included = false WHERE id = $1`, [topicId]);
+
+    const afterDrop = await listGapsDueForResurface(new Date().toISOString());
+
+    expect(afterDrop.userDeferredDue.find((c) => c.gap.id === gapId)).toBeUndefined();
+  }, 30_000);
+
+  it("excludes a dismissed gap once its topic is marked skipping", async () => {
+    const { topicId } = await seedTopic();
+    const gapId = await seedGap(topicId, {
+      triageState: "dismissed",
+      dismissedAt: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
+    });
+
+    const beforeDrop = await listGapsDueForResurface(new Date().toISOString());
+
+    expect(beforeDrop.dismissedCheckinDue.find((c) => c.gap.id === gapId)).toBeDefined();
+
+    await client.query(
+      `UPDATE topics SET included = true, learning_status = 'skipping' WHERE id = $1`,
+      [topicId],
+    );
+
+    const afterDrop = await listGapsDueForResurface(new Date().toISOString());
+
+    expect(afterDrop.dismissedCheckinDue.find((c) => c.gap.id === gapId)).toBeUndefined();
+  }, 30_000);
+});
+
 describe("SCENARIO 5/6 — markGapResurfaced (AC19)", () => {
   it("deferral-expired resets triageState to untriaged and clears deferredUntil", async () => {
     const { topicId } = await seedTopic();
