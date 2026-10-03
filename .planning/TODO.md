@@ -23,6 +23,7 @@ updated: 2026-09-04
 
 ### Notes
 - Today: paste-text source exists, no URL source. Only socratic/quick_test probing, no exam mode
+- Working in dependency order (link source, then UI, then exam, then picker), not file order
 
 
 ## aws-electric-fargate-deploy
