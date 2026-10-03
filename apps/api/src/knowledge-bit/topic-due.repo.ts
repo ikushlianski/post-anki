@@ -1,4 +1,5 @@
-import { and, eq, exists, inArray, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { foldTagMastery, type MasteryEntryState } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
@@ -6,6 +7,7 @@ import {
   knowledgeBitQuestionVariants,
   knowledgeBits,
   knowledgeBitSchedules,
+  knowledgeBitVariantAttempts,
   topics,
 } from "../db/schema.js";
 import { listDormantEntityIds } from "../liveness/liveness.repo.js";
@@ -110,6 +112,57 @@ export async function getDueCountsForTopics(
     .groupBy(topics.id);
 
   return new Map(rows.map((row) => [row.topicId, row.dueCount]));
+}
+
+// Topic-scoped sibling of getTagMasteryLevels (tag.repo.ts), same fold, scoped by knowledgeBits.topicId.
+export async function getTopicBitMasteryLevels(
+  topicIds: string[],
+  db: DbExecutor = getDb(),
+): Promise<Map<string, MasteryEntryState>> {
+  if (topicIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await db
+    .select({
+      topicId: knowledgeBits.topicId,
+      verdict: knowledgeBitVariantAttempts.verdict,
+    })
+    .from(knowledgeBits)
+    .innerJoin(
+      knowledgeBitQuestionVariants,
+      eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBits.id),
+    )
+    .innerJoin(
+      knowledgeBitVariantAttempts,
+      eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
+    )
+    .where(inArray(knowledgeBits.topicId, topicIds))
+    .orderBy(asc(knowledgeBitVariantAttempts.createdAt), asc(knowledgeBitVariantAttempts.id));
+
+  const attemptsByTopic = new Map<string, { verdict: string }[]>();
+
+  for (const row of rows) {
+    if (!row.topicId) {
+      continue;
+    }
+
+    const existing = attemptsByTopic.get(row.topicId);
+
+    if (existing) {
+      existing.push({ verdict: row.verdict });
+    } else {
+      attemptsByTopic.set(row.topicId, [{ verdict: row.verdict }]);
+    }
+  }
+
+  const result = new Map<string, MasteryEntryState>();
+
+  for (const [topicId, attempts] of attemptsByTopic) {
+    result.set(topicId, foldTagMastery(attempts));
+  }
+
+  return result;
 }
 
 // Module-level rollup, shown as a badge next to moduleProgress/curriculumProgress.

@@ -32,7 +32,9 @@ import type {
 } from "@post-anki/shared";
 import {
   curriculumProgress,
+  DEFAULT_TAG_MASTERY_ENTRY,
   extractUrls,
+  type MasteryEntryState,
   moduleProgress,
   priorLevelCoverageLabels,
   recommendedTopicId,
@@ -60,7 +62,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
-import { getDueCountsForModules } from "../knowledge-bit/topic-due.repo.js";
+import { getDueCountsForModules, getTopicBitMasteryLevels } from "../knowledge-bit/topic-due.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { deleteGapArchetypeStateForGapIds } from "../gap/gap-archetype.repo.js";
 import { newId } from "../shared/id.js";
@@ -2246,9 +2248,10 @@ export async function getCurriculumDetail(
       : [];
   const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
 
-  const [tagsByNode, dueCountByModuleId] = await Promise.all([
+  const [tagsByNode, dueCountByModuleId, bitKnowledgeByTopicId] = await Promise.all([
     loadTagsByNode([...moduleRows.map((m) => m.id), ...topicRows.map((t) => t.id)]),
     getDueCountsForModules(moduleRows.map((m) => m.id)),
+    getTopicBitMasteryLevels(topicRows.map((t) => t.id)),
   ]);
 
   const assembledModules = buildModules(
@@ -2259,6 +2262,7 @@ export async function getCurriculumDetail(
     tagsByNode,
     masteryByGapId,
     dueCountByModuleId,
+    bitKnowledgeByTopicId,
   );
 
   const [citableUrls, hasStructureDraftAttempt, domainMappings] = await Promise.all([
@@ -2505,13 +2509,18 @@ function buildModules(
   tagsByNode: Map<string, TagChip[]> = new Map(),
   masteryByGapId: Map<string, typeof gapMastery.$inferSelect> = new Map(),
   dueCountByModuleId: Map<string, number> = new Map(),
+  bitKnowledgeByTopicId: Map<string, MasteryEntryState> = new Map(),
 ): Module[] {
   return sortForDisplay(moduleRows, strictOrder).map((m) => {
     const moduleTopics = sortForDisplay(
       topicRows.filter((t) => t.moduleId === m.id),
       strictOrder,
     ).map((t) => ({
-      ...toTopic(t, tagsByNode.get(`topic:${t.id}`) ?? []),
+      ...toTopic(
+        t,
+        tagsByNode.get(`topic:${t.id}`) ?? [],
+        bitKnowledgeByTopicId.get(t.id) ?? DEFAULT_TAG_MASTERY_ENTRY,
+      ),
       gaps: gapRows
         .filter((g) => g.topicId === t.id)
         .map((g) => rowToGap(g, masteryByGapId.get(g.id))),
@@ -2592,7 +2601,11 @@ export function toSource(row: typeof sources.$inferSelect): Source {
   };
 }
 
-function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
+function toTopic(
+  row: typeof topics.$inferSelect,
+  tags: TagChip[] = [],
+  bitKnowledge?: MasteryEntryState,
+): Topic {
   return {
     id: row.id,
     moduleId: row.moduleId,
@@ -2613,6 +2626,15 @@ function toTopic(row: typeof topics.$inferSelect, tags: TagChip[] = []): Topic {
         ? row.progressLastInteractedAt.toISOString()
         : null,
     },
+    // Additive, read-time-only — never written to or blended with `progress` above.
+    bitKnowledge: bitKnowledge
+      ? {
+          status: bitKnowledge.status,
+          masteryStage: bitKnowledge.masteryStage,
+          correctCountInCycle: bitKnowledge.correctCountInCycle,
+          incorrectCountInCycle: bitKnowledge.incorrectCountInCycle,
+        }
+      : undefined,
     depthElectedAt: row.depthElectedAt ? row.depthElectedAt.toISOString() : null,
     headroomOfferedAt: row.headroomOfferedAt ? row.headroomOfferedAt.toISOString() : null,
     tags,

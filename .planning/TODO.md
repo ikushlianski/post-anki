@@ -34,6 +34,7 @@ updated: 2026-09-04
 - Reuse the existing AWS Route53 domain for the new backend
 
 ### Coding tasks
+- [ ] Replace the Pulumi AWS stack with Serverless Container Framework for Fargate
 - [ ] Shut down the live GCP backend once AWS is deployed and verified
 - [ ] Set up AWS credentials and the secrets the new backend needs
 - [ ] Deploy the Fargate services and confirm the API and sync both come up healthy
@@ -92,12 +93,15 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [ ] Block unapproved bits from answering, chat, and search until accepted
+- [ ] Build a review screen: source text, each bit's Q&A and example, approve/reject/edit
+- [ ] Hold new knowledge bits as pending until the learner approves each one
 - [x] Generate a fill-in-the-blank variant for each knowledge bit
   - [ ] Phase 1: schema and migration
   - [x] Phase 2: fill-blank agent and repo
   - [ ] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
-- [ ] Feed prose-sourced bits into the existing per-topic knowledge tracking
+- [x] Feed prose-sourced bits into the existing per-topic knowledge tracking
 - [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
 
 ### Notes

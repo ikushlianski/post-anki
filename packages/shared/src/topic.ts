@@ -12,6 +12,20 @@ export const selfGradeSchema = z.number().int().min(1).max(5);
 
 export type SelfGrade = z.infer<typeof selfGradeSchema>;
 
+// Read-time-only knowledge-bit mastery signal, additive alongside `progress` below.
+export const topicBitMasteryStatusSchema = z.enum(["new", "practicing", "struggling", "mastered"]);
+
+export type TopicBitMasteryStatus = z.infer<typeof topicBitMasteryStatusSchema>;
+
+export const topicBitKnowledgeSchema = z.object({
+  status: topicBitMasteryStatusSchema,
+  masteryStage: z.number().int(),
+  correctCountInCycle: z.number().int(),
+  incorrectCountInCycle: z.number().int(),
+});
+
+export type TopicBitKnowledge = z.infer<typeof topicBitKnowledgeSchema>;
+
 export const topicSchema = z.object({
   id: z.string(),
   moduleId: z.string(),
@@ -26,6 +40,7 @@ export const topicSchema = z.object({
   questions: z.array(questionSchema),
   gaps: z.array(gapSchema).optional(),
   progress: topicProgressSchema,
+  bitKnowledge: topicBitKnowledgeSchema.optional(),
   tags: z.array(tagChipSchema).optional(),
   // lms-buildout 0.4 — when this topic's depth was first elected (null =
   // never asked). Surfaced so callers can stop inferring "has depth been
