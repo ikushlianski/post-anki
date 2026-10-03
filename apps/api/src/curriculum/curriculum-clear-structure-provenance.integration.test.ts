@@ -190,6 +190,23 @@ async function insertGap(gapId: string, topicId: string, origin = "ai"): Promise
   ]);
 }
 
+async function insertTagAssignment(
+  nodeType: "topic" | "module",
+  nodeId: string,
+  source: "manual" | "auto",
+): Promise<void> {
+  const tagId = id("tag");
+
+  await client.query(
+    `INSERT INTO tags (id, name, normalized_name) VALUES ($1, $2, $3)`,
+    [tagId, `tag ${tagId}`, tagId],
+  );
+  await client.query(
+    `INSERT INTO tag_assignments (id, tag_id, node_type, node_id, source) VALUES ($1, $2, $3, $4, $5)`,
+    [id("tga"), tagId, nodeType, nodeId, source],
+  );
+}
+
 async function moduleIdsUnder(curriculumId: string): Promise<string[]> {
   const { rows } = await client.query<{ id: string }>(
     `SELECT id FROM modules WHERE curriculum_id = $1`,
@@ -472,6 +489,57 @@ describe("clearCurriculumStructure provenance — a topic with study progress bu
 
     expect(await moduleIdsUnder(curriculumId)).toEqual([gradedModuleId]);
     expect(await topicIdsUnder(curriculumId)).toEqual([gradedTopicId]);
+  });
+});
+
+describe("clearCurriculumStructure provenance — a manually tagged topic survives 'Retry research'/'Reparse'", () => {
+  it("keeps a manually tagged topic's module while clearing a module whose only topic carries an auto-assigned tag", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId);
+
+    const curriculumId = id("target");
+    await insertCurriculum(curriculumId, subjectId, "Curriculum with a tagged topic", "failed");
+
+    const taggedModuleId = id("mod");
+    const taggedTopicId = id("top");
+    await insertModule(taggedModuleId, curriculumId, "Module with a manually tagged topic", 1);
+    await insertTopic(taggedTopicId, taggedModuleId, curriculumId, "Topic the learner tagged");
+    await insertTagAssignment("topic", taggedTopicId, "manual");
+
+    const autoTaggedModuleId = id("mod");
+    const autoTaggedTopicId = id("top");
+    await insertModule(autoTaggedModuleId, curriculumId, "Module with an auto-tagged-only topic", 2);
+    await insertTopic(autoTaggedTopicId, autoTaggedModuleId, curriculumId, "Topic with only an auto tag");
+    await insertTagAssignment("topic", autoTaggedTopicId, "auto");
+
+    await clearCurriculumStructure(curriculumId);
+
+    expect(await moduleIdsUnder(curriculumId)).toEqual([taggedModuleId]);
+    expect(await topicIdsUnder(curriculumId)).toEqual([taggedTopicId]);
+  });
+
+  it("keeps a manually tagged module even when its own topic carries no touch signal", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId);
+
+    const curriculumId = id("target");
+    await insertCurriculum(curriculumId, subjectId, "Curriculum with a tagged module", "failed");
+
+    const taggedModuleId = id("mod");
+    const taggedTopicId = id("top");
+    await insertModule(taggedModuleId, curriculumId, "Manually tagged module", 1);
+    await insertTopic(taggedTopicId, taggedModuleId, curriculumId, "Untouched topic under a tagged module");
+    await insertTagAssignment("module", taggedModuleId, "manual");
+
+    const otherModuleId = id("mod");
+    const otherTopicId = id("top");
+    await insertModule(otherModuleId, curriculumId, "Ordinary native module", 2);
+    await insertTopic(otherTopicId, otherModuleId, curriculumId, "Ordinary native topic");
+
+    await clearCurriculumStructure(curriculumId);
+
+    expect(await moduleIdsUnder(curriculumId)).toEqual([taggedModuleId]);
+    expect(await topicIdsUnder(curriculumId)).toEqual([taggedTopicId]);
   });
 });
 

@@ -583,6 +583,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new merge/regenerate features themselves — only hardening existing mutation paths against data loss
 
 ### Coding tasks
+- [x] Stop retry/reparse from silently orphaning a manually-tagged topic's tags
 - [x] Stop a knowledge-bit edit from deleting question variants a learner already answered
 - [x] Fix stale comment: fill-blank-claim.repo.ts still calls wh_question failure permanent
 - [x] Update stale knowledge_bits column-snapshot test to match current schema

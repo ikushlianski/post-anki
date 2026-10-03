@@ -56,6 +56,7 @@ import {
   structureResearchCandidates,
   subjectCategories,
   subjects,
+  tagAssignments,
   topics,
 } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
@@ -544,6 +545,30 @@ async function topicIdsWithSessionHistory(
   return result;
 }
 
+// Only learner-assigned tags (source = "manual") protect a node; auto tags don't.
+async function nodeIdsWithManualTag(
+  nodeType: "topic" | "module",
+  nodeIds: string[],
+  db: DbExecutor,
+): Promise<Set<string>> {
+  if (nodeIds.length === 0) {
+    return new Set();
+  }
+
+  const rows = await db
+    .select({ nodeId: tagAssignments.nodeId })
+    .from(tagAssignments)
+    .where(
+      and(
+        eq(tagAssignments.nodeType, nodeType),
+        inArray(tagAssignments.nodeId, nodeIds),
+        eq(tagAssignments.source, "manual"),
+      ),
+    );
+
+  return new Set(rows.map((r) => r.nodeId));
+}
+
 export async function getModuleProgressSnapshots(
   curriculumId: string,
 ): Promise<MergeModuleSnapshot[]> {
@@ -751,7 +776,7 @@ export type ClearStructureScope = "own" | "all";
  * sweep this replaces. A module also survives when one of its topics is
  * `isTopicTouched` — any sign of study progress, a user-declared gap, an
  * attached note, or quiz/Socratic session history — same reasoning as
- * merge provenance.
+ * merge provenance. A module or topic with a manual tag survives the same way.
  */
 async function resolveClearTargets(
   curriculumId: string,
@@ -784,7 +809,14 @@ async function resolveClearTargets(
   }
 
   const topicIdsForCurriculum = topicRows.map((t) => t.id);
-  const [userGapTopicIds, noteTopicIds, sessionHistoryTopicIds] = await Promise.all([
+  const moduleIdsForCurriculum = moduleRows.map((m) => m.id);
+  const [
+    userGapTopicIds,
+    noteTopicIds,
+    sessionHistoryTopicIds,
+    manualTagTopicIds,
+    manualTagModuleIds,
+  ] = await Promise.all([
     topicIdsForCurriculum.length === 0
       ? Promise.resolve(new Set<string>())
       : db
@@ -794,10 +826,14 @@ async function resolveClearTargets(
           .then((rows) => new Set(rows.map((g) => g.topicId))),
     topicIdsWithNotes(topicIdsForCurriculum, db),
     topicIdsWithSessionHistory(topicIdsForCurriculum, db),
+    nodeIdsWithManualTag("topic", topicIdsForCurriculum, db),
+    nodeIdsWithManualTag("module", moduleIdsForCurriculum, db),
   ]);
 
   const survivingModuleIds = new Set(
-    moduleRows.filter((m) => m.mergedFrom !== null).map((m) => m.id),
+    moduleRows
+      .filter((m) => m.mergedFrom !== null || manualTagModuleIds.has(m.id))
+      .map((m) => m.id),
   );
 
   for (const topic of topicRows) {
@@ -817,7 +853,7 @@ async function resolveClearTargets(
       hasSessionHistory: sessionHistoryTopicIds.has(topic.id),
     });
 
-    if (topic.mergedFrom !== null || touched) {
+    if (topic.mergedFrom !== null || touched || manualTagTopicIds.has(topic.id)) {
       survivingModuleIds.add(topic.moduleId);
     }
   }
