@@ -637,5 +637,34 @@ describe("retaking an exam preserves its answered history instead of deleting it
     const activeExam = await getActiveSessionRow("curriculum", curriculumId, "exam");
 
     expect(activeExam?.id).toBe(retaken.id);
+
+    const secondQuestionId = started.questions[1]!.id;
+
+    const lateAnswer = await answerProbeSession(
+      { sessionId: started.id, questionId: secondQuestionId, selectedIndex: 0 },
+      new Date().toISOString(),
+    );
+
+    expect(lateAnswer).toEqual({ error: "session_completed" });
+
+    const oldSessionStillCompleted = (
+      await client.query(`SELECT status FROM probe_sessions WHERE id = $1`, [started.id])
+    ).rows[0];
+
+    expect(oldSessionStillCompleted.status).toBe("completed");
+
+    const replay = await answerProbeSession(
+      { sessionId: started.id, questionId: firstQuestionId, selectedIndex: 0 },
+      new Date().toISOString(),
+    );
+
+    expect("error" in replay).toBe(false);
+
+    const oldSessionAfterReplay = (
+      await client.query(`SELECT status, completed_at FROM probe_sessions WHERE id = $1`, [started.id])
+    ).rows[0];
+
+    expect(oldSessionAfterReplay.status).toBe("completed");
+    expect(oldSessionAfterReplay.completed_at).not.toBeNull();
   }, 30_000);
 });

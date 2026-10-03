@@ -19,6 +19,7 @@ const STATUS: Record<ProbeSessionError, number> = {
   generation_failed: 502,
   question_not_found: 404,
   invalid_target_count: 400,
+  session_completed: 409,
 };
 
 export async function handlePrepareProbeSession(

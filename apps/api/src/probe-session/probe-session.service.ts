@@ -70,7 +70,8 @@ export type ProbeSessionError =
   | "not_confirmed"
   | "generation_failed"
   | "question_not_found"
-  | "invalid_target_count";
+  | "invalid_target_count"
+  | "session_completed";
 
 export async function prepareProbeSession(
   input: PrepareProbeSessionInput,
@@ -227,6 +228,34 @@ export async function answerProbeSession(
   // re-count toward masteryStage.
   const isFreshAnswer = question.answeredIndex === null;
 
+  // A stale tab can still hold a retaken exam's old (now `completed`)
+  // session id — reject a genuinely new answer against it outright.
+  if (session.mode === "exam" && session.status === "completed" && isFreshAnswer) {
+    return { error: "session_completed" };
+  }
+
+  // A replay against that same stale session must also skip
+  // syncSessionCounters below, which would otherwise recompute "active"
+  // from raw question counts and reopen the guard above for a later answer.
+  if (session.mode === "exam" && session.status === "completed" && !isFreshAnswer) {
+    const replayOutcome = (question.outcome as ProbeOutcome | null) ?? computeOutcome(question, input);
+
+    return {
+      questionId: input.questionId,
+      outcome: replayOutcome,
+      correctAnswerIndex: question.correctAnswerIndex,
+      correctAnswerIndexes: isMulti ? (question.correctAnswerIndexes ?? null) : null,
+      correct: session.correct,
+      answered: session.answered,
+      total: session.total,
+      status: session.status as ProbeSessionStatus,
+      coveredGapLabels: [],
+      optionExplanations: question.optionExplanations ?? null,
+      gapMastery: null,
+      courseLengthRecommendation: null,
+    };
+  }
+
   let outcome: ProbeOutcome;
 
   if (!isFreshAnswer) {
@@ -250,9 +279,7 @@ export async function answerProbeSession(
   let coveredGapLabels: string[] = [];
   let gapMastery: AnswerProbeSessionResult["gapMastery"] = null;
   // An exam is a one-shot assessment, not a practice/spaced-repetition loop
-  // (spec.md's "exam answers don't feed gap mastery or topic progress") — it
-  // still calls recordAnswer/syncSessionCounters above/below unconditionally,
-  // so the score and answered-question history are unaffected.
+  // (spec.md's "exam answers don't feed gap mastery or topic progress").
   const isPractice = session.mode !== "exam";
 
   if (isPractice && question.topicId) {
