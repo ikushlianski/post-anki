@@ -4,6 +4,7 @@
   "stopBoundHours": 20,
   "status": "running",
   "activeDirections": [
+    "exam-prep-from-sources",
     "aws-electric-fargate-deploy",
     "mcp-content-access",
     "spaced-repetition-scheduling",
@@ -30,11 +31,11 @@
     "curriculum-structure-quality"
   ],
   "lastHeartbeatAt": "2026-10-03T04:43:00.660Z",
-  "timeBoundBlocks": 1,
+  "timeBoundBlocks": 2,
   "autoCommitEnabled": true,
   "pushGranted": false,
   "maxDispatches": 60,
   "dispatchCount": 38,
   "pendingSkillReload": [],
-  "lastBlockAt": "2026-10-02T21:28:43.072Z"
+  "lastBlockAt": "2026-10-03T06:36:51.830Z"
 }

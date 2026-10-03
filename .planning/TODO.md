@@ -7,6 +7,24 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## exam-prep-from-sources
+
+### Scope
+- Add a link as a knowledge source, not just pasted text
+- Out of scope: Multi-page doc-site crawling stays frozen - single-link fetch only
+- Reuse the existing paste-to-cards pipeline for link content, same tagging and placement
+- Add a timed mock-exam practice mode with a score summary at the end
+
+### Coding tasks
+- [ ] Let the learner pick which subject or tag a mock exam draws from
+- [ ] Build a mock-exam session: fixed question count, timer, final score
+- [ ] Add a link field to the add-knowledge screen alongside paste
+- [ ] Let a knowledge source be a web link, fetched safely and turned into text
+
+### Notes
+- Today: paste-text source exists, no URL source. Only socratic/quick_test probing, no exam mode
+
+
 ## aws-electric-fargate-deploy
 
 ### Scope
