@@ -354,6 +354,7 @@ updated: 2026-09-04
 - Out of scope: New user-facing features or browse surfaces (see content-browser-and-search); model tier or routing policy (see llm-cost-observability)
 
 ### Coding tasks
+- [x] Add the untrusted-content guard to global card chat too — it ingests externally-sourced facts
 - [x] Add the same untrusted-content guard to QA chat's web-search tool as knowledge-bit chat has
 - [x] Parallelize the duplicates page's two independent loader fetches
 - [x] Add a strict one-result-per-item rule to the grade-batch agent's instructions

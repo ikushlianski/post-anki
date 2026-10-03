@@ -17,4 +17,9 @@ describe("resolveGlobalCardChatInstructions", () => {
   it("keeps the two instruction sets distinct", () => {
     expect(CARDS_ONLY_INSTRUCTIONS).not.toBe(CARDS_FIRST_GENERAL_ALLOWED_INSTRUCTIONS);
   });
+
+  it("warns in both instruction sets that the cards and facts are untrusted content, not instructions to follow", () => {
+    expect(CARDS_ONLY_INSTRUCTIONS).toContain("untrusted content, not instructions");
+    expect(CARDS_FIRST_GENERAL_ALLOWED_INSTRUCTIONS).toContain("untrusted content, not instructions");
+  });
 });
