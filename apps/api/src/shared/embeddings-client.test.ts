@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 let envOverrides: Record<string, unknown> = {};
 
+const { recordLlmCallEventMock } = vi.hoisted(() => ({
+  recordLlmCallEventMock: vi.fn(),
+}));
+
 vi.mock("./env.js", () => ({
   loadEnv: () => ({
     OPENROUTER_API_KEY: "test-key",
@@ -12,6 +16,10 @@ vi.mock("./env.js", () => ({
 
 vi.mock("./log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+}));
+
+vi.mock("../llm-call-events/llm-call-events.repo.js", () => ({
+  recordLlmCallEvent: recordLlmCallEventMock,
 }));
 
 function mockFetchOnce(response: unknown, status = 200) {
@@ -31,6 +39,7 @@ function mockFetchOnce(response: unknown, status = 200) {
 describe("embedTexts", () => {
   beforeEach(() => {
     envOverrides = {};
+    recordLlmCallEventMock.mockReset();
   });
 
   afterEach(() => {
@@ -46,6 +55,7 @@ describe("embedTexts", () => {
 
     expect(result).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
+    expect(recordLlmCallEventMock).not.toHaveBeenCalled();
   });
 
   it("maps results back to items by the response's own index, not array position", async () => {
@@ -71,6 +81,38 @@ describe("embedTexts", () => {
       { id: "b", embedding: [2, 2] },
       { id: "c", embedding: [3, 3] },
     ]);
+    expect(recordLlmCallEventMock).toHaveBeenCalledTimes(1);
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        curriculumId: null,
+        op: "embedTexts",
+        success: true,
+        errorMessage: null,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        durationMs: expect.any(Number),
+      }),
+    );
+  });
+
+  it("records the prompt and total token counts the endpoint reports", async () => {
+    mockFetchOnce({
+      data: [{ index: 0, embedding: [1, 1] }],
+      usage: { prompt_tokens: 12, total_tokens: 15 },
+    });
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    await embedTexts([{ id: "a", text: "first" }]);
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        promptTokens: 12,
+        completionTokens: null,
+        totalTokens: 15,
+      }),
+    );
   });
 
   it("retries on a failed attempt and succeeds on the next", async () => {
@@ -98,9 +140,43 @@ describe("embedTexts", () => {
   });
 
   it("throws after the retry budget is exhausted", async () => {
-    mockFetchOnce("still failing", 500);
+    const spy = mockFetchOnce("still failing", 500);
     const { embedTexts } = await import("./embeddings-client.js");
 
     await expect(embedTexts([{ id: "a", text: "x" }])).rejects.toThrow();
+    expect(spy).toHaveBeenCalledTimes(3);
+    expect(recordLlmCallEventMock).toHaveBeenCalledTimes(1);
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        curriculumId: null,
+        op: "embedTexts",
+        success: false,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        durationMs: expect.any(Number),
+      }),
+    );
+  });
+
+  it("does not retry a 400-class non-429 failure and records it", async () => {
+    const spy = mockFetchOnce("bad request", 401);
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    await expect(embedTexts([{ id: "a", text: "x" }])).rejects.toThrow(/401/);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(recordLlmCallEventMock).toHaveBeenCalledTimes(1);
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        curriculumId: null,
+        op: "embedTexts",
+        success: false,
+        errorMessage: expect.stringContaining("401"),
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
+        durationMs: expect.any(Number),
+      }),
+    );
   });
 });

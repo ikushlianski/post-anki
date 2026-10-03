@@ -378,6 +378,7 @@ updated: 2026-09-04
 - [x] Build a cards browser: table with question, answer, topic columns
 
 ### Notes
+- Cards-browser table has no pagination/limit — low priority, curriculum-scoped so bounded
 - Card variants have no cross-topic order column — nothing for drag-reorder to persist to.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-16)
 
@@ -604,6 +605,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Rank the cross-subject due queue by overdue-ness first, gap severity as tie-break
 
 ### Notes
+- listNextQuestionVariantsToAnswer also skips the confirmed/dormant filter via direct topicId
 - Knowledge-bit due review never joins the cross-subject queue — needs a human design call
 - Completed items archived to .planning/LOG.md.
 - Ceiling-relative depth ranking and the dismissed-gap check-in revisit path are both intentional, not bugs.
@@ -652,6 +654,10 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
+- [ ] Cap pasted chat/transcript/edit text length before it reaches the model
+- [ ] Cap the topic-hierarchy list sent into placement and biz-education prompts
+- [ ] Count every tool-calling step's cost, not just the last one
+- [x] Log cost and stop retrying bad requests in the embedding client
 - [x] Stop tech-research grounding retrying its own model-tier lookup on every attempt
 - [x] Fix tech-research grounding's model-tier lookup so a failure there can't crash the caller
 - [x] Add retry and cost logging to the two remaining tech-research direct-fetch LLM calls
@@ -659,6 +665,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Add retry and cost logging to the tech-research web-search LLM calls
 
 ### Notes
+- Unverified: one oversized bit body could fail a whole 200-item embedding batch repeatedly
 - No generation-result caching layer exists — needs a human call on invalidation policy first.
 - Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
