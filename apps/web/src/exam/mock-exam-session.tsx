@@ -116,9 +116,10 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
   }
 
   // Complete either because every question was answered (server-derived
-  // status) or because the client's own timer ran out — S8: the learner can
-  // no longer submit once locked, and the score screen renders immediately
-  // with whatever was answered so far, not an error state.
+  // status) or because the client's own timer ran out — S8: ProbeSessionQuiz
+  // is unmounted the instant this flips (never rendered alongside the score
+  // screen below), which is what actually blocks a learner from answering
+  // further, not a `locked` prop passed into a still-mounted quiz.
   const complete = timedOut || session.status === 'completed'
 
   return (
@@ -140,12 +141,7 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
           onRetake={() => setRetaking(true)}
         />
       ) : (
-        <ProbeSessionQuiz
-          scope="curriculum"
-          scopeId={curriculumId}
-          mode="exam"
-          locked={timedOut}
-        />
+        <ProbeSessionQuiz scope="curriculum" scopeId={curriculumId} mode="exam" />
       )}
     </div>
   )
