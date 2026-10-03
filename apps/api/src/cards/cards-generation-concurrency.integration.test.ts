@@ -119,6 +119,13 @@ async function cardSetStatus(topicId: string): Promise<string | undefined> {
   return rows[0]?.status as string | undefined;
 }
 
+async function seedCardSet(topicId: string, status: string, updatedAt: Date): Promise<void> {
+  await client.query(
+    `INSERT INTO topic_card_sets (id, topic_id, status, updated_at) VALUES ($1, $2, $3, $4)`,
+    [id("cardset"), topicId, status, updatedAt],
+  );
+}
+
 describe("maybeStartCardsInBackground under concurrency (real Postgres)", () => {
   it("dispatches exactly one generation when two triggers land for the same topic at once", async () => {
     const topicId = await seedTopic();
@@ -181,4 +188,36 @@ describe("maybeStartCardsInBackground under concurrency (real Postgres)", () => 
 
     expect(mockAgentGenerate).toHaveBeenCalledTimes(6);
   }, 20_000);
+});
+
+describe("maybeStartCardsInBackground recovering from a crashed run (real Postgres)", () => {
+  it("still blocks a new trigger while a 'generating' row is recent", async () => {
+    const topicId = await seedTopic();
+
+    await seedCardSet(topicId, "generating", new Date());
+
+    await maybeStartCardsInBackground(topicId);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockAgentGenerate).not.toHaveBeenCalled();
+    expect(await cardSetStatus(topicId)).toBe("generating");
+  });
+
+  it("treats a 'generating' row older than the staleness threshold as retriable", async () => {
+    const topicId = await seedTopic();
+
+    await seedCardSet(topicId, "generating", new Date(Date.now() - 60 * 60 * 1000));
+
+    mockAgentGenerate.mockResolvedValue({
+      object: { cards: [{ concept: "Concept A", variants: [] }] },
+    });
+
+    await maybeStartCardsInBackground(topicId);
+
+    await vi.waitFor(async () => {
+      expect(await cardSetStatus(topicId)).toBe("ready");
+    });
+
+    expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
+  });
 });

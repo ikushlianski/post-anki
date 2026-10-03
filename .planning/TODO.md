@@ -457,6 +457,9 @@ updated: 2026-09-04
 - Out of scope: Rebuilding the cards agent's variant-generation approach itself — the concept + 3-5 rephrased-variants design already exists and stays as-is
 
 ### Coding tasks
+- [x] Recover a topic stuck generating forever after a crashed card-generation run
+- [ ] Stop the manual generate button racing a background card-generation run
+- [ ] Cap concurrency and skip not-yet-included topics when confirming course structure
 - [x] Wire a scheduled job so missed card embeddings actually get backfilled
 - [x] Guard concurrent card-generation triggers for the same topic from duplicating LLM work
 - [x] Skip starting new card generation when a topic's cards are already ready or in progress
@@ -466,6 +469,7 @@ updated: 2026-09-04
 ### Notes
 
 
+- updatedAt isn't refreshed mid-run, so an unusually slow run could get reclaimed early
 Business and architecture-level open items only. Small mechanical gaps get fixed directly.
 
 Each root item below is one separate autonomous session, worked sequentially — not batched.

@@ -34,7 +34,7 @@
   "autoCommitEnabled": true,
   "pushGranted": false,
   "maxDispatches": 60,
-  "dispatchCount": 25,
+  "dispatchCount": 26,
   "pendingSkillReload": [
     "nextx"
   ],

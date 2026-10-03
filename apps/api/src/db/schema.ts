@@ -1004,6 +1004,8 @@ export const topicCardSets = pgTable(
     topicId: text("topic_id").notNull(),
     status: text("status").notNull().default("generating"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Lets a stuck "generating" row be reclaimed after a threshold.
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("topic_card_sets_topic_id_unique").on(table.topicId)],
 );

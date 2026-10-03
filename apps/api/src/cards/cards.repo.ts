@@ -311,30 +311,49 @@ export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]>
   });
 }
 
+// Matches the knowledge-bit detector's own stale-processing threshold.
+export const GENERATING_STALE_THRESHOLD_MS = 15 * 60 * 1000;
+
 export async function hasCardsGeneratedOrInProgress(
   topicId: string,
   db: DbExecutor = getDb(),
 ): Promise<boolean> {
   const row = (
     await db
-      .select({ status: topicCardSets.status })
+      .select({ status: topicCardSets.status, updatedAt: topicCardSets.updatedAt })
       .from(topicCardSets)
       .where(eq(topicCardSets.topicId, topicId))
   )[0];
 
-  return row !== undefined && (row.status === "ready" || row.status === "generating");
+  if (row === undefined) {
+    return false;
+  }
+
+  if (row.status === "ready") {
+    return true;
+  }
+
+  if (row.status === "generating") {
+    const ageMs = Date.now() - row.updatedAt.getTime();
+
+    // A crashed run never reaches the catch that flips it to "failed".
+    return ageMs < GENERATING_STALE_THRESHOLD_MS;
+  }
+
+  return false;
 }
 
 export async function startGeneratingCards(
   topicId: string,
   db: DbExecutor = getDb(),
 ): Promise<TopicCardSet> {
+  const now = new Date();
   const rows = await db
     .insert(topicCardSets)
-    .values({ id: newId("cardset"), topicId, status: "generating" })
+    .values({ id: newId("cardset"), topicId, status: "generating", updatedAt: now })
     .onConflictDoUpdate({
       target: topicCardSets.topicId,
-      set: { status: "generating" },
+      set: { status: "generating", updatedAt: now },
     })
     .returning();
 
@@ -395,14 +414,20 @@ export async function replaceCardsContent(
     }
   }
 
-  await db.update(topicCardSets).set({ status: "ready" }).where(eq(topicCardSets.id, existing.id));
+  await db
+    .update(topicCardSets)
+    .set({ status: "ready", updatedAt: new Date() })
+    .where(eq(topicCardSets.id, existing.id));
 }
 
 export async function setCardsStatus(
   topicId: string,
   status: CardSetStatus,
 ): Promise<void> {
-  await getDb().update(topicCardSets).set({ status }).where(eq(topicCardSets.topicId, topicId));
+  await getDb()
+    .update(topicCardSets)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(topicCardSets.topicId, topicId));
 }
 
 export async function deleteCardsForTopic(
