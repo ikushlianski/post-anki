@@ -764,6 +764,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Bot probe-flow has the same selfOutcome gap, but quick_test mode is unreachable there today
 - Chrome extension is unmerged on an abandoned branch — needs a human call on landing it
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
+- EXHAUSTED round 2 (2026-10-03): web scoring, voice race checked, no bug
 
 ## the-me-agent-integration
 
