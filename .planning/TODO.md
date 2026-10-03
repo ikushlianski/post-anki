@@ -616,6 +616,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - Only unguarded citation-render site left is on the unmerged module-topic-expand-web-search branch.
 - Route-test pattern for safeHref now exists — see curriculum.$curriculumId.test.tsx.
+- EXHAUSTED-AT-SCOPE (round 2, 2026-10-03) — broad re-sweep of fetch/render/redirect/MCP sinks found nothing new
+- Watch: knowledge-source intake is text-only today — guard its fetch/render once a URL-extracting scan is built
 
 ## study-prioritization
 
