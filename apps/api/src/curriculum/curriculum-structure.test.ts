@@ -41,10 +41,10 @@ vi.mock("./curriculum.repo.js", () => ({
   listTopicIdsForCurriculum: (...args: unknown[]) => listTopicIdsForCurriculum(...args),
 }));
 
-const maybeStartCardsInBackground = vi.fn();
+const startCardsInBackgroundAndWait = vi.fn();
 
 vi.mock("../cards/cards.orchestrator.js", () => ({
-  maybeStartCardsInBackground: (...args: unknown[]) => maybeStartCardsInBackground(...args),
+  startCardsInBackgroundAndWait: (...args: unknown[]) => startCardsInBackgroundAndWait(...args),
 }));
 
 const agentGenerate = vi.fn();
@@ -443,18 +443,18 @@ describe("confirmStructure", () => {
     vi.clearAllMocks();
   });
 
-  it("starts background card generation for every topic once structure is confirmed", async () => {
+  it("starts background card generation for every included topic once structure is confirmed", async () => {
     getCurriculum.mockResolvedValue(curriculum);
     getLatestStructureSnapshot.mockResolvedValue({ modules: [], strictOrder: false });
     listTopicIdsForCurriculum.mockResolvedValue(["top_1", "top_2"]);
-    maybeStartCardsInBackground.mockResolvedValue(undefined);
+    startCardsInBackgroundAndWait.mockResolvedValue(undefined);
 
     await confirmStructure("cur_1");
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(maybeStartCardsInBackground).toHaveBeenCalledTimes(2);
-    expect(maybeStartCardsInBackground).toHaveBeenCalledWith("top_1");
-    expect(maybeStartCardsInBackground).toHaveBeenCalledWith("top_2");
+    expect(startCardsInBackgroundAndWait).toHaveBeenCalledTimes(2);
+    expect(startCardsInBackgroundAndWait).toHaveBeenCalledWith("top_1");
+    expect(startCardsInBackgroundAndWait).toHaveBeenCalledWith("top_2");
   });
 
   it("never starts card generation when the curriculum isn't in shaping_structure", async () => {
@@ -463,7 +463,47 @@ describe("confirmStructure", () => {
     await confirmStructure("cur_1");
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(maybeStartCardsInBackground).not.toHaveBeenCalled();
+    expect(startCardsInBackgroundAndWait).not.toHaveBeenCalled();
+  });
+
+  it("caps how many topics generate cards at once instead of firing every topic's LLM call simultaneously", async () => {
+    getCurriculum.mockResolvedValue(curriculum);
+    getLatestStructureSnapshot.mockResolvedValue({ modules: [], strictOrder: false });
+
+    const topicIds = Array.from({ length: 8 }, (_, i) => `top_${i}`);
+
+    listTopicIdsForCurriculum.mockResolvedValue(topicIds);
+
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const releasers: Array<() => void> = [];
+
+    startCardsInBackgroundAndWait.mockImplementation(() => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+
+      return new Promise<void>((resolve) => {
+        releasers.push(() => {
+          inFlight -= 1;
+          resolve();
+        });
+      });
+    });
+
+    await confirmStructure("cur_1");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(maxInFlight).toBeGreaterThan(0);
+    expect(maxInFlight).toBeLessThanOrEqual(3);
+    expect(startCardsInBackgroundAndWait).toHaveBeenCalledTimes(maxInFlight);
+
+    while (releasers.length > 0) {
+      releasers.shift()?.();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect(startCardsInBackgroundAndWait).toHaveBeenCalledTimes(8);
+    expect(maxInFlight).toBeLessThanOrEqual(3);
   });
 });
 

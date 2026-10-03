@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 const captured = vi.hoisted(() => ({
   inserts: [] as { discoveryTier: string | null }[][],
+  selectWhere: undefined as unknown,
 }));
 
 vi.mock("../db/client.js", async (importOriginal) => {
@@ -13,12 +15,21 @@ vi.mock("../db/client.js", async (importOriginal) => {
 
       return chain;
     },
+    select: () => chain,
+    from: () => chain,
+    where: (condition: unknown) => {
+      captured.selectWhere = condition;
+
+      return Promise.resolve([]);
+    },
   };
 
   return { ...actual, getDb: () => chain };
 });
 
-const { insertPendingSources, toSource } = await import("./curriculum.repo.js");
+const { insertPendingSources, listTopicIdsForCurriculum, toSource } = await import(
+  "./curriculum.repo.js"
+);
 const { sources } = await import("../db/schema.js");
 
 type SourceRow = typeof sources.$inferSelect;
@@ -90,5 +101,16 @@ describe("insertPendingSources", () => {
 
     expect(captured.inserts).toHaveLength(1);
     expect(captured.inserts[0]?.[0]?.discoveryTier).toBeNull();
+  });
+});
+
+describe("listTopicIdsForCurriculum", () => {
+  it("scopes the query to included topics only, so excluded ones never trigger card generation", async () => {
+    await listTopicIdsForCurriculum("cur_1");
+
+    const { sql, params } = new PgDialect().sqlToQuery(captured.selectWhere as never);
+
+    expect(sql).toContain('"included" = $2');
+    expect(params).toEqual(["cur_1", true]);
   });
 });

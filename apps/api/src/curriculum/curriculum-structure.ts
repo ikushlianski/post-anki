@@ -33,7 +33,7 @@ import {
   updateStructureTurn,
 } from "./curriculum.repo.js";
 import { assembleAllSourceText } from "./source-text.js";
-import { maybeStartCardsInBackground } from "../cards/cards.orchestrator.js";
+import { startCardsInBackgroundAndWait } from "../cards/cards.orchestrator.js";
 import { listTags } from "../tag/tag.repo.js";
 
 // Postgres's SQLSTATE for a unique-violation — surfaces here as the raw `pg`
@@ -641,6 +641,24 @@ export type ConfirmStructureResult =
   | "not_shaping_structure"
   | "no_snapshot";
 
+// Caps how many topics' card generation runs at once — each is a real LLM
+// call, and a whole course confirmed at once could fan out dozens.
+const CONFIRM_STRUCTURE_CARDS_CONCURRENCY = 3;
+
+export async function startCardsForTopicsWithConcurrencyCap(topicIds: string[]): Promise<void> {
+  for (let i = 0; i < topicIds.length; i += CONFIRM_STRUCTURE_CARDS_CONCURRENCY) {
+    const batch = topicIds.slice(i, i + CONFIRM_STRUCTURE_CARDS_CONCURRENCY);
+
+    await Promise.all(
+      batch.map((topicId) =>
+        startCardsInBackgroundAndWait(topicId).catch((err) =>
+          log.error({ err, topicId }, "confirm_structure_cards_trigger_failed"),
+        ),
+      ),
+    );
+  }
+}
+
 /**
  * Writes the latest drafted snapshot as real modules/topics rows and flips
  * status to "ready" — the same terminal state every other entry point
@@ -675,11 +693,9 @@ export async function confirmStructure(curriculumId: string): Promise<ConfirmStr
 
   const topicIds = await listTopicIdsForCurriculum(curriculumId);
 
-  for (const topicId of topicIds) {
-    void maybeStartCardsInBackground(topicId).catch((err) =>
-      log.error({ err, topicId }, "confirm_structure_cards_trigger_failed"),
-    );
-  }
+  void startCardsForTopicsWithConcurrencyCap(topicIds).catch((err) =>
+    log.error({ err, curriculumId }, "confirm_structure_cards_fanout_failed"),
+  );
 
   const updated = await getCurriculum(curriculumId);
 

@@ -885,11 +885,13 @@ export async function maxModuleOrder(curriculumId: string): Promise<number> {
   return row?.maxOrder ?? 0;
 }
 
+// Only caller is confirmStructure's post-confirm card-generation fan-out,
+// which must skip topics the learner hasn't opted into yet.
 export async function listTopicIdsForCurriculum(curriculumId: string): Promise<string[]> {
   const rows = await getDb()
     .select({ id: topics.id })
     .from(topics)
-    .where(eq(topics.curriculumId, curriculumId));
+    .where(and(eq(topics.curriculumId, curriculumId), eq(topics.included, true)));
 
   return rows.map((r) => r.id);
 }

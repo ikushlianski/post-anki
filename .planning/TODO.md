@@ -459,7 +459,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [x] Recover a topic stuck generating forever after a crashed card-generation run
 - [x] Stop the manual generate button racing a background card-generation run
-- [ ] Cap concurrency and skip not-yet-included topics when confirming course structure
+- [x] Cap concurrency and skip not-yet-included topics when confirming course structure
 - [x] Wire a scheduled job so missed card embeddings actually get backfilled
 - [x] Guard concurrent card-generation triggers for the same topic from duplicating LLM work
 - [x] Skip starting new card generation when a topic's cards are already ready or in progress

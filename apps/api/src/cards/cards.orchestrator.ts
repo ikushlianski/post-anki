@@ -55,11 +55,8 @@ export function buildCardsPrompt(
     .join("\n");
 }
 
-// Unlike the explicit "Generate cards" button, a background trigger must
-// never queue a duplicate generation on top of one already ready or in flight.
-// Serialized per topic via withSubjectLock.
-export async function maybeStartCardsInBackground(topicId: string): Promise<void> {
-  const alreadyClaimed = await withSubjectLock(topicId, async (tx) => {
+async function claimCardsGeneration(topicId: string): Promise<boolean> {
+  return withSubjectLock(topicId, async (tx) => {
     if (await hasCardsGeneratedOrInProgress(topicId, tx)) {
       return true;
     }
@@ -67,6 +64,13 @@ export async function maybeStartCardsInBackground(topicId: string): Promise<void
     await startGeneratingCards(topicId, tx);
     return false;
   });
+}
+
+// Unlike the explicit "Generate cards" button, a background trigger must
+// never queue a duplicate generation on top of one already ready or in flight.
+// Serialized per topic via withSubjectLock.
+export async function maybeStartCardsInBackground(topicId: string): Promise<void> {
+  const alreadyClaimed = await claimCardsGeneration(topicId);
 
   if (alreadyClaimed) {
     return;
@@ -75,6 +79,17 @@ export async function maybeStartCardsInBackground(topicId: string): Promise<void
   void compileCards(topicId).catch((err) =>
     log.error({ err, topicId }, "cards_compile_dispatch_failed"),
   );
+}
+
+// Same claim as maybeStartCardsInBackground, but awaits compileCards so a fan-out caller can cap concurrency.
+export async function startCardsInBackgroundAndWait(topicId: string): Promise<void> {
+  const alreadyClaimed = await claimCardsGeneration(topicId);
+
+  if (alreadyClaimed) {
+    return;
+  }
+
+  await compileCards(topicId);
 }
 
 export interface StartCardsManuallyResult {
