@@ -84,10 +84,11 @@ async function insertTopic(overrides: {
   moduleId: string;
   curriculumId: string;
   title: string;
+  releaseState?: string | null;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4, 1)`,
-    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", release_state) VALUES ($1, $2, $3, $4, 1, $5)`,
+    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title, overrides.releaseState ?? null],
   );
 }
 
@@ -225,6 +226,44 @@ describe("listNodesByTagId", () => {
 
     expect(nodes).toEqual([]);
     expect(capped).toBe(false);
+  });
+
+  it("excludes a declined topic carrying the tag, but still returns a non-declined sibling", async () => {
+    await insertSubject({ id: "sub_list_declined", name: "Declined list subject" });
+    await insertCurriculum({ id: "cur_list_declined", subjectId: "sub_list_declined", name: "Declined list curriculum" });
+    await insertModule({ id: "mod_list_declined", curriculumId: "cur_list_declined", title: "Declined list module" });
+    await insertTopic({
+      id: "top_list_declined",
+      moduleId: "mod_list_declined",
+      curriculumId: "cur_list_declined",
+      title: "Declined list topic",
+      releaseState: "declined",
+    });
+    await insertTopic({
+      id: "top_list_not_declined",
+      moduleId: "mod_list_declined",
+      curriculumId: "cur_list_declined",
+      title: "Not declined list topic",
+    });
+    await insertTag({ id: "tag_list_declined", name: "declinedlistmarker" });
+    await insertTagAssignment({
+      id: "ta_list_declined_1",
+      tagId: "tag_list_declined",
+      nodeType: "topic",
+      nodeId: "top_list_declined",
+    });
+    await insertTagAssignment({
+      id: "ta_list_declined_2",
+      tagId: "tag_list_declined",
+      nodeType: "topic",
+      nodeId: "top_list_not_declined",
+    });
+
+    const { nodes } = await listNodesByTagId("tag_list_declined");
+
+    const ids = nodes.map((n) => n.id);
+    expect(ids).not.toContain("top_list_declined");
+    expect(ids).toContain("top_list_not_declined");
   });
 
   it("caps the result at LIST_TAG_NODES_LIMIT and reports capped: true when a tag has more assignments than the limit", async () => {

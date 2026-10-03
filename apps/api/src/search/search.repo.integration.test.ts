@@ -73,10 +73,17 @@ async function insertCurriculum(overrides: {
   subjectId: string;
   name: string;
   containerAreaNodeId?: string | null;
+  status?: string;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO curricula (id, subject_id, name, container_area_node_id) VALUES ($1, $2, $3, $4)`,
-    [overrides.id, overrides.subjectId, overrides.name, overrides.containerAreaNodeId ?? null],
+    `INSERT INTO curricula (id, subject_id, name, container_area_node_id, status) VALUES ($1, $2, $3, $4, $5)`,
+    [
+      overrides.id,
+      overrides.subjectId,
+      overrides.name,
+      overrides.containerAreaNodeId ?? null,
+      overrides.status ?? "confirmed",
+    ],
   );
 }
 
@@ -86,10 +93,18 @@ async function insertTopic(overrides: {
   curriculumId: string;
   title: string;
   summary?: string;
+  releaseState?: string | null;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, summary, "order") VALUES ($1, $2, $3, $4, $5, 1)`,
-    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title, overrides.summary ?? null],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, summary, "order", release_state) VALUES ($1, $2, $3, $4, $5, 1, $6)`,
+    [
+      overrides.id,
+      overrides.moduleId,
+      overrides.curriculumId,
+      overrides.title,
+      overrides.summary ?? null,
+      overrides.releaseState ?? null,
+    ],
   );
 }
 
@@ -177,11 +192,25 @@ describe("searchCurricula", () => {
     expect(results.map((r) => r.id)).not.toContain("cur_container_1");
   });
 
+  it("excludes an unconfirmed curriculum even when its name matches the query", async () => {
+    await insertSubject({ id: "sub_draft_1", name: "Draft curriculum subject" });
+    await insertCurriculum({
+      id: "cur_draft_1",
+      subjectId: "sub_draft_1",
+      name: "Draft Match Marker",
+      status: "draft",
+    });
+
+    const results = await searchCurricula("Draft Match Marker");
+
+    expect(results.map((r) => r.id)).not.toContain("cur_draft_1");
+  });
+
   it("caps the result at SEARCH_NAME_MATCH_LIMIT instead of pulling every matching row", async () => {
     await insertSubject({ id: "sub_cur_cap", name: "Capped curricula subject" });
     await client.query(
-      `INSERT INTO curricula (id, subject_id, name)
-       SELECT 'cur_cap_over_' || lpad(g::text, 4, '0'), 'sub_cur_cap', 'Cap search marker curriculum ' || lpad(g::text, 4, '0')
+      `INSERT INTO curricula (id, subject_id, name, status)
+       SELECT 'cur_cap_over_' || lpad(g::text, 4, '0'), 'sub_cur_cap', 'Cap search marker curriculum ' || lpad(g::text, 4, '0'), 'confirmed'
        FROM generate_series(1, $1) AS g`,
       [SEARCH_NAME_MATCH_LIMIT + 1],
     );
@@ -221,6 +250,40 @@ describe("searchTopics", () => {
     const results = await searchTopics("recursive descent");
 
     expect(results.map((r) => r.id)).toContain("top_match_2");
+  });
+
+  it("excludes a declined topic, but still returns a NULL-releaseState and a queued one", async () => {
+    await insertSubject({ id: "sub_top_declined", name: "Declined topic subject" });
+    await insertCurriculum({ id: "cur_top_declined", subjectId: "sub_top_declined", name: "Declined topic curriculum" });
+    await insertModule({ id: "mod_top_declined", curriculumId: "cur_top_declined", title: "Declined topic module" });
+    await insertTopic({
+      id: "top_declined_marker",
+      moduleId: "mod_top_declined",
+      curriculumId: "cur_top_declined",
+      title: "Declined marker topic",
+      releaseState: "declined",
+    });
+    await insertTopic({
+      id: "top_null_marker",
+      moduleId: "mod_top_declined",
+      curriculumId: "cur_top_declined",
+      title: "Declined marker null-state topic",
+      releaseState: null,
+    });
+    await insertTopic({
+      id: "top_queued_marker",
+      moduleId: "mod_top_declined",
+      curriculumId: "cur_top_declined",
+      title: "Declined marker queued topic",
+      releaseState: "queued",
+    });
+
+    const results = await searchTopics("Declined marker");
+
+    const ids = results.map((r) => r.id);
+    expect(ids).not.toContain("top_declined_marker");
+    expect(ids).toContain("top_null_marker");
+    expect(ids).toContain("top_queued_marker");
   });
 
   it("caps the result at SEARCH_NAME_MATCH_LIMIT instead of pulling every matching row", async () => {
@@ -310,6 +373,34 @@ describe("searchTopicsAndModulesRanked", () => {
     const results = await searchTopicsAndModulesRanked("zzz-no-such-thing-xyz-123", 10);
 
     expect(results).toEqual([]);
+  });
+
+  it("excludes a declined topic while still returning a matching module in the same curriculum", async () => {
+    await insertSubject({ id: "sub_ranked_declined", name: "Declined ranked subject" });
+    await insertCurriculum({
+      id: "cur_ranked_declined",
+      subjectId: "sub_ranked_declined",
+      name: "Declined ranked curriculum",
+    });
+    await insertModule({
+      id: "mod_ranked_declined",
+      curriculumId: "cur_ranked_declined",
+      title: "Quarantine zone handling",
+    });
+    await insertTopic({
+      id: "top_ranked_declined",
+      moduleId: "mod_ranked_declined",
+      curriculumId: "cur_ranked_declined",
+      title: "Quarantine zone handling topic",
+      releaseState: "declined",
+    });
+
+    const results = await searchTopicsAndModulesRanked("quarantine zone handling", 10);
+
+    expect(results.map((r) => r.id)).not.toContain("top_ranked_declined");
+    expect(results).toContainEqual(
+      expect.objectContaining({ id: "mod_ranked_declined", kind: "module" }),
+    );
   });
 
   it("ranks a strongly-matching module above a weakly-matching topic, across kinds", async () => {

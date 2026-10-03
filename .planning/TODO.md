@@ -509,7 +509,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
-- [ ] Hide declined topics and unconfirmed curricula from global search and tag browse
+- [x] Hide declined topics and unconfirmed curricula from global search and tag browse
 
 ### Notes
 - CORS bug fixed (WEB_ORIGIN header, server.ts:261) — was blocking browser-side fetches.

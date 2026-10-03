@@ -2,7 +2,7 @@ import { and, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, modules, subjects, topics } from "../db/schema.js";
-import { tagsByNode } from "./search-tag-and-bit.repo.js";
+import { tagsByNode, topicNotDeclined } from "./search-tag-and-bit.repo.js";
 
 export interface SearchSubjectResult {
   id: string;
@@ -35,6 +35,11 @@ export async function searchSubjects(query: string): Promise<SearchSubjectResult
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 
+// discovery-and-navigation — an unconfirmed curriculum (draft, awaiting
+// source approval, shaping structure, ...) has no finished structure yet and
+// must never surface in global search/tag browse.
+const curriculumConfirmed = eq(curricula.status, "confirmed");
+
 // learning-list-fold-in — mirrors listCurricula's exclusion of container
 // curricula (curriculum.repo.ts's listCurricula): a container row is
 // plumbing, never something the learner searches for by name.
@@ -42,7 +47,13 @@ export async function searchCurricula(query: string): Promise<SearchCurriculumRe
   return getDb()
     .select({ id: curricula.id, name: curricula.name })
     .from(curricula)
-    .where(and(isNull(curricula.containerAreaNodeId), ilike(curricula.name, `%${query}%`)))
+    .where(
+      and(
+        isNull(curricula.containerAreaNodeId),
+        curriculumConfirmed,
+        ilike(curricula.name, `%${query}%`),
+      ),
+    )
     .orderBy(curricula.name, curricula.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
@@ -51,7 +62,7 @@ export async function searchTopics(query: string): Promise<SearchTopicResult[]> 
   return getDb()
     .select({ id: topics.id, title: topics.title, curriculumId: topics.curriculumId })
     .from(topics)
-    .where(ilike(topics.title, `%${query}%`))
+    .where(and(topicNotDeclined, ilike(topics.title, `%${query}%`)))
     .orderBy(topics.title, topics.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
@@ -81,7 +92,7 @@ export async function searchTopicsAndModulesRanked(
       })
       .from(topics)
       .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-      .where(topicMatch)
+      .where(and(topicMatch, topicNotDeclined))
       .orderBy(sql`${topicRank} DESC`)
       .limit(limit),
     db

@@ -3,6 +3,11 @@ import type { SearchResultTag, TopicModuleSearchResult } from "@post-anki/shared
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, tags, topics } from "../db/schema.js";
 
+// discovery-and-navigation — shared across every search/tag-browse query
+// that returns topics; mirrors slice-release.ts's nextUnreleasedTopicIds
+// predicate (NULL-safe, only the literal "declined" excludes a topic).
+export const topicNotDeclined = sql`${topics.releaseState} IS DISTINCT FROM 'declined'`;
+
 // Batches every tag (id and name, so a result can link to its tag page) attached to a set of
 // nodes of one kind — reused by every search path below so a topic/module/bit result can show
 // which tag(s) it belongs to.
@@ -157,7 +162,7 @@ export async function searchByTagNameAcrossNodes(
           })
           .from(topics)
           .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-          .where(inArray(topics.id, topicIds))
+          .where(and(inArray(topics.id, topicIds), topicNotDeclined))
           .orderBy(topics.id)
       : Promise.resolve([]),
     moduleIds.length > 0

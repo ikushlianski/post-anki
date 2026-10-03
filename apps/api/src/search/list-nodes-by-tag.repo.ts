@@ -1,8 +1,8 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { ListTagNodesResponse, TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, topics } from "../db/schema.js";
-import { tagsByNode } from "./search-tag-and-bit.repo.js";
+import { tagsByNode, topicNotDeclined } from "./search-tag-and-bit.repo.js";
 
 const KIND_ORDER: Record<TopicModuleSearchResult["kind"], number> = {
   topic: 0,
@@ -58,7 +58,7 @@ export async function listNodesByTagId(tagId: string): Promise<ListTagNodesRespo
           })
           .from(topics)
           .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-          .where(inArray(topics.id, topicIds))
+          .where(and(inArray(topics.id, topicIds), topicNotDeclined))
       : Promise.resolve([]),
     moduleIds.length > 0
       ? db

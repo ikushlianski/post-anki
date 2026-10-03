@@ -86,10 +86,11 @@ async function insertTopic(overrides: {
   moduleId: string;
   curriculumId: string;
   title: string;
+  releaseState?: string | null;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO topics (id, module_id, curriculum_id, title, "order") VALUES ($1, $2, $3, $4, 1)`,
-    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title],
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", release_state) VALUES ($1, $2, $3, $4, 1, $5)`,
+    [overrides.id, overrides.moduleId, overrides.curriculumId, overrides.title, overrides.releaseState ?? null],
   );
 }
 
@@ -212,6 +213,44 @@ describe("searchByTagNameAcrossNodes", () => {
     const results = await searchByTagNameAcrossNodes("zzz-no-such-tag-xyz", 10);
 
     expect(results).toEqual([]);
+  });
+
+  it("excludes a declined topic carrying the tag, but still returns a non-declined sibling", async () => {
+    await insertSubject({ id: "sub_tag_declined", name: "Declined tag subject" });
+    await insertCurriculum({ id: "cur_tag_declined", subjectId: "sub_tag_declined", name: "Declined tag curriculum" });
+    await insertModule({ id: "mod_tag_declined", curriculumId: "cur_tag_declined", title: "Declined tag module" });
+    await insertTopic({
+      id: "top_tag_declined",
+      moduleId: "mod_tag_declined",
+      curriculumId: "cur_tag_declined",
+      title: "Declined tag topic",
+      releaseState: "declined",
+    });
+    await insertTopic({
+      id: "top_tag_not_declined",
+      moduleId: "mod_tag_declined",
+      curriculumId: "cur_tag_declined",
+      title: "Not declined tag topic",
+    });
+    await insertTag({ id: "tag_declined_marker", name: "declinedtagmarker" });
+    await insertTagAssignment({
+      id: "ta_declined_1",
+      tagId: "tag_declined_marker",
+      nodeType: "topic",
+      nodeId: "top_tag_declined",
+    });
+    await insertTagAssignment({
+      id: "ta_declined_2",
+      tagId: "tag_declined_marker",
+      nodeType: "topic",
+      nodeId: "top_tag_not_declined",
+    });
+
+    const results = await searchByTagNameAcrossNodes("declinedtagmarker", 10);
+
+    const ids = results.map((r) => r.id);
+    expect(ids).not.toContain("top_tag_declined");
+    expect(ids).toContain("top_tag_not_declined");
   });
 
   it("caps matching tags at 50 instead of pulling every matching tag row", async () => {
