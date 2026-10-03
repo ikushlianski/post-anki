@@ -4,7 +4,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { ReactNode } from 'react'
 
 import { AddKnowledgeForm } from '../knowledge-source/add-knowledge-form'
-import { createKnowledgeSource, createKnowledgeSources } from '../knowledge-source/knowledge-source.api'
+import {
+  createKnowledgeSource,
+  createKnowledgeSourceFromUrl,
+  createKnowledgeSources,
+} from '../knowledge-source/knowledge-source.api'
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'
 
@@ -32,10 +36,12 @@ vi.mock('../curriculum/board.collection', () => ({
 vi.mock('../knowledge-source/knowledge-source.api', () => ({
   createKnowledgeSource: vi.fn(),
   createKnowledgeSources: vi.fn(),
+  createKnowledgeSourceFromUrl: vi.fn(),
 }))
 
 const mockedCreateKnowledgeSource = vi.mocked(createKnowledgeSource)
 const mockedCreateKnowledgeSources = vi.mocked(createKnowledgeSources)
+const mockedCreateKnowledgeSourceFromUrl = vi.mocked(createKnowledgeSourceFromUrl)
 
 function source(id: string) {
   return { id, kind: 'prose', rawText: null, status: 'pending', createdAt: new Date().toISOString() }
@@ -46,6 +52,7 @@ describe('AddKnowledgeForm', () => {
     cleanup()
     mockedCreateKnowledgeSource.mockReset()
     mockedCreateKnowledgeSources.mockReset()
+    mockedCreateKnowledgeSourceFromUrl.mockReset()
   })
 
   it('submits a single block via { text } and clears the form on success', async () => {
@@ -182,6 +189,144 @@ describe('AddKnowledgeForm', () => {
     })
 
     expect(screen.queryByTestId('knowledge-success-message')).toBeNull()
+  })
+
+  it('submits a url-only block via createKnowledgeSourceFromUrl, not the text endpoint', async () => {
+    mockedCreateKnowledgeSourceFromUrl.mockResolvedValue(source('ks_url'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-0'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), {
+      target: { value: 'https://example.com/article' },
+    })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+    })
+
+    expect(mockedCreateKnowledgeSourceFromUrl).toHaveBeenCalledWith({
+      data: 'https://example.com/article',
+    })
+    expect(mockedCreateKnowledgeSource).not.toHaveBeenCalled()
+    expect(mockedCreateKnowledgeSources).not.toHaveBeenCalled()
+  })
+
+  it('reports a combined count when a text block and a url block are submitted together', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+    mockedCreateKnowledgeSourceFromUrl.mockResolvedValue(source('ks_url'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-1'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), {
+      target: { value: 'https://example.com/article' },
+    })
+
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message').textContent).toBe(
+        '2 knowledge sources added.',
+      )
+    })
+
+    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: 'Some prose' })
+    expect(mockedCreateKnowledgeSourceFromUrl).toHaveBeenCalledWith({
+      data: 'https://example.com/article',
+    })
+  })
+
+  it('surfaces the existing error message and keeps the url filled in when a url submission fails', async () => {
+    mockedCreateKnowledgeSourceFromUrl.mockRejectedValue(new Error('api POST /knowledge-sources → 400'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-0'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), {
+      target: { value: 'https://example.com/broken' },
+    })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-error-message')).toBeDefined()
+    })
+
+    expect(screen.queryByTestId('knowledge-success-message')).toBeNull()
+    expect((screen.getByTestId('knowledge-block-input-0') as HTMLInputElement).value).toBe(
+      'https://example.com/broken',
+    )
+  })
+
+  it('reports a partial success and keeps only the failed url block when text succeeds and the url fails', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+    mockedCreateKnowledgeSourceFromUrl.mockRejectedValue(new Error('api POST /knowledge-sources → 400'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-1'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), {
+      target: { value: 'https://example.com/broken' },
+    })
+
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-error-message')).toBeDefined()
+    })
+
+    expect(screen.getByTestId('knowledge-success-message').textContent).toBe('Knowledge source added.')
+    expect(screen.queryByTestId('knowledge-block-input-1')).toBeNull()
+    expect((screen.getByTestId('knowledge-block-input-0') as HTMLInputElement).value).toBe(
+      'https://example.com/broken',
+    )
+  })
+
+  it('disables block edits while a submit is in flight, so indices cannot shift mid-request', async () => {
+    let resolveUrlCall: (() => void) | undefined
+
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+    mockedCreateKnowledgeSourceFromUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUrlCall = () => resolve(source('ks_url'))
+        }),
+    )
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-1'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), {
+      target: { value: 'https://example.com/slow' },
+    })
+
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-remove-block-button-1')).toHaveProperty('disabled', true)
+    })
+
+    expect(screen.getByTestId('knowledge-block-input-0')).toHaveProperty('disabled', true)
+    expect(screen.getByTestId('knowledge-block-input-1')).toHaveProperty('disabled', true)
+    expect(screen.getByTestId('knowledge-add-block-button')).toHaveProperty('disabled', true)
+
+    resolveUrlCall?.()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message').textContent).toBe(
+        '2 knowledge sources added.',
+      )
+    })
   })
 })
 

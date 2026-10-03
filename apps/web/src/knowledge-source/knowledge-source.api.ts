@@ -10,3 +10,7 @@ export const createKnowledgeSource = createServerFn({ method: 'POST' })
 export const createKnowledgeSources = createServerFn({ method: 'POST' })
   .inputValidator((texts: string[]) => z.array(z.string().min(1)).min(1).parse(texts))
   .handler(({ data }) => api.createKnowledgeSources(data))
+
+export const createKnowledgeSourceFromUrl = createServerFn({ method: 'POST' })
+  .inputValidator((url: string) => z.string().url().parse(url))
+  .handler(({ data }) => api.createKnowledgeSourceFromUrl(data))

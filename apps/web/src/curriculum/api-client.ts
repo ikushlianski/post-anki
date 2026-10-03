@@ -546,6 +546,10 @@ export async function createKnowledgeSources(texts: string[]): Promise<Knowledge
   return request<KnowledgeSource[]>('/knowledge-sources', { method: 'POST', body: { texts } })
 }
 
+export async function createKnowledgeSourceFromUrl(url: string): Promise<KnowledgeSource> {
+  return request<KnowledgeSource>('/knowledge-sources', { method: 'POST', body: { url } })
+}
+
 export async function deleteSubject(subjectId: string): Promise<void> {
   await request(`/subjects/${subjectId}`, { method: 'DELETE' })
 }
