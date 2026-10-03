@@ -13,8 +13,8 @@ Nothing to decide — see spec.md's "Decision made autonomously."
 Nothing to review.
 
 ## Coding tasks
-- Test the rejected-bit variant-edit guard leaves the row untouched
-- Re-check a variant is still active after taking the bit lock on edit
+- [ ] Test the rejected-bit variant-edit guard leaves the row untouched
+- [ ] Re-check a variant is still active after taking the bit lock on edit
 - [ ] Add a DB check constraint on approval_state's allowed values
 - [ ] Return 409 with a reason on a blocked approve/reject/edit, not bare 404
 - [ ] Block accepting a placement suggestion for a rejected bit
