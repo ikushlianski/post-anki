@@ -133,6 +133,22 @@ describe("approveKnowledgeBit (real Postgres)", () => {
 
     expect(approved).toBe(false);
   });
+
+  it("should return false and leave the state untouched for an already-rejected bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "Already rejected", null, "rejected");
+
+    const approved = await approveKnowledgeBit(id);
+
+    expect(approved).toBe(false);
+
+    const { rows } = await client.query(
+      `SELECT approval_state FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.approval_state).toBe("rejected");
+  });
 });
 
 describe("rejectKnowledgeBit (real Postgres)", () => {
@@ -156,6 +172,22 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
     const rejected = await rejectKnowledgeBit("kb_missing");
 
     expect(rejected).toBe(false);
+  });
+
+  it("should return false and leave the state untouched for an already-approved bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "Already approved", null, "approved");
+
+    const rejected = await rejectKnowledgeBit(id);
+
+    expect(rejected).toBe(false);
+
+    const { rows } = await client.query(
+      `SELECT approval_state FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.approval_state).toBe("approved");
   });
 });
 

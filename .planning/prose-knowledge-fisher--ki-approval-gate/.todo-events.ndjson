@@ -5,3 +5,7 @@
 {"ts":"2026-10-03T22:28:30.896Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Phase 3 review slug stuck (3 FAILs) — needs a fresh review attempt"}
 {"ts":"2026-10-03T22:44:19.720Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Phase 1: schema column + migration + approve/reject/edit API"}
 {"ts":"2026-10-03T22:44:19.771Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Phase 2: block every learner-facing surface with the shared predicate"}
+{"ts":"2026-10-03T22:53:18.813Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Block approving a bit that was already rejected"}
+{"ts":"2026-10-03T22:53:18.866Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Block editing a bit's text once it is no longer pending"}
+{"ts":"2026-10-03T22:55:35.506Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Block approving a bit that was already rejected"}
+{"ts":"2026-10-03T22:55:35.562Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Block editing a bit's text once it is no longer pending"}

@@ -11,6 +11,10 @@ import { newId } from "../shared/id.js";
 // browse a knowledge bit must apply this, so a bit stays invisible until a human approves it.
 export const bitApproved = eq(knowledgeBits.approvalState, "approved");
 
+// Only a still-pending bit can be approved or rejected — once a decision is made it's final, so
+// a stale/double click can never flip an already-rejected bit to approved (or vice versa).
+const bitPending = eq(knowledgeBits.approvalState, "pending");
+
 export async function approveKnowledgeBit(
   id: string,
   db: DbExecutor = getDb(),
@@ -18,7 +22,7 @@ export async function approveKnowledgeBit(
   const rows = await db
     .update(knowledgeBits)
     .set({ approvalState: "approved" })
-    .where(eq(knowledgeBits.id, id))
+    .where(and(eq(knowledgeBits.id, id), bitPending))
     .returning({ id: knowledgeBits.id });
 
   return rows.length > 0;
@@ -28,7 +32,7 @@ export async function rejectKnowledgeBit(id: string, db: DbExecutor = getDb()): 
   const rows = await db
     .update(knowledgeBits)
     .set({ approvalState: "rejected" })
-    .where(eq(knowledgeBits.id, id))
+    .where(and(eq(knowledgeBits.id, id), bitPending))
     .returning({ id: knowledgeBits.id });
 
   return rows.length > 0;

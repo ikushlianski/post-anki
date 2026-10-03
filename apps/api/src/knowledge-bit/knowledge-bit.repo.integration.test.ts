@@ -182,6 +182,21 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     expect(rows[0]!.body).toBe("Revised body.");
   });
 
+  it("should return false and leave the body untouched for an already-approved bit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'approved' WHERE id = $1`, [id]);
+
+    const updated = await updateKnowledgeBitBody(id, "Revised body.");
+
+    expect(updated).toBe(false);
+
+    const { rows } = await client.query(`SELECT body FROM knowledge_bits WHERE id = $1`, [id]);
+
+    expect(rows[0]!.body).toBe("Original body.");
+  });
+
   it("should update the background in place when provided", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedFullyDerivedKnowledgeBit(sourceId);

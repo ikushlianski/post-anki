@@ -35,6 +35,7 @@ updated: 2026-09-04
 - Reuse the existing AWS Route53 domain for the new backend
 
 ### Coding tasks
+- [ ] SCF can't host Electric privately (routing required, no cluster reuse) — stay on Pulumi
 - [ ] Replace the Pulumi AWS stack with Serverless Container Framework for Fargate
 - [ ] Shut down the live GCP backend once AWS is deployed and verified
 - [ ] Set up AWS credentials and the secrets the new backend needs

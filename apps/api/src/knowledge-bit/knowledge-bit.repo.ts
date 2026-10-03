@@ -167,13 +167,16 @@ export async function updateKnowledgeBitBody(
   return db.transaction(async (tx) => {
     const current = (
       await tx
-        .select({ body: knowledgeBits.body })
+        .select({ body: knowledgeBits.body, approvalState: knowledgeBits.approvalState })
         .from(knowledgeBits)
         .where(eq(knowledgeBits.id, id))
         .for("update")
     )[0];
 
-    if (!current) {
+    // Only a still-pending bit can have its own fact text edited here — once approved, a body
+    // edit's regeneration cascade (wipes embedding/tags/placement/Q&A) would silently invalidate
+    // content a learner may already be relying on, with no review gate left to catch it.
+    if (!current || current.approvalState !== "pending") {
       return false;
     }
 
