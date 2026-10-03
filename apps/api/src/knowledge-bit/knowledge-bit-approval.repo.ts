@@ -71,6 +71,19 @@ export async function editKnowledgeBitQuestionVariant(
       return { error: "not_found" as const };
     }
 
+    // Lock the parent bit, not just the variant row, so a concurrent approve can't land mid-edit.
+    const bit = (
+      await tx
+        .select({ approvalState: knowledgeBits.approvalState })
+        .from(knowledgeBits)
+        .where(eq(knowledgeBits.id, existing.knowledgeBitId))
+        .for("update")
+    )[0];
+
+    if (!bit || bit.approvalState !== "pending") {
+      return { error: "not_found" as const };
+    }
+
     await tx
       .update(knowledgeBitQuestionVariants)
       .set({ supersededAt: new Date() })
