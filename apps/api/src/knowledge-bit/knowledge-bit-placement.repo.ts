@@ -129,6 +129,7 @@ export type ResolvePlacementSuggestionResult =
   | { error: "not_found" | "already_resolved" | "module_not_found" | "invalid_input" };
 
 class ModuleNotFoundInTransaction extends Error {}
+class BitRejectedInTransaction extends Error {}
 
 // Claim-then-act (mirrors resolveDomainTopicSuggestion); the claim, topic insert, and
 // topicId write-back share one db.transaction so a failure anywhere rolls the claim back too.
@@ -172,6 +173,12 @@ export async function resolvePlacementSuggestion(
         return { outcome: "rejected" as const };
       }
 
+      // A reviewer who already rejected this bit shouldn't have a stale admin-tab click
+      // create a topic for it — and the claim above must roll back too, same as module_not_found.
+      if (claimed.approvalState === "rejected") {
+        throw new BitRejectedInTransaction();
+      }
+
       const topic = await createTopic(
         { moduleId: moduleId as string, title: title as string },
         tx,
@@ -190,6 +197,10 @@ export async function resolvePlacementSuggestion(
   } catch (err) {
     if (err instanceof ModuleNotFoundInTransaction) {
       return { error: "module_not_found" };
+    }
+
+    if (err instanceof BitRejectedInTransaction) {
+      return { error: "already_resolved" };
     }
 
     throw err;

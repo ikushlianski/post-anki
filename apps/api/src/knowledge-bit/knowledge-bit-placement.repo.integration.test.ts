@@ -425,6 +425,34 @@ describe("resolvePlacementSuggestion (real Postgres)", () => {
     expect(rows[0]!.placement_suggestion_resolved_at).toBeInstanceOf(Date);
   });
 
+  it("refuses to accept a suggestion for a bit that was rejected on the review screen", async () => {
+    const subjectId = await seedSubject("Rejected-Bit Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Rejected-Bit Curriculum");
+    const moduleId = await seedModule(curriculumId, "Rejected-Bit Module");
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A rejected bit", null, "Try X");
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      bitId,
+    ]);
+
+    const result = await resolvePlacementSuggestion(bitId, "accepted", moduleId, "Should Not Exist");
+
+    expect(result).toEqual({ error: "already_resolved" });
+
+    const { rows } = await client.query(
+      `SELECT topic_id, placement_suggestion_resolved_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.topic_id).toBeNull();
+    expect(rows[0]!.placement_suggestion_resolved_at).toBeNull();
+
+    const dismiss = await resolvePlacementSuggestion(bitId, "rejected");
+
+    expect(dismiss).toEqual({ outcome: "rejected" });
+  });
+
   it("accepts a suggestion by creating a real topic and linking the bit to it", async () => {
     const subjectId = await seedSubject("Accept Subject");
     const curriculumId = await seedCurriculum(subjectId, "Accept Curriculum");

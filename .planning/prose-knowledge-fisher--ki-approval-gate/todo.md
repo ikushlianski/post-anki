@@ -17,7 +17,7 @@ Nothing to review.
 - [ ] Re-check a variant is still active after taking the bit lock on edit
 - [ ] Add a DB check constraint on approval_state's allowed values
 - [ ] Return 409 with a reason on a blocked approve/reject/edit, not bare 404
-- [ ] Block accepting a placement suggestion for a rejected bit
+- [x] Block accepting a placement suggestion for a rejected bit
 - [ ] Block approve while regenerated questions are still pending after a body edit
 - [x] Block editing a question variant once its bit is no longer pending
 - [x] Block editing a bit's text once it is no longer pending
