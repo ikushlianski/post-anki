@@ -41,8 +41,8 @@ export async function searchKnowledgeBitsRanked(
 ): Promise<TopicModuleSearchResult[]> {
   const db = getDb();
 
-  const bitMatch = sql`to_tsvector('english', ${knowledgeBits.body}) @@ plainto_tsquery('english', ${query})`;
-  const bitRank = sql<number>`ts_rank(to_tsvector('english', ${knowledgeBits.body}), plainto_tsquery('english', ${query}))`;
+  const bitMatch = sql`${knowledgeBits.searchVector} @@ plainto_tsquery('english', ${query})`;
+  const bitRank = sql<number>`ts_rank(${knowledgeBits.searchVector}, plainto_tsquery('english', ${query}))`;
 
   const rows = await db
     .select({

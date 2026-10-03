@@ -13,6 +13,14 @@ import {
   customType,
 } from "drizzle-orm/pg-core";
 
+// Postgres tsvector has no native drizzle column type; shared custom type
+// for every tsvector/GIN search column below (topics, modules, knowledge_bits, notes).
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
+
 export const subjects = pgTable("subjects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -422,16 +430,25 @@ export const sources = pgTable("sources", {
 // (`updateTopicInput.moduleId`), so a merged-in topic can end up under an
 // original module and vice versa — module-derived provenance alone would
 // lose it.
-export const modules = pgTable("modules", {
-  id: text("id").primaryKey(),
-  curriculumId: text("curriculum_id").notNull(),
-  title: text("title").notNull(),
-  order: integer("order").notNull(),
-  priority: integer("priority").notNull().default(0),
-  learningStatus: text("learning_status").notNull().default("not_started"),
-  level: text("level"),
-  mergedFromCurriculumId: text("merged_from_curriculum_id"),
-});
+export const modules = pgTable(
+  "modules",
+  {
+    id: text("id").primaryKey(),
+    curriculumId: text("curriculum_id").notNull(),
+    title: text("title").notNull(),
+    order: integer("order").notNull(),
+    priority: integer("priority").notNull().default(0),
+    learningStatus: text("learning_status").notNull().default("not_started"),
+    level: text("level"),
+    mergedFromCurriculumId: text("merged_from_curriculum_id"),
+    // DB-generated tsvector/GIN search column (notes.searchVector's pattern,
+    // generated instead of app-maintained — too many write paths to keep in sync).
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`to_tsvector('english', "title")`,
+    ),
+  },
+  (table) => [index("modules_search_vector_idx").using("gin", table.searchVector)],
+);
 
 export const topics = pgTable("topics", {
   id: text("id").primaryKey(),
@@ -509,12 +526,17 @@ export const topics = pgTable("topics", {
   // offered. Storage only — nothing writes it yet (see topic-progress.repo.ts's
   // rowHeadroomOfferedAt/setTopicHeadroomOfferedAt accessor).
   headroomOfferedAt: timestamp("headroom_offered_at", { withTimezone: true }),
+  // Same DB-generated tsvector/GIN column as modules.searchVector above (title + summary).
+  searchVector: tsvector("search_vector").generatedAlwaysAs(
+    sql`to_tsvector('english', "title" || ' ' || coalesce("summary", ''))`,
+  ),
 },
   (table) => [
     index("topics_curriculum_id_progress_last_interacted_at_idx").on(
       table.curriculumId,
       table.progressLastInteractedAt.desc(),
     ),
+    index("topics_search_vector_idx").using("gin", table.searchVector),
   ],
 );
 
@@ -1127,12 +1149,17 @@ export const knowledgeBits = pgTable(
       withTimezone: true,
     }),
     whQuestionGenerationClaimToken: text("wh_question_generation_claim_token"),
+    // Same DB-generated tsvector/GIN column as modules.searchVector above (body).
+    searchVector: tsvector("search_vector").generatedAlwaysAs(
+      sql`to_tsvector('english', "body")`,
+    ),
   },
   (table) => ({
     sourceOrdinalUnique: uniqueIndex("knowledge_bits_source_id_ordinal_unique").on(
       table.knowledgeSourceId,
       table.ordinal,
     ),
+    searchVectorIdx: index("knowledge_bits_search_vector_idx").using("gin", table.searchVector),
   }),
 );
 
@@ -1662,16 +1689,8 @@ export const learningPathSteps = pgTable(
   ],
 );
 
-// learning-brain (module 2) — Postgres tsvector has no native drizzle
-// column type; this is the "no new dependency" native-FTS column the spec
-// asks for, kept maintained at APPLICATION write time (note.repo.ts) rather
-// than a DB-generated column or trigger — this schema has no precedent for
-// either, and a plain write keeps every write path visible in TypeScript.
-const tsvector = customType<{ data: string }>({
-  dataType() {
-    return "tsvector";
-  },
-});
+// learning-brain (module 2) — app-maintained tsvector (note.repo.ts), not generated:
+// a note's body is only ever inserted, never updated, so it can't drift.
 
 // learning-brain (module 2) — one polymorphic table for a note or highlight
 // captured against a topic, gap or source, following the existing

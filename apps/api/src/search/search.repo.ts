@@ -64,11 +64,11 @@ export async function searchTopicsAndModulesRanked(
 ): Promise<TopicModuleSearchResult[]> {
   const db = getDb();
 
-  const topicMatch = sql`to_tsvector('english', ${topics.title} || ' ' || coalesce(${topics.summary}, '')) @@ plainto_tsquery('english', ${query})`;
-  const topicRank = sql<number>`ts_rank(to_tsvector('english', ${topics.title} || ' ' || coalesce(${topics.summary}, '')), plainto_tsquery('english', ${query}))`;
+  const topicMatch = sql`${topics.searchVector} @@ plainto_tsquery('english', ${query})`;
+  const topicRank = sql<number>`ts_rank(${topics.searchVector}, plainto_tsquery('english', ${query}))`;
 
-  const moduleMatch = sql`to_tsvector('english', ${modules.title}) @@ plainto_tsquery('english', ${query})`;
-  const moduleRank = sql<number>`ts_rank(to_tsvector('english', ${modules.title}), plainto_tsquery('english', ${query}))`;
+  const moduleMatch = sql`${modules.searchVector} @@ plainto_tsquery('english', ${query})`;
+  const moduleRank = sql<number>`ts_rank(${modules.searchVector}, plainto_tsquery('english', ${query}))`;
 
   const [topicRows, moduleRows] = await Promise.all([
     db

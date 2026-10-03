@@ -554,6 +554,13 @@
       "when": 1790991152414,
       "tag": "0078_remarkable_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1790992198378,
+      "tag": "0079_yielding_blindfold",
+      "breakpoints": true
     }
   ]
 }

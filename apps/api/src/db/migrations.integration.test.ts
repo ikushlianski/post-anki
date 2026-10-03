@@ -612,6 +612,11 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         is_nullable: "YES",
         column_default: null,
       }),
+      expect.objectContaining({
+        column_name: "search_vector",
+        data_type: "tsvector",
+        is_nullable: "YES",
+      }),
     ]);
   });
 

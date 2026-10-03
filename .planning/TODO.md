@@ -386,6 +386,7 @@ updated: 2026-09-04
 - Out of scope: Generating new cards or course content — browsing and finding what already exists, not authoring it
 
 ### Coding tasks
+- [x] Index topic, module, and knowledge-bit text search like notes already does
 - [x] Rank topic/module search results by relevance, return top matches only
 - [x] Add a topic/module search box that takes a plain-language query
 - [x] Add text search over the cards browser table
