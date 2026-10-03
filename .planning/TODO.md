@@ -212,7 +212,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Decide how a row that fails every run stops permanently blocking the 20-row window
 - [x] Fix skipped or failed rows permanently blocking the 20-row sync window
-- [ ] Validate a classified row's matched topic actually exists before saving its fact
+- [x] Validate a classified row's matched topic actually exists before saving its fact
 - [ ] Add a real 15-minute scheduled trigger — it currently only runs via a manual script
 - [ ] Cap or filter the Notion read instead of paging the whole data source every run
 - [x] Run the Biz Education distiller as its own 15-minute connector

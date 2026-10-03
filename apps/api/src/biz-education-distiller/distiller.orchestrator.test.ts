@@ -4,7 +4,25 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
+const generate = vi.fn();
+
+vi.mock("../mastra/mastra.js", () => ({
+  AGENT_KEYS: { bizEducationClassifier: "bizEducationClassifier" },
+  getMastra: () => ({ getAgent: () => ({ generate }) }),
+}));
+
+vi.mock("../mastra/generate-with-retry.js", () => ({
+  generateWithRetry: (
+    _op: unknown,
+    _curriculumId: unknown,
+    _agentKey: unknown,
+    fn: () => unknown,
+  ) => fn(),
+}));
+
 import { distillBizEducation, type DistillerDeps } from "./distiller.orchestrator.js";
+import { classifyRow } from "./classify-row.js";
+import type { HierarchyTopic } from "./distiller.repo.js";
 import type { BizEducationRow } from "./biz-education.client.js";
 
 function row(id: string, text: string): BizEducationRow {
@@ -64,6 +82,28 @@ describe("distillBizEducation", () => {
       expect.objectContaining({ sourceRef: "notion:r3", suggestedPlacement: "Under Pricing" }),
     );
     expect(deps.insertFact).not.toHaveBeenCalled();
+  });
+
+  it("files a note into the inbox instead of saving a fact when the classifier names a topic that doesn't exist", async () => {
+    const hierarchy: HierarchyTopic[] = [
+      { topicId: "topic_1", topicTitle: "CAC", curriculumName: "Growth", subjectName: "Marketing" },
+    ];
+    generate.mockResolvedValue({
+      object: { matchedTopicId: "topic_ghost", suggestedPlacement: null },
+    });
+    const deps = buildDeps({
+      fetchRows: vi.fn().mockResolvedValue([row("r5", "A note with no real topic match.")]),
+      listHierarchy: vi.fn().mockResolvedValue(hierarchy),
+      classify: classifyRow,
+    });
+
+    const result = await distillBizEducation(deps);
+
+    expect(result.processed).toEqual(["r5"]);
+    expect(deps.insertFact).not.toHaveBeenCalled();
+    expect(deps.insertInboxRow).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceRef: "notion:r5" }),
+    );
   });
 
   it("isolates one row's failure from the rest of the batch", async () => {

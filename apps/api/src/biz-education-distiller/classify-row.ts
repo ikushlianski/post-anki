@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
+import { log } from "../shared/log.js";
 import type { HierarchyTopic } from "./distiller.repo.js";
 
 const classificationResultSchema = z
@@ -49,5 +50,16 @@ export async function classifyRow(
     throw new Error(`biz_education_classifier_invalid_output: ${parsed.error.message}`);
   }
 
-  return parsed.data;
+  const { matchedTopicId, suggestedPlacement } = parsed.data;
+
+  if (matchedTopicId !== null && !hierarchy.some((t) => t.topicId === matchedTopicId)) {
+    log.warn({ matchedTopicId }, "biz_education_classifier_unknown_topic");
+
+    return {
+      matchedTopicId: null,
+      suggestedPlacement: "No matching topic found — needs placement",
+    };
+  }
+
+  return { matchedTopicId, suggestedPlacement };
 }
