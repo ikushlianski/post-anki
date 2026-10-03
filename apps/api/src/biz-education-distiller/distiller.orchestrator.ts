@@ -4,8 +4,16 @@ import { insertFactWithTopic } from "../facts/facts.repo.js";
 import { listUnsyncedTaggedRows, type BizEducationRow } from "./biz-education.client.js";
 import { classifyRow, type ClassificationResult } from "./classify-row.js";
 import type { HierarchyTopic } from "./distiller.repo.js";
-import { insertContentInboxRow, listHierarchyForClassification } from "./distiller.repo.js";
+import {
+  insertContentInboxRow,
+  listHierarchyForClassification,
+  recordDistillFailure,
+} from "./distiller.repo.js";
 import { markRowSynced } from "./mark-row-synced.js";
+
+// Bounded retry count for a row that fails distillRow every run, matching
+// AGENT_GENERATE_RETRIES's small-retry-bound convention (generate-with-retry.ts).
+const MAX_DISTILL_FAILURES = 3;
 
 export interface DistillerDeps {
   fetchRows: () => Promise<BizEducationRow[]>;
@@ -24,6 +32,7 @@ export interface DistillerDeps {
     suggestedPlacement: string;
   }) => Promise<void>;
   markSynced: (pageId: string) => Promise<void>;
+  recordFailure: (sourceRef: string) => Promise<number>;
 }
 
 export function defaultDistillerDeps(): DistillerDeps {
@@ -34,6 +43,7 @@ export function defaultDistillerDeps(): DistillerDeps {
     insertFact: insertFactWithTopic,
     insertInboxRow: insertContentInboxRow,
     markSynced: markRowSynced,
+    recordFailure: recordDistillFailure,
   };
 }
 
@@ -41,6 +51,7 @@ export interface DistillResult {
   processed: string[];
   skipped: string[];
   failed: string[];
+  gaveUp: string[];
   markSyncedFailed: string[];
 }
 
@@ -67,11 +78,56 @@ async function distillRow(row: BizEducationRow, deps: DistillerDeps): Promise<vo
   });
 }
 
+// Below the bound, leave the row unsynced so it retries next run. At the
+// bound, route it to the content inbox and mark it synced so it stops
+// occupying the 20-oldest-unsynced window.
+async function handleDistillRowFailure(
+  row: BizEducationRow,
+  deps: DistillerDeps,
+  result: DistillResult,
+): Promise<void> {
+  const sourceRef = `notion:${row.id}`;
+  let failureCount: number;
+
+  try {
+    failureCount = await deps.recordFailure(sourceRef);
+  } catch (err) {
+    log.error({ err, notionId: row.id }, "biz_education_record_failure_failed");
+    result.failed.push(row.id);
+
+    return;
+  }
+
+  if (failureCount < MAX_DISTILL_FAILURES) {
+    result.failed.push(row.id);
+
+    return;
+  }
+
+  try {
+    await deps.insertInboxRow({
+      body: row.text,
+      sourceRef,
+      suggestedPlacement: `Distilling failed ${failureCount} runs in a row; needs manual placement.`,
+    });
+    result.gaveUp.push(row.id);
+  } catch (err) {
+    log.error({ err, notionId: row.id }, "biz_education_give_up_inbox_insert_failed");
+    result.failed.push(row.id);
+  }
+}
+
 export async function distillBizEducation(
   deps: DistillerDeps = defaultDistillerDeps(),
 ): Promise<DistillResult> {
   const pulled = await deps.fetchRows();
-  const result: DistillResult = { processed: [], skipped: [], failed: [], markSyncedFailed: [] };
+  const result: DistillResult = {
+    processed: [],
+    skipped: [],
+    failed: [],
+    gaveUp: [],
+    markSyncedFailed: [],
+  };
 
   for (const row of pulled) {
     if (containsQuestion(row.text)) {
@@ -83,12 +139,12 @@ export async function distillBizEducation(
       await distillRow(row, deps);
       result.processed.push(row.id);
     } catch (err) {
-      result.failed.push(row.id);
       log.error({ err, notionId: row.id }, "biz_education_distill_row_failed");
+      await handleDistillRowFailure(row, deps, result);
     }
   }
 
-  for (const id of [...result.processed, ...result.skipped]) {
+  for (const id of [...result.processed, ...result.skipped, ...result.gaveUp]) {
     try {
       await deps.markSynced(id);
     } catch (err) {

@@ -1029,6 +1029,14 @@ export const contentInbox = pgTable("content_inbox", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Bounded-retry counter for a biz-education row that fails distillRow every run;
+// keyed by the same `sourceRef` facts/content_inbox already use for this row's identity.
+export const bizEducationDistillFailures = pgTable("biz_education_distill_failures", {
+  sourceRef: text("source_ref").primaryKey(),
+  failureCount: integer("failure_count").notNull().default(0),
+  lastFailedAt: timestamp("last_failed_at", { withTimezone: true }),
+});
+
 // Raw submitted text (prose, notion) awaiting bit-detection.
 export const knowledgeSources = pgTable(
   "knowledge_sources",

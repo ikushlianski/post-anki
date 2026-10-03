@@ -1,6 +1,12 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
-import { contentInbox, curricula, subjects, topics } from "../db/schema.js";
+import {
+  bizEducationDistillFailures,
+  contentInbox,
+  curricula,
+  subjects,
+  topics,
+} from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
 export interface HierarchyTopic {
@@ -54,4 +60,25 @@ export interface ContentInboxRow {
 
 export async function listContentInbox(): Promise<ContentInboxRow[]> {
   return getDb().select().from(contentInbox).orderBy(desc(contentInbox.createdAt));
+}
+
+// Atomic upsert (never read-then-write) — returns the row's new failure count.
+export async function recordDistillFailure(sourceRef: string): Promise<number> {
+  const [row] = await getDb()
+    .insert(bizEducationDistillFailures)
+    .values({ sourceRef, failureCount: 1, lastFailedAt: new Date() })
+    .onConflictDoUpdate({
+      target: bizEducationDistillFailures.sourceRef,
+      set: {
+        failureCount: sql`${bizEducationDistillFailures.failureCount} + 1`,
+        lastFailedAt: new Date(),
+      },
+    })
+    .returning({ failureCount: bizEducationDistillFailures.failureCount });
+
+  if (!row) {
+    throw new Error(`recordDistillFailure: upsert returned no row for ${sourceRef}`);
+  }
+
+  return row.failureCount;
 }

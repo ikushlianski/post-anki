@@ -37,6 +37,7 @@ function buildDeps(overrides: Partial<DistillerDeps>): DistillerDeps {
     insertFact: vi.fn().mockResolvedValue(undefined),
     insertInboxRow: vi.fn().mockResolvedValue(undefined),
     markSynced: vi.fn().mockResolvedValue(undefined),
+    recordFailure: vi.fn().mockResolvedValue(1),
     ...overrides,
   };
 }
@@ -178,5 +179,37 @@ describe("distillBizEducation", () => {
     expect(result.processed).toEqual(["s1", "s2"]);
     expect(result.markSyncedFailed).toEqual(["s1"]);
     expect(deps.markSynced).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps retrying a row that has failed fewer than the bound times", async () => {
+    const deps = buildDeps({
+      fetchRows: vi.fn().mockResolvedValue([row("flaky", "Will fail again.")]),
+      classify: vi.fn().mockRejectedValue(new Error("classifier down")),
+      recordFailure: vi.fn().mockResolvedValue(2),
+    });
+
+    const result = await distillBizEducation(deps);
+
+    expect(result.failed).toEqual(["flaky"]);
+    expect(result.gaveUp).toEqual([]);
+    expect(deps.insertInboxRow).not.toHaveBeenCalled();
+    expect(deps.markSynced).not.toHaveBeenCalled();
+  });
+
+  it("gives up on a row once it has failed the bounded number of times, filing it to the inbox and stopping retries", async () => {
+    const deps = buildDeps({
+      fetchRows: vi.fn().mockResolvedValue([row("stuck", "Will keep failing.")]),
+      classify: vi.fn().mockRejectedValue(new Error("classifier down")),
+      recordFailure: vi.fn().mockResolvedValue(3),
+    });
+
+    const result = await distillBizEducation(deps);
+
+    expect(result.failed).toEqual([]);
+    expect(result.gaveUp).toEqual(["stuck"]);
+    expect(deps.insertInboxRow).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceRef: "notion:stuck" }),
+    );
+    expect(deps.markSynced).toHaveBeenCalledWith("stuck");
   });
 });
