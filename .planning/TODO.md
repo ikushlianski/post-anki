@@ -21,9 +21,7 @@ updated: 2026-09-04
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
-- Link-as-source already shipped (UI toggle + createKnowledgeSourceFromUrl + server fetch/extract) — Notes below were stale, corrected 2026-10-04
-- Only socratic/quick_test probing exists; no timed exam mode yet
-- Working in dependency order (exam mode, then picker), not file order
+- Full scope shipped as of 2026-10-04: link-as-source, timed exam mode with score summary, and a dedicated exam-start entry point all already existed in the codebase — this direction's own Notes were stale, not the backlog
 
 
 ## aws-electric-fargate-deploy
@@ -96,6 +94,7 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [ ] Hide a rejected bit from the admin placement-suggestions queue too
 - [ ] Hold new knowledge bits as pending until the learner approves each one
   - [x] Phase 1: approval column and approve/reject/edit API
   - [x] Phase 2: block learner-facing surfaces

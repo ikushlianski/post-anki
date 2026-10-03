@@ -106,9 +106,15 @@ export function KnowledgeBitReviewItem({
 
   // Approve/reject are blocked while any editor on this bit is open — mid-edit
   // or mid-save — so a stale (pre-edit) copy can never be approved out from
-  // under an open editor.
+  // under an open editor. Approve is also blocked with zero live variants:
+  // once approved, background generation produces fresh Q&A with no further
+  // review, so approving a bit with nothing to show yet (freshly pasted, or
+  // just invalidated by a body edit) would let unreviewed content reach
+  // learners. Reject never needs this — rejecting with no variants is safe.
   const hasOpenEditor = openEditor !== null
+  const hasNoVariants = bit.variants.length === 0
   const actionsDisabled = isResolving || hasOpenEditor
+  const approveDisabled = actionsDisabled || hasNoVariants
 
   return (
     <li
@@ -179,7 +185,7 @@ export function KnowledgeBitReviewItem({
       <ul className="mt-2 space-y-2">
         {bit.variants.length === 0 ? (
           <li data-testid={`knowledge-bit-review-no-variants-${bit.id}`} className="text-xs text-neutral-400">
-            No question generated yet.
+            Waiting for questions — reload to review.
           </li>
         ) : null}
 
@@ -247,7 +253,7 @@ export function KnowledgeBitReviewItem({
         <button
           type="button"
           data-testid={`knowledge-bit-review-approve-${bit.id}`}
-          disabled={actionsDisabled}
+          disabled={approveDisabled}
           onClick={() => onApprove(bit.id)}
           className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
         >

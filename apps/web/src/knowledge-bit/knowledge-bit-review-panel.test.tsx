@@ -387,6 +387,9 @@ describe('KnowledgeBitReviewPanel', () => {
     expect(screen.getByTestId('knowledge-bit-review-no-variants-bit-1')).toBeDefined()
     expect(
       (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (screen.getByTestId('knowledge-bit-review-reject-bit-1') as HTMLButtonElement).disabled,
     ).toBe(false)
   })
 })

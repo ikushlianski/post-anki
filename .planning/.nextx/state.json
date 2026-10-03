@@ -30,12 +30,15 @@
     "e2e-reliability",
     "curriculum-structure-quality"
   ],
-  "lastHeartbeatAt": "2026-10-03T20:34:24.212Z",
+  "lastHeartbeatAt": "2026-10-03T22:43:26.201Z",
   "timeBoundBlocks": 2,
   "autoCommitEnabled": true,
   "pushGranted": false,
   "maxDispatches": 60,
   "dispatchCount": 47,
-  "pendingSkillReload": [],
+  "pendingSkillReload": [
+    "nextx",
+    "implement-factory"
+  ],
   "lastBlockAt": "2026-10-03T20:29:05.797Z"
 }

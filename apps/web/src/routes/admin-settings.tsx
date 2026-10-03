@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 
 import type { ModelTier } from '@post-anki/shared'
 import {
@@ -70,6 +70,20 @@ function AdminSettingsPage() {
           disabled={busy}
         />
       </div>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold tracking-tight">Knowledge bit review</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Approve, reject, or edit newly detected knowledge bits before they go live.
+        </p>
+        <Link
+          to="/knowledge-bit-review"
+          data-testid="admin-settings-knowledge-bit-review-link"
+          className="mt-2 inline-block text-sm font-medium text-neutral-900 underline"
+        >
+          Review pending knowledge bits
+        </Link>
+      </section>
 
       <section className="mt-8">
         <h2 className="text-lg font-semibold tracking-tight">Placement suggestions</h2>

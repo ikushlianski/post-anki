@@ -3,3 +3,5 @@
 {"ts":"2026-10-03T22:18:46.474Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Add an editor for the bit's own fact text and background on the review screen"}
 {"ts":"2026-10-03T22:27:08.587Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Clear stale Q&A locally when a bit-text edit changes the body (server deletes variants)"}
 {"ts":"2026-10-03T22:28:30.896Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Phase 3 review slug stuck (3 FAILs) — needs a fresh review attempt"}
+{"ts":"2026-10-03T22:44:19.720Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Phase 1: schema column + migration + approve/reject/edit API"}
+{"ts":"2026-10-03T22:44:19.771Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Phase 2: block every learner-facing surface with the shared predicate"}
