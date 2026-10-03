@@ -16,6 +16,8 @@ updated: 2026-09-04
 - Add a timed mock-exam practice mode with a score summary at the end
 
 ### Coding tasks
+- [ ] Make a timed-out exam actually block answering, not just hide the quiz
+- [ ] Stop a late answer from reopening a closed-out exam session
 - [ ] Let the learner pick which subject or tag a mock exam draws from
 - [x] Build a mock-exam session: fixed question count, timer, final score
 - [x] Add a link field to the add-knowledge screen alongside paste
