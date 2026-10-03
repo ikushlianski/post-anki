@@ -1,33 +1,41 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { ProbeScope } from '@post-anki/shared'
 
 import { getActiveProbeSession, prepareProbeSession } from '../curriculum/probe-session.api'
 import { probeSessionQueryKey, ProbeSessionQuiz } from '../curriculum/probe-session-quiz'
 import { ExamCountdown } from './exam-countdown'
+import type { ExamScopeOption } from './exam-scope-options'
 import { MockExamScore } from './mock-exam-score'
 import { MockExamStart, type ExamQuestionCount } from './mock-exam-start'
 
-// This unit's own start screen only needs a question-count picker against
-// the learner's current curriculum — a subject/tag scope picker is a
-// separate, later todo item (spec.md's "Out of scope").
-export function MockExamSession({ curriculumId }: { curriculumId: string }) {
+export function MockExamSession({
+  scope,
+  scopeId,
+  scopeOptions,
+  onScopeChange,
+}: {
+  // Driven by the route's own search params (defaults to curriculum scope).
+  scope: ProbeScope
+  scopeId: string
+  scopeOptions: ExamScopeOption[]
+  // Commits a freshly picked scope to the URL so a reload resumes it (S4).
+  onScopeChange: (scope: ProbeScope, scopeId: string) => void
+}) {
   const queryClient = useQueryClient()
-  const queryKey = probeSessionQueryKey('curriculum', curriculumId, 'exam')
+  const queryKey = probeSessionQueryKey(scope, scopeId, 'exam')
   // Set once the client-side countdown reaches zero — never cleared, so a
   // learner can't "un-expire" the exam by waiting for a re-render.
   const [timedOut, setTimedOut] = useState(false)
-  // Set by "Take another exam" — shows the count picker again instead of
-  // silently resubmitting the finished exam's own `total` (which, if the
+  // Set by "Take another exam" — shows the count/scope picker again instead
+  // of silently resubmitting the finished exam's own `total` (which, if the
   // model under-generated, can be a count outside the fixed menu and get
   // rejected — the learner re-picks a real menu value every time instead).
   const [retaking, setRetaking] = useState(false)
 
   const { data: session, isLoading } = useQuery({
     queryKey,
-    queryFn: () =>
-      getActiveProbeSession({
-        data: { scope: 'curriculum', scopeId: curriculumId, mode: 'exam' },
-      }),
+    queryFn: () => getActiveProbeSession({ data: { scope, scopeId, mode: 'exam' } }),
   })
 
   const startMutation = useMutation({
@@ -36,11 +44,19 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
     // null result here is treated as a failure explicitly, rather than
     // silently caching `null` as "the session" and bouncing back to this
     // same start screen with no error shown at all.
-    mutationFn: async (targetCount: ExamQuestionCount) => {
+    mutationFn: async ({
+      targetCount,
+      scope: pickedScope,
+      scopeId: pickedScopeId,
+    }: {
+      targetCount: ExamQuestionCount
+      scope: ProbeScope
+      scopeId: string
+    }) => {
       const result = await prepareProbeSession({
         data: {
-          scope: 'curriculum',
-          scopeId: curriculumId,
+          scope: pickedScope,
+          scopeId: pickedScopeId,
           allowMultiSelect: true,
           mode: 'exam',
           targetCount,
@@ -53,8 +69,12 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
 
       return result
     },
-    onSuccess: (result) => {
-      queryClient.setQueryData(queryKey, result)
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData(
+        probeSessionQueryKey(variables.scope, variables.scopeId, 'exam'),
+        result,
+      )
+      onScopeChange(variables.scope, variables.scopeId)
     },
   })
 
@@ -66,11 +86,19 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
   // brand-new one at the freshly chosen count.
   const retakeMutation = useMutation({
     // Same null-swallowing hazard as startMutation above.
-    mutationFn: async (targetCount: ExamQuestionCount) => {
+    mutationFn: async ({
+      targetCount,
+      scope: pickedScope,
+      scopeId: pickedScopeId,
+    }: {
+      targetCount: ExamQuestionCount
+      scope: ProbeScope
+      scopeId: string
+    }) => {
       const result = await prepareProbeSession({
         data: {
-          scope: 'curriculum',
-          scopeId: curriculumId,
+          scope: pickedScope,
+          scopeId: pickedScopeId,
           allowMultiSelect: true,
           mode: 'exam',
           targetCount,
@@ -84,10 +112,14 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
 
       return result
     },
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
       setTimedOut(false)
       setRetaking(false)
-      queryClient.setQueryData(queryKey, result)
+      queryClient.setQueryData(
+        probeSessionQueryKey(variables.scope, variables.scopeId, 'exam'),
+        result,
+      )
+      onScopeChange(variables.scope, variables.scopeId)
     },
   })
 
@@ -100,11 +132,19 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
   }
 
   if (!session || retaking) {
+    const initialScope =
+      scopeOptions.find((option) => option.scope === scope && option.scopeId === scopeId) ??
+      scopeOptions[0]
+
     return (
       <MockExamStart
         busy={retaking ? retakeMutation.isPending : startMutation.isPending}
-        onStart={(targetCount) =>
-          retaking ? retakeMutation.mutate(targetCount) : startMutation.mutate(targetCount)
+        scopeOptions={scopeOptions}
+        initialScope={initialScope}
+        onStart={(targetCount, pickedScope) =>
+          retaking
+            ? retakeMutation.mutate({ targetCount, scope: pickedScope.scope, scopeId: pickedScope.scopeId })
+            : startMutation.mutate({ targetCount, scope: pickedScope.scope, scopeId: pickedScope.scopeId })
         }
         error={
           (retaking ? retakeMutation.isError : startMutation.isError)
@@ -141,7 +181,7 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
           onRetake={() => setRetaking(true)}
         />
       ) : (
-        <ProbeSessionQuiz scope="curriculum" scopeId={curriculumId} mode="exam" />
+        <ProbeSessionQuiz scope={scope} scopeId={scopeId} mode="exam" />
       )}
     </div>
   )
