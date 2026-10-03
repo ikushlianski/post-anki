@@ -4,6 +4,7 @@ export type RouteName =
   | "mcp"
   | "mcpMethodNotAllowed"
   | "listContentInbox"
+  | "triggerBizEducationDistill"
   | "listSubjects"
   | "createSubject"
   | "createKnowledgeSource"

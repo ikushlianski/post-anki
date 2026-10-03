@@ -118,6 +118,7 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "GET", pattern: "/content-inbox", name: "listContentInbox" },
+  { method: "POST", pattern: "/biz-education-distills", name: "triggerBizEducationDistill" },
   { method: "POST", pattern: "/source-duplicate-scans", name: "triggerSourceDuplicateScan" },
   {
     method: "GET",

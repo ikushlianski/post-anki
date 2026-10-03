@@ -48,6 +48,7 @@ const knowledgeBitFillBlankGenSchedule =
 const knowledgeBitVariantEmbedSchedule =
   config.get("knowledgeBitVariantEmbedSchedule") ?? "*/5 * * * *";
 const cardEmbeddingScanSchedule = config.get("cardEmbeddingScanSchedule") ?? "0 */6 * * *";
+const bizEducationDistillSchedule = config.get("bizEducationDistillSchedule") ?? "*/15 * * * *";
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -581,6 +582,27 @@ const cardEmbeddingScanJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+// bizEducationDistillJob — was manual-script-only; mirrors docScanJob's
+// apiSharedSecret bearer + 300s attemptDeadline, on the same 15-minute
+// cadence a biz-education Notion row is expected to land within.
+const bizEducationDistillJob = new gcp.cloudscheduler.Job(
+  "biz-education-distill",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-biz-education-distill",
+    schedule: bizEducationDistillSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/biz-education-distills`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -609,3 +631,4 @@ export const knowledgeBitQuestionGenJobName = knowledgeBitQuestionGenJob.name;
 export const knowledgeBitFillBlankGenJobName = knowledgeBitFillBlankGenJob.name;
 export const knowledgeBitVariantEmbedJobName = knowledgeBitVariantEmbedJob.name;
 export const cardEmbeddingScanJobName = cardEmbeddingScanJob.name;
+export const bizEducationDistillJobName = bizEducationDistillJob.name;

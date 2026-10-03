@@ -19,6 +19,12 @@ describe("resolveRoute", () => {
       // autoDeferSweepJob Cloud Scheduler job. Auth is the existing
       // Bearer-secret authorized() check in server.ts, no new auth code.
       expect(resolveRoute("POST", "/gaps/auto-defer-sweep")?.name).toBe("sweepAutoDeferGaps");
+      // the biz-education distiller's scheduled trigger — mirrors
+      // auto-defer-sweep's shape above (bearer-secret authorized() check,
+      // no subject id in the path).
+      expect(resolveRoute("POST", "/biz-education-distills")?.name).toBe(
+        "triggerBizEducationDistill",
+      );
       expect(resolveRoute("GET", "/daily-push")?.name).toBe("dailyPush");
       // decide-mode: POST /decide is a legacy RPC-shaped route being
       // replaced by the noun-based /decide-sessions resource (spec.md's
