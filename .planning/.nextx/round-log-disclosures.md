@@ -62,3 +62,34 @@
   caller of `PATCH /knowledge-bits/:id` is the review screen (`knowledge-bit-review.api.ts` →
   `editKnowledgeBit` web client). No other surface (web, MCP server, bot, extension) calls this
   route, so the guard is not a regression anywhere else.
+- New commits this round: `1e722cc` (narrowed approve/reject guard), `cdb9456` (variant-edit
+  pending guard), `5489ddb` (placement-accept-on-rejected-bit guard), `ecb3c41` (variant-edit
+  stale-read race fix), `6755578` (rejected-bit test strengthened) — plus small todo-log-only
+  commits in between. All four post-`ki-approval-gate-server-guards` units (`ki-variant-edit-guard`,
+  `ki-placement-rejected-guard`, `ki-variant-edit-race-fix`) got a full Guarded two-pass review
+  (Opus both passes) before `mark-done`, closing the earlier self-certification gap for good this
+  round.
+- `ki-placement-rejected-guard` got only one review pass of what actually shipped: Pass 1 PASS'd a
+  version that returned `{ error: "already_resolved" }` directly (leaving the claim UPDATE
+  committed even on refusal); a non-blocking Pass-1 finding flagged that as breaking the function's
+  own "failure rolls back" comment, so it was changed mid-invocation to throw-and-rollback instead.
+  Pass 2 reviewed the throw-based version that actually shipped; Pass 1's PASS verdict is on record
+  for code that no longer exists. Not re-run from Pass 1 against the final version — a process gap,
+  not a correctness one (Pass 2 was adversarial and independent).
+- `ki-variant-edit-race-fix`'s Pass 1 ran out of order: the structured-verdict dispatch went out
+  before the plan-correspondence check (a sequencing mistake), and the test file was strengthened
+  (added a final-DB-state assertion, fixed a variable name) between the two dispatches. Both still
+  passed independently against the versions they each saw; the test-only changes didn't affect the
+  structured verdict's conclusions, but this is logged as a process deviation from the skill's
+  stated order.
+- Judgment call: skipped "Add a DB check constraint on approval_state's allowed values."
+  `apps/api/src/db/schema.ts:1503` documents this codebase's own convention — no CHECK constraint
+  precedent anywhere, app-level validation only. Adding the first one is a bigger call than a
+  one-line hardening fix; left open in todo.md rather than decided unilaterally.
+- Correction to an earlier instruction in this log: there is no separate lint step to run or skip.
+  Neither `apps/api` nor `apps/web` has a lint script or ESLint/Biome config; `apps/bot`'s own
+  "lint" script is literally `tsc --noEmit`. `tsc` is the only static check this project has — it
+  ran clean on every unit this round.
+- Deferred, not fixed: "Clear topicId when rejecting a bit that was already placed" — changes what
+  reject does today, and learners already can't see the difference (the approved-only gate hides
+  it either way). Left as an open backlog item.
