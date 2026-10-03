@@ -31,8 +31,13 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
   })
 
   const startMutation = useMutation({
-    mutationFn: (targetCount: ExamQuestionCount) =>
-      prepareProbeSession({
+    // prepareProbeSession's own client wrapper (api-client.ts) swallows a
+    // failed generation call into a resolved `null`, not a rejection — so a
+    // null result here is treated as a failure explicitly, rather than
+    // silently caching `null` as "the session" and bouncing back to this
+    // same start screen with no error shown at all.
+    mutationFn: async (targetCount: ExamQuestionCount) => {
+      const result = await prepareProbeSession({
         data: {
           scope: 'curriculum',
           scopeId: curriculumId,
@@ -40,7 +45,14 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
           mode: 'exam',
           targetCount,
         },
-      }),
+      })
+
+      if (!result) {
+        throw new Error('prepareProbeSession returned no session')
+      }
+
+      return result
+    },
     onSuccess: (result) => {
       queryClient.setQueryData(queryKey, result)
     },
@@ -53,8 +65,9 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
   // answers stay in answered-question history/analytics), then generates a
   // brand-new one at the freshly chosen count.
   const retakeMutation = useMutation({
-    mutationFn: (targetCount: ExamQuestionCount) =>
-      prepareProbeSession({
+    // Same null-swallowing hazard as startMutation above.
+    mutationFn: async (targetCount: ExamQuestionCount) => {
+      const result = await prepareProbeSession({
         data: {
           scope: 'curriculum',
           scopeId: curriculumId,
@@ -63,7 +76,14 @@ export function MockExamSession({ curriculumId }: { curriculumId: string }) {
           targetCount,
           regenerate: true,
         },
-      }),
+      })
+
+      if (!result) {
+        throw new Error('prepareProbeSession returned no session')
+      }
+
+      return result
+    },
     onSuccess: (result) => {
       setTimedOut(false)
       setRetaking(false)
