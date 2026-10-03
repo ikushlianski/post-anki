@@ -457,6 +457,8 @@ updated: 2026-09-04
 - Out of scope: Rebuilding the cards agent's variant-generation approach itself — the concept + 3-5 rephrased-variants design already exists and stays as-is
 
 ### Coding tasks
+- [ ] Cap concurrency on slice-release's card-generation fan-out the same way
+- [ ] Add an integration test confirming structure-confirm's fan-out only triggers cards for included topics
 - [x] Recover a topic stuck generating forever after a crashed card-generation run
 - [x] Stop the manual generate button racing a background card-generation run
 - [x] Cap concurrency and skip not-yet-included topics when confirming course structure
