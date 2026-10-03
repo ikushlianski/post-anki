@@ -8,6 +8,7 @@ import { depthLevelSchema } from "./depth";
 import { levelSchema } from "./level";
 import { curriculumDomainNodeMappingSchema } from "./domain-map";
 import { modelTierSchema } from "./model-tier";
+import { MAX_CHAT_MESSAGE_CHARS } from "./study-chat";
 
 const docUrlSchema = z
   .string()
@@ -269,7 +270,7 @@ export const structureTurnSchema = z.object({
 export type StructureTurn = z.infer<typeof structureTurnSchema>;
 
 export const submitStructureTurnInput = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
   researchGapLabels: z.array(z.string()).optional(),
 });
 

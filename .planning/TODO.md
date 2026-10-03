@@ -657,7 +657,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changing which model each call uses — only cost visibility and guardrails, not model selection policy
 
 ### Coding tasks
-- [ ] Cap the curriculum structure-chat message length too (submitStructureTurnInput)
+- [x] Cap the curriculum structure-chat message length too (submitStructureTurnInput)
 - [x] Cap pasted chat/transcript/edit text length before it reaches the model
 - [x] Cap the topic-hierarchy list sent into placement and biz-education prompts
 - [x] Count every tool-calling step's cost, not just the last one
