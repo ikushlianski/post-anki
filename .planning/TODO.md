@@ -714,6 +714,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: new content types — organizing what already exists
 
 ### Coding tasks
+- [ ] Hide declined topics and unconfirmed curricula from global search and tag browse
 - [x] Cap the tag-page browse view so a heavily-tagged item doesn't load everything at once
 - [x] Make a tag shown in search results clickable, linking to its tag page
 - [x] Let a tag page browse everything tagged with it, not just probe questions
@@ -728,6 +729,8 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Completed items archived to .planning/LOG.md.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-15)
 - A real item shipped under this direction after the exhaustion marker — re-evaluate next round.
+- Found, out of scope: listTopicsForTag (tag.repo.ts, probe-session direction) has an unbounded query — needs filing elsewhere
+- Blocked: fix reverses plan.md:59-63's intended dormant/included search behavior - needs human call
 
 ## chat-driven-reorganization
 
