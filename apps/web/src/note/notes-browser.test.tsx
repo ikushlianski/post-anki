@@ -144,6 +144,48 @@ describe('NotesBrowser', () => {
     expect(screen.getByTestId('notes-search-query')).toHaveProperty('value', 'backoff')
   })
 
+  it('should show the shared link\'s area filter when opened from a URL with a subject', async () => {
+    const onLoadDomainMap = vi.fn().mockResolvedValue([
+      { id: 'node-1', name: 'Networking', order: 0, children: [] },
+    ])
+
+    renderBrowser({
+      onLoadDomainMap,
+      initialSearch: {
+        tab: 'search',
+        query: '',
+        concern: undefined,
+        domainNodeId: 'node-1',
+        subjectId: 'subject-1',
+      },
+    })
+
+    await waitFor(() => expect(onLoadDomainMap).toHaveBeenCalledWith('subject-1'))
+
+    await waitFor(() =>
+      expect(screen.getByTestId('notes-search-domain-node')).not.toHaveProperty('disabled', true),
+    )
+    expect(screen.getByTestId('notes-search-domain-node')).toHaveProperty('value', 'node-1')
+  })
+
+  it('should not load the area dropdown when no subject is in the URL', () => {
+    const { onLoadDomainMap } = renderBrowser()
+
+    expect(onLoadDomainMap).not.toHaveBeenCalled()
+  })
+
+  it('should load the area dropdown when the subject is changed manually', async () => {
+    const onLoadDomainMap = vi.fn().mockResolvedValue([])
+
+    renderBrowser({ onLoadDomainMap })
+
+    fireEvent.change(screen.getByTestId('notes-search-subject'), {
+      target: { value: 'subject-1' },
+    })
+
+    await waitFor(() => expect(onLoadDomainMap).toHaveBeenCalledWith('subject-1'))
+  })
+
   it('should report the selected tab so switching tabs stays bookmarkable', () => {
     const onSearchStateChange = vi.fn()
 

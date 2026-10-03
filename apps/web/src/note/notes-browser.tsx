@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { DomainNodeTreeItem, Note, NoteReviewResponse } from '@post-anki/shared'
 
@@ -37,6 +37,32 @@ export function NotesBrowser({
   const [lastSearchParams, setLastSearchParams] = useState<NoteSearchParams | undefined>(
     undefined,
   )
+  const latestRequestedSubjectId = useRef<string | undefined>(undefined)
+
+  async function loadDomainTree(subjectId: string) {
+    if (subjectId === '') {
+      latestRequestedSubjectId.current = subjectId
+      setDomainTree([])
+      return
+    }
+
+    latestRequestedSubjectId.current = subjectId
+
+    const tree = await onLoadDomainMap(subjectId)
+
+    if (latestRequestedSubjectId.current === subjectId) {
+      setDomainTree(tree)
+    }
+  }
+
+  useEffect(() => {
+    const seededSubjectId = initialSearch?.subjectId
+
+    if (seededSubjectId) {
+      void loadDomainTree(seededSubjectId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (initialSearch === undefined) {
@@ -47,12 +73,7 @@ export function NotesBrowser({
 
     if (incomingSubjectId !== selectedSubjectId) {
       setSelectedSubjectId(incomingSubjectId)
-
-      if (incomingSubjectId) {
-        void onLoadDomainMap(incomingSubjectId).then(setDomainTree)
-      } else {
-        setDomainTree([])
-      }
+      void loadDomainTree(incomingSubjectId)
     }
 
     if (initialSearch.tab !== tab) {
@@ -88,17 +109,9 @@ export function NotesBrowser({
     })
   }
 
-  async function handleSubjectChange(subjectId: string) {
+  function handleSubjectChange(subjectId: string) {
     setSelectedSubjectId(subjectId)
-
-    if (subjectId === '') {
-      setDomainTree([])
-      return
-    }
-
-    const tree = await onLoadDomainMap(subjectId)
-
-    setDomainTree(tree)
+    void loadDomainTree(subjectId)
   }
 
   async function handleSearch(params: NoteSearchParams, options: { syncUrl?: boolean } = {}) {

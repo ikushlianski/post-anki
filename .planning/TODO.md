@@ -421,10 +421,13 @@ updated: 2026-09-04
 - Out of scope: Adding new search capabilities beyond what already exists — only making the existing search/browse state linkable
 
 ### Coding tasks
+- [x] Load the area dropdown on a shared notes-search link, not just on manual change
+- [ ] Fix numeric-looking shared search terms getting silently dropped
 - [x] Make the cards-browser table's search text shareable via the page URL
 - [x] Make the notes search and filters shareable and bookmarkable via the page URL
 
 ### Notes
+- Manual subject pick doesn't update the URL — a later URL change could revert it
 - Global search lives in the root layout, not a route — not linkable, out of scope.
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-14)
 
