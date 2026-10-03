@@ -459,7 +459,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [x] Add a unit test for the card-generation concurrency cap that runs without Postgres
 - [x] Cap concurrency on slice-release's card-generation fan-out the same way
-- [ ] Add an integration test confirming structure-confirm's fan-out only triggers cards for included topics
+- [x] Add an integration test confirming structure-confirm's fan-out only triggers cards for included topics
 - [x] Recover a topic stuck generating forever after a crashed card-generation run
 - [x] Stop the manual generate button racing a background card-generation run
 - [x] Cap concurrency and skip not-yet-included topics when confirming course structure
