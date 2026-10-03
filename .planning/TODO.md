@@ -45,7 +45,7 @@ updated: 2026-09-04
 - Out of scope: Building a new UI for this — MCP clients are the interface
 
 ### Coding tasks
-- [ ] Compare the shared API secret with a timing-safe check, not plain ===
+- [x] Compare the shared API secret with a timing-safe check, not plain ===
 - [x] Stop an unawaited last-used write from crashing the whole API on a DB blip
 - [x] Cap searchSubjects too — same unbounded-query bug class, still untouched
 - [x] Cap unbounded tag/curriculum/topic search queries before the MCP tool slices results
