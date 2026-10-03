@@ -95,7 +95,7 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
-- [ ] Hide a rejected bit from the admin placement-suggestions queue too
+- [x] Hide a rejected bit from the admin placement-suggestions queue too
 - [ ] Hold new knowledge bits as pending until the learner approves each one
   - [x] Phase 1: approval column and approve/reject/edit API
   - [x] Phase 2: block learner-facing surfaces

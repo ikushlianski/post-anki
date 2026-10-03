@@ -365,6 +365,11 @@ describe("listPendingPlacementSuggestions (real Postgres)", () => {
     // a placementSuggestion — the isNull(placementFailedAt) filter must exclude it regardless.
     const failedId = await seedKnowledgeBit(sourceId, 3, "A failed bit", null, "Try Z", null, new Date());
 
+    const rejectedId = await seedKnowledgeBit(sourceId, 4, "A rejected bit", null, "Try W");
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      rejectedId,
+    ]);
+
     const rows = await listPendingPlacementSuggestions(1000);
     const ids = rows.map((row) => row.id);
 
@@ -372,6 +377,7 @@ describe("listPendingPlacementSuggestions (real Postgres)", () => {
     expect(ids).not.toContain(matchedId);
     expect(ids).not.toContain(resolvedId);
     expect(ids).not.toContain(failedId);
+    expect(ids).not.toContain(rejectedId);
     expect(rows.find((row) => row.id === pendingId)).toEqual({
       id: pendingId,
       body: "A pending suggestion",

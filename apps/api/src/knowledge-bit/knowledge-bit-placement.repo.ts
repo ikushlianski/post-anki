@@ -112,6 +112,9 @@ export async function listPendingPlacementSuggestions(
         isNull(knowledgeBits.topicId),
         isNull(knowledgeBits.placementSuggestionResolvedAt),
         isNull(knowledgeBits.placementFailedAt),
+        // A suggestion generated before the bit was rejected on the knowledge-item review
+        // screen must not keep surfacing here — rejection is the human's own final call.
+        ne(knowledgeBits.approvalState, "rejected"),
       ),
     )
     .orderBy(desc(knowledgeBits.createdAt))
