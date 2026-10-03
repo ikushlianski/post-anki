@@ -4,6 +4,7 @@ import {
   isTopicTouched,
   isModuleTouched,
   isModuleMergedIn,
+  isModuleManuallyTagged,
   partitionModulesForMerge,
   filterOutLockedModules,
   hasStudyableContent,
@@ -33,6 +34,7 @@ const PRISTINE_TOPIC: TopicTouchState = {
   hasUserDeclaredGap: false,
   hasNote: false,
   hasSessionHistory: false,
+  hasManualTag: false,
 };
 
 function pristineModule(id: string, title: string): ModuleTouchState {
@@ -41,6 +43,7 @@ function pristineModule(id: string, title: string): ModuleTouchState {
     title,
     learningStatus: "not_started",
     mergedFromCurriculumId: null,
+    hasManualTag: false,
     topics: [PRISTINE_TOPIC],
   };
 }
@@ -114,6 +117,7 @@ describe("isModuleTouched", () => {
           title: "Mixed",
           learningStatus: "not_started",
           mergedFromCurriculumId: null,
+          hasManualTag: false,
           topics: [PRISTINE_TOPIC, { ...PRISTINE_TOPIC, progressAttempts: 2 }],
         }),
       ).toBe(true);
@@ -137,6 +141,26 @@ describe("isModuleMergedIn", () => {
 
     expect(
       isModuleMergedIn({ ...pristineModule("m1", "Own"), topics: [reparentedTopic] }),
+    ).toBe(true);
+  });
+});
+
+describe("isModuleManuallyTagged", () => {
+  it("is not manually tagged when neither the module nor its topics carry a manual tag", () => {
+    expect(isModuleManuallyTagged(pristineModule("m1", "Own"))).toBe(false);
+  });
+
+  it("is manually tagged when the module itself carries the marker", () => {
+    expect(
+      isModuleManuallyTagged({ ...pristineModule("m1", "Tagged"), hasManualTag: true }),
+    ).toBe(true);
+  });
+
+  it("is manually tagged when one of its topics carries the marker", () => {
+    const taggedTopic: TopicTouchState = { ...PRISTINE_TOPIC, hasManualTag: true };
+
+    expect(
+      isModuleManuallyTagged({ ...pristineModule("m1", "Own"), topics: [taggedTopic] }),
     ).toBe(true);
   });
 });
@@ -193,6 +217,31 @@ describe("partitionModulesForMerge", () => {
       const mergedIn = { ...pristineModule("m1", "Reparented"), topics: [reparentedTopic] };
 
       const { lockedModules, freeModuleIds } = partitionModulesForMerge([mergedIn]);
+
+      expect(lockedModules.map((m) => m.moduleId)).toEqual(["m1"]);
+      expect(freeModuleIds).toEqual([]);
+    });
+  });
+
+  describe("a manually tagged module with zero learner progress", () => {
+    it("locks it so 'add more sources' never replaces it, while an auto-tagged-only module still frees up", () => {
+      const manuallyTagged = { ...pristineModule("m1", "Tagged"), hasManualTag: true };
+      const untouched = pristineModule("m2", "Plain");
+
+      const { lockedModules, freeModuleIds } = partitionModulesForMerge([
+        manuallyTagged,
+        untouched,
+      ]);
+
+      expect(lockedModules.map((m) => m.moduleId)).toEqual(["m1"]);
+      expect(freeModuleIds).toEqual(["m2"]);
+    });
+
+    it("locks it via a manually tagged topic even when the module's own marker is false", () => {
+      const taggedTopic: TopicTouchState = { ...PRISTINE_TOPIC, hasManualTag: true };
+      const manuallyTagged = { ...pristineModule("m1", "Tagged via topic"), topics: [taggedTopic] };
+
+      const { lockedModules, freeModuleIds } = partitionModulesForMerge([manuallyTagged]);
 
       expect(lockedModules.map((m) => m.moduleId)).toEqual(["m1"]);
       expect(freeModuleIds).toEqual([]);

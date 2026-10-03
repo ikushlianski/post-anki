@@ -450,6 +450,7 @@ export interface MergeTopicSnapshot {
   hasUserDeclaredGap: boolean;
   hasNote: boolean;
   hasSessionHistory: boolean;
+  hasManualTag: boolean;
 }
 
 export interface MergeModuleSnapshot {
@@ -457,6 +458,7 @@ export interface MergeModuleSnapshot {
   title: string;
   learningStatus: string;
   mergedFromCurriculumId: string | null;
+  hasManualTag: boolean;
   topics: MergeTopicSnapshot[];
 }
 
@@ -580,7 +582,14 @@ export async function getModuleProgressSnapshots(
   ]);
 
   const topicIds = topicRows.map((t) => t.id);
-  const [userGapTopicIds, noteTopicIds, sessionHistoryTopicIds] = await Promise.all([
+  const moduleIds = moduleRows.map((m) => m.id);
+  const [
+    userGapTopicIds,
+    noteTopicIds,
+    sessionHistoryTopicIds,
+    manualTagTopicIds,
+    manualTagModuleIds,
+  ] = await Promise.all([
     topicIds.length === 0
       ? Promise.resolve(new Set<string>())
       : db
@@ -590,6 +599,8 @@ export async function getModuleProgressSnapshots(
           .then((rows) => new Set(rows.map((g) => g.topicId))),
     topicIdsWithNotes(topicIds, db),
     topicIdsWithSessionHistory(topicIds, db),
+    nodeIdsWithManualTag("topic", topicIds, db),
+    nodeIdsWithManualTag("module", moduleIds, db),
   ]);
 
   return moduleRows.map((m) => ({
@@ -597,6 +608,7 @@ export async function getModuleProgressSnapshots(
     title: m.title,
     learningStatus: m.learningStatus,
     mergedFromCurriculumId: m.mergedFromCurriculumId,
+    hasManualTag: manualTagModuleIds.has(m.id),
     topics: topicRows
       .filter((t) => t.moduleId === m.id)
       .map((t) => ({
@@ -614,6 +626,7 @@ export async function getModuleProgressSnapshots(
         hasUserDeclaredGap: userGapTopicIds.has(t.id),
         hasNote: noteTopicIds.has(t.id),
         hasSessionHistory: sessionHistoryTopicIds.has(t.id),
+        hasManualTag: manualTagTopicIds.has(t.id),
       })),
   }));
 }
@@ -851,6 +864,7 @@ async function resolveClearTargets(
       hasUserDeclaredGap: userGapTopicIds.has(topic.id),
       hasNote: noteTopicIds.has(topic.id),
       hasSessionHistory: sessionHistoryTopicIds.has(topic.id),
+      hasManualTag: manualTagTopicIds.has(topic.id),
     });
 
     if (topic.mergedFrom !== null || touched || manualTagTopicIds.has(topic.id)) {

@@ -706,6 +706,50 @@ describe("mergeSourcesIntoCurriculum provenance — a merged-in module with zero
   });
 });
 
+// mergeSourcesIntoCurriculum shared isModuleTouched's progress-only view of
+// a module with resolveClearTargets before the sibling fix, so it also
+// missed a manual tag as a survival signal. nodeIdsWithManualTag now feeds
+// isModuleManuallyTagged the same way resolveClearTargets already uses it.
+describe("mergeSourcesIntoCurriculum provenance — a manually tagged module survives 'add more sources'", () => {
+  it("keeps a manually tagged module while replacing an auto-tagged-only untouched module", async () => {
+    const subjectId = id("sub");
+    await insertSubject(subjectId);
+
+    const targetId = id("target");
+    await insertCurriculum(targetId, subjectId, "Curriculum with a tagged module", "ready");
+
+    const taggedModuleId = id("mod");
+    const taggedTopicId = id("top");
+    await insertModule(taggedModuleId, targetId, "Manually tagged module", 1);
+    await insertTopic(taggedTopicId, taggedModuleId, targetId, "Untouched topic under a tagged module");
+    await insertTagAssignment("module", taggedModuleId, "manual");
+
+    const autoTaggedModuleId = id("mod");
+    const autoTaggedTopicId = id("top");
+    await insertModule(autoTaggedModuleId, targetId, "Module with an auto-tagged-only topic", 2);
+    await insertTopic(autoTaggedTopicId, autoTaggedModuleId, targetId, "Topic with only an auto tag");
+    await insertTagAssignment("topic", autoTaggedTopicId, "auto");
+
+    mockAgentGenerate.mockResolvedValueOnce({
+      object: { modules: [{ title: "Freshly drafted module", topics: [], tags: null }] },
+    });
+
+    await mergeSourcesIntoCurriculum(targetId, [
+      { kind: "text", value: "Newly added source material", title: "New source" },
+    ]);
+
+    const survivingTitles = (
+      await client.query<{ title: string }>(`SELECT title FROM modules WHERE curriculum_id = $1`, [
+        targetId,
+      ])
+    ).rows.map((r) => r.title);
+
+    expect(survivingTitles).toContain("Manually tagged module");
+    expect(survivingTitles).toContain("Freshly drafted module");
+    expect(survivingTitles).not.toContain("Module with an auto-tagged-only topic");
+  });
+});
+
 // Item 7 — retryResearch's deleteAllCurriculumSources call used to be a
 // bare, unconditional delete-by-curriculum_id with no provenance
 // awareness, wiping an absorbed course's source links right alongside the

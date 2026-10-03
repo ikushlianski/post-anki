@@ -9,6 +9,7 @@ export interface TopicTouchState {
   hasUserDeclaredGap: boolean;
   hasNote: boolean;
   hasSessionHistory: boolean;
+  hasManualTag: boolean;
 }
 
 export interface ModuleTouchState {
@@ -16,6 +17,7 @@ export interface ModuleTouchState {
   title: string;
   learningStatus: string;
   mergedFromCurriculumId: string | null;
+  hasManualTag: boolean;
   topics: TopicTouchState[];
 }
 
@@ -64,6 +66,14 @@ export function isModuleMergedIn(module: ModuleTouchState): boolean {
   );
 }
 
+// Same reasoning as isModuleMergedIn: a manual tag on the module itself, or
+// on any topic under it, is a learner-authored marker independent of study
+// progress — `resolveClearTargets` already spares it from a structure clear
+// the same way.
+export function isModuleManuallyTagged(module: ModuleTouchState): boolean {
+  return module.hasManualTag || module.topics.some((t) => t.hasManualTag);
+}
+
 export function partitionModulesForMerge(
   modules: ModuleTouchState[],
 ): MergePartition {
@@ -71,7 +81,11 @@ export function partitionModulesForMerge(
   const freeModuleIds: string[] = [];
 
   for (const module of modules) {
-    if (isModuleTouched(module) || isModuleMergedIn(module)) {
+    if (
+      isModuleTouched(module) ||
+      isModuleMergedIn(module) ||
+      isModuleManuallyTagged(module)
+    ) {
       lockedModules.push(module);
     } else {
       freeModuleIds.push(module.moduleId);
