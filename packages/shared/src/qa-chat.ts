@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { chatMessageSchema } from "./study-chat";
+import { chatMessageSchema, MAX_CHAT_MESSAGE_CHARS } from "./study-chat";
 
 export const subtopicSuggestionSchema = z.object({
   title: z.string().min(1),
@@ -9,7 +9,7 @@ export const subtopicSuggestionSchema = z.object({
 export type SubtopicSuggestion = z.infer<typeof subtopicSuggestionSchema>;
 
 export const askQaChatInput = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
   topicId: z.string().optional(),
   curriculumId: z.string().optional(),
   transcript: z.array(chatMessageSchema).optional(),

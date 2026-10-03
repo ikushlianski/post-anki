@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { chatMessageSchema } from "./study-chat";
+import { chatMessageSchema, MAX_CHAT_MESSAGE_CHARS } from "./study-chat";
 
 export const askGlobalCardChatInput = z.object({
-  message: z.string().min(1),
+  message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
   transcript: z.array(chatMessageSchema).optional(),
   allowGeneralKnowledge: z.boolean().optional(),
 });
