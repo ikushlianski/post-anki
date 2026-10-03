@@ -39,6 +39,24 @@ export type GenerateUsage = {
   totalTokens?: number;
 };
 
+type GenerateResultWithUsage = {
+  usage?: GenerateUsage;
+  // `usage` alone reflects only the last tool-calling step; `totalUsage` is
+  // the full multi-step aggregate — prefer it when present.
+  totalUsage?: GenerateUsage;
+};
+
+function tokenCostFrom(result: GenerateResultWithUsage) {
+  return {
+    promptTokens:
+      result.totalUsage?.inputTokens ?? result.usage?.inputTokens ?? null,
+    completionTokens:
+      result.totalUsage?.outputTokens ?? result.usage?.outputTokens ?? null,
+    totalTokens:
+      result.totalUsage?.totalTokens ?? result.usage?.totalTokens ?? null,
+  };
+}
+
 /**
  * Full wrapper: bounded retry (2 retries, 3 attempts total) around `fn`
  * PLUS recording of the whole retry sequence's outcome, not each individual
@@ -46,7 +64,7 @@ export type GenerateUsage = {
  * of its own. `curriculumId` is `null` for a call with no curriculum in
  * scope (e.g. a subject- or topic-scoped call).
  */
-export async function generateWithRetry<T extends { usage?: GenerateUsage }>(
+export async function generateWithRetry<T extends GenerateResultWithUsage>(
   op: string,
   curriculumId: string | null,
   agentKey: string,
@@ -89,9 +107,7 @@ export async function generateWithRetry<T extends { usage?: GenerateUsage }>(
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,
-    promptTokens: result.usage?.inputTokens ?? null,
-    completionTokens: result.usage?.outputTokens ?? null,
-    totalTokens: result.usage?.totalTokens ?? null,
+    ...tokenCostFrom(result),
   });
 
   return result;
@@ -104,7 +120,7 @@ export async function generateWithRetry<T extends { usage?: GenerateUsage }>(
  * unchanged on failure so the caller's existing error handling is
  * unaffected.
  */
-export async function recordGenerateCall<T extends { usage?: GenerateUsage }>(
+export async function recordGenerateCall<T extends GenerateResultWithUsage>(
   op: string,
   curriculumId: string | null,
   agentKey: string,
@@ -139,9 +155,7 @@ export async function recordGenerateCall<T extends { usage?: GenerateUsage }>(
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,
-    promptTokens: result.usage?.inputTokens ?? null,
-    completionTokens: result.usage?.outputTokens ?? null,
-    totalTokens: result.usage?.totalTokens ?? null,
+    ...tokenCostFrom(result),
   });
 
   return result;

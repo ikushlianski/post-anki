@@ -656,7 +656,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 ### Coding tasks
 - [ ] Cap pasted chat/transcript/edit text length before it reaches the model
 - [ ] Cap the topic-hierarchy list sent into placement and biz-education prompts
-- [ ] Count every tool-calling step's cost, not just the last one
+- [x] Count every tool-calling step's cost, not just the last one
 - [x] Log cost and stop retrying bad requests in the embedding client
 - [x] Stop tech-research grounding retrying its own model-tier lookup on every attempt
 - [x] Fix tech-research grounding's model-tier lookup so a failure there can't crash the caller
