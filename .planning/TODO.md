@@ -292,7 +292,7 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
-- [ ] Tell a failed card lookup apart from a genuine no-match in the global chat
+- [x] Tell a failed card lookup apart from a genuine no-match in the global chat
 - [x] Add a minimum-similarity cutoff so 'Grounded in' only lists genuinely relevant cards
 - [x] Show an error in the global chat instead of leaving a question unanswered
 - [x] Stop a failed card-embedding lookup from crashing the global chat with a 500
