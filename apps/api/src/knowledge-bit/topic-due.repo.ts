@@ -17,7 +17,9 @@ import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 // bits still shows up as needing attention rather than looking falsely caught-up. It must also
 // have at least one generated question variant: that's the only thing the practice queue can
 // ever actually serve, so a bit stuck in generation (pending, or permanently failed) would
-// otherwise inflate a topic's due count with nothing a learner can act on.
+// otherwise inflate a topic's due count with nothing a learner can act on. It must also be
+// approved — a pending/rejected bit can't be answered, so counting it due would show a badge
+// the queue can never actually serve.
 //
 // Also excludes a topic that's not yet released or deliberately dropped, and a topic whose
 // curriculum is still a draft (not yet confirmed by the learner) or dormant (the learner
@@ -39,6 +41,7 @@ function dueCondition(db: DbExecutor, dormantCurriculumIds: Set<string>) {
 
   return and(
     hasQuestionVariant,
+    eq(knowledgeBits.approvalState, "approved"),
     or(isNull(knowledgeBitSchedules.knowledgeBitId), lte(knowledgeBitSchedules.dueAt, new Date())),
     eq(topics.included, true),
     ne(topics.learningStatus, "skipping"),

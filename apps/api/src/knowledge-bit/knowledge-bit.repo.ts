@@ -13,6 +13,7 @@ import type { DetectedKnowledgeBit } from "./detected-knowledge-bit.js";
 export interface KnowledgeBitRow {
   id: string;
   body: string;
+  approvalState: "pending" | "approved" | "rejected";
 }
 
 export async function getKnowledgeBitById(
@@ -20,12 +21,20 @@ export async function getKnowledgeBitById(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitRow | null> {
   const rows = await db
-    .select({ id: knowledgeBits.id, body: knowledgeBits.body })
+    .select({
+      id: knowledgeBits.id,
+      body: knowledgeBits.body,
+      approvalState: knowledgeBits.approvalState,
+    })
     .from(knowledgeBits)
     .where(eq(knowledgeBits.id, id))
     .limit(1);
 
-  return rows[0] ?? null;
+  const row = rows[0];
+
+  return row
+    ? { ...row, approvalState: row.approvalState as KnowledgeBitRow["approvalState"] }
+    : null;
 }
 
 export async function insertKnowledgeBits(

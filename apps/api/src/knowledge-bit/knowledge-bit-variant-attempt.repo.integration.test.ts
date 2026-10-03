@@ -71,12 +71,17 @@ async function seedKnowledgeSource(): Promise<string> {
   return id;
 }
 
-async function seedKnowledgeBit(knowledgeSourceId: string, ordinal: number, body: string): Promise<string> {
+async function seedKnowledgeBit(
+  knowledgeSourceId: string,
+  ordinal: number,
+  body: string,
+  approvalState: "pending" | "approved" | "rejected" = "approved",
+): Promise<string> {
   const id = `kb_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES ($1, $2, $3, $4)`,
-    [id, knowledgeSourceId, ordinal, body],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, $3, $4, $5)`,
+    [id, knowledgeSourceId, ordinal, body, approvalState],
   );
 
   return id;
@@ -112,6 +117,7 @@ describe("getQuestionVariantById (real Postgres)", () => {
       kind: "wh_question",
       prompt: "Why does this matter?",
       answer: "Because of X.",
+      approvalState: "approved",
     });
   });
 
@@ -192,5 +198,74 @@ describe("insertVariantAttempt (real Postgres)", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]!.user_answer).toBe("First try.");
     expect(rows[1]!.user_answer).toBe("Second try, better.");
+  });
+
+  it("should reject recording an attempt against a pending bit's variant and insert no row", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A pending bit", "pending");
+    const variantId = await seedVariant(bitId, "Why pending?", "Because pending.");
+
+    const result = await insertVariantAttempt({
+      variantId,
+      userAnswer: "Direct bypass attempt.",
+      score: 7,
+      verdict: "Ok",
+      feedback: "Shouldn't be recorded.",
+    });
+
+    expect(result).toEqual({ error: "not_approved" });
+
+    const { rows } = await client.query(
+      `SELECT id FROM knowledge_bit_variant_attempts WHERE variant_id = $1`,
+      [variantId],
+    );
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it("should reject recording an attempt against a rejected bit's variant and insert no row", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A rejected bit", "rejected");
+    const variantId = await seedVariant(bitId, "Why rejected?", "Because rejected.");
+
+    const result = await insertVariantAttempt({
+      variantId,
+      userAnswer: "Direct bypass attempt.",
+      score: 7,
+      verdict: "Ok",
+      feedback: "Shouldn't be recorded.",
+    });
+
+    expect(result).toEqual({ error: "not_approved" });
+
+    const { rows } = await client.query(
+      `SELECT id FROM knowledge_bit_variant_attempts WHERE variant_id = $1`,
+      [variantId],
+    );
+
+    expect(rows).toHaveLength(0);
+  });
+
+  it("should record an attempt against an approved bit's variant and return ok", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "An approved bit", "approved");
+    const variantId = await seedVariant(bitId, "Why approved?", "Because approved.");
+
+    const result = await insertVariantAttempt({
+      variantId,
+      userAnswer: "Because approved, indeed.",
+      score: 8,
+      verdict: "Ok",
+      feedback: "Good.",
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    const { rows } = await client.query(
+      `SELECT id FROM knowledge_bit_variant_attempts WHERE variant_id = $1`,
+      [variantId],
+    );
+
+    expect(rows).toHaveLength(1);
   });
 });

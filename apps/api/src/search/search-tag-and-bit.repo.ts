@@ -2,6 +2,7 @@ import { and, eq, ilike, inArray, sql } from "drizzle-orm";
 import type { SearchResultTag, TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, tags, topics } from "../db/schema.js";
+import { bitApproved } from "../knowledge-bit/knowledge-bit-approval.repo.js";
 
 // discovery-and-navigation — shared across every search/tag-browse query
 // that returns topics; mirrors slice-release.ts's nextUnreleasedTopicIds
@@ -60,7 +61,7 @@ export async function searchKnowledgeBitsRanked(
     .from(knowledgeBits)
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
-    .where(bitMatch)
+    .where(and(bitMatch, bitApproved))
     .orderBy(sql`${bitRank} DESC`)
     .limit(limit);
 
@@ -189,7 +190,7 @@ export async function searchByTagNameAcrossNodes(
           .from(knowledgeBits)
           .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
           .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
-          .where(inArray(knowledgeBits.id, bitIds))
+          .where(and(inArray(knowledgeBits.id, bitIds), bitApproved))
           .orderBy(knowledgeBits.id)
       : Promise.resolve([]),
   ]);

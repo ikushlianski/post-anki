@@ -47,6 +47,7 @@ function fakeAssignment(tagId: string) {
 describe("gradeKnowledgeBitVariantAnswer", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(insertVariantAttempt).mockResolvedValue({ ok: true });
   });
 
   it("grades a correct answer, stores the attempt, and returns the grade", async () => {
@@ -56,9 +57,11 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
+      approvalState: "approved" as const,
     };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
+    vi.mocked(insertVariantAttempt).mockResolvedValue({ ok: true });
     vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
       score: 9,
       verdict: "Ok",
@@ -114,6 +117,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
+      approvalState: "approved" as const,
     };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
@@ -157,6 +161,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       kind: "fill_in_the_blank" as const,
       prompt: "An initial price ____ shifts what feels fair later.",
       answer: "anchor",
+      approvalState: "approved" as const,
     };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
@@ -195,6 +200,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
+      approvalState: "approved" as const,
     };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
@@ -228,6 +234,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       kind: "wh_question" as const,
       prompt: "Why does X happen?",
       answer: "Because of Y.",
+      approvalState: "approved" as const,
     };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
@@ -256,7 +263,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     });
   });
 
-  it("returns variant_not_found and never grades or inserts when the variant doesn't exist", async () => {
+  it("returns variant_not_found and never grade or insert when the variant doesn't exist", async () => {
     vi.mocked(getQuestionVariantById).mockResolvedValue(null);
 
     const result = await gradeKnowledgeBitVariantAnswer("kbqv_missing", "Some answer.");
@@ -268,6 +275,49 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     expect(listAssignmentsForNodes).not.toHaveBeenCalled();
   });
 
+  it("should return not_approved and never grade or insert when the variant's bit is still pending", async () => {
+    const variant = {
+      id: "kbqv_pending",
+      knowledgeBitId: "kb_pending",
+      kind: "wh_question" as const,
+      prompt: "Why does X happen?",
+      answer: "Because of Y.",
+      approvalState: "pending" as const,
+    };
+
+    vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
+
+    const result = await gradeKnowledgeBitVariantAnswer("kbqv_pending", "Some answer.");
+
+    expect(result).toEqual({ ok: false, error: "not_approved" });
+    expect(runKnowledgeBitAnswerGrader).not.toHaveBeenCalled();
+    expect(insertVariantAttempt).not.toHaveBeenCalled();
+  });
+
+  it("should return not_approved when the attempt-recording repo rejects an unapproved bit directly", async () => {
+    const variant = {
+      id: "kbqv_6",
+      knowledgeBitId: "kb_6",
+      kind: "wh_question" as const,
+      prompt: "Why does X happen?",
+      answer: "Because of Y.",
+      approvalState: "approved" as const,
+    };
+
+    vi.mocked(getQuestionVariantById).mockResolvedValue(variant);
+    vi.mocked(runKnowledgeBitAnswerGrader).mockResolvedValue({
+      score: 9,
+      verdict: "Ok",
+      feedback: "Captures the reasoning.",
+    });
+    vi.mocked(insertVariantAttempt).mockResolvedValue({ error: "not_approved" });
+
+    const result = await gradeKnowledgeBitVariantAnswer("kbqv_6", "Because of Y.");
+
+    expect(result).toEqual({ ok: false, error: "not_approved" });
+    expect(runKnowledgeBitFollowupGenerator).not.toHaveBeenCalled();
+  });
+
   it("grades against the variant's own prompt/answer, not any other text", async () => {
     const variant = {
       id: "kbqv_3",
@@ -275,6 +325,7 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
       kind: "wh_question" as const,
       prompt: "Specific question?",
       answer: "Specific answer.",
+      approvalState: "approved" as const,
     };
 
     vi.mocked(getQuestionVariantById).mockResolvedValue(variant);

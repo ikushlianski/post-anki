@@ -214,13 +214,62 @@ describe("searchKnowledgeItems", () => {
     const bitId = id("bit");
 
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES ($1, $2, 1, $3)`,
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 1, $3, 'approved')`,
       [bitId, id("src"), "Vector clocks order concurrent events without a shared timekeeper"],
     );
 
     const result = await searchKnowledgeItems({ query: "vector clocks concurrent" });
 
     expect(result.knowledgeBits.map((bit) => bit.id)).toContain(bitId);
+  });
+
+  it("should exclude a pending knowledge bit from the full-text ranked search", async () => {
+    const bitId = id("bit");
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 1, $3, 'pending')`,
+      [bitId, id("src"), "Pending mcp search marker body about raft consensus leadership"],
+    );
+
+    const result = await searchKnowledgeItems({ query: "raft consensus leadership" });
+
+    expect(result.knowledgeBits.map((bit) => bit.id)).not.toContain(bitId);
+  });
+
+  it("should exclude a rejected knowledge bit from the full-text ranked search", async () => {
+    const bitId = id("bit");
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 1, $3, 'rejected')`,
+      [bitId, id("src"), "Rejected mcp search marker body about paxos quorum decisions"],
+    );
+
+    const result = await searchKnowledgeItems({ query: "paxos quorum decisions" });
+
+    expect(result.knowledgeBits.map((bit) => bit.id)).not.toContain(bitId);
+  });
+
+  it("should exclude a pending knowledge bit matched by tag name", async () => {
+    const bitId = id("bit");
+    const tagId = id("tag");
+
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 1, $3, 'pending')`,
+      [bitId, id("src"), "Pending mcp tag-matched bit"],
+    );
+    await client.query(`INSERT INTO tags (id, name, normalized_name) VALUES ($1, $2, $3)`, [
+      tagId,
+      "pending-mcp-tag-marker",
+      "pending-mcp-tag-marker",
+    ]);
+    await client.query(
+      `INSERT INTO tag_assignments (id, tag_id, node_type, node_id) VALUES ($1, $2, $3, $4)`,
+      [id("ta"), tagId, "knowledgeBit", bitId],
+    );
+
+    const result = await searchKnowledgeItems({ query: "pending-mcp-tag-marker" });
+
+    expect(result.knowledgeBits.map((bit) => bit.id)).not.toContain(bitId);
   });
 
   it("finds a topic by a tag name assigned to it, surfaced in rankedTopics", async () => {

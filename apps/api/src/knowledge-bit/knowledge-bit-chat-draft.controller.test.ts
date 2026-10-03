@@ -73,6 +73,18 @@ describe("handleDraftKnowledgeBitChat", () => {
     expect(res.body).toEqual({ error: "not_found" });
   });
 
+  it("should return 403 not_approved when the service reports the bit isn't approved yet", async () => {
+    draftKnowledgeBitChat.mockResolvedValue({ error: "not_approved" });
+
+    const req = fakeReq({ transcript: [], mode: "edit" });
+    const res = fakeRes();
+
+    await handleDraftKnowledgeBitChat(req, res, "kb_1");
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "not_approved" });
+  });
+
   it("returns 502 draft_failed when the service reports a drafting failure", async () => {
     draftKnowledgeBitChat.mockResolvedValue({ error: "draft_failed" });
 

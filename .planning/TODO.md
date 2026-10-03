@@ -95,7 +95,7 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Hold new knowledge bits as pending until the learner approves each one
   - [x] Phase 1: approval column and approve/reject/edit API
-  - [ ] Phase 2: block learner-facing surfaces
+  - [x] Phase 2: block learner-facing surfaces
   - [ ] Phase 3: review screen
 - [x] Generate a fill-in-the-blank variant for each knowledge bit
   - [ ] Phase 1: schema and migration

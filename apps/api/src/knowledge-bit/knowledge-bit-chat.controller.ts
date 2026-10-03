@@ -5,6 +5,7 @@ import { askKnowledgeBitChat, type KnowledgeBitChatError } from "./knowledge-bit
 
 const STATUS: Record<KnowledgeBitChatError, number> = {
   not_found: 404,
+  not_approved: 403,
 };
 
 export async function handleAskKnowledgeBitChat(

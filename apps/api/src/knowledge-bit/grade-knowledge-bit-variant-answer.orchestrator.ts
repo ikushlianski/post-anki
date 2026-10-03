@@ -11,7 +11,7 @@ import type { KnowledgeBitAnswerGraderResult } from "../mastra/knowledge-bit-ans
 
 export type GradeKnowledgeBitVariantAnswerResult =
   | ({ ok: true; followUpQuestion: string | null; tagIds: string[] } & KnowledgeBitAnswerGraderResult)
-  | { ok: false; error: "variant_not_found" };
+  | { ok: false; error: "variant_not_found" | "not_approved" };
 
 export async function gradeKnowledgeBitVariantAnswer(
   variantId: string,
@@ -23,6 +23,10 @@ export async function gradeKnowledgeBitVariantAnswer(
     return { ok: false, error: "variant_not_found" };
   }
 
+  if (variant.approvalState !== "approved") {
+    return { ok: false, error: "not_approved" };
+  }
+
   const grade = await runKnowledgeBitAnswerGrader(
     variant.kind,
     variant.prompt,
@@ -30,13 +34,17 @@ export async function gradeKnowledgeBitVariantAnswer(
     userAnswer,
   );
 
-  await insertVariantAttempt({
+  const attemptResult = await insertVariantAttempt({
     variantId,
     userAnswer,
     score: grade.score,
     verdict: grade.verdict,
     feedback: grade.feedback,
   });
+
+  if ("error" in attemptResult) {
+    return { ok: false, error: "not_approved" };
+  }
 
   // Already-graded, already-persisted answer must not turn into an error response just because
   // the follow-up question, tag lookup, or schedule update failed — fail soft on each

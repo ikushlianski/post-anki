@@ -8,6 +8,7 @@ import {
 
 const STATUS: Record<KnowledgeBitChatDraftError, number> = {
   not_found: 404,
+  not_approved: 403,
   draft_failed: 502,
 };
 

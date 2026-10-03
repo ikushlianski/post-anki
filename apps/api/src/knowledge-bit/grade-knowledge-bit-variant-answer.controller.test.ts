@@ -101,6 +101,21 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
     expect((res.body as { error: string }).error).toBe("variant_not_found");
   });
 
+  it("should return 403 when the variant's bit isn't approved yet", async () => {
+    mockGradeKnowledgeBitVariantAnswer.mockResolvedValue({
+      ok: false,
+      error: "not_approved",
+    });
+
+    const req = fakeReq({ userAnswer: "Something." });
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBitVariantAnswer(req, res, "kbqv_1");
+
+    expect(res.status).toBe(403);
+    expect((res.body as { error: string }).error).toBe("not_approved");
+  });
+
   it("returns 502 with an error message when grading throws, never a silent 200", async () => {
     mockGradeKnowledgeBitVariantAnswer.mockRejectedValue(new Error("grader provider down"));
 

@@ -91,6 +91,18 @@ describe("handleAskKnowledgeBitChat", () => {
     expect(res.body).toEqual({ error: "not_found" });
   });
 
+  it("should return 403 not_approved when the service reports the bit isn't approved yet", async () => {
+    askKnowledgeBitChat.mockResolvedValue({ error: "not_approved" });
+
+    const req = fakeReq({ message: "hi" });
+    const res = fakeRes();
+
+    await handleAskKnowledgeBitChat(req, res, "kb_1");
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "not_approved" });
+  });
+
   it("rejects an empty message with a 400 and never calls the service", async () => {
     const req = fakeReq({ message: "" });
     const res = fakeRes();

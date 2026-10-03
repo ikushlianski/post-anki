@@ -76,7 +76,7 @@ async function seedKnowledgeBit(body: string): Promise<string> {
     [sourceId, body],
   );
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES ($1, $2, 0, $3)`,
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 0, $3, 'approved')`,
     [bitId, sourceId, body],
   );
 

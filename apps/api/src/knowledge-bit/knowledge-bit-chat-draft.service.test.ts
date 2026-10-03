@@ -32,11 +32,12 @@ describe("draftKnowledgeBitChat", () => {
     getKnowledgeBitById.mockResolvedValue({
       id: "kb_1",
       body: "TCP uses a three-way handshake to establish a connection.",
+      approvalState: "approved",
     });
     generate.mockResolvedValue({ text: "TCP uses a three-way handshake with SYN, SYN-ACK, ACK." });
   });
 
-  it("returns not_found and never calls the model when the bit does not exist", async () => {
+  it("returns not_found and never call the model when the bit does not exist", async () => {
     getKnowledgeBitById.mockResolvedValue(null);
 
     const result = await draftKnowledgeBitChat("missing", {
@@ -45,6 +46,38 @@ describe("draftKnowledgeBitChat", () => {
     });
 
     expect(result).toEqual({ error: "not_found" });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("should return not_approved and never call the model when the bit is still pending", async () => {
+    getKnowledgeBitById.mockResolvedValue({
+      id: "kb_1",
+      body: "TCP uses a three-way handshake to establish a connection.",
+      approvalState: "pending",
+    });
+
+    const result = await draftKnowledgeBitChat("kb_1", {
+      transcript: [{ role: "user", text: "What starts the handshake?" }],
+      mode: "edit",
+    });
+
+    expect(result).toEqual({ error: "not_approved" });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("should return not_approved and never call the model when the bit was rejected", async () => {
+    getKnowledgeBitById.mockResolvedValue({
+      id: "kb_1",
+      body: "TCP uses a three-way handshake to establish a connection.",
+      approvalState: "rejected",
+    });
+
+    const result = await draftKnowledgeBitChat("kb_1", {
+      transcript: [{ role: "user", text: "What starts the handshake?" }],
+      mode: "edit",
+    });
+
+    expect(result).toEqual({ error: "not_approved" });
     expect(generate).not.toHaveBeenCalled();
   });
 

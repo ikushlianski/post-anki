@@ -7,6 +7,10 @@ import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
+// Learner-facing read gate — every surface that lets a learner answer, chat with, search, or
+// browse a knowledge bit must apply this, so a bit stays invisible until a human approves it.
+export const bitApproved = eq(knowledgeBits.approvalState, "approved");
+
 export async function approveKnowledgeBit(
   id: string,
   db: DbExecutor = getDb(),

@@ -121,7 +121,7 @@ async function insertKnowledgeBit(overrides: {
   topicId: string;
 }): Promise<void> {
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id) VALUES ($1, $2, $3, $4, $5)`,
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state) VALUES ($1, $2, $3, $4, $5, 'approved')`,
     [overrides.id, overrides.knowledgeSourceId, overrides.ordinal, overrides.body, overrides.topicId],
   );
 }
@@ -259,6 +259,50 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
     const scoped = await getDueCountsForTopics(["top_due_ungenerated"]);
 
     expect(scoped.get("top_due_ungenerated")).toBeUndefined();
+  });
+
+  it("excludes a pending or rejected bit from the due count, even with a generated question variant", async () => {
+    await insertSubject({ id: "sub_due_approval", name: "Testing approval" });
+    await insertCurriculum({ id: "cur_due_approval", subjectId: "sub_due_approval", name: "Scheduling approval" });
+    await insertModule({ id: "mod_due_approval", curriculumId: "cur_due_approval", title: "Reviews approval" });
+    await insertTopic({
+      id: "top_due_approval",
+      moduleId: "mod_due_approval",
+      curriculumId: "cur_due_approval",
+      title: "Awaiting approval",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_pending",
+      knowledgeSourceId: "src_due_approval",
+      ordinal: 1,
+      body: "Still pending review",
+      topicId: "top_due_approval",
+    });
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'pending' WHERE id = $1`, [
+      "bit_due_pending",
+    ]);
+    await insertQuestionVariant({ id: "var_due_pending", knowledgeBitId: "bit_due_pending" });
+
+    const rejectedId = "bit_due_rejected";
+    await insertKnowledgeBit({
+      id: rejectedId,
+      knowledgeSourceId: "src_due_approval",
+      ordinal: 2,
+      body: "Rejected by the learner",
+      topicId: "top_due_approval",
+    });
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      rejectedId,
+    ]);
+    await insertQuestionVariant({ id: "var_due_rejected", knowledgeBitId: rejectedId });
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_approval")).toBeUndefined();
+
+    const scoped = await getDueCountsForTopics(["top_due_approval"]);
+
+    expect(scoped.get("top_due_approval")).toBeUndefined();
   });
 
   it("omits a topic the learner deliberately dropped, even with overdue bits", async () => {

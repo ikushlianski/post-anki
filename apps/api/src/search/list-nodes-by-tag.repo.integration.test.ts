@@ -106,10 +106,18 @@ async function insertKnowledgeBit(overrides: {
   ordinal: number;
   body: string;
   topicId?: string;
+  approvalState?: "pending" | "approved" | "rejected";
 }): Promise<void> {
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id) VALUES ($1, $2, $3, $4, $5)`,
-    [overrides.id, overrides.knowledgeSourceId, overrides.ordinal, overrides.body, overrides.topicId ?? null],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      overrides.id,
+      overrides.knowledgeSourceId,
+      overrides.ordinal,
+      overrides.body,
+      overrides.topicId ?? null,
+      overrides.approvalState ?? "approved",
+    ],
   );
 }
 
@@ -221,6 +229,55 @@ describe("listNodesByTagId", () => {
     expect(nodes[0]?.curriculumName).toBeNull();
   });
 
+  it("should exclude a pending or rejected bit carrying the tag, but still return an approved sibling", async () => {
+    await insertKnowledgeBit({
+      id: "bit_list_pending_1",
+      knowledgeSourceId: "src_list_pending_1",
+      ordinal: 1,
+      body: "Pending list bit",
+      approvalState: "pending",
+    });
+    await insertKnowledgeBit({
+      id: "bit_list_rejected_1",
+      knowledgeSourceId: "src_list_rejected_1",
+      ordinal: 1,
+      body: "Rejected list bit",
+      approvalState: "rejected",
+    });
+    await insertKnowledgeBit({
+      id: "bit_list_approved_1",
+      knowledgeSourceId: "src_list_approved_1",
+      ordinal: 1,
+      body: "Approved list bit",
+    });
+    await insertTag({ id: "tag_list_pending", name: "pendinglistmarker" });
+    await insertTagAssignment({
+      id: "ta_list_pending_1",
+      tagId: "tag_list_pending",
+      nodeType: "knowledgeBit",
+      nodeId: "bit_list_pending_1",
+    });
+    await insertTagAssignment({
+      id: "ta_list_pending_3",
+      tagId: "tag_list_pending",
+      nodeType: "knowledgeBit",
+      nodeId: "bit_list_rejected_1",
+    });
+    await insertTagAssignment({
+      id: "ta_list_pending_2",
+      tagId: "tag_list_pending",
+      nodeType: "knowledgeBit",
+      nodeId: "bit_list_approved_1",
+    });
+
+    const { nodes } = await listNodesByTagId("tag_list_pending");
+
+    const ids = nodes.map((n) => n.id);
+    expect(ids).not.toContain("bit_list_rejected_1");
+    expect(ids).not.toContain("bit_list_pending_1");
+    expect(ids).toContain("bit_list_approved_1");
+  });
+
   it("returns nothing for a tag id that doesn't exist", async () => {
     const { nodes, capped } = await listNodesByTagId("tag_does_not_exist");
 
@@ -269,8 +326,8 @@ describe("listNodesByTagId", () => {
   it("caps the result at LIST_TAG_NODES_LIMIT and reports capped: true when a tag has more assignments than the limit", async () => {
     await insertTag({ id: "tag_cap_over", name: "overcapacity" });
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
-       SELECT 'bit_cap_over_' || g, 'src_cap_over_' || g, 1, 'Capped bit ' || g, NULL
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state)
+       SELECT 'bit_cap_over_' || g, 'src_cap_over_' || g, 1, 'Capped bit ' || g, NULL, 'approved'
        FROM generate_series(1, $1) AS g`,
       [LIST_TAG_NODES_LIMIT + 1],
     );
@@ -290,8 +347,8 @@ describe("listNodesByTagId", () => {
   it("does not report capped when a tag has exactly LIST_TAG_NODES_LIMIT assignments", async () => {
     await insertTag({ id: "tag_cap_exact", name: "exactcapacity" });
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
-       SELECT 'bit_cap_exact_' || g, 'src_cap_exact_' || g, 1, 'Exact bit ' || g, NULL
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state)
+       SELECT 'bit_cap_exact_' || g, 'src_cap_exact_' || g, 1, 'Exact bit ' || g, NULL, 'approved'
        FROM generate_series(1, $1) AS g`,
       [LIST_TAG_NODES_LIMIT],
     );
@@ -332,8 +389,8 @@ describe("listNodesByTagId", () => {
     }
 
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
-       SELECT 'bit_cap_kind_' || g, 'src_cap_kind_' || g, 1, 'Kind ordering bit ' || g, NULL
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state)
+       SELECT 'bit_cap_kind_' || g, 'src_cap_kind_' || g, 1, 'Kind ordering bit ' || g, NULL, 'approved'
        FROM generate_series(1, $1) AS g`,
       [LIST_TAG_NODES_LIMIT + 1],
     );

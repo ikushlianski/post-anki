@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { ListTagNodesResponse, TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, topics } from "../db/schema.js";
+import { bitApproved } from "../knowledge-bit/knowledge-bit-approval.repo.js";
 import { tagsByNode, topicNotDeclined } from "./search-tag-and-bit.repo.js";
 
 const KIND_ORDER: Record<TopicModuleSearchResult["kind"], number> = {
@@ -83,7 +84,7 @@ export async function listNodesByTagId(tagId: string): Promise<ListTagNodesRespo
           .from(knowledgeBits)
           .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
           .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
-          .where(inArray(knowledgeBits.id, bitIds))
+          .where(and(inArray(knowledgeBits.id, bitIds), bitApproved))
       : Promise.resolve([]),
   ]);
 

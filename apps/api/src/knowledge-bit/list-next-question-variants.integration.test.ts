@@ -41,6 +41,7 @@ const { listNextQuestionVariantsToAnswer, insertQuestionVariant } = await import
   "./knowledge-bit-question-variant.repo.js"
 );
 const { insertVariantAttempt } = await import("./knowledge-bit-variant-attempt.repo.js");
+const { approveKnowledgeBit } = await import("./knowledge-bit-approval.repo.js");
 const { resolveOrCreateTag, assignTag } = await import("../tag/tag.repo.js");
 
 let client: pg.Client;
@@ -69,6 +70,7 @@ async function seedKnowledgeBit(
   body: string,
   topicId?: string,
   background?: string,
+  approvalState: "pending" | "approved" | "rejected" = "approved",
 ): Promise<string> {
   const sourceId = id("ksrc");
   const bitId = id("kb");
@@ -78,8 +80,8 @@ async function seedKnowledgeBit(
     [sourceId, body],
   );
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, background) VALUES ($1, $2, 0, $3, $4, $5)`,
-    [bitId, sourceId, body, topicId ?? null, background ?? null],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, background, approval_state) VALUES ($1, $2, 0, $3, $4, $5, $6)`,
+    [bitId, sourceId, body, topicId ?? null, background ?? null, approvalState],
   );
 
   return bitId;
@@ -282,6 +284,46 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     const row = rows.find((row) => row.variantId === variantId);
 
     expect(row?.background).toBeNull();
+  });
+
+  it("should exclude a pending bit's variant from the default, unfiltered queue", async () => {
+    const pendingBit = await seedKnowledgeBit("Pending bit for queue", undefined, undefined, "pending");
+    const pendingVariant = await seedVariant(pendingBit, "Pending question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(500, undefined);
+
+    expect(rows.map((row) => row.variantId)).not.toContain(pendingVariant);
+  });
+
+  it("should exclude a rejected bit's variant from the default, unfiltered queue", async () => {
+    const rejectedBit = await seedKnowledgeBit("Rejected bit for queue", undefined, undefined, "rejected");
+    const rejectedVariant = await seedVariant(rejectedBit, "Rejected question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(500, undefined);
+
+    expect(rows.map((row) => row.variantId)).not.toContain(rejectedVariant);
+  });
+
+  it("should exclude a pending bit's variant even when fetched directly by knowledgeBitId", async () => {
+    const pendingBit = await seedKnowledgeBit("Direct pending bit for queue", undefined, undefined, "pending");
+    await seedVariant(pendingBit, "Direct pending question?");
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: pendingBit });
+
+    expect(rows).toEqual([]);
+  });
+
+  it("should include a previously pending bit's variant once it's approved", async () => {
+    const bitId = await seedKnowledgeBit("Approve-then-visible bit for queue", undefined, undefined, "pending");
+    const variantId = await seedVariant(bitId, "Approve-then-visible question?");
+
+    const beforeApproval = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: bitId });
+    expect(beforeApproval).toEqual([]);
+
+    await approveKnowledgeBit(bitId);
+
+    const afterApproval = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: bitId });
+    expect(afterApproval.map((row) => row.variantId)).toEqual([variantId]);
   });
 
   it("within a topic, serves an overdue bit before a not-yet-due bit even when the latter has fewer attempts", async () => {

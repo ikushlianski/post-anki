@@ -6,7 +6,7 @@ import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import { getKnowledgeBitById } from "./knowledge-bit.repo.js";
 
-export type KnowledgeBitChatDraftError = "not_found" | "draft_failed";
+export type KnowledgeBitChatDraftError = "not_found" | "not_approved" | "draft_failed";
 
 function buildPrompt(body: string, input: DraftKnowledgeBitChatInput): string {
   const history = formatTranscript(input.transcript, { assistantLabel: "Tutor" });
@@ -28,6 +28,10 @@ export async function draftKnowledgeBitChat(
 
   if (!bit) {
     return { error: "not_found" };
+  }
+
+  if (bit.approvalState !== "approved") {
+    return { error: "not_approved" };
   }
 
   const prompt = buildPrompt(bit.body, input);

@@ -10,6 +10,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { bitApproved } from "./knowledge-bit-approval.repo.js";
 
 export interface KnowledgeBitForQuestionGenerationScan {
   id: string;
@@ -154,8 +155,8 @@ export async function listNextQuestionVariantsToAnswer(
         : undefined;
 
   const condition = scopeCondition
-    ? and(scopeCondition, topicNotDropped, variantActive)
-    : and(topicNotDropped, variantActive);
+    ? and(scopeCondition, topicNotDropped, variantActive, bitApproved)
+    : and(topicNotDropped, variantActive, bitApproved);
 
   const filtered = base.where(condition);
 

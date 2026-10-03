@@ -108,10 +108,18 @@ async function insertKnowledgeBit(overrides: {
   ordinal: number;
   body: string;
   topicId?: string;
+  approvalState?: "pending" | "approved" | "rejected";
 }): Promise<void> {
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id) VALUES ($1, $2, $3, $4, $5)`,
-    [overrides.id, overrides.knowledgeSourceId, overrides.ordinal, overrides.body, overrides.topicId ?? null],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state) VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      overrides.id,
+      overrides.knowledgeSourceId,
+      overrides.ordinal,
+      overrides.body,
+      overrides.topicId ?? null,
+      overrides.approvalState ?? "approved",
+    ],
   );
 }
 
@@ -180,6 +188,34 @@ describe("searchKnowledgeBitsRanked", () => {
     expect(bit?.curriculumId).toBeNull();
     expect(bit?.curriculumName).toBeNull();
   });
+
+  it("should exclude a pending bit from the full-text search results", async () => {
+    await insertKnowledgeBit({
+      id: "bit_pending_1",
+      knowledgeSourceId: "src_pending_1",
+      ordinal: 1,
+      body: "Pending ranked search marker body text",
+      approvalState: "pending",
+    });
+
+    const results = await searchKnowledgeBitsRanked("Pending ranked search marker", 10);
+
+    expect(results).toEqual([]);
+  });
+
+  it("should exclude a rejected bit from the full-text search results", async () => {
+    await insertKnowledgeBit({
+      id: "bit_rejected_1",
+      knowledgeSourceId: "src_rejected_1",
+      ordinal: 1,
+      body: "Rejected ranked search marker body text",
+      approvalState: "rejected",
+    });
+
+    const results = await searchKnowledgeBitsRanked("Rejected ranked search marker", 10);
+
+    expect(results).toEqual([]);
+  });
 });
 
 describe("searchByTagNameAcrossNodes", () => {
@@ -213,6 +249,55 @@ describe("searchByTagNameAcrossNodes", () => {
     const results = await searchByTagNameAcrossNodes("zzz-no-such-tag-xyz", 10);
 
     expect(results).toEqual([]);
+  });
+
+  it("should exclude a pending or rejected bit carrying the matching tag, but still return an approved sibling", async () => {
+    await insertKnowledgeBit({
+      id: "bit_tag_pending_1",
+      knowledgeSourceId: "src_tag_pending_1",
+      ordinal: 1,
+      body: "Pending tag-matched bit",
+      approvalState: "pending",
+    });
+    await insertKnowledgeBit({
+      id: "bit_tag_rejected_1",
+      knowledgeSourceId: "src_tag_rejected_1",
+      ordinal: 1,
+      body: "Rejected tag-matched bit",
+      approvalState: "rejected",
+    });
+    await insertKnowledgeBit({
+      id: "bit_tag_approved_1",
+      knowledgeSourceId: "src_tag_approved_1",
+      ordinal: 1,
+      body: "Approved tag-matched bit",
+    });
+    await insertTag({ id: "tag_pending_marker", name: "pendingtagmarker" });
+    await insertTagAssignment({
+      id: "ta_pending_1",
+      tagId: "tag_pending_marker",
+      nodeType: "knowledgeBit",
+      nodeId: "bit_tag_pending_1",
+    });
+    await insertTagAssignment({
+      id: "ta_pending_3",
+      tagId: "tag_pending_marker",
+      nodeType: "knowledgeBit",
+      nodeId: "bit_tag_rejected_1",
+    });
+    await insertTagAssignment({
+      id: "ta_pending_2",
+      tagId: "tag_pending_marker",
+      nodeType: "knowledgeBit",
+      nodeId: "bit_tag_approved_1",
+    });
+
+    const results = await searchByTagNameAcrossNodes("pendingtagmarker", 10);
+
+    const ids = results.map((r) => r.id);
+    expect(ids).not.toContain("bit_tag_pending_1");
+    expect(ids).not.toContain("bit_tag_rejected_1");
+    expect(ids).toContain("bit_tag_approved_1");
   });
 
   it("excludes a declined topic carrying the tag, but still returns a non-declined sibling", async () => {
@@ -260,8 +345,8 @@ describe("searchByTagNameAcrossNodes", () => {
        FROM generate_series(1, 51) AS g`,
     );
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
-       SELECT 'bit_tag_name_cap_' || lpad(g::text, 4, '0'), 'src_tag_name_cap_' || lpad(g::text, 4, '0'), 1, 'Tag name cap marker bit ' || lpad(g::text, 4, '0'), NULL
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state)
+       SELECT 'bit_tag_name_cap_' || lpad(g::text, 4, '0'), 'src_tag_name_cap_' || lpad(g::text, 4, '0'), 1, 'Tag name cap marker bit ' || lpad(g::text, 4, '0'), NULL, 'approved'
        FROM generate_series(1, 51) AS g`,
     );
     await client.query(
@@ -278,8 +363,8 @@ describe("searchByTagNameAcrossNodes", () => {
   it("caps tag assignments at 500 instead of pulling every assignment row", async () => {
     await insertTag({ id: "tag_assignment_cap", name: "assignmentcapmarker" });
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
-       SELECT 'bit_assignment_cap_' || g, 'src_assignment_cap_' || g, 1, 'Assignment cap marker bit ' || g, NULL
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state)
+       SELECT 'bit_assignment_cap_' || g, 'src_assignment_cap_' || g, 1, 'Assignment cap marker bit ' || g, NULL, 'approved'
        FROM generate_series(1, 501) AS g`,
     );
     await client.query(
@@ -317,8 +402,8 @@ describe("searchByTagNameAcrossNodes", () => {
     }
 
     await client.query(
-      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id)
-       SELECT 'bit_kind_cap_' || g, 'src_kind_cap_' || g, 1, 'Kind cap bit ' || g, NULL
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state)
+       SELECT 'bit_kind_cap_' || g, 'src_kind_cap_' || g, 1, 'Kind cap bit ' || g, NULL, 'approved'
        FROM generate_series(1, 501) AS g`,
     );
     await client.query(

@@ -25,7 +25,7 @@ export async function handleGradeKnowledgeBitVariantAnswer(
     const result = await gradeKnowledgeBitVariantAnswer(variantId, body.data.userAnswer);
 
     if (!result.ok) {
-      sendError(res, 404, result.error);
+      sendError(res, result.error === "not_approved" ? 403 : 404, result.error);
       return;
     }
 

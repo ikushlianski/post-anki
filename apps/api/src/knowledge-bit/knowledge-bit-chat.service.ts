@@ -8,7 +8,7 @@ import { webSearch } from "../probe/probe-grounding.js";
 import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
 import { getKnowledgeBitById } from "./knowledge-bit.repo.js";
 
-export type KnowledgeBitChatError = "not_found";
+export type KnowledgeBitChatError = "not_found" | "not_approved";
 
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 
@@ -34,6 +34,10 @@ export async function askKnowledgeBitChat(
 
   if (!bit) {
     return { error: "not_found" };
+  }
+
+  if (bit.approvalState !== "approved") {
+    return { error: "not_approved" };
   }
 
   const prompt = buildPrompt(bit.body, input);
