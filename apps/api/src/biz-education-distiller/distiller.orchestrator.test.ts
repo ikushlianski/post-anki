@@ -84,19 +84,43 @@ describe("distillBizEducation", () => {
     expect(deps.insertFact).toHaveBeenCalledTimes(1);
   });
 
-  it("marks synced only rows that were actually processed", async () => {
+  it("marks synced both processed rows and skipped question rows, but not failed ones", async () => {
     const deps = buildDeps({
       fetchRows: vi
         .fn()
-        .mockResolvedValue([row("q1", "Is this a question?"), row("r4", "A plain fact.")]),
-      classify: vi.fn().mockResolvedValue({ matchedTopicId: "topic_3", suggestedPlacement: null }),
+        .mockResolvedValue([
+          row("q1", "Is this a question?"),
+          row("r4", "A plain fact."),
+          row("bad", "Will fail."),
+        ]),
+      classify: vi
+        .fn()
+        .mockResolvedValueOnce({ matchedTopicId: "topic_3", suggestedPlacement: null })
+        .mockRejectedValueOnce(new Error("classifier down")),
     });
 
     const result = await distillBizEducation(deps);
 
     expect(result.processed).toEqual(["r4"]);
-    expect(deps.markSynced).toHaveBeenCalledTimes(1);
+    expect(result.skipped).toEqual(["q1"]);
+    expect(result.failed).toEqual(["bad"]);
+    expect(deps.markSynced).toHaveBeenCalledTimes(2);
     expect(deps.markSynced).toHaveBeenCalledWith("r4");
+    expect(deps.markSynced).toHaveBeenCalledWith("q1");
+    expect(deps.markSynced).not.toHaveBeenCalledWith("bad");
+  });
+
+  it("marks a question-containing row synced even though no fact is saved for it", async () => {
+    const deps = buildDeps({
+      fetchRows: vi.fn().mockResolvedValue([row("q2", "What is CAC?")]),
+    });
+
+    const result = await distillBizEducation(deps);
+
+    expect(result.skipped).toEqual(["q2"]);
+    expect(deps.insertFact).not.toHaveBeenCalled();
+    expect(deps.insertInboxRow).not.toHaveBeenCalled();
+    expect(deps.markSynced).toHaveBeenCalledWith("q2");
   });
 
   it("isolates one row's mark-synced failure from the rest of the batch", async () => {

@@ -88,7 +88,7 @@ export async function distillBizEducation(
     }
   }
 
-  for (const id of result.processed) {
+  for (const id of [...result.processed, ...result.skipped]) {
     try {
       await deps.markSynced(id);
     } catch (err) {

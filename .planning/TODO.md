@@ -210,6 +210,11 @@ updated: 2026-09-04
 - Out of scope: The generic notion-deck-connectors router and its facts/CRM routing — this is a separate, Biz-Education-specific pipeline
 
 ### Coding tasks
+- [ ] Decide how a row that fails every run stops permanently blocking the 20-row window
+- [x] Fix skipped or failed rows permanently blocking the 20-row sync window
+- [ ] Validate a classified row's matched topic actually exists before saving its fact
+- [ ] Add a real 15-minute scheduled trigger — it currently only runs via a manual script
+- [ ] Cap or filter the Notion read instead of paging the whole data source every run
 - [x] Run the Biz Education distiller as its own 15-minute connector
 - [x] Mark a processed Notion row synced without deleting or archiving it
 - [x] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot
