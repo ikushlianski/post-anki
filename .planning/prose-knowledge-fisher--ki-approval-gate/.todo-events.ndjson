@@ -18,3 +18,6 @@
 {"ts":"2026-10-03T23:20:34.717Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Test the rejected-bit variant-edit guard leaves the row untouched"}
 {"ts":"2026-10-03T23:20:40.098Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Block editing a question variant once its bit is no longer pending"}
 {"ts":"2026-10-03T23:31:23.695Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Block accepting a placement suggestion for a rejected bit"}
+{"ts":"2026-10-03T23:31:42.727Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Clear topicId when rejecting a bit that was already placed"}
+{"ts":"2026-10-03T23:31:42.780Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Close the scan-vs-reject race that can link a just-rejected bit"}
+{"ts":"2026-10-03T23:42:29.749Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Re-check a variant is still active after taking the bit lock on edit"}

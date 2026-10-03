@@ -84,10 +84,22 @@ export async function editKnowledgeBitQuestionVariant(
       return { error: "not_found" as const };
     }
 
-    await tx
+    // Re-check "still active" here, after the bit lock — a concurrent body-edit regeneration
+    // could have superseded this same variant while this transaction waited for that lock.
+    const superseded = await tx
       .update(knowledgeBitQuestionVariants)
       .set({ supersededAt: new Date() })
-      .where(eq(knowledgeBitQuestionVariants.id, variantId));
+      .where(
+        and(
+          eq(knowledgeBitQuestionVariants.id, variantId),
+          isNull(knowledgeBitQuestionVariants.supersededAt),
+        ),
+      )
+      .returning({ id: knowledgeBitQuestionVariants.id });
+
+    if (superseded.length === 0) {
+      return { error: "not_found" as const };
+    }
 
     const newVariantId = newId("kbqv");
 

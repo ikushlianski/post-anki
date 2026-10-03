@@ -283,14 +283,23 @@ describe("editKnowledgeBitQuestionVariant (real Postgres)", () => {
     expect(rows[0]!.superseded_at).toBeNull();
   });
 
-  it("should return not_found for a rejected bit", async () => {
+  it("should return not_found and leave the variant untouched for a rejected bit", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A rejected bit", null, "rejected");
-    const variantId = await seedQuestionVariant(bitId, "wh_question", 0);
+    const variantId = await seedQuestionVariant(bitId, "wh_question", 0, "Old prompt", "Old answer");
 
     const result = await editKnowledgeBitQuestionVariant(variantId, "New prompt", "New answer");
 
     expect(result).toEqual({ error: "not_found" });
+
+    const { rows } = await client.query(
+      `SELECT prompt, answer, superseded_at FROM knowledge_bit_question_variants WHERE id = $1`,
+      [variantId],
+    );
+
+    expect(rows[0]!.prompt).toBe("Old prompt");
+    expect(rows[0]!.answer).toBe("Old answer");
+    expect(rows[0]!.superseded_at).toBeNull();
   });
 
   it("should still edit normally for a pending bit", async () => {
@@ -301,6 +310,37 @@ describe("editKnowledgeBitQuestionVariant (real Postgres)", () => {
     const result = await editKnowledgeBitQuestionVariant(variantId, "New prompt", "New answer");
 
     expect(result).toEqual({ ok: true, variantId: expect.any(String) });
+  });
+
+  it("should let only one of two concurrent edits on the same variant win", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A pending bit");
+    const variantId = await seedQuestionVariant(bitId, "wh_question", 0);
+
+    const [first, second] = await Promise.all([
+      editKnowledgeBitQuestionVariant(variantId, "Racer A", "Racer A answer"),
+      editKnowledgeBitQuestionVariant(variantId, "Racer B", "Racer B answer"),
+    ]);
+
+    const outcomes = [first, second];
+    const wins = outcomes.filter((r) => "ok" in r);
+    const losses = outcomes.filter((r) => "error" in r);
+
+    expect(wins).toHaveLength(1);
+    expect(losses).toEqual([{ error: "not_found" }]);
+
+    const winningVariantId = (wins[0] as { ok: true; variantId: string }).variantId;
+    const { rows } = await client.query(
+      `SELECT id, prompt, superseded_at FROM knowledge_bit_question_variants
+       WHERE knowledge_bit_id = $1 AND kind = 'wh_question' AND "order" = 0`,
+      [bitId],
+    );
+
+    const active = rows.filter((row) => row.superseded_at === null);
+
+    expect(active).toHaveLength(1);
+    expect(active[0]!.id).toBe(winningVariantId);
+    expect(["Racer A", "Racer B"]).toContain(active[0]!.prompt);
   });
 });
 
