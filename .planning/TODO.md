@@ -215,7 +215,7 @@ updated: 2026-09-04
 - [x] Fix skipped or failed rows permanently blocking the 20-row sync window
 - [x] Validate a classified row's matched topic actually exists before saving its fact
 - [x] Add a real 15-minute scheduled trigger — it currently only runs via a manual script
-- [ ] Cap or filter the Notion read instead of paging the whole data source every run
+- [x] Cap or filter the Notion read instead of paging the whole data source every run
 - [x] Run the Biz Education distiller as its own 15-minute connector
 - [x] Mark a processed Notion row synced without deleting or archiving it
 - [x] Build a post-anki inbox listing unplaced rows with a suggested hierarchy spot

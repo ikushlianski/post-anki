@@ -12,29 +12,25 @@ export interface BizEducationRow {
   createdTime: string;
 }
 
-interface DateProperty {
-  type: string;
-  date?: { start: string } | null;
-}
-
-function isSynced(properties: Record<string, unknown>): boolean {
-  const property = properties["PostAnki Synced"] as DateProperty | undefined;
-
-  return property?.type === "date" && Boolean(property.date);
-}
-
 export async function listUnsyncedTaggedRows(
   client = getNotionClient(),
 ): Promise<BizEducationRow[]> {
-  const rows = (await collectAllDataSourceRows(client, { data_source_id: DATA_SOURCE_ID })).filter(
-    isFullPage,
-  );
+  const rows = (
+    await collectAllDataSourceRows(client, {
+      data_source_id: DATA_SOURCE_ID,
+      filter: {
+        and: [
+          { property: "PostAnki Synced", date: { is_empty: true } },
+          { property: "Tags", multi_select: { contains: "PA" } },
+        ],
+      },
+    })
+  ).filter(isFullPage);
 
-  const unsynced = rows.filter((row) => !isSynced(row.properties));
-  const items = itemsFromDatabaseRows(unsynced);
+  const items = itemsFromDatabaseRows(rows);
   const itemById = new Map(items.map((item) => [item.id, item]));
 
-  return unsynced
+  return rows
     .filter((row) => isPaTagged(itemById.get(row.id)?.tags ?? []))
     .sort((a, b) => Date.parse(a.created_time) - Date.parse(b.created_time))
     .slice(0, MAX_ROWS)

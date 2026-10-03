@@ -29,13 +29,12 @@ function stubClient(query: ReturnType<typeof vi.fn>): Client {
 }
 
 describe("listUnsyncedTaggedRows", () => {
-  it("keeps only unsynced rows tagged PA, oldest first", async () => {
+  it("keeps only rows tagged PA, oldest first", async () => {
     const query = vi.fn().mockResolvedValue({
       results: [
         row("r-new", "Newer idea", ["PA"], "2026-09-20T00:00:00.000Z"),
         row("r-old", "Older idea", ["PA"], "2026-09-10T00:00:00.000Z"),
         row("r-other-tag", "Not for us", ["CRM"], "2026-09-01T00:00:00.000Z"),
-        row("r-synced", "Already done", ["PA"], "2026-09-05T00:00:00.000Z", "2026-09-15"),
       ],
       has_more: false,
       next_cursor: null,
@@ -44,6 +43,23 @@ describe("listUnsyncedTaggedRows", () => {
     const rows = await listUnsyncedTaggedRows(stubClient(query));
 
     expect(rows.map((r) => r.id)).toEqual(["r-old", "r-new"]);
+  });
+
+  it("asks Notion to filter out already-synced and non-PA rows instead of paging them all", async () => {
+    const query = vi.fn().mockResolvedValue({ results: [], has_more: false, next_cursor: null });
+
+    await listUnsyncedTaggedRows(stubClient(query));
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: {
+          and: [
+            { property: "PostAnki Synced", date: { is_empty: true } },
+            { property: "Tags", multi_select: { contains: "PA" } },
+          ],
+        },
+      }),
+    );
   });
 
   it("still returns a row whose title contains a question mark", async () => {
