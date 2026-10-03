@@ -5,7 +5,7 @@ import { getDb, type DbExecutor } from "../db/client.js";
 import { gaps, learningListItems, modules, topics } from "../db/schema.js";
 import { readLivenessStatus } from "../liveness/liveness.repo.js";
 import { log } from "../shared/log.js";
-import { maybeStartCardsInBackground } from "../cards/cards.orchestrator.js";
+import { startCardsForTopicsWithConcurrencyCap } from "../cards/cards.orchestrator.js";
 import {
   advanceIngestionCursor,
   getLearningListItem,
@@ -243,11 +243,9 @@ export async function releaseNextSliceSafely(
   if (released) {
     await confirmIfLearningListOwned(itemId);
 
-    for (const topicId of released.topicIds) {
-      void maybeStartCardsInBackground(topicId).catch((err) =>
-        log.error({ err, topicId }, "slice_release_cards_trigger_failed"),
-      );
-    }
+    void startCardsForTopicsWithConcurrencyCap(released.topicIds).catch((err) =>
+      log.error({ err, itemId }, "slice_release_cards_fanout_failed"),
+    );
   }
 
   return released;

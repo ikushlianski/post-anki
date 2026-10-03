@@ -92,6 +92,24 @@ export async function startCardsInBackgroundAndWait(topicId: string): Promise<vo
   await compileCards(topicId);
 }
 
+// Caps concurrent card-generation LLM calls when many topics flip on at once.
+const CARDS_FANOUT_CONCURRENCY = 3;
+
+// Shared by confirmStructure and slice-release; one topic's failure never stalls the rest.
+export async function startCardsForTopicsWithConcurrencyCap(topicIds: string[]): Promise<void> {
+  for (let i = 0; i < topicIds.length; i += CARDS_FANOUT_CONCURRENCY) {
+    const batch = topicIds.slice(i, i + CARDS_FANOUT_CONCURRENCY);
+
+    await Promise.all(
+      batch.map((topicId) =>
+        startCardsInBackgroundAndWait(topicId).catch((err) =>
+          log.error({ err, topicId }, "cards_fanout_trigger_failed"),
+        ),
+      ),
+    );
+  }
+}
+
 export interface StartCardsManuallyResult {
   cardSet: TopicCardSet;
   alreadyInProgress: boolean;

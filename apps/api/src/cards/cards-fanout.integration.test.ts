@@ -21,7 +21,7 @@ function withDatabaseName(connectionString: string, databaseName: string): strin
   return url.toString();
 }
 
-const dbName = `cs_cards_fanout_${randomUUID().replace(/-/g, "_")}`;
+const dbName = `cards_fanout_${randomUUID().replace(/-/g, "_")}`;
 const DATABASE_URL = withDatabaseName(BASE_DATABASE_URL, dbName);
 
 const adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
@@ -54,7 +54,7 @@ vi.mock("../shared/embeddings-client.js", () => ({
   embedTexts: vi.fn(async () => []),
 }));
 
-const { startCardsForTopicsWithConcurrencyCap } = await import("./curriculum-structure.js");
+const { startCardsForTopicsWithConcurrencyCap } = await import("./cards.orchestrator.js");
 
 let client: pg.Client;
 

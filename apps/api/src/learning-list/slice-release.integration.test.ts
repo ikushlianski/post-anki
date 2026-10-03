@@ -17,10 +17,10 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-const mockMaybeStartCardsInBackground = vi.fn(async () => {});
+const mockStartCardsForTopicsWithConcurrencyCap = vi.fn(async () => {});
 
 vi.mock("../cards/cards.orchestrator.js", () => ({
-  maybeStartCardsInBackground: mockMaybeStartCardsInBackground,
+  startCardsForTopicsWithConcurrencyCap: mockStartCardsForTopicsWithConcurrencyCap,
 }));
 
 const BASE_DATABASE_URL =
@@ -69,7 +69,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   mockAgentGenerate.mockReset();
-  mockMaybeStartCardsInBackground.mockClear();
+  mockStartCardsForTopicsWithConcurrencyCap.mockClear();
 });
 
 afterAll(async () => {
@@ -413,11 +413,8 @@ describe("releaseNextSliceSafely — starts card generation for every released t
     const released = await releaseNextSliceSafely(itemId);
 
     expect(released?.topicIds).toEqual(topicIds);
-    expect(mockMaybeStartCardsInBackground).toHaveBeenCalledTimes(topicIds.length);
-
-    for (const topicId of topicIds) {
-      expect(mockMaybeStartCardsInBackground).toHaveBeenCalledWith(topicId);
-    }
+    expect(mockStartCardsForTopicsWithConcurrencyCap).toHaveBeenCalledTimes(1);
+    expect(mockStartCardsForTopicsWithConcurrencyCap).toHaveBeenCalledWith(topicIds);
   });
 
   it("never fires the cards trigger when nothing releases", async () => {
@@ -429,7 +426,7 @@ describe("releaseNextSliceSafely — starts card generation for every released t
     const released = await releaseNextSliceSafely(itemId);
 
     expect(released).toBeNull();
-    expect(mockMaybeStartCardsInBackground).not.toHaveBeenCalled();
+    expect(mockStartCardsForTopicsWithConcurrencyCap).not.toHaveBeenCalled();
   });
 });
 
