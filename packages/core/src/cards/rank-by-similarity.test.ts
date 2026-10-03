@@ -57,4 +57,38 @@ describe("rankBySimilarity", () => {
 
     expect(ranked[0]!.similarity).toBeCloseTo(1, 5);
   });
+
+  it("keeps every item up to topK when no minimum similarity is given, even a negative one", () => {
+    const query = [1, 0];
+    const items: TestItem[] = [
+      { id: "exact", embedding: [1, 0] },
+      { id: "unrelated", embedding: [0, 1] },
+      { id: "opposite", embedding: [-1, 0] },
+    ];
+
+    const ranked = rankBySimilarity(query, items, 3);
+
+    expect(ranked.map((r) => r.id)).toEqual(["exact", "unrelated", "opposite"]);
+  });
+
+  it("drops items below the minimum similarity, even when there are fewer than topK", () => {
+    const query = [1, 0];
+    const items: TestItem[] = [
+      { id: "exact", embedding: [1, 0] },
+      { id: "unrelated", embedding: [0, 1] },
+    ];
+
+    const ranked = rankBySimilarity(query, items, 10, 0.3);
+
+    expect(ranked.map((r) => r.id)).toEqual(["exact"]);
+  });
+
+  it("keeps an item exactly at the minimum similarity boundary", () => {
+    const query = [1, 0];
+    const items: TestItem[] = [{ id: "boundary", embedding: [1, 0] }];
+
+    const ranked = rankBySimilarity(query, items, 10, 1);
+
+    expect(ranked.map((r) => r.id)).toEqual(["boundary"]);
+  });
 });

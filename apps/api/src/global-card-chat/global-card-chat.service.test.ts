@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MIN_MATCH_SIMILARITY } from "@post-anki/core";
 
 const generate = vi.fn();
 
@@ -83,6 +84,16 @@ describe("askGlobalCardChat", () => {
     expect(result.reply).toBe("A closure bundles a function with its scope.");
   });
 
+  it("passes the minimum-similarity cutoff down to the card lookup", async () => {
+    await askGlobalCardChat({ message: "What is a closure?" });
+
+    expect(findTopMatchingCards).toHaveBeenCalledWith(
+      "What is a closure?",
+      5,
+      MIN_MATCH_SIMILARITY,
+    );
+  });
+
   it("still replies, with no matched cards, when the learner's deck has no coverage", async () => {
     findTopMatchingCards.mockResolvedValue([]);
     generate.mockResolvedValue({ text: "Your cards don't cover this yet." });
@@ -94,6 +105,7 @@ describe("askGlobalCardChat", () => {
     expect(prompt).toContain("no cards matching");
     expect(result.matchedCards).toEqual([]);
     expect(result.reply).toBe("Your cards don't cover this yet.");
+    expect(result.lookupFailed).toBe(false);
   });
 
   it("falls back to a stock reply when the agent returns no text", async () => {
@@ -123,6 +135,7 @@ describe("askGlobalCardChat", () => {
 
     expect(result.reply).toBe("I couldn't find your cards, but here's a general answer.");
     expect(result.matchedCards).toEqual([]);
+    expect(result.lookupFailed).toBe(true);
   });
 
   it("defaults the agent to cards-only when allowGeneralKnowledge is omitted", async () => {

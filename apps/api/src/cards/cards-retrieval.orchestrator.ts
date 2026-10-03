@@ -43,6 +43,7 @@ function toMatch(candidate: Candidate & { similarity: number }): CardMatchResult
 export async function findTopMatchingCards(
   query: string,
   topK: number,
+  minSimilarity = -Infinity,
 ): Promise<CardMatchResult[]> {
   const [variants, facts] = await Promise.all([listEmbeddedCardVariants(), listEmbeddedFacts()]);
   const candidates: Candidate[] = [
@@ -56,5 +57,5 @@ export async function findTopMatchingCards(
 
   const [embedded] = await embedTexts([{ id: "query", text: query }]);
 
-  return rankBySimilarity(embedded!.embedding, candidates, topK).map(toMatch);
+  return rankBySimilarity(embedded!.embedding, candidates, topK, minSimilarity).map(toMatch);
 }

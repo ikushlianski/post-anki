@@ -35,6 +35,7 @@ describe('GlobalCardChatPanel', () => {
     mockedAsk.mockResolvedValue({
       reply: 'A closure is a function bundled with its surrounding scope.',
       matchedCards: [{ variantId: 'variant-1', prompt: 'What is a closure?', topicTitle: 'JS' }],
+      lookupFailed: false,
     })
 
     const user = userEvent.setup()
@@ -57,6 +58,7 @@ describe('GlobalCardChatPanel', () => {
     mockedAsk.mockResolvedValue({
       reply: 'Beyond your cards: a monad is a design pattern for chaining computations.',
       matchedCards: [],
+      lookupFailed: false,
     })
 
     const user = userEvent.setup()
@@ -81,6 +83,7 @@ describe('GlobalCardChatPanel', () => {
     mockedAsk.mockResolvedValue({
       reply: 'A closure is a function bundled with its surrounding scope.',
       matchedCards: [{ variantId: 'variant-1', prompt: 'What is a closure?', topicTitle: 'JS' }],
+      lookupFailed: false,
     })
 
     const user = userEvent.setup()
@@ -98,6 +101,7 @@ describe('GlobalCardChatPanel', () => {
     mockedAsk.mockResolvedValue({
       reply: 'Beyond your cards: a monad is a design pattern for chaining computations.',
       matchedCards: [],
+      lookupFailed: false,
     })
 
     const user = userEvent.setup()
@@ -109,6 +113,24 @@ describe('GlobalCardChatPanel', () => {
     await user.click(screen.getByTestId('global-card-chat-send'))
 
     expect(await screen.findByText('Not grounded in any of your cards')).toBeTruthy()
+  })
+
+  it('tells the learner apart when the card lookup itself failed, not just found nothing', async () => {
+    mockedAsk.mockResolvedValue({
+      reply: 'Beyond your cards: a monad is a design pattern for chaining computations.',
+      matchedCards: [],
+      lookupFailed: true,
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness()
+
+    await user.click(screen.getByTestId('global-card-chat-open'))
+    await user.type(screen.getByTestId('global-card-chat-input'), 'What is a monad?')
+    await user.click(screen.getByTestId('global-card-chat-send'))
+
+    expect(await screen.findByText("Couldn't check your cards right now")).toBeTruthy()
   })
 
   it('still shows an honest grounding message when the response omits matchedCards', async () => {

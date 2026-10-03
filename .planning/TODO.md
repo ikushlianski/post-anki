@@ -292,6 +292,8 @@ updated: 2026-09-04
 - Out of scope: Automated course/curriculum generation from a link — frozen, see doc-site-ingestion's own Notes
 
 ### Coding tasks
+- [ ] Tell a failed card lookup apart from a genuine no-match in the global chat
+- [x] Add a minimum-similarity cutoff so 'Grounded in' only lists genuinely relevant cards
 - [x] Show an error in the global chat instead of leaving a question unanswered
 - [x] Stop a failed card-embedding lookup from crashing the global chat with a 500
 - [x] Stop editing a knowledge item from wiping its manually-assigned tags
@@ -337,6 +339,7 @@ updated: 2026-09-04
   - [x] Phase 3: tests for draft and edit scenarios
 
 ### Notes
+- On a card-lookup failure, the tutor's own prompt still says 'no cards matching' — contradicts the new UI message
 - EXHAUSTED-AT-SCOPE (round 1, 2026-09-19)
 
 

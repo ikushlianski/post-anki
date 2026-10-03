@@ -3,7 +3,7 @@ import type {
   AskGlobalCardChatResult,
   CardMatchResult,
 } from "@post-anki/shared";
-import { formatTranscript } from "@post-anki/core";
+import { formatTranscript, MIN_MATCH_SIMILARITY } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -48,9 +48,10 @@ export async function askGlobalCardChat(
 
   let matchedCards: CardMatchResult[] = [];
   let matchedCardsForDisplay: AskGlobalCardChatResult["matchedCards"] = [];
+  let lookupFailed = false;
 
   try {
-    matchedCards = await findTopMatchingCards(input.message, TOP_K_CARDS);
+    matchedCards = await findTopMatchingCards(input.message, TOP_K_CARDS, MIN_MATCH_SIMILARITY);
     matchedCardsForDisplay = matchedCards.map((c) => ({
       variantId: c.variantId,
       prompt: c.kind === "fact" ? factPreview(c.prompt) : c.prompt,
@@ -58,7 +59,7 @@ export async function askGlobalCardChat(
     }));
   } catch (err) {
     log.error({ err }, "global_card_chat_card_lookup_failed");
-    // Continue with no matched cards
+    lookupFailed = true;
   }
 
   const prompt = buildPrompt(input, matchedCards);
@@ -74,11 +75,11 @@ export async function askGlobalCardChat(
     const reply = result.text?.trim();
 
     if (reply) {
-      return { reply, matchedCards: matchedCardsForDisplay };
+      return { reply, matchedCards: matchedCardsForDisplay, lookupFailed };
     }
   } catch (err) {
     log.error({ err }, "global_card_chat_failed");
   }
 
-  return { reply: FALLBACK_REPLY, matchedCards: matchedCardsForDisplay };
+  return { reply: FALLBACK_REPLY, matchedCards: matchedCardsForDisplay, lookupFailed };
 }

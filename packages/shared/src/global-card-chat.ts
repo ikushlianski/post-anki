@@ -20,6 +20,7 @@ export type GlobalCardChatMatchedCard = z.infer<typeof globalCardChatMatchedCard
 export const askGlobalCardChatResultSchema = z.object({
   reply: z.string(),
   matchedCards: z.array(globalCardChatMatchedCardSchema),
+  lookupFailed: z.boolean(),
 });
 
 export type AskGlobalCardChatResult = z.infer<typeof askGlobalCardChatResultSchema>;

@@ -11,9 +11,14 @@ interface PanelMessage {
   role: 'user' | 'assistant'
   text: string
   matchedCards?: GlobalCardChatMatchedCard[]
+  lookupFailed?: boolean
 }
 
-function groundingLine(matchedCards: GlobalCardChatMatchedCard[]): string {
+function groundingLine(matchedCards: GlobalCardChatMatchedCard[], lookupFailed?: boolean): string {
+  if (lookupFailed) {
+    return "Couldn't check your cards right now"
+  }
+
   if (matchedCards.length === 0) {
     return 'Not grounded in any of your cards'
   }
@@ -69,6 +74,7 @@ export function GlobalCardChatPanel() {
               role: 'assistant',
               text: result?.reply ?? FALLBACK_REPLY,
               matchedCards: result ? (result.matchedCards ?? []) : undefined,
+              lookupFailed: result?.lookupFailed,
             },
           ])
           scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
@@ -165,7 +171,7 @@ export function GlobalCardChatPanel() {
             </div>
             {message.role === 'assistant' && message.matchedCards ? (
               <p data-testid="global-card-chat-grounding" className="mt-1 text-xs text-neutral-400">
-                {groundingLine(message.matchedCards)}
+                {groundingLine(message.matchedCards, message.lookupFailed)}
               </p>
             ) : null}
           </div>
