@@ -227,10 +227,10 @@ describe("SCENARIO 4 — merging a tag with an active tag-scoped probe session k
     expect(result.error).toBeUndefined();
     expect(result.sessionsMoved).toBe(1);
 
-    const movedSession = await getActiveSessionRow("tag", targetTagId);
+    const movedSession = await getActiveSessionRow("tag", targetTagId, "practice");
     expect(movedSession?.id).toBe(sessionId);
 
-    const deadLookup = await getActiveSessionRow("tag", sourceTagId);
+    const deadLookup = await getActiveSessionRow("tag", sourceTagId, "practice");
     expect(deadLookup).toBeNull();
   });
 
@@ -269,7 +269,7 @@ describe("SCENARIO 4 — merging a tag with an active tag-scoped probe session k
     );
     expect(rows[0]!.n).toBe(2);
 
-    const resolved = await getActiveSessionRow("tag", targetTagId);
+    const resolved = await getActiveSessionRow("tag", targetTagId, "practice");
     expect(resolved).not.toBeNull();
     expect([targetSessionId, sourceSessionId]).toContain(resolved!.id);
   });

@@ -3,6 +3,7 @@ import {
   answerProbeSessionInput,
   prepareProbeSessionInput,
   probeScopeSchema,
+  probeSessionModeSchema,
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
@@ -17,6 +18,7 @@ const STATUS: Record<ProbeSessionError, number> = {
   not_confirmed: 409,
   generation_failed: 502,
   question_not_found: 404,
+  invalid_target_count: 400,
 };
 
 export async function handlePrepareProbeSession(
@@ -44,6 +46,7 @@ export async function handleActiveProbeSession(
   res: http.ServerResponse,
   scopeRaw: string | null,
   scopeId: string | null,
+  modeRaw: string | null,
 ): Promise<void> {
   const scope = probeScopeSchema.safeParse(scopeRaw);
 
@@ -52,7 +55,17 @@ export async function handleActiveProbeSession(
     return;
   }
 
-  const session = await getActiveProbeSession(scope.data, scopeId);
+  // Query-string default, not an internal repo/service default — an old
+  // client (bot, or a not-yet-updated web caller) that never sends `mode`
+  // keeps resolving the practice session it always did.
+  const mode = probeSessionModeSchema.safeParse(modeRaw ?? "practice");
+
+  if (!mode.success) {
+    sendError(res, 400, "invalid_input", "mode must be practice or exam");
+    return;
+  }
+
+  const session = await getActiveProbeSession(scope.data, scopeId, mode.data);
 
   sendJson(res, 200, session);
 }

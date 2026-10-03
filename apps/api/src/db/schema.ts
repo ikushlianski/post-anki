@@ -692,6 +692,10 @@ export const probeSessions = pgTable("probe_sessions", {
   scope: text("scope").notNull(),
   scopeId: text("scope_id").notNull(),
   curriculumId: text("curriculum_id"),
+  // "practice" (default) is the pre-existing open-ended/replenishing/
+  // gap-mastery-feeding session every row before this column existed was —
+  // "exam" is a one-shot, fixed-count mock exam (exam-prep-mock-exam-session).
+  mode: text("mode").notNull().default("practice"),
   status: text("status").notNull().default("active"),
   total: integer("total").notNull().default(0),
   correct: integer("correct").notNull().default(0),

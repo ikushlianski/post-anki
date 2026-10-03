@@ -3,6 +3,7 @@ import {
   answerProbeSessionInput,
   prepareProbeSessionInput,
   probeScopeSchema,
+  probeSessionModeSchema,
   type AnswerProbeSessionResult,
   type ProbeSession,
 } from '@post-anki/shared'
@@ -13,6 +14,7 @@ import * as api from './api-client'
 const getActiveProbeSessionInput = z.object({
   scope: probeScopeSchema,
   scopeId: z.string(),
+  mode: probeSessionModeSchema.optional(),
 })
 
 export const getActiveProbeSession = createServerFn({ method: 'GET' })

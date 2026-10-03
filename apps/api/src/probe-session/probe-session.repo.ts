@@ -8,6 +8,7 @@ import type {
   ProbeQuestionType,
   ProbeScope,
   ProbeSession,
+  ProbeSessionMode,
   ProbeSessionQuestion,
 } from "@post-anki/shared";
 import { deriveSessionProgress } from "@post-anki/core";
@@ -76,6 +77,7 @@ export function rowToSessionQuestion(
 export async function getActiveSessionRow(
   scope: ProbeScope,
   scopeId: string,
+  mode: ProbeSessionMode,
 ): Promise<ProbeSessionRow | null> {
   const rows = await getDb()
     .select()
@@ -84,6 +86,7 @@ export async function getActiveSessionRow(
       and(
         eq(probeSessions.scope, scope),
         eq(probeSessions.scopeId, scopeId),
+        eq(probeSessions.mode, mode),
         // A session's `status` is derived purely from its currently-persisted
         // question rows (deriveSessionProgress) and can read "completed" for
         // the moment between the learner's last loaded answer and a
@@ -148,10 +151,12 @@ export async function loadSession(id: string): Promise<ProbeSession | null> {
     scope: row.scope as ProbeScope,
     scopeId: row.scopeId,
     curriculumId: row.curriculumId,
+    mode: row.mode as ProbeSessionMode,
     status: progress.status,
     total: progress.total,
     correct: progress.correct,
     answered: progress.answered,
+    createdAt: row.createdAt.toISOString(),
     questions,
   };
 }
@@ -200,6 +205,20 @@ export async function tryClaimReplenish(sessionId: string): Promise<boolean> {
   return rows.length > 0;
 }
 
+// Closes out a session in place, preserving its rows — unlike
+// deleteSessionsForScope, which removes a stale session entirely. Used for
+// an exam's "retake" path: a timed-out exam's answers must stay counted in
+// answered-question history/analytics (S5), so retaking closes the old
+// session out as completed rather than deleting it, then a fresh session is
+// created alongside it with no scope collision (getActiveSessionRow only
+// ever returns an `active`/`replenishing` row).
+export async function markSessionCompleted(sessionId: string, now: string): Promise<void> {
+  await getDb()
+    .update(probeSessions)
+    .set({ status: "completed", completedAt: new Date(now) })
+    .where(eq(probeSessions.id, sessionId));
+}
+
 export async function releaseReplenish(sessionId: string): Promise<void> {
   await getDb()
     .update(probeSessions)
@@ -243,6 +262,7 @@ export async function listAnsweredTopicOutcomesForSession(
 // learner done this at least once", not "is the current session done".
 export async function getCalibrationCompletionForCurriculum(
   curriculumId: string,
+  mode: ProbeSessionMode,
 ): Promise<{ calibrationCompletedAt: string | null }> {
   const rows = await getDb()
     .select({ completedAt: probeSessions.completedAt })
@@ -252,6 +272,7 @@ export async function getCalibrationCompletionForCurriculum(
         eq(probeSessions.scope, "curriculum"),
         eq(probeSessions.scopeId, curriculumId),
         eq(probeSessions.status, "completed"),
+        eq(probeSessions.mode, mode),
       ),
     )
     .orderBy(desc(probeSessions.completedAt))
@@ -290,6 +311,7 @@ export async function syncSessionCounters(
 export async function deleteSessionsForScope(
   scope: ProbeScope,
   scopeId: string,
+  mode: ProbeSessionMode,
 ): Promise<void> {
   const db = getDb();
   const rows = await db
@@ -299,6 +321,7 @@ export async function deleteSessionsForScope(
       and(
         eq(probeSessions.scope, scope),
         eq(probeSessions.scopeId, scopeId),
+        eq(probeSessions.mode, mode),
         ne(probeSessions.status, "completed"),
       ),
     );

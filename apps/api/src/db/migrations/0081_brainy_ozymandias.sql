@@ -1,0 +1,1 @@
+ALTER TABLE "probe_sessions" ADD COLUMN "mode" text DEFAULT 'practice' NOT NULL;

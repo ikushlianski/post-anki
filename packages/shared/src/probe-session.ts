@@ -20,6 +20,14 @@ export const probeSessionStatusSchema = z.enum(["active", "completed"]);
 
 export type ProbeSessionStatus = z.infer<typeof probeSessionStatusSchema>;
 
+// "practice" is the open-ended, replenishing, gap-mastery-feeding quiz every
+// existing session was before this field existed — "exam" is a one-shot,
+// fixed-count, timed mock exam that never grows and never touches gap
+// mastery/topic-depth state (see exam-prep-mock-exam-session's spec.md).
+export const probeSessionModeSchema = z.enum(["practice", "exam"]);
+
+export type ProbeSessionMode = z.infer<typeof probeSessionModeSchema>;
+
 export const probeQuestionTypeSchema = z.enum(["single", "multi"]);
 
 export type ProbeQuestionType = z.infer<typeof probeQuestionTypeSchema>;
@@ -56,10 +64,15 @@ export const probeSessionSchema = z.object({
   scope: probeScopeSchema,
   scopeId: z.string(),
   curriculumId: z.string().nullable(),
+  mode: probeSessionModeSchema,
   status: probeSessionStatusSchema,
   total: z.number().int(),
   correct: z.number().int(),
   answered: z.number().int(),
+  // ISO timestamp — the mock-exam timer derives its remaining time from this
+  // plus a fixed per-question allowance rather than a stored deadline column
+  // (architecture.md's "timer is client-only, no new column" decision).
+  createdAt: z.string(),
   questions: z.array(probeSessionQuestionSchema),
 });
 
@@ -70,6 +83,10 @@ export const prepareProbeSessionInput = z.object({
   scopeId: z.string(),
   regenerate: z.boolean().optional(),
   allowMultiSelect: z.boolean().optional(),
+  mode: probeSessionModeSchema.optional(),
+  // Only meaningful (and validated) when mode === "exam" — see
+  // prepareProbeSession's own validation against the fixed [10, 20, 30] menu.
+  targetCount: z.number().int().optional(),
 });
 
 export type PrepareProbeSessionInput = z.infer<typeof prepareProbeSessionInput>;

@@ -139,6 +139,14 @@ function CurriculumPage() {
           >
             View stats
           </Link>
+          <Link
+            to="/curriculum/$curriculumId/exam"
+            params={{ curriculumId: curriculum.id }}
+            data-testid="mock-exam-link"
+            className="text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900"
+          >
+            Mock exam
+          </Link>
         </div>
         {curriculum.description ? (
           <p className="mt-1 text-sm text-neutral-500">

@@ -30,10 +30,12 @@ function activeSession(): ProbeSession {
     scope: 'curriculum',
     scopeId: CURRICULUM_ID,
     curriculumId: CURRICULUM_ID,
+    mode: 'practice',
     status: 'active',
     total: 1,
     correct: 0,
     answered: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
     questions: [
       {
         id: 'q1',
@@ -87,10 +89,12 @@ function topicSession(): ProbeSession {
     scope: 'topic',
     scopeId: TOPIC_ID,
     curriculumId: CURRICULUM_ID,
+    mode: 'practice',
     status: 'active',
     total: 15,
     correct: 4,
     answered: 4,
+    createdAt: '2026-01-01T00:00:00.000Z',
     questions: [
       {
         id: 'q1',

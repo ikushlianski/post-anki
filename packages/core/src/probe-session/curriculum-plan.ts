@@ -27,19 +27,24 @@ export const CURRICULUM_QUIZ_MAX_TOTAL = 20;
  * which is for ongoing practice): a calibration probe's whole purpose is a
  * clean per-topic strong/weak signal, and a question spanning two topics
  * can't attribute a wrong answer to either one.
+ *
+ * `targetOverride` — when given, replaces BOTH the 10-20 clamp and the topic
+ * cap with this exact number (a mock exam's fixed question count, which can
+ * exceed 20 — see exam-prep-mock-exam-session). Omitted, behavior is
+ * unchanged from before this parameter existed.
  */
 export function planCurriculumQuizDistribution(
   topics: CurriculumQuizTopicInput[],
+  targetOverride?: number,
 ): CurriculumQuizPlan {
   if (topics.length === 0) {
     return { perTopic: [], integrative: 0, total: 0 };
   }
 
-  const ranked = [...topics]
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, CURRICULUM_QUIZ_MAX_TOTAL);
+  const topicCap = targetOverride ?? CURRICULUM_QUIZ_MAX_TOTAL;
+  const ranked = [...topics].sort((a, b) => b.priority - a.priority).slice(0, topicCap);
   const n = ranked.length;
-  const target = Math.max(n, CURRICULUM_QUIZ_MIN_TOTAL);
+  const target = targetOverride ?? Math.max(n, CURRICULUM_QUIZ_MIN_TOTAL);
 
   const counts = new Map(ranked.map((t) => [t.topicId, 1]));
   let remaining = target - n;

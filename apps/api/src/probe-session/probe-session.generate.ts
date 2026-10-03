@@ -56,9 +56,10 @@ const TOPIC_QUIZ_CEILING = 20;
 // to be as large as the first batch to still be useful.
 const REPLENISH_BATCH_SIZE = MIN_TOTAL;
 
-function curriculumPlanFor(ctx: ScopeContext): CurriculumQuizPlan {
+function curriculumPlanFor(ctx: ScopeContext, targetOverride?: number): CurriculumQuizPlan {
   return planCurriculumQuizDistribution(
     ctx.topics.map((t) => ({ topicId: t.id, priority: t.priority })),
+    targetOverride,
   );
 }
 
@@ -191,6 +192,12 @@ async function buildPrompt(
   grounding: string,
   allowMultiSelect: boolean,
   knownUrlBlock: string,
+  // A mock exam's explicit question count (see exam-prep-mock-exam-session) —
+  // when present, overrides the scope's own distribution plan so the
+  // per-topic counts below actually sum to `total` instead of the plan's own
+  // independently-clamped total (relevant once `total` exceeds the plan's
+  // normal 20-question/16-question ceiling).
+  targetCount?: number,
 ): Promise<string> {
   const header = [
     `Produce exactly ${total} quiz questions that TEST the learner's knowledge.`,
@@ -228,7 +235,7 @@ async function buildPrompt(
   }
 
   if (scope === "curriculum") {
-    const plan = curriculumPlanFor(ctx);
+    const plan = curriculumPlanFor(ctx, targetCount);
     const countByTopicId = new Map(plan.perTopic.map((p) => [p.topicId, p.count]));
 
     const topicBlocks = ctx.topics
@@ -260,7 +267,7 @@ async function buildPrompt(
 
   const plan = planModuleQuizDistribution(
     ctx.topics.map((t) => t.id),
-    MODULE_TARGET,
+    targetCount ?? MODULE_TARGET,
   );
   const countByTopicId = new Map(plan.perTopic.map((p) => [p.topicId, p.count]));
 
@@ -444,8 +451,8 @@ function selectGaps(
  * fallback for an unmatched question) pointing at one of the topics actually
  * asked about.
  */
-function narrowToCurriculumPlan(ctx: ScopeContext): ScopeContext {
-  const plan = curriculumPlanFor(ctx);
+function narrowToCurriculumPlan(ctx: ScopeContext, targetCount?: number): ScopeContext {
+  const plan = curriculumPlanFor(ctx, targetCount);
   const chosenIds = new Set(plan.perTopic.map((p) => p.topicId));
 
   return { ...ctx, topics: ctx.topics.filter((t) => chosenIds.has(t.id)) };
@@ -455,17 +462,19 @@ export async function generateProbeBatch(
   scope: ProbeScope,
   ctx: ScopeContext,
   allowMultiSelect = false,
+  // A mock exam's fixed question count (exam-prep-mock-exam-session) — when
+  // present, used directly as the batch's total instead of targetTotal()'s
+  // scope-derived value.
+  targetCount?: number,
 ): Promise<GeneratedBatch> {
-  const scopedCtx = scope === "curriculum" ? narrowToCurriculumPlan(ctx) : ctx;
+  const scopedCtx = scope === "curriculum" ? narrowToCurriculumPlan(ctx, targetCount) : ctx;
   const topicCtx = await loadTopicContext(scopedCtx);
   const { gapsByTopic, gapIdByKey, topicIdByTitle, feedbackByTopic, priorLevelCoverageByTopic } =
     selectGaps(scopedCtx, topicCtx, "all");
 
-  const total = targetTotal(
-    scope,
-    scopedCtx,
-    gapsByTopic.get(scopedCtx.topics[0]?.id ?? "")?.length ?? 0,
-  );
+  const total =
+    targetCount ??
+    targetTotal(scope, scopedCtx, gapsByTopic.get(scopedCtx.topics[0]?.id ?? "")?.length ?? 0);
 
   return runGeneration(
     scope,
@@ -477,6 +486,7 @@ export async function generateProbeBatch(
     topicIdByTitle,
     feedbackByTopic,
     priorLevelCoverageByTopic,
+    targetCount,
   );
 }
 
@@ -523,6 +533,7 @@ async function runGeneration(
   topicIdByTitle: Map<string, string>,
   feedbackByTopic: Map<string, string | null>,
   priorLevelCoverageByTopic: Map<string, string[]>,
+  targetCount?: number,
 ): Promise<GeneratedBatch> {
   // Grounding is gathered per distinct curriculum, not once per ctx —
   // ctx.curriculumId is only a single value for module/topic scope. For a
@@ -603,6 +614,7 @@ async function runGeneration(
     combinedGroundingText,
     allowMultiSelect,
     combinedKnownUrlBlock,
+    targetCount,
   );
 
   try {

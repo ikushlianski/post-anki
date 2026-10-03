@@ -91,7 +91,7 @@ export async function isSocraticGatedByCalibration(topicId: string): Promise<boo
     return false;
   }
 
-  const completion = await getCalibrationCompletionForCurriculum(ctx.curriculumId);
+  const completion = await getCalibrationCompletionForCurriculum(ctx.curriculumId, "practice");
 
   return isCalibrationRequiredForSocratic(completion);
 }

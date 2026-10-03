@@ -1348,10 +1348,13 @@ export async function getGapMasteryCrossCuttingNudges(): Promise<
 export async function getActiveProbeSession(input: {
   scope: be.ProbeScope
   scopeId: string
+  mode?: be.ProbeSessionMode
 }): Promise<be.ProbeSession | null> {
   try {
+    const modeParam = input.mode ? `&mode=${encodeURIComponent(input.mode)}` : ''
+
     return await request<be.ProbeSession | null>(
-      `/probe-sessions/active?scope=${encodeURIComponent(input.scope)}&scopeId=${encodeURIComponent(input.scopeId)}`,
+      `/probe-sessions/active?scope=${encodeURIComponent(input.scope)}&scopeId=${encodeURIComponent(input.scopeId)}${modeParam}`,
     )
   } catch {
     return null
@@ -1363,6 +1366,8 @@ export async function prepareProbeSession(input: {
   scopeId: string
   regenerate?: boolean
   allowMultiSelect?: boolean
+  mode?: be.ProbeSessionMode
+  targetCount?: number
 }): Promise<be.ProbeSession | null> {
   try {
     return await request<be.ProbeSession>('/probe-sessions', {

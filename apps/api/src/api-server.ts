@@ -501,6 +501,7 @@ async function route(
         res,
         url.searchParams.get("scope"),
         url.searchParams.get("scopeId"),
+        url.searchParams.get("mode"),
       );
     case "answerProbeSession":
       return handleAnswerProbeSession(req, res, id);

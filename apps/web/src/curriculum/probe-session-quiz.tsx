@@ -9,6 +9,7 @@ import type {
   OptionExplanation,
   ProbeScope,
   ProbeSession,
+  ProbeSessionMode,
   ProbeSessionQuestion,
 } from '@post-anki/shared'
 
@@ -26,8 +27,12 @@ import {
 import { ItemFeedbackButtons } from '../feedback/item-feedback-buttons'
 import { CaptureQuestionButton } from '../open-questions/capture-question-button'
 
-export function probeSessionQueryKey(scope: ProbeScope, scopeId: string) {
-  return ['probe-session', scope, scopeId] as const
+export function probeSessionQueryKey(
+  scope: ProbeScope,
+  scopeId: string,
+  mode: ProbeSessionMode = 'practice',
+) {
+  return ['probe-session', scope, scopeId, mode] as const
 }
 
 function nextQuestion(
@@ -80,30 +85,44 @@ export function ProbeSessionQuiz({
   topicId,
   scope = 'topic',
   scopeId,
+  mode = 'practice',
+  targetCount,
+  locked = false,
   hasCitableSources = true,
   onAskAboutThis,
 }: {
   topicId?: string
   scope?: ProbeScope
   scopeId?: string
+  // "exam" (mock-exam-session) skips the replenish refetch below and is
+  // given its own query-cache slot (probeSessionQueryKey) so an exam never
+  // shares a cache entry with a practice session on the same scope/scopeId.
+  mode?: ProbeSessionMode
+  // Only meaningful when mode === "exam" and no session exists yet for this
+  // scope — the fixed question count the exam start screen already asked
+  // the learner to pick.
+  targetCount?: number
+  // Set by the mock-exam wrapper once its client-side timer reaches zero —
+  // blocks further submission without touching the session itself.
+  locked?: boolean
   hasCitableSources?: boolean
   onAskAboutThis?: (seed: string) => void
 }) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const resolvedScopeId = scopeId ?? topicId ?? ''
-  const queryKey = probeSessionQueryKey(scope, resolvedScopeId)
+  const queryKey = probeSessionQueryKey(scope, resolvedScopeId, mode)
 
   const { data: session, isLoading } = useQuery({
     queryKey,
     queryFn: () =>
-      getActiveProbeSession({ data: { scope, scopeId: resolvedScopeId } }),
+      getActiveProbeSession({ data: { scope, scopeId: resolvedScopeId, mode } }),
   })
 
   const generateMutation = useMutation({
     mutationFn: () =>
       prepareProbeSession({
-        data: { scope, scopeId: resolvedScopeId, allowMultiSelect: true },
+        data: { scope, scopeId: resolvedScopeId, allowMultiSelect: true, mode, targetCount },
       }),
     onSuccess: (result) => {
       queryClient.setQueryData(queryKey, result)
@@ -213,6 +232,7 @@ export function ProbeSessionQuiz({
       // stale invalidate degrades into the same accepted staleness window
       // already described above.
       if (
+        mode !== 'exam' &&
         !isOneShotProbeScope(scope) &&
         !hasEarlyMasterySignal(result.correct, result.answered) &&
         shouldReplenish(result.total, result.answered, REPLENISH_FLOOR)
@@ -223,7 +243,7 @@ export function ProbeSessionQuiz({
   })
 
   function submitSingle(index: number) {
-    if (!current || answered || mutation.isPending) {
+    if (!current || answered || mutation.isPending || locked) {
       return
     }
 
@@ -231,7 +251,7 @@ export function ProbeSessionQuiz({
   }
 
   function toggleMulti(index: number) {
-    if (answered) {
+    if (answered || locked) {
       return
     }
 
@@ -241,7 +261,7 @@ export function ProbeSessionQuiz({
   }
 
   function submitMulti() {
-    if (!current || answered || mutation.isPending || selectedMulti.length === 0) {
+    if (!current || answered || mutation.isPending || selectedMulti.length === 0 || locked) {
       return
     }
 
@@ -353,7 +373,7 @@ export function ProbeSessionQuiz({
                 <input
                   type="checkbox"
                   className="mr-2"
-                  disabled={answered || mutation.isPending}
+                  disabled={answered || mutation.isPending || locked}
                   checked={selectedMulti.includes(index)}
                   onChange={() => toggleMulti(index)}
                 />
@@ -363,7 +383,7 @@ export function ProbeSessionQuiz({
               <button
                 type="button"
                 data-testid={`quiz-option-${index}`}
-                disabled={answered || mutation.isPending}
+                disabled={answered || mutation.isPending || locked}
                 onClick={() => submitSingle(index)}
                 className={singleOptionClass(current, index)}
               >
@@ -384,7 +404,7 @@ export function ProbeSessionQuiz({
         <button
           type="button"
           data-testid="quiz-submit-multi"
-          disabled={mutation.isPending || selectedMulti.length === 0}
+          disabled={mutation.isPending || selectedMulti.length === 0 || locked}
           onClick={submitMulti}
           className="mt-3 rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
         >

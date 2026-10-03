@@ -39,10 +39,12 @@ function session(questions: ProbeSessionQuestion[]): ProbeSession {
     scope: "topic",
     scopeId: "t1",
     curriculumId: "c1",
+    mode: "practice",
     status: "active",
     total: questions.length,
     correct: 0,
     answered: 0,
+    createdAt: "2026-01-01T00:00:00.000Z",
     questions,
   };
 }

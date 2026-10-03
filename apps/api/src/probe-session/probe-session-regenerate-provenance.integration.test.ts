@@ -124,7 +124,7 @@ describe("deleteSessionsForScope spares completed quiz history on regenerate", (
     await insertSession(activeSessionId, "topic", scopeId, "active");
     const activeQuestionId = await insertQuestion(activeSessionId);
 
-    await deleteSessionsForScope("topic", scopeId);
+    await deleteSessionsForScope("topic", scopeId, "practice");
 
     expect(await sessionExists(completedSessionId)).toBe(true);
     expect(await questionExists(completedQuestionId)).toBe(true);

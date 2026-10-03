@@ -17,7 +17,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Let the learner pick which subject or tag a mock exam draws from
-- [ ] Build a mock-exam session: fixed question count, timer, final score
+- [x] Build a mock-exam session: fixed question count, timer, final score
 - [x] Add a link field to the add-knowledge screen alongside paste
 - [x] Let a knowledge source be a web link, fetched safely and turned into text
 

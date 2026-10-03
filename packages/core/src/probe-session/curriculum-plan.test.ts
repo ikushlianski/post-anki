@@ -92,4 +92,32 @@ describe("planCurriculumQuizDistribution", () => {
 
     plan.perTopic.forEach((slot) => expect(slot.count).toBe(1));
   });
+
+  // exam-prep-mock-exam-session — a mock exam's fixed question count can
+  // exceed the 20-question calibration ceiling; targetOverride replaces
+  // both the 10-20 clamp and the topic cap so perTopic always sums to it.
+  it("targetOverride replaces the 10-20 clamp with an exact count, even above 20", () => {
+    const topics = Array.from({ length: 5 }, (_, i) => ({
+      topicId: `t${i}`,
+      priority: 0,
+    }));
+
+    const plan = planCurriculumQuizDistribution(topics, 30);
+
+    expect(plan.total).toBe(30);
+    expect(plan.perTopic.reduce((sum, slot) => sum + slot.count, 0)).toBe(30);
+  });
+
+  it("targetOverride below the topic count still only drops the lowest-priority topics, one each", () => {
+    const topics = Array.from({ length: 15 }, (_, i) => ({
+      topicId: `t${i}`,
+      priority: i < 10 ? 1 : -1,
+    }));
+
+    const plan = planCurriculumQuizDistribution(topics, 10);
+
+    expect(plan.total).toBe(10);
+    expect(plan.perTopic).toHaveLength(10);
+    plan.perTopic.forEach((slot) => expect(slot.count).toBe(1));
+  });
 });

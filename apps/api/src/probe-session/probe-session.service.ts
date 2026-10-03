@@ -6,6 +6,7 @@ import type {
   ProbeOutcome,
   ProbeScope,
   ProbeSession,
+  ProbeSessionMode,
   ProbeSessionStatus,
 } from "@post-anki/shared";
 import {
@@ -42,6 +43,7 @@ import {
   getSessionRow,
   listAnsweredTopicOutcomesForSession,
   loadSession,
+  markSessionCompleted,
   recordAnswer,
   releaseReplenish,
   syncSessionCounters,
@@ -58,16 +60,33 @@ import { buildQuestionRows } from "./probe-session.map.js";
 // sensible minimum viable batch.
 const REPLENISH_FLOOR = 10;
 
+// The only question counts a mock exam may ask for (spec.md's "fixed, safe
+// menu" decision) — a free-form number risks an unbounded single
+// model-generation call.
+const EXAM_TARGET_COUNTS = [10, 20, 30] as const;
+
 export type ProbeSessionError =
   | "not_found"
   | "not_confirmed"
   | "generation_failed"
-  | "question_not_found";
+  | "question_not_found"
+  | "invalid_target_count";
 
 export async function prepareProbeSession(
   input: PrepareProbeSessionInput,
   now: string,
 ): Promise<ProbeSession | { error: ProbeSessionError }> {
+  const mode: ProbeSessionMode = input.mode ?? "practice";
+
+  if (mode === "exam") {
+    if (
+      input.targetCount === undefined ||
+      !EXAM_TARGET_COUNTS.includes(input.targetCount as (typeof EXAM_TARGET_COUNTS)[number])
+    ) {
+      return { error: "invalid_target_count" };
+    }
+  }
+
   const ctx = await getScopeContext(input.scope, input.scopeId);
 
   if (!ctx) {
@@ -79,9 +98,22 @@ export async function prepareProbeSession(
   }
 
   if (input.regenerate) {
-    await deleteSessionsForScope(input.scope, input.scopeId);
+    if (mode === "exam") {
+      // An exam's retake never deletes the old session outright — a
+      // timed-out exam's already-answered questions must stay counted in
+      // answered-question history/analytics (S5), so the stale session is
+      // closed out as completed instead (markSessionCompleted), freeing up
+      // the "active exam for this scope" slot without losing its data.
+      const stale = await getActiveSessionRow(input.scope, input.scopeId, mode);
+
+      if (stale) {
+        await markSessionCompleted(stale.id, now);
+      }
+    } else {
+      await deleteSessionsForScope(input.scope, input.scopeId, mode);
+    }
   } else {
-    const active = await getActiveSessionRow(input.scope, input.scopeId);
+    const active = await getActiveSessionRow(input.scope, input.scopeId, mode);
 
     if (active) {
       const existing = await loadSession(active.id);
@@ -92,10 +124,13 @@ export async function prepareProbeSession(
     }
   }
 
+  const targetCount = mode === "exam" ? input.targetCount : undefined;
+
   const batch = await generateProbeBatch(
     input.scope,
     ctx,
     input.allowMultiSelect ?? false,
+    targetCount,
   );
 
   if (batch.questions.length === 0) {
@@ -114,20 +149,42 @@ export async function prepareProbeSession(
     makePermutation: randomPermutation,
   });
 
+  // A mock exam's row count must never exceed its requested targetCount,
+  // even if the model over-generated — the fixed-count guarantee (S2) is
+  // the whole point of exam mode. Under-generation is accepted as-is and
+  // logged, same degrade-gracefully posture as a practice batch's own
+  // generation_failed handling.
+  const boundedRows = targetCount !== undefined ? rows.slice(0, targetCount) : rows;
+
+  if (targetCount !== undefined && boundedRows.length < targetCount) {
+    log.warn(
+      { scope: input.scope, scopeId: input.scopeId, targetCount, actual: boundedRows.length },
+      "exam_batch_under_target_count",
+    );
+  }
+
+  // `createdAt` is taken here, AFTER generation completes, not from the
+  // `now` the controller captured before this function started — an exam's
+  // client-side timer derives its countdown from `createdAt`
+  // (exam-timer.ts), so starting the clock before a possibly slow
+  // generation call would silently burn minutes off a learner's exam before
+  // they ever see a question. Harmless for practice, which doesn't read
+  // `createdAt` for anything timing-sensitive.
   const created = await createSessionWithQuestions(
     {
       id: sessionId,
       scope: input.scope,
       scopeId: input.scopeId,
       curriculumId: ctx.curriculumId,
+      mode,
       status: "active",
-      total: rows.length,
+      total: boundedRows.length,
       correct: 0,
       answered: 0,
-      createdAt: new Date(now),
+      createdAt: new Date(),
       completedAt: null,
     },
-    rows,
+    boundedRows,
   );
 
   return created ?? { error: "not_found" };
@@ -136,8 +193,9 @@ export async function prepareProbeSession(
 export async function getActiveProbeSession(
   scope: ProbeScope,
   scopeId: string,
+  mode: ProbeSessionMode,
 ): Promise<ProbeSession | null> {
-  const active = await getActiveSessionRow(scope, scopeId);
+  const active = await getActiveSessionRow(scope, scopeId, mode);
 
   if (!active) {
     return null;
@@ -191,8 +249,13 @@ export async function answerProbeSession(
 
   let coveredGapLabels: string[] = [];
   let gapMastery: AnswerProbeSessionResult["gapMastery"] = null;
+  // An exam is a one-shot assessment, not a practice/spaced-repetition loop
+  // (spec.md's "exam answers don't feed gap mastery or topic progress") — it
+  // still calls recordAnswer/syncSessionCounters above/below unconditionally,
+  // so the score and answered-question history are unaffected.
+  const isPractice = session.mode !== "exam";
 
-  if (question.topicId) {
+  if (isPractice && question.topicId) {
     if (isFreshAnswer && (question.gapId || question.gapLabel)) {
       const topicRow = await getTopicRow(question.topicId);
       const topicDepth = topicRow ? rowDepth(topicRow) : "working";
@@ -242,7 +305,12 @@ export async function answerProbeSession(
   // later answer replay against an already-completed session.
   let courseLengthRecommendation: CourseLengthRecommendationResult | null = null;
 
-  if (session.scope === "curriculum" && session.completedAt === null && progress.status === "completed") {
+  if (
+    session.scope === "curriculum" &&
+    session.completedAt === null &&
+    progress.status === "completed" &&
+    session.mode === "practice"
+  ) {
     try {
       courseLengthRecommendation = await electDepthsOnCalibrationCompletion(input.sessionId, now);
     } catch (err) {
@@ -314,6 +382,13 @@ async function maybeReplenish(
   session: ProbeSessionRow,
   progress: { total: number; answered: number; correct: number },
 ): Promise<void> {
+  // A mock exam never grows regardless of scope (spec.md) — checked ahead of
+  // the one-shot-scope check below, which only ever applies to curriculum
+  // scope and would otherwise let a topic/module/tag exam grow mid-exam.
+  if (session.mode === "exam") {
+    return;
+  }
+
   // A curriculum-wide calibration probe is a single one-shot batch (per its
   // own spec) — it must never grow mid-session the way an ongoing topic/
   // module/tag practice queue does.
