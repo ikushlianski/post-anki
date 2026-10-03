@@ -4,11 +4,11 @@ import type { CardMatchResult, TriggerCardEmbeddingScanResult } from "@post-anki
 import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
-import { compileCards } from "./cards.orchestrator.js";
+import { startCardsManually } from "./cards.orchestrator.js";
 import { triggerCardEmbeddingScan } from "./cards-embedding.orchestrator.js";
 import { embedFacts } from "../facts/facts-embedding.orchestrator.js";
 import { findTopMatchingCards } from "./cards-retrieval.orchestrator.js";
-import { getCardsByTopic, getCurriculumCardsSummary, startGeneratingCards } from "./cards.repo.js";
+import { getCardsByTopic, getCurriculumCardsSummary } from "./cards.repo.js";
 import { listCardsForCurriculum } from "./list-cards-for-curriculum.repo.js";
 
 const CARD_MATCH_DEFAULT_LIMIT = 10;
@@ -24,13 +24,10 @@ export async function handleCompileCards(
     return;
   }
 
-  const cardSet = await startGeneratingCards(topicId);
+  const { cardSet, alreadyInProgress } = await startCardsManually(topicId);
 
-  sendJson(res, 202, cardSet);
-
-  void compileCards(topicId).catch((err) =>
-    log.error({ err, topicId }, "cards_compile_dispatch_failed"),
-  );
+  // Already generating in the background — a no-op, not an error.
+  sendJson(res, alreadyInProgress ? 200 : 202, cardSet);
 }
 
 export async function handleGetCards(

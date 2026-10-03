@@ -74,16 +74,19 @@ async function rowToCardSet(
   };
 }
 
-export async function getCardsByTopic(topicId: string): Promise<TopicCardSet | null> {
+export async function getCardsByTopic(
+  topicId: string,
+  db: DbExecutor = getDb(),
+): Promise<TopicCardSet | null> {
   const row = (
-    await getDb().select().from(topicCardSets).where(eq(topicCardSets.topicId, topicId))
+    await db.select().from(topicCardSets).where(eq(topicCardSets.topicId, topicId))
   )[0];
 
   if (!row) {
     return null;
   }
 
-  return rowToCardSet(row);
+  return rowToCardSet(row, db);
 }
 
 // A curriculum-wide count, not a per-topic one — lets the course-level view

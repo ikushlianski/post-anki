@@ -54,7 +54,7 @@ vi.mock("../shared/embeddings-client.js", () => ({
   embedTexts: vi.fn(async () => []),
 }));
 
-const { maybeStartCardsInBackground } = await import("./cards.orchestrator.js");
+const { maybeStartCardsInBackground, startCardsManually } = await import("./cards.orchestrator.js");
 
 let client: pg.Client;
 
@@ -219,5 +219,63 @@ describe("maybeStartCardsInBackground recovering from a crashed run (real Postgr
     });
 
     expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("startCardsManually alongside a background-triggered run (real Postgres)", () => {
+  it("does not start a second compileCards call while a background run is already in progress", async () => {
+    const topicId = await seedTopic();
+
+    let resolveGenerate!: (value: unknown) => void;
+    mockAgentGenerate.mockImplementation(
+      () => new Promise((resolve) => (resolveGenerate = resolve)),
+    );
+
+    await maybeStartCardsInBackground(topicId);
+    await vi.waitFor(() => expect(mockAgentGenerate).toHaveBeenCalledTimes(1));
+
+    const manualResult = await startCardsManually(topicId);
+
+    expect(manualResult.alreadyInProgress).toBe(true);
+    expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
+
+    resolveGenerate({ object: { cards: [{ concept: "Concept A", variants: [] }] } });
+    await vi.waitFor(async () => {
+      expect(await cardSetStatus(topicId)).toBe("ready");
+    });
+  });
+
+  it("starts exactly one generation when both race for the same topic at once", async () => {
+    const topicId = await seedTopic();
+
+    mockAgentGenerate.mockResolvedValue({
+      object: { cards: [{ concept: "Concept A", variants: [] }] },
+    });
+
+    await Promise.all([maybeStartCardsInBackground(topicId), startCardsManually(topicId)]);
+
+    await vi.waitFor(async () => {
+      expect(await cardSetStatus(topicId)).toBe("ready");
+    });
+
+    expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("still regenerates on a manual click against an already-ready card set", async () => {
+    const topicId = await seedTopic();
+
+    mockAgentGenerate.mockResolvedValue({
+      object: { cards: [{ concept: "Concept A", variants: [] }] },
+    });
+
+    await startCardsManually(topicId);
+    await vi.waitFor(async () => {
+      expect(await cardSetStatus(topicId)).toBe("ready");
+    });
+
+    const result = await startCardsManually(topicId);
+
+    expect(result.alreadyInProgress).toBe(false);
+    await vi.waitFor(() => expect(mockAgentGenerate).toHaveBeenCalledTimes(2));
   });
 });

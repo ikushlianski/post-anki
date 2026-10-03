@@ -1,4 +1,4 @@
-import type { Gap } from "@post-anki/shared";
+import type { Gap, TopicCardSet } from "@post-anki/shared";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
@@ -13,6 +13,7 @@ import { listGapsForTopic } from "../gap/gap.repo.js";
 import { cardsPlanSchema } from "./cards-plan.schema.js";
 import { embedVariantsForTopic } from "./cards-embedding.orchestrator.js";
 import {
+  getCardsByTopic,
   hasCardsGeneratedOrInProgress,
   replaceCardsContent,
   setCardsStatus,
@@ -74,6 +75,34 @@ export async function maybeStartCardsInBackground(topicId: string): Promise<void
   void compileCards(topicId).catch((err) =>
     log.error({ err, topicId }, "cards_compile_dispatch_failed"),
   );
+}
+
+export interface StartCardsManuallyResult {
+  cardSet: TopicCardSet;
+  alreadyInProgress: boolean;
+}
+
+// Same per-topic lock as the background trigger, but unlike it, a manual
+// click against a "ready" set is a deliberate regenerate, not a duplicate.
+export async function startCardsManually(topicId: string): Promise<StartCardsManuallyResult> {
+  const result = await withSubjectLock(topicId, async (tx) => {
+    const existing = await getCardsByTopic(topicId, tx);
+
+    if (existing?.status === "generating" && (await hasCardsGeneratedOrInProgress(topicId, tx))) {
+      return { cardSet: existing, alreadyInProgress: true };
+    }
+
+    const cardSet = await startGeneratingCards(topicId, tx);
+    return { cardSet, alreadyInProgress: false };
+  });
+
+  if (!result.alreadyInProgress) {
+    void compileCards(topicId).catch((err) =>
+      log.error({ err, topicId }, "cards_compile_dispatch_failed"),
+    );
+  }
+
+  return result;
 }
 
 export async function compileCards(topicId: string): Promise<void> {
