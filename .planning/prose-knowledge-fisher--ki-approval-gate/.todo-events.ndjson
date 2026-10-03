@@ -22,3 +22,5 @@
 {"ts":"2026-10-03T23:31:42.780Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Close the scan-vs-reject race that can link a just-rejected bit"}
 {"ts":"2026-10-03T23:42:29.749Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Re-check a variant is still active after taking the bit lock on edit"}
 {"ts":"2026-10-03T23:42:34.051Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Test the rejected-bit variant-edit guard leaves the row untouched"}
+{"ts":"2026-10-03T23:53:31.676Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"added","direction":null,"itemText":"Trim the markKnowledgeBitMatched comment to the 2-line convention"}
+{"ts":"2026-10-03T23:56:30.122Z","sessionId":"dcaa77d4-6ba0-4089-8fcc-1b8b68cc3fb8","event":"done","direction":null,"itemText":"Trim the markKnowledgeBitMatched comment to the 2-line convention"}

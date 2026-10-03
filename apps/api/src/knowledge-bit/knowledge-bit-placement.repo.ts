@@ -59,7 +59,7 @@ export async function listTopicsForPlacement(
     .limit(TOPIC_HIERARCHY_PROMPT_LIMIT);
 }
 
-// Body guard: no-ops if the body changed since the scan read it, so the next scan retries.
+// No-ops if the body or approval state changed since the scan read it.
 export async function markKnowledgeBitMatched(
   id: string,
   topicId: string,
@@ -69,7 +69,13 @@ export async function markKnowledgeBitMatched(
   await db
     .update(knowledgeBits)
     .set({ topicId, placementCheckedAt: new Date() })
-    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
+    .where(
+      and(
+        eq(knowledgeBits.id, id),
+        eq(knowledgeBits.body, expectedBody),
+        ne(knowledgeBits.approvalState, "rejected"),
+      ),
+    );
 }
 
 export async function markKnowledgeBitSuggested(
@@ -81,7 +87,13 @@ export async function markKnowledgeBitSuggested(
   await db
     .update(knowledgeBits)
     .set({ placementSuggestion: suggestion, placementCheckedAt: new Date() })
-    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
+    .where(
+      and(
+        eq(knowledgeBits.id, id),
+        eq(knowledgeBits.body, expectedBody),
+        ne(knowledgeBits.approvalState, "rejected"),
+      ),
+    );
 }
 
 export async function markKnowledgeBitPlacementFailed(

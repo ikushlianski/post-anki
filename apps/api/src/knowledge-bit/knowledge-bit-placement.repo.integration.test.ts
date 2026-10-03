@@ -302,6 +302,28 @@ describe("markKnowledgeBitMatched (real Postgres)", () => {
     expect(rows[0]!.topic_id).toBeNull();
     expect(rows[0]!.placement_checked_at).toBeNull();
   });
+
+  it("should leave topicId and placementCheckedAt null when the bit was rejected mid-scan", async () => {
+    const subjectId = await seedSubject("Rejected Match Subject");
+    const curriculumId = await seedCurriculum(subjectId, "Rejected Match Curriculum");
+    const topicId = await seedTopic(curriculumId, "Rejected Match Topic", true);
+
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to match");
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      bitId,
+    ]);
+
+    await markKnowledgeBitMatched(bitId, topicId, "A bit to match");
+
+    const { rows } = await client.query(
+      `SELECT topic_id, placement_checked_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.topic_id).toBeNull();
+    expect(rows[0]!.placement_checked_at).toBeNull();
+  });
 });
 
 describe("markKnowledgeBitSuggested (real Postgres)", () => {
@@ -334,6 +356,24 @@ describe("markKnowledgeBitSuggested (real Postgres)", () => {
     ]);
 
     await markKnowledgeBitSuggested(bitId, "A suggestion", "The original body");
+
+    const { rows } = await client.query(
+      `SELECT placement_suggestion, placement_checked_at FROM knowledge_bits WHERE id = $1`,
+      [bitId],
+    );
+
+    expect(rows[0]!.placement_suggestion).toBeNull();
+    expect(rows[0]!.placement_checked_at).toBeNull();
+  });
+
+  it("should leave placementSuggestion and placementCheckedAt null when the bit was rejected mid-scan", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with no home yet");
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
+      bitId,
+    ]);
+
+    await markKnowledgeBitSuggested(bitId, "A suggestion", "A bit with no home yet");
 
     const { rows } = await client.query(
       `SELECT placement_suggestion, placement_checked_at FROM knowledge_bits WHERE id = $1`,

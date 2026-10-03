@@ -13,6 +13,7 @@ Nothing to decide — see spec.md's "Decision made autonomously."
 Nothing to review.
 
 ## Coding tasks
+- [x] Trim the markKnowledgeBitMatched comment to the 2-line convention
 - [ ] Close the scan-vs-reject race that can link a just-rejected bit
 - [ ] Clear topicId when rejecting a bit that was already placed
 - [x] Test the rejected-bit variant-edit guard leaves the row untouched
