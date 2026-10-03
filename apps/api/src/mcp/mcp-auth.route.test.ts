@@ -119,6 +119,36 @@ describe("POST /mcp auth", () => {
     expect(res.status).toBe(401);
   });
 
+  it("accepts the shared secret via the timing-safe comparison", async () => {
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders(SHARED_SECRET),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a wrong secret of a different length without throwing", async () => {
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders("x"),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects a wrong secret that is much longer than the real one without throwing", async () => {
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders(`${SHARED_SECRET}-and-then-some-extra-padding-here`),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(401);
+  });
+
   it("lets an active api_tokens-issued token reach /mcp, and touches its last-used timestamp", async () => {
     state.tokenRows = [{ id: "tok_active", tokenHash: "irrelevant", revokedAt: null }];
 

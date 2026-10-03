@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { apiTokens } from "../db/schema.js";
+import { log } from "../shared/log.js";
 
 export function isTokenActive(
   token: { revokedAt: string | null },
@@ -38,8 +39,12 @@ export async function findActiveTokenByHash(
 }
 
 export async function touchLastUsed(id: string): Promise<void> {
-  await getDb()
-    .update(apiTokens)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(apiTokens.id, id));
+  try {
+    await getDb()
+      .update(apiTokens)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiTokens.id, id));
+  } catch (err) {
+    log.warn({ err, id }, "touch_last_used_failed");
+  }
 }

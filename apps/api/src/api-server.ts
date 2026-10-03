@@ -1,4 +1,5 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import { loadEnv } from "./shared/env.js";
 import { log } from "./shared/log.js";
 import { sendError, sendJson } from "./shared/http.js";
@@ -260,6 +261,13 @@ import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
 
+function timingSafeEqualStrings(a: string, b: string): boolean {
+  const digestA = crypto.createHash("sha256").update(a).digest();
+  const digestB = crypto.createHash("sha256").update(b).digest();
+
+  return crypto.timingSafeEqual(digestA, digestB);
+}
+
 async function authorized(req: http.IncomingMessage): Promise<boolean> {
   const env = loadEnv();
 
@@ -268,8 +276,9 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
   }
 
   const header = req.headers.authorization;
+  const expected = `Bearer ${env.API_SHARED_SECRET}`;
 
-  if (header === `Bearer ${env.API_SHARED_SECRET}`) {
+  if (header !== undefined && timingSafeEqualStrings(header, expected)) {
     return true;
   }
 
