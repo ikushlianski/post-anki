@@ -4,6 +4,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { filterCardBrowserRows } from '@post-anki/core'
 
 import { curriculumCardsBrowserQuery, curriculumDetailQuery } from '../curriculum/curriculum.queries'
+import { searchParamString } from '../shared/search-param-string'
 
 interface CardsBrowserSearchState {
   search: string
@@ -11,7 +12,7 @@ interface CardsBrowserSearchState {
 
 export const Route = createFileRoute('/curriculum/$curriculumId_/cards')({
   validateSearch: (search: Record<string, unknown>): CardsBrowserSearchState => ({
-    search: typeof search.search === 'string' ? search.search : '',
+    search: searchParamString(search.search),
   }),
   component: CardsBrowserPage,
   loader: ({ params, context }) =>

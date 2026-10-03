@@ -112,9 +112,12 @@ describe('Route.validateSearch', () => {
     expect(validateSearch({})).toEqual({ search: '' })
   })
 
-  it('defaults to an empty string when search param is not a string', () => {
-    expect(validateSearch({ search: 123 })).toEqual({ search: '' })
+  it('defaults to an empty string when search param is not a string or number', () => {
     expect(validateSearch({ search: null })).toEqual({ search: '' })
+  })
+
+  it('coerces a numeric-looking search param to its string form', () => {
+    expect(validateSearch({ search: 2024 })).toEqual({ search: '2024' })
   })
 
   it('preserves the search string when provided', () => {

@@ -6,6 +6,7 @@ import { getDomainMapForSubject } from '../domain-map/domain-map.api'
 import { NotesBrowser } from '../note/notes-browser'
 import type { NotesSearchUrlState } from '../note/note-search-params'
 import { reviewNote, searchNotes } from '../note/note.api'
+import { searchParamString } from '../shared/search-param-string'
 
 function isConcern(value: unknown): value is Concern {
   return typeof value === 'string' && (CONCERNS as readonly string[]).includes(value)
@@ -14,7 +15,7 @@ function isConcern(value: unknown): value is Concern {
 export const Route = createFileRoute('/notes')({
   validateSearch: (search: Record<string, unknown>): NotesSearchUrlState => ({
     tab: search.tab === 'review' ? 'review' : 'search',
-    query: typeof search.query === 'string' ? search.query : '',
+    query: searchParamString(search.query),
     concern: isConcern(search.concern) ? search.concern : undefined,
     domainNodeId: typeof search.domainNodeId === 'string' ? search.domainNodeId : undefined,
     subjectId: typeof search.subjectId === 'string' ? search.subjectId : undefined,

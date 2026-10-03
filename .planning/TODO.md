@@ -422,7 +422,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [x] Load the area dropdown on a shared notes-search link, not just on manual change
-- [ ] Fix numeric-looking shared search terms getting silently dropped
+- [x] Fix numeric-looking shared search terms getting silently dropped
 - [x] Make the cards-browser table's search text shareable via the page URL
 - [x] Make the notes search and filters shareable and bookmarkable via the page URL
 
