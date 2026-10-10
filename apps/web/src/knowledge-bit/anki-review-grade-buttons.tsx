@@ -1,6 +1,6 @@
 import type { IntervalPreview, ReviewGrade } from '@post-anki/shared'
 
-import { formatIntervalSeconds } from './anki-review-interval'
+import { describeIntervalSeconds, formatIntervalSeconds } from './anki-review-interval'
 
 const GRADES: { grade: ReviewGrade; label: string; shortcut: string }[] = [
   { grade: 'again', label: 'Again', shortcut: '1' },
@@ -25,6 +25,7 @@ export function AnkiReviewGradeButtons({
           key={grade}
           type="button"
           data-testid={`anki-review-grade-${grade}`}
+          aria-label={`${label}, next in ${describeIntervalSeconds(intervalPreview[grade])}`}
           disabled={disabled}
           onClick={() => onGrade(grade)}
           className="flex flex-col items-center rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50 disabled:opacity-40"

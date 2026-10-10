@@ -189,6 +189,21 @@ describe('Anki review page', () => {
     )
   })
 
+  it('should label Bury and Suspend in words, placed below the answer', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('anki-review-show-answer'))
+
+    const answer = screen.getByTestId('anki-review-answer')
+    const bury = screen.getByTestId('anki-review-bury')
+
+    expect(bury.textContent).toContain('Bury')
+    expect(screen.getByTestId('anki-review-suspend').textContent).toContain('Suspend')
+    expect(answer.compareDocumentPosition(bury) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('should show the tutor chat only after reveal and hide it again on the next card', async () => {
     mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
@@ -256,14 +271,55 @@ describe('Anki review page', () => {
     expect(screen.queryByText('Nothing to review right now.')).toBeNull()
   })
 
-  it('should say no more cards are scheduled when nothing is due later either', async () => {
+  it('should not say done for today when no cards are approved yet, and point to approve and add', async () => {
     mockedGetReviewCards.mockResolvedValue(queueResponse([]))
+
+    renderPage()
+
+    expect((await screen.findByTestId('anki-review-empty')).textContent).toBe('No cards to review yet')
+    expect(screen.queryByText('Done for today')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Approve suggestions' }).getAttribute('data-to')).toBe(
+      '/knowledge-bit-review',
+    )
+    expect(screen.getByRole('link', { name: 'Add knowledge' }).getAttribute('data-to')).toBe('/add-knowledge')
+  })
+
+  it('should keep done for today after a review when nothing else is left to schedule', async () => {
+    mockedGetReviewCards
+      .mockResolvedValueOnce(queueResponse([firstCard]))
+      .mockResolvedValueOnce(queueResponse([]))
+    mockedSubmitReview.mockResolvedValue(savedGrade)
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('anki-review-show-answer'))
+    await userEvent.click(screen.getByTestId('anki-review-grade-good'))
+
+    expect((await screen.findByTestId('anki-review-done')).textContent).toContain('Done for today')
+    expect(screen.queryByTestId('anki-review-empty')).toBeNull()
+  })
+
+  it('should say no more cards are scheduled when nothing is due later either', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([], { counts: { new: 0, learning: 0, review: 1 } }))
 
     renderPage()
 
     expect((await screen.findByTestId('anki-review-done')).textContent).toContain(
       'No more cards are scheduled.',
     )
+  })
+
+  it('should name each grade button with the interval it schedules, for screen readers', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([secondCard]))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('anki-review-show-answer'))
+
+    expect(screen.getByRole('button', { name: 'Again, next in 10 minutes' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Hard, next in 1 day' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Good, next in 3 days' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Easy, next in 1.2 months' })).toBeTruthy()
   })
 
   it('should show the interval each grade would schedule, on its button, after reveal', async () => {

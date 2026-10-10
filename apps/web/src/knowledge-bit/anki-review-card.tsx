@@ -18,8 +18,6 @@ export function AnkiReviewCard({
 }) {
   return (
     <div data-testid="anki-review-card" className="flex flex-col gap-4">
-      {actions}
-
       {editor ?? (
         <p data-testid="anki-review-prompt" className="text-lg font-medium">
           {card.prompt}
@@ -49,9 +47,12 @@ export function AnkiReviewCard({
               {card.background}
             </p>
           )}
-          <KnowledgeBitChatPanel key={card.knowledgeBitId} knowledgeBitId={card.knowledgeBitId} />
         </>
       )}
+
+      {actions}
+
+      {revealed && <KnowledgeBitChatPanel key={card.knowledgeBitId} knowledgeBitId={card.knowledgeBitId} />}
     </div>
   )
 }

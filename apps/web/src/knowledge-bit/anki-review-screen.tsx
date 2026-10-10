@@ -94,6 +94,11 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
     stamp,
   )
   const canUndo = state.undo.length > 0
+  const noApprovedCards =
+    queue.data?.ok === true &&
+    queue.data.nextDueAt === null &&
+    queue.data.counts.new + queue.data.counts.learning + queue.data.counts.review === 0 &&
+    stats.done === 0
 
   useAnkiReviewKeyboard(
     { hasCard: current !== null, revealed: state.revealed, busy: actions.busy, canUndo, editing },
@@ -176,7 +181,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
 
       {loaded && state.view === 'reviewing' && !actions.refilling && !current && queue.data?.ok && (
         <>
-          <AnkiReviewDone nextDueAt={queue.data.nextDueAt} />
+          <AnkiReviewDone nextDueAt={queue.data.nextDueAt} noApprovedCards={noApprovedCards} />
           {canUndo && <AnkiReviewSummary stats={stats} />}
         </>
       )}

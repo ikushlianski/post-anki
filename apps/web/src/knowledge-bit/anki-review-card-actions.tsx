@@ -27,12 +27,20 @@ export function AnkiReviewCardActions({
           Edit <kbd>E</kbd>
         </button>
       )}
-      <button type="button" data-testid="anki-review-bury" disabled={disabled} onClick={onBury} className={button}>
+      <button
+        type="button"
+        data-testid="anki-review-bury"
+        title="Hide this card until tomorrow"
+        disabled={disabled}
+        onClick={onBury}
+        className={button}
+      >
         Bury <kbd>-</kbd>
       </button>
       <button
         type="button"
         data-testid="anki-review-suspend"
+        title="Remove this card from reviews until you bring it back"
         disabled={disabled}
         onClick={onSuspend}
         className={button}

@@ -7,6 +7,30 @@ function trimmed(value: number): string {
   return String(Math.round(value * 10) / 10)
 }
 
+function plural(count: number, unit: string): string {
+  return `${count} ${unit}${count === 1 ? '' : 's'}`
+}
+
+export function describeIntervalSeconds(seconds: number): string {
+  if (seconds < MINUTE) {
+    return 'less than a minute'
+  }
+
+  if (seconds < HOUR) {
+    return plural(Math.round(seconds / MINUTE), 'minute')
+  }
+
+  if (seconds < DAY) {
+    return plural(Math.round(seconds / HOUR), 'hour')
+  }
+
+  if (seconds < MONTH) {
+    return plural(Math.round(seconds / DAY), 'day')
+  }
+
+  return plural(Number(trimmed(seconds / MONTH)), 'month')
+}
+
 export function formatIntervalSeconds(seconds: number): string {
   if (seconds < MINUTE) {
     return '<1m'
