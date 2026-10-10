@@ -28,6 +28,8 @@ import { handleListNextKnowledgeBitQuestionVariants } from "./knowledge-bit/list
 import {
   handleListKnowledgeBitReviewCards,
   handleRecordKnowledgeBitReview,
+  handleUndoKnowledgeBitReview,
+  handleUpdateKnowledgeBitScheduleControls,
 } from "./knowledge-bit/knowledge-bit-review.controller.js";
 import {
   handleBulkApproveKnowledgeBits,
@@ -420,6 +422,10 @@ async function route(
       return handleListKnowledgeBitReviewCards(res, url.search);
     case "recordKnowledgeBitReview":
       return handleRecordKnowledgeBitReview(req, res);
+    case "undoKnowledgeBitReview":
+      return handleUndoKnowledgeBitReview(res, id);
+    case "updateKnowledgeBitScheduleControls":
+      return handleUpdateKnowledgeBitScheduleControls(req, res, id);
     case "listPendingKnowledgeBitsForReview":
       return handleListPendingKnowledgeBitsForReview(res);
     case "countPendingKnowledgeBits":

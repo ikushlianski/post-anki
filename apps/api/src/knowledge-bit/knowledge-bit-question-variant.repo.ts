@@ -11,6 +11,7 @@ import {
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
+import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 
 export interface KnowledgeBitForQuestionGenerationScan {
   id: string;
@@ -156,8 +157,8 @@ export async function listNextQuestionVariantsToAnswer(
         : undefined;
 
   const condition = scopeCondition
-    ? and(scopeCondition, topicNotDropped, variantActive, bitApproved)
-    : and(topicNotDropped, variantActive, bitApproved);
+    ? and(scopeCondition, topicNotDropped, variantActive, bitApproved, inReviewRotation(new Date()))
+    : and(topicNotDropped, variantActive, bitApproved, inReviewRotation(new Date()));
 
   if (!scopeCondition) {
     return listUnscopedVariants(limit, condition, db);

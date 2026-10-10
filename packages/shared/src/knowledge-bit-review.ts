@@ -56,6 +56,7 @@ export const reviewCardSchema = z.object({
   answer: z.string(),
   background: z.string().nullable(),
   phase: cardPhaseSchema,
+  leech: z.boolean(),
   intervalPreview: intervalPreviewSchema,
 });
 
@@ -85,6 +86,33 @@ export const recordReviewResultSchema = z.object({
   dueAt: z.string(),
   intervalDays: z.number(),
   lapses: z.number().int().min(0),
+  leech: z.boolean(),
+  suspended: z.boolean(),
 });
 
 export type RecordReviewResult = z.infer<typeof recordReviewResultSchema>;
+
+export const undoReviewResultSchema = z.object({ knowledgeBitId: z.string() });
+
+export type UndoReviewResult = z.infer<typeof undoReviewResultSchema>;
+
+export const scheduleControlInputSchema = z
+  .object({
+    suspended: z.boolean().optional(),
+    buried: z.boolean().optional(),
+    tz: z.string().min(1).refine(isValidTimeZone, "invalid time zone").default("UTC"),
+  })
+  .refine((value) => value.suspended !== undefined || value.buried !== undefined, {
+    message: "suspended or buried is required",
+  });
+
+export type ScheduleControlInput = z.infer<typeof scheduleControlInputSchema>;
+
+export const scheduleControlResultSchema = z.object({
+  knowledgeBitId: z.string(),
+  suspended: z.boolean(),
+  buriedUntil: z.string().nullable(),
+  leech: z.boolean(),
+});
+
+export type ScheduleControlResult = z.infer<typeof scheduleControlResultSchema>;

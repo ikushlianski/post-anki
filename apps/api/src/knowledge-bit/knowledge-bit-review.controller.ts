@@ -1,9 +1,15 @@
 import type http from "node:http";
-import { recordReviewInputSchema, reviewCardsQuerySchema } from "@post-anki/shared";
+import {
+  recordReviewInputSchema,
+  reviewCardsQuerySchema,
+  scheduleControlInputSchema,
+} from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js";
 import { recordKnowledgeBitReview } from "./knowledge-bit-review.orchestrator.js";
+import { updateKnowledgeBitScheduleControls } from "./knowledge-bit-review-suspension.orchestrator.js";
+import { undoKnowledgeBitReview } from "./knowledge-bit-review-undo.orchestrator.js";
 
 export async function handleListKnowledgeBitReviewCards(
   res: http.ServerResponse,
@@ -48,4 +54,42 @@ export async function handleRecordKnowledgeBitReview(
   const { ok: _ok, ...result } = outcome;
 
   sendJson(res, 201, result);
+}
+
+export async function handleUndoKnowledgeBitReview(
+  res: http.ServerResponse,
+  id: string,
+): Promise<void> {
+  const outcome = await undoKnowledgeBitReview(id);
+
+  if (!outcome.ok) {
+    sendError(res, outcome.error === "not_latest" ? 409 : 404, outcome.error);
+    return;
+  }
+
+  sendJson(res, 200, { knowledgeBitId: outcome.knowledgeBitId });
+}
+
+export async function handleUpdateKnowledgeBitScheduleControls(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  id: string,
+): Promise<void> {
+  const body = await readJsonBody(req, scheduleControlInputSchema);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const outcome = await updateKnowledgeBitScheduleControls(id, body.data);
+
+  if (!outcome.ok) {
+    sendError(res, outcome.error === "not_approved" ? 403 : 404, outcome.error);
+    return;
+  }
+
+  const { ok: _ok, ...result } = outcome;
+
+  sendJson(res, 200, result);
 }

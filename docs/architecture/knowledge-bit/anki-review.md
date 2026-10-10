@@ -86,3 +86,17 @@ A stored step past the list counts as the last step. An unknown stored phase rea
 The unscoped queue lists learning and relearning cards first, then due reviews, then new cards. When those leave free slots, cards in a step that are due within the next 20 minutes fill them, so a sitting does not end a minute before a card returns. Scoped queues keep their own order and show the stored phase.
 
 A typed-mode verdict sets the phase to review and the step to 0 and leaves `lapses` alone. The review history snapshot of the prior schedule carries `phase`, `learningStep` and `lapses`; snapshots written earlier lack them and read as review, 0, 0. The grade result returns `lapses`.
+
+## Session controls
+
+**Undo.** `DELETE /knowledge-bits/reviews/:id` restores the schedule from the grade's prior-schedule snapshot and marks the review undone. A grade is undoable only while it is the latest: not undone, no later live review of the bit, and the schedule's `lastReviewedAt` still equals the review's `reviewedAt` (typed answers write no history row, so this timestamp is the signal). Otherwise the answer is 409 `not_latest` and nothing is written; an unknown review is 404 `review_not_found`. Undoing the first grade of a card leaves an ungraded row, so the card is new again and leaves the daily new-card count. A suspend or bury set after the grade is kept; a suspension caused by the undone grade itself (a leech) is lifted. Undo runs under the same per-bit lock as grading.
+
+**Suspend and bury.** `PATCH /knowledge-bits/:id/schedule` takes `{suspended?, buried?, tz?}` (at least one of the first two). `suspended_at` and `buried_until` live on the schedule row. Bury lasts until the end of the learner's local day (`tz`, default UTC). Bits that are not approved give 403, missing bits 404. A card never graded gets an ungraded row (`review_count` 0) that every reader treats as new. Unsuspending is API-only (`{suspended:false}`); the review screen has no unsuspend control.
+
+**Eligibility.** Both queues (Anki and typed, scoped and unscoped) and the topic and module due counts skip suspended bits and bits buried past now. A bit with no schedule row passes.
+
+**Leeches.** A leech is derived, never stored: `lapses >= 8`. A grade that raises `lapses` to 8, 12, 16 and so on suspends the card in the same transaction as the grade. Typed verdicts never auto-suspend. Review cards carry `leech`, and the grade result carries `leech` and `suspended`.
+
+**Editing.** `PATCH /knowledge-bits/question-variants/:id` works for any bit that is not rejected. An edit supersedes the variant with a new one, so the session swaps the returned variant id and text into every reference to that bit.
+
+**Session state.** Progress, the undo list (grades, suspends and buries), edits and the end-of-session summary live in client state only and are lost on reload; everything saved is already on the server.

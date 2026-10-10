@@ -423,5 +423,17 @@ describe("resolveRoute", () => {
       );
       expect(resolveRoute("GET", "/knowledge-bits/reviews")).toBeNull();
     });
+
+    it("routes undo and schedule controls without shadowing the bit edit route", () => {
+      expect(resolveRoute("DELETE", "/knowledge-bits/reviews/r1")).toEqual({
+        name: "undoKnowledgeBitReview",
+        params: { id: "r1" },
+      });
+      expect(resolveRoute("PATCH", "/knowledge-bits/b1/schedule")).toEqual({
+        name: "updateKnowledgeBitScheduleControls",
+        params: { id: "b1" },
+      });
+      expect(resolveRoute("PATCH", "/knowledge-bits/x")?.name).toBe("editKnowledgeBit");
+    });
   });
 });

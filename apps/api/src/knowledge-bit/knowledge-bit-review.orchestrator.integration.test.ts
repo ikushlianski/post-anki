@@ -147,6 +147,8 @@ describe("recordKnowledgeBitReview (real Postgres)", () => {
       phase: "review",
       learningStep: 0,
       lapses: 0,
+      suspendedAt: null,
+      buriedUntil: null,
     });
     expect(reviews[0]).toMatchObject({ grade: "easy", was_new: true, prev_schedule: null });
   });
@@ -221,5 +223,43 @@ describe("recordKnowledgeBitReview (real Postgres)", () => {
     const passed = await recordKnowledgeBitReview({ variantId, grade: "good" }, new Date("2026-10-06T00:10:00.000Z"));
 
     expect(passed).toMatchObject({ ok: true, phase: "review", intervalDays: 1, lapses: 1 });
+  });
+
+  it("should suspend a card automatically when this grade is its 8th forgetting", async () => {
+    const knowledgeBitId = await seedBit();
+    const variantId = await seedVariant(knowledgeBitId);
+    const now = new Date("2026-10-10T12:00:00.000Z");
+
+    await recordKnowledgeBitReview({ variantId, grade: "easy" }, new Date("2026-10-01T00:00:00.000Z"));
+    await client.query(`UPDATE knowledge_bit_schedules SET lapses = 7 WHERE knowledge_bit_id = $1`, [
+      knowledgeBitId,
+    ]);
+
+    const outcome = await recordKnowledgeBitReview({ variantId, grade: "again" }, now);
+
+    expect(outcome).toMatchObject({ ok: true, lapses: 8, leech: true, suspended: true });
+
+    const { rows } = await client.query(
+      `SELECT suspended_at FROM knowledge_bit_schedules WHERE knowledge_bit_id = $1`,
+      [knowledgeBitId],
+    );
+
+    expect(new Date(rows[0]!.suspended_at).toISOString()).toBe(now.toISOString());
+  });
+
+  it("should treat an ungraded row left by a suspend as a new card when graded", async () => {
+    const knowledgeBitId = await seedBit();
+    const variantId = await seedVariant(knowledgeBitId);
+
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, review_count, phase) VALUES ($1, 0, 'new')`,
+      [knowledgeBitId],
+    );
+
+    await recordKnowledgeBitReview({ variantId, grade: "good" });
+
+    const reviews = await readReviews(knowledgeBitId);
+
+    expect(reviews).toMatchObject([{ was_new: true, prev_schedule: null }]);
   });
 });

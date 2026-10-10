@@ -22,6 +22,8 @@ export type RouteName =
   | "listNextKnowledgeBitQuestionVariants"
   | "listKnowledgeBitReviewCards"
   | "recordKnowledgeBitReview"
+  | "undoKnowledgeBitReview"
+  | "updateKnowledgeBitScheduleControls"
   | "listPendingKnowledgeBitsForReview"
   | "countPendingKnowledgeBits"
   | "bulkApproveKnowledgeBits"

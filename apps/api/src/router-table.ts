@@ -73,6 +73,18 @@ export const ROUTES: RouteDef[] = [
     name: "recordKnowledgeBitReview",
   },
   {
+    method: "DELETE",
+    pattern: /^\/knowledge-bits\/reviews\/([^/]+)$/,
+    name: "undoKnowledgeBitReview",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/knowledge-bits\/([^/]+)\/schedule$/,
+    name: "updateKnowledgeBitScheduleControls",
+    param: "id",
+  },
+  {
     method: "PATCH",
     pattern: /^\/knowledge-bits\/([^/]+)\/placement-suggestion$/,
     name: "resolvePlacementSuggestion",

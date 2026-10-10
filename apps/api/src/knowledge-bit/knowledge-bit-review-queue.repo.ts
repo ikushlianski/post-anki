@@ -15,6 +15,8 @@ import {
   topics,
 } from "../db/schema.js";
 import { cardPhaseSchema } from "@post-anki/shared";
+import { isLeech } from "./knowledge-bit-grade-schedule-leech.js";
+import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { previewGradeIntervals } from "./knowledge-bit-grade-schedule.js";
 import {
@@ -36,6 +38,7 @@ export interface KnowledgeBitReviewCardRow {
   answer: string;
   background: string | null;
   phase: CardPhase;
+  leech: boolean;
   intervalPreview: IntervalPreview;
 }
 
@@ -81,16 +84,17 @@ function scopeCondition(filter: KnowledgeBitReviewCardsFilter | undefined, db: D
   return undefined;
 }
 
-const eligibility = (scope: SQL | undefined) =>
+const eligibility = (scope: SQL | undefined, now: Date) =>
   and(
     scope,
+    inReviewRotation(now),
     or(isNull(knowledgeBits.topicId), ne(topics.learningStatus, "skipping")),
     isNull(knowledgeBitQuestionVariants.supersededAt),
     bitApproved,
   );
 
 function toCard(
-  row: Omit<KnowledgeBitReviewCardRow, "phase" | "intervalPreview" | "kind"> & {
+  row: Omit<KnowledgeBitReviewCardRow, "phase" | "leech" | "intervalPreview" | "kind"> & {
     kind: string;
     isNew: boolean;
     easeFactor: number | null;
@@ -119,6 +123,7 @@ function toCard(
     ...card,
     kind: card.kind as KnowledgeBitQuestionVariantKind,
     phase: isNew ? "new" : storedPhase,
+    leech: isLeech(lapses ?? 0),
     intervalPreview: previewGradeIntervals(state, now),
   };
 }
@@ -147,14 +152,14 @@ async function listScopedCards(
       phase: knowledgeBitSchedules.phase,
       learningStep: knowledgeBitSchedules.learningStep,
       lapses: knowledgeBitSchedules.lapses,
-      isNew: sql<boolean>`bool_and(${knowledgeBitSchedules.knowledgeBitId} is null)`,
+      isNew: sql<boolean>`bool_and(${knowledgeBitSchedules.reviewCount} is null or ${knowledgeBitSchedules.reviewCount} = 0)`,
     })
     .from(knowledgeBitQuestionVariants)
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
     .leftJoin(knowledgeBitReviews, eq(knowledgeBitReviews.variantId, knowledgeBitQuestionVariants.id))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
-    .where(eligibility(scope))
+    .where(eligibility(scope, now))
     .groupBy(
       knowledgeBitQuestionVariants.id,
       knowledgeBitQuestionVariants.kind,
@@ -180,7 +185,7 @@ async function listScopedCards(
 }
 
 // One row per eligible bit: basic over fill_in_the_blank over the rest.
-function pickedVariants(scope: SQL | undefined, db: DbExecutor) {
+function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor) {
   const kindRank = sql`case ${knowledgeBitQuestionVariants.kind} when 'basic' then 0 when 'fill_in_the_blank' then 1 else 2 end`;
 
   return db
@@ -192,10 +197,10 @@ function pickedVariants(scope: SQL | undefined, db: DbExecutor) {
       answer: knowledgeBitQuestionVariants.answer,
       background: knowledgeBits.background,
       bitCreatedAt: knowledgeBits.createdAt,
-      scheduleBitId: knowledgeBitSchedules.knowledgeBitId,
+      scheduleBitId: sql<string | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.knowledgeBitId} end`.as("schedule_bit_id"),
       easeFactor: knowledgeBitSchedules.easeFactor,
       intervalDays: knowledgeBitSchedules.intervalDays,
-      dueAt: knowledgeBitSchedules.dueAt,
+      dueAt: sql<Date | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.dueAt} end`.as("due_at"),
       phase: knowledgeBitSchedules.phase,
       learningStep: knowledgeBitSchedules.learningStep,
       lapses: knowledgeBitSchedules.lapses,
@@ -207,7 +212,7 @@ function pickedVariants(scope: SQL | undefined, db: DbExecutor) {
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
-    .where(eligibility(scope))
+    .where(eligibility(scope, now))
     .as("picked");
 }
 
@@ -295,7 +300,7 @@ export async function getKnowledgeBitReviewQueue(
 ): Promise<KnowledgeBitReviewQueue> {
   const { now } = clock;
   const scope = scopeCondition(filter, db);
-  const picked = pickedVariants(scope, db);
+  const picked = pickedVariants(scope, now, db);
   const { remaining, dayEndsAt } = await readNewRemainingToday(clock, db);
 
   if (scope && filter) {

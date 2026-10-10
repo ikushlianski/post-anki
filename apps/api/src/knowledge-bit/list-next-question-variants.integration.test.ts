@@ -385,4 +385,35 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
 
     expect(rows.map((row) => row.prompt)).toEqual(["Fresh variant?"]);
   });
+
+  it("should never serve a suspended bit, and serve a buried bit only after the bury has ended", async () => {
+    const suspendedBit = await seedKnowledgeBit("Typed suspended bit");
+    const buriedBit = await seedKnowledgeBit("Typed buried bit");
+    const expiredBit = await seedKnowledgeBit("Typed expired bury bit");
+    const suspendedVariant = await seedVariant(suspendedBit, "Suspended?");
+    const buriedVariant = await seedVariant(buriedBit, "Buried?");
+    const expiredVariant = await seedVariant(expiredBit, "Expired bury?");
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at, suspended_at) VALUES ($1, $2, now())`,
+      [suspendedBit, new Date(Date.now() - dayMs).toISOString()],
+    );
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at, buried_until) VALUES ($1, $2, $3)`,
+      [buriedBit, new Date(Date.now() - dayMs).toISOString(), new Date(Date.now() + dayMs).toISOString()],
+    );
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at, buried_until) VALUES ($1, $2, $3)`,
+      [expiredBit, new Date(Date.now() - dayMs).toISOString(), new Date(Date.now() - 1000).toISOString()],
+    );
+
+    const unscoped = (await listNextQuestionVariantsToAnswer(500, undefined)).map((row) => row.variantId);
+    const scoped = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: suspendedBit });
+
+    expect(unscoped).not.toContain(suspendedVariant);
+    expect(unscoped).not.toContain(buriedVariant);
+    expect(unscoped).toContain(expiredVariant);
+    expect(scoped).toEqual([]);
+  });
 });

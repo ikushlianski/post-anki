@@ -1,5 +1,5 @@
 import type { ReviewGrade } from "@post-anki/shared";
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, gte, isNull, ne, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitReviews, type KnowledgeBitScheduleSnapshot } from "../db/schema.js";
 import type { Tx } from "../shared/merge-lock.js";
@@ -66,4 +66,78 @@ export async function countNewCardsReviewedToday(
     );
 
   return row?.total ?? 0;
+}
+
+export interface KnowledgeBitReviewRecord {
+  id: string;
+  knowledgeBitId: string;
+  prevSchedule: KnowledgeBitScheduleSnapshot | null;
+  reviewedAt: Date;
+  undoneAt: Date | null;
+}
+
+export async function readKnowledgeBitReviewInTx(
+  tx: Tx,
+  id: string,
+): Promise<KnowledgeBitReviewRecord | null> {
+  const rows = await tx
+    .select({
+      id: knowledgeBitReviews.id,
+      knowledgeBitId: knowledgeBitReviews.knowledgeBitId,
+      prevSchedule: knowledgeBitReviews.prevSchedule,
+      reviewedAt: knowledgeBitReviews.reviewedAt,
+      undoneAt: knowledgeBitReviews.undoneAt,
+    })
+    .from(knowledgeBitReviews)
+    .where(eq(knowledgeBitReviews.id, id))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function readKnowledgeBitReviewBitId(
+  id: string,
+  db: DbExecutor = getDb(),
+): Promise<string | null> {
+  const rows = await db
+    .select({ knowledgeBitId: knowledgeBitReviews.knowledgeBitId })
+    .from(knowledgeBitReviews)
+    .where(eq(knowledgeBitReviews.id, id))
+    .limit(1);
+
+  return rows[0]?.knowledgeBitId ?? null;
+}
+
+export async function hasLaterLiveReviewInTx(
+  tx: Tx,
+  knowledgeBitId: string,
+  reviewedAt: Date,
+  id: string,
+): Promise<boolean> {
+  const rows = await tx
+    .select({ id: knowledgeBitReviews.id })
+    .from(knowledgeBitReviews)
+    .where(
+      and(
+        eq(knowledgeBitReviews.knowledgeBitId, knowledgeBitId),
+        isNull(knowledgeBitReviews.undoneAt),
+        ne(knowledgeBitReviews.id, id),
+        gt(knowledgeBitReviews.reviewedAt, reviewedAt),
+      ),
+    )
+    .limit(1);
+
+  return rows.length > 0;
+}
+
+// The one sanctioned update of this otherwise append-only table.
+export async function markKnowledgeBitReviewUndoneInTx(
+  tx: Tx,
+  id: string,
+  now: Date,
+): Promise<void> {
+  await tx
+    .update(knowledgeBitReviews)
+    .set({ undoneAt: now })
+    .where(eq(knowledgeBitReviews.id, id));
 }

@@ -264,23 +264,21 @@ describe("editKnowledgeBitQuestionVariant (real Postgres)", () => {
     expect(secondResult).toEqual({ error: "not_found" });
   });
 
-  it("should return not_found and leave the variant untouched for an approved bit", async () => {
+  it("should edit an approved bit's variant by superseding it with the new text", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "An approved bit", null, "approved");
     const variantId = await seedQuestionVariant(bitId, "wh_question", 0, "Old prompt", "Old answer");
 
     const result = await editKnowledgeBitQuestionVariant(variantId, "New prompt", "New answer");
 
-    expect(result).toEqual({ error: "not_found" });
+    expect(result).toEqual({ ok: true, variantId: expect.any(String) });
 
     const { rows } = await client.query(
       `SELECT prompt, answer, superseded_at FROM knowledge_bit_question_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.prompt).toBe("Old prompt");
-    expect(rows[0]!.answer).toBe("Old answer");
-    expect(rows[0]!.superseded_at).toBeNull();
+    expect(rows[0]!.superseded_at).not.toBeNull();
   });
 
   it("should return not_found and leave the variant untouched for a rejected bit", async () => {

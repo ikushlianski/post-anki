@@ -142,6 +142,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
         answer: "To agree on sequence numbers.",
         background: "Networking basics",
         phase: "new",
+        leech: false,
         intervalPreview: { again: 60, hard: 330, good: 600, easy: 4 * 86_400 },
       },
     ]);
@@ -381,5 +382,67 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
 
     expect(ids).toContain(soonVariant);
     expect(ids).not.toContain(laterVariant);
+  });
+
+  it("should never serve a suspended card, scoped or not, and count it nowhere", async () => {
+    const bitId = await seedBit();
+    const variantId = await seedVariant(bitId);
+
+    await seedSchedule(bitId, daysFrom(CLOCK.now, -1));
+    await client.query(`UPDATE knowledge_bit_schedules SET suspended_at = $2 WHERE knowledge_bit_id = $1`, [
+      bitId,
+      CLOCK.now,
+    ]);
+
+    const unscoped = (await listKnowledgeBitReviewCards(500, undefined)).map((card) => card.variantId);
+    const scoped = await listKnowledgeBitReviewCards(10, { knowledgeBitId: bitId });
+
+    expect(unscoped).not.toContain(variantId);
+    expect(scoped).toEqual([]);
+  });
+
+  it("should hold a buried card back until the bury ends and serve it again afterwards", async () => {
+    const bitId = await seedBit();
+    const variantId = await seedVariant(bitId);
+
+    await seedSchedule(bitId, daysFrom(CLOCK.now, -1));
+    await client.query(`UPDATE knowledge_bit_schedules SET buried_until = $2 WHERE knowledge_bit_id = $1`, [
+      bitId,
+      daysFrom(CLOCK.now, 1),
+    ]);
+
+    const during = (await listKnowledgeBitReviewCards(500, undefined)).map((card) => card.variantId);
+    const after = (
+      await listKnowledgeBitReviewCards(500, undefined, { tz: "UTC", now: daysFrom(CLOCK.now, 2) })
+    ).map((card) => card.variantId);
+
+    expect(during).not.toContain(variantId);
+    expect(after).toContain(variantId);
+  });
+
+  it("should keep a suspended-then-restored never-reviewed card new", async () => {
+    const bitId = await seedBit();
+    const variantId = await seedVariant(bitId);
+
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, review_count, phase, due_at) VALUES ($1, 0, 'new', $2)`,
+      [bitId, daysFrom(CLOCK.now, -1)],
+    );
+
+    const [card] = await listKnowledgeBitReviewCards(10, { knowledgeBitId: bitId });
+
+    expect(card).toMatchObject({ variantId, phase: "new" });
+  });
+
+  it("should mark a card with 8 or more forgettings as a leech", async () => {
+    const bitId = await seedBit();
+
+    await seedVariant(bitId);
+    await seedSchedule(bitId, daysFrom(CLOCK.now, -1));
+    await client.query(`UPDATE knowledge_bit_schedules SET lapses = 8 WHERE knowledge_bit_id = $1`, [bitId]);
+
+    const [card] = await listKnowledgeBitReviewCards(10, { knowledgeBitId: bitId });
+
+    expect(card?.leech).toBe(true);
   });
 });

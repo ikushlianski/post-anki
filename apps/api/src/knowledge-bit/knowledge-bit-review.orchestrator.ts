@@ -1,6 +1,7 @@
 import type { RecordReviewInput, RecordReviewResult } from "@post-anki/shared";
 import { withSubjectLock } from "../shared/merge-lock.js";
 import { deriveGradeSchedule } from "./knowledge-bit-grade-schedule.js";
+import { deriveLeechOutcome } from "./knowledge-bit-grade-schedule-leech.js";
 import { insertKnowledgeBitReview } from "./knowledge-bit-review.repo.js";
 import {
   readKnowledgeBitScheduleInTx,
@@ -29,10 +30,17 @@ export async function recordKnowledgeBitReview(
   }
 
   return withSubjectLock(variant.knowledgeBitId, async (tx) => {
-    const previous = await readKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId);
+    const stored = await readKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId);
+    const previous = stored && stored.reviewCount > 0 ? stored : null;
     const next = deriveGradeSchedule(previous, input.grade, now);
+    const leech = deriveLeechOutcome(previous?.lapses ?? 0, next.lapses);
 
-    await upsertKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId, next, now);
+    await upsertKnowledgeBitScheduleInTx(
+      tx,
+      variant.knowledgeBitId,
+      { ...next, suspendedAt: leech.autoSuspend ? now : undefined },
+      now,
+    );
 
     const reviewId = await insertKnowledgeBitReview(tx, {
       knowledgeBitId: variant.knowledgeBitId,
@@ -50,6 +58,8 @@ export async function recordKnowledgeBitReview(
             phase: previous.phase,
             learningStep: previous.learningStep,
             lapses: previous.lapses,
+            suspendedAt: previous.suspendedAt?.toISOString() ?? null,
+            buriedUntil: previous.buriedUntil?.toISOString() ?? null,
           }
         : null,
       reviewedAt: now,
@@ -63,6 +73,8 @@ export async function recordKnowledgeBitReview(
       dueAt: next.dueAt.toISOString(),
       intervalDays: next.intervalDays,
       lapses: next.lapses,
+      leech: leech.leech,
+      suspended: leech.autoSuspend || stored?.suspendedAt != null,
     };
   });
 }

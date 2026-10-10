@@ -61,6 +61,7 @@ const firstCard: ReviewCard = {
   answer: 'To agree on sequence numbers before sending data.',
   background: 'Covered in the networking module.',
   phase: 'new',
+  leech: false,
   intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 },
 }
 
@@ -72,6 +73,7 @@ const secondCard: ReviewCard = {
   answer: 'message',
   background: null,
   phase: 'review',
+  leech: false,
   intervalPreview: { again: 600, hard: 86_400, good: 3 * 86_400, easy: 36 * 86_400 },
 }
 
@@ -104,6 +106,8 @@ const savedGrade = {
   dueAt: '2026-10-11T12:00:00.000Z',
   intervalDays: 1,
   lapses: 0,
+  leech: false,
+  suspended: false,
 }
 
 function renderPage() {

@@ -14,9 +14,17 @@ export interface ReviewScreenFacts {
   hasCard: boolean
   revealed: boolean
   busy: boolean
+  canUndo: boolean
+  editing: boolean
 }
 
-export type ReviewKeyAction = { type: 'reveal' } | { type: 'grade'; grade: ReviewGrade }
+export type ReviewKeyAction =
+  | { type: 'reveal' }
+  | { type: 'grade'; grade: ReviewGrade }
+  | { type: 'undo' }
+  | { type: 'edit' }
+  | { type: 'bury' }
+  | { type: 'suspend' }
 
 const GRADE_KEYS: Record<string, ReviewGrade> = {
   '1': 'again',
@@ -29,16 +37,32 @@ export function ankiReviewKeyAction(
   event: ReviewKeyFacts,
   screen: ReviewScreenFacts,
 ): ReviewKeyAction | null {
-  if (event.targetIsEditable || event.ctrlKey || event.metaKey || event.altKey || event.repeat) {
+  if (event.targetIsEditable || event.repeat || screen.editing || screen.busy) {
     return null
   }
 
-  if (!screen.hasCard || screen.busy) {
+  if (event.key === 'z' && !event.altKey) {
+    return screen.canUndo ? { type: 'undo' } : null
+  }
+
+  if (event.ctrlKey || event.metaKey || event.altKey || !screen.hasCard) {
     return null
+  }
+
+  if (event.key === '-') {
+    return { type: 'bury' }
+  }
+
+  if (event.key === '@') {
+    return { type: 'suspend' }
   }
 
   if (!screen.revealed) {
     return event.key === ' ' ? { type: 'reveal' } : null
+  }
+
+  if (event.key === 'e') {
+    return { type: 'edit' }
   }
 
   const grade = GRADE_KEYS[event.key]

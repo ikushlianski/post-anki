@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { cardPhaseSchema, type CardPhase, type Verdict } from "@post-anki/shared";
 import { knowledgeBitSchedules } from "../db/schema.js";
 import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
@@ -111,7 +111,16 @@ export interface KnowledgeBitScheduleRow {
   phase: CardPhase;
   learningStep: number;
   lapses: number;
+  suspendedAt: Date | null;
+  buriedUntil: Date | null;
 }
+
+// Not suspended and not buried; a card with no schedule row passes.
+export const inReviewRotation = (now: Date) =>
+  and(
+    isNull(knowledgeBitSchedules.suspendedAt),
+    or(isNull(knowledgeBitSchedules.buriedUntil), lte(knowledgeBitSchedules.buriedUntil, now)),
+  );
 
 // Reads the full schedule row inside the caller's transaction, so a grade can snapshot it first.
 export async function readKnowledgeBitScheduleInTx(
@@ -128,6 +137,8 @@ export async function readKnowledgeBitScheduleInTx(
       phase: knowledgeBitSchedules.phase,
       learningStep: knowledgeBitSchedules.learningStep,
       lapses: knowledgeBitSchedules.lapses,
+      suspendedAt: knowledgeBitSchedules.suspendedAt,
+      buriedUntil: knowledgeBitSchedules.buriedUntil,
     })
     .from(knowledgeBitSchedules)
     .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
@@ -152,6 +163,7 @@ export async function upsertKnowledgeBitScheduleInTx(
     phase: CardPhase;
     learningStep: number;
     lapses: number;
+    suspendedAt?: Date;
   },
   now: Date,
 ): Promise<void> {
@@ -167,6 +179,7 @@ export async function upsertKnowledgeBitScheduleInTx(
       phase: next.phase,
       learningStep: next.learningStep,
       lapses: next.lapses,
+      suspendedAt: next.suspendedAt ?? null,
     })
     .onConflictDoUpdate({
       target: knowledgeBitSchedules.knowledgeBitId,
@@ -177,8 +190,37 @@ export async function upsertKnowledgeBitScheduleInTx(
         phase: next.phase,
         learningStep: next.learningStep,
         lapses: next.lapses,
+        ...(next.suspendedAt ? { suspendedAt: next.suspendedAt } : {}),
         lastReviewedAt: now,
         reviewCount: sql`${knowledgeBitSchedules.reviewCount} + 1`,
       },
     });
+}
+
+export async function replaceKnowledgeBitScheduleInTx(
+  tx: Tx,
+  knowledgeBitId: string,
+  row: KnowledgeBitScheduleRow,
+): Promise<void> {
+  await tx
+    .insert(knowledgeBitSchedules)
+    .values({ knowledgeBitId, ...row })
+    .onConflictDoUpdate({ target: knowledgeBitSchedules.knowledgeBitId, set: row });
+}
+
+export interface KnowledgeBitScheduleControls {
+  suspendedAt: Date | null;
+  buriedUntil: Date | null;
+}
+
+// A card never graded gets an ungraded row (reviewCount 0), which readers treat as new.
+export async function writeKnowledgeBitScheduleControlsInTx(
+  tx: Tx,
+  knowledgeBitId: string,
+  controls: KnowledgeBitScheduleControls,
+): Promise<void> {
+  await tx
+    .insert(knowledgeBitSchedules)
+    .values({ knowledgeBitId, reviewCount: 0, phase: "new", ...controls })
+    .onConflictDoUpdate({ target: knowledgeBitSchedules.knowledgeBitId, set: controls });
 }

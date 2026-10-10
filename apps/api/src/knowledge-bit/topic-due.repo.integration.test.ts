@@ -207,6 +207,48 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
     expect(scoped.get("top_due_1")).toBe(2);
   });
 
+  it("does not count a suspended or still-buried bit as due, topic or module, but counts an expired bury", async () => {
+    await insertSubject({ id: "sub_due_ctl", name: "Controls" });
+    await insertCurriculum({ id: "cur_due_ctl", subjectId: "sub_due_ctl", name: "Controls" });
+    await insertModule({ id: "mod_due_ctl", curriculumId: "cur_due_ctl", title: "Controls" });
+    await insertTopic({
+      id: "top_due_ctl",
+      moduleId: "mod_due_ctl",
+      curriculumId: "cur_due_ctl",
+      title: "Set aside cards",
+    });
+
+    for (const [index, name] of ["suspended", "buried", "expired", "plain"].entries()) {
+      await insertKnowledgeBit({
+        id: `bit_due_ctl_${name}`,
+        knowledgeSourceId: "src_due_ctl",
+        ordinal: index,
+        body: name,
+        topicId: "top_due_ctl",
+      });
+      await insertQuestionVariant({ id: `qv_due_ctl_${name}`, knowledgeBitId: `bit_due_ctl_${name}` });
+    }
+
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at, suspended_at) VALUES ('bit_due_ctl_suspended', $1, now())`,
+      [yesterday],
+    );
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at, buried_until) VALUES ('bit_due_ctl_buried', $1, $2)`,
+      [yesterday, tomorrow],
+    );
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at, buried_until) VALUES ('bit_due_ctl_expired', $1, $1)`,
+      [yesterday],
+    );
+
+    expect((await getDueCountsForTopics(["top_due_ctl"])).get("top_due_ctl")).toBe(2);
+    expect((await getDueCountsForModules(["mod_due_ctl"])).get("mod_due_ctl")).toBe(2);
+  });
+
   it("omits a topic with no due bits from the ranked list", async () => {
     await insertSubject({ id: "sub_due_2", name: "Testing 2" });
     await insertCurriculum({ id: "cur_due_2", subjectId: "sub_due_2", name: "Scheduling 2" });

@@ -596,6 +596,13 @@
       "when": 1791664342982,
       "tag": "0084_colorful_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1791664545521,
+      "tag": "0085_brown_senator_kelly",
+      "breakpoints": true
     }
   ]
 }

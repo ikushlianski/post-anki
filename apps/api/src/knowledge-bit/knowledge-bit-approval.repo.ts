@@ -80,7 +80,7 @@ export async function editKnowledgeBitQuestionVariant(
         .for("update")
     )[0];
 
-    if (!bit || bit.approvalState !== "pending") {
+    if (!bit || bit.approvalState === "rejected") {
       return { error: "not_found" as const };
     }
 

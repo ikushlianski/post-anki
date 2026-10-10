@@ -11,8 +11,8 @@ const plainKey = (key: string) => ({
   targetIsEditable: false,
 })
 
-const hiddenCard = { hasCard: true, revealed: false, busy: false }
-const revealedCard = { hasCard: true, revealed: true, busy: false }
+const hiddenCard = { hasCard: true, revealed: false, busy: false, canUndo: false, editing: false }
+const revealedCard = { ...hiddenCard, revealed: true }
 
 describe('ankiReviewKeyAction', () => {
   it('should reveal the answer when the learner presses Space on a hidden card', () => {
@@ -51,11 +51,40 @@ describe('ankiReviewKeyAction', () => {
   })
 
   it('should do nothing when there is no card on screen', () => {
-    expect(ankiReviewKeyAction(plainKey(' '), { hasCard: false, revealed: false, busy: false })).toBeNull()
+    expect(ankiReviewKeyAction(plainKey(' '), { ...hiddenCard, hasCard: false })).toBeNull()
   })
 
   it('should ignore keys that are not review shortcuts', () => {
     expect(ankiReviewKeyAction(plainKey('5'), revealedCard)).toBeNull()
     expect(ankiReviewKeyAction(plainKey('Enter'), hiddenCard)).toBeNull()
+  })
+  it('should undo on Z or Ctrl/Cmd+Z, even on the done screen, but only when there is something to undo', () => {
+    const undoable = { ...hiddenCard, hasCard: false, canUndo: true }
+
+    expect(ankiReviewKeyAction(plainKey('z'), undoable)).toEqual({ type: 'undo' })
+    expect(ankiReviewKeyAction({ ...plainKey('z'), ctrlKey: true }, undoable)).toEqual({ type: 'undo' })
+    expect(ankiReviewKeyAction({ ...plainKey('z'), metaKey: true }, undoable)).toEqual({ type: 'undo' })
+    expect(ankiReviewKeyAction(plainKey('z'), hiddenCard)).toBeNull()
+  })
+
+  it('should edit only after the answer is revealed', () => {
+    expect(ankiReviewKeyAction(plainKey('e'), hiddenCard)).toBeNull()
+    expect(ankiReviewKeyAction(plainKey('e'), revealedCard)).toEqual({ type: 'edit' })
+  })
+
+  it('should bury with - and suspend with @ on any card', () => {
+    expect(ankiReviewKeyAction(plainKey('-'), hiddenCard)).toEqual({ type: 'bury' })
+    expect(ankiReviewKeyAction(plainKey('@'), revealedCard)).toEqual({ type: 'suspend' })
+    expect(ankiReviewKeyAction(plainKey('@'), { ...hiddenCard, hasCard: false })).toBeNull()
+  })
+
+  it('should ignore every shortcut while the editor is open or an action is saving', () => {
+    const editing = { ...revealedCard, canUndo: true, editing: true }
+    const saving = { ...revealedCard, canUndo: true, busy: true }
+
+    for (const key of ['z', 'e', '-', '@', '1', ' ']) {
+      expect(ankiReviewKeyAction(plainKey(key), editing)).toBeNull()
+      expect(ankiReviewKeyAction(plainKey(key), saving)).toBeNull()
+    }
   })
 })

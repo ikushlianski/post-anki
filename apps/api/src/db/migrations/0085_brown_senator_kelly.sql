@@ -1,0 +1,2 @@
+ALTER TABLE "knowledge_bit_schedules" ADD COLUMN "suspended_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "knowledge_bit_schedules" ADD COLUMN "buried_until" timestamp with time zone;

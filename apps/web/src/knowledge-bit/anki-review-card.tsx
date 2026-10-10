@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ReviewCard } from '@post-anki/shared'
 
 import { KnowledgeBitChatPanel } from './knowledge-bit-chat-panel'
@@ -6,16 +7,24 @@ export function AnkiReviewCard({
   card,
   revealed,
   onReveal,
+  actions,
+  editor,
 }: {
   card: ReviewCard
   revealed: boolean
   onReveal: () => void
+  actions?: ReactNode
+  editor?: ReactNode
 }) {
   return (
     <div data-testid="anki-review-card" className="flex flex-col gap-4">
-      <p data-testid="anki-review-prompt" className="text-lg font-medium">
-        {card.prompt}
-      </p>
+      {actions}
+
+      {editor ?? (
+        <p data-testid="anki-review-prompt" className="text-lg font-medium">
+          {card.prompt}
+        </p>
+      )}
 
       {!revealed && (
         <button
@@ -30,9 +39,11 @@ export function AnkiReviewCard({
 
       {revealed && (
         <>
-          <p data-testid="anki-review-answer" className="border-t border-neutral-200 pt-4">
-            {card.answer}
-          </p>
+          {!editor && (
+            <p data-testid="anki-review-answer" className="border-t border-neutral-200 pt-4">
+              {card.answer}
+            </p>
+          )}
           {card.background && (
             <p data-testid="anki-review-background" className="text-sm text-neutral-500">
               {card.background}

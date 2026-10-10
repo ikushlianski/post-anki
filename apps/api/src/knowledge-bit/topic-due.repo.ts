@@ -11,6 +11,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { listDormantEntityIds } from "../liveness/liveness.repo.js";
+import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 
 // A bit counts as due if it has never been reviewed yet (no schedule row) or its due date has
 // passed — same "unreviewed counts as due" convention Anki uses, so a topic made only of fresh
@@ -19,7 +20,7 @@ import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 // ever actually serve, so a bit stuck in generation (pending, or permanently failed) would
 // otherwise inflate a topic's due count with nothing a learner can act on. It must also be
 // approved — a pending/rejected bit can't be answered, so counting it due would show a badge
-// the queue can never actually serve.
+// the queue can never actually serve. Suspended and buried bits are skipped for the same reason.
 //
 // Also excludes a topic that's not yet released or deliberately dropped, and a topic whose
 // curriculum is still a draft (not yet confirmed by the learner) or dormant (the learner
@@ -42,6 +43,7 @@ function dueCondition(db: DbExecutor, dormantCurriculumIds: Set<string>) {
   return and(
     hasQuestionVariant,
     eq(knowledgeBits.approvalState, "approved"),
+    inReviewRotation(new Date()),
     or(isNull(knowledgeBitSchedules.knowledgeBitId), lte(knowledgeBitSchedules.dueAt, new Date())),
     eq(topics.included, true),
     ne(topics.learningStatus, "skipping"),
