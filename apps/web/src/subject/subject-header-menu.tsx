@@ -1,98 +1,91 @@
-import { useRef, useState } from 'react'
-import type { FormEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import type { Subject } from '../curriculum/model'
-import { OVERFLOW_MENU_ITEM_CLASS, OverflowMenu, type OverflowMenuHandle } from '../ui/overflow-menu'
-import { deleteSubject, updateSubjectName } from './subject.api'
-
-type HeaderMenuView = 'closed' | 'actions' | 'rename' | 'confirm-delete'
+import { focusPageHeading } from '../ui/focus-page-heading'
+import { OVERFLOW_MENU_ITEM_CLASS, OverflowMenu } from '../ui/overflow-menu'
+import { createSubject, deleteSubject, updateSubjectName, updateSubjectParent } from './subject.api'
+import { SubjectDeleteConfirm } from './subject-delete-confirm'
+import { SubjectMovePicker } from './subject-move-picker'
+import { SubjectNameForm } from './subject-name-form'
+import { buildMoveOptions, countDirectSubSubjects } from './subject-menu-model'
+import { useLiveCurriculumCount, useLiveSubjects } from './subject-live-data'
+import { useSubjectMenuState } from './subject-menu-state'
 
 export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
   const router = useRouter()
-  const menuRef = useRef<OverflowMenuHandle>(null)
-  const [view, setView] = useState<HeaderMenuView>('closed')
-  const [draft, setDraft] = useState(subject.name)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const isOpen = view !== 'closed'
+  const menu = useSubjectMenuState()
+  const { view, busy, error, menuRef, attempt, showView, close } = menu
+  const subjects = useLiveSubjects()
+  const curriculumCount = useLiveCurriculumCount(subject.id)
 
-  function showView(next: HeaderMenuView) {
-    setError(null)
-    setDraft(subject.name)
-    setView(next)
-  }
+  async function refreshAfter(action: () => Promise<unknown>): Promise<boolean> {
+    try {
+      await action()
+      await router.invalidate()
 
-  function handleOpenChange(next: boolean) {
-    if (next) {
-      showView('actions')
-
-      return
-    }
-
-    setView('closed')
-    setError(null)
-  }
-
-  function close(restoreFocus: boolean) {
-    handleOpenChange(false)
-
-    if (restoreFocus) {
-      menuRef.current?.focusTrigger()
+      return true
+    } catch {
+      return false
     }
   }
 
-  async function handleRename(event: FormEvent) {
-    event.preventDefault()
-
-    const name = draft.trim()
-
-    if (!name) {
-      return
-    }
-
+  async function handleRename(name: string) {
     if (name === subject.name) {
       close(true)
 
       return
     }
 
-    setBusy(true)
-    setError(null)
-
-    let ok = false
-
-    try {
-      await updateSubjectName({ data: { subjectId: subject.id, name } })
-      await router.invalidate()
-      ok = true
-    } catch {
-      ok = false
-    }
-
-    setBusy(false)
+    const ok = await attempt(
+      () => refreshAfter(() => updateSubjectName({ data: { subjectId: subject.id, name } })),
+      'Rename failed — try again.',
+    )
 
     if (ok) {
       close(true)
-    } else {
-      setError('Rename failed — try again.')
+    }
+  }
+
+  async function handleAddSubSubject(name: string) {
+    const ok = await attempt(
+      () =>
+        refreshAfter(() =>
+          createSubject({ data: { name, kind: 'architecture-mentor', parentId: subject.id } }),
+        ),
+      'Create failed — try again.',
+    )
+
+    if (ok) {
+      close(true)
+    }
+  }
+
+  async function handleMove(parentId: string | null) {
+    const ok = await attempt(
+      () => refreshAfter(() => updateSubjectParent({ data: { subjectId: subject.id, parentId } })),
+      'Move failed — try again.',
+    )
+
+    if (ok) {
+      close(true)
     }
   }
 
   async function handleDelete() {
-    setBusy(true)
-    setError(null)
+    const ok = await attempt(async () => {
+      try {
+        await deleteSubject({ data: subject.id })
 
-    try {
-      await deleteSubject({ data: subject.id })
-    } catch {
-      setBusy(false)
-      setError('Delete failed — try again.')
+        return true
+      } catch {
+        return false
+      }
+    }, 'Delete failed — try again.')
 
-      return
+    if (ok) {
+      await router.navigate({ to: '/' })
+      focusPageHeading()
     }
-
-    await router.navigate({ to: '/' })
   }
 
   return (
@@ -100,12 +93,31 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
       ref={menuRef}
       label={`Actions for ${subject.name}`}
       testId="subject-header-menu-button"
-      open={isOpen}
-      onOpenChange={handleOpenChange}
-      panelRole={view === 'actions' ? 'menu' : undefined}
+      open={menu.isOpen}
+      viewKey={view}
+      onOpenChange={menu.handleOpenChange}
+      panelRole={view === 'actions' ? 'menu' : 'dialog'}
     >
       {view === 'actions' ? (
         <>
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="subject-header-menu-add-child"
+            onClick={() => showView('add-child')}
+            className={OVERFLOW_MENU_ITEM_CLASS}
+          >
+            Add sub-subject
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="subject-header-menu-move"
+            onClick={() => showView('move')}
+            className={OVERFLOW_MENU_ITEM_CLASS}
+          >
+            Move under…
+          </button>
           <button
             type="button"
             role="menuitem"
@@ -128,72 +140,68 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
       ) : null}
 
       {view === 'rename' ? (
-        <form onSubmit={handleRename} className="flex flex-col gap-2 p-2">
-          <input
-            value={draft}
-            autoFocus
-            disabled={busy}
-            aria-label="Subject name"
-            data-testid={`subject-rename-${subject.id}-input`}
-            onChange={(event) => setDraft(event.target.value)}
-            className="rounded border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-neutral-500"
-          />
-          {error ? (
-            <p role="alert" data-testid={`subject-rename-${subject.id}-error`} className="text-xs text-red-600">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex justify-end gap-3 text-xs">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => showView('actions')}
-              data-testid={`subject-rename-${subject.id}-cancel`}
-              className="text-neutral-500 hover:text-neutral-900"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={busy || draft.trim() === ''}
-              data-testid={`subject-rename-${subject.id}-confirm`}
-              className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
-            >
-              Save
-            </button>
-          </div>
-        </form>
+        <SubjectNameForm
+          initialValue={subject.name}
+          ariaLabel="Subject name"
+          submitLabel="Save"
+          busy={busy}
+          error={error}
+          testIds={{
+            input: `subject-rename-${subject.id}-input`,
+            error: `subject-rename-${subject.id}-error`,
+            cancel: `subject-rename-${subject.id}-cancel`,
+            submit: `subject-rename-${subject.id}-confirm`,
+          }}
+          onSubmit={handleRename}
+          onCancel={() => showView('actions')}
+        />
+      ) : null}
+
+      {view === 'add-child' ? (
+        <SubjectNameForm
+          initialValue=""
+          ariaLabel="Sub-subject name"
+          placeholder="Sub-subject name"
+          submitLabel="Add sub-subject"
+          busy={busy}
+          error={error}
+          testIds={{ input: 'subject-header-add-child-input', submit: 'subject-header-add-child-submit' }}
+          onSubmit={handleAddSubSubject}
+          onCancel={() => showView('actions')}
+        />
+      ) : null}
+
+      {view === 'move' ? (
+        <SubjectMovePicker
+          options={buildMoveOptions(subject.id, subject.parentId, subjects ?? [])}
+          currentParentId={subject.parentId}
+          busy={busy}
+          error={error}
+          emptyNotice={subjects === null ? 'Loading subjects…' : 'No other subjects yet.'}
+          testIds={{
+            top: 'subject-header-move-top',
+            target: (parentId) => `subject-header-move-target-${parentId}`,
+          }}
+          onMove={handleMove}
+          onCancel={() => showView('actions')}
+        />
       ) : null}
 
       {view === 'confirm-delete' ? (
-        <div className="flex flex-col gap-2 p-2">
-          <p className="text-sm text-neutral-700">Delete {subject.name}?</p>
-          {error ? (
-            <p role="alert" data-testid="delete-subject-error" className="text-xs text-red-600">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex justify-end gap-3 text-xs">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => showView('actions')}
-              data-testid="delete-subject-cancel"
-              className="text-neutral-500 hover:text-neutral-900"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleDelete}
-              data-testid="delete-subject-confirm"
-              className="font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
+        <SubjectDeleteConfirm
+          subjectName={subject.name}
+          curriculumCount={curriculumCount}
+          subSubjectCount={subjects === null ? null : countDirectSubSubjects(subject.id, subjects)}
+          busy={busy}
+          error={error}
+          testIds={{
+            confirm: 'delete-subject-confirm',
+            cancel: 'delete-subject-cancel',
+            error: 'delete-subject-error',
+          }}
+          onConfirm={handleDelete}
+          onCancel={() => showView('actions')}
+        />
       ) : null}
     </OverflowMenu>
   )

@@ -1,21 +1,24 @@
-import { useEffect, useImperativeHandle, useRef } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref } from 'react'
 
 const NAVIGATION_KEYS = ['ArrowDown', 'ArrowUp', 'Home', 'End']
+const FOCUSABLE_SELECTOR = 'input:not(:disabled), button:not(:disabled), a[href]'
 
 export const OVERFLOW_MENU_ITEM_CLASS =
   'block w-full rounded px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 focus:bg-neutral-100 focus:outline-none'
 
 export interface OverflowMenuHandle {
   focusTrigger: () => void
+  focusFirstControl: () => void
 }
 
 export interface OverflowMenuProps {
   label: string
   testId?: string
   open: boolean
+  viewKey: string
   onOpenChange: (open: boolean) => void
-  panelRole?: 'menu'
+  panelRole?: 'menu' | 'dialog'
   ref?: Ref<OverflowMenuHandle>
   children: ReactNode
 }
@@ -24,22 +27,31 @@ export function OverflowMenu({
   label,
   testId,
   open,
+  viewKey,
   onOpenChange,
-  panelRole,
+  panelRole = 'dialog',
   ref,
   children,
 }: OverflowMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const [focusRequest, setFocusRequest] = useState(0)
 
-  useImperativeHandle(ref, () => ({ focusTrigger: () => buttonRef.current?.focus() }), [])
+  useImperativeHandle(
+    ref,
+    () => ({
+      focusTrigger: () => buttonRef.current?.focus(),
+      focusFirstControl: () => setFocusRequest((count) => count + 1),
+    }),
+    [],
+  )
 
   useEffect(() => {
-    if (open && panelRole === 'menu') {
-      panelRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    if (open) {
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus()
     }
-  }, [open, panelRole])
+  }, [open, viewKey, focusRequest])
 
   useEffect(() => {
     if (!open) {

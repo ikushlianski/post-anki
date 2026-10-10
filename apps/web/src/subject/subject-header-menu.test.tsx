@@ -4,7 +4,14 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 
 import type { Subject } from '../curriculum/model'
 import { SubjectHeaderMenu } from './subject-header-menu'
-import { deleteSubject, updateSubjectName } from './subject.api'
+import { createSubject, deleteSubject, updateSubjectName, updateSubjectParent } from './subject.api'
+
+const live = vi.hoisted(() => ({ curriculumCount: 0 as number | null, subjects: null as Subject[] | null }))
+
+vi.mock('./subject-live-data', () => ({
+  useLiveCurriculumCount: () => live.curriculumCount,
+  useLiveSubjects: () => live.subjects,
+}))
 
 const router = vi.hoisted(() => ({ invalidate: vi.fn(async () => undefined), navigate: vi.fn(async () => undefined) }))
 
@@ -13,7 +20,9 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('./subject.api', () => ({
+  createSubject: vi.fn(async () => null),
   updateSubjectName: vi.fn(async () => null),
+  updateSubjectParent: vi.fn(async () => null),
   deleteSubject: vi.fn(async () => null),
 }))
 
@@ -36,6 +45,8 @@ function renderHeaderMenu() {
 
 afterEach(() => {
   cleanup()
+  live.curriculumCount = 0
+  live.subjects = null
   vi.clearAllMocks()
 })
 
@@ -51,6 +62,8 @@ describe('SubjectHeaderMenu', () => {
     expect(trigger().getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByRole('menu', { name: 'Actions for Business' })).toBeTruthy()
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Add sub-subject',
+      'Move under…',
       'Rename',
       'Delete subject',
     ])
@@ -106,6 +119,24 @@ describe('SubjectHeaderMenu', () => {
     expect(vi.mocked(deleteSubject)).not.toHaveBeenCalled()
   })
 
+  it('should say how many courses are deleted and how many sub-subjects move up, from live data', () => {
+    live.curriculumCount = 3
+    live.subjects = [
+      SUBJECT,
+      { ...SUBJECT, id: 'sub_sales', name: 'Sales', parentId: 'sub_business' },
+    ]
+    renderHeaderMenu()
+
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete subject' }))
+
+    expect(screen.getByTestId('subject-delete-impact').textContent).toContain('3 courses will be deleted')
+    expect(screen.getByTestId('subject-delete-impact').textContent).toContain(
+      '1 sub-subject will move to the top level.',
+    )
+    expect(screen.getByTestId('delete-subject-confirm').textContent).toBe('Delete subject and 3 courses')
+  })
+
   it('should call deleteSubject with the subject id once the deletion is confirmed', async () => {
     renderHeaderMenu()
 
@@ -116,6 +147,53 @@ describe('SubjectHeaderMenu', () => {
     await waitFor(() => {
       expect(vi.mocked(deleteSubject)).toHaveBeenCalledWith({ data: 'sub_business' })
     })
+    await waitFor(() => {
+      expect(router.navigate).toHaveBeenCalledWith({ to: '/' })
+    })
+  })
+
+  it('should create a sub-subject under this subject and refresh the page', async () => {
+    renderHeaderMenu()
+
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-subject' }))
+    fireEvent.change(screen.getByTestId('subject-header-add-child-input'), {
+      target: { value: '  Marketing  ' },
+    })
+    fireEvent.click(screen.getByTestId('subject-header-add-child-submit'))
+
+    await waitFor(() => {
+      expect(vi.mocked(createSubject)).toHaveBeenCalledWith({
+        data: { name: 'Marketing', kind: 'architecture-mentor', parentId: 'sub_business' },
+      })
+    })
+    await waitFor(() => {
+      expect(router.invalidate).toHaveBeenCalled()
+    })
+  })
+
+  it('should move the subject under the chosen parent from the picker', async () => {
+    live.subjects = [SUBJECT, { ...SUBJECT, id: 'sub_health', name: 'Health', parentId: null }]
+    renderHeaderMenu()
+
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
+    fireEvent.click(screen.getByTestId('subject-header-move-target-sub_health'))
+
+    await waitFor(() => {
+      expect(vi.mocked(updateSubjectParent)).toHaveBeenCalledWith({
+        data: { subjectId: 'sub_business', parentId: 'sub_health' },
+      })
+    })
+  })
+
+  it('should navigate to the dashboard once the subject is deleted', async () => {
+    renderHeaderMenu()
+
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete subject' }))
+    fireEvent.click(screen.getByTestId('delete-subject-confirm'))
+
     await waitFor(() => {
       expect(router.navigate).toHaveBeenCalledWith({ to: '/' })
     })

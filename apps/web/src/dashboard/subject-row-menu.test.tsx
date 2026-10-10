@@ -6,6 +6,10 @@ import type { ReactNode } from 'react'
 import type { Subject } from '../curriculum/model'
 import { SubjectRowMenu } from './subject-row-menu'
 
+vi.mock('../subject/subject-live-data', () => ({
+  useLiveCurriculumCount: () => 0,
+}))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
     to,
@@ -74,13 +78,6 @@ function renderMenu(overrides: MenuOverrides = {}) {
 
   return { onRename, onDelete, onCreateSubSubject, onMoveSubject }
 }
-
-const TREE: Subject[] = [
-  { id: 'sub-business', name: 'Business', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: null },
-  { id: 'sub-sales', name: 'Sales', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'sub-business' },
-  { id: 'sub-health', name: 'Health', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: null },
-  { id: 'sub-fitness', name: 'Fitness', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'sub-health' },
-]
 
 function trigger() {
   return screen.getByRole('button', { name: 'Actions for Business' })
@@ -165,7 +162,7 @@ describe('SubjectRowMenu', () => {
 
     fireEvent.click(trigger())
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete subject' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByTestId('subject-menu-confirm-delete-subject-business'))
 
     await waitFor(() => {
       expect(onDelete).toHaveBeenCalledWith('subject-business')
@@ -287,38 +284,4 @@ describe('SubjectRowMenu', () => {
     expect(screen.getByRole('textbox', { name: 'Sub-subject name' })).toBeTruthy()
   })
 
-  it('should offer every other subject and Top level, but never the subject itself or its descendants', () => {
-    renderMenu({ subject: TREE[0], allSubjects: TREE })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Business' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
-
-    const labels = screen.getAllByRole('menuitem').map((item) => item.textContent)
-
-    expect(labels).toEqual(['Top level', 'Health', 'Health › Fitness'])
-  })
-
-  it('should move a subject under the chosen target', async () => {
-    const { onMoveSubject } = renderMenu({ subject: TREE[1], allSubjects: TREE })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Sales' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
-    fireEvent.click(screen.getByTestId('subject-menu-move-target-sub-health'))
-
-    await waitFor(() => {
-      expect(onMoveSubject).toHaveBeenCalledWith('sub-sales', 'sub-health')
-    })
-  })
-
-  it('should clear the parent when Top level is chosen', async () => {
-    const { onMoveSubject } = renderMenu({ subject: TREE[1], allSubjects: TREE })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Actions for Sales' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
-    fireEvent.click(screen.getByTestId('subject-menu-move-top-sub-sales'))
-
-    await waitFor(() => {
-      expect(onMoveSubject).toHaveBeenCalledWith('sub-sales', null)
-    })
-  })
 })
