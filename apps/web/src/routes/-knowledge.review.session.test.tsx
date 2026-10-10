@@ -191,12 +191,12 @@ describe('Anki review session controls', () => {
     await gradeFirstCard()
     await screen.findByText(secondCard.prompt)
 
-    expect(screen.getByTestId('anki-review-progress').textContent).toBe('1 done · 1 left')
+    expect(screen.getByTestId('anki-review-progress').textContent).toBe('1 reviewed · 1 left')
 
     await userEvent.click(screen.getByTestId('anki-review-undo'))
     await screen.findByText(firstCard.prompt)
 
-    expect(screen.getByTestId('anki-review-progress').textContent).toBe('0 done · 2 left')
+    expect(screen.getByTestId('anki-review-progress').textContent).toBe('0 reviewed · 2 left')
   })
 
   it('should not show a progress line before the first card loads', async () => {

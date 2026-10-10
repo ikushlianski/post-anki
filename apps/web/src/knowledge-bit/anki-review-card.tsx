@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { ReviewCard } from '@post-anki/shared'
 
 import { KnowledgeBitChatPanel } from './knowledge-bit-chat-panel'
@@ -16,6 +16,14 @@ export function AnkiReviewCard({
   actions?: ReactNode
   editor?: ReactNode
 }) {
+  const showAnswerRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!revealed) {
+      showAnswerRef.current?.focus()
+    }
+  }, [revealed, card.variantId])
+
   return (
     <div data-testid="anki-review-card" className="flex flex-col gap-4">
       {editor ?? (
@@ -26,6 +34,7 @@ export function AnkiReviewCard({
 
       {!revealed && (
         <button
+          ref={showAnswerRef}
           type="button"
           data-testid="anki-review-show-answer"
           onClick={onReveal}

@@ -14,9 +14,9 @@ export function AnkiReviewSessionBar({
   onEnd: () => void
 }) {
   return (
-    <div data-testid="anki-review-session-bar" className="mb-4 flex items-center gap-3 text-sm">
+    <div data-testid="anki-review-session-bar" className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
       <span data-testid="anki-review-progress" className="text-neutral-500">
-        {stats.done} done · {stats.remaining} left
+        {stats.done} reviewed · {stats.remaining} left
       </span>
       <button
         type="button"
@@ -30,6 +30,7 @@ export function AnkiReviewSessionBar({
       <button
         type="button"
         data-testid="anki-review-end-session"
+        title={stats.done === 0 ? 'Review at least one card to end the session' : undefined}
         disabled={stats.done === 0}
         onClick={onEnd}
         className="rounded-md border border-neutral-200 px-2 py-1 disabled:opacity-40"

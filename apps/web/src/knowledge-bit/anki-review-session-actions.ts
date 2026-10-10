@@ -46,6 +46,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
   const [busy, setBusy] = useState(false)
   const [refilling, setRefilling] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [failedGrade, setFailedGrade] = useState<ReviewGrade | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const inFlight = useRef(false)
   const pendingGrade = useRef<PendingGrade | null>(null)
@@ -58,6 +59,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
     inFlight.current = true
     setBusy(true)
     setError(null)
+    setFailedGrade(null)
 
     try {
       await run()
@@ -106,6 +108,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
 
       if (!outcome.ok) {
         setError(outcome.error)
+        setFailedGrade(NON_RETRYABLE_ERRORS.has(outcome.error) ? null : value)
         return
       }
 
@@ -213,5 +216,20 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       })
     })
 
-  return { busy, refilling, error, editError, grade, control, undo, saveEdit, advance, setEditError }
+  const retryGrade = () => (failedGrade === null ? undefined : grade(failedGrade))
+
+  return {
+    busy,
+    refilling,
+    error,
+    editError,
+    canRetryGrade: failedGrade !== null,
+    grade,
+    retryGrade,
+    control,
+    undo,
+    saveEdit,
+    advance,
+    setEditError,
+  }
 }

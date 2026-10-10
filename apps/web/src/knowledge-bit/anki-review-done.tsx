@@ -1,5 +1,18 @@
 import { Link } from '@tanstack/react-router'
 
+function NextSteps() {
+  return (
+    <div className="flex gap-4 text-sm">
+      <Link to="/add-knowledge" className="text-indigo-600 hover:underline">
+        Add knowledge
+      </Link>
+      <Link to="/knowledge-bit-review" className="text-indigo-600 hover:underline">
+        Approve suggestions
+      </Link>
+    </div>
+  )
+}
+
 export function AnkiReviewDone({
   nextDueAt,
   noApprovedCards,
@@ -16,26 +29,23 @@ export function AnkiReviewDone({
         <p className="text-sm text-neutral-500">
           Cards come from questions you approve. Approve suggested questions, or add knowledge to get new ones.
         </p>
-        <div className="flex gap-4 text-sm">
-          <Link to="/knowledge-bit-review" className="text-indigo-600 hover:underline">
-            Approve suggestions
-          </Link>
-          <Link to="/add-knowledge" className="text-indigo-600 hover:underline">
-            Add knowledge
-          </Link>
-        </div>
+        <NextSteps />
       </div>
     )
   }
 
   return (
-    <div data-testid="anki-review-done" className="flex flex-col gap-1">
-      <p className="text-lg font-medium">Done for today</p>
-      <p className="text-sm text-neutral-500">
-        {nextDueAt
-          ? `Next card due ${new Date(nextDueAt).toLocaleString()}`
-          : 'No more cards are scheduled.'}
-      </p>
+    <div data-testid="anki-review-done" className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
+        <p className="text-lg font-medium">Done for today</p>
+        <p className="text-sm text-neutral-500">
+          {nextDueAt
+            ? `Next card due ${new Date(nextDueAt).toLocaleString()}`
+            : 'No more cards are scheduled.'}
+        </p>
+      </div>
+      <p className="text-sm text-neutral-500">Want more cards? Add knowledge or approve suggested questions.</p>
+      <NextSteps />
     </div>
   )
 }

@@ -169,11 +169,13 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
         />
       )}
 
-      {state.notice && (
-        <p data-testid="anki-review-notice" className="mb-4 text-sm text-amber-700">
-          {state.notice}
-        </p>
-      )}
+      <div role="status" aria-live="polite">
+        {state.notice && (
+          <p data-testid="anki-review-notice" className="mb-4 text-sm text-amber-700">
+            {state.notice}
+          </p>
+        )}
+      </div>
 
       {loaded && state.view === 'summary' && (
         <AnkiReviewSummary stats={stats} onKeepReviewing={() => dispatch({ type: 'summaryClosed' })} />
@@ -230,6 +232,17 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
           {actions.error && (
             <div data-testid="anki-review-grade-error" className="flex flex-col gap-2">
               <p className="text-sm text-red-600">{actionErrorMessage(actions.error)}</p>
+              {actions.canRetryGrade && (
+                <button
+                  type="button"
+                  data-testid="anki-review-grade-retry"
+                  disabled={actions.busy}
+                  onClick={() => void actions.retryGrade()}
+                  className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
+                >
+                  Retry
+                </button>
+              )}
               {NON_RETRYABLE_ERRORS.has(actions.error) && (
                 <button
                   type="button"

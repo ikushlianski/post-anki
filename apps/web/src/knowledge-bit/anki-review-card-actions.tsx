@@ -18,7 +18,7 @@ export function AnkiReviewCardActions({
   return (
     <div data-testid="anki-review-card-actions" className="flex items-center gap-2">
       {leech && (
-        <span data-testid="anki-review-leech" className="text-xs font-medium text-amber-700">
+        <span data-testid="anki-review-leech" role="status" aria-live="polite" className="text-xs font-medium text-amber-700">
           Leech
         </span>
       )}
