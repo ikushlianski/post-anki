@@ -1,18 +1,38 @@
 import type http from "node:http";
-import { createSubjectInput, mergeSubjectsInput, updateSubjectInput } from "@post-anki/shared";
+import {
+  createSubjectInput,
+  mergeSubjectsInput,
+  subjectSearchQueryInput,
+  updateSubjectInput,
+} from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   createSubject,
   deleteSubject,
   listSubjects,
   mergeSubjects,
+  searchSubjectsByText,
   updateSubject,
 } from "./subject.repo.js";
 
+// GET /subjects serves both the full list and, when ?query= is present, a ranked search.
 export async function handleListSubjects(
   res: http.ServerResponse,
+  queryParam: string | null,
 ): Promise<void> {
-  sendJson(res, 200, await listSubjects());
+  if (queryParam === null) {
+    sendJson(res, 200, await listSubjects());
+    return;
+  }
+
+  const query = subjectSearchQueryInput.safeParse(queryParam);
+
+  if (!query.success) {
+    sendJson(res, 400, { error: "invalid_input", message: query.error.issues });
+    return;
+  }
+
+  sendJson(res, 200, await searchSubjectsByText(query.data));
 }
 
 export async function handleCreateSubject(

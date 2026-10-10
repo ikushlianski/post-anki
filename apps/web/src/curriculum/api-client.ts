@@ -307,6 +307,12 @@ export async function listSubjects(): Promise<Subject[]> {
   return request<be.Subject[]>('/subjects')
 }
 
+export async function searchSubjects(query: string): Promise<be.SubjectSearchResponse> {
+  const params = new URLSearchParams({ query })
+
+  return request<be.SubjectSearchResponse>(`/subjects?${params.toString()}`)
+}
+
 export async function getDomainMap(subjectId: string): Promise<be.DomainNodeTreeItem[]> {
   return request<be.DomainNodeTreeItem[]>(`/subjects/${subjectId}/domain-map`)
 }

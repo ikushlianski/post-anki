@@ -407,7 +407,7 @@ async function route(
     case "mcpMethodNotAllowed":
       return handleMcpMethodNotAllowed(res);
     case "listSubjects":
-      return handleListSubjects(res);
+      return handleListSubjects(res, url.searchParams.get("query"));
     case "createSubject":
       return handleCreateSubject(req, res);
     case "createKnowledgeSource":

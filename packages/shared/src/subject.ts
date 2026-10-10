@@ -28,6 +28,10 @@ export const updateSubjectInput = z.object({
 
 export type UpdateSubjectInput = z.infer<typeof updateSubjectInput>;
 
+export const subjectSearchQueryInput = z.string().trim().min(1).max(100);
+
+export type SubjectSearchResponse = Subject[];
+
 export const mergeSubjectsInput = z.object({
   sourceSubjectId: z.string(),
 });

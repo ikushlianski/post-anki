@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type {
   CreateSubjectInput,
   MergeSubjectsResult,
@@ -38,6 +38,40 @@ export async function listSubjects(): Promise<Subject[]> {
     .select()
     .from(subjects)
     .orderBy(desc(subjects.createdAt));
+
+  return rows.map(toSubject);
+}
+
+export const SUBJECT_SEARCH_LIMIT = 50;
+
+// Escapes LIKE/ILIKE metacharacters so user input is matched literally.
+export function escapeLikePattern(term: string): string {
+  return term.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+// Case-insensitive match on name or description. Ranks exact name matches first,
+// then name prefixes, then everything else (name or description contains the term).
+export async function searchSubjectsByText(query: string): Promise<Subject[]> {
+  const escaped = escapeLikePattern(query);
+  const prefixPattern = `${escaped}%`;
+  const containsPattern = `%${escaped}%`;
+  const matchRank = sql<number>`case
+    when lower(${subjects.name}) = lower(${query}) then 0
+    when ${subjects.name} ilike ${prefixPattern} then 1
+    else 2
+  end`;
+
+  const rows = await getDb()
+    .select()
+    .from(subjects)
+    .where(
+      or(
+        ilike(subjects.name, containsPattern),
+        ilike(subjects.description, containsPattern),
+      ),
+    )
+    .orderBy(matchRank, subjects.name, subjects.id)
+    .limit(SUBJECT_SEARCH_LIMIT);
 
   return rows.map(toSubject);
 }
