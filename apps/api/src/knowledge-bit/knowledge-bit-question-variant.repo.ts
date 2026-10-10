@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
@@ -86,16 +86,17 @@ export interface NextQuestionVariantsFilter {
 }
 
 /**
- * Fair, cycling answer queue: variants with fewer past attempts come first, ties broken by the
- * variant's own createdAt — never-answered variants surface before over-practiced ones, and the
- * whole set cycles back around once every variant has been seen at least once. No scheduling
- * state, no due list — read-time only, per answer-screen/plan.md's explicit non-goal.
+ * Answer queue. Scoped to a tag, topic or single bit it is a fair, cycling queue: variants with
+ * fewer past attempts come first, ties broken by the variant's own createdAt, and the set cycles
+ * back around once every variant has been seen. No due filter applies there.
  *
- * Scoped to a single topic (the "tap a pressing topic, resume studying it" home-screen flow) is
- * the one exception: there the caller already knows this topic is due from the schedule rollup, so
- * the queue also sorts a bit's own due state first — never-reviewed-or-overdue bits ahead of
- * not-yet-due ones — before falling back to the same fair-cycling order. Otherwise a topic could
- * show "N due" while serving already-comfortable bits ahead of the ones that earned that count.
+ * Unscoped it serves only bits that are due or never scheduled (no schedule row, or due_at <= now),
+ * one variant per bit: the one with the fewest attempts, then basic > fill_in_the_blank > the
+ * rest, then oldest — so a bit never shows two variants that share one schedule.
+ *
+ * Topic scope additionally sorts a bit's own due state first — never-reviewed-or-overdue bits
+ * ahead of not-yet-due ones — because the caller already knows the topic is due from the
+ * schedule rollup, and it must not serve comfortable bits ahead of the ones that earned the count.
  */
 export async function listNextQuestionVariantsToAnswer(
   limit: number,
@@ -158,6 +159,10 @@ export async function listNextQuestionVariantsToAnswer(
     ? and(scopeCondition, topicNotDropped, variantActive, bitApproved)
     : and(topicNotDropped, variantActive, bitApproved);
 
+  if (!scopeCondition) {
+    return listUnscopedVariants(limit, condition, db);
+  }
+
   const filtered = base.where(condition);
 
   const rows = await filtered
@@ -175,6 +180,73 @@ export async function listNextQuestionVariantsToAnswer(
       asc(attemptCount),
       asc(knowledgeBitQuestionVariants.createdAt),
     )
+    .limit(limit);
+
+  return rows.map((row) => ({ ...row, kind: row.kind as KnowledgeBitQuestionVariantKind }));
+}
+
+async function listUnscopedVariants(
+  limit: number,
+  eligible: SQL | undefined,
+  db: DbExecutor,
+): Promise<NextQuestionVariantRow[]> {
+  const attempts = count(knowledgeBitVariantAttempts.id);
+  const kindRank = sql<number>`case ${knowledgeBitQuestionVariants.kind} when 'basic' then 0 when 'fill_in_the_blank' then 1 else 2 end`;
+  const picked = db
+    .select({
+      variantId: sql<string>`${knowledgeBitQuestionVariants.id}`.as("variant_id"),
+      knowledgeBitId: sql<string>`${knowledgeBits.id}`.as("bit_id"),
+      kind: knowledgeBitQuestionVariants.kind,
+      prompt: knowledgeBitQuestionVariants.prompt,
+      bitBody: knowledgeBits.body,
+      background: knowledgeBits.background,
+      attempts: attempts.as("attempts"),
+      kindRank: kindRank.as("kind_rank"),
+      variantCreatedAt: knowledgeBitQuestionVariants.createdAt,
+      pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id} order by ${attempts}, ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
+        .mapWith(Number)
+        .as("pick_rank"),
+    })
+    .from(knowledgeBitQuestionVariants)
+    .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
+    .leftJoin(
+      knowledgeBitVariantAttempts,
+      eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
+    )
+    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .where(
+      and(
+        eligible,
+        or(
+          isNull(knowledgeBitSchedules.knowledgeBitId),
+          sql`${knowledgeBitSchedules.dueAt} <= now()`,
+        ),
+      ),
+    )
+    .groupBy(
+      knowledgeBitQuestionVariants.id,
+      knowledgeBitQuestionVariants.kind,
+      knowledgeBitQuestionVariants.prompt,
+      knowledgeBitQuestionVariants.createdAt,
+      knowledgeBits.id,
+      knowledgeBits.body,
+      knowledgeBits.background,
+    )
+    .as("picked");
+
+  const rows = await db
+    .select({
+      variantId: picked.variantId,
+      kind: picked.kind,
+      prompt: picked.prompt,
+      knowledgeBitId: picked.knowledgeBitId,
+      bitBody: picked.bitBody,
+      background: picked.background,
+    })
+    .from(picked)
+    .where(eq(picked.pickRank, 1))
+    .orderBy(asc(picked.attempts), asc(picked.kindRank), asc(picked.variantCreatedAt))
     .limit(limit);
 
   return rows.map((row) => ({ ...row, kind: row.kind as KnowledgeBitQuestionVariantKind }));

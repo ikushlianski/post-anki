@@ -11,14 +11,42 @@ export type CardPhase = z.infer<typeof cardPhaseSchema>;
 
 const optionalScopeId = z.string().min(1).optional();
 
+const isValidTimeZone = (value: string): boolean => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const reviewCardsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
+  tz: z.string().min(1).refine(isValidTimeZone, "invalid time zone").default("UTC"),
   tagId: optionalScopeId,
   topicId: optionalScopeId,
   knowledgeBitId: optionalScopeId,
 });
 
 export type ReviewCardsQuery = z.infer<typeof reviewCardsQuerySchema>;
+
+export const intervalPreviewSchema = z.object({
+  again: z.number().int().min(0),
+  hard: z.number().int().min(0),
+  good: z.number().int().min(0),
+  easy: z.number().int().min(0),
+});
+
+export type IntervalPreview = z.infer<typeof intervalPreviewSchema>;
+
+export const reviewCountsSchema = z.object({
+  new: z.number().int().min(0),
+  learning: z.number().int().min(0),
+  review: z.number().int().min(0),
+});
+
+export type ReviewCounts = z.infer<typeof reviewCountsSchema>;
 
 export const reviewCardSchema = z.object({
   variantId: z.string(),
@@ -28,12 +56,16 @@ export const reviewCardSchema = z.object({
   answer: z.string(),
   background: z.string().nullable(),
   phase: cardPhaseSchema,
+  intervalPreview: intervalPreviewSchema,
 });
 
 export type ReviewCard = z.infer<typeof reviewCardSchema>;
 
 export const reviewCardsResponseSchema = z.object({
   cards: z.array(reviewCardSchema),
+  counts: reviewCountsSchema,
+  newRemainingToday: z.number().int().min(0),
+  nextDueAt: z.string().nullable(),
 });
 
 export type ReviewCardsResponse = z.infer<typeof reviewCardsResponseSchema>;

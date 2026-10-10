@@ -8,13 +8,13 @@ import {
 import type {
   RecordReviewInput,
   RecordReviewResult,
-  ReviewCard,
   ReviewCardsQuery,
+  ReviewCardsResponse,
 } from '@post-anki/shared'
 
 import { ApiError, request } from '../curriculum/api-client'
 
-export type ReviewCardsOutcome = { ok: true; cards: ReviewCard[] } | { ok: false; error: string }
+export type ReviewCardsOutcome = ({ ok: true } & ReviewCardsResponse) | { ok: false; error: string }
 
 export type SubmitReviewOutcome =
   | ({ ok: true } & RecordReviewResult)
@@ -31,7 +31,7 @@ function toFailure(err: unknown): { ok: false; error: string } {
 export const getReviewCards = createServerFn({ method: 'GET' })
   .inputValidator((data: Partial<ReviewCardsQuery>) => reviewCardsQuerySchema.parse(data))
   .handler(async ({ data }): Promise<ReviewCardsOutcome> => {
-    const params = new URLSearchParams({ limit: String(data.limit) })
+    const params = new URLSearchParams({ limit: String(data.limit), tz: data.tz })
 
     for (const key of ['tagId', 'topicId', 'knowledgeBitId'] as const) {
       const value = data[key]
@@ -44,7 +44,7 @@ export const getReviewCards = createServerFn({ method: 'GET' })
     try {
       const body = await request<unknown>(`/knowledge-bits/review-cards?${params.toString()}`)
 
-      return { ok: true, cards: reviewCardsResponseSchema.parse(body).cards }
+      return { ok: true, ...reviewCardsResponseSchema.parse(body) }
     } catch (err) {
       return toFailure(err)
     }

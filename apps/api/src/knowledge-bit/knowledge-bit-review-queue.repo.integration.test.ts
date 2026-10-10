@@ -36,10 +36,20 @@ await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
-const { listKnowledgeBitReviewCards } = await import("./knowledge-bit-review-queue.repo.js");
+const { getKnowledgeBitReviewQueue } = await import("./knowledge-bit-review-queue.repo.js");
 const { recordKnowledgeBitReview } = await import("./knowledge-bit-review.orchestrator.js");
 
 let client: pg.Client;
+
+const CLOCK = { tz: "UTC", now: new Date("2090-03-10T12:00:00.000Z") };
+
+async function listKnowledgeBitReviewCards(
+  limit: number,
+  filter: { tagId?: string; topicId?: string; knowledgeBitId?: string } | undefined,
+  clock: { tz: string; now: Date } = CLOCK,
+) {
+  return (await getKnowledgeBitReviewQueue(limit, filter, clock)).cards;
+}
 
 beforeAll(async () => {
   client = new pg.Client({ connectionString: DATABASE_URL });
@@ -72,16 +82,38 @@ async function seedBit(
   return knowledgeBitId;
 }
 
-async function seedVariant(knowledgeBitId: string, superseded = false): Promise<string> {
+async function seedVariant(
+  knowledgeBitId: string,
+  superseded = false,
+  kind = "wh_question",
+): Promise<string> {
   const variantId = `kbqv_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer, superseded_at) VALUES ($1, $2, 'wh_question', 0, 'Why a handshake?', 'To agree on sequence numbers.', $3)`,
-    [variantId, knowledgeBitId, superseded ? new Date() : null],
+    `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer, superseded_at) VALUES ($1, $2, $3, 0, 'Why a handshake?', 'To agree on sequence numbers.', $4)`,
+    [variantId, knowledgeBitId, kind, superseded ? new Date() : null],
   );
 
   return variantId;
 }
+
+async function seedSchedule(knowledgeBitId: string, dueAt: Date): Promise<void> {
+  await client.query(
+    `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, ease_factor, interval_days, due_at, review_count) VALUES ($1, 2.5, 10, $2, 1)`,
+    [knowledgeBitId, dueAt],
+  );
+}
+
+async function seedNewCardReviews(total: number, reviewedAt: Date, undone = false): Promise<void> {
+  for (let i = 0; i < total; i++) {
+    await client.query(
+      `INSERT INTO knowledge_bit_reviews (id, knowledge_bit_id, variant_id, grade, was_new, reviewed_at, undone_at) VALUES ($1, $2, $3, 'good', true, $4, $5)`,
+      [`kbreview_${randomUUID()}`, `kb_${randomUUID()}`, `kbqv_${randomUUID()}`, reviewedAt, undone ? reviewedAt : null],
+    );
+  }
+}
+
+const daysFrom = (base: Date, days: number) => new Date(base.getTime() + days * 86_400_000);
 
 describe("listKnowledgeBitReviewCards (real Postgres)", () => {
   it("should return the reference answer and background but never the bit's own text", async () => {
@@ -99,6 +131,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
         answer: "To agree on sequence numbers.",
         background: "Networking basics",
         phase: "new",
+        intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 4 * 86_400 },
       },
     ]);
     expect(JSON.stringify(cards)).not.toContain("SECRET BIT BODY");
@@ -146,17 +179,127 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
     expect((await listKnowledgeBitReviewCards(10, { knowledgeBitId }))[0]?.phase).toBe("review");
   });
 
-  it("should serve the least-reviewed card first across the whole deck", async () => {
-    const reviewedBit = await seedBit();
-    const reviewedVariant = await seedVariant(reviewedBit);
+  it("should serve a due bit before a never-reviewed one", async () => {
+    const dueBit = await seedBit();
+    const dueVariant = await seedVariant(dueBit);
     const freshBit = await seedBit();
     const freshVariant = await seedVariant(freshBit);
 
-    await recordKnowledgeBitReview({ variantId: reviewedVariant, grade: "good" });
+    await seedSchedule(dueBit, daysFrom(CLOCK.now, -1));
 
-    const ids = (await listKnowledgeBitReviewCards(50, undefined)).map((card) => card.variantId);
+    const ids = (await listKnowledgeBitReviewCards(500, undefined)).map((card) => card.variantId);
 
-    expect(ids.indexOf(freshVariant)).toBeLessThan(ids.indexOf(reviewedVariant));
+    expect(ids.indexOf(dueVariant)).toBeGreaterThanOrEqual(0);
+    expect(ids.indexOf(dueVariant)).toBeLessThan(ids.indexOf(freshVariant));
+  });
+
+  it("should leave a bit that is not due yet out of the unscoped queue but serve it when scoped to that bit", async () => {
+    const bitId = await seedBit();
+    const variantId = await seedVariant(bitId);
+
+    await seedSchedule(bitId, daysFrom(CLOCK.now, 3));
+
+    const unscoped = (await listKnowledgeBitReviewCards(500, undefined)).map((card) => card.variantId);
+    const scoped = (await listKnowledgeBitReviewCards(10, { knowledgeBitId: bitId })).map((card) => card.variantId);
+
+    expect(unscoped).not.toContain(variantId);
+    expect(scoped).toEqual([variantId]);
+  });
+
+  it("should serve one card per bit, preferring fill-in-the-blank over a wh question", async () => {
+    const bitId = await seedBit();
+
+    await seedVariant(bitId, false, "wh_question");
+
+    const fillBlank = await seedVariant(bitId, false, "fill_in_the_blank");
+    const cards = (await listKnowledgeBitReviewCards(500, undefined)).filter(
+      (card) => card.knowledgeBitId === bitId,
+    );
+
+    expect(cards.map((card) => card.variantId)).toEqual([fillBlank]);
+  });
+
+  it("should prefer a basic card over every other kind of the same bit", async () => {
+    const bitId = await seedBit();
+
+    await seedVariant(bitId, false, "fill_in_the_blank");
+
+    const basic = await seedVariant(bitId, false, "basic");
+    const cards = (await listKnowledgeBitReviewCards(500, undefined)).filter(
+      (card) => card.knowledgeBitId === bitId,
+    );
+
+    expect(cards.map((card) => card.variantId)).toEqual([basic]);
+  });
+
+  it("should stop serving new cards once 20 were started today but keep serving due ones", async () => {
+    const now = new Date("2091-05-10T12:00:00.000Z");
+    const dueBit = await seedBit();
+    const dueVariant = await seedVariant(dueBit);
+    const freshBit = await seedBit();
+    const freshVariant = await seedVariant(freshBit);
+
+    await seedSchedule(dueBit, daysFrom(now, -1));
+    await seedNewCardReviews(20, now);
+
+    const queue = await getKnowledgeBitReviewQueue(500, undefined, { tz: "UTC", now });
+    const ids = queue.cards.map((card) => card.variantId);
+
+    expect(queue.newRemainingToday).toBe(0);
+    expect(ids).toContain(dueVariant);
+    expect(ids).not.toContain(freshVariant);
+    expect(queue.counts.new).toBe(0);
+    expect(queue.counts.review).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should count the new-card day in the learner's time zone", async () => {
+    const now = new Date("2092-05-10T10:00:00.000Z");
+    const reviewedAt = new Date("2092-05-10T09:00:00.000Z");
+
+    await seedNewCardReviews(1, new Date("2092-05-09T20:00:00.000Z"));
+    await seedNewCardReviews(1, reviewedAt);
+    await seedNewCardReviews(1, new Date("2092-05-09T23:30:00.000Z"));
+
+    const utc = await getKnowledgeBitReviewQueue(1, undefined, { tz: "UTC", now });
+    const auckland = await getKnowledgeBitReviewQueue(1, undefined, { tz: "Pacific/Auckland", now });
+
+    expect(utc.newRemainingToday).toBe(19);
+    expect(auckland.newRemainingToday).toBe(17);
+  });
+
+  it("should not count an undone new-card review against today's cap", async () => {
+    const now = new Date("2093-05-10T12:00:00.000Z");
+
+    await seedNewCardReviews(5, now, true);
+
+    const queue = await getKnowledgeBitReviewQueue(1, undefined, { tz: "UTC", now });
+
+    expect(queue.newRemainingToday).toBe(20);
+  });
+
+  it("should report the earliest future due time when nothing is due right now", async () => {
+    const now = new Date("2094-05-10T12:00:00.000Z");
+    const bitId = await seedBit();
+
+    await seedVariant(bitId);
+    await seedSchedule(bitId, daysFrom(now, 2));
+
+    const queue = await getKnowledgeBitReviewQueue(1, { knowledgeBitId: bitId }, { tz: "UTC", now });
+
+    expect(queue.nextDueAt).toBe(daysFrom(now, 2).toISOString());
+    expect(queue.counts).toEqual({ new: 0, learning: 0, review: 0 });
+  });
+
+  it("should point to the next local midnight when only capped new cards are waiting", async () => {
+    const now = new Date("2095-05-10T12:00:00.000Z");
+
+    await seedNewCardReviews(20, now);
+    await seedVariant(await seedBit());
+
+    const queue = await getKnowledgeBitReviewQueue(500, undefined, { tz: "UTC", now });
+
+    expect(queue.newRemainingToday).toBe(0);
+    expect(queue.nextDueAt).toBe("2095-05-11T00:00:00.000Z");
   });
 
   it("should serve only cards from the chosen topic when the review is scoped to a topic", async () => {

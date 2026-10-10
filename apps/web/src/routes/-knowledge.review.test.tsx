@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import type { ReviewCard } from '@post-anki/shared'
+import type { ReviewCard, ReviewCardsResponse } from '@post-anki/shared'
 
 const searchState = vi.hoisted(() => ({
   current: {} as { tagId?: string; topicId?: string; knowledgeBitId?: string },
@@ -61,6 +61,7 @@ const firstCard: ReviewCard = {
   answer: 'To agree on sequence numbers before sending data.',
   background: 'Covered in the networking module.',
   phase: 'new',
+  intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 },
 }
 
 const secondCard: ReviewCard = {
@@ -71,6 +72,7 @@ const secondCard: ReviewCard = {
   answer: 'message',
   background: null,
   phase: 'review',
+  intervalPreview: { again: 600, hard: 86_400, good: 3 * 86_400, easy: 36 * 86_400 },
 }
 
 const firstCardSibling: ReviewCard = {
@@ -78,6 +80,20 @@ const firstCardSibling: ReviewCard = {
   variantId: 'variant-3',
   prompt: 'What does SYN stand for?',
   answer: 'Synchronize.',
+}
+
+function queueResponse(
+  cards: ReviewCard[],
+  overrides: Partial<ReviewCardsResponse> = {},
+): { ok: true } & ReviewCardsResponse {
+  return {
+    ok: true,
+    cards,
+    counts: { new: 0, learning: 0, review: 0 },
+    newRemainingToday: 20,
+    nextDueAt: null,
+    ...overrides,
+  }
 }
 
 const savedGrade = {
@@ -109,7 +125,7 @@ afterEach(() => {
 
 describe('Anki review page', () => {
   it('should show only the question until the learner reveals it, then the answer and four grades', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
 
     renderPage()
 
@@ -125,7 +141,7 @@ describe('Anki review page', () => {
   })
 
   it('should save the self-grade and move on to the next card, hidden again', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard, secondCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
 
     renderPage()
@@ -141,7 +157,7 @@ describe('Anki review page', () => {
   })
 
   it('should load a fresh batch once the last card in the batch is graded', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
 
     renderPage()
@@ -153,7 +169,7 @@ describe('Anki review page', () => {
   })
 
   it('should keep the background note hidden until reveal', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
 
     renderPage()
 
@@ -169,7 +185,7 @@ describe('Anki review page', () => {
   })
 
   it('should show the tutor chat only after reveal and hide it again on the next card', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard, secondCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
 
     renderPage()
@@ -189,7 +205,7 @@ describe('Anki review page', () => {
   })
 
   it('should let the learner reveal with Space and grade with 1-4, ignoring keys before reveal', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard, secondCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
 
     renderPage()
@@ -212,7 +228,7 @@ describe('Anki review page', () => {
   })
 
   it('should never grade from digits typed into the chat box', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
 
     renderPage()
 
@@ -223,18 +239,84 @@ describe('Anki review page', () => {
     expect(mockedSubmitReview).not.toHaveBeenCalled()
   })
 
-  it('should say there is nothing to review when the queue is empty', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [] })
+  it('should show a done-for-today screen with the next due time when the queue is empty', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([], { nextDueAt: '2026-10-11T12:00:00.000Z' }))
 
     renderPage()
 
-    expect(await screen.findByTestId('anki-review-empty')).toBeTruthy()
+    const done = await screen.findByTestId('anki-review-done')
+
+    expect(done.textContent).toContain('Done for today')
+    expect(done.textContent).toContain('Next card due')
+    expect(screen.queryByText('Nothing to review right now.')).toBeNull()
+  })
+
+  it('should say no more cards are scheduled when nothing is due later either', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([]))
+
+    renderPage()
+
+    expect((await screen.findByTestId('anki-review-done')).textContent).toContain(
+      'No more cards are scheduled.',
+    )
+  })
+
+  it('should show the interval each grade would schedule, on its button, after reveal', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([secondCard]))
+
+    renderPage()
+
+    await userEvent.click(await screen.findByTestId('anki-review-show-answer'))
+
+    expect(screen.getByTestId('anki-review-grade-again-interval').textContent).toBe('10m')
+    expect(screen.getByTestId('anki-review-grade-hard-interval').textContent).toBe('1d')
+    expect(screen.getByTestId('anki-review-grade-good-interval').textContent).toBe('3d')
+    expect(screen.getByTestId('anki-review-grade-easy-interval').textContent).toBe('1.2mo')
+  })
+
+  it('should show new and due counts and lower them as cards are graded', async () => {
+    mockedGetReviewCards.mockResolvedValue(
+      queueResponse([firstCard, secondCard], { counts: { new: 3, learning: 0, review: 2 } }),
+    )
+    mockedSubmitReview.mockResolvedValue(savedGrade)
+
+    renderPage()
+
+    await screen.findByText(firstCard.prompt)
+
+    expect(screen.getByTestId('anki-review-count-new').textContent).toBe('3')
+    expect(screen.getByTestId('anki-review-count-learning').textContent).toBe('0')
+    expect(screen.getByTestId('anki-review-count-review').textContent).toBe('2')
+
+    await userEvent.click(screen.getByTestId('anki-review-show-answer'))
+    await userEvent.click(screen.getByTestId('anki-review-grade-good'))
+    await screen.findByText(secondCard.prompt)
+
+    expect(screen.getByTestId('anki-review-count-new').textContent).toBe('2')
+    expect(screen.getByTestId('anki-review-count-review').textContent).toBe('2')
+
+    await userEvent.click(screen.getByTestId('anki-review-show-answer'))
+    await userEvent.click(screen.getByTestId('anki-review-grade-good'))
+
+    await waitFor(() => expect(mockedGetReviewCards).toHaveBeenCalledTimes(2))
+  })
+
+  it("should send the browser's time zone with the card request", async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([]))
+
+    renderPage()
+
+    await screen.findByTestId('anki-review-done')
+
+    expect(mockedGetReviewCards).toHaveBeenCalledWith({
+      data: expect.objectContaining({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    })
   })
 
   it('should offer a retry when cards fail to load', async () => {
     mockedGetReviewCards
       .mockResolvedValueOnce({ ok: false, error: 'unknown' })
-      .mockResolvedValueOnce({ ok: true, cards: [firstCard] })
+      .mockResolvedValueOnce(queueResponse([firstCard]))
 
     renderPage()
 
@@ -244,7 +326,7 @@ describe('Anki review page', () => {
   })
 
   it('should keep the same card revealed with an error when a grade fails to save, and let it be retried', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard, secondCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview
       .mockResolvedValueOnce({ ok: false, error: 'network_error' })
       .mockResolvedValueOnce(savedGrade)
@@ -263,10 +345,10 @@ describe('Anki review page', () => {
   })
 
   it('should not show or accept grades for the graded card while the next batch is loading', async () => {
-    let resolveNextBatch: (value: { ok: true; cards: ReviewCard[] }) => void = () => {}
+    let resolveNextBatch: (value: ReturnType<typeof queueResponse>) => void = () => {}
 
     mockedGetReviewCards
-      .mockResolvedValueOnce({ ok: true, cards: [firstCard] })
+      .mockResolvedValueOnce(queueResponse([firstCard]))
       .mockReturnValueOnce(new Promise((resolve) => (resolveNextBatch = resolve)))
     mockedSubmitReview.mockResolvedValue(savedGrade)
 
@@ -283,13 +365,13 @@ describe('Anki review page', () => {
 
     expect(mockedSubmitReview).toHaveBeenCalledTimes(1)
 
-    resolveNextBatch({ ok: true, cards: [secondCard] })
+    resolveNextBatch(queueResponse([secondCard]))
 
     expect(await screen.findByText(secondCard.prompt)).toBeTruthy()
   })
 
   it('should explain a card that can no longer be graded and let the learner skip it', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard, secondCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValueOnce({ ok: false, error: 'not_approved' })
 
     renderPage()
@@ -309,7 +391,7 @@ describe('Anki review page', () => {
   })
 
   it('should not offer skip for a save error that a retry can fix', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
     mockedSubmitReview.mockResolvedValueOnce({ ok: false, error: 'network_error' })
 
     renderPage()
@@ -325,8 +407,8 @@ describe('Anki review page', () => {
     searchState.current = { topicId: 'topic-1' }
     mockedGetReviewCards.mockImplementation(async ({ data }) =>
       data.topicId === 'topic-2'
-        ? { ok: true, cards: [secondCard] }
-        : { ok: true, cards: [firstCard, firstCardSibling] },
+        ? queueResponse([secondCard])
+        : queueResponse([firstCard, firstCardSibling]),
     )
     mockedSubmitReview.mockResolvedValue(savedGrade)
 
@@ -346,7 +428,7 @@ describe('Anki review page', () => {
   })
 
   it('should stop the browser from scrolling the page when Space reveals the answer', async () => {
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [firstCard] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
 
     renderPage()
 
@@ -359,7 +441,7 @@ describe('Anki review page', () => {
 
   it('should keep the current scope when switching to typed answers and load cards in that scope', async () => {
     searchState.current = { topicId: 'topic-3' }
-    mockedGetReviewCards.mockResolvedValue({ ok: true, cards: [] })
+    mockedGetReviewCards.mockResolvedValue(queueResponse([]))
 
     renderPage()
 

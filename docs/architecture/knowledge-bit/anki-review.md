@@ -16,7 +16,7 @@ flowchart TD
   learner["Learner on the Review page"]
   web["Web app: Anki review screen<br/>(reveal, grade, keyboard)"]
   api["API: review-cards and reviews endpoints"]
-  queue["Review queue read<br/>(approved, active, not skipped)"]
+  queue["Review queue read<br/>(approved, active, not skipped,<br/>due or never reviewed)"]
   grade["Self-grade step<br/>(four-grade rule, per-bit lock)"]
   sched[("Bit schedule<br/>(one per bit, shared with typed mode)")]
   log[("Review history<br/>(append-only, prior-schedule copy)")]
@@ -47,7 +47,7 @@ None. No new process, worker, queue or cloud resource. Both endpoints run in the
 
 - A grade that fails to save rolls back both writes. The client keeps the card on screen and lets the learner retry.
 - A response lost after a successful save can lead to a retry that grades the bit twice. The client already blocks a second grade while one is in flight.
-- The queue keeps today's fair-cycling order. It does not filter by due date, and it can serve two variants of one bit in the same batch. A small deck therefore cycles, and sibling variants can both be graded.
+- Scoped queues (tag, topic, single bit) keep fair cycling by review count with no due filter, so they can serve two variants of one bit in a batch and sibling variants can both be graded. The unscoped queue does not (see Due queue).
 - A grade waits on the per-bit advisory lock while typed grading of the same bit is in flight. The pool's connection timeout covers only acquiring a connection, so the wait itself is not time-bounded and ends when the other grade finishes.
 - A grade for a bit that is no longer approved is refused before any write.
 
@@ -59,3 +59,13 @@ None. No new process, worker, queue or cloud resource. Both endpoints run in the
 ## Four-grade rule
 
 A never-reviewed card comes back in 1 day after Again, Hard or Good, and in 4 days after Easy, with ease kept at 2.5. A reviewed card: Again resets to 1 day with ease −0.20; Hard multiplies the interval by 1.2 with ease −0.15; Good multiplies it by ease; Easy multiplies it by ease × 1.3 with ease +0.15. The interval uses the pre-grade ease. Ease stays within 1.3–3.0 and the interval within 1–180 days. The typed mode keeps its own three-verdict rule.
+
+## Due queue
+
+The unscoped Anki queue serves only bits that are approved, whose topic is not skipped, and that have no schedule row or a due date at or before now. Each bit contributes one card: basic, then fill-in-the-blank, then any other kind. Due bits come first (oldest due date first), then never-reviewed bits (oldest bit first). Scoped queues keep their own behaviour and ignore the due rule and the cap.
+
+New cards are capped at 20 per local day. The count is the non-undone first-time reviews since local midnight, and the learner's day comes from the `tz` query parameter (IANA name, default UTC, invalid gives 400). The cap and `newRemainingToday` are global, not per scope.
+
+The cards response also carries counts (`new`, `learning` always 0, `review` for due bits), `newRemainingToday`, and `nextDueAt`: the earliest future due date in scope, or the next local midnight when only capped new cards remain. Each card carries `intervalPreview`, the seconds until it returns after Again, Hard, Good or Easy, computed on the server by the same four-grade rule as a real grade. The web app labels the grade buttons with it, lowers the counts as cards are graded within a batch, and shows a done-for-today screen with the next due time when the queue is empty.
+
+The typed answer queue gets the same unscoped rule (due or never reviewed, one variant per bit), picking the variant with the fewest attempts, then basic, fill-in-the-blank, others.

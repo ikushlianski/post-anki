@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ReviewGrade } from '@post-anki/shared'
+import type { ReviewCounts, ReviewGrade } from '@post-anki/shared'
 
 import { AnkiReviewCard } from './anki-review-card'
+import { AnkiReviewCounts } from './anki-review-counts'
+import { AnkiReviewDone } from './anki-review-done'
 import { AnkiReviewGradeButtons } from './anki-review-grade-buttons'
 import { useAnkiReviewKeyboard } from './anki-review-keyboard'
 import { getReviewCards, submitReview } from './anki-review.api'
@@ -15,6 +17,26 @@ export interface AnkiReviewScope {
 }
 
 const BATCH_LIMIT = 10
+
+interface GradedTally {
+  stamp: number
+  new: number
+  review: number
+}
+
+function browserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+}
+
+function remainingCounts(server: ReviewCounts, tally: GradedTally | null, stamp: number) {
+  const graded = tally && tally.stamp === stamp ? tally : { new: 0, review: 0 }
+
+  return {
+    ...server,
+    new: Math.max(0, server.new - graded.new),
+    review: Math.max(0, server.review - graded.review),
+  }
+}
 
 function reviewQueueQueryKey(scope: AnkiReviewScope) {
   return [
@@ -47,11 +69,12 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
   const [revealed, setRevealed] = useState(false)
   const [shownAt, setShownAt] = useState(() => Date.now())
   const [gradeError, setGradeError] = useState<string | null>(null)
-  const [exhaustedAt, setExhaustedAt] = useState<number | null>(null)
+  const [refilling, setRefilling] = useState(false)
+  const [tally, setTally] = useState<GradedTally | null>(null)
 
   const queue = useQuery({
     queryKey: reviewQueueQueryKey(scope),
-    queryFn: () => getReviewCards({ data: { limit: BATCH_LIMIT, ...scope } }),
+    queryFn: () => getReviewCards({ data: { limit: BATCH_LIMIT, tz: browserTimeZone(), ...scope } }),
   })
 
   const gradeMutation = useMutation({
@@ -60,15 +83,14 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
   })
 
   const cards = queue.data?.ok ? queue.data.cards : []
-  const awaitingFresh = exhaustedAt !== null && exhaustedAt === queue.dataUpdatedAt
-  const current = awaitingFresh ? null : (cards[index] ?? null)
+  const current = refilling ? null : (cards[index] ?? null)
   const loadFailed = queue.isError || queue.data?.ok === false
 
   function reveal() {
     setRevealed(true)
   }
 
-  function advance() {
+  async function advance() {
     setRevealed(false)
     setGradeError(null)
     setShownAt(Date.now())
@@ -78,9 +100,20 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
       return
     }
 
+    setRefilling(true)
+    await queryClient.invalidateQueries({ queryKey: reviewQueueQueryKey(scope) })
     setIndex(0)
-    setExhaustedAt(queue.dataUpdatedAt)
-    void queryClient.invalidateQueries({ queryKey: reviewQueueQueryKey(scope) })
+    setRefilling(false)
+  }
+
+  function tallyGrade(phase: string) {
+    const stamp = queue.dataUpdatedAt
+
+    setTally((previous) => {
+      const base = previous && previous.stamp === stamp ? previous : { stamp, new: 0, review: 0 }
+
+      return phase === 'new' ? { ...base, new: base.new + 1 } : { ...base, review: base.review + 1 }
+    })
   }
 
   async function grade(value: ReviewGrade) {
@@ -103,7 +136,8 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
       return
     }
 
-    advance()
+    tallyGrade(current.phase)
+    await advance()
   }
 
   useAnkiReviewKeyboard(
@@ -146,10 +180,14 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
         </div>
       )}
 
-      {awaitingFresh && !loadFailed && <p data-testid="anki-review-loading">Loading…</p>}
+      {refilling && !loadFailed && <p data-testid="anki-review-loading">Loading…</p>}
 
-      {!queue.isLoading && !loadFailed && !awaitingFresh && !current && (
-        <p data-testid="anki-review-empty">Nothing to review right now.</p>
+      {queue.data?.ok && !loadFailed && (
+        <AnkiReviewCounts counts={remainingCounts(queue.data.counts, tally, queue.dataUpdatedAt)} />
+      )}
+
+      {queue.data?.ok && !loadFailed && !refilling && !current && (
+        <AnkiReviewDone nextDueAt={queue.data.nextDueAt} />
       )}
 
       {current && (
@@ -159,6 +197,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
           {revealed && (
             <AnkiReviewGradeButtons
               disabled={gradeMutation.isPending}
+              intervalPreview={current.intervalPreview}
               onGrade={(value) => void grade(value)}
             />
           )}
@@ -170,7 +209,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
                 <button
                   type="button"
                   data-testid="anki-review-skip"
-                  onClick={advance}
+                  onClick={() => void advance()}
                   className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
                 >
                   Skip this card

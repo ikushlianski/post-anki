@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveGradeSchedule } from "./knowledge-bit-grade-schedule.js";
+import { deriveGradeSchedule, previewGradeIntervals } from "./knowledge-bit-grade-schedule.js";
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -74,5 +74,29 @@ describe("deriveGradeSchedule", () => {
   it("should always report the card as in review after a grade", () => {
     expect(deriveGradeSchedule(null, "good", NOW).phase).toBe("review");
     expect(deriveGradeSchedule({ easeFactor: 2.5, intervalDays: 3 }, "hard", NOW).phase).toBe("review");
+  });
+});
+
+describe("previewGradeIntervals", () => {
+  it("should promise a never-reviewed card 1 day for Again, Hard and Good and 4 days for Easy", () => {
+    expect(previewGradeIntervals(null, NOW)).toEqual({
+      again: 86_400,
+      hard: 86_400,
+      good: 86_400,
+      easy: 4 * 86_400,
+    });
+  });
+
+  it("should show a reviewed card the interval each grade would really schedule, in seconds", () => {
+    expect(previewGradeIntervals({ easeFactor: 2.5, intervalDays: 10 }, NOW)).toEqual({
+      again: 86_400,
+      hard: 12 * 86_400,
+      good: 25 * 86_400,
+      easy: 32.5 * 86_400,
+    });
+  });
+
+  it("should clamp previews to the 180-day maximum like a real grade", () => {
+    expect(previewGradeIntervals({ easeFactor: 3.0, intervalDays: 150 }, NOW).easy).toBe(180 * 86_400);
   });
 });

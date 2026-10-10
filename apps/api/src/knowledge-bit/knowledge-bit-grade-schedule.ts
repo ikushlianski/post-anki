@@ -1,4 +1,4 @@
-import type { ReviewGrade } from "@post-anki/shared";
+import type { IntervalPreview, ReviewGrade } from "@post-anki/shared";
 
 const MIN_EASE_FACTOR = 1.3;
 const MAX_EASE_FACTOR = 3.0;
@@ -60,5 +60,20 @@ export function deriveGradeSchedule(
     dueAt: new Date(now.getTime() + intervalDays * DAY_MS),
     phase: "review",
     wasNew: current === null,
+  };
+}
+
+export function previewGradeIntervals(
+  current: GradeScheduleState | null,
+  now: Date,
+): IntervalPreview {
+  const seconds = (grade: ReviewGrade): number =>
+    Math.round((deriveGradeSchedule(current, grade, now).dueAt.getTime() - now.getTime()) / 1000);
+
+  return {
+    again: seconds("again"),
+    hard: seconds("hard"),
+    good: seconds("good"),
+    easy: seconds("easy"),
   };
 }

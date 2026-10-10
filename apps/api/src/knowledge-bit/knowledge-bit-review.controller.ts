@@ -2,7 +2,7 @@ import type http from "node:http";
 import { recordReviewInputSchema, reviewCardsQuerySchema } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
-import { listKnowledgeBitReviewCards } from "./knowledge-bit-review-queue.repo.js";
+import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js";
 import { recordKnowledgeBitReview } from "./knowledge-bit-review.orchestrator.js";
 
 export async function handleListKnowledgeBitReviewCards(
@@ -16,10 +16,14 @@ export async function handleListKnowledgeBitReviewCards(
     return;
   }
 
-  const { limit, tagId, topicId, knowledgeBitId } = parsed.data;
-  const cards = await listKnowledgeBitReviewCards(limit, { tagId, topicId, knowledgeBitId });
+  const { limit, tz, tagId, topicId, knowledgeBitId } = parsed.data;
+  const queue = await getKnowledgeBitReviewQueue(
+    limit,
+    { tagId, topicId, knowledgeBitId },
+    { tz, now: new Date() },
+  );
 
-  sendJson(res, 200, { cards });
+  sendJson(res, 200, queue);
 }
 
 export async function handleRecordKnowledgeBitReview(

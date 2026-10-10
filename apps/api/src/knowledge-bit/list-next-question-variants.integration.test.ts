@@ -342,4 +342,47 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
 
     expect(orderedIds.indexOf(overdueVariant)).toBeLessThan(orderedIds.indexOf(notYetDueVariant));
   });
+
+  it("should leave a not-yet-due bit out of the unscoped queue but keep serving overdue and never-reviewed ones", async () => {
+    const notYetDueBit = await seedKnowledgeBit("Unscoped not-yet-due bit");
+    const overdueBit = await seedKnowledgeBit("Unscoped overdue bit");
+    const freshBit = await seedKnowledgeBit("Unscoped never-reviewed bit");
+    const notYetDueVariant = await seedVariant(notYetDueBit, "Not yet due?");
+    const overdueVariant = await seedVariant(overdueBit, "Overdue?");
+    const freshVariant = await seedVariant(freshBit, "Never reviewed?");
+
+    await seedSchedule(notYetDueBit, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    await seedSchedule(overdueBit, new Date(Date.now() - 24 * 60 * 60 * 1000));
+
+    const ids = (await listNextQuestionVariantsToAnswer(500, undefined)).map((row) => row.variantId);
+
+    expect(ids).not.toContain(notYetDueVariant);
+    expect(ids).toContain(overdueVariant);
+    expect(ids).toContain(freshVariant);
+  });
+
+  it("should serve a not-yet-due bit when the queue is scoped to that bit", async () => {
+    const bitId = await seedKnowledgeBit("Scoped not-yet-due bit");
+    const variantId = await seedVariant(bitId, "Scoped not yet due?");
+
+    await seedSchedule(bitId, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+
+    const rows = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: bitId });
+
+    expect(rows.map((row) => row.variantId)).toEqual([variantId]);
+  });
+
+  it("should serve one variant per bit in the unscoped queue, the one with the fewest attempts", async () => {
+    const bitId = await seedKnowledgeBit("Two-variant bit");
+    const attempted = await seedVariant(bitId, "Attempted variant?");
+
+    await insertQuestionVariant(bitId, "wh_question", 1, "Fresh variant?", "some answer");
+    await recordAttempt(attempted);
+
+    const rows = (await listNextQuestionVariantsToAnswer(500, undefined)).filter(
+      (row) => row.knowledgeBitId === bitId,
+    );
+
+    expect(rows.map((row) => row.prompt)).toEqual(["Fresh variant?"]);
+  });
 });
