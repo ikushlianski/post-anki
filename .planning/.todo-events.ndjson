@@ -140,3 +140,7 @@
 {"ts":"2026-10-10T23:47:12.053Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Subject page header menu: same delete warning and nesting actions"}
 {"ts":"2026-10-10T23:47:12.101Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Deleting a subject must move its sub-subjects up, not orphan them"}
 {"ts":"2026-10-10T23:49:39.994Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Deleting a subject must move its sub-subjects up, not orphan them"}
+{"ts":"2026-10-10T23:49:55.800Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Count pasted items as due on the dashboard without a curriculum placement"}
+{"ts":"2026-10-10T23:49:55.849Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Subject cards show due card counts rolled up from sub-subjects"}
+{"ts":"2026-10-10T23:49:55.899Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Page to list and unsuspend suspended or leech cards"}
+{"ts":"2026-10-10T23:57:58.887Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Page to list and unsuspend suspended or leech cards"}
