@@ -20,6 +20,7 @@ What to verify:
 - Grading is never done by an AI model and costs no tokens.
 
 Acceptance:
+- [x] @anki-core.S1 — reveal then grade 1-4, next card unrevealed — projects/post-anki/post-anki/features/anki-review/core/tests/reveal-then-grade-saves-schedule-and-history.test.ts
 - [x] Question-only before reveal: apps/web/src/knowledge-bit/anki-review-card.tsx:20 (Show answer), grades render only when revealed apps/web/src/knowledge-bit/anki-review-screen.tsx:138; test apps/web/src/routes/-knowledge.review.test.tsx:102
 - [x] Answer and four grades after reveal: apps/web/src/knowledge-bit/anki-review-card.tsx:31, apps/web/src/knowledge-bit/anki-review-grade-buttons.tsx:21; test apps/web/src/routes/-knowledge.review.test.tsx:102
 - [x] Grade saved, next card unrevealed, fresh batch after last: apps/web/src/knowledge-bit/anki-review-screen.tsx:53-65; tests apps/web/src/routes/-knowledge.review.test.tsx:118, :134
@@ -35,6 +36,7 @@ What to verify:
 - Ease always stays between 1.3 and 3.0, and the interval between 1 and 180 days. Hard is not limited to 14 days.
 
 Acceptance:
+- [x] @anki-core.S2 — Good on a reviewed card = interval x ease, ease kept (new-card 1/1/1/4 superseded by learning steps; see learning S1) — projects/post-anki/post-anki/features/anki-review/core/tests/reveal-then-grade-saves-schedule-and-history.test.ts
 - [x] Never-reviewed 1/1/1/4 days, ease kept: apps/api/src/knowledge-bit/knowledge-bit-grade-schedule.ts:43-58; test apps/api/src/knowledge-bit/knowledge-bit-grade-schedule.test.ts "should bring a never-reviewed card back tomorrow..."
 - [x] Reviewed-card multipliers and ease steps: apps/api/src/knowledge-bit/knowledge-bit-grade-schedule.ts:31-38; tests in apps/api/src/knowledge-bit/knowledge-bit-grade-schedule.test.ts (Again/Hard/Good/Easy cases)
 - [x] Clamps 1.3–3.0 and 1–180 days, Hard uncapped at 14: apps/api/src/knowledge-bit/knowledge-bit-grade-schedule.ts:54-55; tests "should never let ease fall below 1.3...", "should never schedule a card more than 180 days out", "should grow a hard-recalled card..." 
@@ -49,6 +51,7 @@ What to verify:
 - The review page never receives the bit's text from the server.
 
 Acceptance:
+- [x] @anki-core.S3 — bit text never on page, background only after reveal — projects/post-anki/post-anki/features/anki-review/core/tests/reveal-then-grade-saves-schedule-and-history.test.ts
 - [x] Bit text never on the page: card renders prompt/answer/background only apps/web/src/knowledge-bit/anki-review-card.tsx:5-44
 - [x] Background only after reveal and when present: apps/web/src/knowledge-bit/anki-review-card.tsx:36; test apps/web/src/routes/-knowledge.review.test.tsx:146
 - [x] Server never sends bit text: queue selection has no body apps/api/src/knowledge-bit/knowledge-bit-review-queue.repo.ts:66-74; test apps/api/src/knowledge-bit/knowledge-bit-review-queue.repo.integration.test.ts:87
@@ -62,6 +65,7 @@ What to verify:
 - Moving to the next card hides it again and starts a fresh conversation for the new bit.
 
 Acceptance:
+- [x] @anki-core.S4 — chat hidden before reveal, hidden again on next card — projects/post-anki/post-anki/features/anki-review/core/tests/reveal-then-grade-saves-schedule-and-history.test.ts
 - [x] Chat hidden before reveal, shown after: apps/web/src/knowledge-bit/anki-review-card.tsx:41; test apps/web/src/routes/-knowledge.review.test.tsx:162
 - [x] Next card hides it and keys a fresh panel per bit: apps/web/src/knowledge-bit/anki-review-screen.tsx:54, apps/web/src/knowledge-bit/anki-review-card.tsx:41; test apps/web/src/routes/-knowledge.review.test.tsx:162
 
@@ -76,6 +80,7 @@ What to verify:
 - Keys pressed with Ctrl, Cmd or Alt are ignored. Each grade button shows its key number.
 
 Acceptance:
+- [x] @anki-core.S5 — Space reveals, 1-4 grade once, chat typing and Ctrl ignored — projects/post-anki/post-anki/features/anki-review/core/tests/keyboard-reveals-and-grades-once.test.ts
 - [x] Space reveals without scrolling, 1–4 inert before reveal: apps/web/src/knowledge-bit/anki-review-keyboard.ts:40-42, :83; tests apps/web/src/knowledge-bit/anki-review-keyboard.test.ts, apps/web/src/routes/-knowledge.review.test.tsx:182
 - [x] Grades exactly once on repeat or while saving: apps/web/src/knowledge-bit/anki-review-keyboard.ts:32-37; test apps/web/src/knowledge-bit/anki-review-keyboard.test.ts "should grade only once..."
 - [x] Text fields never reveal or grade: apps/web/src/knowledge-bit/anki-review-keyboard.ts:32, :50-61; test apps/web/src/routes/-knowledge.review.test.tsx:205
@@ -91,6 +96,7 @@ What to verify:
 - The Anki page honours the same scopes as the typed page.
 
 Acceptance:
+- [x] @anki-core.S6 — sidebar entries, mode switch keeps bit scope (tag/topic scope not driven) — projects/post-anki/post-anki/features/anki-review/core/tests/modes-link-each-other-and-keep-scope.test.ts
 - [x] Sidebar Review and Answer (typed): apps/web/src/nav/sidebar.tsx:19-24; test apps/web/src/routes/-knowledge.review.test.tsx:273
 - [x] Mode links keep scope: apps/web/src/knowledge-bit/anki-review-screen.tsx:105-107, apps/web/src/routes/knowledge.answer.tsx:105-107; tests apps/web/src/routes/-knowledge.review.test.tsx:256, apps/web/src/routes/-knowledge.answer.test.tsx "keeps the learner on the same tag..."
 - [x] Anki page honours tag/topic/bit scopes: apps/api/src/knowledge-bit/knowledge-bit-review-queue.repo.ts:44-63, apps/api/src/knowledge-bit/knowledge-bit-review.controller.ts:19-20; test apps/api/src/knowledge-bit/knowledge-bit-review.route.test.ts "should keep the learner's tag scope..." 
@@ -106,6 +112,7 @@ What to verify:
 - A card whose bit is no longer approved, or that no longer exists, is refused with a clear error and is not graded.
 
 Acceptance:
+- [x] @anki-core.S7 — done screen, load error + Retry, failed grade retry, unapproved card refused — projects/post-anki/post-anki/features/anki-review/core/tests/empty-failed-load-and-failed-grade-states.test.ts
 - [x] Empty queue message: apps/web/src/knowledge-bit/anki-review-screen.tsx:131; test apps/web/src/routes/-knowledge.review.test.tsx:217
 - [x] Load error with Retry: apps/web/src/knowledge-bit/anki-review-screen.tsx:116-128; test apps/web/src/routes/-knowledge.review.test.tsx:225
 - [x] Failed grade keeps card revealed and retryable: apps/web/src/knowledge-bit/anki-review-screen.tsx:82-84; test apps/web/src/routes/-knowledge.review.test.tsx:237
@@ -123,6 +130,7 @@ What to verify:
 - History entries are never edited or deleted by grading.
 
 Acceptance:
+- [x] @anki-core.S8 — one history row per grade, new flag and prior schedule — projects/post-anki/post-anki/features/anki-review/core/tests/reveal-then-grade-saves-schedule-and-history.test.ts
 - [x] Schedule and history saved together: both writes in one locked transaction apps/api/src/knowledge-bit/knowledge-bit-review.orchestrator.ts:31-37
 - [x] New flag and prior-schedule copy: apps/api/src/knowledge-bit/knowledge-bit-review.orchestrator.ts:41-50; tests apps/api/src/knowledge-bit/knowledge-bit-review.orchestrator.integration.test.ts:110, :128
 - [x] History append-only: apps/api/src/knowledge-bit/knowledge-bit-review.repo.ts:17-25 (insert only), table apps/api/src/db/schema.ts:1247
@@ -136,6 +144,7 @@ What to verify:
 - Two Anki grades for sibling variants of one bit never overwrite each other.
 
 Acceptance:
+- [x] @anki-core.S9 — typed + Anki grade both land, sibling variants concurrent — projects/post-anki/post-anki/features/anki-review/core/tests/typed-and-anki-grades-both-land-on-one-bit.test.ts
 - [x] Typed and Anki grades on one bit both land: shared lock apps/api/src/knowledge-bit/knowledge-bit-review.orchestrator.ts:31; test apps/api/src/knowledge-bit/knowledge-bit-review.orchestrator.integration.test.ts:169
 - [x] Sibling variants never overwrite: test apps/api/src/knowledge-bit/knowledge-bit-review.orchestrator.integration.test.ts:187
 
@@ -149,6 +158,7 @@ What to verify:
 - The typed page's existing tests still pass, and the only change is the mode link.
 
 Acceptance:
+- [x] @anki-core.S10 — typed queue omits answer and basic cards, typed rule unchanged — projects/post-anki/post-anki/features/anki-review/core/tests/typed-and-anki-grades-both-land-on-one-bit.test.ts
 - [x] Typed queue still omits the answer: typed repo untouched (no diff in apps/api/src/knowledge-bit/knowledge-bit-question-variant.repo.ts)
 - [x] Typed rule unchanged: computeNextSchedule untouched apps/api/src/knowledge-bit/knowledge-bit-schedule.repo.ts:24; apps/api/src/knowledge-bit/knowledge-bit-schedule.repo.test.ts green
 - [x] Typed page tests pass, only change is the mode link: apps/web/src/routes/knowledge.answer.tsx:105-111; apps/web/src/routes/-knowledge.answer.test.tsx 4/4 green

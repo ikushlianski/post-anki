@@ -19,6 +19,9 @@ What to verify:
 - Single paste, multi-paste and link import all start the work.
 - Input that is rejected or fails to save never starts the work.
 
+E2E:
+- [x] @anki-kick.S1 — paste saves at once, kick runs detect then cards (UI paste + API), bad input starts nothing — projects/post-anki/post-anki/features/anki-review/kick/tests/paste-starts-processing-at-once-without-duplicates.test.ts
+
 SCENARIO 2: Pastes in quick succession never pile up background runs — asked
 
 A learner pastes several times while a background run is still going. Only one run happens at a time. A paste that arrives mid-run is covered by exactly one follow-up run, however many pastes arrived.
@@ -29,6 +32,9 @@ What to verify:
 - Ten pastes during one run lead to one follow-up run, not ten.
 - A paste after everything has finished starts a fresh run.
 
+E2E:
+- [x] @anki-kick.S2 — quick pastes: each source processed once, no duplicate work (run count itself not observable) — projects/post-anki/post-anki/features/anki-review/kick/tests/paste-starts-processing-at-once-without-duplicates.test.ts
+
 SCENARIO 3: A background failure never harms the paste or the server — asked
 
 A step fails, for example because the AI provider or the database is down. The learner's save is unaffected, the error is logged, and later steps and later pastes still run.
@@ -38,6 +44,9 @@ What to verify:
 - If one step fails, the steps after it still run in the same run.
 - The failure is logged with the step name, and the server never crashes or reports an unhandled error.
 - After a failure, the next paste can start a run (the guard never gets stuck "busy").
+
+E2E:
+- [x] @anki-kick.S3 — forced step failure: save succeeds, later steps run, next paste works (log line not observable) — projects/post-anki/post-anki/features/anki-review/kick/tests/paste-starts-processing-at-once-without-duplicates.test.ts
 
 ## Technical/Architectural Scenarios
 
@@ -50,6 +59,9 @@ What to verify:
 - The side that loses the race skips the item without calling the AI.
 - The timer job keeps running unchanged as the safety net.
 
+E2E:
+- [x] @anki-kick.S4 — no duplicate bits/cards, LLM calls equal bits (timer-job race not driven) — projects/post-anki/post-anki/features/anki-review/kick/tests/paste-starts-processing-at-once-without-duplicates.test.ts
+
 SCENARIO 5: Interrupted background work is finished by the timer job — asked
 
 The server pauses or shuts down mid-run, for example because the hosting platform throttles CPU after the response or scales to zero. Nothing is lost. The items it held become available again and the timer job processes them, later than an uninterrupted run would.
@@ -57,6 +69,9 @@ The server pauses or shuts down mid-run, for example because the hosting platfor
 What to verify:
 - An item held by an interrupted run becomes available again after the existing hold timeout and is then processed.
 - A shutdown during a run never leaves a partial set of bits for a paste.
+
+E2E:
+- [ ] @anki-kick.S5 — e2e test not written: needs a stuck "processing" source + backstop scan; time ran out
 
 Manual verification (real environment):
 - [ ] On the deployed service, paste text and note how long it takes for suggestions to appear.

@@ -19,6 +19,9 @@ What to verify:
 - An undone grade of a never-reviewed card gives that card back its "new" status, and it no longer counts toward today's new-card limit.
 - Undo also works from the done-for-today screen, and it brings the card back for review.
 
+E2E:
+- [x] @anki-session.S1 — Undo restores schedule + card, disabled when empty (Z key/done-screen undo not driven) — projects/post-anki/post-anki/features/anki-review/session/tests/undo-restores-schedule-and-card-and-is-refused-when-stale.test.ts
+
 SCENARIO 2: Undo is refused once the card was reviewed again elsewhere — asked
 
 After the Anki grade, the same card was answered in typed mode or graded in another tab. The learner then presses Undo in this session, and the grade is not taken back.
@@ -28,6 +31,9 @@ What to verify:
 - Only that one entry is dropped from the undo list. Older entries for other cards can still be undone.
 - Pressing Undo twice for the same grade (for example, a retry after a lost response) never restores the schedule twice.
 
+E2E:
+- [x] @anki-session.S2 — Undo refused after grade elsewhere, entry dropped, repeat undo refused — projects/post-anki/post-anki/features/anki-review/session/tests/undo-restores-schedule-and-card-and-is-refused-when-stale.test.ts
+
 SCENARIO 3: Session progress is visible while reviewing — asked
 
 While reviewing, a progress line shows how many cards the learner has done in this session and roughly how many are left.
@@ -36,6 +42,9 @@ What to verify:
 - The done count goes up after each grade, suspend or bury, and goes down after an undo.
 - The "left" figure matches the due and new counts shown on the page, and is never negative.
 - The progress line is hidden until the first card loads.
+
+E2E:
+- [x] @anki-session.S3 — progress line done/left after grade and undo — projects/post-anki/post-anki/features/anki-review/session/tests/undo-restores-schedule-and-card-and-is-refused-when-stale.test.ts
 
 SCENARIO 4: End-of-session summary — asked
 
@@ -47,6 +56,9 @@ What to verify:
 - A session with no actions shows no summary. The done screen looks as it does today.
 - "Keep reviewing" returns to the current card with nothing lost. An undo from the done screen updates the summary.
 
+E2E:
+- [ ] @anki-session.S4 — e2e test not written: summary screen; time ran out
+
 SCENARIO 5: Edit a card's question or answer mid-review — asked
 
 After revealing the answer, the learner clicks Edit (or presses E), fixes the question or answer, and saves. The card stays on screen, revealed, with the new text, ready to grade.
@@ -56,6 +68,9 @@ What to verify:
 - Edits are allowed for approved and not-yet-approved bits, and refused for rejected ones. If the card was changed or removed elsewhere, a message appears and the typed text stays in the editor.
 - While the editor is open, review shortcuts do nothing. Esc cancels the edit, Ctrl/Cmd+Enter saves it, and an empty question or answer can't be saved.
 - Time spent in the editor is not counted as answer time.
+
+E2E:
+- [ ] @anki-session.S5 — e2e test not written: in-review edit; time ran out
 
 SCENARIO 6: Suspend a card — asked
 
@@ -67,6 +82,9 @@ What to verify:
 - Suspending a never-reviewed card keeps it "new". Once unsuspended, it is served as a new card again.
 - Unsuspending is possible through the API only. There is no on-screen control for it in this feature.
 
+E2E:
+- [x] @anki-session.S6 — suspend removes card from review queues; unsuspend via API (typed queue not driven) — projects/post-anki/post-anki/features/anki-review/session/tests/suspend-bury-and-leech-take-a-card-out-of-rotation.test.ts
+
 SCENARIO 7: Bury a card until tomorrow — asked
 
 The learner clicks Bury (or presses -) on a card. It leaves the session and comes back on the learner's next local day.
@@ -76,6 +94,9 @@ What to verify:
 - After that, it is served again with its schedule unchanged, as long as it is due.
 - Burying a never-reviewed card keeps it "new", and burying does not count toward today's new-card limit.
 
+E2E:
+- [x] @anki-session.S7 — bury until next local midnight, expires, new card stays new — projects/post-anki/post-anki/features/anki-review/session/tests/suspend-bury-and-leech-take-a-card-out-of-rotation.test.ts
+
 SCENARIO 8: Undo a suspend or bury — added (kept: there is no on-screen unsuspend, so one stray key press would otherwise hide a card for good)
 
 Right after suspending or burying a card, the learner presses Undo. The card is back in rotation and back on screen.
@@ -83,6 +104,9 @@ Right after suspending or burying a card, the learner presses Undo. The card is 
 What to verify:
 - The card is shown again, question side up, and the suspend or bury is cleared on the server.
 - Suspend, bury and grade entries share one undo list, in the order they happened.
+
+E2E:
+- [ ] @anki-session.S8 — e2e test not written: undo of suspend/bury; time ran out
 
 SCENARIO 9: Leeches are flagged and suspended automatically — asked
 
@@ -94,6 +118,9 @@ What to verify:
 - If the learner unsuspends a leech, it is served with a visible "Leech" marker, and it is suspended again at the 12th, 16th (and so on) forgetting, not on every failure.
 - The summary counts leeches flagged in this session.
 
+E2E:
+- [x] @anki-session.S9 — 8th Again suspends as leech with notice, Undo reverts both (12th/16th repeat not driven) — projects/post-anki/post-anki/features/anki-review/session/tests/suspend-bury-and-leech-take-a-card-out-of-rotation.test.ts
+
 ## Technical/Architectural Scenarios
 
 SCENARIO 10: Undo, grade and suspend of one card never interleave — asked
@@ -104,6 +131,9 @@ What to verify:
 - An undo racing a later grade of the same card either takes back the earlier grade before the new one lands, or is refused. It never restores a stale schedule over the newer grade.
 - A failed undo, suspend or bury changes nothing: the schedule and history stay as they were.
 
+E2E:
+- [ ] @anki-session.S10 — e2e test not written: concurrent undo/grade/suspend; time ran out
+
 SCENARIO 11: Typed answer mode keeps working, minus suspended and buried cards — asked
 
 Typed answer mode grades and schedules exactly as before. The only change is that it now skips suspended and buried cards, as the brief's due-queue rule requires for both modes.
@@ -111,3 +141,6 @@ Typed answer mode grades and schedules exactly as before. The only change is tha
 What to verify:
 - A typed answer on a card still moves its schedule by the typed rule, and leaves any suspension or bury in place.
 - The typed queue skips suspended cards and cards buried until a later time. A card whose bury has expired is served again.
+
+E2E:
+- [ ] @anki-session.S11 — e2e test not written: typed queue skips suspended/buried; time ran out

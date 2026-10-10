@@ -81,3 +81,5 @@
 {"ts":"2026-10-10T21:34:13.407Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Stop checking-automatically text after polling gives up"}
 {"ts":"2026-10-10T21:34:13.647Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Show per-row error when approve or reject fails"}
 {"ts":"2026-10-10T21:34:13.892Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Explain approve, and that questions take minutes, on paste"}
+{"ts":"2026-10-10T21:34:19.779Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Split approval review item and panel files under 300 lines"}
+{"ts":"2026-10-10T21:36:59.604Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Split approval review item and panel files under 300 lines"}

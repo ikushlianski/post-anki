@@ -19,6 +19,7 @@ What to verify:
 - Ease does not change while a card is learning.
 
 Acceptance:
+- [x] @anki-learning.S1 — new card 1m -> 10m -> graduates 1d — projects/post-anki/post-anki/features/anki-review/learning/tests/new-card-walks-1m-10m-steps-then-graduates.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 2: Hard and Easy while a card is learning — asked
@@ -31,6 +32,7 @@ What to verify:
 - Easy at any learning point → graduates straight to 4 days, marked as in review.
 
 Acceptance:
+- [x] @anki-learning.S2 — Hard repeats step (5.5m / 10m), Easy graduates 4d — projects/post-anki/post-anki/features/anki-review/learning/tests/hard-repeats-the-step-and-easy-skips-the-rest.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 3: A forgotten review card relearns in 10 minutes and records a lapse — asked
@@ -44,6 +46,7 @@ What to verify:
 - The saved grade result reports the card's lapse count.
 
 Acceptance:
+- [x] @anki-learning.S3 — review Again -> relearning 10m, lapse +1, ease -0.20, Hard 15m, Good 1d — projects/post-anki/post-anki/features/anki-review/learning/tests/forgotten-review-card-relearns-and-records-a-lapse.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 4: Learning and relearning cards come first in the everyday review queue — asked
@@ -56,6 +59,7 @@ What to verify:
 - A topic-, tag- or bit-scoped review keeps its existing order.
 
 Acceptance:
+- [x] @anki-learning.S4 — learning first, Learning count, order — projects/post-anki/post-anki/features/anki-review/learning/tests/learning-cards-first-and-learn-ahead-window.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 5: A learning card due within 20 minutes is served early when nothing else is left — added
@@ -68,6 +72,7 @@ What to verify:
 - Early cards only fill space left after due and new cards, never displace them.
 
 Acceptance:
+- [x] @anki-learning.S5 — 20-minute look-ahead, 60-minute card not served, done shows due time — projects/post-anki/post-anki/features/anki-review/learning/tests/learning-cards-first-and-learn-ahead-window.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 6: Grade buttons show minute-level next intervals — asked
@@ -80,6 +85,7 @@ What to verify:
 - Each preview equals what the grade actually schedules.
 
 Acceptance:
+- [x] @anki-learning.S6 — grade button previews 1m/6m/10m/4d, 1m/10m/1d/4d, 10m/15m/1d/2d — projects/post-anki/post-anki/features/anki-review/learning/tests/new-card-walks-1m-10m-steps-then-graduates.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 ## Technical/Architectural Scenarios
@@ -94,6 +100,7 @@ What to verify:
 - The previous API version keeps working against the upgraded table during the deploy window.
 
 Acceptance:
+- [x] @anki-learning.S7 — legacy-column row reads review/0/0 (DB-only) — projects/post-anki/post-anki/features/anki-review/learning/tests/schedule-defaults-and-old-history-copies-still-work.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 8: A typed answer ends any learning step — added
@@ -106,6 +113,7 @@ What to verify:
 - Concurrent typed and Anki grades of one bit still apply one after the other.
 
 Acceptance:
+- [x] @anki-learning.S8 — typed answer returns learning card to review, lapses kept — projects/post-anki/post-anki/features/anki-review/learning/tests/typed-answer-ends-a-learning-step.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)
 
 SCENARIO 9: The prior-schedule copy kept with each grade includes the step state — added
@@ -117,4 +125,5 @@ What to verify:
 - Copies written before this change, which lack those keys, still read without error.
 
 Acceptance:
+- [x] @anki-learning.S9 — history copy holds step state; old copy without keys still undoes — projects/post-anki/post-anki/features/anki-review/learning/tests/schedule-defaults-and-old-history-copies-still-work.test.ts
 - [ ] Pending implementation (file:line citations added by /implement-ie)

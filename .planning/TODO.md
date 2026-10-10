@@ -32,6 +32,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [x] Split approval review item and panel files under 300 lines
 - [x] Explain approve, and that questions take minutes, on paste
 - [x] Show per-row error when approve or reject fails
 - [x] Stop checking-automatically text after polling gives up

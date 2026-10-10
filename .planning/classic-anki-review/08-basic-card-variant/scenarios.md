@@ -19,6 +19,7 @@ What to verify:
 - A bit never has more than one active basic card. Rejected bits get none.
 
 Acceptance:
+- [x] @anki-basic.S1 — every bit gets one basic card from the after-paste run — projects/post-anki/post-anki/features/anki-review/kick/tests/paste-starts-processing-at-once-without-duplicates.test.ts
 - [ ] pending implementation
 
 SCENARIO 2: The approval page shows the basic card with its own label — asked
@@ -31,6 +32,7 @@ What to verify:
 - Approve becomes available once the bit has any card, including one that has only a basic card so far.
 
 Acceptance:
+- [ ] @anki-basic.S2 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 SCENARIO 3: Anki review prefers the basic card — asked
@@ -43,6 +45,7 @@ What to verify:
 - When a bit's served card switches to the new basic card, the bit keeps its existing schedule.
 
 Acceptance:
+- [x] @anki-basic.S3 — Anki serves basic over blank over why (queue test) — projects/post-anki/post-anki/features/anki-review/queue/tests/unscoped-queue-serves-due-then-new-one-card-per-bit.test.ts
 - [ ] pending implementation
 
 SCENARIO 4: Typed answer mode never uses basic cards — asked
@@ -55,6 +58,7 @@ What to verify:
 - If a basic card is sent straight to typed grading, it is refused before any AI grader call, with a clear error.
 
 Acceptance:
+- [ ] @anki-basic.S4 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 SCENARIO 5: Editing a pending bit's text replaces its basic card — asked
@@ -66,6 +70,7 @@ What to verify:
 - The next generation run writes a new basic card from the edited text, with a fresh retry budget.
 
 Acceptance:
+- [ ] @anki-basic.S5 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 SCENARIO 6: Bits approved before this change also get basic cards — asked
@@ -77,6 +82,7 @@ What to verify:
 - These cards go live without a separate review step. Today's why-question and fill-in-the-blank cards behave the same way once a bit is approved.
 
 Acceptance:
+- [ ] @anki-basic.S6 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 ## Technical/Architectural Scenarios
@@ -91,6 +97,7 @@ What to verify:
 - One bit's failure never stops the rest of the run.
 
 Acceptance:
+- [ ] @anki-basic.S7 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 SCENARIO 8: Overlapping runs never pay for or store the same card twice — asked
@@ -103,6 +110,7 @@ What to verify:
 - The database still allows at most one active basic card per bit, even if the claim logic has a bug.
 
 Acceptance:
+- [ ] @anki-basic.S8 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 SCENARIO 9: A scheduled backstop job runs basic-card generation every 5 minutes — asked
@@ -115,6 +123,7 @@ What to verify:
 - The job is defined only in the infrastructure code, with a configurable schedule.
 
 Acceptance:
+- [ ] @anki-basic.S9 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
 
 SCENARIO 10: Instructions hidden in pasted text don't steer the card writer — asked
@@ -126,4 +135,5 @@ What to verify:
 - The model can only return front and back text, which goes through the card rules and is shown as plain text, never as markup.
 
 Acceptance:
+- [ ] @anki-basic.S10 — e2e test not written: time ran out (needs backstop-scan driven test)
 - [ ] pending implementation
