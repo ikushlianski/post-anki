@@ -1,0 +1,83 @@
+import { and, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import type { DbExecutor } from "../db/client.js";
+import {
+  knowledgeBitQuestionVariants,
+  knowledgeBits,
+  knowledgeBitSchedules,
+  tagAssignments,
+  topics,
+} from "../db/schema.js";
+import { ANKI_VARIANT_KIND_PREFERENCE, ankiVariantKindRank } from "./knowledge-bit-variant-kind-rules.js";
+import { bitApproved } from "./knowledge-bit-approval.repo.js";
+import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
+import type { KnowledgeBitReviewCardsFilter } from "./knowledge-bit-review-queue.repo.js";
+
+export function scopeCondition(filter: KnowledgeBitReviewCardsFilter | undefined, db: DbExecutor) {
+  if (filter?.knowledgeBitId) {
+    return eq(knowledgeBits.id, filter.knowledgeBitId);
+  }
+
+  if (filter?.topicId) {
+    return eq(knowledgeBits.topicId, filter.topicId);
+  }
+
+  if (filter?.tagId) {
+    return inArray(
+      knowledgeBits.id,
+      db
+        .select({ id: tagAssignments.nodeId })
+        .from(tagAssignments)
+        .where(
+          and(eq(tagAssignments.tagId, filter.tagId), eq(tagAssignments.nodeType, "knowledgeBit")),
+        ),
+    );
+  }
+
+  return undefined;
+}
+
+export const eligibility = (scope: SQL | undefined, now: Date) =>
+  and(
+    scope,
+    inReviewRotation(now),
+    or(isNull(knowledgeBits.topicId), ne(topics.learningStatus, "skipping")),
+    isNull(knowledgeBitQuestionVariants.supersededAt),
+    bitApproved,
+  );
+
+// One row per eligible bit: basic over fill_in_the_blank over the rest.
+export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor) {
+  const kindRank = sql`case ${knowledgeBitQuestionVariants.kind} ${sql.join(
+    ANKI_VARIANT_KIND_PREFERENCE.map((kind) => sql`when ${kind} then ${ankiVariantKindRank(kind)}`),
+    sql` `,
+  )} else ${ANKI_VARIANT_KIND_PREFERENCE.length} end`;
+
+  return db
+    .select({
+      variantId: sql<string>`${knowledgeBitQuestionVariants.id}`.as("variant_id"),
+      knowledgeBitId: sql<string>`${knowledgeBits.id}`.as("bit_id"),
+      kind: knowledgeBitQuestionVariants.kind,
+      prompt: knowledgeBitQuestionVariants.prompt,
+      answer: knowledgeBitQuestionVariants.answer,
+      background: knowledgeBits.background,
+      bitCreatedAt: knowledgeBits.createdAt,
+      scheduleBitId: sql<string | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.knowledgeBitId} end`.as("schedule_bit_id"),
+      easeFactor: knowledgeBitSchedules.easeFactor,
+      intervalDays: knowledgeBitSchedules.intervalDays,
+      dueAt: sql<Date | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.dueAt} end`.as("due_at"),
+      phase: knowledgeBitSchedules.phase,
+      learningStep: knowledgeBitSchedules.learningStep,
+      lapses: knowledgeBitSchedules.lapses,
+      pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id} order by ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
+        .mapWith(Number)
+        .as("pick_rank"),
+    })
+    .from(knowledgeBitQuestionVariants)
+    .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
+    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .where(eligibility(scope, now))
+    .as("picked");
+}
+
+export type Picked = ReturnType<typeof pickedVariants>;

@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import type { DbExecutor } from "../db/client.js";
 import { LEARN_AHEAD_SECONDS } from "./knowledge-bit-learning-steps.js";
-import type { Picked } from "./knowledge-bit-review-queue.repo.js";
+import type { Picked } from "./knowledge-bit-review-queue-picked.repo.js";
 
 const STEP_PHASES = ["learning", "relearning"];
 
