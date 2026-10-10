@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "post-anki capture",
+  "version": "0.1.0",
+  "description": "Send selected text to post-anki as a knowledge source.",
+  "permissions": ["contextMenus", "storage"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "options_page": "options.html",
+  "action": { "default_title": "post-anki capture" }
+}

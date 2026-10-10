@@ -13,7 +13,8 @@
     "apps/web",
     "apps/bot",
     "apps/mobile",
-    "apps/desktop"
+    "apps/desktop",
+    "apps/extension"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",

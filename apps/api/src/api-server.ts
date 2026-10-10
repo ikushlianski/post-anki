@@ -1,6 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import { loadEnv } from "./shared/env.js";
+import { resolveCorsDecision } from "./shared/cors.js";
 import { log } from "./shared/log.js";
 import { sendError, sendJson } from "./shared/http.js";
 import {
@@ -324,7 +325,23 @@ export function createApiServer(): http.Server {
     const url = new URL(req.url ?? "/", "http://localhost");
     const path = url.pathname;
 
-    res.setHeader("Access-Control-Allow-Origin", loadEnv().WEB_ORIGIN);
+    const env = loadEnv();
+    const cors = resolveCorsDecision({
+      requestOrigin: req.headers.origin,
+      webOrigin: env.WEB_ORIGIN,
+      extensionId: env.EXTENSION_ID,
+    });
+
+    if ("forbidden" in cors) {
+      sendError(res, 403, "origin_not_allowed");
+      return;
+    }
+
+    res.setHeader("Vary", "Origin");
+    res.setHeader(
+      "Access-Control-Allow-Origin",
+      "allowedOrigin" in cors ? cors.allowedOrigin : env.WEB_ORIGIN,
+    );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
 
