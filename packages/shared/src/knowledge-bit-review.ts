@@ -84,6 +84,7 @@ export const recordReviewResultSchema = z.object({
   phase: cardPhaseSchema,
   dueAt: z.string(),
   intervalDays: z.number(),
+  lapses: z.number().int().min(0),
 });
 
 export type RecordReviewResult = z.infer<typeof recordReviewResultSchema>;

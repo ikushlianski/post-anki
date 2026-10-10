@@ -1,29 +1,33 @@
-import type { IntervalPreview, ReviewGrade } from "@post-anki/shared";
+import type { CardPhase, IntervalPreview, ReviewGrade } from "@post-anki/shared";
+import { deriveLearningStep, RELEARNING_STEPS_SECONDS } from "./knowledge-bit-learning-steps.js";
 
 const MIN_EASE_FACTOR = 1.3;
 const MAX_EASE_FACTOR = 3.0;
 const MIN_INTERVAL_DAYS = 1;
 const MAX_INTERVAL_DAYS = 180;
 const DEFAULT_EASE_FACTOR = 2.5;
-const NEW_CARD_INTERVAL_DAYS = 1;
-const NEW_CARD_EASY_INTERVAL_DAYS = 4;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface GradeScheduleState {
   easeFactor: number;
   intervalDays: number;
+  phase: CardPhase;
+  learningStep: number;
+  lapses: number;
 }
 
 export interface GradeScheduleResult extends GradeScheduleState {
   dueAt: Date;
-  phase: "review";
   wasNew: boolean;
 }
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
-function nextReviewedState(current: GradeScheduleState, grade: ReviewGrade): GradeScheduleState {
+function nextReviewedState(
+  current: GradeScheduleState,
+  grade: ReviewGrade,
+): { intervalDays: number; easeFactor: number } {
   const base = Math.max(current.intervalDays, MIN_INTERVAL_DAYS);
   const ease = current.easeFactor;
 
@@ -45,21 +49,60 @@ export function deriveGradeSchedule(
   grade: ReviewGrade,
   now: Date,
 ): GradeScheduleResult {
-  const next = current
-    ? nextReviewedState(current, grade)
-    : {
-        easeFactor: DEFAULT_EASE_FACTOR,
-        intervalDays: grade === "easy" ? NEW_CARD_EASY_INTERVAL_DAYS : NEW_CARD_INTERVAL_DAYS,
-      };
-  const intervalDays = clamp(next.intervalDays, MIN_INTERVAL_DAYS, MAX_INTERVAL_DAYS);
-  const easeFactor = clamp(next.easeFactor, MIN_EASE_FACTOR, MAX_EASE_FACTOR);
+  const phase = current?.phase ?? "new";
+
+  if (phase !== "review") {
+    const step = deriveLearningStep(
+      {
+        phase: phase as "new" | "learning" | "relearning",
+        learningStep: current?.learningStep ?? 0,
+        intervalDays: current?.intervalDays ?? 0,
+      },
+      grade,
+      now,
+    );
+
+    return {
+      easeFactor: current?.easeFactor ?? DEFAULT_EASE_FACTOR,
+      lapses: current?.lapses ?? 0,
+      ...step,
+      wasNew: current === null,
+    };
+  }
+
+  const state = current as GradeScheduleState;
+  const easeFactor = clamp(
+    nextReviewedState(state, grade).easeFactor,
+    MIN_EASE_FACTOR,
+    MAX_EASE_FACTOR,
+  );
+
+  if (grade === "again") {
+    return {
+      easeFactor,
+      intervalDays: MIN_INTERVAL_DAYS,
+      phase: "relearning",
+      learningStep: 0,
+      lapses: state.lapses + 1,
+      dueAt: new Date(now.getTime() + (RELEARNING_STEPS_SECONDS[0] ?? 0) * 1000),
+      wasNew: false,
+    };
+  }
+
+  const intervalDays = clamp(
+    nextReviewedState(state, grade).intervalDays,
+    MIN_INTERVAL_DAYS,
+    MAX_INTERVAL_DAYS,
+  );
 
   return {
     easeFactor,
     intervalDays,
-    dueAt: new Date(now.getTime() + intervalDays * DAY_MS),
     phase: "review",
-    wasNew: current === null,
+    learningStep: 0,
+    lapses: state.lapses,
+    dueAt: new Date(now.getTime() + intervalDays * DAY_MS),
+    wasNew: false,
   };
 }
 

@@ -1232,6 +1232,9 @@ export const knowledgeBitSchedules = pgTable("knowledge_bit_schedules", {
   dueAt: timestamp("due_at", { withTimezone: true }).notNull().defaultNow(),
   lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
   reviewCount: integer("review_count").notNull().default(0),
+  phase: text("phase").notNull().default("review"),
+  learningStep: integer("learning_step").notNull().default(0),
+  lapses: integer("lapses").notNull().default(0),
 });
 
 export interface KnowledgeBitScheduleSnapshot {
@@ -1240,6 +1243,9 @@ export interface KnowledgeBitScheduleSnapshot {
   dueAt: string;
   lastReviewedAt: string | null;
   reviewCount: number;
+  phase?: string;
+  learningStep?: number;
+  lapses?: number;
 }
 
 // One row per self-graded Anki review, append-only. prevSchedule is the schedule row as it was

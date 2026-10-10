@@ -47,6 +47,9 @@ export async function recordKnowledgeBitReview(
             dueAt: previous.dueAt.toISOString(),
             lastReviewedAt: previous.lastReviewedAt?.toISOString() ?? null,
             reviewCount: previous.reviewCount,
+            phase: previous.phase,
+            learningStep: previous.learningStep,
+            lapses: previous.lapses,
           }
         : null,
       reviewedAt: now,
@@ -59,6 +62,7 @@ export async function recordKnowledgeBitReview(
       phase: next.phase,
       dueAt: next.dueAt.toISOString(),
       intervalDays: next.intervalDays,
+      lapses: next.lapses,
     };
   });
 }

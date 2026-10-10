@@ -3,93 +3,101 @@ import { deriveGradeSchedule, previewGradeIntervals } from "./knowledge-bit-grad
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
+const review = (easeFactor: number, intervalDays: number, lapses = 0) => ({
+  easeFactor,
+  intervalDays,
+  phase: "review" as const,
+  learningStep: 0,
+  lapses,
+});
 
 describe("deriveGradeSchedule", () => {
-  it("should bring a never-reviewed card back tomorrow after Again, Hard or Good, without touching ease", () => {
-    for (const grade of ["again", "hard", "good"] as const) {
-      const next = deriveGradeSchedule(null, grade, NOW);
+  it("should keep a never-reviewed card in learning for a minute after Again, without touching ease", () => {
+    const next = deriveGradeSchedule(null, "again", NOW);
 
-      expect(next.intervalDays).toBe(1);
-      expect(next.easeFactor).toBe(2.5);
-      expect(next.wasNew).toBe(true);
-      expect(next.dueAt.getTime()).toBe(NOW.getTime() + DAY_MS);
-    }
+    expect(next).toMatchObject({ phase: "learning", learningStep: 0, intervalDays: 0, easeFactor: 2.5, wasNew: true });
+    expect(next.dueAt.getTime()).toBe(NOW.getTime() + 60_000);
   });
 
   it("should graduate a never-reviewed card straight to four days when the learner presses Easy", () => {
     const next = deriveGradeSchedule(null, "easy", NOW);
 
-    expect(next.intervalDays).toBe(4);
-    expect(next.easeFactor).toBe(2.5);
+    expect(next).toMatchObject({ phase: "review", intervalDays: 4, easeFactor: 2.5 });
     expect(next.dueAt.getTime()).toBe(NOW.getTime() + 4 * DAY_MS);
   });
 
-  it("should reset a forgotten card to one day and lower its ease when the learner presses Again", () => {
-    const next = deriveGradeSchedule({ easeFactor: 2.5, intervalDays: 30 }, "again", NOW);
+  it("should graduate a card to one day after Good on its last learning step", () => {
+    const next = deriveGradeSchedule(
+      { easeFactor: 2.5, intervalDays: 0, phase: "learning", learningStep: 1, lapses: 0 },
+      "good",
+      NOW,
+    );
 
-    expect(next.intervalDays).toBe(1);
+    expect(next).toMatchObject({ phase: "review", intervalDays: 1, wasNew: false });
+  });
+
+  it("should send a forgotten card to a 10-minute relearning step, count the lapse and lower its ease", () => {
+    const next = deriveGradeSchedule(review(2.5, 30), "again", NOW);
+
+    expect(next).toMatchObject({ phase: "relearning", intervalDays: 1, lapses: 1, wasNew: false });
     expect(next.easeFactor).toBeCloseTo(2.3, 5);
-    expect(next.wasNew).toBe(false);
+    expect(next.dueAt.getTime()).toBe(NOW.getTime() + 600_000);
   });
 
   it("should grow a hard-recalled card only a little and let it pass the typed mode's 14-day cap", () => {
-    const next = deriveGradeSchedule({ easeFactor: 2.5, intervalDays: 100 }, "hard", NOW);
+    const next = deriveGradeSchedule(review(2.5, 100), "hard", NOW);
 
     expect(next.intervalDays).toBeCloseTo(120, 5);
     expect(next.easeFactor).toBeCloseTo(2.35, 5);
   });
 
   it("should multiply the interval by the card's ease when the learner presses Good", () => {
-    const next = deriveGradeSchedule({ easeFactor: 2.5, intervalDays: 10 }, "good", NOW);
+    const next = deriveGradeSchedule(review(2.5, 10), "good", NOW);
 
     expect(next.intervalDays).toBeCloseTo(25, 5);
     expect(next.easeFactor).toBe(2.5);
   });
 
   it("should push an easy card further than Good and raise its ease, using the ease from before the grade", () => {
-    const next = deriveGradeSchedule({ easeFactor: 2.5, intervalDays: 10 }, "easy", NOW);
+    const next = deriveGradeSchedule(review(2.5, 10), "easy", NOW);
 
     expect(next.intervalDays).toBeCloseTo(32.5, 5);
     expect(next.easeFactor).toBeCloseTo(2.65, 5);
   });
 
   it("should treat a reviewed card with a zero interval as one day before growing it", () => {
-    const next = deriveGradeSchedule({ easeFactor: 2.0, intervalDays: 0 }, "good", NOW);
+    const next = deriveGradeSchedule(review(2.0, 0), "good", NOW);
 
     expect(next.intervalDays).toBeCloseTo(2, 5);
   });
 
   it("should never let ease fall below 1.3 or rise above 3.0", () => {
-    expect(deriveGradeSchedule({ easeFactor: 1.35, intervalDays: 5 }, "again", NOW).easeFactor).toBe(1.3);
-    expect(deriveGradeSchedule({ easeFactor: 2.95, intervalDays: 5 }, "easy", NOW).easeFactor).toBe(3.0);
+    expect(deriveGradeSchedule(review(1.35, 5), "again", NOW).easeFactor).toBe(1.3);
+    expect(deriveGradeSchedule(review(2.95, 5), "easy", NOW).easeFactor).toBe(3.0);
   });
 
   it("should never schedule a card more than 180 days out", () => {
-    const next = deriveGradeSchedule({ easeFactor: 3.0, intervalDays: 150 }, "easy", NOW);
+    const next = deriveGradeSchedule(review(3.0, 150), "easy", NOW);
 
     expect(next.intervalDays).toBe(180);
     expect(next.dueAt.getTime()).toBe(NOW.getTime() + 180 * DAY_MS);
   });
 
-  it("should always report the card as in review after a grade", () => {
-    expect(deriveGradeSchedule(null, "good", NOW).phase).toBe("review");
-    expect(deriveGradeSchedule({ easeFactor: 2.5, intervalDays: 3 }, "hard", NOW).phase).toBe("review");
+  it("should keep reviewed cards in review after Hard, Good and Easy", () => {
+    for (const grade of ["hard", "good", "easy"] as const) {
+      expect(deriveGradeSchedule(review(2.5, 3), grade, NOW).phase).toBe("review");
+    }
   });
 });
 
 describe("previewGradeIntervals", () => {
-  it("should promise a never-reviewed card 1 day for Again, Hard and Good and 4 days for Easy", () => {
-    expect(previewGradeIntervals(null, NOW)).toEqual({
-      again: 86_400,
-      hard: 86_400,
-      good: 86_400,
-      easy: 4 * 86_400,
-    });
+  it("should promise a never-reviewed card 1 minute, 5.5 minutes, 10 minutes and 4 days", () => {
+    expect(previewGradeIntervals(null, NOW)).toEqual({ again: 60, hard: 330, good: 600, easy: 4 * 86_400 });
   });
 
   it("should show a reviewed card the interval each grade would really schedule, in seconds", () => {
-    expect(previewGradeIntervals({ easeFactor: 2.5, intervalDays: 10 }, NOW)).toEqual({
-      again: 86_400,
+    expect(previewGradeIntervals(review(2.5, 10), NOW)).toEqual({
+      again: 600,
       hard: 12 * 86_400,
       good: 25 * 86_400,
       easy: 32.5 * 86_400,
@@ -97,6 +105,6 @@ describe("previewGradeIntervals", () => {
   });
 
   it("should clamp previews to the 180-day maximum like a real grade", () => {
-    expect(previewGradeIntervals({ easeFactor: 3.0, intervalDays: 150 }, NOW).easy).toBe(180 * 86_400);
+    expect(previewGradeIntervals(review(3.0, 150), NOW).easy).toBe(180 * 86_400);
   });
 });

@@ -149,6 +149,7 @@ describe("POST /knowledge-bits/reviews", () => {
       phase: "review",
       dueAt: "2026-10-11T12:00:00.000Z",
       intervalDays: 1,
+      lapses: 0,
     };
 
     const response = await postReview({ variantId: "kbqv_1", grade: "good", durationMs: 4200 });
@@ -161,6 +162,7 @@ describe("POST /knowledge-bits/reviews", () => {
       phase: "review",
       dueAt: "2026-10-11T12:00:00.000Z",
       intervalDays: 1,
+      lapses: 0,
     });
   });
 

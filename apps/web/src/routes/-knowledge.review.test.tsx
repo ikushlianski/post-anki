@@ -103,6 +103,7 @@ const savedGrade = {
   phase: 'review' as const,
   dueAt: '2026-10-11T12:00:00.000Z',
   intervalDays: 1,
+  lapses: 0,
 }
 
 function renderPage() {

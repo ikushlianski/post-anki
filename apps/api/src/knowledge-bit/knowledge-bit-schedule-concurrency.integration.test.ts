@@ -127,4 +127,21 @@ describe("reviewKnowledgeBitSchedule under concurrency (real Postgres)", () => {
     expect(schedule.easeFactor).toBeCloseTo(baseline.easeFactor + 0.05, 5);
     expect(schedule.reviewCount).toBe(3);
   });
+
+  it("returns a relearning card to review when a typed verdict lands, keeping its lapses", async () => {
+    const knowledgeBitId = `kb_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, interval_days, phase, learning_step, lapses) VALUES ($1, 1, 'relearning', 0, 2)`,
+      [knowledgeBitId],
+    );
+    await reviewKnowledgeBitSchedule(knowledgeBitId, "Ok");
+
+    const { rows } = await client.query(
+      `SELECT phase, learning_step, lapses FROM knowledge_bit_schedules WHERE knowledge_bit_id = $1`,
+      [knowledgeBitId],
+    );
+
+    expect(rows[0]).toEqual({ phase: "review", learning_step: 0, lapses: 2 });
+  });
 });

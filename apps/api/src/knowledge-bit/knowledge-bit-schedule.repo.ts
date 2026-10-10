@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import type { Verdict } from "@post-anki/shared";
+import { cardPhaseSchema, type CardPhase, type Verdict } from "@post-anki/shared";
 import { knowledgeBitSchedules } from "../db/schema.js";
 import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
 
@@ -84,6 +84,8 @@ export async function reviewKnowledgeBitSchedule(
         dueAt,
         lastReviewedAt: now,
         reviewCount: 1,
+        phase: "review",
+        learningStep: 0,
       })
       .onConflictDoUpdate({
         target: knowledgeBitSchedules.knowledgeBitId,
@@ -91,6 +93,8 @@ export async function reviewKnowledgeBitSchedule(
           easeFactor: next.easeFactor,
           intervalDays: next.intervalDays,
           dueAt,
+          phase: "review",
+          learningStep: 0,
           lastReviewedAt: now,
           reviewCount: sql`${knowledgeBitSchedules.reviewCount} + 1`,
         },
@@ -104,6 +108,9 @@ export interface KnowledgeBitScheduleRow {
   dueAt: Date;
   lastReviewedAt: Date | null;
   reviewCount: number;
+  phase: CardPhase;
+  learningStep: number;
+  lapses: number;
 }
 
 // Reads the full schedule row inside the caller's transaction, so a grade can snapshot it first.
@@ -118,18 +125,34 @@ export async function readKnowledgeBitScheduleInTx(
       dueAt: knowledgeBitSchedules.dueAt,
       lastReviewedAt: knowledgeBitSchedules.lastReviewedAt,
       reviewCount: knowledgeBitSchedules.reviewCount,
+      phase: knowledgeBitSchedules.phase,
+      learningStep: knowledgeBitSchedules.learningStep,
+      lapses: knowledgeBitSchedules.lapses,
     })
     .from(knowledgeBitSchedules)
     .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
     .limit(1);
 
-  return rows[0] ?? null;
+  const row = rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  const phase = cardPhaseSchema.safeParse(row.phase);
+
+  return { ...row, phase: phase.success ? phase.data : "review" };
 }
 
 export async function upsertKnowledgeBitScheduleInTx(
   tx: Tx,
   knowledgeBitId: string,
-  next: ScheduleState & { dueAt: Date },
+  next: ScheduleState & {
+    dueAt: Date;
+    phase: CardPhase;
+    learningStep: number;
+    lapses: number;
+  },
   now: Date,
 ): Promise<void> {
   await tx
@@ -141,6 +164,9 @@ export async function upsertKnowledgeBitScheduleInTx(
       dueAt: next.dueAt,
       lastReviewedAt: now,
       reviewCount: 1,
+      phase: next.phase,
+      learningStep: next.learningStep,
+      lapses: next.lapses,
     })
     .onConflictDoUpdate({
       target: knowledgeBitSchedules.knowledgeBitId,
@@ -148,6 +174,9 @@ export async function upsertKnowledgeBitScheduleInTx(
         easeFactor: next.easeFactor,
         intervalDays: next.intervalDays,
         dueAt: next.dueAt,
+        phase: next.phase,
+        learningStep: next.learningStep,
+        lapses: next.lapses,
         lastReviewedAt: now,
         reviewCount: sql`${knowledgeBitSchedules.reviewCount} + 1`,
       },

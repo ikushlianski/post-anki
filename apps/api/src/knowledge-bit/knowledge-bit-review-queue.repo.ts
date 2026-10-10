@@ -14,6 +14,7 @@ import {
   tagAssignments,
   topics,
 } from "../db/schema.js";
+import { cardPhaseSchema } from "@post-anki/shared";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { previewGradeIntervals } from "./knowledge-bit-grade-schedule.js";
 import {
@@ -21,6 +22,11 @@ import {
   getLocalDayWindow,
   NEW_CARDS_PER_DAY,
 } from "./knowledge-bit-review.repo.js";
+import {
+  learnAheadUntil,
+  listLearnAheadRows,
+  phaseRank,
+} from "./knowledge-bit-review-queue-learning.repo.js";
 
 export interface KnowledgeBitReviewCardRow {
   variantId: string;
@@ -89,17 +95,30 @@ function toCard(
     isNew: boolean;
     easeFactor: number | null;
     intervalDays: number | null;
+    phase: string | null;
+    learningStep: number | null;
+    lapses: number | null;
   },
   now: Date,
 ): KnowledgeBitReviewCardRow {
-  const { isNew, easeFactor, intervalDays, ...card } = row;
+  const { isNew, easeFactor, intervalDays, phase, learningStep, lapses, ...card } = row;
+  const parsed = cardPhaseSchema.safeParse(phase);
+  const storedPhase = parsed.success ? parsed.data : "review";
   const state =
-    easeFactor === null || intervalDays === null ? null : { easeFactor, intervalDays };
+    easeFactor === null || intervalDays === null
+      ? null
+      : {
+          easeFactor,
+          intervalDays,
+          phase: storedPhase,
+          learningStep: learningStep ?? 0,
+          lapses: lapses ?? 0,
+        };
 
   return {
     ...card,
     kind: card.kind as KnowledgeBitQuestionVariantKind,
-    phase: isNew ? "new" : "review",
+    phase: isNew ? "new" : storedPhase,
     intervalPreview: previewGradeIntervals(state, now),
   };
 }
@@ -125,6 +144,9 @@ async function listScopedCards(
       background: knowledgeBits.background,
       easeFactor: knowledgeBitSchedules.easeFactor,
       intervalDays: knowledgeBitSchedules.intervalDays,
+      phase: knowledgeBitSchedules.phase,
+      learningStep: knowledgeBitSchedules.learningStep,
+      lapses: knowledgeBitSchedules.lapses,
       isNew: sql<boolean>`bool_and(${knowledgeBitSchedules.knowledgeBitId} is null)`,
     })
     .from(knowledgeBitQuestionVariants)
@@ -143,6 +165,9 @@ async function listScopedCards(
       knowledgeBits.background,
       knowledgeBitSchedules.easeFactor,
       knowledgeBitSchedules.intervalDays,
+      knowledgeBitSchedules.phase,
+      knowledgeBitSchedules.learningStep,
+      knowledgeBitSchedules.lapses,
     )
     .orderBy(
       ...(filter.topicId ? [asc(dueRank)] : []),
@@ -171,6 +196,9 @@ function pickedVariants(scope: SQL | undefined, db: DbExecutor) {
       easeFactor: knowledgeBitSchedules.easeFactor,
       intervalDays: knowledgeBitSchedules.intervalDays,
       dueAt: knowledgeBitSchedules.dueAt,
+      phase: knowledgeBitSchedules.phase,
+      learningStep: knowledgeBitSchedules.learningStep,
+      lapses: knowledgeBitSchedules.lapses,
       pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id} order by ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
         .mapWith(Number)
         .as("pick_rank"),
@@ -183,7 +211,7 @@ function pickedVariants(scope: SQL | undefined, db: DbExecutor) {
     .as("picked");
 }
 
-type Picked = ReturnType<typeof pickedVariants>;
+export type Picked = ReturnType<typeof pickedVariants>;
 
 async function listPickedCards(
   picked: Picked,
@@ -208,11 +236,19 @@ async function listPickedCards(
       background: picked.background,
       easeFactor: picked.easeFactor,
       intervalDays: picked.intervalDays,
+      phase: picked.phase,
+      learningStep: picked.learningStep,
+      lapses: picked.lapses,
       isNew: sql<boolean>`${picked.scheduleBitId} is null`,
     })
     .from(picked)
     .where(and(eq(picked.pickRank, 1), condition))
-    .orderBy(kind === "due" ? asc(picked.dueAt) : asc(picked.bitCreatedAt), asc(picked.variantId))
+    .orderBy(
+      ...(kind === "due"
+        ? [asc(phaseRank(picked)), asc(picked.dueAt)]
+        : [asc(picked.bitCreatedAt)]),
+      asc(picked.variantId),
+    )
     .limit(limit);
 
   return rows.map((row) => toCard(row, now));
@@ -220,9 +256,11 @@ async function listPickedCards(
 
 async function readEligibleTotals(picked: Picked, now: Date, db: DbExecutor) {
   const nowSql = sql`${now.toISOString()}::timestamptz`;
+  const learnAheadSql = sql`${learnAheadUntil(now).toISOString()}::timestamptz`;
   const [row] = await db
     .select({
-      due: sql<number>`count(*) filter (where ${picked.dueAt} <= ${nowSql})`.mapWith(Number),
+      due: sql<number>`count(*) filter (where ${picked.dueAt} <= ${nowSql} and ${picked.phase} not in ('learning', 'relearning'))`.mapWith(Number),
+      learning: sql<number>`count(*) filter (where ${picked.dueAt} <= ${learnAheadSql} and ${picked.phase} in ('learning', 'relearning'))`.mapWith(Number),
       fresh: sql<number>`count(*) filter (where ${picked.scheduleBitId} is null)`.mapWith(Number),
       nextDue: sql<Date | null>`min(${picked.dueAt}) filter (where ${picked.dueAt} > ${nowSql})`,
     })
@@ -231,6 +269,7 @@ async function readEligibleTotals(picked: Picked, now: Date, db: DbExecutor) {
 
   return {
     due: row?.due ?? 0,
+    learning: row?.learning ?? 0,
     fresh: row?.fresh ?? 0,
     nextDue: row?.nextDue ? new Date(row.nextDue) : null,
   };
@@ -267,7 +306,7 @@ export async function getKnowledgeBitReviewQueue(
 
     return {
       cards,
-      counts: { new: totals.fresh, learning: 0, review: totals.due },
+      counts: { new: totals.fresh, learning: totals.learning, review: totals.due },
       newRemainingToday: remaining,
       nextDueAt: totals.nextDue?.toISOString() ?? null,
     };
@@ -278,14 +317,20 @@ export async function getKnowledgeBitReviewQueue(
     listPickedCards(picked, "new", Math.min(limit, remaining), now, db),
     readEligibleTotals(picked, now, db),
   ]);
-  const cards = [...dueCards, ...newCards.slice(0, Math.max(0, limit - dueCards.length))];
+  const withNew = [...dueCards, ...newCards.slice(0, Math.max(0, limit - dueCards.length))];
+  const aheadRows = await listLearnAheadRows(picked, limit - withNew.length, now, db);
+  const cards = [...withNew, ...aheadRows.map((row) => toCard(row, now))];
   const capHidesNew = remaining === 0 && totals.fresh > 0;
   const nextDue =
     capHidesNew && (!totals.nextDue || dayEndsAt < totals.nextDue) ? dayEndsAt : totals.nextDue;
 
   return {
     cards,
-    counts: { new: Math.min(totals.fresh, remaining), learning: 0, review: totals.due },
+    counts: {
+      new: Math.min(totals.fresh, remaining),
+      learning: totals.learning,
+      review: totals.due,
+    },
     newRemainingToday: remaining,
     nextDueAt: nextDue?.toISOString() ?? null,
   };

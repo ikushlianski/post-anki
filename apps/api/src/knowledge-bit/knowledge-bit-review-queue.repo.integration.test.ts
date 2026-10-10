@@ -104,6 +104,17 @@ async function seedSchedule(knowledgeBitId: string, dueAt: Date): Promise<void> 
   );
 }
 
+async function seedStepSchedule(
+  knowledgeBitId: string,
+  dueAt: Date,
+  phase: "learning" | "relearning",
+): Promise<void> {
+  await client.query(
+    `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, ease_factor, interval_days, due_at, review_count, phase, learning_step, lapses) VALUES ($1, 2.5, 0, $2, 1, $3, 0, 0)`,
+    [knowledgeBitId, dueAt, phase],
+  );
+}
+
 async function seedNewCardReviews(total: number, reviewedAt: Date, undone = false): Promise<void> {
   for (let i = 0; i < total; i++) {
     await client.query(
@@ -131,7 +142,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
         answer: "To agree on sequence numbers.",
         background: "Networking basics",
         phase: "new",
-        intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 4 * 86_400 },
+        intervalPreview: { again: 60, hard: 330, good: 600, easy: 4 * 86_400 },
       },
     ]);
     expect(JSON.stringify(cards)).not.toContain("SECRET BIT BODY");
@@ -168,7 +179,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
     expect(await listKnowledgeBitReviewCards(10, { knowledgeBitId })).toEqual([]);
   });
 
-  it("should mark a card as new until its bit is first graded, then as in review", async () => {
+  it("should mark a card as new until its bit is first graded, then as learning", async () => {
     const knowledgeBitId = await seedBit();
     const variantId = await seedVariant(knowledgeBitId);
 
@@ -176,7 +187,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
 
     await recordKnowledgeBitReview({ variantId, grade: "good" });
 
-    expect((await listKnowledgeBitReviewCards(10, { knowledgeBitId }))[0]?.phase).toBe("review");
+    expect((await listKnowledgeBitReviewCards(10, { knowledgeBitId }))[0]?.phase).toBe("learning");
   });
 
   it("should serve a due bit before a never-reviewed one", async () => {
@@ -333,5 +344,42 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
     const cards = await listKnowledgeBitReviewCards(50, { tagId });
 
     expect(cards.map((card) => card.variantId)).toEqual([taggedVariant]);
+  });
+
+  it("should serve learning and relearning cards ahead of due reviews and show minute previews", async () => {
+    const now = new Date("2095-05-10T12:00:00.000Z");
+    const reviewBit = await seedBit();
+    const reviewVariant = await seedVariant(reviewBit);
+    const learningBit = await seedBit();
+    const learningVariant = await seedVariant(learningBit);
+
+    await seedSchedule(reviewBit, daysFrom(now, -3));
+    await seedStepSchedule(learningBit, new Date(now.getTime() - 60_000), "learning");
+
+    const queue = await getKnowledgeBitReviewQueue(500, undefined, { tz: "UTC", now });
+    const ids = queue.cards.map((card) => card.variantId);
+    const learningCard = queue.cards.find((card) => card.variantId === learningVariant);
+
+    expect(ids.indexOf(learningVariant)).toBeLessThan(ids.indexOf(reviewVariant));
+    expect(learningCard?.phase).toBe("learning");
+    expect(learningCard?.intervalPreview.again).toBe(60);
+    expect(queue.counts.learning).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should serve a learning card due within 20 minutes when nothing else is left, but not one due later", async () => {
+    const now = new Date("2096-05-10T12:00:00.000Z");
+    const soonBit = await seedBit();
+    const soonVariant = await seedVariant(soonBit);
+    const laterBit = await seedBit();
+    const laterVariant = await seedVariant(laterBit);
+
+    await seedStepSchedule(soonBit, new Date(now.getTime() + 10 * 60_000), "relearning");
+    await seedStepSchedule(laterBit, new Date(now.getTime() + 40 * 60_000), "learning");
+
+    const queue = await getKnowledgeBitReviewQueue(500, undefined, { tz: "UTC", now });
+    const ids = queue.cards.map((card) => card.variantId);
+
+    expect(ids).toContain(soonVariant);
+    expect(ids).not.toContain(laterVariant);
   });
 });

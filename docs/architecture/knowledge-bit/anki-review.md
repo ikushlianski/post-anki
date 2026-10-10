@@ -58,7 +58,7 @@ None. No new process, worker, queue or cloud resource. Both endpoints run in the
 
 ## Four-grade rule
 
-A never-reviewed card comes back in 1 day after Again, Hard or Good, and in 4 days after Easy, with ease kept at 2.5. A reviewed card: Again resets to 1 day with ease −0.20; Hard multiplies the interval by 1.2 with ease −0.15; Good multiplies it by ease; Easy multiplies it by ease × 1.3 with ease +0.15. The interval uses the pre-grade ease. Ease stays within 1.3–3.0 and the interval within 1–180 days. The typed mode keeps its own three-verdict rule.
+A never-reviewed card follows the learning steps below. A reviewed card: Again sends it to relearning with ease −0.20 (see Learning steps); Hard multiplies the interval by 1.2 with ease −0.15; Good multiplies it by ease; Easy multiplies it by ease × 1.3 with ease +0.15. The interval uses the pre-grade ease. Ease stays within 1.3–3.0 and the interval within 1–180 days. The typed mode keeps its own three-verdict rule.
 
 ## Due queue
 
@@ -66,6 +66,23 @@ The unscoped Anki queue serves only bits that are approved, whose topic is not s
 
 New cards are capped at 20 per local day. The count is the non-undone first-time reviews since local midnight, and the learner's day comes from the `tz` query parameter (IANA name, default UTC, invalid gives 400). The cap and `newRemainingToday` are global, not per scope.
 
-The cards response also carries counts (`new`, `learning` always 0, `review` for due bits), `newRemainingToday`, and `nextDueAt`: the earliest future due date in scope, or the next local midnight when only capped new cards remain. Each card carries `intervalPreview`, the seconds until it returns after Again, Hard, Good or Easy, computed on the server by the same four-grade rule as a real grade. The web app labels the grade buttons with it, lowers the counts as cards are graded within a batch, and shows a done-for-today screen with the next due time when the queue is empty.
+The cards response also carries counts (`new`, `learning` for step cards due within the learn-ahead window, `review` for due day-based bits), `newRemainingToday`, and `nextDueAt`: the earliest future due date in scope, or the next local midnight when only capped new cards remain. Each card carries `intervalPreview`, the seconds until it returns after Again, Hard, Good or Easy, computed on the server by the same four-grade rule as a real grade. The web app labels the grade buttons with it, lowers the counts as cards are graded within a batch, and shows a done-for-today screen with the next due time when the queue is empty.
 
 The typed answer queue gets the same unscoped rule (due or never reviewed, one variant per bit), picking the variant with the fewest attempts, then basic, fill-in-the-blank, others.
+
+## Learning steps
+
+The schedule row stores `phase` (`learning`, `review` or `relearning`; no row means new), `learning_step` (index into the active step list) and `lapses`. Existing rows read as review, step 0, 0 lapses. Ease never changes inside a step.
+
+| From | Again | Hard | Good | Easy |
+|---|---|---|---|---|
+| new / learning step 0 | step 0, 1m | step 0, 5.5m | step 1, 10m | review, 4d |
+| learning step 1 | step 0, 1m | step 1, 10m | review, 1d | review, 4d |
+| review | relearning, 10m, lapses +1, ease −0.20 | review rule | review rule | review rule |
+| relearning | stays, 10m | stays, 15m | review at the post-lapse interval (min 1d) | review at that interval + 1d |
+
+A stored step past the list counts as the last step. An unknown stored phase reads as review.
+
+The unscoped queue lists learning and relearning cards first, then due reviews, then new cards. When those leave free slots, cards in a step that are due within the next 20 minutes fill them, so a sitting does not end a minute before a card returns. Scoped queues keep their own order and show the stored phase.
+
+A typed-mode verdict sets the phase to review and the step to 0 and leaves `lapses` alone. The review history snapshot of the prior schedule carries `phase`, `learningStep` and `lapses`; snapshots written earlier lack them and read as review, 0, 0. The grade result returns `lapses`.

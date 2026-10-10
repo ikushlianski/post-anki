@@ -107,19 +107,19 @@ async function readReviews(knowledgeBitId: string) {
 }
 
 describe("recordKnowledgeBitReview (real Postgres)", () => {
-  it("should schedule a first-time card for tomorrow and log it as new with no prior schedule", async () => {
+  it("should hold a first-time card in learning for a minute and log it as new with no prior schedule", async () => {
     const knowledgeBitId = await seedBit();
     const variantId = await seedVariant(knowledgeBitId);
     const now = new Date("2026-10-10T12:00:00.000Z");
 
     const outcome = await recordKnowledgeBitReview({ variantId, grade: "good", durationMs: 3200 }, now);
 
-    expect(outcome).toMatchObject({ ok: true, knowledgeBitId, phase: "review", intervalDays: 1 });
+    expect(outcome).toMatchObject({ ok: true, knowledgeBitId, phase: "learning", intervalDays: 0, lapses: 0 });
 
     const schedule = await readSchedule(knowledgeBitId);
 
     expect(schedule?.review_count).toBe(1);
-    expect(new Date(schedule!.due_at).toISOString()).toBe("2026-10-11T12:00:00.000Z");
+    expect(new Date(schedule!.due_at).toISOString()).toBe("2026-10-10T12:10:00.000Z");
     expect(await readReviews(knowledgeBitId)).toEqual([
       { grade: "good", was_new: true, duration_ms: 3200, prev_schedule: null, variant_id: variantId },
     ]);
@@ -144,6 +144,9 @@ describe("recordKnowledgeBitReview (real Postgres)", () => {
       dueAt: new Date(before!.due_at).toISOString(),
       lastReviewedAt: new Date(before!.last_reviewed_at!).toISOString(),
       reviewCount: 1,
+      phase: "review",
+      learningStep: 0,
+      lapses: 0,
     });
     expect(reviews[0]).toMatchObject({ grade: "easy", was_new: true, prev_schedule: null });
   });
@@ -170,7 +173,7 @@ describe("recordKnowledgeBitReview (real Postgres)", () => {
     const knowledgeBitId = await seedBit();
     const variantId = await seedVariant(knowledgeBitId);
 
-    await recordKnowledgeBitReview({ variantId, grade: "good" });
+    await recordKnowledgeBitReview({ variantId, grade: "easy" });
 
     await Promise.all([
       reviewKnowledgeBitSchedule(knowledgeBitId, "Ok"),
@@ -202,5 +205,21 @@ describe("recordKnowledgeBitReview (real Postgres)", () => {
     expect(schedule?.review_count).toBe(2);
     expect(reviews.map((review) => review.was_new).sort()).toEqual([false, true]);
     expect(reviews.find((review) => !review.was_new)?.prev_schedule).not.toBeNull();
+  });
+
+  it("should count a lapse and return a failed review card to review through the relearning step", async () => {
+    const knowledgeBitId = await seedBit();
+    const variantId = await seedVariant(knowledgeBitId);
+    const t0 = new Date("2026-10-01T00:00:00.000Z");
+
+    await recordKnowledgeBitReview({ variantId, grade: "easy" }, t0);
+
+    const failed = await recordKnowledgeBitReview({ variantId, grade: "again" }, new Date("2026-10-06T00:00:00.000Z"));
+
+    expect(failed).toMatchObject({ ok: true, phase: "relearning", lapses: 1 });
+
+    const passed = await recordKnowledgeBitReview({ variantId, grade: "good" }, new Date("2026-10-06T00:10:00.000Z"));
+
+    expect(passed).toMatchObject({ ok: true, phase: "review", intervalDays: 1, lapses: 1 });
   });
 });
