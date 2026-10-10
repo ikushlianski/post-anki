@@ -59,5 +59,19 @@ export function useExpandedSubjects() {
     })
   }
 
-  return { expanded, toggle }
+  function expand(subjectIds: string[]) {
+    setExpanded((current) => {
+      const next = { ...current }
+
+      for (const subjectId of subjectIds) {
+        next[subjectId] = true
+      }
+
+      writeStoredExpandedSubjects(next)
+
+      return next
+    })
+  }
+
+  return { expanded, toggle, expand }
 }

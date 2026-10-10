@@ -387,3 +387,47 @@ describe('curriculum drag onto a category', () => {
     })
   })
 })
+
+describe('subject page reorder affordances', () => {
+  it('should show the reorder hint and touch-safe grips above the curricula', () => {
+    render(
+      <SubjectSection
+        subject={SUBJECT}
+        curricula={[CURRICULUM]}
+        allSubjects={[SUBJECT]}
+        categories={[]}
+        allCategories={[]}
+        globalModelTier="cheap"
+      />,
+    )
+
+    expect(screen.getByTestId('subject-reorder-hint').textContent).toBe('Drag rows to reorder')
+    expect(screen.getByTestId('drag-handle-curr-1').className).toContain('touch-none')
+  })
+
+  it('should start a keyboard drag of a category when Space is pressed on its handle', () => {
+    mockBoundingRects({
+      'category-card-cat-a': makeRect(0, 0, 200, 40),
+      'category-card-cat-b': makeRect(0, 100, 200, 40),
+    })
+
+    render(
+      <SubjectSection
+        subject={SUBJECT}
+        curricula={[]}
+        allSubjects={[SUBJECT]}
+        categories={[CATEGORY_A, CATEGORY_B]}
+        allCategories={[CATEGORY_A, CATEGORY_B]}
+        globalModelTier="cheap"
+      />,
+    )
+
+    fireEvent.keyDown(screen.getByTestId('category-drag-handle-cat-a'), { code: 'Space', key: ' ' })
+
+    expect(screen.getByText(/Draggable item cat-a was moved over/)).toBeDefined()
+
+    fireEvent.keyDown(screen.getByTestId('category-drag-handle-cat-a'), { code: 'Escape', key: 'Escape' })
+
+    expect(screen.queryByTestId('category-move-confirm-bar-cat-b')).toBeNull()
+  })
+})

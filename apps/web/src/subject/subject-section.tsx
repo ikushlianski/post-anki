@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   useDndContext,
   useDraggable,
@@ -10,7 +11,12 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { CircleAlert, GripVertical } from 'lucide-react'
 
@@ -119,6 +125,9 @@ export function SubjectSection({
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   )
 
   async function handleDragEnd(event: DragEndEvent) {
@@ -218,6 +227,11 @@ export function SubjectSection({
         </Link>
       ) : (
         <>
+          {uncategorized.length > 0 || rootCategories.length > 0 ? (
+            <p data-testid="subject-reorder-hint" className="mb-3 text-sm text-neutral-500">
+              Drag rows to reorder
+            </p>
+          ) : null}
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             {rootCategories.length > 0 ? (
               <ul className="mb-3 space-y-2" data-testid="subject-categories">
@@ -368,11 +382,12 @@ function CategoryCard({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          className="shrink-0 text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing"
+          className="flex h-8 w-8 shrink-0 touch-none items-center justify-center text-neutral-500 hover:text-neutral-800 cursor-grab active:cursor-grabbing"
           {...attributes}
           {...listeners}
           data-testid={`category-drag-handle-${category.id}`}
           aria-label="Drag to nest"
+          title="Drag rows to reorder"
         >
           <GripVertical size={16} />
         </button>
@@ -462,11 +477,12 @@ function SortableCurriculumItem({
     >
       <button
         type="button"
-        className="shrink-0 text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing"
+        className="flex h-8 w-8 shrink-0 touch-none items-center justify-center text-neutral-500 hover:text-neutral-800 cursor-grab active:cursor-grabbing"
         {...attributes}
         {...listeners}
         data-testid={`drag-handle-${curriculum.id}`}
         aria-label="Drag to reorder"
+        title="Drag rows to reorder"
       >
         <GripVertical size={16} />
       </button>

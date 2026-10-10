@@ -8,6 +8,7 @@ import { siblingSetKey, SortableSubjectGroup } from './sortable-subject-group'
 import type { SortableRowHandle } from './sortable-subject-group'
 import { useExpandedSubjects } from './subject-expansion'
 import type { ExpandedSubjects } from './subject-expansion'
+import { useSubjectPlacement } from './use-subject-placement'
 
 export interface DashboardSubjectListProps {
   subjects: Subject[]
@@ -68,6 +69,7 @@ interface ListContext {
   subjects: Subject[]
   curricula: Curriculum[]
   expanded: ExpandedSubjects
+  highlightedId: string | null
   onToggle: (subjectId: string) => void
   onRenameSubject: DashboardSubjectListProps['onRenameSubject']
   onDeleteSubject: DashboardSubjectListProps['onDeleteSubject']
@@ -85,7 +87,8 @@ export function DashboardSubjectList({
   onMoveSubject,
   onSubjectOrderSaved,
 }: DashboardSubjectListProps) {
-  const { expanded, toggle } = useExpandedSubjects()
+  const { expanded, toggle, expand } = useExpandedSubjects()
+  const placement = useSubjectPlacement(subjects, expand)
 
   if (subjects.length === 0) {
     return (
@@ -100,19 +103,48 @@ export function DashboardSubjectList({
     )
   }
 
+  async function createSubSubject(parentId: string, name: string): Promise<boolean> {
+    const previousIds = subjects.map((subject) => subject.id)
+    const created = await onCreateSubSubject(parentId, name)
+
+    if (created) {
+      placement.revealNewChild(parentId, previousIds)
+    }
+
+    return created
+  }
+
+  async function moveSubject(subjectId: string, parentId: string | null): Promise<boolean> {
+    const moved = await onMoveSubject(subjectId, parentId)
+
+    if (moved) {
+      placement.revealMovedSubject(subjectId, parentId)
+    }
+
+    return moved
+  }
+
   const context: ListContext = {
     subjects,
     curricula,
     expanded,
+    highlightedId: placement.highlightedId,
     onToggle: toggle,
     onRenameSubject,
     onDeleteSubject,
-    onCreateSubSubject,
-    onMoveSubject,
+    onCreateSubSubject: createSubSubject,
+    onMoveSubject: moveSubject,
     onOrderSaved: onSubjectOrderSaved,
   }
 
-  return <SubjectSiblingGroup nodes={buildSubjectTree(subjects)} parentId={null} depth={0} context={context} />
+  return (
+    <>
+      <p data-testid="subject-reorder-hint" className="mb-3 text-sm text-neutral-500">
+        Drag rows to reorder
+      </p>
+      <SubjectSiblingGroup nodes={buildSubjectTree(subjects)} parentId={null} depth={0} context={context} />
+    </>
+  )
 }
 
 function SubjectSiblingGroup({
@@ -166,20 +198,28 @@ function SubjectTreeItem({
   const isExpanded = context.expanded[subject.id] === true
   const childrenId = `subject-children-${subject.id}`
   const subjectCurricula = context.curricula.filter((c) => c.subjectId === subject.id)
+  const isHighlighted = context.highlightedId === subject.id
 
   return (
     <li
       ref={handle.rowRef}
       style={handle.rowStyle}
       data-depth={depth}
+      data-subject-row={subject.id}
       className={handle.isDragging ? 'opacity-60' : undefined}
     >
-      <div className="relative flex items-stretch rounded-lg border border-neutral-200 bg-white hover:border-neutral-400">
+      <div
+        data-highlighted={isHighlighted ? 'true' : undefined}
+        className={`relative flex items-stretch rounded-lg border bg-white transition-colors hover:border-neutral-400 ${
+          isHighlighted ? 'border-indigo-400 bg-indigo-50 ring-2 ring-indigo-300' : 'border-neutral-200'
+        }`}
+      >
         <button
           type="button"
           aria-label="Drag to reorder"
+          title="Drag rows to reorder"
           data-testid={`subject-drag-handle-${subject.id}`}
-          className="flex w-8 shrink-0 touch-none cursor-grab items-center justify-center rounded-l-lg text-neutral-400 hover:text-neutral-700 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          className="flex min-h-8 w-8 shrink-0 touch-none cursor-grab items-center justify-center rounded-l-lg text-neutral-500 hover:text-neutral-800 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           {...handle.attributes}
           {...handle.listeners}
         >

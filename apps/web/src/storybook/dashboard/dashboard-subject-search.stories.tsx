@@ -15,6 +15,10 @@ async function searchStub(query: string): Promise<Subject[]> {
   return SUBJECTS.filter((subject) => subject.name.toLowerCase().includes(query.toLowerCase()))
 }
 
+async function failingSearch(): Promise<Subject[]> {
+  throw new Error('offline')
+}
+
 const meta: Meta<typeof DashboardSubjectSearch> = {
   title: 'Dashboard/Subject search',
   component: DashboardSubjectSearch,
@@ -56,5 +60,29 @@ export const NoMatches: Story = {
     await userEvent.type(canvas.getByRole('searchbox', { name: 'Search subjects' }), 'zzz')
 
     await expect(await canvas.findByTestId('subject-search-empty')).toHaveTextContent('No subjects match "zzz".')
+  },
+}
+
+export const ResultCountAndClear: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await userEvent.type(canvas.getByRole('searchbox', { name: 'Search subjects' }), 'data')
+
+    await expect(await canvas.findByTestId('subject-search-count')).toHaveTextContent('1 result')
+    await expect(canvas.getByRole('button', { name: 'Clear search' })).toBeVisible()
+  },
+}
+
+export const FailedWithRetry: Story = {
+  args: {
+    search: failingSearch,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await userEvent.type(canvas.getByRole('searchbox', { name: 'Search subjects' }), 'data')
+
+    await expect(await canvas.findByRole('button', { name: 'Retry' })).toBeVisible()
   },
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 
@@ -43,6 +43,8 @@ export function DashboardSubjectSearch({
   const [input, setInput] = useState('')
   const [results, setResults] = useState<SearchResults | null>(null)
   const [searchFailed, setSearchFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const trimmed = input.trim()
 
@@ -76,7 +78,7 @@ export function DashboardSubjectSearch({
       stale = true
       clearTimeout(timer)
     }
-  }, [trimmed, search])
+  }, [trimmed, search, attempt])
 
   function handleChange(value: string) {
     setInput(value)
@@ -89,28 +91,71 @@ export function DashboardSubjectSearch({
     }
   }
 
+  function handleClear() {
+    handleChange('')
+    inputRef.current?.focus()
+  }
+
+  function handleRetry() {
+    setAttempt((count) => count + 1)
+  }
+
   const currentResults = results?.query === trimmed ? results.subjects : null
+  const resultCount = searchFailed || currentResults === null ? null : currentResults.length
 
   return (
     <div className="mb-8">
-      <input
-        type="search"
-        aria-label="Search subjects"
-        placeholder="Search subjects"
-        maxLength={100}
-        value={input}
-        onChange={(event) => handleChange(event.target.value)}
-        onKeyDown={handleKeyDown}
-        data-testid="subject-search-input"
-        className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="search"
+          aria-label="Search subjects"
+          placeholder="Search subjects"
+          maxLength={100}
+          value={input}
+          onChange={(event) => handleChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          data-testid="subject-search-input"
+          className="w-full rounded-lg border border-neutral-200 bg-white py-2 pl-4 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        />
+        {input.length > 0 ? (
+          <button
+            type="button"
+            aria-label="Clear search"
+            title="Clear search"
+            data-testid="subject-search-clear"
+            onClick={handleClear}
+            className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-lg leading-none text-neutral-500 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        ) : null}
+      </div>
+
+      <p
+        aria-live="polite"
+        data-testid="subject-search-count"
+        className={resultCount === null ? 'sr-only' : 'mt-2 text-sm text-neutral-500'}
+      >
+        {resultCount === null ? '' : `${resultCount} ${resultCount === 1 ? 'result' : 'results'}`}
+      </p>
 
       {trimmed.length > 0 ? (
-        <div className="mt-3" data-testid="subject-search-results-panel">
+        <div data-testid="subject-search-results-panel">
           {searchFailed ? (
-            <p role="alert" className="text-sm text-red-600">
-              Couldn't search subjects — try again.
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p role="alert" className="text-sm text-red-600">
+                Couldn't search subjects — try again.
+              </p>
+              <button
+                type="button"
+                data-testid="subject-search-retry"
+                onClick={handleRetry}
+                className="rounded-md border border-neutral-300 bg-white px-3 py-1 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+              >
+                Retry
+              </button>
+            </div>
           ) : currentResults === null ? (
             <p className="text-sm text-neutral-400" data-testid="subject-search-loading">
               Searching…

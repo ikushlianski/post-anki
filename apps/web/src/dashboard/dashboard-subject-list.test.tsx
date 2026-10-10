@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
 import type { Subject } from '../curriculum/model'
@@ -158,5 +158,156 @@ describe('buildSubjectTree', () => {
     const tree = buildSubjectTree([subject('orphan', 'Orphan', 'missing')])
 
     expect(tree.map((node) => node.subject.id)).toEqual(['orphan'])
+  })
+})
+
+describe('reorder hint and sub-subject reveal', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function renderWith(overrides: {
+    subjects?: Subject[]
+    onCreateSubSubject?: (parentId: string, name: string) => Promise<boolean>
+    onMoveSubject?: (subjectId: string, parentId: string | null) => Promise<boolean>
+  }) {
+    const props = {
+      subjects: overrides.subjects ?? TREE,
+      curricula: [],
+      onRenameSubject: vi.fn(async () => true),
+      onDeleteSubject: vi.fn(async () => true),
+      onCreateSubSubject: overrides.onCreateSubSubject ?? vi.fn(async () => true),
+      onMoveSubject: overrides.onMoveSubject ?? vi.fn(async () => true),
+    }
+
+    return render(<DashboardSubjectList {...props} />)
+  }
+
+  function highlightedCardFor(subjectId: string): Element | null {
+    return document.querySelector(`[data-subject-row="${subjectId}"] [data-highlighted="true"]`)
+  }
+
+  it('should show a drag hint and a larger touch-safe grip on each row', () => {
+    renderList()
+
+    expect(screen.getByTestId('subject-reorder-hint').textContent).toBe('Drag rows to reorder')
+
+    const grip = screen.getByTestId('subject-drag-handle-sub-business')
+
+    expect(grip.className).toContain('touch-none')
+    expect(grip.className).toContain('min-h-8')
+    expect(grip.getAttribute('title')).toBe('Drag rows to reorder')
+  })
+
+  it('should expand the parent after Add sub-subject succeeds', async () => {
+    const onCreateSubSubject = vi.fn(async () => true)
+    renderWith({ onCreateSubSubject })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Business' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-subject' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sub-subject name' }), {
+      target: { value: 'Finance' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add sub-subject' }))
+    })
+
+    expect(onCreateSubSubject).toHaveBeenCalledWith('sub-business', 'Finance')
+    expect(screen.getByRole('button', { name: 'Collapse Business' })).toBeDefined()
+    expect(JSON.parse(window.localStorage.getItem(EXPANDED_SUBJECTS_STORAGE_KEY) ?? '{}')).toEqual({
+      'sub-business': true,
+    })
+  })
+
+  it('should highlight and scroll to the new sub-subject once it appears in the list', async () => {
+    const onCreateSubSubject = vi.fn(async () => true)
+    const { rerender } = renderWith({ onCreateSubSubject })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Business' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-subject' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sub-subject name' }), {
+      target: { value: 'Finance' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add sub-subject' }))
+    })
+
+    const finance = subject('sub-finance', 'Finance', 'sub-business')
+
+    rerender(
+      <DashboardSubjectList
+        subjects={[...TREE, finance]}
+        curricula={[]}
+        onRenameSubject={vi.fn(async () => true)}
+        onDeleteSubject={vi.fn(async () => true)}
+        onCreateSubSubject={onCreateSubSubject}
+        onMoveSubject={vi.fn(async () => true)}
+      />,
+    )
+
+    expect(highlightedCardFor('sub-finance')).not.toBeNull()
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+  })
+
+  it('should clear the highlight after about two seconds', async () => {
+    vi.useFakeTimers()
+    renderWith({})
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Programming / Web Development' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subject-menu-move-target-sub-business'))
+    })
+
+    expect(highlightedCardFor(PROGRAMMING.id)).not.toBeNull()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1999)
+    })
+
+    expect(highlightedCardFor(PROGRAMMING.id)).not.toBeNull()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+
+    expect(highlightedCardFor(PROGRAMMING.id)).toBeNull()
+  })
+
+  it('should expand the destination parent and highlight the moved subject', async () => {
+    const onMoveSubject = vi.fn(async () => true)
+    renderWith({ onMoveSubject })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Business' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('subject-menu-move-target-sub-programming'))
+    })
+
+    expect(onMoveSubject).toHaveBeenCalledWith('sub-business', 'sub-programming')
+    expect(screen.getByRole('button', { name: 'Collapse Programming / Web Development' })).toBeDefined()
+    expect(highlightedCardFor('sub-business')).not.toBeNull()
+  })
+
+  it('should leave the parent collapsed when Add sub-subject fails', async () => {
+    renderWith({ onCreateSubSubject: vi.fn(async () => false) })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Business' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-subject' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sub-subject name' }), {
+      target: { value: 'Finance' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add sub-subject' }))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Expand Business' })).toBeDefined()
+    })
+    expect(highlightedCardFor('sub-finance')).toBeNull()
   })
 })

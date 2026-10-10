@@ -172,3 +172,67 @@ describe('DashboardSubjectSearch', () => {
     expect(screen.queryByTestId(`subject-search-result-${PROGRAMMING.id}`)).toBeNull()
   })
 })
+
+describe('DashboardSubjectSearch result count and controls', () => {
+  it('should announce the result count politely as results arrive', async () => {
+    vi.mocked(searchSubjects).mockResolvedValue([PROGRAMMING, DATABASES])
+    render(<DashboardSubjectSearch subjects={SUBJECTS} />)
+
+    typeInto('data')
+    await advance(250)
+
+    const count = screen.getByTestId('subject-search-count')
+
+    expect(count.getAttribute('aria-live')).toBe('polite')
+    expect(count.textContent).toBe('2 results')
+  })
+
+  it('should use the singular when exactly one subject matches', async () => {
+    vi.mocked(searchSubjects).mockResolvedValue([DATABASES])
+    render(<DashboardSubjectSearch subjects={SUBJECTS} />)
+
+    typeInto('data')
+    await advance(250)
+
+    expect(screen.getByTestId('subject-search-count').textContent).toBe('1 result')
+  })
+
+  it('should show a clear button only while the field has text and clear the search from it', async () => {
+    vi.mocked(searchSubjects).mockResolvedValue([DATABASES])
+    render(<DashboardSubjectSearch subjects={SUBJECTS} />)
+
+    expect(screen.queryByTestId('subject-search-clear')).toBeNull()
+
+    typeInto('data')
+    await advance(250)
+    fireEvent.click(screen.getByTestId('subject-search-clear'))
+
+    const input = screen.getByTestId<HTMLInputElement>('subject-search-input')
+
+    expect(input.value).toBe('')
+    expect(document.activeElement).toBe(input)
+    expect(screen.queryByTestId('subject-search-results')).toBeNull()
+    expect(screen.getByTestId('subject-search-count').textContent).toBe('')
+    expect(screen.queryByTestId('subject-search-clear')).toBeNull()
+  })
+
+  it('should retry the same query from the failure message without retyping', async () => {
+    vi.mocked(searchSubjects)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce([DATABASES])
+    render(<DashboardSubjectSearch subjects={SUBJECTS} />)
+
+    typeInto('data')
+    await advance(250)
+
+    expect(screen.getByRole('alert').textContent).toBe("Couldn't search subjects — try again.")
+
+    fireEvent.click(screen.getByTestId('subject-search-retry'))
+    await advance(250)
+
+    expect(vi.mocked(searchSubjects)).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(searchSubjects)).toHaveBeenLastCalledWith({ data: 'data' })
+    expect(screen.getByTestId(`subject-search-result-${DATABASES.id}`)).toBeDefined()
+    expect(screen.queryByTestId('subject-search-retry')).toBeNull()
+  })
+})
