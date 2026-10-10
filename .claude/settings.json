@@ -78,7 +78,7 @@
       "Read(/var/**)",
       "Read(/tmp/**)",
       "Read(/private/**)",
-      "Read(/Users/!(ikushlianski/webdata/ilya-projects/post-anki|ikushlianski/work/verification-repo|ikushlianski/.claude-work/skills/write-playwright-tests)/**)",
+      "Read(/Users/!(ikushlianski/webdata/ilya-projects/post-anki)/**)",
       "Read(/Library/**)",
       "Read(/System/**)",
       "Read(/Applications/**)",
@@ -92,7 +92,7 @@
       "Edit(/var/**)",
       "Edit(/tmp/**)",
       "Edit(/private/**)",
-      "Edit(/Users/!(ikushlianski/webdata/ilya-projects/post-anki|ikushlianski/work/verification-repo|ikushlianski/.claude-work/skills/write-playwright-tests)/**)",
+      "Edit(/Users/!(ikushlianski/webdata/ilya-projects/post-anki)/**)",
       "Edit(/Library/**)",
       "Edit(/System/**)",
       "Edit(/Applications/**)",
@@ -123,7 +123,21 @@
       "Bash(ls /Volumes)",
       "Bash(ls ~/webdata/ilya-projects/ai-dev*)",
       "Bash(ls ~/webdata/ilya-projects/todoist*)",
-      "Bash(ls /Users/ikushlianski/webdata/ilya-projects/ai-dev*)"
+      "Bash(ls /Users/ikushlianski/webdata/ilya-projects/ai-dev*)",
+      "Read(/Users/ikushlianski/work/cockpit/**)",
+      "Edit(/Users/ikushlianski/work/cockpit/**)",
+      "Read(/Users/ikushlianski/work/inferred-edge/**)",
+      "Edit(/Users/ikushlianski/work/inferred-edge/**)",
+      "Read(/Users/ikushlianski/work/MatHaul/**)",
+      "Edit(/Users/ikushlianski/work/MatHaul/**)",
+      "Read(/Users/ikushlianski/work/.envrc)",
+      "Edit(/Users/ikushlianski/work/.envrc)",
+      "Bash(ls ~/work/cockpit*)",
+      "Bash(ls /Users/ikushlianski/work/cockpit*)",
+      "Bash(ls ~/work/inferred-edge*)",
+      "Bash(ls /Users/ikushlianski/work/inferred-edge*)",
+      "Bash(ls ~/work/MatHaul*)",
+      "Bash(ls /Users/ikushlianski/work/MatHaul*)"
     ]
   }
 }
