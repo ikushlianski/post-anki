@@ -7,6 +7,22 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## sub-subjects
+
+### Scope
+- Subjects hold sub-subjects, e.g. Business: time management, sales, SMM, negotiations, HR, marketing
+- Paste into, approve under and review by a sub-subject
+- Reuse the existing subject-category nesting unless a decision says otherwise
+- Out of scope: Domain-map tree changes; it stays a separate structure
+
+### Coding tasks
+- [ ] Review cards scoped to one sub-subject, including its children
+- [ ] Let pasted text and its items belong to a sub-subject
+
+### Notes
+- Open decision: real nested subjects, or upgrade subject categories (recommended)
+
+
 ## highlight-capture-extension
 
 ### Scope

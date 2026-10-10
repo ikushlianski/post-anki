@@ -84,3 +84,6 @@
 {"ts":"2026-10-10T21:34:19.779Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Split approval review item and panel files under 300 lines"}
 {"ts":"2026-10-10T21:36:59.604Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Split approval review item and panel files under 300 lines"}
 {"ts":"2026-10-10T21:45:19.610Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Show newly detected suggestions on the approval page without reload"}
+{"ts":"2026-10-10T22:53:31.316Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Let pasted text and its items belong to a sub-subject"}
+{"ts":"2026-10-10T22:53:31.559Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Review cards scoped to one sub-subject, including its children"}
+{"ts":"2026-10-10T22:53:31.834Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Open decision: real nested subjects, or upgrade subject categories (recommended)"}
