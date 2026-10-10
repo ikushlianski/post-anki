@@ -18,7 +18,8 @@ import {
   removeBit,
   removeBits,
 } from './knowledge-bit-review-sources'
-import { KnowledgeBitReviewItem } from './knowledge-bit-review-item'
+import { KnowledgeBitReviewBulkBar } from './knowledge-bit-review-bulk-bar'
+import { KnowledgeBitReviewSourceGroup } from './knowledge-bit-review-source-group'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 import { useReviewKeyboard, type ReviewKeyAction } from './knowledge-bit-review-keyboard'
 import {
@@ -27,8 +28,6 @@ import {
   useQuestionPolling,
 } from './knowledge-bit-review-polling'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
-
-const SOURCE_TEXT_PREVIEW_LENGTH = 400
 
 export function KnowledgeBitReviewPanel({
   initialSources,
@@ -226,27 +225,11 @@ export function KnowledgeBitReviewPanel({
 
   return (
     <div data-testid="knowledge-bit-review-panel" className="space-y-4">
-      {readyBits.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            data-testid="knowledge-bit-review-approve-all"
-            onClick={() => approveMany(readyBits)}
-            className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
-          >
-            Approve all ready ({readyBits.length})
-          </button>
-          <span className="text-xs text-neutral-400">
-            Keys: j/k move, a approve, r reject, Shift+A approve all from source
-          </span>
-        </div>
-      ) : null}
-
-      {bulkMessage ? (
-        <p data-testid="knowledge-bit-review-bulk-message" className="text-xs text-neutral-600">
-          {bulkMessage}
-        </p>
-      ) : null}
+      <KnowledgeBitReviewBulkBar
+        readyCount={readyBits.length}
+        bulkMessage={bulkMessage}
+        onApproveAll={() => approveMany(readyBits)}
+      />
 
       {sources.length === 0 ? (
         <p data-testid="knowledge-bit-review-empty-state" className="text-sm text-neutral-500">
@@ -255,54 +238,22 @@ export function KnowledgeBitReviewPanel({
       ) : (
         <ul className="space-y-4">
           {sources.map((source) => (
-            <li
+            <KnowledgeBitReviewSourceGroup
               key={source.knowledgeSourceId}
-              data-testid={`knowledge-bit-review-source-${source.knowledgeSourceId}`}
-              className="rounded-lg border border-neutral-300 bg-neutral-50 p-3"
-            >
-              <details className="text-xs text-neutral-600">
-                <summary className="cursor-pointer select-none">Source text</summary>
-                <p className="mt-1 whitespace-pre-wrap">
-                  {source.sourceText
-                    ? source.sourceText.slice(0, SOURCE_TEXT_PREVIEW_LENGTH)
-                    : 'No source text available.'}
-                  {source.sourceText && source.sourceText.length > SOURCE_TEXT_PREVIEW_LENGTH
-                    ? '…'
-                    : ''}
-                </p>
-              </details>
-
-              {source.bits.filter((bit) => bit.variants.length > 0).length > 1 ? (
-                <button
-                  type="button"
-                  data-testid={`knowledge-bit-review-approve-source-${source.knowledgeSourceId}`}
-                  onClick={() => approveMany(source.bits)}
-                  className="mt-2 rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700"
-                >
-                  Approve all from this source
-                </button>
-              ) : null}
-
-              <ul className="mt-3 space-y-3">
-                {source.bits.map((bit) => (
-                  <KnowledgeBitReviewItem
-                    key={bit.id}
-                    bit={bit}
-                    isResolving={isBitResolving(bit.id)}
-                    isSavingVariant={isVariantSaving}
-                    isSavingBit={isBitSaving}
-                    isFocused={focusedBit?.id === bit.id}
-                    pollingGaveUp={pollingGaveUp}
-                    errorMessage={rowErrors[bit.id] || null}
-                    onEditingChange={handleEditingChange}
-                    onApprove={approve}
-                    onReject={reject}
-                    onSaveVariant={saveVariant}
-                    onSaveBit={saveBit}
-                  />
-                ))}
-              </ul>
-            </li>
+              source={source}
+              focusedBitId={focusedBit?.id}
+              pollingGaveUp={pollingGaveUp}
+              rowErrors={rowErrors}
+              isBitResolving={isBitResolving}
+              isVariantSaving={isVariantSaving}
+              isBitSaving={isBitSaving}
+              onApproveMany={approveMany}
+              onEditingChange={handleEditingChange}
+              onApprove={approve}
+              onReject={reject}
+              onSaveVariant={saveVariant}
+              onSaveBit={saveBit}
+            />
           ))}
         </ul>
       )}

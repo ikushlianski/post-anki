@@ -72,7 +72,7 @@ function AdminSettingsPage() {
       </div>
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold tracking-tight">Knowledge bit review</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Approve suggestions</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Approve, reject, or edit newly detected knowledge bits before they go live.
         </p>

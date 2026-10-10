@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview, PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
 
-import { variantKindLabel } from './knowledge-bit-variant-kind-label'
-
-interface VariantDraft {
-  prompt: string
-  answer: string
-}
+import { KnowledgeBitReviewVariantList, type VariantDraft } from './knowledge-bit-review-variant-list'
 
 interface BitDraft {
   body: string
@@ -58,6 +53,10 @@ export function KnowledgeBitReviewItem({
   function startEditVariant(variant: PendingKnowledgeBitQuestionVariant) {
     setOpenEditor({ type: 'variant', variantId: variant.id })
     setVariantDraft({ prompt: variant.prompt, answer: variant.answer })
+  }
+
+  function updateVariantDraft(patch: Partial<VariantDraft>) {
+    setVariantDraft((prev) => ({ ...prev, ...patch }))
   }
 
   function startEditBit() {
@@ -201,86 +200,20 @@ export function KnowledgeBitReviewItem({
         </>
       )}
 
-      <ul className="mt-2 space-y-2">
-        {bit.variants.length === 0 ? (
-          <li data-testid={`knowledge-bit-review-no-variants-${bit.id}`} className="text-xs text-neutral-400">
-            {pollingGaveUp
-              ? 'Still waiting. Reload the page to check again.'
-              : 'Waiting for questions — checking automatically.'}
-          </li>
-        ) : null}
-
-        {bit.variants.map((variant) =>
-          openEditor?.type === 'variant' && openEditor.variantId === variant.id ? (
-            <li key={variant.id} className="rounded-md bg-neutral-50 p-2">
-              <input
-                data-testid={`knowledge-bit-review-edit-prompt-${variant.id}`}
-                type="text"
-                value={variantDraft.prompt}
-                onChange={(e) => setVariantDraft((prev) => ({ ...prev, prompt: e.target.value }))}
-                className="w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
-              />
-              <input
-                data-testid={`knowledge-bit-review-edit-answer-${variant.id}`}
-                type="text"
-                value={variantDraft.answer}
-                onChange={(e) => setVariantDraft((prev) => ({ ...prev, answer: e.target.value }))}
-                className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
-              />
-              <div className="mt-1 flex gap-2">
-                <button
-                  type="button"
-                  data-testid={`knowledge-bit-review-save-${variant.id}`}
-                  disabled={
-                    isSavingVariant(variant.id) ||
-                    !variantDraft.prompt.trim() ||
-                    !variantDraft.answer.trim()
-                  }
-                  onClick={() => saveVariantEdit(variant.id)}
-                  className="rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  data-testid={`knowledge-bit-review-cancel-${variant.id}`}
-                  disabled={isSavingOpenEditor}
-                  onClick={cancelEdit}
-                  className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </li>
-          ) : (
-            <li key={variant.id} data-testid={`knowledge-bit-review-variant-${variant.id}`}>
-              <p
-                data-testid={`knowledge-bit-review-variant-kind-${variant.id}`}
-                className="text-xs uppercase text-neutral-400"
-              >
-                {variantKindLabel(variant.kind)}
-              </p>
-              <p className="text-sm">
-                {variant.kind === 'basic' ? 'Front: ' : ''}
-                {variant.prompt}
-              </p>
-              <p className="text-sm text-neutral-500">
-                {variant.kind === 'basic' ? 'Back: ' : ''}
-                {variant.answer}
-              </p>
-              <button
-                type="button"
-                data-testid={`knowledge-bit-review-edit-${variant.id}`}
-                disabled={hasOpenEditor}
-                onClick={() => startEditVariant(variant)}
-                className="mt-1 text-xs text-neutral-600 underline disabled:opacity-50"
-              >
-                Edit
-              </button>
-            </li>
-          ),
-        )}
-      </ul>
+      <KnowledgeBitReviewVariantList
+        bitId={bit.id}
+        variants={bit.variants}
+        pollingGaveUp={pollingGaveUp}
+        editingVariantId={openEditor?.type === 'variant' ? openEditor.variantId : null}
+        draft={variantDraft}
+        hasOpenEditor={hasOpenEditor}
+        isSavingOpenEditor={isSavingOpenEditor}
+        isSavingVariant={isSavingVariant}
+        onStartEdit={startEditVariant}
+        onDraftChange={updateVariantDraft}
+        onSave={saveVariantEdit}
+        onCancel={cancelEdit}
+      />
 
       <div className="mt-2 flex gap-2">
         <button
