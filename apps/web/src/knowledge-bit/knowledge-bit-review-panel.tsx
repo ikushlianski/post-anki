@@ -1,25 +1,34 @@
-import { useState } from 'react'
-import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
+import { useCallback, useRef, useState } from 'react'
+import type {
+  PendingKnowledgeBitForReview,
+  PendingKnowledgeSourceForReview,
+} from '@post-anki/shared'
 
 import {
   approveKnowledgeBitForReview,
+  bulkApproveKnowledgeBitsForReview,
   editKnowledgeBitForReview,
+  getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
   rejectKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
+import {
+  applyBitEdit,
+  applyVariantEdit,
+  removeBit,
+  removeBits,
+} from './knowledge-bit-review-sources'
 import { KnowledgeBitReviewItem } from './knowledge-bit-review-item'
+import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
+import { useReviewKeyboard, type ReviewKeyAction } from './knowledge-bit-review-keyboard'
+import {
+  hasBitAwaitingQuestions,
+  mergeArrivedVariants,
+  useQuestionPolling,
+} from './knowledge-bit-review-polling'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
 
 const SOURCE_TEXT_PREVIEW_LENGTH = 400
-
-function removeBit(
-  sources: PendingKnowledgeSourceForReview[],
-  bitId: string,
-): PendingKnowledgeSourceForReview[] {
-  return sources
-    .map((source) => ({ ...source, bits: source.bits.filter((bit) => bit.id !== bitId) }))
-    .filter((source) => source.bits.length > 0)
-}
 
 export function KnowledgeBitReviewPanel({
   initialSources,
@@ -27,6 +36,29 @@ export function KnowledgeBitReviewPanel({
   initialSources: PendingKnowledgeSourceForReview[]
 }) {
   const [sources, setSources] = useState(initialSources)
+  const [focusedIndex, setFocusedIndex] = useState(0)
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+  const editingBitIds = useRef(new Set<string>())
+
+  const allBits = sources.flatMap((source) => source.bits)
+  const focusedBit = allBits[Math.min(focusedIndex, allBits.length - 1)]
+  const readyBits = allBits.filter((bit) => bit.variants.length > 0)
+
+  const refreshQuestions = useCallback(async () => {
+    const fresh = await getPendingKnowledgeBitsForReview()
+
+    setSources((prev) => mergeArrivedVariants(prev, fresh))
+  }, [])
+
+  useQuestionPolling(hasBitAwaitingQuestions(sources), refreshQuestions)
+
+  const handleEditingChange = useCallback((bitId: string, editing: boolean) => {
+    if (editing) {
+      editingBitIds.current.add(bitId)
+    } else {
+      editingBitIds.current.delete(bitId)
+    }
+  }, [])
 
   const { claim: claimBit, release: releaseBit, isResolving: isBitResolving } =
     useResolvingSuggestions()
@@ -44,10 +76,48 @@ export function KnowledgeBitReviewPanel({
       await approveKnowledgeBitForReview({ data: { bitId } })
 
       setSources((prev) => removeBit(prev, bitId))
+      notifyPendingReviewChanged()
     } catch {
       // Row stays listed on failure so the decision can be retried.
     } finally {
       releaseBit(bitId)
+    }
+  }
+
+  async function approveMany(bits: PendingKnowledgeBitForReview[]) {
+    const claimed = bits
+      .filter((bit) => bit.variants.length > 0 && !editingBitIds.current.has(bit.id))
+      .map((bit) => bit.id)
+      .filter((bitId) => claimBit(bitId))
+
+    if (claimed.length === 0) {
+      return
+    }
+
+    setBulkMessage(null)
+
+    try {
+      const result = await bulkApproveKnowledgeBitsForReview({
+        data: { knowledgeBitIds: claimed },
+      })
+
+      const gone = new Set([
+        ...result.approved,
+        ...result.skipped.filter((item) => item.reason !== 'no_variant').map((item) => item.id),
+      ])
+
+      setSources((prev) => removeBits(prev, gone))
+      notifyPendingReviewChanged()
+
+      if (result.skipped.length > 0) {
+        setBulkMessage(
+          `Approved ${result.approved.length}, skipped ${result.skipped.length} that could not be approved.`,
+        )
+      }
+    } catch {
+      setBulkMessage('Could not approve these suggestions. Try again.')
+    } finally {
+      claimed.forEach(releaseBit)
     }
   }
 
@@ -60,6 +130,7 @@ export function KnowledgeBitReviewPanel({
       await rejectKnowledgeBitForReview({ data: { bitId } })
 
       setSources((prev) => removeBit(prev, bitId))
+      notifyPendingReviewChanged()
     } catch {
       // Same retry posture as approve above.
     } finally {
@@ -82,27 +153,8 @@ export function KnowledgeBitReviewPanel({
         data: { variantId, prompt, answer },
       })
 
-      // The edit supersedes rather than mutates — the server hands back a new
-      // variant id, which must replace the old one in local state or a
-      // second edit (or a re-edit after a typo) would PATCH an id that's
-      // already superseded and get a 404.
-      setSources((prev) =>
-        prev.map((source) => ({
-          ...source,
-          bits: source.bits.map((bit) =>
-            bit.id !== bitId
-              ? bit
-              : {
-                  ...bit,
-                  variants: bit.variants.map((variant) =>
-                    variant.id !== variantId
-                      ? variant
-                      : { ...variant, id: result.variantId, prompt, answer },
-                  ),
-                },
-          ),
-        })),
-      )
+      // The edit supersedes rather than mutates — the new variant id must replace the old one.
+      setSources((prev) => applyVariantEdit(prev, bitId, variantId, result.variantId, prompt, answer))
 
       return true
     } catch {
@@ -121,22 +173,8 @@ export function KnowledgeBitReviewPanel({
     try {
       await editKnowledgeBitForReview({ data: { bitId, body, background } })
 
-      // A real body change makes the server delete the bit's existing question
-      // variants and re-arm generation for fresh ones (same cascade
-      // updateKnowledgeBitBody always ran) — so the stale prompt/answer pairs
-      // must be cleared here too, or the screen keeps showing already-deleted
-      // content as if it were still current and approvable. A background-only
-      // edit (body unchanged) never triggers that cascade, so variants are kept.
-      setSources((prev) =>
-        prev.map((source) => ({
-          ...source,
-          bits: source.bits.map((bit) =>
-            bit.id !== bitId
-              ? bit
-              : { ...bit, body, background, variants: bit.body === body ? bit.variants : [] },
-          ),
-        })),
-      )
+      // A body change clears the bit's variants (server regenerates); background-only keeps them.
+      setSources((prev) => applyBitEdit(prev, bitId, body, background))
 
       return true
     } catch {
@@ -147,8 +185,58 @@ export function KnowledgeBitReviewPanel({
     }
   }
 
+  function handleKey(action: ReviewKeyAction) {
+    if (!focusedBit) {
+      return
+    }
+
+    const at = allBits.indexOf(focusedBit)
+
+    if (action === 'next') {
+      setFocusedIndex(Math.min(at + 1, allBits.length - 1))
+    } else if (action === 'previous') {
+      setFocusedIndex(Math.max(at - 1, 0))
+    } else if (editingBitIds.current.has(focusedBit.id) || isBitResolving(focusedBit.id)) {
+      return
+    } else if (action === 'reject') {
+      void reject(focusedBit.id)
+    } else if (action === 'approve') {
+      if (focusedBit.variants.length > 0) {
+        void approve(focusedBit.id)
+      }
+    } else {
+      const source = sources.find((c) => c.bits.some((bit) => bit.id === focusedBit.id))
+
+      void approveMany(source?.bits ?? [])
+    }
+  }
+
+  useReviewKeyboard(handleKey)
+
   return (
     <div data-testid="knowledge-bit-review-panel" className="space-y-4">
+      {readyBits.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            data-testid="knowledge-bit-review-approve-all"
+            onClick={() => approveMany(readyBits)}
+            className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white"
+          >
+            Approve all ready ({readyBits.length})
+          </button>
+          <span className="text-xs text-neutral-400">
+            Keys: j/k move, a approve, r reject, Shift+A approve all from source
+          </span>
+        </div>
+      ) : null}
+
+      {bulkMessage ? (
+        <p data-testid="knowledge-bit-review-bulk-message" className="text-xs text-neutral-600">
+          {bulkMessage}
+        </p>
+      ) : null}
+
       {sources.length === 0 ? (
         <p data-testid="knowledge-bit-review-empty-state" className="text-sm text-neutral-500">
           No pending knowledge bits.
@@ -173,6 +261,17 @@ export function KnowledgeBitReviewPanel({
                 </p>
               </details>
 
+              {source.bits.filter((bit) => bit.variants.length > 0).length > 1 ? (
+                <button
+                  type="button"
+                  data-testid={`knowledge-bit-review-approve-source-${source.knowledgeSourceId}`}
+                  onClick={() => approveMany(source.bits)}
+                  className="mt-2 rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700"
+                >
+                  Approve all from this source
+                </button>
+              ) : null}
+
               <ul className="mt-3 space-y-3">
                 {source.bits.map((bit) => (
                   <KnowledgeBitReviewItem
@@ -181,6 +280,8 @@ export function KnowledgeBitReviewPanel({
                     isResolving={isBitResolving(bit.id)}
                     isSavingVariant={isVariantSaving}
                     isSavingBit={isBitSaving}
+                    isFocused={focusedBit?.id === bit.id}
+                    onEditingChange={handleEditingChange}
                     onApprove={approve}
                     onReject={reject}
                     onSaveVariant={saveVariant}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview, PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
 
 interface VariantDraft {
@@ -22,6 +22,8 @@ export function KnowledgeBitReviewItem({
   isResolving,
   isSavingVariant,
   isSavingBit,
+  isFocused = false,
+  onEditingChange,
   onApprove,
   onReject,
   onSaveVariant,
@@ -31,6 +33,8 @@ export function KnowledgeBitReviewItem({
   isResolving: boolean
   isSavingVariant: (variantId: string) => boolean
   isSavingBit: (bitId: string) => boolean
+  isFocused?: boolean
+  onEditingChange?: (bitId: string, editing: boolean) => void
   onApprove: (bitId: string) => void
   onReject: (bitId: string) => void
   onSaveVariant: (
@@ -116,10 +120,19 @@ export function KnowledgeBitReviewItem({
   const actionsDisabled = isResolving || hasOpenEditor
   const approveDisabled = actionsDisabled || hasNoVariants
 
+  useEffect(() => {
+    onEditingChange?.(bit.id, hasOpenEditor)
+
+    return () => onEditingChange?.(bit.id, false)
+  }, [bit.id, hasOpenEditor, onEditingChange])
+
   return (
     <li
       data-testid={`knowledge-bit-review-item-${bit.id}`}
-      className="rounded-lg border border-neutral-200 bg-white p-3"
+      data-focused={isFocused ? 'true' : undefined}
+      className={`rounded-lg border bg-white p-3 ${
+        isFocused ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200'
+      }`}
     >
       {openEditor?.type === 'bit' ? (
         <div data-testid={`knowledge-bit-review-edit-bit-${bit.id}`}>
@@ -185,7 +198,7 @@ export function KnowledgeBitReviewItem({
       <ul className="mt-2 space-y-2">
         {bit.variants.length === 0 ? (
           <li data-testid={`knowledge-bit-review-no-variants-${bit.id}`} className="text-xs text-neutral-400">
-            Waiting for questions — reload to review.
+            Waiting for questions — checking automatically.
           </li>
         ) : null}
 

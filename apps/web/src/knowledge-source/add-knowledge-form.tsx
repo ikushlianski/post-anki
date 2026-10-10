@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from '@tanstack/react-router'
+
+import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 
 import {
   createKnowledgeSource,
@@ -105,6 +108,7 @@ export function AddKnowledgeForm() {
     })
 
     if (createdCount > 0) {
+      notifyPendingReviewChanged()
       setSuccessMessage(
         createdCount === 1 ? 'Knowledge source added.' : `${createdCount} knowledge sources added.`,
       )
@@ -214,9 +218,18 @@ export function AddKnowledgeForm() {
       </div>
 
       {successMessage && (
-        <p data-testid="knowledge-success-message" className="text-sm text-green-700">
-          {successMessage}
-        </p>
+        <div className="flex items-center gap-3 text-sm">
+          <p data-testid="knowledge-success-message" className="text-green-700">
+            {successMessage}
+          </p>
+          <Link
+            to="/knowledge-bit-review"
+            data-testid="knowledge-success-review-link"
+            className="text-neutral-700 underline"
+          >
+            Review suggestions
+          </Link>
+        </div>
       )}
 
       {error && (

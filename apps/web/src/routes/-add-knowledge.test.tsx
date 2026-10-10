@@ -33,6 +33,10 @@ vi.mock('../curriculum/board.collection', () => ({
   curriculaCollection: {},
 }))
 
+vi.mock('../knowledge-bit/knowledge-bit-review.api', () => ({
+  getPendingKnowledgeBitCountForNav: vi.fn().mockResolvedValue({ count: 3 }),
+}))
+
 vi.mock('../knowledge-source/knowledge-source.api', () => ({
   createKnowledgeSource: vi.fn(),
   createKnowledgeSources: vi.fn(),
@@ -344,6 +348,27 @@ describe('Route (/add-knowledge)', () => {
   })
 })
 
+describe('add-knowledge success link', () => {
+  afterEach(() => {
+    cleanup()
+    mockedCreateKnowledgeSource.mockReset()
+  })
+
+  it('should point to the approval page once a source is added', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+    render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some text' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-review-link').getAttribute('data-to')).toBe(
+        '/knowledge-bit-review',
+      )
+    })
+  })
+})
+
 describe('Sidebar', () => {
   afterEach(() => {
     cleanup()
@@ -356,5 +381,18 @@ describe('Sidebar', () => {
 
     expect(link.getAttribute('data-to')).toBe('/add-knowledge')
     expect(link.textContent).toContain('Add knowledge')
+  })
+
+  it('should show the number of suggestions waiting for approval', async () => {
+    render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe(
+        'Approve suggestions (3)',
+      )
+    })
+    expect(screen.getByTestId('nav-knowledge-bit-review').getAttribute('data-to')).toBe(
+      '/knowledge-bit-review',
+    )
   })
 })

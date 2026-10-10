@@ -57,3 +57,30 @@ export interface PendingKnowledgeSourceForReview {
   sourceText: string | null;
   bits: PendingKnowledgeBitForReview[];
 }
+
+export const BULK_APPROVAL_MAX_IDS = 200;
+
+// POST /knowledge-bits/approvals
+export const bulkApproveKnowledgeBitsInput = z.object({
+  knowledgeBitIds: z.array(z.string().min(1)).min(1).max(BULK_APPROVAL_MAX_IDS),
+});
+
+export type BulkApproveKnowledgeBitsInput = z.input<typeof bulkApproveKnowledgeBitsInput>;
+
+export const bulkApprovalSkipReasonSchema = z.enum(["not_found", "already_decided", "no_variant"]);
+
+export type BulkApprovalSkipReason = z.infer<typeof bulkApprovalSkipReasonSchema>;
+
+export const bulkApproveKnowledgeBitsResponse = z.object({
+  approved: z.array(z.string()),
+  skipped: z.array(z.object({ id: z.string(), reason: bulkApprovalSkipReasonSchema })),
+});
+
+export type BulkApproveKnowledgeBitsResponse = z.infer<typeof bulkApproveKnowledgeBitsResponse>;
+
+// GET /knowledge-bits/pending-review/count
+export const pendingKnowledgeBitReviewCountResponse = z.object({ count: z.number().int().min(0) });
+
+export type PendingKnowledgeBitReviewCountResponse = z.infer<
+  typeof pendingKnowledgeBitReviewCountResponse
+>;

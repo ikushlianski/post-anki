@@ -97,6 +97,16 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat/draft")).toBeNull();
     });
 
+    it("resolves the bulk-approval and pending-count routes", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/approvals")?.name).toBe(
+        "bulkApproveKnowledgeBits",
+      );
+      expect(resolveRoute("GET", "/knowledge-bits/approvals")).toBeNull();
+      expect(resolveRoute("GET", "/knowledge-bits/pending-review/count")?.name).toBe(
+        "countPendingKnowledgeBits",
+      );
+    });
+
     it("resolves PATCH /knowledge-bits/:id to the knowledge-bit edit handler", () => {
       expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")).toEqual({
         name: "editKnowledgeBit",

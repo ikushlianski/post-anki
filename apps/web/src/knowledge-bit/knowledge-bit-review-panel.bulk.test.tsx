@@ -1,0 +1,184 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+
+import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
+
+import { KnowledgeBitReviewPanel } from './knowledge-bit-review-panel'
+import {
+  approveKnowledgeBitForReview,
+  bulkApproveKnowledgeBitsForReview,
+  getPendingKnowledgeBitsForReview,
+  rejectKnowledgeBitForReview,
+} from './knowledge-bit-review.api'
+import { QUESTION_POLL_INTERVAL_MS } from './knowledge-bit-review-polling'
+
+vi.mock('./knowledge-bit-review.api', () => ({
+  approveKnowledgeBitForReview: vi.fn(),
+  rejectKnowledgeBitForReview: vi.fn(),
+  editKnowledgeBitQuestionVariantForReview: vi.fn(),
+  editKnowledgeBitForReview: vi.fn(),
+  bulkApproveKnowledgeBitsForReview: vi.fn(),
+  getPendingKnowledgeBitsForReview: vi.fn(),
+}))
+
+const mockedBulk = vi.mocked(bulkApproveKnowledgeBitsForReview)
+const mockedGetPending = vi.mocked(getPendingKnowledgeBitsForReview)
+const mockedApprove = vi.mocked(approveKnowledgeBitForReview)
+const mockedReject = vi.mocked(rejectKnowledgeBitForReview)
+
+function bit(id: string, withVariant: boolean) {
+  return {
+    id,
+    body: `Body ${id}`,
+    background: null,
+    variants: withVariant
+      ? [{ id: `var-${id}`, kind: 'wh_question' as const, prompt: `Q ${id}`, answer: `A ${id}` }]
+      : [],
+  }
+}
+
+function source(id: string, bits: ReturnType<typeof bit>[]): PendingKnowledgeSourceForReview {
+  return { knowledgeSourceId: id, sourceText: 'text', bits }
+}
+
+describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
+  beforeEach(() => {
+    mockedBulk.mockReset()
+    mockedGetPending.mockReset()
+    mockedApprove.mockReset()
+    mockedReject.mockReset()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
+
+  it('should approve every bit that has questions in one call and keep the one still waiting', async () => {
+    mockedBulk.mockResolvedValue({ approved: ['b1', 'b2'], skipped: [] })
+    render(
+      <KnowledgeBitReviewPanel
+        initialSources={[source('s1', [bit('b1', true), bit('b2', true), bit('b3', false)])]}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all'))
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('knowledge-bit-review-item-b1')).toBeNull()
+    })
+    expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['b1', 'b2'] } })
+    expect(screen.getByTestId('knowledge-bit-review-item-b3')).toBeDefined()
+  })
+
+  it('should keep a skipped bit listed and tell the reviewer it was skipped', async () => {
+    mockedBulk.mockResolvedValue({
+      approved: ['b1'],
+      skipped: [{ id: 'b2', reason: 'no_variant' }],
+    })
+    render(
+      <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
+    )
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-bit-review-bulk-message').textContent).toContain(
+        'skipped 1',
+      )
+    })
+    expect(screen.getByTestId('knowledge-bit-review-item-b2')).toBeDefined()
+  })
+
+  it('should approve only the chosen source with its own button', async () => {
+    mockedBulk.mockResolvedValue({ approved: ['a1', 'a2'], skipped: [] })
+    render(
+      <KnowledgeBitReviewPanel
+        initialSources={[
+          source('s1', [bit('a1', true), bit('a2', true)]),
+          source('s2', [bit('c1', true), bit('c2', true)]),
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-source-s1'))
+
+    await waitFor(() => {
+      expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['a1', 'a2'] } })
+    })
+  })
+
+  it('should approve the focused suggestion with the a key and move focus with j', async () => {
+    mockedApprove.mockResolvedValue({ ok: true })
+    render(
+      <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
+    )
+
+    fireEvent.keyDown(window, { key: 'j' })
+    fireEvent.keyDown(window, { key: 'a' })
+
+    await waitFor(() => {
+      expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'b2' } })
+    })
+  })
+
+  it('should reject the focused suggestion with the r key', async () => {
+    mockedReject.mockResolvedValue({ ok: true })
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
+
+    fireEvent.keyDown(window, { key: 'r' })
+
+    await waitFor(() => {
+      expect(mockedReject).toHaveBeenCalledWith({ data: { bitId: 'b1' } })
+    })
+  })
+
+  it('should not approve with the a key while a suggestion has no questions yet', () => {
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', false)])]} />)
+
+    fireEvent.keyDown(window, { key: 'a' })
+
+    expect(mockedApprove).not.toHaveBeenCalled()
+  })
+
+  it('should ignore shortcut keys typed into an editor field', () => {
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-bit-button-b1'))
+    fireEvent.keyDown(screen.getByTestId('knowledge-bit-review-edit-body-b1'), { key: 'a' })
+
+    expect(mockedApprove).not.toHaveBeenCalled()
+  })
+
+  it('should make a waiting bit approvable once its questions arrive, then stop polling', async () => {
+    vi.useFakeTimers()
+    mockedGetPending.mockResolvedValue([source('s1', [bit('b1', true)])])
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', false)])]} />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS)
+    })
+
+    expect(
+      (screen.getByTestId('knowledge-bit-review-approve-b1') as HTMLButtonElement).disabled,
+    ).toBe(false)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * 3)
+    })
+
+    expect(mockedGetPending).toHaveBeenCalledTimes(1)
+  })
+
+  it('should not poll when every bit already has questions', async () => {
+    vi.useFakeTimers()
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * 3)
+    })
+
+    expect(mockedGetPending).not.toHaveBeenCalled()
+  })
+})

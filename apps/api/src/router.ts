@@ -23,6 +23,8 @@ export type RouteName =
   | "listKnowledgeBitReviewCards"
   | "recordKnowledgeBitReview"
   | "listPendingKnowledgeBitsForReview"
+  | "countPendingKnowledgeBits"
+  | "bulkApproveKnowledgeBits"
   | "approveKnowledgeBit"
   | "rejectKnowledgeBit"
   | "editKnowledgeBitQuestionVariant"

@@ -2,12 +2,17 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
   editKnowledgeBitQuestionVariantInput,
+  bulkApproveKnowledgeBitsInput,
+  type BulkApproveKnowledgeBitsResponse,
+  type PendingKnowledgeBitReviewCountResponse,
   type PendingKnowledgeSourceForReview,
 } from '@post-anki/shared'
 
 import {
   approveKnowledgeBit,
+  bulkApproveKnowledgeBits,
   editKnowledgeBit,
+  getPendingKnowledgeBitCount,
   editKnowledgeBitQuestionVariant,
   listPendingKnowledgeBitsForReview,
   rejectKnowledgeBit,
@@ -49,3 +54,14 @@ export const editKnowledgeBitForReview = createServerFn({ method: 'POST' })
   .handler(
     ({ data }): Promise<{ ok: true }> => editKnowledgeBit(data.bitId, data.body, data.background),
   )
+
+export const bulkApproveKnowledgeBitsForReview = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => bulkApproveKnowledgeBitsInput.parse(data))
+  .handler(
+    ({ data }): Promise<BulkApproveKnowledgeBitsResponse> =>
+      bulkApproveKnowledgeBits(data.knowledgeBitIds),
+  )
+
+export const getPendingKnowledgeBitCountForNav = createServerFn({ method: 'GET' }).handler(
+  (): Promise<PendingKnowledgeBitReviewCountResponse> => getPendingKnowledgeBitCount(),
+)

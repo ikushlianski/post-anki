@@ -91,6 +91,16 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   {
+    method: "GET",
+    pattern: "/knowledge-bits/pending-review/count",
+    name: "countPendingKnowledgeBits",
+  },
+  {
+    method: "POST",
+    pattern: "/knowledge-bits/approvals",
+    name: "bulkApproveKnowledgeBits",
+  },
+  {
     method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/approve$/,
     name: "approveKnowledgeBit",

@@ -17,6 +17,8 @@ vi.mock('./knowledge-bit-review.api', () => ({
   rejectKnowledgeBitForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
+  bulkApproveKnowledgeBitsForReview: vi.fn(),
+  getPendingKnowledgeBitsForReview: vi.fn(),
 }))
 
 const mockedApprove = vi.mocked(approveKnowledgeBitForReview)

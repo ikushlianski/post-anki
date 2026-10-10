@@ -504,6 +504,19 @@ export async function approveKnowledgeBit(bitId: string): Promise<{ ok: true }> 
   return request<{ ok: true }>(`/knowledge-bits/${bitId}/approve`, { method: 'POST' })
 }
 
+export async function bulkApproveKnowledgeBits(
+  knowledgeBitIds: string[],
+): Promise<be.BulkApproveKnowledgeBitsResponse> {
+  return request<be.BulkApproveKnowledgeBitsResponse>('/knowledge-bits/approvals', {
+    method: 'POST',
+    body: { knowledgeBitIds },
+  })
+}
+
+export async function getPendingKnowledgeBitCount(): Promise<be.PendingKnowledgeBitReviewCountResponse> {
+  return request<be.PendingKnowledgeBitReviewCountResponse>('/knowledge-bits/pending-review/count')
+}
+
 export async function rejectKnowledgeBit(bitId: string): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/knowledge-bits/${bitId}/reject`, { method: 'POST' })
 }

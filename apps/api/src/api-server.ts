@@ -30,6 +30,10 @@ import {
   handleRecordKnowledgeBitReview,
 } from "./knowledge-bit/knowledge-bit-review.controller.js";
 import {
+  handleBulkApproveKnowledgeBits,
+  handleCountPendingKnowledgeBits,
+} from "./knowledge-bit/knowledge-bit-bulk-approval.controller.js";
+import {
   handleApproveKnowledgeBit,
   handleEditKnowledgeBitQuestionVariant,
   handleListPendingKnowledgeBitsForReview,
@@ -418,6 +422,10 @@ async function route(
       return handleRecordKnowledgeBitReview(req, res);
     case "listPendingKnowledgeBitsForReview":
       return handleListPendingKnowledgeBitsForReview(res);
+    case "countPendingKnowledgeBits":
+      return handleCountPendingKnowledgeBits(res);
+    case "bulkApproveKnowledgeBits":
+      return handleBulkApproveKnowledgeBits(req, res);
     case "approveKnowledgeBit":
       return handleApproveKnowledgeBit(res, id);
     case "rejectKnowledgeBit":
