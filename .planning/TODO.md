@@ -48,7 +48,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
-- [ ] Show newly detected suggestions on the approval page without reload
+- [x] Show newly detected suggestions on the approval page without reload
 - [x] Split approval review item and panel files under 300 lines
 - [x] Explain approve, and that questions take minutes, on paste
 - [x] Show per-row error when approve or reject fails
@@ -80,6 +80,12 @@ updated: 2026-09-04
 - [x] Flag leeches after repeated failures and suspend them automatically
 - [x] Approve or reject suggestions by keyboard; approve all from a source
 - [x] Hide the chat panel until the answer is revealed
+- [ ] E2e: basic cards generated, preferred in review, excluded from typed mode
+- [ ] E2e: basic card retries, overlapping runs, injection and backstop job
+- [ ] E2e: session summary, mid-review edit, undo suspend or bury
+- [ ] E2e: typed queue skips suspended and buried; timer finishes interrupted runs
+- [x] Review screen: keep grade focus, retry button, explained counts and done step
+- [x] Paste page: plain wording, saving state, labelled inputs and mode toggles
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
