@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { cardPhaseSchema } from "@post-anki/shared";
 import type { DbExecutor } from "../db/client.js";
@@ -14,7 +14,11 @@ import {
 import { isLeech } from "./knowledge-bit-grade-schedule-leech.js";
 import { previewGradeIntervals } from "./knowledge-bit-grade-schedule.js";
 import { phaseRank } from "./knowledge-bit-review-queue-learning.repo.js";
-import { eligibility, type Picked } from "./knowledge-bit-review-queue-picked.repo.js";
+import {
+  eligibility,
+  pickedVariants,
+  type Picked,
+} from "./knowledge-bit-review-queue-picked.repo.js";
 import type {
   KnowledgeBitReviewCardRow,
   KnowledgeBitReviewCardsFilter,
@@ -65,6 +69,11 @@ export async function listScopedCards(
 ): Promise<KnowledgeBitReviewCardRow[]> {
   const reviewCount = count(knowledgeBitReviews.id);
   const dueRank = sql<number>`min(case when ${knowledgeBitSchedules.knowledgeBitId} is null or ${knowledgeBitSchedules.dueAt} <= now() then 0 else 1 end)`;
+  const picked = pickedVariants(scope, now, db);
+  const pickedVariantIds = db
+    .select({ variantId: picked.variantId })
+    .from(picked)
+    .where(eq(picked.pickRank, 1));
 
   const rows = await db
     .select({
@@ -88,7 +97,12 @@ export async function listScopedCards(
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-    .where(eligibility(scope, now))
+    .where(
+      and(
+        eligibility(scope, now),
+        inArray(knowledgeBitQuestionVariants.id, pickedVariantIds),
+      ),
+    )
     .groupBy(
       knowledgeBitQuestionVariants.id,
       knowledgeBitQuestionVariants.kind,

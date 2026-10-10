@@ -295,6 +295,18 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
     expect(cards.map((card) => card.variantId)).toEqual([basic]);
   });
 
+  it("should serve only one card for a bit when scoped to that bit, preferring basic over the other kinds", async () => {
+    const bitId = await seedBit();
+
+    await seedVariant(bitId, false, "wh_question");
+    await seedVariant(bitId, false, "fill_in_the_blank");
+    const basic = await seedVariant(bitId, false, "basic");
+
+    const cards = await listKnowledgeBitReviewCards(10, { knowledgeBitId: bitId });
+
+    expect(cards.map((card) => card.variantId)).toEqual([basic]);
+  });
+
   it("should stop serving new cards once 20 were started today but keep serving due ones", async () => {
     const now = new Date("2091-05-10T12:00:00.000Z");
     const dueBit = await seedBit();
