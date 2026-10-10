@@ -48,3 +48,4 @@
 {"ts":"2026-10-10T20:31:26.551Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Refresh review page so bits awaiting questions become approvable"}
 {"ts":"2026-10-10T20:31:26.842Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Add bulk approve on the knowledge-bit review page"}
 {"ts":"2026-10-10T20:31:27.119Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Approve or reject suggestions by keyboard; approve all from a source"}
+{"ts":"2026-10-10T20:32:02.471Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Run bit detection and question generation right after paste"}

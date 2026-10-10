@@ -20,7 +20,7 @@ updated: 2026-09-04
 - [x] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
 - [x] Serve only due or never-reviewed cards in the unscoped review queue
 - [x] Hide bit text above the question in Anki review mode
-- [ ] Run bit detection and question generation right after paste
+- [x] Run bit detection and question generation right after paste
 - [x] Link review page from sidebar and add-knowledge success, with pending count
 - [x] Refresh review page so bits awaiting questions become approvable
 - [x] Add bulk approve on the knowledge-bit review page
