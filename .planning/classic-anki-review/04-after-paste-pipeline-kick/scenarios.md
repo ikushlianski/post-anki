@@ -71,7 +71,7 @@ What to verify:
 - A shutdown during a run never leaves a partial set of bits for a paste.
 
 E2E:
-- [ ] @anki-kick.S5 — e2e test not written: needs a stuck "processing" source + backstop scan; time ran out
+- [x] @anki-kick.S5 — stale source and stale claim finished by the timer scans; live hold untouched — projects/post-anki/post-anki/features/anki-review/kick/tests/interrupted-run-finished-by-timer-scan.test.ts
 
 Manual verification (real environment):
 - [ ] On the deployed service, paste text and note how long it takes for suggestions to appear.

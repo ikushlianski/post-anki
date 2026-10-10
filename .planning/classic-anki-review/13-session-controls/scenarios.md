@@ -57,7 +57,7 @@ What to verify:
 - "Keep reviewing" returns to the current card with nothing lost. An undo from the done screen updates the summary.
 
 E2E:
-- [ ] @anki-session.S4 — e2e test not written: summary screen; time ran out
+- [x] @anki-session.S4 — summary counts, no summary with no actions, Keep reviewing, undo from done screen (not driven: edited and leech counts above zero) — projects/post-anki/post-anki/features/anki-review/session/tests/end-of-session-summary-and-keep-reviewing.test.ts
 
 SCENARIO 5: Edit a card's question or answer mid-review — asked
 
@@ -70,7 +70,7 @@ What to verify:
 - Time spent in the editor is not counted as answer time.
 
 E2E:
-- [ ] @anki-session.S5 — e2e test not written: in-review edit; time ran out
+- [x] @anki-session.S5 — edit mid-review, Esc, Ctrl+Enter, empty refused, conflict message kept text (not driven: pending/rejected edit rules, editor time excluded from answer time) — projects/post-anki/post-anki/features/anki-review/session/tests/mid-review-edit-saves-and-refuses-conflicts.test.ts
 
 SCENARIO 6: Suspend a card — asked
 
@@ -106,7 +106,7 @@ What to verify:
 - Suspend, bury and grade entries share one undo list, in the order they happened.
 
 E2E:
-- [ ] @anki-session.S8 — e2e test not written: undo of suspend/bury; time ran out
+- [x] @anki-session.S8 — undo of suspend and bury; shared undo order — projects/post-anki/post-anki/features/anki-review/session/tests/undo-suspend-and-bury-restores-card.test.ts
 
 SCENARIO 9: Leeches are flagged and suspended automatically — asked
 
@@ -132,7 +132,7 @@ What to verify:
 - A failed undo, suspend or bury changes nothing: the schedule and history stay as they were.
 
 E2E:
-- [ ] @anki-session.S10 — e2e test not written: concurrent undo/grade/suspend; time ran out
+- [x] @anki-session.S10 — undo vs grade and suspend vs undo race at API level; refused calls change nothing — projects/post-anki/post-anki/features/anki-review/session/tests/undo-grade-and-suspend-never-interleave.test.ts
 
 SCENARIO 11: Typed answer mode keeps working, minus suspended and buried cards — asked
 
@@ -143,4 +143,4 @@ What to verify:
 - The typed queue skips suspended cards and cards buried until a later time. A card whose bury has expired is served again.
 
 E2E:
-- [ ] @anki-session.S11 — e2e test not written: typed queue skips suspended/buried; time ran out
+- [x] @anki-session.S11 — typed queue skips suspended and buried; expired bury served again — projects/post-anki/post-anki/features/anki-review/session/tests/typed-queue-skips-suspended-and-buried.test.ts
