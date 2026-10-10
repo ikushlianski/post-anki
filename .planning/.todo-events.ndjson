@@ -134,3 +134,8 @@
 {"ts":"2026-10-10T23:45:37.331Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Expand parent and highlight new or moved subject"}
 {"ts":"2026-10-10T23:45:37.377Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Drag hint, larger grips, keyboard and touch reorder on subject page"}
 {"ts":"2026-10-10T23:45:37.422Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Search: result count, retry button, visible clear button"}
+{"ts":"2026-10-10T23:47:11.918Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Delete subject warns what curricula go and sub-subjects move up"}
+{"ts":"2026-10-10T23:47:11.963Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Keep focus inside subject menus after each step and delete"}
+{"ts":"2026-10-10T23:47:12.007Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Move under picker marks current parent, indents tree, filters"}
+{"ts":"2026-10-10T23:47:12.053Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Subject page header menu: same delete warning and nesting actions"}
+{"ts":"2026-10-10T23:47:12.101Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Deleting a subject must move its sub-subjects up, not orphan them"}

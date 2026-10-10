@@ -16,6 +16,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
+- [ ] Deleting a subject must move its sub-subjects up, not orphan them
 - [x] Keep saved subject order after reload: map sortOrder, resync sortable group
 - [x] Dashboard search box for subjects using the server search
 - [x] Move subject page Rename and Delete into a three-dot menu
@@ -25,10 +26,10 @@ updated: 2026-09-04
 - [x] Subject menu: Add sub-subject and Move under actions
 - [x] Drag subjects on the dashboard to change their order
 - [x] Search subjects by name with a server-side database query
-- [ ] Delete subject warns what curricula go and sub-subjects move up
-- [ ] Keep focus inside subject menus after each step and delete
-- [ ] Move under picker marks current parent, indents tree, filters
-- [ ] Subject page header menu: same delete warning and nesting actions
+- [x] Delete subject warns what curricula go and sub-subjects move up
+- [x] Keep focus inside subject menus after each step and delete
+- [x] Move under picker marks current parent, indents tree, filters
+- [x] Subject page header menu: same delete warning and nesting actions
 - [x] Expand parent and highlight new or moved subject
 - [x] Drag hint, larger grips, keyboard and touch reorder on subject page
 - [x] Search: result count, retry button, visible clear button
