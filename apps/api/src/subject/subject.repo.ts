@@ -438,6 +438,50 @@ async function reassignTrackedToolScanState(
  * pooled connection rather than a second one per owned curriculum, and the
  * curricula and the subject row commit together instead of separately.
  */
+// parent_id has no FK, so a deleted subject's sub-subjects would keep pointing at
+// a missing row. They move up to the deleted subject's parent (top level if it
+// had none), keep their relative order, and go after that group's existing siblings.
+async function reparentChildrenOfDeletedSubject(
+  tx: Tx,
+  deleted: typeof subjects.$inferSelect,
+): Promise<void> {
+  const children = await tx
+    .select({ id: subjects.id })
+    .from(subjects)
+    .where(eq(subjects.parentId, deleted.id))
+    .orderBy(sql`${subjects.sortOrder} asc nulls last`, asc(subjects.name), asc(subjects.id));
+
+  if (children.length === 0) {
+    return;
+  }
+
+  const newParentId =
+    deleted.parentId === null
+      ? null
+      : ((
+          await tx
+            .select({ id: subjects.id })
+            .from(subjects)
+            .where(eq(subjects.id, deleted.parentId))
+        )[0]?.id ?? null);
+
+  const siblings = await tx
+    .select({ sortOrder: subjects.sortOrder })
+    .from(subjects)
+    .where(newParentId === null ? isNull(subjects.parentId) : eq(subjects.parentId, newParentId));
+
+  const firstSortOrder = siblings.reduce((max, row) => Math.max(max, row.sortOrder ?? -1), -1) + 1;
+
+  await Promise.all(
+    children.map((child, index) =>
+      tx
+        .update(subjects)
+        .set({ parentId: newParentId, sortOrder: firstSortOrder + index })
+        .where(eq(subjects.id, child.id)),
+    ),
+  );
+}
+
 export async function deleteSubject(subjectId: string): Promise<boolean> {
   return withSubjectLock(subjectId, async (tx) => {
     const existing = (
@@ -458,6 +502,7 @@ export async function deleteSubject(subjectId: string): Promise<boolean> {
     }
 
     await tx.delete(subjects).where(eq(subjects.id, subjectId));
+    await reparentChildrenOfDeletedSubject(tx, existing);
     await invalidateStalePendingDuplicateSuggestions(tx, subjectId);
 
     return true;
