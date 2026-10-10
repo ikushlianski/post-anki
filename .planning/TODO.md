@@ -16,7 +16,7 @@ updated: 2026-09-04
 - Out of scope: Filing into the curriculum hierarchy; the older chrome-extension-note-capture plan covers that
 
 ### Coding tasks
-- [ ] Send highlighted text from Chrome to local post-anki as a knowledge source
+- [x] Send highlighted text from Chrome to local post-anki as a knowledge source
 
 ### Notes
 - Older capture extension sits unmerged on chrome-extension-note-capture; check before building
