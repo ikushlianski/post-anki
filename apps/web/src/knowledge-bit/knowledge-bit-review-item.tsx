@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview, PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
 
+import { KnowledgeBitReviewBitStatement, type BitDraft } from './knowledge-bit-review-bit-statement'
 import { KnowledgeBitReviewVariantList, type VariantDraft } from './knowledge-bit-review-variant-list'
-
-interface BitDraft {
-  body: string
-  background: string
-}
+import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
 // Only one editor (a single variant, or the bit's own fact text) can be open
 // at a time — tracked as a single value rather than separate booleans so
@@ -49,6 +46,10 @@ export function KnowledgeBitReviewItem({
   const [openEditor, setOpenEditor] = useState<OpenEditor>(null)
   const [variantDraft, setVariantDraft] = useState<VariantDraft>({ prompt: '', answer: '' })
   const [bitDraft, setBitDraft] = useState<BitDraft>({ body: '', background: '' })
+
+  function updateBitDraft(patch: Partial<BitDraft>) {
+    setBitDraft((prev) => ({ ...prev, ...patch }))
+  }
 
   function startEditVariant(variant: PendingKnowledgeBitQuestionVariant) {
     setOpenEditor({ type: 'variant', variantId: variant.id })
@@ -135,70 +136,24 @@ export function KnowledgeBitReviewItem({
     <li
       data-testid={`knowledge-bit-review-item-${bit.id}`}
       data-focused={isFocused ? 'true' : undefined}
-      className={`rounded-lg border bg-white p-3 ${
-        isFocused ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200'
+      className={`rounded-xl border bg-white p-4 shadow-sm transition-shadow ${
+        isFocused
+          ? 'border-neutral-900 ring-2 ring-neutral-900 ring-offset-2'
+          : 'border-neutral-200'
       }`}
     >
-      {openEditor?.type === 'bit' ? (
-        <div data-testid={`knowledge-bit-review-edit-bit-${bit.id}`}>
-          <textarea
-            data-testid={`knowledge-bit-review-edit-body-${bit.id}`}
-            value={bitDraft.body}
-            onChange={(e) => setBitDraft((prev) => ({ ...prev, body: e.target.value }))}
-            className="w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
-          />
-          <textarea
-            data-testid={`knowledge-bit-review-edit-background-${bit.id}`}
-            value={bitDraft.background}
-            onChange={(e) => setBitDraft((prev) => ({ ...prev, background: e.target.value }))}
-            placeholder="Background (optional)"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
-          />
-          <div className="mt-1 flex gap-2">
-            <button
-              type="button"
-              data-testid={`knowledge-bit-review-save-bit-${bit.id}`}
-              disabled={isSavingBit(bit.id) || !bitDraft.body.trim()}
-              onClick={() => saveBitEdit()}
-              className="rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              data-testid={`knowledge-bit-review-cancel-bit-${bit.id}`}
-              disabled={isSavingOpenEditor}
-              onClick={cancelEdit}
-              className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <p data-testid={`knowledge-bit-review-body-${bit.id}`} className="text-sm font-medium">
-            {bit.body}
-          </p>
-          {bit.background ? (
-            <p
-              data-testid={`knowledge-bit-review-background-${bit.id}`}
-              className="mt-1 text-xs text-neutral-600"
-            >
-              {bit.background}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            data-testid={`knowledge-bit-review-edit-bit-button-${bit.id}`}
-            disabled={hasOpenEditor}
-            onClick={startEditBit}
-            className="mt-1 text-xs text-neutral-600 underline disabled:opacity-50"
-          >
-            Edit text
-          </button>
-        </>
-      )}
+      <KnowledgeBitReviewBitStatement
+        bit={bit}
+        isEditing={openEditor?.type === 'bit'}
+        draft={bitDraft}
+        canStartEdit={!hasOpenEditor}
+        isSaving={isSavingBit(bit.id)}
+        isSavingOpenEditor={isSavingOpenEditor}
+        onStartEdit={startEditBit}
+        onDraftChange={updateBitDraft}
+        onSave={() => void saveBitEdit()}
+        onCancel={cancelEdit}
+      />
 
       <KnowledgeBitReviewVariantList
         bitId={bit.id}
@@ -215,13 +170,13 @@ export function KnowledgeBitReviewItem({
         onCancel={cancelEdit}
       />
 
-      <div className="mt-2 flex gap-2">
+      <div className="mt-4 flex flex-col gap-2 border-t border-neutral-100 pt-3 sm:flex-row sm:justify-end">
         <button
           type="button"
           data-testid={`knowledge-bit-review-approve-${bit.id}`}
           disabled={approveDisabled}
           onClick={() => onApprove(bit.id)}
-          className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+          className={PRIMARY_BUTTON_CLASS}
         >
           Approve
         </button>
@@ -230,7 +185,7 @@ export function KnowledgeBitReviewItem({
           data-testid={`knowledge-bit-review-reject-${bit.id}`}
           disabled={actionsDisabled}
           onClick={() => onReject(bit.id)}
-          className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-600 disabled:opacity-50"
+          className={SECONDARY_BUTTON_CLASS}
         >
           Reject
         </button>
@@ -240,7 +195,7 @@ export function KnowledgeBitReviewItem({
         <p
           role="alert"
           data-testid={`knowledge-bit-review-error-${bit.id}`}
-          className="mt-2 text-xs text-red-700"
+          className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
         >
           {errorMessage}
         </p>

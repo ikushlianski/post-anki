@@ -4,6 +4,7 @@ import type {
 } from '@post-anki/shared'
 
 import { KnowledgeBitReviewItem } from './knowledge-bit-review-item'
+import { SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
 const SOURCE_TEXT_PREVIEW_LENGTH = 400
 
@@ -44,30 +45,34 @@ export function KnowledgeBitReviewSourceGroup({
   return (
     <li
       data-testid={`knowledge-bit-review-source-${source.knowledgeSourceId}`}
-      className="rounded-lg border border-neutral-300 bg-neutral-50 p-3"
+      className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4"
     >
-      <details className="text-xs text-neutral-600">
-        <summary className="cursor-pointer select-none">Source text</summary>
-        <p className="mt-1 whitespace-pre-wrap">
-          {source.sourceText
-            ? source.sourceText.slice(0, SOURCE_TEXT_PREVIEW_LENGTH)
-            : 'No source text available.'}
-          {source.sourceText && source.sourceText.length > SOURCE_TEXT_PREVIEW_LENGTH ? '…' : ''}
-        </p>
-      </details>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <details className="min-w-0 text-xs text-neutral-600">
+          <summary className="cursor-pointer select-none rounded-sm font-medium text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900">
+            Source text
+          </summary>
+          <p className="mt-2 whitespace-pre-wrap break-words leading-relaxed">
+            {source.sourceText
+              ? source.sourceText.slice(0, SOURCE_TEXT_PREVIEW_LENGTH)
+              : 'No source text available.'}
+            {source.sourceText && source.sourceText.length > SOURCE_TEXT_PREVIEW_LENGTH ? '…' : ''}
+          </p>
+        </details>
 
-      {source.bits.filter((bit) => bit.variants.length > 0).length > 1 ? (
-        <button
-          type="button"
-          data-testid={`knowledge-bit-review-approve-source-${source.knowledgeSourceId}`}
-          onClick={() => onApproveMany(source.bits)}
-          className="mt-2 rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700"
-        >
-          Approve all from this source
-        </button>
-      ) : null}
+        {source.bits.filter((bit) => bit.variants.length > 0).length > 1 ? (
+          <button
+            type="button"
+            data-testid={`knowledge-bit-review-approve-source-${source.knowledgeSourceId}`}
+            onClick={() => onApproveMany(source.bits)}
+            className={SECONDARY_BUTTON_CLASS}
+          >
+            Approve all from this source
+          </button>
+        ) : null}
+      </div>
 
-      <ul className="mt-3 space-y-3">
+      <ul className="space-y-3">
         {source.bits.map((bit) => (
           <KnowledgeBitReviewItem
             key={bit.id}

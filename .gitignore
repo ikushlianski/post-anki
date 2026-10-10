@@ -23,3 +23,7 @@ docker-compose.override.yml
 .claude/settings.local.json
 tmp/
 apps/desktop/src-tauri/target/
+
+# Storybook
+storybook-static/
+apps/web/storybook.log
