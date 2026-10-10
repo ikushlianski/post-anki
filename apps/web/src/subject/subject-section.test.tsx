@@ -143,6 +143,15 @@ describe('SubjectSection', () => {
     expect(screen.getByTestId('create-material-toggle')).toBeDefined()
   })
 
+  it('should offer Add knowledge scoped to this subject next to new material', () => {
+    render(
+      <SubjectSection subject={SUBJECT} curricula={[]} allSubjects={[SUBJECT]} globalModelTier="cheap" />,
+    )
+
+    expect(screen.getByTestId('create-material-toggle')).toBeDefined()
+    expect(screen.getByTestId('subject-add-knowledge-button').textContent).toBe('Add knowledge')
+  })
+
   it('should display curriculum when provided', () => {
     render(
       <SubjectSection

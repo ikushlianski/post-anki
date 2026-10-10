@@ -1,12 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { z } from 'zod'
 
 import { AddKnowledgeForm } from '../knowledge-source/add-knowledge-form'
 
 export const Route = createFileRoute('/add-knowledge')({
+  validateSearch: z.object({
+    subjectId: z.string().min(1).optional().catch(undefined),
+  }),
   component: AddKnowledgePage,
 })
 
 function AddKnowledgePage() {
+  const { subjectId } = Route.useSearch()
+
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
@@ -16,7 +22,7 @@ function AddKnowledgePage() {
         </p>
       </header>
 
-      <AddKnowledgeForm />
+      <AddKnowledgeForm initialSubjectId={subjectId} />
     </main>
   )
 }

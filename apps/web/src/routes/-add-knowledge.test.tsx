@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
+import type { ZodType } from 'zod'
 
 import { AddKnowledgeForm } from '../knowledge-source/add-knowledge-form'
 import {
@@ -13,18 +14,31 @@ import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'
 
 const liveSubjectRows = vi.hoisted(() => ({ rows: [] as unknown[] }))
+const searchState = vi.hoisted(() => ({ value: {} as { subjectId?: string } }))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
     children,
     to,
+    params,
     ...rest
-  }: { children: ReactNode; to?: string } & Record<string, unknown>) => (
-    <a href="#" data-to={to} {...rest}>
-      {children}
-    </a>
-  ),
-  createFileRoute: () => (options: Record<string, unknown>) => options,
+  }: {
+    children: ReactNode
+    to?: string
+    params?: Record<string, string>
+  } & Record<string, unknown>) => {
+    const href = Object.entries(params ?? {}).reduce((p, [k, v]) => p.replace(`$${k}`, v), to ?? '#')
+
+    return (
+      <a href={href} data-to={to} {...rest}>
+        {children}
+      </a>
+    )
+  },
+  createFileRoute: () => (options: Record<string, unknown>) => ({
+    ...options,
+    useSearch: () => searchState.value,
+  }),
 }))
 
 vi.mock('@tanstack/react-db', () => ({
@@ -494,6 +508,125 @@ describe('AddKnowledgeForm', () => {
     const [payload] = mockedCreateKnowledgeSource.mock.calls[0]
 
     expect(payload.data.subjectId).toBeUndefined()
+  })
+})
+
+const salesRows = [
+  { id: 'sub_business', name: 'Business', parentId: null },
+  { id: 'sub_sales', name: 'Sales', parentId: 'sub_business' },
+]
+
+describe('AddKnowledgeForm with a preselected subject', () => {
+  afterEach(() => {
+    cleanup()
+    liveSubjectRows.rows = []
+    mockedCreateKnowledgeSource.mockReset()
+  })
+
+  it('preselects the subject passed in and names it in the Adding to label', () => {
+    liveSubjectRows.rows = salesRows
+
+    render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
+
+    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('sub_sales')
+    expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe(
+      'Adding to: Business › Sales',
+    )
+  })
+
+  it('ignores an initialSubjectId that matches no subject and sends no subject', async () => {
+    liveSubjectRows.rows = salesRows
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm initialSubjectId="sub_missing" />)
+
+    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('')
+    expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe('Adding to: No subject')
+
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Loose thought' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+    })
+
+    const [payload] = mockedCreateKnowledgeSource.mock.calls[0]
+
+    expect(payload.data.subjectId).toBeUndefined()
+    expect(screen.queryByTestId('knowledge-success-back-link')).toBeNull()
+  })
+
+  it('lets the user change the preselected subject before saving', async () => {
+    liveSubjectRows.rows = salesRows
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
+
+    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'sub_business' } })
+    expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe('Adding to: Business')
+
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+    })
+
+    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({
+      data: { text: 'Some prose', subjectId: 'sub_business' },
+    })
+  })
+
+  it('links back to the preselected subject after a successful save', async () => {
+    liveSubjectRows.rows = salesRows
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
+
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-back-link').textContent).toBe('Back to Business › Sales')
+    })
+
+    expect(screen.getByTestId('knowledge-success-back-link').getAttribute('href')).toBe('/subject/sub_sales')
+    expect(screen.getByTestId('knowledge-success-review-link')).toBeDefined()
+    expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+  })
+})
+
+describe('Route (/add-knowledge) subject search param', () => {
+  const searchSchema = (Route as unknown as { validateSearch: ZodType<{ subjectId?: string }> })
+    .validateSearch
+
+  afterEach(() => {
+    cleanup()
+    liveSubjectRows.rows = []
+    searchState.value = {}
+  })
+
+  it('keeps a well-formed subjectId from the URL', () => {
+    expect(searchSchema.parse({ subjectId: 'sub_sales' })).toEqual({ subjectId: 'sub_sales' })
+  })
+
+  it('drops a subjectId that is not a string', () => {
+    expect(searchSchema.parse({ subjectId: 42 })).toEqual({})
+  })
+
+  it('drops an empty subjectId', () => {
+    expect(searchSchema.parse({ subjectId: '' })).toEqual({})
+  })
+
+  it('preselects the subject named by the subjectId search param', () => {
+    liveSubjectRows.rows = salesRows
+    searchState.value = { subjectId: 'sub_sales' }
+
+    const AddKnowledgePage = (Route as unknown as { component: () => ReactNode }).component
+
+    render(<AddKnowledgePage />)
+
+    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('sub_sales')
   })
 })
 

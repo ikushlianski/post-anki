@@ -40,17 +40,20 @@ function failedBlocksMessage(count: number): string {
   return `Blocks ${numbers} could not be added. Try again.`
 }
 
-export function AddKnowledgeForm() {
+export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: string }) {
   const [blocks, setBlocks] = useState<Block[]>([emptyBlock()])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [subjectId, setSubjectId] = useState('')
+  const [subjectId, setSubjectId] = useState(initialSubjectId ?? '')
   const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
   const subjects = (subjectsQuery.data ?? []).map(mapSubjectRow)
   const subjectOptions = subjects
     .map((subject) => ({ id: subject.id, label: buildSubjectPathLabel(subject.id, subjects) }))
     .sort((a, b) => a.label.localeCompare(b.label))
+  const selectedSubjectId = subjectOptions.some((option) => option.id === subjectId) ? subjectId : ''
+  const selectedLabel = subjectOptions.find((option) => option.id === selectedSubjectId)?.label
+  const preselectedLabel = subjectOptions.find((option) => option.id === initialSubjectId)?.label
 
   const nonEmptyBlocks = blocks
     .map((block, index) => ({ index, type: block.type, value: block.value.trim() }))
@@ -86,7 +89,7 @@ export function AddKnowledgeForm() {
 
     const textBlocks = nonEmptyBlocks.filter((block) => block.type === 'text')
     const urlBlocks = nonEmptyBlocks.filter((block) => block.type === 'url')
-    const chosenSubjectId = subjectId || undefined
+    const chosenSubjectId = selectedSubjectId || undefined
 
     const jobs: { indices: number[]; run: () => Promise<number> }[] = []
 
@@ -163,7 +166,7 @@ export function AddKnowledgeForm() {
         <span>Subject</span>
         <select
           aria-label="Subject for these sources"
-          value={subjectId}
+          value={selectedSubjectId}
           disabled={busy}
           onChange={(event) => setSubjectId(event.target.value)}
           data-testid="knowledge-subject-select"
@@ -177,6 +180,10 @@ export function AddKnowledgeForm() {
           ))}
         </select>
       </label>
+
+      <p data-testid="knowledge-adding-to-label" className="-mt-1 text-sm text-neutral-600">
+        Adding to: {selectedLabel ?? 'No subject'}
+      </p>
 
       {blocks.map((block, index) => (
         <div key={index} className="space-y-1">
@@ -275,6 +282,16 @@ export function AddKnowledgeForm() {
           >
             Approve suggestions
           </Link>
+          {preselectedLabel && initialSubjectId && (
+            <Link
+              to="/subject/$subjectId"
+              params={{ subjectId: initialSubjectId }}
+              data-testid="knowledge-success-back-link"
+              className="text-neutral-700 underline"
+            >
+              Back to {preselectedLabel}
+            </Link>
+          )}
         </div>
       )}
 
