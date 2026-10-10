@@ -59,3 +59,6 @@
 {"ts":"2026-10-10T21:18:20.990Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"highlight-capture-extension","itemText":"Send highlighted text from Chrome to local post-anki as a knowledge source"}
 {"ts":"2026-10-10T21:18:21.233Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"highlight-capture-extension","itemText":"Older capture extension sits unmerged on chrome-extension-note-capture; check before building"}
 {"ts":"2026-10-10T21:26:17.997Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"highlight-capture-extension","itemText":"Send highlighted text from Chrome to local post-anki as a knowledge source"}
+{"ts":"2026-10-10T21:26:48.933Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Split the review queue repo file under 300 lines"}
+{"ts":"2026-10-10T21:26:49.195Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Stop a retried grade save from grading the card twice"}
+{"ts":"2026-10-10T21:27:45.024Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"prose-knowledge-fisher","itemText":"Hold new knowledge bits as pending until the learner approves each one"}

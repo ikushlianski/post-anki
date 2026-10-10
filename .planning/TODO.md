@@ -32,6 +32,8 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Stop a retried grade save from grading the card twice
+- [ ] Split the review queue repo file under 300 lines
 - [x] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
 - [x] Serve only due or never-reviewed cards in the unscoped review queue
 - [x] Hide bit text above the question in Anki review mode
@@ -146,7 +148,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [x] Hide a rejected bit from the admin placement-suggestions queue too
-- [ ] Hold new knowledge bits as pending until the learner approves each one
+- [x] Hold new knowledge bits as pending until the learner approves each one
   - [x] Phase 1: approval column and approve/reject/edit API
   - [x] Phase 2: block learner-facing surfaces
   - [ ] Phase 3: review screen
