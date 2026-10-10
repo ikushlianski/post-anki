@@ -24,7 +24,7 @@ updated: 2026-09-04
 - [x] Link review page from sidebar and add-knowledge success, with pending count
 - [x] Refresh review page so bits awaiting questions become approvable
 - [x] Add bulk approve on the knowledge-bit review page
-- [ ] Add simple front/back basic-card variant for plain recall facts
+- [x] Add simple front/back basic-card variant for plain recall facts
 - [x] Keyboard shortcuts: Space reveals answer, 1-4 grade the card
 - [x] Show the next interval on each grade button, like Anki
 - [x] Add minute-level learning steps for new and failed cards
