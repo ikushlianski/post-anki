@@ -71,3 +71,4 @@
 {"ts":"2026-10-10T21:30:08.634Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Stop checking-automatically text after polling gives up"}
 {"ts":"2026-10-10T21:30:09.091Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Show per-row error when approve or reject fails"}
 {"ts":"2026-10-10T21:30:09.594Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Explain approve, and that questions take minutes, on paste"}
+{"ts":"2026-10-10T21:31:18.657Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"prose-knowledge-fisher","itemText":"Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)"}

@@ -166,7 +166,7 @@ updated: 2026-09-04
   - [ ] Phase 3: orchestrator and route
   - [ ] Phase 4: tests
 - [x] Feed prose-sourced bits into the existing per-topic knowledge tracking
-- [ ] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
+- [x] Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
