@@ -623,6 +623,31 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         is_nullable: "NO",
         column_default: "'pending'::text",
       }),
+      expect.objectContaining({
+        column_name: "basic_card_generated_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "basic_card_generation_failed_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "basic_card_generation_attempts",
+        data_type: "integer",
+        is_nullable: "NO",
+      }),
+      expect.objectContaining({
+        column_name: "basic_card_generation_claimed_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "basic_card_generation_claim_token",
+        data_type: "text",
+        is_nullable: "YES",
+      }),
     ]);
   });
 

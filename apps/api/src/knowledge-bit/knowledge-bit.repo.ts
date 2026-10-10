@@ -214,6 +214,11 @@ export async function updateKnowledgeBitBody(
         fillBlankGenerationAttempts: 0,
         fillBlankGenerationClaimedAt: null,
         fillBlankGenerationClaimToken: null,
+        basicCardGeneratedAt: null,
+        basicCardGenerationFailedAt: null,
+        basicCardGenerationAttempts: 0,
+        basicCardGenerationClaimedAt: null,
+        basicCardGenerationClaimToken: null,
       })
       .where(eq(knowledgeBits.id, id))
       .returning({ id: knowledgeBits.id });

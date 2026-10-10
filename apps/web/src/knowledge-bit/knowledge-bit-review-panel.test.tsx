@@ -378,6 +378,27 @@ describe('KnowledgeBitReviewPanel', () => {
     ).toBe(true)
   })
 
+  it('labels each card by type and lets a bit with only a basic card be approved', () => {
+    const basicSource: PendingKnowledgeSourceForReview = {
+      ...SOURCE,
+      bits: [
+        {
+          ...SOURCE.bits[0]!,
+          variants: [{ id: 'var-basic', kind: 'basic', prompt: 'What is a WAL?', answer: 'A write-ahead log.' }],
+        },
+      ],
+    }
+
+    renderPanel([basicSource])
+
+    expect(screen.getByTestId('knowledge-bit-review-variant-kind-var-basic').textContent).toBe('Front / back')
+    expect(screen.getByTestId('knowledge-bit-review-variant-var-basic').textContent).toContain('Front: What is a WAL?')
+    expect(screen.getByTestId('knowledge-bit-review-variant-var-basic').textContent).toContain('Back: A write-ahead log.')
+    expect(
+      (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
+    ).toBe(false)
+  })
+
   it('shows a fallback when a bit has no generated question variants yet', () => {
     const noVariantSource: PendingKnowledgeSourceForReview = {
       ...SOURCE,

@@ -91,7 +91,10 @@ async function seedFullyDerivedKnowledgeBit(
         wh_question_generation_claim_token,
         fill_blank_generated_at, fill_blank_generation_failed_at,
         fill_blank_generation_attempts, fill_blank_generation_claimed_at,
-        fill_blank_generation_claim_token)
+        fill_blank_generation_claim_token,
+        basic_card_generated_at, basic_card_generation_failed_at,
+        basic_card_generation_attempts, basic_card_generation_claimed_at,
+        basic_card_generation_claim_token)
      VALUES ($1, $2, $6, 'Original body.',
         $3, 'hash-1', $4,
         $4, $4,
@@ -102,7 +105,10 @@ async function seedFullyDerivedKnowledgeBit(
         'wh-claim-token',
         $4, $4,
         2, $4,
-        'fill-blank-claim-token')`,
+        'fill-blank-claim-token',
+        $4, $4,
+        2, $4,
+        'basic-card-claim-token')`,
     [id, knowledgeSourceId, JSON.stringify([0.1, 0.2]), now, topicId, ordinal],
   );
 
@@ -337,6 +343,28 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     expect(row.fill_blank_generation_attempts).toBe(0);
     expect(row.fill_blank_generation_claimed_at).toBeNull();
     expect(row.fill_blank_generation_claim_token).toBeNull();
+  });
+
+  it("resets basic-card generation/claim columns and attempts to zero", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+
+    await updateKnowledgeBitBody(id, "Revised body.");
+
+    const { rows } = await client.query(
+      `SELECT basic_card_generated_at, basic_card_generation_failed_at,
+              basic_card_generation_attempts, basic_card_generation_claimed_at,
+              basic_card_generation_claim_token
+       FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+    const row = rows[0]!;
+
+    expect(row.basic_card_generated_at).toBeNull();
+    expect(row.basic_card_generation_failed_at).toBeNull();
+    expect(row.basic_card_generation_attempts).toBe(0);
+    expect(row.basic_card_generation_claimed_at).toBeNull();
+    expect(row.basic_card_generation_claim_token).toBeNull();
   });
 
   it("deletes dependent question variant rows for the edited bit", async () => {

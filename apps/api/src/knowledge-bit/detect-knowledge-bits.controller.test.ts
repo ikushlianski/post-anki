@@ -12,6 +12,7 @@ const mockTagKnowledgeBits = vi.fn();
 const mockPlaceKnowledgeBits = vi.fn();
 const mockGenerateKnowledgeBitQuestions = vi.fn();
 const mockGenerateKnowledgeBitFillBlanks = vi.fn();
+const mockGenerateKnowledgeBitBasicCards = vi.fn();
 const mockEmbedKnowledgeBitQuestionVariants = vi.fn();
 const mockListPendingPlacementSuggestions = vi.fn();
 const mockResolvePlacementSuggestion = vi.fn();
@@ -36,6 +37,10 @@ vi.mock("./knowledge-bit-question-generation.orchestrator.js", () => ({
   generateKnowledgeBitQuestions: (...args: unknown[]) => mockGenerateKnowledgeBitQuestions(...args),
 }));
 
+vi.mock("./knowledge-bit-basic-card-generation.orchestrator.js", () => ({
+  generateKnowledgeBitBasicCards: (...args: unknown[]) => mockGenerateKnowledgeBitBasicCards(...args),
+}));
+
 vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
   generateKnowledgeBitFillBlanks: (...args: unknown[]) => mockGenerateKnowledgeBitFillBlanks(...args),
 }));
@@ -58,6 +63,7 @@ const {
   handleTriggerKnowledgeBitPlacementScan,
   handleTriggerKnowledgeBitQuestionGenerationScan,
   handleTriggerKnowledgeBitFillBlankGenerationScan,
+  handleTriggerKnowledgeBitBasicCardGenerationScan,
   handleTriggerKnowledgeBitQuestionVariantEmbeddingScan,
   handleListPendingPlacementSuggestions,
   handleResolvePlacementSuggestion,
@@ -263,6 +269,29 @@ describe("handleTriggerKnowledgeBitFillBlankGenerationScan", () => {
     expect((res.body as { message: string }).message).toBe(
       "knowledge bit fill blank generation scan failed",
     );
+  });
+});
+
+describe("handleTriggerKnowledgeBitBasicCardGenerationScan", () => {
+  it("returns 200 with the scan counts on success", async () => {
+    mockGenerateKnowledgeBitBasicCards.mockResolvedValue({ scanned: 3, generated: 2, failed: 1, skipped: 0 });
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitBasicCardGenerationScan(res);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ scanned: 3, generated: 2, failed: 1, skipped: 0 });
+  });
+
+  it("returns 502 with an error message when the scan throws, never a silent 200", async () => {
+    mockGenerateKnowledgeBitBasicCards.mockRejectedValue(new Error("basic card provider down"));
+
+    const res = fakeRes();
+    await handleTriggerKnowledgeBitBasicCardGenerationScan(res);
+
+    expect(res.status).toBe(502);
+    expect((res.body as { error: string }).error).toBe("scan_failed");
+    expect((res.body as { message: string }).message).toBe("basic card provider down");
   });
 });
 

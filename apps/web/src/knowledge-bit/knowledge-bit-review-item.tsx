@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview, PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
 
+import { variantKindLabel } from './knowledge-bit-variant-kind-label'
+
 interface VariantDraft {
   prompt: string
   answer: string
@@ -246,8 +248,20 @@ export function KnowledgeBitReviewItem({
             </li>
           ) : (
             <li key={variant.id} data-testid={`knowledge-bit-review-variant-${variant.id}`}>
-              <p className="text-sm">{variant.prompt}</p>
-              <p className="text-sm text-neutral-500">{variant.answer}</p>
+              <p
+                data-testid={`knowledge-bit-review-variant-kind-${variant.id}`}
+                className="text-xs uppercase text-neutral-400"
+              >
+                {variantKindLabel(variant.kind)}
+              </p>
+              <p className="text-sm">
+                {variant.kind === 'basic' ? 'Front: ' : ''}
+                {variant.prompt}
+              </p>
+              <p className="text-sm text-neutral-500">
+                {variant.kind === 'basic' ? 'Back: ' : ''}
+                {variant.answer}
+              </p>
               <button
                 type="button"
                 data-testid={`knowledge-bit-review-edit-${variant.id}`}

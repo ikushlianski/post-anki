@@ -116,6 +116,18 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
     expect((res.body as { error: string }).error).toBe("not_approved");
   });
 
+  it("should return 409 when the variant is a basic card that typed grading can't grade", async () => {
+    mockGradeKnowledgeBitVariantAnswer.mockResolvedValue({ ok: false, error: "kind_not_typed" });
+
+    const req = fakeReq({ userAnswer: "Something." });
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBitVariantAnswer(req, res, "kbqv_basic");
+
+    expect(res.status).toBe(409);
+    expect((res.body as { error: string }).error).toBe("kind_not_typed");
+  });
+
   it("returns 502 with an error message when grading throws, never a silent 200", async () => {
     mockGradeKnowledgeBitVariantAnswer.mockRejectedValue(new Error("grader provider down"));
 

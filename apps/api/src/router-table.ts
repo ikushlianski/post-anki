@@ -44,6 +44,11 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "POST",
+    pattern: "/knowledge-bits/basic-card-generation-scan",
+    name: "triggerKnowledgeBitBasicCardGenerationScan",
+  },
+  {
+    method: "POST",
     pattern: "/knowledge-bits/question-variants/embedding-scan",
     name: "triggerKnowledgeBitQuestionVariantEmbeddingScan",
   },

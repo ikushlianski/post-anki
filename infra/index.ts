@@ -45,6 +45,8 @@ const knowledgeBitQuestionGenSchedule =
   config.get("knowledgeBitQuestionGenSchedule") ?? "*/5 * * * *";
 const knowledgeBitFillBlankGenSchedule =
   config.get("knowledgeBitFillBlankGenSchedule") ?? "*/5 * * * *";
+const knowledgeBitBasicCardGenSchedule =
+  config.get("knowledgeBitBasicCardGenSchedule") ?? "*/5 * * * *";
 const knowledgeBitVariantEmbedSchedule =
   config.get("knowledgeBitVariantEmbedSchedule") ?? "*/5 * * * *";
 const cardEmbeddingScanSchedule = config.get("cardEmbeddingScanSchedule") ?? "0 */6 * * *";
@@ -545,6 +547,24 @@ const knowledgeBitFillBlankGenJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+const knowledgeBitBasicCardGenJob = new gcp.cloudscheduler.Job(
+  "knowledge-bit-basic-card-gen",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-knowledge-bit-basic-card-gen",
+    schedule: knowledgeBitBasicCardGenSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/basic-card-generation-scan`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 const knowledgeBitVariantEmbedJob = new gcp.cloudscheduler.Job(
   "knowledge-bit-variant-embed",
   {
@@ -629,6 +649,7 @@ export const knowledgeBitTagJobName = knowledgeBitTagJob.name;
 export const knowledgeBitPlaceJobName = knowledgeBitPlaceJob.name;
 export const knowledgeBitQuestionGenJobName = knowledgeBitQuestionGenJob.name;
 export const knowledgeBitFillBlankGenJobName = knowledgeBitFillBlankGenJob.name;
+export const knowledgeBitBasicCardGenJobName = knowledgeBitBasicCardGenJob.name;
 export const knowledgeBitVariantEmbedJobName = knowledgeBitVariantEmbedJob.name;
 export const cardEmbeddingScanJobName = cardEmbeddingScanJob.name;
 export const bizEducationDistillJobName = bizEducationDistillJob.name;

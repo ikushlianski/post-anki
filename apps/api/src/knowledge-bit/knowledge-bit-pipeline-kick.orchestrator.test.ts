@@ -5,6 +5,9 @@ vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({ detectKnowledgeBits:
 vi.mock("./knowledge-bit-question-generation.orchestrator.js", () => ({
   generateKnowledgeBitQuestions: vi.fn(),
 }));
+vi.mock("./knowledge-bit-basic-card-generation.orchestrator.js", () => ({
+  generateKnowledgeBitBasicCards: vi.fn(),
+}));
 vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
   generateKnowledgeBitFillBlanks: vi.fn(),
 }));
@@ -24,8 +27,13 @@ function deferred() {
 }
 
 describe("knowledge bit pipeline kick", () => {
-  it("should run split, then questions, then fill-in-the-blank cards", () => {
-    expect(KNOWLEDGE_BIT_PIPELINE_PASSES.map((p) => p.name)).toEqual(["detect", "wh_question", "fill_blank"]);
+  it("should run split, then questions, then fill-in-the-blank cards, then basic cards", () => {
+    expect(KNOWLEDGE_BIT_PIPELINE_PASSES.map((p) => p.name)).toEqual([
+      "detect",
+      "wh_question",
+      "fill_blank",
+      "basic_card",
+    ]);
   });
 
   it("should run the passes in order on a fresh kick", async () => {

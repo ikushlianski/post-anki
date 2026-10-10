@@ -12,11 +12,12 @@ import {
 } from "../db/schema.js";
 import { listDormantEntityIds } from "../liveness/liveness.repo.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
+import { TYPED_VARIANT_KINDS } from "./knowledge-bit-variant-kind-rules.js";
 
 // A bit counts as due if it has never been reviewed yet (no schedule row) or its due date has
 // passed — same "unreviewed counts as due" convention Anki uses, so a topic made only of fresh
 // bits still shows up as needing attention rather than looking falsely caught-up. It must also
-// have at least one generated question variant: that's the only thing the practice queue can
+// have at least one typed-servable question variant (not basic): that's the only thing the practice queue can
 // ever actually serve, so a bit stuck in generation (pending, or permanently failed) would
 // otherwise inflate a topic's due count with nothing a learner can act on. It must also be
 // approved — a pending/rejected bit can't be answered, so counting it due would show a badge
@@ -36,6 +37,7 @@ function dueCondition(db: DbExecutor, dormantCurriculumIds: Set<string>) {
         and(
           eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBits.id),
           isNull(knowledgeBitQuestionVariants.supersededAt),
+          inArray(knowledgeBitQuestionVariants.kind, [...TYPED_VARIANT_KINDS]),
         ),
       ),
   );

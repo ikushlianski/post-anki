@@ -6,12 +6,13 @@ import {
   getQuestionVariantById,
   insertVariantAttempt,
 } from "./knowledge-bit-variant-attempt.repo.js";
+import { isTypedVariantKind } from "./knowledge-bit-variant-kind-rules.js";
 import { reviewKnowledgeBitSchedule } from "./knowledge-bit-schedule.repo.js";
 import type { KnowledgeBitAnswerGraderResult } from "../mastra/knowledge-bit-answer-grader.agent.js";
 
 export type GradeKnowledgeBitVariantAnswerResult =
   | ({ ok: true; followUpQuestion: string | null; tagIds: string[] } & KnowledgeBitAnswerGraderResult)
-  | { ok: false; error: "variant_not_found" | "not_approved" };
+  | { ok: false; error: "variant_not_found" | "not_approved" | "kind_not_typed" };
 
 export async function gradeKnowledgeBitVariantAnswer(
   variantId: string,
@@ -25,6 +26,10 @@ export async function gradeKnowledgeBitVariantAnswer(
 
   if (variant.approvalState !== "approved") {
     return { ok: false, error: "not_approved" };
+  }
+
+  if (!isTypedVariantKind(variant.kind)) {
+    return { ok: false, error: "kind_not_typed" };
   }
 
   const grade = await runKnowledgeBitAnswerGrader(

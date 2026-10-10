@@ -294,6 +294,23 @@ describe("gradeKnowledgeBitVariantAnswer", () => {
     expect(insertVariantAttempt).not.toHaveBeenCalled();
   });
 
+  it("should refuse a basic card before any grader call, since typed grading has no rule for it", async () => {
+    vi.mocked(getQuestionVariantById).mockResolvedValue({
+      id: "kbqv_basic",
+      knowledgeBitId: "kb_basic",
+      kind: "basic" as const,
+      prompt: "What is TTL?",
+      answer: "Time to live",
+      approvalState: "approved" as const,
+    });
+
+    const result = await gradeKnowledgeBitVariantAnswer("kbqv_basic", "Time to live");
+
+    expect(result).toEqual({ ok: false, error: "kind_not_typed" });
+    expect(runKnowledgeBitAnswerGrader).not.toHaveBeenCalled();
+    expect(insertVariantAttempt).not.toHaveBeenCalled();
+  });
+
   it("should return not_approved when the attempt-recording repo rejects an unapproved bit directly", async () => {
     const variant = {
       id: "kbqv_6",

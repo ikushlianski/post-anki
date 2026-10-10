@@ -12,6 +12,7 @@ import {
 import { newId } from "../shared/id.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
+import { TYPED_VARIANT_KINDS } from "./knowledge-bit-variant-kind-rules.js";
 
 export interface KnowledgeBitForQuestionGenerationScan {
   id: string;
@@ -135,7 +136,10 @@ export async function listNextQuestionVariantsToAnswer(
   const topicNotDropped = or(isNull(knowledgeBits.topicId), ne(topics.learningStatus, "skipping"));
   // A superseded variant belongs to a since-edited body — never serve its stale prompt, even
   // though its attempt history stays joinable for mastery/scheduling elsewhere.
-  const variantActive = isNull(knowledgeBitQuestionVariants.supersededAt);
+  const variantActive = and(
+    isNull(knowledgeBitQuestionVariants.supersededAt),
+    inArray(knowledgeBitQuestionVariants.kind, [...TYPED_VARIANT_KINDS]),
+  );
 
   const scopeCondition = filter?.knowledgeBitId
     ? eq(knowledgeBits.id, filter.knowledgeBitId)

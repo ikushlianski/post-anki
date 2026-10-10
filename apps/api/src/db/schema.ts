@@ -1152,6 +1152,15 @@ export const knowledgeBits = pgTable(
     // The real claim-ownership identity (fillBlankGenerationClaimedAt alone is only
     // millisecond-resolution, so two near-simultaneous claims could collide on it).
     fillBlankGenerationClaimToken: text("fill_blank_generation_claim_token"),
+    basicCardGeneratedAt: timestamp("basic_card_generated_at", { withTimezone: true }),
+    basicCardGenerationFailedAt: timestamp("basic_card_generation_failed_at", {
+      withTimezone: true,
+    }),
+    basicCardGenerationAttempts: integer("basic_card_generation_attempts").notNull().default(0),
+    basicCardGenerationClaimedAt: timestamp("basic_card_generation_claimed_at", {
+      withTimezone: true,
+    }),
+    basicCardGenerationClaimToken: text("basic_card_generation_claim_token"),
     // Same claim-then-act + attempts-cap-retry pattern as fillBlank*, mirrored for wh_question.
     whQuestionGenerationAttempts: integer("wh_question_generation_attempts").notNull().default(0),
     whQuestionGenerationClaimedAt: timestamp("wh_question_generation_claimed_at", {
@@ -1172,8 +1181,8 @@ export const knowledgeBits = pgTable(
   }),
 );
 
-// One row per generated question variant for a knowledge bit — kind is "wh_question" or
-// "fill_in_the_blank", each independently scanned and reusing this same table. No FK on
+// One row per generated question variant for a knowledge bit — kind is "wh_question",
+// "fill_in_the_blank" or "basic", each independently scanned and reusing this same table. No FK on
 // knowledgeBitId, matching this schema's existing no-FK convention on knowledgeBits-adjacent tables.
 export const knowledgeBitQuestionVariants = pgTable(
   "knowledge_bit_question_variants",

@@ -62,13 +62,13 @@ A never-reviewed card follows the learning steps below. A reviewed card: Again s
 
 ## Due queue
 
-The unscoped Anki queue serves only bits that are approved, whose topic is not skipped, and that have no schedule row or a due date at or before now. Each bit contributes one card: basic, then fill-in-the-blank, then any other kind. Due bits come first (oldest due date first), then never-reviewed bits (oldest bit first). Scoped queues keep their own behaviour and ignore the due rule and the cap.
+The unscoped Anki queue serves only bits that are approved, whose topic is not skipped, and that have no schedule row or a due date at or before now. Each bit contributes one card: basic (front/back), then fill-in-the-blank, then why-question. Due bits come first (oldest due date first), then never-reviewed bits (oldest bit first). Scoped queues keep their own behaviour and ignore the due rule and the cap.
 
 New cards are capped at 20 per local day. The count is the non-undone first-time reviews since local midnight, and the learner's day comes from the `tz` query parameter (IANA name, default UTC, invalid gives 400). The cap and `newRemainingToday` are global, not per scope.
 
 The cards response also carries counts (`new`, `learning` for step cards due within the learn-ahead window, `review` for due day-based bits), `newRemainingToday`, and `nextDueAt`: the earliest future due date in scope, or the next local midnight when only capped new cards remain. Each card carries `intervalPreview`, the seconds until it returns after Again, Hard, Good or Easy, computed on the server by the same four-grade rule as a real grade. The web app labels the grade buttons with it, lowers the counts as cards are graded within a batch, and shows a done-for-today screen with the next due time when the queue is empty.
 
-The typed answer queue gets the same unscoped rule (due or never reviewed, one variant per bit), picking the variant with the fewest attempts, then basic, fill-in-the-blank, others.
+The typed answer queue gets the same unscoped rule (due or never reviewed, one variant per bit), picking the variant with the fewest attempts, then fill-in-the-blank, then why-question. It never serves basic cards in any scope, topic due counts ignore bits that have only a basic card, and typed grading refuses a basic card with 409 `kind_not_typed` before any grader call.
 
 ## Learning steps
 

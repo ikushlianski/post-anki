@@ -8,6 +8,7 @@ import { tagKnowledgeBits } from "./knowledge-bit-tagging.orchestrator.js";
 import { placeKnowledgeBits } from "./knowledge-bit-placement.orchestrator.js";
 import { generateKnowledgeBitQuestions } from "./knowledge-bit-question-generation.orchestrator.js";
 import { generateKnowledgeBitFillBlanks } from "./knowledge-bit-fill-blank-generation.orchestrator.js";
+import { generateKnowledgeBitBasicCards } from "./knowledge-bit-basic-card-generation.orchestrator.js";
 import { embedKnowledgeBitQuestionVariants } from "./knowledge-bit-question-variant-embedding.orchestrator.js";
 import {
   listPendingPlacementSuggestions,
@@ -112,6 +113,24 @@ export async function handleTriggerKnowledgeBitFillBlankGenerationScan(
 
     const message =
       err instanceof Error ? err.message : "knowledge bit fill blank generation scan failed";
+
+    sendError(res, 502, "scan_failed", message);
+  }
+}
+
+// A failure here is a real 502 — never a silent "nothing needed generating".
+export async function handleTriggerKnowledgeBitBasicCardGenerationScan(
+  res: http.ServerResponse,
+): Promise<void> {
+  try {
+    const result = await generateKnowledgeBitBasicCards();
+
+    sendJson(res, 200, result);
+  } catch (err) {
+    log.error({ err }, "knowledge_bit_basic_card_generation_scan_failed");
+
+    const message =
+      err instanceof Error ? err.message : "knowledge bit basic card generation scan failed";
 
     sendError(res, 502, "scan_failed", message);
   }

@@ -97,6 +97,13 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat/draft")).toBeNull();
     });
 
+    it("resolves POST /knowledge-bits/basic-card-generation-scan to the basic card scan", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/basic-card-generation-scan")?.name).toBe(
+        "triggerKnowledgeBitBasicCardGenerationScan",
+      );
+      expect(resolveRoute("GET", "/knowledge-bits/basic-card-generation-scan")).toBeNull();
+    });
+
     it("resolves the bulk-approval and pending-count routes", () => {
       expect(resolveRoute("POST", "/knowledge-bits/approvals")?.name).toBe(
         "bulkApproveKnowledgeBits",

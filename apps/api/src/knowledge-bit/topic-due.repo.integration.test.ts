@@ -303,6 +303,33 @@ describe("listTopicsWithDueCounts / getDueCountsForTopics", () => {
     expect(scoped.get("top_due_ungenerated")).toBeUndefined();
   });
 
+  it("excludes a bit whose only card is a basic card, since typed mode can never serve it", async () => {
+    await insertSubject({ id: "sub_due_basic", name: "Testing basic" });
+    await insertCurriculum({ id: "cur_due_basic", subjectId: "sub_due_basic", name: "Basic cards" });
+    await insertModule({ id: "mod_due_basic", curriculumId: "cur_due_basic", title: "Basic reviews" });
+    await insertTopic({
+      id: "top_due_basic",
+      moduleId: "mod_due_basic",
+      curriculumId: "cur_due_basic",
+      title: "Basic only",
+    });
+    await insertKnowledgeBit({
+      id: "bit_due_basic",
+      knowledgeSourceId: "src_due_basic",
+      ordinal: 1,
+      body: "A bit with only a front/back card",
+      topicId: "top_due_basic",
+    });
+    await client.query(
+      `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer)
+       VALUES ('kbqv_due_basic', 'bit_due_basic', 'basic', 0, 'Front?', 'Back')`,
+    );
+
+    const ranked = await listTopicsWithDueCounts(50);
+
+    expect(ranked.find((row) => row.topicId === "top_due_basic")).toBeUndefined();
+  });
+
   it("excludes a pending or rejected bit from the due count, even with a generated question variant", async () => {
     await insertSubject({ id: "sub_due_approval", name: "Testing approval" });
     await insertCurriculum({ id: "cur_due_approval", subjectId: "sub_due_approval", name: "Scheduling approval" });

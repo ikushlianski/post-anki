@@ -17,6 +17,7 @@ import {
 import { cardPhaseSchema } from "@post-anki/shared";
 import { isLeech } from "./knowledge-bit-grade-schedule-leech.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
+import { ANKI_VARIANT_KIND_PREFERENCE, ankiVariantKindRank } from "./knowledge-bit-variant-kind-rules.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { previewGradeIntervals } from "./knowledge-bit-grade-schedule.js";
 import {
@@ -186,7 +187,10 @@ async function listScopedCards(
 
 // One row per eligible bit: basic over fill_in_the_blank over the rest.
 function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor) {
-  const kindRank = sql`case ${knowledgeBitQuestionVariants.kind} when 'basic' then 0 when 'fill_in_the_blank' then 1 else 2 end`;
+  const kindRank = sql`case ${knowledgeBitQuestionVariants.kind} ${sql.join(
+    ANKI_VARIANT_KIND_PREFERENCE.map((kind) => sql`when ${kind} then ${ankiVariantKindRank(kind)}`),
+    sql` `,
+  )} else ${ANKI_VARIANT_KIND_PREFERENCE.length} end`;
 
   return db
     .select({

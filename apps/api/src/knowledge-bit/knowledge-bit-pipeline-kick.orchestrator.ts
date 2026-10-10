@@ -1,5 +1,6 @@
 import { log } from "../shared/log.js";
 import { detectKnowledgeBits } from "./detect-knowledge-bits.orchestrator.js";
+import { generateKnowledgeBitBasicCards } from "./knowledge-bit-basic-card-generation.orchestrator.js";
 import { generateKnowledgeBitFillBlanks } from "./knowledge-bit-fill-blank-generation.orchestrator.js";
 import { generateKnowledgeBitQuestions } from "./knowledge-bit-question-generation.orchestrator.js";
 
@@ -9,6 +10,7 @@ export const KNOWLEDGE_BIT_PIPELINE_PASSES: readonly KnowledgeBitPipelinePass[] 
   { name: "detect", run: () => detectKnowledgeBits() },
   { name: "wh_question", run: () => generateKnowledgeBitQuestions() },
   { name: "fill_blank", run: () => generateKnowledgeBitFillBlanks() },
+  { name: "basic_card", run: () => generateKnowledgeBitBasicCards() },
 ];
 
 export function createKnowledgeBitPipelineKick(

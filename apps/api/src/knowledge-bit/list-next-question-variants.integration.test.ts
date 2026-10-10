@@ -286,6 +286,21 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(row?.background).toBeNull();
   });
 
+  it("should never serve a basic card in typed mode, in any scope", async () => {
+    const topicId = await seedTopic("Basic exclusion topic");
+    const bitId = await seedKnowledgeBit("Bit with a basic card", topicId);
+
+    await insertQuestionVariant(bitId, "basic", 0, "Front?", "Back");
+
+    const unscoped = await listNextQuestionVariantsToAnswer(500, undefined);
+    const byBit = await listNextQuestionVariantsToAnswer(500, { knowledgeBitId: bitId });
+    const byTopic = await listNextQuestionVariantsToAnswer(500, { topicId });
+
+    expect(unscoped.map((row) => row.knowledgeBitId)).not.toContain(bitId);
+    expect(byBit).toEqual([]);
+    expect(byTopic).toEqual([]);
+  });
+
   it("should exclude a pending bit's variant from the default, unfiltered queue", async () => {
     const pendingBit = await seedKnowledgeBit("Pending bit for queue", undefined, undefined, "pending");
     const pendingVariant = await seedVariant(pendingBit, "Pending question?");
