@@ -109,8 +109,10 @@ export function AddKnowledgeForm() {
 
     if (createdCount > 0) {
       notifyPendingReviewChanged()
+      const addedText =
+        createdCount === 1 ? 'Added.' : `${createdCount} knowledge sources added.`
       setSuccessMessage(
-        createdCount === 1 ? 'Knowledge source added.' : `${createdCount} knowledge sources added.`,
+        `${addedText} Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.`,
       )
     }
 
@@ -227,7 +229,7 @@ export function AddKnowledgeForm() {
             data-testid="knowledge-success-review-link"
             className="text-neutral-700 underline"
           >
-            Review suggestions
+            Approve suggestions
           </Link>
         </div>
       )}

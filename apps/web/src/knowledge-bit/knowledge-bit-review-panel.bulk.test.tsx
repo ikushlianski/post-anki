@@ -11,7 +11,7 @@ import {
   getPendingKnowledgeBitsForReview,
   rejectKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
-import { QUESTION_POLL_INTERVAL_MS } from './knowledge-bit-review-polling'
+import { QUESTION_POLL_INTERVAL_MS, QUESTION_POLL_MAX_ATTEMPTS } from './knowledge-bit-review-polling'
 
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
@@ -169,6 +169,24 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     })
 
     expect(mockedGetPending).toHaveBeenCalledTimes(1)
+  })
+
+  it('should stop promising automatic checks and ask for a reload once polling gives up', async () => {
+    vi.useFakeTimers()
+    mockedGetPending.mockResolvedValue([source('s1', [bit('b1', false)])])
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', false)])]} />)
+
+    expect(screen.getByTestId('knowledge-bit-review-no-variants-b1').textContent).toContain(
+      'checking automatically',
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * (QUESTION_POLL_MAX_ATTEMPTS + 1))
+    })
+
+    expect(screen.getByTestId('knowledge-bit-review-no-variants-b1').textContent).toBe(
+      'Still waiting. Reload the page to check again.',
+    )
   })
 
   it('should not poll when every bit already has questions', async () => {

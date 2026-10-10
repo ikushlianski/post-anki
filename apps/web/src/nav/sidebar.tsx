@@ -56,11 +56,8 @@ export function Sidebar() {
           <ApprovalCountBadge />
         </span>
       </Link>
-      <Link to="/knowledge/review" className={navLinkClass} data-testid="nav-knowledge-review">
-        Review
-      </Link>
-      <Link to="/knowledge/answer" className={navLinkClass} data-testid="nav-knowledge-answer">
-        Answer (typed)
+      <Link to="/add-knowledge" className={navLinkClass} data-testid="nav-add-knowledge">
+        Add knowledge
       </Link>
       <Link
         to="/knowledge-bit-review"
@@ -69,8 +66,11 @@ export function Sidebar() {
       >
         {pendingCount === null ? 'Approve suggestions' : `Approve suggestions (${pendingCount})`}
       </Link>
-      <Link to="/add-knowledge" className={navLinkClass} data-testid="nav-add-knowledge">
-        Add knowledge
+      <Link to="/knowledge/review" className={navLinkClass} data-testid="nav-knowledge-review">
+        Review
+      </Link>
+      <Link to="/knowledge/answer" className={navLinkClass} data-testid="nav-knowledge-answer">
+        Answer (typed)
       </Link>
     </nav>
   )

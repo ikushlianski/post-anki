@@ -38,6 +38,7 @@ export function KnowledgeBitReviewPanel({
   const [sources, setSources] = useState(initialSources)
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const editingBitIds = useRef(new Set<string>())
 
   const allBits = sources.flatMap((source) => source.bits)
@@ -50,7 +51,7 @@ export function KnowledgeBitReviewPanel({
     setSources((prev) => mergeArrivedVariants(prev, fresh))
   }, [])
 
-  useQuestionPolling(hasBitAwaitingQuestions(sources), refreshQuestions)
+  const pollingGaveUp = useQuestionPolling(hasBitAwaitingQuestions(sources), refreshQuestions)
 
   const handleEditingChange = useCallback((bitId: string, editing: boolean) => {
     if (editing) {
@@ -67,10 +68,16 @@ export function KnowledgeBitReviewPanel({
   const { claim: claimBitEdit, release: releaseBitEdit, isResolving: isBitSaving } =
     useResolvingSuggestions()
 
+  function setRowError(bitId: string, message: string | null) {
+    setRowErrors((prev) => ({ ...prev, [bitId]: message ?? '' }))
+  }
+
   async function approve(bitId: string) {
     if (!claimBit(bitId)) {
       return
     }
+
+    setRowError(bitId, null)
 
     try {
       await approveKnowledgeBitForReview({ data: { bitId } })
@@ -79,6 +86,7 @@ export function KnowledgeBitReviewPanel({
       notifyPendingReviewChanged()
     } catch {
       // Row stays listed on failure so the decision can be retried.
+      setRowError(bitId, "Couldn't approve. Try again.")
     } finally {
       releaseBit(bitId)
     }
@@ -126,6 +134,8 @@ export function KnowledgeBitReviewPanel({
       return
     }
 
+    setRowError(bitId, null)
+
     try {
       await rejectKnowledgeBitForReview({ data: { bitId } })
 
@@ -133,6 +143,7 @@ export function KnowledgeBitReviewPanel({
       notifyPendingReviewChanged()
     } catch {
       // Same retry posture as approve above.
+      setRowError(bitId, "Couldn't reject. Try again.")
     } finally {
       releaseBit(bitId)
     }
@@ -281,6 +292,8 @@ export function KnowledgeBitReviewPanel({
                     isSavingVariant={isVariantSaving}
                     isSavingBit={isBitSaving}
                     isFocused={focusedBit?.id === bit.id}
+                    pollingGaveUp={pollingGaveUp}
+                    errorMessage={rowErrors[bit.id] || null}
                     onEditingChange={handleEditingChange}
                     onApprove={approve}
                     onReject={reject}

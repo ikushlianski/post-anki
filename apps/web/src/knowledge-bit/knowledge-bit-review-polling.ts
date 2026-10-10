@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 export const QUESTION_POLL_INTERVAL_MS = 8000
@@ -27,12 +27,14 @@ export function mergeArrivedVariants(
   }))
 }
 
+// Returns true once the attempt budget is spent, so callers stop promising live updates.
 export function useQuestionPolling(
   waiting: boolean,
   refresh: () => Promise<void>,
   intervalMs: number = QUESTION_POLL_INTERVAL_MS,
-): void {
+): boolean {
   const refreshRef = useRef(refresh)
+  const [gaveUp, setGaveUp] = useState(false)
 
   refreshRef.current = refresh
 
@@ -48,12 +50,18 @@ export function useQuestionPolling(
 
       if (attempts > QUESTION_POLL_MAX_ATTEMPTS) {
         clearInterval(timer)
+        setGaveUp(true)
         return
       }
 
       void refreshRef.current().catch(() => undefined)
     }, intervalMs)
 
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      setGaveUp(false)
+    }
   }, [waiting, intervalMs])
+
+  return gaveUp
 }

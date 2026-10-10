@@ -399,6 +399,36 @@ describe('KnowledgeBitReviewPanel', () => {
     ).toBe(false)
   })
 
+  it('shows a per-row error and keeps the bit listed when approve fails', async () => {
+    mockedApprove.mockRejectedValue(new Error('network error'))
+
+    renderPanel()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-bit-1'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-bit-review-error-bit-1').textContent).toBe(
+        "Couldn't approve. Try again.",
+      )
+    })
+
+    expect(screen.getByTestId('knowledge-bit-review-item-bit-1')).toBeDefined()
+  })
+
+  it('shows a per-row error when reject fails', async () => {
+    mockedReject.mockRejectedValue(new Error('network error'))
+
+    renderPanel()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-bit-review-error-bit-1').textContent).toBe(
+        "Couldn't reject. Try again.",
+      )
+    })
+  })
+
   it('shows a fallback when a bit has no generated question variants yet', () => {
     const noVariantSource: PendingKnowledgeSourceForReview = {
       ...SOURCE,

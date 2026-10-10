@@ -235,7 +235,7 @@ describe('AddKnowledgeForm', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('knowledge-success-message').textContent).toBe(
-        '2 knowledge sources added.',
+        '2 knowledge sources added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.',
       )
     })
 
@@ -286,7 +286,7 @@ describe('AddKnowledgeForm', () => {
       expect(screen.getByTestId('knowledge-error-message')).toBeDefined()
     })
 
-    expect(screen.getByTestId('knowledge-success-message').textContent).toBe('Knowledge source added.')
+    expect(screen.getByTestId('knowledge-success-message').textContent).toBe('Added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.')
     expect(screen.queryByTestId('knowledge-block-input-1')).toBeNull()
     expect((screen.getByTestId('knowledge-block-input-0') as HTMLInputElement).value).toBe(
       'https://example.com/broken',
@@ -328,7 +328,7 @@ describe('AddKnowledgeForm', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('knowledge-success-message').textContent).toBe(
-        '2 knowledge sources added.',
+        '2 knowledge sources added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.',
       )
     })
   })

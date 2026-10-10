@@ -25,6 +25,8 @@ export function KnowledgeBitReviewItem({
   isSavingVariant,
   isSavingBit,
   isFocused = false,
+  pollingGaveUp = false,
+  errorMessage = null,
   onEditingChange,
   onApprove,
   onReject,
@@ -36,6 +38,8 @@ export function KnowledgeBitReviewItem({
   isSavingVariant: (variantId: string) => boolean
   isSavingBit: (bitId: string) => boolean
   isFocused?: boolean
+  pollingGaveUp?: boolean
+  errorMessage?: string | null
   onEditingChange?: (bitId: string, editing: boolean) => void
   onApprove: (bitId: string) => void
   onReject: (bitId: string) => void
@@ -200,7 +204,9 @@ export function KnowledgeBitReviewItem({
       <ul className="mt-2 space-y-2">
         {bit.variants.length === 0 ? (
           <li data-testid={`knowledge-bit-review-no-variants-${bit.id}`} className="text-xs text-neutral-400">
-            Waiting for questions — checking automatically.
+            {pollingGaveUp
+              ? 'Still waiting. Reload the page to check again.'
+              : 'Waiting for questions — checking automatically.'}
           </li>
         ) : null}
 
@@ -296,6 +302,16 @@ export function KnowledgeBitReviewItem({
           Reject
         </button>
       </div>
+
+      {errorMessage ? (
+        <p
+          role="alert"
+          data-testid={`knowledge-bit-review-error-${bit.id}`}
+          className="mt-2 text-xs text-red-700"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
     </li>
   )
 }
