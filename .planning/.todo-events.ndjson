@@ -50,3 +50,8 @@
 {"ts":"2026-10-10T20:31:27.119Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Approve or reject suggestions by keyboard; approve all from a source"}
 {"ts":"2026-10-10T20:32:02.471Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Run bit detection and question generation right after paste"}
 {"ts":"2026-10-10T20:35:17.695Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Add minute-level learning steps for new and failed cards"}
+{"ts":"2026-10-10T20:45:14.923Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Undo the last grade with one click or keystroke"}
+{"ts":"2026-10-10T20:45:15.186Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Show session progress and an end-of-session summary"}
+{"ts":"2026-10-10T20:45:15.448Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Edit a card's question or answer during review"}
+{"ts":"2026-10-10T20:45:15.710Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Suspend or bury a card from the review screen"}
+{"ts":"2026-10-10T20:45:15.971Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Flag leeches after repeated failures and suspend them automatically"}

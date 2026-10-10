@@ -29,12 +29,12 @@ updated: 2026-09-04
 - [x] Show the next interval on each grade button, like Anki
 - [x] Add minute-level learning steps for new and failed cards
 - [x] Cap new cards per day and show due and new counts
-- [ ] Undo the last grade with one click or keystroke
-- [ ] Show session progress and an end-of-session summary
+- [x] Undo the last grade with one click or keystroke
+- [x] Show session progress and an end-of-session summary
 - [x] Show done-for-today screen with next due time when queue empty
-- [ ] Edit a card's question or answer during review
-- [ ] Suspend or bury a card from the review screen
-- [ ] Flag leeches after repeated failures and suspend them automatically
+- [x] Edit a card's question or answer during review
+- [x] Suspend or bury a card from the review screen
+- [x] Flag leeches after repeated failures and suspend them automatically
 - [x] Approve or reject suggestions by keyboard; approve all from a source
 - [x] Hide the chat panel until the answer is revealed
 
