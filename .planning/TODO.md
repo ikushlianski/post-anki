@@ -7,6 +7,21 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## highlight-capture-extension
+
+### Scope
+- Chrome extension sends highlighted page text to the locally running post-anki
+- Text lands as a knowledge source, same as pasting on /add-knowledge
+- Source page URL travels with the text
+- Out of scope: Filing into the curriculum hierarchy; the older chrome-extension-note-capture plan covers that
+
+### Coding tasks
+- [ ] Send highlighted text from Chrome to local post-anki as a knowledge source
+
+### Notes
+- Older capture extension sits unmerged on chrome-extension-note-capture; check before building
+
+
 ## classic-anki-review
 
 ### Scope
