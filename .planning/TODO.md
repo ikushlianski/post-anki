@@ -27,7 +27,7 @@ updated: 2026-09-04
 - [ ] Add simple front/back basic-card variant for plain recall facts
 - [x] Keyboard shortcuts: Space reveals answer, 1-4 grade the card
 - [x] Show the next interval on each grade button, like Anki
-- [ ] Add minute-level learning steps for new and failed cards
+- [x] Add minute-level learning steps for new and failed cards
 - [x] Cap new cards per day and show due and new counts
 - [ ] Undo the last grade with one click or keystroke
 - [ ] Show session progress and an end-of-session summary
