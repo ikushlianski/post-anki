@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 
-import type { ModelTier } from '@post-anki/shared'
+import type { KnowledgeItemModelId, ModelTier } from '@post-anki/shared'
 import {
   getAdminSettings,
   updateAdminSettings,
 } from '../admin-settings/admin-settings.api'
 import { AdminSettingsToggle } from '../admin-settings/admin-settings-toggle'
+import { KnowledgeItemModelSelect } from '../admin-settings/knowledge-item-model-select'
 import { ModelTierSelect } from '../admin-settings/model-tier-select'
 import { getPendingPlacementSuggestions } from '../knowledge-bit/knowledge-bit.api'
 import { PlacementSuggestionsPanel } from '../knowledge-bit/placement-suggestions-panel'
@@ -44,6 +45,13 @@ function AdminSettingsPage() {
     await router.invalidate()
   }
 
+  async function setKnowledgeItemModel(knowledgeItemModelId: KnowledgeItemModelId) {
+    setBusy(true)
+    await updateAdminSettings({ data: { knowledgeItemModelId } })
+    setBusy(false)
+    await router.invalidate()
+  }
+
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
@@ -61,6 +69,14 @@ function AdminSettingsPage() {
           onChange={setModelTier}
           disabled={busy}
           testId="admin-settings-model-tier"
+        />
+        <KnowledgeItemModelSelect
+          label="Knowledge item model"
+          description="Model for detecting knowledge items and writing their questions and cards. Applies from the next run; a run already in progress keeps its model."
+          value={settings.knowledgeItemModelId}
+          onChange={setKnowledgeItemModel}
+          disabled={busy}
+          testId="admin-settings-knowledge-item-model"
         />
         <AdminSettingsToggle
           label="Test toggle"

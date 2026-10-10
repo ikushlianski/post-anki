@@ -17,6 +17,13 @@ vi.mock("./generate-with-retry.js", () => ({
   generateWithRetry: vi.fn((_op: string, _curriculumId: unknown, _agentKey: string, fn: () => unknown) => fn()),
 }));
 
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({
+  getKnowledgeItemModelId: vi.fn().mockResolvedValue("openrouter/deepseek/deepseek-v4-flash"),
+}));
+
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
+import { generateWithRetry } from "./generate-with-retry.js";
+
 import {
   buildKnowledgeBitQuestionGeneratorPrompt,
   knowledgeBitQuestionGeneratorResultSchema,
@@ -93,6 +100,29 @@ describe("runKnowledgeBitQuestionGenerator", () => {
 
     await expect(runKnowledgeBitQuestionGenerator("Some bit.")).rejects.toThrow(
       "knowledge_bit_question_generator_invalid_output",
+    );
+  });
+});
+
+describe("runKnowledgeBitQuestionGenerator model pinning", () => {
+  it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-oss-20b");
+    generateMock.mockResolvedValueOnce({ object: { question: "Why does an anchor shift value?", answer: "It sets a reference point." } });
+
+    await runKnowledgeBitQuestionGenerator("Anchoring biases price perception.");
+
+    const [, options] = generateMock.mock.calls.at(-1) as [
+      string,
+      { requestContext: { get: (key: string) => unknown } },
+    ];
+
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-oss-20b");
+    expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
+      expect.any(String),
+      null,
+      "knowledgeBitQuestionGenerator",
+      expect.any(Function),
+      { modelId: "openrouter/openai/gpt-oss-20b" },
     );
   });
 });

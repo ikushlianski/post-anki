@@ -1,12 +1,11 @@
 import { Agent } from "@mastra/core/agent";
+import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicKnowledgeItemModel } from "./model.js";
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
-import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
-
-const QUESTION_GENERATOR_MODEL = tierToModelId("cheap");
 
 const INSTRUCTIONS = [
   "You are a knowledge fisher. Given a single knowledge bit, you don't ask the learner to repeat it",
@@ -46,7 +45,7 @@ export function createKnowledgeBitQuestionGeneratorAgent(): Agent {
     id: "knowledge-bit-question-generator",
     name: "Knowledge Bit Question Generator",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(QUESTION_GENERATOR_MODEL, env.OPENROUTER_BASE_URL),
+    model: dynamicKnowledgeItemModel(env),
   });
 }
 
@@ -55,6 +54,8 @@ export async function runKnowledgeBitQuestionGenerator(
 ): Promise<KnowledgeBitQuestionGeneratorResult> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitQuestionGenerator);
   const prompt = buildKnowledgeBitQuestionGeneratorPrompt(bitBody);
+  const knowledgeItemModelId = await getKnowledgeItemModelId();
+  const requestContext = new RequestContext([["knowledgeItemModelId", knowledgeItemModelId]]);
 
   const result = await generateWithRetry(
     "knowledge_bit_question_generation",
@@ -63,7 +64,9 @@ export async function runKnowledgeBitQuestionGenerator(
     () =>
       agent.generate(prompt, {
         structuredOutput: { schema: knowledgeBitQuestionGeneratorResultSchema },
+        requestContext,
       }),
+    { modelId: knowledgeItemModelId },
   );
 
   const parsed = knowledgeBitQuestionGeneratorResultSchema.safeParse(result.object);

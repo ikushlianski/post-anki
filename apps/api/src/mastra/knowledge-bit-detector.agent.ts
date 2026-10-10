@@ -1,13 +1,12 @@
 import { Agent } from "@mastra/core/agent";
+import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicKnowledgeItemModel } from "./model.js";
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
-import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
 import type { DetectedKnowledgeBit } from "../knowledge-bit/detected-knowledge-bit.js";
-
-const DETECTOR_MODEL = tierToModelId("cheap");
 
 export const INSTRUCTIONS = [
   "You are a knowledge fisher. You split a block of prose into distinct, self-contained knowledge",
@@ -70,19 +69,26 @@ export function createKnowledgeBitDetectorAgent(): Agent {
     id: "knowledge-bit-detector",
     name: "Knowledge Bit Detector",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(DETECTOR_MODEL, env.OPENROUTER_BASE_URL),
+    model: dynamicKnowledgeItemModel(env),
   });
 }
 
 export async function runKnowledgeBitDetector(sourceText: string): Promise<DetectedKnowledgeBit[]> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitDetector);
   const prompt = buildKnowledgeBitDetectorPrompt(sourceText);
+  const knowledgeItemModelId = await getKnowledgeItemModelId();
+  const requestContext = new RequestContext([["knowledgeItemModelId", knowledgeItemModelId]]);
 
   const result = await generateWithRetry(
     "knowledge_bit_detection",
     null,
     AGENT_KEYS.knowledgeBitDetector,
-    () => agent.generate(prompt, { structuredOutput: { schema: knowledgeBitDetectorResultSchema } }),
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: knowledgeBitDetectorResultSchema },
+        requestContext,
+      }),
+    { modelId: knowledgeItemModelId },
   );
 
   const parsed = knowledgeBitDetectorResultSchema.safeParse(result.object);

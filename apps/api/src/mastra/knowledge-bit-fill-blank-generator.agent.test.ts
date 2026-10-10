@@ -17,6 +17,13 @@ vi.mock("./generate-with-retry.js", () => ({
   generateWithRetry: vi.fn((_op: string, _curriculumId: unknown, _agentKey: string, fn: () => unknown) => fn()),
 }));
 
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({
+  getKnowledgeItemModelId: vi.fn().mockResolvedValue("openrouter/deepseek/deepseek-v4-flash"),
+}));
+
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
+import { generateWithRetry } from "./generate-with-retry.js";
+
 import {
   buildKnowledgeBitFillBlankGeneratorPrompt,
   knowledgeBitFillBlankGeneratorResultSchema,
@@ -108,6 +115,29 @@ describe("runKnowledgeBitFillBlankGenerator", () => {
 
     await expect(runKnowledgeBitFillBlankGenerator("Some bit.")).rejects.toThrow(
       "knowledge_bit_fill_blank_generator_invalid_output",
+    );
+  });
+});
+
+describe("runKnowledgeBitFillBlankGenerator model pinning", () => {
+  it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-oss-20b");
+    generateMock.mockResolvedValueOnce({ object: { sentence: "Anchoring biases price perception.", prompt: "Anchoring biases ____ perception.", answer: "price" } });
+
+    await runKnowledgeBitFillBlankGenerator("Anchoring biases price perception.");
+
+    const [, options] = generateMock.mock.calls.at(-1) as [
+      string,
+      { requestContext: { get: (key: string) => unknown } },
+    ];
+
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-oss-20b");
+    expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
+      expect.any(String),
+      null,
+      "knowledgeBitFillBlankGenerator",
+      expect.any(Function),
+      { modelId: "openrouter/openai/gpt-oss-20b" },
     );
   });
 });

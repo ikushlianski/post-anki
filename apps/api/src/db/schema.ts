@@ -551,6 +551,11 @@ export const appSettings = pgTable("app_settings", {
   // at this level, unlike subjects.modelTier/curricula.modelTier which
   // inherit). Curated `modelTierSchema` enum from @post-anki/shared.
   modelTier: text("model_tier").notNull().default("cheap"),
+  // Model for the knowledge-item detector and the question, fill-blank and
+  // basic card writers. Allowlist lives in @post-anki/shared.
+  knowledgeItemModelId: text("knowledge_item_model_id")
+    .notNull()
+    .default("openrouter/deepseek/deepseek-v4-flash"),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -957,6 +962,9 @@ export const llmCallEvents = pgTable("llm_call_events", {
   promptTokens: integer("prompt_tokens"),
   completionTokens: integer("completion_tokens"),
   totalTokens: integer("total_tokens"),
+  // Null for calls that do not pin a model (every agent except the
+  // knowledge-item writers).
+  modelId: text("model_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

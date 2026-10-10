@@ -1,0 +1,2 @@
+ALTER TABLE "app_settings" ADD COLUMN "knowledge_item_model_id" text DEFAULT 'openrouter/deepseek/deepseek-v4-flash' NOT NULL;--> statement-breakpoint
+ALTER TABLE "llm_call_events" ADD COLUMN "model_id" text;

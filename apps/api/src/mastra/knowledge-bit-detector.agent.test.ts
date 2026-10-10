@@ -17,6 +17,13 @@ vi.mock("./generate-with-retry.js", () => ({
   generateWithRetry: vi.fn((_op: string, _curriculumId: unknown, _agentKey: string, fn: () => unknown) => fn()),
 }));
 
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({
+  getKnowledgeItemModelId: vi.fn().mockResolvedValue("openrouter/deepseek/deepseek-v4-flash"),
+}));
+
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
+import { generateWithRetry } from "./generate-with-retry.js";
+
 import {
   buildKnowledgeBitDetectorPrompt,
   runKnowledgeBitDetector,
@@ -231,6 +238,29 @@ describe("runKnowledgeBitDetector", () => {
 
     await expect(runKnowledgeBitDetector("Some source text.")).rejects.toThrow(
       "knowledge_bit_detector_invalid_output",
+    );
+  });
+});
+
+describe("runKnowledgeBitDetector model pinning", () => {
+  it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-oss-20b");
+    generateMock.mockResolvedValueOnce({ object: { bits: [{ text: "Pinned bit.", background: null }] } });
+
+    await runKnowledgeBitDetector("Some source prose to extract from.");
+
+    const [, options] = generateMock.mock.calls.at(-1) as [
+      string,
+      { requestContext: { get: (key: string) => unknown } },
+    ];
+
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-oss-20b");
+    expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
+      expect.any(String),
+      null,
+      "knowledgeBitDetector",
+      expect.any(Function),
+      { modelId: "openrouter/openai/gpt-oss-20b" },
     );
   });
 });

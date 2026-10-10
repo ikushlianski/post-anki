@@ -2,6 +2,7 @@ import type { RequestContext } from "@mastra/core/request-context";
 import type { Env } from "../shared/env.js";
 import { resolveEffectiveModelTier } from "./tier-resolver.js";
 import { tierToModelId } from "./model-tier.js";
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 
 type ModelId = `${string}/${string}`;
 
@@ -38,5 +39,17 @@ export function dynamicResolvedModel(env: Env): (args: {
     const tier = await resolveEffectiveModelTier({ subjectId, curriculumId });
 
     return resolveAgentModel(tierToModelId(tier), env.OPENROUTER_BASE_URL);
+  };
+}
+
+// Pinned per run via requestContext `knowledgeItemModelId`; otherwise reads the stored setting.
+export function dynamicKnowledgeItemModel(env: Env): (args: {
+  requestContext?: RequestContext;
+}) => Promise<AgentModel> {
+  return async ({ requestContext }) => {
+    const pinned = requestContext?.get("knowledgeItemModelId") as string | undefined;
+    const modelId = pinned ?? (await getKnowledgeItemModelId());
+
+    return resolveAgentModel(modelId, env.OPENROUTER_BASE_URL);
   };
 }

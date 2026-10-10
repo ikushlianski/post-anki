@@ -46,6 +46,11 @@ type GenerateResultWithUsage = {
   totalUsage?: GenerateUsage;
 };
 
+type GenerateCallOptions = {
+  // The model the run pinned, so the logged row names what actually ran.
+  modelId?: string | null;
+};
+
 function tokenCostFrom(result: GenerateResultWithUsage) {
   return {
     promptTokens:
@@ -62,13 +67,15 @@ function tokenCostFrom(result: GenerateResultWithUsage) {
  * PLUS recording of the whole retry sequence's outcome, not each individual
  * attempt. Use this for a call site that has no retry/error-handling logic
  * of its own. `curriculumId` is `null` for a call with no curriculum in
- * scope (e.g. a subject- or topic-scoped call).
+ * scope (e.g. a subject- or topic-scoped call). `options.modelId` is logged
+ * on the event when the caller pins a model.
  */
 export async function generateWithRetry<T extends GenerateResultWithUsage>(
   op: string,
   curriculumId: string | null,
   agentKey: string,
   fn: () => Promise<T>,
+  options: GenerateCallOptions = {},
 ): Promise<T> {
   const startedAt = Date.now();
 
@@ -89,6 +96,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
       curriculumId,
       op,
       agentKey,
+      modelId: options.modelId ?? null,
       durationMs: Date.now() - startedAt,
       success: false,
       errorMessage: err instanceof Error ? err.message : String(err),
@@ -104,6 +112,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
     curriculumId,
     op,
     agentKey,
+    modelId: options.modelId ?? null,
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,
@@ -125,6 +134,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
   curriculumId: string | null,
   agentKey: string,
   fn: () => Promise<T>,
+  options: GenerateCallOptions = {},
 ): Promise<T> {
   const startedAt = Date.now();
 
@@ -137,6 +147,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
       curriculumId,
       op,
       agentKey,
+      modelId: options.modelId ?? null,
       durationMs: Date.now() - startedAt,
       success: false,
       errorMessage: err instanceof Error ? err.message : String(err),
@@ -152,6 +163,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
     curriculumId,
     op,
     agentKey,
+    modelId: options.modelId ?? null,
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,

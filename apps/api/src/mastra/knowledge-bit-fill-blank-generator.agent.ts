@@ -1,12 +1,11 @@
 import { Agent } from "@mastra/core/agent";
+import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicKnowledgeItemModel } from "./model.js";
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
-import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
-
-const FILL_BLANK_GENERATOR_MODEL = tierToModelId("cheap");
 
 const INSTRUCTIONS = [
   "You are a knowledge fisher. Given a single fact, you build a fill-in-the-blank sentence that",
@@ -53,7 +52,7 @@ export function createKnowledgeBitFillBlankGeneratorAgent(): Agent {
     id: "knowledge-bit-fill-blank-generator",
     name: "Knowledge Bit Fill-Blank Generator",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(FILL_BLANK_GENERATOR_MODEL, env.OPENROUTER_BASE_URL),
+    model: dynamicKnowledgeItemModel(env),
   });
 }
 
@@ -62,6 +61,8 @@ export async function runKnowledgeBitFillBlankGenerator(
 ): Promise<KnowledgeBitFillBlankGeneratorResult> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitFillBlankGenerator);
   const prompt = buildKnowledgeBitFillBlankGeneratorPrompt(bitBody);
+  const knowledgeItemModelId = await getKnowledgeItemModelId();
+  const requestContext = new RequestContext([["knowledgeItemModelId", knowledgeItemModelId]]);
 
   const result = await generateWithRetry(
     "knowledge_bit_fill_blank_generation",
@@ -70,7 +71,9 @@ export async function runKnowledgeBitFillBlankGenerator(
     () =>
       agent.generate(prompt, {
         structuredOutput: { schema: knowledgeBitFillBlankGeneratorResultSchema },
+        requestContext,
       }),
+    { modelId: knowledgeItemModelId },
   );
 
   const parsed = knowledgeBitFillBlankGeneratorResultSchema.safeParse(result.object);

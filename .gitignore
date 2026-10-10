@@ -30,3 +30,4 @@ apps/web/storybook.log
 
 # Pre-migration DB backups (contain real data)
 .planning/sub-subjects/*.dump
+.planning/model-switcher/*.dump

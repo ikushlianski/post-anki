@@ -1,12 +1,11 @@
 import { Agent } from "@mastra/core/agent";
+import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
 import { loadEnv } from "../shared/env.js";
-import { resolveAgentModel } from "./model.js";
+import { dynamicKnowledgeItemModel } from "./model.js";
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
-import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
-
-const BASIC_CARD_GENERATOR_MODEL = tierToModelId("cheap");
 
 const INSTRUCTIONS = [
   "You write one classic Anki basic card for plain recall of the single fact in <bit>. Other cards",
@@ -44,7 +43,7 @@ export function createKnowledgeBitBasicCardGeneratorAgent(): Agent {
     id: "knowledge-bit-basic-card-generator",
     name: "Knowledge Bit Basic Card Generator",
     instructions: INSTRUCTIONS,
-    model: resolveAgentModel(BASIC_CARD_GENERATOR_MODEL, env.OPENROUTER_BASE_URL),
+    model: dynamicKnowledgeItemModel(env),
   });
 }
 
@@ -53,6 +52,8 @@ export async function runKnowledgeBitBasicCardGenerator(
 ): Promise<KnowledgeBitBasicCardGeneratorResult> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitBasicCardGenerator);
   const prompt = buildKnowledgeBitBasicCardGeneratorPrompt(bitBody);
+  const knowledgeItemModelId = await getKnowledgeItemModelId();
+  const requestContext = new RequestContext([["knowledgeItemModelId", knowledgeItemModelId]]);
 
   const result = await generateWithRetry(
     "knowledge_bit_basic_card_generation",
@@ -61,7 +62,9 @@ export async function runKnowledgeBitBasicCardGenerator(
     () =>
       agent.generate(prompt, {
         structuredOutput: { schema: knowledgeBitBasicCardGeneratorResultSchema },
+        requestContext,
       }),
+    { modelId: knowledgeItemModelId },
   );
 
   const parsed = knowledgeBitBasicCardGeneratorResultSchema.safeParse(result.object);

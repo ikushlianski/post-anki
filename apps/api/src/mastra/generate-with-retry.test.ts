@@ -115,3 +115,77 @@ describe("recordGenerateCall", () => {
     );
   });
 });
+
+describe("generateWithRetry model recording", () => {
+  beforeEach(() => {
+    recordLlmCallEventMock.mockReset();
+  });
+
+  it("should record the pinned model id on a successful call", async () => {
+    await generateWithRetry("op", null, "agent", async () => ({ usage: {} }), {
+      modelId: "openrouter/openai/gpt-oss-20b",
+    });
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, modelId: "openrouter/openai/gpt-oss-20b" }),
+    );
+  });
+
+  it("should record the pinned model id when every retry fails", async () => {
+    await expect(
+      generateWithRetry(
+        "op",
+        null,
+        "agent",
+        async () => {
+          throw new Error("provider down");
+        },
+        { modelId: "openrouter/mistralai/mistral-nemo" },
+      ),
+    ).rejects.toThrow("provider down");
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, modelId: "openrouter/mistralai/mistral-nemo" }),
+    );
+  });
+
+  it("should record a null model id when no model is pinned", async () => {
+    await generateWithRetry("op", null, "agent", async () => ({ usage: {} }));
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, modelId: null }),
+    );
+  });
+});
+
+describe("recordGenerateCall model recording", () => {
+  beforeEach(() => {
+    recordLlmCallEventMock.mockReset();
+  });
+
+  it("should record the pinned model id when the call fails", async () => {
+    await expect(
+      recordGenerateCall(
+        "op",
+        null,
+        "agent",
+        async () => {
+          throw new Error("bad output");
+        },
+        { modelId: "openrouter/inclusionai/ling-3.0-flash-vl" },
+      ),
+    ).rejects.toThrow("bad output");
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, modelId: "openrouter/inclusionai/ling-3.0-flash-vl" }),
+    );
+  });
+
+  it("should record a null model id when no model is pinned", async () => {
+    await recordGenerateCall("op", null, "agent", async () => ({ usage: {} }));
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, modelId: null }),
+    );
+  });
+});

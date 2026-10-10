@@ -21,6 +21,7 @@ export interface LlmCallEventInput {
   curriculumId: string | null;
   op: string;
   agentKey: string;
+  modelId?: string | null;
   durationMs: number;
   success: boolean;
   errorMessage: string | null;
@@ -45,6 +46,7 @@ export async function recordLlmCallEvent(input: LlmCallEventInput): Promise<void
         curriculumId: input.curriculumId,
         op: input.op,
         agentKey: input.agentKey,
+        modelId: input.modelId ?? null,
         durationMs: input.durationMs,
         success: input.success,
         errorMessage: input.errorMessage,
