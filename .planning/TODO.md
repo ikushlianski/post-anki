@@ -16,7 +16,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
-- [ ] Keep saved subject order after reload: map sortOrder, resync sortable group
+- [x] Keep saved subject order after reload: map sortOrder, resync sortable group
 - [x] Dashboard search box for subjects using the server search
 - [x] Move subject page Rename and Delete into a three-dot menu
 - [x] Add knowledge button beside New material, scoped to that subject
@@ -25,6 +25,13 @@ updated: 2026-09-04
 - [x] Subject menu: Add sub-subject and Move under actions
 - [x] Drag subjects on the dashboard to change their order
 - [x] Search subjects by name with a server-side database query
+- [ ] Delete subject warns what curricula go and sub-subjects move up
+- [ ] Keep focus inside subject menus after each step and delete
+- [ ] Move under picker marks current parent, indents tree, filters
+- [ ] Subject page header menu: same delete warning and nesting actions
+- [ ] Expand parent and highlight new or moved subject
+- [ ] Drag hint, larger grips, keyboard and touch reorder on subject page
+- [ ] Search: result count, retry button, visible clear button
 
 ### Notes
 - Decided 2026-10-11: real nested subjects via parent link, not categories
