@@ -16,7 +16,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
-- [ ] Deleting a subject must move its sub-subjects up, not orphan them
+- [x] Deleting a subject must move its sub-subjects up, not orphan them
 - [x] Keep saved subject order after reload: map sortOrder, resync sortable group
 - [x] Dashboard search box for subjects using the server search
 - [x] Move subject page Rename and Delete into a three-dot menu
