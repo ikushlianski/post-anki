@@ -27,3 +27,6 @@ apps/desktop/src-tauri/target/
 # Storybook
 storybook-static/
 apps/web/storybook.log
+
+# Pre-migration DB backups (contain real data)
+.planning/sub-subjects/*.dump

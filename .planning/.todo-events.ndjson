@@ -102,3 +102,10 @@
 {"ts":"2026-10-10T23:03:15.010Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Search subjects by name with a server-side database query"}
 {"ts":"2026-10-10T23:06:48.661Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Search subjects by name with a server-side database query"}
 {"ts":"2026-10-10T23:08:47.928Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Fix single-item review batch serving the same item twice"}
+{"ts":"2026-10-10T23:13:29.698Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Script listing cheapest structured-output OpenRouter models with prices"}
+{"ts":"2026-10-10T23:14:49.620Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Settings switcher to pick the extraction model from five candidates"}
+{"ts":"2026-10-10T23:14:51.150Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Model candidates: deepseek-v4-flash, gpt-oss-20b, gpt-4o-mini, mistral-nemo, ling-3.0-flash"}
+{"ts":"2026-10-10T23:15:29.943Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Script listing cheapest structured-output OpenRouter models with prices"}
+{"ts":"2026-10-10T23:19:34.586Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Let pasted text and its items belong to a sub-subject"}
+{"ts":"2026-10-10T23:19:36.189Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Review cards scoped to one sub-subject, including its children"}
+{"ts":"2026-10-10T23:19:37.531Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Subject menu: Add sub-subject and Move under actions"}

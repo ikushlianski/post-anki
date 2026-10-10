@@ -16,9 +16,9 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
-- [ ] Review cards scoped to one sub-subject, including its children
-- [ ] Let pasted text and its items belong to a sub-subject
-- [ ] Subject menu: Add sub-subject and Move under actions
+- [x] Review cards scoped to one sub-subject, including its children
+- [x] Let pasted text and its items belong to a sub-subject
+- [x] Subject menu: Add sub-subject and Move under actions
 - [ ] Drag subjects on the dashboard to change their order
 - [x] Search subjects by name with a server-side database query
 
@@ -51,6 +51,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Settings switcher to pick the extraction model from five candidates
 - [ ] Fix single-item review batch serving the same item twice
 - [x] Show newly detected suggestions on the approval page without reload
 - [x] Split approval review item and panel files under 300 lines
@@ -90,9 +91,11 @@ updated: 2026-09-04
 - [ ] E2e: typed queue skips suspended and buried; timer finishes interrupted runs
 - [x] Review screen: keep grade focus, retry button, explained counts and done step
 - [x] Paste page: plain wording, saving state, labelled inputs and mode toggles
+- [x] Script listing cheapest structured-output OpenRouter models with prices
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
+- Model candidates: deepseek-v4-flash, gpt-oss-20b, gpt-4o-mini, mistral-nemo, ling-3.0-flash
 
 
 ## exam-prep-from-sources
