@@ -57,8 +57,8 @@ function mockRowRects() {
   })
 }
 
-function renderGroup(siblings: Subject[] = SIBLINGS, onOrderSaved = vi.fn()) {
-  render(
+function groupElement(siblings: Subject[], onOrderSaved = vi.fn()) {
+  return (
     <SortableSubjectGroup
       parentId={PARENT_ID}
       siblings={siblings}
@@ -80,8 +80,12 @@ function renderGroup(siblings: Subject[] = SIBLINGS, onOrderSaved = vi.fn()) {
           </button>
         </li>
       )}
-    />,
+    />
   )
+}
+
+function renderGroup(siblings: Subject[] = SIBLINGS, onOrderSaved = vi.fn()) {
+  render(groupElement(siblings, onOrderSaved))
 
   return onOrderSaved
 }
@@ -162,5 +166,39 @@ describe('SortableSubjectGroup', () => {
     expect(screen.getByRole('alert').textContent).toBe('Save failed')
     expect(renderedOrder()).toEqual(['row-sub-a', 'row-sub-b'])
     expect(onOrderSaved).not.toHaveBeenCalled()
+  })
+
+  it('should follow a new sibling order when the group re-renders with it', () => {
+    const { rerender } = render(groupElement(SIBLINGS))
+
+    rerender(groupElement([subject('sub-b', 'Beta'), subject('sub-a', 'Alpha')]))
+
+    expect(renderedOrder()).toEqual(['row-sub-b', 'row-sub-a'])
+  })
+
+  it('should keep the optimistic order while a save is pending', async () => {
+    const onOrderSaved = vi.fn()
+    vi.mocked(reorderSubjects).mockReturnValueOnce(new Promise(() => {}))
+    const { rerender } = render(groupElement(SIBLINGS, onOrderSaved))
+    const handle = screen.getByTestId('handle-sub-a')
+
+    handle.focus()
+    fireEvent.keyDown(handle, { code: 'Space', key: ' ' })
+    await settleAfterDrag()
+    fireEvent.keyDown(document.activeElement ?? handle, { code: 'ArrowDown', key: 'ArrowDown' })
+    await settleAfterDrag()
+    fireEvent.keyDown(document.activeElement ?? handle, { code: 'Space', key: ' ' })
+    await waitFor(() => {
+      expect(vi.mocked(reorderSubjects)).toHaveBeenCalledTimes(1)
+    })
+
+    rerender(
+      groupElement(
+        [{ ...subject('sub-a', 'Alpha'), sortOrder: 0 }, { ...subject('sub-b', 'Beta'), sortOrder: 1 }],
+        onOrderSaved,
+      ),
+    )
+
+    expect(renderedOrder()).toEqual(['row-sub-b', 'row-sub-a'])
   })
 })

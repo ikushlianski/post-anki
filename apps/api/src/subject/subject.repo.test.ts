@@ -8,6 +8,7 @@ type SubjectRow = {
   kind: string;
   modelTier: string | null;
   parentId: string | null;
+  sortOrder: number | null;
 };
 
 const state = vi.hoisted(() => ({
@@ -55,7 +56,7 @@ vi.mock("../db/client.js", () => {
   return { getDb: () => chain };
 });
 
-const { updateSubject } = await import("./subject.repo.js");
+const { getSubject, updateSubject } = await import("./subject.repo.js");
 
 function makeRow(overrides: Partial<SubjectRow> = {}): SubjectRow {
   return {
@@ -66,9 +67,33 @@ function makeRow(overrides: Partial<SubjectRow> = {}): SubjectRow {
     kind: "architecture-mentor",
     modelTier: null,
     parentId: null,
+    sortOrder: null,
     ...overrides,
   };
 }
+
+describe("getSubject", () => {
+  beforeEach(() => {
+    state.selectRows = [];
+    state.mode = "select";
+  });
+
+  it("should expose the stored sort order so the dashboard keeps sibling order", async () => {
+    state.selectRows = [makeRow({ sortOrder: 3 })];
+
+    const subject = await getSubject("sub_1");
+
+    expect(subject?.sortOrder).toBe(3);
+  });
+
+  it("should report a null sort order for a subject that was never reordered", async () => {
+    state.selectRows = [makeRow({ sortOrder: null })];
+
+    const subject = await getSubject("sub_1");
+
+    expect(subject?.sortOrder).toBeNull();
+  });
+});
 
 describe("updateSubject", () => {
   beforeEach(() => {

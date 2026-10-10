@@ -44,14 +44,29 @@ export function siblingSetKey(siblings: Subject[]): string {
     .join('|')
 }
 
+// Changes whenever the incoming order or any sort_order changes, so the group can re-sync.
+function siblingOrderKey(siblings: Subject[]): string {
+  return siblings.map((subject) => `${subject.id}:${subject.sortOrder ?? ''}`).join('|')
+}
+
 export function SortableSubjectGroup({
   parentId,
   siblings,
   renderRow,
   onOrderSaved,
 }: SortableSubjectGroupProps) {
+  const orderKey = siblingOrderKey(siblings)
   const [localOrder, setLocalOrder] = useState<string[]>(() => siblings.map((s) => s.id))
+  const [syncedKey, setSyncedKey] = useState(orderKey)
+  const [isBusy, setIsBusy] = useState(false)
   const [reorderError, setReorderError] = useState<string | null>(null)
+
+  // Adopt incoming order changes, but not during a drag or a pending save: that would
+  // overwrite the optimistic order. A change deferred this way applies once the group is idle.
+  if (orderKey !== syncedKey && !isBusy) {
+    setSyncedKey(orderKey)
+    setLocalOrder(siblings.map((subject) => subject.id))
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -69,17 +84,23 @@ export function SortableSubjectGroup({
     return subject ? [subject] : []
   })
 
+  function handleDragStart() {
+    setIsBusy(true)
+  }
+
+  function handleDragCancel() {
+    setIsBusy(false)
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
-
-    if (!over) {
-      return
-    }
-
     const currentOrder = localOrder
-    const nextOrder = reorderAfterDrag(currentOrder, String(active.id), String(over.id))
+    const nextOrder = over
+      ? reorderAfterDrag(currentOrder, String(active.id), String(over.id))
+      : currentOrder
 
     if (nextOrder === currentOrder) {
+      setIsBusy(false)
       return
     }
 
@@ -92,12 +113,21 @@ export function SortableSubjectGroup({
     } catch (error) {
       setLocalOrder(currentOrder)
       setReorderError(error instanceof Error ? error.message : 'Failed to reorder subjects')
+    } finally {
+      setIsBusy(false)
     }
   }
 
   return (
     <div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        id={`subject-sortable-group-${parentId ?? 'root'}`}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragCancel={handleDragCancel}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={localOrder} strategy={verticalListSortingStrategy}>
           <ul className="space-y-2">
             {ordered.map((subject) => (

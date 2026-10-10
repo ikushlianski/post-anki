@@ -32,6 +32,7 @@ function toSubject(r: typeof subjects.$inferSelect): Subject {
     kind: r.kind as Subject["kind"],
     modelTier: (r.modelTier as ModelTier | null) ?? null,
     parentId: r.parentId ?? null,
+    sortOrder: r.sortOrder ?? null,
   };
 }
 
