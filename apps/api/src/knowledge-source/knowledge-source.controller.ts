@@ -2,6 +2,8 @@ import type http from "node:http";
 import { z } from "zod";
 import { convert } from "html-to-text";
 import { readJsonBody, sendJson } from "../shared/http.js";
+import { log } from "../shared/log.js";
+import { kickKnowledgeBitPipeline } from "../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
 import {
   insertKnowledgeSource,
@@ -12,6 +14,10 @@ import {
 const singleTextInput = z.object({ text: z.string().max(50_000) });
 const batchTextInput = z.object({ texts: z.array(z.string().max(50_000)).min(1) });
 const urlInput = z.object({ url: z.string().url() }).strict();
+
+function kickPipelineInBackground(): void {
+  void kickKnowledgeBitPipeline().catch((err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"));
+}
 
 const URL_FETCH_TIMEOUT_MS = 8_000;
 const MAX_URL_SOURCE_CHARS = 50_000;
@@ -49,6 +55,7 @@ export async function handleCreateKnowledgeSource(
     }
 
     sendJson(res, 201, await insertKnowledgeSource(extractedText));
+    kickPipelineInBackground();
     return;
   }
 
@@ -78,6 +85,7 @@ export async function handleCreateKnowledgeSource(
     }
 
     sendJson(res, 201, await insertKnowledgeSources(texts));
+    kickPipelineInBackground();
     return;
   }
 
@@ -103,4 +111,5 @@ export async function handleCreateKnowledgeSource(
   }
 
   sendJson(res, 201, await insertKnowledgeSource(text));
+  kickPipelineInBackground();
 }

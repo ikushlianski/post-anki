@@ -12,6 +12,12 @@ vi.mock("./knowledge-source.repo.js", () => ({
   MAX_SOURCES_PER_BATCH_ADD: 100,
 }));
 
+vi.mock("../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js", () => ({
+  kickKnowledgeBitPipeline: () => Promise.resolve(),
+}));
+
+vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), info: vi.fn() } }));
+
 vi.mock("../shared/outbound-fetch.js", async () => {
   const actual = await vi.importActual<typeof import("../shared/outbound-fetch.js")>(
     "../shared/outbound-fetch.js",
