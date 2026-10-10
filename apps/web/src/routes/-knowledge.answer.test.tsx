@@ -4,11 +4,26 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
+const searchState = vi.hoisted(() => ({ current: { tagId: undefined } as { tagId?: string } }))
+
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (config: { component: () => ReactNode }) => ({
-    useSearch: () => ({ tagId: undefined }),
+    useSearch: () => searchState.current,
     component: config.component,
   }),
+  Link: ({
+    children,
+    to,
+    search,
+    ...rest
+  }: { children: ReactNode; to?: string; search?: Record<string, unknown> } & Record<
+    string,
+    unknown
+  >) => (
+    <a href="#" data-to={to} data-search={search ? JSON.stringify(search) : undefined} {...rest}>
+      {children}
+    </a>
+  ),
 }))
 
 vi.mock('../knowledge-bit/knowledge-answer.api')
@@ -35,6 +50,7 @@ function renderWithClient(ui: ReactNode) {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  searchState.current = { tagId: undefined }
 })
 
 describe('AnswerScreen', () => {
@@ -164,5 +180,17 @@ describe('AnswerScreen', () => {
 
     expect(screen.queryByTestId('knowledge-bit-chat-panel')).toBeFalsy()
     expect(screen.getByTestId('knowledge-bit-chat-open')).toBeTruthy()
+  })
+
+  it('keeps the learner on the same tag when switching to Anki review', async () => {
+    searchState.current = { tagId: 'tag-7' }
+    mockedGetNextQuestionVariants.mockResolvedValue([])
+
+    renderWithClient(<AnswerScreen />)
+
+    const link = await screen.findByTestId('answer-screen-switch-to-anki')
+
+    expect(link.getAttribute('data-to')).toBe('/knowledge/review')
+    expect(JSON.parse(link.getAttribute('data-search') ?? '{}')).toEqual({ tagId: 'tag-7' })
   })
 })

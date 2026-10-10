@@ -35,6 +35,7 @@ import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as LearningPathsPathIdRouteImport } from './routes/learning-paths_.$pathId'
+import { Route as KnowledgeReviewRouteImport } from './routes/knowledge.review'
 import { Route as KnowledgeAnswerRouteImport } from './routes/knowledge.answer'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as CardsTopicIdRouteImport } from './routes/cards.$topicId'
@@ -180,6 +181,11 @@ const LearningPathsPathIdRoute = LearningPathsPathIdRouteImport.update({
   path: '/learning-paths/$pathId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KnowledgeReviewRoute = KnowledgeReviewRouteImport.update({
+  id: '/knowledge/review',
+  path: '/knowledge/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KnowledgeAnswerRoute = KnowledgeAnswerRouteImport.update({
   id: '/knowledge/answer',
   path: '/knowledge/answer',
@@ -283,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
+  '/knowledge/review': typeof KnowledgeReviewRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -325,6 +332,7 @@ export interface FileRoutesByTo {
   '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
+  '/knowledge/review': typeof KnowledgeReviewRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
+  '/knowledge/review': typeof KnowledgeReviewRoute
   '/learning-paths_/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -412,6 +421,7 @@ export interface FileRouteTypes {
     | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
+    | '/knowledge/review'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -454,6 +464,7 @@ export interface FileRouteTypes {
     | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
+    | '/knowledge/review'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -496,6 +507,7 @@ export interface FileRouteTypes {
     | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
+    | '/knowledge/review'
     | '/learning-paths_/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -539,6 +551,7 @@ export interface RootRouteChildren {
   CardsTopicIdRoute: typeof CardsTopicIdRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   KnowledgeAnswerRoute: typeof KnowledgeAnswerRoute
+  KnowledgeReviewRoute: typeof KnowledgeReviewRoute
   LearningPathsPathIdRoute: typeof LearningPathsPathIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
   PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
@@ -742,6 +755,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearningPathsPathIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/knowledge/review': {
+      id: '/knowledge/review'
+      path: '/knowledge/review'
+      fullPath: '/knowledge/review'
+      preLoaderRoute: typeof KnowledgeReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/knowledge/answer': {
       id: '/knowledge/answer'
       path: '/knowledge/answer'
@@ -867,6 +887,7 @@ const rootRouteChildren: RootRouteChildren = {
   CardsTopicIdRoute: CardsTopicIdRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   KnowledgeAnswerRoute: KnowledgeAnswerRoute,
+  KnowledgeReviewRoute: KnowledgeReviewRoute,
   LearningPathsPathIdRoute: LearningPathsPathIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
   PracticeSubjectIdRoute: PracticeSubjectIdRoute,

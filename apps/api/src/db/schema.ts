@@ -1234,6 +1234,35 @@ export const knowledgeBitSchedules = pgTable("knowledge_bit_schedules", {
   reviewCount: integer("review_count").notNull().default(0),
 });
 
+export interface KnowledgeBitScheduleSnapshot {
+  easeFactor: number;
+  intervalDays: number;
+  dueAt: string;
+  lastReviewedAt: string | null;
+  reviewCount: number;
+}
+
+// One row per self-graded Anki review, append-only. prevSchedule is the schedule row as it was
+// before the grade (null for a new card), so undo and leech detection need no later migration.
+export const knowledgeBitReviews = pgTable(
+  "knowledge_bit_reviews",
+  {
+    id: text("id").primaryKey(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    variantId: text("variant_id").notNull(),
+    grade: text("grade").notNull(),
+    wasNew: boolean("was_new").notNull(),
+    durationMs: integer("duration_ms"),
+    prevSchedule: jsonb("prev_schedule").$type<KnowledgeBitScheduleSnapshot>(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("knowledge_bit_reviews_bit_reviewed_at_idx").on(table.knowledgeBitId, table.reviewedAt),
+    index("knowledge_bit_reviews_variant_idx").on(table.variantId),
+  ],
+);
+
 export const notionSyncItems = pgTable("notion_sync_items", {
   notionId: text("notion_id").primaryKey(),
   connector: text("connector").notNull(),

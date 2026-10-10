@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import type { Verdict } from "@post-anki/shared";
 import { knowledgeBitSchedules } from "../db/schema.js";
-import { withSubjectLock } from "../shared/merge-lock.js";
+import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
 
 const MIN_EASE_FACTOR = 1.3;
 const MAX_EASE_FACTOR = 3.0;
@@ -96,4 +96,60 @@ export async function reviewKnowledgeBitSchedule(
         },
       });
   });
+}
+
+export interface KnowledgeBitScheduleRow {
+  easeFactor: number;
+  intervalDays: number;
+  dueAt: Date;
+  lastReviewedAt: Date | null;
+  reviewCount: number;
+}
+
+// Reads the full schedule row inside the caller's transaction, so a grade can snapshot it first.
+export async function readKnowledgeBitScheduleInTx(
+  tx: Tx,
+  knowledgeBitId: string,
+): Promise<KnowledgeBitScheduleRow | null> {
+  const rows = await tx
+    .select({
+      easeFactor: knowledgeBitSchedules.easeFactor,
+      intervalDays: knowledgeBitSchedules.intervalDays,
+      dueAt: knowledgeBitSchedules.dueAt,
+      lastReviewedAt: knowledgeBitSchedules.lastReviewedAt,
+      reviewCount: knowledgeBitSchedules.reviewCount,
+    })
+    .from(knowledgeBitSchedules)
+    .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function upsertKnowledgeBitScheduleInTx(
+  tx: Tx,
+  knowledgeBitId: string,
+  next: ScheduleState & { dueAt: Date },
+  now: Date,
+): Promise<void> {
+  await tx
+    .insert(knowledgeBitSchedules)
+    .values({
+      knowledgeBitId,
+      easeFactor: next.easeFactor,
+      intervalDays: next.intervalDays,
+      dueAt: next.dueAt,
+      lastReviewedAt: now,
+      reviewCount: 1,
+    })
+    .onConflictDoUpdate({
+      target: knowledgeBitSchedules.knowledgeBitId,
+      set: {
+        easeFactor: next.easeFactor,
+        intervalDays: next.intervalDays,
+        dueAt: next.dueAt,
+        lastReviewedAt: now,
+        reviewCount: sql`${knowledgeBitSchedules.reviewCount} + 1`,
+      },
+    });
 }

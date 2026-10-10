@@ -115,7 +115,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   init?: { method?: string; body?: unknown },
 ): Promise<T> {

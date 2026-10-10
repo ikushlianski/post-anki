@@ -403,4 +403,15 @@ describe("resolveRoute", () => {
       });
     });
   });
+  describe("anki review routes", () => {
+    it("routes the review-card queue and the self-grade endpoint, and nothing lists reviews", () => {
+      expect(resolveRoute("GET", "/knowledge-bits/review-cards")?.name).toBe(
+        "listKnowledgeBitReviewCards",
+      );
+      expect(resolveRoute("POST", "/knowledge-bits/reviews")?.name).toBe(
+        "recordKnowledgeBitReview",
+      );
+      expect(resolveRoute("GET", "/knowledge-bits/reviews")).toBeNull();
+    });
+  });
 });

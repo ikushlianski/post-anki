@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -94,11 +94,21 @@ function AnswerScreen() {
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Answer knowledge bits</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          A knowledge fisher probing for the why behind what you've captured.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Answer knowledge bits</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            A knowledge fisher probing for the why behind what you've captured.
+          </p>
+        </div>
+        <Link
+          to="/knowledge/review"
+          search={{ tagId, topicId, knowledgeBitId }}
+          data-testid="answer-screen-switch-to-anki"
+          className="text-sm text-indigo-600 hover:underline"
+        >
+          Switch to Anki review
+        </Link>
       </header>
 
       {isLoading && <p data-testid="answer-screen-loading">Loading…</p>}

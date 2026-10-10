@@ -63,6 +63,16 @@ export const ROUTES: RouteDef[] = [
     name: "listPendingKnowledgeBitsForReview",
   },
   {
+    method: "GET",
+    pattern: "/knowledge-bits/review-cards",
+    name: "listKnowledgeBitReviewCards",
+  },
+  {
+    method: "POST",
+    pattern: "/knowledge-bits/reviews",
+    name: "recordKnowledgeBitReview",
+  },
+  {
     method: "PATCH",
     pattern: /^\/knowledge-bits\/([^/]+)\/placement-suggestion$/,
     name: "resolvePlacementSuggestion",

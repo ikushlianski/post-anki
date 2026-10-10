@@ -26,6 +26,10 @@ import {
 import { handleGradeKnowledgeBitVariantAnswer } from "./knowledge-bit/grade-knowledge-bit-variant-answer.controller.js";
 import { handleListNextKnowledgeBitQuestionVariants } from "./knowledge-bit/list-next-knowledge-bit-question-variants.controller.js";
 import {
+  handleListKnowledgeBitReviewCards,
+  handleRecordKnowledgeBitReview,
+} from "./knowledge-bit/knowledge-bit-review.controller.js";
+import {
   handleApproveKnowledgeBit,
   handleEditKnowledgeBitQuestionVariant,
   handleListPendingKnowledgeBitsForReview,
@@ -408,6 +412,10 @@ async function route(
       return handleGradeKnowledgeBitVariantAnswer(req, res, id);
     case "listNextKnowledgeBitQuestionVariants":
       return handleListNextKnowledgeBitQuestionVariants(res, url.search);
+    case "listKnowledgeBitReviewCards":
+      return handleListKnowledgeBitReviewCards(res, url.search);
+    case "recordKnowledgeBitReview":
+      return handleRecordKnowledgeBitReview(req, res);
     case "listPendingKnowledgeBitsForReview":
       return handleListPendingKnowledgeBitsForReview(res);
     case "approveKnowledgeBit":

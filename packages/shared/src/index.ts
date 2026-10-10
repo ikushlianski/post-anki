@@ -59,3 +59,4 @@ export * from "./archetype";
 export * from "./subject-category";
 export * from "./search";
 export * from "./notion-connector";
+export * from "./knowledge-bit-review";

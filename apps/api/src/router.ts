@@ -20,6 +20,8 @@ export type RouteName =
   | "resolvePlacementSuggestion"
   | "gradeKnowledgeBitVariantAnswer"
   | "listNextKnowledgeBitQuestionVariants"
+  | "listKnowledgeBitReviewCards"
+  | "recordKnowledgeBitReview"
   | "listPendingKnowledgeBitsForReview"
   | "approveKnowledgeBit"
   | "rejectKnowledgeBit"
