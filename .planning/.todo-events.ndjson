@@ -73,3 +73,11 @@
 {"ts":"2026-10-10T21:30:09.594Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Explain approve, and that questions take minutes, on paste"}
 {"ts":"2026-10-10T21:31:18.657Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"prose-knowledge-fisher","itemText":"Finish Notion-database ingestion (stuck, see accept-notion-source/todo.md)"}
 {"ts":"2026-10-10T21:31:38.140Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Stop a retried grade save from grading the card twice"}
+{"ts":"2026-10-10T21:33:46.403Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Add aria-labels with interval to grade buttons"}
+{"ts":"2026-10-10T21:33:46.668Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Label Bury and Suspend in words; move below answer"}
+{"ts":"2026-10-10T21:33:46.929Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Fix Done for today showing when nothing was reviewed"}
+{"ts":"2026-10-10T21:34:12.917Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Rename approval page so Review means cards only"}
+{"ts":"2026-10-10T21:34:13.170Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Reorder nav: Add, Approve, Review"}
+{"ts":"2026-10-10T21:34:13.407Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Stop checking-automatically text after polling gives up"}
+{"ts":"2026-10-10T21:34:13.647Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Show per-row error when approve or reject fails"}
+{"ts":"2026-10-10T21:34:13.892Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Explain approve, and that questions take minutes, on paste"}
