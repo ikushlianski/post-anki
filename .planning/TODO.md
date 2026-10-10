@@ -19,6 +19,8 @@ updated: 2026-09-04
 - [ ] Review cards scoped to one sub-subject, including its children
 - [ ] Let pasted text and its items belong to a sub-subject
 - [ ] Subject menu: Add sub-subject and Move under actions
+- [ ] Drag subjects on the dashboard to change their order
+- [x] Search subjects by name with a server-side database query
 
 ### Notes
 - Decided 2026-10-11: real nested subjects via parent link, not categories
@@ -49,6 +51,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Fix single-item review batch serving the same item twice
 - [x] Show newly detected suggestions on the approval page without reload
 - [x] Split approval review item and panel files under 300 lines
 - [x] Explain approve, and that questions take minutes, on paste

@@ -98,3 +98,7 @@
 {"ts":"2026-10-10T22:58:50.257Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Paste page: plain wording, saving state, labelled inputs and mode toggles"}
 {"ts":"2026-10-10T22:59:54.558Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Subject menu: Add sub-subject and Move under actions"}
 {"ts":"2026-10-10T22:59:55.696Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Decided 2026-10-11: real nested subjects via parent link, not categories"}
+{"ts":"2026-10-10T23:03:13.855Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Drag subjects on the dashboard to change their order"}
+{"ts":"2026-10-10T23:03:15.010Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Search subjects by name with a server-side database query"}
+{"ts":"2026-10-10T23:06:48.661Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Search subjects by name with a server-side database query"}
+{"ts":"2026-10-10T23:08:47.928Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Fix single-item review batch serving the same item twice"}
