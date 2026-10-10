@@ -131,3 +131,6 @@
 {"ts":"2026-10-10T23:40:22.147Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Drag hint, larger grips, keyboard and touch reorder on subject page"}
 {"ts":"2026-10-10T23:40:22.196Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Search: result count, retry button, visible clear button"}
 {"ts":"2026-10-10T23:40:45.811Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Keep saved subject order after reload: map sortOrder, resync sortable group"}
+{"ts":"2026-10-10T23:45:37.331Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Expand parent and highlight new or moved subject"}
+{"ts":"2026-10-10T23:45:37.377Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Drag hint, larger grips, keyboard and touch reorder on subject page"}
+{"ts":"2026-10-10T23:45:37.422Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Search: result count, retry button, visible clear button"}

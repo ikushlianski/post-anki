@@ -29,9 +29,9 @@ updated: 2026-09-04
 - [ ] Keep focus inside subject menus after each step and delete
 - [ ] Move under picker marks current parent, indents tree, filters
 - [ ] Subject page header menu: same delete warning and nesting actions
-- [ ] Expand parent and highlight new or moved subject
-- [ ] Drag hint, larger grips, keyboard and touch reorder on subject page
-- [ ] Search: result count, retry button, visible clear button
+- [x] Expand parent and highlight new or moved subject
+- [x] Drag hint, larger grips, keyboard and touch reorder on subject page
+- [x] Search: result count, retry button, visible clear button
 
 ### Notes
 - Decided 2026-10-11: real nested subjects via parent link, not categories
