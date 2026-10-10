@@ -40,7 +40,7 @@ updated: 2026-09-04
 - [ ] Fix Done for today showing when nothing was reviewed
 - [ ] Label Bury and Suspend in words; move below answer
 - [ ] Add aria-labels with interval to grade buttons
-- [ ] Stop a retried grade save from grading the card twice
+- [x] Stop a retried grade save from grading the card twice
 - [x] Split the review queue repo file under 300 lines
 - [x] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
 - [x] Serve only due or never-reviewed cards in the unscoped review queue
