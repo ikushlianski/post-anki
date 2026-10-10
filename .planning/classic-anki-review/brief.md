@@ -27,7 +27,7 @@ schedule. The typed-answer LLM-graded mode at /knowledge/answer stays as a separ
   schedule row or due_at <= now. Anki order: learning/relearning first, then review due
   (due_at asc), then new (created_at asc) capped by the remaining daily new limit (20).
   One card per bit per batch, with variant preference basic > fill_in_the_blank > wh_question.
-  Scoped queues (tagId/topicId/knowledgeBitId) keep today's behaviour.
+  Scoped queues (tagId/topicId/knowledgeBitId/subjectId) keep today's filters but also serve one card per bit.
 - After-paste trigger: in-process fire-and-forget kick from knowledge-source.controller after
   a successful insert. It runs detect, then the wh, fill-blank and basic generation passes,
   coalesced by an in-flight flag. This follows the existing `void x().catch(log)` pattern in

@@ -16,6 +16,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
+- [x] Add knowledge button beside New material, scoped to that subject
 - [x] Review cards scoped to one sub-subject, including its children
 - [x] Let pasted text and its items belong to a sub-subject
 - [x] Subject menu: Add sub-subject and Move under actions
@@ -52,7 +53,7 @@ updated: 2026-09-04
 
 ### Coding tasks
 - [ ] Settings switcher to pick the extraction model from five candidates
-- [ ] Fix single-item review batch serving the same item twice
+- [x] Fix single-item review batch serving the same item twice
 - [x] Show newly detected suggestions on the approval page without reload
 - [x] Split approval review item and panel files under 300 lines
 - [x] Explain approve, and that questions take minutes, on paste
