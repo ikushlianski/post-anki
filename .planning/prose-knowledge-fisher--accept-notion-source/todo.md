@@ -7,12 +7,12 @@
 - None open.
 
 ## Coding tasks
-- [ ] Make the concurrent-dedupe migration test call the repo's own insert, not raw SQL
-- [ ] Add a test pinning Unauthorized to a 500, not 400
-- [ ] Rewrite the truncation test to use multiple pages and assert the query call count
-- [ ] Validate dataSourceId shape before calling Notion so malformed ids get a clean 400
-- [ ] Remove Unauthorized from the bad-dataSourceId allowlist, it masks token failures as 400
-- [ ] Let a caller resume past the 500-row cap instead of re-reading the same oldest rows forever
+- [x] Make the concurrent-dedupe migration test call the repo's own insert, not raw SQL
+- [x] Add a test pinning Unauthorized to a 500, not 400
+- [x] Rewrite the truncation test to use multiple pages and assert the query call count
+- [x] Validate dataSourceId shape before calling Notion so malformed ids get a clean 400
+- [x] Remove Unauthorized from the bad-dataSourceId allowlist, it masks token failures as 400
+- [x] Let a caller resume past the 500-row cap instead of re-reading the same oldest rows forever
 - [x] Add a test proving a real Notion API error maps to 500, not 400
 - [x] Only map real bad-dataSourceId Notion errors to 400, let genuine outages/bugs surface as 500
 - [x] Tell the caller when an import was truncated at the row cap, not silently drop rows

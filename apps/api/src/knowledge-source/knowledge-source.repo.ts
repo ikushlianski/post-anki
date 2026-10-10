@@ -1,4 +1,4 @@
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 
@@ -54,6 +54,7 @@ export const MAX_ROWS_PER_IMPORT = 500;
 export async function insertKnowledgeSourcesFromNotion(
   items: { id: string; text: string }[],
   dataSourceId: string,
+  db: DbExecutor = getDb(),
 ): Promise<KnowledgeSource[]> {
   if (items.length === 0) {
     return [];
@@ -72,7 +73,7 @@ export async function insertKnowledgeSourcesFromNotion(
 
   // notionPageId is unique, so re-importing the same database skips rows
   // already pulled in by an earlier call instead of duplicating them.
-  const inserted = await getDb()
+  const inserted = await db
     .insert(knowledgeSources)
     .values(rows)
     .onConflictDoNothing({ target: knowledgeSources.notionPageId })
