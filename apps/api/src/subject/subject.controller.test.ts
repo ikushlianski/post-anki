@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import type http from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Subject } from "@post-anki/shared";
@@ -7,12 +8,13 @@ vi.mock("./subject.repo.js", () => ({
   deleteSubject: vi.fn(),
   listSubjects: vi.fn(),
   mergeSubjects: vi.fn(),
+  reorderSubjects: vi.fn(),
   searchSubjectsByText: vi.fn(),
   updateSubject: vi.fn(),
 }));
 
-const { listSubjects, searchSubjectsByText } = await import("./subject.repo.js");
-const { handleListSubjects } = await import("./subject.controller.js");
+const { listSubjects, reorderSubjects, searchSubjectsByText } = await import("./subject.repo.js");
+const { handleListSubjects, handleReorderSubjects } = await import("./subject.controller.js");
 
 const linearAlgebra: Subject = {
   id: "sub_1",
@@ -98,5 +100,36 @@ describe("handleListSubjects", () => {
     expect(searchSubjectsByText).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(400);
     expect(res.body).toMatchObject({ error: "invalid_input" });
+  });
+});
+
+function jsonRequest(body: unknown): http.IncomingMessage {
+  return Readable.from([JSON.stringify(body)]) as unknown as http.IncomingMessage;
+}
+
+describe("handleReorderSubjects", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should reject a body without an ordered id list with a 400 and not reorder", async () => {
+    const res = fakeRes();
+
+    await handleReorderSubjects(jsonRequest({ parentId: null }), res);
+
+    expect(reorderSubjects).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({ error: "invalid_input" });
+  });
+
+  it("should map an id set that does not match the sibling group to a 400", async () => {
+    vi.mocked(reorderSubjects).mockResolvedValue({ error: "invalid_id_set" });
+    const res = fakeRes();
+
+    await handleReorderSubjects(jsonRequest({ parentId: "sub_1", orderedIds: ["a"] }), res);
+
+    expect(reorderSubjects).toHaveBeenCalledWith("sub_1", ["a"]);
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toEqual({ error: "invalid_id_set" });
   });
 });

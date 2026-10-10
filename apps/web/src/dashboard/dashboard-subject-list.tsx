@@ -1,7 +1,11 @@
 import { Link } from '@tanstack/react-router'
+import { GripVertical } from 'lucide-react'
 
+import { compareSubjectSiblings } from '@post-anki/core'
 import type { Curriculum, Subject } from '../curriculum/model'
 import { SubjectRowMenu } from './subject-row-menu'
+import { siblingSetKey, SortableSubjectGroup } from './sortable-subject-group'
+import type { SortableRowHandle } from './sortable-subject-group'
 import { useExpandedSubjects } from './subject-expansion'
 import type { ExpandedSubjects } from './subject-expansion'
 
@@ -12,6 +16,7 @@ export interface DashboardSubjectListProps {
   onDeleteSubject: (subjectId: string) => Promise<boolean>
   onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
   onMoveSubject: (subjectId: string, parentId: string | null) => Promise<boolean>
+  onSubjectOrderSaved?: () => void
 }
 
 export interface SubjectTreeNode {
@@ -35,7 +40,7 @@ export function buildSubjectTree(subjects: Subject[]): SubjectTreeNode[] {
   }
 
   for (const group of childrenOf.values()) {
-    group.sort((a, b) => a.name.localeCompare(b.name))
+    group.sort(compareSubjectSiblings)
   }
 
   const placed = new Set<string>()
@@ -68,6 +73,7 @@ interface ListContext {
   onDeleteSubject: DashboardSubjectListProps['onDeleteSubject']
   onCreateSubSubject: DashboardSubjectListProps['onCreateSubSubject']
   onMoveSubject: DashboardSubjectListProps['onMoveSubject']
+  onOrderSaved?: () => void
 }
 
 export function DashboardSubjectList({
@@ -77,6 +83,7 @@ export function DashboardSubjectList({
   onDeleteSubject,
   onCreateSubSubject,
   onMoveSubject,
+  onSubjectOrderSaved,
 }: DashboardSubjectListProps) {
   const { expanded, toggle } = useExpandedSubjects()
 
@@ -102,14 +109,40 @@ export function DashboardSubjectList({
     onDeleteSubject,
     onCreateSubSubject,
     onMoveSubject,
+    onOrderSaved: onSubjectOrderSaved,
   }
 
+  return <SubjectSiblingGroup nodes={buildSubjectTree(subjects)} parentId={null} depth={0} context={context} />
+}
+
+function SubjectSiblingGroup({
+  nodes,
+  parentId,
+  depth,
+  context,
+}: {
+  nodes: SubjectTreeNode[]
+  parentId: string | null
+  depth: number
+  context: ListContext
+}) {
+  const nodeById = new Map(nodes.map((node) => [node.subject.id, node]))
+  const siblings = nodes.map((node) => node.subject)
+
   return (
-    <ul className="space-y-2">
-      {buildSubjectTree(subjects).map((node) => (
-        <SubjectTreeItem key={node.subject.id} node={node} depth={0} context={context} />
-      ))}
-    </ul>
+    <SortableSubjectGroup
+      key={siblingSetKey(siblings)}
+      parentId={parentId}
+      siblings={siblings}
+      onOrderSaved={context.onOrderSaved}
+      renderRow={(subject, handle) => {
+        const node = nodeById.get(subject.id)
+
+        return node ? (
+          <SubjectTreeItem node={node} depth={depth} context={context} handle={handle} />
+        ) : null
+      }}
+    />
   )
 }
 
@@ -121,10 +154,12 @@ function SubjectTreeItem({
   node,
   depth,
   context,
+  handle,
 }: {
   node: SubjectTreeNode
   depth: number
   context: ListContext
+  handle: SortableRowHandle
 }) {
   const { subject, children } = node
   const hasChildren = children.length > 0
@@ -133,8 +168,24 @@ function SubjectTreeItem({
   const subjectCurricula = context.curricula.filter((c) => c.subjectId === subject.id)
 
   return (
-    <li data-depth={depth}>
+    <li
+      ref={handle.rowRef}
+      style={handle.rowStyle}
+      data-depth={depth}
+      className={handle.isDragging ? 'opacity-60' : undefined}
+    >
       <div className="relative flex items-stretch rounded-lg border border-neutral-200 bg-white hover:border-neutral-400">
+        <button
+          type="button"
+          aria-label="Drag to reorder"
+          data-testid={`subject-drag-handle-${subject.id}`}
+          className="flex w-8 shrink-0 touch-none cursor-grab items-center justify-center rounded-l-lg text-neutral-400 hover:text-neutral-700 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          {...handle.attributes}
+          {...handle.listeners}
+        >
+          <GripVertical size={16} aria-hidden="true" />
+        </button>
+
         {hasChildren ? (
           <button
             type="button"
@@ -183,13 +234,16 @@ function SubjectTreeItem({
       </div>
 
       {hasChildren ? (
-        <ul id={childrenId} hidden={!isExpanded} className="mt-2 space-y-2 pl-6">
-          {isExpanded
-            ? children.map((child) => (
-                <SubjectTreeItem key={child.subject.id} node={child} depth={depth + 1} context={context} />
-              ))
-            : null}
-        </ul>
+        <div id={childrenId} hidden={!isExpanded} className="mt-2 pl-6">
+          {isExpanded ? (
+            <SubjectSiblingGroup
+              nodes={children}
+              parentId={subject.id}
+              depth={depth + 1}
+              context={context}
+            />
+          ) : null}
+        </div>
       ) : null}
     </li>
   )

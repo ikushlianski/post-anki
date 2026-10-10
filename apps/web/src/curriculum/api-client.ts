@@ -649,6 +649,13 @@ export async function updateSubjectParent(
   })
 }
 
+export async function reorderSubjects(input: be.ReorderSubjectsInput): Promise<{ reordered: number }> {
+  return request<{ reordered: number }>('/subjects/order', {
+    method: 'PATCH',
+    body: input,
+  })
+}
+
 export async function updateSubjectName(
   subjectId: string,
   name: string,

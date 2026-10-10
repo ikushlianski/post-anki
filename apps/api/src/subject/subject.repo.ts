@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type {
   CreateSubjectInput,
   MergeSubjectsResult,
@@ -164,6 +164,51 @@ export async function updateSubject(
   )[0];
 
   return { ok: true, subject: row ? toSubject(row) : null };
+}
+
+export type ReorderSubjectsError = "invalid_id_set" | "parent_not_found";
+
+// Rewrites sort_order to 0..n-1 for one sibling group. The sibling rows are locked
+// first, so concurrent reorders of the same group run one after another.
+export async function reorderSubjects(
+  parentId: string | null,
+  orderedIds: string[],
+): Promise<{ reordered: number } | { error: ReorderSubjectsError }> {
+  return getDb().transaction(async (tx) => {
+    if (parentId !== null) {
+      const parent = await tx
+        .select({ id: subjects.id })
+        .from(subjects)
+        .where(eq(subjects.id, parentId));
+
+      if (parent.length === 0) {
+        return { error: "parent_not_found" as const };
+      }
+    }
+
+    const siblings = await tx
+      .select({ id: subjects.id })
+      .from(subjects)
+      .where(parentId === null ? isNull(subjects.parentId) : eq(subjects.parentId, parentId))
+      .for("update");
+
+    const siblingIds = new Set(siblings.map((row) => row.id));
+    const payloadIds = new Set(orderedIds);
+
+    if (
+      payloadIds.size !== orderedIds.length ||
+      siblingIds.size !== payloadIds.size ||
+      !orderedIds.every((id) => siblingIds.has(id))
+    ) {
+      return { error: "invalid_id_set" as const };
+    }
+
+    for (const [index, id] of orderedIds.entries()) {
+      await tx.update(subjects).set({ sortOrder: index }).where(eq(subjects.id, id));
+    }
+
+    return { reordered: orderedIds.length };
+  });
 }
 
 export async function getSubjectModelTier(subjectId: string): Promise<ModelTier | null> {

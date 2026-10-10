@@ -86,3 +86,50 @@ export function buildSubjectPathLabel(subjectId: string, rows: SubjectHierarchyR
 
   return names.join(" › ");
 }
+
+export interface SubjectSiblingSortable {
+  name: string;
+  sortOrder?: number | null;
+}
+
+// Sibling order: explicit sort_order ascending, subjects without one last, then by name.
+export function compareSubjectSiblings(a: SubjectSiblingSortable, b: SubjectSiblingSortable): number {
+  const aOrder = a.sortOrder ?? null;
+  const bOrder = b.sortOrder ?? null;
+
+  if (aOrder !== bOrder) {
+    if (aOrder === null) {
+      return 1;
+    }
+
+    if (bOrder === null) {
+      return -1;
+    }
+
+    return aOrder - bOrder;
+  }
+
+  return a.name.localeCompare(b.name);
+}
+
+// Names of the subject's ancestors, root first. Empty for a root or an unknown id.
+export function listSubjectAncestorNames(subjectId: string, rows: SubjectHierarchyRow[]): string[] {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const names: string[] = [];
+  const visited = new Set<string>([subjectId]);
+  let cursor = byId.get(subjectId)?.parentId ?? null;
+
+  while (cursor !== null && !visited.has(cursor)) {
+    const row = byId.get(cursor);
+
+    if (!row) {
+      break;
+    }
+
+    visited.add(cursor);
+    names.unshift(row.name);
+    cursor = row.parentId;
+  }
+
+  return names;
+}

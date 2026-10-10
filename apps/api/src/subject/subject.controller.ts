@@ -2,6 +2,7 @@ import type http from "node:http";
 import {
   createSubjectInput,
   mergeSubjectsInput,
+  reorderSubjectsInput,
   subjectSearchQueryInput,
   updateSubjectInput,
 } from "@post-anki/shared";
@@ -12,6 +13,7 @@ import {
   getSubject,
   listSubjects,
   mergeSubjects,
+  reorderSubjects,
   searchSubjectsByText,
   updateSubject,
 } from "./subject.repo.js";
@@ -80,6 +82,27 @@ export async function handleUpdateSubject(
   }
 
   sendJson(res, 200, result.subject);
+}
+
+export async function handleReorderSubjects(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+): Promise<void> {
+  const body = await readJsonBody(req, reorderSubjectsInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await reorderSubjects(body.data.parentId, body.data.orderedIds);
+
+  if ("error" in result) {
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  sendJson(res, 200, result);
 }
 
 export async function handleDeleteSubject(

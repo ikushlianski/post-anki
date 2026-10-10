@@ -14,6 +14,7 @@ export const subjectSchema = z.object({
   kind: z.enum(['architecture-mentor', 'language-practice']).default('architecture-mentor'),
   modelTier: modelTierSchema.nullable(),
   parentId: z.string().nullable(),
+  sortOrder: z.number().nullable().optional(),
 })
 
 export type Subject = z.infer<typeof subjectSchema>

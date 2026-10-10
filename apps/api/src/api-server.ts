@@ -9,6 +9,7 @@ import {
   handleDeleteSubject,
   handleListSubjects,
   handleMergeSubjects,
+  handleReorderSubjects,
   handleUpdateSubject,
 } from "./subject/subject.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
@@ -460,6 +461,8 @@ async function route(
       return handleEditKnowledgeBitQuestionVariant(req, res, id);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
+    case "reorderSubjects":
+      return handleReorderSubjects(req, res);
     case "updateSubject":
       return handleUpdateSubject(req, res, id);
     case "mergeSubjects":

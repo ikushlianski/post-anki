@@ -33,6 +33,7 @@ export type RouteName =
   | "editKnowledgeBitQuestionVariant"
   | "deleteSubject"
   | "updateSubject"
+  | "reorderSubjects"
   | "mergeSubjects"
   | "listSubjectCategories"
   | "listAllSubjectCategories"

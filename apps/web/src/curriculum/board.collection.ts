@@ -25,6 +25,7 @@ interface SubjectRow {
   kind: string
   model_tier?: string | null
   parent_id?: string | null
+  sort_order?: number | null
 }
 
 interface CurriculumRow {
@@ -105,6 +106,7 @@ export function mapSubjectRow(row: SubjectRow): Subject {
     kind: row.kind as Subject['kind'],
     modelTier: (row.model_tier ?? null) as Subject['modelTier'],
     parentId: row.parent_id ?? null,
+    sortOrder: row.sort_order ?? undefined,
   }
 }
 

@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 
 import type { LearningPath, Streak, StudySessionListItem } from '@post-anki/shared'
 
@@ -12,6 +13,7 @@ import { StreakBanner } from '../curriculum/streak-banner'
 import { ContinueSessionCard } from '../home/continue-session-card'
 import { selectResumableSession } from '../home/select-resumable-session'
 import { DashboardSubjectList } from './dashboard-subject-list'
+import { DashboardSubjectSearch } from './dashboard-subject-search'
 
 export interface DashboardViewProps {
   subjects: Subject[]
@@ -60,6 +62,9 @@ export function DashboardView({
     }
   }
 
+  const router = useRouter()
+  const [isSearching, setIsSearching] = useState(false)
+
   const resumableSession = sessions.ok
     ? selectResumableSession(sessions.data, new Date())
     : null
@@ -74,6 +79,8 @@ export function DashboardView({
           deeper, or mark it Done.
         </p>
       </header>
+
+      <DashboardSubjectSearch subjects={subjects} onSearchingChange={setIsSearching} />
 
       {sessions.ok ? (
         <ContinueSessionCard session={resumableSession} namesById={namesById} />
@@ -122,18 +129,23 @@ export function DashboardView({
         <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
       </div>
 
-      <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        Your subjects
-      </h2>
+      {isSearching ? null : (
+        <>
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Your subjects
+          </h2>
 
-      <DashboardSubjectList
-        subjects={subjects}
-        curricula={curricula}
-        onRenameSubject={onRenameSubject}
-        onDeleteSubject={onDeleteSubject}
-        onCreateSubSubject={onCreateSubSubject}
-        onMoveSubject={onMoveSubject}
-      />
+          <DashboardSubjectList
+            subjects={subjects}
+            curricula={curricula}
+            onRenameSubject={onRenameSubject}
+            onDeleteSubject={onDeleteSubject}
+            onCreateSubSubject={onCreateSubSubject}
+            onMoveSubject={onMoveSubject}
+            onSubjectOrderSaved={() => void router.invalidate()}
+          />
+        </>
+      )}
     </main>
   )
 }

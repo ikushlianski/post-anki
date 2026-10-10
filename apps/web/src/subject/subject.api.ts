@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
-import { modelTierSchema } from '@post-anki/shared'
+import { modelTierSchema, reorderSubjectsInput, subjectSearchQueryInput } from '@post-anki/shared'
 import { createSubjectInput, mergeSubjectsInput } from '../curriculum/model'
 import type { CreateSubjectInput, MergeSubjectsInput } from '../curriculum/model'
 import * as api from '../curriculum/api-client'
@@ -36,6 +36,14 @@ const updateSubjectNameInput = z.object({
 export const updateSubjectName = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => updateSubjectNameInput.parse(data))
   .handler(({ data }) => api.updateSubjectName(data.subjectId, data.name))
+
+export const reorderSubjects = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => reorderSubjectsInput.parse(data))
+  .handler(({ data }) => api.reorderSubjects(data))
+
+export const searchSubjects = createServerFn({ method: 'GET' })
+  .inputValidator((query: string) => subjectSearchQueryInput.parse(query))
+  .handler(({ data }) => api.searchSubjects(data))
 
 export const deleteSubject = createServerFn({ method: 'POST' })
   .inputValidator((subjectId: string) => z.string().parse(subjectId))

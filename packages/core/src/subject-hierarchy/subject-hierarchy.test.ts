@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   buildSubjectPathLabel,
   collectSubjectSubtreeIds,
+  compareSubjectSiblings,
+  listSubjectAncestorNames,
   listValidMoveTargets,
   wouldCreateSubjectCycle,
   type SubjectHierarchyRow,
@@ -90,5 +92,42 @@ describe("buildSubjectPathLabel", () => {
 
   it("should return an empty label for an unknown id", () => {
     expect(buildSubjectPathLabel("missing", TREE)).toBe("");
+  });
+});
+
+describe("compareSubjectSiblings", () => {
+  it("should order by sort order, then put subjects without one last, then by name", () => {
+    const subjects = [
+      { name: "Zeta", sortOrder: null },
+      { name: "Beta", sortOrder: 1 },
+      { name: "Alpha", sortOrder: null },
+      { name: "Gamma", sortOrder: 0 },
+    ];
+
+    expect(subjects.sort(compareSubjectSiblings).map((s) => s.name)).toEqual([
+      "Gamma",
+      "Beta",
+      "Alpha",
+      "Zeta",
+    ]);
+  });
+});
+
+describe("listSubjectAncestorNames", () => {
+  it("should list ancestor names root first at depth three", () => {
+    expect(listSubjectAncestorNames("hooks", TREE)).toEqual(["Programming", "Web", "React"]);
+  });
+
+  it("should return an empty list for a root subject", () => {
+    expect(listSubjectAncestorNames("prog", TREE)).toEqual([]);
+  });
+
+  it("should terminate on a malformed cycle", () => {
+    const cyclic: SubjectHierarchyRow[] = [
+      { id: "a", name: "A", parentId: "b" },
+      { id: "b", name: "B", parentId: "a" },
+    ];
+
+    expect(listSubjectAncestorNames("a", cyclic)).toEqual(["B"]);
   });
 });

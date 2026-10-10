@@ -247,6 +247,14 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/nope")).toBeNull();
     });
 
+    it("resolves the literal reorder route before the subject id route", () => {
+      expect(resolveRoute("PATCH", "/subjects/order")?.name).toBe("reorderSubjects");
+      expect(resolveRoute("PATCH", "/subjects/abc")).toEqual({
+        name: "updateSubject",
+        params: { id: "abc" },
+      });
+    });
+
     it("returns null for a known path with the wrong method", () => {
       expect(resolveRoute("PUT", "/subjects")).toBeNull();
       expect(resolveRoute("GET", "/decide")).toBeNull();

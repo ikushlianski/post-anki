@@ -35,6 +35,13 @@ export const subjectSearchQueryInput = z.string().trim().min(1).max(100);
 
 export type SubjectSearchResponse = Subject[];
 
+export const reorderSubjectsInput = z.object({
+  parentId: z.string().nullable(),
+  orderedIds: z.array(z.string()),
+});
+
+export type ReorderSubjectsInput = z.infer<typeof reorderSubjectsInput>;
+
 export const mergeSubjectsInput = z.object({
   sourceSubjectId: z.string(),
 });
