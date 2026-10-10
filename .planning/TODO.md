@@ -16,6 +16,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
+- [x] Move subject page Rename and Delete into a three-dot menu
 - [x] Add knowledge button beside New material, scoped to that subject
 - [x] Review cards scoped to one sub-subject, including its children
 - [x] Let pasted text and its items belong to a sub-subject

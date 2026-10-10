@@ -112,3 +112,5 @@
 {"ts":"2026-10-10T23:22:27.886Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Fix single-item review batch serving the same item twice"}
 {"ts":"2026-10-10T23:24:04.096Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Add knowledge button beside New material, scoped to that subject"}
 {"ts":"2026-10-10T23:24:04.140Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Add knowledge button beside New material, scoped to that subject"}
+{"ts":"2026-10-10T23:25:45.477Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Move subject page Rename and Delete into a three-dot menu"}
+{"ts":"2026-10-10T23:25:45.522Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Move subject page Rename and Delete into a three-dot menu"}
