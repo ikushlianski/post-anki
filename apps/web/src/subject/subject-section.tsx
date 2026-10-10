@@ -25,7 +25,6 @@ import {
   renameCategory,
   reorderCurricula,
 } from '../curriculum/curriculum.api'
-import { deleteSubject } from './subject.api'
 import { ConfirmDelete, RenameButton } from '../curriculum/shape-controls'
 import { useHydrated } from '../shared/use-hydrated'
 import { reorderAfterDrag } from '../curriculum/curriculum-drag-order'
@@ -283,29 +282,6 @@ export function SubjectSection({
         </>
       )}
     </section>
-  )
-}
-
-export function DeleteSubjectButton({ subjectId }: { subjectId: string }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
-  const hydrated = useHydrated()
-
-  async function confirm() {
-    setBusy(true)
-    await deleteSubject({ data: subjectId })
-    setBusy(false)
-    await router.navigate({ to: '/' })
-  }
-
-  return (
-    <ConfirmDelete
-      busy={busy}
-      hydrated={hydrated}
-      label="Delete subject"
-      onConfirm={confirm}
-      testId="delete-subject"
-    />
   )
 }
 
