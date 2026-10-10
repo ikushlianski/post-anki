@@ -3,7 +3,7 @@ import { resolveModelTier, tierToModelId } from "./model-tier.js";
 
 describe("tierToModelId", () => {
   it("maps the cheap tier to the cheapest live DeepSeek OpenRouter model", () => {
-    expect(tierToModelId("cheap")).toBe("openrouter/deepseek/deepseek-v4-flash-latest");
+    expect(tierToModelId("cheap")).toBe("openrouter/deepseek/deepseek-v4-flash");
   });
 
   it("maps the balanced tier to the existing default, unchanged for anyone who opts up", () => {

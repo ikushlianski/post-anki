@@ -1,7 +1,7 @@
 import type { ModelTier } from "@post-anki/shared";
 
 const TIER_TO_MODEL_ID: Record<ModelTier, string> = {
-  cheap: "openrouter/deepseek/deepseek-v4-flash-latest",
+  cheap: "openrouter/deepseek/deepseek-v4-flash",
   balanced: "openrouter/openai/gpt-4o-mini",
   premium: "openrouter/deepseek/deepseek-v4-pro",
 };
