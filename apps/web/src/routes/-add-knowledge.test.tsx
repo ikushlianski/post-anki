@@ -332,6 +332,126 @@ describe('AddKnowledgeForm', () => {
       )
     })
   })
+
+  it('shows Saving… and disables submit while the request is in flight', async () => {
+    let resolveSave: (() => void) | undefined
+
+    mockedCreateKnowledgeSource.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = () => resolve(source('ks_1'))
+        }),
+    )
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-submit-button').textContent).toBe('Saving…')
+    })
+
+    expect(screen.getByTestId('knowledge-submit-button')).toHaveProperty('disabled', true)
+
+    resolveSave?.()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-submit-button').textContent).toBe('Add knowledge')
+    })
+  })
+
+  it('names the failed block by its position on screen when only some blocks are saved', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+    mockedCreateKnowledgeSourceFromUrl.mockRejectedValue(new Error('api POST /knowledge-sources → 400'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-1'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), {
+      target: { value: 'https://example.com/broken' },
+    })
+
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-error-message').textContent).toBe(
+        'Block 1 could not be added. Try again.',
+      )
+    })
+  })
+
+  it('names every failed block when several blocks fail together', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+    mockedCreateKnowledgeSourceFromUrl.mockRejectedValue(new Error('api POST /knowledge-sources → 400'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-1'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), {
+      target: { value: 'https://example.com/broken-one' },
+    })
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-2'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-2'), {
+      target: { value: 'https://example.com/broken-two' },
+    })
+
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-error-message').textContent).toBe(
+        'Blocks 1, 2 could not be added. Try again.',
+      )
+    })
+  })
+
+  it('marks the selected mode toggle with aria-pressed and moves it when the mode changes', () => {
+    render(<AddKnowledgeForm />)
+
+    expect(screen.getByTestId('knowledge-block-type-text-0').getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByTestId('knowledge-block-type-url-0').getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-0'))
+
+    expect(screen.getByTestId('knowledge-block-type-text-0').getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByTestId('knowledge-block-type-url-0').getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('gives every text and link input an accessible label that names its block', () => {
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.click(screen.getByTestId('knowledge-block-type-url-1'))
+
+    expect(screen.getByLabelText('Text to learn from, block 1')).toBe(
+      screen.getByTestId('knowledge-block-input-0'),
+    )
+    expect(screen.getByLabelText('Article link, block 2')).toBe(
+      screen.getByTestId('knowledge-block-input-1'),
+    )
+  })
+
+  it('names the block that each Remove button removes', () => {
+    render(<AddKnowledgeForm />)
+
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+
+    expect(screen.getByRole('button', { name: 'Remove block 2' })).toBe(
+      screen.getByTestId('knowledge-remove-block-button-1'),
+    )
+    expect(screen.getByRole('button', { name: 'Remove block 3' })).toBe(
+      screen.getByTestId('knowledge-remove-block-button-2'),
+    )
+  })
 })
 
 describe('Route (/add-knowledge)', () => {
@@ -345,6 +465,14 @@ describe('Route (/add-knowledge)', () => {
     render(<AddKnowledgePage />)
 
     expect(screen.getByTestId('knowledge-add-form')).toBeDefined()
+  })
+
+  it('explains in plain words that pasted text becomes suggestions to approve', () => {
+    render(<AddKnowledgePage />)
+
+    expect(
+      screen.getByText('Paste text and the app will suggest knowledge items for you to approve.'),
+    ).toBeDefined()
   })
 })
 

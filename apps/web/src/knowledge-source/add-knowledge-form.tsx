@@ -21,6 +21,22 @@ function emptyBlock(): Block {
   return { type: 'text', value: '' }
 }
 
+function modeButtonClass(selected: boolean) {
+  return selected
+    ? 'rounded-md bg-neutral-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50'
+    : 'rounded-md border border-neutral-300 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50'
+}
+
+function failedBlocksMessage(count: number): string {
+  if (count === 1) {
+    return 'Block 1 could not be added. Try again.'
+  }
+
+  const numbers = Array.from({ length: count }, (_, i) => i + 1).join(', ')
+
+  return `Blocks ${numbers} could not be added. Try again.`
+}
+
 export function AddKnowledgeForm() {
   const [blocks, setBlocks] = useState<Block[]>([emptyBlock()])
   const [busy, setBusy] = useState(false)
@@ -117,7 +133,7 @@ export function AddKnowledgeForm() {
     }
 
     if (failedIndices.size > 0) {
-      setError('Something went wrong adding this knowledge. Please try again.')
+      setError(failedBlocksMessage(failedIndices.size))
     }
 
     if (failedIndices.size === 0) {
@@ -136,27 +152,21 @@ export function AddKnowledgeForm() {
           <div className="flex items-center gap-3">
             <button
               type="button"
+              aria-pressed={block.type === 'text'}
               disabled={busy}
               onClick={() => updateBlockType(index, 'text')}
               data-testid={`knowledge-block-type-text-${index}`}
-              className={
-                block.type === 'text'
-                  ? 'text-sm font-medium text-neutral-900 disabled:opacity-50'
-                  : 'text-sm text-neutral-500 hover:text-neutral-900 disabled:opacity-50'
-              }
+              className={modeButtonClass(block.type === 'text')}
             >
               Paste text
             </button>
             <button
               type="button"
+              aria-pressed={block.type === 'url'}
               disabled={busy}
               onClick={() => updateBlockType(index, 'url')}
               data-testid={`knowledge-block-type-url-${index}`}
-              className={
-                block.type === 'url'
-                  ? 'text-sm font-medium text-neutral-900 disabled:opacity-50'
-                  : 'text-sm text-neutral-500 hover:text-neutral-900 disabled:opacity-50'
-              }
+              className={modeButtonClass(block.type === 'url')}
             >
               Add link
             </button>
@@ -164,6 +174,7 @@ export function AddKnowledgeForm() {
 
           {block.type === 'text' ? (
             <textarea
+              aria-label={`Text to learn from, block ${index + 1}`}
               value={block.value}
               disabled={busy}
               onChange={(event) => updateBlockValue(index, event.target.value)}
@@ -175,6 +186,7 @@ export function AddKnowledgeForm() {
           ) : (
             <input
               type="url"
+              aria-label={`Article link, block ${index + 1}`}
               value={block.value}
               disabled={busy}
               onChange={(event) => updateBlockValue(index, event.target.value)}
@@ -187,6 +199,7 @@ export function AddKnowledgeForm() {
           {index > 0 && (
             <button
               type="button"
+              aria-label={`Remove block ${index + 1}`}
               disabled={busy}
               onClick={() => removeBlock(index)}
               data-testid={`knowledge-remove-block-button-${index}`}
@@ -215,7 +228,7 @@ export function AddKnowledgeForm() {
           data-testid="knowledge-submit-button"
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          Add knowledge
+          {busy ? 'Saving…' : 'Add knowledge'}
         </button>
       </div>
 
