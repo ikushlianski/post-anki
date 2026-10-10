@@ -121,3 +121,5 @@
 {"ts":"2026-10-10T23:37:11.741Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: basic card retries, overlapping runs, injection and backstop job"}
 {"ts":"2026-10-10T23:37:11.792Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: session summary, mid-review edit, undo suspend or bury"}
 {"ts":"2026-10-10T23:37:11.841Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: typed queue skips suspended and buried; timer finishes interrupted runs"}
+{"ts":"2026-10-10T23:37:34.577Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Keep saved subject order after reload: map sortOrder, resync sortable group"}
+{"ts":"2026-10-10T23:38:18.199Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Settings switcher to pick the extraction model from five candidates"}

@@ -16,6 +16,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
+- [ ] Keep saved subject order after reload: map sortOrder, resync sortable group
 - [x] Dashboard search box for subjects using the server search
 - [x] Move subject page Rename and Delete into a three-dot menu
 - [x] Add knowledge button beside New material, scoped to that subject
@@ -54,7 +55,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
-- [ ] Settings switcher to pick the extraction model from five candidates
+- [x] Settings switcher to pick the extraction model from five candidates
 - [x] Fix single-item review batch serving the same item twice
 - [x] Show newly detected suggestions on the approval page without reload
 - [x] Split approval review item and panel files under 300 lines
