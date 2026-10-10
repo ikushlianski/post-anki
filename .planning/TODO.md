@@ -32,8 +32,16 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Explain approve, and that questions take minutes, on paste
+- [ ] Show per-row error when approve or reject fails
+- [ ] Stop checking-automatically text after polling gives up
+- [ ] Reorder nav: Add, Approve, Review
+- [ ] Rename approval page so Review means cards only
+- [ ] Fix Done for today showing when nothing was reviewed
+- [ ] Label Bury and Suspend in words; move below answer
+- [ ] Add aria-labels with interval to grade buttons
 - [ ] Stop a retried grade save from grading the card twice
-- [ ] Split the review queue repo file under 300 lines
+- [x] Split the review queue repo file under 300 lines
 - [x] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
 - [x] Serve only due or never-reviewed cards in the unscoped review queue
 - [x] Hide bit text above the question in Anki review mode

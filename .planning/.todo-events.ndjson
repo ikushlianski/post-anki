@@ -62,3 +62,12 @@
 {"ts":"2026-10-10T21:26:48.933Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Split the review queue repo file under 300 lines"}
 {"ts":"2026-10-10T21:26:49.195Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Stop a retried grade save from grading the card twice"}
 {"ts":"2026-10-10T21:27:45.024Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"prose-knowledge-fisher","itemText":"Hold new knowledge bits as pending until the learner approves each one"}
+{"ts":"2026-10-10T21:28:49.260Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Split the review queue repo file under 300 lines"}
+{"ts":"2026-10-10T21:30:06.315Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Add aria-labels with interval to grade buttons"}
+{"ts":"2026-10-10T21:30:06.886Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Label Bury and Suspend in words; move below answer"}
+{"ts":"2026-10-10T21:30:07.334Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Fix Done for today showing when nothing was reviewed"}
+{"ts":"2026-10-10T21:30:07.774Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Rename approval page so Review means cards only"}
+{"ts":"2026-10-10T21:30:08.195Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Reorder nav: Add, Approve, Review"}
+{"ts":"2026-10-10T21:30:08.634Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Stop checking-automatically text after polling gives up"}
+{"ts":"2026-10-10T21:30:09.091Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Show per-row error when approve or reject fails"}
+{"ts":"2026-10-10T21:30:09.594Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Explain approve, and that questions take minutes, on paste"}
