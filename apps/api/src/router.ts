@@ -22,6 +22,8 @@ export type RouteName =
   | "gradeKnowledgeBitVariantAnswer"
   | "listNextKnowledgeBitQuestionVariants"
   | "listKnowledgeBitReviewCards"
+  | "listSuspendedKnowledgeBits"
+  | "listSubjectReviewDueCounts"
   | "recordKnowledgeBitReview"
   | "undoKnowledgeBitReview"
   | "updateKnowledgeBitScheduleControls"

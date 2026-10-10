@@ -35,6 +35,7 @@ import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as LearningPathsPathIdRouteImport } from './routes/learning-paths_.$pathId'
+import { Route as KnowledgeSuspendedRouteImport } from './routes/knowledge.suspended'
 import { Route as KnowledgeReviewRouteImport } from './routes/knowledge.review'
 import { Route as KnowledgeAnswerRouteImport } from './routes/knowledge.answer'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
@@ -181,6 +182,11 @@ const LearningPathsPathIdRoute = LearningPathsPathIdRouteImport.update({
   path: '/learning-paths/$pathId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KnowledgeSuspendedRoute = KnowledgeSuspendedRouteImport.update({
+  id: '/knowledge/suspended',
+  path: '/knowledge/suspended',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KnowledgeReviewRoute = KnowledgeReviewRouteImport.update({
   id: '/knowledge/review',
   path: '/knowledge/review',
@@ -290,6 +296,7 @@ export interface FileRoutesByFullPath {
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
+  '/knowledge/suspended': typeof KnowledgeSuspendedRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -333,6 +340,7 @@ export interface FileRoutesByTo {
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
+  '/knowledge/suspended': typeof KnowledgeSuspendedRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -377,6 +385,7 @@ export interface FileRoutesById {
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
+  '/knowledge/suspended': typeof KnowledgeSuspendedRoute
   '/learning-paths_/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -422,6 +431,7 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
     | '/knowledge/review'
+    | '/knowledge/suspended'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -465,6 +475,7 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
     | '/knowledge/review'
+    | '/knowledge/suspended'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -508,6 +519,7 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
     | '/knowledge/review'
+    | '/knowledge/suspended'
     | '/learning-paths_/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -552,6 +564,7 @@ export interface RootRouteChildren {
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   KnowledgeAnswerRoute: typeof KnowledgeAnswerRoute
   KnowledgeReviewRoute: typeof KnowledgeReviewRoute
+  KnowledgeSuspendedRoute: typeof KnowledgeSuspendedRoute
   LearningPathsPathIdRoute: typeof LearningPathsPathIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
   PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
@@ -755,6 +768,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearningPathsPathIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/knowledge/suspended': {
+      id: '/knowledge/suspended'
+      path: '/knowledge/suspended'
+      fullPath: '/knowledge/suspended'
+      preLoaderRoute: typeof KnowledgeSuspendedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/knowledge/review': {
       id: '/knowledge/review'
       path: '/knowledge/review'
@@ -888,6 +908,7 @@ const rootRouteChildren: RootRouteChildren = {
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   KnowledgeAnswerRoute: KnowledgeAnswerRoute,
   KnowledgeReviewRoute: KnowledgeReviewRoute,
+  KnowledgeSuspendedRoute: KnowledgeSuspendedRoute,
   LearningPathsPathIdRoute: LearningPathsPathIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
   PracticeSubjectIdRoute: PracticeSubjectIdRoute,

@@ -73,6 +73,16 @@ export const ROUTES: RouteDef[] = [
     name: "listKnowledgeBitReviewCards",
   },
   {
+    method: "GET",
+    pattern: "/knowledge-bits/suspended",
+    name: "listSuspendedKnowledgeBits",
+  },
+  {
+    method: "GET",
+    pattern: "/subjects/review-due-counts",
+    name: "listSubjectReviewDueCounts",
+  },
+  {
     method: "POST",
     pattern: "/knowledge-bits/reviews",
     name: "recordKnowledgeBitReview",

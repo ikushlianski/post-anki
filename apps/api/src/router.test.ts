@@ -439,6 +439,15 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/reviews")).toBeNull();
     });
 
+    it("routes GET /knowledge-bits/suspended to the suspended list, not to a bit id", () => {
+      expect(resolveRoute("GET", "/knowledge-bits/suspended")?.name).toBe(
+        "listSuspendedKnowledgeBits",
+      );
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1/schedule")?.name).toBe(
+        "updateKnowledgeBitScheduleControls",
+      );
+    });
+
     it("routes undo and schedule controls without shadowing the bit edit route", () => {
       expect(resolveRoute("DELETE", "/knowledge-bits/reviews/r1")).toEqual({
         name: "undoKnowledgeBitReview",

@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import type { Subject } from '../curriculum/model'
+import { SubjectReviewLink } from './subject-review-link'
 import { SubjectDeleteConfirm } from '../subject/subject-delete-confirm'
 import { SubjectMovePicker } from '../subject/subject-move-picker'
 import { SubjectNameForm } from '../subject/subject-name-form'
@@ -94,15 +95,14 @@ export function SubjectRowMenu({
           >
             Open
           </Link>
-          <Link
-            to="/knowledge/review"
-            search={{ subjectId: subject.id }}
+          <SubjectReviewLink
+            subjectId={subject.id}
             role="menuitem"
-            data-testid={`subject-menu-review-${subject.id}`}
+            testId={`subject-menu-review-${subject.id}`}
             className={OVERFLOW_MENU_ITEM_CLASS}
           >
             Review
-          </Link>
+          </SubjectReviewLink>
           <button
             type="button"
             role="menuitem"

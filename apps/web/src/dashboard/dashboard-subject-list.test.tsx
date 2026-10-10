@@ -11,15 +11,20 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({
     to,
     params,
+    search,
     children,
     ...rest
   }: {
     to: string
     params?: Record<string, string>
+    search?: Record<string, string>
     children: ReactNode
     'data-testid'?: string
   }) => (
-    <a href={`${to}?${JSON.stringify(params ?? {})}`} {...rest}>
+    <a
+      href={`${to}?${JSON.stringify(params ?? {})}${search ? `&${new URLSearchParams(search).toString()}` : ''}`}
+      {...rest}
+    >
       {children}
     </a>
   ),
@@ -45,7 +50,7 @@ const TREE: Subject[] = [
   subject('sub-ai', 'AI', PROGRAMMING.id),
 ]
 
-function renderList(subjects: Subject[] = TREE) {
+function renderList(subjects: Subject[] = TREE, dueBySubjectId?: Record<string, number>) {
   render(
     <DashboardSubjectList
       subjects={subjects}
@@ -54,6 +59,7 @@ function renderList(subjects: Subject[] = TREE) {
       onDeleteSubject={vi.fn(async () => true)}
       onCreateSubSubject={vi.fn(async () => true)}
       onMoveSubject={vi.fn(async () => true)}
+      dueBySubjectId={dueBySubjectId}
     />,
   )
 }
@@ -309,5 +315,26 @@ describe('reorder hint and sub-subject reveal', () => {
       expect(screen.getByRole('button', { name: 'Expand Business' })).toBeDefined()
     })
     expect(highlightedCardFor('sub-finance')).toBeNull()
+  })
+
+  it('should show each subject card its due count and a Review link only where cards are due', () => {
+    renderList(TREE, { 'sub-business': 5, 'sub-marketing': 3, 'sub-sales': 0 })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Business' }))
+
+    expect(screen.getByTestId('subject-due-count-sub-business').textContent).toBe('5 due')
+    expect(screen.getByTestId('subject-due-count-sub-marketing').textContent).toBe('3 due')
+    expect(screen.getByTestId('subject-due-count-sub-sales').textContent).toBe('0 due')
+    expect(screen.getByTestId('subject-review-sub-business').getAttribute('href')).toContain(
+      'subjectId=sub-business',
+    )
+    expect(screen.queryByTestId('subject-review-sub-sales')).toBeNull()
+  })
+
+  it('should show no due count on any card when the counts are not provided', () => {
+    renderList()
+
+    expect(screen.queryByTestId('subject-due-count-sub-business')).toBeNull()
+    expect(screen.queryByTestId('subject-review-sub-business')).toBeNull()
   })
 })

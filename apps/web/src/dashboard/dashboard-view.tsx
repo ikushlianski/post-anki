@@ -2,7 +2,12 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
 
-import type { LearningPath, Streak, StudySessionListItem } from '@post-anki/shared'
+import type {
+  LearningPath,
+  Streak,
+  StudySessionListItem,
+  SubjectReviewDueCounts,
+} from '@post-anki/shared'
 
 import type { DueTopic } from '../curriculum/api-client'
 import type { CourseRefocusSuggestion, Curriculum, Subject } from '../curriculum/model'
@@ -14,6 +19,7 @@ import { ContinueSessionCard } from '../home/continue-session-card'
 import { selectResumableSession } from '../home/select-resumable-session'
 import { DashboardSubjectList } from './dashboard-subject-list'
 import { DashboardSubjectSearch } from './dashboard-subject-search'
+import { UnsortedDueBucket } from './unsorted-due-bucket'
 
 export interface DashboardViewProps {
   subjects: Subject[]
@@ -23,6 +29,7 @@ export interface DashboardViewProps {
   learningPaths: LoadResult<LearningPath[]>
   streak: LoadResult<Streak>
   dueTopics: LoadResult<DueTopic[]>
+  subjectDueCounts?: LoadResult<SubjectReviewDueCounts>
   onRenameSubject: (subjectId: string, name: string) => Promise<boolean>
   onDeleteSubject: (subjectId: string) => Promise<boolean>
   onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
@@ -45,12 +52,16 @@ export function DashboardView({
   learningPaths,
   streak,
   dueTopics,
+  subjectDueCounts,
   onRenameSubject,
   onDeleteSubject,
   onCreateSubSubject,
   onMoveSubject,
 }: DashboardViewProps) {
   const namesById: Record<string, string> = {}
+  const dueBySubjectId = subjectDueCounts?.ok
+    ? Object.fromEntries(subjectDueCounts.data.subjects.map((row) => [row.subjectId, row.dueCount]))
+    : undefined
 
   for (const curriculum of curricula) {
     namesById[curriculum.id] = curriculum.name
@@ -131,6 +142,14 @@ export function DashboardView({
 
       {isSearching ? null : (
         <>
+          {subjectDueCounts && !subjectDueCounts.ok ? (
+            <LoadError>Couldn't load your review counts — try refreshing.</LoadError>
+          ) : null}
+
+          {subjectDueCounts?.ok ? (
+            <UnsortedDueBucket dueCount={subjectDueCounts.data.unsorted.dueCount} />
+          ) : null}
+
           <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
             Your subjects
           </h2>
@@ -143,6 +162,7 @@ export function DashboardView({
             onCreateSubSubject={onCreateSubSubject}
             onMoveSubject={onMoveSubject}
             onSubjectOrderSaved={() => void router.invalidate()}
+            dueBySubjectId={dueBySubjectId}
           />
         </>
       )}

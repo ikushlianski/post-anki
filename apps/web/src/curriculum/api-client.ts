@@ -1771,6 +1771,12 @@ export async function listDueTopics(limit?: number): Promise<DueTopic[]> {
   return request<DueTopic[]>(`/topics/due${query}`)
 }
 
+export async function listSubjectReviewDueCounts(tz?: string): Promise<be.SubjectReviewDueCounts> {
+  const query = tz ? `?tz=${encodeURIComponent(tz)}` : ''
+
+  return request<be.SubjectReviewDueCounts>(`/subjects/review-due-counts${query}`)
+}
+
 export type GradeQuestionVariantAnswerResult =
   | {
       ok: true

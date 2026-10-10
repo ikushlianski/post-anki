@@ -3,6 +3,7 @@ import { GripVertical } from 'lucide-react'
 
 import { compareSubjectSiblings } from '@post-anki/core'
 import type { Curriculum, Subject } from '../curriculum/model'
+import { SubjectDueSummary } from './subject-due-summary'
 import { SubjectRowMenu } from './subject-row-menu'
 import { siblingSetKey, SortableSubjectGroup } from './sortable-subject-group'
 import type { SortableRowHandle } from './sortable-subject-group'
@@ -18,6 +19,7 @@ export interface DashboardSubjectListProps {
   onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
   onMoveSubject: (subjectId: string, parentId: string | null) => Promise<boolean>
   onSubjectOrderSaved?: () => void
+  dueBySubjectId?: Record<string, number>
 }
 
 export interface SubjectTreeNode {
@@ -76,6 +78,7 @@ interface ListContext {
   onCreateSubSubject: DashboardSubjectListProps['onCreateSubSubject']
   onMoveSubject: DashboardSubjectListProps['onMoveSubject']
   onOrderSaved?: () => void
+  dueBySubjectId?: Record<string, number>
 }
 
 export function DashboardSubjectList({
@@ -86,6 +89,7 @@ export function DashboardSubjectList({
   onCreateSubSubject,
   onMoveSubject,
   onSubjectOrderSaved,
+  dueBySubjectId,
 }: DashboardSubjectListProps) {
   const { expanded, toggle, expand } = useExpandedSubjects()
   const placement = useSubjectPlacement(subjects, expand)
@@ -135,6 +139,7 @@ export function DashboardSubjectList({
     onCreateSubSubject: createSubSubject,
     onMoveSubject: moveSubject,
     onOrderSaved: onSubjectOrderSaved,
+    dueBySubjectId,
   }
 
   return (
@@ -199,6 +204,7 @@ function SubjectTreeItem({
   const childrenId = `subject-children-${subject.id}`
   const subjectCurricula = context.curricula.filter((c) => c.subjectId === subject.id)
   const isHighlighted = context.highlightedId === subject.id
+  const dueCount = context.dueBySubjectId?.[subject.id]
 
   return (
     <li
@@ -244,7 +250,7 @@ function SubjectTreeItem({
           to="/subject/$subjectId"
           params={{ subjectId: subject.id }}
           data-testid="subject-name"
-          className={`flex flex-1 items-center justify-between py-3 pr-14 ${hasChildren ? 'pl-1' : 'pl-4'}`}
+          className={`flex flex-1 items-center justify-between py-3 ${dueCount === undefined ? 'pr-14' : 'pr-44'} ${hasChildren ? 'pl-1' : 'pl-4'}`}
         >
           <span className="font-medium tracking-tight">{subject.name}</span>
           <span className="flex items-center gap-3 text-sm text-neutral-400">
@@ -260,6 +266,8 @@ function SubjectTreeItem({
             </span>
           </span>
         </Link>
+
+        {dueCount === undefined ? null : <SubjectDueSummary subjectId={subject.id} dueCount={dueCount} />}
 
         <div className="absolute right-2 top-2">
           <SubjectRowMenu

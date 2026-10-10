@@ -69,6 +69,9 @@ export function Sidebar() {
       <Link to="/knowledge/review" className={navLinkClass} data-testid="nav-knowledge-review">
         Review
       </Link>
+      <Link to="/knowledge/suspended" className={navLinkClass} data-testid="nav-knowledge-suspended">
+        Suspended cards
+      </Link>
       <Link to="/knowledge/answer" className={navLinkClass} data-testid="nav-knowledge-answer">
         Answer (typed)
       </Link>

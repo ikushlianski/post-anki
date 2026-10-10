@@ -26,6 +26,7 @@ import {
   handleListPendingPlacementSuggestions,
   handleResolvePlacementSuggestion,
 } from "./knowledge-bit/detect-knowledge-bits.controller.js";
+import { handleListSubjectReviewDueCounts } from "./knowledge-bit/subject-review-due-counts.controller.js";
 import { handleGradeKnowledgeBitVariantAnswer } from "./knowledge-bit/grade-knowledge-bit-variant-answer.controller.js";
 import { handleListNextKnowledgeBitQuestionVariants } from "./knowledge-bit/list-next-knowledge-bit-question-variants.controller.js";
 import {
@@ -34,6 +35,7 @@ import {
   handleUndoKnowledgeBitReview,
   handleUpdateKnowledgeBitScheduleControls,
 } from "./knowledge-bit/knowledge-bit-review.controller.js";
+import { handleListSuspendedKnowledgeBits } from "./knowledge-bit/knowledge-bit-suspended.controller.js";
 import {
   handleBulkApproveKnowledgeBits,
   handleCountPendingKnowledgeBits,
@@ -441,6 +443,10 @@ async function route(
       return handleListNextKnowledgeBitQuestionVariants(res, url.search);
     case "listKnowledgeBitReviewCards":
       return handleListKnowledgeBitReviewCards(res, url.search);
+    case "listSuspendedKnowledgeBits":
+      return handleListSuspendedKnowledgeBits(res, url.search);
+    case "listSubjectReviewDueCounts":
+      return handleListSubjectReviewDueCounts(res, url.search);
     case "recordKnowledgeBitReview":
       return handleRecordKnowledgeBitReview(req, res);
     case "undoKnowledgeBitReview":
