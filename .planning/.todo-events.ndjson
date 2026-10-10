@@ -36,3 +36,7 @@
 {"ts":"2026-10-10T19:52:52.024Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Flag leeches after repeated failures and suspend them automatically"}
 {"ts":"2026-10-10T19:52:52.275Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Approve or reject suggestions by keyboard; approve all from a source"}
 {"ts":"2026-10-10T19:52:52.529Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Hide the chat panel until the answer is revealed"}
+{"ts":"2026-10-10T20:25:07.169Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy"}
+{"ts":"2026-10-10T20:25:07.425Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Hide bit text above the question in Anki review mode"}
+{"ts":"2026-10-10T20:25:07.683Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Keyboard shortcuts: Space reveals answer, 1-4 grade the card"}
+{"ts":"2026-10-10T20:25:07.934Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Hide the chat panel until the answer is revealed"}

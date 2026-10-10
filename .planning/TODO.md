@@ -17,15 +17,15 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
-- [ ] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
+- [x] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
 - [ ] Serve only due or never-reviewed cards in the unscoped review queue
-- [ ] Hide bit text above the question in Anki review mode
+- [x] Hide bit text above the question in Anki review mode
 - [ ] Run bit detection and question generation right after paste
 - [ ] Link review page from sidebar and add-knowledge success, with pending count
 - [ ] Refresh review page so bits awaiting questions become approvable
 - [ ] Add bulk approve on the knowledge-bit review page
 - [ ] Add simple front/back basic-card variant for plain recall facts
-- [ ] Keyboard shortcuts: Space reveals answer, 1-4 grade the card
+- [x] Keyboard shortcuts: Space reveals answer, 1-4 grade the card
 - [ ] Show the next interval on each grade button, like Anki
 - [ ] Add minute-level learning steps for new and failed cards
 - [ ] Cap new cards per day and show due and new counts
@@ -36,7 +36,7 @@ updated: 2026-09-04
 - [ ] Suspend or bury a card from the review screen
 - [ ] Flag leeches after repeated failures and suspend them automatically
 - [ ] Approve or reject suggestions by keyboard; approve all from a source
-- [ ] Hide the chat panel until the answer is revealed
+- [x] Hide the chat panel until the answer is revealed
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
