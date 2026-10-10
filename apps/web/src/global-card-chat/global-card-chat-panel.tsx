@@ -137,7 +137,9 @@ export function GlobalCardChatPanel() {
         <span>
           Allow general AI knowledge
           <br />
-          <span className="text-neutral-400">off: answers only from your own cards</span>
+          <span className="text-neutral-400">
+            {allowGeneralKnowledge ? 'Answers may also use general knowledge' : 'Answers use only your saved cards'}
+          </span>
         </span>
       </label>
 
