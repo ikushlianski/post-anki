@@ -75,6 +75,7 @@ export const recordReviewInputSchema = z.object({
   variantId: z.string().min(1),
   grade: reviewGradeSchema,
   durationMs: z.number().int().min(0).max(86_400_000).optional(),
+  requestId: z.string().uuid().optional(),
 });
 
 export type RecordReviewInput = z.infer<typeof recordReviewInputSchema>;

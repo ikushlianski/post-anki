@@ -15,12 +15,22 @@ export function browserTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
+function sameGradeAttempt(pending: PendingGrade | null, variantId: string, grade: ReviewGrade): pending is PendingGrade {
+  return pending !== null && pending.variantId === variantId && pending.grade === grade
+}
+
 export function actionErrorMessage(error: string): string {
   if (NON_RETRYABLE_ERRORS.has(error)) {
     return 'This card is no longer available for review. Skip it to continue.'
   }
 
   return "Couldn't save that. Try again."
+}
+
+interface PendingGrade {
+  variantId: string
+  grade: ReviewGrade
+  requestId: string
 }
 
 interface Input {
@@ -38,6 +48,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
   const [error, setError] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const inFlight = useRef(false)
+  const pendingGrade = useRef<PendingGrade | null>(null)
 
   async function exclusive(run: () => Promise<void>) {
     if (inFlight.current) {
@@ -83,14 +94,22 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       }
 
       const durationMs = Math.min(Math.max(Date.now() - state.shownAt, 0), 86_400_000)
+      const attempt = sameGradeAttempt(pendingGrade.current, current.variantId, value)
+        ? pendingGrade.current
+        : { variantId: current.variantId, grade: value, requestId: crypto.randomUUID() }
+
+      pendingGrade.current = attempt
+
       const outcome = await submitReview({
-        data: { variantId: current.variantId, grade: value, durationMs },
+        data: { variantId: current.variantId, grade: value, durationMs, requestId: attempt.requestId },
       }).catch(() => ({ ok: false as const, error: 'grading_failed' }))
 
       if (!outcome.ok) {
         setError(outcome.error)
         return
       }
+
+      pendingGrade.current = null
 
       const leechSuspended = outcome.leech && outcome.suspended
       const entry: SessionUndoEntry = {

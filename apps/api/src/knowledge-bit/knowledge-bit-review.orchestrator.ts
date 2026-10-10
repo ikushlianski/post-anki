@@ -1,8 +1,13 @@
-import type { RecordReviewInput, RecordReviewResult } from "@post-anki/shared";
+import { cardPhaseSchema, type RecordReviewInput, type RecordReviewResult } from "@post-anki/shared";
+import type { KnowledgeBitScheduleSnapshot } from "../db/schema.js";
 import { withSubjectLock } from "../shared/merge-lock.js";
-import { deriveGradeSchedule } from "./knowledge-bit-grade-schedule.js";
+import { deriveGradeSchedule, type GradeScheduleState } from "./knowledge-bit-grade-schedule.js";
 import { deriveLeechOutcome } from "./knowledge-bit-grade-schedule-leech.js";
-import { insertKnowledgeBitReview } from "./knowledge-bit-review.repo.js";
+import {
+  insertKnowledgeBitReview,
+  readKnowledgeBitReviewByRequestIdInTx,
+  type KnowledgeBitReviewByRequestRecord,
+} from "./knowledge-bit-review.repo.js";
 import {
   readKnowledgeBitScheduleInTx,
   upsertKnowledgeBitScheduleInTx,
@@ -12,6 +17,35 @@ import { getQuestionVariantById } from "./knowledge-bit-variant-attempt.repo.js"
 export type RecordKnowledgeBitReviewOutcome =
   | ({ ok: true } & RecordReviewResult)
   | { ok: false; error: "variant_not_found" | "not_approved" };
+
+function toGradeState(snapshot: KnowledgeBitScheduleSnapshot): GradeScheduleState {
+  return {
+    easeFactor: snapshot.easeFactor,
+    intervalDays: snapshot.intervalDays,
+    phase: cardPhaseSchema.catch("review").parse(snapshot.phase),
+    learningStep: snapshot.learningStep ?? 0,
+    lapses: snapshot.lapses ?? 0,
+  };
+}
+
+// A retry carrying an already-stored requestId gets the result re-derived from the stored
+// pre-grade snapshot, so the schedule is not changed a second time.
+function replayStoredReview(stored: KnowledgeBitReviewByRequestRecord): RecordReviewResult {
+  const previous = stored.prevSchedule ? toGradeState(stored.prevSchedule) : null;
+  const next = deriveGradeSchedule(previous, stored.grade, stored.reviewedAt);
+  const leech = deriveLeechOutcome(previous?.lapses ?? 0, next.lapses);
+
+  return {
+    reviewId: stored.id,
+    knowledgeBitId: stored.knowledgeBitId,
+    phase: next.phase,
+    dueAt: next.dueAt.toISOString(),
+    intervalDays: next.intervalDays,
+    lapses: next.lapses,
+    leech: leech.leech,
+    suspended: leech.autoSuspend || stored.prevSchedule?.suspendedAt != null,
+  };
+}
 
 // Self-graded review: no LLM. Schedule update and history row commit together under the same
 // per-bit lock typed grading uses, so concurrent grades of one bit apply one after the other.
@@ -30,6 +64,14 @@ export async function recordKnowledgeBitReview(
   }
 
   return withSubjectLock(variant.knowledgeBitId, async (tx) => {
+    if (input.requestId) {
+      const replayed = await readKnowledgeBitReviewByRequestIdInTx(tx, input.requestId);
+
+      if (replayed) {
+        return { ok: true as const, ...replayStoredReview(replayed) };
+      }
+    }
+
     const stored = await readKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId);
     const previous = stored && stored.reviewCount > 0 ? stored : null;
     const next = deriveGradeSchedule(previous, input.grade, now);
@@ -63,6 +105,7 @@ export async function recordKnowledgeBitReview(
           }
         : null,
       reviewedAt: now,
+      requestId: input.requestId,
     });
 
     return {

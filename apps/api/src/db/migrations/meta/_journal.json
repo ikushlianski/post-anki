@@ -610,6 +610,13 @@
       "when": 1791665150067,
       "tag": "0086_new_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791667676809,
+      "tag": "0087_fine_warbound",
+      "breakpoints": true
     }
   ]
 }

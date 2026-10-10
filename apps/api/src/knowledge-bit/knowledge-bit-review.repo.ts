@@ -1,4 +1,4 @@
-import type { ReviewGrade } from "@post-anki/shared";
+import { reviewGradeSchema, type ReviewGrade } from "@post-anki/shared";
 import { and, eq, gt, gte, isNull, ne, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitReviews, type KnowledgeBitScheduleSnapshot } from "../db/schema.js";
@@ -13,6 +13,7 @@ export interface KnowledgeBitReviewInsertRow {
   durationMs: number | null;
   prevSchedule: KnowledgeBitScheduleSnapshot | null;
   reviewedAt: Date;
+  requestId?: string;
 }
 
 // Append-only: grading only ever inserts a history row, never edits or deletes one.
@@ -22,7 +23,7 @@ export async function insertKnowledgeBitReview(
 ): Promise<string> {
   const id = newId("kbreview");
 
-  await tx.insert(knowledgeBitReviews).values({ id, ...row });
+  await tx.insert(knowledgeBitReviews).values({ id, ...row, requestId: row.requestId ?? null });
 
   return id;
 }
@@ -93,6 +94,39 @@ export async function readKnowledgeBitReviewInTx(
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+export interface KnowledgeBitReviewByRequestRecord {
+  id: string;
+  knowledgeBitId: string;
+  grade: ReviewGrade;
+  prevSchedule: KnowledgeBitScheduleSnapshot | null;
+  reviewedAt: Date;
+}
+
+export async function readKnowledgeBitReviewByRequestIdInTx(
+  tx: Tx,
+  requestId: string,
+): Promise<KnowledgeBitReviewByRequestRecord | null> {
+  const rows = await tx
+    .select({
+      id: knowledgeBitReviews.id,
+      knowledgeBitId: knowledgeBitReviews.knowledgeBitId,
+      grade: knowledgeBitReviews.grade,
+      prevSchedule: knowledgeBitReviews.prevSchedule,
+      reviewedAt: knowledgeBitReviews.reviewedAt,
+    })
+    .from(knowledgeBitReviews)
+    .where(eq(knowledgeBitReviews.requestId, requestId))
+    .limit(1);
+
+  const row = rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  return { ...row, grade: reviewGradeSchema.parse(row.grade) };
 }
 
 export async function readKnowledgeBitReviewBitId(

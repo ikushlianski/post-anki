@@ -1275,6 +1275,7 @@ export const knowledgeBitReviews = pgTable(
     prevSchedule: jsonb("prev_schedule").$type<KnowledgeBitScheduleSnapshot>(),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
     undoneAt: timestamp("undone_at", { withTimezone: true }),
+    requestId: text("request_id").unique(),
   },
   (table) => [
     index("knowledge_bit_reviews_bit_reviewed_at_idx").on(table.knowledgeBitId, table.reviewedAt),

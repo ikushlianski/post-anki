@@ -262,4 +262,25 @@ describe("recordKnowledgeBitReview (real Postgres)", () => {
 
     expect(reviews).toMatchObject([{ was_new: true, prev_schedule: null }]);
   });
+
+  it("should return the stored result and make no second schedule change when the same requestId arrives twice", async () => {
+    const knowledgeBitId = await seedBit();
+    const variantId = await seedVariant(knowledgeBitId);
+    const requestId = randomUUID();
+
+    const first = await recordKnowledgeBitReview(
+      { variantId, grade: "easy", requestId },
+      new Date("2026-10-01T00:00:00.000Z"),
+    );
+    const scheduleAfterFirst = await readSchedule(knowledgeBitId);
+
+    const retried = await recordKnowledgeBitReview(
+      { variantId, grade: "easy", requestId },
+      new Date("2026-10-05T00:00:00.000Z"),
+    );
+
+    expect(retried).toEqual(first);
+    expect(await readSchedule(knowledgeBitId)).toEqual(scheduleAfterFirst);
+    expect(await readReviews(knowledgeBitId)).toHaveLength(1);
+  });
 });
