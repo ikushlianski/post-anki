@@ -88,10 +88,10 @@ updated: 2026-09-04
 - [x] Flag leeches after repeated failures and suspend them automatically
 - [x] Approve or reject suggestions by keyboard; approve all from a source
 - [x] Hide the chat panel until the answer is revealed
-- [ ] E2e: basic cards generated, preferred in review, excluded from typed mode
-- [ ] E2e: basic card retries, overlapping runs, injection and backstop job
-- [ ] E2e: session summary, mid-review edit, undo suspend or bury
-- [ ] E2e: typed queue skips suspended and buried; timer finishes interrupted runs
+- [x] E2e: basic cards generated, preferred in review, excluded from typed mode
+- [x] E2e: basic card retries, overlapping runs, injection and backstop job
+- [x] E2e: session summary, mid-review edit, undo suspend or bury
+- [x] E2e: typed queue skips suspended and buried; timer finishes interrupted runs
 - [x] Review screen: keep grade focus, retry button, explained counts and done step
 - [x] Paste page: plain wording, saving state, labelled inputs and mode toggles
 - [x] Script listing cheapest structured-output OpenRouter models with prices

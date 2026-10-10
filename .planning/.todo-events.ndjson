@@ -117,3 +117,7 @@
 {"ts":"2026-10-10T23:28:52.024Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Drag subjects on the dashboard to change their order"}
 {"ts":"2026-10-10T23:28:52.071Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Dashboard search box for subjects using the server search"}
 {"ts":"2026-10-10T23:28:52.116Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"sub-subjects","itemText":"Dashboard search box for subjects using the server search"}
+{"ts":"2026-10-10T23:37:11.690Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: basic cards generated, preferred in review, excluded from typed mode"}
+{"ts":"2026-10-10T23:37:11.741Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: basic card retries, overlapping runs, injection and backstop job"}
+{"ts":"2026-10-10T23:37:11.792Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: session summary, mid-review edit, undo suspend or bury"}
+{"ts":"2026-10-10T23:37:11.841Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"E2e: typed queue skips suspended and buried; timer finishes interrupted runs"}
