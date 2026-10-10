@@ -31,6 +31,7 @@ export interface AnkiReviewScope {
   tagId?: string
   topicId?: string
   knowledgeBitId?: string
+  subjectId?: string
 }
 
 const BATCH_LIMIT = 10
@@ -51,6 +52,7 @@ function reviewQueueQueryKey(scope: AnkiReviewScope) {
     scope.tagId ?? null,
     scope.topicId ?? null,
     scope.knowledgeBitId ?? null,
+    scope.subjectId ?? null,
   ] as const
 }
 

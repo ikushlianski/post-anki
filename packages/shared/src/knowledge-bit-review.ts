@@ -27,6 +27,7 @@ export const reviewCardsQuerySchema = z.object({
   tagId: optionalScopeId,
   topicId: optionalScopeId,
   knowledgeBitId: optionalScopeId,
+  subjectId: optionalScopeId,
 });
 
 export type ReviewCardsQuery = z.infer<typeof reviewCardsQuerySchema>;

@@ -292,6 +292,7 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
         data_type: "timestamp with time zone",
         is_nullable: "NO",
       }),
+      expect.objectContaining({ column_name: "subject_id", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 

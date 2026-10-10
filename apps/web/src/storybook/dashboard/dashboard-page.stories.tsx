@@ -130,6 +130,41 @@ export const SubjectMenuOpen: Story = {
   },
 }
 
+export const NestedSubjectExpanded: Story = {
+  args: {
+    subjects: [
+      { id: 'subject-business', name: 'Business', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: null },
+      { id: 'subject-sales', name: 'Sales', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'subject-business' },
+      { id: 'subject-smm', name: 'SMM', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'subject-business' },
+      { id: 'subject-hr', name: 'HR', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'subject-business' },
+      { id: 'subject-negotiations', name: 'Negotiations', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'subject-business' },
+      { id: 'subject-marketing', name: 'Marketing', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'subject-business' },
+      { id: 'subject-time', name: 'Time management', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'subject-business' },
+    ],
+    curricula: [],
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'Business has six sub-subjects. The story opens Business so its children show nested and indented beneath it, with a collapse toggle on the card.',
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const toggle = await canvas.findByRole('button', { name: 'Expand Business' })
+
+    await userEvent.click(toggle)
+
+    await expect(canvas.getByRole('button', { name: 'Collapse Business' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    await expect(canvas.getByRole('link', { name: /Marketing/ })).toBeVisible()
+  },
+}
+
 export const PhoneWidth: Story = {
   parameters: {
     viewport: { defaultViewport: 'mobile1' },

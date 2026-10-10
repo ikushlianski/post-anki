@@ -36,6 +36,7 @@ describe('mapSubjectRow', () => {
       description: 'TCP/IP and friends',
       require_sources: true,
       kind: 'architecture-mentor',
+      parent_id: null,
     })
 
     expect(subject).toEqual({
@@ -45,7 +46,21 @@ describe('mapSubjectRow', () => {
       requireSources: true,
       kind: 'architecture-mentor',
       modelTier: null,
+      parentId: null,
     })
+  })
+
+  it('carries the parent id of a nested subject from the synced row', () => {
+    const subject = mapSubjectRow({
+      id: 'subj-3',
+      name: 'Web',
+      description: null,
+      require_sources: false,
+      kind: 'architecture-mentor',
+      parent_id: 'subj-programming',
+    })
+
+    expect(subject.parentId).toBe('subj-programming')
   })
 
   it('turns a null description into undefined, matching the REST mapping', () => {

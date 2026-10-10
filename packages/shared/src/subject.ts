@@ -8,6 +8,7 @@ export const subjectSchema = z.object({
   requireSources: z.boolean(),
   kind: z.enum(["architecture-mentor", "language-practice"]).default("architecture-mentor"),
   modelTier: modelTierSchema.nullable(),
+  parentId: z.string().nullable(),
 });
 
 export type Subject = z.infer<typeof subjectSchema>;
@@ -17,6 +18,7 @@ export const createSubjectInput = z.object({
   description: z.string().optional(),
   requireSources: z.boolean().optional(),
   kind: z.enum(["architecture-mentor", "language-practice"]).default("architecture-mentor"),
+  parentId: z.string().nullable().optional(),
 });
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>;
@@ -24,6 +26,7 @@ export type CreateSubjectInput = z.infer<typeof createSubjectInput>;
 export const updateSubjectInput = z.object({
   name: z.string().trim().min(1).optional(),
   modelTier: modelTierSchema.nullable().optional(),
+  parentId: z.string().nullable().optional(),
 });
 
 export type UpdateSubjectInput = z.infer<typeof updateSubjectInput>;

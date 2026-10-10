@@ -23,6 +23,8 @@ export interface DashboardViewProps {
   dueTopics: LoadResult<DueTopic[]>
   onRenameSubject: (subjectId: string, name: string) => Promise<boolean>
   onDeleteSubject: (subjectId: string) => Promise<boolean>
+  onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
+  onMoveSubject: (subjectId: string, parentId: string | null) => Promise<boolean>
 }
 
 function LoadError({ children }: { children: ReactNode }) {
@@ -43,6 +45,8 @@ export function DashboardView({
   dueTopics,
   onRenameSubject,
   onDeleteSubject,
+  onCreateSubSubject,
+  onMoveSubject,
 }: DashboardViewProps) {
   const namesById: Record<string, string> = {}
 
@@ -127,6 +131,8 @@ export function DashboardView({
         curricula={curricula}
         onRenameSubject={onRenameSubject}
         onDeleteSubject={onDeleteSubject}
+        onCreateSubSubject={onCreateSubSubject}
+        onMoveSubject={onMoveSubject}
       />
     </main>
   )

@@ -12,6 +12,8 @@ import {
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'
 
+const liveSubjectRows = vi.hoisted(() => ({ rows: [] as unknown[] }))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
     children,
@@ -26,11 +28,13 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('@tanstack/react-db', () => ({
-  useLiveQuery: () => ({ data: [] }),
+  useLiveQuery: () => ({ data: liveSubjectRows.rows }),
 }))
 
 vi.mock('../curriculum/board.collection', () => ({
   curriculaCollection: {},
+  subjectsCollection: {},
+  mapSubjectRow: (row: unknown) => row,
 }))
 
 vi.mock('../knowledge-bit/knowledge-bit-review.api', () => ({
@@ -54,6 +58,7 @@ function source(id: string) {
 describe('AddKnowledgeForm', () => {
   afterEach(() => {
     cleanup()
+    liveSubjectRows.rows = []
     mockedCreateKnowledgeSource.mockReset()
     mockedCreateKnowledgeSources.mockReset()
     mockedCreateKnowledgeSourceFromUrl.mockReset()
@@ -74,7 +79,7 @@ describe('AddKnowledgeForm', () => {
     })
 
     expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({
-      data: 'Retry budgets cap cascading failure.',
+      data: { text: 'Retry budgets cap cascading failure.' },
     })
     expect(mockedCreateKnowledgeSources).not.toHaveBeenCalled()
     expect((screen.getByTestId('knowledge-block-input-0') as HTMLTextAreaElement).value).toBe('')
@@ -99,7 +104,7 @@ describe('AddKnowledgeForm', () => {
     })
 
     expect(mockedCreateKnowledgeSources).toHaveBeenCalledWith({
-      data: ['Block one', 'Block two', 'Block three'],
+      data: { texts: ['Block one', 'Block two', 'Block three'] },
     })
     expect(mockedCreateKnowledgeSource).not.toHaveBeenCalled()
   })
@@ -119,7 +124,7 @@ describe('AddKnowledgeForm', () => {
       expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
     })
 
-    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: 'Only this one' })
+    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: { text: 'Only this one' } })
     expect(mockedCreateKnowledgeSources).not.toHaveBeenCalled()
   })
 
@@ -150,7 +155,7 @@ describe('AddKnowledgeForm', () => {
       expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
     })
 
-    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: 'Still here' })
+    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: { text: 'Still here' } })
     expect(mockedCreateKnowledgeSources).not.toHaveBeenCalled()
     expect(screen.queryByTestId('knowledge-block-input-1')).toBeNull()
   })
@@ -211,7 +216,7 @@ describe('AddKnowledgeForm', () => {
     })
 
     expect(mockedCreateKnowledgeSourceFromUrl).toHaveBeenCalledWith({
-      data: 'https://example.com/article',
+      data: { url: 'https://example.com/article' },
     })
     expect(mockedCreateKnowledgeSource).not.toHaveBeenCalled()
     expect(mockedCreateKnowledgeSources).not.toHaveBeenCalled()
@@ -239,9 +244,9 @@ describe('AddKnowledgeForm', () => {
       )
     })
 
-    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: 'Some prose' })
+    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({ data: { text: 'Some prose' } })
     expect(mockedCreateKnowledgeSourceFromUrl).toHaveBeenCalledWith({
-      data: 'https://example.com/article',
+      data: { url: 'https://example.com/article' },
     })
   })
 
@@ -451,6 +456,44 @@ describe('AddKnowledgeForm', () => {
     expect(screen.getByRole('button', { name: 'Remove block 3' })).toBe(
       screen.getByTestId('knowledge-remove-block-button-2'),
     )
+  })
+  it('sends the chosen subject with every block when several are submitted', async () => {
+    liveSubjectRows.rows = [{ id: 'sub_web', name: 'Web', parentId: null }]
+    mockedCreateKnowledgeSources.mockResolvedValue([source('ks_1'), source('ks_2')])
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'sub_web' } })
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Block one' } })
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), { target: { value: 'Block two' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+    })
+
+    expect(mockedCreateKnowledgeSources).toHaveBeenCalledWith({
+      data: { texts: ['Block one', 'Block two'], subjectId: 'sub_web' },
+    })
+  })
+
+  it('sends no subject when the picker is left on No subject', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm />)
+
+    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('')
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Loose thought' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+    })
+
+    const [payload] = mockedCreateKnowledgeSource.mock.calls[0]
+
+    expect(payload.data.subjectId).toBeUndefined()
   })
 })
 

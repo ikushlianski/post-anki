@@ -31,6 +31,7 @@ function makeSubject(overrides: Partial<Subject> = {}): Subject {
     requireSources: false,
     kind: "language-practice",
     modelTier: null,
+  parentId: null,
     ...overrides,
   };
 }

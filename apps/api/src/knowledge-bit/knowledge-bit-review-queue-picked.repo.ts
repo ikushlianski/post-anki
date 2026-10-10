@@ -1,9 +1,11 @@
 import { and, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../db/client.js";
 import {
+  curricula,
   knowledgeBitQuestionVariants,
   knowledgeBits,
   knowledgeBitSchedules,
+  knowledgeSources,
   tagAssignments,
   topics,
 } from "../db/schema.js";
@@ -12,7 +14,13 @@ import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 import type { KnowledgeBitReviewCardsFilter } from "./knowledge-bit-review-queue.repo.js";
 
-export function scopeCondition(filter: KnowledgeBitReviewCardsFilter | undefined, db: DbExecutor) {
+// subjectIds is the subject plus its descendants, resolved by the caller. A placed bit
+// belongs to its curriculum's subject; an unplaced bit to its source's subject.
+export function scopeCondition(
+  filter: KnowledgeBitReviewCardsFilter | undefined,
+  db: DbExecutor,
+  subjectIds?: string[],
+) {
   if (filter?.knowledgeBitId) {
     return eq(knowledgeBits.id, filter.knowledgeBitId);
   }
@@ -30,6 +38,13 @@ export function scopeCondition(filter: KnowledgeBitReviewCardsFilter | undefined
         .where(
           and(eq(tagAssignments.tagId, filter.tagId), eq(tagAssignments.nodeType, "knowledgeBit")),
         ),
+    );
+  }
+
+  if (subjectIds) {
+    return or(
+      inArray(curricula.subjectId, subjectIds),
+      and(isNull(knowledgeBits.topicId), inArray(knowledgeSources.subjectId, subjectIds)),
     );
   }
 
@@ -76,6 +91,8 @@ export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
+    .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
     .where(eligibility(scope, now))
     .as("picked");
 }

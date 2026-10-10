@@ -9,6 +9,7 @@ export const Route = createFileRoute('/knowledge/review')({
     topicId: typeof search.topicId === 'string' ? search.topicId : undefined,
     knowledgeBitId:
       typeof search.knowledgeBitId === 'string' ? search.knowledgeBitId : undefined,
+    subjectId: typeof search.subjectId === 'string' ? search.subjectId : undefined,
   }),
   component: ReviewPage,
 })

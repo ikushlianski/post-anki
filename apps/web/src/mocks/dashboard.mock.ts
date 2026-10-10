@@ -9,6 +9,7 @@ export const dashboardSubjects: Subject[] = [
     kind: 'architecture-mentor',
     requireSources: false,
     modelTier: null,
+    parentId: null,
   },
   {
     id: 'subject-software-architecture',
@@ -16,6 +17,7 @@ export const dashboardSubjects: Subject[] = [
     kind: 'architecture-mentor',
     requireSources: true,
     modelTier: null,
+    parentId: null,
   },
   {
     id: 'subject-english',
@@ -23,6 +25,7 @@ export const dashboardSubjects: Subject[] = [
     kind: 'language-practice',
     requireSources: false,
     modelTier: null,
+    parentId: null,
   },
 ]
 

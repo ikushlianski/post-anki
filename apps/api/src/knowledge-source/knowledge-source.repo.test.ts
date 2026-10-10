@@ -57,6 +57,7 @@ describe("insertKnowledgeSource", () => {
         kind: "prose",
         rawText: "Some pasted prose.",
         status: "pending",
+        subjectId: null,
       },
     ]);
     expect(created).toMatchObject({
@@ -79,8 +80,8 @@ describe("insertKnowledgeSources", () => {
     const created = await insertKnowledgeSources(["First idea.", "Second idea."]);
 
     expect(state.insertedRows).toEqual([
-      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "First idea.", status: "pending" },
-      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "Second idea.", status: "pending" },
+      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "First idea.", status: "pending", subjectId: null },
+      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "Second idea.", status: "pending", subjectId: null },
     ]);
     expect(created).toHaveLength(2);
     expect(created.every((row) => row.createdAt instanceof Date)).toBe(true);

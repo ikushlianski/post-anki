@@ -5,11 +5,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockInsertKnowledgeSource = vi.fn();
 const mockInsertKnowledgeSources = vi.fn();
 const mockFetchWithTimeout = vi.fn();
+const mockGetSubject = vi.fn();
 
 vi.mock("./knowledge-source.repo.js", () => ({
   insertKnowledgeSource: (...args: unknown[]) => mockInsertKnowledgeSource(...args),
   insertKnowledgeSources: (...args: unknown[]) => mockInsertKnowledgeSources(...args),
   MAX_SOURCES_PER_BATCH_ADD: 100,
+}));
+
+vi.mock("../subject/subject.repo.js", () => ({
+  getSubject: (...args: unknown[]) => mockGetSubject(...args),
 }));
 
 vi.mock("../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js", () => ({
@@ -60,6 +65,7 @@ function fakeRes(): http.ServerResponse & { status: number | null; body: unknown
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockGetSubject.mockResolvedValue({ id: "sub_web" });
 });
 
 describe("handleCreateKnowledgeSource", () => {
@@ -118,7 +124,7 @@ describe("handleCreateKnowledgeSource", () => {
     await handleCreateKnowledgeSource(fakeReq({ text: "x".repeat(50_000) }), res);
 
     expect(res.status).toBe(201);
-    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("x".repeat(50_000));
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("x".repeat(50_000), null);
   });
 
   it("trims surrounding whitespace before storing and returns 201 with the created row", async () => {
@@ -133,7 +139,7 @@ describe("handleCreateKnowledgeSource", () => {
     const res = fakeRes();
     await handleCreateKnowledgeSource(fakeReq({ text: "  hello prose  " }), res);
 
-    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello prose");
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello prose", null);
     expect(res.status).toBe(201);
     expect((res.body as { status: string }).status).toBe("pending");
   });
@@ -163,7 +169,7 @@ describe("handleCreateKnowledgeSource", () => {
     const res = fakeRes();
     await handleCreateKnowledgeSource(fakeReq({ texts: ["  First idea.  ", "", "Second idea."] }), res);
 
-    expect(mockInsertKnowledgeSources).toHaveBeenCalledWith(["First idea.", "Second idea."]);
+    expect(mockInsertKnowledgeSources).toHaveBeenCalledWith(["First idea.", "Second idea."], null);
     expect(res.status).toBe(201);
     expect(res.body).toHaveLength(2);
   });
@@ -246,5 +252,58 @@ describe("handleCreateKnowledgeSource", () => {
     expect(mockFetchWithTimeout).not.toHaveBeenCalled();
     expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
     expect(mockInsertKnowledgeSources).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCreateKnowledgeSource subject filing", () => {
+  it("should file a pasted text under the chosen subject", async () => {
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_1" });
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ text: "hello prose", subjectId: "sub_web" }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello prose", "sub_web");
+  });
+
+  it("should file every text of a batch under the chosen subject", async () => {
+    mockInsertKnowledgeSources.mockResolvedValue([]);
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ texts: ["First idea.", "Second idea."], subjectId: "sub_web" }), res);
+
+    expect(mockInsertKnowledgeSources).toHaveBeenCalledWith(["First idea.", "Second idea."], "sub_web");
+  });
+
+  it("should file a URL source under the chosen subject", async () => {
+    mockFetchWithTimeout.mockResolvedValue("<html><body><p>Hello world.</p></body></html>");
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_2" });
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ url: "https://example.com/article", subjectId: "sub_web" }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith(expect.any(String), "sub_web");
+  });
+
+  it("should answer 400 subject_not_found and insert nothing when the subject is unknown", async () => {
+    mockGetSubject.mockResolvedValue(null);
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ text: "hello prose", subjectId: "sub_missing" }), res);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "subject_not_found" });
+    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+  });
+
+  it("should file the source under no subject when subjectId is omitted", async () => {
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_3" });
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ text: "hello prose" }), res);
+
+    expect(mockGetSubject).not.toHaveBeenCalled();
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello prose", null);
   });
 });

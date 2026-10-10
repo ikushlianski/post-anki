@@ -7,6 +7,7 @@ type SubjectRow = {
   requireSources: boolean;
   kind: string;
   modelTier: string | null;
+  parentId: string | null;
 };
 
 const state = vi.hoisted(() => ({
@@ -64,6 +65,7 @@ function makeRow(overrides: Partial<SubjectRow> = {}): SubjectRow {
     requireSources: true,
     kind: "architecture-mentor",
     modelTier: null,
+    parentId: null,
     ...overrides,
   };
 }
@@ -82,7 +84,7 @@ describe("updateSubject", () => {
     const updated = await updateSubject("sub_1", { name: "Renamed Patterns" });
 
     expect(state.patch).toEqual({ name: "Renamed Patterns" });
-    expect(updated?.name).toBe("Renamed Patterns");
+    expect(updated).toMatchObject({ ok: true, subject: { name: "Renamed Patterns" } });
   });
 
   it("keeps updating the model tier without touching the name", async () => {
@@ -91,7 +93,7 @@ describe("updateSubject", () => {
     const updated = await updateSubject("sub_1", { modelTier: "cheap" });
 
     expect(state.patch).toEqual({ modelTier: "cheap" });
-    expect(updated?.modelTier).toBe("cheap");
+    expect(updated).toMatchObject({ ok: true, subject: { modelTier: "cheap" } });
   });
 
   it("applies name and model tier together in one update", async () => {
@@ -108,7 +110,7 @@ describe("updateSubject", () => {
     const updated = await updateSubject("sub_1", {});
 
     expect(state.patch).toBeUndefined();
-    expect(updated?.name).toBe("Architecture Patterns");
+    expect(updated).toMatchObject({ ok: true, subject: { name: "Architecture Patterns" } });
   });
 
   it("returns null when the subject does not exist", async () => {
@@ -116,6 +118,6 @@ describe("updateSubject", () => {
 
     const updated = await updateSubject("sub_missing", { name: "Nobody" });
 
-    expect(updated).toBeNull();
+    expect(updated).toEqual({ ok: true, subject: null });
   });
 });

@@ -3,10 +3,12 @@ import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { cardPhaseSchema } from "@post-anki/shared";
 import type { DbExecutor } from "../db/client.js";
 import {
+  curricula,
   knowledgeBitQuestionVariants,
   knowledgeBitReviews,
   knowledgeBits,
   knowledgeBitSchedules,
+  knowledgeSources,
   topics,
 } from "../db/schema.js";
 import { isLeech } from "./knowledge-bit-grade-schedule-leech.js";
@@ -84,6 +86,8 @@ export async function listScopedCards(
     .leftJoin(knowledgeBitReviews, eq(knowledgeBitReviews.variantId, knowledgeBitQuestionVariants.id))
     .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
+    .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
     .where(eligibility(scope, now))
     .groupBy(
       knowledgeBitQuestionVariants.id,

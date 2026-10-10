@@ -21,6 +21,7 @@ const linearAlgebra: Subject = {
   requireSources: false,
   kind: "architecture-mentor",
   modelTier: null,
+  parentId: null,
 };
 
 function fakeRes(): http.ServerResponse & { statusCode: number; body: unknown } {

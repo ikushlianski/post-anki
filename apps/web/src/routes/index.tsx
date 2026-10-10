@@ -17,7 +17,12 @@ import { listCourseRefocusSuggestions } from '../curriculum/api-client'
 import type { Curriculum, Subject } from '../curriculum/model'
 import { listLearningPaths } from '../learning-path/learning-path.api'
 import { listStudySessions } from '../study-session/study-session.api'
-import { deleteSubject as deleteSubjectRequest, updateSubjectName } from '../subject/subject.api'
+import {
+  createSubject,
+  deleteSubject as deleteSubjectRequest,
+  updateSubjectName,
+  updateSubjectParent,
+} from '../subject/subject.api'
 import { DashboardView } from '../dashboard/dashboard-view'
 
 export const Route = createFileRoute('/')({
@@ -75,6 +80,26 @@ function Home() {
     }
   }
 
+  async function createSubSubject(parentId: string, name: string): Promise<boolean> {
+    try {
+      await createSubject({ data: { name, kind: 'architecture-mentor', parentId } })
+      await router.invalidate()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function moveSubject(subjectId: string, parentId: string | null): Promise<boolean> {
+    try {
+      await updateSubjectParent({ data: { subjectId, parentId } })
+      await router.invalidate()
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async function deleteSubject(subjectId: string): Promise<boolean> {
     try {
       await deleteSubjectRequest({ data: subjectId })
@@ -104,6 +129,8 @@ function Home() {
         dueTopics={initial.dueTopics}
         onRenameSubject={renameSubject}
         onDeleteSubject={deleteSubject}
+        onCreateSubSubject={createSubSubject}
+        onMoveSubject={moveSubject}
       />
     </>
   )

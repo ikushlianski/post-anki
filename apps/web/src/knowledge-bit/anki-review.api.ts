@@ -40,7 +40,7 @@ export const getReviewCards = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<ReviewCardsOutcome> => {
     const params = new URLSearchParams({ limit: String(data.limit), tz: data.tz })
 
-    for (const key of ['tagId', 'topicId', 'knowledgeBitId'] as const) {
+    for (const key of ['tagId', 'topicId', 'knowledgeBitId', 'subjectId'] as const) {
       const value = data[key]
 
       if (value) {

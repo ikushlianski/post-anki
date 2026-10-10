@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import type {
   CreateSubjectInput,
   MergeSubjectsResult,
@@ -6,6 +6,7 @@ import type {
   Subject,
   UpdateSubjectInput,
 } from "@post-anki/shared";
+import { wouldCreateSubjectCycle } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import {
   curricula,
@@ -30,6 +31,7 @@ function toSubject(r: typeof subjects.$inferSelect): Subject {
     requireSources: r.requireSources,
     kind: r.kind as Subject["kind"],
     modelTier: (r.modelTier as ModelTier | null) ?? null,
+    parentId: r.parentId ?? null,
   };
 }
 
@@ -37,7 +39,7 @@ export async function listSubjects(): Promise<Subject[]> {
   const rows = await getDb()
     .select()
     .from(subjects)
-    .orderBy(desc(subjects.createdAt));
+    .orderBy(sql`${subjects.sortOrder} asc nulls last`, asc(subjects.name));
 
   return rows.map(toSubject);
 }
@@ -99,10 +101,36 @@ export async function getSubject(subjectId: string): Promise<Subject | null> {
   return row ? toSubject(row) : null;
 }
 
+export type SubjectParentError = "parent_not_found" | "invalid_parent";
+
+export type UpdateSubjectResult =
+  | { ok: true; subject: Subject | null }
+  | { ok: false; error: SubjectParentError };
+
+// Unknown parent, or a parent that would make the subject its own ancestor (itself included).
+async function findParentAssignmentError(
+  subjectId: string,
+  parentId: string | null,
+): Promise<SubjectParentError | null> {
+  if (parentId === null) {
+    return null;
+  }
+
+  const rows = await getDb()
+    .select({ id: subjects.id, name: subjects.name, parentId: subjects.parentId })
+    .from(subjects);
+
+  if (!rows.some((row) => row.id === parentId)) {
+    return "parent_not_found";
+  }
+
+  return wouldCreateSubjectCycle(subjectId, parentId, rows) ? "invalid_parent" : null;
+}
+
 export async function updateSubject(
   subjectId: string,
   input: UpdateSubjectInput,
-): Promise<Subject | null> {
+): Promise<UpdateSubjectResult> {
   const patch: Partial<typeof subjects.$inferInsert> = {};
 
   if (input.name !== undefined) {
@@ -113,8 +141,18 @@ export async function updateSubject(
     patch.modelTier = input.modelTier;
   }
 
+  if (input.parentId !== undefined) {
+    const parentError = await findParentAssignmentError(subjectId, input.parentId);
+
+    if (parentError) {
+      return { ok: false, error: parentError };
+    }
+
+    patch.parentId = input.parentId;
+  }
+
   if (Object.keys(patch).length === 0) {
-    return getSubject(subjectId);
+    return { ok: true, subject: await getSubject(subjectId) };
   }
 
   const row = (
@@ -125,7 +163,7 @@ export async function updateSubject(
       .returning()
   )[0];
 
-  return row ? toSubject(row) : null;
+  return { ok: true, subject: row ? toSubject(row) : null };
 }
 
 export async function getSubjectModelTier(subjectId: string): Promise<ModelTier | null> {
@@ -175,6 +213,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     description: input.description ?? null,
     requireSources: input.requireSources ?? false,
     kind: input.kind,
+    parentId: input.parentId ?? null,
   };
 
   await getDb().insert(subjects).values(row);
@@ -186,6 +225,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     embeddingHash: null,
     embeddedAt: null,
     modelTier: null,
+    sortOrder: null,
   });
 }
 

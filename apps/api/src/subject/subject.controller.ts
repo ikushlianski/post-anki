@@ -9,6 +9,7 @@ import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   createSubject,
   deleteSubject,
+  getSubject,
   listSubjects,
   mergeSubjects,
   searchSubjectsByText,
@@ -46,6 +47,11 @@ export async function handleCreateSubject(
     return;
   }
 
+  if (body.data.parentId && !(await getSubject(body.data.parentId))) {
+    sendJson(res, 400, { error: "parent_not_found" });
+    return;
+  }
+
   sendJson(res, 201, await createSubject(body.data));
 }
 
@@ -61,14 +67,19 @@ export async function handleUpdateSubject(
     return;
   }
 
-  const updated = await updateSubject(subjectId, body.data);
+  const result = await updateSubject(subjectId, body.data);
 
-  if (!updated) {
+  if (!result.ok) {
+    sendJson(res, 400, { error: result.error });
+    return;
+  }
+
+  if (!result.subject) {
     sendError(res, 404, "not_found");
     return;
   }
 
-  sendJson(res, 200, updated);
+  sendJson(res, 200, result.subject);
 }
 
 export async function handleDeleteSubject(

@@ -10,16 +10,22 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({
     to,
     params,
+    search,
     children,
     ...rest
   }: {
     to: string
-    params: Record<string, string>
+    params?: Record<string, string>
+    search?: Record<string, string>
     children: ReactNode
     role?: string
     'data-testid'?: string
   }) => (
-    <a href={`${to}?${JSON.stringify(params)}`} {...rest}>
+    <a
+      href={`${to}?${JSON.stringify(params ?? {})}`}
+      data-search={JSON.stringify(search ?? {})}
+      {...rest}
+    >
       {children}
     </a>
   ),
@@ -36,19 +42,45 @@ const SUBJECT: Subject = {
   kind: 'architecture-mentor',
   requireSources: false,
   modelTier: null,
+  parentId: null,
 }
 
-function renderMenu(overrides: Partial<{
+type MenuOverrides = Partial<{
   onRename: (subjectId: string, name: string) => Promise<boolean>
   onDelete: (subjectId: string) => Promise<boolean>
-}> = {}) {
+  onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
+  onMoveSubject: (subjectId: string, parentId: string | null) => Promise<boolean>
+  subject: Subject
+  allSubjects: Subject[]
+}>
+
+function renderMenu(overrides: MenuOverrides = {}) {
   const onRename = overrides.onRename ?? vi.fn(async () => true)
   const onDelete = overrides.onDelete ?? vi.fn(async () => true)
+  const onCreateSubSubject = overrides.onCreateSubSubject ?? vi.fn(async () => true)
+  const onMoveSubject = overrides.onMoveSubject ?? vi.fn(async () => true)
+  const subject = overrides.subject ?? SUBJECT
 
-  render(<SubjectRowMenu subject={SUBJECT} onRename={onRename} onDelete={onDelete} />)
+  render(
+    <SubjectRowMenu
+      subject={subject}
+      allSubjects={overrides.allSubjects ?? [SUBJECT]}
+      onRename={onRename}
+      onDelete={onDelete}
+      onCreateSubSubject={onCreateSubSubject}
+      onMoveSubject={onMoveSubject}
+    />,
+  )
 
-  return { onRename, onDelete }
+  return { onRename, onDelete, onCreateSubSubject, onMoveSubject }
 }
+
+const TREE: Subject[] = [
+  { id: 'sub-business', name: 'Business', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: null },
+  { id: 'sub-sales', name: 'Sales', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'sub-business' },
+  { id: 'sub-health', name: 'Health', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: null },
+  { id: 'sub-fitness', name: 'Fitness', kind: 'architecture-mentor', requireSources: false, modelTier: null, parentId: 'sub-health' },
+]
 
 function trigger() {
   return screen.getByRole('button', { name: 'Actions for Business' })
@@ -67,6 +99,9 @@ describe('SubjectRowMenu', () => {
     expect(screen.getByRole('menu', { name: 'Actions for Business' })).toBeTruthy()
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Open',
+      'Review',
+      'Add sub-subject',
+      'Move under…',
       'Rename',
       'Delete subject',
     ])
@@ -156,11 +191,13 @@ describe('SubjectRowMenu', () => {
 
     fireEvent.click(trigger())
 
-    const [open, rename, deleteItem] = screen.getAllByRole('menuitem')
+    const [open, , , , rename, deleteItem] = screen.getAllByRole('menuitem')
 
     expect(document.activeElement).toBe(open)
 
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' })
+    for (let step = 0; step < 4; step += 1) {
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' })
+    }
     expect(document.activeElement).toBe(rename)
 
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'End' })
@@ -184,7 +221,14 @@ describe('SubjectRowMenu', () => {
 
     render(
       <div onClick={onCardClick}>
-        <SubjectRowMenu subject={SUBJECT} onRename={vi.fn(async () => true)} onDelete={vi.fn(async () => true)} />
+        <SubjectRowMenu
+          subject={SUBJECT}
+          allSubjects={[SUBJECT]}
+          onRename={vi.fn(async () => true)}
+          onDelete={vi.fn(async () => true)}
+          onCreateSubSubject={vi.fn(async () => true)}
+          onMoveSubject={vi.fn(async () => true)}
+        />
       </div>,
     )
 
@@ -201,5 +245,80 @@ describe('SubjectRowMenu', () => {
     fireEvent.mouseDown(document.body)
 
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('should link Review to the knowledge review page scoped to this subject', () => {
+    renderMenu()
+
+    fireEvent.click(trigger())
+
+    const reviewItem = screen.getByRole('menuitem', { name: 'Review' })
+
+    expect(reviewItem.getAttribute('href')).toContain('/knowledge/review')
+    expect(reviewItem.getAttribute('data-search')).toBe('{"subjectId":"subject-business"}')
+  })
+
+  it('should create a sub-subject under this subject with the trimmed inline name', async () => {
+    const { onCreateSubSubject } = renderMenu()
+
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-subject' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sub-subject name' }), {
+      target: { value: '  Marketing  ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add sub-subject' }))
+
+    await waitFor(() => {
+      expect(onCreateSubSubject).toHaveBeenCalledWith('subject-business', 'Marketing')
+    })
+  })
+
+  it('should keep the sub-subject field open and show an error when creating fails', async () => {
+    renderMenu({ onCreateSubSubject: vi.fn(async () => false) })
+
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-subject' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Sub-subject name' }), {
+      target: { value: 'HR' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add sub-subject' }))
+
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Sub-subject name' })).toBeTruthy()
+  })
+
+  it('should offer every other subject and Top level, but never the subject itself or its descendants', () => {
+    renderMenu({ subject: TREE[0], allSubjects: TREE })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Business' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
+
+    const labels = screen.getAllByRole('menuitem').map((item) => item.textContent)
+
+    expect(labels).toEqual(['Top level', 'Health', 'Health › Fitness'])
+  })
+
+  it('should move a subject under the chosen target', async () => {
+    const { onMoveSubject } = renderMenu({ subject: TREE[1], allSubjects: TREE })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Sales' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
+    fireEvent.click(screen.getByTestId('subject-menu-move-target-sub-health'))
+
+    await waitFor(() => {
+      expect(onMoveSubject).toHaveBeenCalledWith('sub-sales', 'sub-health')
+    })
+  })
+
+  it('should clear the parent when Top level is chosen', async () => {
+    const { onMoveSubject } = renderMenu({ subject: TREE[1], allSubjects: TREE })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Sales' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move under…' }))
+    fireEvent.click(screen.getByTestId('subject-menu-move-top-sub-sales'))
+
+    await waitFor(() => {
+      expect(onMoveSubject).toHaveBeenCalledWith('sub-sales', null)
+    })
   })
 })

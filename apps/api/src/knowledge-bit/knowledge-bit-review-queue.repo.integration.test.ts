@@ -45,10 +45,61 @@ const CLOCK = { tz: "UTC", now: new Date("2090-03-10T12:00:00.000Z") };
 
 async function listKnowledgeBitReviewCards(
   limit: number,
-  filter: { tagId?: string; topicId?: string; knowledgeBitId?: string } | undefined,
+  filter: { tagId?: string; topicId?: string; knowledgeBitId?: string; subjectId?: string } | undefined,
   clock: { tz: string; now: Date } = CLOCK,
 ) {
   return (await getKnowledgeBitReviewQueue(limit, filter, clock)).cards;
+}
+
+async function seedSubject(name: string, parentId: string | null = null): Promise<string> {
+  const subjectId = `subj_${randomUUID()}`;
+
+  await client.query(`INSERT INTO subjects (id, name, parent_id) VALUES ($1, $2, $3)`, [
+    subjectId,
+    name,
+    parentId,
+  ]);
+
+  return subjectId;
+}
+
+async function seedCurriculum(subjectId: string): Promise<string> {
+  const curriculumId = `curriculum_${randomUUID()}`;
+
+  await client.query(`INSERT INTO curricula (id, subject_id, name) VALUES ($1, $2, 'Curriculum')`, [
+    curriculumId,
+    subjectId,
+  ]);
+
+  return curriculumId;
+}
+
+async function seedTopic(curriculumId: string): Promise<string> {
+  const topicId = `topic_${randomUUID()}`;
+
+  await client.query(
+    `INSERT INTO topics (id, module_id, curriculum_id, title, "order", learning_status) VALUES ($1, $2, $3, 'Placed topic', 0, 'active')`,
+    [topicId, `module_${randomUUID()}`, curriculumId],
+  );
+
+  return topicId;
+}
+
+// An unplaced bit whose pasted source is filed under the given subject.
+async function seedBitFromSource(subjectId: string): Promise<string> {
+  const sourceId = `ks_${randomUUID()}`;
+  const knowledgeBitId = `kb_${randomUUID()}`;
+
+  await client.query(`INSERT INTO knowledge_sources (id, kind, raw_text, subject_id) VALUES ($1, 'prose', 'source', $2)`, [
+    sourceId,
+    subjectId,
+  ]);
+  await client.query(
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 0, 'SECRET BIT BODY', 'approved')`,
+    [knowledgeBitId, sourceId],
+  );
+
+  return knowledgeBitId;
 }
 
 beforeAll(async () => {
@@ -445,4 +496,41 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
 
     expect(card?.leech).toBe(true);
   });
+  it("should include bits filed under a sub-subject when the review is scoped to its parent subject", async () => {
+    const parentSubjectId = await seedSubject("Programming");
+    const childSubjectId = await seedSubject("Web", parentSubjectId);
+    const unrelatedSubjectId = await seedSubject("Business");
+
+    const placedInChild = await seedVariant(
+      await seedBit("approved", { topicId: await seedTopic(await seedCurriculum(childSubjectId)) }),
+    );
+    const unplacedInChild = await seedVariant(await seedBitFromSource(childSubjectId));
+    const placedInUnrelated = await seedVariant(
+      await seedBit("approved", { topicId: await seedTopic(await seedCurriculum(unrelatedSubjectId)) }),
+    );
+    const unplacedInUnrelated = await seedVariant(await seedBitFromSource(unrelatedSubjectId));
+
+    const cards = await listKnowledgeBitReviewCards(50, { subjectId: parentSubjectId });
+    const served = cards.map((card) => card.variantId);
+
+    expect(served).toEqual(expect.arrayContaining([placedInChild, unplacedInChild]));
+    expect(served).not.toContain(placedInUnrelated);
+    expect(served).not.toContain(unplacedInUnrelated);
+  });
+
+  it("should serve only the subject's own bits when the review is scoped to a sub-subject", async () => {
+    const parentSubjectId = await seedSubject("Languages");
+    const childSubjectId = await seedSubject("Spanish", parentSubjectId);
+
+    const ownVariant = await seedVariant(await seedBitFromSource(childSubjectId));
+    const parentVariant = await seedVariant(await seedBitFromSource(parentSubjectId));
+
+    const served = (await listKnowledgeBitReviewCards(50, { subjectId: childSubjectId })).map(
+      (card) => card.variantId,
+    );
+
+    expect(served).toEqual([ownVariant]);
+    expect(served).not.toContain(parentVariant);
+  });
 });
+

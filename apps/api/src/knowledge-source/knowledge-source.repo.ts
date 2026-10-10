@@ -8,14 +8,19 @@ export interface KnowledgeSource {
   rawText: string | null;
   status: string;
   createdAt: Date;
+  subjectId: string | null;
 }
 
-export async function insertKnowledgeSource(rawText: string): Promise<KnowledgeSource> {
+export async function insertKnowledgeSource(
+  rawText: string,
+  subjectId: string | null = null,
+): Promise<KnowledgeSource> {
   const row = {
     id: newId("ks"),
     kind: "prose",
     rawText,
     status: "pending",
+    subjectId,
   };
 
   await getDb().insert(knowledgeSources).values(row);
@@ -30,7 +35,10 @@ export async function insertKnowledgeSource(rawText: string): Promise<KnowledgeS
 // each detected into its own knowledge bits independently once the scan picks it up.
 export const MAX_SOURCES_PER_BATCH_ADD = 100;
 
-export async function insertKnowledgeSources(rawTexts: string[]): Promise<KnowledgeSource[]> {
+export async function insertKnowledgeSources(
+  rawTexts: string[],
+  subjectId: string | null = null,
+): Promise<KnowledgeSource[]> {
   if (rawTexts.length === 0) {
     return [];
   }
@@ -40,6 +48,7 @@ export async function insertKnowledgeSources(rawTexts: string[]): Promise<Knowle
     kind: "prose",
     rawText,
     status: "pending",
+    subjectId,
   }));
 
   await getDb().insert(knowledgeSources).values(rows);

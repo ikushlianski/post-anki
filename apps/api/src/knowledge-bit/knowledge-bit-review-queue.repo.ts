@@ -4,7 +4,9 @@ import type {
   KnowledgeBitQuestionVariantKind,
   ReviewCounts,
 } from "@post-anki/shared";
+import { collectSubjectSubtreeIds } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
+import { subjects } from "../db/schema.js";
 import { listLearnAheadRows } from "./knowledge-bit-review-queue-learning.repo.js";
 import { pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
 import {
@@ -35,6 +37,7 @@ export interface KnowledgeBitReviewCardsFilter {
   tagId?: string;
   topicId?: string;
   knowledgeBitId?: string;
+  subjectId?: string;
 }
 
 export interface KnowledgeBitReviewQueue {
@@ -51,6 +54,15 @@ export interface KnowledgeBitReviewQueueClock {
 
 // Unscoped: only due or never-reviewed bits, one card each, new cards capped per local day.
 // Scoped (tag/topic/bit): today's behaviour, no due filter and no cap.
+// The scoped subject plus every descendant; an unknown id matches nothing beyond itself.
+async function resolveSubjectScopeIds(subjectId: string, db: DbExecutor): Promise<string[]> {
+  const rows = await db
+    .select({ id: subjects.id, name: subjects.name, parentId: subjects.parentId })
+    .from(subjects);
+
+  return collectSubjectSubtreeIds(subjectId, rows);
+}
+
 export async function getKnowledgeBitReviewQueue(
   limit: number,
   filter: KnowledgeBitReviewCardsFilter | undefined,
@@ -58,7 +70,8 @@ export async function getKnowledgeBitReviewQueue(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitReviewQueue> {
   const { now } = clock;
-  const scope = scopeCondition(filter, db);
+  const subjectIds = filter?.subjectId ? await resolveSubjectScopeIds(filter.subjectId, db) : undefined;
+  const scope = scopeCondition(filter, db, subjectIds);
   const picked = pickedVariants(scope, now, db);
   const { remaining, dayEndsAt } = await readNewRemainingToday(clock, db);
 

@@ -42,6 +42,10 @@ export const subjects = pgTable("subjects", {
   // Same app-level-validated text-column convention as `curricula.concern`
   // (curated `modelTierSchema` enum from @post-anki/shared, not a pg enum).
   modelTier: text("model_tier"),
+  // Sub-subjects: a self-reference, null = top-level. No FK, matching this schema's convention.
+  parentId: text("parent_id"),
+  // Reserved for drag-to-reorder: nullable, no default; lists order by this, then name.
+  sortOrder: integer("sort_order"),
 });
 
 export const curricula = pgTable(
@@ -1086,6 +1090,8 @@ export const knowledgeSources = pgTable(
     // stale reset), so a row stuck in "processing" past a threshold can be
     // reclaimed instead of stuck forever.
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    // Subject the source is filed under when pasted with one; nullable, no FK, no default.
+    subjectId: text("subject_id"),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(

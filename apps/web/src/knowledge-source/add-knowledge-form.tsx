@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
+import { useLiveQuery } from '@tanstack/react-db'
+import { buildSubjectPathLabel } from '@post-anki/core'
 
+import { mapSubjectRow, subjectsCollection } from '../curriculum/board.collection'
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 
 import {
@@ -42,6 +45,12 @@ export function AddKnowledgeForm() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [subjectId, setSubjectId] = useState('')
+  const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
+  const subjects = (subjectsQuery.data ?? []).map(mapSubjectRow)
+  const subjectOptions = subjects
+    .map((subject) => ({ id: subject.id, label: buildSubjectPathLabel(subject.id, subjects) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 
   const nonEmptyBlocks = blocks
     .map((block, index) => ({ index, type: block.type, value: block.value.trim() }))
@@ -77,6 +86,7 @@ export function AddKnowledgeForm() {
 
     const textBlocks = nonEmptyBlocks.filter((block) => block.type === 'text')
     const urlBlocks = nonEmptyBlocks.filter((block) => block.type === 'url')
+    const chosenSubjectId = subjectId || undefined
 
     const jobs: { indices: number[]; run: () => Promise<number> }[] = []
 
@@ -86,7 +96,7 @@ export function AddKnowledgeForm() {
       jobs.push({
         indices: [block.index],
         run: async () => {
-          await createKnowledgeSource({ data: block.value })
+          await createKnowledgeSource({ data: { text: block.value, subjectId: chosenSubjectId } })
           return 1
         },
       })
@@ -94,7 +104,9 @@ export function AddKnowledgeForm() {
       jobs.push({
         indices: textBlocks.map((block) => block.index),
         run: async () => {
-          const created = await createKnowledgeSources({ data: textBlocks.map((block) => block.value) })
+          const created = await createKnowledgeSources({
+            data: { texts: textBlocks.map((block) => block.value), subjectId: chosenSubjectId },
+          })
           return created.length
         },
       })
@@ -104,7 +116,7 @@ export function AddKnowledgeForm() {
       jobs.push({
         indices: [block.index],
         run: async () => {
-          await createKnowledgeSourceFromUrl({ data: block.value })
+          await createKnowledgeSourceFromUrl({ data: { url: block.value, subjectId: chosenSubjectId } })
           return 1
         },
       })
@@ -147,6 +159,25 @@ export function AddKnowledgeForm() {
 
   return (
     <form onSubmit={submit} className="space-y-3" data-testid="knowledge-add-form">
+      <label className="flex items-center gap-2 text-sm text-neutral-700">
+        <span>Subject</span>
+        <select
+          aria-label="Subject for these sources"
+          value={subjectId}
+          disabled={busy}
+          onChange={(event) => setSubjectId(event.target.value)}
+          data-testid="knowledge-subject-select"
+          className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm outline-none focus:border-neutral-500 disabled:opacity-50"
+        >
+          <option value="">No subject</option>
+          {subjectOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
       {blocks.map((block, index) => (
         <div key={index} className="space-y-1">
           <div className="flex items-center gap-3">

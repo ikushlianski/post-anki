@@ -595,16 +595,34 @@ export interface KnowledgeSource {
   createdAt: string
 }
 
-export async function createKnowledgeSource(text: string): Promise<KnowledgeSource> {
-  return request<KnowledgeSource>('/knowledge-sources', { method: 'POST', body: { text } })
+export async function createKnowledgeSource(
+  text: string,
+  subjectId?: string,
+): Promise<KnowledgeSource> {
+  return request<KnowledgeSource>('/knowledge-sources', {
+    method: 'POST',
+    body: { text, subjectId },
+  })
 }
 
-export async function createKnowledgeSources(texts: string[]): Promise<KnowledgeSource[]> {
-  return request<KnowledgeSource[]>('/knowledge-sources', { method: 'POST', body: { texts } })
+export async function createKnowledgeSources(
+  texts: string[],
+  subjectId?: string,
+): Promise<KnowledgeSource[]> {
+  return request<KnowledgeSource[]>('/knowledge-sources', {
+    method: 'POST',
+    body: { texts, subjectId },
+  })
 }
 
-export async function createKnowledgeSourceFromUrl(url: string): Promise<KnowledgeSource> {
-  return request<KnowledgeSource>('/knowledge-sources', { method: 'POST', body: { url } })
+export async function createKnowledgeSourceFromUrl(
+  url: string,
+  subjectId?: string,
+): Promise<KnowledgeSource> {
+  return request<KnowledgeSource>('/knowledge-sources', {
+    method: 'POST',
+    body: { url, subjectId },
+  })
 }
 
 export async function deleteSubject(subjectId: string): Promise<void> {
@@ -618,6 +636,16 @@ export async function updateSubjectModelTier(
   return request<be.Subject>(`/subjects/${subjectId}`, {
     method: 'PATCH',
     body: { modelTier },
+  })
+}
+
+export async function updateSubjectParent(
+  subjectId: string,
+  parentId: string | null,
+): Promise<Subject> {
+  return request<be.Subject>(`/subjects/${subjectId}`, {
+    method: 'PATCH',
+    body: { parentId },
   })
 }
 

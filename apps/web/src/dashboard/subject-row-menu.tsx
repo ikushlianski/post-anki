@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { Link } from '@tanstack/react-router'
+import { buildSubjectPathLabel, listValidMoveTargets } from '@post-anki/core'
 
 import type { Subject } from '../curriculum/model'
 
-type MenuView = 'closed' | 'actions' | 'rename' | 'confirm-delete'
+type MenuView = 'closed' | 'actions' | 'rename' | 'confirm-delete' | 'add-child' | 'move'
 
 const NAVIGATION_KEYS = ['ArrowDown', 'ArrowUp', 'Home', 'End']
 const ITEM_CLASS =
@@ -12,11 +13,21 @@ const ITEM_CLASS =
 
 export interface SubjectRowMenuProps {
   subject: Subject
+  allSubjects: Subject[]
   onRename: (subjectId: string, name: string) => Promise<boolean>
   onDelete: (subjectId: string) => Promise<boolean>
+  onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
+  onMoveSubject: (subjectId: string, parentId: string | null) => Promise<boolean>
 }
 
-export function SubjectRowMenu({ subject, onRename, onDelete }: SubjectRowMenuProps) {
+export function SubjectRowMenu({
+  subject,
+  allSubjects,
+  onRename,
+  onDelete,
+  onCreateSubSubject,
+  onMoveSubject,
+}: SubjectRowMenuProps) {
   const [view, setView] = useState<MenuView>('closed')
   const [draft, setDraft] = useState(subject.name)
   const [busy, setBusy] = useState(false)
@@ -51,7 +62,7 @@ export function SubjectRowMenu({ subject, onRename, onDelete }: SubjectRowMenuPr
 
   function showView(next: MenuView) {
     setError(null)
-    setDraft(subject.name)
+    setDraft(next === 'add-child' ? '' : subject.name)
     setView(next)
   }
 
@@ -136,6 +147,50 @@ export function SubjectRowMenu({ subject, onRename, onDelete }: SubjectRowMenuPr
     }
   }
 
+  async function handleAddSubSubject(event: FormEvent) {
+    event.preventDefault()
+
+    const name = draft.trim()
+
+    if (!name) {
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    const ok = await onCreateSubSubject(subject.id, name)
+
+    setBusy(false)
+
+    if (ok) {
+      close(true)
+    } else {
+      setError('Create failed — try again.')
+    }
+  }
+
+  async function handleMove(parentId: string | null) {
+    if (parentId === subject.parentId) {
+      close(true)
+
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    const ok = await onMoveSubject(subject.id, parentId)
+
+    setBusy(false)
+
+    if (ok) {
+      close(true)
+    } else {
+      setError('Move failed — try again.')
+    }
+  }
+
   async function handleDelete() {
     setBusy(true)
     setError(null)
@@ -150,6 +205,10 @@ export function SubjectRowMenu({ subject, onRename, onDelete }: SubjectRowMenuPr
       setError('Delete failed — try again.')
     }
   }
+
+  const moveTargets = listValidMoveTargets(subject.id, allSubjects)
+    .map((target) => ({ id: target.id, label: buildSubjectPathLabel(target.id, allSubjects) }))
+    .sort((a, b) => a.label.localeCompare(b.label))
 
   return (
     <div ref={rootRef} className="relative shrink-0" onKeyDown={handleKeyDown}>
@@ -184,6 +243,33 @@ export function SubjectRowMenu({ subject, onRename, onDelete }: SubjectRowMenuPr
               >
                 Open
               </Link>
+              <Link
+                to="/knowledge/review"
+                search={{ subjectId: subject.id }}
+                role="menuitem"
+                data-testid={`subject-menu-review-${subject.id}`}
+                className={ITEM_CLASS}
+              >
+                Review
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid={`subject-menu-add-child-${subject.id}`}
+                onClick={() => showView('add-child')}
+                className={ITEM_CLASS}
+              >
+                Add sub-subject
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-testid={`subject-menu-move-${subject.id}`}
+                onClick={() => showView('move')}
+                className={ITEM_CLASS}
+              >
+                Move under…
+              </button>
               <button
                 type="button"
                 role="menuitem"
@@ -238,6 +324,88 @@ export function SubjectRowMenu({ subject, onRename, onDelete }: SubjectRowMenuPr
                 </button>
               </div>
             </form>
+          ) : null}
+
+          {view === 'add-child' ? (
+            <form onSubmit={handleAddSubSubject} className="flex flex-col gap-2 p-2">
+              <input
+                value={draft}
+                autoFocus
+                disabled={busy}
+                placeholder="Sub-subject name"
+                aria-label="Sub-subject name"
+                onChange={(event) => setDraft(event.target.value)}
+                data-testid={`subject-menu-add-child-input-${subject.id}`}
+                className="rounded border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-neutral-500"
+              />
+              {error ? (
+                <p role="alert" className="text-xs text-red-600">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-3 text-xs">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => showView('actions')}
+                  className="text-neutral-500 hover:text-neutral-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy || draft.trim() === ''}
+                  data-testid={`subject-menu-add-child-submit-${subject.id}`}
+                  className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
+                >
+                  Add sub-subject
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          {view === 'move' ? (
+            <div className="flex max-h-72 flex-col gap-1 overflow-y-auto p-1">
+              <p className="px-3 py-1 text-xs text-neutral-500">Move under…</p>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={busy}
+                data-testid={`subject-menu-move-top-${subject.id}`}
+                onClick={() => handleMove(null)}
+                className={ITEM_CLASS}
+              >
+                Top level
+              </button>
+              {moveTargets.map((target) => (
+                <button
+                  key={target.id}
+                  type="button"
+                  role="menuitem"
+                  disabled={busy}
+                  data-testid={`subject-menu-move-target-${target.id}`}
+                  onClick={() => handleMove(target.id)}
+                  className={ITEM_CLASS}
+                >
+                  {target.label}
+                </button>
+              ))}
+              {error ? (
+                <p role="alert" className="px-3 text-xs text-red-600">
+                  {error}
+                </p>
+              ) : null}
+              <div className="flex justify-end px-3 pt-1 text-xs">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => showView('actions')}
+                  className="text-neutral-500 hover:text-neutral-900"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           ) : null}
 
           {view === 'confirm-delete' ? (

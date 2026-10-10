@@ -5,15 +5,25 @@ import { readJsonBody, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { kickKnowledgeBitPipeline } from "../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
+import { getSubject } from "../subject/subject.repo.js";
 import {
   insertKnowledgeSource,
   insertKnowledgeSources,
   MAX_SOURCES_PER_BATCH_ADD,
 } from "./knowledge-source.repo.js";
 
-const singleTextInput = z.object({ text: z.string().max(50_000) });
-const batchTextInput = z.object({ texts: z.array(z.string().max(50_000)).min(1) });
-const urlInput = z.object({ url: z.string().url() }).strict();
+const subjectIdInput = z.string().min(1).nullable().optional();
+const singleTextInput = z.object({ text: z.string().max(50_000), subjectId: subjectIdInput });
+const batchTextInput = z.object({
+  texts: z.array(z.string().max(50_000)).min(1),
+  subjectId: subjectIdInput,
+});
+const urlInput = z.object({ url: z.string().url(), subjectId: subjectIdInput }).strict();
+
+// Null means "no subject"; a non-null id must name an existing subject.
+async function isUnknownSubject(subjectId: string | null): Promise<boolean> {
+  return subjectId !== null && (await getSubject(subjectId)) === null;
+}
 
 function kickPipelineInBackground(): void {
   void kickKnowledgeBitPipeline().catch((err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"));
@@ -40,6 +50,13 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
+    const subjectId = body.data.subjectId ?? null;
+
+    if (await isUnknownSubject(subjectId)) {
+      sendJson(res, 400, { error: "subject_not_found" });
+      return;
+    }
+
     const html = await fetchWithTimeout(body.data.url, URL_FETCH_TIMEOUT_MS);
 
     if (html === null) {
@@ -54,7 +71,7 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    sendJson(res, 201, await insertKnowledgeSource(extractedText));
+    sendJson(res, 201, await insertKnowledgeSource(extractedText, subjectId));
     kickPipelineInBackground();
     return;
   }
@@ -66,6 +83,13 @@ export async function handleCreateKnowledgeSource(
       const issues = body.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
 
       sendJson(res, 400, { error: "invalid_input", message: issues });
+      return;
+    }
+
+    const subjectId = body.data.subjectId ?? null;
+
+    if (await isUnknownSubject(subjectId)) {
+      sendJson(res, 400, { error: "subject_not_found" });
       return;
     }
 
@@ -84,7 +108,7 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    sendJson(res, 201, await insertKnowledgeSources(texts));
+    sendJson(res, 201, await insertKnowledgeSources(texts, subjectId));
     kickPipelineInBackground();
     return;
   }
@@ -110,6 +134,13 @@ export async function handleCreateKnowledgeSource(
     return;
   }
 
-  sendJson(res, 201, await insertKnowledgeSource(text));
+  const subjectId = body.data.subjectId ?? null;
+
+  if (await isUnknownSubject(subjectId)) {
+    sendJson(res, 400, { error: "subject_not_found" });
+    return;
+  }
+
+  sendJson(res, 201, await insertKnowledgeSource(text, subjectId));
   kickPipelineInBackground();
 }

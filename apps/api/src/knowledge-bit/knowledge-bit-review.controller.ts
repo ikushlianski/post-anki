@@ -22,10 +22,10 @@ export async function handleListKnowledgeBitReviewCards(
     return;
   }
 
-  const { limit, tz, tagId, topicId, knowledgeBitId } = parsed.data;
+  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId } = parsed.data;
   const queue = await getKnowledgeBitReviewQueue(
     limit,
-    { tagId, topicId, knowledgeBitId },
+    { tagId, topicId, knowledgeBitId, subjectId },
     { tz, now: new Date() },
   );
 

@@ -26,6 +26,7 @@ const SUBJECT: Subject = {
   requireSources: false,
   kind: 'architecture-mentor',
   modelTier: null,
+  parentId: null,
 }
 
 const CURRICULUM: Curriculum = {
