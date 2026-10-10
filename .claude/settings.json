@@ -78,7 +78,7 @@
       "Read(/var/**)",
       "Read(/tmp/**)",
       "Read(/private/**)",
-      "Read(/Users/!(ikushlianski/webdata/ilya-projects/post-anki)/**)",
+      "Read(/Users/!(ikushlianski/webdata/ilya-projects/post-anki|ikushlianski/work/verification-repo|ikushlianski/.claude-work/skills/write-playwright-tests)/**)",
       "Read(/Library/**)",
       "Read(/System/**)",
       "Read(/Applications/**)",
@@ -92,7 +92,7 @@
       "Edit(/var/**)",
       "Edit(/tmp/**)",
       "Edit(/private/**)",
-      "Edit(/Users/!(ikushlianski/webdata/ilya-projects/post-anki)/**)",
+      "Edit(/Users/!(ikushlianski/webdata/ilya-projects/post-anki|ikushlianski/work/verification-repo|ikushlianski/.claude-work/skills/write-playwright-tests)/**)",
       "Edit(/Library/**)",
       "Edit(/System/**)",
       "Edit(/Applications/**)",
@@ -123,8 +123,6 @@
       "Bash(ls /Volumes)",
       "Bash(ls ~/webdata/ilya-projects/ai-dev*)",
       "Bash(ls ~/webdata/ilya-projects/todoist*)",
-      "Bash(ls ~/work/**)",
-      "Bash(ls /Users/ikushlianski/work/**)",
       "Bash(ls /Users/ikushlianski/webdata/ilya-projects/ai-dev*)"
     ]
   }
