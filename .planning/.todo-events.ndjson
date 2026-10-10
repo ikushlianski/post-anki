@@ -96,3 +96,5 @@
 {"ts":"2026-10-10T22:58:47.465Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Show newly detected suggestions on the approval page without reload"}
 {"ts":"2026-10-10T22:58:48.829Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Review screen: keep grade focus, retry button, explained counts and done step"}
 {"ts":"2026-10-10T22:58:50.257Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Paste page: plain wording, saving state, labelled inputs and mode toggles"}
+{"ts":"2026-10-10T22:59:54.558Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Subject menu: Add sub-subject and Move under actions"}
+{"ts":"2026-10-10T22:59:55.696Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"sub-subjects","itemText":"Decided 2026-10-11: real nested subjects via parent link, not categories"}

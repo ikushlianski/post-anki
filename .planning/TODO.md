@@ -18,9 +18,10 @@ updated: 2026-09-04
 ### Coding tasks
 - [ ] Review cards scoped to one sub-subject, including its children
 - [ ] Let pasted text and its items belong to a sub-subject
+- [ ] Subject menu: Add sub-subject and Move under actions
 
 ### Notes
-- Open decision: real nested subjects, or upgrade subject categories (recommended)
+- Decided 2026-10-11: real nested subjects via parent link, not categories
 
 
 ## highlight-capture-extension
