@@ -11,7 +11,11 @@ import {
   getPendingKnowledgeBitsForReview,
   rejectKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
-import { QUESTION_POLL_INTERVAL_MS, QUESTION_POLL_MAX_ATTEMPTS } from './knowledge-bit-review-polling'
+import {
+  QUESTION_POLL_IDLE_LIMIT,
+  QUESTION_POLL_INTERVAL_MS,
+  QUESTION_POLL_MAX_ATTEMPTS,
+} from './knowledge-bit-review-polling'
 
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
@@ -165,10 +169,34 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     ).toBe(false)
 
     await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * (QUESTION_POLL_IDLE_LIMIT + 1))
+    })
+
+    const callsWhenQuiet = mockedGetPending.mock.calls.length
+
+    await act(async () => {
       await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * 3)
     })
 
-    expect(mockedGetPending).toHaveBeenCalledTimes(1)
+    expect(mockedGetPending).toHaveBeenCalledTimes(callsWhenQuiet)
+  })
+
+  it('should show a bit detected after the page opened, without a reload', async () => {
+    vi.useFakeTimers()
+    mockedGetPending.mockResolvedValue([
+      source('s1', [bit('b1', true)]),
+      source('s2', [bit('new1', true)]),
+    ])
+    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
+
+    expect(screen.queryByTestId('knowledge-bit-review-item-new1')).toBeNull()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS)
+    })
+
+    expect(screen.getByTestId('knowledge-bit-review-item-new1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-item-b1')).toBeDefined()
   })
 
   it('should stop promising automatic checks and ask for a reload once polling gives up', async () => {
@@ -189,14 +217,22 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     )
   })
 
-  it('should not poll when every bit already has questions', async () => {
+  it('should stop checking for new suggestions once the page has been quiet for a while', async () => {
     vi.useFakeTimers()
+    mockedGetPending.mockResolvedValue([source('s1', [bit('b1', true)])])
     render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * (QUESTION_POLL_IDLE_LIMIT + 1))
+    })
+
+    const callsWhenQuiet = mockedGetPending.mock.calls.length
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * 3)
     })
 
-    expect(mockedGetPending).not.toHaveBeenCalled()
+    expect(callsWhenQuiet).toBeGreaterThan(0)
+    expect(mockedGetPending).toHaveBeenCalledTimes(callsWhenQuiet)
   })
 })

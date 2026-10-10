@@ -23,8 +23,11 @@ import { KnowledgeBitReviewSourceGroup } from './knowledge-bit-review-source-gro
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 import { useReviewKeyboard, type ReviewKeyAction } from './knowledge-bit-review-keyboard'
 import {
+  QUESTION_POLL_IDLE_LIMIT,
   hasBitAwaitingQuestions,
+  mergeArrivedBits,
   mergeArrivedVariants,
+  unseenBitIds,
   useQuestionPolling,
 } from './knowledge-bit-review-polling'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
@@ -36,21 +39,53 @@ export function KnowledgeBitReviewPanel({
 }) {
   const [sources, setSources] = useState(initialSources)
   const [focusedIndex, setFocusedIndex] = useState(0)
+  const [focusedBitId, setFocusedBitId] = useState<string>()
+  const [idleStopped, setIdleStopped] = useState(false)
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const editingBitIds = useRef(new Set<string>())
+  // Every bit ever shown or decided here; a poll never re-adds one of these.
+  const knownBitIds = useRef(
+    new Set(initialSources.flatMap((source) => source.bits.map((bit) => bit.id))),
+  )
+  const quietPolls = useRef(0)
 
   const allBits = sources.flatMap((source) => source.bits)
-  const focusedBit = allBits[Math.min(focusedIndex, allBits.length - 1)]
+  const focusPosition = allBits.findIndex((bit) => bit.id === focusedBitId)
+  const activeIndex =
+    focusPosition >= 0 ? focusPosition : Math.min(focusedIndex, allBits.length - 1)
+  const focusedBit = allBits[activeIndex]
   const readyBits = allBits.filter((bit) => bit.variants.length > 0)
+
+  if (focusPosition >= 0 && focusPosition !== focusedIndex) {
+    setFocusedIndex(focusPosition)
+  }
+
+  function moveFocus(index: number) {
+    setFocusedIndex(index)
+    setFocusedBitId(allBits[index]?.id)
+  }
 
   const refreshQuestions = useCallback(async () => {
     const fresh = await getPendingKnowledgeBitsForReview()
+    const arrived = new Set(unseenBitIds(fresh, knownBitIds.current))
+    const protectedBitIds = new Set([
+      ...editingBitIds.current,
+      ...Object.keys(rowErrors).filter((bitId) => rowErrors[bitId]),
+    ])
 
-    setSources((prev) => mergeArrivedVariants(prev, fresh))
-  }, [])
+    arrived.forEach((bitId) => knownBitIds.current.add(bitId))
+    quietPolls.current = arrived.size > 0 ? 0 : quietPolls.current + 1
+    setIdleStopped(quietPolls.current >= QUESTION_POLL_IDLE_LIMIT)
+    setSources((prev) =>
+      mergeArrivedBits(mergeArrivedVariants(prev, fresh, protectedBitIds), fresh, arrived),
+    )
+  }, [rowErrors])
 
-  const pollingGaveUp = useQuestionPolling(hasBitAwaitingQuestions(sources), refreshQuestions)
+  const pollingGaveUp = useQuestionPolling(
+    hasBitAwaitingQuestions(sources) || !idleStopped,
+    refreshQuestions,
+  )
 
   const handleEditingChange = useCallback((bitId: string, editing: boolean) => {
     if (editing) {
@@ -81,6 +116,7 @@ export function KnowledgeBitReviewPanel({
     try {
       await approveKnowledgeBitForReview({ data: { bitId } })
 
+      knownBitIds.current.add(bitId)
       setSources((prev) => removeBit(prev, bitId))
       notifyPendingReviewChanged()
     } catch {
@@ -113,6 +149,7 @@ export function KnowledgeBitReviewPanel({
         ...result.skipped.filter((item) => item.reason !== 'no_variant').map((item) => item.id),
       ])
 
+      gone.forEach((bitId) => knownBitIds.current.add(bitId))
       setSources((prev) => removeBits(prev, gone))
       notifyPendingReviewChanged()
 
@@ -138,6 +175,7 @@ export function KnowledgeBitReviewPanel({
     try {
       await rejectKnowledgeBitForReview({ data: { bitId } })
 
+      knownBitIds.current.add(bitId)
       setSources((prev) => removeBit(prev, bitId))
       notifyPendingReviewChanged()
     } catch {
@@ -200,12 +238,10 @@ export function KnowledgeBitReviewPanel({
       return
     }
 
-    const at = allBits.indexOf(focusedBit)
-
     if (action === 'next') {
-      setFocusedIndex(Math.min(at + 1, allBits.length - 1))
+      moveFocus(Math.min(activeIndex + 1, allBits.length - 1))
     } else if (action === 'previous') {
-      setFocusedIndex(Math.max(at - 1, 0))
+      moveFocus(Math.max(activeIndex - 1, 0))
     } else if (editingBitIds.current.has(focusedBit.id) || isBitResolving(focusedBit.id)) {
       return
     } else if (action === 'reject') {
