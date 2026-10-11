@@ -33,7 +33,7 @@ updated: 2026-09-04
 - [x] Expand parent and highlight new or moved subject
 - [x] Drag hint, larger grips, keyboard and touch reorder on subject page
 - [x] Search: result count, retry button, visible clear button
-- [ ] Subject cards show due card counts rolled up from sub-subjects
+- [x] Subject cards show due card counts rolled up from sub-subjects
 
 ### Notes
 - Decided 2026-10-11: real nested subjects via parent link, not categories
@@ -105,8 +105,11 @@ updated: 2026-09-04
 - [x] Review screen: keep grade focus, retry button, explained counts and done step
 - [x] Paste page: plain wording, saving state, labelled inputs and mode toggles
 - [x] Script listing cheapest structured-output OpenRouter models with prices
-- [ ] Count pasted items as due on the dashboard without a curriculum placement
+- [x] Count pasted items as due on the dashboard without a curriculum placement
 - [x] Page to list and unsuspend suspended or leech cards
+- [ ] Approve all asks to confirm and lists why items were skipped
+- [ ] Empty approval page points to Add knowledge
+- [ ] Raise hint contrast and touch target size on approval and review
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
