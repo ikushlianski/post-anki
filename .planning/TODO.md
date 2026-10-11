@@ -107,9 +107,9 @@ updated: 2026-09-04
 - [x] Script listing cheapest structured-output OpenRouter models with prices
 - [x] Count pasted items as due on the dashboard without a curriculum placement
 - [x] Page to list and unsuspend suspended or leech cards
-- [ ] Approve all asks to confirm and lists why items were skipped
-- [ ] Empty approval page points to Add knowledge
-- [ ] Raise hint contrast and touch target size on approval and review
+- [x] Approve all asks to confirm and lists why items were skipped
+- [x] Empty approval page points to Add knowledge
+- [x] Raise hint contrast and touch target size on approval and review
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
