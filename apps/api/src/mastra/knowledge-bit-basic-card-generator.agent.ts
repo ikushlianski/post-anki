@@ -6,6 +6,7 @@ import { dynamicKnowledgeItemModel } from "./model.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 
 export const INSTRUCTIONS = [
   "You write one classic Anki basic card for plain recall of the single fact in <bit>. Other cards",
@@ -28,7 +29,7 @@ export const INSTRUCTIONS = [
 ].join("\n");
 
 export function buildKnowledgeBitBasicCardGeneratorPrompt(bitBody: string): string {
-  return ["<bit>", bitBody, "</bit>"].join("\n");
+  return ["<bit>", escapePromptTags(bitBody), "</bit>"].join("\n");
 }
 
 export const knowledgeBitBasicCardGeneratorResultSchema = z.object({

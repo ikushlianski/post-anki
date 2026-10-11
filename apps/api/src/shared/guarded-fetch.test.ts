@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { guardedFetchText, MAX_REDIRECTS } from "./guarded-fetch.js";
 
 const mockLoadEnv = vi.hoisted(() => vi.fn());
+const mockLookup = vi.hoisted(() => vi.fn());
+
+vi.mock("node:dns/promises", () => ({ lookup: mockLookup }));
 
 vi.mock("./env.js", () => ({
   loadEnv: mockLoadEnv,
@@ -26,10 +29,57 @@ function stubFetch(handler: (url: string) => Response): ReturnType<typeof vi.fn>
 beforeEach(() => {
   mockLoadEnv.mockReset();
   mockLoadEnv.mockReturnValue({});
+  mockLookup.mockReset();
+  mockLookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("guardedFetchText network hardening", () => {
+  it("refuses a public-looking hostname that resolves to a private address", async () => {
+    const spy = stubFetch(() => page("internal"));
+
+    mockLookup.mockResolvedValue([{ address: "127.0.0.1", family: 4 }]);
+
+    expect(await guardedFetchText("https://rebind.example.com/")).toMatchObject({
+      ok: false,
+      outcome: "blocked",
+      reason: "private_address",
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("refuses a hostname when any of its addresses is private", async () => {
+    stubFetch(() => page("internal"));
+
+    mockLookup.mockResolvedValue([
+      { address: "93.184.216.34", family: 4 },
+      { address: "10.0.0.5", family: 4 },
+    ]);
+
+    expect(await guardedFetchText("https://mixed.example.com/")).toMatchObject({ ok: false, outcome: "blocked" });
+  });
+
+  it("refuses a hostname that does not resolve", async () => {
+    const spy = stubFetch(() => page("x"));
+
+    mockLookup.mockRejectedValue(new Error("ENOTFOUND"));
+
+    expect(await guardedFetchText("https://nowhere.example.com/")).toMatchObject({ ok: false, outcome: "blocked" });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("refuses a binary response instead of decoding it as text", async () => {
+    stubFetch(() => new Response("bin", { status: 200, headers: { "content-type": "application/pdf" } }));
+
+    expect(await guardedFetchText("https://react.dev/file.pdf")).toEqual({
+      ok: false,
+      outcome: "http_error",
+      status: 415,
+    });
+  });
 });
 
 describe("guardedFetchText", () => {

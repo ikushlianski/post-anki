@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSafeSourceUrl } from "./source-url";
+import { isPublicIpAddress, isSafeSourceUrl } from "./source-url";
 
 function reasonFor(url: string): string | null {
   const verdict = isSafeSourceUrl(url);
@@ -129,5 +129,23 @@ describe("isSafeSourceUrl", () => {
       expect(verdict.allowed).toBe(false);
       expect(verdict.allowed === false && verdict.message.length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe("isPublicIpAddress", () => {
+  it("should reject loopback, private, link-local and documentation addresses", () => {
+    for (const address of ["127.0.0.1", "10.1.2.3", "192.168.0.9", "169.254.169.254", "192.0.2.7", "::1", "fe80::1", "fd00::1", "::ffff:10.0.0.1"]) {
+      expect(isPublicIpAddress(address)).toBe(false);
+    }
+  });
+
+  it("should accept ordinary public addresses", () => {
+    for (const address of ["93.184.216.34", "8.8.8.8", "2606:2800:220:1:248:1893:25c8:1946"]) {
+      expect(isPublicIpAddress(address)).toBe(true);
+    }
+  });
+
+  it("should treat an unparseable address as not public", () => {
+    expect(isPublicIpAddress("not-an-ip")).toBe(false);
   });
 });

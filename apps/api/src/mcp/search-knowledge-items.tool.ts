@@ -90,7 +90,6 @@ export async function searchKnowledgeItems(
     SEARCH_KNOWLEDGE_ITEMS_MAX_LIMIT,
   );
 
-  const escapedQuery = escapeLikePattern(input.query);
   const normalizedQuery = normalizeSearchQuery(input.query);
 
   const rankedSearch =
@@ -103,7 +102,7 @@ export async function searchKnowledgeItems(
         ]);
 
   const [[cards, courses, topics], rankedMatches] = await Promise.all([
-    Promise.all([searchCards(input.query, limit), searchCurricula(escapedQuery), searchTopics(escapedQuery)]),
+    Promise.all([searchCards(input.query, limit), searchCurricula(input.query), searchTopics(input.query)]),
     rankedSearch,
   ]);
 

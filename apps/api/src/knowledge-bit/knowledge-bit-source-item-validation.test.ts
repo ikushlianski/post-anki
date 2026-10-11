@@ -46,6 +46,12 @@ describe("isQuoteInSource", () => {
 });
 
 describe("validateSourceItem", () => {
+  it("should reject an item that carries a link the source never contained", () => {
+    expect(
+      validateSourceItem(item({ answer: "Смотрите https://evil.example/login для подробностей" }), RU_SOURCE),
+    ).toEqual({ ok: false, reason: "unsafe_content" });
+  });
+
   it("should accept a well-formed why item with a verbatim quote", () => {
     expect(validateSourceItem(item({}), RU_SOURCE).ok).toBe(true);
   });

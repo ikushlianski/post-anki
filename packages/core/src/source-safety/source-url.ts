@@ -34,7 +34,11 @@ const BLOCKED_IPV4_RANGES: { base: number; prefix: number }[] = [
   { base: toIpv4Number([172, 16, 0, 0]), prefix: 12 },
   { base: toIpv4Number([192, 0, 0, 0]), prefix: 24 },
   { base: toIpv4Number([192, 168, 0, 0]), prefix: 16 },
+  { base: toIpv4Number([192, 0, 2, 0]), prefix: 24 },
+  { base: toIpv4Number([192, 88, 99, 0]), prefix: 24 },
   { base: toIpv4Number([198, 18, 0, 0]), prefix: 15 },
+  { base: toIpv4Number([198, 51, 100, 0]), prefix: 24 },
+  { base: toIpv4Number([203, 0, 113, 0]), prefix: 24 },
   { base: toIpv4Number([224, 0, 0, 0]), prefix: 4 },
   { base: toIpv4Number([240, 0, 0, 0]), prefix: 4 },
 ];
@@ -83,6 +87,25 @@ export function isSafeSourceUrl(url: string): SourceUrlVerdict {
   }
 
   return allow(url);
+}
+
+export function isPublicIpAddress(address: string): boolean {
+  const literal = address.replace(/^\[|\]$/g, "");
+  const ipv4 = parseIpv4(literal);
+
+  if (ipv4 !== null) {
+    return !isBlockedIpv4(ipv4);
+  }
+
+  const groups = parseIpv6(literal);
+
+  if (groups === null) {
+    return false;
+  }
+
+  const mapped = mappedIpv4(groups);
+
+  return mapped !== null ? !isBlockedIpv4(mapped) : !isBlockedIpv6(groups);
 }
 
 function verdictForIpv6(url: string, literal: string): SourceUrlVerdict {

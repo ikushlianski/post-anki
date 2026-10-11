@@ -1,5 +1,6 @@
 import { isWellFormedFillBlankPrompt } from "./knowledge-bit-fill-blank-prompt-validation.js";
 import { BASIC_CARD_FRONT_MAX_CHARS, validateBasicCard } from "./knowledge-bit-basic-card-validation.js";
+import { hasInjectedMarkup } from "./knowledge-bit-source-item-markup-guard.js";
 import { isYesNoQuestion } from "./knowledge-bit-yes-no-question.js";
 import {
   hasForeignScriptRun,
@@ -32,6 +33,7 @@ export type SourceItemRejection =
   | "wrong_language"
   | "source_meta_reference"
   | "bad_card"
+  | "unsafe_content"
   | "bad_blank"
   | "answer_not_in_statement";
 
@@ -158,6 +160,10 @@ export function validateSourceItem(raw: SourceItemDraft, sourceText: string): So
   }
 
   const texts = [item.statement, item.question, item.answer];
+
+  if (hasInjectedMarkup(texts, sourceText)) {
+    return { ok: false, reason: "unsafe_content" };
+  }
 
   if (texts.some((text) => looksLikeDifferentScript(sourceText, text) || hasForeignScriptRun(sourceText, text))) {
     return { ok: false, reason: "wrong_language" };

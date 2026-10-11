@@ -6,6 +6,7 @@ import { dynamicKnowledgeItemModel } from "./model.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 
 export const INSTRUCTIONS = [
   "You are a knowledge fisher. Given a single knowledge bit, you don't ask the learner to repeat it",
@@ -30,7 +31,7 @@ export const INSTRUCTIONS = [
 ].join("\n");
 
 export function buildKnowledgeBitQuestionGeneratorPrompt(bitBody: string): string {
-  return ["<bit>", bitBody, "</bit>"].join("\n");
+  return ["<bit>", escapePromptTags(bitBody), "</bit>"].join("\n");
 }
 
 export const knowledgeBitQuestionGeneratorResultSchema = z.object({

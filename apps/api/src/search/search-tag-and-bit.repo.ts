@@ -3,6 +3,7 @@ import type { SearchResultTag, TopicModuleSearchResult } from "@post-anki/shared
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, modules, tagAssignments, tags, topics } from "../db/schema.js";
 import { bitApproved } from "../knowledge-bit/knowledge-bit-approval.repo.js";
+import { escapeLikePattern } from "../shared/escape-like-pattern.js";
 
 // discovery-and-navigation — shared across every search/tag-browse query
 // that returns topics; mirrors slice-release.ts's nextUnreleasedTopicIds
@@ -106,7 +107,7 @@ export async function searchByTagNameAcrossNodes(
   const matchingTags = await db
     .select({ id: tags.id, name: tags.name })
     .from(tags)
-    .where(ilike(tags.name, `%${query}%`))
+    .where(ilike(tags.name, `%${escapeLikePattern(query)}%`))
     .orderBy(tags.name, tags.id)
     .limit(TAG_NAME_MATCH_LIMIT);
 

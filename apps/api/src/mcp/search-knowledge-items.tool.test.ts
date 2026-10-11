@@ -231,15 +231,15 @@ describe("searchKnowledgeItems", () => {
     expect(state.capturedCardLimit).toBe(200);
   });
 
-  it("escapes % and _ before passing the query to the course and topic search, but not to card search", async () => {
+  it("passes the raw query to course and topic search, which escape it themselves exactly once", async () => {
     state.cardRows = [];
     state.courseRows = [];
     state.topicRows = [];
 
     await searchKnowledgeItems({ query: "50%_off" });
 
-    expect(state.capturedCourseQuery).toBe("50\\%\\_off");
-    expect(state.capturedTopicQuery).toBe("50\\%\\_off");
+    expect(state.capturedCourseQuery).toBe("50%_off");
+    expect(state.capturedTopicQuery).toBe("50%_off");
     expect(state.capturedCardQuery).toBe("50%_off");
     expect(state.capturedRankedQuery).toBe("50%_off");
     expect(state.capturedBitQuery).toBe("50%_off");

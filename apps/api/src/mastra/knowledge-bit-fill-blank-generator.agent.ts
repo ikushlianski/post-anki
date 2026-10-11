@@ -6,6 +6,7 @@ import { dynamicKnowledgeItemModel } from "./model.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 
 export const INSTRUCTIONS = [
   "You are a knowledge fisher. Given a single fact, you build a fill-in-the-blank sentence that",
@@ -33,7 +34,7 @@ export const INSTRUCTIONS = [
 ].join("\n");
 
 export function buildKnowledgeBitFillBlankGeneratorPrompt(bitBody: string): string {
-  return ["<bit>", bitBody, "</bit>"].join("\n");
+  return ["<bit>", escapePromptTags(bitBody), "</bit>"].join("\n");
 }
 
 export const knowledgeBitFillBlankGeneratorResultSchema = z.object({

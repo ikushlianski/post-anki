@@ -5,6 +5,7 @@ import { resolveAgentModel } from "./model.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 
 const PLACER_MODEL = tierToModelId("cheap");
 
@@ -31,7 +32,7 @@ export function buildKnowledgeBitPlacerPrompt(
 ): string {
   return [
     "<bit>",
-    bitBody,
+    escapePromptTags(bitBody),
     "</bit>",
     "",
     "Existing topics:",

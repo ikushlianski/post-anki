@@ -1,4 +1,5 @@
 import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { escapeLikePattern } from "../shared/escape-like-pattern.js";
 import { getDb } from "../db/client.js";
 import { topicCardSets, topicCards, topicCardVariants, topics } from "../db/schema.js";
 
@@ -11,11 +12,7 @@ export interface CardSearchResult {
   answer: string;
 }
 
-// Escapes ILIKE's wildcard characters so a query with a literal % or _
-// matches that literal character, not a wildcard.
-export function escapeLikePattern(query: string): string {
-  return query.replace(/[\\%_]/g, "\\$&");
-}
+export { escapeLikePattern };
 
 // Case-insensitive text match over concept/prompt/answer, ready sets only.
 // No embedding or LLM call, so a search has no token cost.

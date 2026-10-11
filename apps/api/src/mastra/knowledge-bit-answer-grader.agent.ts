@@ -6,6 +6,7 @@ import { resolveAgentModel } from "./model.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 
 const ANSWER_GRADER_MODEL = tierToModelId("cheap");
 
@@ -47,13 +48,13 @@ export function buildKnowledgeBitAnswerGraderPrompt(
     kind,
     "</kind>",
     "<question>",
-    question,
+    escapePromptTags(question),
     "</question>",
     "<reference_answer>",
-    referenceAnswer,
+    escapePromptTags(referenceAnswer),
     "</reference_answer>",
     "<learner_answer>",
-    learnerAnswer,
+    escapePromptTags(learnerAnswer),
     "</learner_answer>",
   ].join("\n");
 }

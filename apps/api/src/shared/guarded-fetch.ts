@@ -1,4 +1,7 @@
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import {
+  isPublicIpAddress,
   isSafeSourceUrl,
   rewriteGithubBlobUrl,
   type SourceUrlRejectionReason,
@@ -80,6 +83,16 @@ export async function guardedFetchText(
         };
       }
 
+      if (!(await resolvesToPublicAddresses(current))) {
+        return {
+          ok: false,
+          outcome: "blocked",
+          reason: "private_address",
+          message: "this address points at a private or internal network",
+          blockedUrl: current,
+        };
+      }
+
       const res = await fetch(current, { signal: controller.signal, redirect: "manual" });
 
       if (REDIRECT_STATUSES.has(res.status)) {
@@ -98,6 +111,12 @@ export async function guardedFetchText(
         await res.body?.cancel();
 
         return { ok: false, outcome: "http_error", status: res.status };
+      }
+
+      if (!isReadableContentType(res.headers.get("content-type"))) {
+        await res.body?.cancel();
+
+        return { ok: false, outcome: "http_error", status: 415 };
       }
 
       const body = await readCapped(res, maxResponseBytes);
@@ -151,6 +170,34 @@ function verdictForHop(url: string): SourceUrlVerdict {
   }
 
   return exemptOrigins().has(new URL(url).origin) ? { allowed: true, url } : verdict;
+}
+
+const READABLE_CONTENT_TYPE = /^(text\/|application\/(json|xml|xhtml\+xml|[\w.+-]+\+(json|xml)|x-yaml|yaml|markdown))/i;
+
+export function isReadableContentType(contentType: string | null): boolean {
+  return contentType === null || contentType.trim() === "" || READABLE_CONTENT_TYPE.test(contentType.trim());
+}
+
+async function resolvesToPublicAddresses(url: string): Promise<boolean> {
+  const parsed = new URL(url);
+
+  if (exemptOrigins().has(parsed.origin)) {
+    return true;
+  }
+
+  const host = parsed.hostname.replace(/^\[|\]$/g, "");
+
+  if (isIP(host) !== 0) {
+    return true;
+  }
+
+  try {
+    const addresses = await lookup(host, { all: true });
+
+    return addresses.length > 0 && addresses.every((entry) => isPublicIpAddress(entry.address));
+  } catch {
+    return false;
+  }
 }
 
 function resolveLocation(location: string | null, currentUrl: string): string | null {

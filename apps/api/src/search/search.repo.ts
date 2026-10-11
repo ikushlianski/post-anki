@@ -3,6 +3,7 @@ import type { TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, modules, subjects, topics } from "../db/schema.js";
 import { tagsByNode, topicNotDeclined } from "./search-tag-and-bit.repo.js";
+import { escapeLikePattern } from "../shared/escape-like-pattern.js";
 
 export interface SearchSubjectResult {
   id: string;
@@ -30,7 +31,7 @@ export async function searchSubjects(query: string): Promise<SearchSubjectResult
   return getDb()
     .select({ id: subjects.id, name: subjects.name })
     .from(subjects)
-    .where(ilike(subjects.name, `%${query}%`))
+    .where(ilike(subjects.name, `%${escapeLikePattern(query)}%`))
     .orderBy(subjects.name, subjects.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
@@ -51,7 +52,7 @@ export async function searchCurricula(query: string): Promise<SearchCurriculumRe
       and(
         isNull(curricula.containerAreaNodeId),
         curriculumConfirmed,
-        ilike(curricula.name, `%${query}%`),
+        ilike(curricula.name, `%${escapeLikePattern(query)}%`),
       ),
     )
     .orderBy(curricula.name, curricula.id)
@@ -62,7 +63,7 @@ export async function searchTopics(query: string): Promise<SearchTopicResult[]> 
   return getDb()
     .select({ id: topics.id, title: topics.title, curriculumId: topics.curriculumId })
     .from(topics)
-    .where(and(topicNotDeclined, ilike(topics.title, `%${query}%`)))
+    .where(and(topicNotDeclined, ilike(topics.title, `%${escapeLikePattern(query)}%`)))
     .orderBy(topics.title, topics.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }

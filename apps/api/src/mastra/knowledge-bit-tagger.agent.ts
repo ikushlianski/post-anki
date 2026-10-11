@@ -5,6 +5,7 @@ import { resolveAgentModel } from "./model.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { tierToModelId } from "./model-tier.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 
 const TAGGER_MODEL = tierToModelId("cheap");
 
@@ -24,12 +25,12 @@ const INSTRUCTIONS = [
 export function buildKnowledgeBitTaggerPrompt(bitBody: string, existingTagNames: string[]): string {
   return [
     "<bit>",
-    bitBody,
+    escapePromptTags(bitBody),
     "</bit>",
     "",
     "Existing tags:",
     existingTagNames.length > 0
-      ? existingTagNames.map((name) => `- ${name}`).join("\n")
+      ? existingTagNames.map((name) => `- ${escapePromptTags(name)}`).join("\n")
       : "(no tags exist yet)",
   ].join("\n");
 }
