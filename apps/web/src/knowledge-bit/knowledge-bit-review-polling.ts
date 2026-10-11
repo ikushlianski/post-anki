@@ -3,6 +3,7 @@ import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 export const QUESTION_POLL_INTERVAL_MS = 8000
 export const QUESTION_POLL_MAX_ATTEMPTS = 40
+export const REGENERATION_POLL_MAX_ATTEMPTS = 200
 export const QUESTION_POLL_IDLE_LIMIT = 15
 
 export function hasBitAwaitingQuestions(sources: PendingKnowledgeSourceForReview[]): boolean {
@@ -71,6 +72,7 @@ export function useQuestionPolling(
   waiting: boolean,
   refresh: () => Promise<void>,
   intervalMs: number = QUESTION_POLL_INTERVAL_MS,
+  maxAttempts: number = QUESTION_POLL_MAX_ATTEMPTS,
 ): boolean {
   const refreshRef = useRef(refresh)
   const [gaveUp, setGaveUp] = useState(false)
@@ -87,7 +89,7 @@ export function useQuestionPolling(
     const timer = setInterval(() => {
       attempts += 1
 
-      if (attempts > QUESTION_POLL_MAX_ATTEMPTS) {
+      if (attempts > maxAttempts) {
         clearInterval(timer)
         setGaveUp(true)
         return
@@ -100,7 +102,7 @@ export function useQuestionPolling(
       clearInterval(timer)
       setGaveUp(false)
     }
-  }, [waiting, intervalMs])
+  }, [waiting, intervalMs, maxAttempts])
 
   return gaveUp
 }

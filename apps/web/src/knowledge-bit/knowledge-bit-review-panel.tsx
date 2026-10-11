@@ -24,6 +24,7 @@ import {
   hasBitAwaitingQuestions,
   mergeArrivedBits,
   mergeArrivedVariants,
+  REGENERATION_POLL_MAX_ATTEMPTS,
   unseenBitIds,
   useQuestionPolling,
 } from './knowledge-bit-review-polling'
@@ -86,6 +87,7 @@ export function KnowledgeBitReviewPanel({
     hasBitAwaitingQuestions(sources) || !idleStopped || regeneration.isRegenerating,
     refreshQuestions,
     regeneration.isRegenerating ? REGENERATION_POLL_INTERVAL_MS : undefined,
+    regeneration.isRegenerating ? REGENERATION_POLL_MAX_ATTEMPTS : undefined,
   )
 
   const handleEditingChange = useCallback((bitId: string, editing: boolean) => {
