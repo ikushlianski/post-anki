@@ -158,3 +158,8 @@
 {"ts":"2026-10-11T00:21:10.950Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Write cards in parallel and show how many are ready"}
 {"ts":"2026-10-11T00:21:11.005Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Detected items must stand alone, with no dangling this or that"}
 {"ts":"2026-10-11T00:21:11.058Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Compare the five models side by side on the user's Russian text"}
+{"ts":"2026-10-11T00:21:40.840Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Phone tap targets at least 44px: menus, Add knowledge, Show answer"}
+{"ts":"2026-10-11T00:24:03.282Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Regenerate button on the approval page for a source"}
+{"ts":"2026-10-11T00:24:03.333Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Write cards from the whole source text, not sentence by sentence"}
+{"ts":"2026-10-11T00:27:22.223Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Cards keep the source language and never say the bit or the text"}
+{"ts":"2026-10-11T00:27:22.271Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Write cards in parallel and show how many are ready"}

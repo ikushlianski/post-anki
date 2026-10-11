@@ -64,6 +64,9 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Write cards from the whole source text, not sentence by sentence
+- [ ] Regenerate button on the approval page for a source
+- [ ] Phone tap targets at least 44px: menus, Add knowledge, Show answer
 - [ ] Allow the custom web domain in the API origin allow-list
 - [x] Settings switcher to pick the extraction model from five candidates
 - [x] Fix single-item review batch serving the same item twice
@@ -112,8 +115,8 @@ updated: 2026-09-04
 - [x] Empty approval page points to Add knowledge
 - [x] Raise hint contrast and touch target size on approval and review
 - [ ] Phone-width checks: no horizontal overflow on key screens, with screenshots
-- [ ] Cards keep the source language and never say the bit or the text
-- [ ] Write cards in parallel and show how many are ready
+- [x] Cards keep the source language and never say the bit or the text
+- [x] Write cards in parallel and show how many are ready
 - [ ] Detected items must stand alone, with no dangling this or that
 - [ ] Compare the five models side by side on the user's Russian text
 
