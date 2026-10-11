@@ -189,3 +189,59 @@ describe("generateKnowledgeBitFillBlanks", () => {
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
 });
+
+describe("generateKnowledgeBitFillBlanks language guard", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
+  });
+
+  it("should never store a fill-in-the-blank written in a different script than its bit and should mark the bit failed", async () => {
+    const englishBit = { id: "kb_ribosome", body: "Ribosomes synthesize proteins." };
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([englishBit]);
+    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "核糖体 合成蛋白质。",
+      prompt: "____ 合成蛋白质。",
+      answer: "核糖体",
+    });
+
+    const result = await generateKnowledgeBitFillBlanks();
+
+    expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
+    expect(markFillBlankGenerationFailed).toHaveBeenCalledWith("kb_ribosome", FAKE_CLAIM_TOKEN);
+    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1, skipped: 0 });
+  });
+});
+
+describe("generateKnowledgeBitFillBlanks concurrency", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
+  });
+
+  it("should keep at most four bits in flight at once and still generate every bit", async () => {
+    const bits = Array.from({ length: 6 }, (_, index) => ({
+      id: `kb_${index}`,
+      body: "Price anchors shape perceived value",
+    }));
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue(bits);
+    vi.mocked(runKnowledgeBitFillBlankGenerator).mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+
+      return { sentence: "This fact matters.", prompt: "This ____ matters.", answer: "fact" };
+    });
+
+    const result = await generateKnowledgeBitFillBlanks();
+
+    expect(maxInFlight).toBe(4);
+    expect(recordGeneratedFillBlankVariant).toHaveBeenCalledTimes(6);
+    expect(result).toEqual({ scanned: 6, generated: 6, failed: 0, skipped: 0 });
+  });
+});

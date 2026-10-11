@@ -1,3 +1,4 @@
+import type { Env } from "../shared/env.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type SettingsRow = {
@@ -40,13 +41,14 @@ const { getAdminSettings, updateAdminSettings, getKnowledgeItemModelId } = await
   "./admin-settings.repo.js"
 );
 const { log } = await import("../shared/log.js");
+const { dynamicKnowledgeItemModel } = await import("../mastra/model.js");
 
 function makeRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
   return {
     id: "app",
     testToggle: false,
     modelTier: "cheap",
-    knowledgeItemModelId: "openrouter/openai/gpt-oss-20b",
+    knowledgeItemModelId: "openrouter/openai/gpt-4.1-nano",
     ...overrides,
   };
 }
@@ -61,7 +63,13 @@ describe("getAdminSettings", () => {
   it("should default the knowledge-item model when no settings row exists yet", async () => {
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/deepseek/deepseek-v4-flash");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
+  });
+
+  it("should store the default knowledge-item model when it creates the settings row", async () => {
+    await getAdminSettings();
+
+    expect(state.inserted).toMatchObject({ knowledgeItemModelId: "openrouter/google/gemini-2.5-flash-lite" });
   });
 
   it("should return the stored knowledge-item model when it is on the allowlist", async () => {
@@ -69,17 +77,17 @@ describe("getAdminSettings", () => {
 
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/openai/gpt-oss-20b");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/openai/gpt-4.1-nano");
   });
 
   it("should fall back to the default and log a warning when the stored model is unknown", async () => {
-    state.rows = [makeRow({ knowledgeItemModelId: "openrouter/deepseek/deepseek-v4-pro" })];
+    state.rows = [makeRow({ knowledgeItemModelId: "openrouter/deepseek/deepseek-v4-flash" })];
 
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/deepseek/deepseek-v4-flash");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
     expect(log.warn).toHaveBeenCalledWith(
-      { storedModelId: "openrouter/deepseek/deepseek-v4-pro" },
+      { storedModelId: "openrouter/deepseek/deepseek-v4-flash" },
       "knowledge_item_model_id_unknown_fallback_default",
     );
   });
@@ -91,9 +99,29 @@ describe("getKnowledgeItemModelId", () => {
   });
 
   it("should read the stored knowledge-item model for a run", async () => {
-    state.rows = [makeRow({ knowledgeItemModelId: "openrouter/mistralai/mistral-nemo" })];
+    state.rows = [makeRow({ knowledgeItemModelId: "openrouter/mistralai/mistral-small-24b-instruct-2501" })];
 
-    expect(await getKnowledgeItemModelId()).toBe("openrouter/mistralai/mistral-nemo");
+    expect(await getKnowledgeItemModelId()).toBe("openrouter/mistralai/mistral-small-24b-instruct-2501");
+  });
+});
+
+describe("stored knowledge-item model that is no longer on the allowlist", () => {
+  beforeEach(() => {
+    state.rows = [makeRow({ knowledgeItemModelId: "openrouter/deepseek/deepseek-v4-flash" })];
+    state.inserted = undefined;
+    vi.mocked(log.warn).mockClear();
+  });
+
+  it("should fall back to the default for a run without writing the stored row", async () => {
+    expect(await getKnowledgeItemModelId()).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(state.inserted).toBeUndefined();
+  });
+
+  it("should fall back to the default in the model resolver used by the writers", async () => {
+    const resolveModel = dynamicKnowledgeItemModel({ OPENROUTER_BASE_URL: undefined } as unknown as Env);
+
+    expect(await resolveModel({})).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(state.inserted).toBeUndefined();
   });
 });
 
@@ -105,14 +133,14 @@ describe("updateAdminSettings", () => {
 
   it("should persist a new knowledge-item model and return it", async () => {
     const updated = await updateAdminSettings({
-      knowledgeItemModelId: "openrouter/inclusionai/ling-3.0-flash-vl",
+      knowledgeItemModelId: "openrouter/google/gemma-3-12b-it",
     });
 
     expect(state.inserted).toMatchObject({
-      knowledgeItemModelId: "openrouter/inclusionai/ling-3.0-flash-vl",
+      knowledgeItemModelId: "openrouter/google/gemma-3-12b-it",
       modelTier: "cheap",
     });
-    expect(updated.knowledgeItemModelId).toBe("openrouter/inclusionai/ling-3.0-flash-vl");
+    expect(updated.knowledgeItemModelId).toBe("openrouter/google/gemma-3-12b-it");
   });
 
   it("should keep the stored knowledge-item model when only the test toggle changes", async () => {
@@ -120,8 +148,8 @@ describe("updateAdminSettings", () => {
 
     expect(state.inserted).toMatchObject({
       testToggle: true,
-      knowledgeItemModelId: "openrouter/openai/gpt-oss-20b",
+      knowledgeItemModelId: "openrouter/openai/gpt-4.1-nano",
     });
-    expect(updated.knowledgeItemModelId).toBe("openrouter/openai/gpt-oss-20b");
+    expect(updated.knowledgeItemModelId).toBe("openrouter/openai/gpt-4.1-nano");
   });
 });

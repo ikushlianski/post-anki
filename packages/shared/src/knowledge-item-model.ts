@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 export const KNOWLEDGE_ITEM_MODEL_IDS = [
-  "openrouter/deepseek/deepseek-v4-flash",
-  "openrouter/openai/gpt-oss-20b",
+  "openrouter/google/gemini-2.5-flash-lite",
   "openrouter/openai/gpt-4o-mini",
-  "openrouter/mistralai/mistral-nemo",
-  "openrouter/inclusionai/ling-3.0-flash-vl",
+  "openrouter/mistralai/mistral-small-24b-instruct-2501",
+  "openrouter/google/gemma-3-12b-it",
+  "openrouter/openai/gpt-4.1-nano",
 ] as const;
 
 export const knowledgeItemModelIdSchema = z.enum(KNOWLEDGE_ITEM_MODEL_IDS);
@@ -13,7 +13,7 @@ export const knowledgeItemModelIdSchema = z.enum(KNOWLEDGE_ITEM_MODEL_IDS);
 export type KnowledgeItemModelId = z.infer<typeof knowledgeItemModelIdSchema>;
 
 export const DEFAULT_KNOWLEDGE_ITEM_MODEL_ID: KnowledgeItemModelId =
-  "openrouter/deepseek/deepseek-v4-flash";
+  "openrouter/google/gemini-2.5-flash-lite";
 
 export const KNOWLEDGE_ITEM_MODELS_CHECKED_ON = "2026-10-11";
 
@@ -26,40 +26,40 @@ export interface KnowledgeItemModelOption {
 }
 
 export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemModelOption> = {
-  "openrouter/deepseek/deepseek-v4-flash": {
-    id: "openrouter/deepseek/deepseek-v4-flash",
-    label: "DeepSeek V4 Flash",
-    inputPerMillion: 0.03,
-    outputPerMillion: 1.28,
-    note: "Current default for the cheap tier.",
-  },
-  "openrouter/openai/gpt-oss-20b": {
-    id: "openrouter/openai/gpt-oss-20b",
-    label: "GPT-OSS 20B",
-    inputPerMillion: 0.018,
-    outputPerMillion: 0.09,
-    note: "Lowest output price of the five.",
+  "openrouter/google/gemini-2.5-flash-lite": {
+    id: "openrouter/google/gemini-2.5-flash-lite",
+    label: "Gemini 2.5 Flash Lite",
+    inputPerMillion: 0.1,
+    outputPerMillion: 0.4,
+    note: "Default. 1.4 s on the Russian test, clean self-contained items.",
   },
   "openrouter/openai/gpt-4o-mini": {
     id: "openrouter/openai/gpt-4o-mini",
     label: "GPT-4o mini",
     inputPerMillion: 0.15,
     outputPerMillion: 0.6,
-    note: "Former balanced tier model.",
+    note: "2.5 s, kept Russian, one vague item.",
   },
-  "openrouter/mistralai/mistral-nemo": {
-    id: "openrouter/mistralai/mistral-nemo",
-    label: "Mistral Nemo",
-    inputPerMillion: 0.029,
-    outputPerMillion: 0.03,
-    note: "Not yet tested.",
+  "openrouter/mistralai/mistral-small-24b-instruct-2501": {
+    id: "openrouter/mistralai/mistral-small-24b-instruct-2501",
+    label: "Mistral Small 24B",
+    inputPerMillion: 0.05,
+    outputPerMillion: 0.08,
+    note: "Cheapest that kept Russian; some items lean on earlier ones.",
   },
-  "openrouter/inclusionai/ling-3.0-flash-vl": {
-    id: "openrouter/inclusionai/ling-3.0-flash-vl",
-    label: "Ling 3.0 Flash VL",
-    inputPerMillion: 0.021,
-    outputPerMillion: 0.0616,
-    note: "Not yet tested.",
+  "openrouter/google/gemma-3-12b-it": {
+    id: "openrouter/google/gemma-3-12b-it",
+    label: "Gemma 3 12B",
+    inputPerMillion: 0.05,
+    outputPerMillion: 0.15,
+    note: "Good Russian, but splits into too many items.",
+  },
+  "openrouter/openai/gpt-4.1-nano": {
+    id: "openrouter/openai/gpt-4.1-nano",
+    label: "GPT-4.1 nano",
+    inputPerMillion: 0.1,
+    outputPerMillion: 0.4,
+    note: "Fast, but dropped and bent some points on Russian.",
   },
 };
 

@@ -17,8 +17,8 @@ The choice is global. It does not follow the subject or curriculum tier cascade 
 
 `packages/shared/src/knowledge-item-model.ts` is the single source of truth. It defines:
 
-- `KNOWLEDGE_ITEM_MODEL_IDS`, a fixed tuple of five ids, and a Zod enum built from it. The API rejects any other id with 400 `invalid_input`, through the existing admin settings validation.
-- `DEFAULT_KNOWLEDGE_ITEM_MODEL_ID`: `openrouter/deepseek/deepseek-v4-flash`.
+- `KNOWLEDGE_ITEM_MODEL_IDS`, a fixed tuple of five ids, and a Zod enum built from it. The API rejects any other id with 400 `invalid_input`, through the existing admin settings validation. The five are Gemini 2.5 Flash Lite, GPT-4o mini, Mistral Small 24B, Gemma 3 12B and GPT-4.1 nano.
+- `DEFAULT_KNOWLEDGE_ITEM_MODEL_ID`: `openrouter/google/gemini-2.5-flash-lite`. It is the fallback for a missing or unknown stored value and the model written when the settings row is first created.
 - Display metadata per model: label, input and output price per million tokens, and a note. `KNOWLEDGE_ITEM_MODEL_OPTIONS` is the ordered list the UI renders.
 - `KNOWLEDGE_ITEM_MODELS_CHECKED_ON`, a date constant (`2026-10-11`) for when the prices were typed in.
 
@@ -26,8 +26,8 @@ The prices are hand-entered constants. Nothing in the running system fetches the
 
 ## Storage
 
-- `app_settings.knowledge_item_model_id` is a non-null text column with the default above. It sits next to the global `model_tier` column in `apps/api/src/db/schema.ts`. Migration: `apps/api/src/db/migrations/0090_clear_korvac.sql`.
-- `getAdminSettings()` in `apps/api/src/admin-settings/admin-settings.repo.ts` reads the row. If the row is missing, it inserts the default row and returns the default. If the stored value is not on the allowlist, it logs `knowledge_item_model_id_unknown_fallback_default` and returns the default, so a bad value cannot break a run.
+- `app_settings.knowledge_item_model_id` is a non-null text column. It sits next to the global `model_tier` column in `apps/api/src/db/schema.ts`. Migration: `apps/api/src/db/migrations/0090_clear_korvac.sql`, which set the column default to `openrouter/deepseek/deepseek-v4-flash` and is not changed. The repo does not rely on that default: it writes the shared constant when it creates the row.
+- `getAdminSettings()` in `apps/api/src/admin-settings/admin-settings.repo.ts` reads the row. If the row is missing, it inserts the default row and returns the default. If the stored value is not on the allowlist, it logs `knowledge_item_model_id_unknown_fallback_default` and returns the default, so a bad value cannot break a run. The fallback is read-only: the stored value is left as it is until an admin saves a new model.
 - `llm_call_events.model_id` is a nullable text column (same migration). It is filled only for calls that pin a model, which in practice means the four writers. Every other agent writes null.
 
 ## How the four writers read the model
@@ -58,9 +58,11 @@ The other knowledge-bit agents (followup, answer grader, placer, tagger) pass a 
 ## Known limits
 
 - Not verified in a browser. The select and the save path are read from code and tests, not clicked through.
-- The two models marked "Not yet tested" in the allowlist (`mistral-nemo`, `ling-3.0-flash-vl`) have no quality check in the repo. Structured output from them is unverified.
+- The quality notes come from one Russian test text, run by hand. The repo holds no automated quality check for any of the five models.
+- `google/gemini-2.5-flash-lite` lists an expiry of 2026-10-20 in the OpenRouter model list (`npm run models:prices`). Replace the default before that date.
+- A stored value of `openrouter/deepseek/deepseek-v4-flash` (or any other removed id) stays in the database until an admin picks a model. Reads use the new default in the meantime.
 - Prices are a dated snapshot. The date constant does not trigger any check when prices go stale.
-- Two places hold the default: the TypeScript constant and the column default in migration 0090. They must agree, and nothing in the code compares them.
+- Two places hold a default and they now differ: the TypeScript constant (`gemini-2.5-flash-lite`) and the column default in migration 0090 and `schema.ts` (`deepseek-v4-flash`). The column default only applies when a row is inserted without this field, which the repo never does.
 - The model applies to the four writers only. The per-subject and per-curriculum tier cascade does not reach them.
 
 ## Plan

@@ -198,3 +198,82 @@ describe("generateKnowledgeBitQuestions", () => {
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
 });
+
+describe("generateKnowledgeBitQuestions language guard", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
+  });
+
+  it("should never store a question written in a different script than its bit and should mark the bit failed", async () => {
+    const englishBit = { id: "kb_ribosome", body: "Ribosomes synthesize proteins." };
+
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue([englishBit]);
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockResolvedValue({
+      question: "如果细胞中的核糖体全部失活会发生什么？",
+      answer: "蛋白质将无法合成。",
+    });
+
+    const result = await generateKnowledgeBitQuestions();
+
+    expect(recordGeneratedQuestionVariant).not.toHaveBeenCalled();
+    expect(markWhQuestionGenerationFailed).toHaveBeenCalledWith("kb_ribosome", FAKE_CLAIM_TOKEN);
+    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1, skipped: 0 });
+  });
+});
+
+describe("generateKnowledgeBitQuestions source meta-reference guard", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
+  });
+
+  it("should never store a question that refers to the bit and should mark the bit failed", async () => {
+    const bit = { id: "kb_ribosome", body: "Ribosomes synthesize proteins." };
+
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockResolvedValue({
+      question: "How does the bit explain protein synthesis?",
+      answer: "Ribosomes build proteins.",
+    });
+
+    const result = await generateKnowledgeBitQuestions();
+
+    expect(recordGeneratedQuestionVariant).not.toHaveBeenCalled();
+    expect(markWhQuestionGenerationFailed).toHaveBeenCalledWith("kb_ribosome", FAKE_CLAIM_TOKEN);
+    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1, skipped: 0 });
+  });
+});
+
+
+describe("generateKnowledgeBitQuestions concurrency", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
+  });
+
+  it("should keep at most four bits in flight at once and still generate every bit", async () => {
+    const bits = Array.from({ length: 6 }, (_, index) => ({
+      id: `kb_${index}`,
+      body: "Price anchors shape perceived value",
+    }));
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue(bits);
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+
+      return { question: "Why?", answer: "Because." };
+    });
+
+    const result = await generateKnowledgeBitQuestions();
+
+    expect(maxInFlight).toBe(4);
+    expect(recordGeneratedQuestionVariant).toHaveBeenCalledTimes(6);
+    expect(result).toEqual({ scanned: 6, generated: 6, failed: 0, skipped: 0 });
+  });
+});

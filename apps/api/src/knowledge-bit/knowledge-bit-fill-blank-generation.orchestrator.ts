@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { log } from "../shared/log.js";
+import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
 import { runKnowledgeBitFillBlankGenerator } from "../mastra/knowledge-bit-fill-blank-generator.agent.js";
+import {
+  looksLikeDifferentScript,
+  looksLikeSourceMetaReference,
+} from "./knowledge-bit-language-guard.js";
 import {
   listKnowledgeBitsForFillBlankGenerationScan,
   recordGeneratedFillBlankVariant,
@@ -10,6 +15,10 @@ import {
 
 // Kept well below the embedding scan's cap — this hits a paid LLM call per bit.
 export const FILL_BLANK_GENERATION_CAP = 50;
+
+const ITEM_CONCURRENCY = 4;
+
+type ItemOutcome = "generated" | "failed" | "skipped";
 
 const fillBlankTextSchema = z.string().trim().min(1).max(2000);
 
@@ -64,61 +73,88 @@ export interface FillBlankGenerationScanCounts {
 export async function generateKnowledgeBitFillBlanks(): Promise<FillBlankGenerationScanCounts> {
   const bits = await listKnowledgeBitsForFillBlankGenerationScan(FILL_BLANK_GENERATION_CAP);
 
+  const outcomes = await mapWithConcurrency(
+    bits,
+    ITEM_CONCURRENCY,
+    async (bit): Promise<ItemOutcome> => {
+      // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
+      // finished) this bit makes this claim fail, and we skip it without paying for a generation.
+      const claimToken = await claimKnowledgeBitForFillBlankGeneration(bit.id, bit.body);
+
+      if (!claimToken) {
+        return "skipped";
+      }
+
+      try {
+        const result = await runKnowledgeBitFillBlankGenerator(bit.body);
+        const sentence = fillBlankTextSchema.safeParse(result.sentence);
+        const prompt = fillBlankTextSchema.safeParse(result.prompt);
+        const answer = fillBlankTextSchema.safeParse(result.answer);
+        const wellFormed = prompt.success && isWellFormedFillBlankPrompt(prompt.data);
+        const answerMatchesSentence =
+          wellFormed &&
+          sentence.success &&
+          answer.success &&
+          // A replacer function, never a plain string, so a literal "$" in the answer (e.g. a price
+          // or a regex-flavored term) is never reinterpreted as a $-pattern by String.replace.
+          normalizeSentence(prompt.data.replace("____", () => answer.data)) ===
+            normalizeSentence(sentence.data);
+
+        if (!sentence.success || !prompt.success || !answer.success || !answerMatchesSentence) {
+          throw new Error("knowledge_bit_fill_blank_generation_invalid_output");
+        }
+
+        const generatedTexts = [result.sentence, result.prompt, result.answer];
+
+        if (generatedTexts.some((text) => looksLikeDifferentScript(bit.body, text))) {
+          throw new Error("knowledge_bit_fill_blank_generation_wrong_language");
+        }
+
+        if (generatedTexts.some((text) => looksLikeSourceMetaReference(bit.body, text))) {
+          throw new Error("knowledge_bit_fill_blank_generation_source_meta_reference");
+        }
+
+        await recordGeneratedFillBlankVariant(
+          bit.id,
+          "fill_in_the_blank",
+          0,
+          prompt.data,
+          answer.data,
+          claimToken,
+        );
+        return "generated";
+      } catch (err) {
+        log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_fill_blank_generation_failed");
+
+        try {
+          await markFillBlankGenerationFailed(bit.id, claimToken);
+        } catch (markErr) {
+          log.warn(
+            { err: markErr, knowledgeBitId: bit.id },
+            "knowledge_bit_fill_blank_generation_mark_failed_write_failed",
+          );
+        }
+
+        return "failed";
+      }
+    },
+  );
+
   let generated = 0;
   let failed = 0;
   let skipped = 0;
 
-  for (const bit of bits) {
-    // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
-    // finished) this bit makes this claim fail, and we skip it without paying for a generation.
-    const claimToken = await claimKnowledgeBitForFillBlankGeneration(bit.id, bit.body);
-
-    if (!claimToken) {
-      skipped += 1;
-      continue;
+  for (const outcome of outcomes) {
+    if (outcome.status === "rejected") {
+      throw outcome.reason;
     }
 
-    try {
-      const result = await runKnowledgeBitFillBlankGenerator(bit.body);
-      const sentence = fillBlankTextSchema.safeParse(result.sentence);
-      const prompt = fillBlankTextSchema.safeParse(result.prompt);
-      const answer = fillBlankTextSchema.safeParse(result.answer);
-      const wellFormed = prompt.success && isWellFormedFillBlankPrompt(prompt.data);
-      const answerMatchesSentence =
-        wellFormed &&
-        sentence.success &&
-        answer.success &&
-        // A replacer function, never a plain string, so a literal "$" in the answer (e.g. a price
-        // or a regex-flavored term) is never reinterpreted as a $-pattern by String.replace.
-        normalizeSentence(prompt.data.replace("____", () => answer.data)) ===
-          normalizeSentence(sentence.data);
-
-      if (!sentence.success || !prompt.success || !answer.success || !answerMatchesSentence) {
-        throw new Error("knowledge_bit_fill_blank_generation_invalid_output");
-      }
-
-      await recordGeneratedFillBlankVariant(
-        bit.id,
-        "fill_in_the_blank",
-        0,
-        prompt.data,
-        answer.data,
-        claimToken,
-      );
+    if (outcome.value === "generated") {
       generated += 1;
-    } catch (err) {
-      log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_fill_blank_generation_failed");
-
-      try {
-        await markFillBlankGenerationFailed(bit.id, claimToken);
-      } catch (markErr) {
-        log.warn(
-          { err: markErr, knowledgeBitId: bit.id },
-          "knowledge_bit_fill_blank_generation_mark_failed_write_failed",
-        );
-      }
-
+    } else if (outcome.value === "failed") {
       failed += 1;
+    } else {
+      skipped += 1;
     }
   }
 

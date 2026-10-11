@@ -2,12 +2,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
-import type { KnowledgeItemModelId } from '@post-anki/shared'
+import { DEFAULT_KNOWLEDGE_ITEM_MODEL_ID, type KnowledgeItemModelId } from '@post-anki/shared'
 import { KnowledgeItemModelSelect } from './knowledge-item-model-select'
 
 const TEST_ID = 'admin-settings-knowledge-item-model'
-const DEFAULT_ID: KnowledgeItemModelId = 'openrouter/deepseek/deepseek-v4-flash'
-const GPT_OSS_ID: KnowledgeItemModelId = 'openrouter/openai/gpt-oss-20b'
+const DEFAULT_ID: KnowledgeItemModelId = DEFAULT_KNOWLEDGE_ITEM_MODEL_ID
+const GPT_41_NANO_ID: KnowledgeItemModelId = 'openrouter/openai/gpt-4.1-nano'
 
 function renderSelect({ value = DEFAULT_ID, disabled = false }: { value?: KnowledgeItemModelId; disabled?: boolean } = {}) {
   const onChange = vi.fn()
@@ -37,8 +37,8 @@ describe('KnowledgeItemModelSelect', () => {
     const radios = screen.getAllByRole('radio')
 
     expect(radios).toHaveLength(5)
-    expect(screen.getByText('$0.03 in / $1.28 out per 1M tokens')).toBeTruthy()
-    expect(screen.getByText('$0.018 in / $0.09 out per 1M tokens')).toBeTruthy()
+    expect(screen.getAllByText('$0.1 in / $0.4 out per 1M tokens')).toHaveLength(2)
+    expect(screen.getByText('$0.05 in / $0.08 out per 1M tokens')).toBeTruthy()
   })
 
   it('should check the radio for the stored model', () => {
@@ -59,15 +59,15 @@ describe('KnowledgeItemModelSelect', () => {
   it('should call onChange with the chosen model id when a different radio is clicked', () => {
     const { onChange } = renderSelect()
 
-    fireEvent.click(screen.getByTestId(`${TEST_ID}-option-${GPT_OSS_ID}`))
+    fireEvent.click(screen.getByTestId(`${TEST_ID}-option-${GPT_41_NANO_ID}`))
 
-    expect(onChange).toHaveBeenCalledWith(GPT_OSS_ID)
+    expect(onChange).toHaveBeenCalledWith(GPT_41_NANO_ID)
   })
 
   it('should not call onChange when the control is disabled', () => {
     const { onChange } = renderSelect({ disabled: true })
 
-    fireEvent.click(screen.getByTestId(`${TEST_ID}-option-${GPT_OSS_ID}`))
+    fireEvent.click(screen.getByTestId(`${TEST_ID}-option-${GPT_41_NANO_ID}`))
 
     expect(onChange).not.toHaveBeenCalled()
   })

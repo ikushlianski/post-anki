@@ -19,6 +19,10 @@ describe("knowledgeItemModelIdSchema", () => {
     expect(knowledgeItemModelIdSchema.safeParse("openrouter/deepseek/deepseek-v4-pro").success).toBe(false);
   });
 
+  it("should reject the removed deepseek flash id that older settings rows may still store", () => {
+    expect(knowledgeItemModelIdSchema.safeParse("openrouter/deepseek/deepseek-v4-flash").success).toBe(false);
+  });
+
   it("should reject the -latest alias of an allowed model", () => {
     expect(knowledgeItemModelIdSchema.safeParse("openrouter/deepseek/deepseek-v4-flash-latest").success).toBe(false);
   });

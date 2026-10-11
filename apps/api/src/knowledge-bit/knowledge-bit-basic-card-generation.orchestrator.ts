@@ -1,4 +1,5 @@
 import { log } from "../shared/log.js";
+import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
 import { runKnowledgeBitBasicCardGenerator } from "../mastra/knowledge-bit-basic-card-generator.agent.js";
 import { validateBasicCard } from "./knowledge-bit-basic-card-validation.js";
 import {
@@ -10,6 +11,10 @@ import {
 
 export const BASIC_CARD_GENERATION_CAP = 50;
 
+const ITEM_CONCURRENCY = 4;
+
+type ItemOutcome = "generated" | "failed" | "skipped";
+
 export interface BasicCardGenerationScanCounts {
   scanned: number;
   generated: number;
@@ -20,41 +25,58 @@ export interface BasicCardGenerationScanCounts {
 export async function generateKnowledgeBitBasicCards(): Promise<BasicCardGenerationScanCounts> {
   const bits = await listKnowledgeBitsForBasicCardGenerationScan(BASIC_CARD_GENERATION_CAP);
 
+  const outcomes = await mapWithConcurrency(
+    bits,
+    ITEM_CONCURRENCY,
+    async (bit): Promise<ItemOutcome> => {
+      const claimToken = await claimKnowledgeBitForBasicCardGeneration(bit.id, bit.body);
+
+      if (!claimToken) {
+        return "skipped";
+      }
+
+      try {
+        const result = await runKnowledgeBitBasicCardGenerator(bit.body);
+        const card = validateBasicCard(result, bit.body);
+
+        if (!card.ok) {
+          throw new Error(`knowledge_bit_basic_card_generation_invalid_output: ${card.reason}`);
+        }
+
+        await recordGeneratedBasicCardVariant(bit.id, "basic", 0, card.front, card.back, claimToken);
+        return "generated";
+      } catch (err) {
+        log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_basic_card_generation_failed");
+
+        try {
+          await markBasicCardGenerationFailed(bit.id, claimToken);
+        } catch (markErr) {
+          log.warn(
+            { err: markErr, knowledgeBitId: bit.id },
+            "knowledge_bit_basic_card_generation_mark_failed_write_failed",
+          );
+        }
+
+        return "failed";
+      }
+    },
+  );
+
   let generated = 0;
   let failed = 0;
   let skipped = 0;
 
-  for (const bit of bits) {
-    const claimToken = await claimKnowledgeBitForBasicCardGeneration(bit.id, bit.body);
-
-    if (!claimToken) {
-      skipped += 1;
-      continue;
+  for (const outcome of outcomes) {
+    if (outcome.status === "rejected") {
+      throw outcome.reason;
     }
 
-    try {
-      const result = await runKnowledgeBitBasicCardGenerator(bit.body);
-      const card = validateBasicCard(result);
-
-      if (!card.ok) {
-        throw new Error(`knowledge_bit_basic_card_generation_invalid_output: ${card.reason}`);
-      }
-
-      await recordGeneratedBasicCardVariant(bit.id, "basic", 0, card.front, card.back, claimToken);
+    if (outcome.value === "generated") {
       generated += 1;
-    } catch (err) {
-      log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_basic_card_generation_failed");
-
-      try {
-        await markBasicCardGenerationFailed(bit.id, claimToken);
-      } catch (markErr) {
-        log.warn(
-          { err: markErr, knowledgeBitId: bit.id },
-          "knowledge_bit_basic_card_generation_mark_failed_write_failed",
-        );
-      }
-
+    } else if (outcome.value === "failed") {
       failed += 1;
+    } else {
+      skipped += 1;
     }
   }
 

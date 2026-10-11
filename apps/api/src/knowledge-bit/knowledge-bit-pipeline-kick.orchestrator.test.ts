@@ -13,7 +13,7 @@ vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
 }));
 
 const { log } = await import("../shared/log.js");
-const { createKnowledgeBitPipelineKick, KNOWLEDGE_BIT_PIPELINE_PASSES } = await import(
+const { createKnowledgeBitPipelineKick, KNOWLEDGE_BIT_PIPELINE_STAGES } = await import(
   "./knowledge-bit-pipeline-kick.orchestrator.js"
 );
 
@@ -26,21 +26,23 @@ function deferred() {
   return { promise, resolve };
 }
 
+function nextTick() {
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
 describe("knowledge bit pipeline kick", () => {
-  it("should run split, then questions, then fill-in-the-blank cards, then basic cards", () => {
-    expect(KNOWLEDGE_BIT_PIPELINE_PASSES.map((p) => p.name)).toEqual([
-      "detect",
-      "wh_question",
-      "fill_blank",
-      "basic_card",
+  it("should run split first, then the three card writers as one concurrent stage", () => {
+    expect(KNOWLEDGE_BIT_PIPELINE_STAGES.map((stage) => stage.map((pass) => pass.name))).toEqual([
+      ["detect"],
+      ["wh_question", "fill_blank", "basic_card"],
     ]);
   });
 
-  it("should run the passes in order on a fresh kick", async () => {
+  it("should run the stages in order on a fresh kick", async () => {
     const order: string[] = [];
     const kick = createKnowledgeBitPipelineKick([
-      { name: "a", run: async () => order.push("a") },
-      { name: "b", run: async () => order.push("b") },
+      [{ name: "a", run: async () => order.push("a") }],
+      [{ name: "b", run: async () => order.push("b") }],
     ]);
 
     await kick();
@@ -48,11 +50,45 @@ describe("knowledge bit pipeline kick", () => {
     expect(order).toEqual(["a", "b"]);
   });
 
+  it("should run the passes of one stage concurrently and start the next stage only after they all finish", async () => {
+    const gate = deferred();
+    const started: string[] = [];
+    const kick = createKnowledgeBitPipelineKick([
+      [
+        {
+          name: "a",
+          run: async () => {
+            started.push("a");
+            await gate.promise;
+          },
+        },
+        {
+          name: "b",
+          run: async () => {
+            started.push("b");
+            await gate.promise;
+          },
+        },
+      ],
+      [{ name: "c", run: async () => started.push("c") }],
+    ]);
+
+    const running = kick();
+    await nextTick();
+
+    expect(started).toEqual(["a", "b"]);
+
+    gate.resolve();
+    await running;
+
+    expect(started).toEqual(["a", "b", "c"]);
+  });
+
   it("should still run later passes and log the pass name when one fails", async () => {
     const second = vi.fn().mockResolvedValue(undefined);
     const kick = createKnowledgeBitPipelineKick([
-      { name: "a", run: () => Promise.reject(new Error("llm down")) },
-      { name: "b", run: second },
+      [{ name: "a", run: () => Promise.reject(new Error("llm down")) }],
+      [{ name: "b", run: second }],
     ]);
 
     await expect(kick()).resolves.toBeUndefined();
@@ -60,6 +96,24 @@ describe("knowledge bit pipeline kick", () => {
     expect(second).toHaveBeenCalledTimes(1);
     expect(log.error).toHaveBeenCalledWith(
       expect.objectContaining({ pass: "a" }),
+      "knowledge_bit_pipeline_kick_pass_failed",
+    );
+  });
+
+  it("should let a failing writer pass not block its sibling passes in the same stage", async () => {
+    const sibling = vi.fn().mockResolvedValue(undefined);
+    const kick = createKnowledgeBitPipelineKick([
+      [
+        { name: "wh_question", run: () => Promise.reject(new Error("wh down")) },
+        { name: "fill_blank", run: sibling },
+      ],
+    ]);
+
+    await expect(kick()).resolves.toBeUndefined();
+
+    expect(sibling).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledWith(
+      expect.objectContaining({ pass: "wh_question" }),
       "knowledge_bit_pipeline_kick_pass_failed",
     );
   });
@@ -74,7 +128,7 @@ describe("knowledge bit pipeline kick", () => {
       await gate.promise;
       active -= 1;
     });
-    const kick = createKnowledgeBitPipelineKick([{ name: "a", run }]);
+    const kick = createKnowledgeBitPipelineKick([[{ name: "a", run }]]);
     const first = kick();
 
     for (let i = 0; i < 10; i += 1) {
@@ -90,7 +144,7 @@ describe("knowledge bit pipeline kick", () => {
 
   it("should start a fresh run after everything has finished", async () => {
     const run = vi.fn().mockResolvedValue(undefined);
-    const kick = createKnowledgeBitPipelineKick([{ name: "a", run }]);
+    const kick = createKnowledgeBitPipelineKick([[{ name: "a", run }]]);
 
     await kick();
     await kick();
@@ -100,7 +154,7 @@ describe("knowledge bit pipeline kick", () => {
 
   it("should accept new runs after a pass threw", async () => {
     const run = vi.fn().mockRejectedValueOnce(new Error("boom")).mockResolvedValue(undefined);
-    const kick = createKnowledgeBitPipelineKick([{ name: "a", run }]);
+    const kick = createKnowledgeBitPipelineKick([[{ name: "a", run }]]);
 
     await kick();
     await kick();

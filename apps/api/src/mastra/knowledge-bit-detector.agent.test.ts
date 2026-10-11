@@ -244,7 +244,7 @@ describe("runKnowledgeBitDetector", () => {
 
 describe("runKnowledgeBitDetector model pinning", () => {
   it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
-    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-oss-20b");
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-4.1-nano");
     generateMock.mockResolvedValueOnce({ object: { bits: [{ text: "Pinned bit.", background: null }] } });
 
     await runKnowledgeBitDetector("Some source prose to extract from.");
@@ -254,13 +254,35 @@ describe("runKnowledgeBitDetector model pinning", () => {
       { requestContext: { get: (key: string) => unknown } },
     ];
 
-    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-oss-20b");
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-4.1-nano");
     expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
       expect.any(String),
       null,
       "knowledgeBitDetector",
       expect.any(Function),
-      { modelId: "openrouter/openai/gpt-oss-20b" },
+      { modelId: "openrouter/openai/gpt-4.1-nano" },
+    );
+  });
+});
+
+describe("INSTRUCTIONS language rule", () => {
+  it("should tell the model to write every field in the same language as the source text", () => {
+    expect(INSTRUCTIONS).toContain(
+      "Write every field in the same language as the source text. Never translate, and never switch language.",
+    );
+  });
+});
+
+describe("runKnowledgeBitDetector language guard", () => {
+  it("should fail the source instead of returning bits written in a different script than the source", async () => {
+    generateMock.mockResolvedValueOnce({
+      object: {
+        bits: [{ text: "核糖体合成蛋白质。", background: null }],
+      },
+    });
+
+    await expect(runKnowledgeBitDetector("Ribosomes synthesize proteins.")).rejects.toThrow(
+      "knowledge_bit_detector_wrong_language",
     );
   });
 });

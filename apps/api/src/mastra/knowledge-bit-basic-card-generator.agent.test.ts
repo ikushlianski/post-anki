@@ -28,6 +28,7 @@ import {
   buildKnowledgeBitBasicCardGeneratorPrompt,
   knowledgeBitBasicCardGeneratorResultSchema,
   runKnowledgeBitBasicCardGenerator,
+  INSTRUCTIONS,
 } from "./knowledge-bit-basic-card-generator.agent.js";
 
 describe("buildKnowledgeBitBasicCardGeneratorPrompt", () => {
@@ -80,7 +81,7 @@ describe("runKnowledgeBitBasicCardGenerator", () => {
 
 describe("runKnowledgeBitBasicCardGenerator model pinning", () => {
   it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
-    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-oss-20b");
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-4.1-nano");
     generateMock.mockResolvedValueOnce({ object: { front: "What does anchoring bias?", back: "Price perception" } });
 
     await runKnowledgeBitBasicCardGenerator("Anchoring biases price perception.");
@@ -90,13 +91,30 @@ describe("runKnowledgeBitBasicCardGenerator model pinning", () => {
       { requestContext: { get: (key: string) => unknown } },
     ];
 
-    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-oss-20b");
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-4.1-nano");
     expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
       expect.any(String),
       null,
       "knowledgeBitBasicCardGenerator",
       expect.any(Function),
-      { modelId: "openrouter/openai/gpt-oss-20b" },
+      { modelId: "openrouter/openai/gpt-4.1-nano" },
     );
   });
 });
+
+describe("INSTRUCTIONS language rule", () => {
+  it("should tell the model to write every field in the same language as the source text", () => {
+    expect(INSTRUCTIONS).toContain(
+      "Write every field in the same language as the source text. Never translate, and never switch language.",
+    );
+  });
+});
+
+describe("INSTRUCTIONS meta-reference rule", () => {
+  it("should forbid referring to the bit, source or passage as if the learner had seen it", () => {
+    expect(INSTRUCTIONS).toContain(
+      "Write the question and answer as plain study material about the claim itself. Never mention 'the bit', 'this item', 'the text', 'the source', 'the author' or 'the passage'. The question must make sense to someone who has never seen the source.",
+    );
+  });
+});
+

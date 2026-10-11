@@ -6,15 +6,20 @@ import { generateKnowledgeBitQuestions } from "./knowledge-bit-question-generati
 
 export type KnowledgeBitPipelinePass = { name: string; run: () => Promise<unknown> };
 
-export const KNOWLEDGE_BIT_PIPELINE_PASSES: readonly KnowledgeBitPipelinePass[] = [
-  { name: "detect", run: () => detectKnowledgeBits() },
-  { name: "wh_question", run: () => generateKnowledgeBitQuestions() },
-  { name: "fill_blank", run: () => generateKnowledgeBitFillBlanks() },
-  { name: "basic_card", run: () => generateKnowledgeBitBasicCards() },
+export type KnowledgeBitPipelineStage = readonly KnowledgeBitPipelinePass[];
+
+// Stages run in order; the passes inside one stage run concurrently and a stage ends when all of them settle.
+export const KNOWLEDGE_BIT_PIPELINE_STAGES: readonly KnowledgeBitPipelineStage[] = [
+  [{ name: "detect", run: () => detectKnowledgeBits() }],
+  [
+    { name: "wh_question", run: () => generateKnowledgeBitQuestions() },
+    { name: "fill_blank", run: () => generateKnowledgeBitFillBlanks() },
+    { name: "basic_card", run: () => generateKnowledgeBitBasicCards() },
+  ],
 ];
 
 export function createKnowledgeBitPipelineKick(
-  passes: readonly KnowledgeBitPipelinePass[],
+  stages: readonly KnowledgeBitPipelineStage[],
 ): () => Promise<void> {
   let current: Promise<void> | null = null;
   let followUpQueued = false;
@@ -22,13 +27,17 @@ export function createKnowledgeBitPipelineKick(
   async function runOnce(): Promise<void> {
     const summary: Record<string, unknown> = {};
 
-    for (const pass of passes) {
-      try {
-        summary[pass.name] = await pass.run();
-      } catch (err) {
-        summary[pass.name] = "failed";
-        log.error({ err, pass: pass.name }, "knowledge_bit_pipeline_kick_pass_failed");
-      }
+    for (const stage of stages) {
+      await Promise.all(
+        stage.map(async (pass) => {
+          try {
+            summary[pass.name] = await pass.run();
+          } catch (err) {
+            summary[pass.name] = "failed";
+            log.error({ err, pass: pass.name }, "knowledge_bit_pipeline_kick_pass_failed");
+          }
+        }),
+      );
     }
 
     log.info({ summary }, "knowledge_bit_pipeline_kick_run_done");
@@ -63,4 +72,6 @@ export function createKnowledgeBitPipelineKick(
   };
 }
 
-export const kickKnowledgeBitPipeline = createKnowledgeBitPipelineKick(KNOWLEDGE_BIT_PIPELINE_PASSES);
+export const kickKnowledgeBitPipeline = createKnowledgeBitPipelineKick(
+  KNOWLEDGE_BIT_PIPELINE_STAGES,
+);

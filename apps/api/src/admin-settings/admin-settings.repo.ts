@@ -51,7 +51,7 @@ export async function getAdminSettings(): Promise<AdminSettings> {
 
   await getDb()
     .insert(appSettings)
-    .values({ id: SETTINGS_ID })
+    .values({ id: SETTINGS_ID, knowledgeItemModelId: DEFAULT_KNOWLEDGE_ITEM_MODEL_ID })
     .onConflictDoNothing();
 
   return {

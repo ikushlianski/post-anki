@@ -111,3 +111,58 @@ describe("generateKnowledgeBitBasicCards", () => {
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
 });
+
+describe("generateKnowledgeBitBasicCards language guard", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForBasicCardGeneration).mockResolvedValue(TOKEN);
+  });
+
+  it("should never store a card written in a different script than its bit and should mark the bit failed", async () => {
+    const englishBit = { id: "kb_ribosome", body: "Ribosomes synthesize proteins." };
+
+    vi.mocked(listKnowledgeBitsForBasicCardGenerationScan).mockResolvedValue([englishBit]);
+    vi.mocked(runKnowledgeBitBasicCardGenerator).mockResolvedValue({
+      front: "核糖体的作用是什么？",
+      back: "合成蛋白质的细胞器",
+    });
+
+    const result = await generateKnowledgeBitBasicCards();
+
+    expect(recordGeneratedBasicCardVariant).not.toHaveBeenCalled();
+    expect(markBasicCardGenerationFailed).toHaveBeenCalledWith("kb_ribosome", TOKEN);
+    expect(result).toEqual({ scanned: 1, generated: 0, failed: 1, skipped: 0 });
+  });
+});
+
+describe("generateKnowledgeBitBasicCards concurrency", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(claimKnowledgeBitForBasicCardGeneration).mockResolvedValue(TOKEN);
+  });
+
+  it("should keep at most four bits in flight at once and still generate every bit", async () => {
+    const bits = Array.from({ length: 6 }, (_, index) => ({
+      id: `kb_${index}`,
+      body: "Price anchors shape perceived value",
+    }));
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    vi.mocked(listKnowledgeBitsForBasicCardGenerationScan).mockResolvedValue(bits);
+    vi.mocked(runKnowledgeBitBasicCardGenerator).mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+
+      return { front: "What anchors perceived value?", back: "Price anchors" };
+    });
+
+    const result = await generateKnowledgeBitBasicCards();
+
+    expect(maxInFlight).toBe(4);
+    expect(recordGeneratedBasicCardVariant).toHaveBeenCalledTimes(6);
+    expect(result).toEqual({ scanned: 6, generated: 6, failed: 0, skipped: 0 });
+  });
+});

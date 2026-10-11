@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RequestContext } from "@mastra/core/request-context";
+import { DEFAULT_KNOWLEDGE_ITEM_MODEL_ID } from "@post-anki/shared";
 
 const { getKnowledgeItemModelIdMock } = vi.hoisted(() => ({
   getKnowledgeItemModelIdMock: vi.fn(),
@@ -21,29 +22,29 @@ const env = { OPENROUTER_BASE_URL: undefined } as unknown as Env;
 describe("dynamicKnowledgeItemModel", () => {
   beforeEach(() => {
     getKnowledgeItemModelIdMock.mockReset();
-    getKnowledgeItemModelIdMock.mockResolvedValue("openrouter/deepseek/deepseek-v4-flash");
+    getKnowledgeItemModelIdMock.mockResolvedValue(DEFAULT_KNOWLEDGE_ITEM_MODEL_ID);
   });
 
   it("should use the model pinned on the run's requestContext", async () => {
     const resolveModel = dynamicKnowledgeItemModel(env);
     const requestContext = new RequestContext<unknown>([
-      ["knowledgeItemModelId", "openrouter/openai/gpt-oss-20b"],
+      ["knowledgeItemModelId", "openrouter/openai/gpt-4.1-nano"],
     ]);
 
     const model = await resolveModel({ requestContext });
 
-    expect(model).toBe("openrouter/openai/gpt-oss-20b");
+    expect(model).toBe("openrouter/openai/gpt-4.1-nano");
     expect(getKnowledgeItemModelIdMock).not.toHaveBeenCalled();
   });
 
   it("should read the stored setting when no model is pinned", async () => {
-    getKnowledgeItemModelIdMock.mockResolvedValueOnce("openrouter/mistralai/mistral-nemo");
+    getKnowledgeItemModelIdMock.mockResolvedValueOnce("openrouter/mistralai/mistral-small-24b-instruct-2501");
 
     const resolveModel = dynamicKnowledgeItemModel(env);
 
     const model = await resolveModel({ requestContext: new RequestContext<unknown>() });
 
-    expect(model).toBe("openrouter/mistralai/mistral-nemo");
+    expect(model).toBe("openrouter/mistralai/mistral-small-24b-instruct-2501");
     expect(getKnowledgeItemModelIdMock).toHaveBeenCalledTimes(1);
   });
 
@@ -62,12 +63,12 @@ describe("dynamicKnowledgeItemModel", () => {
 
     const model = await resolveModel({
       requestContext: new RequestContext<unknown>([
-        ["knowledgeItemModelId", "openrouter/openai/gpt-oss-20b"],
+        ["knowledgeItemModelId", "openrouter/openai/gpt-4.1-nano"],
       ]),
     });
 
     expect(model).toEqual({
-      id: "openrouter/openai/gpt-oss-20b",
+      id: "openrouter/openai/gpt-4.1-nano",
       url: "https://proxy.example.test/v1",
     });
   });
