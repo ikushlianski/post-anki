@@ -48,7 +48,7 @@ function makeRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     id: "app",
     testToggle: false,
     modelTier: "cheap",
-    knowledgeItemModelId: "openrouter/openai/gpt-4.1-nano",
+    knowledgeItemModelId: "openrouter/google/gemini-2.5-flash-lite",
     ...overrides,
   };
 }
@@ -63,13 +63,13 @@ describe("getAdminSettings", () => {
   it("should default the knowledge-item model when no settings row exists yet", async () => {
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemma-4-31b-it");
   });
 
   it("should store the default knowledge-item model when it creates the settings row", async () => {
     await getAdminSettings();
 
-    expect(state.inserted).toMatchObject({ knowledgeItemModelId: "openrouter/google/gemini-2.5-flash-lite" });
+    expect(state.inserted).toMatchObject({ knowledgeItemModelId: "openrouter/google/gemma-4-31b-it" });
   });
 
   it("should return the stored knowledge-item model when it is on the allowlist", async () => {
@@ -77,7 +77,7 @@ describe("getAdminSettings", () => {
 
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/openai/gpt-4.1-nano");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
   });
 
   it("should fall back to the default and log a warning when the stored model is unknown", async () => {
@@ -85,11 +85,34 @@ describe("getAdminSettings", () => {
 
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemma-4-31b-it");
     expect(log.warn).toHaveBeenCalledWith(
       { storedModelId: "openrouter/deepseek/deepseek-v4-flash" },
       "knowledge_item_model_id_unknown_fallback_default",
     );
+  });
+});
+
+describe("stored knowledge-item model that was removed from the allowlist", () => {
+  beforeEach(() => {
+    state.inserted = undefined;
+    vi.mocked(log.warn).mockClear();
+  });
+
+  it.each([
+    "openrouter/openai/gpt-4o-mini",
+    "openrouter/openai/gpt-4.1-nano",
+  ])("should fall back to the default and log a warning when the stored model is %s", async (storedId) => {
+    state.rows = [makeRow({ knowledgeItemModelId: storedId })];
+
+    const settings = await getAdminSettings();
+
+    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemma-4-31b-it");
+    expect(log.warn).toHaveBeenCalledWith(
+      { storedModelId: storedId },
+      "knowledge_item_model_id_unknown_fallback_default",
+    );
+    expect(state.inserted).toBeUndefined();
   });
 });
 
@@ -113,14 +136,14 @@ describe("stored knowledge-item model that is no longer on the allowlist", () =>
   });
 
   it("should fall back to the default for a run without writing the stored row", async () => {
-    expect(await getKnowledgeItemModelId()).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(await getKnowledgeItemModelId()).toBe("openrouter/google/gemma-4-31b-it");
     expect(state.inserted).toBeUndefined();
   });
 
   it("should fall back to the default in the model resolver used by the writers", async () => {
     const resolveModel = dynamicKnowledgeItemModel({ OPENROUTER_BASE_URL: undefined } as unknown as Env);
 
-    expect(await resolveModel({})).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(await resolveModel({})).toBe("openrouter/google/gemma-4-31b-it");
     expect(state.inserted).toBeUndefined();
   });
 });
@@ -148,8 +171,8 @@ describe("updateAdminSettings", () => {
 
     expect(state.inserted).toMatchObject({
       testToggle: true,
-      knowledgeItemModelId: "openrouter/openai/gpt-4.1-nano",
+      knowledgeItemModelId: "openrouter/google/gemini-2.5-flash-lite",
     });
-    expect(updated.knowledgeItemModelId).toBe("openrouter/openai/gpt-4.1-nano");
+    expect(updated.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
   });
 });

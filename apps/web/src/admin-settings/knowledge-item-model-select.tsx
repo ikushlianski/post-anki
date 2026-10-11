@@ -56,6 +56,11 @@ export function KnowledgeItemModelSelect({
                 ${option.inputPerMillion} in / ${option.outputPerMillion} out per 1M tokens
               </span>
               <span className="block text-xs text-neutral-400">{option.note}</span>
+              {option.expiresOn && (
+                <span className="block text-xs font-medium text-amber-700">
+                  Expires {option.expiresOn} on OpenRouter
+                </span>
+              )}
               <span className="block text-xs text-neutral-400">
                 Prices checked {KNOWLEDGE_ITEM_MODELS_CHECKED_ON}
               </span>

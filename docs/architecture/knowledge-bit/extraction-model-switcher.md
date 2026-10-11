@@ -17,12 +17,24 @@ The choice is global. It does not follow the subject or curriculum tier cascade 
 
 `packages/shared/src/knowledge-item-model.ts` is the single source of truth. It defines:
 
-- `KNOWLEDGE_ITEM_MODEL_IDS`, a fixed tuple of five ids, and a Zod enum built from it. The API rejects any other id with 400 `invalid_input`, through the existing admin settings validation. The five are Gemini 2.5 Flash Lite, GPT-4o mini, Mistral Small 24B, Gemma 3 12B and GPT-4.1 nano.
-- `DEFAULT_KNOWLEDGE_ITEM_MODEL_ID`: `openrouter/google/gemini-2.5-flash-lite`. It is the fallback for a missing or unknown stored value and the model written when the settings row is first created.
-- Display metadata per model: label, input and output price per million tokens, and a note. `KNOWLEDGE_ITEM_MODEL_OPTIONS` is the ordered list the UI renders.
-- `KNOWLEDGE_ITEM_MODELS_CHECKED_ON`, a date constant (`2026-10-11`) for when the prices were typed in.
+- `KNOWLEDGE_ITEM_MODEL_IDS`, a fixed tuple of five ids, and a Zod enum built from it. The API rejects any other id with 400 `invalid_input`, through the existing admin settings validation. The five are Gemma 4 31B, Gemini 2.5 Flash Lite, Mistral Small 24B, Gemma 3 12B and Claude Haiku 5.5 (labelled premium). They are listed in that order, which is the order the select shows them. GPT-4o mini and GPT-4.1 nano were removed after the source-first generation benchmark rejected both on whole-source generation.
+- `DEFAULT_KNOWLEDGE_ITEM_MODEL_ID`: `openrouter/google/gemma-4-31b-it`. It is the first model in the list with no OpenRouter expiry or one more than 60 days after the check date. Gemini 2.5 Flash Lite is next in the list but expires 2026-10-20, so it is not the default. It is the fallback for a missing or unknown stored value and the model written when the settings row is first created.
+- Display metadata per model: label, input and output price per million tokens, an optional `expiresOn` date from OpenRouter, and a note. `KNOWLEDGE_ITEM_MODEL_OPTIONS` is the ordered list the UI renders.
+- `KNOWLEDGE_ITEM_MODELS_CHECKED_ON`, a date constant (`2026-10-11`) for when the prices and expiry dates were read from OpenRouter.
 
-The prices are hand-entered constants. Nothing in the running system fetches them.
+Live values on 2026-10-11 (OpenRouter model list, USD per 1M input / output tokens):
+
+| Model | Input | Output | Expires on OpenRouter |
+|---|---|---|---|
+| google/gemma-4-31b-it (default) | 0.09 | 0.34 | none |
+| google/gemini-2.5-flash-lite | 0.10 | 0.40 | 2026-10-20 |
+| mistralai/mistral-small-24b-instruct-2501 | 0.05 | 0.08 | none |
+| google/gemma-3-12b-it | 0.05 | 0.15 | none |
+| anthropic/claude-haiku-5.5 | 0.10 | 0.50 | none |
+
+Claude Haiku 5.5 has a higher price on prompts of 100,000 tokens or more (0.50 in / 2.50 out). The constants use the base price.
+
+The prices and expiry dates are hand-entered constants. Nothing in the running system fetches them.
 
 ## Storage
 
@@ -48,7 +60,7 @@ The other knowledge-bit agents (followup, answer grader, placer, tagger) pass a 
 
 ## Admin settings select
 
-- The UI is `apps/web/src/admin-settings/knowledge-item-model-select.tsx`. It renders one radio option per entry in `KNOWLEDGE_ITEM_MODEL_OPTIONS`, with the label, prices and note.
+- The UI is `apps/web/src/admin-settings/knowledge-item-model-select.tsx`. It renders one radio option per entry in `KNOWLEDGE_ITEM_MODEL_OPTIONS`, with the label, prices, note and, when set, an amber "Expires <date> on OpenRouter" line.
 - The page is `apps/web/src/routes/admin-settings.tsx`. A change calls `updateAdminSettings`, which sends `PATCH /admin/settings` (declared in `apps/api/src/router-table.ts`).
 
 ## Price check script
@@ -58,11 +70,11 @@ The other knowledge-bit agents (followup, answer grader, placer, tagger) pass a 
 ## Known limits
 
 - Not verified in a browser. The select and the save path are read from code and tests, not clicked through.
-- The quality notes come from one Russian test text, run by hand. The repo holds no automated quality check for any of the five models.
-- `google/gemini-2.5-flash-lite` lists an expiry of 2026-10-20 in the OpenRouter model list (`npm run models:prices`). Replace the default before that date.
-- A stored value of `openrouter/deepseek/deepseek-v4-flash` (or any other removed id) stays in the database until an admin picks a model. Reads use the new default in the meantime.
+- The quality notes come from the source-first generation benchmark (`.planning/source-first-generation/model-benchmark.md`): four short texts, one run per model, one hand-scored Russian output. The repo holds no automated quality check for any of the five models.
+- `google/gemini-2.5-flash-lite` expires on 2026-10-20 on OpenRouter. It stays on the list with a visible note and is not the default. Remove it or replace it before that date.
+- A stored value of `openrouter/deepseek/deepseek-v4-flash`, `openrouter/openai/gpt-4o-mini` or `openrouter/openai/gpt-4.1-nano` (or any other removed id) stays in the database until an admin picks a model. Reads use the new default in the meantime.
 - Prices are a dated snapshot. The date constant does not trigger any check when prices go stale.
-- Two places hold a default and they now differ: the TypeScript constant (`gemini-2.5-flash-lite`) and the column default in migration 0090 and `schema.ts` (`deepseek-v4-flash`). The column default only applies when a row is inserted without this field, which the repo never does.
+- Two places hold a default and they now differ: the TypeScript constant (`gemma-4-31b-it`) and the column default in migration 0090 and `schema.ts` (`deepseek-v4-flash`). The column default only applies when a row is inserted without this field, which the repo never does.
 - The model applies to the four writers only. The per-subject and per-curriculum tier cascade does not reach them.
 
 ## Plan

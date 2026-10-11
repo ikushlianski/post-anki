@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 export const KNOWLEDGE_ITEM_MODEL_IDS = [
+  "openrouter/google/gemma-4-31b-it",
   "openrouter/google/gemini-2.5-flash-lite",
-  "openrouter/openai/gpt-4o-mini",
   "openrouter/mistralai/mistral-small-24b-instruct-2501",
   "openrouter/google/gemma-3-12b-it",
-  "openrouter/openai/gpt-4.1-nano",
+  "openrouter/anthropic/claude-haiku-5.5",
 ] as const;
 
 export const knowledgeItemModelIdSchema = z.enum(KNOWLEDGE_ITEM_MODEL_IDS);
@@ -13,7 +13,7 @@ export const knowledgeItemModelIdSchema = z.enum(KNOWLEDGE_ITEM_MODEL_IDS);
 export type KnowledgeItemModelId = z.infer<typeof knowledgeItemModelIdSchema>;
 
 export const DEFAULT_KNOWLEDGE_ITEM_MODEL_ID: KnowledgeItemModelId =
-  "openrouter/google/gemini-2.5-flash-lite";
+  "openrouter/google/gemma-4-31b-it";
 
 export const KNOWLEDGE_ITEM_MODELS_CHECKED_ON = "2026-10-11";
 
@@ -22,44 +22,50 @@ export interface KnowledgeItemModelOption {
   label: string;
   inputPerMillion: number;
   outputPerMillion: number;
+  expiresOn: string | null;
   note: string;
 }
 
 export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemModelOption> = {
+  "openrouter/google/gemma-4-31b-it": {
+    id: "openrouter/google/gemma-4-31b-it",
+    label: "Gemma 4 31B",
+    inputPerMillion: 0.09,
+    outputPerMillion: 0.34,
+    expiresOn: null,
+    note: "Default. Best quality per price in the benchmark, about 0.4 s. One run said \"according to the text\".",
+  },
   "openrouter/google/gemini-2.5-flash-lite": {
     id: "openrouter/google/gemini-2.5-flash-lite",
     label: "Gemini 2.5 Flash Lite",
     inputPerMillion: 0.1,
     outputPerMillion: 0.4,
-    note: "Default. 1.4 s on the Russian test, clean self-contained items.",
-  },
-  "openrouter/openai/gpt-4o-mini": {
-    id: "openrouter/openai/gpt-4o-mini",
-    label: "GPT-4o mini",
-    inputPerMillion: 0.15,
-    outputPerMillion: 0.6,
-    note: "2.5 s, kept Russian, one vague item.",
+    expiresOn: "2026-10-20",
+    note: "About 0.8 s. Clean, self-contained items; one statement is a little too general.",
   },
   "openrouter/mistralai/mistral-small-24b-instruct-2501": {
     id: "openrouter/mistralai/mistral-small-24b-instruct-2501",
     label: "Mistral Small 24B",
     inputPerMillion: 0.05,
     outputPerMillion: 0.08,
-    note: "Cheapest that kept Russian; some items lean on earlier ones.",
+    expiresOn: null,
+    note: "Cheapest, about 0.2 s. Some questions are vague.",
   },
   "openrouter/google/gemma-3-12b-it": {
     id: "openrouter/google/gemma-3-12b-it",
     label: "Gemma 3 12B",
     inputPerMillion: 0.05,
     outputPerMillion: 0.15,
-    note: "Good Russian, but splits into too many items.",
+    expiresOn: null,
+    note: "Faithful, about 0.4 s. Splits into fewer items than the others.",
   },
-  "openrouter/openai/gpt-4.1-nano": {
-    id: "openrouter/openai/gpt-4.1-nano",
-    label: "GPT-4.1 nano",
+  "openrouter/anthropic/claude-haiku-5.5": {
+    id: "openrouter/anthropic/claude-haiku-5.5",
+    label: "Claude Haiku 5.5 (premium)",
     inputPerMillion: 0.1,
-    outputPerMillion: 0.4,
-    note: "Fast, but dropped and bent some points on Russian.",
+    outputPerMillion: 0.5,
+    expiresOn: null,
+    note: "Most faithful, about 1.5 s, costs more. Two questions say \"according to the text\".",
   },
 };
 
