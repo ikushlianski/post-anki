@@ -118,7 +118,7 @@ updated: 2026-09-04
 - [ ] Phone-width checks: no horizontal overflow on key screens, with screenshots
 - [x] Cards keep the source language and never say the bit or the text
 - [x] Write cards in parallel and show how many are ready
-- [x] Detected items must stand alone, with no dangling this or that
+- [ ] Detected items must stand alone, with no dangling this or that
 - [ ] Compare the five models side by side on the user's Russian text
 
 ### Notes
