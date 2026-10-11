@@ -64,6 +64,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20
 - [ ] Write cards from the whole source text, not sentence by sentence
 - [ ] Regenerate button on the approval page for a source
 - [ ] Phone tap targets at least 44px: menus, Add knowledge, Show answer
@@ -117,7 +118,7 @@ updated: 2026-09-04
 - [ ] Phone-width checks: no horizontal overflow on key screens, with screenshots
 - [x] Cards keep the source language and never say the bit or the text
 - [x] Write cards in parallel and show how many are ready
-- [ ] Detected items must stand alone, with no dangling this or that
+- [x] Detected items must stand alone, with no dangling this or that
 - [ ] Compare the five models side by side on the user's Russian text
 
 ### Notes
