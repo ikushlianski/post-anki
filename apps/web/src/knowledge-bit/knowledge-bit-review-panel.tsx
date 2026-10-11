@@ -1,24 +1,17 @@
 import { useCallback, useRef, useState } from 'react'
-import type {
-  PendingKnowledgeBitForReview,
-  PendingKnowledgeSourceForReview,
-} from '@post-anki/shared'
+import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import {
   approveKnowledgeBitForReview,
-  bulkApproveKnowledgeBitsForReview,
   editKnowledgeBitForReview,
   getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
   rejectKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
-import {
-  applyBitEdit,
-  applyVariantEdit,
-  removeBit,
-  removeBits,
-} from './knowledge-bit-review-sources'
+import { applyBitEdit, applyVariantEdit, removeBit } from './knowledge-bit-review-sources'
 import { KnowledgeBitReviewBulkBar } from './knowledge-bit-review-bulk-bar'
+import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
+import { KnowledgeBitReviewEmptyState } from './knowledge-bit-review-empty-state'
 import { KnowledgeBitReviewSourceGroup } from './knowledge-bit-review-source-group'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 import { useReviewKeyboard, type ReviewKeyAction } from './knowledge-bit-review-keyboard'
@@ -41,7 +34,6 @@ export function KnowledgeBitReviewPanel({
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [focusedBitId, setFocusedBitId] = useState<string>()
   const [idleStopped, setIdleStopped] = useState(false)
-  const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const editingBitIds = useRef(new Set<string>())
   // Every bit ever shown or decided here; a poll never re-adds one of these.
@@ -101,6 +93,15 @@ export function KnowledgeBitReviewPanel({
     useResolvingSuggestions()
   const { claim: claimBitEdit, release: releaseBitEdit, isResolving: isBitSaving } =
     useResolvingSuggestions()
+  const bulk = useBulkApproval({
+    sources,
+    readyBits,
+    setSources,
+    knownBitIds,
+    editingBitIds,
+    claimBit,
+    releaseBit,
+  })
 
   function setRowError(bitId: string, message: string | null) {
     setRowErrors((prev) => ({ ...prev, [bitId]: message ?? '' }))
@@ -124,44 +125,6 @@ export function KnowledgeBitReviewPanel({
       setRowError(bitId, "Couldn't approve. Try again.")
     } finally {
       releaseBit(bitId)
-    }
-  }
-
-  async function approveMany(bits: PendingKnowledgeBitForReview[]) {
-    const claimed = bits
-      .filter((bit) => bit.variants.length > 0 && !editingBitIds.current.has(bit.id))
-      .map((bit) => bit.id)
-      .filter((bitId) => claimBit(bitId))
-
-    if (claimed.length === 0) {
-      return
-    }
-
-    setBulkMessage(null)
-
-    try {
-      const result = await bulkApproveKnowledgeBitsForReview({
-        data: { knowledgeBitIds: claimed },
-      })
-
-      const gone = new Set([
-        ...result.approved,
-        ...result.skipped.filter((item) => item.reason !== 'no_variant').map((item) => item.id),
-      ])
-
-      gone.forEach((bitId) => knownBitIds.current.add(bitId))
-      setSources((prev) => removeBits(prev, gone))
-      notifyPendingReviewChanged()
-
-      if (result.skipped.length > 0) {
-        setBulkMessage(
-          `Approved ${result.approved.length}, skipped ${result.skipped.length} that could not be approved.`,
-        )
-      }
-    } catch {
-      setBulkMessage('Could not approve these suggestions. Try again.')
-    } finally {
-      claimed.forEach(releaseBit)
     }
   }
 
@@ -253,7 +216,9 @@ export function KnowledgeBitReviewPanel({
     } else {
       const source = sources.find((c) => c.bits.some((bit) => bit.id === focusedBit.id))
 
-      void approveMany(source?.bits ?? [])
+      if (source) {
+        bulk.requestApproveSource(source.knowledgeSourceId)
+      }
     }
   }
 
@@ -263,14 +228,15 @@ export function KnowledgeBitReviewPanel({
     <div data-testid="knowledge-bit-review-panel" className="space-y-4">
       <KnowledgeBitReviewBulkBar
         readyCount={readyBits.length}
-        bulkMessage={bulkMessage}
-        onApproveAll={() => approveMany(readyBits)}
+        bulkMessage={bulk.bulkMessage}
+        isConfirming={bulk.isConfirmingAll}
+        onRequestApproveAll={bulk.requestApproveAll}
+        onConfirmApproveAll={bulk.confirmBulk}
+        onCancelApproveAll={bulk.cancelBulk}
       />
 
       {sources.length === 0 ? (
-        <p data-testid="knowledge-bit-review-empty-state" className="text-sm text-neutral-500">
-          No pending knowledge bits.
-        </p>
+        <KnowledgeBitReviewEmptyState />
       ) : (
         <ul className="space-y-4">
           {sources.map((source) => (
@@ -283,7 +249,10 @@ export function KnowledgeBitReviewPanel({
               isBitResolving={isBitResolving}
               isVariantSaving={isVariantSaving}
               isBitSaving={isBitSaving}
-              onApproveMany={approveMany}
+              isConfirmingBulk={bulk.confirmingSourceId === source.knowledgeSourceId}
+              onRequestApproveSource={bulk.requestApproveSource}
+              onConfirmBulk={bulk.confirmBulk}
+              onCancelBulk={bulk.cancelBulk}
               onEditingChange={handleEditingChange}
               onApprove={approve}
               onReject={reject}

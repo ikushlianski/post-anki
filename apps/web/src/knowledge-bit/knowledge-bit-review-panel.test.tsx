@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
@@ -11,6 +12,14 @@ import {
   editKnowledgeBitQuestionVariantForReview,
   rejectKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children, ...rest }: { to: string; children: ReactNode } & Record<string, unknown>) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
+}))
 
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),

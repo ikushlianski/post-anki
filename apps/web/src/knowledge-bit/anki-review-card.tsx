@@ -38,7 +38,7 @@ export function AnkiReviewCard({
           type="button"
           data-testid="anki-review-show-answer"
           onClick={onReveal}
-          className="self-start rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white"
+          className="inline-flex min-h-11 items-center self-start rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white sm:min-h-0"
         >
           Show answer <kbd className="ml-1 text-xs opacity-70">Space</kbd>
         </button>

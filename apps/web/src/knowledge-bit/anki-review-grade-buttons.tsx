@@ -28,7 +28,7 @@ export function AnkiReviewGradeButtons({
           aria-label={`${label}, next in ${describeIntervalSeconds(intervalPreview[grade])}`}
           disabled={disabled}
           onClick={() => onGrade(grade)}
-          className="flex flex-col items-center rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50 disabled:opacity-40"
+          className="flex min-h-11 flex-col items-center justify-center rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium hover:bg-neutral-50 disabled:opacity-40 sm:min-h-0"
         >
           <span
             data-testid={`anki-review-grade-${grade}-interval`}
@@ -37,7 +37,7 @@ export function AnkiReviewGradeButtons({
             {formatIntervalSeconds(intervalPreview[grade])}
           </span>
           <span>{label}</span>
-          <kbd className="text-xs text-neutral-400">{shortcut}</kbd>
+          <kbd className="text-xs text-neutral-600">{shortcut}</kbd>
         </button>
       ))}
     </div>

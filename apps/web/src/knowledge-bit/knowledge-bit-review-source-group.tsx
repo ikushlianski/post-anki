@@ -1,9 +1,7 @@
-import type {
-  PendingKnowledgeBitForReview,
-  PendingKnowledgeSourceForReview,
-} from '@post-anki/shared'
+import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import { KnowledgeBitReviewItem } from './knowledge-bit-review-item'
+import { KnowledgeBitReviewBulkConfirm } from './knowledge-bit-review-bulk-confirm'
 import { SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
 const SOURCE_TEXT_PREVIEW_LENGTH = 400
@@ -16,7 +14,10 @@ export function KnowledgeBitReviewSourceGroup({
   isBitResolving,
   isVariantSaving,
   isBitSaving,
-  onApproveMany,
+  isConfirmingBulk,
+  onRequestApproveSource,
+  onConfirmBulk,
+  onCancelBulk,
   onEditingChange,
   onApprove,
   onReject,
@@ -30,7 +31,10 @@ export function KnowledgeBitReviewSourceGroup({
   isBitResolving: (bitId: string) => boolean
   isVariantSaving: (variantId: string) => boolean
   isBitSaving: (bitId: string) => boolean
-  onApproveMany: (bits: PendingKnowledgeBitForReview[]) => void
+  isConfirmingBulk: boolean
+  onRequestApproveSource: (sourceId: string) => void
+  onConfirmBulk: () => void
+  onCancelBulk: () => void
   onEditingChange: (bitId: string, editing: boolean) => void
   onApprove: (bitId: string) => void
   onReject: (bitId: string) => void
@@ -42,6 +46,8 @@ export function KnowledgeBitReviewSourceGroup({
   ) => Promise<boolean>
   onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
 }) {
+  const readyCount = source.bits.filter((bit) => bit.variants.length > 0).length
+
   return (
     <li
       data-testid={`knowledge-bit-review-source-${source.knowledgeSourceId}`}
@@ -60,15 +66,25 @@ export function KnowledgeBitReviewSourceGroup({
           </p>
         </details>
 
-        {source.bits.filter((bit) => bit.variants.length > 0).length > 1 ? (
-          <button
-            type="button"
-            data-testid={`knowledge-bit-review-approve-source-${source.knowledgeSourceId}`}
-            onClick={() => onApproveMany(source.bits)}
-            className={SECONDARY_BUTTON_CLASS}
-          >
-            Approve all from this source
-          </button>
+        {readyCount > 1 ? (
+          isConfirmingBulk ? (
+            <KnowledgeBitReviewBulkConfirm
+              count={readyCount}
+              confirmTestId={`knowledge-bit-review-approve-source-confirm-${source.knowledgeSourceId}`}
+              cancelTestId={`knowledge-bit-review-approve-source-cancel-${source.knowledgeSourceId}`}
+              onConfirm={onConfirmBulk}
+              onCancel={onCancelBulk}
+            />
+          ) : (
+            <button
+              type="button"
+              data-testid={`knowledge-bit-review-approve-source-${source.knowledgeSourceId}`}
+              onClick={() => onRequestApproveSource(source.knowledgeSourceId)}
+              className={SECONDARY_BUTTON_CLASS}
+            >
+              Approve all from this source
+            </button>
+          )
         ) : null}
       </div>
 

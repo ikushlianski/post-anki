@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
@@ -16,6 +17,14 @@ import {
   QUESTION_POLL_INTERVAL_MS,
   QUESTION_POLL_MAX_ATTEMPTS,
 } from './knowledge-bit-review-polling'
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children, ...rest }: { to: string; children: ReactNode } & Record<string, unknown>) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
+}))
 
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
@@ -46,6 +55,10 @@ function source(id: string, bits: ReturnType<typeof bit>[]): PendingKnowledgeSou
   return { knowledgeSourceId: id, sourceText: 'text', bits }
 }
 
+function requestApproveAll() {
+  fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all'))
+}
+
 describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
   beforeEach(() => {
     mockedBulk.mockReset()
@@ -59,7 +72,7 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     vi.useRealTimers()
   })
 
-  it('should approve every bit that has questions in one call and keep the one still waiting', async () => {
+  it('should approve every bit that has questions in one call only after the reviewer confirms', async () => {
     mockedBulk.mockResolvedValue({ approved: ['b1', 'b2'], skipped: [] })
     render(
       <KnowledgeBitReviewPanel
@@ -67,7 +80,13 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
       />,
     )
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all'))
+    requestApproveAll()
+
+    expect(screen.getByTestId('knowledge-bit-review-approve-all-confirm').textContent).toBe('Confirm')
+    expect(screen.getByText('Approve 2 items?')).toBeDefined()
+    expect(mockedBulk).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
 
     await waitFor(() => {
       expect(screen.queryByTestId('knowledge-bit-review-item-b1')).toBeNull()
@@ -85,11 +104,12 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
       <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
     )
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all'))
+    requestApproveAll()
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-bulk-message').textContent).toContain(
-        'skipped 1',
+      expect(screen.getByTestId('knowledge-bit-review-bulk-message').textContent).toBe(
+        'Approved 1. Skipped 1: 1 has no questions yet.',
       )
     })
     expect(screen.getByTestId('knowledge-bit-review-item-b2')).toBeDefined()
@@ -107,6 +127,11 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     )
 
     fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-source-s1'))
+
+    expect(screen.getByText('Approve 2 items?')).toBeDefined()
+    expect(mockedBulk).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-source-confirm-s1'))
 
     await waitFor(() => {
       expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['a1', 'a2'] } })
