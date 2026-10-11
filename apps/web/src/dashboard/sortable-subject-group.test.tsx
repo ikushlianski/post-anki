@@ -105,6 +105,18 @@ async function settleAfterDrag() {
   await new Promise((resolve) => setTimeout(resolve, 70))
 }
 
+// The keyboard sensor only starts listening for arrow keys after a short timer, so each key waits for the last.
+async function dragWithKeyboard(handleTestId: string, direction: 'ArrowDown' | 'ArrowUp') {
+  const handle = screen.getByTestId(handleTestId)
+
+  handle.focus()
+  fireEvent.keyDown(handle, { code: 'Space', key: ' ' })
+  await settleAfterDrag()
+  fireEvent.keyDown(document.activeElement ?? handle, { code: direction, key: direction })
+  await settleAfterDrag()
+  fireEvent.keyDown(document.activeElement ?? handle, { code: 'Space', key: ' ' })
+}
+
 describe('SortableSubjectGroup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -174,6 +186,84 @@ describe('SortableSubjectGroup', () => {
     rerender(groupElement([subject('sub-b', 'Beta'), subject('sub-a', 'Alpha')]))
 
     expect(renderedOrder()).toEqual(['row-sub-b', 'row-sub-a'])
+  })
+
+  it('should not revert to an earlier snapshot that arrives while a newer save is in flight', async () => {
+    const onOrderSaved = vi.fn()
+    let resolveSecondSave: (value: { reordered: number }) => void = () => {}
+    vi.mocked(reorderSubjects)
+      .mockResolvedValueOnce({ reordered: 2 })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSecondSave = resolve
+        }),
+      )
+    const { rerender } = render(groupElement(SIBLINGS, onOrderSaved))
+
+    await dragWithKeyboard('handle-sub-a', 'ArrowDown')
+    await waitFor(() => {
+      expect(onOrderSaved).toHaveBeenCalledTimes(1)
+    })
+    expect(renderedOrder()).toEqual(['row-sub-b', 'row-sub-a'])
+
+    await dragWithKeyboard('handle-sub-b', 'ArrowUp')
+    await waitFor(() => {
+      expect(vi.mocked(reorderSubjects)).toHaveBeenCalledTimes(2)
+    })
+    expect(vi.mocked(reorderSubjects)).toHaveBeenLastCalledWith({
+      data: { parentId: PARENT_ID, orderedIds: ['sub-a', 'sub-b'] },
+    })
+    expect(renderedOrder()).toEqual(['row-sub-a', 'row-sub-b'])
+
+    rerender(
+      groupElement(
+        [{ ...subject('sub-b', 'Beta'), sortOrder: 0 }, { ...subject('sub-a', 'Alpha'), sortOrder: 1 }],
+        onOrderSaved,
+      ),
+    )
+    resolveSecondSave({ reordered: 2 })
+    await settleAfterDrag()
+
+    expect(renderedOrder()).toEqual(['row-sub-a', 'row-sub-b'])
+  })
+
+  it('should follow a later reorder from the server once the saved order has come back', async () => {
+    const onOrderSaved = vi.fn()
+    const { rerender } = render(groupElement(SIBLINGS, onOrderSaved))
+
+    await dragWithKeyboard('handle-sub-a', 'ArrowDown')
+    await waitFor(() => {
+      expect(onOrderSaved).toHaveBeenCalledTimes(1)
+    })
+
+    rerender(
+      groupElement(
+        [{ ...subject('sub-b', 'Beta'), sortOrder: 0 }, { ...subject('sub-a', 'Alpha'), sortOrder: 1 }],
+        onOrderSaved,
+      ),
+    )
+    rerender(
+      groupElement(
+        [{ ...subject('sub-a', 'Alpha'), sortOrder: 0 }, { ...subject('sub-b', 'Beta'), sortOrder: 1 }],
+        onOrderSaved,
+      ),
+    )
+
+    expect(renderedOrder()).toEqual(['row-sub-a', 'row-sub-b'])
+  })
+
+  it('should stop waiting for the saved order when a sibling is added or removed', async () => {
+    const onOrderSaved = vi.fn()
+    const { rerender } = render(groupElement(SIBLINGS, onOrderSaved))
+
+    await dragWithKeyboard('handle-sub-a', 'ArrowDown')
+    await waitFor(() => {
+      expect(onOrderSaved).toHaveBeenCalledTimes(1)
+    })
+
+    rerender(groupElement([subject('sub-a', 'Alpha')], onOrderSaved))
+
+    expect(renderedOrder()).toEqual(['row-sub-a'])
   })
 
   it('should keep the optimistic order while a save is pending', async () => {

@@ -49,6 +49,10 @@ function siblingOrderKey(siblings: Subject[]): string {
   return siblings.map((subject) => `${subject.id}:${subject.sortOrder ?? ''}`).join('|')
 }
 
+function sameOrder(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((id, index) => id === right[index])
+}
+
 export function SortableSubjectGroup({
   parentId,
   siblings,
@@ -59,13 +63,25 @@ export function SortableSubjectGroup({
   const [localOrder, setLocalOrder] = useState<string[]>(() => siblings.map((s) => s.id))
   const [syncedKey, setSyncedKey] = useState(orderKey)
   const [isBusy, setIsBusy] = useState(false)
+  const [pendingOrder, setPendingOrder] = useState<string[] | null>(null)
   const [reorderError, setReorderError] = useState<string | null>(null)
 
-  // Adopt incoming order changes, but not during a drag or a pending save: that would
-  // overwrite the optimistic order. A change deferred this way applies once the group is idle.
+  // Adopt incoming order changes, but not during a drag or a save. Once a save succeeds, older
+  // snapshots are skipped until the saved order comes back from the server.
   if (orderKey !== syncedKey && !isBusy) {
+    const incomingOrder = siblings.map((subject) => subject.id)
+
     setSyncedKey(orderKey)
-    setLocalOrder(siblings.map((subject) => subject.id))
+
+    if (pendingOrder === null) {
+      setLocalOrder(incomingOrder)
+    } else if (sameOrder(incomingOrder, pendingOrder)) {
+      setLocalOrder(incomingOrder)
+      setPendingOrder(null)
+    } else if (!sameOrder([...incomingOrder].sort(), [...pendingOrder].sort())) {
+      setLocalOrder(incomingOrder)
+      setPendingOrder(null)
+    }
   }
 
   const sensors = useSensors(
@@ -109,6 +125,7 @@ export function SortableSubjectGroup({
 
     try {
       await reorderSubjects({ data: { parentId, orderedIds: nextOrder } })
+      setPendingOrder(nextOrder)
       onOrderSaved?.()
     } catch (error) {
       setLocalOrder(currentOrder)
