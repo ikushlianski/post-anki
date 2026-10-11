@@ -13,6 +13,14 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/knowledge-sources/detect-bits")?.name).toBe(
         "detectKnowledgeBits",
       );
+      expect(resolveRoute("POST", "/knowledge-sources/ks_1/regeneration")).toEqual({
+        name: "regenerateKnowledgeSource",
+        params: { id: "ks_1" },
+      });
+      expect(resolveRoute("GET", "/knowledge-sources/ks_1/regeneration")).toEqual({
+        name: "getKnowledgeSourceRegeneration",
+        params: { id: "ks_1" },
+      });
       expect(resolveRoute("GET", "/curricula")?.name).toBe("listCurricula");
       expect(resolveRoute("POST", "/gaps")?.name).toBe("declareGap");
       // issue #33's sweep endpoint — the only caller is the

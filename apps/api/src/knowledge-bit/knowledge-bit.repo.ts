@@ -13,7 +13,7 @@ import type { DetectedKnowledgeBit } from "./detected-knowledge-bit.js";
 export interface KnowledgeBitRow {
   id: string;
   body: string;
-  approvalState: "pending" | "approved" | "rejected";
+  approvalState: "pending" | "approved" | "rejected" | "superseded";
 }
 
 export async function getKnowledgeBitById(

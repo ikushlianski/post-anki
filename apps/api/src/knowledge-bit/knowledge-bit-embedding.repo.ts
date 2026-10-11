@@ -1,4 +1,5 @@
-import { and, asc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
 
@@ -19,7 +20,7 @@ export async function listKnowledgeBitsForEmbeddingScan(
       embeddingHash: knowledgeBits.embeddingHash,
     })
     .from(knowledgeBits)
-    .where(and(isNull(knowledgeBits.embeddedAt), ne(knowledgeBits.approvalState, "rejected")))
+    .where(and(isNull(knowledgeBits.embeddedAt), bitNotDiscarded))
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
 }

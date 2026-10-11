@@ -19,6 +19,18 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/knowledge-sources/detect-bits", name: "detectKnowledgeBits" },
   {
     method: "POST",
+    pattern: /^\/knowledge-sources\/([^/]+)\/regeneration$/,
+    name: "regenerateKnowledgeSource",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/knowledge-sources\/([^/]+)\/regeneration$/,
+    name: "getKnowledgeSourceRegeneration",
+    param: "id",
+  },
+  {
+    method: "POST",
     pattern: "/knowledge-bits/embedding-scan",
     name: "triggerKnowledgeBitEmbeddingScan",
   },

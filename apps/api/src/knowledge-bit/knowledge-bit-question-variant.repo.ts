@@ -1,4 +1,5 @@
 import { and, asc, count, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
@@ -61,7 +62,7 @@ export async function listQuestionVariantsForEmbeddingScan(
       and(
         isNull(knowledgeBitQuestionVariants.embeddedAt),
         isNull(knowledgeBitQuestionVariants.supersededAt),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
       ),
     )
     .orderBy(asc(knowledgeBitQuestionVariants.createdAt))

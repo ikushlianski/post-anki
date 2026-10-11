@@ -54,7 +54,7 @@ function buildMockDb(): Record<string, unknown> {
 
           if (
             !whereSql.includes(
-              '("knowledge_bits"."tagged_at" is null and "knowledge_bits"."tag_failed_at" is null and "knowledge_bits"."approval_state" <> $1)',
+              '("knowledge_bits"."tagged_at" is null and "knowledge_bits"."tag_failed_at" is null and "knowledge_bits"."approval_state" not in ($1, $2))',
             )
           ) {
             throw new Error(`unexpected where clause in test mock: ${whereSql}`);

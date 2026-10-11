@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
 import type { PendingPlacementSuggestion } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, topics, curricula, subjects } from "../db/schema.js";
@@ -23,7 +24,7 @@ export async function listKnowledgeBitsForPlacementScan(
       and(
         isNull(knowledgeBits.placementCheckedAt),
         isNull(knowledgeBits.placementFailedAt),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
       ),
     )
     .orderBy(asc(knowledgeBits.createdAt))
@@ -73,7 +74,7 @@ export async function markKnowledgeBitMatched(
       and(
         eq(knowledgeBits.id, id),
         eq(knowledgeBits.body, expectedBody),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
       ),
     );
 }
@@ -91,7 +92,7 @@ export async function markKnowledgeBitSuggested(
       and(
         eq(knowledgeBits.id, id),
         eq(knowledgeBits.body, expectedBody),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
       ),
     );
 }
@@ -126,7 +127,7 @@ export async function listPendingPlacementSuggestions(
         isNull(knowledgeBits.placementFailedAt),
         // A suggestion generated before the bit was rejected on the knowledge-item review
         // screen must not keep surfacing here — rejection is the human's own final call.
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
       ),
     )
     .orderBy(desc(knowledgeBits.createdAt))
@@ -187,7 +188,7 @@ export async function resolvePlacementSuggestion(
 
       // A reviewer who already rejected this bit shouldn't have a stale admin-tab click
       // create a topic for it — and the claim above must roll back too, same as module_not_found.
-      if (claimed.approvalState === "rejected") {
+      if (claimed.approvalState === "rejected" || claimed.approvalState === "superseded") {
         throw new BitRejectedInTransaction();
       }
 

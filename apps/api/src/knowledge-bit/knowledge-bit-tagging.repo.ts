@@ -1,4 +1,5 @@
-import { and, asc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
 import { assignAutoTag } from "../tag/tag.repo.js";
@@ -22,7 +23,7 @@ export async function listKnowledgeBitsForTaggingScan(
       and(
         isNull(knowledgeBits.taggedAt),
         isNull(knowledgeBits.tagFailedAt),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
       ),
     )
     .orderBy(asc(knowledgeBits.createdAt))

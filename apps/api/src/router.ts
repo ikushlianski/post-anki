@@ -10,6 +10,8 @@ export type RouteName =
   | "createKnowledgeSource"
   | "createKnowledgeSourceFromNotion"
   | "detectKnowledgeBits"
+  | "regenerateKnowledgeSource"
+  | "getKnowledgeSourceRegeneration"
   | "triggerKnowledgeBitEmbeddingScan"
   | "triggerKnowledgeBitTaggingScan"
   | "triggerKnowledgeBitQuestionGenerationScan"

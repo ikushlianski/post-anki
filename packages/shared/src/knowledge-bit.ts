@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { knowledgeItemModelIdSchema } from "./knowledge-item-model";
 
 export interface PendingPlacementSuggestion {
   id: string;
@@ -28,9 +29,32 @@ export const knowledgeBitQuestionVariantKindSchema = z.enum([
 export type KnowledgeBitQuestionVariantKind = z.infer<typeof knowledgeBitQuestionVariantKindSchema>;
 
 // knowledge_bits.approval_state
-export const knowledgeBitApprovalStateSchema = z.enum(["pending", "approved", "rejected"]);
+export const knowledgeBitApprovalStateSchema = z.enum([
+  "pending",
+  "approved",
+  "rejected",
+  "superseded",
+]);
 
 export type KnowledgeBitApprovalState = z.infer<typeof knowledgeBitApprovalStateSchema>;
+
+// POST /knowledge-sources/:id/regeneration
+export const regenerateKnowledgeSourceInput = z.object({
+  modelId: knowledgeItemModelIdSchema.optional(),
+});
+
+export type RegenerateKnowledgeSourceInput = z.input<typeof regenerateKnowledgeSourceInput>;
+
+export interface RegenerateKnowledgeSourceResult {
+  status: "running";
+  supersededCount: number;
+}
+
+// GET /knowledge-sources/:id/regeneration
+export interface KnowledgeSourceRegenerationStatus {
+  status: "running" | "done" | "failed";
+  failureReason: string | null;
+}
 
 // PATCH /knowledge-bits/question-variants/:id
 export const editKnowledgeBitQuestionVariantInput = z.object({

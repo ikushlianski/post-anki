@@ -12,6 +12,10 @@ import {
   handleReorderSubjects,
   handleUpdateSubject,
 } from "./subject/subject.controller.js";
+import {
+  handleGetKnowledgeSourceRegeneration,
+  handleRegenerateKnowledgeSource,
+} from "./knowledge-source/knowledge-source-regeneration.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
 import {
@@ -459,6 +463,10 @@ async function route(
       return handleCountPendingKnowledgeBits(res);
     case "bulkApproveKnowledgeBits":
       return handleBulkApproveKnowledgeBits(req, res);
+    case "regenerateKnowledgeSource":
+      return handleRegenerateKnowledgeSource(req, res, id);
+    case "getKnowledgeSourceRegeneration":
+      return handleGetKnowledgeSourceRegeneration(res, id);
     case "approveKnowledgeBit":
       return handleApproveKnowledgeBit(res, id);
     case "rejectKnowledgeBit":

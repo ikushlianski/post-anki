@@ -1,4 +1,5 @@
-import { and, asc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type Db, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
@@ -28,7 +29,7 @@ export async function listKnowledgeBitsForBasicCardGenerationScan(
     .where(
       and(
         isNull(knowledgeBits.basicCardGeneratedAt),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
         or(
           isNull(knowledgeBits.basicCardGenerationFailedAt),
           lt(knowledgeBits.basicCardGenerationAttempts, BASIC_CARD_GENERATION_MAX_ATTEMPTS),
@@ -61,7 +62,7 @@ export async function claimKnowledgeBitForBasicCardGeneration(
         eq(knowledgeBits.id, id),
         eq(knowledgeBits.body, expectedBody),
         isNull(knowledgeBits.basicCardGeneratedAt),
-        ne(knowledgeBits.approvalState, "rejected"),
+        bitNotDiscarded,
         or(
           isNull(knowledgeBits.basicCardGenerationFailedAt),
           lt(knowledgeBits.basicCardGenerationAttempts, BASIC_CARD_GENERATION_MAX_ATTEMPTS),
