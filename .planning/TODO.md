@@ -64,7 +64,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
-- [ ] Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20
+- [x] Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20
 - [ ] Write cards from the whole source text, not sentence by sentence
 - [ ] Regenerate button on the approval page for a source
 - [ ] Phone tap targets at least 44px: menus, Add knowledge, Show answer
