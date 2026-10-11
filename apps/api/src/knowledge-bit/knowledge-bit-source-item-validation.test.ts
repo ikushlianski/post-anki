@@ -78,6 +78,30 @@ describe("validateSourceItem", () => {
     ).toEqual({ ok: false, reason: "wrong_language" });
   });
 
+  it("should reject a Russian item whose answer carries an English example sentence", () => {
+    expect(
+      validateSourceItem(
+        item({ answer: "Оно не удовлетворено рутинами, for example the manager hates reports" }),
+        RU_SOURCE,
+      ),
+    ).toEqual({ ok: false, reason: "wrong_language" });
+  });
+
+  it("should reject an English item whose question is written in Cyrillic", () => {
+    expect(
+      validateSourceItem(
+        item({
+          kind: "why",
+          statement: "Ribosomes synthesize proteins in the cell.",
+          question: "Почему рибосомы синтезируют белки в клетке?",
+          answer: "Because proteins are built there",
+          quote: "Ribosomes synthesize proteins",
+        }),
+        EN_SOURCE,
+      ),
+    ).toEqual({ ok: false, reason: "wrong_language" });
+  });
+
   it("should reject an English question that mentions the text", () => {
     expect(
       validateSourceItem(
@@ -129,34 +153,42 @@ describe("validateSourceItem", () => {
     ).toBe(true);
   });
 
-  it("should reject a fill_blank item with two blanks", () => {
-    expect(
-      validateSourceItem(
-        item({
-          kind: "fill_blank",
-          statement: "Метафора «клиентская боль» на самом деле не существует в мире корпораций.",
-          question: "Метафора «клиентская ____» на самом деле не существует в мире ____.",
-          answer: "корпораций",
-          quote: "на самом деле не существует в мире корпораций",
-        }),
-        RU_SOURCE,
-      ),
-    ).toEqual({ ok: false, reason: "bad_blank" });
+  const STATEMENT = "Метафора «клиентская боль» на самом деле не существует в мире корпораций.";
+  const QUOTE = "на самом деле не существует в мире корпораций";
+
+  it("should rebuild the question from the statement when the model wrote two blanks", () => {
+    const result = validateSourceItem(
+      item({
+        kind: "fill_blank",
+        statement: STATEMENT,
+        question: "Метафора «клиентская ____» на самом деле не существует в мире ____.",
+        answer: "корпораций",
+        quote: QUOTE,
+      }),
+      RU_SOURCE,
+    );
+
+    expect(result.ok && result.item).toMatchObject({
+      kind: "fill_blank",
+      question: "Метафора «клиентская боль» на самом деле не существует в мире ____.",
+    });
   });
 
-  it("should reject a fill_blank item whose question is a reworded question instead of the statement with a blank", () => {
-    expect(
-      validateSourceItem(
-        item({
-          kind: "fill_blank",
-          statement: "Метафора «клиентская боль» на самом деле не существует в мире корпораций.",
-          question: "Существует ли метафора ____ в мире корпораций?",
-          answer: "клиентская боль",
-          quote: "на самом деле не существует в мире корпораций",
-        }),
-        RU_SOURCE,
-      ),
-    ).toEqual({ ok: false, reason: "bad_blank" });
+  it("should rebuild the question from the statement when the model asked a yes/no question with a blank", () => {
+    const result = validateSourceItem(
+      item({
+        kind: "fill_blank",
+        statement: STATEMENT,
+        question: "Существует ли метафора ____ в мире корпораций?",
+        answer: "клиентская боль",
+        quote: QUOTE,
+      }),
+      RU_SOURCE,
+    );
+
+    expect(result.ok && result.item.question).toBe(
+      "Метафора «____» на самом деле не существует в мире корпораций.",
+    );
   });
 
   it("should reject a fill_blank item whose answer is not part of its statement", () => {
@@ -172,6 +204,48 @@ describe("validateSourceItem", () => {
         RU_SOURCE,
       ),
     ).toEqual({ ok: false, reason: "answer_not_in_statement" });
+  });
+
+  it("should keep a malformed fill_blank whose answer is not a single piece of the statement as a basic item when its question is a good direct question", () => {
+    const result = validateSourceItem(
+      item({
+        kind: "fill_blank",
+        statement: STATEMENT,
+        question: "Что на самом деле не существует в мире корпораций?",
+        answer: "Клиентская боль как метафора",
+        quote: QUOTE,
+      }),
+      RU_SOURCE,
+    );
+
+    expect(result.ok && result.item.kind).toBe("basic");
+  });
+
+  it("should drop a malformed fill_blank whose question keeps a stray blank and cannot be rebuilt", () => {
+    expect(
+      validateSourceItem(
+        item({
+          kind: "fill_blank",
+          statement: STATEMENT,
+          question: "Что не существует в ____ мире корпораций? Назовите.",
+          answer: "Клиентская боль как метафора",
+          quote: QUOTE,
+        }),
+        RU_SOURCE,
+      ).ok,
+    ).toBe(false);
+  });
+
+  it("should reject a basic item whose question can be answered by yes or no", () => {
+    expect(
+      validateSourceItem(
+        item({
+          question: "Существует ли метафора «клиентская боль» в мире корпораций?",
+          answer: "Нет, не существует",
+        }),
+        RU_SOURCE,
+      ),
+    ).toEqual({ ok: false, reason: "bad_card" });
   });
 
   it("should reject an item with an empty field", () => {

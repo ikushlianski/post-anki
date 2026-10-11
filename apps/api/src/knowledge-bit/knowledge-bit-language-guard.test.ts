@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { looksLikeDifferentScript, looksLikeSourceMetaReference } from "./knowledge-bit-language-guard.js";
+import { hasForeignScriptRun, looksLikeDifferentScript, looksLikeSourceMetaReference } from "./knowledge-bit-language-guard.js";
 
 describe("looksLikeDifferentScript", () => {
   it("should flag a Chinese output generated from an English source", () => {
@@ -106,5 +106,34 @@ describe("looksLikeSourceMetaReference", () => {
         "Почему при продаже софта крупной компании не обязательно искать боль клиента?",
       ),
     ).toBe(false);
+  });
+});
+
+describe("hasForeignScriptRun", () => {
+  it("should flag an English example sentence inside a Russian answer", () => {
+    expect(
+      hasForeignScriptRun(
+        "Метафора «клиентская боль» не существует в мире корпораций.",
+        "Метафора не существует, например: the client feels pain every day",
+      ),
+    ).toBe(true);
+  });
+
+  it("should flag a Cyrillic phrase inside an English text", () => {
+    expect(hasForeignScriptRun("Ribosomes synthesize proteins.", "Why do ribosomes делают белки в клетке?")).toBe(true);
+  });
+
+  it("should allow one or two foreign terms and scripts the source itself uses", () => {
+    const russian = "Софт на Kubernetes и Docker помогает командам работать быстрее.";
+
+    expect(hasForeignScriptRun(russian, "Почему Kubernetes помогает командам?")).toBe(false);
+    expect(hasForeignScriptRun(russian, "Что такое Docker compose up")).toBe(false);
+  });
+
+  it("should allow acronyms and product names in a row inside Russian text whose source has no Latin letters", () => {
+    const russian = "Индекс ускоряет поиск строк в таблице базы данных.";
+
+    expect(hasForeignScriptRun(russian, "Индекс ускоряет запросы SQL API REST в Redis 7")).toBe(false);
+    expect(hasForeignScriptRun(russian, "Что хранит PostgreSQL JSON API?")).toBe(false);
   });
 });

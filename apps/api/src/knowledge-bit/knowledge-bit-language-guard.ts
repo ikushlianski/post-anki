@@ -7,7 +7,9 @@ const SCRIPT_PATTERNS: readonly RegExp[] = [
   /\p{Script=Greek}/gu,
   /\p{Script=Devanagari}/gu,
 ];
+const RUN_SCRIPT_PATTERNS: readonly RegExp[] = [...SCRIPT_PATTERNS, /\p{Script=Latin}/gu];
 const LETTER = /\p{L}/gu;
+const FOREIGN_RUN_WORDS = 3;
 const DOMINANT_SHARE = 0.5;
 
 function countMatches(text: string, pattern: RegExp): number {
@@ -26,6 +28,37 @@ export function looksLikeDifferentScript(sourceText: string, generatedText: stri
       countMatches(sourceText, pattern) === 0 &&
       countMatches(generatedText, pattern) > generatedLetters * DOMINANT_SHARE,
   );
+}
+
+const TECHNICAL_TOKEN = /\p{Lu}{2,}|\p{N}|\p{Ll}\p{Lu}/u;
+
+function wordIsOnlyInScript(word: string, pattern: RegExp): boolean {
+  const letters = countMatches(word, LETTER);
+
+  return letters > 0 && countMatches(word, pattern) === letters && !TECHNICAL_TOKEN.test(word);
+}
+
+// Latin-vs-Latin (e.g. Spanish source, English text) is not detectable by script.
+export function hasForeignScriptRun(sourceText: string, generatedText: string): boolean {
+  const words = generatedText.split(/\s+/u);
+
+  return RUN_SCRIPT_PATTERNS.some((pattern) => {
+    if (countMatches(sourceText, pattern) > 0) {
+      return false;
+    }
+
+    let run = 0;
+
+    for (const word of words) {
+      run = wordIsOnlyInScript(word, pattern) ? run + 1 : 0;
+
+      if (run >= FOREIGN_RUN_WORDS) {
+        return true;
+      }
+    }
+
+    return false;
+  });
 }
 
 const LATIN_LETTER = /\p{Script=Latin}/u;

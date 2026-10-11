@@ -42,6 +42,16 @@ function itemFor(text: string, tag: string): SourceItemDraft {
   };
 }
 
+function ruItemFor(tag: string): SourceItemDraft {
+  return {
+    kind: "basic",
+    statement: `Утверждение ${tag} верно для каждого клиента компании`,
+    question: `Что верно для каждого клиента компании в случае ${tag}?`,
+    answer: `Утверждение ${tag}`,
+    quote: "нам не обязательно искать боли клиента",
+  };
+}
+
 function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): GenerateItemsDeps {
   return {
     writeItems: vi.fn(async (chunk: string) => [itemFor(chunk, chunk.slice(0, 4))]),
@@ -119,12 +129,12 @@ describe("generateItemsForSource", () => {
   });
 
   it("should retry a chunk once when half or more of its items fail quote verification and keep the better attempt", async () => {
-    const good = itemFor(RU_SOURCE_TEXT, "good");
-    const bad = { ...good, statement: "Claim bad holds for every widget", quote: "цитата которой нет в источнике" };
+    const good = ruItemFor("good");
+    const bad = { ...good, statement: "Утверждение bad верно для каждого клиента компании", quote: "цитата которой нет в источнике" };
     const writeItems = vi
       .fn()
       .mockResolvedValueOnce([good, bad])
-      .mockResolvedValueOnce([good, { ...good, statement: "Claim second holds for every widget" }]);
+      .mockResolvedValueOnce([good, { ...good, statement: "Утверждение second верно для каждого клиента компании" }]);
     const deps = buildGenerateDeps({ writeItems });
 
     const result = await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
@@ -135,12 +145,12 @@ describe("generateItemsForSource", () => {
   });
 
   it("should not retry when fewer than half of the items are dropped", async () => {
-    const good = itemFor(RU_SOURCE_TEXT, "good");
+    const good = ruItemFor("good");
     const writeItems = vi.fn().mockResolvedValue([
       good,
-      { ...good, statement: "Claim two holds for every widget" },
-      { ...good, statement: "Claim three holds for every widget" },
-      { ...good, statement: "Claim bad holds for every widget", quote: "цитата которой нет в источнике" },
+      { ...good, statement: "Утверждение two верно для каждого клиента компании" },
+      { ...good, statement: "Утверждение three верно для каждого клиента компании" },
+      { ...good, statement: "Утверждение bad верно для каждого клиента компании", quote: "цитата которой нет в источнике" },
     ]);
     const deps = buildGenerateDeps({ writeItems });
 
@@ -151,7 +161,7 @@ describe("generateItemsForSource", () => {
   });
 
   it("should mark the source failed with no_valid_items when the retry still yields nothing valid", async () => {
-    const bad = { ...itemFor(RU_SOURCE_TEXT, "bad"), quote: "цитата которой нет в источнике" };
+    const bad = { ...ruItemFor("bad"), quote: "цитата которой нет в источнике" };
     const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue([bad]) });
     const pending = source("ks_1", RU_SOURCE_TEXT);
 
@@ -165,20 +175,43 @@ describe("generateItemsForSource", () => {
   });
 
   it("should drop items repeating a statement already stored for the source or already taken in this run", async () => {
-    const first = itemFor(RU_SOURCE_TEXT, "dup");
+    const first = ruItemFor("dup");
     const deps = buildGenerateDeps({
-      writeItems: vi.fn().mockResolvedValue([first, { ...first }, itemFor(RU_SOURCE_TEXT, "fresh"), itemFor(RU_SOURCE_TEXT, "kept")]),
+      writeItems: vi.fn().mockResolvedValue([first, { ...first }, ruItemFor("fresh"), ruItemFor("kept")]),
       getInsertState: vi
         .fn()
-        .mockResolvedValue({ nextOrdinal: 0, existingStatements: ["claim kept holds for EVERY widget"] }),
+        .mockResolvedValue({ nextOrdinal: 0, existingStatements: ["утверждение kept верно для КАЖДОГО клиента компании"] }),
     });
 
     await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
 
     expect(vi.mocked(deps.insertItems).mock.calls[0]?.[0].items.map((item) => item.statement)).toEqual([
-      "Claim dup holds for every widget",
-      "Claim fresh holds for every widget",
+      "Утверждение dup верно для каждого клиента компании",
+      "Утверждение fresh верно для каждого клиента компании",
     ]);
+  });
+
+  it("should retry once with a stronger language message when every item was dropped for language, then keep the retry's items", async () => {
+    const english = { ...ruItemFor("en"), statement: "Every client company must be shown a new vision of its future", question: "What must every client company be shown about its future?", answer: "A new vision of its future" };
+    const writeItems = vi.fn().mockResolvedValueOnce([english]).mockResolvedValueOnce([ruItemFor("ok")]);
+    const deps = buildGenerateDeps({ writeItems });
+
+    const result = await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
+
+    expect(writeItems).toHaveBeenNthCalledWith(2, RU_SOURCE_TEXT.trim(), { strictLanguage: true });
+    expect(result.status).toBe("detected");
+  });
+
+  it("should fail with wrong_language when the stronger retry is still in the wrong language", async () => {
+    const english = { ...ruItemFor("en"), statement: "Every client company must be shown a new vision of its future", question: "What must every client company be shown about its future?", answer: "A new vision of its future" };
+    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue([english]) });
+    const pending = source("ks_1", RU_SOURCE_TEXT);
+
+    const result = await generateItemsForSource(pending, {}, deps);
+
+    expect(deps.writeItems).toHaveBeenCalledTimes(2);
+    expect(deps.markFailed).toHaveBeenCalledWith("ks_1", "wrong_language", pending.claimedAt);
+    expect(result.failureReason).toBe("wrong_language");
   });
 
   it("should store at most 40 items per source and skip chunks once the cap is reached", async () => {

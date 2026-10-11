@@ -1,6 +1,8 @@
 import { isWellFormedFillBlankPrompt } from "./knowledge-bit-fill-blank-prompt-validation.js";
 import { BASIC_CARD_FRONT_MAX_CHARS, validateBasicCard } from "./knowledge-bit-basic-card-validation.js";
+import { isYesNoQuestion } from "./knowledge-bit-yes-no-question.js";
 import {
+  hasForeignScriptRun,
   looksLikeDifferentScript,
   looksLikeSourceMetaReference,
 } from "./knowledge-bit-language-guard.js";
@@ -87,7 +89,24 @@ function validateFillBlank(item: SourceItemDraft): SourceItemRejection | null {
   return null;
 }
 
+function blankOutAnswer(item: SourceItemDraft): SourceItemDraft | null {
+  const answer = item.answer.replace(/[.!]+$/u, "").trim();
+  const parts = answer ? item.statement.split(answer) : [];
+
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const repaired = { ...item, answer, question: `${parts[0]}____${parts[1]}` };
+
+  return validateFillBlank(repaired) === null ? repaired : null;
+}
+
 function validateCard(item: SourceItemDraft, sourceText: string): SourceItemRejection | null {
+  if (isYesNoQuestion(item.question, item.answer)) {
+    return "bad_card";
+  }
+
   const card = validateBasicCard({ front: item.question, back: item.answer }, sourceText);
 
   if (card.ok) {
@@ -140,7 +159,7 @@ export function validateSourceItem(raw: SourceItemDraft, sourceText: string): So
 
   const texts = [item.statement, item.question, item.answer];
 
-  if (texts.some((text) => looksLikeDifferentScript(sourceText, text))) {
+  if (texts.some((text) => looksLikeDifferentScript(sourceText, text) || hasForeignScriptRun(sourceText, text))) {
     return { ok: false, reason: "wrong_language" };
   }
 
@@ -148,14 +167,35 @@ export function validateSourceItem(raw: SourceItemDraft, sourceText: string): So
     return { ok: false, reason: "source_meta_reference" };
   }
 
-  const kindRejection =
-    item.kind === "fill_blank" ? validateFillBlank(item) : validateCard(item, sourceText);
+  if (item.kind !== "fill_blank") {
+    const cardRejection = validateCard(item, sourceText);
 
-  if (kindRejection) {
-    return { ok: false, reason: kindRejection };
+    return cardRejection ? { ok: false, reason: cardRejection } : { ok: true, item };
   }
 
-  return { ok: true, item };
+  const blankRejection = validateFillBlank(item);
+
+  if (!blankRejection) {
+    return { ok: true, item };
+  }
+
+  if (blankRejection === "too_long") {
+    return { ok: false, reason: blankRejection };
+  }
+
+  const repaired = blankOutAnswer(item);
+
+  if (repaired) {
+    return { ok: true, item: repaired };
+  }
+
+  if (item.question.includes("____")) {
+    return { ok: false, reason: blankRejection };
+  }
+
+  const asBasic: SourceItemDraft = { ...item, kind: "basic" };
+
+  return validateCard(asBasic, sourceText) ? { ok: false, reason: blankRejection } : { ok: true, item: asBasic };
 }
 
 export interface SourceItemBatchValidation {

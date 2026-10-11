@@ -31,8 +31,13 @@ export const MAX_ITEMS_PER_SOURCE = 40;
 export const CHUNK_CONCURRENCY = 3;
 export const ORDINAL_STRIDE_PER_CHUNK = 1000;
 
+interface WriteOptions {
+  modelId?: string;
+  strictLanguage?: boolean;
+}
+
 export interface GenerateItemsDeps {
-  writeItems: (chunk: string, options: { modelId?: string }) => Promise<SourceItemDraft[]>;
+  writeItems: (chunk: string, options: WriteOptions) => Promise<SourceItemDraft[]>;
   getInsertState: (sourceId: string) => Promise<SourceInsertState>;
   insertItems: (input: InsertSourceItemsInput) => Promise<number>;
   markDetected: (id: string, claimedAt: Date) => Promise<boolean>;
@@ -76,6 +81,10 @@ function rejectRawText(rawText: string | null): string | null {
   return rawText.length > MAX_SOURCE_CHARS ? "source_too_long" : null;
 }
 
+function allDroppedForLanguage(result: { valid: unknown[]; dropped: string[] }): boolean {
+  return result.valid.length === 0 && result.dropped.length > 0 && result.dropped.every((reason) => reason === "wrong_language");
+}
+
 async function writeAndValidate(
   chunk: string,
   options: { modelId?: string },
@@ -92,9 +101,15 @@ async function writeAndValidate(
 
   log.warn({ dropped: firstResult.dropped, returned: first.length }, "knowledge_bit_source_items_retry");
 
+  const languageOnly = allDroppedForLanguage(firstResult);
+
   try {
-    const second = await deps.writeItems(chunk, options);
+    const second = await deps.writeItems(chunk, languageOnly ? { ...options, strictLanguage: true } : options);
     const secondResult = validateSourceItems(second, chunk);
+
+    if (languageOnly && allDroppedForLanguage(secondResult)) {
+      throw new Error("wrong_language");
+    }
 
     return secondResult.valid.length > firstResult.valid.length ? secondResult.valid : firstResult.valid;
   } catch (err) {
