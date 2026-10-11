@@ -31,7 +31,7 @@ import { createLearningListSliceAgent } from "./learning-list-slice.agent.js";
 import { createStudyMaterialWriter } from "./study-material-writer.agent.js";
 import { createBizEducationClassifierAgent } from "./biz-education-classifier.agent.js";
 import { createTagAutoAssignAgent } from "./tag-auto-assign.agent.js";
-import { createKnowledgeBitDetectorAgent } from "./knowledge-bit-detector.agent.js";
+import { createKnowledgeBitSourceItemsAgent } from "./knowledge-bit-source-items.agent.js";
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
 import { createKnowledgeBitPlacerAgent } from "./knowledge-bit-placer.agent.js";
 import { createKnowledgeBitQuestionGeneratorAgent } from "./knowledge-bit-question-generator.agent.js";
@@ -70,7 +70,7 @@ export const AGENT_KEYS = {
   studyMaterialWriter: "studyMaterialWriter",
   bizEducationClassifier: "bizEducationClassifier",
   tagAutoAssign: "tagAutoAssign",
-  knowledgeBitDetector: "knowledgeBitDetector",
+  knowledgeBitSourceItems: "knowledgeBitSourceItems",
   knowledgeBitTagger: "knowledgeBitTagger",
   knowledgeBitPlacer: "knowledgeBitPlacer",
   knowledgeBitQuestionGenerator: "knowledgeBitQuestionGenerator",
@@ -149,7 +149,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.studyMaterialWriter]: createStudyMaterialWriter(),
         [AGENT_KEYS.bizEducationClassifier]: createBizEducationClassifierAgent(),
         [AGENT_KEYS.tagAutoAssign]: createTagAutoAssignAgent(),
-        [AGENT_KEYS.knowledgeBitDetector]: createKnowledgeBitDetectorAgent(),
+        [AGENT_KEYS.knowledgeBitSourceItems]: createKnowledgeBitSourceItemsAgent(),
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),
         [AGENT_KEYS.knowledgeBitPlacer]: createKnowledgeBitPlacerAgent(),
         [AGENT_KEYS.knowledgeBitQuestionGenerator]: createKnowledgeBitQuestionGeneratorAgent(),

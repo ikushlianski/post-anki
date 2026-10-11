@@ -122,7 +122,7 @@ describe("runKnowledgeBitFillBlankGenerator", () => {
 
 describe("runKnowledgeBitFillBlankGenerator model pinning", () => {
   it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
-    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-4.1-nano");
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/google/gemma-4-31b-it");
     generateMock.mockResolvedValueOnce({ object: { sentence: "Anchoring biases price perception.", prompt: "Anchoring biases ____ perception.", answer: "price" } });
 
     await runKnowledgeBitFillBlankGenerator("Anchoring biases price perception.");
@@ -132,13 +132,13 @@ describe("runKnowledgeBitFillBlankGenerator model pinning", () => {
       { requestContext: { get: (key: string) => unknown } },
     ];
 
-    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-4.1-nano");
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/google/gemma-4-31b-it");
     expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
       expect.any(String),
       null,
       "knowledgeBitFillBlankGenerator",
       expect.any(Function),
-      { modelId: "openrouter/openai/gpt-4.1-nano" },
+      { modelId: "openrouter/google/gemma-4-31b-it" },
     );
   });
 });

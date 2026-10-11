@@ -2,15 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), info: vi.fn() } }));
 vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({ detectKnowledgeBits: vi.fn() }));
-vi.mock("./knowledge-bit-question-generation.orchestrator.js", () => ({
-  generateKnowledgeBitQuestions: vi.fn(),
-}));
-vi.mock("./knowledge-bit-basic-card-generation.orchestrator.js", () => ({
-  generateKnowledgeBitBasicCards: vi.fn(),
-}));
-vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
-  generateKnowledgeBitFillBlanks: vi.fn(),
-}));
 
 const { log } = await import("../shared/log.js");
 const { createKnowledgeBitPipelineKick, KNOWLEDGE_BIT_PIPELINE_STAGES } = await import(
@@ -31,10 +22,9 @@ function nextTick() {
 }
 
 describe("knowledge bit pipeline kick", () => {
-  it("should run split first, then the three card writers as one concurrent stage", () => {
+  it("should run a single source_items stage so the per-bit card writers are no longer part of the kick", () => {
     expect(KNOWLEDGE_BIT_PIPELINE_STAGES.map((stage) => stage.map((pass) => pass.name))).toEqual([
-      ["detect"],
-      ["wh_question", "fill_blank", "basic_card"],
+      ["source_items"],
     ]);
   });
 

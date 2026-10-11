@@ -81,7 +81,7 @@ describe("runKnowledgeBitBasicCardGenerator", () => {
 
 describe("runKnowledgeBitBasicCardGenerator model pinning", () => {
   it("should pass the stored knowledge-item model on requestContext and to the retry wrapper", async () => {
-    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/openai/gpt-4.1-nano");
+    vi.mocked(getKnowledgeItemModelId).mockResolvedValueOnce("openrouter/google/gemma-4-31b-it");
     generateMock.mockResolvedValueOnce({ object: { front: "What does anchoring bias?", back: "Price perception" } });
 
     await runKnowledgeBitBasicCardGenerator("Anchoring biases price perception.");
@@ -91,13 +91,13 @@ describe("runKnowledgeBitBasicCardGenerator model pinning", () => {
       { requestContext: { get: (key: string) => unknown } },
     ];
 
-    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/openai/gpt-4.1-nano");
+    expect(options.requestContext.get("knowledgeItemModelId")).toBe("openrouter/google/gemma-4-31b-it");
     expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
       expect.any(String),
       null,
       "knowledgeBitBasicCardGenerator",
       expect.any(Function),
-      { modelId: "openrouter/openai/gpt-4.1-nano" },
+      { modelId: "openrouter/google/gemma-4-31b-it" },
     );
   });
 });

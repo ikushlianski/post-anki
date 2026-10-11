@@ -29,10 +29,18 @@ export function looksLikeDifferentScript(sourceText: string, generatedText: stri
 }
 
 const LATIN_LETTER = /\p{Script=Latin}/u;
+const CYRILLIC_LETTER = /\p{Script=Cyrillic}/u;
 const SOURCE_META_PHRASE = /\b(?:the bit|this item|the text|the source|the author|the passage)\b/i;
+const CYRILLIC_META_PHRASE =
+  /(?<![\p{L}\p{N}])(?:(?:в|из|по|согласно|судя\s+по|как\s+сказано\s+в)\s+(?:данн\p{L}+\s+|этом\s+|этого\s+|указанн\p{L}+\s+)?(?:текст\p{L}*|источник\p{L}*|отрывк\p{L}*|фрагмент\p{L}*)|(?:данн\p{L}+|этот|этого|этому|этим|исходн\p{L}+)\s+(?:текст\p{L}*|источник\p{L}*|отрывок|отрывк\p{L}*|фрагмент\p{L}*)|автор(?:а|у|ом|е|ы|ов|ам|ами|ах)?|эт(?:от|ого|ому|им|ом)\s+элемент\p{L}*)(?![\p{L}\p{N}])/iu;
 
 export function looksLikeSourceMetaReference(sourceText: string, generatedText: string): boolean {
   const sourceLetters = sourceText.match(LETTER) ?? [];
+
+  if (sourceLetters.some((letter) => CYRILLIC_LETTER.test(letter))) {
+    return CYRILLIC_META_PHRASE.test(generatedText);
+  }
+
   const isLatinSource = sourceLetters.every((letter) => LATIN_LETTER.test(letter));
 
   if (!isLatinSource) {

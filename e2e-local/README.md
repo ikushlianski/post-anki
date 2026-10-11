@@ -185,6 +185,10 @@ Control surface while it's running:
 - `POST /_mock/set-text` — `{ "text": "..." }` to script the next
   non-structured completion (schema-carrying calls always get a
   schema-filled response regardless of this)
+- `POST /_mock/source-items-mode` — `{ "mode": "good" | "bad_quote" }`; the
+  source-items writer call (schema with `items[].quote`) returns verbatim quotes
+  from the pasted source (`good`) or fabricated ones (`bad_quote`, exercises the
+  retry and `no_valid_items` failure path). `/_mock/reset` restores `good`.
 - `POST /_mock/force-error` — make the next call return a 502, to exercise a
   retry/error path
 

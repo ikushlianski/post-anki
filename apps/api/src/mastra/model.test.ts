@@ -28,12 +28,12 @@ describe("dynamicKnowledgeItemModel", () => {
   it("should use the model pinned on the run's requestContext", async () => {
     const resolveModel = dynamicKnowledgeItemModel(env);
     const requestContext = new RequestContext<unknown>([
-      ["knowledgeItemModelId", "openrouter/openai/gpt-4.1-nano"],
+      ["knowledgeItemModelId", "openrouter/google/gemma-4-31b-it"],
     ]);
 
     const model = await resolveModel({ requestContext });
 
-    expect(model).toBe("openrouter/openai/gpt-4.1-nano");
+    expect(model).toBe("openrouter/google/gemma-4-31b-it");
     expect(getKnowledgeItemModelIdMock).not.toHaveBeenCalled();
   });
 
@@ -49,11 +49,11 @@ describe("dynamicKnowledgeItemModel", () => {
   });
 
   it("should read the stored setting when called without a requestContext", async () => {
-    getKnowledgeItemModelIdMock.mockResolvedValueOnce("openrouter/openai/gpt-4o-mini");
+    getKnowledgeItemModelIdMock.mockResolvedValueOnce("openrouter/google/gemma-3-12b-it");
 
     const resolveModel = dynamicKnowledgeItemModel(env);
 
-    expect(await resolveModel({})).toBe("openrouter/openai/gpt-4o-mini");
+    expect(await resolveModel({})).toBe("openrouter/google/gemma-3-12b-it");
   });
 
   it("should route through the configured OpenRouter base URL when one is set", async () => {
@@ -63,12 +63,12 @@ describe("dynamicKnowledgeItemModel", () => {
 
     const model = await resolveModel({
       requestContext: new RequestContext<unknown>([
-        ["knowledgeItemModelId", "openrouter/openai/gpt-4.1-nano"],
+        ["knowledgeItemModelId", "openrouter/google/gemma-4-31b-it"],
       ]),
     });
 
     expect(model).toEqual({
-      id: "openrouter/openai/gpt-4.1-nano",
+      id: "openrouter/google/gemma-4-31b-it",
       url: "https://proxy.example.test/v1",
     });
   });

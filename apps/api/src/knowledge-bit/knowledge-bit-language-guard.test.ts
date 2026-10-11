@@ -88,4 +88,23 @@ describe("looksLikeSourceMetaReference", () => {
   it("should return false for empty generated text", () => {
     expect(looksLikeSourceMetaReference("Ribosomes synthesize proteins.", "")).toBe(false);
   });
+
+  it("should flag Russian meta phrases that point at the source", () => {
+    const source = "Продажа софта строится на новом видении будущего.";
+
+    expect(looksLikeSourceMetaReference(source, "Что говорится в тексте о продаже софта?")).toBe(true);
+    expect(looksLikeSourceMetaReference(source, "Согласно тексту, почему клиент покупает?")).toBe(true);
+    expect(looksLikeSourceMetaReference(source, "Что, по мнению автора, важнее всего?")).toBe(true);
+    expect(looksLikeSourceMetaReference(source, "О чём этот отрывок?")).toBe(true);
+    expect(looksLikeSourceMetaReference(source, "Что утверждает данный источник?")).toBe(true);
+  });
+
+  it("should not flag a clean Russian question about the claim itself", () => {
+    expect(
+      looksLikeSourceMetaReference(
+        "Продажа софта строится на новом видении будущего.",
+        "Почему при продаже софта крупной компании не обязательно искать боль клиента?",
+      ),
+    ).toBe(false);
+  });
 });

@@ -5,6 +5,8 @@ import {
   resetMockControls,
   setOverrideText,
   setForceErrorNext,
+  setSourceItemsMode,
+  type SourceItemsMode,
   debugDumpSchema,
   type ChatRequestBody,
 } from './responses';
@@ -75,6 +77,20 @@ const server = http.createServer((req, res) => {
       const body = JSON.parse(raw || '{}') as { text?: string | null };
 
       setOverrideText(body.text ?? null);
+      send(res, 200, { ok: true });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/_mock/source-items-mode') {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw || '{}') as { mode?: SourceItemsMode };
+
+      if (body.mode !== 'good' && body.mode !== 'bad_quote') {
+        send(res, 400, { error: 'mode must be good or bad_quote' });
+        return;
+      }
+
+      setSourceItemsMode(body.mode);
       send(res, 200, { ok: true });
       return;
     }
