@@ -170,3 +170,5 @@
 {"ts":"2026-10-11T00:51:52.159Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Regenerate button on the approval page for a source"}
 {"ts":"2026-10-11T00:57:55.781Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Write cards from the whole source text, not sentence by sentence"}
 {"ts":"2026-10-11T00:57:55.827Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Detected items must stand alone, with no dangling this or that"}
+{"ts":"2026-10-11T12:26:13.594Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Harden knowledge extraction against prompt injection and unsafe input"}
+{"ts":"2026-10-11T12:31:47.202Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Decide durable workflow engine for extraction jobs; replace homegrown pipeline kicks"}

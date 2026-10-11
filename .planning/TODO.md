@@ -64,6 +64,8 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Decide durable workflow engine for extraction jobs; replace homegrown pipeline kicks
+- [ ] Harden knowledge extraction against prompt injection and unsafe input
 - [x] Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20
 - [x] Write cards from the whole source text, not sentence by sentence
 - [x] Regenerate button on the approval page for a source
