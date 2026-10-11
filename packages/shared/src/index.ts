@@ -63,3 +63,4 @@ export * from "./notion-connector";
 export * from "./knowledge-bit-review";
 export * from "./knowledge-bit-suspended";
 export * from "./subject-review-due";
+export * from "./knowledge-bit-review-feedback";

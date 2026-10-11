@@ -84,7 +84,7 @@ describe("handleRejectKnowledgeBit", () => {
   });
 
   it("should return ok when the repo rejects the bit", async () => {
-    rejectKnowledgeBit.mockResolvedValue(true);
+    rejectKnowledgeBit.mockResolvedValue({ ok: true, feedbackId: "kbf_1" });
 
     const res = fakeRes();
 
@@ -92,11 +92,11 @@ describe("handleRejectKnowledgeBit", () => {
 
     expect(rejectKnowledgeBit).toHaveBeenCalledWith("kb_1");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, feedbackId: "kbf_1" });
   });
 
   it("should return 404 when the bit does not exist", async () => {
-    rejectKnowledgeBit.mockResolvedValue(false);
+    rejectKnowledgeBit.mockResolvedValue({ ok: false });
 
     const res = fakeRes();
 

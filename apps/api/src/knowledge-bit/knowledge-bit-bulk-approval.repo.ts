@@ -2,12 +2,20 @@ import { and, count, eq, exists, inArray, isNull } from "drizzle-orm";
 import type { BulkApproveKnowledgeBitsResponse } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants } from "../db/schema.js";
+import { recordKnowledgeBitFeedback } from "./knowledge-bit-feedback.repo.js";
 
 // Same rules as single approve plus its UI gate: a bit needs a live variant and must still be
 // pending, so one atomic UPDATE decides; the rest are classified for the skip reason.
 export async function approveKnowledgeBitsBulk(
   ids: string[],
   db: DbExecutor = getDb(),
+): Promise<BulkApproveKnowledgeBitsResponse> {
+  return db.transaction((tx) => approveKnowledgeBitsBulkIn(ids, tx));
+}
+
+async function approveKnowledgeBitsBulkIn(
+  ids: string[],
+  db: DbExecutor,
 ): Promise<BulkApproveKnowledgeBitsResponse> {
   const uniqueIds = [...new Set(ids)];
 
@@ -34,6 +42,11 @@ export async function approveKnowledgeBitsBulk(
     .returning({ id: knowledgeBits.id });
 
   const approved = new Set(approvedRows.map((row) => row.id));
+
+  for (const row of approvedRows) {
+    await recordKnowledgeBitFeedback(db, { bitId: row.id, verdict: "approved" });
+  }
+
   const leftover = uniqueIds.filter((id) => !approved.has(id));
 
   if (leftover.length === 0) {

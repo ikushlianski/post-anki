@@ -293,6 +293,7 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
         is_nullable: "NO",
       }),
       expect.objectContaining({ column_name: "subject_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "extraction_model_id", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 

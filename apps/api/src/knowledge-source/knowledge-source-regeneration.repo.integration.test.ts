@@ -255,7 +255,7 @@ describe("superseded bits (real Postgres)", () => {
     const variant = await seedVariant(bit);
 
     expect(await approveKnowledgeBit(bit)).toBe(false);
-    expect(await rejectKnowledgeBit(bit)).toBe(false);
+    expect((await rejectKnowledgeBit(bit)).ok).toBe(false);
     expect(await editKnowledgeBitQuestionVariant(variant, "new q", "new a")).toEqual({ error: "not_found" });
     expect(await stateOf(bit)).toBe("superseded");
   });
@@ -267,8 +267,8 @@ describe("superseded bits (real Postgres)", () => {
 
     expect(await approveKnowledgeBit(toApprove)).toBe(true);
     expect(await approveKnowledgeBit(toApprove)).toBe(true);
-    expect(await rejectKnowledgeBit(toApprove)).toBe(false);
-    expect(await rejectKnowledgeBit(toReject)).toBe(true);
+    expect((await rejectKnowledgeBit(toApprove)).ok).toBe(false);
+    expect((await rejectKnowledgeBit(toReject)).ok).toBe(true);
     expect(await approveKnowledgeBit(toReject)).toBe(false);
   });
 });
@@ -277,7 +277,7 @@ describe("a second generation run after regeneration (real Postgres)", () => {
   it("should insert new pending bits at fresh ordinals without colliding with superseded ones", async () => {
     const sourceId = await seedSource("bits_detected");
     const first = vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS);
-    const firstClaim = { id: sourceId, rawText: RU_SOURCE_TEXT, claimedAt: new Date() };
+    const firstClaim = { id: sourceId, rawText: RU_SOURCE_TEXT, extractionModelId: null, subjectId: null, claimedAt: new Date() };
 
     await client.query(`UPDATE knowledge_sources SET status = 'processing', updated_at = $2 WHERE id = $1`, [
       sourceId,
@@ -309,7 +309,10 @@ describe("a second generation run after regeneration (real Postgres)", () => {
     );
 
     expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
-    expect(second).toHaveBeenCalledWith(expect.any(String), { modelId: "openrouter/google/gemini-2.5-flash-lite" });
+    expect(second).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ modelId: "openrouter/google/gemini-2.5-flash-lite" }),
+    );
 
     const bits = (
       await client.query(

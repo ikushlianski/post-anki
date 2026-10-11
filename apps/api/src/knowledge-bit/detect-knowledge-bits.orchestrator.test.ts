@@ -22,10 +22,14 @@ import type { SourceItemDraft } from "./knowledge-bit-source-item-validation.js"
 
 let nextClaimedAt = 0;
 
-function source(id: string, rawText: string | null): PendingKnowledgeSource {
+function source(
+  id: string,
+  rawText: string | null,
+  extractionModelId: string | null = null,
+): PendingKnowledgeSource {
   nextClaimedAt += 1;
 
-  return { id, rawText, claimedAt: new Date(nextClaimedAt) };
+  return { id, rawText, extractionModelId, subjectId: null, claimedAt: new Date(nextClaimedAt) };
 }
 
 function paragraphs(count: number): string {
@@ -59,6 +63,7 @@ function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): Generate
     insertItems: vi.fn(async (input) => input.items.length),
     markDetected: vi.fn().mockResolvedValue(true),
     markFailed: vi.fn().mockResolvedValue(true),
+    loadFeedbackBlock: vi.fn().mockResolvedValue(""),
     ...overrides,
   };
 }
@@ -83,12 +88,101 @@ describe("generateItemsForSource", () => {
     expect(result).toEqual({ status: "detected", inserted: 4, failureReason: null });
   });
 
+  it("should hand the reviewer feedback of the source's subject to every chunk call", async () => {
+    const loadFeedbackBlock = vi.fn().mockResolvedValue("<reviewer_feedback>x</reviewer_feedback>");
+    const deps = buildGenerateDeps({
+      writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
+      loadFeedbackBlock,
+    });
+
+    await generateItemsForSource({ ...source("ks_1", RU_SOURCE_TEXT), subjectId: "sub_sales" }, {}, deps);
+
+    expect(loadFeedbackBlock).toHaveBeenCalledWith("sub_sales");
+    expect(deps.writeItems).toHaveBeenCalledWith(
+      RU_SOURCE_TEXT.trim(),
+      expect.objectContaining({ feedbackBlock: "<reviewer_feedback>x</reviewer_feedback>" }),
+    );
+  });
+
+  it("should still extract and store items when the reviewer feedback cannot be loaded", async () => {
+    const deps = buildGenerateDeps({
+      writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
+      loadFeedbackBlock: vi.fn().mockRejectedValue(new Error("db down")),
+    });
+
+    const result = await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
+
+    expect(result.status).toBe("detected");
+    expect(deps.writeItems).toHaveBeenCalledWith(
+      RU_SOURCE_TEXT.trim(),
+      expect.not.objectContaining({ feedbackBlock: expect.anything() }),
+    );
+  });
+
   it("should pass the model chosen for this run to every chunk call", async () => {
     const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) });
 
-    await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), { modelId: "m/x" }, deps);
+    await generateItemsForSource(
+      source("ks_1", RU_SOURCE_TEXT),
+      { modelId: "openrouter/openai/gpt-6-luna" },
+      deps,
+    );
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { modelId: "m/x" });
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      modelId: "openrouter/openai/gpt-6-luna",
+    });
+  });
+
+  it("should use the model stored on the source when the run does not name one", async () => {
+    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) });
+
+    await generateItemsForSource(
+      source("ks_1", RU_SOURCE_TEXT, "openrouter/openai/gpt-5-mini"),
+      {},
+      deps,
+    );
+
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      modelId: "openrouter/openai/gpt-5-mini",
+    });
+  });
+
+  it("should let the model chosen for a regeneration win over the one stored on the source", async () => {
+    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) });
+
+    await generateItemsForSource(
+      source("ks_1", RU_SOURCE_TEXT, "openrouter/openai/gpt-5-mini"),
+      { modelId: "openrouter/google/gemma-4-31b-it" },
+      deps,
+    );
+
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      modelId: "openrouter/google/gemma-4-31b-it",
+    });
+  });
+
+  it("should never send an unknown model id to the provider and fall back to the admin default", async () => {
+    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) });
+
+    await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT, "openrouter/evil/model"), {}, deps);
+
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {});
+  });
+
+  it("should fall back to the admin default once a listed model has passed its retirement date", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-21T00:00:00Z") });
+
+    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) });
+
+    await generateItemsForSource(
+      source("ks_1", RU_SOURCE_TEXT, "openrouter/google/gemini-2.5-flash-lite"),
+      {},
+      deps,
+    );
+
+    vi.useRealTimers();
+
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {});
   });
 
   it("should start ordinals after the existing ones and give each chunk its own ordinal range", async () => {

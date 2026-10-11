@@ -114,7 +114,7 @@ describe("source-first pipeline with the Russian worked example (real Postgres, 
     const deps = { ...defaultGenerateItemsDeps(), writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) };
 
     const result = await generateItemsForSource(
-      { id: source.id, rawText: RU_SOURCE_TEXT, claimedAt: source.claimedAt },
+      { id: source.id, rawText: RU_SOURCE_TEXT, extractionModelId: null, subjectId: null, claimedAt: source.claimedAt },
       {},
       deps,
     );
@@ -157,7 +157,7 @@ describe("source-first pipeline with the Russian worked example (real Postgres, 
     const source = await seedProcessingSource();
     const deps = { ...defaultGenerateItemsDeps(), writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) };
 
-    await generateItemsForSource({ id: source.id, rawText: RU_SOURCE_TEXT, claimedAt: source.claimedAt }, {}, deps);
+    await generateItemsForSource({ id: source.id, rawText: RU_SOURCE_TEXT, extractionModelId: null, subjectId: null, claimedAt: source.claimedAt }, {}, deps);
 
     const bits = await bitsOf(source.id);
     const ids = new Set(bits.map((bit) => bit.id));

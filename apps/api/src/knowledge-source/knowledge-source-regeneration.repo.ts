@@ -25,7 +25,12 @@ export async function claimSourceForRegeneration(
             isNotNull(knowledgeSources.rawText),
           ),
         )
-        .returning({ id: knowledgeSources.id, rawText: knowledgeSources.rawText })
+        .returning({
+          id: knowledgeSources.id,
+          rawText: knowledgeSources.rawText,
+          extractionModelId: knowledgeSources.extractionModelId,
+          subjectId: knowledgeSources.subjectId,
+        })
     )[0];
 
     if (!claimed) {
@@ -57,7 +62,13 @@ export async function claimSourceForRegeneration(
 
     return {
       ok: true as const,
-      source: { id: claimed.id, rawText: claimed.rawText, claimedAt },
+      source: {
+        id: claimed.id,
+        rawText: claimed.rawText,
+        extractionModelId: claimed.extractionModelId,
+        subjectId: claimed.subjectId,
+        claimedAt,
+      },
       supersededCount: superseded.length,
     };
   });

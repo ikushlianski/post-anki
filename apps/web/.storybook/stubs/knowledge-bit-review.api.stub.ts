@@ -15,8 +15,22 @@ export async function approveKnowledgeBitForReview(_input: { data: { bitId: stri
   return { ok: true as const }
 }
 
-export async function rejectKnowledgeBitForReview(_input: { data: { bitId: string } }) {
+export async function rejectKnowledgeBitForReview(input: { data: { bitId: string } }) {
+  return { ok: true as const, feedbackId: `fb-${input.data.bitId}` }
+}
+
+export async function restoreKnowledgeBitForReview(_input: { data: { bitId: string } }) {
   return { ok: true as const }
+}
+
+export async function setKnowledgeBitFeedbackReasonForReview(_input: {
+  data: { feedbackId: string; reasonCode: string; note?: string }
+}) {
+  return { ok: true as const }
+}
+
+export async function getKnowledgeBitFeedbackByModelForAdmin() {
+  return { models: [] }
 }
 
 export async function editKnowledgeBitQuestionVariantForReview(input: {

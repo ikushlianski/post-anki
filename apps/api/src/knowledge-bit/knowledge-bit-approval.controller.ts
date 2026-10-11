@@ -41,12 +41,12 @@ export async function handleRejectKnowledgeBit(
 ): Promise<void> {
   const rejected = await rejectKnowledgeBit(id);
 
-  if (!rejected) {
+  if (!rejected.ok) {
     sendError(res, 404, "not_found");
     return;
   }
 
-  sendJson(res, 200, { ok: true });
+  sendJson(res, 200, { ok: true, feedbackId: rejected.feedbackId });
 }
 
 // PATCH /knowledge-bits/question-variants/:id

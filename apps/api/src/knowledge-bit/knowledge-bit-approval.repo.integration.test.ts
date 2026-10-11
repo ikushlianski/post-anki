@@ -167,7 +167,7 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
 
     const rejected = await rejectKnowledgeBit(id);
 
-    expect(rejected).toBe(true);
+    expect(rejected.ok).toBe(true);
 
     const { rows } = await client.query(
       `SELECT approval_state FROM knowledge_bits WHERE id = $1`,
@@ -180,7 +180,7 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
   it("should return false for a knowledge bit id that does not exist", async () => {
     const rejected = await rejectKnowledgeBit("kb_missing");
 
-    expect(rejected).toBe(false);
+    expect(rejected.ok).toBe(false);
   });
 
   it("should return false and leave the state untouched for an already-approved bit", async () => {
@@ -189,7 +189,7 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
 
     const rejected = await rejectKnowledgeBit(id);
 
-    expect(rejected).toBe(false);
+    expect(rejected.ok).toBe(false);
 
     const { rows } = await client.query(
       `SELECT approval_state FROM knowledge_bits WHERE id = $1`,
@@ -205,7 +205,7 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
 
     const rejected = await rejectKnowledgeBit(id);
 
-    expect(rejected).toBe(true);
+    expect(rejected.ok).toBe(true);
   });
 });
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SubjectCombobox } from '../ui/subject-combobox'
 
 import type { ApiResult } from './learning-list.model'
 
@@ -50,18 +51,14 @@ export function ClassifyAction({
       </p>
 
       <div className="mt-3 flex items-center gap-2">
-        <select
+        <SubjectCombobox
+          ariaLabel="Subject to classify under"
+          options={subjects.map((subject) => ({ id: subject.id, label: subject.name }))}
           value={subjectId}
-          onChange={(event) => setSubjectId(event.target.value)}
-          data-testid="classify-action-subject"
+          onChange={setSubjectId}
+          testId="classify-action-subject"
           className="rounded-md border border-sky-300 bg-white px-3 py-1.5 text-xs"
-        >
-          {subjects.map((subject) => (
-            <option key={subject.id} value={subject.id}>
-              {subject.name}
-            </option>
-          ))}
-        </select>
+        />
         <button
           type="button"
           disabled={busy || subjectId === ''}

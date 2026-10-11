@@ -5,6 +5,8 @@ import {
   KNOWLEDGE_ITEM_MODELS_CHECKED_ON,
   DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
   knowledgeItemModelIdSchema,
+  formatKnowledgeItemModelPrice,
+  resolveKnowledgeItemModelId,
 } from "./knowledge-item-model.js";
 
 const EXPIRY_WINDOW_DAYS = 60;
@@ -16,8 +18,8 @@ function daysAfterCheck(days: number): Date {
 }
 
 describe("knowledgeItemModelIdSchema", () => {
-  it("should accept each of the five candidate model ids", () => {
-    expect(KNOWLEDGE_ITEM_MODEL_IDS).toHaveLength(5);
+  it("should accept each of the eleven listed model ids", () => {
+    expect(KNOWLEDGE_ITEM_MODEL_IDS).toHaveLength(11);
 
     for (const id of KNOWLEDGE_ITEM_MODEL_IDS) {
       expect(knowledgeItemModelIdSchema.safeParse(id).success).toBe(true);
@@ -30,14 +32,6 @@ describe("knowledgeItemModelIdSchema", () => {
 
   it("should reject the removed deepseek flash id that older settings rows may still store", () => {
     expect(knowledgeItemModelIdSchema.safeParse("openrouter/deepseek/deepseek-v4-flash").success).toBe(false);
-  });
-
-  it("should reject the removed GPT-4o mini id that older settings rows may still store", () => {
-    expect(knowledgeItemModelIdSchema.safeParse("openrouter/openai/gpt-4o-mini").success).toBe(false);
-  });
-
-  it("should reject the removed GPT-4.1 nano id that older settings rows may still store", () => {
-    expect(knowledgeItemModelIdSchema.safeParse("openrouter/openai/gpt-4.1-nano").success).toBe(false);
   });
 
   it("should reject the -latest alias of an allowed model", () => {
@@ -76,5 +70,42 @@ describe("KNOWLEDGE_ITEM_MODELS", () => {
 
   it("should record no expiry date for a listed model with none on OpenRouter", () => {
     expect(KNOWLEDGE_ITEM_MODELS["openrouter/anthropic/claude-haiku-5.5"].expiresOn).toBeNull();
+  });
+});
+
+describe("formatKnowledgeItemModelPrice", () => {
+  it("should show both prices per million tokens like OpenRouter does", () => {
+    expect(formatKnowledgeItemModelPrice({ inputPerMillion: 0.1, outputPerMillion: 0.5 })).toBe(
+      "$0.10 in / $0.50 out per 1M",
+    );
+  });
+
+  it("should keep three decimals for sub-ten-cent prices", () => {
+    expect(formatKnowledgeItemModelPrice({ inputPerMillion: 0.037, outputPerMillion: 0.17 })).toBe(
+      "$0.037 in / $0.17 out per 1M",
+    );
+  });
+
+  it("should drop trailing zeros for a nine-cent price", () => {
+    expect(formatKnowledgeItemModelPrice({ inputPerMillion: 0.09, outputPerMillion: 2 })).toBe(
+      "$0.09 in / $2.00 out per 1M",
+    );
+  });
+});
+
+describe("resolveKnowledgeItemModelId", () => {
+  it("should keep a listed model id", () => {
+    expect(resolveKnowledgeItemModelId("openrouter/openai/gpt-6-luna")).toBe("openrouter/openai/gpt-6-luna");
+  });
+
+  it("should fall back to the default for an unknown id", () => {
+    expect(resolveKnowledgeItemModelId("openrouter/deepseek/deepseek-v4-flash")).toBe(
+      DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
+    );
+  });
+
+  it("should fall back to the default when nothing is stored", () => {
+    expect(resolveKnowledgeItemModelId(null)).toBe(DEFAULT_KNOWLEDGE_ITEM_MODEL_ID);
+    expect(resolveKnowledgeItemModelId(undefined)).toBe(DEFAULT_KNOWLEDGE_ITEM_MODEL_ID);
   });
 });

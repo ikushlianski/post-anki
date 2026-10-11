@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SubjectCombobox } from '../ui/subject-combobox'
 import { Link, useRouter } from '@tanstack/react-router'
 import {
   DndContext,
@@ -288,7 +289,7 @@ export function SubjectSection({
               to="/add-knowledge"
               search={{ subjectId: subject.id }}
               data-testid="subject-add-knowledge-button"
-              className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+              className="inline-flex min-h-[44px] items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50 sm:min-h-0"
             >
               Add knowledge
             </Link>
@@ -718,22 +719,18 @@ function MoveCurriculumButton({
 
   return (
     <span className="flex shrink-0 items-center gap-2 text-xs">
-      <select
-        data-testid={`curriculum-move-target-select-${curriculum.id}`}
+      <SubjectCombobox
+        ariaLabel="Move to subject"
+        options={options.map((option) => ({ id: option.id, label: option.name }))}
         value={targetSubjectId}
-        onChange={(event) => {
-          setTargetSubjectId(event.target.value)
+        onChange={(id) => {
+          setTargetSubjectId(id)
           setTargetCategoryId(null)
         }}
+        testId={`curriculum-move-target-select-${curriculum.id}`}
+        placeholder="Search subjects…"
         className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
-      >
-        <option value="">select subject…</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
+      />
       {targetSubjectId ? (
         <select
           data-testid={`curriculum-move-category-select-${curriculum.id}`}

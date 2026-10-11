@@ -1100,6 +1100,8 @@ export const knowledgeSources = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     // Subject the source is filed under when pasted with one; nullable, no FK, no default.
     subjectId: text("subject_id"),
+    // Model chosen when the source was pasted; null means "use the admin default".
+    extractionModelId: text("extraction_model_id"),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(
@@ -1294,6 +1296,32 @@ export const knowledgeBitReviews = pgTable(
   (table) => [
     index("knowledge_bit_reviews_bit_reviewed_at_idx").on(table.knowledgeBitId, table.reviewedAt),
     index("knowledge_bit_reviews_variant_idx").on(table.variantId),
+  ],
+);
+
+// One row per review decision on a pending suggestion. A rejection is written at reject time
+// with reasonCode "unspecified"; a later call sets the real reason. Approved rows keep the
+// card text as a positive example for the next extraction prompt.
+export const knowledgeBitFeedback = pgTable(
+  "knowledge_bit_feedback",
+  {
+    id: text("id").primaryKey(),
+    knowledgeSourceId: text("knowledge_source_id").notNull(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    subjectId: text("subject_id"),
+    modelId: text("model_id"),
+    verdict: text("verdict").notNull(),
+    reasonCode: text("reason_code"),
+    note: text("note"),
+    statement: text("statement").notNull(),
+    front: text("front"),
+    back: text("back"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("knowledge_bit_feedback_subject_created_idx").on(table.subjectId, table.createdAt),
+    index("knowledge_bit_feedback_model_idx").on(table.modelId),
+    index("knowledge_bit_feedback_bit_idx").on(table.knowledgeBitId),
   ],
 );
 

@@ -24,6 +24,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
+  restoreKnowledgeBitForReview: vi.fn(),
+  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -86,6 +88,20 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
       'Replace 2 undecided suggestions from this source? Approved and rejected ones stay.',
     )
     expect(mockedRegenerate).not.toHaveBeenCalled()
+  })
+
+  it('should show every model with its price per 1M tokens as soon as Regenerate is pressed', () => {
+    renderPanel([source('s1', ['b1'])])
+
+    openConfirm()
+
+    const options = Array.from(
+      (screen.getByTestId('knowledge-bit-review-regenerate-s1-model') as HTMLSelectElement).options,
+    ).map((option) => option.textContent)
+
+    expect(options[0]).toBe('Same model as before')
+    expect(options).toContain('GPT-6 Luna — $0.10 in / $0.50 out per 1M')
+    expect(options).toContain('GPT-5 Mini — $0.25 in / $2.00 out per 1M')
   })
 
   it('should leave everything untouched when the reviewer cancels the confirmation', () => {

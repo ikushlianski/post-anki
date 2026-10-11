@@ -1,4 +1,7 @@
+import { resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
 import { log } from "../shared/log.js";
+import { loadRecentFeedbackForExtraction } from "./knowledge-bit-feedback.repo.js";
+import { buildReviewerFeedbackBlock } from "./knowledge-bit-review-feedback-block.js";
 import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
 import { runKnowledgeBitSourceItems } from "../mastra/knowledge-bit-source-items.agent.js";
 import {
@@ -34,6 +37,7 @@ export const ORDINAL_STRIDE_PER_CHUNK = 1000;
 interface WriteOptions {
   modelId?: string;
   strictLanguage?: boolean;
+  feedbackBlock?: string;
 }
 
 export interface GenerateItemsDeps {
@@ -42,6 +46,7 @@ export interface GenerateItemsDeps {
   insertItems: (input: InsertSourceItemsInput) => Promise<number>;
   markDetected: (id: string, claimedAt: Date) => Promise<boolean>;
   markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
+  loadFeedbackBlock: (subjectId: string | null) => Promise<string>;
 }
 
 export function defaultGenerateItemsDeps(): GenerateItemsDeps {
@@ -51,6 +56,8 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     insertItems: insertSourceItemsForChunk,
     markDetected: markKnowledgeSourceBitsDetected,
     markFailed: markKnowledgeSourceFailed,
+    loadFeedbackBlock: async (subjectId) =>
+      buildReviewerFeedbackBlock(await loadRecentFeedbackForExtraction(subjectId)),
   };
 }
 
@@ -174,11 +181,44 @@ async function processChunk(
   }
 }
 
+function chooseModelId(requested: string | null | undefined, sourceId: string): string | undefined {
+  if (!requested) {
+    return undefined;
+  }
+
+  const usable = resolveUsableKnowledgeItemModelId(requested);
+
+  if (usable === null) {
+    log.warn({ requested, knowledgeSourceId: sourceId }, "knowledge_item_model_unusable_fallback_default");
+  }
+
+  return usable ?? undefined;
+}
+
+async function loadFeedbackBlockSafely(
+  source: PendingKnowledgeSource,
+  deps: GenerateItemsDeps,
+): Promise<string> {
+  try {
+    return await deps.loadFeedbackBlock(source.subjectId);
+  } catch (err) {
+    log.warn({ err, knowledgeSourceId: source.id }, "knowledge_bit_feedback_load_failed");
+
+    return "";
+  }
+}
+
 export async function generateItemsForSource(
   source: PendingKnowledgeSource,
-  options: { modelId?: string } = {},
+  requestedOptions: { modelId?: string } = {},
   deps: GenerateItemsDeps = defaultGenerateItemsDeps(),
 ): Promise<GenerateItemsResult> {
+  const modelId = chooseModelId(requestedOptions.modelId ?? source.extractionModelId, source.id);
+  const feedbackBlock = await loadFeedbackBlockSafely(source, deps);
+  const options: WriteOptions = {
+    ...(modelId ? { modelId } : {}),
+    ...(feedbackBlock ? { feedbackBlock } : {}),
+  };
   const rawText = source.rawText;
 
   const rejection = rejectRawText(rawText);

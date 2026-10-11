@@ -141,6 +141,11 @@ import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
+import {
+  handleGetKnowledgeBitFeedbackByModel,
+  handleRestoreRejectedKnowledgeBit,
+  handleSetKnowledgeBitFeedbackReason,
+} from "./knowledge-bit/knowledge-bit-feedback.controller.js";
 import { handleGetAdminObservability } from "./admin-observability/admin-observability.controller.js";
 import {
   handleSubmitProbeQuestionFeedback,
@@ -471,6 +476,12 @@ async function route(
       return handleApproveKnowledgeBit(res, id);
     case "rejectKnowledgeBit":
       return handleRejectKnowledgeBit(res, id);
+    case "restoreRejectedKnowledgeBit":
+      return handleRestoreRejectedKnowledgeBit(res, id);
+    case "setKnowledgeBitFeedbackReason":
+      return handleSetKnowledgeBitFeedbackReason(req, res, id);
+    case "getKnowledgeBitFeedbackByModel":
+      return handleGetKnowledgeBitFeedbackByModel(res);
     case "editKnowledgeBitQuestionVariant":
       return handleEditKnowledgeBitQuestionVariant(req, res, id);
     case "deleteSubject":

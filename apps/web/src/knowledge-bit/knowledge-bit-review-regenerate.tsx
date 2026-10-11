@@ -1,15 +1,8 @@
 import { useState } from 'react'
-import {
-  KNOWLEDGE_ITEM_MODEL_OPTIONS,
-  knowledgeItemModelIdSchema,
-  type KnowledgeItemModelId,
-} from '@post-anki/shared'
+import type { KnowledgeItemModelId } from '@post-anki/shared'
 
-import {
-  PRIMARY_BUTTON_CLASS,
-  SECONDARY_BUTTON_CLASS,
-  TEXT_FIELD_CLASS,
-} from './knowledge-bit-review-classes'
+import { ExtractionModelSelect } from './extraction-model-select'
+import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 import type { SourceRegenerationState } from './knowledge-bit-review-regeneration'
 
 export function KnowledgeBitReviewRegenerate({
@@ -29,7 +22,7 @@ export function KnowledgeBitReviewRegenerate({
   onConfirm: (modelId?: KnowledgeItemModelId) => void
   onRetry: () => void
 }) {
-  const [modelId, setModelId] = useState<KnowledgeItemModelId>()
+  const [modelId, setModelId] = useState<KnowledgeItemModelId | ''>('')
   const testId = `knowledge-bit-review-regenerate-${sourceId}`
 
   if (!state) {
@@ -52,24 +45,19 @@ export function KnowledgeBitReviewRegenerate({
           Replace {undecidedCount} undecided {undecidedCount === 1 ? 'suggestion' : 'suggestions'}{' '}
           from this source? Approved and rejected ones stay.
         </p>
-        <select
-          data-testid={`${testId}-model`}
-          aria-label="Model for regeneration"
-          value={modelId ?? ''}
-          onChange={(event) => setModelId(knowledgeItemModelIdSchema.safeParse(event.target.value).data)}
-          className={`${TEXT_FIELD_CLASS} w-auto`}
-        >
-          <option value="">Current model</option>
-          {KNOWLEDGE_ITEM_MODEL_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <div className="w-full max-w-md sm:w-auto">
+          <ExtractionModelSelect
+            testId={`${testId}-model`}
+            ariaLabel="Model for regeneration"
+            emptyLabel="Same model as before"
+            value={modelId}
+            onChange={setModelId}
+          />
+        </div>
         <button
           type="button"
           data-testid={`${testId}-confirm`}
-          onClick={() => onConfirm(modelId)}
+          onClick={() => onConfirm(modelId === '' ? undefined : modelId)}
           className={PRIMARY_BUTTON_CLASS}
         >
           Replace

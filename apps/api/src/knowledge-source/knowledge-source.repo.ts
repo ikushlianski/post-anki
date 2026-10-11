@@ -9,11 +9,13 @@ export interface KnowledgeSource {
   status: string;
   createdAt: Date;
   subjectId: string | null;
+  extractionModelId: string | null;
 }
 
 export async function insertKnowledgeSource(
   rawText: string,
   subjectId: string | null = null,
+  extractionModelId: string | null = null,
 ): Promise<KnowledgeSource> {
   const row = {
     id: newId("ks"),
@@ -21,6 +23,7 @@ export async function insertKnowledgeSource(
     rawText,
     status: "pending",
     subjectId,
+    extractionModelId,
   };
 
   await getDb().insert(knowledgeSources).values(row);
@@ -38,6 +41,7 @@ export const MAX_SOURCES_PER_BATCH_ADD = 100;
 export async function insertKnowledgeSources(
   rawTexts: string[],
   subjectId: string | null = null,
+  extractionModelId: string | null = null,
 ): Promise<KnowledgeSource[]> {
   if (rawTexts.length === 0) {
     return [];
@@ -49,6 +53,7 @@ export async function insertKnowledgeSources(
     rawText,
     status: "pending",
     subjectId,
+    extractionModelId,
   }));
 
   await getDb().insert(knowledgeSources).values(rows);

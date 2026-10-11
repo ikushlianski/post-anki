@@ -3,8 +3,11 @@ import type { FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
 import { buildSubjectPathLabel } from '@post-anki/core'
+import type { KnowledgeItemModelId } from '@post-anki/shared'
 
 import { mapSubjectRow, subjectsCollection } from '../curriculum/board.collection'
+import { ExtractionModelSelect } from '../knowledge-bit/extraction-model-select'
+import { SubjectCombobox } from '../ui/subject-combobox'
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 
 import {
@@ -46,6 +49,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [subjectId, setSubjectId] = useState(initialSubjectId ?? '')
+  const [modelId, setModelId] = useState<KnowledgeItemModelId | ''>('')
   const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
   const subjects = (subjectsQuery.data ?? []).map(mapSubjectRow)
   const subjectOptions = subjects
@@ -90,6 +94,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
     const textBlocks = nonEmptyBlocks.filter((block) => block.type === 'text')
     const urlBlocks = nonEmptyBlocks.filter((block) => block.type === 'url')
     const chosenSubjectId = selectedSubjectId || undefined
+    const chosenModelId = modelId || undefined
 
     const jobs: { indices: number[]; run: () => Promise<number> }[] = []
 
@@ -99,7 +104,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
       jobs.push({
         indices: [block.index],
         run: async () => {
-          await createKnowledgeSource({ data: { text: block.value, subjectId: chosenSubjectId } })
+          await createKnowledgeSource({ data: { text: block.value, subjectId: chosenSubjectId, modelId: chosenModelId } })
           return 1
         },
       })
@@ -108,7 +113,11 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
         indices: textBlocks.map((block) => block.index),
         run: async () => {
           const created = await createKnowledgeSources({
-            data: { texts: textBlocks.map((block) => block.value), subjectId: chosenSubjectId },
+            data: {
+              texts: textBlocks.map((block) => block.value),
+              subjectId: chosenSubjectId,
+              modelId: chosenModelId,
+            },
           })
           return created.length
         },
@@ -119,7 +128,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
       jobs.push({
         indices: [block.index],
         run: async () => {
-          await createKnowledgeSourceFromUrl({ data: { url: block.value, subjectId: chosenSubjectId } })
+          await createKnowledgeSourceFromUrl({ data: { url: block.value, subjectId: chosenSubjectId, modelId: chosenModelId } })
           return 1
         },
       })
@@ -164,21 +173,29 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
     <form onSubmit={submit} className="space-y-3" data-testid="knowledge-add-form">
       <label className="flex items-center gap-2 text-sm text-neutral-700">
         <span>Subject</span>
-        <select
-          aria-label="Subject for these sources"
+        <SubjectCombobox
+          ariaLabel="Subject for these sources"
+          options={subjectOptions}
           value={selectedSubjectId}
           disabled={busy}
-          onChange={(event) => setSubjectId(event.target.value)}
-          data-testid="knowledge-subject-select"
-          className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm outline-none focus:border-neutral-500 disabled:opacity-50"
-        >
-          <option value="">No subject</option>
-          {subjectOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={setSubjectId}
+          testId="knowledge-subject-select"
+          placeholder="No subject — type to search"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm text-neutral-700 sm:flex-row sm:items-start sm:gap-2">
+        <span className="shrink-0 pt-1.5">Model</span>
+        <div className="w-full max-w-xl">
+          <ExtractionModelSelect
+            ariaLabel="Model that will parse this knowledge"
+            testId="knowledge-model-select"
+            emptyLabel="Default model (set in admin settings)"
+            value={modelId}
+            onChange={setModelId}
+            disabled={busy}
+          />
+        </div>
       </label>
 
       <p data-testid="knowledge-adding-to-label" className="-mt-1 text-sm text-neutral-600">
@@ -255,7 +272,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
           disabled={busy}
           onClick={addBlock}
           data-testid="knowledge-add-block-button"
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 sm:min-h-0"
         >
           + Add another block
         </button>
@@ -264,7 +281,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
           type="submit"
           disabled={!canSubmit}
           data-testid="knowledge-submit-button"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 sm:min-h-0"
         >
           {busy ? 'Saving…' : 'Add knowledge'}
         </button>

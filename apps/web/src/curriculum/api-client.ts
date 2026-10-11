@@ -523,8 +523,29 @@ export async function getPendingKnowledgeBitCount(): Promise<be.PendingKnowledge
   return request<be.PendingKnowledgeBitReviewCountResponse>('/knowledge-bits/pending-review/count')
 }
 
-export async function rejectKnowledgeBit(bitId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/knowledge-bits/${bitId}/reject`, { method: 'POST' })
+export async function rejectKnowledgeBit(bitId: string): Promise<be.RejectKnowledgeBitResponse> {
+  return request<be.RejectKnowledgeBitResponse>(`/knowledge-bits/${bitId}/reject`, {
+    method: 'POST',
+  })
+}
+
+export async function restoreRejectedKnowledgeBit(bitId: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/knowledge-bits/${bitId}/restore`, { method: 'POST' })
+}
+
+export async function setKnowledgeBitFeedbackReason(
+  feedbackId: string,
+  reasonCode: be.KnowledgeBitRejectReason,
+  note?: string,
+): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/knowledge-bit-feedback/${feedbackId}`, {
+    method: 'PATCH',
+    body: note ? { reasonCode, note } : { reasonCode },
+  })
+}
+
+export async function getKnowledgeBitFeedbackByModel(): Promise<be.KnowledgeBitFeedbackByModelResponse> {
+  return request<be.KnowledgeBitFeedbackByModelResponse>('/admin/knowledge-bit-feedback/by-model')
 }
 
 export async function editKnowledgeBitQuestionVariant(
@@ -628,30 +649,33 @@ export interface KnowledgeSource {
 export async function createKnowledgeSource(
   text: string,
   subjectId?: string,
+  modelId?: string,
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { text, subjectId },
+    body: { text, subjectId, modelId },
   })
 }
 
 export async function createKnowledgeSources(
   texts: string[],
   subjectId?: string,
+  modelId?: string,
 ): Promise<KnowledgeSource[]> {
   return request<KnowledgeSource[]>('/knowledge-sources', {
     method: 'POST',
-    body: { texts, subjectId },
+    body: { texts, subjectId, modelId },
   })
 }
 
 export async function createKnowledgeSourceFromUrl(
   url: string,
   subjectId?: string,
+  modelId?: string,
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { url, subjectId },
+    body: { url, subjectId, modelId },
   })
 }
 

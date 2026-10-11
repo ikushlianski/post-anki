@@ -1,5 +1,6 @@
 import type http from "node:http";
 import { z } from "zod";
+import { knowledgeItemModelIdSchema } from "@post-anki/shared";
 import { convert } from "html-to-text";
 import { readJsonBody, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
@@ -13,12 +14,20 @@ import {
 } from "./knowledge-source.repo.js";
 
 const subjectIdInput = z.string().min(1).nullable().optional();
-const singleTextInput = z.object({ text: z.string().max(50_000), subjectId: subjectIdInput });
+const modelIdInput = knowledgeItemModelIdSchema.nullable().optional();
+const singleTextInput = z.object({
+  text: z.string().max(50_000),
+  subjectId: subjectIdInput,
+  modelId: modelIdInput,
+});
 const batchTextInput = z.object({
   texts: z.array(z.string().max(50_000)).min(1),
   subjectId: subjectIdInput,
+  modelId: modelIdInput,
 });
-const urlInput = z.object({ url: z.string().url(), subjectId: subjectIdInput }).strict();
+const urlInput = z
+  .object({ url: z.string().url(), subjectId: subjectIdInput, modelId: modelIdInput })
+  .strict();
 
 // Null means "no subject"; a non-null id must name an existing subject.
 async function isUnknownSubject(subjectId: string | null): Promise<boolean> {
@@ -27,6 +36,26 @@ async function isUnknownSubject(subjectId: string | null): Promise<boolean> {
 
 function kickPipelineInBackground(): void {
   void kickKnowledgeBitPipeline().catch((err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"));
+}
+
+const HIDDEN_CONTENT_SELECTORS = [
+  "script",
+  "style",
+  "noscript",
+  "template",
+  "iframe",
+  "[hidden]",
+  "[aria-hidden='true']",
+  "[style*='display:none']",
+  "[style*='display: none']",
+  "[style*='visibility:hidden']",
+  "[style*='visibility: hidden']",
+  "[style*='font-size:0']",
+  "[style*='font-size: 0']",
+].map((selector) => ({ selector, format: "skip" }));
+
+export function extractVisibleText(html: string): string {
+  return convert(html, { selectors: HIDDEN_CONTENT_SELECTORS }).trim();
 }
 
 const URL_FETCH_TIMEOUT_MS = 8_000;
@@ -64,14 +93,14 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    const extractedText = truncateText(convert(html).trim(), MAX_URL_SOURCE_CHARS);
+    const extractedText = truncateText(extractVisibleText(html), MAX_URL_SOURCE_CHARS);
 
     if (extractedText.length === 0) {
       sendJson(res, 400, { error: "empty_content" });
       return;
     }
 
-    sendJson(res, 201, await insertKnowledgeSource(extractedText, subjectId));
+    sendJson(res, 201, await insertKnowledgeSource(extractedText, subjectId, body.data.modelId ?? null));
     kickPipelineInBackground();
     return;
   }
@@ -108,7 +137,7 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    sendJson(res, 201, await insertKnowledgeSources(texts, subjectId));
+    sendJson(res, 201, await insertKnowledgeSources(texts, subjectId, body.data.modelId ?? null));
     kickPipelineInBackground();
     return;
   }
@@ -141,6 +170,6 @@ export async function handleCreateKnowledgeSource(
     return;
   }
 
-  sendJson(res, 201, await insertKnowledgeSource(text, subjectId));
+  sendJson(res, 201, await insertKnowledgeSource(text, subjectId, body.data.modelId ?? null));
   kickPipelineInBackground();
 }

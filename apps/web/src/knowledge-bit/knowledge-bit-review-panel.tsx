@@ -7,8 +7,18 @@ import {
   getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
   rejectKnowledgeBitForReview,
+  restoreKnowledgeBitForReview,
+  setKnowledgeBitFeedbackReasonForReview,
 } from './knowledge-bit-review.api'
-import { applyBitEdit, applyVariantEdit, removeBit } from './knowledge-bit-review-sources'
+import {
+  applyBitEdit,
+  applyVariantEdit,
+  removeBit,
+  restoreBit,
+  snapshotBit,
+} from './knowledge-bit-review-sources'
+import { useRejectionWhy } from './knowledge-bit-review-why'
+import { KnowledgeBitReviewWhyStrip } from './knowledge-bit-review-why-strip'
 import { KnowledgeBitReviewBulkBar } from './knowledge-bit-review-bulk-bar'
 import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
 import {
@@ -139,6 +149,31 @@ export function KnowledgeBitReviewPanel({
     }
   }
 
+  const why = useRejectionWhy({
+    setReason: async (feedbackId, reasonCode, note) => {
+      try {
+        await setKnowledgeBitFeedbackReasonForReview({
+          data: { feedbackId, reasonCode, ...(note ? { note } : {}) },
+        })
+
+        return true
+      } catch {
+        return false
+      }
+    },
+    undo: async (prompt) => {
+      try {
+        await restoreKnowledgeBitForReview({ data: { bitId: prompt.bitId } })
+        setSources((prev) => restoreBit(prev, prompt.snapshot))
+        notifyPendingReviewChanged()
+
+        return true
+      } catch {
+        return false
+      }
+    },
+  })
+
   async function reject(bitId: string) {
     if (!claimBit(bitId)) {
       return
@@ -146,12 +181,18 @@ export function KnowledgeBitReviewPanel({
 
     setRowError(bitId, null)
 
+    const snapshot = snapshotBit(sources, bitId)
+
     try {
-      await rejectKnowledgeBitForReview({ data: { bitId } })
+      const result = await rejectKnowledgeBitForReview({ data: { bitId } })
 
       knownBitIds.current.add(bitId)
       setSources((prev) => removeBit(prev, bitId))
       notifyPendingReviewChanged()
+
+      if (snapshot) {
+        why.show({ bitId, feedbackId: result?.feedbackId ?? null, snapshot })
+      }
     } catch {
       // Same retry posture as approve above.
       setRowError(bitId, "Couldn't reject. Try again.")
@@ -281,6 +322,8 @@ export function KnowledgeBitReviewPanel({
           ))}
         </ul>
       )}
+
+      <KnowledgeBitReviewWhyStrip why={why} />
     </div>
   )
 }

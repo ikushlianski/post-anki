@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SubjectCombobox } from '../ui/subject-combobox'
 
 import type {
   CaptureLearningListItemInput,
@@ -128,19 +129,14 @@ export function CaptureForm({
       >
         Subject
       </label>
-      <select
-        id="capture-subject"
+      <SubjectCombobox
+        ariaLabel="Subject"
+        options={subjects.map((subject) => ({ id: subject.id, label: subject.name }))}
         value={subjectId}
-        onChange={(event) => setSubjectId(event.target.value)}
-        data-testid="capture-subject"
+        onChange={setSubjectId}
+        testId="capture-subject"
         className="mt-1 w-full input"
-      >
-        {subjects.map((subject) => (
-          <option key={subject.id} value={subject.id}>
-            {subject.name}
-          </option>
-        ))}
-      </select>
+      />
 
       {error ? (
         <p

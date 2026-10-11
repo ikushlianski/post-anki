@@ -6,6 +6,7 @@ import type {
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { findRejectionFeedbackId, recordKnowledgeBitFeedback } from "./knowledge-bit-feedback.repo.js";
 
 // Learner-facing read gate — every surface that lets a learner answer, chat with, search, or
 // browse a knowledge bit must apply this, so a bit stays invisible until a human approves it.
@@ -21,33 +22,55 @@ export async function approveKnowledgeBit(
   id: string,
   db: DbExecutor = getDb(),
 ): Promise<boolean> {
-  const rows = await db
-    .update(knowledgeBits)
-    .set({ approvalState: "approved" })
-    .where(
-      and(
-        eq(knowledgeBits.id, id),
-        inArray(knowledgeBits.approvalState, ["pending", "approved"]),
-      ),
-    )
-    .returning({ id: knowledgeBits.id });
+  return db.transaction(async (tx) => {
+    const current = (
+      await tx
+        .select({ approvalState: knowledgeBits.approvalState })
+        .from(knowledgeBits)
+        .where(eq(knowledgeBits.id, id))
+        .for("update")
+    )[0];
 
-  return rows.length > 0;
+    if (!current || !["pending", "approved"].includes(current.approvalState)) {
+      return false;
+    }
+
+    if (current.approvalState === "pending") {
+      await tx.update(knowledgeBits).set({ approvalState: "approved" }).where(eq(knowledgeBits.id, id));
+      await recordKnowledgeBitFeedback(tx, { bitId: id, verdict: "approved" });
+    }
+
+    return true;
+  });
 }
 
-export async function rejectKnowledgeBit(id: string, db: DbExecutor = getDb()): Promise<boolean> {
-  const rows = await db
-    .update(knowledgeBits)
-    .set({ approvalState: "rejected" })
-    .where(
-      and(
-        eq(knowledgeBits.id, id),
-        inArray(knowledgeBits.approvalState, ["pending", "rejected"]),
-      ),
-    )
-    .returning({ id: knowledgeBits.id });
+export type RejectKnowledgeBitResult = { ok: true; feedbackId: string | null } | { ok: false };
 
-  return rows.length > 0;
+export async function rejectKnowledgeBit(
+  id: string,
+  db: DbExecutor = getDb(),
+): Promise<RejectKnowledgeBitResult> {
+  return db.transaction(async (tx) => {
+    const current = (
+      await tx
+        .select({ approvalState: knowledgeBits.approvalState })
+        .from(knowledgeBits)
+        .where(eq(knowledgeBits.id, id))
+        .for("update")
+    )[0];
+
+    if (!current || !["pending", "rejected"].includes(current.approvalState)) {
+      return { ok: false };
+    }
+
+    if (current.approvalState === "rejected") {
+      return { ok: true, feedbackId: await findRejectionFeedbackId(tx, id) };
+    }
+
+    await tx.update(knowledgeBits).set({ approvalState: "rejected" }).where(eq(knowledgeBits.id, id));
+
+    return { ok: true, feedbackId: await recordKnowledgeBitFeedback(tx, { bitId: id, verdict: "rejected" }) };
+  });
 }
 
 export type EditKnowledgeBitQuestionVariantResult =

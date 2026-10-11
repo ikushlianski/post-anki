@@ -13,7 +13,7 @@ export interface SourceRegenerationActions {
   onRetry: (sourceId: string) => void
 }
 
-const SOURCE_TEXT_PREVIEW_LENGTH = 400
+const SOURCE_TEXT_PREVIEW_LENGTH = 2000
 
 export function KnowledgeBitReviewSourceGroup({
   source,
@@ -59,25 +59,27 @@ export function KnowledgeBitReviewSourceGroup({
   ) => Promise<boolean>
   onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
 }) {
+  const plainText = (source.sourceText ?? '').replace(/\s+/g, ' ').trim()
   const readyCount = source.bits.filter((bit) => bit.variants.length > 0).length
 
   return (
     <li
       data-testid={`knowledge-bit-review-source-${source.knowledgeSourceId}`}
-      className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4"
+      className="space-y-4 rounded-2xl bg-neutral-50 p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <details className="min-w-0 text-xs text-neutral-600">
-          <summary className="cursor-pointer select-none rounded-sm font-medium text-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900">
-            Source text
-          </summary>
-          <p className="mt-2 whitespace-pre-wrap break-words leading-relaxed">
-            {source.sourceText
-              ? source.sourceText.slice(0, SOURCE_TEXT_PREVIEW_LENGTH)
+        <div className="min-w-0 text-xs text-neutral-600">
+          <p className="font-medium text-neutral-700">Source text</p>
+          <p
+            data-testid={`knowledge-bit-review-source-text-${source.knowledgeSourceId}`}
+            className="mt-2 break-words text-sm leading-relaxed text-neutral-700"
+          >
+            {plainText.length > 0
+              ? plainText.slice(0, SOURCE_TEXT_PREVIEW_LENGTH)
               : 'No source text available.'}
-            {source.sourceText && source.sourceText.length > SOURCE_TEXT_PREVIEW_LENGTH ? '…' : ''}
+            {plainText.length > SOURCE_TEXT_PREVIEW_LENGTH ? '…' : ''}
           </p>
-        </details>
+        </div>
 
         {source.sourceText ? (
           <KnowledgeBitReviewRegenerate
@@ -113,7 +115,7 @@ export function KnowledgeBitReviewSourceGroup({
         ) : null}
       </div>
 
-      <ul className="space-y-3">
+      <ul className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         {source.bits.map((bit) => (
           <KnowledgeBitReviewItem
             key={bit.id}

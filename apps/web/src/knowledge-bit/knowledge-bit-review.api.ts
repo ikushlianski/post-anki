@@ -3,6 +3,9 @@ import { z } from 'zod'
 import {
   editKnowledgeBitQuestionVariantInput,
   bulkApproveKnowledgeBitsInput,
+  knowledgeBitRejectReasonSchema,
+  type KnowledgeBitFeedbackByModelResponse,
+  type RejectKnowledgeBitResponse,
   regenerateKnowledgeSourceInput,
   type KnowledgeSourceRegenerationStatus,
   type BulkApproveKnowledgeBitsResponse,
@@ -14,12 +17,15 @@ import {
   approveKnowledgeBit,
   bulkApproveKnowledgeBits,
   editKnowledgeBit,
+  getKnowledgeBitFeedbackByModel,
   getKnowledgeSourceRegeneration,
   getPendingKnowledgeBitCount,
   editKnowledgeBitQuestionVariant,
   listPendingKnowledgeBitsForReview,
   regenerateKnowledgeSource,
   rejectKnowledgeBit,
+  restoreRejectedKnowledgeBit,
+  setKnowledgeBitFeedbackReason,
   type RegenerateKnowledgeSourceOutcome,
 } from '../curriculum/api-client'
 
@@ -35,7 +41,28 @@ export const approveKnowledgeBitForReview = createServerFn({ method: 'POST' })
 
 export const rejectKnowledgeBitForReview = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => bitIdInput.parse(data))
-  .handler(({ data }): Promise<{ ok: true }> => rejectKnowledgeBit(data.bitId))
+  .handler(({ data }): Promise<RejectKnowledgeBitResponse> => rejectKnowledgeBit(data.bitId))
+
+export const restoreKnowledgeBitForReview = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => bitIdInput.parse(data))
+  .handler(({ data }): Promise<{ ok: true }> => restoreRejectedKnowledgeBit(data.bitId))
+
+const feedbackReasonInput = z.object({
+  feedbackId: z.string().min(1),
+  reasonCode: knowledgeBitRejectReasonSchema,
+  note: z.string().trim().max(500).optional(),
+})
+
+export const setKnowledgeBitFeedbackReasonForReview = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => feedbackReasonInput.parse(data))
+  .handler(
+    ({ data }): Promise<{ ok: true }> =>
+      setKnowledgeBitFeedbackReason(data.feedbackId, data.reasonCode, data.note),
+  )
+
+export const getKnowledgeBitFeedbackByModelForAdmin = createServerFn({ method: 'GET' }).handler(
+  (): Promise<KnowledgeBitFeedbackByModelResponse> => getKnowledgeBitFeedbackByModel(),
+)
 
 const editKnowledgeBitQuestionVariantForReviewInput = z
   .object({ variantId: z.string().min(1) })

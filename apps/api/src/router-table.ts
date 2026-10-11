@@ -152,6 +152,19 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/restore$/,
+    name: "restoreRejectedKnowledgeBit",
+    param: "id",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/knowledge-bit-feedback\/([^/]+)$/,
+    name: "setKnowledgeBitFeedbackReason",
+    param: "id",
+  },
+  { method: "GET", pattern: "/admin/knowledge-bit-feedback/by-model", name: "getKnowledgeBitFeedbackByModel" },
+  {
     method: "PATCH",
     pattern: /^\/knowledge-bits\/([^/]+)$/,
     name: "editKnowledgeBit",

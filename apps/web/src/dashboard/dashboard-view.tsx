@@ -81,7 +81,7 @@ export function DashboardView({
     : null
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-neutral-500">

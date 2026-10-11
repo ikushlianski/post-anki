@@ -29,6 +29,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
+  restoreKnowledgeBitForReview: vi.fn(),
+  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -153,7 +155,7 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
   })
 
   it('should reject the focused suggestion with the r key', async () => {
-    mockedReject.mockResolvedValue({ ok: true })
+    mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
     render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
 
     fireEvent.keyDown(window, { key: 'r' })
@@ -174,8 +176,7 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
   it('should ignore shortcut keys typed into an editor field', () => {
     render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-bit-button-b1'))
-    fireEvent.keyDown(screen.getByTestId('knowledge-bit-review-edit-body-b1'), { key: 'a' })
+    fireEvent.keyDown(screen.getAllByRole('textbox')[0]!, { key: 'a' })
 
     expect(mockedApprove).not.toHaveBeenCalled()
   })

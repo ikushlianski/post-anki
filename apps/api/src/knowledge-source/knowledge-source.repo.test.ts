@@ -58,6 +58,7 @@ describe("insertKnowledgeSource", () => {
         rawText: "Some pasted prose.",
         status: "pending",
         subjectId: null,
+        extractionModelId: null,
       },
     ]);
     expect(created).toMatchObject({
@@ -67,6 +68,29 @@ describe("insertKnowledgeSource", () => {
     });
     expect(created.id).toMatch(/^ks_/);
     expect(created.createdAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("insertKnowledgeSource model choice", () => {
+  beforeEach(() => {
+    state.insertedRows = [];
+    state.existingNotionPageIds = new Set();
+  });
+
+  it("should remember the chosen extraction model on the stored source", async () => {
+    const created = await insertKnowledgeSource("Some pasted prose.", null, "openrouter/openai/gpt-6-luna");
+
+    expect(state.insertedRows[0]).toMatchObject({ extractionModelId: "openrouter/openai/gpt-6-luna" });
+    expect(created.extractionModelId).toBe("openrouter/openai/gpt-6-luna");
+  });
+
+  it("should remember the same model on every source of a batch", async () => {
+    await insertKnowledgeSources(["One.", "Two."], null, "openrouter/openai/gpt-5-mini");
+
+    expect(state.insertedRows.map((row) => (row as { extractionModelId: string }).extractionModelId)).toEqual([
+      "openrouter/openai/gpt-5-mini",
+      "openrouter/openai/gpt-5-mini",
+    ]);
   });
 });
 
@@ -80,8 +104,8 @@ describe("insertKnowledgeSources", () => {
     const created = await insertKnowledgeSources(["First idea.", "Second idea."]);
 
     expect(state.insertedRows).toEqual([
-      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "First idea.", status: "pending", subjectId: null },
-      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "Second idea.", status: "pending", subjectId: null },
+      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "First idea.", status: "pending", subjectId: null, extractionModelId: null },
+      { id: expect.stringMatching(/^ks_/), kind: "prose", rawText: "Second idea.", status: "pending", subjectId: null, extractionModelId: null },
     ]);
     expect(created).toHaveLength(2);
     expect(created.every((row) => row.createdAt instanceof Date)).toBe(true);

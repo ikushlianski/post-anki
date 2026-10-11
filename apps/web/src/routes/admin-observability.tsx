@@ -2,10 +2,19 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { getAdminObservability } from '../admin-observability/admin-observability.api'
 import { formatTokens } from '../admin-observability/format-tokens'
+import { getKnowledgeBitFeedbackByModelForAdmin } from '../knowledge-bit/knowledge-bit-review.api'
+import { KnowledgeBitFeedbackByModel } from '../knowledge-bit/knowledge-bit-feedback-by-model'
 
 export const Route = createFileRoute('/admin-observability')({
   component: AdminObservabilityPage,
-  loader: () => getAdminObservability(),
+  loader: async () => {
+    const [observability, feedbackByModel] = await Promise.all([
+      getAdminObservability(),
+      getKnowledgeBitFeedbackByModelForAdmin(),
+    ])
+
+    return { ...observability, feedbackByModel }
+  },
 })
 
 function formatStuckFor(ms: number): string {
@@ -46,6 +55,11 @@ function AdminObservabilityPage() {
           Stuck-course detection and recent LLM call events. Internal debugging view.
         </p>
       </header>
+
+      <section className="mb-10">
+        <h2 className="mb-3 text-lg font-medium">Suggestion review by model</h2>
+        <KnowledgeBitFeedbackByModel data={data.feedbackByModel} />
+      </section>
 
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-medium">Stuck curricula</h2>

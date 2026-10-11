@@ -19,6 +19,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
+  restoreKnowledgeBitForReview: vi.fn(),
+  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),

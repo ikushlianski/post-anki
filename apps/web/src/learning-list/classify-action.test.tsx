@@ -33,7 +33,7 @@ describe('ClassifyAction', () => {
     const { onClassify, onClassified } = renderAction()
 
     fireEvent.change(screen.getByTestId('classify-action-subject'), {
-      target: { value: 'subject-2' },
+      target: { value: 'Cloud & AWS' },
     })
     fireEvent.click(screen.getByTestId('classify-action-submit'))
 

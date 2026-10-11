@@ -477,7 +477,7 @@ describe('AddKnowledgeForm', () => {
 
     render(<AddKnowledgeForm />)
 
-    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'sub_web' } })
+    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'Web' } })
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Block one' } })
     fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
     fireEvent.change(screen.getByTestId('knowledge-block-input-1'), { target: { value: 'Block two' } })
@@ -528,7 +528,7 @@ describe('AddKnowledgeForm with a preselected subject', () => {
 
     render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
 
-    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('sub_sales')
+    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('Business › Sales')
     expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe(
       'Adding to: Business › Sales',
     )
@@ -562,7 +562,7 @@ describe('AddKnowledgeForm with a preselected subject', () => {
 
     render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
 
-    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'sub_business' } })
+    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'Business' } })
     expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe('Adding to: Business')
 
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
@@ -626,7 +626,7 @@ describe('Route (/add-knowledge) subject search param', () => {
 
     render(<AddKnowledgePage />)
 
-    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('sub_sales')
+    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('Business › Sales')
   })
 })
 
@@ -698,5 +698,66 @@ describe('Sidebar', () => {
     expect(screen.getByTestId('nav-knowledge-bit-review').getAttribute('data-to')).toBe(
       '/knowledge-bit-review',
     )
+  })
+})
+
+describe('AddKnowledgeForm model choice', () => {
+  it('sends the chosen model with a pasted text so that model parses this knowledge', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-model-select'), {
+      target: { value: 'openrouter/openai/gpt-6-luna' },
+    })
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({
+        data: { text: 'Some prose', subjectId: undefined, modelId: 'openrouter/openai/gpt-6-luna' },
+      })
+    })
+  })
+
+  it('sends the chosen model with every block when several are submitted', async () => {
+    mockedCreateKnowledgeSources.mockResolvedValue([source('ks_1'), source('ks_2')])
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-model-select'), {
+      target: { value: 'openrouter/openai/gpt-5-mini' },
+    })
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Block one' } })
+    fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
+    fireEvent.change(screen.getByTestId('knowledge-block-input-1'), { target: { value: 'Block two' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(mockedCreateKnowledgeSources).toHaveBeenCalledWith({
+        data: {
+          texts: ['Block one', 'Block two'],
+          subjectId: undefined,
+          modelId: 'openrouter/openai/gpt-5-mini',
+        },
+      })
+    })
+  })
+
+  it('sends no model when the default is left selected so the admin default applies', async () => {
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm />)
+
+    expect((screen.getByTestId('knowledge-model-select') as HTMLSelectElement).value).toBe('')
+
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({
+        data: { text: 'Some prose', subjectId: undefined, modelId: undefined },
+      })
+    })
   })
 })

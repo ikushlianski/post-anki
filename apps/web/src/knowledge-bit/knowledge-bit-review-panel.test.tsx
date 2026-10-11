@@ -24,6 +24,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
+  restoreKnowledgeBitForReview: vi.fn(),
+  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -110,7 +112,7 @@ describe('KnowledgeBitReviewPanel', () => {
   })
 
   it('removes the bit when reject succeeds, keeping the panel retry-friendly on a later failure', async () => {
-    mockedReject.mockResolvedValue({ ok: true })
+    mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
 
     renderPanel()
 
@@ -138,35 +140,36 @@ describe('KnowledgeBitReviewPanel', () => {
     expect(screen.getByTestId('knowledge-bit-review-item-bit-1')).toBeDefined()
   })
 
-  it('edits a variant then approves, sending the edited text and leaving the bit approvable', async () => {
+  const SAVE_WAIT = { timeout: 4000 }
+
+  function typeInto(testId: string, value: string) {
+    fireEvent.change(screen.getByTestId(testId), { target: { value } })
+  }
+
+  it('saves a card edit by itself, then approves with the edited text', async () => {
     mockedEditVariant.mockResolvedValue({ ok: true, variantId: 'var-2' })
     mockedApprove.mockResolvedValue({ ok: true })
 
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-var-1'))
-
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-prompt-var-1'), {
-      target: { value: 'What is written first?' },
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-answer-var-1'), {
-      target: { value: 'The write-ahead log.' },
-    })
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-var-1'))
+    typeInto('knowledge-bit-review-edit-prompt-var-1', 'What is written first?')
+    typeInto('knowledge-bit-review-edit-answer-var-1', 'The write-ahead log.')
 
     await waitFor(() => {
       expect(mockedEditVariant).toHaveBeenCalledWith({
         data: { variantId: 'var-1', prompt: 'What is written first?', answer: 'The write-ahead log.' },
       })
-    })
+    }, SAVE_WAIT)
 
     await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-variant-var-1')).toBeNull()
-    })
+      expect(
+        (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
+      ).toBe(false)
+    }, SAVE_WAIT)
 
-    expect(screen.getByTestId('knowledge-bit-review-variant-var-2')).toBeDefined()
-    expect(screen.getByText('What is written first?')).toBeDefined()
+    expect((screen.getByTestId('knowledge-bit-review-edit-prompt-var-2') as HTMLTextAreaElement).value).toBe(
+      'What is written first?',
+    )
 
     fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-bit-1'))
 
@@ -180,214 +183,67 @@ describe('KnowledgeBitReviewPanel', () => {
 
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-var-1'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-prompt-var-1'), {
-      target: { value: 'First edit?' },
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-answer-var-1'), {
-      target: { value: 'First answer.' },
-    })
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-var-1'))
+    typeInto('knowledge-bit-review-edit-prompt-var-1', 'First edit?')
 
     await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-variant-var-2')).toBeDefined()
-    })
+      expect(screen.getByTestId('knowledge-bit-review-edit-prompt-var-2')).toBeDefined()
+    }, SAVE_WAIT)
 
     mockedEditVariant.mockResolvedValueOnce({ ok: true, variantId: 'var-3' })
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-var-2'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-prompt-var-2'), {
-      target: { value: 'Second edit?' },
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-answer-var-2'), {
-      target: { value: 'Second answer.' },
-    })
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-var-2'))
+    typeInto('knowledge-bit-review-edit-prompt-var-2', 'Second edit?')
 
     await waitFor(() => {
       expect(mockedEditVariant).toHaveBeenLastCalledWith({
-        data: { variantId: 'var-2', prompt: 'Second edit?', answer: 'Second answer.' },
+        data: { variantId: 'var-2', prompt: 'Second edit?', answer: 'A WAL write.' },
       })
-    })
+    }, SAVE_WAIT)
   })
 
-  it('keeps the editor open with the draft intact when an edit save fails', async () => {
+  it('keeps the typed text and blocks approve when saving a card fails', async () => {
     mockedEditVariant.mockRejectedValue(new Error('network error'))
 
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-var-1'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-prompt-var-1'), {
-      target: { value: 'What is written first?' },
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-answer-var-1'), {
-      target: { value: 'The write-ahead log.' },
-    })
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-var-1'))
+    typeInto('knowledge-bit-review-edit-prompt-var-1', 'Will not save?')
 
     await waitFor(() => {
       expect(mockedEditVariant).toHaveBeenCalled()
+    }, SAVE_WAIT)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-bit-review-autosave-status-var-1').textContent).toContain('Could not save')
     })
 
-    expect(screen.getByTestId('knowledge-bit-review-edit-prompt-var-1')).toHaveProperty(
-      'value',
-      'What is written first?',
+    expect((screen.getByTestId('knowledge-bit-review-edit-prompt-var-1') as HTMLTextAreaElement).value).toBe(
+      'Will not save?',
     )
-    expect(screen.queryByTestId('knowledge-bit-review-variant-var-1')).toBeNull()
-
-    expect(
-      (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
-    ).toBe(true)
+    expect((screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('edits the bit\'s own fact text and background, sending the edited text', async () => {
-    mockedEditBit.mockResolvedValue({ ok: true })
+  it('blocks approve and reject while a card edit is still saving', async () => {
+    const saving = deferred<{ ok: true; variantId: string }>()
+
+    mockedEditVariant.mockReturnValue(saving.promise)
 
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-bit-button-bit-1'))
-
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-body-bit-1'), {
-      target: { value: 'Turbopuffer writes to a WAL first, then indexes.' },
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-background-bit-1'), {
-      target: { value: 'Revised durability note.' },
-    })
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-bit-bit-1'))
-
-    await waitFor(() => {
-      expect(mockedEditBit).toHaveBeenCalledWith({
-        data: {
-          bitId: 'bit-1',
-          body: 'Turbopuffer writes to a WAL first, then indexes.',
-          background: 'Revised durability note.',
-        },
-      })
-    })
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-edit-bit-bit-1')).toBeNull()
-    })
-
-    expect(screen.getByText('Turbopuffer writes to a WAL first, then indexes.')).toBeDefined()
-    expect(screen.getByText('Revised durability note.')).toBeDefined()
-  })
-
-  it('clears the now-stale question variants when a bit-text edit changes the body, since the server deletes them', async () => {
-    mockedEditBit.mockResolvedValue({ ok: true })
-
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-bit-button-bit-1'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-body-bit-1'), {
-      target: { value: 'A changed fact that invalidates the old question.' },
-    })
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-bit-bit-1'))
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-edit-bit-bit-1')).toBeNull()
-    })
-
-    expect(screen.queryByTestId('knowledge-bit-review-variant-var-1')).toBeNull()
-    expect(screen.getByTestId('knowledge-bit-review-no-variants-bit-1')).toBeDefined()
-  })
-
-  it('keeps the existing question variants when a bit-text edit only touches the background', async () => {
-    mockedEditBit.mockResolvedValue({ ok: true })
-
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-bit-button-bit-1'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-background-bit-1'), {
-      target: { value: 'Only the background changed.' },
-    })
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-bit-bit-1'))
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-edit-bit-bit-1')).toBeNull()
-    })
-
-    expect(screen.getByTestId('knowledge-bit-review-variant-var-1')).toBeDefined()
-    expect(screen.getByText('What happens before indexing?')).toBeDefined()
-  })
-
-  it('blocks approve/reject/cancel while a variant edit is still saving, preventing a stale approve racing an in-flight edit', async () => {
-    const pendingSave = deferred<{ ok: true; variantId: string }>()
-    mockedEditVariant.mockReturnValue(pendingSave.promise)
-
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-var-1'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-prompt-var-1'), {
-      target: { value: 'Edited while saving?' },
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-edit-answer-var-1'), {
-      target: { value: 'Edited answer.' },
-    })
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-save-var-1'))
+    typeInto('knowledge-bit-review-edit-prompt-var-1', 'Racing edit?')
 
     await waitFor(() => {
       expect(mockedEditVariant).toHaveBeenCalled()
-    })
+    }, SAVE_WAIT)
 
-    // The save is still in flight — Approve/Reject must stay disabled, and
-    // Cancel must not be able to close the editor out from under it (that
-    // was the exact race: cancel, then approve the pre-edit content while
-    // the edit resolves in the background).
-    expect(
-      (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
-    ).toBe(true)
-    expect(
-      (screen.getByTestId('knowledge-bit-review-reject-bit-1') as HTMLButtonElement).disabled,
-    ).toBe(true)
+    expect((screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByTestId('knowledge-bit-review-reject-bit-1') as HTMLButtonElement).disabled).toBe(true)
 
-    const cancel = screen.getByTestId('knowledge-bit-review-cancel-var-1') as HTMLButtonElement
-    expect(cancel.disabled).toBe(true)
-    fireEvent.click(cancel)
-    expect(screen.getByTestId('knowledge-bit-review-edit-prompt-var-1')).toBeDefined()
-
-    pendingSave.resolve({ ok: true, variantId: 'var-2' })
+    saving.resolve({ ok: true, variantId: 'var-2' })
 
     await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-edit-prompt-var-1')).toBeNull()
-    })
-
-    expect(
-      (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
-    ).toBe(false)
+      expect((screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled).toBe(false)
+    }, SAVE_WAIT)
   })
 
-  it('disables starting a second editor while one is already open', () => {
-    const twoVariantSource: PendingKnowledgeSourceForReview = {
-      ...SOURCE,
-      bits: [
-        {
-          ...SOURCE.bits[0]!,
-          variants: [
-            ...SOURCE.bits[0]!.variants,
-            { id: 'var-2', kind: 'wh_question', prompt: 'A second question?', answer: 'A second answer.' },
-          ],
-        },
-      ],
-    }
-
-    renderPanel([twoVariantSource])
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-edit-var-1'))
-
-    expect(
-      (screen.getByTestId('knowledge-bit-review-edit-var-2') as HTMLButtonElement).disabled,
-    ).toBe(true)
-    expect(
-      (screen.getByTestId('knowledge-bit-review-edit-bit-button-bit-1') as HTMLButtonElement)
-        .disabled,
-    ).toBe(true)
-  })
-
-  it('labels each card by type and lets a bit with only a basic card be approved', () => {
+  it('shows a basic card as front and back and lets a bit with only that card be approved', () => {
     const basicSource: PendingKnowledgeSourceForReview = {
       ...SOURCE,
       bits: [
@@ -400,9 +256,12 @@ describe('KnowledgeBitReviewPanel', () => {
 
     renderPanel([basicSource])
 
-    expect(screen.getByTestId('knowledge-bit-review-variant-kind-var-basic').textContent).toBe('Front / back')
-    expect(screen.getByTestId('knowledge-bit-review-variant-var-basic').textContent).toContain('Front: What is a WAL?')
-    expect(screen.getByTestId('knowledge-bit-review-variant-var-basic').textContent).toContain('Back: A write-ahead log.')
+    expect((screen.getByTestId('knowledge-bit-review-edit-prompt-var-basic') as HTMLTextAreaElement).value).toBe(
+      'What is a WAL?',
+    )
+    expect((screen.getByTestId('knowledge-bit-review-edit-answer-var-basic') as HTMLTextAreaElement).value).toBe(
+      'A write-ahead log.',
+    )
     expect(
       (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
     ).toBe(false)

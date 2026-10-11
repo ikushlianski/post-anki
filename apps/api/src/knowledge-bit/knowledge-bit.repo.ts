@@ -63,6 +63,8 @@ export async function insertKnowledgeBits(
 export interface PendingKnowledgeSource {
   id: string;
   rawText: string | null;
+  extractionModelId: string | null;
+  subjectId: string | null;
   // The `updatedAt` value this exact claim set — an ownership token. Every
   // later write for this source must require it still matches, so a claim
   // reclaimed by `resetStaleProcessingKnowledgeSources` (or a second scan)
@@ -88,7 +90,12 @@ export async function claimPendingKnowledgeSources(
       .update(knowledgeSources)
       .set({ status: "processing", updatedAt: claimedAt })
       .where(and(eq(knowledgeSources.id, candidate.id), eq(knowledgeSources.status, "pending")))
-      .returning({ id: knowledgeSources.id, rawText: knowledgeSources.rawText });
+      .returning({
+        id: knowledgeSources.id,
+        rawText: knowledgeSources.rawText,
+        extractionModelId: knowledgeSources.extractionModelId,
+        subjectId: knowledgeSources.subjectId,
+      });
 
     const claimedRow = rows[0];
 
