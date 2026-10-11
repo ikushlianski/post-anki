@@ -152,3 +152,4 @@
 {"ts":"2026-10-11T00:04:11.841Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Approve all asks to confirm and lists why items were skipped"}
 {"ts":"2026-10-11T00:04:11.888Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Empty approval page points to Add knowledge"}
 {"ts":"2026-10-11T00:04:11.936Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Raise hint contrast and touch target size on approval and review"}
+{"ts":"2026-10-11T00:07:00.619Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Allow the custom web domain in the API origin allow-list"}

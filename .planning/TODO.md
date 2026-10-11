@@ -64,6 +64,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
+- [ ] Allow the custom web domain in the API origin allow-list
 - [x] Settings switcher to pick the extraction model from five candidates
 - [x] Fix single-item review batch serving the same item twice
 - [x] Show newly detected suggestions on the approval page without reload
