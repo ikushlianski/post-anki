@@ -10,11 +10,12 @@ import {
   subjectsCollection,
 } from '../curriculum/board.collection'
 
-import { getBoard, getDueTopics } from '../curriculum/curriculum.api'
+import { getBoard, getDueTopics, getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
 import { getStreak } from '../curriculum/stats.api'
 import { settle, settleNullable } from '../shared/load-result'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
 import type { Curriculum, Subject } from '../curriculum/model'
+import { browserTimeZone } from '../knowledge-bit/anki-review-session-actions'
 import { listLearningPaths } from '../learning-path/learning-path.api'
 import { listStudySessions } from '../study-session/study-session.api'
 import {
@@ -35,6 +36,7 @@ export const Route = createFileRoute('/')({
       learningPaths,
       streak,
       dueTopics,
+      subjectDueCounts,
     ] = await Promise.all([
       getBoard(),
       settle(listCourseRefocusSuggestions()),
@@ -42,6 +44,7 @@ export const Route = createFileRoute('/')({
       settle(listLearningPaths({ data: { onlyActive: true } })),
       settleNullable(getStreak()),
       settle(getDueTopics({ data: { limit: 5 } })),
+      settle(getSubjectReviewDueCounts({ data: { tz: browserTimeZone() } })),
     ])
 
     return {
@@ -51,6 +54,7 @@ export const Route = createFileRoute('/')({
       learningPaths,
       streak,
       dueTopics,
+      subjectDueCounts,
     }
   },
 })
@@ -127,6 +131,7 @@ function Home() {
         learningPaths={initial.learningPaths}
         streak={initial.streak}
         dueTopics={initial.dueTopics}
+        subjectDueCounts={initial.subjectDueCounts}
         onRenameSubject={renameSubject}
         onDeleteSubject={deleteSubject}
         onCreateSubSubject={createSubSubject}

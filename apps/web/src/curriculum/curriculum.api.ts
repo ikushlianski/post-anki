@@ -72,6 +72,12 @@ export const getDueTopics = createServerFn({ method: 'GET' })
   .inputValidator((data: { limit?: number } | undefined) => data)
   .handler(({ data }): Promise<api.DueTopic[]> => api.listDueTopics(data?.limit))
 
+export const getSubjectReviewDueCounts = createServerFn({ method: 'GET' })
+  .inputValidator((data: unknown) =>
+    z.object({ tz: z.string().min(1).optional() }).optional().parse(data),
+  )
+  .handler(({ data }) => api.listSubjectReviewDueCounts(data?.tz))
+
 export const createSubjectCategory = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => createSubjectCategoryInput.parse(data))
   .handler(({ data }): Promise<SubjectCategory> => api.createSubjectCategory(data))
