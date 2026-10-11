@@ -111,6 +111,11 @@ updated: 2026-09-04
 - [x] Approve all asks to confirm and lists why items were skipped
 - [x] Empty approval page points to Add knowledge
 - [x] Raise hint contrast and touch target size on approval and review
+- [ ] Phone-width checks: no horizontal overflow on key screens, with screenshots
+- [ ] Cards keep the source language and never say the bit or the text
+- [ ] Write cards in parallel and show how many are ready
+- [ ] Detected items must stand alone, with no dangling this or that
+- [ ] Compare the five models side by side on the user's Russian text
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
