@@ -166,3 +166,4 @@
 {"ts":"2026-10-11T00:27:46.766Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":"classic-anki-review","itemText":"Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20"}
 {"ts":"2026-10-11T00:27:46.811Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Detected items must stand alone, with no dangling this or that"}
 {"ts":"2026-10-11T00:33:18.633Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20"}
+{"ts":"2026-10-11T00:33:35.233Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"done","direction":"classic-anki-review","itemText":"Compare the five models side by side on the user's Russian text"}

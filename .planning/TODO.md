@@ -119,7 +119,7 @@ updated: 2026-09-04
 - [x] Cards keep the source language and never say the bit or the text
 - [x] Write cards in parallel and show how many are ready
 - [ ] Detected items must stand alone, with no dangling this or that
-- [ ] Compare the five models side by side on the user's Russian text
+- [x] Compare the five models side by side on the user's Russian text
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
