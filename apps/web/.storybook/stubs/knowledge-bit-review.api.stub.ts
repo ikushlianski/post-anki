@@ -34,3 +34,15 @@ export async function bulkApproveKnowledgeBitsForReview(input: {
 }): Promise<BulkApproveKnowledgeBitsResponse> {
   return { approved: input.data.knowledgeBitIds, skipped: [] } as BulkApproveKnowledgeBitsResponse
 }
+
+export async function regenerateKnowledgeSourceForReview(_input: {
+  data: { sourceId: string }
+}) {
+  return { status: 'running' as const, supersededCount: 0 }
+}
+
+export async function getKnowledgeSourceRegenerationForReview(_input: {
+  data: { sourceId: string }
+}) {
+  return { status: 'running' as const, failureReason: null }
+}

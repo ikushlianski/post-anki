@@ -11,6 +11,10 @@ import {
 import { applyBitEdit, applyVariantEdit, removeBit } from './knowledge-bit-review-sources'
 import { KnowledgeBitReviewBulkBar } from './knowledge-bit-review-bulk-bar'
 import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
+import {
+  REGENERATION_POLL_INTERVAL_MS,
+  useSourceRegeneration,
+} from './knowledge-bit-review-regeneration'
 import { KnowledgeBitReviewEmptyState } from './knowledge-bit-review-empty-state'
 import { KnowledgeBitReviewSourceGroup } from './knowledge-bit-review-source-group'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
@@ -41,6 +45,8 @@ export function KnowledgeBitReviewPanel({
     new Set(initialSources.flatMap((source) => source.bits.map((bit) => bit.id))),
   )
   const quietPolls = useRef(0)
+  const regeneration = useSourceRegeneration({ sources, setSources, knownBitIds })
+  const { fetchStatuses, applyStatuses } = regeneration
 
   const allBits = sources.flatMap((source) => source.bits)
   const focusPosition = allBits.findIndex((bit) => bit.id === focusedBitId)
@@ -59,6 +65,7 @@ export function KnowledgeBitReviewPanel({
   }
 
   const refreshQuestions = useCallback(async () => {
+    const statuses = await fetchStatuses()
     const fresh = await getPendingKnowledgeBitsForReview()
     const arrived = new Set(unseenBitIds(fresh, knownBitIds.current))
     const protectedBitIds = new Set([
@@ -72,11 +79,13 @@ export function KnowledgeBitReviewPanel({
     setSources((prev) =>
       mergeArrivedBits(mergeArrivedVariants(prev, fresh, protectedBitIds), fresh, arrived),
     )
-  }, [rowErrors])
+    applyStatuses(statuses)
+  }, [rowErrors, fetchStatuses, applyStatuses])
 
   const pollingGaveUp = useQuestionPolling(
-    hasBitAwaitingQuestions(sources) || !idleStopped,
+    hasBitAwaitingQuestions(sources) || !idleStopped || regeneration.isRegenerating,
     refreshQuestions,
+    regeneration.isRegenerating ? REGENERATION_POLL_INTERVAL_MS : undefined,
   )
 
   const handleEditingChange = useCallback((bitId: string, editing: boolean) => {
@@ -226,6 +235,12 @@ export function KnowledgeBitReviewPanel({
 
   return (
     <div data-testid="knowledge-bit-review-panel" className="space-y-4">
+      {hasBitAwaitingQuestions(sources) && !pollingGaveUp ? (
+        <p data-testid="knowledge-bit-review-progress" className="text-sm text-neutral-600">
+          Writing cards… {readyBits.length} of {allBits.length} ready
+        </p>
+      ) : null}
+
       <KnowledgeBitReviewBulkBar
         readyCount={readyBits.length}
         bulkMessage={bulk.bulkMessage}
@@ -250,6 +265,8 @@ export function KnowledgeBitReviewPanel({
               isVariantSaving={isVariantSaving}
               isBitSaving={isBitSaving}
               isConfirmingBulk={bulk.confirmingSourceId === source.knowledgeSourceId}
+              regeneration={regeneration.states[source.knowledgeSourceId]}
+              regenerationActions={regeneration.actions}
               onRequestApproveSource={bulk.requestApproveSource}
               onConfirmBulk={bulk.confirmBulk}
               onCancelBulk={bulk.cancelBulk}

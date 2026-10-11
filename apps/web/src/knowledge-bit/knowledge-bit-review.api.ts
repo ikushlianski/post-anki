@@ -3,6 +3,8 @@ import { z } from 'zod'
 import {
   editKnowledgeBitQuestionVariantInput,
   bulkApproveKnowledgeBitsInput,
+  regenerateKnowledgeSourceInput,
+  type KnowledgeSourceRegenerationStatus,
   type BulkApproveKnowledgeBitsResponse,
   type PendingKnowledgeBitReviewCountResponse,
   type PendingKnowledgeSourceForReview,
@@ -12,10 +14,13 @@ import {
   approveKnowledgeBit,
   bulkApproveKnowledgeBits,
   editKnowledgeBit,
+  getKnowledgeSourceRegeneration,
   getPendingKnowledgeBitCount,
   editKnowledgeBitQuestionVariant,
   listPendingKnowledgeBitsForReview,
+  regenerateKnowledgeSource,
   rejectKnowledgeBit,
+  type RegenerateKnowledgeSourceOutcome,
 } from '../curriculum/api-client'
 
 export const getPendingKnowledgeBitsForReview = createServerFn({ method: 'GET' }).handler(
@@ -65,3 +70,23 @@ export const bulkApproveKnowledgeBitsForReview = createServerFn({ method: 'POST'
 export const getPendingKnowledgeBitCountForNav = createServerFn({ method: 'GET' }).handler(
   (): Promise<PendingKnowledgeBitReviewCountResponse> => getPendingKnowledgeBitCount(),
 )
+
+const regenerateKnowledgeSourceForReviewInput = z
+  .object({ sourceId: z.string().min(1) })
+  .and(regenerateKnowledgeSourceInput)
+
+export const regenerateKnowledgeSourceForReview = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => regenerateKnowledgeSourceForReviewInput.parse(data))
+  .handler(
+    ({ data }): Promise<RegenerateKnowledgeSourceOutcome> =>
+      regenerateKnowledgeSource(data.sourceId, data.modelId),
+  )
+
+const sourceIdInput = z.object({ sourceId: z.string().min(1) })
+
+export const getKnowledgeSourceRegenerationForReview = createServerFn({ method: 'GET' })
+  .inputValidator((data: unknown) => sourceIdInput.parse(data))
+  .handler(
+    ({ data }): Promise<KnowledgeSourceRegenerationStatus> =>
+      getKnowledgeSourceRegeneration(data.sourceId),
+  )

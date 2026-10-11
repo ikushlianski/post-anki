@@ -9,7 +9,7 @@ updated: 2026-10-11
 
 ## What it does
 
-An admin picks one of five OpenRouter models on the admin settings page. The four knowledge-item writers (the detector, and the question, fill-blank and basic card generators) use that model from their next run onward. A run that has already started keeps the model it read at its start. Every LLM call those writers make records the model id it used.
+An admin picks one of five OpenRouter models on the admin settings page. The four knowledge-item writers (the whole-source item writer, and the question, fill-blank and basic card generators) use that model from their next run onward. A run that has already started keeps the model it read at its start. Regenerate on the approval page can pin one allowlisted model for that run only. Every LLM call those writers make records the model id it used.
 
 The choice is global. It does not follow the subject or curriculum tier cascade that other agents use.
 
@@ -52,7 +52,7 @@ Each writer's run follows the same steps:
 
 The agent's `model` field is `dynamicKnowledgeItemModel(env)` from `apps/api/src/mastra/model.ts`. Mastra calls it per generate call. It returns the pinned id from the request context when present, and otherwise reads the stored setting. It then passes the id through `resolveAgentModel`, which adds the OpenRouter base URL.
 
-The four writers are `knowledge-bit-detector.agent.ts`, `knowledge-bit-question-generator.agent.ts`, `knowledge-bit-fill-blank-generator.agent.ts` and `knowledge-bit-basic-card-generator.agent.ts`, all under `apps/api/src/mastra/`.
+The four writers are `knowledge-bit-source-items.agent.ts` (it replaced the sentence-by-sentence detector and writes statement, question and answer from the whole source), `knowledge-bit-question-generator.agent.ts`, `knowledge-bit-fill-blank-generator.agent.ts` and `knowledge-bit-basic-card-generator.agent.ts`, all under `apps/api/src/mastra/`.
 
 `generateWithRetry` in `apps/api/src/mastra/generate-with-retry.ts` retries a failed call twice (three attempts). It writes one `llm_call_events` row for the whole retry sequence, either on success with token counts or on final failure with the error message. The row carries the pinned `modelId`.
 

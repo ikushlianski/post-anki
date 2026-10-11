@@ -50,7 +50,7 @@ export function KnowledgeBitReviewVariantList({
           />
           {pollingGaveUp
             ? 'Still waiting. Reload the page to check again.'
-            : 'Waiting for questions — checking automatically.'}
+            : 'Writing cards…'}
         </li>
       ) : null}
 

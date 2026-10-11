@@ -446,12 +446,37 @@ describe('KnowledgeBitReviewPanel', () => {
 
     renderPanel([noVariantSource])
 
-    expect(screen.getByTestId('knowledge-bit-review-no-variants-bit-1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-no-variants-bit-1').textContent).toBe(
+      'Writing cards…',
+    )
     expect(
       (screen.getByTestId('knowledge-bit-review-approve-bit-1') as HTMLButtonElement).disabled,
     ).toBe(true)
     expect(
       (screen.getByTestId('knowledge-bit-review-reject-bit-1') as HTMLButtonElement).disabled,
     ).toBe(false)
+  })
+
+  it('shows how many bits are ready out of all bits while cards are still being written', () => {
+    const mixedSource: PendingKnowledgeSourceForReview = {
+      ...SOURCE,
+      bits: [
+        SOURCE.bits[0]!,
+        { id: 'bit-2', body: 'Second fact.', background: null, variants: [] },
+        { id: 'bit-3', body: 'Third fact.', background: null, variants: [] },
+      ],
+    }
+
+    renderPanel([mixedSource])
+
+    expect(screen.getByTestId('knowledge-bit-review-progress').textContent).toBe(
+      'Writing cards… 1 of 3 ready',
+    )
+  })
+
+  it('hides the progress line once every bit has its cards', () => {
+    renderPanel([SOURCE])
+
+    expect(screen.queryByTestId('knowledge-bit-review-progress')).toBeNull()
   })
 })

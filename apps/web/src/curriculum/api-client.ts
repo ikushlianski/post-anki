@@ -549,6 +549,36 @@ export async function editKnowledgeBit(
   })
 }
 
+export type RegenerateKnowledgeSourceOutcome =
+  | be.RegenerateKnowledgeSourceResult
+  | { status: 'already_running' }
+
+export async function regenerateKnowledgeSource(
+  sourceId: string,
+  modelId?: be.KnowledgeItemModelId,
+): Promise<RegenerateKnowledgeSourceOutcome> {
+  try {
+    return await request<be.RegenerateKnowledgeSourceResult>(
+      `/knowledge-sources/${sourceId}/regeneration`,
+      { method: 'POST', body: modelId ? { modelId } : {} },
+    )
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      return { status: 'already_running' }
+    }
+
+    throw err
+  }
+}
+
+export async function getKnowledgeSourceRegeneration(
+  sourceId: string,
+): Promise<be.KnowledgeSourceRegenerationStatus> {
+  return request<be.KnowledgeSourceRegenerationStatus>(
+    `/knowledge-sources/${sourceId}/regeneration`,
+  )
+}
+
 // deepen-widen-recommendations (issue #90) additions below.
 
 export async function triggerDomainRecommendations(

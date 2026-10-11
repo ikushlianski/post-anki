@@ -229,8 +229,8 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     mockedGetPending.mockResolvedValue([source('s1', [bit('b1', false)])])
     render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', false)])]} />)
 
-    expect(screen.getByTestId('knowledge-bit-review-no-variants-b1').textContent).toContain(
-      'checking automatically',
+    expect(screen.getByTestId('knowledge-bit-review-no-variants-b1').textContent).toBe(
+      'Writing cards…',
     )
 
     await act(async () => {

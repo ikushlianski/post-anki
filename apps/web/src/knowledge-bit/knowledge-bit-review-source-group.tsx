@@ -1,8 +1,17 @@
-import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
+import type { KnowledgeItemModelId, PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import { KnowledgeBitReviewItem } from './knowledge-bit-review-item'
 import { KnowledgeBitReviewBulkConfirm } from './knowledge-bit-review-bulk-confirm'
 import { SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
+import { KnowledgeBitReviewRegenerate } from './knowledge-bit-review-regenerate'
+import type { SourceRegenerationState } from './knowledge-bit-review-regeneration'
+
+export interface SourceRegenerationActions {
+  onRequest: (sourceId: string) => void
+  onCancel: (sourceId: string) => void
+  onConfirm: (sourceId: string, modelId?: KnowledgeItemModelId) => void
+  onRetry: (sourceId: string) => void
+}
 
 const SOURCE_TEXT_PREVIEW_LENGTH = 400
 
@@ -15,6 +24,8 @@ export function KnowledgeBitReviewSourceGroup({
   isVariantSaving,
   isBitSaving,
   isConfirmingBulk,
+  regeneration,
+  regenerationActions,
   onRequestApproveSource,
   onConfirmBulk,
   onCancelBulk,
@@ -32,6 +43,8 @@ export function KnowledgeBitReviewSourceGroup({
   isVariantSaving: (variantId: string) => boolean
   isBitSaving: (bitId: string) => boolean
   isConfirmingBulk: boolean
+  regeneration: SourceRegenerationState | undefined
+  regenerationActions: SourceRegenerationActions
   onRequestApproveSource: (sourceId: string) => void
   onConfirmBulk: () => void
   onCancelBulk: () => void
@@ -65,6 +78,18 @@ export function KnowledgeBitReviewSourceGroup({
             {source.sourceText && source.sourceText.length > SOURCE_TEXT_PREVIEW_LENGTH ? '…' : ''}
           </p>
         </details>
+
+        {source.sourceText ? (
+          <KnowledgeBitReviewRegenerate
+            sourceId={source.knowledgeSourceId}
+            undecidedCount={source.bits.length}
+            state={regeneration}
+            onRequest={() => regenerationActions.onRequest(source.knowledgeSourceId)}
+            onCancel={() => regenerationActions.onCancel(source.knowledgeSourceId)}
+            onConfirm={(modelId) => regenerationActions.onConfirm(source.knowledgeSourceId, modelId)}
+            onRetry={() => regenerationActions.onRetry(source.knowledgeSourceId)}
+          />
+        ) : null}
 
         {readyCount > 1 ? (
           isConfirmingBulk ? (

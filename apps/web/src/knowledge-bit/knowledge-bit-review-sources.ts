@@ -54,3 +54,22 @@ export function applyBitEdit(
     ),
   }))
 }
+
+// Keeps the group on screen with no bits so a regenerating source does not vanish.
+export function markSourceRegenerating(
+  sources: PendingKnowledgeSourceForReview[],
+  sourceId: string,
+): PendingKnowledgeSourceForReview[] {
+  return sources.map((source) =>
+    source.knowledgeSourceId === sourceId ? { ...source, bits: [] } : source,
+  )
+}
+
+export function dropEmptySourcesExcept(
+  sources: PendingKnowledgeSourceForReview[],
+  keepIds: ReadonlySet<string>,
+): PendingKnowledgeSourceForReview[] {
+  return sources.filter(
+    (source) => source.bits.length > 0 || keepIds.has(source.knowledgeSourceId),
+  )
+}
