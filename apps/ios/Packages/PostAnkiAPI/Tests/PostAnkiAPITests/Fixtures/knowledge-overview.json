@@ -1,0 +1,7 @@
+{
+  "items": [
+    { "knowledgeBitId": "kb_20", "question": "What is a saga?", "answer": "A sequence of local transactions with compensations.", "subjectId": "sub_01", "state": "review", "dueAt": "2026-10-25T07:00:00.000Z", "lapses": 0 },
+    { "knowledgeBitId": "kb_21", "question": "Define CAP.", "answer": "Consistency, availability, partition tolerance: pick two under partition.", "subjectId": null, "state": "suspended", "dueAt": null, "lapses": 8 }
+  ],
+  "hasMore": true
+}

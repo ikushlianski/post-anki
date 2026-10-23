@@ -1,0 +1,7 @@
+{
+  "id": "pb_01",
+  "phrases": [
+    { "id": "ph_01", "russian": "Я посмотрю этот запрос на слияние.", "referenceEnglish": "I will look at this pull request." },
+    { "id": "ph_02", "russian": "Давайте обсудим это на стендапе.", "referenceEnglish": "Let us discuss this at standup." }
+  ]
+}

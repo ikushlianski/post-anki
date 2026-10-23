@@ -1,0 +1,4 @@
+[
+  { "id": "srd_01", "sourceAId": "src_01", "sourceBId": "src_02", "similarity": null, "matchKind": "url_match", "reason": "Same link", "status": "pending" },
+  { "id": "srd_02", "sourceAId": "src_01", "sourceBId": "src_gone", "similarity": 0.87, "matchKind": "semantic", "reason": "Near-identical text", "status": "pending" }
+]

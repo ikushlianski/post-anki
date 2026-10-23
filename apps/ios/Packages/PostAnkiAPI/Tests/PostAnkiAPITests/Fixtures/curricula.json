@@ -1,0 +1,16 @@
+[
+  {
+    "id": "cur_01",
+    "subjectId": "sub_01",
+    "name": "Distributed systems",
+    "description": "Core patterns",
+    "status": "ready",
+    "learningStatus": "in_progress",
+    "speed": "normal",
+    "hinting": true,
+    "origin": "generated",
+    "strictOrder": false,
+    "preAssessmentCompletedAt": null
+  },
+  { "id": "cur_02", "subjectId": "sub_01", "name": "Databases", "status": "draft" }
+]

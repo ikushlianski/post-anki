@@ -1,0 +1,4 @@
+- [ ] Tapping "Add knowledge" on a topic opens the dictation ingestion screen for that topic
+- [ ] Submitting dictated text clears the field and shows a success confirmation
+- [ ] A submit failure shows an inline error and keeps the dictated text in the field
+- [ ] Submitting doesn't block typing/dictating the next item (no modal spinner)

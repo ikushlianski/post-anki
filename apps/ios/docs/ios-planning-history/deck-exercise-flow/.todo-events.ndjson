@@ -1,0 +1,3 @@
+{"ts":"2026-10-17T08:01:35.129Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Add topicId param to APIClient.nextQuestionVariants"}
+{"ts":"2026-10-17T08:01:35.196Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Build ExerciseScreen with per-topic queue advance"}
+{"ts":"2026-10-17T08:01:35.261Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Wire topic tap in CoursesScreen to ExerciseScreen"}

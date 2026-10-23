@@ -1,0 +1,9 @@
+{
+  "approved": ["kb_10", "kb_12"],
+  "skipped": [
+    { "id": "kb_13", "reason": "already_decided" },
+    { "id": "kb_14", "reason": "no_variant" },
+    { "id": "kb_15", "reason": "no_variant" },
+    { "id": "kb_16", "reason": "not_found" }
+  ]
+}

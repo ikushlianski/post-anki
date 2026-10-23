@@ -1,0 +1,160 @@
+## macos-app
+
+### Scope
+- Priority: highest
+- A native macOS app target in this repo on the post-anki API, covering the core study loop: courses, review and ingest.
+- The macOS and iOS apps share one local Swift package for API types and client, so both decode the server identically.
+- Full iOS feature parity on the Mac, runnable locally from Xcode (user, 2026-10-23).
+- Out of scope: Server changes and OpenAPI type generation.
+
+### Coding tasks
+- [x] Drop unsent drafts when the access token is removed or replaced.
+- [x] Fix connection test: no-token result, clear result on save, test typed address, separate TLS errors.
+- [x] Make reload after absence keep chat turns, in-flight sends and any non-empty draft instead of resetting them.
+- [x] Reset the Decide session and input when the server changes, and notify when a draft is clipped.
+- [x] Make Cmd-K open the main window first when only Settings or Help is open.
+- [x] Clear forward history on every non-pop path change and ignore stale Refocus opens after switching entries.
+- [x] Reset all sidebar history stacks when the server address changes so old-server screens never reopen.
+- [x] Add a Settings toggle to hide the menu bar review item.
+- [x] Clear in-memory input drafts when the server address changes in Settings.
+- [x] Move the remaining Mac sidebar entries onto history-backed navigation so Cmd-[ and Cmd-] work everywhere.
+- [x] Add an architecture guide explaining the package, shared screens, registry and how to add a Mac feature.
+- [x] Add unit tests for the command palette matcher and the shortcut help list.
+- [x] Add fake-server tests for Mac write actions: tags, pending approval, learning list, answers and subject management.
+- [x] Keep unsent text in ingest, writing check, ask and decide fields when switching sidebar entries.
+- [x] Reload the visible Mac screen when the app becomes active after more than five minutes away.
+- [x] Add back and forward navigation inside each Mac sidebar entry with Cmd-[ and Cmd-].
+- [x] Add a menu bar item showing the due review count with a quick Review action.
+- [x] Add a Help menu window listing every Mac keyboard shortcut, built from the sidebar registry.
+- [x] Add a README section on running post-anki locally and pointing the Mac app at it.
+- [x] Test the sidebar registry for duplicate ids, duplicate shortcuts and empty groups on every Cmd-U run.
+- [x] Log failed requests with path and status, never tokens, and add a Copy diagnostics button in Settings.
+- [x] Add a Test connection button in Settings that reports reachable, signed in, or the exact failure.
+- [x] Add a Cmd-K command palette that jumps to any sidebar entry by typing part of its name.
+- [x] Split the due review model file that exceeds 300 lines into focused files without changing behavior.
+- [x] Let Return advance to the next question in Mac quick practice and fix its empty-state wording.
+- [x] Send queued offline grades and answers when the Mac regains focus or network.
+- [x] Open only http and https links from server or AI content; show other links as plain text.
+- [x] Read the access token from the keychain once per change instead of on every request.
+- [x] Share the due review card body between iPhone and Mac so grading behaviour cannot drift.
+- [x] Build every request path and query through one shared encoding helper, including ids in paths.
+- [x] Refuse redirects that change host or drop https so the access token never follows them.
+- [x] Cap parallel requests when approving or rejecting a large inbox selection on the Mac.
+- [x] Limit Mac knowledge bulk delete and move to items visible under the current status filter.
+- [x] Tie offline grades, cached questions and the last course to the server they came from.
+- [x] Stop retrying a queued offline answer after a bounded number of failed grading attempts.
+- [x] Send only recent chat turns and show signed-out errors so long tutor chats keep working.
+- [x] Make Continue studying on the Mac Home open the last course directly instead of the Courses list.
+- [x] Cover offline grading, sending and undo of scheduled reviews with fake-server tests for each queue state.
+- [x] Keep an in-progress language practice batch across sidebar switches instead of generating a new paid batch.
+- [x] Reload the visible screen and the Review badge right after the token or server address is saved.
+- [x] Treat cancelled requests as cancellation on every remaining screen so none shows a false offline error.
+- [x] Add VoiceOver labels to every icon-only Mac button and set sensible minimum window sizes.
+- [x] Review the files the first Mac review skipped, then fix real defects found.
+- [x] Give review screens a Reload button with Cmd-R and stop silently dropping unreadable queued answers.
+- [x] Add sidebar jump shortcuts, refresh and search focus shortcuts across Mac screens.
+- [x] Add Mac smoke tests for practice, study modes, authoring, structure and language models.
+- [x] Review the whole Mac app for crashes, unsafe unwraps, main-thread misuse and unhandled errors, then fix findings.
+- [x] Launch the built Mac app and confirm it starts, stays alive and writes no crash report.
+- [x] Check every Swift API model against the server's response schemas and fix mismatches that would fail decoding.
+- [x] Group the Mac sidebar into sections fed by one registry file per feature group.
+- [x] Move iOS feature screens into shared code so the Mac app compiles them unchanged.
+- [x] Mac topic study and practice: course detail actions, exercises, chats, notes, quick practice.
+- [x] Mac study modes: quizzes, socratic, lectures, topic gaps, returning gaps, study sessions.
+- [x] Mac library: sources, content inbox, Notion import, knowledge inbox, tags, search, notes.
+- [x] Mac learning tools: learning list, learning paths, decide sessions, ask, open questions, daily push.
+- [x] Mac course building and editing, organizing and refocus suggestions.
+- [x] Mac subject management, categories and knowledge maps.
+- [x] Mac language practice, duplicate review and admin tools.
+- [x] Mac smoke tests that load shared screens' data from a fake server, runnable with Cmd-U.
+- [x] Mac dev server address from Local.xcconfig and a launch-time connection and sign-in check.
+- [x] README steps and a run script for building and running the Mac app locally.
+- [x] Manual test sequence covering every Mac sidebar entry and launch-check state.
+- [x] Add macOS settings for server address and token, using shared token storage.
+- [x] Add a macOS app target to project.yml with courses, review and ingest screens.
+- [x] Extract the API client and models into a local Swift package shared by iOS and macOS.
+- [x] Add a Mac Home screen with today's due count, a Study now button and the latest topic.
+- [x] Add the knowledge browser to the Mac app: list, edit, suspend, delete and move items.
+- [x] Add the Progress screen to the Mac app with streak, milestones and retention.
+- [x] Add standard Mac menu commands and shortcuts, plus a Settings window opened with Cmd-comma.
+- [x] Show the pending-review count as a badge on the Review sidebar entry.
+- [x] Show clear empty, offline and signed-out states on every Mac screen.
+- [x] Remember the selected sidebar entry and window size between launches.
+- [x] Add a Mac app icon and accent colour.
+- [x] Add unit tests for the shared API package that decode sample server responses.
+
+### Notes
+- Parallel-eligible minor items: badge, window state restore, app icon, API package tests.
+
+
+## Coding tasks
+- [x] Let the learner add knowledge by typing or dictating text anywhere, not only inside a course.
+- [x] Add a screen to review pending knowledge items with approve and reject, like the web version.
+- [x] Add scheduled review: show knowledge items due today and record how well each was remembered.
+- [x] Fix the knowledge-item chat so it sends each earlier message with the field name the server expects, and drop the old note that the chat endpoint is unbuilt. The server now has the chat route but rejects the app's earlier messages with a 400 because the app calls that field content instead of text.
+- [x] Fix the offline question cache in three cases: do not reload the exercise after coming back from the discuss screen, do not show the offline banner when a request was only cancelled, and ignore a double tap on Next. Today these reload the exercise, wrongly say the app is offline, and can skip a question.
+- [x] Let the learner set the API server address and a personal access token in the app, keep the token in the iPhone's secure storage, and send it with every request. Without it the real API rejects the app, because it only accepts the shared secret or a personal access token.
+- [x] Add a one-tap Study now button on Home that starts practice for the last-studied course
+- [x] Cache upcoming question variants on device so exercises work offline on the go
+- [x] Queue answers given offline and send them for grading when connectivity returns
+- [x] Let the learner refine a knowledge item by chatting with AI, splitting it into several
+- [x] Scaffold the Xcode project from the existing Swift source files
+- [x] Show the latest course or topic I was studying on launch
+- [x] List every course, deck, and sub-deck
+- [x] Let me confirm newly generated knowledge bits from the app
+- [x] Let me pull to refresh courses, decks, and content
+- [x] Connect to the post-anki API with no login required
+- [x] Investigate whether the app can sync local-first, as fast as Electric SQL
+- [x] Let a deck open into an exercise from its pregenerated knowledge-item variants
+- [x] Build a dictation-friendly ingestion screen scoped to one course, topic, or module
+- [x] Auto-detect knowledge items from dictated text with a fast, cheap model
+- [x] Let the learner chat with a question-and-answer knowledge item
+- [x] Let the learner highlight chat text to send it to the knowledge-item inbox
+- [x] Show a knowledge-item inbox with approve, edit, postpone, and reassign-deck actions
+- [x] Support gesture-based approve in the knowledge-item inbox
+- [x] Auto-assign a deck to each ingested item, falling back to Unassigned
+- [ ] Point the app at post-anki's real dev API once it's deployed (prod not deployed yet)
+- [ ] Investigate caching and performance speedups for the app, report findings
+- [ ] Implement the performance and caching improvements found above
+- [x] Add a Progress screen with streak, milestones, retention and weekly digest from the server.
+- [x] Let the learner browse, edit, suspend, delete and move knowledge items from the app.
+- [x] Add asking across all cards, per-topic study chat, notes and open questions to the app.
+- [x] Add probe and socratic study sessions that quiz the learner on a topic.
+- [x] Add study sessions with start, answer, end and a consistency view.
+- [x] Add topic lectures and study materials, with lecture source review.
+- [x] Add gaps: declare, triage, curate, and resurface ones that are due.
+- [x] Add the learning list and learning paths, with capture, classify and destination choice.
+- [x] Add decide sessions and resolving their blind spots.
+- [x] Add language practice: phrase bank, phrase batches, attempts, writing checks and practice settings.
+- [x] Add tags: list, mastery, create, assign, remove and merge.
+- [x] Add global search and topic and module search.
+- [x] Add the daily push and due queue as a start-of-day screen.
+- [x] Add the source library and content inbox: list, refetch and delete sources.
+- [x] Add subject management: create, rename, delete, reorder, merge and categories.
+- [x] Add course building: create, sources, research, structure turns and confirm.
+- [x] Add module and topic editing: create, rename, reorder, delete and comment.
+- [x] Add domain maps and suggestion triage for priorities, recommendations, mappings and refocus.
+- [x] Add duplicate review for subjects and sources.
+- [x] Add Notion import as a knowledge source.
+- [x] Add tools to regenerate a knowledge source and generate more question variants.
+- [x] Add admin settings, observability and pipeline scan triggers.
+
+## Notes
+- Runs locally or side-loaded via a free Apple developer account, so it needs reinstalling every 7 days
+- API connection already has no auth (item 1) — done in the existing scaffold
+- Default: 'local, immediate' knowledge-fishing means a fast cheap-tier API call, not on-device inference, unless investigation finds otherwise
+- Prod API TLS handshake fails — likely a Cloud Run domain-mapping break in post-anki, not iOS-side
+- Electric dropped: prod has no DB secret, never healthy; registry names PowerSync for post-anki mobile
+- Perf/caching and real-API wiring tabled for now per user — building UI/logic against the real contract instead
+- Simulator tap-screenshot verification (AppleScript/System Events) lost Accessibility permission; grant it to re-enable live UI proof
+- KI inbox approve/edit/reassign-deck already has a real backend (placement-suggestions accept/reject) — no postpone-by-days support server-side
+- Chat-with-KI/refine/highlight-to-inbox built against a proposed POST /knowledge-bits/:id/chat contract (sent to post-anki-c7); backend not implemented yet, so it 404s until it lands — handled gracefully client-side
+- post-anki-c7 (2026-10-17): the chat endpoint grew into a broader per-item chat (grounded on one item, opt-in model knowledge/web search, create/edit a KI from chat) — same not-yet-built status, will share contract when ready
+- post-anki-c7 (2026-10-17): knowledge items will gain an optional short background/clarifying-text field alongside Q&A; not implemented yet, exact field name/shape pending
+- Infra todo (not for nextx): build for a real iPhone, document side-load install steps, re-grant simulator Accessibility permission
+- Not for nextx: once the real API is up, run the manual test sequence in the study-on-the-go folder on a real iPhone against live data.
+- Not for nextx: write a Swift client for the post-anki sync endpoint once the production sync service is live; reads sync, writes stay on normal requests.
+- Not for nextx: the web repo has no machine-readable API description, so ask it to publish an OpenAPI spec generated from its existing schemas, then generate the Swift API types from it.
+- Web has pending-review approve/reject and scheduled review (review-cards, reviews); the app has neither.
+- Gap list with routes and schemas per aspect: .planning/api-gap/gap-report.md; items are ordered by phone value.
+- [blocked: user] Eleven backlog items need a new session; this one hit its agent limit.

@@ -1,0 +1,1 @@
+{ "models": [ { "modelId": "model-a", "approved": 12, "rejected": 3, "topReasons": [ { "reasonCode": "too_vague", "count": 2 } ] } ] }

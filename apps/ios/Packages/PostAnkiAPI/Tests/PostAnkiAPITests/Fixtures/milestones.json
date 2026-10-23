@@ -1,0 +1,4 @@
+[
+  { "id": "ms_01", "entityType": "curriculum", "entityId": "cur_01", "entityLabel": "Distributed systems", "criteriaKey": "full_mastery", "achievedAt": "2026-10-01T12:00:00.000Z", "createdAt": "2026-10-01T12:00:01.000Z" },
+  { "id": "ms_02", "entityType": "domain_node", "entityId": "dn_09", "entityLabel": null, "criteriaKey": "full_mastery", "achievedAt": "2026-09-15T12:00:00.000Z", "createdAt": "2026-09-15T12:00:01.000Z" }
+]

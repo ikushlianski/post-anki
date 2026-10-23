@@ -1,0 +1,45 @@
+[
+  {
+    "knowledgeSourceId": "src_01",
+    "sourceText": "Notes on idempotency keys in payment APIs.",
+    "sourceUrl": null,
+    "summary": null,
+    "subjectName": "System design",
+    "processedAt": "2026-10-22T18:00:00.000Z",
+    "groupTotal": 2,
+    "extractionRun": 1,
+    "extractionGrade": null,
+    "decidedCount": 0,
+    "bits": [
+      {
+        "id": "kb_10",
+        "body": "An idempotency key lets a client retry a payment without charging twice.",
+        "background": null,
+        "origin": "extracted",
+        "isAiGenerated": true,
+        "sourceLinks": [],
+        "feedback": null,
+        "variants": [
+          { "id": "var_10", "kind": "wh_question", "prompt": "What problem does an idempotency key solve?", "answer": "Duplicate charges on retries." },
+          { "id": "var_11", "kind": "basic", "prompt": "Idempotency key", "answer": "A client-chosen token that makes retries safe." },
+          { "id": "var_12", "kind": "fill_in_the_blank", "prompt": "Retries are safe when the operation is ___.", "answer": "idempotent" }
+        ]
+      },
+      {
+        "id": "kb_11",
+        "body": "Typed by hand.",
+        "background": "Added from the Mac app",
+        "origin": "manual",
+        "isAiGenerated": false,
+        "sourceLinks": [],
+        "variants": []
+      }
+    ]
+  },
+  {
+    "knowledgeSourceId": "src_02",
+    "sourceText": null,
+    "subjectName": null,
+    "bits": []
+  }
+]

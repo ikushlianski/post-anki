@@ -1,0 +1,7 @@
+[
+  { "id": "ss_01", "targetType": "curriculum", "targetId": "cur_01", "plannedDurationMinutes": 25, "scheduledFor": "2026-10-30T09:00:00.000Z", "status": "planned", "startedAt": null, "completedAt": null, "questionsAnswered": 0, "questionsCorrect": 0, "missed": false },
+  { "id": "ss_02", "targetType": null, "targetId": null, "plannedDurationMinutes": 15, "scheduledFor": "2026-10-25T09:00:00.000Z", "status": "planned", "startedAt": null, "completedAt": null, "questionsAnswered": 0, "questionsCorrect": 0, "missed": false },
+  { "id": "ss_03", "targetType": "curriculum", "targetId": "cur_02", "plannedDurationMinutes": 30, "scheduledFor": "2026-10-22T09:00:00.000Z", "status": "in_progress", "startedAt": "2026-10-22T09:01:00.000Z", "completedAt": null, "questionsAnswered": 3, "questionsCorrect": 2, "missed": false },
+  { "id": "ss_04", "targetType": "learning_path", "targetId": "lp_01", "plannedDurationMinutes": 20, "scheduledFor": "2026-10-10T09:00:00.000Z", "status": "planned", "startedAt": null, "completedAt": null, "questionsAnswered": 0, "questionsCorrect": 0, "missed": true },
+  { "id": "ss_05", "targetType": "curriculum", "targetId": "cur_01", "plannedDurationMinutes": 25, "scheduledFor": "2026-10-05T09:00:00.000Z", "status": "completed", "startedAt": "2026-10-05T09:02:00.000Z", "completedAt": "2026-10-05T09:27:00.000Z", "questionsAnswered": 10, "questionsCorrect": 8, "missed": false }
+]

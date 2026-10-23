@@ -1,0 +1,5 @@
+{
+  "stuckCurricula": [ { "id": "cur_09", "name": "Networking", "status": "generating", "stuckForMs": 4500000 } ],
+  "recentEvents": [ { "id": "ev_01", "curriculumName": "Distributed systems", "op": "generate_topics", "agentKey": "topic-writer", "durationMs": 1200, "success": true, "errorMessage": null, "totalTokens": 3400 } ],
+  "recentMerges": []
+}

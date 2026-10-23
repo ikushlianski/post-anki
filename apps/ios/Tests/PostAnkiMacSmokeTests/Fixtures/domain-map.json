@@ -1,0 +1,11 @@
+[
+  {
+    "id": "dn_01", "subjectId": "sub_01", "parentId": null, "name": "Reliability", "description": "Staying up", "order": 0, "percent": 40, "targetDepth": "working",
+    "curricula": [ { "id": "cur_01", "name": "Distributed systems" } ],
+    "children": [
+      { "id": "dn_02", "subjectId": "sub_01", "parentId": "dn_01", "name": "Retries", "description": null, "order": 0, "percent": 10, "targetDepth": null, "curricula": [], "children": [], "supersededAt": null, "supersededReason": null }
+    ],
+    "supersededAt": null, "supersededReason": null
+  },
+  { "id": "dn_03", "subjectId": "sub_01", "parentId": null, "name": "Storage", "description": null, "order": 1, "percent": 0, "targetDepth": "deep", "curricula": [], "children": [], "supersededAt": null, "supersededReason": null }
+]

@@ -1,0 +1,8 @@
+config:
+  edition: 3
+
+streams:
+  subjects:
+    auto_subscribe: true
+    accept_potentially_dangerous_queries: true
+    query: SELECT id, name, description, kind, parent_id, sort_order, created_at FROM subjects

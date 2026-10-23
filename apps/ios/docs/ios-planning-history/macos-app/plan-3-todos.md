@@ -1,0 +1,13 @@
+- [W0, solo] Group the Mac sidebar into sections fed by one registry file per feature group.
+- [W1, solo] Move iOS feature screens into shared code so the Mac app compiles them unchanged.
+- [W2, parallel] Mac topic study and practice: course detail actions, exercises, chats, notes, quick practice.
+- [W2, parallel] Mac study modes: quizzes, socratic, lectures, topic gaps, returning gaps, study sessions.
+- [W2, parallel] Mac library: sources, content inbox, Notion import, knowledge inbox, tags, search, notes.
+- [W2, parallel] Mac learning tools: learning list, learning paths, decide sessions, ask, open questions, daily push.
+- [W3, parallel] Mac course building and editing, organizing and refocus suggestions.
+- [W3, parallel] Mac subject management, categories and knowledge maps.
+- [W3, parallel] Mac language practice, duplicate review and admin tools.
+- [W4, parallel] Mac smoke tests that load shared screens' data from a fake server, runnable with Cmd-U.
+- [W4, parallel] Mac dev server address from Local.xcconfig and a launch-time connection and sign-in check.
+- [W4, parallel] README steps and a run script for building and running the Mac app locally.
+- [W4, parallel] Manual test sequence covering every Mac sidebar entry and launch-check state.

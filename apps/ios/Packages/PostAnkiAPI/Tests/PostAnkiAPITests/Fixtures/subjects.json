@@ -1,0 +1,4 @@
+[
+  { "id": "sub_01", "name": "System design", "description": "Distributed systems", "requireSources": false, "kind": "architecture-mentor", "modelTier": null, "parentId": null, "sortOrder": 0 },
+  { "id": "sub_02", "name": "Spanish", "requireSources": false, "kind": "language-practice", "modelTier": "cheap", "parentId": "sub_01", "sortOrder": null }
+]

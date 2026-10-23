@@ -1,0 +1,9 @@
+{
+  "active": [
+    { "id": "pbe_01", "phraseText": "Давайте обсудим это", "category": "Standup", "status": "practicing" },
+    { "id": "pbe_02", "phraseText": "Я заблокирован", "category": null, "status": "struggling" }
+  ],
+  "mastered": [
+    { "id": "pbe_03", "phraseText": "Спасибо за ревью", "category": "CodeReview", "status": "mastered" }
+  ]
+}

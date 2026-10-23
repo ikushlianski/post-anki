@@ -1,0 +1,4 @@
+[
+  { "id": "li_01", "url": "https://example.com/raft", "rawText": null, "title": "Raft explained", "kind": "article", "recommendation": { "destination": "mini_course", "reasons": ["Covers one focused topic"], "areaName": null, "partCount": 3, "existingCurriculumMatch": null }, "status": "classified", "curriculumId": null, "createdAt": "2026-10-22T09:00:00.000Z" },
+  { "id": "li_02", "url": null, "rawText": "Look into CRDTs", "title": null, "kind": "note", "recommendation": null, "status": "captured", "curriculumId": null, "createdAt": "2026-10-22T10:00:00.000Z" }
+]

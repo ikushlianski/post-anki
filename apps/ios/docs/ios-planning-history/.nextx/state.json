@@ -1,0 +1,22 @@
+{
+  "kind": "personal",
+  "mode": "directions",
+  "sessionId": "0a131c0d-f461-4f6b-b686-7b3a4ccc6f29",
+  "startedAt": "2026-10-23T06:04:59Z",
+  "stopBoundHours": 2,
+  "status": "stopped",
+  "activeDirections": [
+    "macos-app"
+  ],
+  "pushGranted": false,
+  "timeBoundBlocks": 2,
+  "manualTestDocs": {},
+  "autoCommitEnabled": true,
+  "lastBlockAt": "2026-10-23T07:45:41.959Z",
+  "pendingSkillReload": [
+    "nextx",
+    "implement-factory",
+    "review-factory"
+  ],
+  "lastHeartbeatAt": "2026-10-23T06:12:45.901Z"
+}

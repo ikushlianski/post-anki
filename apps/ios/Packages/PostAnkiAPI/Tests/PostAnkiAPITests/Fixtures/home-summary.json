@@ -1,0 +1,7 @@
+{
+  "topSubjects": [
+    { "subjectId": "sub_01", "subjectName": "System design", "lastInteractedAt": "2026-10-22T20:15:00.000Z", "topicsTouchedLast30Days": 6 },
+    { "subjectId": "sub_02", "subjectName": "Spanish", "lastInteractedAt": "2026-10-10T08:00:00.000Z", "topicsTouchedLast30Days": 1 }
+  ],
+  "funStats": { "currentStreak": 4, "longestStreak": 19, "topicsMastered": 11, "questionsAnswered": 842 }
+}

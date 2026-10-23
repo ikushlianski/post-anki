@@ -1,0 +1,5 @@
+{"ts":"2026-10-16T23:40:02.282Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Add a one-tap Study now button on Home that starts practice for the last-studied course"}
+{"ts":"2026-10-16T23:42:36.121Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"removed","direction":null,"itemText":"Cache upcoming question variants on device so exercises work offline on the go"}
+{"ts":"2026-10-16T23:42:40.368Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Offline cache stalled: reload on return from chat, cancelled fetch shows offline banner, Next double-tap"}
+{"ts":"2026-10-16T23:44:54.633Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Queue answers given offline and send them for grading when connectivity returns"}
+{"ts":"2026-10-16T23:45:46.455Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"removed","direction":null,"itemText":"Write the manual test sequence for this run"}

@@ -1,0 +1,8 @@
+{
+  "overall": { "count": 120, "avgRate": 0.8125, "medianRate": 0.85 },
+  "timeToMasteryOverall": { "count": 9, "avgHours": 6.04, "medianHours": 5.5 },
+  "byTopic": [
+    { "key": "top_01", "timeToMastery": null, "retention": { "count": 12, "avgRate": 0.9, "medianRate": 0.9 } }
+  ],
+  "byArea": []
+}

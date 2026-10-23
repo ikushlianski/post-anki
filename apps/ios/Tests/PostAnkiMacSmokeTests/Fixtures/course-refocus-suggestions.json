@@ -1,0 +1,4 @@
+[
+  { "curriculumId": "cur_01", "subjectId": "sub_01", "subjectName": "System design", "courseName": "Distributed systems", "reason": "stale_top_priority", "dismissedAt": null },
+  { "curriculumId": "cur_02", "subjectId": "sub_01", "subjectName": "System design", "courseName": "Databases", "reason": "uncovered_high_priority", "dismissedAt": "2026-10-20T10:00:00.000Z" }
+]

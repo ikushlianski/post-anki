@@ -1,0 +1,8 @@
+{
+  "windowDays": 7,
+  "timeToMastery": null,
+  "retention": null,
+  "coverage": [],
+  "concerns": [],
+  "streak": { "currentStreak": 0, "longestStreak": 3, "lastActiveDate": null }
+}

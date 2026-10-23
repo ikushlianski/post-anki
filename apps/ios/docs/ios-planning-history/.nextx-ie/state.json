@@ -1,0 +1,74 @@
+{
+  "kind": "ie",
+  "mode": "light",
+  "sessionId": "978304de-84b7-44ff-82e5-0ac8b7cf2f5c",
+  "startedAt": "2026-10-21T21:53:36Z",
+  "hardCeilingHours": 20,
+  "status": "paused-guard-limit",
+  "baseline": "150045ee909181229db4b9b60a5a85482a23f889",
+  "reviews": "skipped per user",
+  "models": {
+    "plan": "opus",
+    "build": "sonnet medium"
+  },
+  "batches": [
+    [
+      "quiz-sessions",
+      "study-sessions",
+      "lectures",
+      "gaps"
+    ],
+    [
+      "learning-list",
+      "decide-sessions",
+      "language-practice",
+      "tags"
+    ],
+    [
+      "search",
+      "daily-push",
+      "source-library",
+      "subject-management"
+    ],
+    [
+      "course-building",
+      "course-editing",
+      "domain-maps",
+      "duplicate-review"
+    ],
+    [
+      "notion-import",
+      "source-regeneration",
+      "admin-tools"
+    ]
+  ],
+  "itemsDone": [
+    "quiz-sessions",
+    "study-sessions",
+    "lectures",
+    "gaps",
+    "learning-list",
+    "decide-sessions",
+    "language-practice",
+    "tags"
+  ],
+  "itemsStalled": [],
+  "skippedBacklog": [
+    "real dev API: not deployed",
+    "perf investigate+implement: tabled by user"
+  ],
+  "endedAt": "2026-10-21T22:13:30Z",
+  "itemsBlocked": [
+    "search",
+    "daily-push",
+    "source-library",
+    "subject-management",
+    "course-building",
+    "course-editing",
+    "domain-maps",
+    "duplicate-review",
+    "notion-import",
+    "source-regeneration",
+    "admin-tools"
+  ]
+}

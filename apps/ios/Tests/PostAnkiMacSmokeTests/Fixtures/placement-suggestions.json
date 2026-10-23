@@ -1,0 +1,5 @@
+[
+  { "id": "bit_01", "body": "Circuit breakers stop cascading failures", "placementSuggestion": "Resilience" },
+  { "id": "bit_02", "body": "Quorum reads", "placementSuggestion": "Somewhere new" },
+  { "id": "bit_03", "body": "Vector clocks", "placementSuggestion": "Unknown place" }
+]

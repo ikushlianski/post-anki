@@ -1,0 +1,4 @@
+[
+  { "tagId": "tag_01", "name": "consistency", "status": "practicing" },
+  { "tagId": "tag_02", "name": "caching", "status": "mastered" }
+]

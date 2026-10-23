@@ -1,0 +1,4 @@
+[
+  { "id": "src_01", "curriculumId": "cur_01", "curriculumName": "Distributed systems", "subjectId": "sub_01", "subjectName": "System design", "kind": "link", "value": "https://martinfowler.com/bliki/CircuitBreaker.html", "title": "CircuitBreaker", "fetchState": "fetched", "lastFetchedAt": "2026-10-22T20:15:00.000Z", "lastFetchOutcome": "ok", "createdAt": "2026-10-20T10:00:00.000Z" },
+  { "id": "src_02", "curriculumId": "cur_01", "curriculumName": "Distributed systems", "subjectId": "sub_01", "subjectName": "System design", "kind": "text", "value": "Notes on sagas", "title": null, "fetchState": "not_fetched", "lastFetchedAt": null, "lastFetchOutcome": null, "createdAt": "2026-10-21T10:00:00.000Z" }
+]

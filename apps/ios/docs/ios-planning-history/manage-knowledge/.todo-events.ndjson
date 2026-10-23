@@ -1,0 +1,10 @@
+{"ts":"2026-10-21T07:37:14.471Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Add a Knowledge list that browses every item, with filters by course and status."}
+{"ts":"2026-10-21T07:37:14.527Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Open an item to edit its question, answer and question variants."}
+{"ts":"2026-10-21T07:37:14.575Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Suspend or unsuspend an item, and list suspended items."}
+{"ts":"2026-10-21T07:37:14.622Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Delete or move several selected items at once."}
+{"ts":"2026-10-21T07:37:14.671Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Ask for a reason when rejecting a pending item and send it as feedback."}
+{"ts":"2026-10-21T07:51:03.747Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Add a Knowledge list that browses every item, with filters by course and status."}
+{"ts":"2026-10-21T07:51:03.794Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Open an item to edit its question, answer and question variants."}
+{"ts":"2026-10-21T07:51:03.845Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Suspend or unsuspend an item, and list suspended items."}
+{"ts":"2026-10-21T07:51:03.894Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Delete or move several selected items at once."}
+{"ts":"2026-10-21T07:51:03.944Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Ask for a reason when rejecting a pending item and send it as feedback."}

@@ -1,0 +1,8 @@
+{
+  "userDeferredDue": [
+    { "gap": { "id": "gap_01", "topicId": "top_01", "label": "Idempotency keys", "origin": "user_declared", "state": "open", "wanted": true, "concern": "reliability", "mastery": { "status": "learning" }, "triageState": "deferred", "deferredUntil": "2026-10-20T00:00:00.000Z", "dismissedAt": null } }
+  ],
+  "dismissedCheckinDue": [
+    { "gap": { "id": "gap_02", "topicId": "top_02", "label": "Backpressure", "origin": "ai_detected", "state": "open", "wanted": false, "concern": null, "mastery": null, "triageState": "dismissed", "deferredUntil": null, "dismissedAt": "2026-09-01T00:00:00.000Z" } }
+  ]
+}

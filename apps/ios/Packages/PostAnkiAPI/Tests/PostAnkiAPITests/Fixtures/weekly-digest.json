@@ -1,0 +1,14 @@
+{
+  "windowDays": 7,
+  "timeToMastery": { "count": 3, "avgHours": 5.3, "medianHours": 4.5 },
+  "retention": { "count": 40, "avgRate": 0.874, "medianRate": 0.9 },
+  "coverage": [
+    { "domainNodeId": "dn_01", "name": "Messaging", "subjectName": "System design", "percent": 80, "status": "progress" },
+    { "domainNodeId": "dn_02", "name": "Consensus", "subjectName": "System design", "percent": 25, "status": "gap" }
+  ],
+  "concerns": [
+    { "concern": "developer_experience", "open": 2, "covered": 3, "total": 5 },
+    { "concern": "security", "open": 0, "covered": 4, "total": 4 }
+  ],
+  "streak": { "currentStreak": 4, "longestStreak": 19, "lastActiveDate": "2026-10-22" }
+}

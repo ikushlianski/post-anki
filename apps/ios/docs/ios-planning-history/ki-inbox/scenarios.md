@@ -1,0 +1,4 @@
+- [ ] Opening the inbox lists every pending knowledge item with its AI-suggested placement
+- [ ] Swiping a row approves it using the AI-suggested title/module
+- [ ] Opening a row's detail, editing the title, and picking a module then approving saves both
+- [ ] Rejecting an item removes it from the list

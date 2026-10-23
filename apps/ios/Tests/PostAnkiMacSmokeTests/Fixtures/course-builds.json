@@ -1,0 +1,5 @@
+[
+  { "id": "cur_01", "subjectId": "sub_01", "name": "Distributed systems", "status": "ready", "origin": "generated" },
+  { "id": "cur_02", "subjectId": "sub_01", "name": "Databases", "status": "curating", "origin": "generated" },
+  { "id": "cur_03", "subjectId": "sub_01", "name": "Networking", "status": "confirmed", "origin": "manual" }
+]

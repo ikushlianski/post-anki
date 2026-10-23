@@ -1,0 +1,106 @@
+name: PostAnkiIOS
+options:
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  PostAnkiAPI:
+    path: Packages/PostAnkiAPI
+  PowerSync:
+    url: https://github.com/powersync-ja/powersync-swift
+    exactVersion: 1.16.4
+
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    GENERATE_INFOPLIST_FILE: YES
+    ENABLE_PREVIEWS: YES
+
+targets:
+  PostAnkiIOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/PostAnkiIOS
+      - path: Sources/Shared
+    dependencies:
+      - package: PostAnkiAPI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+    scheme: {}
+
+  PostAnkiMac:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/PostAnkiMac
+      - path: Sources/Shared
+    dependencies:
+      - package: PostAnkiAPI
+      - package: PowerSync
+    info:
+      path: Config/PostAnkiMac-Info.plist
+      properties:
+        PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
+        PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
+        PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
+    entitlements:
+      path: Config/PostAnkiMac.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac
+        INFOPLIST_KEY_CFBundleDisplayName: PostAnki
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.education
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    scheme:
+      testTargets:
+        - PostAnkiMacSmokeTests
+        - PostAnkiMacRegistryTests
+
+  PostAnkiMacSmokeTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests/PostAnkiMacSmokeTests
+      - path: Sources/Shared
+      - path: Packages/PostAnkiAPI/Tests/PostAnkiAPITests/Fixtures
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: PostAnkiAPI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimacsmoketests
+        GENERATE_INFOPLIST_FILE: YES
+
+  PostAnkiMacRegistryTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests/PostAnkiMacRegistryTests
+    dependencies:
+      - target: PostAnkiMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimacregistrytests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/PostAnkiMac.app/Contents/MacOS/PostAnkiMac
+        BUNDLE_LOADER: $(TEST_HOST)

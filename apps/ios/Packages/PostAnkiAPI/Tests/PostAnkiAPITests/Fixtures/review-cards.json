@@ -1,0 +1,33 @@
+{
+  "cards": [
+    {
+      "variantId": "var_01",
+      "knowledgeBitId": "kb_01",
+      "kind": "wh_question",
+      "prompt": "Why does a circuit breaker help a failing dependency recover?",
+      "answer": "It stops callers from piling on requests while the dependency is unhealthy.",
+      "background": "Resilience patterns",
+      "isAiGenerated": true,
+      "sourceLinks": ["https://martinfowler.com/bliki/CircuitBreaker.html"],
+      "phase": "learning",
+      "leech": false,
+      "intervalPreview": { "again": 60, "hard": 360, "good": 600, "easy": 345600 }
+    },
+    {
+      "variantId": "var_02",
+      "knowledgeBitId": "kb_02",
+      "kind": "fill_in_the_blank",
+      "prompt": "A ___ key uniquely identifies a row.",
+      "answer": "primary",
+      "background": null,
+      "isAiGenerated": false,
+      "sourceLinks": [],
+      "phase": "review",
+      "leech": true,
+      "intervalPreview": { "again": 600, "hard": 172800, "good": 345600, "easy": 604800 }
+    }
+  ],
+  "counts": { "new": 7, "learning": 2, "review": 12 },
+  "newRemainingToday": 13,
+  "nextDueAt": "2026-10-24T08:30:00.000Z"
+}

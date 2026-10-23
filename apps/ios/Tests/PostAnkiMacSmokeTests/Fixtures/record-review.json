@@ -1,0 +1,10 @@
+{
+  "reviewId": "rev_01",
+  "knowledgeBitId": "kb_01",
+  "phase": "learning",
+  "dueAt": "2026-10-24T08:30:00.000Z",
+  "intervalDays": 1,
+  "lapses": 0,
+  "leech": false,
+  "suspended": false
+}

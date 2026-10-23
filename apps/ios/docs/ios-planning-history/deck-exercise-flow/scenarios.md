@@ -1,0 +1,4 @@
+- [ ] Tapping a topic opens an exercise showing its next question variant
+- [ ] Submitting a correct/incorrect answer shows feedback from the API
+- [ ] Finishing one topic's queue auto-advances to the next topic
+- [ ] Exhausting every topic's queue shows an empty "Nothing left to practice" state

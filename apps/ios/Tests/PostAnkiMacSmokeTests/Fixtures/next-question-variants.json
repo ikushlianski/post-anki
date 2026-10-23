@@ -1,0 +1,4 @@
+[
+  { "variantId": "var_01", "kind": "short_answer", "prompt": "Why does a circuit breaker stop calling a failing service?", "knowledgeBitId": "kb_01", "bitBody": "A circuit breaker stops calls to a failing dependency so it can recover." },
+  { "variantId": "var_02", "kind": "explain", "prompt": "What problem does a saga solve?", "knowledgeBitId": "kb_02", "bitBody": "A saga coordinates a long transaction as a series of local steps." }
+]

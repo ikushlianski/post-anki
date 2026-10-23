@@ -1,0 +1,9 @@
+{
+  "curriculumId": "cur_01",
+  "attemptedTopicCount": 5,
+  "weakSpots": [ { "topicId": "top_01", "topicTitle": "Circuit breakers", "maturity": 35, "openGapLabels": ["half-open state", "timeouts"] } ],
+  "strongPoints": [ { "topicId": "top_02", "topicTitle": "Retries and backoff", "maturity": 90 } ],
+  "recommendationsEligible": true,
+  "recommendations": [ { "topicId": "top_01", "text": "Revisit the half-open state.", "citations": ["src_01"], "generatedAt": "2026-10-20T10:00:00.000Z" } ],
+  "nextStep": { "kind": "different_topic", "topicId": "top_01" }
+}

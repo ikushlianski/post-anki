@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json
+replication:
+  connections:
+    - type: postgresql
+      hostname: !env PS_SOURCE_HOST
+      port: !env PS_SOURCE_PORT::number
+      database: !env PS_SOURCE_DATABASE
+      username: powersync_role
+      password: !env PS_SOURCE_PASSWORD
+      sslmode: disable
+
+storage:
+  type: postgresql
+  hostname: !env PS_SOURCE_HOST
+  port: !env PS_SOURCE_PORT::number
+  database: !env PS_STORAGE_DATABASE
+  username: powersync_storage_user
+  password: !env PS_STORAGE_PASSWORD
+  sslmode: disable
+
+port: !env PS_PORT::number
+
+sync_config:
+  path: sync-config.yaml
+
+client_auth:
+  audience: ['http://localhost:5590', 'http://127.0.0.1:5590']
+  jwks_uri: http://host.docker.internal:5560/sync-keys
+  # Fallback (dev token): comment out jwks_uri above, uncomment below, restart the service,
+  # then use scripts/dev-token.sh.
+  # jwks:
+  #   keys:
+  #     - kty: oct
+  #       alg: HS256
+  #       kid: dev-key-1
+  #       k: !env PS_DEV_JWT_KEY
+
+telemetry:
+  disable_telemetry_sharing: true
+
+system:
+  logging:
+    level: info
+    format: text

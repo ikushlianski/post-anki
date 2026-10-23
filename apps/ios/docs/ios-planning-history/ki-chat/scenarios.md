@@ -1,0 +1,4 @@
+- [ ] Opening chat from an exercise's knowledge bit shows the bit and an empty transcript
+- [ ] Sending a message appends it and shows the tutor's reply once it arrives
+- [ ] Selecting transcript text and tapping "Send to inbox" submits it and confirms
+- [ ] Tapping "Refine into knowledge items" submits the bit + transcript and confirms

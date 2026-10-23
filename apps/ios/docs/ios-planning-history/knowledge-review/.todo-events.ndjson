@@ -1,0 +1,19 @@
+{"ts":"2026-10-17T07:02:21.022Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Add a Review tab listing pending knowledge items grouped by source, with their questions."}
+{"ts":"2026-10-17T07:02:21.087Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Approve or reject a pending item with buttons or swipes, removing it from the list."}
+{"ts":"2026-10-17T07:02:21.153Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Show the number of pending items as a badge on the Review tab."}
+{"ts":"2026-10-17T07:02:21.220Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Approve every item from one source in one tap."}
+{"ts":"2026-10-17T07:02:21.287Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Let the learner restore an item right after rejecting it by mistake."}
+{"ts":"2026-10-17T07:02:21.354Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Default taken: copy the web's pending-review list; the Inbox stays for deck placement only."}
+{"ts":"2026-10-17T07:06:54.580Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Add a Review tab listing pending knowledge items grouped by source, with their questions."}
+{"ts":"2026-10-17T07:09:27.029Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Approve or reject a pending item with buttons or swipes, removing it from the list."}
+{"ts":"2026-10-17T07:09:27.096Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Show the number of pending items as a badge on the Review tab."}
+{"ts":"2026-10-17T07:11:32.712Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Approve every item from one source in one tap."}
+{"ts":"2026-10-17T07:11:32.779Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"done","direction":null,"itemText":"Let the learner restore an item right after rejecting it by mistake."}
+{"ts":"2026-10-17T07:11:32.845Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Approve-all button shows count 0 while running; freeze count at confirm."}
+{"ts":"2026-10-17T07:11:32.910Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Restored-then-approved item during a refresh can reappear; drop it from restoredDuringLoad on remove."}
+{"ts":"2026-10-17T07:11:32.975Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"PendingReviewListModel.swift is 325 lines; split bulk and undo into an extension."}
+{"ts":"2026-10-17T08:06:38.292Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"removed","direction":null,"itemText":"Approve-all button shows count 0 while running; freeze count at confirm."}
+{"ts":"2026-10-17T08:06:38.364Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"removed","direction":null,"itemText":"Restored-then-approved item during a refresh can reappear; drop it from restoredDuringLoad on remove."}
+{"ts":"2026-10-17T08:06:38.435Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"removed","direction":null,"itemText":"PendingReviewListModel.swift is 325 lines; split bulk and undo into an extension."}
+{"ts":"2026-10-17T08:06:38.935Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"added","direction":null,"itemText":"Tapping Done on the review sheet within 8 seconds of a reject loses the undo."}
+{"ts":"2026-10-17T08:33:10.574Z","sessionId":"978304de-84b7-44ff-82e5-0ac8b7cf2f5c","event":"removed","direction":null,"itemText":"Tapping Done on the review sheet within 8 seconds of a reject loses the undo."}

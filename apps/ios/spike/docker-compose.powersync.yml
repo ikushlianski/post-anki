@@ -1,0 +1,32 @@
+name: post-anki-powersync-spike
+
+services:
+  powersync:
+    image: journeyapps/powersync-service:latest
+    container_name: post-anki-powersync
+    restart: unless-stopped
+    command: ['start', '-r', 'unified']
+    env_file: .env
+    environment:
+      POWERSYNC_CONFIG_PATH: /config/service.yaml
+      PS_PORT: '8080'
+      PS_SOURCE_HOST: host.docker.internal
+      PS_SOURCE_PORT: '5562'
+      PS_SOURCE_DATABASE: postanki_dev
+      PS_STORAGE_DATABASE: powersync_storage
+      NODE_OPTIONS: --max-old-space-size=1000
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - ./powersync:/config:ro
+    ports:
+      - '127.0.0.1:${POWERSYNC_HOST_PORT:-5590}:8080'
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8080/probes/liveness').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 2s
+      retries: 15

@@ -1,0 +1,8 @@
+// Tracked; optionally pulls in the gitignored Local.xcconfig (see Local.xcconfig.example).
+// Debug-only dev server address; defaults to the local API; override in Local.xcconfig.
+POSTANKI_DEV_API_URL = http:/$()/localhost:5560
+// PowerSync spike (see spike/README.md): service address and dev token; override in Local.xcconfig.
+POSTANKI_POWERSYNC_URL =
+POSTANKI_POWERSYNC_TOKEN =
+
+#include? "../Local.xcconfig"

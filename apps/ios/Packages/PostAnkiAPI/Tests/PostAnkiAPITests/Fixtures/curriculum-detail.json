@@ -1,0 +1,35 @@
+{
+  "curriculum": {
+    "id": "cur_01",
+    "subjectId": "sub_01",
+    "name": "Distributed systems",
+    "status": "ready",
+    "learningStatus": "in_progress",
+    "strictOrder": false,
+    "preAssessmentCompletedAt": null
+  },
+  "sources": [],
+  "modules": [
+    {
+      "id": "mod_01",
+      "curriculumId": "cur_01",
+      "title": "Resilience",
+      "order": 0,
+      "priority": "high",
+      "learningStatus": "in_progress",
+      "level": null,
+      "dueCount": 3,
+      "progress": { "total": 2, "mastered": 1 },
+      "topics": [
+        { "id": "top_01", "moduleId": "mod_01", "title": "Circuit breakers", "order": 0, "included": true, "selfGrade": null, "questions": [] },
+        { "id": "top_02", "moduleId": "mod_01", "title": "Retries and backoff", "summary": "Jitter matters", "order": 1, "included": true, "selfGrade": null, "questions": [] }
+      ]
+    }
+  ],
+  "progress": { "total": 2, "mastered": 1 },
+  "dueCount": 3,
+  "recommendedTopicId": "top_02",
+  "hasCitableSources": false,
+  "hasStructureDraftAttempt": true,
+  "domainMappings": []
+}

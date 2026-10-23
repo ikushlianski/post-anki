@@ -1,0 +1,22 @@
+// Template for Local.xcconfig — copy this file to Local.xcconfig (gitignored,
+// never committed) next to project.yml and fill in your own values there.
+//
+// Set your Apple Developer Team ID so Xcode can code-sign the app.
+// Find it at https://developer.apple.com/account (Membership) or in
+// Xcode > Settings > Accounts > (your Apple ID) > (your team).
+//
+// A free (non-paid) Apple ID works for local/on-device builds; apps
+// side-loaded this way expire and need reinstalling every 7 days.
+
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+
+// Debug-only dev server address used when no address is saved in Settings.
+// Leave empty for production. In xcconfig "//" starts a comment, so write
+// the scheme separator as ":/$()/" (this example resolves to http://localhost:5560).
+POSTANKI_DEV_API_URL = http:/$()/localhost:5560
+
+// PowerSync spike: service address and dev token from spike/scripts/dev-token.sh (see spike/README.md).
+// The token lives only in the gitignored Local.xcconfig.
+POSTANKI_POWERSYNC_URL = http:/$()/127.0.0.1:5590
+POSTANKI_POWERSYNC_TOKEN =
