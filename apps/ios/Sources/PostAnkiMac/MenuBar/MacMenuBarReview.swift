@@ -13,7 +13,7 @@ struct MacMenuBarLabel: View {
     var body: some View {
         let count = PendingReviewCountStore.shared.count
 
-        Label(count > 0 ? "\(count)" : "Review", systemImage: "checkmark.seal")
+        Label(count > 0 ? "\(count)" : "Knowledge Inbox", systemImage: "tray.full")
             .labelStyle(.titleAndIcon)
     }
 }
@@ -24,9 +24,9 @@ struct MacMenuBarContent: View {
     var body: some View {
         let count = PendingReviewCountStore.shared.count
 
-        Button(count > 0 ? "Review (\(count) due)" : "Review") {
+        Button(count > 0 ? "Knowledge Inbox (\(count) pending)" : "Knowledge Inbox") {
             NSApp.activate(ignoringOtherApps: true)
-            MacNavigator.shared.select("review")
+            MacNavigator.shared.select("inbox")
             openWindow(id: "main")
         }
 

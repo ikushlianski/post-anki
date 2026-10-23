@@ -176,7 +176,7 @@ struct MacKnowledgeView: View {
                         MacEmptyStateView(
                             title: "No approved items yet",
                             systemImage: "tray",
-                            message: "Add knowledge from Ingest, then approve the suggested items in Review."
+                            message: "Add knowledge from Ingest, then approve the suggested items in Knowledge Inbox."
                         )
                     }
                 }

@@ -16,7 +16,7 @@ struct PendingReviewScreen: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Review")
+                .navigationTitle("Pending items")
                 .toolbar {
                     #if os(iOS)
                     if onDone == nil {

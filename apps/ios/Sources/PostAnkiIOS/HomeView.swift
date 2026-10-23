@@ -11,9 +11,8 @@ struct HomeView: View {
             CoursesScreen()
                 .tabItem { Label("Courses", systemImage: "book") }
 
-            PendingReviewScreen()
+            NavigationStack { DueReviewScreen() }
                 .tabItem { Label("Review", systemImage: "checkmark.seal") }
-                .badge(PendingReviewCountStore.shared.count)
 
             ProgressScreen()
                 .tabItem { Label("Progress", systemImage: "chart.bar") }
@@ -21,9 +20,9 @@ struct HomeView: View {
             IngestScreen()
                 .tabItem { Label("Ingest", systemImage: "tray.and.arrow.down") }
 
-            KnowledgeItemInboxScreen()
-                .tabItem { Label("Inbox", systemImage: "tray.full") }
-
+            KnowledgeInboxScreen()
+                .tabItem { Label("Knowledge Inbox", systemImage: "tray.full") }
+                .badge(PendingReviewCountStore.shared.count)
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

@@ -10,7 +10,6 @@ struct MacInboxView: View {
         @Bindable var model = model
 
         content
-            .navigationTitle("Inbox")
             .toolbar {
                 ToolbarItem {
                     Button { approve(selected) } label: {

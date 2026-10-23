@@ -47,7 +47,7 @@ final class KnowledgeItemInboxModel {
         } catch where ProgressLoadError.from(error) == nil {
             return
         } catch {
-            errorMessage = "Couldn't load the inbox."
+            errorMessage = "Couldn't load the Knowledge Inbox."
             failureKind = ProgressLoadError.from(error) ?? .other
         }
     }
@@ -175,7 +175,7 @@ struct KnowledgeItemInboxScreen: View {
                         .foregroundStyle(.red)
                 }
             }
-            .navigationTitle("Inbox")
+            .navigationTitle("Placement suggestions")
             .refreshable { await model.load() }
             .task { await model.load() }
             .sheet(item: $model.editingItem) { item in

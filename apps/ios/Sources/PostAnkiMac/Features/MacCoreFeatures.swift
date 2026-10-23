@@ -24,7 +24,6 @@ enum MacCoreFeatures {
             title: "Review",
             systemImage: "checkmark.seal",
             shortcut: MacFeatureShortcut(key: "3"),
-            badge: { PendingReviewCountStore.shared.count },
             detail: { _ in AnyView(MacReviewView()) }
         ),
         MacFeature(

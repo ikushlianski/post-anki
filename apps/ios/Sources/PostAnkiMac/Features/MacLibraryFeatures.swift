@@ -7,9 +7,10 @@ enum MacLibraryFeatures {
             id: "inbox",
             section: .library,
             order: 30,
-            title: "Inbox",
+            title: "Knowledge Inbox",
             systemImage: "tray",
-            detail: { _ in AnyView(MacInboxView()) }
+            badge: { PendingReviewCountStore.shared.count },
+            detail: { _ in AnyView(MacKnowledgeInboxView()) }
         ),
         MacFeature(
             id: "sources",

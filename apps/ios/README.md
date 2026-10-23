@@ -85,7 +85,7 @@ Builds signed with "Sign to Run Locally" change signature each build, so macOS m
 ### Sidebar
 
 - Study: Home, Review, Quick practice, Study sessions, Gaps coming back, Daily push, Language practice, Progress
-- Library: Courses, Knowledge, Inbox, Sources, Content inbox, Tags, Search, Notes, Add knowledge, Notion import
+- Library: Courses, Knowledge, Knowledge Inbox (pending items and placement suggestions), Sources, Content inbox, Tags, Search, Notes, Add knowledge, Notion import
 - Learn: Learning list, Learning paths, Challenge my thinking, Ask your cards, Open questions
 - Manage: Subjects, Knowledge maps, Course builds, Refocus suggestions, Duplicates
 - Admin: Admin scans

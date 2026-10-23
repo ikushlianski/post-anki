@@ -76,7 +76,7 @@ final class KnowledgeItemChatModel {
             sendToInboxConfirmed = true
             try? await APIClient.detectKnowledgeBits()
         } catch {
-            errorMessage = "Couldn't send that to the inbox — try again."
+            errorMessage = "Couldn't send that to the Knowledge Inbox — try again."
         }
     }
 }
@@ -101,7 +101,7 @@ struct KnowledgeItemChatScreen: View {
                     ChatMessageRow(entry: entry, assistantLabel: "Tutor")
                         .contextMenu {
                             if entry.role == "assistant" {
-                                Button("Send to inbox") {
+                                Button("Send to Knowledge Inbox") {
                                     Task { await model.sendToInbox(entry.text) }
                                 }
                             }
@@ -138,7 +138,7 @@ struct KnowledgeItemChatScreen: View {
         } message: {
             Text("This bit and your conversation were sent to be split into knowledge items.")
         }
-        .alert("Sent to inbox", isPresented: $model.sendToInboxConfirmed) {
+        .alert("Sent to Knowledge Inbox", isPresented: $model.sendToInboxConfirmed) {
             Button("OK", role: .cancel) {}
         }
     }
