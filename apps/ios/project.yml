@@ -64,6 +64,7 @@ targets:
     info:
       path: Config/PostAnkiMac-Info.plist
       properties:
+        CFBundleDisplayName: post-anki
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
         PostAnkiDevAPIToken: $(POSTANKI_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
