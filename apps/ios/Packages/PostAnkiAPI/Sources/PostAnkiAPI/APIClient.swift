@@ -30,7 +30,8 @@ public enum APIClient {
     public static var baseURLString: String {
         get {
             resolveBaseURL(
-                saved: UserDefaults.standard.string(forKey: savedKey),
+                launchArgument: launchArgumentValue,
+                saved: savedValue,
                 fallback: fallback.value
             )
         }
@@ -40,7 +41,15 @@ public enum APIClient {
     }
 
     public static var hasSavedBaseURL: Bool {
-        UserDefaults.standard.string(forKey: savedKey) != nil
+        savedValue != nil
+    }
+
+    private static var launchArgumentValue: String? {
+        UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)[savedKey] as? String
+    }
+
+    private static var savedValue: String? {
+        UserDefaults.standard.string(forKey: savedKey)
     }
 
     public static var defaultBaseURLString: String {
@@ -55,8 +64,8 @@ public enum APIClient {
         UserDefaults.standard.removeObject(forKey: savedKey)
     }
 
-    static func resolveBaseURL(saved: String?, fallback: String?) -> String {
-        for candidate in [saved, fallback] {
+    static func resolveBaseURL(launchArgument: String? = nil, saved: String?, fallback: String?) -> String {
+        for candidate in [launchArgument, saved, fallback] {
             if let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
                 return value
             }

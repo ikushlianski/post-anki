@@ -39,4 +39,37 @@ struct BaseURLTests {
         #expect(APIClient.baseURLString == "http://localhost:3000")
         #expect(!APIClient.hasSavedBaseURL)
     }
+
+    @Test("should pick the launch argument, then the saved Settings address, then the build default")
+    func fullOrder() {
+        let launch = "http://127.0.0.1:9999"
+        let saved = "http://localhost:5560"
+        let build = "http://localhost:3000"
+
+        #expect(APIClient.resolveBaseURL(launchArgument: launch, saved: saved, fallback: build) == launch)
+        #expect(APIClient.resolveBaseURL(launchArgument: nil, saved: saved, fallback: build) == saved)
+        #expect(APIClient.resolveBaseURL(launchArgument: " ", saved: saved, fallback: build) == saved)
+        #expect(APIClient.resolveBaseURL(launchArgument: nil, saved: nil, fallback: build) == build)
+        #expect(APIClient.resolveBaseURL(launchArgument: nil, saved: nil, fallback: nil) == APIClient.productionBaseURLString)
+    }
+
+    @Test("should let a launch argument beat a saved Settings address in the live lookup")
+    func liveLaunchArgument() {
+        let previous = UserDefaults.standard.string(forKey: "apiBaseURL")
+        let args = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+        defer {
+            UserDefaults.standard.setVolatileDomain(args, forName: UserDefaults.argumentDomain)
+            UserDefaults.standard.set(previous, forKey: "apiBaseURL")
+        }
+
+        UserDefaults.standard.removeObject(forKey: "apiBaseURL")
+        APIClient.baseURLString = "http://localhost:5560"
+        #expect(APIClient.baseURLString == "http://localhost:5560")
+
+        var withArg = args
+        withArg["apiBaseURL"] = "http://127.0.0.1:9999"
+        UserDefaults.standard.setVolatileDomain(withArg, forName: UserDefaults.argumentDomain)
+
+        #expect(APIClient.baseURLString == "http://127.0.0.1:9999")
+    }
 }

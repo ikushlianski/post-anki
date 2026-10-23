@@ -3,10 +3,13 @@ SELECT format('CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN PASSW
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'powersync_role') \gexec
 SELECT format('ALTER ROLE powersync_role PASSWORD %L', :'source_pw') \gexec
 
-GRANT SELECT ON TABLE public.subjects TO powersync_role;
+GRANT SELECT ON TABLE public.subjects, public.topics TO powersync_role;
 
-SELECT 'CREATE PUBLICATION powersync FOR TABLE public.subjects'
+SELECT 'CREATE PUBLICATION powersync FOR TABLE public.subjects, public.topics'
 WHERE NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'powersync') \gexec
+
+SELECT 'ALTER PUBLICATION powersync ADD TABLE public.topics'
+WHERE NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'powersync' AND schemaname = 'public' AND tablename = 'topics') \gexec
 
 SELECT format('CREATE ROLE powersync_storage_user WITH LOGIN PASSWORD %L', :'storage_pw')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'powersync_storage_user') \gexec

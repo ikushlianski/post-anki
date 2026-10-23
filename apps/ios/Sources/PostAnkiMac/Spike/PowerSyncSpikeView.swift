@@ -27,9 +27,22 @@ struct PowerSyncSpikeView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Text("topics (\(store.topics.count) rows from local SQLite)")
+                .font(.headline)
+
+            List(store.topics) { topic in
+                HStack {
+                    Text(topic.title)
+                    Spacer()
+                    Text(topic.included ? "included" : "excluded")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .padding()
-        .frame(minWidth: 520, minHeight: 420)
+        .frame(minWidth: 520, minHeight: 560)
         .task { store.start() }
     }
 }

@@ -11,6 +11,13 @@ struct SpikeSubject: Identifiable, Sendable {
     let parentId: String?
 }
 
+struct SpikeTopic: Identifiable, Sendable {
+    let id: String
+    let title: String
+    let curriculumId: String
+    let included: Bool
+}
+
 enum PowerSyncSpikeConfig {
     static var endpoint: String {
         Bundle.main.object(forInfoDictionaryKey: "PostAnkiPowerSyncURL") as? String ?? ""
@@ -41,6 +48,7 @@ struct SpikeConnector: PowerSyncBackendConnectorProtocol {
 @Observable
 final class PowerSyncSpikeStore {
     private(set) var subjects: [SpikeSubject] = []
+    private(set) var topics: [SpikeTopic] = []
     private(set) var status = "Not started"
     private(set) var errorText: String?
 
@@ -56,6 +64,16 @@ final class PowerSyncSpikeStore {
                     .integer("sort_order"),
                     .text("created_at"),
                 ]
+            ),
+            Table(
+                name: "topics",
+                columns: [
+                    .text("curriculum_id"),
+                    .text("module_id"),
+                    .text("title"),
+                    .integer("order"),
+                    .integer("included"),
+                ]
             )
         ),
         dbFilename: "powersync-spike.sqlite"
@@ -67,6 +85,7 @@ final class PowerSyncSpikeStore {
         guard tasks.isEmpty else { return }
 
         tasks.append(Task { await watchSubjects() })
+        tasks.append(Task { await watchTopics() })
         tasks.append(Task { await watchStatus() })
 
         guard PowerSyncSpikeConfig.isConfigured else {
@@ -104,6 +123,28 @@ final class PowerSyncSpikeStore {
             }
         } catch {
             errorText = "Local query failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func watchTopics() async {
+        do {
+            let stream = try database.watch(
+                sql: "SELECT id, title, curriculum_id, included FROM topics ORDER BY curriculum_id, \"order\"",
+                parameters: []
+            ) { cursor in
+                SpikeTopic(
+                    id: try cursor.getString(name: "id"),
+                    title: try cursor.getString(name: "title"),
+                    curriculumId: try cursor.getString(name: "curriculum_id"),
+                    included: try cursor.getInt(name: "included") != 0
+                )
+            }
+
+            for try await rows in stream {
+                topics = rows
+            }
+        } catch {
+            errorText = "Local topics query failed: \(error.localizedDescription)"
         }
     }
 

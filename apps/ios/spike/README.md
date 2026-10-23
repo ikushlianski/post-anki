@@ -1,15 +1,15 @@
-# PowerSync spike: one table, offline in the Mac app
+# PowerSync spike: subjects and topics, offline in the Mac app
 
-Syncs the `subjects` table from dev Postgres (`post-anki-dev-db`, port 5562) through a self-hosted
+Syncs the `subjects` and `topics` tables (topics: id, curriculum_id, module_id, title, order, included) from dev Postgres (`post-anki-dev-db`, port 5562) through a self-hosted
 PowerSync service (Open Edition) into a local SQLite database in the PostAnkiMac Debug build, and
 lists it from that local database. Decision background: `docs/architecture/native-sync-decision.md`.
 
-Read-only spike: no writes, no upload queue, one unscoped table.
+Read-only spike: no writes, no upload queue, unscoped tables.
 
 ## What runs where
 
 - Source: `postanki_dev` on `post-anki-dev-db`. `scripts/setup.sh` creates role `powersync_role`
-  (replication, SELECT on `subjects` only) and publication `powersync` for `public.subjects`.
+  (replication, SELECT on `subjects` and `topics` only) and publication `powersync` for `public.subjects` and `public.topics`.
 - Bucket storage: database `powersync_storage` and user `powersync_storage_user` on the same Postgres server.
 - Service: `docker-compose.powersync.yml`, container `post-anki-powersync`, host port 5590 (localhost only).
   Port 8080 is not used because the devports registry already lists it for other projects; 5590 is
@@ -51,8 +51,8 @@ Read-only spike: no writes, no upload queue, one unscoped table.
 7. `cd apps/ios && xcodegen generate`, open the project, run scheme `PostAnkiMac` (Debug), or build with
    `xcodebuild -project PostAnkiIOS.xcodeproj -scheme PostAnkiMac -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build`
    (the incremental build takes about 15 s). Delete `powersync-spike.sqlite*` first to prove a fresh sync.
-8. In the app choose File > PowerSync Spike (Cmd-Option-Shift-P). The header reads
-   "subjects (18 rows from local SQLite)" and the sync line shows "connected".
+8. In the app choose File > PowerSync Spike (Cmd-Option-Shift-P). The headers read
+   "subjects (18 rows from local SQLite)", then a second list "topics (N rows from local SQLite)" and the sync line shows "connected".
 
 ## Token refresh
 
