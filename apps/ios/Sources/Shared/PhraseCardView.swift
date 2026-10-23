@@ -8,25 +8,25 @@ struct PhraseCardView: View {
     var onSubmit: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(phrase.russian).font(.headline)
+        ZoomVStack(alignment: .leading, spacing: 8) {
+            Text(phrase.russian).zoomFont(.headline)
 
             if let attempt {
                 Text(attempt.userAnswer).foregroundStyle(.secondary)
 
                 Text("\(attempt.score)/10 - \(attempt.verdictLabel)")
-                    .font(.subheadline.bold())
+                    .zoomFont(.subheadline.bold())
 
                 Text(attempt.feedback)
 
                 if !attempt.nativeAlternatives.isEmpty {
-                    Text("Native alternatives").font(.caption).foregroundStyle(.secondary)
+                    Text("Native alternatives").zoomFont(.caption).foregroundStyle(.secondary)
 
                     ForEach(attempt.nativeAlternatives, id: \.self) { Text("\u{2022} \($0)") }
                 }
 
                 Text("Reference: \(phrase.referenceEnglish)")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 #if os(macOS)
@@ -40,6 +40,6 @@ struct PhraseCardView: View {
                 #endif
             }
         }
-        .padding(.vertical, 4)
+        .zoomPadding(.vertical, 4)
     }
 }

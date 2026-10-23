@@ -32,11 +32,11 @@ struct SynonymsSection: View {
             if !model.synonyms.isEmpty {
                 Section("Synonyms") {
                     ForEach(model.synonyms) { synonym in
-                        VStack(alignment: .leading, spacing: 4) {
+                        ZoomVStack(alignment: .leading, spacing: 4) {
                             Text(synonym.prompt)
 
                             Text(synonym.answer)
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }

@@ -91,10 +91,10 @@ struct StudySessionRow: View {
     let label: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(.headline)
+        ZoomVStack(alignment: .leading, spacing: 2) {
+            Text(label).zoomFont(.headline)
 
-            HStack(spacing: 6) {
+            ZoomHStack(spacing: 6) {
                 Text("\(item.plannedDurationMinutes) min")
 
                 if let scheduled = item.scheduledFor, let text = DueReviewModel.nextDueText(scheduled) {
@@ -105,7 +105,7 @@ struct StudySessionRow: View {
                     Text("\(item.questionsAnswered) answered, \(item.questionsCorrect) correct")
                 }
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
         }
     }

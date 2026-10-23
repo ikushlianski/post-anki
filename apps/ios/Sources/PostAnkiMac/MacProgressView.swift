@@ -2,6 +2,10 @@ import PostAnkiAPI
 import SwiftUI
 
 struct MacProgressView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @State private var model = ProgressModel()
 
     var body: some View {
@@ -30,10 +34,10 @@ struct MacProgressView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                ZoomVStack(alignment: .leading, spacing: 24) {
                     if let failure = model.sectionFailure {
                         Text(failure.macDetail)
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }
 
@@ -49,8 +53,8 @@ struct MacProgressView: View {
 
                     milestonesSection
                 }
-                .frame(maxWidth: 900, alignment: .leading)
-                .padding(24)
+                .frame(maxWidth: 900 * zoom, alignment: .leading)
+                .zoomPadding(24)
                 .frame(maxWidth: .infinity)
             }
         }
@@ -58,7 +62,7 @@ struct MacProgressView: View {
 
     private func tiles(_ digest: WeeklyDigest) -> some View {
         card("This week") {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), alignment: .top)], spacing: 16) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160 * zoom), alignment: .top)], spacing: 16) {
                 DigestTile(title: "Streak", value: "\(digest.streak.currentStreak) days", detail: nil)
                 DigestTile(
                     title: "Retention",
@@ -79,7 +83,7 @@ struct MacProgressView: View {
     private func coverage(_ digest: WeeklyDigest) -> some View {
         if !digest.coverage.isEmpty {
             card("Coverage") {
-                VStack(spacing: 12) {
+                ZoomVStack(spacing: 12) {
                     ForEach(digest.coverage) { CoverageRow(area: $0) }
                 }
             }
@@ -92,7 +96,7 @@ struct MacProgressView: View {
 
         if !items.isEmpty {
             card("Concerns") {
-                VStack(spacing: 8) {
+                ZoomVStack(spacing: 8) {
                     ForEach(items) { ConcernRow(concern: $0) }
                 }
             }
@@ -101,7 +105,7 @@ struct MacProgressView: View {
 
     private func retentionSection(_ report: RetentionReport) -> some View {
         card("Retention (all time)") {
-            VStack(spacing: 8) {
+            ZoomVStack(spacing: 8) {
                 if let overall = report.overall, overall.count > 0 {
                     StatLine(title: "Average retention", value: overall.percentText)
                     StatLine(title: "Median retention", value: overall.medianPercentText)
@@ -129,7 +133,7 @@ struct MacProgressView: View {
                     description: Text("Master every topic in a course to earn one.")
                 )
             } else {
-                VStack(alignment: .leading, spacing: 12) {
+                ZoomVStack(alignment: .leading, spacing: 12) {
                     ForEach(model.milestones) { MilestoneRow(milestone: $0) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -138,13 +142,13 @@ struct MacProgressView: View {
     }
 
     private func card<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ZoomVStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.headline)
+                .zoomFont(.headline)
 
             content()
         }
-        .padding(16)
+        .zoomPadding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
     }

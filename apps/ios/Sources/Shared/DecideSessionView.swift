@@ -38,14 +38,14 @@ struct DecideSessionView: View {
     }
 
     private func blindSpotRow(_ spot: DecideBlindSpot) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        ZoomVStack(alignment: .leading, spacing: 8) {
             Text(spot.description)
 
             switch spot.status {
             case "accepted":
-                Text("Flagged").font(.caption).foregroundStyle(.green)
+                Text("Flagged").zoomFont(.caption).foregroundStyle(.green)
             case "rejected":
-                Text("Dismissed").font(.caption).foregroundStyle(.secondary)
+                Text("Dismissed").zoomFont(.caption).foregroundStyle(.secondary)
             default:
                 HStack {
                     Button("Flag as a gap to revisit") { onResolve(spot.id, true) }

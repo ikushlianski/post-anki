@@ -71,16 +71,16 @@ struct LearningListRow: View {
     let item: LearningListItem
 
     var body: some View {
-        HStack(spacing: 12) {
+        ZoomHStack(spacing: 12) {
             Image(systemName: item.kind == "video" ? "play.rectangle" : "doc.text")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
+            ZoomVStack(alignment: .leading, spacing: 2) {
                 Text(item.displayTitle).lineLimit(2)
 
                 Text(item.statusCaption)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }

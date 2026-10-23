@@ -50,7 +50,7 @@ struct KnowledgeItemDetailScreen: View {
                     .disabled(isBusy)
 
                 if let message {
-                    Text(message).font(.caption).foregroundStyle(.red)
+                    Text(message).zoomFont(.caption).foregroundStyle(.red)
                 }
             } footer: {
                 Text("To change the wording, edit it while reviewing it.")

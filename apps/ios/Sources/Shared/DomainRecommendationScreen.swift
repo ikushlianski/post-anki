@@ -122,10 +122,10 @@ struct DomainRecommendationScreen: View {
                 }
 
                 ForEach(model.items) { item in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(names[item.domainNodeId] ?? "(removed)").font(.headline)
-                        Text(item.axisLabel).font(.subheadline)
-                        Text(item.reason).font(.caption).foregroundStyle(.secondary)
+                    ZoomVStack(alignment: .leading, spacing: 6) {
+                        Text(names[item.domainNodeId] ?? "(removed)").zoomFont(.headline)
+                        Text(item.axisLabel).zoomFont(.subheadline)
+                        Text(item.reason).zoomFont(.caption).foregroundStyle(.secondary)
 
                         TriageButtons(
                             accept: { acceptTarget = item },

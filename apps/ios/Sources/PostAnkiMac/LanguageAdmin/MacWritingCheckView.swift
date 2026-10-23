@@ -2,6 +2,10 @@ import PostAnkiAPI
 import SwiftUI
 
 struct MacWritingCheckView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @State private var model: WritingCheckModel
 
     init(subject: PracticeSubject) {
@@ -14,11 +18,11 @@ struct MacWritingCheckView: View {
         List {
             Section {
                 TextEditor(text: $model.text)
-                    .font(.body)
-                    .frame(minHeight: 140)
+                    .zoomFont(.body)
+                    .frame(minHeight: 140 * zoom)
 
                 Text("\(model.text.count)/\(WritingCheckModel.maxLength)")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(model.text.count > WritingCheckModel.maxLength ? .red : .secondary)
 
                 if model.draftClipped { DraftClippedNote() }
@@ -32,7 +36,7 @@ struct MacWritingCheckView: View {
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!model.canCheck)
 
-                    Text("Cmd-Return to check").font(.caption).foregroundStyle(.secondary)
+                    Text("Cmd-Return to check").zoomFont(.caption).foregroundStyle(.secondary)
                 }
 
                 if let message = model.errorMessage {

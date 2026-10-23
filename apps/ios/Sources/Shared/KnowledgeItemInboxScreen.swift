@@ -144,11 +144,11 @@ struct KnowledgeItemInboxScreen: View {
         NavigationStack {
             List {
                 ForEach(model.items) { item in
-                    VStack(alignment: .leading, spacing: 4) {
+                    ZoomVStack(alignment: .leading, spacing: 4) {
                         Text(item.body)
                             .lineLimit(2)
                         Text(item.placementSuggestion)
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }
                     .contentShape(Rectangle())

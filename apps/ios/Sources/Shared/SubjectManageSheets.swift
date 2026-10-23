@@ -183,7 +183,7 @@ struct SheetErrorText: View {
 
     var body: some View {
         if let message {
-            Text(message).font(.caption).foregroundStyle(.red)
+            Text(message).zoomFont(.caption).foregroundStyle(.red)
         }
     }
 }

@@ -12,14 +12,14 @@ struct SubjectDuplicateList: View {
         }
 
         ForEach(model.subjectPairs) { pair in
-            VStack(alignment: .leading, spacing: 6) {
+            ZoomVStack(alignment: .leading, spacing: 6) {
                 Text("\(model.subjectName(pair.subjectAId)) and \(model.subjectName(pair.subjectBId))")
-                    .font(.headline)
+                    .zoomFont(.headline)
 
                 Text("\(Int((pair.similarity * 100).rounded()))% similar")
-                    .font(.subheadline)
+                    .zoomFont(.subheadline)
 
-                Text(pair.reason).font(.caption).foregroundStyle(.secondary)
+                Text(pair.reason).zoomFont(.caption).foregroundStyle(.secondary)
 
                 Button("Keep \(model.subjectName(pair.subjectAId))") { pending = (pair, pair.subjectAId) }
                     .buttonStyle(.bordered)

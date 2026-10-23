@@ -101,7 +101,7 @@ struct LectureScreen: View {
     @ViewBuilder
     private func readerSections(_ lecture: Lecture) -> some View {
         Section {
-            Text(lecture.title).font(.title3.bold())
+            Text(lecture.title).zoomFont(.title3.bold())
         }
 
         ForEach(lecture.sections.sorted { $0.order < $1.order }) { section in

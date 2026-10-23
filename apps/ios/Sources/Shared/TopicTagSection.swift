@@ -115,7 +115,7 @@ struct TopicTagPickerSheet: View {
         NavigationStack {
             List {
                 if let message = model.message {
-                    Text(message).font(.caption).foregroundStyle(.red)
+                    Text(message).zoomFont(.caption).foregroundStyle(.red)
                 }
 
                 if !trimmed.isEmpty && !model.allTags.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {

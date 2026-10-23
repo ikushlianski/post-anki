@@ -66,11 +66,11 @@ struct MacInboxView: View {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(model.items, selection: $selection) { item in
-                VStack(alignment: .leading, spacing: 4) {
+                ZoomVStack(alignment: .leading, spacing: 4) {
                     Text(item.body).lineLimit(2)
-                    Text(item.placementSuggestion).font(.caption).foregroundStyle(.secondary)
+                    Text(item.placementSuggestion).zoomFont(.caption).foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 2)
+                .zoomPadding(.vertical, 2)
                 .tag(item.id)
             }
             .contextMenu(forSelectionType: String.self) { ids in
@@ -94,11 +94,11 @@ struct MacInboxView: View {
 
                     if let notice = model.notice {
                         Text(notice)
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .zoomPadding(.horizontal, 12)
+                            .zoomPadding(.vertical, 6)
                             .background(.bar)
                     }
                 }

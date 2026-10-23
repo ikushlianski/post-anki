@@ -71,25 +71,25 @@ struct DomainNodeRow: View {
     let node: DomainNodeItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(node.name)
 
                 Spacer()
 
                 Text("\(node.percent)%")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Text(DomainDepth.label(node.targetDepth))
-                .font(.caption2)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .zoomFont(.caption2)
+                .zoomPadding(.horizontal, 6)
+                .zoomPadding(.vertical, 2)
                 .background(.quaternary, in: Capsule())
 
             if let reason = node.supersededReason {
-                Text(reason).font(.caption).foregroundStyle(.secondary)
+                Text(reason).zoomFont(.caption).foregroundStyle(.secondary)
             }
         }
         .opacity(node.isSuperseded ? 0.5 : 1)

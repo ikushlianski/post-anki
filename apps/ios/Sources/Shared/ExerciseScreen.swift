@@ -190,12 +190,12 @@ struct ExerciseScreen: View {
                     if let currentTopic = model.currentTopic {
                         Section {
                             Text(currentTopic.title)
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
 
                             if model.isOffline {
                                 Text("Offline — showing saved questions")
-                                    .font(.caption)
+                                    .zoomFont(.caption)
                                     .foregroundStyle(.orange)
                             }
                         }
@@ -203,7 +203,7 @@ struct ExerciseScreen: View {
 
                     Section("Knowledge bit") {
                         Text(current.bitBody)
-                            .font(.subheadline)
+                            .zoomFont(.subheadline)
                             .foregroundStyle(.secondary)
 
                         NavigationLink {

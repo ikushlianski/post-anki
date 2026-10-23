@@ -116,7 +116,7 @@ struct StudySessionRunScreen: View {
 
         if elapsed >= planned {
             Text("Time's up")
-                .font(.headline)
+                .zoomFont(.headline)
             Button("End session") { Task { await model.end(userRequested: false) } }
                 .disabled(model.isBusy)
         } else {
@@ -129,9 +129,9 @@ struct StudySessionRunScreen: View {
         if let target = push.push {
             Section {
                 Text("\(target.curriculumName) - \(target.topicTitle)")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
-                Text(target.gap.label).font(.headline)
+                Text(target.gap.label).zoomFont(.headline)
 
                 if let question = push.question {
                     Text(question.prompt)
@@ -190,7 +190,7 @@ struct StudySessionRunScreen: View {
 
             if !result.coveredGapLabels.isEmpty {
                 Text("Covered: " + result.coveredGapLabels.joined(separator: ", "))
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
 

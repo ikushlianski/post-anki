@@ -150,13 +150,13 @@ struct PendingReviewScreen: View {
             List {
                 if let message = model.errorMessage {
                     Text(message)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.red)
                 }
 
                 if let notice = model.notice {
                     Text(notice)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
 

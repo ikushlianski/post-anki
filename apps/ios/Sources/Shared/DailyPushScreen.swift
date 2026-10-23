@@ -37,10 +37,10 @@ struct DailyPushScreen: View {
     private var todaySection: some View {
         Section("Today's question") {
             if let push = model.push {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(push.topicTitle).font(.headline)
-                    Text(push.curriculumName).font(.subheadline).foregroundStyle(.secondary)
-                    Text(push.gap.label).font(.subheadline)
+                ZoomVStack(alignment: .leading, spacing: 4) {
+                    Text(push.topicTitle).zoomFont(.headline)
+                    Text(push.curriculumName).zoomFont(.subheadline).foregroundStyle(.secondary)
+                    Text(push.gap.label).zoomFont(.subheadline)
                 }
 
                 if let question = model.question {
@@ -71,16 +71,16 @@ struct DailyPushScreen: View {
     }
 
     private func resultView(_ result: TopicProbeResult) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             Text(result.outcome == "pass" ? "Passed" : "Not quite")
-                .font(.headline)
+                .zoomFont(.headline)
                 .foregroundStyle(result.outcome == "pass" ? .green : .orange)
 
             Text(result.feedback)
 
             if !result.coveredGapLabels.isEmpty {
                 Text("Covered: \(result.coveredGapLabels.joined(separator: ", "))")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -95,11 +95,11 @@ struct DailyPushScreen: View {
 
             ForEach(model.visibleQueue) { pick in
                 Button { Task { await model.open(pick) } } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(pick.topicTitle).font(.headline)
-                        Text(pick.curriculumName).font(.subheadline).foregroundStyle(.secondary)
-                        Text(pick.gap.label).font(.subheadline)
-                        Text(pick.reasonLabel).font(.caption).foregroundStyle(.secondary)
+                    ZoomVStack(alignment: .leading, spacing: 2) {
+                        Text(pick.topicTitle).zoomFont(.headline)
+                        Text(pick.curriculumName).zoomFont(.subheadline).foregroundStyle(.secondary)
+                        Text(pick.gap.label).zoomFont(.subheadline)
+                        Text(pick.reasonLabel).zoomFont(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .foregroundStyle(.primary)

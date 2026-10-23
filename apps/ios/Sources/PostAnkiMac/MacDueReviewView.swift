@@ -2,6 +2,10 @@ import PostAnkiAPI
 import SwiftUI
 
 struct MacDueReviewView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @State private var model = DueReviewModel()
     @State private var editingCard: ReviewCard?
 
@@ -51,7 +55,7 @@ struct MacDueReviewView: View {
             QuestionVariantEditSheet(prompt: card.prompt, answer: card.answer) { prompt, answer in
                 await model.editCurrent(prompt: prompt, answer: answer)
             }
-            .frame(minWidth: 420, minHeight: 360)
+            .frame(minWidth: 420 * zoom, minHeight: 360 * zoom)
         }
         .task { await model.loadIfNeeded() }
     }
@@ -70,12 +74,12 @@ private struct MacDueReviewCardView: View {
                     answerInput: { EmptyView() },
                     revealedFooter: {
                         Text("Press 1 Again, 2 Hard, 3 Good, 4 Easy, or Space for Good")
-                            .font(.footnote)
+                            .zoomFont(.footnote)
                             .foregroundStyle(.secondary)
                     },
                     unrevealed: {
                         Text("Press Space or Return to show the answer")
-                            .font(.footnote)
+                            .zoomFont(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 )

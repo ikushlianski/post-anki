@@ -102,7 +102,7 @@ struct IngestScreen: View {
                     Form {
                         Section("Knowledge bit") {
                             Text(current.bitBody)
-                                .font(.subheadline)
+                                .zoomFont(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
 

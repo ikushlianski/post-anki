@@ -21,7 +21,7 @@ struct KnowledgeInboxModePicker: View {
         .pickerStyle(.segmented)
         .labelsHidden()
         .frame(maxWidth: 420)
-        .padding()
+        .zoomPadding()
     }
 }
 

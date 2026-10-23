@@ -74,7 +74,7 @@ struct IngestionDictationScreen: View {
             if let topic = model.topic {
                 Section {
                     Text("Topic: \(topic.title)")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -97,7 +97,7 @@ struct IngestionDictationScreen: View {
             if model.hasSent {
                 Section {
                     Text(model.isDetecting ? "Sent. Extracting items..." : "Sent. New items appear in Review once extracted.")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                     Button("Review new items") { model.showReview = true }
                         .disabled(model.isDetecting)

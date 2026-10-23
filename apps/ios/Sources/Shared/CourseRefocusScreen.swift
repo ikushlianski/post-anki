@@ -73,9 +73,9 @@ struct CourseRefocusScreen: View {
             }
 
             ForEach(model.items) { item in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(item.courseName) in \(item.subjectName)").font(.headline)
-                    Text(item.reasonText).font(.caption).foregroundStyle(.secondary)
+                ZoomVStack(alignment: .leading, spacing: 6) {
+                    Text("\(item.courseName) in \(item.subjectName)").zoomFont(.headline)
+                    Text(item.reasonText).zoomFont(.caption).foregroundStyle(.secondary)
 
                     HStack {
                         Button("Open course") {

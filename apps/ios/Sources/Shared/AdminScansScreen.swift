@@ -9,17 +9,17 @@ struct AdminScansScreen: View {
             Button(role: scan.changesData ? .destructive : nil) {
                 pending = scan
             } label: {
-                VStack(alignment: .leading, spacing: 4) {
+                ZoomVStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(scan.title)
 
                         if model.running.contains(scan.id) { ProgressView() }
                     }
 
-                    Text(scan.explanation).font(.caption).foregroundStyle(.secondary)
+                    Text(scan.explanation).zoomFont(.caption).foregroundStyle(.secondary)
 
                     if let result = model.results[scan.id] {
-                        Text(result).font(.caption)
+                        Text(result).zoomFont(.caption)
                     }
                 }
             }

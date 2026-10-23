@@ -76,7 +76,7 @@ struct MacLearningListView: View {
     private var list: some View {
         List(selection: $selection) {
             if let message = model.actionMessage {
-                Text(message).font(.caption).foregroundStyle(.red)
+                Text(message).zoomFont(.caption).foregroundStyle(.red)
             }
 
             group("Needs your decision", model.awaiting)
@@ -146,7 +146,6 @@ struct MacLearningListView: View {
         droppedURL = ""
         showsCapture = true
     }
-
 
     private func confirmDecline(_ items: [LearningListItem]) {
         let targets = items.filter(\.isAwaitingDecision)

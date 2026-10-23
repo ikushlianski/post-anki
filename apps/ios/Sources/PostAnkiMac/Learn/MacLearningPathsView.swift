@@ -68,11 +68,11 @@ struct MacLearningPathsView: View {
             Section(title) {
                 ForEach(paths) { path in
                     NavigationLink(value: path.id) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(path.name).font(.headline)
+                        ZoomVStack(alignment: .leading, spacing: 2) {
+                            Text(path.name).zoomFont(.headline)
 
                             Text("\(path.targetRoleLabel) - \(LearningPathError.statusLabel(path.status))")
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }

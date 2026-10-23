@@ -27,6 +27,10 @@ enum MacDecideRoute: Hashable {
 }
 
 struct MacDecideView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @State private var model = MacDecideStore.shared.model
     @State private var decisionClipped = false
     @State private var opinionClipped = false
@@ -136,6 +140,9 @@ struct MacDecideView: View {
 }
 
 struct MacDecideHistoryView: View {
+    @Environment(\.zoomScale) private var zoomScale
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @State private var model = DecideHistoryModel()
     @State private var selection: DecideSession.ID?
     let onOpen: (DecideSession) -> Void
@@ -174,10 +181,10 @@ struct MacDecideHistoryView: View {
                 TableColumn("Decision") { Text($0.decision).lineLimit(2) }
 
                 TableColumn("Blind spots") { Text("\($0.blindSpots.count)") }
-                    .width(90)
+                    .width(90 * zoom)
 
                 TableColumn("Date") { Text(DueReviewModel.nextDueText($0.createdAt) ?? "") }
-                    .width(140)
+                    .width(140 * zoom)
             }
             .contextMenu(forSelectionType: DecideSession.ID.self) { _ in
             } primaryAction: { ids in

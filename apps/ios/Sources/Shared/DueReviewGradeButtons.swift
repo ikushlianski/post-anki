@@ -7,14 +7,14 @@ struct DueReviewGradeButtons: View {
     let onGrade: (ReviewGrade) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        ZoomHStack(spacing: 8) {
             ForEach(ReviewGrade.allCases, id: \.self) { grade in
                 Button {
                     onGrade(grade)
                 } label: {
-                    VStack(spacing: 2) {
+                    ZoomVStack(spacing: 2) {
                         Text(IntervalFormat.short(seconds: preview.seconds(for: grade)))
-                            .font(.caption2)
+                            .zoomFont(.caption2)
                             .foregroundStyle(.secondary)
                         Text(grade.rawValue.capitalized)
                     }

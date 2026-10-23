@@ -14,12 +14,12 @@ struct MoreVariantsSection: View {
 
             if model.requested {
                 Text("New variants are being generated. They show up in review within a minute or two.")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
 
             if let errorMessage = model.errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(.red)
+                Text(errorMessage).zoomFont(.caption).foregroundStyle(.red)
             }
         }
     }

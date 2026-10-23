@@ -95,11 +95,11 @@ struct MacSourcesView: View {
             TableColumn("Subject") { Text($0.subjectName).lineLimit(1) }
             TableColumn("Type") { Text($0.kindLabel) }
             TableColumn("Status") { source in
-                VStack(alignment: .leading, spacing: 2) {
+                ZoomVStack(alignment: .leading, spacing: 2) {
                     Text(model.badge(for: source))
 
                     if let message = model.rowMessages[source.id] {
-                        Text(message).font(.caption).foregroundStyle(.orange)
+                        Text(message).zoomFont(.caption).foregroundStyle(.orange)
                     }
                 }
             }

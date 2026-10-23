@@ -63,6 +63,10 @@ enum MacShortcutHelp {
 }
 
 struct MacShortcutHelpView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     var body: some View {
         List {
             ForEach(MacShortcutHelp.groups) { group in
@@ -74,13 +78,13 @@ struct MacShortcutHelpView: View {
                             Spacer()
 
                             Text(entry.keys)
-                                .font(.body.monospaced())
+                                .zoomFont(.body.monospaced())
                                 .foregroundStyle(.secondary)
                         }
                     }
                 }
             }
         }
-        .frame(minWidth: 460, minHeight: 420)
+        .frame(minWidth: 460 * zoom, minHeight: 420 * zoom)
     }
 }

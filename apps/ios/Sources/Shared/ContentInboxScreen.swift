@@ -16,18 +16,18 @@ struct ContentInboxScreen: View {
             }
 
             ForEach(model.items) { item in
-                VStack(alignment: .leading, spacing: 4) {
+                ZoomVStack(alignment: .leading, spacing: 4) {
                     Text(item.body).lineLimit(expanded.contains(item.id) ? nil : 4)
 
                     if let placement = item.suggestedPlacement, !placement.isEmpty {
-                        Text("Suggested: \(placement)").font(.subheadline)
+                        Text("Suggested: \(placement)").zoomFont(.subheadline)
                     }
 
                     if let sourceRef = item.sourceRef, !sourceRef.isEmpty {
-                        Text(sourceRef).font(.caption).foregroundStyle(.secondary)
+                        Text(sourceRef).zoomFont(.caption).foregroundStyle(.secondary)
                     }
 
-                    Text(item.createdAt.prefix(10)).font(.caption).foregroundStyle(.secondary)
+                    Text(item.createdAt.prefix(10)).zoomFont(.caption).foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {

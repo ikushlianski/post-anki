@@ -53,7 +53,7 @@ struct MacRefocusView: View {
     private var list: some View {
         List {
             if let message = model.errorMessage {
-                Text(message).font(.caption).foregroundStyle(.red)
+                Text(message).zoomFont(.caption).foregroundStyle(.red)
             }
 
             if let notice = model.notice {
@@ -61,9 +61,9 @@ struct MacRefocusView: View {
             }
 
             ForEach(model.items) { item in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(item.courseName) in \(item.subjectName)").font(.headline)
-                    Text(item.reasonText).font(.caption).foregroundStyle(.secondary)
+                ZoomVStack(alignment: .leading, spacing: 6) {
+                    Text("\(item.courseName) in \(item.subjectName)").zoomFont(.headline)
+                    Text(item.reasonText).zoomFont(.caption).foregroundStyle(.secondary)
 
                     HStack {
                         Button("Open course") { open(item) }
@@ -73,7 +73,7 @@ struct MacRefocusView: View {
                             .buttonStyle(.bordered)
                     }
                 }
-                .padding(.vertical, 4)
+                .zoomPadding(.vertical, 4)
                 .contextMenu {
                     Button("Open course") { open(item) }
                     Button("Dismiss") { Task { await model.dismiss(item) } }

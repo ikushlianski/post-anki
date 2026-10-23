@@ -26,9 +26,9 @@ struct StudyMaterialsSection: View {
     }
 
     private func row(_ item: StudyMaterial) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             Text(item.kind == "analogy" ? "Analogy" : "Worked example")
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
 
             switch item.status {
@@ -47,9 +47,9 @@ struct StudyMaterialsSection: View {
 
                 ForEach(item.citations, id: \.url) { citation in
                     if let url = WebLink.url(from: citation.url) {
-                        Link(citation.title, destination: url).font(.caption)
+                        Link(citation.title, destination: url).zoomFont(.caption)
                     } else {
-                        Text(citation.title).font(.caption)
+                        Text(citation.title).zoomFont(.caption)
                     }
                 }
             }

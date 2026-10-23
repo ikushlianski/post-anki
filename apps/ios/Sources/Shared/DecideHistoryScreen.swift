@@ -19,11 +19,11 @@ struct DecideHistoryScreen: View {
                 NavigationLink {
                     DecideSessionDetailScreen(session: session)
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
+                    ZoomVStack(alignment: .leading, spacing: 2) {
                         Text(session.decision).lineLimit(2)
 
                         if let date = DueReviewModel.nextDueText(session.createdAt) {
-                            Text(date).font(.caption).foregroundStyle(.secondary)
+                            Text(date).zoomFont(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }

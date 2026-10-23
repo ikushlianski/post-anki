@@ -5,9 +5,9 @@ struct MilestoneRow: View {
     let milestone: Milestone
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             Text(milestone.entityLabel ?? "Deleted course")
-                .font(.headline)
+                .zoomFont(.headline)
 
             HStack {
                 Label(milestone.kindLabel, systemImage: "trophy.fill")
@@ -18,7 +18,7 @@ struct MilestoneRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .font(.caption)
+            .zoomFont(.caption)
         }
     }
 }
@@ -29,18 +29,18 @@ struct DigestTile: View {
     let detail: String?
 
     var body: some View {
-        VStack(spacing: 2) {
+        ZoomVStack(spacing: 2) {
             Text(value ?? "No data yet")
-                .font(value == nil ? .caption : .title3.bold())
+                .zoomFont(value == nil ? .caption : .title3.bold())
                 .foregroundStyle(value == nil ? .secondary : .primary)
 
             Text(title)
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
 
             if let detail {
                 Text(detail)
-                    .font(.caption2)
+                    .zoomFont(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
@@ -52,20 +52,20 @@ struct CoverageRow: View {
     let area: CoverageArea
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             HStack {
                 VStack(alignment: .leading) {
                     Text(area.name)
 
                     Text(area.subjectName)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Text("\(area.percent)%")
-                    .font(.subheadline.monospacedDigit())
+                    .zoomFont(.subheadline.monospacedDigit())
             }
 
             ProgressView(value: Double(min(max(area.percent, 0), 100)), total: 100)

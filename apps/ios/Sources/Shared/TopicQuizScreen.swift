@@ -74,7 +74,7 @@ struct TopicQuizScreen: View {
         Section {
             let session = model.session
             Text("Quiz complete: \(session?.correct ?? 0)/\(session?.total ?? 0).")
-                .font(.headline)
+                .zoomFont(.headline)
             Button("New quiz") { confirmsNew = true }
         }
     }
@@ -90,13 +90,13 @@ struct TopicQuizScreen: View {
                 Spacer()
                 Text("Score \(session?.correct ?? 0)/\(session?.answered ?? 0)")
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
 
-            Text(question.prompt).font(.headline)
+            Text(question.prompt).zoomFont(.headline)
 
             if question.isMulti && model.lastResult == nil {
-                Text("Select all that apply").font(.caption).foregroundStyle(.secondary)
+                Text("Select all that apply").zoomFont(.caption).foregroundStyle(.secondary)
             }
         }
 
@@ -132,7 +132,7 @@ struct TopicQuizScreen: View {
     private func resultView(_ result: QuizAnswerResult) -> some View {
         Section {
             Text(result.outcome == "pass" ? "Correct." : "Not quite.")
-                .font(.headline)
+                .zoomFont(.headline)
                 .foregroundStyle(result.outcome == "pass" ? .green : .red)
 
             if let mastery = result.gapMastery, mastery.justMastered {
@@ -182,7 +182,7 @@ struct QuizOptionRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             Button(action: action) {
                 HStack {
                     if question.isMulti && !question.isAnswered {
@@ -201,7 +201,7 @@ struct QuizOptionRow: View {
             .disabled(isDisabled)
 
             if let explanation {
-                Text(explanation).font(.caption).foregroundStyle(.secondary)
+                Text(explanation).zoomFont(.caption).foregroundStyle(.secondary)
             }
         }
     }

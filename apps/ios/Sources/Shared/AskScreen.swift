@@ -43,7 +43,7 @@ struct AskScreen: View {
             List {
                 Section {
                     Text("Answers come from your saved cards.")
-                        .font(.subheadline)
+                        .zoomFont(.subheadline)
                         .foregroundStyle(.secondary)
                     Toggle("Also use general knowledge", isOn: $options.allowGeneralKnowledge)
                 }
@@ -77,7 +77,7 @@ struct AskScreen: View {
             }
 
             if draftClipped {
-                DraftClippedNote().padding(.bottom, 6)
+                DraftClippedNote().zoomPadding(.bottom, 6)
             }
         }
         .navigationTitle("Ask")
@@ -104,18 +104,18 @@ private struct AskTurnRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        ZoomVStack(alignment: .leading, spacing: 6) {
             ChatMessageRow(entry: turn.entry, assistantLabel: "Answer")
 
             if turn.lookupFailed {
                 Text("Couldn't search your cards; this answer is general.")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.orange)
             }
 
             ForEach(visibleCards) { card in
                 Text("From: \(card.prompt) (\(card.topicTitle))")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -123,7 +123,7 @@ private struct AskTurnRow: View {
                 Button(showsAllCards ? "Show fewer" : "Show \(turn.matchedCards.count - 3) more") {
                     showsAllCards.toggle()
                 }
-                .font(.caption)
+                .zoomFont(.caption)
                 .buttonStyle(.borderless)
             }
         }

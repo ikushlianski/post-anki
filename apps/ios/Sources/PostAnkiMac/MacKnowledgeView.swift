@@ -181,18 +181,18 @@ struct MacKnowledgeView: View {
     @ViewBuilder
     private var notices: some View {
         if let failure = model.failure {
-            Text(failure).font(.caption).foregroundStyle(.red).padding(.vertical, 4)
+            Text(failure).zoomFont(.caption).foregroundStyle(.red).zoomPadding(.vertical, 4)
         }
 
         if let notice = model.notice {
-            Text(notice).font(.caption).foregroundStyle(.secondary).padding(.vertical, 4)
+            Text(notice).zoomFont(.caption).foregroundStyle(.secondary).zoomPadding(.vertical, 4)
         }
 
         if model.selectionTooLarge {
             Text("Select up to \(KnowledgeListModel.selectionLimit) items to move or delete.")
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.orange)
-                .padding(.vertical, 4)
+                .zoomPadding(.vertical, 4)
         }
     }
 
@@ -202,7 +202,7 @@ struct MacKnowledgeView: View {
             ProgressView().frame(maxWidth: .infinity)
         } else if model.hasMore && model.statusFilter != .all {
             Text("Filtering loaded items")
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
         }
     }

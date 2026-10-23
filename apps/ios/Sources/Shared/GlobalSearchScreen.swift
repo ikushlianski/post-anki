@@ -138,20 +138,20 @@ struct GlobalSearchScreen: View {
     }
 
     private func rankedLabel(_ row: GlobalSearchRankedResult) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        ZoomHStack(alignment: .top, spacing: 12) {
             Image(systemName: row.iconName).foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
+            ZoomVStack(alignment: .leading, spacing: 2) {
                 Text(row.title)
 
                 if let course = row.curriculumName {
-                    Text(course).font(.caption).foregroundStyle(.secondary)
+                    Text(course).zoomFont(.caption).foregroundStyle(.secondary)
                 }
 
                 if !row.tags.isEmpty {
                     Text(row.tags.map(\.name).joined(separator: ", "))
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.blue)
                 }
             }

@@ -5,7 +5,7 @@ struct GapRow: View {
     let gap: Gap
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(gap.label)
 
@@ -16,7 +16,7 @@ struct GapRow: View {
                 }
             }
 
-            HStack(spacing: 6) {
+            ZoomHStack(spacing: 6) {
                 Text(gap.statusText)
 
                 if let concern = gap.concern {
@@ -30,7 +30,7 @@ struct GapRow: View {
                     Text("Back \(text)")
                 }
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
         }
     }

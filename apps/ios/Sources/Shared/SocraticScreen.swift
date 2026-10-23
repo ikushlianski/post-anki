@@ -52,7 +52,7 @@ struct SocraticScreen: View {
 
                 if model.total > 0 {
                     Text("\(model.covered)/\(model.total) concepts, maturity \(Int((model.maturity * 100).rounded()))%")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
 
@@ -97,15 +97,15 @@ struct SocraticScreen: View {
     }
 
     private var checkpointCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Good checkpoint").font(.headline)
+        ZoomVStack(alignment: .leading, spacing: 8) {
+            Text("Good checkpoint").zoomFont(.headline)
 
             if let concepts = model.checkpoint?.solidConcepts, !concepts.isEmpty {
                 Text("Solid so far: " + concepts.joined(separator: ", "))
             }
 
             if let count = model.checkpoint?.exchangeCount {
-                Text("\(count) exchanges").font(.caption).foregroundStyle(.secondary)
+                Text("\(count) exchanges").zoomFont(.caption).foregroundStyle(.secondary)
             }
 
             HStack {

@@ -103,7 +103,7 @@ struct OpenQuestionsScreen: View {
 
                 if model.hasLoaded {
                     Text("\(model.totalCount) \(model.filter.rawValue)")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -175,28 +175,28 @@ struct OpenQuestionRow: View {
     let question: OpenQuestion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             Text(question.questionText)
 
-            HStack(spacing: 6) {
+            ZoomHStack(spacing: 6) {
                 Text(question.topicTitle ?? "No topic")
 
                 if let date = DueReviewModel.nextDueText(question.createdAt) {
                     Text(date)
                 }
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
 
             if let answer = question.answerText {
                 Text(answer)
-                    .font(.subheadline)
+                    .zoomFont(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
             if let resolvedAt = question.resolvedAt, let date = DueReviewModel.nextDueText(resolvedAt) {
                 Text("Resolved \(date)")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -229,7 +229,7 @@ struct ResolveQuestionSheet: View {
                             }
                         }
                     Text("\(answer.count)/\(Self.maxAnswerLength)")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }

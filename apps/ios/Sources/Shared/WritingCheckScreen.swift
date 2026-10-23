@@ -15,7 +15,7 @@ struct WritingCheckScreen: View {
                     .lineLimit(5...15)
 
                 Text("\(model.text.count)/\(WritingCheckModel.maxLength)")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(model.text.count > WritingCheckModel.maxLength ? .red : .secondary)
 
                 Button {
@@ -58,8 +58,8 @@ struct WritingCheckResult: View {
     let check: WritingCheck
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("\(check.score)/10 - \(check.verdict)").font(.subheadline.bold())
+        ZoomVStack(alignment: .leading, spacing: 6) {
+            Text("\(check.score)/10 - \(check.verdict)").zoomFont(.subheadline.bold())
 
             Text(check.feedback)
 

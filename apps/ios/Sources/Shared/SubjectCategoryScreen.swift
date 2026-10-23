@@ -29,7 +29,7 @@ struct SubjectCategoryScreen: View {
                     }
                 } header: {
                     Text(row.category.name)
-                        .padding(.leading, CGFloat(row.depth) * 16)
+                        .zoomPadding(.leading, CGFloat(row.depth) * 16)
                         .contextMenu {
                             Button("Rename") { renaming = row.category }
                             Button("Move into...") { moving = row.category }

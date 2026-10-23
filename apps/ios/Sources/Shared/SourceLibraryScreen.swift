@@ -48,7 +48,7 @@ struct SourceLibraryScreen: View {
     private func row(_ source: SourceLibraryItem) -> some View {
         let isBusy = model.busyIds.contains(source.id)
 
-        return VStack(alignment: .leading, spacing: 4) {
+        return ZoomVStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(source.displayTitle).lineLimit(2)
 
@@ -61,11 +61,11 @@ struct SourceLibraryScreen: View {
                 Text(source.kindLabel)
                 Text(model.badge(for: source))
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
 
             if let message = model.rowMessages[source.id] {
-                Text(message).font(.caption).foregroundStyle(.orange)
+                Text(message).zoomFont(.caption).foregroundStyle(.orange)
             }
         }
         .swipeActions {

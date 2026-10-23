@@ -124,7 +124,7 @@ struct SuspendedKnowledgeScreen: View {
         } else {
             List {
                 if let failure = model.failure {
-                    Text(failure).font(.caption).foregroundStyle(.red)
+                    Text(failure).zoomFont(.caption).foregroundStyle(.red)
                 }
 
                 ForEach(model.items) { item in
@@ -161,32 +161,32 @@ private struct SuspendedKnowledgeRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             Text(item.question).lineLimit(2)
-            Text(item.answer).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            Text(item.answer).zoomFont(.subheadline).foregroundStyle(.secondary).lineLimit(1)
 
-            HStack(spacing: 6) {
+            ZoomHStack(spacing: 6) {
                 Text(reasonText)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .zoomPadding(.horizontal, 6)
+                    .zoomPadding(.vertical, 2)
                     .background(.quaternary, in: Capsule())
 
                 if let name = item.subjectName { Text(name) }
 
                 if let since = item.since.flatMap({ DueReviewModel.nextDueText($0) }) { Text("since \(since)") }
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
 
             if let message {
-                Text(message).font(.caption).foregroundStyle(.red)
+                Text(message).zoomFont(.caption).foregroundStyle(.red)
             }
 
             Button("Bring back", action: onBringBack)
                 .buttonStyle(.bordered)
                 .disabled(isBusy)
         }
-        .padding(.vertical, 2)
+        .zoomPadding(.vertical, 2)
         .swipeActions(edge: .trailing) {
             Button("Bring back", action: onBringBack).tint(.green).disabled(isBusy)
         }

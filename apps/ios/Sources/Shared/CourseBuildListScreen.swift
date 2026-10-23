@@ -48,9 +48,9 @@ struct CourseBuildListScreen: View {
                 NavigationLink {
                     CourseBuildScreen(courseId: course.id, title: course.name)
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
+                    ZoomVStack(alignment: .leading, spacing: 2) {
                         Text(course.name)
-                        Text(course.statusLabel).font(.caption).foregroundStyle(.secondary)
+                        Text(course.statusLabel).zoomFont(.caption).foregroundStyle(.secondary)
                     }
                 }
             }

@@ -34,7 +34,7 @@ struct QuestionVariantEditSheet: View {
                 Section("Answer") { TextField("Answer", text: $answer, axis: .vertical) }
 
                 if let errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    Text(errorMessage).zoomFont(.caption).foregroundStyle(.red)
                 }
             }
             .navigationTitle("Edit card")

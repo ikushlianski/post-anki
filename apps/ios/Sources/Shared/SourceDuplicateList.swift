@@ -9,13 +9,13 @@ struct SourceDuplicateList: View {
         }
 
         ForEach(model.sourcePairs) { pair in
-            VStack(alignment: .leading, spacing: 6) {
-                Text(model.sourceName(pair.sourceAId)).font(.headline)
-                Text(model.sourceName(pair.sourceBId)).font(.headline)
+            ZoomVStack(alignment: .leading, spacing: 6) {
+                Text(model.sourceName(pair.sourceAId)).zoomFont(.headline)
+                Text(model.sourceName(pair.sourceBId)).zoomFont(.headline)
 
-                Text(pair.matchText).font(.subheadline)
+                Text(pair.matchText).zoomFont(.subheadline)
 
-                Text(pair.reason).font(.caption).foregroundStyle(.secondary)
+                Text(pair.reason).zoomFont(.caption).foregroundStyle(.secondary)
 
                 HStack {
                     Button("Acknowledge") { Task { await model.resolveSource(pair, acknowledged: true) } }

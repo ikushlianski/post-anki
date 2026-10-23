@@ -48,11 +48,11 @@ struct LearningPathsScreen: View {
                     NavigationLink {
                         LearningPathDetailScreen(pathId: path.id)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(path.name).font(.headline)
+                        ZoomVStack(alignment: .leading, spacing: 2) {
+                            Text(path.name).zoomFont(.headline)
 
                             Text("\(path.targetRoleLabel) - \(LearningPathError.statusLabel(path.status))")
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -75,11 +75,11 @@ struct RoleTemplatesSheet: View {
 
                 ForEach(model.templates) { template in
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(template.name).font(.headline)
+                        ZoomVStack(alignment: .leading, spacing: 2) {
+                            Text(template.name).zoomFont(.headline)
 
                             Text("\(template.targetRoleLabel) - \(template.targets.count) targets")
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
 

@@ -67,11 +67,11 @@ struct PhraseBankScreen: View {
         if !entries.isEmpty {
             Section(title) {
                 ForEach(entries) { entry in
-                    VStack(alignment: .leading, spacing: 2) {
+                    ZoomVStack(alignment: .leading, spacing: 2) {
                         Text(entry.phraseText)
 
                         Text([entry.category, entry.statusLabel].compactMap { $0 }.joined(separator: " - "))
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }

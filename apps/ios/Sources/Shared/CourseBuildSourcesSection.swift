@@ -17,11 +17,11 @@ struct CourseBuildSourcesSection: View {
             }
 
             ForEach(sources) { source in
-                VStack(alignment: .leading, spacing: 2) {
+                ZoomVStack(alignment: .leading, spacing: 2) {
                     Text(source.title ?? source.value).lineLimit(2)
 
                     Text(source.isApproved ? "Approved" : "Waiting for approval")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .swipeActions {

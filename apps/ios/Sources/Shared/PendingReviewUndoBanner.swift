@@ -7,14 +7,14 @@ struct PendingReviewUndoBanner: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        ZoomHStack(spacing: 12) {
+            ZoomVStack(alignment: .leading, spacing: 2) {
                 Text(undo.canRetry ? "Item rejected" : "Undo unavailable")
-                    .font(.subheadline.weight(.semibold))
+                    .zoomFont(.subheadline.weight(.semibold))
 
                 if let message = undo.message {
                     Text(message)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -37,10 +37,10 @@ struct PendingReviewUndoBanner: View {
             .accessibilityLabel("Dismiss")
             .help("Dismiss")
         }
-        .padding(12)
+        .zoomPadding(12)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        .zoomPadding(.horizontal)
+        .zoomPadding(.bottom, 8)
         .accessibilityElement(children: .contain)
     }
 }

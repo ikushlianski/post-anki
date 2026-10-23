@@ -74,11 +74,11 @@ struct MacTagsView: View {
 
                     if let notice = model.notice {
                         Text(notice)
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.green)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .zoomPadding(.horizontal, 12)
+                            .zoomPadding(.vertical, 6)
                             .background(.bar)
                     }
                 }

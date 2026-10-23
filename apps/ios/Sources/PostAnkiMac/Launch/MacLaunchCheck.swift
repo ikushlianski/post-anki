@@ -95,17 +95,17 @@ struct MacLaunchBanner: View {
 
     var body: some View {
         if let issue = check.issue, !check.isDismissed {
-            HStack(spacing: 8) {
+            ZoomHStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 2) {
+                ZoomVStack(alignment: .leading, spacing: 2) {
                     Text(issue.message)
 
                     if issue.showsAddress {
                         Text(check.address)
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -123,7 +123,7 @@ struct MacLaunchBanner: View {
                 .accessibilityLabel("Dismiss")
                 .help("Dismiss")
             }
-            .padding(10)
+            .zoomPadding(10)
             .background(.bar)
         }
     }

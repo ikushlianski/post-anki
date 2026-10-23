@@ -47,7 +47,7 @@ struct AdminOverviewSections: View {
                     ForEach(observability.stuckCurricula) { course in
                         VStack(alignment: .leading) {
                             Text(course.name)
-                            Text("\(course.status), \(course.stuckText)").font(.caption).foregroundStyle(.secondary)
+                            Text("\(course.status), \(course.stuckText)").zoomFont(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -64,7 +64,7 @@ struct AdminOverviewSections: View {
                     ForEach(observability.recentMerges) { merge in
                         VStack(alignment: .leading) {
                             Text("\(merge.entityType): \(merge.sourceName) into \(merge.targetName)")
-                            Text(merge.countsText).font(.caption).foregroundStyle(.secondary)
+                            Text(merge.countsText).zoomFont(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -78,11 +78,11 @@ struct AdminOverviewSections: View {
                 ForEach(model.feedback) { entry in
                     VStack(alignment: .leading) {
                         Text(entry.modelId)
-                        Text("\(entry.approved) approved, \(entry.rejected) rejected").font(.caption)
+                        Text("\(entry.approved) approved, \(entry.rejected) rejected").zoomFont(.caption)
 
                         if !entry.topReasons.isEmpty {
                             Text(entry.topReasons.map { "\($0.reasonCode) (\($0.count))" }.joined(separator: ", "))
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -96,13 +96,13 @@ struct AdminEventRow: View {
     let event: AdminEvent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             Text("\(event.op) (\(event.agentKey))")
 
-            Text(detail).font(.caption).foregroundStyle(.secondary)
+            Text(detail).zoomFont(.caption).foregroundStyle(.secondary)
 
             if !event.success {
-                Text(event.errorMessage ?? "Failed").font(.caption).foregroundStyle(.red)
+                Text(event.errorMessage ?? "Failed").zoomFont(.caption).foregroundStyle(.red)
             }
         }
     }

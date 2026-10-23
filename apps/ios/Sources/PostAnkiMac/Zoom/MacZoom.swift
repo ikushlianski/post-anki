@@ -24,12 +24,11 @@ enum MacZoom {
 
 struct MacZoomModifier: ViewModifier {
     @AppStorage(MacZoom.storageKey) private var stored = MacZoom.actualSize
-    @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
-        let scale = MacZoom.clamped(stored)
-
-        MacZoomHost(scale: scale, content: content.environment(\.scenePhase, scenePhase))
+        content
+            .zoomFont(.body)
+            .environment(\.zoomScale, MacZoom.clamped(stored))
     }
 }
 

@@ -5,6 +5,10 @@ extension Notification.Name {
 }
 
 struct MacCommandPaletteView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.macNavigator) private var navigator
 
@@ -20,8 +24,8 @@ struct MacCommandPaletteView: View {
         VStack(spacing: 0) {
             TextField("Jump to…", text: $query)
                 .textFieldStyle(.plain)
-                .font(.title3)
-                .padding(12)
+                .zoomFont(.title3)
+                .zoomPadding(12)
                 .focused($searchFocused)
                 .onSubmit(openHighlighted)
                 .onKeyPress(.downArrow) { move(1) }
@@ -54,7 +58,7 @@ struct MacCommandPaletteView: View {
                 }
             }
         }
-        .frame(width: 440, height: 360)
+        .frame(width: 440 * zoom, height: 360 * zoom)
         .onAppear {
             searchFocused = true
             highlighted = results.first?.id
@@ -69,7 +73,7 @@ struct MacCommandPaletteView: View {
             Spacer()
 
             Text(feature.section.title)
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
         }
     }

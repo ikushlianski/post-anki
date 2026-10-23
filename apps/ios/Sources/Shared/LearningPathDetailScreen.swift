@@ -20,7 +20,7 @@ struct LearningPathDetailScreen: View {
 
             if let detail = model.detail {
                 Section {
-                    Text(detail.path.targetRoleLabel).font(.headline)
+                    Text(detail.path.targetRoleLabel).zoomFont(.headline)
 
                     Text(LearningPathError.statusLabel(detail.progress.overallStatus))
                         .foregroundStyle(.secondary)
@@ -55,25 +55,25 @@ struct LearningPathDetailScreen: View {
     private func stepRow(_ step: LearningPathStep, detail: LearningPathDetail) -> some View {
         let status = detail.progress.steps.first { $0.domainNodeId == step.domainNodeId }
 
-        return VStack(alignment: .leading, spacing: 2) {
+        return ZoomVStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text(model.templateNames[step.domainNodeId] ?? "Untitled step").font(.headline)
+                Text(model.templateNames[step.domainNodeId] ?? "Untitled step").zoomFont(.headline)
 
                 if detail.nextStepDomainNodeId == step.domainNodeId {
                     Text("Next")
-                        .font(.caption.bold())
-                        .padding(.horizontal, 6)
+                        .zoomFont(.caption.bold())
+                        .zoomPadding(.horizontal, 6)
                         .background(.tint.opacity(0.2), in: Capsule())
                 }
             }
 
             if let status {
                 Text(LearningPathError.statusLabel(status.status))
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
 
                 Text("\(status.progress.topicsMastered) of \(status.progress.topicsIncluded) topics mastered (\(status.progress.percent)%)")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }

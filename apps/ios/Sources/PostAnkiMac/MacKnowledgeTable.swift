@@ -15,6 +15,10 @@ struct MacKnowledgeTableRow: Identifiable, Hashable {
 }
 
 struct MacKnowledgeTable: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     let rows: [MacKnowledgeTableRow]
     @Binding var selection: Set<String>
     let onAppearRow: (KnowledgeOverviewItem) -> Void
@@ -34,32 +38,32 @@ struct MacKnowledgeTable: View {
                     .lineLimit(2)
                     .task { onAppearRow(row.item) }
             }
-            .width(min: 160, ideal: 280)
+            .width(min: 160 * zoom, ideal: 280 * zoom)
 
             TableColumn("Answer", value: \.answer) { row in
                 Text(row.answer).lineLimit(2).foregroundStyle(.secondary)
             }
-            .width(min: 120, ideal: 220)
+            .width(min: 120 * zoom, ideal: 220 * zoom)
 
             TableColumn("Subject", value: \.subjectName) { row in
                 Text(row.subjectName)
             }
-            .width(min: 80, ideal: 120)
+            .width(min: 80 * zoom, ideal: 120 * zoom)
 
             TableColumn("State", value: \.stateLabel) { row in
                 Text(row.stateLabel)
             }
-            .width(min: 70, ideal: 90)
+            .width(min: 70 * zoom, ideal: 90 * zoom)
 
             TableColumn("Due", value: \.dueKey) { row in
                 Text(row.dueText)
             }
-            .width(min: 80, ideal: 120)
+            .width(min: 80 * zoom, ideal: 120 * zoom)
 
             TableColumn("Lapses", value: \.lapses) { row in
                 Text("\(row.lapses)")
             }
-            .width(min: 50, ideal: 60)
+            .width(min: 50 * zoom, ideal: 60 * zoom)
         }
         .contextMenu(forSelectionType: String.self, menu: contextMenu) { ids in
             if let id = ids.first, let row = rows.first(where: { $0.id == id }) {

@@ -107,11 +107,11 @@ struct MacSubjectsView: View {
 
                         if let notice = model.notice {
                             Text(notice)
-                                .font(.caption)
+                                .zoomFont(.caption)
                                 .foregroundStyle(.green)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
+                                .zoomPadding(.horizontal, 12)
+                                .zoomPadding(.vertical, 6)
                                 .background(.bar)
                         }
                     }
@@ -133,7 +133,7 @@ struct MacSubjectsView: View {
             TableColumn("Subject") { row in
                 Text(row.subject.name)
                     .lineLimit(1)
-                    .padding(.leading, CGFloat(row.depth) * 16)
+                    .zoomPadding(.leading, CGFloat(row.depth) * 16)
             }
             TableColumn("Inside") { Text(model.name(of: $0.subject.parentId)).foregroundStyle(.secondary) }
             TableColumn("Kind") { Text($0.subject.kind.capitalized) }

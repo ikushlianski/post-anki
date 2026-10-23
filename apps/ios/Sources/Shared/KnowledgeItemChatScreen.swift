@@ -93,7 +93,7 @@ struct KnowledgeItemChatScreen: View {
             List {
                 Section("Knowledge bit") {
                     Text(model.bitBody)
-                        .font(.subheadline)
+                        .zoomFont(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 

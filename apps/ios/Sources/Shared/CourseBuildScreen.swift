@@ -67,7 +67,7 @@ struct CourseBuildScreen: View {
         switch detail.curriculum.status {
         case "draft", "curating":
             Section {
-                HStack(spacing: 12) {
+                ZoomHStack(spacing: 12) {
                     ProgressView()
                     Text("Gathering sources...")
                 }

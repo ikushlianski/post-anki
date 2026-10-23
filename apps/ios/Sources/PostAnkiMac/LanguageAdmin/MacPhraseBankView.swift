@@ -3,6 +3,10 @@ import PostAnkiAPI
 import SwiftUI
 
 struct MacPhraseBankView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     private enum Scope: String, CaseIterable, Identifiable {
         case all = "All"
         case learning = "Learning"
@@ -82,10 +86,10 @@ struct MacPhraseBankView: View {
                 TableColumn("Phrase", value: \.phraseText)
 
                 TableColumn("Category") { Text($0.category ?? "") }
-                    .width(min: 80, ideal: 140)
+                    .width(min: 80 * zoom, ideal: 140 * zoom)
 
                 TableColumn("Status") { Text($0.statusLabel) }
-                    .width(110)
+                    .width(110 * zoom)
             }
             .contextMenu(forSelectionType: PhraseBankEntry.ID.self) { ids in
                 if let entry = entries.first(where: { ids.contains($0.id) }) {

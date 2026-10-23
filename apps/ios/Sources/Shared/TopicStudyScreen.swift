@@ -134,11 +134,11 @@ struct NoteRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             Text(note.body)
                 .lineLimit(showsKind ? 3 : nil)
 
-            HStack(spacing: 6) {
+            ZoomHStack(spacing: 6) {
                 if note.isHighlight {
                     Image(systemName: "star.fill")
                         .foregroundStyle(.yellow)
@@ -153,7 +153,7 @@ struct NoteRow: View {
                     Text(date)
                 }
             }
-            .font(.caption)
+            .zoomFont(.caption)
             .foregroundStyle(.secondary)
         }
     }

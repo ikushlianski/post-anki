@@ -33,7 +33,7 @@ struct CurriculumStatsSection: View {
                 loaded(stats)
             } else if let failure = model.failure {
                 Text(failure.message)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 ProgressView()
@@ -51,7 +51,7 @@ struct CurriculumStatsSection: View {
         }
 
         ForEach(stats.weakSpots.prefix(3)) { spot in
-            VStack(alignment: .leading, spacing: 2) {
+            ZoomVStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(spot.topicTitle)
 
@@ -63,7 +63,7 @@ struct CurriculumStatsSection: View {
 
                 if let gap = spot.openGapLabels.first {
                     Text(gap)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -94,7 +94,7 @@ struct CurriculumStatsScreen: View {
                 if !stats.weakSpots.isEmpty {
                     Section("Weak spots") {
                         ForEach(stats.weakSpots) { spot in
-                            VStack(alignment: .leading, spacing: 2) {
+                            ZoomVStack(alignment: .leading, spacing: 2) {
                                 HStack {
                                     Text(spot.topicTitle)
 
@@ -106,7 +106,7 @@ struct CurriculumStatsScreen: View {
 
                                 ForEach(spot.openGapLabels, id: \.self) { gap in
                                     Text(gap)
-                                        .font(.caption)
+                                        .zoomFont(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -145,17 +145,17 @@ struct CurriculumStatsScreen: View {
     }
 
     private func recommendationRow(_ item: TopicRecommendation, stats: CurriculumStats) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             if let title = stats.weakSpots.first(where: { $0.topicId == item.topicId })?.topicTitle {
                 Text(title)
-                    .font(.headline)
+                    .zoomFont(.headline)
             }
 
             Text(item.text)
 
             if let when = DueReviewModel.nextDueText(item.generatedAt) {
                 Text(when)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }

@@ -84,7 +84,7 @@ struct MacCoursesView: View {
 
                 if let failure = model.failure {
                     Text(failure.macDetail)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 }
             }

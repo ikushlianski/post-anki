@@ -40,7 +40,7 @@ struct ResurfacingGapsScreen: View {
         if !items.isEmpty {
             Section(title) {
                 ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 8) {
+                    ZoomVStack(alignment: .leading, spacing: 8) {
                         GapRow(gap: item.gap)
 
                         HStack {
@@ -49,7 +49,7 @@ struct ResurfacingGapsScreen: View {
                             Button("Dismiss", role: .destructive) { Task { await model.triage(item, action: .dismiss) } }
                         }
                         .buttonStyle(.bordered)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .disabled(model.busyIds.contains(item.id))
                     }
                 }

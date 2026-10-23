@@ -6,9 +6,9 @@ struct ChatMessageRow: View {
     let assistantLabel: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             Text(entry.role == "user" ? "You" : assistantLabel)
-                .font(.caption2)
+                .zoomFont(.caption2)
                 .foregroundStyle(.secondary)
             Text(entry.text)
                 .textSelection(.enabled)
@@ -48,6 +48,6 @@ struct ChatComposerBar: View {
             Button("Send", action: onSend)
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
         }
-        .padding()
+        .zoomPadding()
     }
 }

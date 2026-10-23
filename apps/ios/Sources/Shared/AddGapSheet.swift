@@ -31,7 +31,7 @@ struct AddGapSheet: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    Text(errorMessage).zoomFont(.caption).foregroundStyle(.red)
                 }
             }
             .navigationTitle("Add gap")

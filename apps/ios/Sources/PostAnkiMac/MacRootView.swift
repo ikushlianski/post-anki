@@ -2,6 +2,10 @@ import SwiftUI
 import AppKit
 
 struct MacRootView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     @AppStorage(MacNavigator.storageKey) private var storedSelection = MacFeatureRegistry.fallbackID
     @AppStorage("mac.sidebarCollapsedSections") private var collapsedSections = ""
 
@@ -42,27 +46,40 @@ struct MacRootView: View {
         )
     }
 
+    private func sidebarLabel(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 8 * zoom) {
+            Image(systemName: systemImage)
+                .frame(width: 20 * zoom)
+
+            Text(title)
+        }
+        .zoomFont(.body)
+        .frame(minHeight: 22 * zoom, alignment: .leading)
+    }
+
     var body: some View {
         NavigationSplitView {
             List(selection: selection) {
                 ForEach(MacFeatureRegistry.sidebarSections) { section in
-                    Section(section.title, isExpanded: isExpanded(section)) {
+                    Section(isExpanded: isExpanded(section)) {
                         ForEach(MacFeatureRegistry.sidebarFeatures(in: section)) { feature in
-                            Label(feature.title, systemImage: feature.systemImage)
+                            sidebarLabel(feature.title, systemImage: feature.systemImage)
                                 .badge(feature.badge?() ?? 0)
                                 .tag(feature.id)
                                 .accessibilityIdentifier("sidebar-\(feature.id)")
                         }
+                    } header: {
+                        Text(section.title).zoomFont(.subheadline)
                     }
                 }
 
                 Button { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) } label: {
-                    Label("Settings", systemImage: "gearshape")
+                    sidebarLabel("Settings", systemImage: "gearshape")
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("sidebar-settings")
             }
-            .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 260)
+            .navigationSplitViewColumnWidth(min: 160 * zoom, ideal: 190 * zoom, max: 260 * zoom)
         } detail: {
             VStack(spacing: 0) {
                 MacLaunchBanner(check: launchCheck)

@@ -48,7 +48,7 @@ struct HomeSummarySection: View {
             if model.summary == nil && model.streak == nil {
                 if let failure = model.failure {
                     Text(failure.message)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     ProgressView()
@@ -64,12 +64,12 @@ struct HomeSummarySection: View {
                 }
 
                 ForEach((model.summary?.topSubjects ?? []).prefix(3)) { subject in
-                    VStack(alignment: .leading, spacing: 2) {
+                    ZoomVStack(alignment: .leading, spacing: 2) {
                         Text(subject.subjectName)
-                            .font(.subheadline)
+                            .zoomFont(.subheadline)
 
                         Text("\(subject.topicsTouchedLast30Days) topics this month")
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -86,17 +86,17 @@ struct HomeSummarySection: View {
     }
 
     private var streakRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             Label(
                 currentStreak > 0 ? "\(currentStreak)-day streak (best \(longestStreak))" : "Start a streak today",
                 systemImage: "flame.fill"
             )
-            .font(.headline)
+            .zoomFont(.headline)
             .foregroundStyle(.orange)
 
             if currentStreak > 0, model.streak?.isActiveToday == false {
                 Text("Study today to keep it going")
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -105,10 +105,10 @@ struct HomeSummarySection: View {
     private func statTile(value: Int, label: String) -> some View {
         VStack {
             Text("\(value)")
-                .font(.title3.bold())
+                .zoomFont(.title3.bold())
 
             Text(label)
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)

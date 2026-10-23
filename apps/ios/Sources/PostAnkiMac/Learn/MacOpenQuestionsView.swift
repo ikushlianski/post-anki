@@ -20,10 +20,10 @@ struct MacOpenQuestionsView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .padding()
+            .zoomPadding()
 
             if let message = model.actionMessage {
-                Text(message).font(.caption).foregroundStyle(.red).padding(.bottom, 4)
+                Text(message).zoomFont(.caption).foregroundStyle(.red).zoomPadding(.bottom, 4)
             }
 
             content
@@ -101,7 +101,6 @@ struct MacOpenQuestionsView: View {
 
     private func dismiss(_ question: OpenQuestion?) {
         guard let question, question.status == "open" else { return }
-
 
         dismissing = MacDestructiveRequest(verb: "Dismiss", count: 1, noun: "question") {
             Task { _ = await model.resolve(question, as: .dismissed) }

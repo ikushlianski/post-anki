@@ -9,15 +9,15 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
     @ViewBuilder let unrevealed: () -> Unrevealed
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        ZoomVStack(alignment: .leading, spacing: 16) {
             if let notice = model.notice {
                 Text(notice)
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             Text(DueReviewModel.displayPrompt(card))
-                .font(.title3)
+                .zoomFont(.title3)
 
             answerInput()
 
@@ -25,11 +25,11 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                 Divider()
 
                 Text(card.answer)
-                    .font(.title3.weight(.semibold))
+                    .zoomFont(.title3.weight(.semibold))
 
                 if let background = card.background {
                     Text(background)
-                        .font(.subheadline)
+                        .zoomFont(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
@@ -46,22 +46,22 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
 
             if model.reviewedCount > 0 {
                 Text("\(model.reviewedCount) reviewed this session")
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             DueReviewPendingCaption(count: model.pendingCount)
         }
-        .padding()
+        .zoomPadding()
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
     private var gradeErrorView: some View {
         if let error = model.gradeError {
-            VStack(alignment: .leading, spacing: 8) {
+            ZoomVStack(alignment: .leading, spacing: 8) {
                 Text(error)
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.red)
 
                 if model.isRevealed, let failed = model.failedGrade {

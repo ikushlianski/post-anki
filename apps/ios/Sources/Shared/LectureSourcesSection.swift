@@ -36,7 +36,7 @@ struct LectureSourcesSection: View {
     }
 
     private func row(_ source: LectureSourceCandidate) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             if let url = WebLink.url(from: source.url) {
                 Link(source.title, destination: url)
             } else {
@@ -44,7 +44,7 @@ struct LectureSourcesSection: View {
             }
 
             Text(source.whySelected)
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.secondary)
 
             if source.reviewStatus == "pending" {
@@ -55,7 +55,7 @@ struct LectureSourcesSection: View {
                 .buttonStyle(.bordered)
             } else {
                 Text(source.reviewStatus.capitalized)
-                    .font(.caption)
+                    .zoomFont(.caption)
             }
         }
     }

@@ -2,6 +2,10 @@ import PostAnkiAPI
 import SwiftUI
 
 struct MacAdminView: View {
+    @Environment(\.zoomScale) private var zoomScale
+
+    private var zoom: CGFloat { CGFloat(zoomScale) }
+
     private enum Pane: String, CaseIterable, Identifiable {
         case scans = "Scans"
         case overview = "Overview"
@@ -78,7 +82,7 @@ struct MacAdminView: View {
                     }
                 }
             }
-            .width(min: 160, ideal: 220)
+            .width(min: 160 * zoom, ideal: 220 * zoom)
 
             TableColumn("What it does", value: \.explanation)
 
@@ -91,7 +95,7 @@ struct MacAdminView: View {
                     Text(result)
                 }
             }
-            .width(min: 120, ideal: 240)
+            .width(min: 120 * zoom, ideal: 240 * zoom)
         }
         .contextMenu(forSelectionType: AdminScan.ID.self) { ids in
             if let scan = AdminScan.all.first(where: { ids.contains($0.id) }) {

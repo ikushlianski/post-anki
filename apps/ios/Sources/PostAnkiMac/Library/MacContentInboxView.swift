@@ -68,7 +68,7 @@ private struct MacContentInboxDetail: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ZoomVStack(alignment: .leading, spacing: 12) {
             ScrollView {
                 Text(item.body)
                     .textSelection(.enabled)
@@ -76,21 +76,21 @@ private struct MacContentInboxDetail: View {
             }
 
             if let placement = item.suggestedPlacement, !placement.isEmpty {
-                Text("Suggested: \(placement)").font(.subheadline)
+                Text("Suggested: \(placement)").zoomFont(.subheadline)
             }
 
             if let sourceRef = item.sourceRef, !sourceRef.isEmpty {
-                Text(sourceRef).font(.caption).foregroundStyle(.secondary)
+                Text(sourceRef).zoomFont(.caption).foregroundStyle(.secondary)
             }
 
             HStack {
-                Text(item.createdAt.prefix(10)).font(.caption).foregroundStyle(.secondary)
+                Text(item.createdAt.prefix(10)).zoomFont(.caption).foregroundStyle(.secondary)
 
                 Spacer()
 
                 Button("Close") { dismiss() }.keyboardShortcut(.defaultAction)
             }
         }
-        .padding()
+        .zoomPadding()
     }
 }

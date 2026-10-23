@@ -13,14 +13,14 @@ struct PendingReviewSourceHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             Text(source.subjectName ?? "No subject")
-                .font(.subheadline.weight(.semibold))
+                .zoomFont(.subheadline.weight(.semibold))
             Text(preview)
                 .lineLimit(2)
             Text(source.bits.count == 1 ? "1 item" : "\(source.bits.count) items")
         }
-        .font(.caption)
+        .zoomFont(.caption)
         .textCase(nil)
     }
 }
@@ -33,29 +33,29 @@ struct PendingReviewBitRow: View {
     let onEdit: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        ZoomVStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(bit.body)
-                    .font(.headline)
+                    .zoomFont(.headline)
 
                 if bit.origin == "manual" {
                     Text("Manual")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .zoomFont(.caption2)
+                        .zoomPadding(.horizontal, 6)
+                        .zoomPadding(.vertical, 2)
                         .background(.quaternary, in: Capsule())
                 }
             }
 
             if let background = bit.background, !background.isEmpty {
                 Text(background)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
 
             if bit.variants.isEmpty {
                 Text("No questions yet")
-                    .font(.subheadline)
+                    .zoomFont(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(bit.variants) { variant in
@@ -69,7 +69,7 @@ struct PendingReviewBitRow: View {
 
             if let message {
                 Text(message)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.red)
             }
 
@@ -90,7 +90,7 @@ struct PendingReviewBitRow: View {
             .buttonStyle(.borderless)
             .disabled(isBusy)
         }
-        .padding(.vertical, 4)
+        .zoomPadding(.vertical, 4)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("Reject") { onDecide(.reject) }
                 .tint(.red)
@@ -110,14 +110,14 @@ struct PendingReviewVariantBlock: View {
     let variant: PendingReviewVariant
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             Text(variant.kindLabel)
-                .font(.caption2)
+                .zoomFont(.caption2)
                 .foregroundStyle(.secondary)
             Text(variant.prompt)
-                .font(.subheadline)
+                .zoomFont(.subheadline)
             Text(variant.answer)
-                .font(.subheadline)
+                .zoomFont(.subheadline)
                 .foregroundStyle(.secondary)
         }
     }
@@ -130,7 +130,7 @@ struct PendingReviewSourceFooter: View {
     let onApproveAll: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        ZoomVStack(alignment: .leading, spacing: 6) {
             if readyCount > 1 || isBulkBusy {
                 HStack {
                     Button("Approve all (\(readyCount))", action: onApproveAll)
@@ -145,7 +145,7 @@ struct PendingReviewSourceFooter: View {
 
             if let message {
                 Text(message)
-                    .font(.caption)
+                    .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }
         }

@@ -14,7 +14,7 @@ struct SourceRegenerationRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        ZoomVStack(alignment: .leading, spacing: 4) {
             content
         }
         .confirmationDialog(

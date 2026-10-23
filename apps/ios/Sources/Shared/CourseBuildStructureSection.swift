@@ -19,7 +19,7 @@ struct CourseBuildStructureSection: View {
             }
 
             if model.turnPending {
-                HStack(spacing: 12) {
+                ZoomHStack(spacing: 12) {
                     ProgressView()
                     Text("Working on it...")
                 }
@@ -29,11 +29,11 @@ struct CourseBuildStructureSection: View {
         if let snapshot = model.latestSnapshot {
             Section("Current outline") {
                 ForEach(snapshot.modules, id: \.self) { module in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(module.title).font(.headline)
+                    ZoomVStack(alignment: .leading, spacing: 2) {
+                        Text(module.title).zoomFont(.headline)
 
                         ForEach(module.topics, id: \.self) { topic in
-                            Text(topicLine(topic)).font(.subheadline).foregroundStyle(.secondary)
+                            Text(topicLine(topic)).zoomFont(.subheadline).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -50,9 +50,9 @@ struct CourseBuildStructureSection: View {
                             else { model.selectedCandidates.remove(candidate.id) }
                         }
                     )) {
-                        VStack(alignment: .leading, spacing: 2) {
+                        ZoomVStack(alignment: .leading, spacing: 2) {
                             Text(candidate.title).lineLimit(2)
-                            Text(candidate.label).font(.caption).foregroundStyle(.secondary)
+                            Text(candidate.label).zoomFont(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -94,14 +94,14 @@ struct CourseBuildStructureSection: View {
     private func turnRow(_ turn: CourseBuildTurn) -> some View {
         let isUser = turn.role == "user"
 
-        VStack(alignment: isUser ? .trailing : .leading, spacing: 2) {
+        ZoomVStack(alignment: isUser ? .trailing : .leading, spacing: 2) {
             Text(turn.message)
-                .padding(8)
+                .zoomPadding(8)
                 .background(isUser ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
 
             if turn.status == "failed" {
-                Text("That message failed.").font(.caption).foregroundStyle(.red)
+                Text("That message failed.").zoomFont(.caption).foregroundStyle(.red)
             }
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)

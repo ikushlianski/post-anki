@@ -30,7 +30,7 @@ struct TagsScreen: View {
                         Spacer()
 
                         Text(model.mastery[tag.id]?.statusLabel ?? "New")
-                            .font(.caption)
+                            .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -96,11 +96,11 @@ struct TagDetailScreen: View {
         if !nodes.isEmpty {
             Section(title) {
                 ForEach(nodes) { node in
-                    let row = VStack(alignment: .leading, spacing: 2) {
+                    let row = ZoomVStack(alignment: .leading, spacing: 2) {
                         Text(node.title).lineLimit(2)
 
                         if let course = node.curriculumName {
-                            Text(course).font(.caption).foregroundStyle(.secondary)
+                            Text(course).zoomFont(.caption).foregroundStyle(.secondary)
                         }
                     }
 

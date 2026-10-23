@@ -106,11 +106,11 @@ struct DomainMappingScreen: View {
             }
 
             ForEach(model.mappings) { mapping in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(model.names[mapping.domainNodeId] ?? "(removed)").font(.headline)
+                ZoomVStack(alignment: .leading, spacing: 6) {
+                    Text(model.names[mapping.domainNodeId] ?? "(removed)").zoomFont(.headline)
 
                     Text("\(mapping.status.capitalized), \(DomainDepth.label(mapping.depth))")
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
 
                     if mapping.status == "suggested" {

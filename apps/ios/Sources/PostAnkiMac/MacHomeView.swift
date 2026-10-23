@@ -69,16 +69,16 @@ struct MacHomeView: View {
     private var dueSection: some View {
         Section("Due today") {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
+                ZoomVStack(alignment: .leading, spacing: 4) {
                     if let total = dueModel.total {
                         Text("\(total)")
-                            .font(.largeTitle.bold())
+                            .zoomFont(.largeTitle.bold())
                     } else if dueModel.state == .loading {
                         ProgressView()
                     }
 
                     Text(dueSubtitle)
-                        .font(.subheadline)
+                        .zoomFont(.subheadline)
                         .foregroundStyle(.secondary)
                 }
 
@@ -86,14 +86,14 @@ struct MacHomeView: View {
 
                 Button(action: onStudyNow) {
                     Label(dueModel.total == 0 ? "Nothing due" : "Study now", systemImage: "play.fill")
-                        .font(.headline)
+                        .zoomFont(.headline)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled((dueModel.total ?? 0) == 0)
             }
-            .padding(.vertical, 4)
+            .zoomPadding(.vertical, 4)
         }
     }
 
@@ -131,13 +131,13 @@ struct MacHomeView: View {
         if let name = model.curriculumName {
             Section("Continue studying") {
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
+                    ZoomVStack(alignment: .leading, spacing: 4) {
                         Text(name)
-                            .font(.headline)
+                            .zoomFont(.headline)
 
                         if model.detail != nil {
                             Text("\(model.topics.count) topics")
-                                .font(.subheadline)
+                                .zoomFont(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
                     }

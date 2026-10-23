@@ -115,13 +115,13 @@ struct DomainPriorityScreen: View {
                 }
 
                 ForEach(model.suggestions) { suggestion in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(names[suggestion.domainNodeId] ?? "(removed)").font(.headline)
+                    ZoomVStack(alignment: .leading, spacing: 6) {
+                        Text(names[suggestion.domainNodeId] ?? "(removed)").zoomFont(.headline)
 
                         Text("\(DomainDepth.label(suggestion.currentTargetDepth)) to \(DomainDepth.label(suggestion.suggestedTargetDepth))")
-                            .font(.subheadline)
+                            .zoomFont(.subheadline)
 
-                        Text(suggestion.reason).font(.caption).foregroundStyle(.secondary)
+                        Text(suggestion.reason).zoomFont(.caption).foregroundStyle(.secondary)
 
                         TriageButtons(
                             accept: { Task { await model.resolve(suggestion, accepted: true) } },

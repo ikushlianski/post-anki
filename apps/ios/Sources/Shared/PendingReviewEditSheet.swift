@@ -85,7 +85,7 @@ struct PendingReviewEditSheet: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    Text(errorMessage).zoomFont(.caption).foregroundStyle(.red)
                 }
             }
             .navigationTitle("Edit item")

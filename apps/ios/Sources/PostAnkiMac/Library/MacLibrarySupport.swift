@@ -28,11 +28,11 @@ struct MacLibraryErrorBanner: View {
     var body: some View {
         if let message {
             Text(message)
-                .font(.caption)
+                .zoomFont(.caption)
                 .foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .zoomPadding(.horizontal, 12)
+                .zoomPadding(.vertical, 6)
                 .background(.bar)
         }
     }

@@ -21,7 +21,7 @@ struct DueReviewEmptyView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        ZoomVStack(spacing: 12) {
             if model.isOffline {
                 Text("You're offline. Your grades are saved and will send when you're back online.")
                     .multilineTextAlignment(.center)
@@ -32,25 +32,25 @@ struct DueReviewEmptyView: View {
 
             if let notice = model.notice {
                 Text(notice)
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             if let error = model.gradeError {
                 Text(error)
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.red)
             }
 
             if model.reviewedCount > 0 {
                 Text("\(model.reviewedCount) reviewed this session")
-                    .font(.footnote)
+                    .zoomFont(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             DueReviewPendingCaption(count: model.pendingCount)
         }
-        .padding()
+        .zoomPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
@@ -61,7 +61,7 @@ struct DueReviewPendingCaption: View {
     var body: some View {
         if count > 0 {
             Text(count == 1 ? "1 grade waiting to send" : "\(count) grades waiting to send")
-                .font(.footnote)
+                .zoomFont(.footnote)
                 .foregroundStyle(.secondary)
         }
     }
@@ -73,14 +73,14 @@ struct DueReviewMessageView: View {
     let action: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
+        ZoomVStack(spacing: 12) {
             Text(message)
                 .multilineTextAlignment(.center)
 
             Button(actionTitle, action: action)
                 .buttonStyle(.borderedProminent)
         }
-        .padding()
+        .zoomPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

@@ -99,9 +99,9 @@ struct DocScanScreen: View {
             Section("New areas") {
                 if let items = model.suggestions?.newTopics, !items.isEmpty {
                     ForEach(items) { item in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(item.proposedNodeName).font(.headline)
-                            Text(item.reason).font(.caption).foregroundStyle(.secondary)
+                        ZoomVStack(alignment: .leading, spacing: 6) {
+                            Text(item.proposedNodeName).zoomFont(.headline)
+                            Text(item.reason).zoomFont(.caption).foregroundStyle(.secondary)
 
                             TriageButtons(
                                 accept: { Task { await model.resolveTopic(item, accepted: true) } },
@@ -117,9 +117,9 @@ struct DocScanScreen: View {
             Section("Replacements") {
                 if let items = model.suggestions?.supersessions, !items.isEmpty {
                     ForEach(items) { item in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(names[item.domainNodeId] ?? "(removed)").font(.headline)
-                            Text(item.reason).font(.caption).foregroundStyle(.secondary)
+                        ZoomVStack(alignment: .leading, spacing: 6) {
+                            Text(names[item.domainNodeId] ?? "(removed)").zoomFont(.headline)
+                            Text(item.reason).zoomFont(.caption).foregroundStyle(.secondary)
 
                             TriageButtons(
                                 accept: { Task { await model.resolveSupersession(item, accepted: true) } },

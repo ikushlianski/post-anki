@@ -66,9 +66,9 @@ struct MacStudySessionsView: View {
 
     @ViewBuilder
     private var summary: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        ZoomVStack(alignment: .leading, spacing: 2) {
             if let message = model.errorMessage {
-                Text(message).font(.caption).foregroundStyle(.red)
+                Text(message).zoomFont(.caption).foregroundStyle(.red)
             }
 
             if let consistency = model.consistency {
@@ -80,11 +80,11 @@ struct MacStudySessionsView: View {
                 }
             }
         }
-        .font(.caption)
+        .zoomFont(.caption)
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal)
-        .padding(.vertical, 6)
+        .zoomPadding(.horizontal)
+        .zoomPadding(.vertical, 6)
     }
 
     private var table: some View {

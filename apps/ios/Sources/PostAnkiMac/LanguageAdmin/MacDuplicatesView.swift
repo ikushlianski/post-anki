@@ -59,11 +59,11 @@ struct MacDuplicatesView: View {
                         ProgressView().controlSize(.small)
                         Text("Scanning...")
                     }
-                    .padding(8)
+                    .zoomPadding(8)
                 }
 
                 if let notice = model.notice {
-                    Text(notice).font(.caption).foregroundStyle(.secondary).padding(8)
+                    Text(notice).zoomFont(.caption).foregroundStyle(.secondary).zoomPadding(8)
                 }
 
                 List {

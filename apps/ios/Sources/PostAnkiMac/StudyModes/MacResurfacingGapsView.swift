@@ -34,7 +34,7 @@ struct MacResurfacingGapsView: View {
         } else {
             List {
                 if let message = model.errorMessage {
-                    Text(message).font(.caption).foregroundStyle(.red)
+                    Text(message).zoomFont(.caption).foregroundStyle(.red)
                 }
 
                 group("You said \"later\"", model.userDeferred)
@@ -48,7 +48,7 @@ struct MacResurfacingGapsView: View {
         if !items.isEmpty {
             Section(title) {
                 ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 8) {
+                    ZoomVStack(alignment: .leading, spacing: 8) {
                         GapRow(gap: item.gap)
 
                         HStack {
@@ -57,7 +57,7 @@ struct MacResurfacingGapsView: View {
                             }
                         }
                         .buttonStyle(.bordered)
-                        .font(.caption)
+                        .zoomFont(.caption)
                     }
                     .disabled(model.busyIds.contains(item.id))
                     .contextMenu {

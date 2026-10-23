@@ -17,11 +17,11 @@ struct LearningListItemScreen: View {
     var body: some View {
         List {
             Section {
-                Text(model.item.displayTitle).font(.headline)
+                Text(model.item.displayTitle).zoomFont(.headline)
 
                 if let url = model.item.url {
                     Text(url)
-                        .font(.caption)
+                        .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -51,7 +51,7 @@ struct LearningListItemScreen: View {
 
     private func recommendationSection(_ recommendation: LearningListRecommendation) -> some View {
         Section("Suggestion") {
-            Text(model.destinationText).font(.headline)
+            Text(model.destinationText).zoomFont(.headline)
 
             if let parts = recommendation.partCount, parts > 1 {
                 Text("\(parts) parts")
