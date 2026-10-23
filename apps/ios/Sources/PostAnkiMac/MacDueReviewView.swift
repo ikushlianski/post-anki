@@ -59,8 +59,7 @@ struct MacDueReviewView: View {
 
 private struct MacDueReviewCardView: View {
     let model: DueReviewModel
-    @State private var typedAnswer = ""
-    @FocusState private var isAnswerFocused: Bool
+    @FocusState private var isCardFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -68,35 +67,27 @@ private struct MacDueReviewCardView: View {
                 DueReviewCardBody(
                     model: model,
                     card: card,
-                    answerInput: {
-                        TextField("Your answer", text: $typedAnswer, axis: .vertical)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($isAnswerFocused)
-                            .disabled(model.isRevealed)
-                            .onSubmit { model.reveal() }
-                    },
+                    answerInput: { EmptyView() },
                     revealedFooter: {
-                        Text("Press 1 Again, 2 Hard, 3 Good, 4 Easy")
+                        Text("Press 1 Again, 2 Hard, 3 Good, 4 Easy, or Space for Good")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     },
                     unrevealed: {
-                        Text("Press Return to show the answer")
+                        Text("Press Space or Return to show the answer")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 )
             }
         }
-        .onAppear { isAnswerFocused = true }
-        .onChange(of: model.current?.id) {
-            typedAnswer = ""
-            isAnswerFocused = true
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isCardFocused)
+        .onKeyPress(keys: [.space, .return]) { _ in
+            model.handleConfirmKey() ? .handled : .ignored
         }
-        .onChange(of: model.isRevealed) { _, revealed in
-            if !revealed {
-                isAnswerFocused = true
-            }
-        }
+        .onAppear { isCardFocused = true }
+        .onChange(of: model.current?.id) { isCardFocused = true }
     }
 }

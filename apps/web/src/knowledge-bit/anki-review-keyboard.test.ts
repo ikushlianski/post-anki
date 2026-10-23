@@ -30,8 +30,23 @@ describe('ankiReviewKeyAction', () => {
     expect(ankiReviewKeyAction(plainKey('4'), revealedCard)).toEqual({ type: 'grade', grade: 'easy' })
   })
 
-  it('should do nothing on Space after the answer is already revealed', () => {
-    expect(ankiReviewKeyAction(plainKey(' '), revealedCard)).toBeNull()
+  it('should reveal the answer when the learner presses Enter on a hidden card', () => {
+    expect(ankiReviewKeyAction(plainKey('Enter'), hiddenCard)).toEqual({ type: 'reveal' })
+  })
+
+  it('should rate Good when the learner presses Space or Enter after the answer is shown', () => {
+    expect(ankiReviewKeyAction(plainKey(' '), revealedCard)).toEqual({ type: 'grade', grade: 'good' })
+    expect(ankiReviewKeyAction(plainKey('Enter'), revealedCard)).toEqual({ type: 'grade', grade: 'good' })
+  })
+
+  it('should leave Space and Enter to a focused button or link instead of rating', () => {
+    expect(ankiReviewKeyAction({ ...plainKey('Enter'), targetIsControl: true }, revealedCard)).toBeNull()
+    expect(ankiReviewKeyAction({ ...plainKey(' '), targetIsControl: true }, revealedCard)).toBeNull()
+  })
+
+  it('should not rate Good twice when Space is held down or a rating is saving', () => {
+    expect(ankiReviewKeyAction({ ...plainKey(' '), repeat: true }, revealedCard)).toBeNull()
+    expect(ankiReviewKeyAction(plainKey(' '), { ...revealedCard, busy: true })).toBeNull()
   })
 
   it('should ignore keys typed into the chat box or any text field', () => {
@@ -56,7 +71,7 @@ describe('ankiReviewKeyAction', () => {
 
   it('should ignore keys that are not review shortcuts', () => {
     expect(ankiReviewKeyAction(plainKey('5'), revealedCard)).toBeNull()
-    expect(ankiReviewKeyAction(plainKey('Enter'), hiddenCard)).toBeNull()
+    expect(ankiReviewKeyAction(plainKey('Tab'), hiddenCard)).toBeNull()
   })
   it('should undo on Z or Ctrl/Cmd+Z, even on the done screen, but only when there is something to undo', () => {
     const undoable = { ...hiddenCard, hasCard: false, canUndo: true }
@@ -86,5 +101,26 @@ describe('ankiReviewKeyAction', () => {
       expect(ankiReviewKeyAction(plainKey(key), editing)).toBeNull()
       expect(ankiReviewKeyAction(plainKey(key), saving)).toBeNull()
     }
+  })
+
+  it('should keep undo, edit and suspend working on a Russian layout by reading the physical key', () => {
+    const undoable = { ...revealedCard, canUndo: true }
+
+    expect(ankiReviewKeyAction({ ...plainKey('я'), code: 'KeyZ' }, undoable)).toEqual({ type: 'undo' })
+    expect(ankiReviewKeyAction({ ...plainKey('у'), code: 'KeyE' }, revealedCard)).toEqual({ type: 'edit' })
+    expect(ankiReviewKeyAction({ ...plainKey('"'), code: 'Digit2', shiftKey: true }, revealedCard)).toEqual({
+      type: 'suspend',
+    })
+    expect(ankiReviewKeyAction({ ...plainKey('-'), code: 'Minus' }, hiddenCard)).toEqual({ type: 'bury' })
+  })
+
+  it('should not suspend on a plain Digit2 press and should still ignore Russian letters typed in a text field', () => {
+    expect(ankiReviewKeyAction({ ...plainKey('2'), code: 'Digit2' }, revealedCard)).toEqual({
+      type: 'grade',
+      grade: 'hard',
+    })
+    expect(
+      ankiReviewKeyAction({ ...plainKey('у'), code: 'KeyE', targetIsEditable: true }, revealedCard),
+    ).toBeNull()
   })
 })

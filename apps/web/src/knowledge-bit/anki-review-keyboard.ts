@@ -3,11 +3,14 @@ import type { ReviewGrade } from '@post-anki/shared'
 
 export interface ReviewKeyFacts {
   key: string
+  code?: string
+  shiftKey?: boolean
   repeat: boolean
   ctrlKey: boolean
   metaKey: boolean
   altKey: boolean
   targetIsEditable: boolean
+  targetIsControl?: boolean
 }
 
 export interface ReviewScreenFacts {
@@ -41,7 +44,7 @@ export function ankiReviewKeyAction(
     return null
   }
 
-  if (event.key === 'z' && !event.altKey) {
+  if ((event.code === 'KeyZ' || event.key === 'z') && !event.altKey) {
     return screen.canUndo ? { type: 'undo' } : null
   }
 
@@ -49,25 +52,35 @@ export function ankiReviewKeyAction(
     return null
   }
 
-  if (event.key === '-') {
+  if (event.code === 'Minus' || event.key === '-') {
     return { type: 'bury' }
   }
 
-  if (event.key === '@') {
+  if ((event.code === 'Digit2' && event.shiftKey) || event.key === '@') {
     return { type: 'suspend' }
   }
 
+  const isConfirmKey = event.key === ' ' || event.key === 'Enter'
+
   if (!screen.revealed) {
-    return event.key === ' ' ? { type: 'reveal' } : null
+    return isConfirmKey && !event.targetIsControl ? { type: 'reveal' } : null
   }
 
-  if (event.key === 'e') {
+  if (isConfirmKey) {
+    return event.targetIsControl ? null : { type: 'grade', grade: 'good' }
+  }
+
+  if (event.code === 'KeyE' || event.key === 'e') {
     return { type: 'edit' }
   }
 
   const grade = GRADE_KEYS[event.key]
 
   return grade ? { type: 'grade', grade } : null
+}
+
+function isControlTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('button, a[href], [role="button"], [role="menuitem"]') !== null
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -91,11 +104,14 @@ export function useAnkiReviewKeyboard(
     const action = ankiReviewKeyAction(
       {
         key: event.key,
+        code: event.code,
+        shiftKey: event.shiftKey,
         repeat: event.repeat,
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
         targetIsEditable: isEditableTarget(event.target),
+        targetIsControl: isControlTarget(event.target),
       },
       screen,
     )

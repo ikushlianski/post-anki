@@ -26,6 +26,35 @@ extension SmokeTests {
             return model
         }
 
+        @Test("should show the answer on the first Space or Return and rate Good on the second")
+        func confirmKeyRevealsThenGradesGood() async throws {
+            let file = tempFile()
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            let session = FakeServerSession([
+                "/knowledge-bits/review-cards": .fixture("review-cards"),
+                "/knowledge-bits/reviews": .fixture("record-review")
+            ])
+            defer { session.end() }
+
+            let model = DueReviewModel(gradeQueue: PendingGradeQueue(fileURL: file))
+
+            await model.load()
+
+            #expect(model.handleConfirmKey())
+            #expect(model.isRevealed)
+            #expect(model.reviewedCount == 0)
+
+            #expect(model.handleConfirmKey())
+
+            for _ in 0..<50 where model.reviewedCount == 0 {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+
+            #expect(model.reviewedCount == 1)
+            #expect(!model.isRevealed)
+        }
+
         @Test("should save a grade made offline, show the next card, and send it exactly once when back online")
         func offlineGradeIsSentOnce() async throws {
             let file = tempFile()
