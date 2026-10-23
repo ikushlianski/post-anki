@@ -65,6 +65,7 @@ targets:
       path: Config/PostAnkiMac-Info.plist
       properties:
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
+        PostAnkiDevAPIToken: $(POSTANKI_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
     entitlements:

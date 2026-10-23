@@ -56,6 +56,12 @@ final class MacLaunchCheck {
         #if DEBUG
         let value = Bundle.main.object(forInfoDictionaryKey: "PostAnkiDevAPIURL") as? String
         APIClient.setFallbackBaseURL(value)
+
+        let token = (Bundle.main.object(forInfoDictionaryKey: "PostAnkiDevAPIToken") as? String) ?? ""
+
+        if !token.isEmpty, TokenStore.read() != token {
+            try? TokenStore.save(token)
+        }
         #endif
     }
 

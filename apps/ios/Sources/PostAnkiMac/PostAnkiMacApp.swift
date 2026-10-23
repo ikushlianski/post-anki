@@ -18,12 +18,12 @@ struct PostAnkiMacApp: App {
         .defaultSize(width: 1000, height: 700)
         .commands {
             MacCommands()
-            #if DEBUG
+            #if DEBUG && POWERSYNC_SPIKE
             PowerSyncSpikeCommands()
             #endif
         }
 
-        #if DEBUG
+        #if DEBUG && POWERSYNC_SPIKE
         Window("PowerSync Spike", id: "powersync-spike") {
             PowerSyncSpikeView()
         }

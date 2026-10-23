@@ -20,3 +20,6 @@ POSTANKI_DEV_API_URL = http:/$()/localhost:5560
 // The token lives only in the gitignored Local.xcconfig.
 POSTANKI_POWERSYNC_URL = http:/$()/127.0.0.1:5590
 POSTANKI_POWERSYNC_TOKEN =
+
+# Optional Debug dev token (saved to the keychain at launch):
+# POSTANKI_DEV_API_TOKEN =

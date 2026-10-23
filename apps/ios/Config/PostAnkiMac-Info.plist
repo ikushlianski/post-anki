@@ -18,6 +18,8 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>PostAnkiDevAPIToken</key>
+	<string>$(POSTANKI_DEV_API_TOKEN)</string>
 	<key>PostAnkiDevAPIURL</key>
 	<string>$(POSTANKI_DEV_API_URL)</string>
 	<key>PostAnkiPowerSyncToken</key>

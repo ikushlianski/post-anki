@@ -119,4 +119,4 @@ The shared API package has decoding tests against sample server responses (`Pack
 
 ## Origin
 
-This project was moved here from the standalone post-anki-ios repository (last commit a338b0e, "Track todos"). Its full git history stays in that repository. The old per-task plans are in docs/ios-planning-history.
+This project was moved here from a standalone repository whose history was not imported. The old per-task plans are in docs/ios-planning-history.
