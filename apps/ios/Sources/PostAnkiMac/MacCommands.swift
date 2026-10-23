@@ -7,10 +7,29 @@ enum MacPaletteRequest {
 struct MacCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @AppStorage(MacNavigator.storageKey) private var storedSelection = MacFeatureRegistry.fallbackID
+    @AppStorage(MacZoom.storageKey) private var zoom = MacZoom.actualSize
 
     var body: some Commands {
         SidebarCommands()
         ToolbarCommands()
+
+        CommandGroup(after: .toolbar) {
+            Button("Actual Size") { zoom = MacZoom.actualSize }
+                .keyboardShortcut("0")
+                .disabled(zoom == MacZoom.actualSize)
+
+            Button("Zoom In") { zoom = MacZoom.zoomedIn(from: zoom) }
+                .keyboardShortcut("+")
+                .disabled(zoom >= MacZoom.steps[MacZoom.steps.count - 1])
+
+            Button("Zoom In") { zoom = MacZoom.zoomedIn(from: zoom) }
+                .keyboardShortcut("=")
+                .hidden()
+
+            Button("Zoom Out") { zoom = MacZoom.zoomedOut(from: zoom) }
+                .keyboardShortcut("-")
+                .disabled(zoom <= MacZoom.steps[0])
+        }
 
         CommandGroup(replacing: .newItem) {
             Button("New Knowledge Item") {

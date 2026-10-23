@@ -47,6 +47,9 @@ enum MacShortcutHelp {
         MacShortcutHelpEntry(keys: "Cmd-R", action: "Reload the current screen"),
         MacShortcutHelpEntry(keys: "Cmd-F", action: "Focus the search field"),
         MacShortcutHelpEntry(keys: "Cmd-,", action: "Settings"),
+        MacShortcutHelpEntry(keys: "Cmd-+", action: "Zoom In (Cmd-= also works)"),
+        MacShortcutHelpEntry(keys: "Cmd--", action: "Zoom Out"),
+        MacShortcutHelpEntry(keys: "Cmd-0", action: "Actual Size"),
         MacShortcutHelpEntry(keys: "Option-Cmd-S", action: "Reserved for sidebar toggling"),
         MacShortcutHelpEntry(keys: "Shift-Cmd-M", action: "Move selected knowledge to a subject")
     ])

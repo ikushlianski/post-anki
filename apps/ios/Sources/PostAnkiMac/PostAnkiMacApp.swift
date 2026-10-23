@@ -12,6 +12,7 @@ struct PostAnkiMacApp: App {
     var body: some Scene {
         Window("PostAnki", id: "main") {
             MacRootView()
+                .macZoomed()
                 .frame(minWidth: 760, minHeight: 520)
                 .background(MacWindowFrameAutosave())
         }
@@ -31,6 +32,7 @@ struct PostAnkiMacApp: App {
 
         Window("Keyboard Shortcuts", id: "shortcuts") {
             MacShortcutHelpView()
+                .macZoomed()
         }
         .defaultSize(width: 520, height: 520)
 
@@ -42,6 +44,7 @@ struct PostAnkiMacApp: App {
 
         Settings {
             MacSettingsView()
+                .macZoomed()
                 .frame(minWidth: 480, idealWidth: 480, minHeight: 400)
         }
     }
