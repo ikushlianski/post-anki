@@ -12,6 +12,7 @@ struct PostAnkiMacApp: App {
     var body: some Scene {
         Window("PostAnki", id: "main") {
             MacRootView()
+                .injectionReloadable()
                 .macZoomed()
                 .frame(minWidth: 760, minHeight: 520)
                 .background(MacWindowFrameAutosave())
