@@ -244,6 +244,8 @@ public enum KnowledgeManageError: Sendable {
                 return "Your access token was rejected. Check Settings."
             case .badStatus(404, "subject_not_found"):
                 return "That subject no longer exists."
+            case .badStatus(409, "subject_has_children"):
+                return "Pick a sub-subject. Items can't go in a subject that has sub-subjects."
             case .badStatus(404, _), .badStatus(409, "blocked"):
                 return "This item was changed elsewhere."
             case .badStatus(403, "not_approved"):
