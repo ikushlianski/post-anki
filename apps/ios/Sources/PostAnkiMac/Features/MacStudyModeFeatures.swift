@@ -10,6 +10,7 @@ enum MacStudyModeFeatures {
             title: "Study sessions",
             systemImage: "calendar.badge.clock",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacStudySessionsView()) }
         ),
         MacFeature(
@@ -18,6 +19,7 @@ enum MacStudyModeFeatures {
             order: 50,
             title: "Gaps coming back",
             systemImage: "arrow.uturn.backward.circle",
+            inSidebar: false,
             detail: { _ in AnyView(MacResurfacingGapsView()) }
         )
     ]

@@ -18,6 +18,7 @@ enum MacLibraryFeatures {
             order: 40,
             title: "Sources",
             systemImage: "books.vertical",
+            inSidebar: false,
             detail: { _ in AnyView(MacSourcesView()) }
         ),
         MacFeature(
@@ -26,6 +27,7 @@ enum MacLibraryFeatures {
             order: 50,
             title: "Content inbox",
             systemImage: "tray.full",
+            inSidebar: false,
             detail: { _ in AnyView(MacContentInboxView()) }
         ),
         MacFeature(
@@ -35,6 +37,7 @@ enum MacLibraryFeatures {
             title: "Tags",
             systemImage: "tag",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacTagsView()) }
         ),
         MacFeature(
@@ -44,6 +47,7 @@ enum MacLibraryFeatures {
             title: "Search",
             systemImage: "magnifyingglass",
             shortcut: MacFeatureShortcut(key: "f", modifiers: [.command, .shift]),
+            inSidebar: false,
             detail: { _ in AnyView(GlobalSearchScreen()) }
         ),
         MacFeature(
@@ -52,6 +56,7 @@ enum MacLibraryFeatures {
             order: 80,
             title: "Notes",
             systemImage: "note.text",
+            inSidebar: false,
             detail: { _ in AnyView(NotesSearchScreen()) }
         ),
         MacFeature(
@@ -60,6 +65,7 @@ enum MacLibraryFeatures {
             order: 100,
             title: "Notion import",
             systemImage: "square.and.arrow.down",
+            inSidebar: false,
             detail: { _ in AnyView(MacNotionImportView()) }
         )
     ]

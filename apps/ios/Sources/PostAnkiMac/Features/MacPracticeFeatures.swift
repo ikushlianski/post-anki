@@ -9,6 +9,7 @@ enum MacPracticeFeatures {
             order: 30,
             title: "Quick practice",
             systemImage: "bolt",
+            inSidebar: false,
             detail: { _ in AnyView(MacQuickPracticeView()) }
         )
     ]

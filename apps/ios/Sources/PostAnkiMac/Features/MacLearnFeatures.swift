@@ -11,6 +11,7 @@ enum MacLearnFeatures {
             systemImage: "list.bullet.clipboard",
             shortcut: MacFeatureShortcut(key: "l", modifiers: [.command, .shift]),
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacLearningListView()) }
         ),
         MacFeature(
@@ -20,6 +21,7 @@ enum MacLearnFeatures {
             title: "Learning paths",
             systemImage: "point.topleft.down.curvedto.point.bottomright.up",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacLearningPathsView()) }
         ),
         MacFeature(
@@ -29,6 +31,7 @@ enum MacLearnFeatures {
             title: "Challenge my thinking",
             systemImage: "scale.3d",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacDecideView()) }
         ),
         MacFeature(
@@ -37,6 +40,7 @@ enum MacLearnFeatures {
             order: 40,
             title: "Ask your cards",
             systemImage: "text.bubble",
+            inSidebar: false,
             detail: { _ in AnyView(MacAskView()) }
         ),
         MacFeature(
@@ -45,6 +49,7 @@ enum MacLearnFeatures {
             order: 50,
             title: "Open questions",
             systemImage: "questionmark.bubble",
+            inSidebar: false,
             detail: { _ in AnyView(MacOpenQuestionsView()) }
         ),
         MacFeature(
@@ -53,6 +58,7 @@ enum MacLearnFeatures {
             order: 60,
             title: "Daily push",
             systemImage: "sunrise",
+            inSidebar: false,
             detail: { _ in AnyView(MacDailyPushView()) }
         )
     ]

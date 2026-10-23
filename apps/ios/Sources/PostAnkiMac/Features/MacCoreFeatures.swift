@@ -10,6 +10,7 @@ enum MacCoreFeatures {
             title: "Home",
             systemImage: "house",
             shortcut: MacFeatureShortcut(key: "1"),
+            inSidebar: false,
             detail: { navigator in
                 AnyView(MacHomeView(
                     onStudyNow: { navigator.select("review") },
@@ -19,8 +20,8 @@ enum MacCoreFeatures {
         ),
         MacFeature(
             id: "review",
-            section: .study,
-            order: 20,
+            section: .library,
+            order: 35,
             title: "Review",
             systemImage: "checkmark.seal",
             shortcut: MacFeatureShortcut(key: "3"),
@@ -33,6 +34,7 @@ enum MacCoreFeatures {
             title: "Progress",
             systemImage: "chart.line.uptrend.xyaxis",
             shortcut: MacFeatureShortcut(key: "5"),
+            inSidebar: false,
             detail: { _ in AnyView(MacProgressView()) }
         ),
         MacFeature(
@@ -43,6 +45,7 @@ enum MacCoreFeatures {
             systemImage: "book",
             shortcut: MacFeatureShortcut(key: "2"),
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacCoursesView()) }
         ),
         MacFeature(
@@ -62,6 +65,7 @@ enum MacCoreFeatures {
             title: "Add knowledge",
             systemImage: "square.and.pencil",
             shortcut: MacFeatureShortcut(key: "6"),
+            inSidebar: false,
             detail: { _ in AnyView(IngestionDictationScreen()) }
         )
     ]

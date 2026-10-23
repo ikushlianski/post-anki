@@ -2,7 +2,7 @@ import SwiftUI
 
 @MainActor
 enum MacFeatureRegistry {
-    static let fallbackID = "home"
+    static let fallbackID = "knowledge"
 
     static let features: [MacFeature] = (
         MacCoreFeatures.features
@@ -19,6 +19,14 @@ enum MacFeatureRegistry {
 
     static func features(in section: MacFeatureSection) -> [MacFeature] {
         features.filter { $0.section == section }
+    }
+
+    static func sidebarFeatures(in section: MacFeatureSection) -> [MacFeature] {
+        features(in: section).filter(\.inSidebar)
+    }
+
+    static var sidebarSections: [MacFeatureSection] {
+        MacFeatureSection.allCases.filter { !sidebarFeatures(in: $0).isEmpty }
     }
 
     static var visibleSections: [MacFeatureSection] {
@@ -62,6 +70,10 @@ enum MacFeatureRegistry {
             if !seenShortcuts.insert(shortcut).inserted {
                 problems.append("duplicate shortcut on \(feature.id)")
             }
+        }
+
+        if feature(id: fallbackID).inSidebar == false {
+            problems.append("fallback feature \(fallbackID) is hidden from the sidebar")
         }
 
         if !seenIDs.contains(fallbackID) {

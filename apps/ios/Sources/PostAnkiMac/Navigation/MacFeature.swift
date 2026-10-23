@@ -41,5 +41,6 @@ struct MacFeature: Identifiable {
     var shortcut: MacFeatureShortcut?
     var badge: (@MainActor () -> Int)?
     var ownsStack = false
+    var inSidebar = true
     let detail: @MainActor (MacNavigator) -> AnyView
 }

@@ -106,6 +106,12 @@ struct MacKnowledgeView: View {
         }
 
         ToolbarItem {
+            Button { MacNavigator.shared.select("ingest") } label: {
+                Label("Add knowledge", systemImage: "square.and.pencil")
+            }
+        }
+
+        ToolbarItem {
             Button { Task { await model.reload() } } label: {
                 Label("Reload", systemImage: "arrow.clockwise")
             }
@@ -123,45 +129,18 @@ struct MacKnowledgeView: View {
         } else if !model.hasLoaded, model.failure != nil {
             MacLoadStateView(failure: model.failureKind ?? .other) { Task { await model.reload() } }
         } else {
-            List(selection: $model.selection) {
-                if let failure = model.failure {
-                    Text(failure).font(.caption).foregroundStyle(.red)
-                }
-
-                if let notice = model.notice {
-                    Text(notice).font(.caption).foregroundStyle(.secondary)
-                }
-
-                if model.selectionTooLarge {
-                    Text("Select up to \(KnowledgeListModel.selectionLimit) items to move or delete.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-
-                ForEach(model.visibleItems) { item in
-                    MacKnowledgeRow(item: item, subjectName: model.subjectName(for: item.subjectId))
-                        .tag(item.id)
-                        .task { await model.loadMoreIfNeeded(current: item) }
-                }
-
+            VStack(spacing: 0) {
+                notices
+                MacKnowledgeTable(
+                    rows: model.visibleItems.map {
+                        MacKnowledgeTableRow(item: $0, subjectName: model.subjectName(for: $0.subjectId) ?? "")
+                    },
+                    selection: $model.selection,
+                    onAppearRow: { item in Task { await model.loadMoreIfNeeded(current: item) } },
+                    onOpen: { history.open(.item($0)) },
+                    contextMenu: { ids in AnyView(rowMenu(ids)) }
+                )
                 footer
-            }
-            .contextMenu(forSelectionType: String.self) { ids in
-                if !ids.isEmpty, !model.isBulkBusy {
-                    Button("Move to Subject…") {
-                        model.selection = ids
-                        choosingSubject = true
-                    }
-
-                    Button("Delete", role: .destructive) {
-                        model.selection = ids
-                        confirmingDelete = true
-                    }
-                }
-            } primaryAction: { ids in
-                if let id = ids.first, let item = model.items.first(where: { $0.id == id }) {
-                    history.open(.item(item))
-                }
             }
             .onDeleteCommand { if !bulkDisabled { confirmingDelete = true } }
             .overlay {
@@ -185,6 +164,39 @@ struct MacKnowledgeView: View {
     }
 
     @ViewBuilder
+    private func rowMenu(_ ids: Set<String>) -> some View {
+        if !ids.isEmpty, !model.isBulkBusy {
+            Button("Move to Subject…") {
+                model.selection = ids
+                choosingSubject = true
+            }
+
+            Button("Delete", role: .destructive) {
+                model.selection = ids
+                confirmingDelete = true
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var notices: some View {
+        if let failure = model.failure {
+            Text(failure).font(.caption).foregroundStyle(.red).padding(.vertical, 4)
+        }
+
+        if let notice = model.notice {
+            Text(notice).font(.caption).foregroundStyle(.secondary).padding(.vertical, 4)
+        }
+
+        if model.selectionTooLarge {
+            Text("Select up to \(KnowledgeListModel.selectionLimit) items to move or delete.")
+                .font(.caption)
+                .foregroundStyle(.orange)
+                .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
     private var footer: some View {
         if model.isLoadingMore || model.isLoading {
             ProgressView().frame(maxWidth: .infinity)
@@ -193,38 +205,5 @@ struct MacKnowledgeView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-private struct MacKnowledgeRow: View {
-    let item: KnowledgeOverviewItem
-    let subjectName: String?
-
-    private var dueText: String? {
-        item.dueAt.flatMap { DueReviewModel.nextDueText($0) }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(item.question).lineLimit(2)
-            Text(item.answer).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-
-            HStack(spacing: 6) {
-                Text(item.stateLabel)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(.quaternary, in: Capsule())
-
-                if let subjectName { Text(subjectName) }
-
-                if let dueText { Text("Due \(dueText)") }
-
-                if item.lapses > 0 { Text("\(item.lapses) lapses") }
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 2)
     }
 }

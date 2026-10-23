@@ -19,6 +19,7 @@ enum MacStructureFeatures {
             title: "Knowledge maps",
             systemImage: "map",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacKnowledgeMapsView()) }
         )
     ]

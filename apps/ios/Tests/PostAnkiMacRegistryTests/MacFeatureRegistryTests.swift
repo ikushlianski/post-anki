@@ -27,16 +27,27 @@ struct MacFeatureRegistryTests {
         #expect(clashes.isEmpty)
     }
 
-    @Test func shouldListAtLeastOneItemInEverySidebarGroup() {
-        let empty = MacFeatureSection.allCases
-            .filter { MacFeatureRegistry.features(in: $0).isEmpty }
-            .map(\.title)
+    @Test func shouldListOnlyKnowledgeInboxReviewAndSubjectsInTheSidebar() {
+        let ids = MacFeatureRegistry.sidebarSections
+            .flatMap { MacFeatureRegistry.sidebarFeatures(in: $0) }
+            .map(\.id)
 
-        #expect(empty.isEmpty)
-        #expect(MacFeatureRegistry.visibleSections == MacFeatureSection.allCases)
+        #expect(ids == ["knowledge", "inbox", "review", "subjects"])
     }
 
-    @Test func shouldKeepTheFallbackItemSoUnknownStoredSelectionsOpenHome() {
+    @Test func shouldKeepHiddenFeaturesRegisteredForMenusAndNavigation() {
+        let ids = Set(MacFeatureRegistry.features.map(\.id))
+
+        #expect(Set(["home", "ingest", "courses", "progress", "search"]).isSubset(of: ids))
+        #expect(MacFeatureRegistry.features.first { $0.id == "ingest" }?.shortcut != nil)
+    }
+
+    @Test func shouldNeverHideTheLaunchFeatureFromTheSidebar() {
+        #expect(MacFeatureRegistry.fallbackID == "knowledge")
+        #expect(MacFeatureRegistry.feature(id: MacFeatureRegistry.fallbackID).inSidebar)
+    }
+
+    @Test func shouldKeepTheFallbackItemSoUnknownStoredSelectionsOpenKnowledge() {
         #expect(MacFeatureRegistry.feature(id: "removed-feature").id == MacFeatureRegistry.fallbackID)
     }
 }

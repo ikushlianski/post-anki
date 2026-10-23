@@ -10,6 +10,7 @@ enum MacAuthoringFeatures {
             title: "Course builds",
             systemImage: "hammer",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacCourseBuildsEntryView()) }
         ),
         MacFeature(
@@ -19,6 +20,7 @@ enum MacAuthoringFeatures {
             title: "Refocus suggestions",
             systemImage: "scope",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacRefocusView()) }
         )
     ]

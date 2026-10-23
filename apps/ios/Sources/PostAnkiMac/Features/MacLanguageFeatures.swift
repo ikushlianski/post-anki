@@ -10,6 +10,7 @@ enum MacLanguageFeatures {
             title: "Language practice",
             systemImage: "character.bubble",
             ownsStack: true,
+            inSidebar: false,
             detail: { _ in AnyView(MacLanguagePracticeView()) }
         )
     ]

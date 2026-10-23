@@ -5,6 +5,7 @@ struct MacRootView: View {
     @AppStorage(MacNavigator.storageKey) private var storedSelection = MacFeatureRegistry.fallbackID
     @AppStorage("mac.sidebarCollapsedSections") private var collapsedSections = ""
 
+    @Environment(\.openSettings) private var openSettings
     @State private var launchCheck = MacLaunchCheck()
     @State private var settingsVersion = 0
     @State private var showingPalette = false
@@ -45,9 +46,9 @@ struct MacRootView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: selection) {
-                ForEach(MacFeatureRegistry.visibleSections) { section in
+                ForEach(MacFeatureRegistry.sidebarSections) { section in
                     Section(section.title, isExpanded: isExpanded(section)) {
-                        ForEach(MacFeatureRegistry.features(in: section)) { feature in
+                        ForEach(MacFeatureRegistry.sidebarFeatures(in: section)) { feature in
                             Label(feature.title, systemImage: feature.systemImage)
                                 .badge(feature.badge?() ?? 0)
                                 .tag(feature.id)
@@ -55,6 +56,12 @@ struct MacRootView: View {
                         }
                     }
                 }
+
+                Button { openSettings() } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("sidebar-settings")
             }
             .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 260)
         } detail: {
