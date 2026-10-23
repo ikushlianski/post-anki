@@ -15,6 +15,7 @@ final class PendingReviewListModel {
     var bulkInFlight: Set<String> = []
     var sourceMessages: [String: String] = [:]
     var pendingUndo: PendingReviewUndo?
+    var keptUndo: PendingReviewKeptUndo?
     var pendingFeedback: PendingRejectFeedback?
 
     let counts: PendingReviewCountStore
@@ -114,7 +115,7 @@ final class PendingReviewListModel {
         }
     }
 
-    private func snapshot(of bitId: String) -> PendingReviewRemovedBit? {
+    func snapshot(of bitId: String) -> PendingReviewRemovedBit? {
         for source in sources {
             if let index = source.bits.firstIndex(where: { $0.id == bitId }) {
                 return PendingReviewRemovedBit(

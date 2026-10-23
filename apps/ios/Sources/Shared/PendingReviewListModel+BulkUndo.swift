@@ -122,7 +122,7 @@ extension PendingReviewListModel {
         withAnimation { remove(bitIds: gone) }
     }
 
-    private func applyRestore(_ removed: PendingReviewRemovedBit) {
+    func applyRestore(_ removed: PendingReviewRemovedBit) {
         removedDuringLoad.remove(removed.bit.id)
         restoredDuringLoad.append(removed)
         withAnimation { insert(removed) }

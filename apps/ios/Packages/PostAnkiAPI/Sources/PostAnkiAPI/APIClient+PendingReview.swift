@@ -9,11 +9,22 @@ extension APIClient {
         let _: EmptyResponse = try await request("/knowledge-bits/\(encodedSegment(id))/approve", method: "POST")
     }
 
-    public static func triageKnowledgeBit(id: String, keepVariantIds: [String]) async throws {
-        let _: EmptyResponse = try await request(
+    @discardableResult
+    public static func triageKnowledgeBit(id: String, keepVariantIds: [String]) async throws -> [String] {
+        let response: PendingReviewTriageResponse = try await request(
             "/knowledge-bits/\(encodedSegment(id))/triage",
             method: "POST",
             body: PendingReviewTriageInput(keepVariantIds: keepVariantIds)
+        )
+
+        return response.droppedVariantIds
+    }
+
+    public static func undoTriageKnowledgeBit(id: String, restoreVariantIds: [String]) async throws {
+        let _: EmptyResponse = try await request(
+            "/knowledge-bits/\(encodedSegment(id))/triage/undo",
+            method: "POST",
+            body: PendingReviewTriageUndoInput(restoreVariantIds: restoreVariantIds)
         )
     }
 

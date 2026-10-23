@@ -134,7 +134,7 @@ struct PendingReviewTriageView: View {
             .disabled(model.isBusy)
 
             #if os(macOS)
-            Text("1-9 toggle, Return keeps, X drops, Z undoes a drop (keeps can't be undone), S skips, E edits, arrows move")
+            Text("1-9 toggle, Return keeps, X drops, Z undoes the last keep or drop, S skips, E edits, arrows move")
                 .zoomFont(.caption)
                 .foregroundStyle(.secondary)
             #endif

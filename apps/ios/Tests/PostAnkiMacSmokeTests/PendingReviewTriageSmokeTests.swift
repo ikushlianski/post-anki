@@ -104,9 +104,9 @@ extension SmokeTests {
             #expect(Map.action(for: .character("q")) == nil)
         }
 
-        @Test("should post the kept variants, advance to the next piece and not offer undo")
+        @Test("should post the kept variants, advance to the next piece and remember the dropped ones for undo")
         func keepAdvances() async throws {
-            let (model, session) = await queue(extra: ["POST /knowledge-bits/kb_10/triage": .json(200, #"{"ok":true}"#)])
+            let (model, session) = await queue(extra: ["POST /knowledge-bits/kb_10/triage": .json(200, #"{"ok":true,"droppedVariantIds":["var_10"]}"#)])
             defer { session.end() }
 
             #expect(model.current?.id == "kb_10")
@@ -120,6 +120,76 @@ extension SmokeTests {
             #expect(model.current?.id == "kb_11")
             #expect(model.remaining == 1)
             #expect(model.list.pendingUndo == nil)
+            #expect(model.list.keptUndo?.restoreVariantIds == ["var_10"])
+        }
+
+        @Test("should bring a kept piece back with its dropped variants when Z is pressed after the keep")
+        func keepThenUndo() async throws {
+            let (model, session) = await queue(extra: [
+                "POST /knowledge-bits/kb_10/triage": .json(200, #"{"ok":true,"droppedVariantIds":["var_10"]}"#),
+                "POST /knowledge-bits/kb_10/triage/undo": .json(200, #"{"ok":true}"#)
+            ])
+            defer { session.end() }
+
+            await model.perform(.keep)
+
+            #expect(model.remaining == 1)
+
+            await model.perform(.undo)
+
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/triage", "/knowledge-bits/kb_10/triage/undo"])
+            #expect(String(data: FakeServer.writes[1].body ?? Data(), encoding: .utf8)?.contains("var_10") == true)
+            #expect(model.current?.id == "kb_10")
+            #expect(model.remaining == 2)
+            #expect(model.selection.keepIds == ["var_11"])
+            #expect(model.list.keptUndo == nil)
+        }
+
+        @Test("should explain and stop offering the undo when the server says the piece changed")
+        func keepUndoRefused() async throws {
+            let (model, session) = await queue(extra: [
+                "POST /knowledge-bits/kb_10/triage": .json(200, #"{"ok":true,"droppedVariantIds":["var_10"]}"#),
+                "POST /knowledge-bits/kb_10/triage/undo": .json(409, #"{"error":"slot_taken"}"#)
+            ])
+            defer { session.end() }
+
+            await model.perform(.keep)
+            await model.perform(.undo)
+
+            #expect(model.remaining == 1)
+            #expect(model.hint?.contains("newer question") == true)
+            #expect(model.list.keptUndo == nil)
+        }
+
+        @Test("should keep the undo available after an offline failure so Z can retry")
+        func keepUndoRetryable() async throws {
+            let (model, session) = await queue(extra: [
+                "POST /knowledge-bits/kb_10/triage": .json(200, #"{"ok":true,"droppedVariantIds":["var_10"]}"#),
+                "POST /knowledge-bits/kb_10/triage/undo": .json(500, #"{"error":"boom"}"#)
+            ])
+            defer { session.end() }
+
+            await model.perform(.keep)
+            await model.perform(.undo)
+
+            #expect(model.list.keptUndo != nil)
+            #expect(model.hint != nil)
+        }
+
+        @Test("should undo the latest decision only, so a drop after a keep replaces the keep undo")
+        func dropReplacesKeepUndo() async throws {
+            let (model, session) = await queue(extra: [
+                "POST /knowledge-bits/kb_10/triage": .json(200, #"{"ok":true,"droppedVariantIds":["var_10"]}"#),
+                "POST /knowledge-bits/kb_11/reject": .json(200, #"{"ok":true,"feedbackId":"fb_01"}"#)
+            ])
+            defer { session.end() }
+
+            await model.perform(.keep)
+            await model.perform(.drop)
+
+            #expect(model.list.keptUndo == nil)
+            #expect(model.list.pendingUndo?.removed.bit.id == "kb_11")
+            model.list.dismissUndo()
         }
 
         @Test("should stay on the piece with a message when the keep fails")
@@ -154,7 +224,7 @@ extension SmokeTests {
             model.list.dismissUndo()
         }
 
-        @Test("should say nothing can be undone after a keep")
+        @Test("should say nothing can be undone when no decision was made")
         func undoWithoutDrop() async throws {
             let (model, session) = await queue(extra: [:])
             defer { session.end() }

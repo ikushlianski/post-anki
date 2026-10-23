@@ -89,13 +89,20 @@ final class PendingReviewTriageModel {
 
         if case .kept = outcome { return }
 
+        list.keptUndo = nil
         currentId = successor
         selections[bit.id] = nil
     }
 
     func undo() async {
+        if let kept = list.keptUndo?.removed.bit.id {
+            await undoKeep(of: kept)
+
+            return
+        }
+
         guard let undone = list.pendingUndo?.removed.bit.id else {
-            hint = "Nothing to undo. Only a dropped piece can be undone, and only for a few seconds."
+            hint = "Nothing to undo. A drop can be undone for a few seconds, the last keep until the next decision."
 
             return
         }
@@ -103,6 +110,18 @@ final class PendingReviewTriageModel {
         await list.undoReject()
 
         if queue.contains(where: { $0.id == undone }) { currentId = undone }
+    }
+
+    private func undoKeep(of bitId: String) async {
+        switch await list.undoKeep() {
+        case .restored:
+            selections[bitId] = nil
+            currentId = bitId
+        case .unavailable(let message), .retryable(let message):
+            hint = message
+        case nil:
+            break
+        }
     }
 
     private func isKept(_ outcome: PendingReviewTriageOutcome) -> Bool {
