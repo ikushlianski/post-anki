@@ -154,7 +154,7 @@ final class PendingReviewListModel {
         for id in bitIds { remove(bitId: id) }
     }
 
-    private func remove(bitId: String) {
+    func remove(bitId: String) {
         removedDuringLoad.insert(bitId)
         restoredDuringLoad.removeAll { $0.bit.id == bitId }
 

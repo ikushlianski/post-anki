@@ -2,15 +2,22 @@ import PostAnkiAPI
 import SwiftUI
 
 struct PendingReviewScreen: View {
-    @State private var model = PendingReviewListModel()
+    @State private var model: PendingReviewListModel
     @State private var confirmingSourceId: String?
     @State private var confirmingCount = 0
     @State private var editingBit: PendingReviewBit?
+    @State private var layout = PendingReviewLayout.defaultLayout
+    @State private var triage: PendingReviewTriageModel
 
     private let onDone: (() -> Void)?
 
     init(onDone: (() -> Void)? = nil) {
         self.onDone = onDone
+
+        let list = PendingReviewListModel()
+
+        _model = State(initialValue: list)
+        _triage = State(initialValue: PendingReviewTriageModel(list: list))
     }
 
     var body: some View {
@@ -29,6 +36,10 @@ struct PendingReviewScreen: View {
                         }
                     }
                     #endif
+
+                    ToolbarItem {
+                        layoutToggle
+                    }
 
                     #if os(macOS)
                     if onDone == nil {
@@ -53,7 +64,7 @@ struct PendingReviewScreen: View {
                 }
         }
         .safeAreaInset(edge: .bottom) {
-            if let undo = model.pendingUndo {
+            if let undo = model.pendingUndo, !isTriageCoverShown {
                 PendingReviewUndoBanner(
                     undo: undo,
                     onUndo: { Task { await model.undoReject() } },
@@ -79,45 +90,77 @@ struct PendingReviewScreen: View {
             }
             Button("Cancel", role: .cancel) { confirmingSourceId = nil }
         }
-        .sheet(item: $editingBit) { bit in
-            PendingReviewEditSheet(
-                bit: bit,
-                onSave: { body, background, backgroundChanged, variants in
-                    await model.saveEdit(
-                        bitId: bit.id,
-                        body: body,
-                        background: background,
-                        backgroundChanged: backgroundChanged,
-                        currentBody: bit.body,
-                        variants: variants
-                    )
-                },
-                onClose: { outcome in
-                    editingBit = nil
-
-                    guard let outcome else { return }
-
-                    if case .gone = outcome { model.notice = "This item was changed elsewhere." }
-
-                    Task { await model.load() }
-                }
-            )
-            .macSheetMinSize(width: 480, height: 460)
+        .pendingReviewSheets(model: model, editingBit: $editingBit, isEnabled: !isTriageCoverShown)
+        #if os(iOS)
+        .fullScreenCover(isPresented: Binding(get: { showsTriage }, set: { if !$0 { layout = .list } })) {
+            triageCover
         }
-        .sheet(item: Binding(get: { model.pendingFeedback }, set: { if $0 == nil { model.skipFeedback() } })) { feedback in
-            RejectReasonSheet(
-                feedback: feedback,
-                onSend: { reason, note in await model.sendFeedback(feedback, reason: reason, note: note) },
-                onSkip: { model.skipFeedback() }
-            )
-            .macSheetMinSize()
-        }
+        #endif
         .task { await model.load() }
         .onAppear {
             if model.hasLoaded && !model.isLoading {
                 Task { await model.load() }
             }
         }
+    }
+
+    private var showsTriage: Bool {
+        layout == .triage && !model.sources.isEmpty
+    }
+
+    private var isMac: Bool {
+        #if os(macOS)
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    #if os(iOS)
+    private var triageCover: some View {
+        NavigationStack {
+            PendingReviewTriageView(model: triage, editingBit: $editingBit)
+                .navigationTitle("Pending items")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("List") { layout = .list }
+                    }
+                }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let undo = model.pendingUndo {
+                PendingReviewUndoBanner(
+                    undo: undo,
+                    onUndo: { Task { await model.undoReject() } },
+                    onDismiss: { model.dismissUndo() }
+                )
+            }
+        }
+        .pendingReviewSheets(model: model, editingBit: $editingBit)
+    }
+    #endif
+
+    private var isTriageCoverShown: Bool {
+        #if os(iOS)
+        return showsTriage
+        #else
+        return false
+        #endif
+    }
+
+    @ViewBuilder
+    private var layoutToggle: some View {
+        #if os(macOS)
+        Picker("Layout", selection: $layout) {
+            ForEach(PendingReviewLayout.allCases) { Text($0.rawValue).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        #else
+        Button(layout == .list ? "Triage" : "List") {
+            layout = layout == .list ? .triage : .list
+        }
+        #endif
     }
 
     @ViewBuilder
@@ -146,6 +189,8 @@ struct PendingReviewScreen: View {
             #else
             ContentUnavailableView("Nothing to review", systemImage: "checkmark.seal")
             #endif
+        } else if showsTriage && isMac {
+            PendingReviewTriageView(model: triage, editingBit: $editingBit)
         } else {
             List {
                 if let message = model.errorMessage {

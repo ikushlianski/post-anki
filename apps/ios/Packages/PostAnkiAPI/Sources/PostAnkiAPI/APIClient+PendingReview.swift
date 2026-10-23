@@ -9,6 +9,14 @@ extension APIClient {
         let _: EmptyResponse = try await request("/knowledge-bits/\(encodedSegment(id))/approve", method: "POST")
     }
 
+    public static func triageKnowledgeBit(id: String, keepVariantIds: [String]) async throws {
+        let _: EmptyResponse = try await request(
+            "/knowledge-bits/\(encodedSegment(id))/triage",
+            method: "POST",
+            body: PendingReviewTriageInput(keepVariantIds: keepVariantIds)
+        )
+    }
+
     public static func rejectKnowledgeBit(id: String) async throws -> String? {
         let result: RejectKnowledgeBitResult = try await request("/knowledge-bits/\(encodedSegment(id))/reject", method: "POST")
 

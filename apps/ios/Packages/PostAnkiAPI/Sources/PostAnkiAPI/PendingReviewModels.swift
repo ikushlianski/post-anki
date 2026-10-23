@@ -107,6 +107,35 @@ extension PendingReviewSource {
     }
 }
 
+public struct PendingReviewTriageInput: Encodable, Sendable {
+    public let keepVariantIds: [String]
+}
+
+public enum PendingReviewTriageOutcome: Sendable, Equatable {
+    case removed
+    case removedElsewhere
+    case kept(message: String)
+
+    public static func outcome(for error: Error) -> PendingReviewTriageOutcome {
+        if let apiError = error as? APIError, case .badStatus(let status, let code) = apiError {
+            switch (status, code) {
+            case (409, "variant_not_active"):
+                return .kept(message: "One of those questions changed. Reload to see the current ones.")
+            case (400, "invalid_input"):
+                return .kept(message: "Keep one or two questions.")
+            default:
+                break
+            }
+        }
+
+        switch PendingReviewDecision.approve.outcome(for: error) {
+        case .removed: return .removed
+        case .removedElsewhere: return .removedElsewhere
+        case .kept(let message): return .kept(message: message)
+        }
+    }
+}
+
 public struct PendingReviewBulkApprovalInput: Encodable, Sendable {
     public let knowledgeBitIds: [String]
 }
