@@ -26,6 +26,14 @@ struct SettingsToolsSection: View {
             } label: {
                 Label("Admin", systemImage: "wrench.and.screwdriver")
             }
+
+            #if DEBUG
+            NavigationLink {
+                PowerSyncSpikeView()
+            } label: {
+                Label("PowerSync spike", systemImage: "arrow.triangle.2.circlepath")
+            }
+            #endif
         }
     }
 }

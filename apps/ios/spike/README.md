@@ -54,6 +54,13 @@ Read-only spike: no writes, no upload queue, unscoped tables.
 8. In the app choose File > PowerSync Spike (Cmd-Option-Shift-P). The headers read
    "subjects (18 rows from local SQLite)", then a second list "topics (N rows from local SQLite)" and the sync line shows "connected".
 
+## iOS
+
+PostAnkiIOS (Debug only) opens the same screen from Settings > Tools > PowerSync spike. It reads the same
+`POSTANKI_*` values from `Local.xcconfig` through `Config/PostAnkiIOS-Info.plist`, and applies `POSTANKI_DEV_API_URL`
+as the fallback server address. In the simulator, `127.0.0.1` is the host Mac. The local database is under the app's
+data container (`xcrun simctl get_app_container <udid> com.ikushlianski.postankiios data`, `Library/Application Support/databases/`).
+
 ## Token refresh
 
 The connector (`Spike/SpikeCredentialsProvider.swift`) implements `fetchCredentials`: each call posts to
@@ -87,5 +94,5 @@ unsigned build, inside the app container for a signed sandboxed build. Inspect w
 - `docker-compose.powersync.yml`, `powersync/service.yaml`, `powersync/sync-config.yaml`
 - `sql/setup.sql`, `scripts/setup.sh`, `scripts/dev-token.sh`
 - `.env` (gitignored secrets), `.env.example` (shape only)
-- App code: `apps/ios/Sources/PostAnkiMac/Spike/` (Debug builds only), token call in
+- App code: `apps/ios/Sources/PowerSyncSpike/` (store, view, credentials provider; compiled by PostAnkiMac and PostAnkiIOS, Debug builds only), `apps/ios/Sources/PostAnkiMac/Spike/` (Mac menu command), token call in
   `apps/ios/Packages/PostAnkiAPI/Sources/PostAnkiAPI/APIClient+SyncTokens.swift`, SDK pin in `apps/ios/project.yml`

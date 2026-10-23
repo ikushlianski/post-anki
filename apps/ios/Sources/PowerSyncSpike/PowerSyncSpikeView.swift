@@ -42,7 +42,9 @@ struct PowerSyncSpikeView: View {
             }
         }
         .padding()
+        #if os(macOS)
         .frame(minWidth: 520, minHeight: 560)
+        #endif
         .task { store.start() }
     }
 }

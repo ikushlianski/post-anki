@@ -30,8 +30,18 @@ targets:
     sources:
       - path: Sources/PostAnkiIOS
       - path: Sources/Shared
+      - path: Sources/PowerSyncSpike
     dependencies:
       - package: PostAnkiAPI
+      - package: PowerSync
+    info:
+      path: Config/PostAnkiIOS-Info.plist
+      properties:
+        PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
+        PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
+        PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios
@@ -47,6 +57,7 @@ targets:
     sources:
       - path: Sources/PostAnkiMac
       - path: Sources/Shared
+      - path: Sources/PowerSyncSpike
     dependencies:
       - package: PostAnkiAPI
       - package: PowerSync
