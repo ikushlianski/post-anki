@@ -21,9 +21,11 @@
     "test": "npm run test --workspaces --if-present",
     "dev": "bash scripts/dev.sh",
     "dev:apps": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:mock-llm": "node scripts/mock-llm.mjs",
     "dev:web": "npm run dev -w @post-anki/web",
     "dev:api": "npm run dev -w @post-anki/api",
     "dev:bot": "npm run dev -w @post-anki/bot",
+    "dev:mac": "bash apps/ios/scripts/run-mac-local.sh",
     "dev:mobile": "npm run start -w @post-anki/mobile",
     "dev:desktop": "npm run tauri:dev -w @post-anki/desktop",
     "build:desktop": "npm run tauri:build -w @post-anki/desktop",
@@ -44,7 +46,14 @@
     "e2e-local:mock-openrouter": "tsx e2e-local/mock-openrouter/server.ts",
     "e2e-local:typecheck": "tsc --noEmit -p e2e-local/tsconfig.json",
     "models:prices": "tsx scripts/openrouter-models.ts",
-    "db:dev:clear-extraction": "bash scripts/clear-extraction-data.sh"
+    "db:dev:clear-extraction": "bash scripts/clear-extraction-data.sh",
+    "db:dev:clear-extraction-and-grades": "bash scripts/clear-extraction-data.sh --with-grades",
+    "db:dev:fresh": "bash scripts/dev-db-fresh.sh",
+    "e2e:stack:up": "bash scripts/e2e-stack.sh up",
+    "e2e:stack:down": "bash scripts/e2e-stack.sh down",
+    "e2e:stack:status": "bash scripts/e2e-stack.sh status",
+    "check:phone": "node scripts/phone-layout-check.mjs",
+    "inngest:dev": "docker run --rm -it -p ${INNGEST_PORT:-8288}:8288 inngest/inngest:latest inngest dev -u http://host.docker.internal:${PORT:-5560}/api/inngest"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
