@@ -31,6 +31,8 @@ struct KnowledgeItemDetailScreen: View {
             Section("Question") { Text(item.question) }
             Section("Answer") { Text(item.answer) }
 
+            SynonymsSection(bitId: item.id, question: item.question)
+
             Section {
                 LabeledContent("Status", value: KnowledgeOverviewItem.label(for: state))
 
