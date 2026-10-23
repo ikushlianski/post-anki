@@ -24,16 +24,12 @@ enum MacZoom {
 
 struct MacZoomModifier: ViewModifier {
     @AppStorage(MacZoom.storageKey) private var stored = MacZoom.actualSize
+    @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
         let scale = MacZoom.clamped(stored)
 
-        GeometryReader { proxy in
-            content
-                .frame(width: proxy.size.width / scale, height: proxy.size.height / scale)
-                .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-        }
+        MacZoomHost(scale: scale, content: content.environment(\.scenePhase, scenePhase))
     }
 }
 

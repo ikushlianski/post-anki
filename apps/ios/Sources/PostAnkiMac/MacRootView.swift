@@ -5,7 +5,6 @@ struct MacRootView: View {
     @AppStorage(MacNavigator.storageKey) private var storedSelection = MacFeatureRegistry.fallbackID
     @AppStorage("mac.sidebarCollapsedSections") private var collapsedSections = ""
 
-    @Environment(\.openSettings) private var openSettings
     @State private var launchCheck = MacLaunchCheck()
     @State private var settingsVersion = 0
     @State private var showingPalette = false
@@ -57,7 +56,7 @@ struct MacRootView: View {
                     }
                 }
 
-                Button { openSettings() } label: {
+                Button { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .buttonStyle(.plain)
