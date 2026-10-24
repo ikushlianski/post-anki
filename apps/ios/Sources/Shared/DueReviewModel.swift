@@ -33,6 +33,13 @@ final class DueReviewModel {
     var lastGraded: GradedCard?
     var pendingCount = 0
     var isOffline = false
+    var serverCounts: ReviewRemainingCounts?
+    var gradedNewCount = 0
+    var gradedOtherCount = 0
+
+    var remainingCounts: ReviewRemainingCounts? {
+        serverCounts?.lowered(gradedNew: gradedNewCount, gradedOther: gradedOtherCount)
+    }
 
     var isErrorState: Bool {
         if case .error = state { return true }

@@ -5,7 +5,11 @@ enum PendingReviewLayout: String, CaseIterable, Identifiable {
     case triage = "Triage"
     case list = "List"
 
+    #if os(iOS)
+    static let defaultLayout = PendingReviewLayout.list
+    #else
     static let defaultLayout = PendingReviewLayout.triage
+    #endif
 
     var id: String { rawValue }
 }

@@ -6,7 +6,8 @@ struct DueReviewScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var editingCard: ReviewCard?
 
-    var body: some View {
+    @ViewBuilder
+    private var content: some View {
         Group {
             switch model.state {
             case .loading:
@@ -25,6 +26,22 @@ struct DueReviewScreen: View {
                     Task { await model.load() }
                 }
             }
+        }
+    }
+
+    private var showsCounts: Bool {
+        model.state == .card || model.state == .empty
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if showsCounts, let counts = model.remainingCounts {
+                ReviewCountsStrip(counts: counts)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+            }
+
+            content
         }
         .toolbar {
             if model.state == .card, !model.isGrading, let card = model.current {

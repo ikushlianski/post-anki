@@ -66,7 +66,32 @@ Rules for this folder:
 
 ## iOS shell
 
-`Sources/PostAnkiIOS` starts at `PostAnkiIOSApp.swift`, which shows `HomeView.swift`. The home sections (`HomeDailySection.swift`, `HomePracticeSection.swift`, and others) and a few screens (`CoursesScreen.swift`, `ProgressScreen.swift`) are iOS-only. Most other screens come from `Sources/Shared`.
+`Sources/PostAnkiIOS` starts at `PostAnkiIOSApp.swift`, which shows `HomeView.swift`: a `TabView` with five tabs.
+
+- Home: `HomeScreen.swift` with its sections (`HomeDailySection.swift`, `HomePracticeSection.swift`, and others). Progress and Answer practice open as sheets because those screens own their navigation stack.
+- Review: `DueReviewScreen.swift` in a `NavigationStack`. `review-counts-strip.swift` shows the remaining New, Learning and Due counts from `ReviewRemainingCounts` (`review-remaining-counts.swift`). `DueReviewModel` keeps the server counts plus counters of cards graded since the load (online and offline), subtracts them, and gives one back on undo; a reload resets the counters.
+- Inbox: `KnowledgeInboxScreen` (Pending items or Placement suggestions), badged with `PendingReviewCountStore.shared.count`.
+- Add: `IngestionDictationScreen` in a `NavigationStack`. `AddKnowledgeInput.classify` sends a lone http/https link as a url and anything else as text. `add-knowledge-subject-picker.swift` lists subjects (falling back to "No subject" if the list fails) and is hidden when a subject is passed in. The call is `APIClient.addKnowledgeSource`; `KnowledgeSourceRefusal` maps server refusal codes to sentences, and only `alreadyAdded` can be forced.
+- Courses: `CoursesScreen.swift`.
+
+A scene-active event flushes `PendingAnswerQueue`.
+
+### Triage: focus on iPhone, keep/drop on Mac
+
+`PendingReviewScreen.swift` branches by platform.
+
+- macOS: the layout picker, keep/drop triage (`pending-review-triage-*.swift`) and the reject undo banner.
+- iOS: a list that starts with an inbox summary (`pending-review-inbox-summary.swift`) and a Start triage button. The button opens a full-screen cover hosting `FocusTriageView`. Opening Add knowledge's "Review new items" opens the cover directly when cards are pending.
+
+Focus triage files are in `Sources/Shared` (`focus-triage-*.swift`):
+
+- `FocusTriageModel` holds the queue of ready cards, decisions, undo, notes and bounded polling (8 s interval, stops when no cards wait or after 40 tries, restarts only when the cover opens). Approve and reject call the API directly, so no reject reason sheet appears.
+- `FocusTriageSessionModel` starts or resumes a server triage session (`startTriageSession`), collects decisions and ends it with `finishTriageSession` (optional feedback, returns counts and style notes). If the session cannot start, triage still works and Finish closes to the list.
+- Decisions made before a relaunch can be resumed but not undone.
+
+### Session store scoping
+
+`FocusTriageSessionStore` saves the open session id and its decisions in `UserDefaults` (key `focusTriage.openSession`) together with the normalised server address from `ServerScope.current`. `load()` returns nothing when the stored address differs from the current one, so a session opened on one server is never resumed on another. `clear()` removes it when the session finishes or is discarded.
 
 ## Error and load-state conventions
 

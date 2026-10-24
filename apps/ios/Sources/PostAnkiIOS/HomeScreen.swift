@@ -5,6 +5,8 @@ struct HomeScreen: View {
     @State private var model = HomeScreenModel()
     @State private var dueModel = DueTodayModel()
     @State private var summaryModel = HomeSummaryModel()
+    @State private var showsProgress = false
+    @State private var showsAnswerPractice = false
 
     var body: some View {
         NavigationStack {
@@ -60,6 +62,20 @@ struct HomeScreen: View {
                     }
                 }
 
+                Section("Progress and practice") {
+                    Button {
+                        showsProgress = true
+                    } label: {
+                        Label("Progress", systemImage: "chart.bar")
+                    }
+
+                    Button {
+                        showsAnswerPractice = true
+                    } label: {
+                        Label("Answer practice", systemImage: "tray.and.arrow.down")
+                    }
+                }
+
                 HomePracticeSection()
                 HomeStudyToolsSection()
                 HomeStudyModesSection()
@@ -89,6 +105,8 @@ struct HomeScreen: View {
                 await course
                 await summary
             }
+            .sheet(isPresented: $showsProgress) { ProgressScreen() }
+            .sheet(isPresented: $showsAnswerPractice) { IngestScreen() }
         }
     }
 }

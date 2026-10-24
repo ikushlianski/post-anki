@@ -8,21 +8,18 @@ struct HomeView: View {
             HomeScreen()
                 .tabItem { Label("Home", systemImage: "house") }
 
-            CoursesScreen()
-                .tabItem { Label("Courses", systemImage: "book") }
-
             NavigationStack { DueReviewScreen() }
                 .tabItem { Label("Review", systemImage: "checkmark.seal") }
 
-            ProgressScreen()
-                .tabItem { Label("Progress", systemImage: "chart.bar") }
-
-            IngestScreen()
-                .tabItem { Label("Ingest", systemImage: "tray.and.arrow.down") }
-
             KnowledgeInboxScreen()
-                .tabItem { Label("Knowledge Inbox", systemImage: "tray.full") }
+                .tabItem { Label("Inbox", systemImage: "tray.full") }
                 .badge(PendingReviewCountStore.shared.count)
+
+            NavigationStack { IngestionDictationScreen() }
+                .tabItem { Label("Add", systemImage: "square.and.pencil") }
+
+            CoursesScreen()
+                .tabItem { Label("Courses", systemImage: "book") }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

@@ -81,6 +81,13 @@ extension DueReviewModel {
     func restore(_ last: GradedCard) {
         lastGraded = nil
         reviewedCount = max(0, reviewedCount - 1)
+
+        if last.card.phase == "new" {
+            gradedNewCount = max(0, gradedNewCount - 1)
+        } else {
+            gradedOtherCount = max(0, gradedOtherCount - 1)
+        }
+
         queue.removeAll { $0.knowledgeBitId == last.card.knowledgeBitId }
 
         if let shown = current, shown.knowledgeBitId != last.card.knowledgeBitId {

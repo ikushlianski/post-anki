@@ -5,15 +5,21 @@ bearer access token kept in the Keychain and talks directly to the post-anki API
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the package, shared screens, Mac registry and how to add a Mac feature.
 
-## Planned screens
+## iPhone tabs
 
-- Home — the latest topic/course you were studying
-- Courses — all courses, decks, and sub-decks
-- Ingest — confirm newly generated knowledge bits
+- Home: due-today row, summary, the latest topic or course to continue, daily push, practice, study tools and study modes. A "Progress and practice" section opens Progress and Answer practice as sheets.
+- Review: one-card-at-a-time review with grade buttons, undo and offline queuing. A strip above the card shows the remaining New, Learning and Due counts for today and drops as you grade (undo raises it again). Grades made offline are queued and sent later.
+- Inbox: a picker between Pending items and Placement suggestions. The tab badge shows the number of pending items. Pending items show a summary ("N cards are waiting for your decision", with writing progress while cards are still being made) and a Start triage button that opens focus triage.
+- Add: add knowledge by typing, dictating or pasting text, or by pasting a single link. Pick a subject (or "No subject"); inside a course the course's subject is used and the picker is hidden. A refused input shows a plain sentence (page could not be opened, no readable text, subject missing, subject has sub-subjects, already added, text over 50,000 characters). "Already added" offers Add anyway, which resends the same input with force. After extraction finishes, "Review new items" opens focus triage when cards are pending.
+- Courses: all courses, decks and sub-decks.
+
+## Focus triage
+
+On iPhone, Start triage opens a full-screen, one-card-at-a-time view: subject, all variations, example, fact, a "Where this came from" disclosure, an optional note, and sticky Reject and Approve buttons. Undo steps back through decisions made in the session. Finish takes optional feedback and shows counts and style notes. Cards that are still being written appear as they become ready. The Mac keeps its keep/drop triage with the layout picker and reject banner. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Status
 
-Scaffolding only.
+The iPhone app has five tabs (Home, Review, Inbox, Add, Courses). The Mac app has the full sidebar below.
 
 ## Build
 

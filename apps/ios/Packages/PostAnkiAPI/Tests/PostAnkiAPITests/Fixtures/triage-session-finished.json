@@ -1,0 +1,28 @@
+{
+  "id": "ts_01",
+  "subjectId": null,
+  "status": "distilled",
+  "startedAt": "2026-10-24T09:00:00.000Z",
+  "endedAt": "2026-10-24T09:12:00.000Z",
+  "acceptedCount": 5,
+  "rejectedCount": 2,
+  "feedbackText": "Too many fill-in-the-blank cards.",
+  "notes": [
+    {
+      "id": "csn_01",
+      "subjectId": null,
+      "sessionId": "ts_01",
+      "text": "Prefer one-sentence answers.",
+      "enabled": true,
+      "createdAt": "2026-10-24T09:12:01.000Z"
+    },
+    {
+      "id": "csn_02",
+      "subjectId": "subj_01",
+      "sessionId": "ts_01",
+      "text": "Avoid fill-in-the-blank for definitions.",
+      "enabled": false,
+      "createdAt": "2026-10-24T09:12:01.000Z"
+    }
+  ]
+}

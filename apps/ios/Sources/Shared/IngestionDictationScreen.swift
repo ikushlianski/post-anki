@@ -14,6 +14,13 @@ final class IngestionDictationScreenModel {
     var hasSent = false
     var showReview = false
 
+    let subjectPicker = AddKnowledgeSubjectPickerModel()
+    var canAddAnyway = false
+    private var lastSent: KnowledgeSourceContent?
+
+    var showsSubjectPicker: Bool { subjectId == nil }
+    var effectiveSubjectId: String? { subjectId ?? subjectPicker.selectedId }
+
     var hasInput: Bool {
         isSubmitting || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -24,19 +31,33 @@ final class IngestionDictationScreenModel {
     }
 
     func submit() async {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isSubmitting else { return }
+        guard let content = AddKnowledgeInput.classify(text) else { return }
+
+        await send(content, force: false)
+    }
+
+    func addAnyway() async {
+        guard let content = lastSent else { return }
+
+        await send(content, force: true)
+    }
+
+    private func send(_ content: KnowledgeSourceContent, force: Bool) async {
+        guard !isSubmitting else { return }
 
         isSubmitting = true
         errorMessage = nil
+        canAddAnyway = false
+        lastSent = content
 
         if activeDetections == 0 {
             hasSent = false
         }
 
         do {
-            _ = try await APIClient.createKnowledgeSource(text: trimmed, subjectId: subjectId)
+            _ = try await APIClient.addKnowledgeSource(content: content, subjectId: effectiveSubjectId, force: force)
             text = ""
+            lastSent = nil
             hasSent = true
             isSubmitting = false
             activeDetections += 1
@@ -44,21 +65,32 @@ final class IngestionDictationScreenModel {
             try? await APIClient.detectKnowledgeBits()
         } catch {
             isSubmitting = false
+            present(error)
+        }
+    }
 
-            if case APIError.badStatus(_, "subject_not_found") = error {
+    private func present(_ error: Error) {
+        if let refusal = KnowledgeSourceRefusal.from(error) {
+            if refusal == .subjectNotFound, subjectId != nil {
                 errorMessage = "That course no longer exists. Go back and pick another."
             } else {
-                #if os(macOS)
-                switch ProgressLoadError.from(error) {
-                case .offline: errorMessage = "You're offline. Your text is still here, send it when you're back."
-                case .unauthorized: errorMessage = "Add your access token in Settings, then send again."
-                default: errorMessage = "Couldn't send that — try again."
-                }
-                #else
-                errorMessage = "Couldn't send that — try again."
-                #endif
+                errorMessage = refusal.message
             }
+
+            canAddAnyway = refusal.canForce
+
+            return
         }
+
+        #if os(macOS)
+        switch ProgressLoadError.from(error) {
+        case .offline: errorMessage = "You're offline. Your text is still here, send it when you're back."
+        case .unauthorized: errorMessage = "Add your access token in Settings, then send again."
+        default: errorMessage = "Couldn't send that — try again."
+        }
+        #else
+        errorMessage = "Couldn't send that — try again."
+        #endif
     }
 }
 
@@ -79,6 +111,10 @@ struct IngestionDictationScreen: View {
                 }
             }
 
+            if model.showsSubjectPicker {
+                AddKnowledgeSubjectPicker(model: model.subjectPicker)
+            }
+
             Section("Dictate what you're learning") {
                 TextEditor(text: $model.text)
                     .frame(minHeight: 200)
@@ -96,7 +132,9 @@ struct IngestionDictationScreen: View {
 
             if model.hasSent {
                 Section {
-                    Text(model.isDetecting ? "Sent. Extracting items..." : "Sent. New items appear in Review once extracted.")
+                    Text(model.isDetecting
+                        ? "Sent. Extracting items..."
+                        : "Added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.")
                         .zoomFont(.caption)
                         .foregroundStyle(.secondary)
                     Button("Review new items") { model.showReview = true }
@@ -105,8 +143,17 @@ struct IngestionDictationScreen: View {
             }
 
             if let errorMessage = model.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
+                Section {
+                    Text(errorMessage)
+                        .foregroundStyle(.red)
+
+                    if model.canAddAnyway {
+                        Button("Add anyway") {
+                            Task { await model.addAnyway() }
+                        }
+                        .disabled(model.isSubmitting)
+                    }
+                }
             }
         }
         .navigationTitle("Add Knowledge")

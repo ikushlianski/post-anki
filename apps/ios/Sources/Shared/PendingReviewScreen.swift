@@ -8,6 +8,9 @@ struct PendingReviewScreen: View {
     @State private var editingBit: PendingReviewBit?
     @State private var layout = PendingReviewLayout.defaultLayout
     @State private var triage: PendingReviewTriageModel
+    @State private var focus: FocusTriageModel
+    @State private var session: FocusTriageSessionModel
+    @State private var focusOpen = false
 
     private let onDone: (() -> Void)?
 
@@ -18,6 +21,11 @@ struct PendingReviewScreen: View {
 
         _model = State(initialValue: list)
         _triage = State(initialValue: PendingReviewTriageModel(list: list))
+
+        let focusModel = FocusTriageModel(list: list)
+
+        _focus = State(initialValue: focusModel)
+        _session = State(initialValue: FocusTriageSessionModel(triage: focusModel))
     }
 
     var body: some View {
@@ -37,9 +45,11 @@ struct PendingReviewScreen: View {
                     }
                     #endif
 
+                    #if os(macOS)
                     ToolbarItem {
                         layoutToggle
                     }
+                    #endif
 
                     #if os(macOS)
                     if onDone == nil {
@@ -92,11 +102,20 @@ struct PendingReviewScreen: View {
         }
         .pendingReviewSheets(model: model, editingBit: $editingBit, isEnabled: !isTriageCoverShown)
         #if os(iOS)
-        .fullScreenCover(isPresented: Binding(get: { showsTriage }, set: { if !$0 { layout = .list } })) {
+        .fullScreenCover(
+            isPresented: Binding(get: { focusOpen }, set: { focusOpen = $0 }),
+            onDismiss: { Task { await model.load() } }
+        ) {
             triageCover
         }
         #endif
-        .task { await model.load() }
+        .task {
+            await model.load()
+
+            #if os(iOS)
+            if onDone != nil, !model.sources.isEmpty { focusOpen = true }
+            #endif
+        }
         .onAppear {
             if model.hasLoaded && !model.isLoading {
                 Task { await model.load() }
@@ -105,7 +124,11 @@ struct PendingReviewScreen: View {
     }
 
     private var showsTriage: Bool {
-        layout == .triage && !model.sources.isEmpty
+        #if os(iOS)
+        return focusOpen
+        #else
+        return layout == .triage && !model.sources.isEmpty
+        #endif
     }
 
     private var isMac: Bool {
@@ -119,22 +142,18 @@ struct PendingReviewScreen: View {
     #if os(iOS)
     private var triageCover: some View {
         NavigationStack {
-            PendingReviewTriageView(model: triage, editingBit: $editingBit)
-                .navigationTitle("Pending items")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("List") { layout = .list }
-                    }
+            FocusTriageView(
+                triage: focus,
+                session: session,
+                editingBit: $editingBit,
+                onClose: { focusOpen = false }
+            )
+            .navigationTitle("Triage")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("List") { focusOpen = false }
                 }
-        }
-        .safeAreaInset(edge: .bottom) {
-            if let undo = model.pendingUndo {
-                PendingReviewUndoBanner(
-                    undo: undo,
-                    onUndo: { Task { await model.undoReject() } },
-                    onDismiss: { model.dismissUndo() }
-                )
             }
         }
         .pendingReviewSheets(model: model, editingBit: $editingBit)
@@ -193,6 +212,12 @@ struct PendingReviewScreen: View {
             PendingReviewTriageView(model: triage, editingBit: $editingBit)
         } else {
             List {
+                #if os(iOS)
+                Section {
+                    PendingReviewInboxSummary(sources: model.sources) { focusOpen = true }
+                }
+                #endif
+
                 if let message = model.errorMessage {
                     Text(message)
                         .zoomFont(.caption)

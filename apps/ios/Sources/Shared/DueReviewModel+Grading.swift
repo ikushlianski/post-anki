@@ -29,6 +29,7 @@ extension DueReviewModel {
                 requestId: cardRequestId
             )
             reviewedCount += 1
+            countGraded(card)
             await showNext()
         } catch is CancellationError {
             return
@@ -59,10 +60,19 @@ extension DueReviewModel {
 
         lastGraded = GradedCard(card: card, grade: input.grade, reviewId: nil, requestId: cardRequestId)
         reviewedCount += 1
+        countGraded(card)
         queue.removeAll { $0.knowledgeBitId == card.knowledgeBitId }
         pendingCount = await gradeQueue.count()
         await showNext()
         notice = "Saved offline, will send later"
+    }
+
+    func countGraded(_ card: ReviewCard) {
+        if card.phase == "new" {
+            gradedNewCount += 1
+        } else {
+            gradedOtherCount += 1
+        }
     }
 
     func submit(_ input: RecordReviewInput) async throws -> RecordReviewResult {

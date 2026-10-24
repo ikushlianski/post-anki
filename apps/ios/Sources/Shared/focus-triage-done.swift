@@ -1,0 +1,102 @@
+import SwiftUI
+
+struct FocusTriageDone: View {
+    let remaining: Int
+    let waitingCount: Int
+    let decidedCount: Int
+    @Binding var feedback: String
+    let isSaving: Bool
+    let resumed: Bool
+    let error: String?
+    let stale: Bool
+    let onFinish: () -> Void
+    let onDiscard: () -> Void
+    let onKeepGoing: (() -> Void)?
+
+    var body: some View {
+        ScrollView {
+            ZoomVStack(alignment: .leading, spacing: 12) {
+                Text(title)
+                    .zoomFont(.title2.weight(.semibold))
+
+                Text(detail)
+                    .zoomFont(.callout)
+                    .foregroundStyle(.secondary)
+
+                if resumed {
+                    Text("This session was open before the app closed. Decisions made earlier are still counted.")
+                        .zoomFont(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text("Feedback (optional)")
+                    .zoomFont(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                TextField("What did you like or not like about these cards? Helps future cards.", text: $feedback, axis: .vertical)
+                    .lineLimit(4...10)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: feedback) {
+                        if feedback.count > FocusTriageFeedback.maxCharacters {
+                            feedback = String(feedback.prefix(FocusTriageFeedback.maxCharacters))
+                        }
+                    }
+
+                if let error {
+                    Text(error)
+                        .zoomFont(.callout)
+                        .foregroundStyle(.red)
+                }
+
+                if stale {
+                    Text("This session no longer exists or is already finished.")
+                        .zoomFont(.callout)
+                    Button("Discard this session", action: onDiscard)
+                        .buttonStyle(.bordered)
+                }
+
+                Button(action: onFinish) {
+                    ZoomHStack(spacing: 6) {
+                        if isSaving { ProgressView() }
+
+                        Text("Finish triage").zoomFont(.headline)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isSaving)
+
+                if let onKeepGoing {
+                    Button("Keep triaging", action: onKeepGoing)
+                        .buttonStyle(.bordered)
+                        .disabled(isSaving)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .zoomPadding()
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var title: String {
+        if remaining > 0 { return "Finish triage?" }
+
+        return waitingCount > 0 ? "Writing more cards…" : "All cards decided"
+    }
+
+    private var detail: String {
+        if remaining > 0 {
+            return "\(remaining) \(remaining == 1 ? "card is" : "cards are") still waiting for your decision. You can pick them up later from the inbox."
+        }
+
+        if waitingCount > 0 {
+            return "\(waitingCount) \(waitingCount == 1 ? "suggestion is" : "suggestions are") still being written. They will show up here when ready, or you can finish now."
+        }
+
+        if decidedCount > 0 {
+            return "You went through \(decidedCount) \(decidedCount == 1 ? "card" : "cards"). Finish to wrap up this session."
+        }
+
+        return "There is nothing left to review. Finish to wrap up this session."
+    }
+}

@@ -40,6 +40,10 @@ extension DueReviewModel {
             }
             let counts = response.counts
 
+            serverCounts = ReviewRemainingCounts(counts)
+            gradedNewCount = 0
+            gradedOtherCount = 0
+
             nextDueAt = response.nextDueAt
             noCardsYet = response.nextDueAt == nil
                 && counts.new == 0 && counts.learning == 0 && counts.review == 0

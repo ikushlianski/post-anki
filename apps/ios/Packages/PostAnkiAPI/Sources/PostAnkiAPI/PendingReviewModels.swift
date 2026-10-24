@@ -4,6 +4,7 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
     public let knowledgeSourceId: String
     public let sourceText: String?
     public let subjectName: String?
+    public let subjectId: String?
     public let bits: [PendingReviewBit]
 
     public var id: String { knowledgeSourceId }
@@ -12,11 +13,13 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
         knowledgeSourceId: String,
         sourceText: String?,
         subjectName: String?,
-        bits: [PendingReviewBit]
+        bits: [PendingReviewBit],
+        subjectId: String? = nil
     ) {
         self.knowledgeSourceId = knowledgeSourceId
         self.sourceText = sourceText
         self.subjectName = subjectName
+        self.subjectId = subjectId
         self.bits = bits
     }
 }
@@ -103,7 +106,7 @@ extension PendingReviewDecision {
 
 extension PendingReviewSource {
     public func withBits(_ bits: [PendingReviewBit]) -> PendingReviewSource {
-        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits)
+        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId)
     }
 }
 
