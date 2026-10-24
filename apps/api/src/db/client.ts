@@ -32,6 +32,8 @@ export function getDb() {
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 10_000,
     });
+    // An idle connection the server closes (Neon suspend, restart) must not crash the process.
+    pool.on("error", (err) => console.warn("db_idle_connection_error", err.message));
     db = drizzle(pool, { schema });
   }
 
