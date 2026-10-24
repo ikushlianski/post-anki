@@ -14,7 +14,7 @@ const { buildKnowledgeBitFillBlankGeneratorPrompt, INSTRUCTIONS: fillInstruction
 const { buildKnowledgeBitQuestionGeneratorPrompt, INSTRUCTIONS: questionInstructions } = await import(
   "../mastra/knowledge-bit-question-generator.agent.js"
 );
-const { buildKnowledgeBitSourceItemsPrompt } = await import("../mastra/knowledge-bit-source-items.agent.js");
+const { buildKnowledgeBitCardsPrompt } = await import("../mastra/knowledge-bit-source-items.agent.js");
 
 const BLOCK = "<style_notes>\n- short fronts\n</style_notes>";
 const BODY = "TTL means time to live.";
@@ -42,17 +42,19 @@ describe.each(generators)("%s generator prompt", (_name, build, instructions) =>
   });
 });
 
-describe("source items prompt", () => {
+const LESSONS = [{ statement: "A lesson.", example: null }];
+
+describe("cards prompt", () => {
   it("should be unchanged when there are no style notes", () => {
-    expect(buildKnowledgeBitSourceItemsPrompt("Some source text.", false, "", "")).toBe(
-      buildKnowledgeBitSourceItemsPrompt("Some source text."),
+    expect(buildKnowledgeBitCardsPrompt(LESSONS, "Some source text.", false, "", "")).toBe(
+      buildKnowledgeBitCardsPrompt(LESSONS, "Some source text."),
     );
   });
 
-  it("should place the style notes after the reviewer feedback and before the source", () => {
-    const prompt = buildKnowledgeBitSourceItemsPrompt("Some source text.", false, "<reviewer_feedback>\nx\n</reviewer_feedback>", BLOCK);
+  it("should place the style notes after the reviewer feedback and before the lessons", () => {
+    const prompt = buildKnowledgeBitCardsPrompt(LESSONS, "Some source text.", false, "<reviewer_feedback>\nx\n</reviewer_feedback>", BLOCK);
 
     expect(prompt.indexOf("</reviewer_feedback>")).toBeLessThan(prompt.indexOf("<style_notes>"));
-    expect(prompt.indexOf("</style_notes>")).toBeLessThan(prompt.indexOf("<source>"));
+    expect(prompt.indexOf("</style_notes>")).toBeLessThan(prompt.indexOf("<lessons>"));
   });
 });

@@ -17,8 +17,9 @@ import {
 import {
   normalizeStatement,
   selectNewItems,
-  type SourceItemDraft,
+  type LessonDraft,
 } from "./knowledge-bit-source-item-validation.js";
+import { loadLearningIntentSafely } from "./knowledge-bit-learning-intent.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
 
 // Everything a step takes or returns is stored by the engine. Source text, chunk text and
@@ -98,7 +99,10 @@ async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableSte
   const feedbackBlock = await loadFeedbackBlockSafely(asPending(snapshot), deps);
   const styleNotesBlock = await loadStyleNotesBlockSafely(asPending(snapshot), deps);
 
+  const learningIntent = await loadLearningIntentSafely(snapshot.subjectId, snapshot.id, deps.loadLearningIntent);
+
   return {
+    learningIntent,
     ...(modelId ? { modelId } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
@@ -110,7 +114,7 @@ export async function chunkStep(
   snapshot: DurableSourceSnapshot,
   index: number,
   deps: DurableStepDeps,
-): Promise<SourceItemDraft[]> {
+): Promise<LessonDraft[]> {
   const rawText = await deps.loadRawText(snapshot.id);
   const chunk = rawText ? chunkSourceText(rawText, CHUNK_MAX_CHARS)[index] : undefined;
 
@@ -140,7 +144,7 @@ export async function failStep(
 export async function finishStep(
   snapshot: DurableSourceSnapshot,
   firstOrdinal: number,
-  chunkResults: readonly (SourceItemDraft[] | null)[],
+  chunkResults: readonly (LessonDraft[] | null)[],
   failureReason: string | null,
   deps: GenerateItemsDeps,
 ): Promise<DurableOutcome> {

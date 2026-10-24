@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { SourceItemDraft } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
+import type { LessonDraft, SourceItemDraft } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
 import { extractForModel, runModelComparison, type ExtractChunk } from "./model-comparison.runner.js";
 
 vi.mock("../mastra/knowledge-bit-source-items.agent.js", () => ({
@@ -17,13 +17,20 @@ const GOOD: SourceItemDraft = {
   quote: "Redis хранит данные в оперативной памяти",
 };
 
+const GOOD_LESSON: LessonDraft = {
+  statement: GOOD.statement,
+  quote: GOOD.quote,
+  example: null,
+  cards: [GOOD],
+};
+
 describe("runModelComparison", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it("should return one result per chosen model with its validated cards", async () => {
-    const extract = vi.fn<ExtractChunk>().mockResolvedValue([GOOD]);
+    const extract = vi.fn<ExtractChunk>().mockResolvedValue([GOOD_LESSON]);
 
     const run = await runModelComparison(
       {
@@ -46,7 +53,7 @@ describe("runModelComparison", () => {
         throw new Error("provider timeout");
       }
 
-      return [GOOD];
+      return [GOOD_LESSON];
     });
 
     const run = await runModelComparison(
@@ -62,8 +69,8 @@ describe("runModelComparison", () => {
   });
 
   it("should report dropped cards instead of showing guard failures as cards", async () => {
-    const bad: SourceItemDraft = { ...GOOD, quote: "такой цитаты нет в тексте вообще" };
-    const extract = vi.fn<ExtractChunk>().mockResolvedValue([GOOD, bad]);
+    const BAD_LESSON: LessonDraft = { ...GOOD_LESSON, quote: "такой цитаты нет в тексте вообще" };
+    const extract = vi.fn<ExtractChunk>().mockResolvedValue([GOOD_LESSON, BAD_LESSON]);
 
     const run = await runModelComparison(
       { excerpt: EXCERPT, modelIds: ["openrouter/openai/gpt-oss-120b"] },
@@ -75,8 +82,22 @@ describe("runModelComparison", () => {
     expect(run.results[0]!.dropped).toHaveLength(1);
   });
 
+  it("should show every card of a lesson and count cards, not lessons, as returned", async () => {
+    const second: SourceItemDraft = { ...GOOD, kind: "why", question: "Почему чтение быстрое?" };
+    const lesson: LessonDraft = { ...GOOD_LESSON, cards: [GOOD, second] };
+    const extract = vi.fn<ExtractChunk>().mockResolvedValue([lesson]);
+
+    const run = await runModelComparison(
+      { excerpt: EXCERPT, modelIds: ["openrouter/openai/gpt-oss-120b"] },
+      extract,
+    );
+
+    expect(run.results[0]).toMatchObject({ returned: 2 });
+    expect(run.results[0]!.cards.map((card) => card.kind)).toEqual(["basic", "why"]);
+  });
+
   it("should never send a model removed from the allowlist to the provider", async () => {
-    const extract = vi.fn<ExtractChunk>().mockResolvedValue([GOOD]);
+    const extract = vi.fn<ExtractChunk>().mockResolvedValue([GOOD_LESSON]);
 
     const run = await runModelComparison(
       { excerpt: EXCERPT, modelIds: ["openrouter/google/gemini-2.5-flash-lite" as never] },

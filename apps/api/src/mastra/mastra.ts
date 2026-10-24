@@ -32,6 +32,7 @@ import { createLearningListSliceAgent } from "./learning-list-slice.agent.js";
 import { createStudyMaterialWriter } from "./study-material-writer.agent.js";
 import { createBizEducationClassifierAgent } from "./biz-education-classifier.agent.js";
 import { createTagAutoAssignAgent } from "./tag-auto-assign.agent.js";
+import { createKnowledgeBitLessonsAgent } from "./knowledge-bit-lessons.agent.js";
 import { createKnowledgeBitSourceItemsAgent } from "./knowledge-bit-source-items.agent.js";
 import { createArticleSummaryAgent } from "./article-summary.agent.js";
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
@@ -75,6 +76,7 @@ export const AGENT_KEYS = {
   studyMaterialWriter: "studyMaterialWriter",
   bizEducationClassifier: "bizEducationClassifier",
   tagAutoAssign: "tagAutoAssign",
+  knowledgeBitLessons: "knowledgeBitLessons",
   knowledgeBitSourceItems: "knowledgeBitSourceItems",
   articleSummary: "articleSummary",
   knowledgeBitTagger: "knowledgeBitTagger",
@@ -164,6 +166,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.studyMaterialWriter]: createStudyMaterialWriter(),
         [AGENT_KEYS.bizEducationClassifier]: createBizEducationClassifierAgent(),
         [AGENT_KEYS.tagAutoAssign]: createTagAutoAssignAgent(),
+        [AGENT_KEYS.knowledgeBitLessons]: createKnowledgeBitLessonsAgent(),
         [AGENT_KEYS.knowledgeBitSourceItems]: createKnowledgeBitSourceItemsAgent(),
         [AGENT_KEYS.articleSummary]: createArticleSummaryAgent(),
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),

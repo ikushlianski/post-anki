@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
-import type { SourceItemDraft } from "./knowledge-bit-source-item-validation.js";
+import type { LessonDraft, SourceItemDraft } from "./knowledge-bit-source-item-validation.js";
 
 export const RU_SOURCE_TEXT = readFileSync(
   new URL("./knowledge-bit-source-items.fixture.ru.txt", import.meta.url),
   "utf8",
 );
 
-export const RU_EXAMPLE_ITEMS: SourceItemDraft[] = [
+const RU_EXAMPLE_CARDS: SourceItemDraft[] = [
   {
     kind: "why",
     statement:
@@ -39,12 +39,41 @@ export const RU_EXAMPLE_ITEMS: SourceItemDraft[] = [
   },
 ];
 
-export function itemsForChunk(prefix: string, count: number): SourceItemDraft[] {
+const [WHY_SALES, WHY_BUYER, BASIC_VISION, FILL_PAIN] = RU_EXAMPLE_CARDS as [
+  SourceItemDraft,
+  SourceItemDraft,
+  SourceItemDraft,
+  SourceItemDraft,
+];
+
+function lessonFrom(card: SourceItemDraft, cards: SourceItemDraft[], example: string | null): LessonDraft {
+  return {
+    statement: card.statement,
+    quote: card.quote,
+    example,
+    cards: cards.map((item) => ({ ...item, quote: card.quote })),
+  };
+}
+
+export const RU_EXAMPLE_ITEMS: LessonDraft[] = [
+  lessonFrom(WHY_SALES, [WHY_SALES], null),
+  lessonFrom(WHY_BUYER, [WHY_BUYER], "Директор покупает софт, когда сам устал от бумажной рутины."),
+  lessonFrom(BASIC_VISION, [BASIC_VISION, FILL_PAIN], null),
+];
+
+export function itemsForChunk(prefix: string, count: number): LessonDraft[] {
   return Array.from({ length: count }, (_, i) => ({
-    kind: "basic" as const,
     statement: `${prefix} claim number ${i} about widgets`,
-    question: `What is claim ${i} of ${prefix}?`,
-    answer: `Widgets ${prefix} ${i}`,
     quote: `${prefix} marker sentence ${i}`,
+    example: null,
+    cards: [
+      {
+        kind: "basic" as const,
+        statement: `${prefix} claim number ${i} about widgets`,
+        question: `What is claim ${i} of ${prefix}?`,
+        answer: `Widgets ${prefix} ${i}`,
+        quote: `${prefix} marker sentence ${i}`,
+      },
+    ],
   }));
 }

@@ -56,11 +56,18 @@ afterAll(async () => {
 
 const items = (n: number) =>
   Array.from({ length: n }, (_, i) => ({
-    kind: "basic" as const,
     statement: `Statement ${i}`,
-    question: `Question ${i}`,
-    answer: `Answer ${i}`,
     quote: `quote ${i}`,
+    example: null,
+    cards: [
+      {
+        kind: "basic" as const,
+        statement: `Statement ${i}`,
+        question: `Question ${i}`,
+        answer: `Answer ${i}`,
+        quote: `quote ${i}`,
+      },
+    ],
   }));
 
 async function seedProcessingSource(): Promise<{ sourceId: string; claimedAt: Date }> {

@@ -16,9 +16,10 @@ import {
   type DetectKnowledgeBitsDeps,
   type GenerateItemsDeps,
 } from "./detect-knowledge-bits.orchestrator.js";
+import { DEFAULT_LEARNING_INTENT } from "./knowledge-bit-learning-intent.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
 import { RU_EXAMPLE_ITEMS, RU_SOURCE_TEXT } from "./knowledge-bit-source-items.test-mocks.js";
-import type { SourceItemDraft } from "./knowledge-bit-source-item-validation.js";
+import type { LessonDraft, SourceItemDraft } from "./knowledge-bit-source-item-validation.js";
 
 let nextClaimedAt = 0;
 
@@ -36,24 +37,28 @@ function paragraphs(count: number): string {
   return Array.from({ length: count }, (_, i) => `P${i} ${"w".repeat(2500)} marker${i}`).join("\n\n");
 }
 
-function itemFor(text: string, tag: string): SourceItemDraft {
-  return {
+function lessonOf(card: SourceItemDraft): LessonDraft {
+  return { statement: card.statement, quote: card.quote, example: null, cards: [card] };
+}
+
+function itemFor(text: string, tag: string): LessonDraft {
+  return lessonOf({
     kind: "basic",
     statement: `Claim ${tag} holds for every widget`,
     question: `What holds for every widget in case ${tag}?`,
     answer: `Claim ${tag}`,
     quote: text.slice(0, 40),
-  };
+  });
 }
 
-function ruItemFor(tag: string): SourceItemDraft {
-  return {
+function ruItemFor(tag: string): LessonDraft {
+  return lessonOf({
     kind: "basic",
     statement: `Утверждение ${tag} верно для каждого клиента компании`,
     question: `Что верно для каждого клиента компании в случае ${tag}?`,
     answer: `Утверждение ${tag}`,
     quote: "нам не обязательно искать боли клиента",
-  };
+  });
 }
 
 function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): GenerateItemsDeps {
@@ -85,7 +90,7 @@ describe("generateItemsForSource", () => {
       items: RU_EXAMPLE_ITEMS,
     });
     expect(deps.markDetected).toHaveBeenCalledWith("ks_1", pending.claimedAt);
-    expect(result).toEqual({ status: "detected", inserted: 4, failureReason: null });
+    expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
   });
 
   it("should hand the reviewer feedback of the source's subject to every chunk call", async () => {
@@ -129,6 +134,7 @@ describe("generateItemsForSource", () => {
     );
 
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      learningIntent: DEFAULT_LEARNING_INTENT,
       modelId: "openrouter/openai/gpt-6-luna",
     });
   });
@@ -143,6 +149,7 @@ describe("generateItemsForSource", () => {
     );
 
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      learningIntent: DEFAULT_LEARNING_INTENT,
       modelId: "openrouter/openai/gpt-5-mini",
     });
   });
@@ -157,6 +164,7 @@ describe("generateItemsForSource", () => {
     );
 
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      learningIntent: DEFAULT_LEARNING_INTENT,
       modelId: "openrouter/google/gemma-4-31b-it",
     });
   });
@@ -166,7 +174,7 @@ describe("generateItemsForSource", () => {
 
     await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT, "openrouter/evil/model"), {}, deps);
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {});
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT });
   });
 
   it("should fall back to the admin default once a listed model has passed its retirement date", async () => {
@@ -182,7 +190,7 @@ describe("generateItemsForSource", () => {
 
     vi.useRealTimers();
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {});
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT });
   });
 
   it("should start ordinals after the existing ones and give each chunk its own ordinal range", async () => {
@@ -292,7 +300,7 @@ describe("generateItemsForSource", () => {
 
     const result = await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
 
-    expect(writeItems).toHaveBeenNthCalledWith(2, RU_SOURCE_TEXT.trim(), { strictLanguage: true });
+    expect(writeItems).toHaveBeenNthCalledWith(2, RU_SOURCE_TEXT.trim(), expect.objectContaining({ strictLanguage: true }));
     expect(result.status).toBe("detected");
   });
 
@@ -310,14 +318,14 @@ describe("generateItemsForSource", () => {
 
   it("should store at most 40 items per source and skip chunks once the cap is reached", async () => {
     const writeItems = vi.fn(async (chunk: string) =>
-      Array.from({ length: 8 }, (_, i) => itemFor(chunk, `${chunk.slice(0, 4)}-${i}`)),
+      Array.from({ length: 3 }, (_, i) => itemFor(chunk, `${chunk.slice(0, 4)}-${i}`)),
     );
     const deps = buildGenerateDeps({ writeItems });
 
-    const result = await generateItemsForSource(source("ks_1", paragraphs(12)), {}, deps);
+    const result = await generateItemsForSource(source("ks_1", paragraphs(18)), {}, deps);
 
     expect(result.inserted).toBe(MAX_ITEMS_PER_SOURCE);
-    expect(writeItems.mock.calls.length).toBeLessThan(12);
+    expect(writeItems.mock.calls.length).toBeLessThan(18);
     expect(result.status).toBe("detected");
   });
 

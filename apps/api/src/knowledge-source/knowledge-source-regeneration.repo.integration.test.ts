@@ -299,7 +299,7 @@ describe("a second generation run after regeneration (real Postgres)", () => {
 
     const claim = await claimSourceForRegeneration(sourceId);
 
-    expect(claim).toMatchObject({ ok: true, supersededCount: 3 });
+    expect(claim).toMatchObject({ ok: true, supersededCount: 2 });
 
     if (!claim.ok) {
       return;
@@ -312,7 +312,7 @@ describe("a second generation run after regeneration (real Postgres)", () => {
       { ...defaultGenerateItemsDeps(), writeItems: second },
     );
 
-    expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
+    expect(result).toEqual({ status: "detected", inserted: 2, failureReason: null });
     expect(second).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({ modelId: "openrouter/google/gemini-3.1-flash-lite" }),
@@ -325,13 +325,11 @@ describe("a second generation run after regeneration (real Postgres)", () => {
       )
     ).rows;
 
-    expect(bits.map((bit) => bit.ordinal)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(bits.map((bit) => bit.ordinal)).toEqual([0, 1, 2, 3, 4]);
     expect(bits.map((bit) => bit.approval_state)).toEqual([
       "approved",
       "superseded",
       "superseded",
-      "superseded",
-      "pending",
       "pending",
       "pending",
     ]);

@@ -4,7 +4,7 @@ import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from ".
 import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
-import type { SourceItemDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
+import type { LessonDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
 
 const VARIANT_KIND_BY_ITEM_KIND = {
   why: "wh_question",
@@ -42,10 +42,10 @@ export interface InsertSourceItemsInput {
   sourceId: string;
   claimedAt: Date;
   firstOrdinal: number;
-  items: readonly SourceItemDraft[];
+  items: readonly LessonDraft[];
 }
 
-// Inserts bits and their variant in one transaction while this run owns the source claim; skips if the source was deleted.
+// Inserts bits and their variants in one transaction while this run owns the source claim; skips if the source was deleted.
 export async function insertSourceItemsForChunk(
   input: InsertSourceItemsInput,
   db: DbExecutor = getDb(),
@@ -94,7 +94,7 @@ export async function insertSourceItemsForChunk(
       knowledgeSourceId: sourceId,
       ordinal,
       body: item.statement,
-      background: null,
+      background: item.example,
       sourceLinks,
       approvalState: "pending",
       whQuestionGeneratedAt: stampedAt,
@@ -115,16 +115,14 @@ export async function insertSourceItemsForChunk(
         return [];
       }
 
-      return [
-        {
-          id: newId("kbqv"),
-          knowledgeBitId: bit.id,
-          kind: VARIANT_KIND_BY_ITEM_KIND[item.kind],
-          order: 0,
-          prompt: item.question,
-          answer: item.answer,
-        },
-      ];
+      return item.cards.map((card, order) => ({
+        id: newId("kbqv"),
+        knowledgeBitId: bit.id,
+        kind: VARIANT_KIND_BY_ITEM_KIND[card.kind],
+        order,
+        prompt: card.question,
+        answer: card.answer,
+      }));
     });
 
     if (variantRows.length > 0) {

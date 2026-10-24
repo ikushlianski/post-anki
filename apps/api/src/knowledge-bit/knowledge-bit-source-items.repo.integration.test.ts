@@ -101,7 +101,7 @@ async function bitsOf(sourceId: string) {
 
 async function variantsOf(bitId: string) {
   const result = await client.query(
-    `SELECT kind, "order", prompt, answer FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1`,
+    `SELECT kind, "order", prompt, answer FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1 ORDER BY "order"`,
     [bitId],
   );
 
@@ -109,7 +109,7 @@ async function variantsOf(bitId: string) {
 }
 
 describe("source-first pipeline with the Russian worked example (real Postgres, mocked model)", () => {
-  it("should store the four example items as pending bits with one matching variant each", async () => {
+  it("should store the three example lessons as pending bits with one variant per card", async () => {
     const source = await seedProcessingSource();
     const deps = { ...defaultGenerateItemsDeps(), writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) };
 
@@ -119,14 +119,15 @@ describe("source-first pipeline with the Russian worked example (real Postgres, 
       deps,
     );
 
-    expect(result).toEqual({ status: "detected", inserted: 4, failureReason: null });
+    expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
     expect(deps.writeItems).toHaveBeenCalledTimes(1);
 
     const bits = await bitsOf(source.id);
 
-    expect(bits.map((bit) => bit.ordinal)).toEqual([0, 1, 2, 3]);
+    expect(bits.map((bit) => bit.ordinal)).toEqual([0, 1, 2]);
     expect(bits.map((bit) => bit.body)).toEqual(RU_EXAMPLE_ITEMS.map((item) => item.statement));
-    expect(bits.every((bit) => bit.approval_state === "pending" && bit.background === null)).toBe(true);
+    expect(bits.every((bit) => bit.approval_state === "pending")).toBe(true);
+    expect(bits.map((bit) => bit.background)).toEqual([null, RU_EXAMPLE_ITEMS[1]!.example, null]);
 
     const variants = [];
 
@@ -134,17 +135,22 @@ describe("source-first pipeline with the Russian worked example (real Postgres, 
       variants.push(await variantsOf(bit.id));
     }
 
-    expect(variants.map((rows) => rows.length)).toEqual([1, 1, 1, 1]);
-    expect(variants.map((rows) => rows[0].kind)).toEqual([
-      "wh_question",
-      "wh_question",
-      "basic",
-      "fill_in_the_blank",
+    const cards = RU_EXAMPLE_ITEMS.map((lesson) => lesson.cards);
+
+    expect(variants.map((rows) => rows.length)).toEqual([1, 1, 2]);
+    expect(variants.map((rows) => rows.map((row) => row.kind))).toEqual([
+      ["wh_question"],
+      ["wh_question"],
+      ["basic", "fill_in_the_blank"],
     ]);
-    expect(variants.map((rows) => rows[0].order)).toEqual([0, 0, 0, 0]);
-    expect(variants.map((rows) => rows[0].prompt)).toEqual(RU_EXAMPLE_ITEMS.map((item) => item.question));
-    expect(variants.map((rows) => rows[0].answer)).toEqual(RU_EXAMPLE_ITEMS.map((item) => item.answer));
-    expect(variants[3]?.[0].prompt.match(/____/g)).toHaveLength(1);
+    expect(variants.map((rows) => rows.map((row) => row.order))).toEqual([[0], [0], [0, 1]]);
+    expect(variants.map((rows) => rows.map((row) => row.prompt))).toEqual(
+      cards.map((list) => list.map((card) => card.question)),
+    );
+    expect(variants.map((rows) => rows.map((row) => row.answer))).toEqual(
+      cards.map((list) => list.map((card) => card.answer)),
+    );
+    expect(variants[2]?.[1].prompt.match(/____/g)).toHaveLength(1);
 
     const sourceRow = (
       await client.query(`SELECT status, failure_reason FROM knowledge_sources WHERE id = $1`, [source.id])

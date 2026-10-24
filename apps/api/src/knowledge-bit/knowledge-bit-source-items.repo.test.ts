@@ -37,7 +37,7 @@ const input = {
   sourceId: "ks_1",
   claimedAt: new Date(),
   firstOrdinal: 0,
-  items: [{ kind: "basic" as const, statement: "S", question: "Q", answer: "A", quote: "a verbatim quote" }],
+  items: [{ statement: "S", quote: "a verbatim quote", example: null, cards: [{ kind: "basic" as const, statement: "S", question: "Q", answer: "A", quote: "a verbatim quote" }] }],
 };
 
 describe("insertSourceItemsForChunk source links", () => {

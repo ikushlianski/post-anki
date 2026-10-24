@@ -2,6 +2,15 @@ import { isWellFormedFillBlankPrompt } from "./knowledge-bit-fill-blank-prompt-v
 import { BASIC_CARD_FRONT_MAX_CHARS, validateBasicCard } from "./knowledge-bit-basic-card-validation.js";
 import { hasInjectedMarkup } from "./knowledge-bit-source-item-markup-guard.js";
 import { isYesNoQuestion } from "./knowledge-bit-yes-no-question.js";
+import { cleanLessonExample, validateLesson } from "./knowledge-bit-lesson-validation.js";
+import {
+  SOURCE_ITEM_QUOTE_MAX_CHARS,
+  SOURCE_ITEM_QUOTE_MIN_CHARS,
+  SOURCE_ITEM_STATEMENT_MAX_CHARS,
+  isQuoteInSource,
+  normalizeForQuoteMatch,
+  normalizeStatement,
+} from "./knowledge-bit-source-quote.js";
 import {
   hasForeignScriptRun,
   looksLikeDifferentScript,
@@ -20,9 +29,23 @@ export interface SourceItemDraft {
   quote: string;
 }
 
-export const SOURCE_ITEM_QUOTE_MIN_CHARS = 12;
-export const SOURCE_ITEM_QUOTE_MAX_CHARS = 300;
-export const SOURCE_ITEM_STATEMENT_MAX_CHARS = 600;
+export {
+  SOURCE_ITEM_QUOTE_MAX_CHARS,
+  SOURCE_ITEM_QUOTE_MIN_CHARS,
+  SOURCE_ITEM_STATEMENT_MAX_CHARS,
+  isQuoteInSource,
+  normalizeForQuoteMatch,
+  normalizeStatement,
+};
+
+export const LESSONS_MAX_PER_CHUNK = 3;
+
+export interface LessonDraft {
+  statement: string;
+  quote: string;
+  example: string | null;
+  cards: SourceItemDraft[];
+}
 export const SOURCE_ITEM_FILL_BLANK_ANSWER_MAX_CHARS = 120;
 
 export type SourceItemRejection =
@@ -40,28 +63,6 @@ export type SourceItemRejection =
 export type SourceItemValidation =
   | { ok: true; item: SourceItemDraft }
   | { ok: false; reason: SourceItemRejection };
-
-const QUOTE_MARKS = /["'`«»„“”‟‘’‚‛‹›]/gu;
-
-export function normalizeForQuoteMatch(text: string): string {
-  return text
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/ё/gu, "е")
-    .replace(QUOTE_MARKS, "")
-    .replace(/\s+/gu, " ")
-    .trim();
-}
-
-export function isQuoteInSource(quote: string, sourceText: string): boolean {
-  const normalizedQuote = normalizeForQuoteMatch(quote);
-
-  return normalizedQuote.length > 0 && normalizeForQuoteMatch(sourceText).includes(normalizedQuote);
-}
-
-export function normalizeStatement(statement: string): string {
-  return normalizeForQuoteMatch(statement);
-}
 
 function lettersOnly(text: string): string {
   return normalizeForQuoteMatch(text).replace(/[^\p{L}\p{N}]/gu, "");
@@ -205,39 +206,61 @@ export function validateSourceItem(raw: SourceItemDraft, sourceText: string): So
 }
 
 export interface SourceItemBatchValidation {
-  valid: SourceItemDraft[];
+  valid: LessonDraft[];
   dropped: SourceItemRejection[];
 }
 
 export function validateSourceItems(
-  drafts: readonly SourceItemDraft[],
+  drafts: readonly LessonDraft[],
   sourceText: string,
 ): SourceItemBatchValidation {
-  const valid: SourceItemDraft[] = [];
+  const valid: LessonDraft[] = [];
   const dropped: SourceItemRejection[] = [];
 
   for (const draft of drafts) {
-    const result = validateSourceItem(draft, sourceText);
+    const lesson = validateLesson(draft, sourceText);
 
-    if (result.ok) {
-      valid.push(result.item);
-    } else {
-      dropped.push(result.reason);
+    if (!lesson.ok) {
+      dropped.push(lesson.reason);
+
+      continue;
     }
+
+    const cards: SourceItemDraft[] = [];
+
+    for (const card of draft.cards) {
+      const result = validateSourceItem({ ...card, quote: lesson.lesson.quote }, sourceText);
+
+      if (result.ok) {
+        cards.push(result.item);
+      } else {
+        dropped.push(result.reason);
+      }
+    }
+
+    if (cards.length === 0) {
+      if (draft.cards.length === 0) {
+        dropped.push("empty");
+      }
+
+      continue;
+    }
+
+    valid.push({ ...lesson.lesson, example: cleanLessonExample(draft.example, sourceText), cards });
   }
 
   return { valid, dropped };
 }
 
 export function selectNewItems(
-  valid: readonly SourceItemDraft[],
+  valid: readonly LessonDraft[],
   seenStatements: Set<string>,
   limit: number,
-): SourceItemDraft[] {
-  const taken: SourceItemDraft[] = [];
+): LessonDraft[] {
+  const taken: LessonDraft[] = [];
 
-  for (const item of valid) {
-    const key = normalizeStatement(item.statement);
+  for (const lesson of valid) {
+    const key = normalizeStatement(lesson.statement);
 
     if (taken.length >= limit) {
       break;
@@ -245,7 +268,7 @@ export function selectNewItems(
 
     if (!seenStatements.has(key)) {
       seenStatements.add(key);
-      taken.push(item);
+      taken.push(lesson);
     }
   }
 

@@ -12,12 +12,18 @@ import {
   resetStaleProcessingKnowledgeSources,
   type PendingKnowledgeSource,
 } from "./knowledge-bit.repo.js";
+import {
+  loadLearningIntentSafely,
+  resolveKnowledgeBitLearningIntent,
+  type LearningIntentLoader,
+} from "./knowledge-bit-learning-intent.js";
 import { chunkSourceText, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
 import {
+  LESSONS_MAX_PER_CHUNK,
   normalizeStatement,
   selectNewItems,
   validateSourceItems,
-  type SourceItemDraft,
+  type LessonDraft,
 } from "./knowledge-bit-source-item-validation.js";
 import {
   getSourceInsertState,
@@ -30,7 +36,7 @@ export const DETECT_BITS_BATCH_CAP = 20;
 export const MAX_SOURCE_CHARS = 50_000;
 export const STALE_PROCESSING_THRESHOLD_MS = 15 * 60 * 1000;
 export const CHUNK_MAX_CHARS = SOURCE_CHUNK_MAX_CHARS;
-export const MAX_ITEMS_PER_CHUNK = 8;
+export const MAX_ITEMS_PER_CHUNK = LESSONS_MAX_PER_CHUNK;
 export const MAX_ITEMS_PER_SOURCE = 40;
 export const CHUNK_CONCURRENCY = 3;
 export const ORDINAL_STRIDE_PER_CHUNK = 1000;
@@ -40,17 +46,19 @@ export interface WriteOptions {
   strictLanguage?: boolean;
   feedbackBlock?: string;
   styleNotesBlock?: string;
+  learningIntent?: string;
   abortSignal?: AbortSignal;
 }
 
 export interface GenerateItemsDeps {
-  writeItems: (chunk: string, options: WriteOptions) => Promise<SourceItemDraft[]>;
+  writeItems: (chunk: string, options: WriteOptions) => Promise<LessonDraft[]>;
   getInsertState: (sourceId: string) => Promise<SourceInsertState>;
   insertItems: (input: InsertSourceItemsInput) => Promise<number>;
   markDetected: (id: string, claimedAt: Date) => Promise<boolean>;
   markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
   loadFeedbackBlock: (subjectId: string | null) => Promise<string>;
   loadStyleNotesBlock?: (subjectId: string | null) => Promise<string>;
+  loadLearningIntent?: LearningIntentLoader;
 }
 
 export function defaultGenerateItemsDeps(): GenerateItemsDeps {
@@ -63,6 +71,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     loadFeedbackBlock: async (subjectId) =>
       buildReviewerFeedbackBlock(await loadRecentFeedbackForExtraction(subjectId)),
     loadStyleNotesBlock,
+    loadLearningIntent: resolveKnowledgeBitLearningIntent,
   };
 }
 
@@ -99,9 +108,9 @@ function allDroppedForLanguage(result: { valid: unknown[]; dropped: string[] }):
 
 export async function writeAndValidate(
   chunk: string,
-  options: { modelId?: string },
+  options: WriteOptions,
   deps: GenerateItemsDeps,
-): Promise<SourceItemDraft[]> {
+): Promise<LessonDraft[]> {
   const first = await deps.writeItems(chunk, options);
   const firstResult = validateSourceItems(first, chunk);
   const needsRetry =
@@ -138,7 +147,7 @@ async function processChunk(
   index: number,
   context: {
     source: PendingKnowledgeSource;
-    options: { modelId?: string };
+    options: WriteOptions;
     firstOrdinal: number;
     state: RunState;
     deps: GenerateItemsDeps;
@@ -234,7 +243,9 @@ export async function generateItemsForSource(
   const modelId = chooseModelId(requestedOptions.modelId ?? source.extractionModelId, source.id);
   const feedbackBlock = await loadFeedbackBlockSafely(source, deps);
   const styleNotesBlock = await loadStyleNotesBlockSafely(source, deps);
+  const learningIntent = await loadLearningIntentSafely(source.subjectId, source.id, deps.loadLearningIntent);
   const options: WriteOptions = {
+    learningIntent,
     ...(modelId ? { modelId } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),

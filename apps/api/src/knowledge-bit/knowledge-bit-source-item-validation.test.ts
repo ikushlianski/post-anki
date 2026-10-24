@@ -4,7 +4,7 @@ import {
   selectNewItems,
   normalizeForQuoteMatch,
   validateSourceItem,
-  validateSourceItems,
+  type LessonDraft,
   type SourceItemDraft,
 } from "./knowledge-bit-source-item-validation.js";
 
@@ -259,26 +259,18 @@ describe("validateSourceItem", () => {
   });
 });
 
-describe("validateSourceItems", () => {
-  it("should keep the valid items and report why the others were dropped", () => {
-    const result = validateSourceItems(
-      [item({}), item({ quote: "совершенно выдуманная цитата из ниоткуда" })],
-      RU_SOURCE,
-    );
-
-    expect(result.valid).toHaveLength(1);
-    expect(result.dropped).toEqual(["quote_not_in_source"]);
-  });
-});
+function lesson(statement: string): LessonDraft {
+  return { statement, quote: item({}).quote, example: null, cards: [item({})] };
+}
 
 describe("selectNewItems", () => {
-  const first = item({ statement: "Claim one" });
-  const second = item({ statement: "Claim two" });
+  const first = lesson("Claim one");
+  const second = lesson("Claim two");
 
-  it("should skip statements already seen, ignoring case and spacing, and remember the new ones", () => {
+  it("should skip lessons already seen, ignoring case and spacing, and remember the new ones", () => {
     const seen = new Set(["claim one"]);
 
-    expect(selectNewItems([item({ statement: "CLAIM  one" }), second], seen, 8)).toEqual([second]);
+    expect(selectNewItems([lesson("CLAIM  one"), second], seen, 8)).toEqual([second]);
     expect(seen.has("claim two")).toBe(true);
   });
 
@@ -286,7 +278,7 @@ describe("selectNewItems", () => {
     expect(selectNewItems([first, second], new Set(), 1)).toEqual([first]);
   });
 
-  it("should drop a statement repeated inside the same batch", () => {
+  it("should drop a lesson repeated inside the same batch", () => {
     expect(selectNewItems([first, { ...first }], new Set(), 8)).toEqual([first]);
   });
 });

@@ -16,7 +16,7 @@ import { runKnowledgeBitSourceItems } from "../mastra/knowledge-bit-source-items
 import { chunkSourceText } from "../knowledge-bit/knowledge-bit-source-chunking.js";
 import {
   validateSourceItems,
-  type SourceItemDraft,
+  type LessonDraft,
 } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
 
 export const MODEL_COMPARISON_ITEM_TIMEOUT_MS = 120_000;
@@ -32,7 +32,7 @@ export type ExtractChunk = (
   modelId: string,
   signal?: AbortSignal,
   onUsage?: (usage: ReportedUsage) => void,
-) => Promise<SourceItemDraft[]>;
+) => Promise<LessonDraft[]>;
 
 const defaultExtractChunk: ExtractChunk = (chunk, modelId, signal, onUsage) =>
   runKnowledgeBitSourceItems(chunk, { modelId, abortSignal: signal, onUsage });
@@ -91,8 +91,8 @@ export async function extractForModel(
 
       const checked = validateSourceItems(drafts, chunk);
 
-      returned += drafts.length;
-      cards.push(...checked.valid);
+      returned += drafts.reduce((sum, lesson) => sum + lesson.cards.length, 0);
+      cards.push(...checked.valid.flatMap((lesson) => lesson.cards));
       dropped.push(...checked.dropped);
     }
 

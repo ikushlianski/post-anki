@@ -1,10 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { MODEL_COMPARISON_MAX_ESTIMATED_COST_USD } from "@post-anki/shared";
-import { estimateModelComparisonCost } from "./model-comparison-cost.js";
+import {
+  ESTIMATE_CHARS_PER_TOKEN,
+  ESTIMATE_LESSONS_HANDOFF_CHARS,
+  ESTIMATE_OUTPUT_TOKENS_PER_CHUNK,
+  estimateModelComparisonCost,
+} from "./model-comparison-cost.js";
 
 vi.mock("../mastra/knowledge-bit-source-items.agent.js", () => ({
   INSTRUCTIONS: "x".repeat(4000),
   runKnowledgeBitSourceItems: vi.fn(),
+}));
+
+vi.mock("../mastra/knowledge-bit-lessons.agent.js", () => ({
+  LESSONS_INSTRUCTIONS: "y".repeat(3000),
 }));
 
 describe("estimateModelComparisonCost", () => {
@@ -19,6 +28,14 @@ describe("estimateModelComparisonCost", () => {
     expect(cheap!.estimatedCostUsd).toBeGreaterThan(0);
     expect(dear!.estimatedCostUsd).toBeGreaterThan(cheap!.estimatedCostUsd);
     expect(estimate.totalEstimatedCostUsd).toBeCloseTo(cheap!.estimatedCostUsd + dear!.estimatedCostUsd, 10);
+  });
+
+  it("should price the instructions of both extraction calls for every chunk", () => {
+    const [entry] = estimateModelComparisonCost("а".repeat(100), ["openrouter/openai/gpt-oss-120b"]).perModel;
+    const expectedChars = 100 + 4000 + 3000 + ESTIMATE_LESSONS_HANDOFF_CHARS;
+
+    expect(entry!.inputTokens).toBe(Math.ceil(expectedChars / ESTIMATE_CHARS_PER_TOKEN));
+    expect(entry!.outputTokens).toBe(ESTIMATE_OUTPUT_TOKENS_PER_CHUNK);
   });
 
   it("should count one chunk per three thousand characters of the excerpt", () => {

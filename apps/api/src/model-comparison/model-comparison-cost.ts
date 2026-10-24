@@ -5,12 +5,14 @@ import {
   type ModelComparisonEstimate,
 } from "@post-anki/shared";
 import { INSTRUCTIONS } from "../mastra/knowledge-bit-source-items.agent.js";
+import { LESSONS_INSTRUCTIONS } from "../mastra/knowledge-bit-lessons.agent.js";
 import { chunkSourceText } from "../knowledge-bit/knowledge-bit-source-chunking.js";
 
 export const ESTIMATE_CHARS_PER_TOKEN = 2.5;
-export const ESTIMATE_OUTPUT_TOKENS_PER_CHUNK = 1500;
+export const ESTIMATE_OUTPUT_TOKENS_PER_CHUNK = 700;
+export const ESTIMATE_LESSONS_HANDOFF_CHARS = 900;
 
-const INSTRUCTION_CHARS = INSTRUCTIONS.length;
+const INSTRUCTION_CHARS = INSTRUCTIONS.length + LESSONS_INSTRUCTIONS.length + ESTIMATE_LESSONS_HANDOFF_CHARS;
 
 export function estimateModelComparisonCost(
   excerpt: string,
