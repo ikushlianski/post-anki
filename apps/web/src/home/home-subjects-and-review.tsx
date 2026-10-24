@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { LevelChip } from '../gamification/level-chip'
 import { AnkiReviewScreen } from '../knowledge-bit/anki-review-screen'
 import { KnowledgeBrowserSubjectList } from '../knowledge-bit/knowledge-browser-subject-list'
 import { HomeOptions } from './home-options'
@@ -18,6 +19,7 @@ export function HomeSubjectsAndReview() {
     >
       <div data-testid="home-left" className="min-w-0">
         <h1 className="mb-4 text-2xl font-semibold tracking-tight text-neutral-900">Post Anki</h1>
+        <LevelChip />
         <HomeOptions />
         <div data-testid="home-review">
           <AnkiReviewScreen scope={{}} />

@@ -1,4 +1,5 @@
 import type { UndoReviewResult } from "@post-anki/shared";
+import { voidPointEventByReviewIdInTx } from "../gamification/review-point-event.repo.js";
 import { withSubjectLock } from "../shared/merge-lock.js";
 import {
   hasLaterLiveReviewInTx,
@@ -52,6 +53,7 @@ export async function undoKnowledgeBitReview(
 
     await replaceKnowledgeBitScheduleInTx(tx, knowledgeBitId, outcome.row);
     await markKnowledgeBitReviewUndoneInTx(tx, reviewId, now);
+    await voidPointEventByReviewIdInTx(tx, reviewId, now);
 
     return { ok: true as const, knowledgeBitId };
   });

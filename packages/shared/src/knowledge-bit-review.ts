@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { knowledgeBitQuestionVariantKindSchema } from "./knowledge-bit";
+import { reviewPointsSchema } from "./gamification";
 
 export const reviewGradeSchema = z.enum(["again", "hard", "good", "easy"]);
 
@@ -94,6 +95,7 @@ export const recordReviewResultSchema = z.object({
   lapses: z.number().int().min(0),
   leech: z.boolean(),
   suspended: z.boolean(),
+  points: reviewPointsSchema,
 });
 
 export type RecordReviewResult = z.infer<typeof recordReviewResultSchema>;

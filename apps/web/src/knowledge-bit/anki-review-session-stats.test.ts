@@ -23,6 +23,7 @@ const graded = (
   durationMs: number,
   phase: ReviewCard['phase'] = 'review',
   leechSuspended = false,
+  points: { awarded: number; leveledUp: boolean; level: number } = { awarded: 3, leveledUp: false, level: 1 },
 ): SessionUndoEntry => ({
   kind: 'grade',
   reviewId: 'r',
@@ -30,6 +31,7 @@ const graded = (
   grade,
   durationMs,
   leechSuspended,
+  points,
   stamp: 1,
 })
 
@@ -90,5 +92,18 @@ describe('deriveSessionStats', () => {
 
     expect(deriveSessionStats(undo, 0, null, null, 1).reviewed).toBe(2)
     expect(deriveSessionStats(undo.slice(0, 1), 0, null, null, 1).reviewed).toBe(1)
+  })
+
+  it('should sum points earned this session and drop them again when a grade is undone', () => {
+    const entries = [graded('good', 2000), graded('easy', 2000, 'review', false, { awarded: 4, leveledUp: true, level: 2 })]
+    const full = deriveSessionStats(entries, 0, null, null, 1)
+    const undone = deriveSessionStats(entries.slice(0, 1), 0, null, null, 1)
+
+    expect(full.pointsEarned).toBe(7)
+    expect(full.leveledUp).toBe(true)
+    expect(full.levelReached).toBe(2)
+    expect(undone.pointsEarned).toBe(3)
+    expect(undone.leveledUp).toBe(false)
+    expect(undone.levelReached).toBeNull()
   })
 })

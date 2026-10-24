@@ -40,6 +40,7 @@ const savedOutcome = {
   lapses: 0,
   leech: false,
   suspended: false,
+  points: { awarded: 3, reason: 'awarded' as const, totalPoints: 3, level: 1, leveledUp: false },
 }
 
 function renderActions() {

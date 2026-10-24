@@ -126,6 +126,11 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
         grade: value,
         durationMs,
         leechSuspended,
+        points: {
+          awarded: outcome.points.awarded,
+          leveledUp: outcome.points.leveledUp,
+          level: outcome.points.level,
+        },
         stamp,
       }
 

@@ -30,6 +30,7 @@ const gradeEntry = (bit: string, phase: ReviewCard['phase'] = 'review'): Session
   grade: 'good',
   durationMs: 1000,
   leechSuspended: false,
+  points: { awarded: 3, leveledUp: false, level: 1 },
   stamp: 1,
 })
 

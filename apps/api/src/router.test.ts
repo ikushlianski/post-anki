@@ -355,6 +355,7 @@ describe("resolveRoute", () => {
 
     it("distinguishes /notes/search and /notes/review from the generic /notes collection route (specific before generic)", () => {
       expect(resolveRoute("GET", "/notes/search")?.name).toBe("searchNotes");
+      expect(resolveRoute("GET", "/gamification/profile")?.name).toBe("getGamificationProfile");
       expect(resolveRoute("GET", "/notes/review")?.name).toBe("reviewNote");
       expect(resolveRoute("GET", "/notes")?.name).toBe("listNotesForNode");
     });
@@ -531,6 +532,7 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/tags/mastery")?.name).toBe("getTagMastery");
       expect(resolveRoute("GET", "/study-sessions/consistency")?.name).toBe("getStudySessionConsistency");
       expect(resolveRoute("GET", "/notes/search")?.name).toBe("searchNotes");
+      expect(resolveRoute("GET", "/gamification/profile")?.name).toBe("getGamificationProfile");
     });
   });
 });

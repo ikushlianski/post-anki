@@ -1,6 +1,11 @@
 import { cardPhaseSchema, type RecordReviewInput, type RecordReviewResult } from "@post-anki/shared";
 import type { KnowledgeBitScheduleSnapshot } from "../db/schema.js";
-import { withSubjectLock } from "../shared/merge-lock.js";
+import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
+import { reviewPointsForEventInTx } from "../gamification/gamification.service.js";
+import {
+  awardReviewPointInTx,
+  readPointEventByReviewIdInTx,
+} from "../gamification/review-point-event.repo.js";
 import { deriveGradeSchedule, type GradeScheduleState } from "./knowledge-bit-grade-schedule.js";
 import { deriveLeechOutcome } from "./knowledge-bit-grade-schedule-leech.js";
 import {
@@ -30,10 +35,14 @@ function toGradeState(snapshot: KnowledgeBitScheduleSnapshot): GradeScheduleStat
 
 // A retry carrying an already-stored requestId gets the result re-derived from the stored
 // pre-grade snapshot, so the schedule is not changed a second time.
-function replayStoredReview(stored: KnowledgeBitReviewByRequestRecord): RecordReviewResult {
+async function replayStoredReview(
+  tx: Tx,
+  stored: KnowledgeBitReviewByRequestRecord,
+): Promise<RecordReviewResult> {
   const previous = stored.prevSchedule ? toGradeState(stored.prevSchedule) : null;
   const next = deriveGradeSchedule(previous, stored.grade, stored.reviewedAt);
   const leech = deriveLeechOutcome(previous?.lapses ?? 0, next.lapses);
+  const points = await reviewPointsForEventInTx(tx, await readPointEventByReviewIdInTx(tx, stored.id));
 
   return {
     reviewId: stored.id,
@@ -44,6 +53,7 @@ function replayStoredReview(stored: KnowledgeBitReviewByRequestRecord): RecordRe
     lapses: next.lapses,
     leech: leech.leech,
     suspended: leech.autoSuspend || stored.prevSchedule?.suspendedAt != null,
+    points,
   };
 }
 
@@ -68,7 +78,7 @@ export async function recordKnowledgeBitReview(
       const replayed = await readKnowledgeBitReviewByRequestIdInTx(tx, input.requestId);
 
       if (replayed) {
-        return { ok: true as const, ...replayStoredReview(replayed) };
+        return { ok: true as const, ...(await replayStoredReview(tx, replayed)) };
       }
     }
 
@@ -108,6 +118,14 @@ export async function recordKnowledgeBitReview(
       requestId: input.requestId,
     });
 
+    const event = await awardReviewPointInTx(tx, {
+      reviewId,
+      knowledgeBitId: variant.knowledgeBitId,
+      reviewedAt: now,
+      intervalDaysAfter: next.intervalDays,
+    });
+    const points = await reviewPointsForEventInTx(tx, event);
+
     return {
       ok: true as const,
       reviewId,
@@ -118,6 +136,7 @@ export async function recordKnowledgeBitReview(
       lapses: next.lapses,
       leech: leech.leech,
       suspended: leech.autoSuspend || stored?.suspendedAt != null,
+      points,
     };
   });
 }

@@ -6,6 +6,7 @@ import {
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
+import { recordActivityToday } from "../streak/streak.service.js";
 import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js";
 import { recordKnowledgeBitReview } from "./knowledge-bit-review.orchestrator.js";
 import { updateKnowledgeBitScheduleControls } from "./knowledge-bit-review-suspension.orchestrator.js";
@@ -54,6 +55,10 @@ export async function handleRecordKnowledgeBitReview(
   const { ok: _ok, ...result } = outcome;
 
   sendJson(res, 201, result);
+
+  void recordActivityToday(new Date().toISOString()).catch((error: unknown) => {
+    log.warn({ error }, "record_activity_after_review_failed");
+  });
 }
 
 export async function handleUndoKnowledgeBitReview(

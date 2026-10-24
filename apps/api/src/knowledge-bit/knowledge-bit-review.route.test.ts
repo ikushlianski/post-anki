@@ -25,6 +25,10 @@ vi.mock("./knowledge-bit-review-queue.repo.js", () => ({
   getKnowledgeBitReviewQueue: vi.fn(async () => state.queue),
 }));
 
+vi.mock("../streak/streak.service.js", () => ({
+  recordActivityToday: vi.fn(async () => ({ currentStreak: 1, longestStreak: 1, lastActiveDate: "2026-10-10" })),
+}));
+
 vi.mock("./knowledge-bit-review.orchestrator.js", () => ({
   recordKnowledgeBitReview: vi.fn(async () => state.outcome),
 }));
@@ -171,6 +175,7 @@ describe("POST /knowledge-bits/reviews", () => {
       lapses: 0,
       leech: false,
       suspended: false,
+      points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
     };
 
     const response = await postReview({ variantId: "kbqv_1", grade: "good", durationMs: 4200 });
@@ -186,6 +191,7 @@ describe("POST /knowledge-bits/reviews", () => {
       lapses: 0,
       leech: false,
       suspended: false,
+      points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
     });
   });
 

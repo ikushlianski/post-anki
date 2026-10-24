@@ -18,6 +18,9 @@ export interface SessionStats {
   remaining: number
   totalGradedToday: number
   studyStreak: number
+  pointsEarned: number
+  leveledUp: boolean
+  levelReached: number | null
 }
 
 export function deriveSessionStats(
@@ -34,6 +37,8 @@ export function deriveSessionStats(
   let suspended = 0
   let buried = 0
   let leeches = 0
+  let pointsEarned = 0
+  let levelReached: number | null = null
 
   for (const entry of undo) {
     if (entry.kind !== 'grade') {
@@ -45,6 +50,11 @@ export function deriveSessionStats(
       totalMs += entry.durationMs
       newStudied += entry.card.phase === 'new' ? 1 : 0
       leeches += entry.leechSuspended ? 1 : 0
+      pointsEarned += entry.points.awarded
+
+      if (entry.points.leveledUp) {
+        levelReached = Math.max(levelReached ?? 0, entry.points.level)
+      }
     }
   }
 
@@ -66,5 +76,8 @@ export function deriveSessionStats(
     remaining: Math.max(0, serverLeft - graded),
     totalGradedToday: getDailyReviewCount(),
     studyStreak: getStudyStreak(),
+    pointsEarned,
+    leveledUp: levelReached !== null,
+    levelReached,
   }
 }

@@ -149,6 +149,7 @@ export type RouteName =
   | "getCurriculumStats"
   | "generateRecommendations"
   | "getStreak"
+  | "getGamificationProfile"
   | "getHomeSummary"
   | "createTranscription"
   | "getElectricShape"

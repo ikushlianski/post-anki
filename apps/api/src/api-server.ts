@@ -196,6 +196,7 @@ import {
   handleGetCurriculumStats,
 } from "./stats/stats.controller.js";
 import { handleGetStreak } from "./streak/streak.controller.js";
+import { handleGetGamificationProfile } from "./gamification/gamification.controller.js";
 import { handleGetHomeSummary } from "./home/home.controller.js";
 import { handleCreateTranscription } from "./transcription/transcription.controller.js";
 import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
@@ -844,6 +845,8 @@ async function route(
       return handleGenerateRecommendations(res, id);
     case "getStreak":
       return handleGetStreak(res);
+    case "getGamificationProfile":
+      return handleGetGamificationProfile(res);
     case "getHomeSummary":
       return handleGetHomeSummary(res);
     case "createTranscription":

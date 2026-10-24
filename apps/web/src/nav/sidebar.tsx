@@ -123,6 +123,9 @@ export function Sidebar() {
           ? `Review (${[reviewCounts.due > 0 ? `${reviewCounts.due} due` : '', reviewCounts.new > 0 ? `${reviewCounts.new} new` : ''].filter(Boolean).join(' · ')})`
           : 'Review'}
       </Link>
+      <Link to="/profile" className={navLinkClass} data-testid="nav-profile">
+        Profile
+      </Link>
     </nav>
   )
 }

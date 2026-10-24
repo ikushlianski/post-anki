@@ -1,7 +1,9 @@
-import { useReducer, useRef } from 'react'
+import { useEffect, useReducer, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReviewCounts } from '@post-anki/shared'
 
+import { GAMIFICATION_PROFILE_KEY } from '../gamification/gamification-profile.query'
+import { SessionCelebration } from '../gamification/session-celebration'
 import { resolveCardSubjectId } from '../subject-chat/card-subject'
 import { SubjectChatPanel } from '../subject-chat/subject-chat-panel'
 import { useCardSelection } from '../subject-chat/use-card-selection'
@@ -98,6 +100,20 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
     stamp,
   )
   const canUndo = state.undo.length > 0
+
+  useEffect(() => {
+    if (stats.pointsEarned > 0) {
+      void queryClient.invalidateQueries({ queryKey: GAMIFICATION_PROFILE_KEY })
+    }
+  }, [stats.pointsEarned, queryClient])
+
+  const celebration = (
+    <SessionCelebration
+      pointsEarned={stats.pointsEarned}
+      leveledUp={stats.leveledUp}
+      level={stats.levelReached}
+    />
+  )
   const cardAreaRef = useRef<HTMLDivElement | null>(null)
   const cardSelection = useCardSelection(cardAreaRef, state.revealed, current?.variantId ?? '')
   const noApprovedCards =
@@ -174,7 +190,10 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
       </div>
 
       {loaded && state.view === 'summary' && (
-        <AnkiReviewSummary stats={stats} onKeepReviewing={() => dispatch({ type: 'summaryClosed' })} />
+        <>
+          {celebration}
+          <AnkiReviewSummary stats={stats} onKeepReviewing={() => dispatch({ type: 'summaryClosed' })} />
+        </>
       )}
 
       {loaded && state.view === 'reviewing' && !actions.refilling && !current && queue.data?.ok && (
@@ -184,6 +203,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
             noApprovedCards={noApprovedCards}
             newLimitReached={queue.data.newLimitReached}
           />
+          {celebration}
           {canUndo && <AnkiReviewSummary stats={stats} />}
         </>
       )}

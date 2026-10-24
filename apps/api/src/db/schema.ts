@@ -1357,6 +1357,27 @@ export const knowledgeBitReviews = pgTable(
   ],
 );
 
+export const reviewPointEvents = pgTable(
+  "review_point_events",
+  {
+    id: text("id").primaryKey(),
+    eventType: text("event_type").notNull().default("review"),
+    reviewId: text("review_id").notNull().unique(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    subjectId: text("subject_id"),
+    awardedDay: text("awarded_day").notNull(),
+    points: integer("points").notNull(),
+    reason: text("reason").notNull(),
+    intervalDaysAfter: real("interval_days_after"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("review_point_events_bit_day_idx").on(table.knowledgeBitId, table.awardedDay),
+    index("review_point_events_subject_idx").on(table.subjectId),
+  ],
+);
+
 // One row per review decision on a pending suggestion. A rejection is written at reject time
 // with reasonCode "unspecified"; a later call sets the real reason. Approved rows keep the
 // card text as a positive example for the next extraction prompt.

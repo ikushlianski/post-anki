@@ -8,6 +8,7 @@ export type SessionUndoEntry =
       grade: ReviewGrade
       durationMs: number
       leechSuspended: boolean
+      points: { awarded: number; leveledUp: boolean; level: number }
       stamp: number
     }
   | { kind: 'suspend' | 'bury'; card: ReviewCard; stamp: number }

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as TagsRouteImport } from './routes/tags'
 import { Route as StudySessionsRouteImport } from './routes/study-sessions'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OpenQuestionsRouteImport } from './routes/open-questions'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MilestonesRouteImport } from './routes/milestones'
@@ -70,6 +71,11 @@ const TagsRoute = TagsRouteImport.update({
 const StudySessionsRoute = StudySessionsRouteImport.update({
   id: '/study-sessions',
   path: '/study-sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OpenQuestionsRoute = OpenQuestionsRouteImport.update({
@@ -319,6 +325,7 @@ export interface FileRoutesByFullPath {
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
   '/open-questions': typeof OpenQuestionsRoute
+  '/profile': typeof ProfileRoute
   '/study-sessions': typeof StudySessionsRoute
   '/tags': typeof TagsRoute
   '/today': typeof TodayRoute
@@ -368,6 +375,7 @@ export interface FileRoutesByTo {
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
   '/open-questions': typeof OpenQuestionsRoute
+  '/profile': typeof ProfileRoute
   '/study-sessions': typeof StudySessionsRoute
   '/tags': typeof TagsRoute
   '/today': typeof TodayRoute
@@ -418,6 +426,7 @@ export interface FileRoutesById {
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
   '/open-questions': typeof OpenQuestionsRoute
+  '/profile': typeof ProfileRoute
   '/study-sessions': typeof StudySessionsRoute
   '/tags': typeof TagsRoute
   '/today': typeof TodayRoute
@@ -469,6 +478,7 @@ export interface FileRouteTypes {
     | '/milestones'
     | '/notes'
     | '/open-questions'
+    | '/profile'
     | '/study-sessions'
     | '/tags'
     | '/today'
@@ -518,6 +528,7 @@ export interface FileRouteTypes {
     | '/milestones'
     | '/notes'
     | '/open-questions'
+    | '/profile'
     | '/study-sessions'
     | '/tags'
     | '/today'
@@ -567,6 +578,7 @@ export interface FileRouteTypes {
     | '/milestones'
     | '/notes'
     | '/open-questions'
+    | '/profile'
     | '/study-sessions'
     | '/tags'
     | '/today'
@@ -617,6 +629,7 @@ export interface RootRouteChildren {
   MilestonesRoute: typeof MilestonesRoute
   NotesRoute: typeof NotesRoute
   OpenQuestionsRoute: typeof OpenQuestionsRoute
+  ProfileRoute: typeof ProfileRoute
   StudySessionsRoute: typeof StudySessionsRoute
   TagsRoute: typeof TagsRoute
   TodayRoute: typeof TodayRoute
@@ -670,6 +683,13 @@ declare module '@tanstack/react-router' {
       path: '/study-sessions'
       fullPath: '/study-sessions'
       preLoaderRoute: typeof StudySessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/open-questions': {
@@ -1001,6 +1021,7 @@ const rootRouteChildren: RootRouteChildren = {
   MilestonesRoute: MilestonesRoute,
   NotesRoute: NotesRoute,
   OpenQuestionsRoute: OpenQuestionsRoute,
+  ProfileRoute: ProfileRoute,
   StudySessionsRoute: StudySessionsRoute,
   TagsRoute: TagsRoute,
   TodayRoute: TodayRoute,

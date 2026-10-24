@@ -12,6 +12,10 @@ vi.mock('../knowledge-bit/knowledge-browser-subject-list', () => ({
   KnowledgeBrowserSubjectList: () => <div data-testid="subject-list" />,
 }))
 
+vi.mock('../gamification/level-chip', () => ({
+  LevelChip: () => <div data-testid="level-chip" />,
+}))
+
 vi.mock('./home-options', () => ({
   HomeOptions: () => <div data-testid="options" />,
 }))
@@ -52,5 +56,13 @@ describe('HomeSubjectsAndReview', () => {
     render(<HomeSubjectsAndReview />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Post Anki' })).toBeTruthy()
+  })
+
+  it('should show the level chip under the page heading', () => {
+    render(<HomeSubjectsAndReview />)
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Post Anki' })
+
+    expect(heading.compareDocumentPosition(screen.getByTestId('level-chip')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

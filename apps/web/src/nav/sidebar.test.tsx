@@ -70,6 +70,7 @@ describe('Sidebar', () => {
       '/knowledge/browser',
       '/knowledge-bit-review',
       '/knowledge/review',
+      '/profile',
     ])
     expect(links.map((link) => link.textContent?.split(' (')[0])).toEqual([
       'Knowledge browser',
@@ -77,6 +78,7 @@ describe('Sidebar', () => {
       'Subjects',
       'Knowledge inbox',
       'Review',
+      'Profile',
     ])
   })
 
