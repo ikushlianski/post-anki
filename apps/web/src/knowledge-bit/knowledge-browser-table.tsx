@@ -58,7 +58,7 @@ export function KnowledgeBrowserTable({
   return (
     <div className="overflow-x-auto rounded border border-neutral-200">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <table data-testid="knowledge-browser-table" className="w-full min-w-[40rem] text-sm">
+        <table data-testid="knowledge-browser-table" className="w-full min-w-[40rem] table-fixed text-sm">
           <thead className="bg-neutral-50">
             <tr>
               <th scope="col" className="w-8 px-3 py-2">
@@ -83,7 +83,14 @@ export function KnowledgeBrowserTable({
                 key={row.knowledgeBitId}
                 data-testid="knowledge-browser-row"
                 aria-selected={selected.has(row.knowledgeBitId)}
-                className={`border-t border-neutral-200 align-top ${selected.has(row.knowledgeBitId) ? 'bg-neutral-50' : ''}`}
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest('button, a, input, label')) {
+                    return
+                  }
+
+                  onToggleRow(row.knowledgeBitId, event.shiftKey)
+                }}
+                className={`cursor-pointer select-none border-t border-neutral-200 align-middle ${selected.has(row.knowledgeBitId) ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}
               >
                 <td className="px-3 py-2">
                   <input
@@ -92,11 +99,14 @@ export function KnowledgeBrowserTable({
                     data-testid="knowledge-browser-select-row"
                     checked={selected.has(row.knowledgeBitId)}
                     onChange={() => undefined}
-                    onClick={(event) => onToggleRow(row.knowledgeBitId, event.shiftKey)}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onToggleRow(row.knowledgeBitId, event.shiftKey)
+                    }}
                   />
                 </td>
                 {columnOrder.map((id) => (
-                  <td key={id} className="px-3 py-2">
+                  <td key={id} className="truncate px-3 py-2 whitespace-nowrap">
                     {renderBrowserCell(id, row, sourceActions)}
                   </td>
                 ))}

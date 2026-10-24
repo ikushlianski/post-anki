@@ -14,7 +14,7 @@ import { useKnowledgeBrowserSourceDelete } from './use-knowledge-browser-source-
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
 
 function BrowserShell({ children }: { children: ReactNode }) {
-  return <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-10">{children}</main>
+  return <main className="w-full px-5 py-8 sm:px-8 sm:py-10">{children}</main>
 }
 
 export const ALL_SUBJECTS_TABLE_ID = 'all-subjects'

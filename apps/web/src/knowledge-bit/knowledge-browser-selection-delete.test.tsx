@@ -60,7 +60,7 @@ describe('Knowledge browser select and delete', () => {
   it('should show how many pieces are selected and hide the bar when none are', () => {
     renderHarness()
 
-    expect(screen.queryByTestId('knowledge-browser-action-bar')).toBeNull()
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('0 selected')
 
     fireEvent.click(checkboxes()[0])
     fireEvent.click(checkboxes()[2])
@@ -77,6 +77,24 @@ describe('Knowledge browser select and delete', () => {
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
   })
 
+  it('should select a piece when its row is clicked anywhere, and extend with shift-click and command-click', () => {
+    renderHarness()
+    const rowsEls = screen.getAllByTestId('knowledge-browser-row')
+
+    fireEvent.click(screen.getByText('A b1'))
+    fireEvent.click(rowsEls[2], { shiftKey: true })
+
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
+
+    fireEvent.click(rowsEls[3], { metaKey: true })
+
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('4 selected')
+
+    fireEvent.click(rowsEls[1], { metaKey: true })
+
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
+  })
+
   it('should select every piece on the page with the header checkbox and clear with Clear selection', () => {
     renderHarness()
 
@@ -86,7 +104,7 @@ describe('Knowledge browser select and delete', () => {
 
     fireEvent.click(screen.getByTestId('knowledge-browser-clear-selection'))
 
-    expect(screen.queryByTestId('knowledge-browser-action-bar')).toBeNull()
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('0 selected')
   })
 
   it('should ask for confirmation naming the count and never delete before it is given', () => {
@@ -113,7 +131,7 @@ describe('Knowledge browser select and delete', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' })
 
-    expect(screen.queryByTestId('knowledge-browser-action-bar')).toBeNull()
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('0 selected')
   })
 
   it('should send the selected ids once confirmed, then clear the selection and refresh the data', async () => {
@@ -126,7 +144,7 @@ describe('Knowledge browser select and delete', () => {
     fireEvent.click(screen.getByTestId('knowledge-browser-delete'))
     fireEvent.click(screen.getByTestId('knowledge-browser-confirm-delete'))
 
-    await waitFor(() => expect(screen.queryByTestId('knowledge-browser-action-bar')).toBeNull())
+    await waitFor(() => expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('0 selected'))
 
     expect(purge).toHaveBeenCalledWith({ data: { ids: ['b1', 'b4'] } })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['knowledge-bits'] })

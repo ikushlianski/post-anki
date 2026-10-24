@@ -15,10 +15,6 @@ export function KnowledgeBrowserActionBar({
   state: BrowserSelectionDelete
   source?: BrowserSourceBarActions | null
 }) {
-  if (state.count === 0) {
-    return null
-  }
-
   const noun = state.count === 1 ? 'piece' : 'pieces'
 
   return (
@@ -59,7 +55,8 @@ export function KnowledgeBrowserActionBar({
           <button
             type="button"
             data-testid="knowledge-browser-delete"
-            className={PRIMARY_BUTTON_CLASS}
+            disabled={state.count === 0}
+            className={`${PRIMARY_BUTTON_CLASS} disabled:opacity-40`}
             onClick={state.openConfirm}
           >
             Delete
@@ -87,7 +84,8 @@ export function KnowledgeBrowserActionBar({
           <button
             type="button"
             data-testid="knowledge-browser-clear-selection"
-            className={SECONDARY_BUTTON_CLASS}
+            disabled={state.count === 0}
+            className={`${SECONDARY_BUTTON_CLASS} disabled:opacity-40`}
             onClick={state.clear}
           >
             Clear selection

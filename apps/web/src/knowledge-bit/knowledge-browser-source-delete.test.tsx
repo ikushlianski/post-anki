@@ -54,7 +54,7 @@ function Harness() {
       />
       <KnowledgeBrowserTable
         rows={rows}
-        columnOrder={['phrasings', 'addedBy']}
+        columnOrder={['phrasings', 'source']}
         onColumnOrderChange={vi.fn()}
         selected={selection.selected}
         onToggleRow={selection.toggleRow}

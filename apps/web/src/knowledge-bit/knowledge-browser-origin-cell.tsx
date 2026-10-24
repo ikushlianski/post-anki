@@ -20,10 +20,10 @@ export function KnowledgeBrowserOriginCell({
   const count = actions?.countFor(sourceId) ?? 0
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
       <span>{label}</span>
       {item.sourceLabel && (
-        <span data-testid="knowledge-browser-source-label" className="text-neutral-500" title={item.sourceLabel}>
+        <span data-testid="knowledge-browser-source-label" className="truncate text-neutral-500" title={item.sourceLabel}>
           {item.sourceLabel}
         </span>
       )}
@@ -31,7 +31,7 @@ export function KnowledgeBrowserOriginCell({
         <button
           type="button"
           data-testid="knowledge-browser-row-delete-source"
-          className="self-start text-xs text-red-700 underline"
+          className="shrink-0 text-xs text-red-700 underline"
           onClick={() => actions.onDeleteSource(sourceId)}
         >
           Delete whole source ({count} {count === 1 ? 'piece' : 'pieces'})

@@ -19,7 +19,7 @@ const item: KnowledgeBitBrowserItem = {
   addedAt: '2026-03-04T12:00:00.000Z',
 }
 
-const defaultOrder: BrowserColumnId[] = ['phrasings', 'addedBy', 'addedAt', 'answer']
+const defaultOrder: BrowserColumnId[] = ['phrasings', 'answer', 'source', 'sourceUrl', 'addedBy', 'addedAt']
 
 const selectionProps = { selected: new Set<string>(), onToggleRow: vi.fn(), onToggleAll: vi.fn() }
 
@@ -31,7 +31,8 @@ describe('KnowledgeBrowserTable', () => {
 
     expect(within(row).getByText('What is a pod?')).toBeTruthy()
     expect(within(row).getByText('A ___ runs containers')).toBeTruthy()
-    expect(within(row).getByText('You (typed in)')).toBeTruthy()
+    expect(within(row).getByText('Typed in')).toBeTruthy()
+    expect(within(row).getByText('You')).toBeTruthy()
     expect(within(row).getByText('The smallest deployable unit')).toBeTruthy()
   })
 
@@ -39,7 +40,7 @@ describe('KnowledgeBrowserTable', () => {
     render(
       <KnowledgeBrowserTable
         rows={[item]}
-        columnOrder={['answer', 'addedAt', 'addedBy', 'phrasings']}
+        columnOrder={['answer', 'addedAt', 'addedBy', 'source', 'sourceUrl', 'phrasings']}
         onColumnOrderChange={vi.fn()}
         {...selectionProps}
       />,
@@ -48,7 +49,7 @@ describe('KnowledgeBrowserTable', () => {
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent)
 
     expect(headers[1]).toContain('Answer')
-    expect(headers[4]).toContain('Phrasings')
+    expect(headers[6]).toContain('Question')
   })
 
   it('should give each column a labelled grip to move it', () => {

@@ -139,6 +139,7 @@ export async function listKnowledgeBitBrowser(
           sourceUrl: row.sourceUrl,
         }),
         sourceId: row.sourceId,
+        sourceUrl: row.sourceUrl,
         sourceLabel: deriveBrowserSourceLabel({ sourceUrl: row.sourceUrl, rawText: row.sourceText }),
         addedAt: row.createdAt.toISOString(),
       },

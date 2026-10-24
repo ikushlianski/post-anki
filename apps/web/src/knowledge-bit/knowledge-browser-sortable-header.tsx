@@ -1,6 +1,15 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+const COLUMN_WIDTHS: Record<string, string> = {
+  phrasings: '30%',
+  answer: '20%',
+  source: '16%',
+  sourceUrl: '16%',
+  addedBy: '9%',
+  addedAt: '9%',
+}
+
 interface KnowledgeBrowserSortableHeaderProps {
   id: string
   label: string
@@ -14,7 +23,7 @@ export function KnowledgeBrowserSortableHeader({ id, label }: KnowledgeBrowserSo
       ref={setNodeRef}
       data-testid={`browser-column-${id}`}
       scope="col"
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: CSS.Translate.toString(transform), transition, width: COLUMN_WIDTHS[id] }}
       className={`px-3 py-2 text-left font-medium text-neutral-600 ${isDragging ? 'relative z-10 bg-neutral-100' : ''}`}
     >
       <span className="flex items-center gap-2">

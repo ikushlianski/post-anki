@@ -7,7 +7,7 @@ import { KnowledgeBrowserPhrasings } from './knowledge-browser-phrasings'
 afterEach(cleanup)
 
 describe('KnowledgeBrowserPhrasings', () => {
-  it('should show the main card first and label each variation by kind next to it', () => {
+  it('should show the main question first and every variation after it as plain text on one line', () => {
     render(
       <KnowledgeBrowserPhrasings
         phrasings={[
@@ -21,8 +21,10 @@ describe('KnowledgeBrowserPhrasings', () => {
     const cards = screen.getAllByTestId('knowledge-browser-phrasing')
 
     expect(cards.map((card) => card.getAttribute('data-role'))).toEqual(['main', 'variation', 'variation'])
-    expect(cards[0].textContent).toBe('Main card: BasicWhat is a pod?')
-    expect(cards[1].textContent).toContain('Variation: Fill in the gap')
-    expect(cards[2].textContent).toContain('Variation: Reworded')
+    expect(cards.map((card) => card.textContent)).toEqual([
+      'What is a pod?',
+      'A ___ runs containers',
+      'Define a pod',
+    ])
   })
 })

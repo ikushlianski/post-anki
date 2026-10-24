@@ -3,23 +3,36 @@ import { KnowledgeBrowserPhrasings } from './knowledge-browser-phrasings'
 import { KnowledgeBrowserOriginCell } from './knowledge-browser-origin-cell'
 import type { KnowledgeBitBrowserItem, KnowledgeBitBrowserOrigin } from '@post-anki/shared'
 
-export type BrowserColumnId = 'phrasings' | 'addedBy' | 'addedAt' | 'answer'
+export type BrowserColumnId = 'phrasings' | 'answer' | 'source' | 'sourceUrl' | 'addedBy' | 'addedAt'
 
-export const DEFAULT_BROWSER_COLUMNS: BrowserColumnId[] = ['phrasings', 'addedBy', 'addedAt', 'answer']
+export const DEFAULT_BROWSER_COLUMNS: BrowserColumnId[] = [
+  'phrasings',
+  'answer',
+  'source',
+  'sourceUrl',
+  'addedBy',
+  'addedAt',
+]
 
 export const BROWSER_COLUMN_LABELS: Record<BrowserColumnId, string> = {
-  phrasings: 'Phrasings',
+  phrasings: 'Question',
+  answer: 'Answer',
+  source: 'Source',
+  sourceUrl: 'Source URL',
   addedBy: 'Added by',
   addedAt: 'Date added',
-  answer: 'Answer',
 }
 
-const ORIGIN_LABELS: Record<KnowledgeBitBrowserOrigin, string> = {
-  manual: 'You (typed in)',
+const SOURCE_LABELS: Record<KnowledgeBitBrowserOrigin, string> = {
+  manual: 'Typed in',
   ai_web: 'AI web search',
-  pasted: 'Extracted from pasted text',
-  notion: 'Extracted from Notion',
-  article: 'Extracted from article',
+  pasted: 'Pasted text',
+  notion: 'Notion',
+  article: 'Article',
+}
+
+function addedByLabel(origin: KnowledgeBitBrowserOrigin): string {
+  return origin === 'ai_web' ? 'AI web search' : 'You'
 }
 
 export function formatAddedAt(iso: string): string {
@@ -43,11 +56,21 @@ export function renderBrowserCell(
   switch (columnId) {
     case 'phrasings':
       return <KnowledgeBrowserPhrasings phrasings={item.phrasings} />
+    case 'source':
+      return <KnowledgeBrowserOriginCell label={SOURCE_LABELS[item.origin]} item={item} actions={sourceActions} />
+    case 'sourceUrl':
+      return item.sourceUrl ? (
+        <a href={item.sourceUrl} target="_blank" rel="noreferrer" title={item.sourceUrl} className="text-blue-700 underline">
+          {item.sourceUrl}
+        </a>
+      ) : (
+        ''
+      )
     case 'addedBy':
-      return <KnowledgeBrowserOriginCell label={ORIGIN_LABELS[item.origin]} item={item} actions={sourceActions} />
+      return addedByLabel(item.origin)
     case 'addedAt':
       return formatAddedAt(item.addedAt)
     case 'answer':
-      return <span className="whitespace-pre-wrap">{item.answer}</span>
+      return <span title={item.answer}>{item.answer}</span>
   }
 }
