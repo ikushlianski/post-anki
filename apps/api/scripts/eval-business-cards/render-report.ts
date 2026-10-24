@@ -129,7 +129,7 @@ function cardBlock(card: AnalysedCard, index: number): string[] {
   ];
 }
 
-function versionBlock(run: VersionRun): string[] {
+export function versionBlock(run: VersionRun): string[] {
   const { call, analysis } = run;
   const lines = [`### ${run.version}`, ""];
 

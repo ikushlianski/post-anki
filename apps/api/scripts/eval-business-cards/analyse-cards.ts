@@ -48,7 +48,7 @@ export function countWords(value: string): number {
   return value.trim() === "" ? 0 : value.trim().split(/\s+/).length;
 }
 
-function tryParse(raw: string): { value: unknown; fenceNeeded: boolean } | null {
+export function tryParse(raw: string): { value: unknown; fenceNeeded: boolean } | null {
   try {
     return { value: JSON.parse(raw.trim()), fenceNeeded: false };
   } catch {

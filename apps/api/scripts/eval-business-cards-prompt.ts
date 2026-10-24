@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { Agent } from "@mastra/core/agent";
 import { RequestContext } from "@mastra/core/request-context";
-import { KNOWLEDGE_ITEM_MODELS, type KnowledgeItemModelId } from "@post-anki/shared";
+import { KNOWLEDGE_ITEM_MODELS } from "@post-anki/shared";
 import { assertLocalDbTarget } from "../src/db/assert-local-db-target.ts";
 import { closeDb } from "../src/db/client.ts";
 import { dynamicKnowledgeItemModel } from "../src/mastra/model.ts";
@@ -10,6 +10,8 @@ import { readGenerateUsage } from "../src/mastra/generate-usage.ts";
 import { detectSourceLanguage } from "../src/knowledge-bit/knowledge-bit-source-language.ts";
 import { loadEnv } from "../src/shared/env.ts";
 import { analyseResponse, countKnownRepeats } from "./eval-business-cards/analyse-cards.ts";
+import { CHEAP_MODELS as CHEAP_MODEL_LIST, findCheapModel, readFullStore, writeFullStore, type FullStore } from "./eval-business-cards/cheap-models.ts";
+import { CHEAP_FACTS_MARKER, CHEAP_MARKER, renderCheapSection } from "./eval-business-cards/cheap-report.ts";
 import { loadKnownFronts, loadSources, pickSources, readConfiguredModelId, type EvalSource } from "./eval-business-cards/load-sources.ts";
 import { comparisonTable, extraMetrics, sourceSection, type Store, type StoredCall, type VersionRun } from "./eval-business-cards/render-report.ts";
 
@@ -41,9 +43,12 @@ function fillPrompt(template: string, values: Record<string, string>): string {
   return template.replace(/\{(output_language|metadata|max_cards|text|topic_node|level|known_concepts)\}/g, (_m, key: string) => values[key] ?? "");
 }
 
-function costOf(modelId: KnowledgeItemModelId, input: number | null, output: number | null): number {
-  const model = KNOWLEDGE_ITEM_MODELS[modelId];
+interface Pricing {
+  inputPerMillion: number;
+  outputPerMillion: number;
+}
 
+function costOf(model: Pricing, input: number | null, output: number | null): number {
   return ((input ?? 0) * model.inputPerMillion + (output ?? 0) * model.outputPerMillion) / 1_000_000;
 }
 
@@ -53,7 +58,7 @@ async function callOnce(agent: Agent, modelId: string, prompt: string) {
   return { text: result.text, usage: readGenerateUsage(result) };
 }
 
-async function runCall(agent: Agent, modelId: KnowledgeItemModelId, template: string, source: EvalSource): Promise<StoredCall> {
+async function runCall(agent: Agent, modelId: string, pricing: Pricing, template: string, source: EvalSource): Promise<StoredCall> {
   const language = detectSourceLanguage(source.text) ?? "English";
   const maxCards = maxCardsFor(source.text.split(/\s+/).length);
   const knownFronts = template.includes("{known_concepts}") ? await loadKnownFronts(source) : [];
@@ -72,7 +77,7 @@ async function runCall(agent: Agent, modelId: KnowledgeItemModelId, template: st
     try {
       const { text, usage } = await callOnce(agent, modelId, prompt);
 
-      return { ...base, raw: text, failure: null, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, costUsd: costOf(modelId, usage.inputTokens, usage.outputTokens) };
+      return { ...base, raw: text, failure: null, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, costUsd: costOf(pricing, usage.inputTokens, usage.outputTokens) };
     } catch (err) {
       console.log(`call failed (attempt ${attempt}) for ${source.id}: ${err instanceof Error ? err.name : "error"}`);
 
@@ -128,6 +133,17 @@ function writeReport(modelId: string, sources: readonly EvalSource[], versions: 
   writeFileSync(REPORT_URL, [...header, ...sources.map((s, i) => sourceSection(s, i, versions, runs)), facts].join("\n"));
 }
 
+function writeCheapSection(full: FullStore, sources: readonly EvalSource[], versions: readonly string[]) {
+  const previous = existsSync(REPORT_URL) ? readFileSync(REPORT_URL, "utf8") : "";
+  const start = previous.indexOf(CHEAP_MARKER);
+  const head = start === -1 ? `${previous.trimEnd()}\n\n` : previous.slice(0, start);
+  const factsAt = start === -1 ? -1 : previous.indexOf(CHEAP_FACTS_MARKER);
+  const facts = factsAt === -1 ? `${CHEAP_FACTS_MARKER}\n\n(pending)\n` : previous.slice(factsAt);
+  const models = CHEAP_MODEL_LIST.filter((m) => full.byModel[m.id]);
+
+  writeFileSync(REPORT_URL, head + renderCheapSection(full, sources, versions, models, facts));
+}
+
 async function main() {
   const allFiles = readdirSync(PROMPT_DIR).filter((f) => /^business-cards-.*\.prompt\.txt$/.test(f)).sort();
   const listed = argValue("--prompts")?.split(",").map((f) => f.trim());
@@ -144,13 +160,18 @@ async function main() {
 
   const modelId = await readConfiguredModelId();
   const sources = pickSources(await loadSources());
-  const store: Store = existsSync(STORE_URL) ? (JSON.parse(readFileSync(STORE_URL, "utf8")) as Store) : {};
-  const spent = Object.values(store).flatMap((v) => Object.values(v)).reduce((sum, call) => sum + call.costUsd, 0);
+  const full = readFullStore(STORE_URL);
+  const cheap = argValue("--model") ? findCheapModel(argValue("--model") ?? "") : null;
+  const store: Store = cheap ? (full.byModel[cheap.id] ??= {}) : full.baseline;
+  const allStores = [full.baseline, ...Object.values(full.byModel)];
+  const spent = allStores.flatMap((st) => Object.values(st)).flatMap((v) => Object.values(v)).reduce((sum, call) => sum + call.costUsd, 0);
+  const pricing: Pricing = cheap ?? KNOWLEDGE_ITEM_MODELS[modelId];
+  const runModelId = cheap ? `openrouter/${cheap.id}` : modelId;
   const templates = new Map(files.map((file) => [versionOf(file), readFileSync(new URL(file, PROMPT_DIR), "utf8")]));
   const inputChars = toRun.reduce((sum, v) => sum + sources.reduce((s, src) => s + (templates.get(v)?.length ?? 0) + src.text.length, 0), 0);
-  const estimate = costOf(modelId, Math.ceil(inputChars / CHARS_PER_TOKEN), toRun.length * sources.length * ESTIMATE_OUTPUT_TOKENS);
+  const estimate = costOf(pricing, Math.ceil(inputChars / CHARS_PER_TOKEN), toRun.length * sources.length * ESTIMATE_OUTPUT_TOKENS);
 
-  console.log(`model: ${modelId}`);
+  console.log(`model: ${runModelId}`);
   sources.forEach((s) => console.log(`source ${s.id}: ${s.subjectPath}, ${s.totalWords} words, ${s.bits.length} existing bits`));
   console.log(`versions to run: ${toRun.join(", ")}; calls: ${toRun.length * sources.length}`);
   console.log(`estimated cost: about $${estimate.toFixed(4)} (already spent in stored results: $${spent.toFixed(4)})`);
@@ -169,15 +190,24 @@ async function main() {
   const agent = new Agent({ id: "eval-business-cards", name: "Eval Business Cards", instructions: "", model: dynamicKnowledgeItemModel(loadEnv()) });
 
   for (const version of toRun) {
-    store[version] = {};
+    store[version] = cheap ? (store[version] ?? {}) : {};
 
     for (const source of sources) {
-      store[version][source.id] = await runCall(agent, modelId, templates.get(version) ?? "", source);
-      writeFileSync(STORE_URL, JSON.stringify(store, null, 2));
+      if (cheap && store[version][source.id] && !store[version][source.id]?.failure) {
+        continue;
+      }
+
+      store[version][source.id] = await runCall(agent, runModelId, pricing, templates.get(version) ?? "", source);
+      writeFullStore(STORE_URL, full);
     }
   }
 
-  writeReport(modelId, sources, versions, store);
+  if (cheap) {
+    writeCheapSection(full, sources, versions);
+  } else {
+    writeReport(modelId, sources, versions, store);
+  }
+
   console.log("done");
   await closeDb();
 }
