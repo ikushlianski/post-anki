@@ -4,7 +4,7 @@ import { loadEnv } from "./shared/env.js";
 import { resolveCorsDecision } from "./shared/cors.js";
 import { log } from "./shared/log.js";
 import { sendError, sendJson } from "./shared/http.js";
-import { LlmBudgetExceededError, secondsUntilUtcMidnight } from "./shared/spend-guard.js";
+import { LlmBudgetCheckUnavailableError, LlmBudgetExceededError, secondsUntilUtcMidnight } from "./shared/spend-guard.js";
 import {
   handleCreateSubject,
   handleDeleteSubject,
@@ -54,6 +54,11 @@ import {
 import { handleListCardStyleNotes, handleUpdateCardStyleNote } from "./card-triage/card-style-note.controller.js";
 import { handleListKnowledgeBitOverview } from "./knowledge-bit/knowledge-bit-overview.controller.js";
 import { handleExportKnowledgeBits } from "./knowledge-bit/knowledge-bit-export.controller.js";
+import {
+  handleClearAllKnowledge,
+  handleDeleteKnowledgeSource,
+  handlePurgeKnowledgeBits,
+} from "./knowledge-bit/knowledge-cleanup.controller.js";
 import { handleBulkDeleteKnowledgeBits } from "./knowledge-bit/knowledge-bit-delete.controller.js";
 import { handleBulkMoveKnowledgeBits } from "./knowledge-bit/knowledge-bit-move.controller.js";
 import {
@@ -179,6 +184,7 @@ import {
 import { handleAskStudyChat } from "./study-chat/study-chat.controller.js";
 import { handleAskQaChat } from "./qa-chat/qa-chat.controller.js";
 import { handleAskGlobalCardChat } from "./global-card-chat/global-card-chat.controller.js";
+import { handleAskSubjectChat } from "./subject-chat/subject-chat.controller.js";
 import { handleAskKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat.controller.js";
 import { handleDraftKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat-draft.controller.js";
 import { handleCreateDerivedKnowledgeItem } from "./knowledge-bit/knowledge-bit-derived-item.controller.js";
@@ -317,6 +323,7 @@ import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo
 import { handleCreateSyncToken, handleListSyncKeys } from "./sync-auth/sync-auth.controller.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
 import { createInngestServeHandler } from "./shared/inngest-serve.js";
+import { backgroundJobFunction } from "./background-job/background-job.workflow.js";
 import {
   extractionCancelHandler,
   extractionInngestFunction,
@@ -374,7 +381,7 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
     return false;
   }
 
-  void touchLastUsed(token.id);
+  await touchLastUsed(token.id).catch((err: unknown) => log.error({ err }, "api_token_touch_last_used_failed"));
 
   return true;
 }
@@ -382,6 +389,7 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
 const inngestServeHandler = createInngestServeHandler([
   extractionInngestFunction,
   extractionCancelHandler,
+  backgroundJobFunction,
   pipelineKickInngestFunction,
   pipelineKickFollowUpFunction,
   cardsCompileFunction,
@@ -486,6 +494,17 @@ async function handleRequest(
       return;
     }
 
+    if (err instanceof LlmBudgetCheckUnavailableError) {
+      log.error({ err, method, path }, "llm_budget_check_unavailable");
+
+      if (!res.headersSent) {
+        res.setHeader("Retry-After", "30");
+        sendError(res, 503, "llm_budget_check_unavailable", err.message);
+      }
+
+      return;
+    }
+
     log.error({ err, method, path }, "request_failed");
 
     if (!res.headersSent) {
@@ -577,6 +596,10 @@ async function route(
       return handleExportKnowledgeBits(res, url.search);
     case "bulkDeleteKnowledgeBits":
       return handleBulkDeleteKnowledgeBits(req, res);
+    case "purgeKnowledgeBits":
+      return handlePurgeKnowledgeBits(req, res);
+    case "clearAllKnowledge":
+      return handleClearAllKnowledge(req, res);
     case "bulkMoveKnowledgeBits":
       return handleBulkMoveKnowledgeBits(req, res);
     case "bulkApproveKnowledgeBits":
@@ -615,6 +638,8 @@ async function route(
       return handleGetKnowledgeBitFeedbackByModel(res);
     case "editKnowledgeBitQuestionVariant":
       return handleEditKnowledgeBitQuestionVariant(req, res, id);
+    case "deleteKnowledgeSource":
+      return handleDeleteKnowledgeSource(res, id);
     case "deleteSubject":
       return handleDeleteSubject(res, id);
     case "reorderSubjects":
@@ -794,6 +819,8 @@ async function route(
       return handleAskQaChat(req, res);
     case "askGlobalCardChat":
       return handleAskGlobalCardChat(req, res);
+    case "askSubjectChat":
+      return handleAskSubjectChat(req, res);
     case "askKnowledgeBitChat":
       return handleAskKnowledgeBitChat(req, res, id);
     case "draftKnowledgeBitChat":

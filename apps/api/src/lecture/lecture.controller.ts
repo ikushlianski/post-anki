@@ -1,3 +1,4 @@
+import { dispatchBackgroundJob } from "../background-job/background-job.starter.js";
 import type http from "node:http";
 import { reviewLectureSourceCandidateInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
@@ -89,11 +90,13 @@ export async function handleCompileLecture(
 
   const lecture = await startGeneratingLecture(topicId, topic.title);
 
-  sendJson(res, 202, lecture);
-
-  void compileLecture(topicId).catch((err) =>
-    log.error({ err, topicId }, "lecture_compile_dispatch_failed"),
+  await dispatchBackgroundJob(
+    { kind: "lecture-compile", topicId },
+    () => compileLecture(topicId),
+    (err) => log.error({ err, topicId }, "lecture_compile_dispatch_failed"),
   );
+
+  sendJson(res, 202, lecture);
 }
 
 export async function handleGetLecture(

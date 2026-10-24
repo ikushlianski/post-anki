@@ -34,6 +34,7 @@ export async function listLearnAheadRows(
       background: picked.background,
       isAiGenerated: picked.isAiGenerated,
       sourceLinks: picked.sourceLinks,
+      subjectId: picked.subjectId,
       easeFactor: picked.easeFactor,
       intervalDays: picked.intervalDays,
       phase: picked.phase,

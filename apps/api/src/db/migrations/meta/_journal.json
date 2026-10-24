@@ -757,6 +757,13 @@
       "when": 1792825311244,
       "tag": "0107_add-embedding-vector-columns",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1792826378130,
+      "tag": "0108_add-llm-daily-spend",
+      "breakpoints": true
     }
   ]
 }

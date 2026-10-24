@@ -67,7 +67,7 @@ export type EditKnowledgeBitQuestionVariantInput = z.input<
 >;
 
 // POST /knowledge-bits/:id/triage
-export const TRIAGE_KEEP_VARIANTS_MAX = 2;
+export const TRIAGE_KEEP_VARIANTS_MAX = 20;
 
 export const triageKnowledgeBitInput = z.object({
   keepVariantIds: z

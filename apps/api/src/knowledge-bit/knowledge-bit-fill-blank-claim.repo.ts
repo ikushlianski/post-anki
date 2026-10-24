@@ -158,7 +158,10 @@ export async function recordGeneratedFillBlankVariant(
   sentence?: string,
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx, sentence);
+    if (!(await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx, sentence))) {
+      return;
+    }
+
     await markFillBlankGenerated(knowledgeBitId, claimToken, tx);
   });
 }

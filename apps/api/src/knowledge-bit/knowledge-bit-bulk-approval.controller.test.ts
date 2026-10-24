@@ -5,6 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const approveKnowledgeBitsBulk = vi.fn();
 const countPendingKnowledgeBits = vi.fn();
 
+const embedApprovedKnowledgeBits = vi.fn();
+
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
+  embedApprovedKnowledgeBits: (...args: unknown[]) => embedApprovedKnowledgeBits(...args),
+}));
+
 vi.mock("./knowledge-bit-bulk-approval.repo.js", () => ({
   approveKnowledgeBitsBulk: (...args: unknown[]) => approveKnowledgeBitsBulk(...args),
   countPendingKnowledgeBits: (...args: unknown[]) => countPendingKnowledgeBits(...args),
@@ -52,6 +58,7 @@ describe("handleBulkApproveKnowledgeBits", () => {
     await handleBulkApproveKnowledgeBits(fakeReq({ knowledgeBitIds: ["kb_1", "kb_2"] }), res);
 
     expect(approveKnowledgeBitsBulk).toHaveBeenCalledWith(["kb_1", "kb_2"]);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
     expect(res.status).toBe(200);
     expect(res.body).toEqual(result);
   });

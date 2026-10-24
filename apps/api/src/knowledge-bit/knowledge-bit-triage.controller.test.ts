@@ -2,9 +2,13 @@ import { Readable } from "node:stream";
 import type http from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
+  embedApprovedKnowledgeBits: vi.fn(),
+}));
 vi.mock("./knowledge-bit-triage.repo.js", () => ({ triageKnowledgeBit: vi.fn() }));
 
 const { triageKnowledgeBit } = await import("./knowledge-bit-triage.repo.js");
+const { embedApprovedKnowledgeBits } = await import("./knowledge-bit-approval-embedding.orchestrator.js");
 const { handleTriageKnowledgeBit } = await import("./knowledge-bit-triage.controller.js");
 
 function fakeReq(body: unknown): http.IncomingMessage {
@@ -46,6 +50,7 @@ describe("handleTriageKnowledgeBit", () => {
     await handleTriageKnowledgeBit(fakeReq({ keepVariantIds: ["v1", "v2"] }), res, "kb_1");
 
     expect(triageKnowledgeBit).toHaveBeenCalledWith("kb_1", ["v1", "v2"]);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, droppedVariantIds: ["v3"] });
   });
@@ -73,7 +78,7 @@ describe("handleTriageKnowledgeBit", () => {
     },
   );
 
-  it.each([[[]], [["a", "b", "c"]]])(
+  it.each([[[]], [Array.from({ length: 21 }, (_, i) => `v${i}`)]])(
     "should answer 400 invalid_input for %j and never touch the repo",
     async (keepVariantIds) => {
       const res = fakeRes();

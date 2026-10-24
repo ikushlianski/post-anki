@@ -38,7 +38,11 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
-const { listKnowledgeBitsForEmbeddingScan, updateKnowledgeBitEmbedding } = await import(
+const {
+  listKnowledgeBitsForEmbeddingScan,
+  searchApprovedBitsByEmbedding,
+  updateKnowledgeBitEmbedding,
+} = await import(
   "./knowledge-bit-embedding.repo.js"
 );
 
@@ -60,12 +64,12 @@ afterAll(async () => {
   await adminPool.end();
 });
 
-async function seedKnowledgeSource(): Promise<string> {
+async function seedKnowledgeSource(subjectId: string | null = null): Promise<string> {
   const id = `ksrc_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'Some prose.', 'pending')`,
-    [id],
+    `INSERT INTO knowledge_sources (id, kind, raw_text, status, subject_id) VALUES ($1, 'prose', 'Some prose.', 'pending', $2)`,
+    [id, subjectId],
   );
 
   return id;
@@ -82,8 +86,8 @@ async function seedKnowledgeBit(
   const id = `kb_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, embedding, embedding_hash, embedded_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, embedding, embedding_hash, embedded_at, approval_state)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')`,
     [
       id,
       knowledgeSourceId,
@@ -99,7 +103,7 @@ async function seedKnowledgeBit(
 }
 
 describe("listKnowledgeBitsForEmbeddingScan (real Postgres)", () => {
-  it("returns exactly the bits with embeddedAt IS NULL", async () => {
+  it("returns exactly the approved bits with embeddedAt IS NULL", async () => {
     const sourceId = await seedKnowledgeSource();
     const unembeddedId = await seedKnowledgeBit(sourceId, 0, "An unembedded bit");
 
@@ -119,9 +123,13 @@ describe("listKnowledgeBitsForEmbeddingScan (real Postgres)", () => {
     ]);
   });
 
-  it("should exclude a rejected bit and still include a pending bit", async () => {
+  it("should exclude rejected and pending bits and include approved ones", async () => {
     const sourceId = await seedKnowledgeSource();
     const pendingId = await seedKnowledgeBit(sourceId, 2, "A pending bit");
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'pending' WHERE id = $1`, [
+      pendingId,
+    ]);
     const rejectedId = await seedKnowledgeBit(sourceId, 3, "A rejected bit");
 
     await client.query(`UPDATE knowledge_bits SET approval_state = 'rejected' WHERE id = $1`, [
@@ -131,7 +139,7 @@ describe("listKnowledgeBitsForEmbeddingScan (real Postgres)", () => {
     const rows = await listKnowledgeBitsForEmbeddingScan(100);
     const ids = rows.map((row) => row.id);
 
-    expect(ids).toContain(pendingId);
+    expect(ids).not.toContain(pendingId);
     expect(ids).not.toContain(rejectedId);
   });
 });
@@ -173,5 +181,44 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
     expect(rows[0]!.embedding).toBeNull();
     expect(rows[0]!.embedding_hash).toBeNull();
     expect(rows[0]!.embedded_at).toBeNull();
+  });
+});
+
+describe("searchApprovedBitsByEmbedding subject filter (real Postgres)", () => {
+  async function seedEmbeddedBit(sourceId: string, body: string, state = "approved"): Promise<string> {
+    const id = await seedKnowledgeBit(sourceId, 0, body);
+
+    await updateKnowledgeBitEmbedding(id, padEmbedding([1, 0, 0]), "h", body);
+    await client.query(`UPDATE knowledge_bits SET approval_state = $1 WHERE id = $2`, [state, id]);
+
+    return id;
+  }
+
+  it("should never return a bit from another subject or an unapproved bit", async () => {
+    const subjectA = `subj_${randomUUID()}`;
+    const subjectB = `subj_${randomUUID()}`;
+    const inA = await seedEmbeddedBit(await seedKnowledgeSource(subjectA), "Bit in A");
+    const inB = await seedEmbeddedBit(await seedKnowledgeSource(subjectB), "Bit in B");
+    const pendingInA = await seedEmbeddedBit(await seedKnowledgeSource(subjectA), "Pending in A", "pending");
+    const noSubject = await seedEmbeddedBit(await seedKnowledgeSource(), "Bit with no subject");
+
+    const ids = (await searchApprovedBitsByEmbedding(padEmbedding([1, 0, 0]), 10, 0.5, subjectA)).map(
+      (row) => row.id,
+    );
+
+    expect(ids).toEqual([inA]);
+    expect(ids).not.toContain(inB);
+    expect(ids).not.toContain(pendingInA);
+    expect(ids).not.toContain(noSubject);
+  });
+
+  it("should search every subject when no subject is given", async () => {
+    const subjectC = `subj_${randomUUID()}`;
+    const inC = await seedEmbeddedBit(await seedKnowledgeSource(subjectC), "Bit in C");
+    const orphan = await seedEmbeddedBit(await seedKnowledgeSource(), "Bit with no subject");
+
+    const ids = (await searchApprovedBitsByEmbedding(padEmbedding([1, 0, 0]), 50, 0.5)).map((row) => row.id);
+
+    expect(ids).toEqual(expect.arrayContaining([inC, orphan]));
   });
 });

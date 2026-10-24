@@ -3,6 +3,7 @@ import type { DbExecutor } from "../db/client.js";
 import { insertSourceItemsForChunk } from "./knowledge-bit-source-items.repo.js";
 
 vi.mock("../shared/id.js", () => ({ newId: vi.fn((prefix: string) => `${prefix}_1`) }));
+vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
 function fakeDb(sourceUrl: string | null) {
   const bitRows: Record<string, unknown>[] = [];

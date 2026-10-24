@@ -58,6 +58,7 @@ export const reviewCardSchema = z.object({
   background: z.string().nullable(),
   isAiGenerated: z.boolean(),
   sourceLinks: z.array(z.string()),
+  subjectId: z.string().nullable().optional(),
   phase: cardPhaseSchema,
   leech: z.boolean(),
   intervalPreview: intervalPreviewSchema,

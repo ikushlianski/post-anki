@@ -89,7 +89,7 @@ async function callTranscriptionEndpoint(params: TranscribeAudioParams): Promise
 
     const data = (await res.json()) as ChatResponse;
 
-    recordLlmSpend(FLAT_TRANSCRIPTION_USD);
+    await recordLlmSpend(FLAT_TRANSCRIPTION_USD);
 
     return data.choices?.[0]?.message?.content?.trim() ?? "";
   } finally {
@@ -104,7 +104,7 @@ async function callTranscriptionEndpoint(params: TranscribeAudioParams): Promise
 // call into a null (never a thrown/unhandled rejection reaching the message
 // handler).
 export async function transcribeAudio(params: TranscribeAudioParams): Promise<string> {
-  assertLlmBudgetAvailable();
+  await assertLlmBudgetAvailable();
 
   return pRetry(() => callTranscriptionEndpoint(params), {
     retries: RETRIES,

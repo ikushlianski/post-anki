@@ -7,6 +7,12 @@ const rejectKnowledgeBit = vi.fn();
 const editKnowledgeBitQuestionVariant = vi.fn();
 const listPendingKnowledgeBitsForReview = vi.fn();
 
+const embedApprovedKnowledgeBits = vi.fn();
+
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
+  embedApprovedKnowledgeBits: (...args: unknown[]) => embedApprovedKnowledgeBits(...args),
+}));
+
 vi.mock("./knowledge-bit-approval.repo.js", () => ({
   approveKnowledgeBit: (...args: unknown[]) => approveKnowledgeBit(...args),
   rejectKnowledgeBit: (...args: unknown[]) => rejectKnowledgeBit(...args),
@@ -63,6 +69,7 @@ describe("handleApproveKnowledgeBit", () => {
     await handleApproveKnowledgeBit(res, "kb_1");
 
     expect(approveKnowledgeBit).toHaveBeenCalledWith("kb_1");
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
   });
@@ -73,6 +80,8 @@ describe("handleApproveKnowledgeBit", () => {
     const res = fakeRes();
 
     await handleApproveKnowledgeBit(res, "missing");
+
+    expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
 
     expect(res.status).toBe(404);
   });

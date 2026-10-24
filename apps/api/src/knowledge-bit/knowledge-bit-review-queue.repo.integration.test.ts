@@ -202,6 +202,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
         background: "Networking basics",
         isAiGenerated: false,
         sourceLinks: [],
+        subjectId: null,
         phase: "new",
         leech: false,
         intervalPreview: { again: 60, hard: 330, good: 600, easy: 4 * 86_400 },

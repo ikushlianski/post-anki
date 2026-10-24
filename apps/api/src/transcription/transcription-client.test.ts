@@ -9,6 +9,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 let envOverrides: Record<string, unknown> = {};
 
+vi.mock("../shared/llm-daily-spend.repo.js", () => ({
+  readDailySpendUsd: async () => 0,
+  addDailySpendUsd: async (_day: string, cost: number) => cost,
+}));
+
 vi.mock("../shared/env.js", () => ({
   loadEnv: () => ({
     OPENROUTER_API_KEY: "test-key",

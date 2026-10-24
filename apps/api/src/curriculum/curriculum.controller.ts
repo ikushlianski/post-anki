@@ -17,6 +17,9 @@ import {
 } from "@post-anki/core";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
+import { dispatchBackground } from "../shared/background-dispatch.js";
+import { isDurableCourseJobsEnabled } from "../shared/durable-flags.js";
+import { pickCreateJob } from "./curriculum-create-job.js";
 import { getSubject } from "../subject/subject.repo.js";
 import { listCategoriesForSubject } from "../subject-category/subject-category.repo.js";
 import { resolveDomainPlacement } from "../domain-map/domain-placement.orchestrator.js";
@@ -49,12 +52,11 @@ import {
   isSourceMandateUnmet,
   resolveSourceMergeAction,
 } from "./curriculum-rules.js";
-import { startMerge, startParse, startReparse } from "./curriculum-parse.starter.js";
-import { startResearch, startRetryResearch } from "./curriculum-jobs.starter.js";
+import { startMerge, startReparse } from "./curriculum-parse.starter.js";
+import { startRetryResearch } from "./curriculum-jobs.starter.js";
 import {
   insertPastedMaterialEarly,
   startDraftFromApprovedSources,
-  startPastedDraft,
   startRetryDraft,
 } from "./curriculum-draft.starter.js";
 import {
@@ -62,6 +64,13 @@ import {
   resolveSupplementalResearch,
   submitStructureTurn,
 } from "./curriculum-structure.js";
+
+function dispatchCourseJob(
+  start: () => Promise<unknown>,
+  onError: (err: unknown) => void | Promise<void>,
+): Promise<void> {
+  return dispatchBackground({ durable: isDurableCourseJobsEnabled(), start, onError });
+}
 
 export async function handleListCurricula(
   res: http.ServerResponse,
@@ -241,36 +250,17 @@ export async function handleCreateCurriculum(
     ? await insertPastedMaterialEarly(curriculum.id, pastedMaterial!)
     : false;
 
+  const job = pickCreateJob(curriculum, {
+    materialPasted,
+    pastedMaterial,
+    pastedInsertedEarly,
+    docUrl,
+    researchTopic,
+  });
+
+  await dispatchCourseJob(job.start, (err) => log.error({ err, curriculumId: curriculum.id }, job.errorEvent));
+
   sendJson(res, 202, curriculum);
-
-  if (materialPasted) {
-    void startPastedDraft(curriculum.id, pastedMaterial!, pastedInsertedEarly)
-      .catch((err) =>
-        log.error({ err, curriculumId: curriculum.id }, "pasted_material_dispatch_failed"),
-      );
-
-    return;
-  }
-
-  if (docUrl) {
-    void startResearch(curriculum.id, { name: curriculum.name, docUrl }).catch((err) =>
-      log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
-    );
-
-    return;
-  }
-
-  if (researchTopic) {
-    void startResearch(curriculum.id, { name: researchTopic }).catch((err) =>
-      log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
-    );
-
-    return;
-  }
-
-  void startParse(curriculum.id).catch((err) =>
-    log.error({ err, curriculumId: curriculum.id }, "parse_dispatch_failed"),
-  );
 }
 
 export async function handleApproveSources(
@@ -317,15 +307,18 @@ export async function handleApproveSources(
 
   await setCurriculumStatus(curriculumId, "shaping_structure");
 
+  await dispatchCourseJob(
+    () => startDraftFromApprovedSources(curriculumId),
+    async (err) => {
+      log.error({ err, curriculumId }, "generate_from_approved_sources_dispatch_failed");
+
+      await setCurriculumStatus(curriculumId, "failed").catch((statusErr) =>
+        log.error({ err: statusErr, curriculumId }, "generate_from_approved_sources_failed_status_write_failed"),
+      );
+    },
+  );
+
   sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
-
-  void startDraftFromApprovedSources(curriculumId).catch((err) => {
-    log.error({ err, curriculumId }, "generate_from_approved_sources_dispatch_failed");
-
-    void setCurriculumStatus(curriculumId, "failed").catch((statusErr) =>
-      log.error({ err: statusErr, curriculumId }, "generate_from_approved_sources_failed_status_write_failed"),
-    );
-  });
 }
 
 export async function handleGetStructureTurns(
@@ -514,11 +507,12 @@ export async function handleRetryResearch(
     return;
   }
 
-  sendJson(res, 202, { ...curriculum, status: "curating" });
-
-  void startRetryResearch(curriculumId).catch((err) =>
-    log.error({ err, curriculumId }, "retry_research_dispatch_failed"),
+  await dispatchCourseJob(
+    () => startRetryResearch(curriculumId),
+    (err) => log.error({ err, curriculumId }, "retry_research_dispatch_failed"),
   );
+
+  sendJson(res, 202, { ...curriculum, status: "curating" });
 }
 
 /**
@@ -553,11 +547,12 @@ export async function handleRetryDraftStructure(
 
   await setCurriculumStatus(curriculumId, "shaping_structure");
 
-  sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
-
-  void startRetryDraft(curriculumId).catch((err) =>
-    log.error({ err, curriculumId }, "retry_draft_structure_dispatch_failed"),
+  await dispatchCourseJob(
+    () => startRetryDraft(curriculumId),
+    (err) => log.error({ err, curriculumId }, "retry_draft_structure_dispatch_failed"),
   );
+
+  sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
 }
 
 export async function handleDeleteCurriculum(
@@ -754,11 +749,12 @@ export async function handleAddSources(
     return;
   }
 
-  sendJson(res, 202, { ...curriculum, status: "curating" });
-
-  void startMerge(curriculumId, body.data.sources).catch((err) =>
-    log.error({ err, curriculumId }, "merge_dispatch_failed"),
+  await dispatchCourseJob(
+    () => startMerge(curriculumId, body.data.sources),
+    (err) => log.error({ err, curriculumId }, "merge_dispatch_failed"),
   );
+
+  sendJson(res, 202, { ...curriculum, status: "curating" });
 }
 
 export async function handleReparse(
@@ -806,11 +802,12 @@ export async function handleReparse(
     return;
   }
 
-  sendJson(res, 202, { ...curriculum, status: "curating" });
-
-  void startReparse(curriculumId).catch((err) =>
-    log.error({ err, curriculumId }, "reparse_dispatch_failed"),
+  await dispatchCourseJob(
+    () => startReparse(curriculumId),
+    (err) => log.error({ err, curriculumId }, "reparse_dispatch_failed"),
   );
+
+  sendJson(res, 202, { ...curriculum, status: "curating" });
 }
 
 export async function handleUpdateCurriculum(

@@ -1,6 +1,7 @@
 import type http from "node:http";
 import { bulkApproveKnowledgeBitsInput } from "@post-anki/shared";
 import { readJsonBody, sendJson } from "../shared/http.js";
+import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.orchestrator.js";
 import {
   approveKnowledgeBitsBulk,
   countPendingKnowledgeBits,
@@ -18,7 +19,11 @@ export async function handleBulkApproveKnowledgeBits(
     return;
   }
 
-  sendJson(res, 200, await approveKnowledgeBitsBulk(body.data.knowledgeBitIds));
+  const result = await approveKnowledgeBitsBulk(body.data.knowledgeBitIds);
+
+  await embedApprovedKnowledgeBits(result.approved);
+
+  sendJson(res, 200, result);
 }
 
 // GET /knowledge-bits/pending-review/count

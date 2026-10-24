@@ -117,7 +117,7 @@ async function callEmbeddingsEndpoint(
       embeddings.push(embedding);
     }
 
-    recordLlmSpend(estimateCostUsd(env.EMBEDDING_MODEL, data.usage?.total_tokens ?? data.usage?.prompt_tokens));
+    await recordLlmSpend(estimateCostUsd(env.EMBEDDING_MODEL, data.usage?.total_tokens ?? data.usage?.prompt_tokens));
 
     return { embeddings, usage: data.usage };
   } finally {
@@ -217,7 +217,7 @@ export async function embedTexts(
     return [];
   }
 
-  assertLlmBudgetAvailable();
+  await assertLlmBudgetAvailable();
 
   const input = items.map((item) =>
     item.text.slice(0, MAX_EMBEDDING_INPUT_CHARS),

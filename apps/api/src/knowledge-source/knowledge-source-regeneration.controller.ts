@@ -7,6 +7,7 @@ import {
 } from "../knowledge-bit/durable-extraction.starter.js";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
+import { dispatchBackground } from "../shared/background-dispatch.js";
 import {
   claimSourceForRegeneration,
   getKnowledgeSourceRegenerationStatus,
@@ -34,30 +35,37 @@ export async function handleRegenerateKnowledgeSource(
     return;
   }
 
-  sendJson(res, 202, { status: "running", supersededCount: claim.supersededCount });
+  const generateInProcess = () =>
+    generateItemsForSource(claim.source, { modelId: body.data.modelId }).catch((err) =>
+      log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
+    );
+  const durable = isDurableExtractionEnabled();
 
-  if (isDurableExtractionEnabled()) {
-    void startDurableExtraction([id], { regeneration: true })
-      .then((result) => {
-        if (result.fallbackIds.length > 0) {
-          void generateItemsForSource(claim.source, { modelId: body.data.modelId }).catch((err) =>
-            log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
-          );
+  await dispatchBackground({
+    durable,
+    start: async () => {
+      if (!durable) {
+        await generateInProcess();
+
+        return;
+      }
+
+      try {
+        const result = await startDurableExtraction([id], { regeneration: true });
+
+        if (result.fallbackIds.length === 0) {
+          return;
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         log.error({ err, knowledgeSourceId: id }, "durable_extraction_start_failed");
-        void generateItemsForSource(claim.source, { modelId: body.data.modelId }).catch((genErr) =>
-          log.error({ err: genErr, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
-        );
-      });
+      }
 
-    return;
-  }
+      await generateInProcess();
+    },
+    onError: (err) => log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
+  });
 
-  void generateItemsForSource(claim.source, { modelId: body.data.modelId }).catch((err) =>
-    log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
-  );
+  sendJson(res, 202, { status: "running", supersededCount: claim.supersededCount });
 }
 
 // GET /knowledge-sources/:id/regeneration

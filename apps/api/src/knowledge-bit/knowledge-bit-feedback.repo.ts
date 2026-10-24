@@ -67,6 +67,7 @@ export async function recordKnowledgeBitFeedback(
       .from(knowledgeBits)
       .where(eq(knowledgeBits.id, input.bitId))
       .limit(1)
+      .for("share")
   )[0];
 
   if (!bit || bit.origin === "manual") {
@@ -293,7 +294,8 @@ export async function upsertKnowledgeBitGrades(
     .select({ origin: knowledgeBits.origin, knowledgeSourceId: knowledgeBits.knowledgeSourceId, body: knowledgeBits.body })
     .from(knowledgeBits)
     .where(eq(knowledgeBits.id, bitId))
-    .limit(1);
+    .limit(1)
+    .for("share");
 
   if (!bit) {
     throw new Error(`Knowledge bit ${bitId} not found`);

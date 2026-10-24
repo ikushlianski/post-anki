@@ -1,4 +1,5 @@
 import { loadEnv, type Env } from "./env.js";
+import { addDailySpendUsd, readDailySpendUsd } from "./llm-daily-spend.repo.js";
 
 function warnLater(fields: Record<string, number>, message: string): void {
   void import("./log.js").then(({ log }) => log.warn(fields, message));
@@ -82,7 +83,43 @@ export function estimateCostUsd(modelId: string, tokens: number | null | undefin
   return ((tokens ?? FLAT_CALL_TOKEN_ESTIMATE) / 1_000_000) * rate;
 }
 
-export function assertLlmBudgetAvailable(): void {
+export class LlmBudgetCheckUnavailableError extends Error {
+  readonly code = "LLM_BUDGET_CHECK_UNAVAILABLE";
+
+  constructor(cause: unknown) {
+    super("LLM daily budget could not be verified, so the paid call was refused. Try again shortly.", {
+      cause,
+    });
+    this.name = "LlmBudgetCheckUnavailableError";
+  }
+}
+
+// Fail closed: if the shared total cannot be read, a paid call is refused rather than risk overspending.
+export async function assertLlmBudgetAvailable(): Promise<void> {
+  const active = guardActive();
+
+  if (!active) {
+    return;
+  }
+
+  const s = current();
+  let spentUsd: number;
+
+  try {
+    spentUsd = await readDailySpendUsd(s.day);
+  } catch (err) {
+    throw new LlmBudgetCheckUnavailableError(err);
+  }
+
+  s.spentUsd = Math.max(s.spentUsd, spentUsd);
+
+  if (spentUsd >= active.budget) {
+    throw new LlmBudgetExceededError(spentUsd, active.budget);
+  }
+}
+
+// Sync best-effort check against the last total this process saw, for call sites that cannot await.
+export function assertLlmBudgetKnownAvailable(): void {
   const active = guardActive();
 
   if (!active) {
@@ -96,7 +133,8 @@ export function assertLlmBudgetAvailable(): void {
   }
 }
 
-export function recordLlmSpend(costUsd: number): void {
+// The call already happened and was paid for, so a failed write is logged, never thrown.
+export async function recordLlmSpend(costUsd: number): Promise<void> {
   const active = guardActive();
 
   if (!active || costUsd <= 0) {
@@ -104,20 +142,30 @@ export function recordLlmSpend(costUsd: number): void {
   }
 
   const s = current();
+  let totalUsd: number;
 
-  s.spentUsd += costUsd;
+  try {
+    totalUsd = await addDailySpendUsd(s.day, costUsd);
+  } catch {
+    s.spentUsd += costUsd;
+    warnLater({ costUsd }, "llm_spend_write_failed");
 
-  if (s.spentUsd >= active.budget && !s.warnedCap) {
+    return;
+  }
+
+  s.spentUsd = Math.max(s.spentUsd, totalUsd);
+
+  if (totalUsd >= active.budget && !s.warnedCap) {
     s.warnedCap = true;
-    warnLater({ spentUsd: s.spentUsd, budgetUsd: active.budget }, "llm_daily_budget_reached");
-  } else if (s.spentUsd >= active.budget * WARN_RATIO && !s.warnedNear && !s.warnedCap) {
+    warnLater({ spentUsd: totalUsd, budgetUsd: active.budget }, "llm_daily_budget_reached");
+  } else if (totalUsd >= active.budget * WARN_RATIO && !s.warnedNear && !s.warnedCap) {
     s.warnedNear = true;
-    warnLater({ spentUsd: s.spentUsd, budgetUsd: active.budget }, "llm_daily_budget_80_percent");
+    warnLater({ spentUsd: totalUsd, budgetUsd: active.budget }, "llm_daily_budget_80_percent");
   }
 }
 
-export function getLlmSpendTodayUsd(): number {
-  return current().spentUsd;
+export async function getLlmSpendTodayUsd(): Promise<number> {
+  return readDailySpendUsd(current().day);
 }
 
 export function resetLlmSpendForTests(): void {

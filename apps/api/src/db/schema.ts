@@ -988,6 +988,12 @@ export const llmCallEvents = pgTable("llm_call_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const llmDailySpend = pgTable("llm_daily_spend", {
+  day: text("day").primaryKey(),
+  spentUsd: numeric("spent_usd", { precision: 14, scale: 6 }).notNull().default("0"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const userStreaks = pgTable("user_streaks", {
   id: text("id").primaryKey(),
   currentStreak: integer("current_streak").notNull().default(0),

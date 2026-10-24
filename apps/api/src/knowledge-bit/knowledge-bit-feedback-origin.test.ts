@@ -34,7 +34,7 @@ function fakeDb(results: unknown[][]) {
         then: (resolve: (value: unknown[]) => unknown) => Promise.resolve(rows).then(resolve),
       };
 
-      for (const name of ["from", "orderBy", "limit", "groupBy"]) {
+      for (const name of ["from", "orderBy", "limit", "groupBy", "for"]) {
         builder[name] = () => builder;
       }
 

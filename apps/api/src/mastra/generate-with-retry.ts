@@ -100,7 +100,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
   fn: () => Promise<T>,
   options: GenerateCallOptions = {},
 ): Promise<T> {
-  assertLlmBudgetAvailable();
+  await assertLlmBudgetAvailable();
 
   const startedAt = Date.now();
 
@@ -136,7 +136,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
 
   const tokenCost = tokenCostFrom(result);
 
-  recordLlmSpend(estimateCostUsd(options.modelId ?? "", tokenCost.totalTokens));
+  await recordLlmSpend(estimateCostUsd(options.modelId ?? "", tokenCost.totalTokens));
   await safeRecordLlmCallEvent({
     curriculumId,
     op,
@@ -165,7 +165,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
   fn: () => Promise<T>,
   options: GenerateCallOptions = {},
 ): Promise<T> {
-  assertLlmBudgetAvailable();
+  await assertLlmBudgetAvailable();
 
   const startedAt = Date.now();
 
@@ -192,7 +192,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
 
   const tokenCost = tokenCostFrom(result);
 
-  recordLlmSpend(estimateCostUsd(options.modelId ?? "", tokenCost.totalTokens));
+  await recordLlmSpend(estimateCostUsd(options.modelId ?? "", tokenCost.totalTokens));
   await safeRecordLlmCallEvent({
     curriculumId,
     op,

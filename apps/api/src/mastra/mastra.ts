@@ -13,6 +13,7 @@ import { createDocResearchArchitect } from "./doc-research-architect.agent.js";
 import { createStudyChatAgent } from "./study-chat.agent.js";
 import { createQaChatAgent } from "./qa-chat.agent.js";
 import { createGlobalCardChatAgent } from "./global-card-chat.agent.js";
+import { createSubjectChatAgent } from "./subject-chat.agent.js";
 import { createKnowledgeBitChatAgent } from "./knowledge-bit-chat.agent.js";
 import { createKnowledgeBitChatDraftAgent } from "./knowledge-bit-chat-draft.agent.js";
 import { createStructureEditorAgent } from "./structure-editor.agent.js";
@@ -53,6 +54,7 @@ export const AGENT_KEYS = {
   studyChat: "studyChat",
   qaChat: "qaChat",
   globalCardChat: "globalCardChat",
+  subjectChat: "subjectChat",
   knowledgeBitChat: "knowledgeBitChat",
   knowledgeBitChatDraft: "knowledgeBitChatDraft",
   structureEditor: "structureEditor",
@@ -140,6 +142,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.studyChat]: createStudyChatAgent(),
         [AGENT_KEYS.qaChat]: createQaChatAgent(),
         [AGENT_KEYS.globalCardChat]: createGlobalCardChatAgent(),
+        [AGENT_KEYS.subjectChat]: createSubjectChatAgent(),
         [AGENT_KEYS.knowledgeBitChat]: createKnowledgeBitChatAgent(),
         [AGENT_KEYS.knowledgeBitChatDraft]: createKnowledgeBitChatDraftAgent(),
         [AGENT_KEYS.structureEditor]: createStructureEditorAgent(),

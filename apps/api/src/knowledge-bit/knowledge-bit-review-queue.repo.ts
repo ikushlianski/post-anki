@@ -30,6 +30,7 @@ export interface KnowledgeBitReviewCardRow {
   background: string | null;
   isAiGenerated: boolean;
   sourceLinks: string[];
+  subjectId: string | null;
   phase: CardPhase;
   leech: boolean;
   intervalPreview: IntervalPreview;

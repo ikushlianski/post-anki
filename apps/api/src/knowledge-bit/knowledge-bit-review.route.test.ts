@@ -87,6 +87,7 @@ describe("GET /knowledge-bits/review-cards", () => {
           background: null,
           isAiGenerated: false,
           sourceLinks: [],
+          subjectId: null,
           phase: "new",
           leech: false,
           intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 },

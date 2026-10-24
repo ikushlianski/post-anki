@@ -157,7 +157,10 @@ export async function recordGeneratedQuestionVariant(
   db: Db = getDb(),
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx);
+    if (!(await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx))) {
+      return;
+    }
+
     await markWhQuestionGenerated(knowledgeBitId, claimToken, tx);
   });
 }

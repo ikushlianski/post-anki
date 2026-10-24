@@ -11,6 +11,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { log } from "../shared/log.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 import { TYPED_VARIANT_KINDS } from "./knowledge-bit-variant-kind-rules.js";
@@ -28,7 +29,20 @@ export async function insertQuestionVariant(
   answer: string,
   db: DbExecutor = getDb(),
   sentence?: string,
-): Promise<void> {
+): Promise<boolean> {
+  const [bit] = await db
+    .select({ id: knowledgeBits.id })
+    .from(knowledgeBits)
+    .where(eq(knowledgeBits.id, knowledgeBitId))
+    .limit(1)
+    .for("share");
+
+  if (!bit) {
+    log.warn({ knowledgeBitId }, "knowledge_bit_deleted_variant_skipped");
+
+    return false;
+  }
+
   await db.insert(knowledgeBitQuestionVariants).values({
     id: newId("kbqv"),
     knowledgeBitId,
@@ -38,6 +52,8 @@ export async function insertQuestionVariant(
     answer,
     sentence,
   });
+
+  return true;
 }
 
 export interface QuestionVariantForEmbeddingScan {

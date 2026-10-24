@@ -7,14 +7,9 @@ import {
   knowledgeItemModelIdSchema,
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
-import { log } from "../shared/log.js";
-import { startKnowledgeBitPipelineKick } from "../knowledge-bit/pipeline-kick.starter.js";
-import {
-  isDurableExtractionEnabled,
-  startDurableExtraction,
-} from "../knowledge-bit/durable-extraction.starter.js";
+import { kickSourcesAfterAdd } from "./knowledge-source-kick.js";
+import { summarizeSourceAfterAdd } from "./knowledge-source-summary.starter.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
-import { runArticleSummary } from "../mastra/article-summary.agent.js";
 import { extractArticleText } from "./article-text.js";
 import {
   MAX_PAGE_TITLE_CHARS,
@@ -32,7 +27,6 @@ import {
   insertKnowledgeSource,
   insertKnowledgeSources,
   MAX_SOURCES_PER_BATCH_ADD,
-  updateKnowledgeSourceSummary,
 } from "./knowledge-source.repo.js";
 
 const subjectIdInput = z.string().min(1).nullable().optional();
@@ -114,35 +108,6 @@ function sendAlreadyAdded(
   });
 }
 
-function kickInBackground(sourceIds: string[]): void {
-  if (isDurableExtractionEnabled()) {
-    void startDurableExtraction(sourceIds, { regeneration: false })
-      .then((result) => {
-        if (result.fallbackIds.length > 0) {
-          void startKnowledgeBitPipelineKick().catch((err) =>
-            log.error({ err }, "knowledge_bit_pipeline_kick_failed"),
-          );
-        }
-      })
-      .catch((err) => {
-        log.error({ err }, "durable_extraction_start_failed");
-        void startKnowledgeBitPipelineKick().catch((kickErr) =>
-          log.error({ err: kickErr }, "knowledge_bit_pipeline_kick_failed"),
-        );
-      });
-
-    return;
-  }
-
-  void startKnowledgeBitPipelineKick().catch((err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"));
-}
-
-function summarizeInBackground(sourceId: string, articleText: string): void {
-  void runArticleSummary(articleText)
-    .then((summary) => updateKnowledgeSourceSummary(sourceId, summary))
-    .catch((err) => log.error({ err, sourceId }, "article_summary_failed"));
-}
-
 export const extractVisibleText = extractArticleText;
 
 const URL_FETCH_TIMEOUT_MS = 8_000;
@@ -199,9 +164,9 @@ export async function handleCreateKnowledgeSource(
     }
 
     const urlSource = await insertKnowledgeSource(extractedText, subjectId, body.data.modelId ?? null, sourceUrl);
+    await kickSourcesAfterAdd([urlSource.id]);
+    await summarizeSourceAfterAdd(urlSource.id, extractedText);
     sendJson(res, 201, { ...urlSource, truncated });
-    kickInBackground([urlSource.id]);
-    summarizeInBackground(urlSource.id, extractedText);
     return;
   }
 
@@ -250,8 +215,8 @@ export async function handleCreateKnowledgeSource(
     }
 
     const batchSources = await insertKnowledgeSources(texts, subjectId, body.data.modelId ?? null);
+    await kickSourcesAfterAdd(batchSources.map((s) => s.id));
     sendJson(res, 201, batchSources);
-    kickInBackground(batchSources.map((s) => s.id));
     return;
   }
 
@@ -294,6 +259,6 @@ export async function handleCreateKnowledgeSource(
     pageUrl === null
       ? await insertKnowledgeSource(storedText, subjectId, body.data.modelId ?? null)
       : await insertKnowledgeSource(storedText, subjectId, body.data.modelId ?? null, pageUrl);
+  await kickSourcesAfterAdd([source.id]);
   sendJson(res, 201, source);
-  kickInBackground([source.id]);
 }

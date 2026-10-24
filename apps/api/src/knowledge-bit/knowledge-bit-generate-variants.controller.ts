@@ -1,3 +1,4 @@
+import { dispatchBackgroundJob } from "../background-job/background-job.starter.js";
 import type http from "node:http";
 import { sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
@@ -16,9 +17,11 @@ export async function handleGenerateKnowledgeBitVariants(
     return;
   }
 
-  sendJson(res, 202, { ok: true });
+  await dispatchBackgroundJob(
+    { kind: "knowledge-bit-variants", bitId },
+    () => generateKnowledgeBitVariants(bitId),
+    (err) => log.error({ err, bitId }, "knowledge_bit_generate_variants_failed"),
+  );
 
-  void generateKnowledgeBitVariants(bitId).catch((err) => {
-    log.error({ err, bitId }, "knowledge_bit_generate_variants_failed");
-  });
+  sendJson(res, 202, { ok: true });
 }

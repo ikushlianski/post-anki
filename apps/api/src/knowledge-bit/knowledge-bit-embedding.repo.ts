@@ -1,7 +1,7 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
-import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
+import { and, asc, cosineDistance, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { knowledgeBits } from "../db/schema.js";
+import { knowledgeBitQuestionVariants, knowledgeBits, knowledgeSources } from "../db/schema.js";
+import { efSearchFor } from "../db/vector-search.js";
 
 export interface KnowledgeBitForEmbeddingScan {
   id: string;
@@ -20,7 +20,7 @@ export async function listKnowledgeBitsForEmbeddingScan(
       embeddingHash: knowledgeBits.embeddingHash,
     })
     .from(knowledgeBits)
-    .where(and(isNull(knowledgeBits.embeddedAt), bitNotDiscarded))
+    .where(and(isNull(knowledgeBits.embeddedAt), eq(knowledgeBits.approvalState, "approved")))
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
 }
@@ -37,4 +37,110 @@ export async function updateKnowledgeBitEmbedding(
     .update(knowledgeBits)
     .set({ embedding, embeddingVec: embedding, embeddingHash, embeddedAt: new Date() })
     .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
+}
+
+export interface ApprovedBitForEmbedding extends KnowledgeBitForEmbeddingScan {
+  embeddedAt: Date | null;
+}
+
+export async function listApprovedBitsForEmbedding(
+  ids: string[],
+  db: DbExecutor = getDb(),
+): Promise<ApprovedBitForEmbedding[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+
+  return db
+    .select({
+      id: knowledgeBits.id,
+      body: knowledgeBits.body,
+      embeddingHash: knowledgeBits.embeddingHash,
+      embeddedAt: knowledgeBits.embeddedAt,
+    })
+    .from(knowledgeBits)
+    .where(and(inArray(knowledgeBits.id, ids), eq(knowledgeBits.approvalState, "approved")));
+}
+
+export interface ActiveVariantForEmbedding {
+  id: string;
+  prompt: string;
+  answer: string;
+  embeddingHash: string | null;
+  embeddedAt: Date | null;
+}
+
+export async function listActiveVariantsForBitsEmbedding(
+  bitIds: string[],
+  db: DbExecutor = getDb(),
+): Promise<ActiveVariantForEmbedding[]> {
+  if (bitIds.length === 0) {
+    return [];
+  }
+
+  return db
+    .select({
+      id: knowledgeBitQuestionVariants.id,
+      prompt: knowledgeBitQuestionVariants.prompt,
+      answer: knowledgeBitQuestionVariants.answer,
+      embeddingHash: knowledgeBitQuestionVariants.embeddingHash,
+      embeddedAt: knowledgeBitQuestionVariants.embeddedAt,
+    })
+    .from(knowledgeBitQuestionVariants)
+    .where(
+      and(
+        inArray(knowledgeBitQuestionVariants.knowledgeBitId, bitIds),
+        isNull(knowledgeBitQuestionVariants.supersededAt),
+      ),
+    );
+}
+
+const SUBJECT_FILTER_EF_SEARCH = 400;
+
+export interface SimilarApprovedBit {
+  id: string;
+  body: string;
+  similarity: number;
+}
+
+export async function searchApprovedBitsByEmbedding(
+  queryEmbedding: number[],
+  topK: number,
+  minSimilarity: number,
+  subjectId?: string,
+): Promise<SimilarApprovedBit[]> {
+  const distance = cosineDistance(knowledgeBits.embeddingVec, queryEmbedding);
+  const similarity = sql<number>`1 - (${distance})`;
+
+  const rows = await getDb().transaction(async (tx) => {
+    const efSearch = subjectId
+      ? Math.max(efSearchFor(topK), SUBJECT_FILTER_EF_SEARCH)
+      : efSearchFor(topK);
+
+    await tx.execute(sql`SELECT set_config('hnsw.ef_search', ${String(efSearch)}, true)`);
+
+    return tx
+      .select({ id: knowledgeBits.id, body: knowledgeBits.body, similarity })
+      .from(knowledgeBits)
+      .where(
+        and(
+          isNotNull(knowledgeBits.embeddingVec),
+          eq(knowledgeBits.approvalState, "approved"),
+          Number.isFinite(minSimilarity) ? sql`${similarity} >= ${minSimilarity}` : undefined,
+          subjectId
+            ? inArray(
+                knowledgeBits.knowledgeSourceId,
+                tx
+                  .select({ id: knowledgeSources.id })
+                  .from(knowledgeSources)
+                  .where(eq(knowledgeSources.subjectId, subjectId)),
+              )
+            : undefined,
+        ),
+      )
+      .orderBy(distance)
+      .limit(topK);
+  });
+
+  return rows.map((row) => ({ ...row, similarity: Number(row.similarity) }));
 }

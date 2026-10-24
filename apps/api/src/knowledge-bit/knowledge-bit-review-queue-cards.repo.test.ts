@@ -32,4 +32,9 @@ describe("toCard", () => {
     expect(card.isAiGenerated).toBe(true);
     expect(card.sourceLinks).toEqual(links);
   });
+
+  it("should expose the subject of the card's source and null when the source has none", () => {
+    expect(toCard({ ...baseRow, sourceLinks: null, subjectId: "subj1" }, new Date()).subjectId).toBe("subj1");
+    expect(toCard({ ...baseRow, sourceLinks: null }, new Date()).subjectId).toBeNull();
+  });
 });

@@ -59,7 +59,9 @@ export async function startCardsBackground(
     await deps.sendEvents([topicId]);
   } catch (err) {
     log.error({ err, topicId }, "cards_compile_event_send_failed");
-    runDetached(topicId, deps);
+    await deps
+      .runInProcess(topicId)
+      .catch((runErr) => log.error({ err: runErr, topicId }, "cards_compile_dispatch_failed"));
   }
 }
 

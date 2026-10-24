@@ -1,3 +1,5 @@
+import { dispatchBackground } from "../shared/background-dispatch.js";
+import { isDurableCardsEnabled } from "../shared/durable-flags.js";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { nextIngestionSlice, QUESTIONS_PER_TOPIC } from "@post-anki/core";
 import { confirmCurriculum, getCurriculum, setCurriculumStatus } from "../curriculum/curriculum.repo.js";
@@ -247,9 +249,11 @@ export async function releaseNextSliceSafely(
   if (released) {
     await confirmIfLearningListOwned(itemId);
 
-    void startCardsForTopics(released.topicIds).catch((err) =>
-      log.error({ err, itemId }, "slice_release_cards_fanout_failed"),
-    );
+    await dispatchBackground({
+      durable: isDurableCardsEnabled(),
+      start: () => startCardsForTopics(released.topicIds),
+      onError: (err) => log.error({ err, itemId }, "slice_release_cards_fanout_failed"),
+    });
   }
 
   return released;

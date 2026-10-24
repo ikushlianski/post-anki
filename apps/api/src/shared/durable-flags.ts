@@ -9,3 +9,9 @@ export function isDurableCourseJobsEnabled(
 ): boolean {
   return parseDurableFlag(raw);
 }
+
+export function isDurableBackgroundJobsEnabled(
+  raw: string | undefined = process.env.DURABLE_BACKGROUND_JOBS,
+): boolean {
+  return parseDurableFlag(raw);
+}

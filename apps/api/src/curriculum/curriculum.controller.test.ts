@@ -109,7 +109,7 @@ describe("handleApproveSources", () => {
     generateCurriculumFromApprovedSources.mockResolvedValue(undefined);
   });
 
-  it("writes shaping_structure and awaits it before sending the response and dispatching generation", async () => {
+  it("writes shaping_structure and awaits it before dispatching generation and sending the response", async () => {
     getCurriculum.mockResolvedValue(makeCurriculum());
 
     const callOrder: string[] = [];
@@ -135,8 +135,11 @@ describe("handleApproveSources", () => {
 
     expect(callOrder.indexOf("statusPersisted")).toBeGreaterThanOrEqual(0);
     expect(callOrder.indexOf("statusPersisted")).toBeLessThan(callOrder.indexOf("sendJson"));
-    expect(callOrder.indexOf("sendJson")).toBeLessThan(
+    expect(callOrder.indexOf("statusPersisted")).toBeLessThan(
       callOrder.indexOf("generateCurriculumFromApprovedSources"),
+    );
+    expect(callOrder.indexOf("generateCurriculumFromApprovedSources")).toBeLessThan(
+      callOrder.indexOf("sendJson"),
     );
     expect(setCurriculumStatus).toHaveBeenCalledWith("cur_1", "shaping_structure");
   });

@@ -67,7 +67,7 @@ beforeEach(() => {
 });
 
 describe("handleCreateKnowledgeSource pipeline kick", () => {
-  it("should start processing once, after the response, for a single paste", async () => {
+  it("should hand processing off before the response so a Lambda freeze cannot drop it, for a single paste", async () => {
     const events: string[] = [];
 
     mockKick.mockImplementation(async () => {
@@ -79,7 +79,7 @@ describe("handleCreateKnowledgeSource pipeline kick", () => {
     await handleCreateKnowledgeSource(fakeReq({ text: "hello" }), res);
 
     expect(res.status).toBe(201);
-    expect(events).toEqual(["response", "kick"]);
+    expect(events).toEqual(["kick", "response"]);
   });
 
   it("should start processing once for a multi-paste", async () => {

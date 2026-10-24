@@ -161,6 +161,14 @@ export const ROUTES: RouteDef[] = [
     pattern: "/knowledge-bits/deletions",
     name: "bulkDeleteKnowledgeBits",
   },
+  { method: "POST", pattern: "/knowledge-bits/purges", name: "purgeKnowledgeBits" },
+  { method: "POST", pattern: "/knowledge/purges", name: "clearAllKnowledge" },
+  {
+    method: "DELETE",
+    pattern: /^\/knowledge-sources\/([^/]+)$/,
+    name: "deleteKnowledgeSource",
+    param: "id",
+  },
   {
     method: "POST",
     pattern: "/knowledge-bits/moves",
@@ -396,6 +404,7 @@ export const ROUTES: RouteDef[] = [
   },
   { method: "POST", pattern: "/qa-chat", name: "askQaChat" },
   { method: "POST", pattern: "/global-card-chat", name: "askGlobalCardChat" },
+  { method: "POST", pattern: "/subject-chat/ask", name: "askSubjectChat" },
   {
     method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/chat$/,

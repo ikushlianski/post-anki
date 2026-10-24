@@ -12,6 +12,8 @@ import {
   setCreatedCurriculumId,
   type ResolveRecommendationClaimError,
 } from "./domain-recommendation.repo.js";
+import { dispatchBackground } from "../shared/background-dispatch.js";
+import { isDurableCourseJobsEnabled } from "../shared/durable-flags.js";
 
 const SOURCE = "structural";
 
@@ -131,9 +133,12 @@ export async function resolveDomainRecommendation(
 
   const resolved = await setCreatedCurriculumId(id, created.id);
 
-  void startResearch(created.id, { name: nodeName }).catch((err) =>
-    log.error({ err, curriculumId: created.id }, "domain_recommendation_research_dispatch_failed"),
-  );
+  await dispatchBackground({
+    durable: isDurableCourseJobsEnabled(),
+    start: () => startResearch(created.id, { name: nodeName }),
+    onError: (err) =>
+      log.error({ err, curriculumId: created.id }, "domain_recommendation_research_dispatch_failed"),
+  });
 
   return resolved;
 }

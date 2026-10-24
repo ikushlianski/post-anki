@@ -27,8 +27,9 @@ import type {
 export function toCard(
   row: Omit<
     KnowledgeBitReviewCardRow,
-    "phase" | "leech" | "intervalPreview" | "kind" | "sourceLinks"
+    "phase" | "leech" | "intervalPreview" | "kind" | "sourceLinks" | "subjectId"
   > & {
+    subjectId?: string | null;
     kind: string;
     sourceLinks: string[] | null;
     isNew: boolean;
@@ -40,7 +41,8 @@ export function toCard(
   },
   now: Date,
 ): KnowledgeBitReviewCardRow {
-  const { isNew, easeFactor, intervalDays, phase, learningStep, lapses, sourceLinks, ...card } = row;
+  const { isNew, easeFactor, intervalDays, phase, learningStep, lapses, sourceLinks, subjectId, ...card } =
+    row;
   const parsed = cardPhaseSchema.safeParse(phase);
   const storedPhase = parsed.success ? parsed.data : "review";
   const state =
@@ -57,6 +59,7 @@ export function toCard(
   return {
     ...card,
     sourceLinks: sourceLinks ?? [],
+    subjectId: subjectId ?? null,
     kind: card.kind as KnowledgeBitQuestionVariantKind,
     phase: isNew ? "new" : storedPhase,
     leech: isLeech(lapses ?? 0),
@@ -90,6 +93,7 @@ export async function listScopedCards(
       background: knowledgeBits.background,
       isAiGenerated: knowledgeBits.isAiGenerated,
       sourceLinks: knowledgeBits.sourceLinks,
+      subjectId: knowledgeSources.subjectId,
       easeFactor: knowledgeBitSchedules.easeFactor,
       intervalDays: knowledgeBitSchedules.intervalDays,
       phase: knowledgeBitSchedules.phase,
@@ -120,6 +124,7 @@ export async function listScopedCards(
       knowledgeBits.background,
       knowledgeBits.isAiGenerated,
       knowledgeBits.sourceLinks,
+      knowledgeSources.subjectId,
       knowledgeBitSchedules.easeFactor,
       knowledgeBitSchedules.intervalDays,
       knowledgeBitSchedules.phase,
@@ -159,6 +164,7 @@ export async function listPickedCards(
       background: picked.background,
       isAiGenerated: picked.isAiGenerated,
       sourceLinks: picked.sourceLinks,
+      subjectId: picked.subjectId,
       easeFactor: picked.easeFactor,
       intervalDays: picked.intervalDays,
       phase: picked.phase,

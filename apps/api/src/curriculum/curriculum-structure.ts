@@ -1,3 +1,5 @@
+import { dispatchBackground } from "../shared/background-dispatch.js";
+import { isDurableCardsEnabled } from "../shared/durable-flags.js";
 import type { Curriculum, SplitSuggestion, StructureSnapshot } from "@post-anki/shared";
 import { STALE_PENDING_TURN_AGE_MS, estimateStructureStudyTime } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
@@ -693,9 +695,11 @@ export async function confirmStructure(curriculumId: string): Promise<ConfirmStr
 
   const topicIds = await listTopicIdsForCurriculum(curriculumId);
 
-  void startCardsForTopics(topicIds).catch((err) =>
-    log.error({ err, curriculumId }, "confirm_structure_cards_fanout_failed"),
-  );
+  await dispatchBackground({
+    durable: isDurableCardsEnabled(),
+    start: () => startCardsForTopics(topicIds),
+    onError: (err) => log.error({ err, curriculumId }, "confirm_structure_cards_fanout_failed"),
+  });
 
   const updated = await getCurriculum(curriculumId);
 

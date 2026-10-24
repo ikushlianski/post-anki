@@ -1,6 +1,7 @@
 import type http from "node:http";
 import { triageKnowledgeBitInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.orchestrator.js";
 import { triageKnowledgeBit } from "./knowledge-bit-triage.repo.js";
 
 // POST /knowledge-bits/:id/triage
@@ -27,6 +28,8 @@ export async function handleTriageKnowledgeBit(
     sendError(res, 409, result);
     return;
   }
+
+  await embedApprovedKnowledgeBits([id]);
 
   sendJson(res, 200, { ok: true, droppedVariantIds: result.droppedVariantIds });
 }

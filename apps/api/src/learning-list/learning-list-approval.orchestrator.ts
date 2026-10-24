@@ -1,3 +1,4 @@
+import { dispatchBackgroundJob } from "../background-job/background-job.starter.js";
 import { eq } from "drizzle-orm";
 import {
   planQuestionCeiling,
@@ -166,11 +167,11 @@ async function approveExtendRecommendation(
       })),
     );
   } else {
-    void mergeSourcesIntoCurriculum(existingCurriculumId, drafts).catch((err) =>
-      log.error(
-        { err, itemId, curriculumId: existingCurriculumId },
-        "learning_list_extend_merge_failed",
-      ),
+    await dispatchBackgroundJob(
+      { kind: "learning-list-merge", itemId, curriculumId: existingCurriculumId, drafts },
+      () => mergeSourcesIntoCurriculum(existingCurriculumId, drafts),
+      (err) =>
+        log.error({ err, itemId, curriculumId: existingCurriculumId }, "learning_list_extend_merge_failed"),
     );
   }
 

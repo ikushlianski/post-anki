@@ -3,6 +3,7 @@ import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
 import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
+import { log } from "../shared/log.js";
 import type { SourceItemDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
 
 const VARIANT_KIND_BY_ITEM_KIND = {
@@ -44,7 +45,7 @@ export interface InsertSourceItemsInput {
   items: readonly SourceItemDraft[];
 }
 
-// Inserts bits and their single variant in one transaction, and only while this run still owns the source claim.
+// Inserts bits and their variant in one transaction while this run owns the source claim; skips if the source was deleted.
 export async function insertSourceItemsForChunk(
   input: InsertSourceItemsInput,
   db: DbExecutor = getDb(),
@@ -69,6 +70,18 @@ export async function insertSourceItemsForChunk(
       .for("update");
 
     if (owned.length === 0) {
+      const [present] = await tx
+        .select({ id: knowledgeSources.id })
+        .from(knowledgeSources)
+        .where(eq(knowledgeSources.id, sourceId))
+        .limit(1);
+
+      if (!present) {
+        log.warn({ knowledgeSourceId: sourceId }, "knowledge_source_deleted_insert_skipped");
+
+        return 0;
+      }
+
       throw new Error("knowledge_source_reclaimed");
     }
 

@@ -1,6 +1,7 @@
 import type http from "node:http";
 import { editKnowledgeBitQuestionVariantInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.orchestrator.js";
 import {
   approveKnowledgeBit,
   editKnowledgeBitQuestionVariant,
@@ -35,6 +36,8 @@ export async function handleApproveKnowledgeBit(
     sendError(res, 409, result);
     return;
   }
+
+  await embedApprovedKnowledgeBits([id]);
 
   sendJson(res, 200, { ok: true });
 }

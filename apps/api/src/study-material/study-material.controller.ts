@@ -1,3 +1,4 @@
+import { dispatchBackgroundJob } from "../background-job/background-job.starter.js";
 import type http from "node:http";
 import { requestStudyMaterialInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
@@ -27,11 +28,13 @@ export async function handleRequestStudyMaterial(
 
   const material = await insertGeneratingStudyMaterial(topicId, body.data.kind);
 
-  sendJson(res, 202, material);
-
-  void generateStudyMaterial(material.id, topicId, body.data.kind).catch((err) =>
-    log.error({ err, topicId, materialId: material.id }, "study_material_generate_dispatch_failed"),
+  await dispatchBackgroundJob(
+    { kind: "study-material", materialId: material.id, topicId, materialKind: body.data.kind },
+    () => generateStudyMaterial(material.id, topicId, body.data.kind),
+    (err) => log.error({ err, topicId, materialId: material.id }, "study_material_generate_dispatch_failed"),
   );
+
+  sendJson(res, 202, material);
 }
 
 export async function handleListStudyMaterials(

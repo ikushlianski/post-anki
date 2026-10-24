@@ -1,3 +1,4 @@
+import { dispatchBackgroundJob } from "../background-job/background-job.starter.js";
 import type {
   AnswerProbeSessionInput,
   AnswerProbeSessionResult,
@@ -352,9 +353,13 @@ export async function answerProbeSession(
   // (SCENARIO 18) while this runs. `tryClaimReplenish` inside is what
   // guarantees only one of these is ever actually in flight per session
   // (SCENARIO 20), even if two answers cross the floor in quick succession.
-  void maybeReplenish(session, progress).catch((err) => {
-    log.error({ err, sessionId: session.id }, "probe_session_replenish_failed");
-  });
+  if (replenishNeeded(session, progress)) {
+    await dispatchBackgroundJob(
+      { kind: "probe-replenish", sessionId: session.id, progress },
+      () => maybeReplenish(session, progress),
+      (err) => log.error({ err, sessionId: session.id }, "probe_session_replenish_failed"),
+    );
+  }
 
   return {
     questionId: input.questionId,
@@ -405,35 +410,30 @@ async function electDepthsOnCalibrationCompletion(
  * atomic guard means only the first caller past the threshold actually does
  * anything; every later answer while a top-up is in flight is a no-op here.
  */
-async function maybeReplenish(
+export function replenishNeeded(
+  session: ProbeSessionRow,
+  progress: { total: number; answered: number; correct: number },
+): boolean {
+  if (session.mode === "exam") {
+    return false;
+  }
+
+  if (isOneShotProbeScope(session.scope as ProbeScope)) {
+    return false;
+  }
+
+  if (hasEarlyMasterySignal(progress.correct, progress.answered)) {
+    return false;
+  }
+
+  return shouldReplenish(progress.total, progress.answered, REPLENISH_FLOOR);
+}
+
+export async function maybeReplenish(
   session: ProbeSessionRow,
   progress: { total: number; answered: number; correct: number },
 ): Promise<void> {
-  // A mock exam never grows regardless of scope (spec.md) — checked ahead of
-  // the one-shot-scope check below, which only ever applies to curriculum
-  // scope and would otherwise let a topic/module/tag exam grow mid-exam.
-  if (session.mode === "exam") {
-    return;
-  }
-
-  // A curriculum-wide calibration probe is a single one-shot batch (per its
-  // own spec) — it must never grow mid-session the way an ongoing topic/
-  // module/tag practice queue does.
-  if (isOneShotProbeScope(session.scope as ProbeScope)) {
-    return;
-  }
-
-  // Issue #96 — a learner who has clearly already demonstrated mastery
-  // (strong, early, consistent accuracy) stops triggering further
-  // generation, for topic, module, and tag scope alike. Composed as a
-  // second, separate early-return above shouldReplenish's own floor check,
-  // not folded into it — shouldReplenish is a generic "remaining below
-  // floor" check reused as-is by the client's own mirror.
-  if (hasEarlyMasterySignal(progress.correct, progress.answered)) {
-    return;
-  }
-
-  if (!shouldReplenish(progress.total, progress.answered, REPLENISH_FLOOR)) {
+  if (!replenishNeeded(session, progress)) {
     return;
   }
 

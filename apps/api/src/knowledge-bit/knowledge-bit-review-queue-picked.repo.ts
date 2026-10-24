@@ -60,12 +60,17 @@ export const eligibility = (scope: SQL | undefined, now: Date) =>
     bitApproved,
   );
 
-// One row per eligible bit: basic over fill_in_the_blank over the rest.
+// One row per eligible bit: the active variant shown least recently, ties by kind preference.
 export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor) {
   const kindRank = sql`case ${knowledgeBitQuestionVariants.kind} ${sql.join(
     ANKI_VARIANT_KIND_PREFERENCE.map((kind) => sql`when ${kind} then ${ankiVariantKindRank(kind)}`),
     sql` `,
   )} else ${ANKI_VARIANT_KIND_PREFERENCE.length} end`;
+
+  const lastShownAt = sql`greatest(
+    coalesce((select max(r.reviewed_at) from knowledge_bit_reviews r where r.variant_id = ${knowledgeBitQuestionVariants.id} and r.undone_at is null), '-infinity'::timestamptz),
+    coalesce((select max(a.created_at) from knowledge_bit_variant_attempts a where a.variant_id = ${knowledgeBitQuestionVariants.id}), '-infinity'::timestamptz)
+  )`;
 
   return db
     .select({
@@ -77,6 +82,7 @@ export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor
       background: knowledgeBits.background,
       isAiGenerated: knowledgeBits.isAiGenerated,
       sourceLinks: knowledgeBits.sourceLinks,
+      subjectId: knowledgeSources.subjectId,
       bitCreatedAt: knowledgeBits.createdAt,
       scheduleBitId: sql<string | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.knowledgeBitId} end`.as("schedule_bit_id"),
       easeFactor: knowledgeBitSchedules.easeFactor,
@@ -85,7 +91,7 @@ export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor
       phase: knowledgeBitSchedules.phase,
       learningStep: knowledgeBitSchedules.learningStep,
       lapses: knowledgeBitSchedules.lapses,
-      pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id} order by ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
+      pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id} order by ${lastShownAt}, ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
         .mapWith(Number)
         .as("pick_rank"),
     })
