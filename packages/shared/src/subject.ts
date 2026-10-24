@@ -10,6 +10,7 @@ export const subjectSchema = z.object({
   modelTier: modelTierSchema.nullable(),
   parentId: z.string().nullable(),
   sortOrder: z.number().nullable().optional(),
+  learningIntent: z.string().nullable().optional(),
 });
 
 export type Subject = z.infer<typeof subjectSchema>;
@@ -28,6 +29,7 @@ export const updateSubjectInput = z.object({
   name: z.string().trim().min(1).optional(),
   modelTier: modelTierSchema.nullable().optional(),
   parentId: z.string().nullable().optional(),
+  learningIntent: z.string().trim().max(1000).nullable().optional(),
 });
 
 export type UpdateSubjectInput = z.infer<typeof updateSubjectInput>;

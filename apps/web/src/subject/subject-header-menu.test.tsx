@@ -22,6 +22,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./subject.api', () => ({
   createSubject: vi.fn(async () => null),
   updateSubjectName: vi.fn(async () => null),
+  updateSubjectLearningIntent: vi.fn(async () => null),
   updateSubjectParent: vi.fn(async () => null),
   deleteSubject: vi.fn(async () => null),
 }))
@@ -65,6 +66,7 @@ describe('SubjectHeaderMenu', () => {
       'Add sub-subject',
       'Move under…',
       'Rename',
+      'Learning intent',
       'Delete subject',
     ])
   })

@@ -15,6 +15,7 @@ export const subjectSchema = z.object({
   modelTier: modelTierSchema.nullable(),
   parentId: z.string().nullable(),
   sortOrder: z.number().nullable().optional(),
+  learningIntent: z.string().nullable().optional(),
 })
 
 export type Subject = z.infer<typeof subjectSchema>

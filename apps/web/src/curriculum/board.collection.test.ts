@@ -47,7 +47,21 @@ describe('mapSubjectRow', () => {
       kind: 'architecture-mentor',
       modelTier: null,
       parentId: null,
+      learningIntent: null,
     })
+  })
+
+  it('maps learning_intent to learningIntent', () => {
+    const subject = mapSubjectRow({
+      id: 'subj-1',
+      name: 'Business',
+      description: null,
+      require_sources: false,
+      kind: 'architecture-mentor',
+      learning_intent: 'Apply sales rules',
+    })
+
+    expect(subject.learningIntent).toBe('Apply sales rules')
   })
 
   it('carries the parent id of a nested subject from the synced row', () => {

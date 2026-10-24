@@ -35,6 +35,7 @@ function toSubject(r: typeof subjects.$inferSelect): Subject {
     modelTier: (r.modelTier as ModelTier | null) ?? null,
     parentId: r.parentId ?? null,
     sortOrder: r.sortOrder ?? null,
+    learningIntent: r.learningIntent ?? null,
   };
 }
 
@@ -142,6 +143,10 @@ export async function updateSubject(
 
   if (input.modelTier !== undefined) {
     patch.modelTier = input.modelTier;
+  }
+
+  if (input.learningIntent !== undefined) {
+    patch.learningIntent = input.learningIntent?.trim() ? input.learningIntent.trim() : null;
   }
 
   if (input.parentId !== undefined) {
@@ -298,6 +303,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     embeddedAt: null,
     modelTier: null,
     sortOrder: null,
+    learningIntent: null,
   });
 }
 

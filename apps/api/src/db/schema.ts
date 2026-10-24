@@ -53,6 +53,7 @@ export const subjects = pgTable("subjects", {
   parentId: text("parent_id"),
   // Reserved for drag-to-reorder: nullable, no default; lists order by this, then name.
   sortOrder: integer("sort_order"),
+  learningIntent: text("learning_intent"),
 },
 (table) => [
   index("subjects_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),

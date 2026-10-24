@@ -1,4 +1,5 @@
 export * from "./subject";
+export * from "./subject-learning-intent";
 export * from "./source";
 export * from "./depth";
 export * from "./level";

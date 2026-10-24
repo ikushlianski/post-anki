@@ -9,6 +9,7 @@ type SubjectRow = {
   modelTier: string | null;
   parentId: string | null;
   sortOrder: number | null;
+  learningIntent?: string | null;
 };
 
 const state = vi.hoisted(() => ({
@@ -112,6 +113,24 @@ describe("updateSubject", () => {
 
     expect(state.patch).toEqual({ name: "Renamed Patterns" });
     expect(updated).toMatchObject({ ok: true, subject: { name: "Renamed Patterns" } });
+  });
+
+  it("stores a trimmed learning intent", async () => {
+    state.updateRows = [makeRow({ learningIntent: "Apply sales rules" })];
+
+    const updated = await updateSubject("sub_1", { learningIntent: "  Apply sales rules  " });
+
+    expect(state.patch).toEqual({ learningIntent: "Apply sales rules" });
+    expect(updated).toMatchObject({ ok: true, subject: { learningIntent: "Apply sales rules" } });
+  });
+
+  it("clears the learning intent so the subject inherits again when the text is empty", async () => {
+    state.updateRows = [makeRow({ learningIntent: null })];
+
+    const updated = await updateSubject("sub_1", { learningIntent: "" });
+
+    expect(state.patch).toEqual({ learningIntent: null });
+    expect(updated).toMatchObject({ ok: true, subject: { learningIntent: null } });
   });
 
   it("keeps updating the model tier without touching the name", async () => {

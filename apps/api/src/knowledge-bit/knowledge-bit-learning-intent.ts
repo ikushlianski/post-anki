@@ -1,11 +1,11 @@
 import { log } from "../shared/log.js";
+import { DEFAULT_LEARNING_INTENT, resolveLearningIntent } from "../subject/subject-learning-intent.js";
 
-export const DEFAULT_LEARNING_INTENT =
-  "Learn transferable principles and rules the learner can apply later, not the author's personal story, dates, names or one-off facts.";
+export { DEFAULT_LEARNING_INTENT };
 
 export type LearningIntentLoader = (subjectId: string | null) => Promise<string>;
 
-export const resolveKnowledgeBitLearningIntent: LearningIntentLoader = async () => DEFAULT_LEARNING_INTENT;
+export const resolveKnowledgeBitLearningIntent: LearningIntentLoader = resolveLearningIntent;
 
 export async function loadLearningIntentSafely(
   subjectId: string | null,

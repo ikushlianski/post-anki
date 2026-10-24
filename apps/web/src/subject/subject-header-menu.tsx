@@ -3,8 +3,16 @@ import { useRouter } from '@tanstack/react-router'
 import type { Subject } from '../curriculum/model'
 import { focusPageHeading } from '../ui/focus-page-heading'
 import { OVERFLOW_MENU_ITEM_CLASS, OverflowMenu } from '../ui/overflow-menu'
-import { createSubject, deleteSubject, updateSubjectName, updateSubjectParent } from './subject.api'
+import { inheritedLearningIntent } from '@post-anki/shared'
+import {
+  createSubject,
+  deleteSubject,
+  updateSubjectLearningIntent,
+  updateSubjectName,
+  updateSubjectParent,
+} from './subject.api'
 import { SubjectDeleteConfirm } from './subject-delete-confirm'
+import { SubjectLearningIntentForm } from './subject-learning-intent-form'
 import { SubjectMovePicker } from './subject-move-picker'
 import { SubjectNameForm } from './subject-name-form'
 import { buildMoveOptions, countDirectSubSubjects } from './subject-menu-model'
@@ -44,6 +52,42 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
     if (ok) {
       close(true)
     }
+  }
+
+  async function handleLearningIntent(learningIntent: string) {
+    if (learningIntent === (subject.learningIntent ?? '')) {
+      close(true)
+
+      return
+    }
+
+    const ok = await attempt(
+      () =>
+        refreshAfter(() =>
+          updateSubjectLearningIntent({ data: { subjectId: subject.id, learningIntent } }),
+        ),
+      'Saving the learning intent failed — try again.',
+    )
+
+    if (ok) {
+      close(true)
+    }
+  }
+
+  function defaultIntentFor(): string {
+    const rows = (subjects ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      parentId: row.parentId,
+      learningIntent: row.learningIntent ?? null,
+    }))
+
+    return inheritedLearningIntent(
+      subject.id,
+      rows.some((row) => row.id === subject.id)
+        ? rows
+        : [...rows, { id: subject.id, name: subject.name, parentId: subject.parentId, learningIntent: null }],
+    )
   }
 
   async function handleAddSubSubject(name: string) {
@@ -130,6 +174,15 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
           <button
             type="button"
             role="menuitem"
+            data-testid={`subject-intent-${subject.id}-button`}
+            onClick={() => showView('learning-intent')}
+            className={OVERFLOW_MENU_ITEM_CLASS}
+          >
+            Learning intent
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             data-testid="delete-subject-button"
             onClick={() => showView('confirm-delete')}
             className={`${OVERFLOW_MENU_ITEM_CLASS} text-red-600`}
@@ -153,6 +206,18 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
             submit: `subject-rename-${subject.id}-confirm`,
           }}
           onSubmit={handleRename}
+          onCancel={() => showView('actions')}
+        />
+      ) : null}
+
+      {view === 'learning-intent' ? (
+        <SubjectLearningIntentForm
+          subjectId={subject.id}
+          initialValue={subject.learningIntent ?? ''}
+          defaultIntent={defaultIntentFor()}
+          busy={busy}
+          error={error}
+          onSubmit={handleLearningIntent}
           onCancel={() => showView('actions')}
         />
       ) : null}

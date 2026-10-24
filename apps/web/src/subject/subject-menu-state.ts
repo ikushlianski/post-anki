@@ -6,6 +6,7 @@ export type SubjectMenuView =
   | 'closed'
   | 'actions'
   | 'rename'
+  | 'learning-intent'
   | 'add-child'
   | 'move'
   | 'confirm-delete'

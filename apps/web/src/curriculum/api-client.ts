@@ -808,6 +808,16 @@ export async function updateSubjectModelTier(
   })
 }
 
+export async function updateSubjectLearningIntent(
+  subjectId: string,
+  learningIntent: string,
+): Promise<Subject> {
+  return request<be.Subject>(`/subjects/${subjectId}`, {
+    method: 'PATCH',
+    body: { learningIntent },
+  })
+}
+
 export async function updateSubjectParent(
   subjectId: string,
   parentId: string | null,
