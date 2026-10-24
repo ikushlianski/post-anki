@@ -36,6 +36,7 @@ import { createKnowledgeBitSourceItemsAgent } from "./knowledge-bit-source-items
 import { createArticleSummaryAgent } from "./article-summary.agent.js";
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
 import { createKnowledgeBitPlacerAgent } from "./knowledge-bit-placer.agent.js";
+import { createSubjectSuggestionGraderAgent } from "./subject-suggestion-grader.agent.js";
 import { createKnowledgeBitQuestionGeneratorAgent } from "./knowledge-bit-question-generator.agent.js";
 import { createKnowledgeBitFillBlankGeneratorAgent } from "./knowledge-bit-fill-blank-generator.agent.js";
 import { createKnowledgeBitBasicCardGeneratorAgent } from "./knowledge-bit-basic-card-generator.agent.js";
@@ -78,6 +79,7 @@ export const AGENT_KEYS = {
   articleSummary: "articleSummary",
   knowledgeBitTagger: "knowledgeBitTagger",
   knowledgeBitPlacer: "knowledgeBitPlacer",
+  subjectSuggestionGrader: "subjectSuggestionGrader",
   knowledgeBitQuestionGenerator: "knowledgeBitQuestionGenerator",
   knowledgeBitFillBlankGenerator: "knowledgeBitFillBlankGenerator",
   knowledgeBitBasicCardGenerator: "knowledgeBitBasicCardGenerator",
@@ -166,6 +168,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.articleSummary]: createArticleSummaryAgent(),
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),
         [AGENT_KEYS.knowledgeBitPlacer]: createKnowledgeBitPlacerAgent(),
+        [AGENT_KEYS.subjectSuggestionGrader]: createSubjectSuggestionGraderAgent(),
         [AGENT_KEYS.knowledgeBitQuestionGenerator]: createKnowledgeBitQuestionGeneratorAgent(),
         [AGENT_KEYS.knowledgeBitFillBlankGenerator]: createKnowledgeBitFillBlankGeneratorAgent(),
         [AGENT_KEYS.knowledgeBitBasicCardGenerator]: createKnowledgeBitBasicCardGeneratorAgent(),

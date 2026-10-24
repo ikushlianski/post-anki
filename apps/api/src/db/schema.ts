@@ -2150,3 +2150,32 @@ export const modelComparisonCardGrade = pgTable(
     uniqueIndex("model_comparison_card_grade_card_unique").on(table.runId, table.modelId, table.cardIndex),
   ],
 );
+
+export const subjectSuggestions = pgTable(
+  "subject_suggestions",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    parentSubjectId: text("parent_subject_id"),
+    proposedName: text("proposed_name").notNull(),
+    reason: text("reason").notNull(),
+    evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull(),
+    evidenceSamples: jsonb("evidence_samples").$type<string[]>().notNull(),
+    evidenceCount: integer("evidence_count").notNull(),
+    status: text("status").notNull().default("pending"),
+    dedupeKey: text("dedupe_key").notNull(),
+    createdSubjectId: text("created_subject_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("subject_suggestions_dedupe_key_unique").on(table.dedupeKey)],
+);
+
+export const subjectSuggestionRuns = pgTable("subject_suggestion_runs", {
+  id: text("id").primaryKey(),
+  ranAt: timestamp("ran_at", { withTimezone: true }).notNull().defaultNow(),
+  trigger: text("trigger").notNull(),
+  calls: integer("calls").notNull(),
+  created: integer("created").notNull(),
+  poolSize: integer("pool_size").notNull(),
+});

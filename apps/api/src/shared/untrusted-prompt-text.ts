@@ -1,6 +1,7 @@
 const PROMPT_TAG_NAMES = [
   "source",
   "bit",
+  "subject",
   "question",
   "reference_answer",
   "learner_answer",

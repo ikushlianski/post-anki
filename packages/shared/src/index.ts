@@ -73,3 +73,4 @@ export * from "./model-comparison";
 export * from "./knowledge-bit-origin";
 export * from "./knowledge-source-refusal";
 export * from "./knowledge-bit-export";
+export * from "./subject-suggestion";

@@ -654,6 +654,14 @@ export const ROUTES: RouteDef[] = [
     name: "resolveSubjectDuplicateSuggestion",
     param: "id",
   },
+  { method: "POST", pattern: "/subject-suggestion-scans", name: "triggerSubjectSuggestionScan" },
+  { method: "GET", pattern: "/subject-suggestions", name: "listSubjectSuggestions" },
+  {
+    method: "PATCH",
+    pattern: /^\/subject-suggestions\/([^/]+)$/,
+    name: "resolveSubjectSuggestion",
+    param: "id",
+  },
   {
     method: "POST",
     pattern: /^\/curricula\/([^/]+)\/domain-mappings$/,

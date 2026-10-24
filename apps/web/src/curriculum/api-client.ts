@@ -2155,6 +2155,49 @@ export async function resolveSubjectDuplicateSuggestion(
   )
 }
 
+export type ResolveSubjectSuggestionResult =
+  | { outcome: 'resolved'; suggestion: be.SubjectSuggestion }
+  | { outcome: 'name_taken' }
+  | { outcome: 'already_resolved' }
+
+export async function triggerSubjectSuggestionScan(): Promise<be.TriggerSubjectSuggestionScanResult> {
+  return request<be.TriggerSubjectSuggestionScanResult>('/subject-suggestion-scans', {
+    method: 'POST',
+  })
+}
+
+export async function listSubjectSuggestions(
+  status?: be.SubjectSuggestionStatus,
+): Promise<be.SubjectSuggestion[]> {
+  const query = status ? `?status=${status}` : ''
+
+  return request<be.SubjectSuggestion[]>(`/subject-suggestions${query}`)
+}
+
+export async function resolveSubjectSuggestion(
+  suggestionId: string,
+  input: be.ResolveSubjectSuggestionInput,
+): Promise<ResolveSubjectSuggestionResult> {
+  try {
+    const suggestion = await request<be.SubjectSuggestion>(
+      `/subject-suggestions/${suggestionId}`,
+      { method: 'PATCH', body: input },
+    )
+
+    return { outcome: 'resolved', suggestion }
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409 && err.code === 'name_taken') {
+      return { outcome: 'name_taken' }
+    }
+
+    if (err instanceof ApiError && err.status === 409 && err.code === 'already_resolved') {
+      return { outcome: 'already_resolved' }
+    }
+
+    throw err
+  }
+}
+
 export function listCourseRefocusSuggestions(): Promise<CourseRefocusSuggestion[]> {
   return request<CourseRefocusSuggestion[]>('/course-refocus-suggestions', { method: 'GET' })
 }

@@ -16,7 +16,12 @@ vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
   generateKnowledgeBitFillBlanks: vi.fn().mockResolvedValue({}),
 }));
 
-import { createKnowledgeBitPipelineKick } from "./knowledge-bit-pipeline-kick.orchestrator.js";
+vi.mock("../subject-suggestion/subject-suggestion.orchestrator.js", () => ({
+  runSubjectSuggestionScan: vi.fn().mockResolvedValue({}),
+}));
+
+import { runSubjectSuggestionScan } from "../subject-suggestion/subject-suggestion.orchestrator.js";
+import { createKnowledgeBitPipelineKick, KNOWLEDGE_BIT_PIPELINE_PASSES } from "./knowledge-bit-pipeline-kick.orchestrator.js";
 
 function makePass(name: string, impl?: () => Promise<unknown>) {
   return { name, run: impl ?? vi.fn().mockResolvedValue({ processed: 1 }) };
@@ -171,5 +176,16 @@ describe("createKnowledgeBitPipelineKick", () => {
 
       expect(callCount).toBe(2);
     });
+  });
+});
+
+describe("KNOWLEDGE_BIT_PIPELINE_PASSES", () => {
+  it("should end with the daily-capped subject suggestion pass", async () => {
+    const last = KNOWLEDGE_BIT_PIPELINE_PASSES[KNOWLEDGE_BIT_PIPELINE_PASSES.length - 1];
+
+    await last?.run();
+
+    expect(last?.name).toBe("subject_suggestions");
+    expect(runSubjectSuggestionScan).toHaveBeenCalledWith({ ignoreDailyCap: false });
   });
 });

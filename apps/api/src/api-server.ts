@@ -256,6 +256,11 @@ import {
   handleTriggerSubjectDuplicateScan,
 } from "./subject-duplicate/subject-duplicate.controller.js";
 import {
+  handleListSubjectSuggestions,
+  handleResolveSubjectSuggestion,
+  handleTriggerSubjectSuggestionScan,
+} from "./subject-suggestion/subject-suggestion.controller.js";
+import {
   handleListCurriculumDomainMappings,
   handleResolveCurriculumDomainMapping,
   handleTriggerCurriculumDomainMapping,
@@ -923,6 +928,12 @@ async function route(
       return handleListSubjectDuplicateSuggestions(res, url.searchParams.get("status"));
     case "resolveSubjectDuplicateSuggestion":
       return handleResolveSubjectDuplicateSuggestion(req, res, id);
+    case "triggerSubjectSuggestionScan":
+      return handleTriggerSubjectSuggestionScan(res);
+    case "listSubjectSuggestions":
+      return handleListSubjectSuggestions(res, url.searchParams.get("status"));
+    case "resolveSubjectSuggestion":
+      return handleResolveSubjectSuggestion(req, res, id);
     case "triggerCurriculumDomainMapping":
       return handleTriggerCurriculumDomainMapping(res, id);
     case "listCurriculumDomainMappings":
