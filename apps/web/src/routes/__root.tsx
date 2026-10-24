@@ -39,7 +39,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'post·anki',
+        title: 'Post Anki',
       },
     ],
     links: [
@@ -69,16 +69,9 @@ function RootDocument({ children }: { children: ReactNode }) {
           <div className="border-b border-neutral-200 bg-white">
             <div className="flex items-center gap-x-3 px-5 py-3 sm:px-8">
               <Link to="/" className="shrink-0 text-base font-semibold tracking-tight">
-                post·anki
+                Post Anki
               </Link>
               <GlobalSearch onSearch={headerSearch} />
-              <Link
-                to="/find"
-                data-testid="find-page-link"
-                className="hidden shrink-0 text-sm text-neutral-500 underline underline-offset-2 hover:text-neutral-900 sm:block"
-              >
-                Find
-              </Link>
               <button
                 type="button"
                 className="md:hidden"

@@ -2,22 +2,11 @@ import { useCallback, useRef, useState } from 'react'
 import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import {
-  approveKnowledgeBitForReview,
   editKnowledgeBitForReview,
   getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
-  rejectKnowledgeBitForReview,
-  restoreKnowledgeBitForReview,
-  setKnowledgeBitFeedbackReasonForReview,
 } from './knowledge-bit-review.api'
-import {
-  applyBitEdit,
-  applyVariantEdit,
-  removeBit,
-  restoreBit,
-  snapshotBit,
-} from './knowledge-bit-review-sources'
-import { useRejectionWhy } from './knowledge-bit-review-why'
+import { applyBitEdit, applyVariantEdit } from './knowledge-bit-review-sources'
 import { KnowledgeBitReviewWhyStrip } from './knowledge-bit-review-why-strip'
 import { KnowledgeBitReviewBulkBar } from './knowledge-bit-review-bulk-bar'
 import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
@@ -27,8 +16,11 @@ import {
 } from './knowledge-bit-review-regeneration'
 import { KnowledgeBitReviewEmptyState } from './knowledge-bit-review-empty-state'
 import { KnowledgeBitReviewSourceGroup } from './knowledge-bit-review-source-group'
-import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
-import { useReviewKeyboard, type ReviewKeyAction } from './knowledge-bit-review-keyboard'
+import {
+  useReviewKeyboard,
+  variantIndexOf,
+  type ReviewKeyAction,
+} from './knowledge-bit-review-keyboard'
 import {
   QUESTION_POLL_IDLE_LIMIT,
   hasBitAwaitingQuestions,
@@ -38,7 +30,21 @@ import {
   unseenBitIds,
   useQuestionPolling,
 } from './knowledge-bit-review-polling'
+import { useReviewDecisions } from './use-review-decisions'
+import { useReviewTriage } from './use-review-triage'
+import { useReviewGrading } from './use-review-grading'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
+import { TriageSessionSection } from '../card-triage/triage-session-section'
+import { useTriageSession } from '../card-triage/use-triage-session'
+
+function singleSubjectId(pending: PendingKnowledgeSourceForReview[]): string | null {
+  const ids = new Set(
+    pending.filter((source) => source.bits.length > 0).map((source) => source.subjectId ?? null),
+  )
+  const [only] = ids
+
+  return ids.size === 1 ? (only ?? null) : null
+}
 
 export function KnowledgeBitReviewPanel({
   initialSources,
@@ -49,9 +55,7 @@ export function KnowledgeBitReviewPanel({
   const [focusedIndex, setFocusedIndex] = useState(0)
   const [focusedBitId, setFocusedBitId] = useState<string>()
   const [idleStopped, setIdleStopped] = useState(false)
-  const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const editingBitIds = useRef(new Set<string>())
-  // Every bit ever shown or decided here; a poll never re-adds one of these.
   const knownBitIds = useRef(
     new Set(initialSources.flatMap((source) => source.bits.map((bit) => bit.id))),
   )
@@ -59,7 +63,30 @@ export function KnowledgeBitReviewPanel({
   const regeneration = useSourceRegeneration({ sources, setSources, knownBitIds })
   const { fetchStatuses, applyStatuses } = regeneration
 
-  const allBits = sources.flatMap((source) => source.bits)
+  const { claim: claimBit, release: releaseBit, isResolving: isBitResolving } =
+    useResolvingSuggestions()
+  const { claim: claimVariant, release: releaseVariant } = useResolvingSuggestions()
+  const { claim: claimBitEdit, release: releaseBitEdit } = useResolvingSuggestions()
+  const { decisions, rowErrors, approve, keepVariants, reject, undo, undoLast, markApproved } = useReviewDecisions({
+    knownBitIds,
+    claimBit,
+    releaseBit,
+  })
+  const triage = useReviewTriage({
+    findBit: (bitId) => sources.flatMap((source) => source.bits).find((bit) => bit.id === bitId),
+    approve,
+    keepVariants,
+  })
+  const { why, openGrade } = useReviewGrading({ sources, decisions })
+  const pendingSources = sources.map((source) => ({
+    ...source,
+    bits: source.bits.filter((bit) => !decisions[bit.id]),
+  }))
+  const triageSession = useTriageSession({
+    decisions,
+    subjectId: singleSubjectId(pendingSources),
+  })
+  const allBits = pendingSources.flatMap((source) => source.bits)
   const focusPosition = allBits.findIndex((bit) => bit.id === focusedBitId)
   const activeIndex =
     focusPosition >= 0 ? focusPosition : Math.min(focusedIndex, allBits.length - 1)
@@ -94,7 +121,7 @@ export function KnowledgeBitReviewPanel({
   }, [rowErrors, fetchStatuses, applyStatuses])
 
   const pollingGaveUp = useQuestionPolling(
-    hasBitAwaitingQuestions(sources) || !idleStopped || regeneration.isRegenerating,
+    hasBitAwaitingQuestions(pendingSources) || !idleStopped || regeneration.isRegenerating,
     refreshQuestions,
     regeneration.isRegenerating ? REGENERATION_POLL_INTERVAL_MS : undefined,
     regeneration.isRegenerating ? REGENERATION_POLL_MAX_ATTEMPTS : undefined,
@@ -108,98 +135,16 @@ export function KnowledgeBitReviewPanel({
     }
   }, [])
 
-  const { claim: claimBit, release: releaseBit, isResolving: isBitResolving } =
-    useResolvingSuggestions()
-  const { claim: claimVariant, release: releaseVariant, isResolving: isVariantSaving } =
-    useResolvingSuggestions()
-  const { claim: claimBitEdit, release: releaseBitEdit, isResolving: isBitSaving } =
-    useResolvingSuggestions()
   const bulk = useBulkApproval({
-    sources,
+    sources: pendingSources,
     readyBits,
     setSources,
+    markApproved,
     knownBitIds,
     editingBitIds,
     claimBit,
     releaseBit,
   })
-
-  function setRowError(bitId: string, message: string | null) {
-    setRowErrors((prev) => ({ ...prev, [bitId]: message ?? '' }))
-  }
-
-  async function approve(bitId: string) {
-    if (!claimBit(bitId)) {
-      return
-    }
-
-    setRowError(bitId, null)
-
-    try {
-      await approveKnowledgeBitForReview({ data: { bitId } })
-
-      knownBitIds.current.add(bitId)
-      setSources((prev) => removeBit(prev, bitId))
-      notifyPendingReviewChanged()
-    } catch {
-      // Row stays listed on failure so the decision can be retried.
-      setRowError(bitId, "Couldn't approve. Try again.")
-    } finally {
-      releaseBit(bitId)
-    }
-  }
-
-  const why = useRejectionWhy({
-    setReason: async (feedbackId, reasonCode, note) => {
-      try {
-        await setKnowledgeBitFeedbackReasonForReview({
-          data: { feedbackId, reasonCode, ...(note ? { note } : {}) },
-        })
-
-        return true
-      } catch {
-        return false
-      }
-    },
-    undo: async (prompt) => {
-      try {
-        await restoreKnowledgeBitForReview({ data: { bitId: prompt.bitId } })
-        setSources((prev) => restoreBit(prev, prompt.snapshot))
-        notifyPendingReviewChanged()
-
-        return true
-      } catch {
-        return false
-      }
-    },
-  })
-
-  async function reject(bitId: string) {
-    if (!claimBit(bitId)) {
-      return
-    }
-
-    setRowError(bitId, null)
-
-    const snapshot = snapshotBit(sources, bitId)
-
-    try {
-      const result = await rejectKnowledgeBitForReview({ data: { bitId } })
-
-      knownBitIds.current.add(bitId)
-      setSources((prev) => removeBit(prev, bitId))
-      notifyPendingReviewChanged()
-
-      if (snapshot) {
-        why.show({ bitId, feedbackId: result?.feedbackId ?? null, snapshot })
-      }
-    } catch {
-      // Same retry posture as approve above.
-      setRowError(bitId, "Couldn't reject. Try again.")
-    } finally {
-      releaseBit(bitId)
-    }
-  }
 
   async function saveVariant(
     bitId: string,
@@ -216,12 +161,10 @@ export function KnowledgeBitReviewPanel({
         data: { variantId, prompt, answer },
       })
 
-      // The edit supersedes rather than mutates — the new variant id must replace the old one.
       setSources((prev) => applyVariantEdit(prev, bitId, variantId, result.variantId, prompt, answer))
 
       return true
     } catch {
-      // Editor stays open on failure so the edit can be retried.
       return false
     } finally {
       releaseVariant(variantId)
@@ -236,12 +179,10 @@ export function KnowledgeBitReviewPanel({
     try {
       await editKnowledgeBitForReview({ data: { bitId, body, background } })
 
-      // A body change clears the bit's variants (server regenerates); background-only keeps them.
       setSources((prev) => applyBitEdit(prev, bitId, body, background))
 
       return true
     } catch {
-      // Editor stays open on failure so the edit can be retried.
       return false
     } finally {
       releaseBitEdit(bitId)
@@ -249,9 +190,17 @@ export function KnowledgeBitReviewPanel({
   }
 
   function handleKey(action: ReviewKeyAction) {
+    if (action === 'undo') {
+      void undoLast()
+
+      return
+    }
+
     if (!focusedBit) {
       return
     }
+
+    const variantIndex = variantIndexOf(action)
 
     if (action === 'next') {
       moveFocus(Math.min(activeIndex + 1, allBits.length - 1))
@@ -259,14 +208,14 @@ export function KnowledgeBitReviewPanel({
       moveFocus(Math.max(activeIndex - 1, 0))
     } else if (editingBitIds.current.has(focusedBit.id) || isBitResolving(focusedBit.id)) {
       return
+    } else if (variantIndex !== null) {
+      triage.onToggle?.(focusedBit.id, variantIndex)
     } else if (action === 'reject') {
       void reject(focusedBit.id)
-    } else if (action === 'approve') {
-      if (focusedBit.variants.length > 0) {
-        void approve(focusedBit.id)
-      }
+    } else if (action === 'approve' || action === 'keep') {
+      triage.onKeep?.(focusedBit.id)
     } else {
-      const source = sources.find((c) => c.bits.some((bit) => bit.id === focusedBit.id))
+      const source = pendingSources.find((c) => c.bits.some((bit) => bit.id === focusedBit.id))
 
       if (source) {
         bulk.requestApproveSource(source.knowledgeSourceId)
@@ -278,11 +227,13 @@ export function KnowledgeBitReviewPanel({
 
   return (
     <div data-testid="knowledge-bit-review-panel" className="space-y-4">
-      {hasBitAwaitingQuestions(sources) && !pollingGaveUp ? (
+      {hasBitAwaitingQuestions(pendingSources) && !pollingGaveUp ? (
         <p data-testid="knowledge-bit-review-progress" className="text-sm text-neutral-600">
           Writing cards… {readyBits.length} of {allBits.length} ready
         </p>
       ) : null}
+
+      <TriageSessionSection session={triageSession} />
 
       <KnowledgeBitReviewBulkBar
         readyCount={readyBits.length}
@@ -302,12 +253,12 @@ export function KnowledgeBitReviewPanel({
               key={source.knowledgeSourceId}
               source={source}
               focusedBitId={focusedBit?.id}
+              decisions={decisions}
               pollingGaveUp={pollingGaveUp}
               rowErrors={rowErrors}
               isBitResolving={isBitResolving}
-              isVariantSaving={isVariantSaving}
-              isBitSaving={isBitSaving}
               isConfirmingBulk={bulk.confirmingSourceId === source.knowledgeSourceId}
+              triage={triage}
               regeneration={regeneration.states[source.knowledgeSourceId]}
               regenerationActions={regeneration.actions}
               onRequestApproveSource={bulk.requestApproveSource}
@@ -316,6 +267,9 @@ export function KnowledgeBitReviewPanel({
               onEditingChange={handleEditingChange}
               onApprove={approve}
               onReject={reject}
+              onUndo={undo}
+              onGrade={openGrade}
+              hideGrading={triageSession.isOpen}
               onSaveVariant={saveVariant}
               onSaveBit={saveBit}
             />
@@ -323,7 +277,7 @@ export function KnowledgeBitReviewPanel({
         </ul>
       )}
 
-      <KnowledgeBitReviewWhyStrip why={why} />
+      {triageSession.isOpen ? null : <KnowledgeBitReviewWhyStrip why={why} />}
     </div>
   )
 }

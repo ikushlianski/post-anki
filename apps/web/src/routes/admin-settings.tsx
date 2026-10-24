@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 
-import type { KnowledgeItemModelId, ModelTier } from '@post-anki/shared'
-import {
-  getAdminSettings,
-  updateAdminSettings,
-} from '../admin-settings/admin-settings.api'
+import type { KnowledgeItemModelId, ModelTier, UpdateAdminSettingsInput } from '@post-anki/shared'
+import { getAdminSettings, updateAdminSettings } from '../admin-settings/admin-settings.api'
 import { AdminSettingsToggle } from '../admin-settings/admin-settings-toggle'
+import { clearAllKnowledge } from '../admin-settings/clear-all-knowledge.api'
+import { ClearAllKnowledgeZone } from '../admin-settings/clear-all-knowledge-zone'
 import { KnowledgeItemModelSelect } from '../admin-settings/knowledge-item-model-select'
 import { ModelTierSelect } from '../admin-settings/model-tier-select'
+import { NewCardsPerDayField } from '../admin-settings/new-cards-per-day-field'
 import { getPendingPlacementSuggestions } from '../knowledge-bit/knowledge-bit.api'
 import { PlacementSuggestionsPanel } from '../knowledge-bit/placement-suggestions-panel'
+import { settle } from '../shared/load-result'
 import { getBoard } from '../curriculum/curriculum.api'
 
 export const Route = createFileRoute('/admin-settings')({
@@ -18,39 +19,59 @@ export const Route = createFileRoute('/admin-settings')({
   loader: async () => {
     const [settings, placementSuggestions, board] = await Promise.all([
       getAdminSettings(),
-      getPendingPlacementSuggestions(),
-      getBoard(),
+      settle(getPendingPlacementSuggestions()),
+      settle(getBoard()),
     ])
 
     return { settings, placementSuggestions, board }
   },
 })
 
+type SettingField = 'testToggle' | 'modelTier' | 'knowledgeItemModel' | 'newCardsPerDay'
+
 function AdminSettingsPage() {
   const { settings, placementSuggestions, board } = Route.useLoaderData()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
+  const [failedField, setFailedField] = useState<SettingField | null>(null)
+  const [refreshFailed, setRefreshFailed] = useState(false)
 
-  async function setTestToggle(testToggle: boolean) {
+  async function save(field: SettingField, data: UpdateAdminSettingsInput) {
     setBusy(true)
-    await updateAdminSettings({ data: { testToggle } })
+    setFailedField(null)
+    setRefreshFailed(false)
+
+    try {
+      await updateAdminSettings({ data })
+    } catch {
+      setFailedField(field)
+      setBusy(false)
+
+      return false
+    }
+
+    await router.invalidate().catch(() => setRefreshFailed(true))
     setBusy(false)
-    await router.invalidate()
+
+    return true
   }
 
-  async function setModelTier(modelTier: ModelTier) {
-    setBusy(true)
-    await updateAdminSettings({ data: { modelTier } })
-    setBusy(false)
-    await router.invalidate()
-  }
+  const setTestToggle = (testToggle: boolean) => save('testToggle', { testToggle })
+  const setModelTier = (modelTier: ModelTier) => save('modelTier', { modelTier })
+  const setKnowledgeItemModel = (knowledgeItemModelId: KnowledgeItemModelId) =>
+    save('knowledgeItemModel', { knowledgeItemModelId })
+  const setNewCardsPerDay = (newCardsPerDay: number) => save('newCardsPerDay', { newCardsPerDay })
 
-  async function setKnowledgeItemModel(knowledgeItemModelId: KnowledgeItemModelId) {
-    setBusy(true)
-    await updateAdminSettings({ data: { knowledgeItemModelId } })
-    setBusy(false)
-    await router.invalidate()
-  }
+  const saveError = (field: SettingField) =>
+    failedField === field ? (
+      <p
+        role="alert"
+        data-testid={`admin-settings-save-error-${field}`}
+        className="text-sm text-red-600"
+      >
+        Could not save, try again.
+      </p>
+    ) : null
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -61,6 +82,16 @@ function AdminSettingsPage() {
         </p>
       </header>
 
+      {refreshFailed ? (
+        <p
+          role="status"
+          data-testid="admin-settings-refresh-error"
+          className="mb-3 text-sm text-amber-700"
+        >
+          Saved, but the page could not refresh. Reload to see the current values.
+        </p>
+      ) : null}
+
       <div className="space-y-3">
         <ModelTierSelect
           label="Model tier"
@@ -70,6 +101,7 @@ function AdminSettingsPage() {
           disabled={busy}
           testId="admin-settings-model-tier"
         />
+        {saveError('modelTier')}
         <KnowledgeItemModelSelect
           label="Knowledge item model"
           description="Model for detecting knowledge items and writing their questions and cards. Applies from the next run; a run already in progress keeps its model."
@@ -78,6 +110,16 @@ function AdminSettingsPage() {
           disabled={busy}
           testId="admin-settings-knowledge-item-model"
         />
+        {saveError('knowledgeItemModel')}
+        <NewCardsPerDayField
+          label="New cards per day"
+          description="Most new cards shown in a day, from 1 to 200. Reviews that are due are not limited."
+          value={settings.newCardsPerDay}
+          onChange={setNewCardsPerDay}
+          disabled={busy}
+          testId="admin-settings-new-cards-per-day"
+        />
+        {saveError('newCardsPerDay')}
         <AdminSettingsToggle
           label="Test toggle"
           description="A placeholder switch for wiring up admin settings end to end."
@@ -85,6 +127,7 @@ function AdminSettingsPage() {
           onChange={setTestToggle}
           disabled={busy}
         />
+        {saveError('testToggle')}
       </div>
 
       <section className="mt-8">
@@ -107,13 +150,24 @@ function AdminSettingsPage() {
           Knowledge bits with no existing topic match — accept into a module or reject.
         </p>
         <div className="mt-3">
-          <PlacementSuggestionsPanel
-            initialSuggestions={placementSuggestions}
-            subjects={board.subjects}
-            curricula={board.curricula}
-          />
+          {placementSuggestions.ok && board.ok ? (
+            <PlacementSuggestionsPanel
+              initialSuggestions={placementSuggestions.data}
+              subjects={board.data.subjects}
+              curricula={board.data.curricula}
+            />
+          ) : (
+            <p data-testid="admin-settings-placement-load-error" className="text-sm text-red-600">
+              Could not load placement suggestions. Reload to try again.
+            </p>
+          )}
         </div>
       </section>
+
+      <ClearAllKnowledgeZone
+        onClear={() => clearAllKnowledge()}
+        onCleared={() => router.invalidate()}
+      />
     </main>
   )
 }

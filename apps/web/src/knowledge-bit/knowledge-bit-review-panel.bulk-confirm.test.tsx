@@ -20,7 +20,6 @@ vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
   restoreKnowledgeBitForReview: vi.fn(),
-  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -34,6 +33,7 @@ function bit(id: string, withVariant: boolean) {
     id,
     body: `Body ${id}`,
     background: null,
+    origin: 'extracted' as const, isAiGenerated: false, sourceLinks: [],
     variants: withVariant
       ? [{ id: `var-${id}`, kind: 'wh_question' as const, prompt: `Q ${id}`, answer: `A ${id}` }]
       : [],
@@ -41,7 +41,7 @@ function bit(id: string, withVariant: boolean) {
 }
 
 function source(id: string, bits: ReturnType<typeof bit>[]): PendingKnowledgeSourceForReview {
-  return { knowledgeSourceId: id, sourceText: 'text', bits }
+  return { knowledgeSourceId: id, sourceText: 'text', subjectName: null, bits }
 }
 
 function requestApproveAll() {

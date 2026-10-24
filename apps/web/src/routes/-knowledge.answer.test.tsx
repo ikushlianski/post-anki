@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -192,5 +192,144 @@ describe('AnswerScreen', () => {
 
     expect(link.getAttribute('data-to')).toBe('/knowledge/review')
     expect(JSON.parse(link.getAttribute('data-search') ?? '{}')).toEqual({ tagId: 'tag-7' })
+  })
+
+  it('tells the learner loading failed and refetches on Retry instead of claiming nothing is due', async () => {
+    mockedGetNextQuestionVariants.mockRejectedValueOnce(new Error('network'))
+    mockedGetNextQuestionVariants.mockResolvedValue([
+      {
+        variantId: 'variant-1',
+        kind: 'wh_question',
+        prompt: 'Why does X happen?',
+        knowledgeBitId: 'bit-1',
+        bitBody: 'X happens because of Y.',
+      },
+    ])
+
+    renderWithClient(<AnswerScreen />)
+
+    const loadError = await screen.findByTestId('answer-screen-load-error')
+
+    expect(loadError.textContent).toContain("Couldn't load your questions")
+    expect(screen.queryByTestId('answer-screen-empty')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('answer-screen-retry'))
+
+    await screen.findByTestId('answer-screen-question')
+    expect(screen.queryByTestId('answer-screen-load-error')).toBeNull()
+  })
+
+  describe('typed answer shortcuts', () => {
+    beforeEach(() => {
+      mockedGradeQuestionVariant.mockReset()
+    })
+
+    const variant = {
+      variantId: 'variant-1',
+      kind: 'wh_question' as const,
+      prompt: 'Why does X happen?',
+      knowledgeBitId: 'bit-1',
+      bitBody: 'X happens because of Y.',
+    }
+
+    it('should let the learner skip a question without grading it', async () => {
+      mockedGetNextQuestionVariants.mockResolvedValue([
+        variant,
+        { ...variant, variantId: 'variant-2', prompt: 'Second question?' },
+      ])
+      renderWithClient(<AnswerScreen />)
+
+      await screen.findByText('Why does X happen?')
+      fireEvent.click(screen.getByTestId('answer-screen-skip'))
+
+      await screen.findByText('Second question?')
+      expect(mockedGradeQuestionVariant).not.toHaveBeenCalled()
+    })
+
+    it('should submit once on Ctrl+Enter even when pressed twice while grading', async () => {
+      mockedGetNextQuestionVariants.mockResolvedValue([variant])
+      mockedGradeQuestionVariant.mockReturnValue(new Promise(() => {}))
+      renderWithClient(<AnswerScreen />)
+
+      const textarea = await screen.findByTestId('answer-screen-textarea')
+
+      fireEvent.change(textarea, { target: { value: 'Because of Y.' } })
+      fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true })
+      fireEvent.keyDown(textarea, { key: 'Enter', ctrlKey: true })
+
+      await waitFor(() => expect(mockedGradeQuestionVariant).toHaveBeenCalledTimes(1))
+    })
+
+    it('should submit on Cmd+Enter but not on plain Enter', async () => {
+      mockedGetNextQuestionVariants.mockResolvedValue([variant])
+      mockedGradeQuestionVariant.mockReturnValue(new Promise(() => {}))
+      renderWithClient(<AnswerScreen />)
+
+      const textarea = await screen.findByTestId('answer-screen-textarea')
+
+      fireEvent.change(textarea, { target: { value: 'Because of Y.' } })
+      fireEvent.keyDown(textarea, { key: 'Enter' })
+      expect(mockedGradeQuestionVariant).not.toHaveBeenCalled()
+
+      fireEvent.keyDown(textarea, { key: 'Enter', metaKey: true })
+      await waitFor(() => expect(mockedGradeQuestionVariant).toHaveBeenCalledTimes(1))
+    })
+  })
+
+  describe('when grading fails', () => {
+    async function failGrading() {
+      mockedGetNextQuestionVariants.mockResolvedValue([
+        {
+          variantId: 'variant-1',
+          kind: 'wh_question',
+          prompt: 'Why does X happen?',
+          knowledgeBitId: 'bit-1',
+          bitBody: 'X happens because of Y.',
+        },
+      ])
+      mockedGradeQuestionVariant.mockResolvedValue({ ok: false, error: 'grading_failed' })
+
+      renderWithClient(<AnswerScreen />)
+
+      const textarea = await screen.findByTestId('answer-screen-textarea')
+      fireEvent.change(textarea, { target: { value: 'A long written answer.' } })
+      fireEvent.click(screen.getByTestId('answer-screen-submit'))
+
+      return screen.findByTestId('answer-screen-error')
+    }
+
+    it('shows a plain sentence without the raw error code', async () => {
+      const error = await failGrading()
+
+      expect(error.textContent).toContain("We couldn't grade your answer")
+      expect(error.textContent).not.toContain('grading_failed')
+    })
+
+    it('keeps the typed answer when the learner chooses Try again', async () => {
+      await failGrading()
+      fireEvent.click(screen.getByTestId('answer-screen-try-again'))
+
+      const textarea = await screen.findByTestId('answer-screen-textarea')
+
+      expect((textarea as HTMLTextAreaElement).value).toBe('A long written answer.')
+    })
+
+    it('clears the typed answer when the learner skips the question', async () => {
+      await failGrading()
+      mockedGetNextQuestionVariants.mockResolvedValue([
+        {
+          variantId: 'variant-2',
+          kind: 'wh_question',
+          prompt: 'Another question?',
+          knowledgeBitId: 'bit-2',
+          bitBody: 'Body.',
+        },
+      ])
+      fireEvent.click(screen.getByTestId('answer-screen-next'))
+
+      const textarea = await screen.findByTestId('answer-screen-textarea')
+
+      expect((textarea as HTMLTextAreaElement).value).toBe('')
+    })
   })
 })

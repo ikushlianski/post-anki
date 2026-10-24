@@ -1,9 +1,12 @@
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+// @vitest-environment jsdom
+import { afterEach, describe, it, expect } from 'vitest'
+import { cleanup, render } from '@testing-library/react'
 
 import { CurriculumProgressRow } from './curriculum-progress-row'
 
 describe('CurriculumProgressRow', () => {
+  afterEach(cleanup)
+
   it('renders progress bar with correct percent', () => {
     const { container } = render(
       <CurriculumProgressRow topicsMastered={3} topicsIncluded={5} percent={60} />

@@ -25,7 +25,6 @@ vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
   restoreKnowledgeBitForReview: vi.fn(),
-  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -43,12 +42,13 @@ function bit(id: string) {
     id,
     body: `Body ${id}`,
     background: null,
+    origin: 'extracted' as const, isAiGenerated: false, sourceLinks: [],
     variants: [{ id: `var-${id}`, kind: 'wh_question' as const, prompt: `Q ${id}`, answer: `A ${id}` }],
   }
 }
 
 function source(id: string, bitIds: string[], sourceText: string | null = 'text') {
-  return { knowledgeSourceId: id, sourceText, bits: bitIds.map(bit) } satisfies PendingKnowledgeSourceForReview
+  return { knowledgeSourceId: id, sourceText, subjectName: null, bits: bitIds.map(bit) } satisfies PendingKnowledgeSourceForReview
 }
 
 function renderPanel(sources: PendingKnowledgeSourceForReview[]) {
@@ -127,14 +127,14 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
 
     openConfirm()
     fireEvent.change(screen.getByTestId('knowledge-bit-review-regenerate-s1-model'), {
-      target: { value: 'openrouter/google/gemini-2.5-flash-lite' },
+      target: { value: 'openrouter/openai/gpt-4o-mini' },
     })
     await act(async () => {
       fireEvent.click(screen.getByTestId('knowledge-bit-review-regenerate-s1-confirm'))
     })
 
     expect(mockedRegenerate).toHaveBeenCalledWith({
-      data: { sourceId: 's1', modelId: 'openrouter/google/gemini-2.5-flash-lite' },
+      data: { sourceId: 's1', modelId: 'openrouter/openai/gpt-4o-mini' },
     })
 
     const status = screen.getByTestId('knowledge-bit-review-regenerate-s1-status')

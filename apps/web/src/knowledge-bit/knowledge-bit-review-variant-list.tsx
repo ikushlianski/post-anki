@@ -1,20 +1,35 @@
-import type { PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
+import { useState } from "react";
+import type { PendingKnowledgeBitQuestionVariant } from "@post-anki/shared";
 
-import { KnowledgeBitReviewCardFields } from './knowledge-bit-review-card-fields'
+import { KnowledgeBitReviewCardFields } from "./knowledge-bit-review-card-fields";
+import { KnowledgeBitReviewVariantPicker } from "./knowledge-bit-review-variant-picker";
+import { shownVariants, variantLabel } from "./knowledge-bit-triage-selection";
 
 export function KnowledgeBitReviewVariantList({
   bitId,
   variants,
   pollingGaveUp,
+  keptIds = [],
+  pickDisabled = false,
+  onToggle,
   onSave,
   onBusyChange,
 }: {
-  bitId: string
-  variants: PendingKnowledgeBitQuestionVariant[]
-  pollingGaveUp: boolean
-  onSave: (variantId: string, prompt: string, answer: string) => Promise<boolean>
-  onBusyChange: (key: string, busy: boolean) => void
+  bitId: string;
+  variants: PendingKnowledgeBitQuestionVariant[];
+  pollingGaveUp: boolean;
+  keptIds?: string[];
+  pickDisabled?: boolean;
+  onToggle?: (index: number) => void;
+  onSave: (
+    variantId: string,
+    prompt: string,
+    answer: string,
+  ) => Promise<boolean>;
+  onBusyChange: (key: string, busy: boolean) => void;
 }) {
+  const [open, setOpen] = useState(false);
+
   if (variants.length === 0) {
     return (
       <div
@@ -25,21 +40,81 @@ export function KnowledgeBitReviewVariantList({
           aria-hidden="true"
           className="size-2 shrink-0 animate-pulse rounded-full bg-neutral-400 motion-reduce:animate-none"
         />
-        {pollingGaveUp ? 'Still waiting. Reload the page to check again.' : 'Writing cards…'}
+        {pollingGaveUp
+          ? "Still waiting. Reload the page to check again."
+          : "Writing cards…"}
       </div>
-    )
+    );
   }
 
+  const [main, ...variations] = shownVariants(variants);
+
   return (
-    <div className="space-y-5">
-      {variants.map((variant, index) => (
-        <KnowledgeBitReviewCardFields
-          key={`card-${index}`}
-          variant={variant}
-          onSave={onSave}
-          onBusyChange={(busy) => onBusyChange(`card-${index}`, busy)}
-        />
-      ))}
+    <div
+      data-testid={`knowledge-bit-review-variants-${bitId}`}
+      className="space-y-3"
+    >
+      {main ? (
+        <div
+          data-testid={`knowledge-bit-review-variant-${bitId}-${main.id}`}
+          data-role="main"
+          className="space-y-2"
+        >
+          <KnowledgeBitReviewCardFields
+            variant={main}
+            onSave={onSave}
+            onBusyChange={(busy) => onBusyChange("card-0", busy)}
+          />
+        </div>
+      ) : null}
+      {variations.length > 0 ? (
+        <>
+          <button
+            type="button"
+            data-testid={`knowledge-bit-review-variations-toggle-${bitId}`}
+            aria-expanded={open}
+            onClick={() => setOpen((prev) => !prev)}
+            className="min-h-11 text-xs font-medium text-neutral-600 hover:text-neutral-900 sm:min-h-8"
+          >
+            {open ? "Hide variations" : `Variations (${variations.length})`}
+          </button>
+          <div
+            data-testid={`knowledge-bit-review-variations-${bitId}`}
+            hidden={!open}
+            className="grid items-start gap-4 md:grid-cols-2"
+          >
+            {variations.map((variant, offset) => {
+              const index = offset + 1;
+
+              return (
+                <div
+                  key={`card-${index}`}
+                  data-testid={`knowledge-bit-review-variant-${bitId}-${variant.id}`}
+                  data-role="variation"
+                  className="space-y-2"
+                >
+                  {onToggle ? (
+                    <KnowledgeBitReviewVariantPicker
+                      bitId={bitId}
+                      variantId={variant.id}
+                      number={index + 1}
+                      label={variantLabel(shownVariants(variants), index)}
+                      selected={keptIds.includes(variant.id)}
+                      disabled={pickDisabled}
+                      onToggle={() => onToggle(index)}
+                    />
+                  ) : null}
+                  <KnowledgeBitReviewCardFields
+                    variant={variant}
+                    onSave={onSave}
+                    onBusyChange={(busy) => onBusyChange(`card-${index}`, busy)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
     </div>
-  )
+  );
 }

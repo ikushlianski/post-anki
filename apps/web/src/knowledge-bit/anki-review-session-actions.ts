@@ -3,6 +3,8 @@ import type { ReviewCard, ReviewGrade } from '@post-anki/shared'
 
 import type { AnkiReviewSessionAction, AnkiReviewSessionState, SessionUndoEntry } from './anki-review-session'
 import { editReviewCard, submitReview, undoReview, updateCardSchedule } from './anki-review.api'
+import { incrementDailyReviewCount } from './daily-review-storage'
+import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
 
 export const NON_RETRYABLE_ERRORS = new Set(['not_approved', 'variant_not_found'])
 
@@ -113,6 +115,8 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       }
 
       pendingGrade.current = null
+      incrementDailyReviewCount()
+      notifyPendingReviewChanged()
 
       const leechSuspended = outcome.leech && outcome.suspended
       const entry: SessionUndoEntry = {
@@ -152,6 +156,8 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
         return
       }
 
+      notifyPendingReviewChanged()
+
       await moveOnAfter({ type: 'acted', entry: { kind, card: current, stamp }, now: Date.now() })
     })
 
@@ -175,6 +181,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
             })
 
       if (outcome.ok) {
+        notifyPendingReviewChanged()
         dispatch({ type: 'undone', now: Date.now() })
         return
       }
@@ -211,7 +218,12 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       dispatch({
         type: 'editSaved',
         knowledgeBitId: current.knowledgeBitId,
-        edit: { variantId: outcome.variantId, prompt: prompt.trim(), answer: answer.trim() },
+        edit: {
+          variantId: outcome.variantId,
+          replacesVariantId: current.variantId,
+          prompt: prompt.trim(),
+          answer: answer.trim(),
+        },
         now: Date.now(),
       })
     })

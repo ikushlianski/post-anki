@@ -14,8 +14,6 @@ const meta: Meta<typeof KnowledgeBitReviewSourceGroup> = {
     pollingGaveUp: false,
     rowErrors: {},
     isBitResolving: () => false,
-    isVariantSaving: () => false,
-    isBitSaving: () => false,
     isConfirmingBulk: false,
     regeneration: undefined,
     regenerationActions: {
@@ -30,6 +28,7 @@ const meta: Meta<typeof KnowledgeBitReviewSourceGroup> = {
     onEditingChange: fn(),
     onApprove: fn(),
     onReject: fn(),
+    onGrade: fn(),
     onSaveVariant: fn(async () => true),
     onSaveBit: fn(async () => true),
   },

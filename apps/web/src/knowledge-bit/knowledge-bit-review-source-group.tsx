@@ -3,7 +3,10 @@ import type { KnowledgeItemModelId, PendingKnowledgeSourceForReview } from '@pos
 import { KnowledgeBitReviewItem } from './knowledge-bit-review-item'
 import { KnowledgeBitReviewBulkConfirm } from './knowledge-bit-review-bulk-confirm'
 import { SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
+import { KnowledgeBitReviewSourceSummary } from './knowledge-bit-review-source-summary'
 import { KnowledgeBitReviewRegenerate } from './knowledge-bit-review-regenerate'
+import type { ReviewDecisions } from './use-review-decisions'
+import type { ReviewTriageControls } from './use-review-triage'
 import type { SourceRegenerationState } from './knowledge-bit-review-regeneration'
 
 export interface SourceRegenerationActions {
@@ -13,17 +16,19 @@ export interface SourceRegenerationActions {
   onRetry: (sourceId: string) => void
 }
 
+const NO_TRIAGE: ReviewTriageControls = { selections: {} }
+
 const SOURCE_TEXT_PREVIEW_LENGTH = 2000
 
 export function KnowledgeBitReviewSourceGroup({
   source,
   focusedBitId,
+  decisions,
   pollingGaveUp,
   rowErrors,
   isBitResolving,
-  isVariantSaving,
-  isBitSaving,
   isConfirmingBulk,
+  triage = NO_TRIAGE,
   regeneration,
   regenerationActions,
   onRequestApproveSource,
@@ -32,17 +37,20 @@ export function KnowledgeBitReviewSourceGroup({
   onEditingChange,
   onApprove,
   onReject,
+  onUndo,
+  onGrade,
+  hideGrading,
   onSaveVariant,
   onSaveBit,
 }: {
   source: PendingKnowledgeSourceForReview
   focusedBitId: string | undefined
+  decisions: ReviewDecisions
   pollingGaveUp: boolean
   rowErrors: Record<string, string>
   isBitResolving: (bitId: string) => boolean
-  isVariantSaving: (variantId: string) => boolean
-  isBitSaving: (bitId: string) => boolean
   isConfirmingBulk: boolean
+  triage?: ReviewTriageControls
   regeneration: SourceRegenerationState | undefined
   regenerationActions: SourceRegenerationActions
   onRequestApproveSource: (sourceId: string) => void
@@ -51,6 +59,9 @@ export function KnowledgeBitReviewSourceGroup({
   onEditingChange: (bitId: string, editing: boolean) => void
   onApprove: (bitId: string) => void
   onReject: (bitId: string) => void
+  onUndo: (bitId: string) => void
+  onGrade: (bitId: string) => void
+  hideGrading?: boolean
   onSaveVariant: (
     bitId: string,
     variantId: string,
@@ -60,7 +71,8 @@ export function KnowledgeBitReviewSourceGroup({
   onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
 }) {
   const plainText = (source.sourceText ?? '').replace(/\s+/g, ' ').trim()
-  const readyCount = source.bits.filter((bit) => bit.variants.length > 0).length
+  const pendingBits = source.bits.filter((bit) => !decisions[bit.id])
+  const readyCount = pendingBits.filter((bit) => bit.variants.length > 0).length
 
   return (
     <li
@@ -69,6 +81,11 @@ export function KnowledgeBitReviewSourceGroup({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 text-xs text-neutral-600">
+          {source.subjectName ? (
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              {source.subjectName}
+            </p>
+          ) : null}
           <p className="font-medium text-neutral-700">Source text</p>
           <p
             data-testid={`knowledge-bit-review-source-text-${source.knowledgeSourceId}`}
@@ -84,7 +101,7 @@ export function KnowledgeBitReviewSourceGroup({
         {source.sourceText ? (
           <KnowledgeBitReviewRegenerate
             sourceId={source.knowledgeSourceId}
-            undecidedCount={source.bits.length}
+            undecidedCount={pendingBits.length}
             state={regeneration}
             onRequest={() => regenerationActions.onRequest(source.knowledgeSourceId)}
             onCancel={() => regenerationActions.onCancel(source.knowledgeSourceId)}
@@ -115,20 +132,31 @@ export function KnowledgeBitReviewSourceGroup({
         ) : null}
       </div>
 
+      <KnowledgeBitReviewSourceSummary
+        sourceId={source.knowledgeSourceId}
+        summary={source.summary}
+        sourceUrl={source.sourceUrl}
+      />
+
       <ul className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
         {source.bits.map((bit) => (
           <KnowledgeBitReviewItem
             key={bit.id}
             bit={bit}
             isResolving={isBitResolving(bit.id)}
-            isSavingVariant={isVariantSaving}
-            isSavingBit={isBitSaving}
+            decision={decisions[bit.id]}
             isFocused={focusedBitId === bit.id}
             pollingGaveUp={pollingGaveUp}
             errorMessage={rowErrors[bit.id] || null}
+            selectedIds={triage.selections[bit.id]}
+            onToggleVariant={triage.onToggle}
+            onKeep={triage.onKeep}
             onEditingChange={onEditingChange}
             onApprove={onApprove}
             onReject={onReject}
+            onUndo={onUndo}
+            onGrade={onGrade}
+            hideGrading={hideGrading}
             onSaveVariant={onSaveVariant}
             onSaveBit={onSaveBit}
           />

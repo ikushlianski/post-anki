@@ -25,6 +25,7 @@ import {
   updateSubjectParent,
 } from '../subject/subject.api'
 import { DashboardView } from '../dashboard/dashboard-view'
+import { HomeSubjectsAndReview } from '../home/home-subjects-and-review'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -123,6 +124,7 @@ function Home() {
   return (
     <>
       {isClient && <LiveDataBridge onData={setLive} />}
+      <HomeSubjectsAndReview />
       <DashboardView
         subjects={live?.subjects ?? initial.subjects}
         curricula={live?.curricula ?? initial.curricula}

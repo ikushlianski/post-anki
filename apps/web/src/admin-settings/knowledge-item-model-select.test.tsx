@@ -53,10 +53,12 @@ describe('KnowledgeItemModelSelect', () => {
     expect(screen.getByText('Prices checked 2026-10-11')).toBeTruthy()
   })
 
-  it('should show the retirement date of a model that OpenRouter is about to remove', () => {
+  it('should not show a retirement date for models with no expiry', () => {
     renderSelect()
 
-    expect(screen.getByRole('option', { name: /Gemini 2\.5 Flash Lite.*retires 2026-10-20/ })).toBeTruthy()
+    const options = screen.getAllByRole('option')
+
+    expect(options.every((opt) => !opt.textContent?.includes('retires'))).toBe(true)
   })
 
   it('should call onChange with the chosen model id', () => {

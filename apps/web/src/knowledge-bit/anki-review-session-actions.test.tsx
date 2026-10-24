@@ -23,6 +23,8 @@ const card: ReviewCard = {
   prompt: 'Why a handshake?',
   answer: 'To agree on sequence numbers.',
   background: null,
+  isAiGenerated: false,
+  sourceLinks: [],
   phase: 'review',
   leech: false,
   intervalPreview: { again: 60, hard: 60, good: 60, easy: 60 },

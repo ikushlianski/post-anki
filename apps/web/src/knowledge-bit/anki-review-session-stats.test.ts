@@ -11,6 +11,8 @@ const card = (phase: ReviewCard['phase']): ReviewCard => ({
   prompt: 'p',
   answer: 'a',
   background: null,
+  isAiGenerated: false,
+  sourceLinks: [],
   phase,
   leech: false,
   intervalPreview: { again: 60, hard: 60, good: 60, easy: 60 },

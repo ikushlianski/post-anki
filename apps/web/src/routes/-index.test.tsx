@@ -82,7 +82,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('dashboard route loader', () => {
+describe('home route loader', () => {
   it('should request the due counts for the browser time zone', async () => {
     await runLoader()
 
@@ -96,13 +96,13 @@ describe('dashboard route loader', () => {
     expect(getSubjectReviewDueCounts).toHaveBeenCalledTimes(1)
   })
 
-  it('should hand the due counts to the dashboard as a successful load result', async () => {
+  it('should hand the due counts to the home page as a successful load result', async () => {
     const data = await runLoader()
 
     expect(data.subjectDueCounts).toEqual({ ok: true, data: LIVE_COUNTS })
   })
 
-  it('should keep the rest of the dashboard when the due counts request fails', async () => {
+  it('should keep the rest of the home page when the due counts request fails', async () => {
     vi.mocked(getSubjectReviewDueCounts).mockRejectedValue(new Error('network down'))
 
     const data = await runLoader()

@@ -187,7 +187,7 @@ describe('SubjectHeaderMenu', () => {
     })
   })
 
-  it('should navigate to the dashboard once the subject is deleted', async () => {
+  it('should navigate to the home page once the subject is deleted', async () => {
     renderHeaderMenu()
 
     fireEvent.click(trigger())

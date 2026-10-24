@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CardsSummaryBadge } from './cards-summary-badge'
 
@@ -11,6 +11,7 @@ vi.mock('./cards.api', () => ({
 }))
 
 describe('CardsSummaryBadge', () => {
+  afterEach(cleanup)
   function renderBadge(curriculumId = 'cur_1') {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 

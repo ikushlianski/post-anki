@@ -162,13 +162,19 @@ describe('SuspendedCardsPage', () => {
     expect(screen.getByTestId(`suspended-card-row-${leechCard.knowledgeBitId}`)).toBeTruthy()
   })
 
-  it('should show an error message when the list cannot be loaded', async () => {
-    mockedList.mockResolvedValue({ ok: false, error: 'unknown' })
+  it('should offer Retry when the list cannot be loaded and show the cards once the retry succeeds', async () => {
+    mockedList.mockResolvedValueOnce({ ok: false, error: 'unknown' })
 
     renderPage()
 
-    expect((await screen.findByTestId('suspended-cards-error')).textContent).toBe(
-      'Could not load suspended cards.',
+    expect((await screen.findByTestId('suspended-cards-error')).textContent).toContain(
+      'Could not load your cards. Check your connection and try again.',
     )
+
+    serveCards([leechCard])
+    await userEvent.click(screen.getByTestId('suspended-cards-retry'))
+
+    expect(await screen.findByTestId(`suspended-card-row-${leechCard.knowledgeBitId}`)).toBeTruthy()
+    expect(screen.queryByTestId('suspended-cards-error')).toBeNull()
   })
 })

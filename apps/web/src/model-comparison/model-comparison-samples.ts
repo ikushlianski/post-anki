@@ -1,0 +1,23 @@
+export interface ModelComparisonSample {
+  id: string
+  label: string
+  text: string
+}
+
+export const MODEL_COMPARISON_SAMPLES: readonly ModelComparisonSample[] = [
+  {
+    id: 'ru-sales',
+    label: 'Russian: selling software to large companies',
+    text: 'Когда мы продаем компании софт, нам не обязательно искать боли клиента, как часто учат маркетологи. Просто нам нужно показать этой большой компании новое видение своего будущего.\n\nМы, как небольшая компания, которая пытается продать свой софт, понимаем, что наш клиент потенциальный, и его компания жила и при старом софте, возможно, какие-то боли были, а возможно, не сильно.\n\nСамое главное, что мы должны понять, это то, что руководство фирмы наконец-то осознает потребность в покупке софта, потому что оно само не удовлетворено текущими административными рутинами. То есть это не боль клиента, а просто иное видение клиентом своего будущего. Популярная в обучении и продажах метафора «клиентская боль» на самом деле не существует в мире корпораций.',
+  },
+  {
+    id: 'ru-redis',
+    label: 'Russian: Redis cache basics',
+    text: '# Как устроен кэш в Redis\n\nRedis хранит данные в оперативной памяти, поэтому чтение занимает доли миллисекунды.\n\n- TTL задаёт время жизни ключа, после которого Redis удаляет его сам\n- Политика вытеснения allkeys-lru удаляет давно не использованные ключи, когда память заканчивается\n- Персистентность через RDB делает снимок данных, а AOF записывает каждую команду\n\nПример установки времени жизни:\n\n```\nSET session:42 "token" EX 3600\n```\n\nКлюч session:42 исчезнет через час, потому что EX задаёт время жизни в секундах. Подробности есть в документации: https://redis.io/docs/latest/commands/expire/\n\nКэш нельзя считать надёжным хранилищем, так как при перезапуске без персистентности все данные теряются.',
+  },
+  {
+    id: 'en-long',
+    label: 'English: long technical text',
+    text: 'The printing press, introduced to Europe by Johannes Gutenberg around 1450, replaced hand copying with movable metal type. Before it, a single book could take a scribe months to produce, so books were rare and expensive. Movable type made it possible to reuse the same letters for any page, which cut the cost of each additional copy sharply.\n\nThe spread of cheap books changed who could read. Literacy rose in the cities first because merchants and craftsmen needed written records, and printers found their largest market among them. Over several generations, vernacular languages replaced Latin as the main language of printed books, since printers sold more copies in languages ordinary people spoke.\n\nPrinting also fixed spelling and grammar. Because thousands of identical copies circulated, regional variants of a language slowly converged on the forms used by the largest printing centres. Dictionaries and grammar guides appeared in the sixteenth century to record these standard forms.\n\nThe press helped the Reformation spread. Martin Luther\'s theses and his German translation of the Bible were printed in large numbers within a few years, so his ideas reached readers faster than church authorities could suppress them. Pamphlets, cheap and short, became the main tool of religious and political argument.\n\nScientific knowledge changed as well. Printed tables of astronomical data allowed scholars in different countries to compare identical numbers, and errors that had been copied silently by scribes could now be noticed and corrected in later editions. Anatomical atlases with engraved illustrations let students study the same image of the human body regardless of where they lived.\n\nGovernments reacted with licensing and censorship. Authorities required printers to obtain permission before publishing and compiled lists of forbidden books. These controls were difficult to enforce because a banned text could be reprinted in another city or country, so printers in the Dutch Republic became known for publishing works that were illegal elsewhere.\n\nThe economics of printing created new professions. Publishers financed editions, booksellers distributed them across trade routes, and proofreaders checked the type before each run. Copyright did not exist yet, so a successful book was often pirated by rival printers within weeks, which led authors and printers to seek royal privileges that protected a title for a fixed number of years.\n\nNewspapers grew out of the same technology. Weekly news sheets appeared in the early seventeenth century, collecting reports from merchants and diplomats, and became a regular source of information about prices, wars and politics for the urban public.',
+  },
+]

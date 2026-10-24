@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -47,7 +47,16 @@ function AnswerScreen() {
   const [draft, setDraft] = useState('')
   const [result, setResult] = useState<GradeQuestionVariantAnswerResult | null>(null)
 
-  const { data: batch, isLoading } = useQuery({
+  const [refilling, setRefilling] = useState(false)
+  const grading = useRef(false)
+
+  const {
+    data: batch,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: answerQueueQueryKey(tagId, topicId, knowledgeBitId),
     queryFn: () =>
       getNextQuestionVariants({ data: { limit: BATCH_LIMIT, tagId, topicId, knowledgeBitId } }),
@@ -58,12 +67,15 @@ function AnswerScreen() {
       gradeQuestionVariant({ data: input }),
   })
 
-  const current = batch?.[index] ?? null
+  const waitingForRefill = refilling && isFetching
+  const current = waitingForRefill || isError ? null : (batch?.[index] ?? null)
 
   async function submit() {
-    if (!current || draft.trim() === '') {
+    if (!current || draft.trim() === '' || grading.current) {
       return
     }
+
+    grading.current = true
 
     try {
       const outcome = await gradeMutation.mutateAsync({
@@ -74,6 +86,8 @@ function AnswerScreen() {
       setResult(outcome)
     } catch {
       setResult({ ok: false, error: 'grading_failed' })
+    } finally {
+      grading.current = false
     }
   }
 
@@ -87,6 +101,7 @@ function AnswerScreen() {
     }
 
     setIndex(0)
+    setRefilling(true)
     void queryClient.invalidateQueries({
       queryKey: answerQueueQueryKey(tagId, topicId, knowledgeBitId),
     })
@@ -111,9 +126,23 @@ function AnswerScreen() {
         </Link>
       </header>
 
-      {isLoading && <p data-testid="answer-screen-loading">Loading…</p>}
+      {(isLoading || waitingForRefill) && <p data-testid="answer-screen-loading">Loading…</p>}
 
-      {!isLoading && (!batch || batch.length === 0) && (
+      {isError && !isLoading && (
+        <div data-testid="answer-screen-load-error" className="flex flex-col gap-2">
+          <p className="text-sm text-red-600">Couldn't load your questions.</p>
+          <button
+            type="button"
+            data-testid="answer-screen-retry"
+            onClick={() => void refetch()}
+            className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !isError && !waitingForRefill && (!batch || batch.length === 0) && (
         <p data-testid="answer-screen-empty">Nothing to answer right now.</p>
       )}
 
@@ -133,17 +162,34 @@ function AnswerScreen() {
                 data-testid="answer-screen-textarea"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault()
+                    void submit()
+                  }
+                }}
                 className="min-h-24 rounded-md border border-neutral-200 p-2 text-sm"
               />
-              <button
-                type="button"
-                data-testid="answer-screen-submit"
-                onClick={() => void submit()}
-                disabled={gradeMutation.isPending || draft.trim() === ''}
-                className="self-start rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
-              >
-                Submit
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  data-testid="answer-screen-submit"
+                  onClick={() => void submit()}
+                  disabled={gradeMutation.isPending || draft.trim() === ''}
+                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+                >
+                  Submit
+                </button>
+                <button
+                  type="button"
+                  data-testid="answer-screen-skip"
+                  onClick={next}
+                  disabled={gradeMutation.isPending}
+                  className="rounded-md px-3 py-1.5 text-sm text-neutral-500 hover:text-neutral-800 disabled:opacity-40"
+                >
+                  Skip for now
+                </button>
+              </div>
             </>
           )}
 
@@ -167,15 +213,28 @@ function AnswerScreen() {
 
           {result && !result.ok && (
             <div data-testid="answer-screen-error" className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">Couldn't grade that answer: {result.error}</p>
-              <button
-                type="button"
-                data-testid="answer-screen-next"
-                onClick={next}
-                className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
-              >
-                Next
-              </button>
+              <p className="text-sm text-red-600">
+                We couldn't grade your answer. Your answer is still saved here, so you can try
+                again.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  data-testid="answer-screen-try-again"
+                  onClick={() => setResult(null)}
+                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white"
+                >
+                  Try again
+                </button>
+                <button
+                  type="button"
+                  data-testid="answer-screen-next"
+                  onClick={next}
+                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700"
+                >
+                  Skip this question
+                </button>
+              </div>
             </div>
           )}
         </div>

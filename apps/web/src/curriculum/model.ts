@@ -296,6 +296,7 @@ export const topicSchema = z.object({
   tags: z.array(tagChipSchema).optional(),
   depthElectedAt: z.string().nullable(),
   headroomOfferedAt: z.string().nullable(),
+  dueCount: z.number().int().optional(),
 })
 
 export type Topic = z.infer<typeof topicSchema>

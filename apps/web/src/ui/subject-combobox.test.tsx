@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { useState } from 'react'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { SubjectCombobox } from './subject-combobox'
 
@@ -22,6 +23,8 @@ function Harness() {
 }
 
 describe('SubjectCombobox', () => {
+  afterEach(cleanup)
+
   it('should offer every subject path as a searchable suggestion', () => {
     const { container } = render(<Harness />)
 

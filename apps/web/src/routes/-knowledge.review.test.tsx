@@ -45,6 +45,8 @@ vi.mock('../knowledge-bit/anki-review.api')
 vi.mock('../knowledge-bit/knowledge-bit-chat.api')
 
 import { getReviewCards, submitReview } from '../knowledge-bit/anki-review.api'
+vi.mock('../nav/sidebar-subjects', () => ({ SidebarSubjects: () => null }))
+
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './knowledge.review'
 
@@ -60,6 +62,8 @@ const firstCard: ReviewCard = {
   prompt: 'Why does TCP use a handshake?',
   answer: 'To agree on sequence numbers before sending data.',
   background: 'Covered in the networking module.',
+  isAiGenerated: false,
+  sourceLinks: [],
   phase: 'new',
   leech: false,
   intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 },
@@ -68,10 +72,12 @@ const firstCard: ReviewCard = {
 const secondCard: ReviewCard = {
   variantId: 'variant-2',
   knowledgeBitId: 'bit-2',
-  kind: 'fill_in_the_blank',
-  prompt: 'UDP is ____ oriented.',
-  answer: 'message',
+  kind: 'wh_question',
+  prompt: 'What does UDP stand for?',
+  answer: 'User Datagram Protocol',
   background: null,
+  isAiGenerated: false,
+  sourceLinks: [],
   phase: 'review',
   leech: false,
   intervalPreview: { again: 600, hard: 86_400, good: 3 * 86_400, easy: 36 * 86_400 },
@@ -500,32 +506,28 @@ describe('Anki review page', () => {
     expect(notPrevented).toBe(false)
   })
 
-  it('should keep the current scope when switching to typed answers and load cards in that scope', async () => {
+  it('should offer no switch to typed answers and load cards in the current scope', async () => {
     searchState.current = { topicId: 'topic-3' }
     mockedGetReviewCards.mockResolvedValue(queueResponse([]))
 
     renderPage()
 
-    const link = await screen.findByTestId('anki-review-switch-to-typed')
-
-    expect(link.getAttribute('data-to')).toBe('/knowledge/answer')
-    expect(JSON.parse(link.getAttribute('data-search') ?? '{}')).toEqual({ topicId: 'topic-3' })
-    expect(mockedGetReviewCards).toHaveBeenCalledWith({
-      data: expect.objectContaining({ topicId: 'topic-3' }),
+    await waitFor(() => {
+      expect(mockedGetReviewCards).toHaveBeenCalledWith({
+        data: expect.objectContaining({ topicId: 'topic-3' }),
+      })
     })
+
+    expect(screen.queryByTestId('anki-review-switch-to-typed')).toBeNull()
   })
 })
 
 describe('Sidebar review entries', () => {
-  it('should open Anki review from "Review" and keep the typed mode under "Answer (typed)"', () => {
+  it('should open Anki review from "Review"', () => {
     render(<Sidebar />)
 
     expect(screen.getByTestId('nav-knowledge-review').getAttribute('data-to')).toBe(
       '/knowledge/review',
     )
-    expect(screen.getByTestId('nav-knowledge-answer').getAttribute('data-to')).toBe(
-      '/knowledge/answer',
-    )
-    expect(screen.getByTestId('nav-knowledge-answer').textContent).toContain('Answer (typed)')
   })
 })

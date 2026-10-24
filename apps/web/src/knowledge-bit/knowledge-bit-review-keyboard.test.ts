@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { isTypingTarget, resolveReviewKey } from './knowledge-bit-review-keyboard'
+import { isTypingTarget, resolveReviewKey, variantIndexOf } from './knowledge-bit-review-keyboard'
 
 function press(key: string, overrides: Partial<Parameters<typeof resolveReviewKey>[0]> = {}) {
   return resolveReviewKey({
@@ -16,11 +16,28 @@ function press(key: string, overrides: Partial<Parameters<typeof resolveReviewKe
 }
 
 describe('resolveReviewKey', () => {
-  it('should map a to approve, r to reject and j/k to moving between suggestions', () => {
+  it('should map a to approve and r to reject', () => {
     expect(press('a')).toBe('approve')
     expect(press('r')).toBe('reject')
-    expect(press('j')).toBe('next')
-    expect(press('k')).toBe('previous')
+  })
+
+  it('should move between suggestions with the left and right arrows and ignore j and k', () => {
+    expect(press('ArrowRight')).toBe('next')
+    expect(press('ArrowLeft')).toBe('previous')
+    expect(press('j')).toBeNull()
+    expect(press('k')).toBeNull()
+  })
+
+  it('should treat numpad 4 and 6 as left and right even with NumLock on', () => {
+    expect(press('6', { code: 'Numpad6' })).toBe('next')
+    expect(press('4', { code: 'Numpad4' })).toBe('previous')
+    expect(press('6', { code: 'Digit6' })).toBe('variant-6')
+  })
+
+  it('should map z to undoing the last decision', () => {
+    expect(press('z')).toBe('undo')
+    expect(press('Z')).toBe('undo')
+    expect(press('z', { ctrlKey: true })).toBeNull()
   })
 
   it('should map Shift+A to approving everything from the focused source', () => {
@@ -41,7 +58,24 @@ describe('resolveReviewKey', () => {
     expect(press('a', { ctrlKey: true })).toBeNull()
   })
 
+  it('should map number keys to toggling that card and Return to keeping the selection', () => {
+    expect(press('1')).toBe('variant-1')
+    expect(press('9')).toBe('variant-9')
+    expect(variantIndexOf('variant-3')).toBe(2)
+    expect(variantIndexOf('next')).toBeNull()
+    expect(press('Enter')).toBe('keep')
+    expect(press('x')).toBe('reject')
+  })
+
+  it('should let Return press a focused button instead of keeping the piece', () => {
+    expect(press('Enter', { target: document.createElement('button') })).toBeNull()
+  })
+
+  it('should not treat Cmd+number as a card toggle', () => {
+    expect(press('1', { metaKey: true })).toBeNull()
+  })
+
   it('should ignore keys that are not shortcuts', () => {
-    expect(press('x')).toBeNull()
+    expect(press('q')).toBeNull()
   })
 })

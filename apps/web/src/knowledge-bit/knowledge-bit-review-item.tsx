@@ -1,32 +1,47 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
 
+import { AiLabelBadge } from './ai-label-badge'
 import { KnowledgeBitReviewExampleField } from './knowledge-bit-review-card-fields'
 import { KnowledgeBitReviewVariantList } from './knowledge-bit-review-variant-list'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
+import { keepIds, shownVariants } from './knowledge-bit-triage-selection'
+import type { ReviewDecision } from './use-review-decisions'
 
 export function KnowledgeBitReviewItem({
   bit,
   isResolving,
+  decision = null,
   isFocused = false,
   pollingGaveUp = false,
   errorMessage = null,
+  selectedIds,
+  onToggleVariant,
+  onKeep,
   onEditingChange,
   onApprove,
   onReject,
+  onUndo,
+  onGrade,
+  hideGrading,
   onSaveVariant,
   onSaveBit,
 }: {
   bit: PendingKnowledgeBitForReview
   isResolving: boolean
-  isSavingVariant?: (variantId: string) => boolean
-  isSavingBit?: (bitId: string) => boolean
+  decision?: ReviewDecision | null
   isFocused?: boolean
   pollingGaveUp?: boolean
   errorMessage?: string | null
+  selectedIds?: string[]
+  onToggleVariant?: (bitId: string, index: number) => void
+  onKeep?: (bitId: string) => void
   onEditingChange?: (bitId: string, editing: boolean) => void
   onApprove: (bitId: string) => void
   onReject: (bitId: string) => void
+  onUndo: (bitId: string) => void
+  onGrade: (bitId: string) => void
+  hideGrading?: boolean
   onSaveVariant: (
     bitId: string,
     variantId: string,
@@ -59,6 +74,9 @@ export function KnowledgeBitReviewItem({
   const hasNoVariants = bit.variants.length === 0
   const actionsDisabled = isResolving || hasUnsavedEdits
   const approveDisabled = actionsDisabled || hasNoVariants
+  const kept = keepIds(bit.variants, selectedIds)
+  const canTriage = bit.variants.length > 1 && onKeep !== undefined
+  const excluded = shownVariants(bit.variants).length - kept.length
 
   useEffect(() => {
     onEditingChange?.(bit.id, hasUnsavedEdits)
@@ -70,14 +88,24 @@ export function KnowledgeBitReviewItem({
     <li
       data-testid={`knowledge-bit-review-item-${bit.id}`}
       data-focused={isFocused ? 'true' : undefined}
-      className={`space-y-4 rounded-xl bg-white p-4 shadow-sm transition-shadow ${
-        isFocused ? 'ring-2 ring-neutral-900' : 'ring-1 ring-neutral-100'
-      }`}
+      data-decision={decision?.verdict}
+      className={`space-y-4 rounded-xl p-4 shadow-sm transition-shadow ${
+        decision ? 'bg-neutral-50' : 'bg-white'
+      } ${isFocused ? 'ring-2 ring-neutral-900' : 'ring-1 ring-neutral-100'}`}
     >
+      <AiLabelBadge
+        isAiGenerated={bit.isAiGenerated}
+        sourceLinks={bit.sourceLinks}
+        testIdSuffix={`-${bit.id}`}
+      />
+
       <KnowledgeBitReviewVariantList
         bitId={bit.id}
         variants={bit.variants}
         pollingGaveUp={pollingGaveUp}
+        keptIds={kept}
+        pickDisabled={actionsDisabled}
+        onToggle={canTriage ? (index) => onToggleVariant?.(bit.id, index) : undefined}
         onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
         onBusyChange={setBusy}
       />
@@ -92,24 +120,58 @@ export function KnowledgeBitReviewItem({
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          data-testid={`knowledge-bit-review-approve-${bit.id}`}
-          disabled={approveDisabled}
-          onClick={() => onApprove(bit.id)}
-          className={PRIMARY_BUTTON_CLASS}
-        >
-          Approve
-        </button>
-        <button
-          type="button"
-          data-testid={`knowledge-bit-review-reject-${bit.id}`}
-          disabled={actionsDisabled}
-          onClick={() => onReject(bit.id)}
-          className={SECONDARY_BUTTON_CLASS}
-        >
-          Reject
-        </button>
+        {hideGrading ? null : (
+          <button
+            type="button"
+            data-testid={`knowledge-bit-review-grade-${bit.id}`}
+            onClick={() => onGrade(bit.id)}
+            className={SECONDARY_BUTTON_CLASS.replace('sm:min-h-8', 'sm:min-h-11')}
+          >
+            Grade this card
+          </button>
+        )}
+        {decision ? (
+          <>
+            <span
+              data-testid={`knowledge-bit-review-status-${bit.id}`}
+              className="inline-flex min-h-11 items-center text-sm font-medium text-neutral-700 sm:min-h-8 sm:text-xs"
+            >
+              {decision.verdict === 'approved' ? (decision.triaged ? 'Kept' : 'Approved') : 'Rejected'}
+            </span>
+            {decision.triaged && !decision.droppedVariantIds?.length ? null : (
+              <button
+                type="button"
+                data-testid={`knowledge-bit-review-undo-${bit.id}`}
+                disabled={isResolving}
+                onClick={() => onUndo(bit.id)}
+                className={SECONDARY_BUTTON_CLASS}
+              >
+                Undo
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              data-testid={`knowledge-bit-review-approve-${bit.id}`}
+              disabled={approveDisabled}
+              onClick={() => (onKeep ? onKeep(bit.id) : onApprove(bit.id))}
+              className={PRIMARY_BUTTON_CLASS}
+            >
+              {excluded > 0 ? `Approve ${kept.length} of ${kept.length + excluded}` : 'Approve'}
+            </button>
+            <button
+              type="button"
+              data-testid={`knowledge-bit-review-reject-${bit.id}`}
+              disabled={actionsDisabled}
+              onClick={() => onReject(bit.id)}
+              className={SECONDARY_BUTTON_CLASS}
+            >
+              Reject
+            </button>
+          </>
+        )}
       </div>
 
       {errorMessage ? (

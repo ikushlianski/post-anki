@@ -30,7 +30,6 @@ vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
   restoreKnowledgeBitForReview: vi.fn(),
-  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -47,6 +46,7 @@ function bit(id: string, withVariant: boolean) {
     id,
     body: `Body ${id}`,
     background: null,
+    origin: 'extracted' as const, isAiGenerated: false, sourceLinks: [],
     variants: withVariant
       ? [{ id: `var-${id}`, kind: 'wh_question' as const, prompt: `Q ${id}`, answer: `A ${id}` }]
       : [],
@@ -54,7 +54,7 @@ function bit(id: string, withVariant: boolean) {
 }
 
 function source(id: string, bits: ReturnType<typeof bit>[]): PendingKnowledgeSourceForReview {
-  return { knowledgeSourceId: id, sourceText: 'text', bits }
+  return { knowledgeSourceId: id, sourceText: 'text', subjectName: null, bits }
 }
 
 function requestApproveAll() {
@@ -91,10 +91,33 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
 
     await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-item-b1')).toBeNull()
+      expect(screen.getByTestId('knowledge-bit-review-status-b1').textContent).toBe('Approved')
     })
+    expect(screen.getByTestId('knowledge-bit-review-status-b2').textContent).toBe('Approved')
     expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['b1', 'b2'] } })
     expect(screen.getByTestId('knowledge-bit-review-item-b3')).toBeDefined()
+  })
+
+  it('should leave decided cards out of bulk approve and out of its count', async () => {
+    mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
+    mockedBulk.mockResolvedValue({ approved: ['b2'], skipped: [] })
+    render(
+      <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
+    )
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-b1'))
+    await screen.findByTestId('knowledge-bit-review-status-b1')
+
+    requestApproveAll()
+
+    expect(screen.getByText('Approve 1 item?')).toBeDefined()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
+
+    await waitFor(() => {
+      expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['b2'] } })
+    })
+    expect(screen.getByTestId('knowledge-bit-review-status-b1').textContent).toBe('Rejected')
   })
 
   it('should keep a skipped bit listed and tell the reviewer it was skipped', async () => {
@@ -146,7 +169,7 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
       <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
     )
 
-    fireEvent.keyDown(window, { key: 'j' })
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
     fireEvent.keyDown(window, { key: 'a' })
 
     await waitFor(() => {

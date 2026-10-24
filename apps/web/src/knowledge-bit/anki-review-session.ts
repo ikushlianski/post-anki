@@ -20,6 +20,7 @@ export interface SessionTally {
 
 export interface SessionEdit {
   variantId: string
+  replacesVariantId: string
   prompt: string
   answer: string
 }
@@ -68,7 +69,11 @@ export function initialAnkiReviewSession(now: number): AnkiReviewSessionState {
 export function applyEdit(card: ReviewCard, edits: Record<string, SessionEdit>): ReviewCard {
   const edit = edits[card.knowledgeBitId]
 
-  return edit ? { ...card, ...edit } : card
+  if (!edit || (card.variantId !== edit.replacesVariantId && card.variantId !== edit.variantId)) {
+    return card
+  }
+
+  return { ...card, variantId: edit.variantId, prompt: edit.prompt, answer: edit.answer }
 }
 
 function shiftTally(

@@ -10,6 +10,8 @@ import {
   createKnowledgeSourceFromUrl,
   createKnowledgeSources,
 } from '../knowledge-source/knowledge-source.api'
+vi.mock('../nav/sidebar-subjects', () => ({ SidebarSubjects: () => null }))
+
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'
 
@@ -678,21 +680,12 @@ describe('Sidebar', () => {
     cleanup()
   })
 
-  it('has an Add knowledge link that navigates to the new route', () => {
-    render(<Sidebar />)
-
-    const link = screen.getByTestId('nav-add-knowledge')
-
-    expect(link.getAttribute('data-to')).toBe('/add-knowledge')
-    expect(link.textContent).toContain('Add knowledge')
-  })
-
   it('should show the number of suggestions waiting for approval', async () => {
     render(<Sidebar />)
 
     await waitFor(() => {
       expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe(
-        'Approve suggestions (3)',
+        'Knowledge inbox (3)',
       )
     })
     expect(screen.getByTestId('nav-knowledge-bit-review').getAttribute('data-to')).toBe(
@@ -702,6 +695,8 @@ describe('Sidebar', () => {
 })
 
 describe('AddKnowledgeForm model choice', () => {
+  afterEach(cleanup)
+
   it('sends the chosen model with a pasted text so that model parses this knowledge', async () => {
     mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
 

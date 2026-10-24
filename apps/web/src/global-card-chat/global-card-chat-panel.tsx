@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import type { ChatMessage, GlobalCardChatMatchedCard } from '@post-anki/shared'
 
+import { ChatInputRow, ChatMessageList } from './chat-message-parts'
+import { OPEN_GLOBAL_CARD_CHAT_EVENT } from './global-card-chat-events'
 import { askGlobalCardChat } from './global-card-chat.api'
 
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again."
@@ -32,6 +34,14 @@ export function GlobalCardChatPanel() {
   const [draft, setDraft] = useState('')
   const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const openPanel = () => setOpen(true)
+
+    window.addEventListener(OPEN_GLOBAL_CARD_CHAT_EVENT, openPanel)
+
+    return () => window.removeEventListener(OPEN_GLOBAL_CARD_CHAT_EVENT, openPanel)
+  }, [])
 
   const mutation = useMutation({
     mutationFn: (vars: {
@@ -143,77 +153,31 @@ export function GlobalCardChatPanel() {
         </span>
       </label>
 
-      <div
-        ref={scrollRef}
-        className="max-h-96 min-h-[8rem] space-y-2 overflow-y-auto p-3"
-        data-testid="global-card-chat-messages"
-      >
-        {messages.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            Ask a question — I'll only answer from cards you've already studied.
-          </p>
-        ) : null}
-
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={
-              message.role === 'assistant' ? 'mr-auto max-w-[90%]' : 'ml-auto max-w-[90%]'
-            }
-          >
-            <div
-              data-testid={`global-card-chat-message-${message.role}`}
-              className={
-                message.role === 'assistant'
-                  ? 'rounded-lg rounded-bl-none bg-neutral-50 px-3 py-2 text-sm text-neutral-800'
-                  : 'rounded-lg rounded-br-none bg-neutral-900 px-3 py-2 text-sm text-white'
-              }
-            >
-              {message.text}
-            </div>
-            {message.role === 'assistant' && message.matchedCards ? (
+      <ChatMessageList
+        messages={messages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          text: message.text,
+          footer:
+            message.role === 'assistant' && message.matchedCards ? (
               <p data-testid="global-card-chat-grounding" className="mt-1 text-xs text-neutral-400">
                 {groundingLine(message.matchedCards, message.lookupFailed)}
               </p>
-            ) : null}
-          </div>
-        ))}
+            ) : undefined,
+        }))}
+        pending={mutation.isPending}
+        emptyText="Ask a question — I'll only answer from cards you've already studied."
+        testIdPrefix="global-card-chat"
+        scrollRef={scrollRef}
+      />
 
-        {mutation.isPending ? (
-          <div
-            data-testid="global-card-chat-typing-indicator"
-            className="mr-auto flex max-w-[60%] items-center gap-1 rounded-lg rounded-bl-none bg-neutral-50 px-3 py-2 text-sm text-neutral-400"
-          >
-            <span className="animate-pulse">Thinking…</span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex gap-2 border-t border-neutral-200 p-3">
-        <input
-          type="text"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              send()
-            }
-          }}
-          disabled={mutation.isPending}
-          placeholder="Ask a question…"
-          data-testid="global-card-chat-input"
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:bg-neutral-100"
-        />
-        <button
-          type="button"
-          data-testid="global-card-chat-send"
-          disabled={mutation.isPending || draft.trim().length === 0}
-          onClick={send}
-          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-        >
-          Send
-        </button>
-      </div>
+      <ChatInputRow
+        draft={draft}
+        onDraftChange={setDraft}
+        onSend={send}
+        pending={mutation.isPending}
+        testIdPrefix="global-card-chat"
+      />
     </div>
   )
 }

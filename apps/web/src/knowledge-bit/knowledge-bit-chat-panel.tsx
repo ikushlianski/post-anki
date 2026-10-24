@@ -1,16 +1,25 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import type { ChatMessage } from '@post-anki/shared'
 
+import { toTranscript, useCardProposalRequests } from './use-card-proposal-requests'
+import { KnowledgeBitChatCardProposal } from './knowledge-bit-chat-card-proposal'
+import {
+  isCardRequest,
+  latestCardProposal,
+  type CardProposalChatMessage,
+  type CardProposalStatus,
+  type PanelMessage,
+} from './knowledge-bit-chat-messages'
 import { askKnowledgeBitChat } from './knowledge-bit-chat.api'
+import { KnowledgeBitChatSheet } from './knowledge-bit-chat-sheet'
+import { KnowledgeBitChatHighlightBar } from './knowledge-bit-chat-highlight-bar'
+import { KnowledgeBitChatCardTray } from './knowledge-bit-chat-card-tray'
+import { useCardTray } from './use-card-tray'
+import { useChatSelection } from './use-chat-selection'
 
+const CARD_SHORTCUT_TEXT = 'make a card from this chat'
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again."
-
-interface PanelMessage {
-  id: string
-  role: 'user' | 'assistant'
-  text: string
-}
 
 interface KnowledgeBitChatPanelProps {
   knowledgeBitId: string
@@ -21,7 +30,10 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
   const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
+  const [cardWebSearch, setCardWebSearch] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const tray = useCardTray(knowledgeBitId)
+  const { selection, clearSelection } = useChatSelection(scrollRef)
 
   const mutation = useMutation({
     mutationFn: (vars: {
@@ -39,20 +51,65 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
       }),
   })
 
-  function send() {
-    const text = draft.trim()
+  const { cardMutation, requestCard } = useCardProposalRequests({
+    knowledgeBitId,
+    messages,
+    allowWebSearch: cardWebSearch,
+    setMessages,
+  })
+  const busy = mutation.isPending || cardMutation.isPending
+  const latestProposal = latestCardProposal(messages)
 
-    if (text.length === 0 || mutation.isPending) {
+  useEffect(() => {
+    scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
+  }, [messages, busy])
+
+  function revise(target: CardProposalChatMessage, instruction: string) {
+    setMessages((prev) => [
+      ...prev,
+      { kind: 'text', id: `user-${Date.now()}`, role: 'user', text: instruction },
+    ])
+    requestCard(instruction, target.card)
+  }
+
+  function setCardStatus(id: string, status: CardProposalStatus) {
+    setMessages((prev) =>
+      prev.map((m) => (m.kind === 'card-proposal' && m.id === id ? { ...m, status } : m)),
+    )
+  }
+
+  function draftCardFromChat() {
+    if (busy) {
       return
     }
 
-    const transcript: ChatMessage[] = messages.map((m) => ({
-      role: m.role,
-      text: m.text,
-    }))
+    setMessages((prev) => [
+      ...prev,
+      { kind: 'text', id: `user-${Date.now()}`, role: 'user', text: CARD_SHORTCUT_TEXT },
+    ])
+    requestCard(CARD_SHORTCUT_TEXT)
+  }
 
-    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', text }])
+  function send() {
+    const text = draft.trim()
+
+    if (text.length === 0 || busy) {
+      return
+    }
+
+    const transcript = toTranscript(messages)
+
+    setMessages((prev) => [
+      ...prev,
+      { kind: 'text', id: `user-${Date.now()}`, role: 'user', text },
+    ])
     setDraft('')
+
+    if (isCardRequest(text)) {
+      requestCard(text)
+
+      return
+    }
 
     mutation.mutate(
       { message: text, transcript, allowGeneralKnowledge },
@@ -61,23 +118,23 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
           setMessages((prev) => [
             ...prev,
             {
+              kind: 'text',
               id: `assistant-${Date.now()}`,
               role: 'assistant',
               text: result?.reply ?? FALLBACK_REPLY,
             },
           ])
-          scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
         },
         onError: () => {
           setMessages((prev) => [
             ...prev,
             {
+              kind: 'text',
               id: `assistant-${Date.now()}`,
               role: 'assistant',
               text: FALLBACK_REPLY,
             },
           ])
-          scrollRef.current?.scrollTo?.({ top: scrollRef.current.scrollHeight })
         },
       },
     )
@@ -89,7 +146,7 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
         type="button"
         data-testid="knowledge-bit-chat-open"
         onClick={() => setOpen(true)}
-        className="self-start rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+        className="min-h-11 self-start rounded-md border border-neutral-300 px-4 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 sm:min-h-0 sm:px-3"
       >
         Chat about this
       </button>
@@ -97,11 +154,8 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
   }
 
   return (
-    <div
-      data-testid="knowledge-bit-chat-panel"
-      className="flex w-full max-w-sm flex-col rounded-md border border-neutral-200 bg-white shadow-sm"
-    >
-      <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+    <KnowledgeBitChatSheet onClose={() => setOpen(false)}>
+      <div className="flex shrink-0 items-center justify-between border-b border-neutral-200 px-3 py-2">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           Chat about this
         </p>
@@ -109,13 +163,14 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
           type="button"
           data-testid="knowledge-bit-chat-close"
           onClick={() => setOpen(false)}
-          className="text-sm text-neutral-400 hover:text-neutral-900"
+          aria-label="Close chat"
+          className="flex size-11 items-center justify-center text-sm text-neutral-400 hover:text-neutral-900 sm:size-auto"
         >
           ✕
         </button>
       </div>
 
-      <label className="flex items-center gap-2 border-b border-neutral-200 px-3 py-2 text-xs text-neutral-500">
+      <label className="flex min-h-11 shrink-0 items-center gap-2 border-b border-neutral-200 px-3 py-2 text-xs sm:min-h-0 text-neutral-500">
         <input
           type="checkbox"
           data-testid="knowledge-bit-chat-allow-general-knowledge"
@@ -133,7 +188,7 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
 
       <div
         ref={scrollRef}
-        className="max-h-96 min-h-[8rem] space-y-2 overflow-y-auto p-3"
+        className="min-h-[8rem] flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:max-h-96 sm:flex-none"
         data-testid="knowledge-bit-chat-messages"
       >
         {messages.length === 0 ? (
@@ -142,7 +197,18 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
           </p>
         ) : null}
 
-        {messages.map((message) => (
+        {messages.map((message) =>
+          message.kind === 'card-proposal' ? (
+            <KnowledgeBitChatCardProposal
+              key={message.id}
+              knowledgeBitId={knowledgeBitId}
+              message={message}
+              superseded={latestProposal?.id !== message.id}
+              revising={cardMutation.isPending}
+              onStatusChange={setCardStatus}
+              onRevise={revise}
+            />
+          ) : (
           <div
             key={message.id}
             className={
@@ -160,9 +226,10 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
               {message.text}
             </div>
           </div>
-        ))}
+          ),
+        )}
 
-        {mutation.isPending ? (
+        {busy ? (
           <div
             data-testid="knowledge-bit-chat-typing-indicator"
             className="mr-auto flex max-w-[60%] items-center gap-1 rounded-lg rounded-bl-none bg-neutral-50 px-3 py-2 text-sm text-neutral-400"
@@ -172,7 +239,35 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
         ) : null}
       </div>
 
-      <div className="flex gap-2 border-t border-neutral-200 p-3">
+      <KnowledgeBitChatHighlightBar selection={selection} tray={tray} onDone={clearSelection} />
+      <KnowledgeBitChatCardTray tray={tray} />
+
+      {messages.some((m) => m.kind === 'text' && m.role === 'assistant') ? (
+        <div className="shrink-0 border-t border-neutral-200 px-3 pt-2">
+          <button
+            type="button"
+            data-testid="knowledge-bit-chat-draft-chip"
+            disabled={busy}
+            onClick={draftCardFromChat}
+            className="min-h-11 rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 sm:min-h-0"
+          >
+            Draft a new card
+          </button>
+        </div>
+      ) : null}
+
+      <label className="flex min-h-11 shrink-0 items-center gap-2 border-t border-neutral-200 px-3 py-2 text-xs sm:min-h-0 text-neutral-500">
+        <input
+          type="checkbox"
+          data-testid="knowledge-bit-chat-card-web"
+          checked={cardWebSearch}
+          disabled={busy}
+          onChange={(event) => setCardWebSearch(event.target.checked)}
+        />
+        <span>Use web research for cards (slower and paid)</span>
+      </label>
+
+      <div className="flex shrink-0 gap-2 border-t border-neutral-200 p-3">
         <input
           type="text"
           value={draft}
@@ -182,21 +277,22 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
               send()
             }
           }}
-          disabled={mutation.isPending}
-          placeholder="Ask a question…"
+          disabled={busy}
+          placeholder="Ask a question, or “card: …” to make a card"
           data-testid="knowledge-bit-chat-input"
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:bg-neutral-100"
+          className="min-h-11 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-base outline-none sm:min-h-0 sm:text-sm focus:border-neutral-500 disabled:bg-neutral-100"
         />
         <button
           type="button"
           data-testid="knowledge-bit-chat-send"
-          disabled={mutation.isPending || draft.trim().length === 0}
+          disabled={busy || draft.trim().length === 0}
           onClick={send}
-          className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="min-h-11 min-w-11 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 sm:min-h-0 sm:min-w-0 sm:px-3"
         >
           Send
         </button>
       </div>
-    </div>
+
+    </KnowledgeBitChatSheet>
   )
 }

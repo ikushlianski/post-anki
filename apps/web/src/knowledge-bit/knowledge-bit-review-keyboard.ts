@@ -1,9 +1,26 @@
 import { useEffect, useRef } from 'react'
 
-export type ReviewKeyAction = 'next' | 'previous' | 'approve' | 'reject' | 'approve-source'
+export type VariantKeyAction = `variant-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
+
+export type ReviewKeyAction =
+  | 'next'
+  | 'previous'
+  | 'approve'
+  | 'keep'
+  | 'reject'
+  | 'undo'
+  | 'approve-source'
+  | VariantKeyAction
+
+export function variantIndexOf(action: ReviewKeyAction): number | null {
+  return action.startsWith('variant-') ? Number(action.slice('variant-'.length)) - 1 : null
+}
+
+const ACTIVATABLE_TAGS = new Set(['BUTTON', 'A'])
 
 export interface ReviewKeyEventLike {
   key: string
+  code?: string
   shiftKey: boolean
   ctrlKey: boolean
   metaKey: boolean
@@ -28,10 +45,33 @@ export function resolveReviewKey(event: ReviewKeyEventLike): ReviewKeyAction | n
     return null
   }
 
+  if (event.code === 'Numpad4') {
+    return 'previous'
+  }
+
+  if (event.code === 'Numpad6') {
+    return 'next'
+  }
+
+  if (/^[1-9]$/.test(event.key)) {
+    return `variant-${event.key}` as VariantKeyAction
+  }
+
   switch (event.key) {
-    case 'j':
+    case 'Enter': {
+      const tag = (event.target as HTMLElement | null)?.tagName
+
+      return tag && ACTIVATABLE_TAGS.has(tag) ? null : 'keep'
+    }
+    case 'x':
+    case 'X':
+      return 'reject'
+    case 'z':
+    case 'Z':
+      return 'undo'
+    case 'ArrowRight':
       return 'next'
-    case 'k':
+    case 'ArrowLeft':
       return 'previous'
     case 'a':
       return 'approve'

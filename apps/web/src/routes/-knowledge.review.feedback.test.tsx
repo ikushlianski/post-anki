@@ -55,6 +55,8 @@ const firstCard: ReviewCard = {
   prompt: 'Why does TCP use a handshake?',
   answer: 'To agree on sequence numbers before sending data.',
   background: null,
+  isAiGenerated: false,
+  sourceLinks: [],
   phase: 'new',
   leech: false,
   intervalPreview: { again: 600, hard: 86_400, good: 3 * 86_400, easy: 36 * 86_400 },

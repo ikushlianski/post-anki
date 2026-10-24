@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi, afterEach } from 'vitest'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CourseRefocusBanner } from './course-refocus-banner'
@@ -12,6 +12,7 @@ vi.mock('./api-client', () => ({
 }))
 
 describe('CourseRefocusBanner', () => {
+  afterEach(cleanup)
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   function renderBanner(suggestions: LoadResult<CourseRefocusSuggestion[]>) {

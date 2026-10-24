@@ -11,6 +11,7 @@ import {
   editKnowledgeBitForReview,
   editKnowledgeBitQuestionVariantForReview,
   rejectKnowledgeBitForReview,
+  restoreKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -25,7 +26,6 @@ vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
   restoreKnowledgeBitForReview: vi.fn(),
-  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
@@ -34,6 +34,7 @@ vi.mock('./knowledge-bit-review.api', () => ({
 
 const mockedApprove = vi.mocked(approveKnowledgeBitForReview)
 const mockedReject = vi.mocked(rejectKnowledgeBitForReview)
+const mockedRestore = vi.mocked(restoreKnowledgeBitForReview)
 const mockedEditVariant = vi.mocked(editKnowledgeBitQuestionVariantForReview)
 const mockedEditBit = vi.mocked(editKnowledgeBitForReview)
 
@@ -51,11 +52,13 @@ function deferred<T>() {
 const SOURCE: PendingKnowledgeSourceForReview = {
   knowledgeSourceId: 'src-1',
   sourceText: 'Turbopuffer uses a WAL-first design so writes are durable before indexing.',
+  subjectName: null,
   bits: [
     {
       id: 'bit-1',
       body: 'Turbopuffer writes to a WAL before indexing.',
       background: 'Durability guarantee for writes.',
+      origin: 'extracted', isAiGenerated: false, sourceLinks: [],
       variants: [
         { id: 'var-1', kind: 'wh_question', prompt: 'What happens before indexing?', answer: 'A WAL write.' },
       ],
@@ -71,6 +74,7 @@ describe('KnowledgeBitReviewPanel', () => {
   beforeEach(() => {
     mockedApprove.mockReset()
     mockedReject.mockReset()
+    mockedRestore.mockReset()
     mockedEditVariant.mockReset()
     mockedEditBit.mockReset()
   })
@@ -95,7 +99,7 @@ describe('KnowledgeBitReviewPanel', () => {
     expect(screen.getByText('A WAL write.')).toBeDefined()
   })
 
-  it('removes the bit and the whole source when approve succeeds and it was the only bit', async () => {
+  it('keeps an approved card in the list as Approved instead of dropping the row', async () => {
     mockedApprove.mockResolvedValue({ ok: true })
 
     renderPanel()
@@ -103,15 +107,15 @@ describe('KnowledgeBitReviewPanel', () => {
     fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-bit-1'))
 
     await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-item-bit-1')).toBeNull()
+      expect(screen.getByTestId('knowledge-bit-review-status-bit-1').textContent).toBe('Approved')
     })
 
-    expect(screen.queryByTestId('knowledge-bit-review-source-src-1')).toBeNull()
-    expect(screen.getByTestId('knowledge-bit-review-empty-state')).toBeDefined()
     expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
+    expect(screen.queryByTestId('knowledge-bit-review-approve-bit-1')).toBeNull()
+    expect(screen.queryByTestId('knowledge-bit-review-empty-state')).toBeNull()
   })
 
-  it('removes the bit when reject succeeds, keeping the panel retry-friendly on a later failure', async () => {
+  it('keeps a rejected card in the list as Rejected instead of dropping the row', async () => {
     mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
 
     renderPanel()
@@ -119,10 +123,50 @@ describe('KnowledgeBitReviewPanel', () => {
     fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
 
     await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-item-bit-1')).toBeNull()
+      expect(screen.getByTestId('knowledge-bit-review-status-bit-1').textContent).toBe('Rejected')
     })
 
     expect(mockedReject).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
+  })
+
+  it('gives a decided card a 44px Undo that puts it back to pending', async () => {
+    mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
+    mockedRestore.mockResolvedValue({ ok: true })
+
+    renderPanel()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
+
+    const undo = await screen.findByTestId('knowledge-bit-review-undo-bit-1')
+
+    expect(undo.className).toContain('min-h-11')
+
+    fireEvent.click(undo)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-bit-review-approve-bit-1')).toBeDefined()
+    })
+
+    expect(mockedRestore).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
+    expect(screen.queryByTestId('knowledge-bit-review-status-bit-1')).toBeNull()
+  })
+
+  it('keeps the card decided and shows an error when Undo fails', async () => {
+    mockedApprove.mockResolvedValue({ ok: true })
+    mockedRestore.mockRejectedValue(new Error('network error'))
+
+    renderPanel()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-bit-1'))
+    fireEvent.click(await screen.findByTestId('knowledge-bit-review-undo-bit-1'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-bit-review-error-bit-1').textContent).toBe(
+        "Couldn't undo. Try again.",
+      )
+    })
+
+    expect(screen.getByTestId('knowledge-bit-review-status-bit-1').textContent).toBe('Approved')
   })
 
   it('keeps the bit listed and re-enabled when reject fails', async () => {
@@ -321,8 +365,8 @@ describe('KnowledgeBitReviewPanel', () => {
       ...SOURCE,
       bits: [
         SOURCE.bits[0]!,
-        { id: 'bit-2', body: 'Second fact.', background: null, variants: [] },
-        { id: 'bit-3', body: 'Third fact.', background: null, variants: [] },
+        { id: 'bit-2', body: 'Second fact.', background: null, origin: 'extracted', isAiGenerated: false, sourceLinks: [], variants: [] },
+        { id: 'bit-3', body: 'Third fact.', background: null, origin: 'extracted', isAiGenerated: false, sourceLinks: [], variants: [] },
       ],
     }
 

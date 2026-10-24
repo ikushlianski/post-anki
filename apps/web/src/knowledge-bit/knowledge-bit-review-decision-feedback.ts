@@ -1,0 +1,1 @@
+export const DECISION_STRIP_VISIBLE_MS = 5000

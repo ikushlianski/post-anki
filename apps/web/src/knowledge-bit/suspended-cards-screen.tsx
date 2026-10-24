@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/r
 import type { SuspendedCard } from '@post-anki/shared'
 
 import { updateCardSchedule } from './anki-review.api'
+import { CardListLoadError } from './card-list-load-error'
 import { SuspendedCardsPage, type SuspendedCardRowState } from './suspended-cards-page'
 import { listSuspendedKnowledgeBits, type SuspendedCardsOutcome } from './suspended-knowledge-bits.api'
 
@@ -104,9 +105,11 @@ export function SuspendedCardsScreen() {
   if (query.isError) {
     return (
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
-        <p role="alert" data-testid="suspended-cards-error" className="text-red-700">
-          Could not load suspended cards.
-        </p>
+        <CardListLoadError
+          testId="suspended-cards-error"
+          retryTestId="suspended-cards-retry"
+          onRetry={() => void query.refetch()}
+        />
       </main>
     )
   }

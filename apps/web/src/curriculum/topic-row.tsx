@@ -155,6 +155,7 @@ export function TopicRow({
                   ? ` · probed ${topic.progress.attempts}×`
                   : ''}
               </span>
+              {topic.dueCount && topic.dueCount > 0 ? <span className="ml-1 text-xs text-amber-600">{topic.dueCount} due</span> : null}
             </div>
           ) : null}
         </div>

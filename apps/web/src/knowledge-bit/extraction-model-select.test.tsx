@@ -29,9 +29,9 @@ describe('describeExtractionModelOption', () => {
     )
   })
 
-  it('should add the retirement date for a model that is going away', () => {
-    expect(describeExtractionModelOption(KNOWLEDGE_ITEM_MODELS['openrouter/google/gemini-2.5-flash-lite'])).toBe(
-      'Gemini 2.5 Flash Lite — $0.10 in / $0.40 out per 1M — retires 2026-10-20',
+  it('should not add a retirement notice for a model with no expiry date', () => {
+    expect(describeExtractionModelOption(KNOWLEDGE_ITEM_MODELS['openrouter/anthropic/claude-haiku-5.5'])).not.toContain(
+      'retires',
     )
   })
 })

@@ -5,13 +5,21 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { KnowledgeBitChatPanel } from './knowledge-bit-chat-panel'
-import { askKnowledgeBitChat } from './knowledge-bit-chat.api'
+import {
+  askKnowledgeBitChat,
+  createKnowledgeItemFromChat,
+  draftKnowledgeBitChat,
+} from './knowledge-bit-chat.api'
 
 vi.mock('./knowledge-bit-chat.api', () => ({
   askKnowledgeBitChat: vi.fn(),
+  draftKnowledgeBitChat: vi.fn(),
+  createKnowledgeItemFromChat: vi.fn(),
 }))
 
 const mockedAsk = vi.mocked(askKnowledgeBitChat)
+const mockedDraft = vi.mocked(draftKnowledgeBitChat)
+const mockedCreate = vi.mocked(createKnowledgeItemFromChat)
 
 afterEach(() => {
   cleanup()
@@ -108,5 +116,88 @@ describe('KnowledgeBitChatPanel', () => {
       await screen.findByText("I couldn't reach the tutor right now — try again."),
     ).toBeTruthy()
     expect(screen.queryByTestId('knowledge-bit-chat-typing-indicator')).toBeFalsy()
+  })
+
+  it('should let the single web research checkbox control the chip draft', async () => {
+    mockedAsk.mockResolvedValue({ reply: 'A closure keeps its scope.' })
+    mockedDraft.mockResolvedValue({
+      sources: [],
+      card: { front: 'Q', back: 'A', sources: ['https://example.com/a'], usedWebSearch: true },
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness('bit-1')
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-open'))
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'What is a closure?')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await user.click(await screen.findByTestId('knowledge-bit-chat-card-web'))
+    await user.click(await screen.findByTestId('knowledge-bit-chat-draft-chip'))
+    await screen.findByTestId('knowledge-bit-chat-card-proposal')
+
+    expect(mockedDraft).toHaveBeenCalledWith({
+      data: expect.objectContaining({ allowWebSearch: true }),
+    })
+  })
+
+  it('should turn the Draft a new card chip into an inline proposal that saves against the studied item', async () => {
+    mockedAsk.mockResolvedValue({ reply: 'A closure keeps its scope.' })
+    mockedDraft.mockResolvedValue({
+      sources: [],
+      card: {
+        front: 'What is a closure?',
+        back: 'A function plus its scope.',
+        sources: [],
+        usedWebSearch: false,
+      },
+    })
+    mockedCreate.mockResolvedValue({
+      id: 'kb-new',
+      body: 'Q\nA',
+      background: null,
+      variants: [],
+      feedback: null,
+      origin: 'manual',
+      isAiGenerated: false,
+      sourceLinks: [],
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness('bit-1')
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-open'))
+
+    expect(screen.queryByTestId('knowledge-bit-chat-draft-chip')).toBeFalsy()
+
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'What is a closure?')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await user.click(await screen.findByTestId('knowledge-bit-chat-draft-chip'))
+
+    expect((await screen.findByTestId('knowledge-bit-chat-card-front')).textContent).toBe(
+      'What is a closure?',
+    )
+    expect(mockedDraft).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        knowledgeBitId: 'bit-1',
+        mode: 'create',
+        instruction: 'make a card from this chat',
+        allowWebSearch: false,
+      }),
+    })
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-card-approve'))
+    await screen.findByTestId('knowledge-bit-chat-card-saved')
+
+    expect(mockedCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        knowledgeBitId: 'bit-1',
+        front: 'What is a closure?',
+        back: 'A function plus its scope.',
+        aiGenerated: false,
+        sourceLinks: [],
+      }),
+    })
   })
 })

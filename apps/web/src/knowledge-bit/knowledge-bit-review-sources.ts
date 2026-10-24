@@ -12,13 +12,6 @@ export function removeBits(
     .filter((source) => source.bits.length > 0)
 }
 
-export function removeBit(
-  sources: PendingKnowledgeSourceForReview[],
-  bitId: string,
-): PendingKnowledgeSourceForReview[] {
-  return removeBits(sources, new Set([bitId]))
-}
-
 export function applyVariantEdit(
   sources: PendingKnowledgeSourceForReview[],
   bitId: string,
@@ -77,63 +70,16 @@ export function dropEmptySourcesExcept(
   )
 }
 
-export interface RemovedBitSnapshot {
-  knowledgeSourceId: string
-  sourceText: string | null
-  index: number
-  bit: PendingKnowledgeBitForReview
-}
-
-export function snapshotBit(
+export function addManualBit(
   sources: PendingKnowledgeSourceForReview[],
-  bitId: string,
-): RemovedBitSnapshot | null {
-  for (const source of sources) {
-    const index = source.bits.findIndex((bit) => bit.id === bitId)
-
-    if (index >= 0) {
-      return {
-        knowledgeSourceId: source.knowledgeSourceId,
-        sourceText: source.sourceText,
-        index,
-        bit: source.bits[index]!,
-      }
-    }
-  }
-
-  return null
-}
-
-export function restoreBit(
-  sources: PendingKnowledgeSourceForReview[],
-  snapshot: RemovedBitSnapshot,
+  sourceId: string,
+  bit: PendingKnowledgeBitForReview,
 ): PendingKnowledgeSourceForReview[] {
-  if (sources.some((source) => source.bits.some((bit) => bit.id === snapshot.bit.id))) {
-    return sources
-  }
-
-  const group = sources.find((source) => source.knowledgeSourceId === snapshot.knowledgeSourceId)
-
-  if (!group) {
-    return [
-      {
-        knowledgeSourceId: snapshot.knowledgeSourceId,
-        sourceText: snapshot.sourceText,
-        bits: [snapshot.bit],
-      },
-      ...sources,
-    ]
-  }
-
   return sources.map((source) => {
-    if (source.knowledgeSourceId !== snapshot.knowledgeSourceId) {
+    if (source.knowledgeSourceId !== sourceId) {
       return source
     }
 
-    const bits = [...source.bits]
-
-    bits.splice(Math.min(snapshot.index, bits.length), 0, snapshot.bit)
-
-    return { ...source, bits }
+    return { ...source, bits: [...source.bits, bit] }
   })
 }

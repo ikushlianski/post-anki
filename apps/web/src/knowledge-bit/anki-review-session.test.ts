@@ -16,6 +16,8 @@ const card = (bit: string, phase: ReviewCard['phase'] = 'review'): ReviewCard =>
   prompt: `prompt ${bit}`,
   answer: `answer ${bit}`,
   background: null,
+  isAiGenerated: false,
+  sourceLinks: [],
   phase,
   leech: false,
   intervalPreview: { again: 60, hard: 60, good: 60, easy: 60 },
@@ -100,12 +102,24 @@ describe('ankiReviewSessionReducer', () => {
     const state = run({
       type: 'editSaved',
       knowledgeBitId: 'a',
-      edit: { variantId: 'v-new', prompt: 'fixed', answer: 'fixed answer' },
+      edit: { variantId: 'v-new', replacesVariantId: 'v-a', prompt: 'fixed', answer: 'fixed answer' },
       now: 5,
     })
 
     expect(applyEdit(card('a'), state.edits)).toMatchObject({ variantId: 'v-new', prompt: 'fixed' })
     expect(applyEdit(card('b'), state.edits).prompt).toBe('prompt b')
+  })
+
+  it('should not paste an edit of one variation over a different variation of the same piece', () => {
+    const state = run({
+      type: 'editSaved',
+      knowledgeBitId: 'a',
+      edit: { variantId: 'v-new', replacesVariantId: 'v-a', prompt: 'fixed', answer: 'fixed answer' },
+      now: 5,
+    })
+    const otherVariation = { ...card('a'), variantId: 'v-a-other', prompt: 'other wording' }
+
+    expect(applyEdit(otherVariation, state.edits)).toEqual(otherVariation)
   })
 
   it('should not count the time spent in the editor as answer time', () => {

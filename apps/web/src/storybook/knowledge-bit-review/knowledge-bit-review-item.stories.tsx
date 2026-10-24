@@ -15,12 +15,11 @@ const meta: Meta<typeof KnowledgeBitReviewItem> = {
   args: {
     bit: threeVariantBit,
     isResolving: false,
-    isSavingVariant: () => false,
-    isSavingBit: () => false,
     pollingGaveUp: false,
     errorMessage: null,
     onApprove: fn(),
     onReject: fn(),
+    onGrade: fn(),
     onSaveVariant: fn(async () => true),
     onSaveBit: fn(async () => true),
   },

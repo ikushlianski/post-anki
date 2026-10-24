@@ -10,6 +10,7 @@ export function AnkiReviewSummary({
   onKeepReviewing?: () => void
 }) {
   const rows: [string, string | number][] = [
+    ['Today', stats.totalGradedToday],
     ['Cards reviewed', stats.reviewed],
     ['Again', stats.byGrade.again],
     ['Hard', stats.byGrade.hard],
@@ -24,6 +25,10 @@ export function AnkiReviewSummary({
     ['Edited', stats.edited],
     ['Leeches flagged', stats.leeches],
   ]
+
+  if (stats.studyStreak > 1) {
+    rows.splice(1, 0, ['Streak', `${stats.studyStreak} days`])
+  }
 
   return (
     <section data-testid="anki-review-summary" className="mt-4 flex flex-col gap-2">

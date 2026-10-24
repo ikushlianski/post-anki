@@ -3,16 +3,17 @@ import type { ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
-import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
+import type { PendingKnowledgeBitFeedback, PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import { KnowledgeBitReviewPanel } from './knowledge-bit-review-panel'
 import {
+  approveKnowledgeBitForReview,
+  gradeKnowledgeBitForReview,
   getPendingKnowledgeBitsForReview,
   rejectKnowledgeBitForReview,
-  restoreKnowledgeBitForReview,
-  setKnowledgeBitFeedbackReasonForReview,
+  updateKnowledgeBitFeedbackForReview,
 } from './knowledge-bit-review.api'
-import { WHY_STRIP_VISIBLE_MS } from './knowledge-bit-review-why'
+import { DECISION_STRIP_VISIBLE_MS } from './knowledge-bit-review-decision-feedback'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ to, children, ...rest }: { to: string; children: ReactNode } & Record<string, unknown>) => (
@@ -25,52 +26,77 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./knowledge-bit-review.api', () => ({
   approveKnowledgeBitForReview: vi.fn(),
   rejectKnowledgeBitForReview: vi.fn(),
-  restoreKnowledgeBitForReview: vi.fn(),
-  setKnowledgeBitFeedbackReasonForReview: vi.fn(),
+  updateKnowledgeBitFeedbackForReview: vi.fn(),
+  gradeKnowledgeBitForReview: vi.fn(),
   editKnowledgeBitQuestionVariantForReview: vi.fn(),
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
   getPendingKnowledgeBitsForReview: vi.fn(),
 }))
 
+const mockedApprove = vi.mocked(approveKnowledgeBitForReview)
 const mockedReject = vi.mocked(rejectKnowledgeBitForReview)
-const mockedRestore = vi.mocked(restoreKnowledgeBitForReview)
-const mockedSetReason = vi.mocked(setKnowledgeBitFeedbackReasonForReview)
+const mockedUpdate = vi.mocked(updateKnowledgeBitFeedbackForReview)
+const mockedGrade = vi.mocked(gradeKnowledgeBitForReview)
 const mockedGetPending = vi.mocked(getPendingKnowledgeBitsForReview)
 
-const SOURCE: PendingKnowledgeSourceForReview = {
-  knowledgeSourceId: 'src-1',
-  sourceText: 'Some pasted text.',
-  bits: [
-    {
-      id: 'bit-1',
-      body: 'First claim.',
+type FeedbackByBit = Record<string, PendingKnowledgeBitFeedback>
+
+const REJECTED_FB1: PendingKnowledgeBitFeedback = {
+  feedbackId: 'fb-1',
+  verdict: 'rejected',
+  rating: null,
+  wordingRating: null,
+}
+const APPROVED_FB2: PendingKnowledgeBitFeedback = {
+  feedbackId: 'fb-2',
+  verdict: 'approved',
+  rating: null,
+  wordingRating: null,
+}
+const STRIP = 'knowledge-bit-review-decision-strip'
+const NOTE = 'knowledge-bit-review-decision-note'
+
+function makeSource(feedback: FeedbackByBit): PendingKnowledgeSourceForReview {
+  return {
+    knowledgeSourceId: 'src-1',
+    sourceText: 'Some pasted text.',
+    subjectName: null,
+    bits: ['bit-1', 'bit-2'].map((id, index) => ({
+      id,
+      body: `Claim ${index + 1}.`,
       background: null,
-      variants: [{ id: 'var-1', kind: 'basic', prompt: 'First question?', answer: 'First answer.' }],
-    },
-    {
-      id: 'bit-2',
-      body: 'Second claim.',
-      background: null,
-      variants: [{ id: 'var-2', kind: 'basic', prompt: 'Second question?', answer: 'Second answer.' }],
-    },
-  ],
+      feedback: feedback[id] ?? null,
+      origin: 'extracted' as const,
+      isAiGenerated: false,
+      sourceLinks: [],
+      variants: [
+        { id: `var-${index + 1}`, kind: 'basic', prompt: `Question ${index + 1}?`, answer: `Answer ${index + 1}.` },
+      ],
+    })),
+  }
 }
 
-function renderPanel() {
-  return render(<KnowledgeBitReviewPanel initialSources={[SOURCE]} />)
+function renderPanel(feedback: FeedbackByBit = {}) {
+  return render(<KnowledgeBitReviewPanel initialSources={[makeSource(feedback)]} />)
 }
 
-describe('rejecting a suggestion and saying why afterwards', () => {
+function openGrade(bitId: string) {
+  fireEvent.click(screen.getByTestId(`knowledge-bit-review-grade-${bitId}`))
+}
+
+describe('grading a card on demand', () => {
   beforeEach(() => {
     mockedReject.mockReset()
-    mockedRestore.mockReset()
-    mockedSetReason.mockReset()
+    mockedApprove.mockReset()
+    mockedUpdate.mockReset()
+    mockedGrade.mockReset()
+    mockedGrade.mockResolvedValue({ ok: true, feedbackId: 'fb-new' })
     mockedGetPending.mockReset()
     mockedGetPending.mockResolvedValue([])
     mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
-    mockedSetReason.mockResolvedValue({ ok: true })
-    mockedRestore.mockResolvedValue({ ok: true })
+    mockedApprove.mockResolvedValue({ ok: true })
+    mockedUpdate.mockResolvedValue({ ok: true })
   })
 
   afterEach(() => {
@@ -78,7 +104,7 @@ describe('rejecting a suggestion and saying why afterwards', () => {
     vi.useRealTimers()
   })
 
-  it('should reject at once with one tap and no reason asked first', async () => {
+  it('should reject at once with one tap and not open the feedback box', async () => {
     renderPanel()
 
     fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
@@ -87,144 +113,27 @@ describe('rejecting a suggestion and saying why afterwards', () => {
       expect(mockedReject).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
     })
     await waitFor(() => {
-      expect(screen.queryByTestId('knowledge-bit-review-item-bit-1')).toBeNull()
+      expect(screen.getByTestId('knowledge-bit-review-status-bit-1').textContent).toBe('Rejected')
     })
-    expect(mockedSetReason).not.toHaveBeenCalled()
+    expect(screen.queryByTestId(STRIP)).toBeNull()
+    expect(mockedUpdate).not.toHaveBeenCalled()
   })
 
-  it('should offer the reasons after the card is gone', async () => {
+  it('should approve without opening the feedback box', async () => {
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-bit-1'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-why-strip')).toBeDefined()
-    })
-    expect(screen.getByTestId('knowledge-bit-review-why-reason-wrong_language')).toBeDefined()
-    expect(screen.getByTestId('knowledge-bit-review-why-reason-meta_wording')).toBeDefined()
-  })
-
-  it('should store the chosen reason on the rejection that was already written', async () => {
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    fireEvent.click(await screen.findByTestId('knowledge-bit-review-why-reason-meta_wording'))
-
-    await waitFor(() => {
-      expect(mockedSetReason).toHaveBeenCalledWith({
-        data: { feedbackId: 'fb-1', reasonCode: 'meta_wording' },
-      })
-    })
-  })
-
-  it('should send the optional note together with the reason', async () => {
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    fireEvent.change(await screen.findByTestId('knowledge-bit-review-why-note'), {
-      target: { value: 'says according to the text' },
-    })
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-why-reason-meta_wording'))
-
-    await waitFor(() => {
-      expect(mockedSetReason).toHaveBeenCalledWith({
-        data: { feedbackId: 'fb-1', reasonCode: 'meta_wording', note: 'says according to the text' },
-      })
-    })
-  })
-
-  it('should add a note after the reason was already chosen', async () => {
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    fireEvent.click(await screen.findByTestId('knowledge-bit-review-why-reason-too_vague_or_no_context'))
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-why-note'), { target: { value: 'no subject' } })
-    fireEvent.keyDown(screen.getByTestId('knowledge-bit-review-why-note'), { key: 'Enter' })
-
-    await waitFor(() => {
-      expect(mockedSetReason).toHaveBeenLastCalledWith({
-        data: { feedbackId: 'fb-1', reasonCode: 'too_vague_or_no_context', note: 'no subject' },
-      })
-    })
-  })
-
-  it('should leave the rejection without a reason and hide the strip when it is ignored', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    renderPanel()
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    await screen.findByTestId('knowledge-bit-review-why-strip')
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(WHY_STRIP_VISIBLE_MS + 100)
-    })
-
-    expect(screen.queryByTestId('knowledge-bit-review-why-strip')).toBeNull()
-    expect(mockedSetReason).not.toHaveBeenCalled()
-  })
-
-  it('should keep the strip open while the reviewer is still choosing', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    renderPanel()
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    await screen.findByTestId('knowledge-bit-review-why-strip')
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(WHY_STRIP_VISIBLE_MS - 1000)
-    })
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-why-note'), { target: { value: 'x' } })
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(WHY_STRIP_VISIBLE_MS - 1000)
-    })
-
-    expect(screen.getByTestId('knowledge-bit-review-why-strip')).toBeDefined()
-  })
-
-  it('should bring the suggestion back with undo', async () => {
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    fireEvent.click(await screen.findByTestId('knowledge-bit-review-why-undo'))
-
-    await waitFor(() => {
-      expect(mockedRestore).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
+      expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
     })
     await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-item-bit-1')).toBeDefined()
+      expect(screen.getByTestId('knowledge-bit-review-status-bit-1').textContent).toBe('Approved')
     })
-    expect(screen.queryByTestId('knowledge-bit-review-why-strip')).toBeNull()
+    expect(screen.queryByTestId(STRIP)).toBeNull()
   })
 
-  it('should put the restored suggestion back in its original position', async () => {
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    fireEvent.click(await screen.findByTestId('knowledge-bit-review-why-undo'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-item-bit-1')).toBeDefined()
-    })
-
-    const ids = screen
-      .getAllByTestId(/^knowledge-bit-review-item-/)
-      .map((element) => element.getAttribute('data-testid'))
-
-    expect(ids).toEqual(['knowledge-bit-review-item-bit-1', 'knowledge-bit-review-item-bit-2'])
-  })
-
-  it('should say so when undo fails and keep the suggestion rejected on screen', async () => {
-    mockedRestore.mockRejectedValue(new Error('offline'))
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    fireEvent.click(await screen.findByTestId('knowledge-bit-review-why-undo'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-why-error')).toBeDefined()
-    })
-    expect(screen.queryByTestId('knowledge-bit-review-item-bit-1')).toBeNull()
-  })
-
-  it('should ask for the reason after the r key rejects the focused suggestion', async () => {
+  it('should not open the feedback box after the r key rejects the focused card', async () => {
     renderPanel()
 
     fireEvent.keyDown(window, { key: 'r' })
@@ -232,46 +141,188 @@ describe('rejecting a suggestion and saying why afterwards', () => {
     await waitFor(() => {
       expect(mockedReject).toHaveBeenCalledWith({ data: { bitId: 'bit-1' } })
     })
-    expect(await screen.findByTestId('knowledge-bit-review-why-strip')).toBeDefined()
+    expect(screen.queryByTestId(STRIP)).toBeNull()
   })
 
-  it('should not ask for a reason when the rejection could not be stored', async () => {
-    mockedReject.mockRejectedValue(new Error('offline'))
+  it('should offer a grade control of at least 44px on every card', () => {
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
+    for (const bitId of ['bit-1', 'bit-2']) {
+      const button = screen.getByTestId(`knowledge-bit-review-grade-${bitId}`)
+
+      expect(button.textContent).toBe('Grade this card')
+      expect(button.className).toContain('min-h-11')
+    }
+  })
+
+  it('should open the feedback box only when the learner asks to grade a card', () => {
+    renderPanel({ 'bit-2': APPROVED_FB2 })
+
+    expect(screen.queryByTestId(STRIP)).toBeNull()
+
+    openGrade('bit-2')
+
+    expect(screen.getByTestId(STRIP)).toBeDefined()
+    expect(screen.queryByTestId('knowledge-bit-review-decision-reason-other')).toBeNull()
+  })
+
+  it('should save the grade chosen from the card on its recorded decision', async () => {
+    renderPanel({ 'bit-2': APPROVED_FB2 })
+
+    openGrade('bit-2')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-4'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-error-bit-1')).toBeDefined()
+      expect(mockedUpdate).toHaveBeenCalledWith({ data: { feedbackId: 'fb-2', rating: 4 } })
     })
-    expect(screen.queryByTestId('knowledge-bit-review-why-strip')).toBeNull()
   })
 
-  it('should show only undo when the server gave no feedback id to attach a reason to', async () => {
-    mockedReject.mockResolvedValue({ ok: true, feedbackId: null })
+  it('should grade a pending card with no decision through the grades route', async () => {
     renderPanel()
 
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-
-    expect(await screen.findByTestId('knowledge-bit-review-why-undo')).toBeDefined()
-    expect(screen.queryByTestId('knowledge-bit-review-why-reason-other')).toBeNull()
-  })
-
-  it('should switch the strip to the newest rejection when another card is rejected', async () => {
-    mockedReject
-      .mockResolvedValueOnce({ ok: true, feedbackId: 'fb-1' })
-      .mockResolvedValueOnce({ ok: true, feedbackId: 'fb-2' })
-    renderPanel()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
-    await screen.findByTestId('knowledge-bit-review-why-strip')
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-2'))
-    fireEvent.click(await screen.findByTestId('knowledge-bit-review-why-reason-bad_format'))
+    openGrade('bit-1')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-4'))
 
     await waitFor(() => {
-      expect(mockedSetReason).toHaveBeenCalledWith({
-        data: { feedbackId: 'fb-2', reasonCode: 'bad_format' },
+      expect(mockedGrade).toHaveBeenCalledWith({ data: { bitId: 'bit-1', rating: 4 } })
+    })
+    expect(mockedUpdate).not.toHaveBeenCalled()
+  })
+
+  it('should update the grade it just created instead of creating a second one', async () => {
+    renderPanel()
+
+    openGrade('bit-1')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-4'))
+    await waitFor(() => expect(mockedGrade).toHaveBeenCalledTimes(1))
+    await waitFor(() => {
+      fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-2'))
+      expect(mockedUpdate).toHaveBeenCalledWith({ data: { feedbackId: 'fb-new', rating: 2 } })
+    })
+
+    expect(mockedGrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('should send the typed note together with the first grade of a pending card', async () => {
+    renderPanel()
+
+    openGrade('bit-1')
+    fireEvent.change(screen.getByTestId(NOTE), { target: { value: 'clear question' } })
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-5'))
+
+    await waitFor(() => {
+      expect(mockedGrade).toHaveBeenCalledWith({
+        data: { bitId: 'bit-1', rating: 5, note: 'clear question' },
       })
+    })
+  })
+
+  it('should show an error when grading a pending card fails', async () => {
+    mockedGrade.mockRejectedValue(new Error('offline'))
+    renderPanel()
+
+    openGrade('bit-1')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-3'))
+
+    expect(await screen.findByTestId('knowledge-bit-review-decision-error')).toBeDefined()
+  })
+
+  it('should grade a card that was just rejected on the rejection recorded for it', async () => {
+    renderPanel()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-bit-1'))
+    await screen.findByTestId('knowledge-bit-review-status-bit-1')
+    openGrade('bit-1')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-reason-bad_format'))
+
+    await waitFor(() => {
+      expect(mockedUpdate).toHaveBeenCalledWith({
+        data: { feedbackId: 'fb-1', reasonCode: 'bad_format' },
+      })
+    })
+    expect(mockedGrade).not.toHaveBeenCalled()
+  })
+
+  it('should offer the rejection reasons when grading a card that was rejected', async () => {
+    renderPanel({ 'bit-1': REJECTED_FB1 })
+
+    openGrade('bit-1')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-reason-meta_wording'))
+
+    await waitFor(() => {
+      expect(mockedUpdate).toHaveBeenCalledWith({
+        data: { feedbackId: 'fb-1', reasonCode: 'meta_wording' },
+      })
+    })
+  })
+
+  it('should send the note when the note field loses focus after typing', async () => {
+    renderPanel({ 'bit-1': REJECTED_FB1 })
+
+    openGrade('bit-1')
+    fireEvent.change(screen.getByTestId(NOTE), { target: { value: 'says according to the text' } })
+    fireEvent.blur(screen.getByTestId(NOTE))
+
+    await waitFor(() => {
+      expect(mockedUpdate).toHaveBeenCalledWith({
+        data: { feedbackId: 'fb-1', note: 'says according to the text' },
+      })
+    })
+  })
+
+  it('should add a note after the reason was already chosen', async () => {
+    renderPanel({ 'bit-1': REJECTED_FB1 })
+
+    openGrade('bit-1')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-reason-too_vague_or_no_context'))
+    fireEvent.change(screen.getByTestId(NOTE), { target: { value: 'no subject' } })
+    fireEvent.keyDown(screen.getByTestId(NOTE), { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(mockedUpdate).toHaveBeenLastCalledWith({
+        data: { feedbackId: 'fb-1', reasonCode: 'too_vague_or_no_context', note: 'no subject' },
+      })
+    })
+  })
+
+  it('should hide the feedback box when it is ignored without saving anything', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    renderPanel({ 'bit-1': REJECTED_FB1 })
+    openGrade('bit-1')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(DECISION_STRIP_VISIBLE_MS + 100)
+    })
+
+    expect(screen.queryByTestId(STRIP)).toBeNull()
+    expect(mockedUpdate).not.toHaveBeenCalled()
+  })
+
+  it('should keep the feedback box open while the learner is still typing', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    renderPanel({ 'bit-1': REJECTED_FB1 })
+    openGrade('bit-1')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(DECISION_STRIP_VISIBLE_MS - 1000)
+    })
+    fireEvent.change(screen.getByTestId(NOTE), { target: { value: 'x' } })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(DECISION_STRIP_VISIBLE_MS - 1000)
+    })
+
+    expect(screen.getByTestId(STRIP)).toBeDefined()
+  })
+
+  it('should grade the second card when grading is opened on another card', async () => {
+    renderPanel({ 'bit-1': REJECTED_FB1, 'bit-2': APPROVED_FB2 })
+
+    openGrade('bit-1')
+    openGrade('bit-2')
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-decision-quality-2'))
+
+    await waitFor(() => {
+      expect(mockedUpdate).toHaveBeenCalledWith({ data: { feedbackId: 'fb-2', rating: 2 } })
     })
   })
 })

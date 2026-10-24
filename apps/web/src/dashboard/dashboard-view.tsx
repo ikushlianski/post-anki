@@ -83,7 +83,7 @@ export function DashboardView({
   return (
     <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Your subjects</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Everything you're learning and where each piece stands. Change any
           status to re-steer — drop a topic to Skipping, push one to Going

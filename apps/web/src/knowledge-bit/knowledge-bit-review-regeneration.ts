@@ -104,7 +104,7 @@ export function useSourceRegeneration({
   }, [])
 
   const applyStatuses = useCallback(
-    (statuses: RegenerationStatuses) => {
+    (statuses: RegenerationStatuses, _fresh?: unknown) => {
       const stillRunning = new Set(
         Object.keys(statesRef.current).filter(
           (id) => statesRef.current[id]?.phase !== 'confirming' && statuses[id]?.status !== 'done',

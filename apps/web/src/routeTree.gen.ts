@@ -26,8 +26,10 @@ import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AdminSettingsRouteImport } from './routes/admin-settings'
 import { Route as AdminObservabilityRouteImport } from './routes/admin-observability'
+import { Route as AdminCompareModelsRouteImport } from './routes/admin-compare-models'
 import { Route as AddKnowledgeRouteImport } from './routes/add-knowledge'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KnowledgeIndexRouteImport } from './routes/knowledge.index'
 import { Route as SubjectsNewRouteImport } from './routes/subjects.new'
 import { Route as SubjectSubjectIdRouteImport } from './routes/subject.$subjectId'
 import { Route as StudySessionsSessionIdRouteImport } from './routes/study-sessions_.$sessionId'
@@ -36,7 +38,9 @@ import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjec
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as LearningPathsPathIdRouteImport } from './routes/learning-paths_.$pathId'
 import { Route as KnowledgeSuspendedRouteImport } from './routes/knowledge.suspended'
+import { Route as KnowledgeStyleNotesRouteImport } from './routes/knowledge.style-notes'
 import { Route as KnowledgeReviewRouteImport } from './routes/knowledge.review'
+import { Route as KnowledgeBrowserRouteImport } from './routes/knowledge.browser'
 import { Route as KnowledgeAnswerRouteImport } from './routes/knowledge.answer'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
 import { Route as CardsTopicIdRouteImport } from './routes/cards.$topicId'
@@ -50,6 +54,7 @@ import { Route as CurriculumCurriculumIdStatsRouteImport } from './routes/curric
 import { Route as CurriculumCurriculumIdExamRouteImport } from './routes/curriculum.$curriculumId_.exam'
 import { Route as CurriculumCurriculumIdCardsRouteImport } from './routes/curriculum.$curriculumId_.cards'
 import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curriculum.$curriculumId_.assess'
+import { Route as ApiKnowledgeBitsExportRouteImport } from './routes/api.knowledge-bits.export'
 import { Route as SubjectSubjectIdCategoryCategoryIdRouteImport } from './routes/subject.$subjectId_.category.$categoryId'
 
 const TodayRoute = TodayRouteImport.update({
@@ -137,6 +142,11 @@ const AdminObservabilityRoute = AdminObservabilityRouteImport.update({
   path: '/admin-observability',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCompareModelsRoute = AdminCompareModelsRouteImport.update({
+  id: '/admin-compare-models',
+  path: '/admin-compare-models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AddKnowledgeRoute = AddKnowledgeRouteImport.update({
   id: '/add-knowledge',
   path: '/add-knowledge',
@@ -145,6 +155,11 @@ const AddKnowledgeRoute = AddKnowledgeRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeIndexRoute = KnowledgeIndexRouteImport.update({
+  id: '/knowledge/',
+  path: '/knowledge/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubjectsNewRoute = SubjectsNewRouteImport.update({
@@ -187,9 +202,19 @@ const KnowledgeSuspendedRoute = KnowledgeSuspendedRouteImport.update({
   path: '/knowledge/suspended',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KnowledgeStyleNotesRoute = KnowledgeStyleNotesRouteImport.update({
+  id: '/knowledge/style-notes',
+  path: '/knowledge/style-notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KnowledgeReviewRoute = KnowledgeReviewRouteImport.update({
   id: '/knowledge/review',
   path: '/knowledge/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeBrowserRoute = KnowledgeBrowserRouteImport.update({
+  id: '/knowledge/browser',
+  path: '/knowledge/browser',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KnowledgeAnswerRoute = KnowledgeAnswerRouteImport.update({
@@ -264,6 +289,11 @@ const CurriculumCurriculumIdAssessRoute =
     path: '/curriculum/$curriculumId/assess',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiKnowledgeBitsExportRoute = ApiKnowledgeBitsExportRouteImport.update({
+  id: '/api/knowledge-bits/export',
+  path: '/api/knowledge-bits/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubjectSubjectIdCategoryCategoryIdRoute =
   SubjectSubjectIdCategoryCategoryIdRouteImport.update({
     id: '/subject/$subjectId_/category/$categoryId',
@@ -274,6 +304,7 @@ const SubjectSubjectIdCategoryCategoryIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add-knowledge': typeof AddKnowledgeRoute
+  '/admin-compare-models': typeof AdminCompareModelsRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/analytics': typeof AnalyticsRoute
@@ -295,7 +326,9 @@ export interface FileRoutesByFullPath {
   '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
+  '/knowledge/browser': typeof KnowledgeBrowserRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
+  '/knowledge/style-notes': typeof KnowledgeStyleNotesRoute
   '/knowledge/suspended': typeof KnowledgeSuspendedRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
@@ -304,6 +337,8 @@ export interface FileRoutesByFullPath {
   '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
+  '/knowledge/': typeof KnowledgeIndexRoute
+  '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/cards': typeof CurriculumCurriculumIdCardsRoute
   '/curriculum/$curriculumId/exam': typeof CurriculumCurriculumIdExamRoute
@@ -318,6 +353,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add-knowledge': typeof AddKnowledgeRoute
+  '/admin-compare-models': typeof AdminCompareModelsRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/analytics': typeof AnalyticsRoute
@@ -339,7 +375,9 @@ export interface FileRoutesByTo {
   '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
+  '/knowledge/browser': typeof KnowledgeBrowserRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
+  '/knowledge/style-notes': typeof KnowledgeStyleNotesRoute
   '/knowledge/suspended': typeof KnowledgeSuspendedRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
@@ -348,6 +386,8 @@ export interface FileRoutesByTo {
   '/study-sessions/$sessionId': typeof StudySessionsSessionIdRoute
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
+  '/knowledge': typeof KnowledgeIndexRoute
+  '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/cards': typeof CurriculumCurriculumIdCardsRoute
   '/curriculum/$curriculumId/exam': typeof CurriculumCurriculumIdExamRoute
@@ -363,6 +403,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add-knowledge': typeof AddKnowledgeRoute
+  '/admin-compare-models': typeof AdminCompareModelsRoute
   '/admin-observability': typeof AdminObservabilityRoute
   '/admin-settings': typeof AdminSettingsRoute
   '/analytics': typeof AnalyticsRoute
@@ -384,7 +425,9 @@ export interface FileRoutesById {
   '/cards/$topicId': typeof CardsTopicIdRoute
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
+  '/knowledge/browser': typeof KnowledgeBrowserRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
+  '/knowledge/style-notes': typeof KnowledgeStyleNotesRoute
   '/knowledge/suspended': typeof KnowledgeSuspendedRoute
   '/learning-paths_/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
@@ -393,6 +436,8 @@ export interface FileRoutesById {
   '/study-sessions_/$sessionId': typeof StudySessionsSessionIdRoute
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
+  '/knowledge/': typeof KnowledgeIndexRoute
+  '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/cards': typeof CurriculumCurriculumIdCardsRoute
   '/curriculum/$curriculumId_/exam': typeof CurriculumCurriculumIdExamRoute
@@ -409,6 +454,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add-knowledge'
+    | '/admin-compare-models'
     | '/admin-observability'
     | '/admin-settings'
     | '/analytics'
@@ -430,7 +476,9 @@ export interface FileRouteTypes {
     | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
+    | '/knowledge/browser'
     | '/knowledge/review'
+    | '/knowledge/style-notes'
     | '/knowledge/suspended'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
@@ -439,6 +487,8 @@ export interface FileRouteTypes {
     | '/study-sessions/$sessionId'
     | '/subject/$subjectId'
     | '/subjects/new'
+    | '/knowledge/'
+    | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/cards'
     | '/curriculum/$curriculumId/exam'
@@ -453,6 +503,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add-knowledge'
+    | '/admin-compare-models'
     | '/admin-observability'
     | '/admin-settings'
     | '/analytics'
@@ -474,7 +525,9 @@ export interface FileRouteTypes {
     | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
+    | '/knowledge/browser'
     | '/knowledge/review'
+    | '/knowledge/style-notes'
     | '/knowledge/suspended'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
@@ -483,6 +536,8 @@ export interface FileRouteTypes {
     | '/study-sessions/$sessionId'
     | '/subject/$subjectId'
     | '/subjects/new'
+    | '/knowledge'
+    | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/cards'
     | '/curriculum/$curriculumId/exam'
@@ -497,6 +552,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add-knowledge'
+    | '/admin-compare-models'
     | '/admin-observability'
     | '/admin-settings'
     | '/analytics'
@@ -518,7 +574,9 @@ export interface FileRouteTypes {
     | '/cards/$topicId'
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
+    | '/knowledge/browser'
     | '/knowledge/review'
+    | '/knowledge/style-notes'
     | '/knowledge/suspended'
     | '/learning-paths_/$pathId'
     | '/lecture/$topicId'
@@ -527,6 +585,8 @@ export interface FileRouteTypes {
     | '/study-sessions_/$sessionId'
     | '/subject/$subjectId'
     | '/subjects/new'
+    | '/knowledge/'
+    | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/cards'
     | '/curriculum/$curriculumId_/exam'
@@ -542,6 +602,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddKnowledgeRoute: typeof AddKnowledgeRoute
+  AdminCompareModelsRoute: typeof AdminCompareModelsRoute
   AdminObservabilityRoute: typeof AdminObservabilityRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AnalyticsRoute: typeof AnalyticsRoute
@@ -563,7 +624,9 @@ export interface RootRouteChildren {
   CardsTopicIdRoute: typeof CardsTopicIdRoute
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   KnowledgeAnswerRoute: typeof KnowledgeAnswerRoute
+  KnowledgeBrowserRoute: typeof KnowledgeBrowserRoute
   KnowledgeReviewRoute: typeof KnowledgeReviewRoute
+  KnowledgeStyleNotesRoute: typeof KnowledgeStyleNotesRoute
   KnowledgeSuspendedRoute: typeof KnowledgeSuspendedRoute
   LearningPathsPathIdRoute: typeof LearningPathsPathIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
@@ -572,6 +635,8 @@ export interface RootRouteChildren {
   StudySessionsSessionIdRoute: typeof StudySessionsSessionIdRoute
   SubjectSubjectIdRoute: typeof SubjectSubjectIdRoute
   SubjectsNewRoute: typeof SubjectsNewRoute
+  KnowledgeIndexRoute: typeof KnowledgeIndexRoute
+  ApiKnowledgeBitsExportRoute: typeof ApiKnowledgeBitsExportRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
   CurriculumCurriculumIdCardsRoute: typeof CurriculumCurriculumIdCardsRoute
   CurriculumCurriculumIdExamRoute: typeof CurriculumCurriculumIdExamRoute
@@ -705,6 +770,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminObservabilityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-compare-models': {
+      id: '/admin-compare-models'
+      path: '/admin-compare-models'
+      fullPath: '/admin-compare-models'
+      preLoaderRoute: typeof AdminCompareModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/add-knowledge': {
       id: '/add-knowledge'
       path: '/add-knowledge'
@@ -717,6 +789,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge/': {
+      id: '/knowledge/'
+      path: '/knowledge'
+      fullPath: '/knowledge/'
+      preLoaderRoute: typeof KnowledgeIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subjects/new': {
@@ -775,11 +854,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KnowledgeSuspendedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/knowledge/style-notes': {
+      id: '/knowledge/style-notes'
+      path: '/knowledge/style-notes'
+      fullPath: '/knowledge/style-notes'
+      preLoaderRoute: typeof KnowledgeStyleNotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/knowledge/review': {
       id: '/knowledge/review'
       path: '/knowledge/review'
       fullPath: '/knowledge/review'
       preLoaderRoute: typeof KnowledgeReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge/browser': {
+      id: '/knowledge/browser'
+      path: '/knowledge/browser'
+      fullPath: '/knowledge/browser'
+      preLoaderRoute: typeof KnowledgeBrowserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/knowledge/answer': {
@@ -873,6 +966,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CurriculumCurriculumIdAssessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/knowledge-bits/export': {
+      id: '/api/knowledge-bits/export'
+      path: '/api/knowledge-bits/export'
+      fullPath: '/api/knowledge-bits/export'
+      preLoaderRoute: typeof ApiKnowledgeBitsExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subject/$subjectId_/category/$categoryId': {
       id: '/subject/$subjectId_/category/$categoryId'
       path: '/subject/$subjectId/category/$categoryId'
@@ -886,6 +986,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddKnowledgeRoute: AddKnowledgeRoute,
+  AdminCompareModelsRoute: AdminCompareModelsRoute,
   AdminObservabilityRoute: AdminObservabilityRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AnalyticsRoute: AnalyticsRoute,
@@ -907,7 +1008,9 @@ const rootRouteChildren: RootRouteChildren = {
   CardsTopicIdRoute: CardsTopicIdRoute,
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   KnowledgeAnswerRoute: KnowledgeAnswerRoute,
+  KnowledgeBrowserRoute: KnowledgeBrowserRoute,
   KnowledgeReviewRoute: KnowledgeReviewRoute,
+  KnowledgeStyleNotesRoute: KnowledgeStyleNotesRoute,
   KnowledgeSuspendedRoute: KnowledgeSuspendedRoute,
   LearningPathsPathIdRoute: LearningPathsPathIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
@@ -916,6 +1019,8 @@ const rootRouteChildren: RootRouteChildren = {
   StudySessionsSessionIdRoute: StudySessionsSessionIdRoute,
   SubjectSubjectIdRoute: SubjectSubjectIdRoute,
   SubjectsNewRoute: SubjectsNewRoute,
+  KnowledgeIndexRoute: KnowledgeIndexRoute,
+  ApiKnowledgeBitsExportRoute: ApiKnowledgeBitsExportRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
   CurriculumCurriculumIdCardsRoute: CurriculumCurriculumIdCardsRoute,
   CurriculumCurriculumIdExamRoute: CurriculumCurriculumIdExamRoute,

@@ -1,9 +1,17 @@
+import { MAX_CHAT_TRANSCRIPT_MESSAGES } from '@post-anki/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ApiError,
   askGlobalCardChat,
   askKnowledgeBitChat,
+  askStudyChat,
+  createDerivedKnowledgeItem,
+  createManualKnowledgeItem,
+  createModelComparisonRun,
+  estimateModelComparison,
+  gradeModelComparisonCard,
+  gradeModelComparisonResult,
   resolveDomainSupersessionSuggestion,
   resolveDomainTopicSuggestion,
   resolvePlacementSuggestion,
@@ -181,6 +189,46 @@ describe('doc-scan suggestion resolvers', () => {
     })
   })
 
+  describe('chat transcript trimming', () => {
+    const longHistory = Array.from({ length: MAX_CHAT_TRANSCRIPT_MESSAGES + 30 }, (_, i) => ({
+      role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+      text: `turn-${i}`,
+    }))
+
+    async function sentTranscript(): Promise<{ text: string }[]> {
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+
+      return JSON.parse(init.body as string).transcript
+    }
+
+    it('should send only the newest turns of a long card chat history', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'ok' }))
+
+      await askKnowledgeBitChat('bit-1', { message: 'hi', transcript: longHistory })
+
+      const sent = await sentTranscript()
+
+      expect(sent).toHaveLength(MAX_CHAT_TRANSCRIPT_MESSAGES)
+      expect(sent.at(-1)?.text).toBe(longHistory.at(-1)?.text)
+    })
+
+    it('should send only the newest turns of a long global card chat history', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'ok', matchedCards: [] }))
+
+      await askGlobalCardChat({ message: 'hi', transcript: longHistory })
+
+      expect(await sentTranscript()).toHaveLength(MAX_CHAT_TRANSCRIPT_MESSAGES)
+    })
+
+    it('should send only the newest turns of a long study chat history', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'ok' }))
+
+      await askStudyChat({ topicId: 't1', message: 'hi', transcript: longHistory })
+
+      expect(await sentTranscript()).toHaveLength(MAX_CHAT_TRANSCRIPT_MESSAGES)
+    })
+  })
+
   describe('askKnowledgeBitChat', () => {
     it('posts to the bit-scoped chat endpoint with the message and transcript', async () => {
       fetchMock.mockResolvedValue(jsonResponse(200, { reply: 'it means X' }))
@@ -221,5 +269,107 @@ describe('doc-scan suggestion resolvers', () => {
 
       expect(result).toBeNull()
     })
+  })
+})
+
+describe('manual and derived knowledge item creation', () => {
+  const item = {
+    id: 'kb-new',
+    body: 'Q\nA',
+    background: null,
+    variants: [],
+    feedback: null,
+    origin: 'manual',
+    isAiGenerated: true,
+    sourceLinks: ['https://example.com/a'],
+  }
+
+  beforeEach(() => {
+    process.env.API_BASE_URL = 'https://api.test'
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('should post the card once-encoded to the source items route and return the item as is', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, item))
+
+    const input = { front: 'Q', back: 'A', aiGenerated: true, sourceLinks: ['https://example.com/a'] }
+    const result = await createManualKnowledgeItem('ks-1', input)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+
+    expect(url).toBe('https://api.test/knowledge-sources/ks-1/items')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual(input)
+    expect(result).toEqual(item)
+  })
+
+  it('should post the card to the derived-items route of the studied item', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, item))
+
+    const result = await createDerivedKnowledgeItem('kb-1', { front: 'Q', back: 'A' })
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+
+    expect(url).toBe('https://api.test/knowledge-bits/kb-1/derived-items')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ front: 'Q', back: 'A' })
+    expect(result).toEqual(item)
+  })
+})
+
+describe('model comparison requests', () => {
+  beforeEach(() => {
+    process.env.API_BASE_URL = 'https://api.test'
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function sentBody(): unknown {
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+
+    return JSON.parse(init.body as string)
+  }
+
+  const input = { excerpt: 'text', modelIds: ['openrouter/openai/gpt-4o-mini' as const] }
+
+  it('should send the estimate input as a JSON object, encoded once', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, {}))
+
+    await estimateModelComparison(input)
+
+    expect(sentBody()).toEqual(input)
+  })
+
+  it('should send the new run input as a JSON object, encoded once', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, {}))
+
+    await createModelComparisonRun(input)
+
+    expect(sentBody()).toEqual(input)
+  })
+
+  it('should send a result grade as a JSON object, encoded once', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }))
+
+    await gradeModelComparisonResult('run-1', 'model-1', { extractionRating: 4 })
+
+    expect(sentBody()).toEqual({ extractionRating: 4 })
+  })
+
+  it('should send a card grade as a JSON object, encoded once', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }))
+
+    await gradeModelComparisonCard('run-1', 'model-1', 2, { rating: 3 })
+
+    expect(sentBody()).toEqual({ rating: 3 })
   })
 })

@@ -1,7 +1,29 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { ReviewCard } from '@post-anki/shared'
 
+import { AiLabelBadge } from './ai-label-badge'
+import { CardSourceLink } from './card-source-link'
 import { KnowledgeBitChatPanel } from './knowledge-bit-chat-panel'
+
+function renderFillBlankPrompt(prompt: string): ReactNode {
+  const parts = prompt.split('____')
+
+  if (parts.length === 1) return prompt
+
+  return parts.reduce<ReactNode[]>((acc, part, i) => {
+    if (i > 0) {
+      acc.push(
+        <span key={i} data-testid="fill-blank-cloze" className="font-bold">
+          [...]
+        </span>,
+      )
+    }
+
+    acc.push(part)
+
+    return acc
+  }, [])
+}
 
 export function AnkiReviewCard({
   card,
@@ -28,7 +50,7 @@ export function AnkiReviewCard({
     <div data-testid="anki-review-card" className="flex flex-col gap-4">
       {editor ?? (
         <p data-testid="anki-review-prompt" className="text-lg font-medium">
-          {card.prompt}
+          {card.kind === 'fill_in_the_blank' ? renderFillBlankPrompt(card.prompt) : card.prompt}
         </p>
       )}
 
@@ -48,7 +70,11 @@ export function AnkiReviewCard({
         <>
           {!editor && (
             <p data-testid="anki-review-answer" className="border-t border-neutral-200 pt-4">
-              {card.answer}
+              {card.kind === 'fill_in_the_blank' ? (
+                <strong data-testid="fill-blank-answer">{card.answer}</strong>
+              ) : (
+                card.answer
+              )}
             </p>
           )}
           {card.background && (
@@ -56,8 +82,11 @@ export function AnkiReviewCard({
               {card.background}
             </p>
           )}
+          {!card.isAiGenerated && <CardSourceLink sourceLinks={card.sourceLinks} />}
         </>
       )}
+
+      <AiLabelBadge isAiGenerated={card.isAiGenerated} sourceLinks={card.sourceLinks} />
 
       {actions}
 

@@ -1,4 +1,5 @@
 import type * as be from '@post-anki/shared'
+import { takeRecentChatMessages } from '@post-anki/shared'
 import type {
   AttemptResult,
   Concern,
@@ -106,12 +107,14 @@ export function authHeaders(): Record<string, string> {
 export class ApiError extends Error {
   readonly status: number
   readonly code: string | undefined
+  readonly details: unknown
 
-  constructor(status: number, code: string | undefined, message: string) {
+  constructor(status: number, code: string | undefined, message: string, details?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 
@@ -132,16 +135,17 @@ export async function request<T>(
   })
 
   if (!response.ok) {
-    const code = await response
+    const errorBody = await response
       .clone()
       .json()
-      .then((body: { error?: string }) => body.error)
+      .then((body: { error?: string }) => body)
       .catch(() => undefined)
 
     throw new ApiError(
       response.status,
-      code,
+      errorBody?.error,
       `api ${init?.method ?? 'GET'} ${path} → ${response.status}`,
+      errorBody,
     )
   }
 
@@ -253,6 +257,7 @@ function mapTopic(topic: be.Topic): Topic {
     tags: (topic.tags ?? []).map(mapTagChip),
     depthElectedAt: topic.depthElectedAt,
     headroomOfferedAt: topic.headroomOfferedAt ?? null,
+    dueCount: topic.dueCount,
   }
 }
 
@@ -510,6 +515,26 @@ export async function approveKnowledgeBit(bitId: string): Promise<{ ok: true }> 
   return request<{ ok: true }>(`/knowledge-bits/${bitId}/approve`, { method: 'POST' })
 }
 
+export async function triageKnowledgeBit(
+  bitId: string,
+  keepVariantIds: string[],
+): Promise<be.TriageKnowledgeBitResponse> {
+  return request<be.TriageKnowledgeBitResponse>(`/knowledge-bits/${bitId}/triage`, {
+    method: 'POST',
+    body: { keepVariantIds },
+  })
+}
+
+export async function undoTriageKnowledgeBit(
+  bitId: string,
+  restoreVariantIds: string[],
+): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/knowledge-bits/${bitId}/triage/undo`, {
+    method: 'POST',
+    body: { restoreVariantIds },
+  })
+}
+
 export async function bulkApproveKnowledgeBits(
   knowledgeBitIds: string[],
 ): Promise<be.BulkApproveKnowledgeBitsResponse> {
@@ -533,14 +558,23 @@ export async function restoreRejectedKnowledgeBit(bitId: string): Promise<{ ok: 
   return request<{ ok: true }>(`/knowledge-bits/${bitId}/restore`, { method: 'POST' })
 }
 
-export async function setKnowledgeBitFeedbackReason(
+export async function gradeKnowledgeBit(
+  bitId: string,
+  input: be.GradeKnowledgeBitInput,
+): Promise<be.GradeKnowledgeBitResponse> {
+  return request<be.GradeKnowledgeBitResponse>(`/knowledge-bits/${bitId}/grades`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function updateKnowledgeBitFeedback(
   feedbackId: string,
-  reasonCode: be.KnowledgeBitRejectReason,
-  note?: string,
+  data: { reasonCode?: be.KnowledgeBitRejectReason; note?: string; rating?: number },
 ): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/knowledge-bit-feedback/${feedbackId}`, {
     method: 'PATCH',
-    body: note ? { reasonCode, note } : { reasonCode },
+    body: data,
   })
 }
 
@@ -573,6 +607,83 @@ export async function editKnowledgeBit(
 export type RegenerateKnowledgeSourceOutcome =
   | be.RegenerateKnowledgeSourceResult
   | { status: 'already_running' }
+
+export async function createManualKnowledgeItem(
+  sourceId: string,
+  input: be.CreateManualKnowledgeItemInput,
+): Promise<be.PendingKnowledgeBitForReview> {
+  return request<be.PendingKnowledgeBitForReview>(`/knowledge-sources/${sourceId}/items`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function createDerivedKnowledgeItem(
+  knowledgeBitId: string,
+  input: be.CreateManualKnowledgeItemInput,
+): Promise<be.PendingKnowledgeBitForReview> {
+  return request<be.PendingKnowledgeBitForReview>(`/knowledge-bits/${knowledgeBitId}/derived-items`, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function getKnowledgeBitModelSuggestion(): Promise<import('@post-anki/core').ModelSuggestionResult> {
+  return request<import('@post-anki/core').ModelSuggestionResult>('/admin/knowledge-bit-feedback/model-suggestion')
+}
+
+export async function estimateModelComparison(
+  input: be.CompareModelsInput,
+): Promise<be.ModelComparisonEstimate> {
+  return request<be.ModelComparisonEstimate>('/admin/model-comparison/estimate', {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function createModelComparisonRun(
+  input: be.CompareModelsInput,
+): Promise<be.ModelComparisonRunDetail> {
+  return request<be.ModelComparisonRunDetail>('/admin/model-comparison/runs', {
+    method: 'POST',
+    body: input,
+  })
+}
+
+export async function listModelComparisonRuns(): Promise<be.ModelComparisonRunSummary[]> {
+  return request<be.ModelComparisonRunSummary[]>('/admin/model-comparison/runs')
+}
+
+export async function getModelComparisonRun(runId: string): Promise<be.ModelComparisonRunDetail> {
+  return request<be.ModelComparisonRunDetail>(`/admin/model-comparison/runs/${runId}`)
+}
+
+export async function gradeModelComparisonResult(
+  runId: string,
+  modelId: string,
+  grade: be.GradeModelResultInput,
+): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/admin/model-comparison/runs/${runId}/results/${modelId}/grade`, {
+    method: 'POST',
+    body: grade,
+  })
+}
+
+export async function gradeModelComparisonCard(
+  runId: string,
+  modelId: string,
+  cardIndex: number,
+  grade: be.GradeComparisonCardInput,
+): Promise<{ ok: true }> {
+  return request<{ ok: true }>(
+    `/admin/model-comparison/runs/${runId}/results/${modelId}/cards/${cardIndex}/grade`,
+    { method: 'POST', body: grade },
+  )
+}
+
+export async function getKnowledgeSourceText(sourceId: string): Promise<{ text: string }> {
+  return request<{ text: string }>(`/knowledge-sources/${sourceId}/text`)
+}
 
 export async function regenerateKnowledgeSource(
   sourceId: string,
@@ -644,16 +755,18 @@ export interface KnowledgeSource {
   rawText: string | null
   status: string
   createdAt: string
+  truncated?: boolean
 }
 
 export async function createKnowledgeSource(
   text: string,
   subjectId?: string,
   modelId?: string,
+  force?: boolean,
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { text, subjectId, modelId },
+    body: { text, subjectId, modelId, force },
   })
 }
 
@@ -661,10 +774,11 @@ export async function createKnowledgeSources(
   texts: string[],
   subjectId?: string,
   modelId?: string,
+  force?: boolean,
 ): Promise<KnowledgeSource[]> {
   return request<KnowledgeSource[]>('/knowledge-sources', {
     method: 'POST',
-    body: { texts, subjectId, modelId },
+    body: { texts, subjectId, modelId, force },
   })
 }
 
@@ -672,10 +786,11 @@ export async function createKnowledgeSourceFromUrl(
   url: string,
   subjectId?: string,
   modelId?: string,
+  force?: boolean,
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { url, subjectId, modelId },
+    body: { url, subjectId, modelId, force },
   })
 }
 
@@ -1681,7 +1796,10 @@ export async function askStudyChat(input: {
       `/topics/${input.topicId}/study-chat`,
       {
         method: 'POST',
-        body: { message: input.message, transcript: input.transcript },
+        body: {
+          message: input.message,
+          transcript: takeRecentChatMessages(input.transcript),
+        },
       },
     )
   } catch {
@@ -1697,13 +1815,41 @@ export async function askGlobalCardChat(
       method: 'POST',
       body: {
         message: input.message,
-        transcript: input.transcript,
+        transcript: takeRecentChatMessages(input.transcript),
         allowGeneralKnowledge: input.allowGeneralKnowledge,
       },
     })
   } catch {
     return null
   }
+}
+
+export async function askSubjectChat(
+  input: be.AskSubjectChatInput,
+): Promise<be.AskSubjectChatResult | null> {
+  try {
+    return await request<be.AskSubjectChatResult>('/subject-chat/ask', {
+      method: 'POST',
+      body: {
+        subjectId: input.subjectId,
+        message: input.message,
+        transcript: input.transcript ? takeRecentChatMessages(input.transcript) : undefined,
+        context: input.context,
+      },
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function draftKnowledgeBitChat(
+  knowledgeBitId: string,
+  input: be.DraftKnowledgeBitChatInput,
+): Promise<be.DraftKnowledgeBitChatResult> {
+  return request<be.DraftKnowledgeBitChatResult>(
+    `/knowledge-bits/${knowledgeBitId}/chat/draft`,
+    { method: 'POST', body: input },
+  )
 }
 
 export async function askKnowledgeBitChat(
@@ -1717,7 +1863,7 @@ export async function askKnowledgeBitChat(
         method: 'POST',
         body: {
           message: input.message,
-          transcript: input.transcript,
+          transcript: takeRecentChatMessages(input.transcript),
           allowGeneralKnowledge: input.allowGeneralKnowledge,
         },
       },

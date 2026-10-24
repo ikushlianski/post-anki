@@ -52,7 +52,7 @@ function CategoryDetailPage() {
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
         <p className="text-sm text-neutral-500">Category not found.</p>
         <Link to="/" className="text-sm underline">
-          Back to dashboard
+          Back to home
         </Link>
       </main>
     )

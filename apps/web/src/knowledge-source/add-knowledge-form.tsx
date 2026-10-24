@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
 import { buildSubjectPathLabel } from '@post-anki/core'
+import { KNOWLEDGE_SOURCE_TRUNCATED_NOTICE } from '@post-anki/shared'
 import type { KnowledgeItemModelId } from '@post-anki/shared'
 
 import { mapSubjectRow, subjectsCollection } from '../curriculum/board.collection'
@@ -10,43 +11,18 @@ import { ExtractionModelSelect } from '../knowledge-bit/extraction-model-select'
 import { SubjectCombobox } from '../ui/subject-combobox'
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 
-import {
-  createKnowledgeSource,
-  createKnowledgeSourceFromUrl,
-  createKnowledgeSources,
-} from './knowledge-source.api'
-
-type BlockType = 'text' | 'url'
-
-interface Block {
-  type: BlockType
-  value: string
-}
-
-function emptyBlock(): Block {
-  return { type: 'text', value: '' }
-}
-
-function modeButtonClass(selected: boolean) {
-  return selected
-    ? 'rounded-md bg-neutral-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50'
-    : 'rounded-md border border-neutral-300 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50'
-}
-
-function failedBlocksMessage(count: number): string {
-  if (count === 1) {
-    return 'Block 1 could not be added. Try again.'
-  }
-
-  const numbers = Array.from({ length: count }, (_, i) => i + 1).join(', ')
-
-  return `Blocks ${numbers} could not be added. Try again.`
-}
+import { emptyBlock, failedBlocksMessage, modeButtonClass, remapByPosition } from './knowledge-form-blocks'
+import type { Block, BlockType } from './knowledge-form-blocks'
+import { DuplicateSourceWarning } from './duplicate-source-warning'
+import { submitKnowledgeBlocks } from './submit-knowledge-blocks'
+import type { EarlierSource, SubmittedBlock } from './submit-knowledge-blocks'
 
 export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: string }) {
   const [blocks, setBlocks] = useState<Block[]>([emptyBlock()])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [blockReasons, setBlockReasons] = useState<Record<number, string>>({})
+  const [duplicates, setDuplicates] = useState<Record<number, EarlierSource>>({})
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [subjectId, setSubjectId] = useState(initialSubjectId ?? '')
   const [modelId, setModelId] = useState<KnowledgeItemModelId | ''>('')
@@ -60,12 +36,13 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const preselectedLabel = subjectOptions.find((option) => option.id === initialSubjectId)?.label
 
   const nonEmptyBlocks = blocks
-    .map((block, index) => ({ index, type: block.type, value: block.value.trim() }))
+    .map((block, index) => ({ index, type: block.type, value: block.value.trim(), force: block.force }))
     .filter((block) => block.value.length > 0)
   const canSubmit = nonEmptyBlocks.length > 0 && !busy
 
   function updateBlockValue(index: number, value: string) {
-    setBlocks((current) => current.map((block, i) => (i === index ? { ...block, value } : block)))
+    setBlocks((current) => current.map((block, i) => (i === index ? { ...block, value, force: undefined } : block)))
+    setDuplicates((current) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index)))
   }
 
   function updateBlockType(index: number, type: BlockType) {
@@ -78,92 +55,59 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
 
   function removeBlock(index: number) {
     setBlocks((current) => current.filter((_, i) => i !== index))
+    setBlockReasons({})
+    setDuplicates({})
   }
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault()
+    void send(nonEmptyBlocks)
+  }
 
-    if (nonEmptyBlocks.length === 0) {
+  function addAgain(index: number) {
+    setBlocks((current) => current.map((block, i) => (i === index ? { ...block, force: true } : block)))
+    void send(nonEmptyBlocks.map((block) => (block.index === index ? { ...block, force: true } : block)))
+  }
+
+  async function send(toSend: SubmittedBlock[]) {
+    if (toSend.length === 0) {
       return
     }
 
     setBusy(true)
     setError(null)
+    setBlockReasons({})
+    setDuplicates({})
     setSuccessMessage(null)
 
-    const textBlocks = nonEmptyBlocks.filter((block) => block.type === 'text')
-    const urlBlocks = nonEmptyBlocks.filter((block) => block.type === 'url')
-    const chosenSubjectId = selectedSubjectId || undefined
-    const chosenModelId = modelId || undefined
-
-    const jobs: { indices: number[]; run: () => Promise<number> }[] = []
-
-    if (textBlocks.length === 1) {
-      const [block] = textBlocks
-
-      jobs.push({
-        indices: [block.index],
-        run: async () => {
-          await createKnowledgeSource({ data: { text: block.value, subjectId: chosenSubjectId, modelId: chosenModelId } })
-          return 1
-        },
-      })
-    } else if (textBlocks.length > 1) {
-      jobs.push({
-        indices: textBlocks.map((block) => block.index),
-        run: async () => {
-          const created = await createKnowledgeSources({
-            data: {
-              texts: textBlocks.map((block) => block.value),
-              subjectId: chosenSubjectId,
-              modelId: chosenModelId,
-            },
-          })
-          return created.length
-        },
-      })
-    }
-
-    for (const block of urlBlocks) {
-      jobs.push({
-        indices: [block.index],
-        run: async () => {
-          await createKnowledgeSourceFromUrl({ data: { url: block.value, subjectId: chosenSubjectId, modelId: chosenModelId } })
-          return 1
-        },
-      })
-    }
-
-    const results = await Promise.allSettled(jobs.map((job) => job.run()))
-
-    const failedIndices = new Set<number>()
-    let createdCount = 0
-
-    results.forEach((result, i) => {
-      if (result.status === 'fulfilled') {
-        createdCount += result.value
-      } else {
-        jobs[i].indices.forEach((index) => failedIndices.add(index))
-      }
+    const { createdCount, truncatedCount, failedReasons, duplicates: earlier } = await submitKnowledgeBlocks(toSend, {
+      subjectId: selectedSubjectId || undefined,
+      modelId: modelId || undefined,
     })
 
     if (createdCount > 0) {
       notifyPendingReviewChanged()
       const addedText =
         createdCount === 1 ? 'Added.' : `${createdCount} knowledge sources added.`
+      const truncatedText = truncatedCount > 0 ? ` ${KNOWLEDGE_SOURCE_TRUNCATED_NOTICE}` : ''
       setSuccessMessage(
-        `${addedText} Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.`,
+        `${addedText}${truncatedText} Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.`,
       )
     }
 
-    if (failedIndices.size > 0) {
-      setError(failedBlocksMessage(failedIndices.size))
+    const failedIndices = [...failedReasons.keys()].sort((x, y) => x - y)
+
+    if (failedIndices.length > 0) {
+      setError(failedBlocksMessage(failedIndices.length))
     }
 
-    if (failedIndices.size === 0) {
+    if (failedIndices.length === 0) {
       setBlocks([emptyBlock()])
+      setBlockReasons({})
     } else {
-      setBlocks((current) => current.filter((_, index) => failedIndices.has(index)))
+      setBlocks((current) => current.filter((_, index) => failedReasons.has(index)))
+      setDuplicates(remapByPosition(failedIndices, earlier))
+      setBlockReasons(remapByPosition(failedIndices, failedReasons))
     }
 
     setBusy(false)
@@ -251,6 +195,21 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
             />
           )}
 
+          {duplicates[index] && (
+            <DuplicateSourceWarning
+              index={index}
+              earlier={duplicates[index]}
+              disabled={busy}
+              onAddAgain={() => addAgain(index)}
+            />
+          )}
+
+          {blockReasons[index] && !duplicates[index] && (
+            <p data-testid={`knowledge-block-error-${index}`} className="text-sm text-red-700">
+              {blockReasons[index]}
+            </p>
+          )}
+
           {index > 0 && (
             <button
               type="button"
@@ -266,7 +225,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
         </div>
       ))}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           disabled={busy}
@@ -288,7 +247,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
       </div>
 
       {successMessage && (
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm">
           <p data-testid="knowledge-success-message" className="text-green-700">
             {successMessage}
           </p>

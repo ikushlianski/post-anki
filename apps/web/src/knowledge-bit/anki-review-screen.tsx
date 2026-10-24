@@ -1,8 +1,10 @@
-import { useReducer } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useReducer, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReviewCounts } from '@post-anki/shared'
 
+import { resolveCardSubjectId } from '../subject-chat/card-subject'
+import { SubjectChatPanel } from '../subject-chat/subject-chat-panel'
+import { useCardSelection } from '../subject-chat/use-card-selection'
 import { AnkiReviewCard } from './anki-review-card'
 import { AnkiReviewCardActions } from './anki-review-card-actions'
 import { AnkiReviewCardEditor } from './anki-review-card-editor'
@@ -96,6 +98,8 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
     stamp,
   )
   const canUndo = state.undo.length > 0
+  const cardAreaRef = useRef<HTMLDivElement | null>(null)
+  const cardSelection = useCardSelection(cardAreaRef, state.revealed, current?.variantId ?? '')
   const noApprovedCards =
     queue.data?.ok === true &&
     queue.data.nextDueAt === null &&
@@ -124,21 +128,11 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Review</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            Recall the answer, reveal it, then grade yourself.
-          </p>
-        </div>
-        <Link
-          to="/knowledge/answer"
-          search={scope}
-          data-testid="anki-review-switch-to-typed"
-          className="text-sm text-indigo-600 hover:underline"
-        >
-          Switch to typed answer
-        </Link>
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Review</h1>
+        <p className="mt-1 text-sm text-neutral-500">
+          Recall the answer, reveal it, then grade yourself.
+        </p>
       </header>
 
       {queue.isLoading && <p data-testid="anki-review-loading">Loading…</p>}
@@ -185,43 +179,49 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
 
       {loaded && state.view === 'reviewing' && !actions.refilling && !current && queue.data?.ok && (
         <>
-          <AnkiReviewDone nextDueAt={queue.data.nextDueAt} noApprovedCards={noApprovedCards} />
+          <AnkiReviewDone
+            nextDueAt={queue.data.nextDueAt}
+            noApprovedCards={noApprovedCards}
+            newLimitReached={queue.data.newLimitReached}
+          />
           {canUndo && <AnkiReviewSummary stats={stats} />}
         </>
       )}
 
       {current && state.view === 'reviewing' && (
         <div className="flex flex-col gap-6">
-          <AnkiReviewCard
-            card={current}
-            revealed={state.revealed}
-            onReveal={() => dispatch({ type: 'reveal' })}
-            actions={
-              <AnkiReviewCardActions
-                revealed={state.revealed && !editing}
-                leech={current.leech}
-                disabled={actions.busy || editing}
-                onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
-                onBury={() => void actions.control('bury')}
-                onSuspend={() => void actions.control('suspend')}
-              />
-            }
-            editor={
-              editing ? (
-                <AnkiReviewCardEditor
-                  prompt={current.prompt}
-                  answer={current.answer}
-                  error={actions.editError}
-                  disabled={actions.busy}
-                  onSave={(prompt, answer) => void actions.saveEdit(prompt, answer)}
-                  onCancel={() => {
-                    actions.setEditError(null)
-                    dispatch({ type: 'editCancelled', now: Date.now() })
-                  }}
+          <div ref={cardAreaRef}>
+            <AnkiReviewCard
+              card={current}
+              revealed={state.revealed}
+              onReveal={() => dispatch({ type: 'reveal' })}
+              actions={
+                <AnkiReviewCardActions
+                  revealed={state.revealed && !editing}
+                  leech={current.leech}
+                  disabled={actions.busy || editing}
+                  onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
+                  onBury={() => void actions.control('bury')}
+                  onSuspend={() => void actions.control('suspend')}
                 />
-              ) : undefined
-            }
-          />
+              }
+              editor={
+                editing ? (
+                  <AnkiReviewCardEditor
+                    prompt={current.prompt}
+                    answer={current.answer}
+                    error={actions.editError}
+                    disabled={actions.busy}
+                    onSave={(prompt, answer) => void actions.saveEdit(prompt, answer)}
+                    onCancel={() => {
+                      actions.setEditError(null)
+                      dispatch({ type: 'editCancelled', now: Date.now() })
+                    }}
+                  />
+                ) : undefined
+              }
+            />
+          </div>
 
           {state.revealed && !editing && (
             <AnkiReviewGradeButtons
@@ -230,6 +230,17 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
               onGrade={(value) => void actions.grade(value)}
             />
           )}
+
+          <SubjectChatPanel
+            key={resolveCardSubjectId(current) ?? 'no-subject'}
+            subjectId={resolveCardSubjectId(current)}
+            selection={cardSelection.selection}
+            onClearSelection={cardSelection.clear}
+            card={{
+              cardId: current.variantId,
+              text: state.revealed ? `${current.prompt}\n${current.answer}` : current.prompt,
+            }}
+          />
 
           {actions.error && (
             <div data-testid="anki-review-grade-error" className="flex flex-col gap-2">

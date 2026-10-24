@@ -13,7 +13,7 @@ export function AnkiReviewCardActions({
   onBury: () => void
   onSuspend: () => void
 }) {
-  const button = 'rounded-md border border-neutral-200 px-2 py-1 text-xs disabled:opacity-40'
+  const button = 'inline-flex min-h-[44px] items-center justify-center rounded-md border border-neutral-200 px-2 py-1 text-xs disabled:opacity-40 sm:min-h-0'
 
   return (
     <div data-testid="anki-review-card-actions" className="flex items-center gap-2">

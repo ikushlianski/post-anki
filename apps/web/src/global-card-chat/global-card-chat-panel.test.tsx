@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
+import { openGlobalCardChat } from './global-card-chat-events'
 import { GlobalCardChatPanel } from './global-card-chat-panel'
 import { askGlobalCardChat } from './global-card-chat.api'
 
@@ -178,5 +179,13 @@ describe('GlobalCardChatPanel', () => {
       await screen.findByText("I couldn't reach the tutor right now — try again."),
     ).toBeTruthy()
     expect(screen.queryByTestId('global-card-chat-typing-indicator')).toBeFalsy()
+  })
+
+  it('should open the chat when another part of the app asks for it', () => {
+    renderHarness()
+
+    act(() => openGlobalCardChat())
+
+    expect(screen.getByTestId('global-card-chat-panel')).toBeTruthy()
   })
 })

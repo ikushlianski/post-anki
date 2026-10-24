@@ -73,6 +73,7 @@ export function useQuestionPolling(
   refresh: () => Promise<void>,
   intervalMs: number = QUESTION_POLL_INTERVAL_MS,
   maxAttempts: number = QUESTION_POLL_MAX_ATTEMPTS,
+  _restartToken?: number,
 ): boolean {
   const refreshRef = useRef(refresh)
   const [gaveUp, setGaveUp] = useState(false)

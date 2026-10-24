@@ -16,6 +16,7 @@ export function useBulkApproval({
   sources,
   readyBits,
   setSources,
+  markApproved,
   knownBitIds,
   editingBitIds,
   claimBit,
@@ -24,6 +25,7 @@ export function useBulkApproval({
   sources: PendingKnowledgeSourceForReview[]
   readyBits: PendingKnowledgeBitForReview[]
   setSources: Dispatch<SetStateAction<PendingKnowledgeSourceForReview[]>>
+  markApproved: (bitIds: string[]) => void
   knownBitIds: MutableRefObject<Set<string>>
   editingBitIds: MutableRefObject<Set<string>>
   claimBit: (bitId: string) => boolean
@@ -49,12 +51,12 @@ export function useBulkApproval({
         data: { knowledgeBitIds: claimed },
       })
 
-      const gone = new Set([
-        ...result.approved,
-        ...result.skipped.filter((item) => item.reason !== 'no_variant').map((item) => item.id),
-      ])
+      const gone = new Set(
+        result.skipped.filter((item) => item.reason !== 'no_variant').map((item) => item.id),
+      )
 
       gone.forEach((bitId) => knownBitIds.current.add(bitId))
+      markApproved(result.approved)
       setSources((prev) => removeBits(prev, gone))
       notifyPendingReviewChanged()
       setBulkMessage(describeBulkApprovalResult(result))

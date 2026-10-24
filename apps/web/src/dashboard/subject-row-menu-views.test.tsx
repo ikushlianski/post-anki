@@ -69,7 +69,7 @@ function renderMenu(options: {
     />
   )
 
-  render(options.withHeading ? <main><h1>Dashboard</h1>{menu}</main> : menu)
+  render(options.withHeading ? <main><h1>Post Anki</h1>{menu}</main> : menu)
 
   return { onDelete, onMoveSubject }
 }
@@ -136,7 +136,7 @@ describe('SubjectRowMenu delete confirmation', () => {
     fireEvent.click(screen.getByTestId('subject-menu-confirm-delete-sub-business'))
 
     await waitFor(() => {
-      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Dashboard' }))
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Post Anki' }))
     })
   })
 })
