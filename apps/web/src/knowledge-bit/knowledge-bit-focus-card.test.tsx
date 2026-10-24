@@ -59,7 +59,8 @@ describe('KnowledgeBitFocusCard', () => {
       'At what temperature does water boil?',
     )
     expect((screen.getByTestId('knowledge-bit-review-edit-answer-v1') as HTMLTextAreaElement).value).toBe('100 C')
-    expect(screen.getByRole('button', { name: /Variations \(1\)/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Hide variations/ })).toBeTruthy()
+    expect(screen.getByTestId('knowledge-bit-review-variations-bit-1').hasAttribute('hidden')).toBe(false)
   })
 
   it('should keep the statement read-only', () => {

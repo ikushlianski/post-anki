@@ -11,6 +11,7 @@ export function KnowledgeBitReviewVariantList({
   pollingGaveUp,
   keptIds = [],
   pickDisabled = false,
+  defaultOpen = false,
   onToggle,
   onSave,
   onBusyChange,
@@ -20,6 +21,7 @@ export function KnowledgeBitReviewVariantList({
   pollingGaveUp: boolean;
   keptIds?: string[];
   pickDisabled?: boolean;
+  defaultOpen?: boolean;
   onToggle?: (index: number) => void;
   onSave: (
     variantId: string,
@@ -28,7 +30,7 @@ export function KnowledgeBitReviewVariantList({
   ) => Promise<boolean>;
   onBusyChange: (key: string, busy: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   if (variants.length === 0) {
     return (

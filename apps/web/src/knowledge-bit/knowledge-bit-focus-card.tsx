@@ -121,6 +121,7 @@ function FocusCardBody({
           bitId={bit.id}
           variants={bit.variants}
           pollingGaveUp={pollingGaveUp}
+          defaultOpen
           onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
           onBusyChange={setBusy}
         />
