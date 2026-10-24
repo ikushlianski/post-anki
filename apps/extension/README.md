@@ -20,7 +20,12 @@ page URL and title are posted to `POST /knowledge-sources`, like a paste in /add
    the OK badge (it clears after 4 seconds).
 8. Click the toolbar icon to open `/knowledge-bit-review` and approve the extracted cards.
 
-After code changes, rebuild and press reload on the extension card.
+A small toast in the bottom-right of the tab also reports the result for about 3 seconds
+(saved, already added, no token, token rejected, server unreachable, rejected text). On pages
+where scripts cannot be injected (chrome:// pages, the Web Store) only the badge is shown.
+
+After code changes: run `npm run build -w @post-anki/extension`, open `chrome://extensions` and
+press reload on the extension card, then refresh any tabs that were already open.
 
 ## Headless check
 
@@ -28,7 +33,7 @@ With the API running, a token minted (step 3) and the extension built (step 4), 
 `set -a; . apps/api/.env.local; set +a; EXT_TOKEN=<pat_...> npm run e2e -w @post-anki/extension`.
 It loads `dist` into headless Chromium (Playwright from the root `node_modules`), selects text on
 https://playwright.dev/docs/intro, fires the context-menu handler from the service worker and
-checks badges, the stored row and CORS. Needs `psql` on PATH. Verified with Playwright headless.
+checks badges, toasts, the stored row and CORS. Needs `psql` on PATH. Verified with Playwright headless.
 
 ## Troubleshooting
 

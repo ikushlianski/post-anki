@@ -1,7 +1,9 @@
 import { buildCaptureText } from "./capture/build-capture-text.js";
 import { sendCapture } from "./capture/send-capture.js";
 import { describeSendResult } from "./feedback/describe-send-result.js";
+import { describeToast } from "./feedback/describe-toast.js";
 import { openReviewTab } from "./feedback/open-review-tab.js";
+import { showToast } from "./feedback/show-toast.js";
 import { getSettings, getWebUrl } from "./settings/settings.js";
 
 const MENU_ID = "send-to-post-anki";
@@ -51,6 +53,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!built.ok) {
     showStatus("ERR", "No text selected");
     clearStatusLater();
+    void showToast(tab?.id, { kind: "error", text: "Select some text first." });
 
     return;
   }
@@ -62,4 +65,5 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
   showStatus(feedback.badge, feedback.title);
   clearStatusLater();
+  void showToast(tab?.id, describeToast(result, settings.token !== ""));
 });

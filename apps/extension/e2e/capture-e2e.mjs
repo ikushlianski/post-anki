@@ -1,12 +1,22 @@
 import { chromium } from "playwright";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const EXTENSION_ID = "phmjgadfbbagfjlfgcdloehdcoapiohf";
-const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
+const builtDist = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");
+const dist = mkdtempSync(join(tmpdir(), "pa-ext-dist-"));
+
+cpSync(builtDist, dist, { recursive: true });
+
+// A dispatched menu event carries no activeTab grant, so the test copy gets host access instead.
+const manifestPath = join(dist, "manifest.json");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+
+manifest.host_permissions.push("https://*/*");
+writeFileSync(manifestPath, JSON.stringify(manifest));
 const apiUrl = process.env.API_URL ?? "http://localhost:5560";
 const pageUrl = process.env.PAGE_URL ?? "https://playwright.dev/docs/intro";
 const token = process.env.EXT_TOKEN;
@@ -82,7 +92,8 @@ try {
   const click = (text) =>
     worker.evaluate(
       async ({ text, pageUrl, pageTitle }) => {
-        const tab = { id: 1, url: pageUrl, title: pageTitle };
+        const [real] = await chrome.tabs.query({ url: `${pageUrl}*` });
+        const tab = { id: real?.id, url: pageUrl, title: pageTitle };
 
         await chrome.action.setBadgeText({ text: "" });
         chrome.contextMenus.onClicked.dispatch(
@@ -109,12 +120,27 @@ try {
     return { text: "", title: "" };
   };
 
+  const toastSel = "#post-anki-toast-host [role=status]";
+
+  const toast = async () => {
+    try {
+      await page.waitForSelector(toastSel, { timeout: 5000 });
+
+      return (await page.locator(toastSel).textContent()) ?? "";
+    } catch {
+      return "";
+    }
+  };
+
   const before = Number(sql("select count(*) from knowledge_sources"));
 
   await setToken("");
   await click(selection);
 
   const noToken = await badge();
+  const noTokenToast = await toast();
+
+  check("missing token -> toast says no token set", noTokenToast.includes("No token set"), noTokenToast);
 
   check("missing token -> ERR 401", noToken.text === "ERR" && noToken.title.includes("401"), `${noToken.text} / ${noToken.title}`);
 
@@ -122,6 +148,9 @@ try {
   await click(selection);
 
   const badToken = await badge();
+  const badTokenToast = await toast();
+
+  check("wrong token -> error toast shown", badTokenToast.includes("rejected your token"), badTokenToast);
 
   check("wrong token -> ERR 401", badToken.text === "ERR" && badToken.title.includes("401"), `${badToken.text} / ${badToken.title}`);
   check("rejected requests stored nothing", Number(sql("select count(*) from knowledge_sources")) === before);
@@ -129,7 +158,18 @@ try {
   await setToken(token);
   await click(selection);
 
+  const heightBefore = await page.evaluate(() => document.documentElement.scrollHeight);
   const ok = await badge();
+  const okToast = await toast();
+
+  check("valid token -> success toast", okToast === "Saved to Post Anki", okToast);
+  check("toast has no layout shift and top z-index", await page.evaluate((h) => {
+    const host = document.getElementById("post-anki-toast-host");
+
+    return !!host && getComputedStyle(host).position === "fixed" && getComputedStyle(host).zIndex === "2147483647" && document.documentElement.scrollHeight === h;
+  }, heightBefore));
+  await page.waitForTimeout(3300);
+  check("toast auto-dismisses after ~3s", (await page.locator("#post-anki-toast-host").count()) === 0);
 
   check("valid token -> OK badge", ok.text === "OK", `${ok.text} / ${ok.title}`);
 
@@ -148,6 +188,8 @@ try {
   await click(selection);
 
   const dup = await badge();
+
+  check("duplicate -> info toast", (await toast()) === "Already in Post Anki");
 
   check("same selection again -> DUP badge, no new row", dup.text === "DUP" && Number(sql("select count(*) from knowledge_sources")) === before + 1, `${dup.text} / ${dup.title}`);
 
