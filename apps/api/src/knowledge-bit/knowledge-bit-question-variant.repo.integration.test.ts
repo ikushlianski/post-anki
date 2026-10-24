@@ -188,7 +188,7 @@ describe("updateQuestionVariantEmbedding (real Postgres)", () => {
     );
 
     expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
-    expect(JSON.parse(rows[0]!.embedding_vec)).toEqual(padEmbedding([1, 2, 3]));
+    expect(JSON.parse(rows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([1, 2, 3]).map((n) => expect.closeTo(n, 3)));
     expect(rows[0]!.embedding_hash).toBe("hash123");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
   });

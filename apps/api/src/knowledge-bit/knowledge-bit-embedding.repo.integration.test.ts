@@ -157,7 +157,7 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
     );
 
     expect(rows[0]!.embedding).toEqual(padEmbedding([0.1, 0.2, 0.3]));
-    expect(JSON.parse(rows[0]!.embedding_vec)).toEqual(padEmbedding([0.1, 0.2, 0.3]));
+    expect(JSON.parse(rows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([0.1, 0.2, 0.3]).map((n) => expect.closeTo(n, 3)));
     expect(rows[0]!.embedding_hash).toBe("hash_abc");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
   });

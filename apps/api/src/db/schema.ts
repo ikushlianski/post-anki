@@ -14,6 +14,7 @@ import {
   customType,
   numeric,
   vector,
+  halfvec,
 } from "drizzle-orm/pg-core";
 
 export const EMBEDDING_DIMENSIONS = 1536;
@@ -1068,12 +1069,12 @@ export const topicCardVariants = pgTable("topic_card_variants", {
   // Mirrors subjects.embedding/embeddingHash/embeddedAt — nullable, additive,
   // no backfill; embeddingHash lets a scan skip re-embedding unchanged text.
   embedding: jsonb("embedding").$type<number[]>(),
-  embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
+  embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
 },
 (table) => [
-  index("topic_card_variants_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
+  index("topic_card_variants_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("halfvec_cosine_ops")),
 ],
 );
 
@@ -1084,7 +1085,7 @@ export const facts = pgTable("facts", {
   sourceRef: text("source_ref").notNull().unique(),
   tags: jsonb("tags").$type<string[]>().notNull().default([]),
   embedding: jsonb("embedding").$type<number[]>(),
-  embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
+  embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1092,7 +1093,7 @@ export const facts = pgTable("facts", {
   topicId: text("topic_id"),
 },
 (table) => [
-  index("facts_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
+  index("facts_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("halfvec_cosine_ops")),
 ],
 );
 
@@ -1176,7 +1177,7 @@ export const knowledgeBits = pgTable(
     // Mirrors topicCardVariants.embedding/embeddingHash/embeddedAt — nullable,
     // additive, no backfill; embeddingHash skips re-embedding unchanged text.
     embedding: jsonb("embedding").$type<number[]>(),
-    embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
+    embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
     taggedAt: timestamp("tagged_at", { withTimezone: true }),
@@ -1246,7 +1247,7 @@ export const knowledgeBits = pgTable(
     searchVectorIdx: index("knowledge_bits_search_vector_idx").using("gin", table.searchVector),
     embeddingVecIdx: index("knowledge_bits_embedding_vec_hnsw_idx").using(
       "hnsw",
-      table.embeddingVec.op("vector_cosine_ops"),
+      table.embeddingVec.op("halfvec_cosine_ops"),
     ),
   }),
 );
@@ -1268,7 +1269,7 @@ export const knowledgeBitQuestionVariants = pgTable(
     // Populated by a later backlog item ("Embed each generated question and answer...") — added now
     // so that item is additive, mirrors topicCardVariants.embedding/embeddingHash/embeddedAt.
     embedding: jsonb("embedding").$type<number[]>(),
-    embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
+    embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1285,10 +1286,6 @@ export const knowledgeBitQuestionVariants = pgTable(
     uniqueIndex("knowledge_bit_question_variants_bit_kind_order_unique")
       .on(table.knowledgeBitId, table.kind, table.order)
       .where(sql`${table.supersededAt} is null`),
-    index("knowledge_bit_question_variants_embedding_vec_hnsw_idx").using(
-      "hnsw",
-      table.embeddingVec.op("vector_cosine_ops"),
-    ),
   ],
 );
 

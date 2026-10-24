@@ -764,6 +764,13 @@
       "when": 1792826378130,
       "tag": "0108_add-llm-daily-spend",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1792829735198,
+      "tag": "0109_halfvec-embeddings",
+      "breakpoints": true
     }
   ]
 }

@@ -669,7 +669,7 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         column_default: "false",
       }),
       expect.objectContaining({ column_name: "source_links", data_type: "jsonb", is_nullable: "YES" }),
-      expect.objectContaining({ column_name: "embedding_vec", udt_name: "vector", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "embedding_vec", udt_name: "halfvec", is_nullable: "YES" }),
     ]);
   });
 

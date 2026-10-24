@@ -396,7 +396,7 @@ describe("findTopMatchingCards", () => {
     );
 
     expect(results.map((r) => idsByName.get(r.variantId))).toEqual(expected.map((e) => e.name));
-    results.forEach((r, i) => expect(r.similarity).toBeCloseTo(expected[i]!.similarity, 5));
+    results.forEach((r, i) => expect(r.similarity).toBeCloseTo(expected[i]!.similarity, 3));
     expect(results.map((r) => r.prompt)).not.toContain("belowThreshold");
   });
 });

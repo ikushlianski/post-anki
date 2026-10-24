@@ -2,7 +2,7 @@ import { and, cosineDistance, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { facts } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { efSearchFor } from "../db/vector-search.js";
+import { applyEfSearch } from "../db/vector-search.js";
 
 export interface InsertFactWithTopicInput {
   body: string;
@@ -68,7 +68,7 @@ export async function searchEmbeddedFacts(
   const similarity = sql<number>`1 - (${distance})`;
 
   const rows = await getDb().transaction(async (tx) => {
-    await tx.execute(sql`SELECT set_config('hnsw.ef_search', ${String(efSearchFor(topK))}, true)`);
+    await applyEfSearch(tx, topK);
 
     return tx
       .select({ id: facts.id, body: facts.body, tags: facts.tags, similarity })

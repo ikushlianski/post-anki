@@ -1,7 +1,7 @@
 import { and, asc, cosineDistance, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitQuestionVariants, knowledgeBits, knowledgeSources } from "../db/schema.js";
-import { efSearchFor } from "../db/vector-search.js";
+import { applyEfSearch } from "../db/vector-search.js";
 
 export interface KnowledgeBitForEmbeddingScan {
   id: string;
@@ -95,8 +95,6 @@ export async function listActiveVariantsForBitsEmbedding(
     );
 }
 
-const SUBJECT_FILTER_EF_SEARCH = 400;
-
 export interface SimilarApprovedBit {
   id: string;
   body: string;
@@ -113,11 +111,7 @@ export async function searchApprovedBitsByEmbedding(
   const similarity = sql<number>`1 - (${distance})`;
 
   const rows = await getDb().transaction(async (tx) => {
-    const efSearch = subjectId
-      ? Math.max(efSearchFor(topK), SUBJECT_FILTER_EF_SEARCH)
-      : efSearchFor(topK);
-
-    await tx.execute(sql`SELECT set_config('hnsw.ef_search', ${String(efSearch)}, true)`);
+    await applyEfSearch(tx, topK, subjectId !== undefined);
 
     return tx
       .select({ id: knowledgeBits.id, body: knowledgeBits.body, similarity })
