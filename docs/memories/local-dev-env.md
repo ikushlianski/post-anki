@@ -33,3 +33,12 @@ restart post-anki-dev-electric` needed anymore.
 prints the actual Postgres host it connected to. If that's not `postgres:5432` (the local
 container), the override file isn't being picked up (check you're running `docker compose` from
 the repo root, where the override file lives).
+
+## Which database each environment uses
+
+Local development always uses the local docker Postgres (`post-anki-dev-db`, port 5562,
+database `postanki_dev`), set through `DATABASE_URL` in `apps/api/.env.local`, which wins over
+`apps/api/.env`. Neon is only for deployed environments (CI injects `PROD_DATABASE_URL`).
+Migrations and seeds run against the local database first; a Neon migration is a separate,
+deliberate step. If the API returns 500 on every request, check the log for a database name
+that does not exist and restart the API so it re-reads `.env.local`.

@@ -66,7 +66,7 @@ If `API_SHARED_SECRET` is set, every route except `/healthz` requires
 
 ## Config (env)
 
-`DATABASE_URL` (Neon), `OPENROUTER_API_KEY`, `CURRICULUM_MODEL`
+`DATABASE_URL` (local docker Postgres on :5562 in `.env.local` for local work; Neon only in deployed environments), `OPENROUTER_API_KEY`, `CURRICULUM_MODEL`
 (default `openrouter/google/gemini-2.5-flash`), `API_SHARED_SECRET` (optional),
 `PORT` (5560), `LOG_LEVEL`.
 
@@ -114,5 +114,6 @@ rotating.
 ## Migrations
 
 `npm run db:generate -w @post-anki/api` then `npm run db:migrate -w @post-anki/api`.
-Uses its own `drizzle_migrations_api` ledger table so it can share the Neon DB
-with the bot without collision.
+Uses its own `drizzle_migrations_api` ledger table so it can share a database
+with the bot without collision. Run migrations against the local DB; deployed Neon
+migrations are a separate, deliberate step.
