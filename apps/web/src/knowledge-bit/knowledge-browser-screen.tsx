@@ -2,10 +2,15 @@ import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 
 import { CardListLoadError } from './card-list-load-error'
+import { KnowledgeBrowserActionBar } from './knowledge-browser-action-bar'
 import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
+import { KnowledgeBrowserSourceBar } from './knowledge-browser-source-bar'
+import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
 import { useKnowledgeBrowserColumnOrder } from './use-knowledge-browser-column-order'
 import { useKnowledgeBrowserRows } from './use-knowledge-browser-data'
+import { useKnowledgeBrowserSelectionDelete } from './use-knowledge-browser-selection-delete'
+import { useKnowledgeBrowserSourceDelete } from './use-knowledge-browser-source-delete'
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
 
 function BrowserShell({ children }: { children: ReactNode }) {
@@ -41,6 +46,9 @@ export function KnowledgeBrowserScreen({
 function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) {
   const { labelFor } = useKnowledgeOverviewSubjects()
   const data = useKnowledgeBrowserRows(subjectId)
+  const selection = useKnowledgeBrowserSelectionDelete(data.rows.map((row) => row.knowledgeBitId))
+  const sourceDelete = useKnowledgeBrowserSourceDelete(data.rows, selection.clear)
+  const activeSource = singleSelectedSource(data.rows, selection.selected)
   const columns = useKnowledgeBrowserColumnOrder(subjectId ?? ALL_SUBJECTS_TABLE_ID)
   const title = !subjectId
     ? 'Knowledge browser'
@@ -88,11 +96,28 @@ function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) 
           {subjectId ? 'Nothing in this subject yet.' : 'No approved knowledge yet.'}
         </p>
       )}
+      <KnowledgeBrowserSourceBar state={sourceDelete} />
+      <KnowledgeBrowserActionBar
+        state={selection}
+        source={
+          activeSource
+            ? {
+                count: sourceDelete.countFor(activeSource),
+                onSelectAll: () => selection.addRows(idsFromSource(data.rows, activeSource)),
+                onDelete: () => sourceDelete.open(activeSource),
+              }
+            : null
+        }
+      />
       {data.rows.length > 0 && (
         <KnowledgeBrowserTable
           rows={data.rows}
           columnOrder={columns.order}
           onColumnOrderChange={columns.changeOrder}
+          selected={selection.selected}
+          onToggleRow={selection.toggleRow}
+          onToggleAll={selection.toggleAll}
+          sourceActions={{ countFor: sourceDelete.countFor, onDeleteSource: sourceDelete.open }}
         />
       )}
       {data.hasMore && (

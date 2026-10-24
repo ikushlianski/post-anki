@@ -21,9 +21,11 @@ const item: KnowledgeBitBrowserItem = {
 
 const defaultOrder: BrowserColumnId[] = ['phrasings', 'addedBy', 'addedAt', 'answer']
 
+const selectionProps = { selected: new Set<string>(), onToggleRow: vi.fn(), onToggleAll: vi.fn() }
+
 describe('KnowledgeBrowserTable', () => {
   it('should show every phrasing of a piece, who added it and its answer', () => {
-    render(<KnowledgeBrowserTable rows={[item]} columnOrder={defaultOrder} onColumnOrderChange={vi.fn()} />)
+    render(<KnowledgeBrowserTable rows={[item]} columnOrder={defaultOrder} onColumnOrderChange={vi.fn()} {...selectionProps} />)
 
     const row = screen.getByTestId('knowledge-browser-row')
 
@@ -39,17 +41,18 @@ describe('KnowledgeBrowserTable', () => {
         rows={[item]}
         columnOrder={['answer', 'addedAt', 'addedBy', 'phrasings']}
         onColumnOrderChange={vi.fn()}
+        {...selectionProps}
       />,
     )
 
     const headers = screen.getAllByRole('columnheader').map((header) => header.textContent)
 
-    expect(headers[0]).toContain('Answer')
-    expect(headers[3]).toContain('Phrasings')
+    expect(headers[1]).toContain('Answer')
+    expect(headers[4]).toContain('Phrasings')
   })
 
   it('should give each column a labelled grip to move it', () => {
-    render(<KnowledgeBrowserTable rows={[item]} columnOrder={defaultOrder} onColumnOrderChange={vi.fn()} />)
+    render(<KnowledgeBrowserTable rows={[item]} columnOrder={defaultOrder} onColumnOrderChange={vi.fn()} {...selectionProps} />)
 
     expect(screen.getByRole('button', { name: 'Move column Answer' })).toBeTruthy()
   })

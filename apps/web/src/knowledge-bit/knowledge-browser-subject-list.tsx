@@ -29,7 +29,7 @@ export function buildBrowserSubjectEntries(
   const unsorted = direct.get(null) ?? 0
 
   return [
-    ...entries.filter((entry) => entry.count > 0),
+    ...entries,
     ...(unsorted > 0 ? [{ id: NO_SUBJECT_PARAM, label: 'No subject', count: unsorted }] : []),
   ]
 }
@@ -55,7 +55,7 @@ export function KnowledgeBrowserSubjectList() {
   const entries = buildBrowserSubjectEntries(options, data.counts)
 
   if (entries.length === 0) {
-    return <p data-testid="knowledge-browser-empty" className="text-neutral-500">No approved knowledge yet.</p>
+    return <p data-testid="knowledge-browser-empty" className="text-neutral-500">No subjects yet.</p>
   }
 
   return (

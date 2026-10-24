@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { KnowledgeBrowserPhrasings } from './knowledge-browser-phrasings'
+import { KnowledgeBrowserOriginCell } from './knowledge-browser-origin-cell'
 import type { KnowledgeBitBrowserItem, KnowledgeBitBrowserOrigin } from '@post-anki/shared'
 
 export type BrowserColumnId = 'phrasings' | 'addedBy' | 'addedAt' | 'answer'
@@ -29,12 +30,21 @@ export function formatAddedAt(iso: string): string {
   })
 }
 
-export function renderBrowserCell(columnId: BrowserColumnId, item: KnowledgeBitBrowserItem): ReactNode {
+export interface BrowserSourceCellActions {
+  countFor: (sourceId: string) => number
+  onDeleteSource: (sourceId: string) => void
+}
+
+export function renderBrowserCell(
+  columnId: BrowserColumnId,
+  item: KnowledgeBitBrowserItem,
+  sourceActions?: BrowserSourceCellActions,
+): ReactNode {
   switch (columnId) {
     case 'phrasings':
       return <KnowledgeBrowserPhrasings phrasings={item.phrasings} />
     case 'addedBy':
-      return ORIGIN_LABELS[item.origin]
+      return <KnowledgeBrowserOriginCell label={ORIGIN_LABELS[item.origin]} item={item} actions={sourceActions} />
     case 'addedAt':
       return formatAddedAt(item.addedAt)
     case 'answer':

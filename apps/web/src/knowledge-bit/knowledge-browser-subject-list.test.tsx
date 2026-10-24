@@ -39,19 +39,20 @@ describe('buildBrowserSubjectEntries', () => {
     { id: 'empty', label: 'Empty' },
   ]
 
-  it('should count a parent subject together with its sub-subjects and hide empty subjects', () => {
+  it('should count a parent subject together with its sub-subjects and still list subjects with no cards', () => {
     const entries = buildBrowserSubjectEntries(options, [{ subjectId: 'ru', count: 4 }])
 
     expect(entries).toEqual([
       { id: 'lang', label: 'Languages', count: 4 },
       { id: 'ru', label: 'Languages / Russian', count: 4 },
+      { id: 'empty', label: 'Empty', count: 0 },
     ])
   })
 
   it('should list pieces without a subject as their own entry', () => {
     const entries = buildBrowserSubjectEntries(options, [{ subjectId: null, count: 2 }])
 
-    expect(entries).toEqual([{ id: 'none', label: 'No subject', count: 2 }])
+    expect(entries.at(-1)).toEqual({ id: 'none', label: 'No subject', count: 2 })
   })
 })
 
@@ -63,11 +64,11 @@ describe('KnowledgeBrowserSubjectList', () => {
     expect(screen.getByTestId('knowledge-browser-subject-ru').getAttribute('data-subject')).toBe('ru')
   })
 
-  it('should say so when there is no approved knowledge', () => {
+  it('should list every subject even when no card has been approved yet', () => {
     counts.value = { counts: [], isPending: false, isError: false, retry: vi.fn() }
     render(<KnowledgeBrowserSubjectList />)
 
-    expect(screen.getByTestId('knowledge-browser-empty')).toBeTruthy()
+    expect(screen.getByTestId('knowledge-browser-subject-empty')).toBeTruthy()
   })
 
   it('should offer a retry when loading fails', () => {

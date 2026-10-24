@@ -116,6 +116,8 @@ describe("listKnowledgeBitBrowser (real Postgres)", () => {
     expect(item?.phrasings.map((p) => p.prompt)).toEqual(["Front", "Blank ___", "Why?"]);
     expect(item?.answer).toBe("basic answer");
     expect(item?.origin).toBe("pasted");
+    expect(item?.sourceId).toBe(source);
+    expect(item?.sourceLabel).toBe("text");
     expect(item?.addedAt).toBe("2026-01-01T00:00:00.000Z");
   });
 

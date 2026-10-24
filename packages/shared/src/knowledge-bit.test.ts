@@ -3,6 +3,7 @@ import {
   MANUAL_ITEM_BACK_MAX_CHARS,
   MANUAL_ITEM_EXAMPLE_MAX_CHARS,
   MANUAL_ITEM_FRONT_MAX_CHARS,
+  TRIAGE_KEEP_VARIANTS_MAX,
   createManualKnowledgeItemInput,
   triageKnowledgeBitInput,
   undoTriageKnowledgeBitInput,
@@ -75,9 +76,11 @@ describe("triageKnowledgeBitInput", () => {
     expect(triageKnowledgeBitInput.safeParse({ keepVariantIds: ["a", "b"] }).success).toBe(true);
   });
 
-  it("should reject keeping nothing, keeping three, or naming the same variant twice", () => {
+  it("should reject keeping nothing, keeping more than the cap, or naming the same variant twice", () => {
+    const overCap = Array.from({ length: TRIAGE_KEEP_VARIANTS_MAX + 1 }, (_, index) => `v${index}`);
+
     expect(triageKnowledgeBitInput.safeParse({ keepVariantIds: [] }).success).toBe(false);
-    expect(triageKnowledgeBitInput.safeParse({ keepVariantIds: ["a", "b", "c"] }).success).toBe(false);
+    expect(triageKnowledgeBitInput.safeParse({ keepVariantIds: overCap }).success).toBe(false);
     expect(triageKnowledgeBitInput.safeParse({ keepVariantIds: ["a", "a"] }).success).toBe(false);
     expect(triageKnowledgeBitInput.safeParse({}).success).toBe(false);
   });

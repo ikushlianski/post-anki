@@ -18,6 +18,7 @@ import {
 } from "../db/schema.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { deriveBrowserOrigin } from "./knowledge-bit-browser-origin.js";
+import { deriveBrowserSourceLabel } from "./knowledge-bit-browser-source-label.js";
 import { pickPreferredVariants } from "./knowledge-bit-preferred-variant.js";
 import { effectiveSubjectIdSql } from "./knowledge-bit-subject.js";
 import { ANKI_VARIANT_KIND_PREFERENCE } from "./knowledge-bit-variant-kind-rules.js";
@@ -63,6 +64,8 @@ export async function listKnowledgeBitBrowser(
       createdAt: knowledgeBits.createdAt,
       sourceKind: knowledgeSources.kind,
       sourceUrl: knowledgeSources.sourceUrl,
+      sourceId: knowledgeSources.id,
+      sourceText: sql<string | null>`left(${knowledgeSources.rawText}, 200)`,
     })
     .from(knowledgeBits)
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
@@ -135,6 +138,8 @@ export async function listKnowledgeBitBrowser(
           sourceKind: row.sourceKind,
           sourceUrl: row.sourceUrl,
         }),
+        sourceId: row.sourceId,
+        sourceLabel: deriveBrowserSourceLabel({ sourceUrl: row.sourceUrl, rawText: row.sourceText }),
         addedAt: row.createdAt.toISOString(),
       },
     ];

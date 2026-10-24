@@ -24,6 +24,19 @@ vi.mock('./use-knowledge-overview-subjects', () => ({
   useKnowledgeOverviewSubjects: () => ({ options: [], labelFor: () => 'Math' }),
 }))
 
+vi.mock('./use-knowledge-browser-selection-delete', () => ({
+  useKnowledgeBrowserSelectionDelete: () => ({
+    selected: new Set<string>(),
+    count: 0,
+    toggleRow: vi.fn(),
+    toggleAll: vi.fn(),
+  }),
+}))
+
+vi.mock('./use-knowledge-browser-source-delete', () => ({
+  useKnowledgeBrowserSourceDelete: () => ({ sourceId: null, countFor: () => 0, open: vi.fn() }),
+}))
+
 const rowsHook = vi.hoisted(() => ({ calls: [] as (string | null)[] }))
 
 vi.mock('./use-knowledge-browser-data', () => ({

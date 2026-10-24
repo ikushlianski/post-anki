@@ -34,6 +34,8 @@ export const knowledgeBitBrowserItemSchema = z.object({
     .min(1),
   answer: z.string(),
   origin: knowledgeBitBrowserOriginSchema,
+  sourceId: z.string().nullable().optional(),
+  sourceLabel: z.string().max(80).nullable().optional(),
   addedAt: z.string(),
 });
 
