@@ -47,5 +47,7 @@ export default defineConfig({
       "src/domain-recommendation/domain-recommendation.orchestrator.test.ts",
     ],
     exclude: ["**/node_modules/**"],
+    // Every file migrates its own database; too many at once exhaust Postgres' shared lock table ("out of shared memory").
+    poolOptions: { forks: { minForks: 1, maxForks: 4 } },
   },
 });

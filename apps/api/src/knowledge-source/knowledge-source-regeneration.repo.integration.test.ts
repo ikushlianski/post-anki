@@ -217,7 +217,7 @@ describe("claimSourceForRegeneration (real Postgres)", () => {
 });
 
 describe("superseded bits (real Postgres)", () => {
-  it("should be returned by no scan while a pending bit still is", async () => {
+  it("should be returned by no scan while a pending bit still is, and embedding only picks up approved bits", async () => {
     const sourceId = await seedSource("bits_detected");
     const live = await seedBit(sourceId, 0, "pending");
     const gone = await seedBit(sourceId, 1, "pending");
@@ -231,9 +231,10 @@ describe("superseded bits (real Postgres)", () => {
       listKnowledgeBitsForFillBlankGenerationScan(1000),
       listKnowledgeBitsForBasicCardGenerationScan(1000),
       listKnowledgeBitsForTaggingScan(1000),
-      listKnowledgeBitsForEmbeddingScan(1000),
       listKnowledgeBitsForPlacementScan(1000),
     ]);
+    const approved = await seedBit(sourceId, 2, "approved");
+    const embeddingIds = (await listKnowledgeBitsForEmbeddingScan(1000)).map((row) => row.id);
 
     for (const rows of bitScans) {
       const ids = rows.map((row) => row.id);
@@ -241,6 +242,10 @@ describe("superseded bits (real Postgres)", () => {
       expect(ids).toContain(live);
       expect(ids).not.toContain(gone);
     }
+
+    expect(embeddingIds).toContain(approved);
+    expect(embeddingIds).not.toContain(live);
+    expect(embeddingIds).not.toContain(gone);
 
     const variantIds = (await listQuestionVariantsForEmbeddingScan(1000)).map((row) => row.id);
 

@@ -57,6 +57,7 @@ jobs:
       - name: Integration tests (real Postgres)
         env:
           DATABASE_URL: postgres://postanki:postanki@localhost:5578/postanki_e2e
+          LLM_MODE: mock
         run: npm run test:integration -w @post-anki/api
 
       # Runs the real apps/web browser build and fails if any Node built-in gets externalized
