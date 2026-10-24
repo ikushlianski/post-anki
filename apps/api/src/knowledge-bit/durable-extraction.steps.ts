@@ -20,6 +20,7 @@ import {
   type LessonDraft,
 } from "./knowledge-bit-source-item-validation.js";
 import { loadLearningIntentSafely } from "./knowledge-bit-learning-intent.js";
+import { resolveSubjectKind } from "../subject/subject-kind.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
 
 // Everything a step takes or returns is stored by the engine. Source text, chunk text and
@@ -101,8 +102,11 @@ async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableSte
 
   const learningIntent = await loadLearningIntentSafely(snapshot.subjectId, snapshot.id, deps.loadLearningIntent);
 
+  const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(snapshot.subjectId);
+
   return {
     learningIntent,
+    subjectKind,
     ...(modelId ? { modelId } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),

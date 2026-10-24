@@ -6,7 +6,9 @@ vi.mock("./mastra.js", () => ({
   getMastra: vi.fn().mockReturnValue({
     getAgent: vi.fn().mockReturnValue({ generate: generateMock }),
   }),
-  AGENT_KEYS: { knowledgeBitLessons: "knowledgeBitLessons", knowledgeBitSourceItems: "knowledgeBitSourceItems" },
+  AGENT_KEYS: { knowledgeBitLessons: "knowledgeBitLessons", knowledgeBitSourceItems: "knowledgeBitSourceItems",
+    knowledgeBitSourceItemsLegacy: "knowledgeBitSourceItemsLegacy",
+  },
 }));
 
 vi.mock("../shared/env.js", () => ({
@@ -293,3 +295,39 @@ describe("runKnowledgeBitSourceItems", () => {
     await expect(runKnowledgeBitSourceItems(SOURCE)).rejects.toThrow("knowledge_bit_source_items_invalid_output");
   });
 });
+
+describe("runKnowledgeBitSourceItems by subject kind", () => {
+  const LEGACY_ITEM = { ...CARD, quote: LESSON.quote };
+
+  function agentKeysUsed(): string[] {
+    return vi.mocked(generateWithRetry).mock.calls.map((call) => call[2]);
+  }
+
+  it("should make exactly one sentence-level call for a language subject and never ask for lessons", async () => {
+    vi.mocked(generateWithRetry).mockClear();
+    generateMock.mockClear();
+    generateMock.mockResolvedValueOnce({ object: { items: [LEGACY_ITEM] } });
+
+    const drafts = await runKnowledgeBitSourceItems(SOURCE, { subjectKind: "language", learningIntent: "x" });
+
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(agentKeysUsed()).toEqual(["knowledgeBitSourceItemsLegacy"]);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.cards).toHaveLength(1);
+    expect(drafts[0]?.example).toBeNull();
+  });
+
+  it.each([["business" as const], ["other" as const], [undefined]])(
+    "should keep the lessons-then-cards pipeline for %s",
+    async (subjectKind) => {
+      vi.mocked(generateWithRetry).mockClear();
+      generateMock.mockClear();
+      mockTwoCalls([LESSON], [CARD]);
+
+      await runKnowledgeBitSourceItems(SOURCE, subjectKind ? { subjectKind } : {});
+
+      expect(agentKeysUsed()).toEqual(["knowledgeBitLessons", "knowledgeBitSourceItems"]);
+    },
+  );
+});
+

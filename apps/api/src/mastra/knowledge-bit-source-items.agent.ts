@@ -20,6 +20,8 @@ import {
   knowledgeBitLessonsResultSchema,
   LESSON_EXAMPLE_MAX_CHARS,
 } from "./knowledge-bit-lessons.agent.js";
+import type { SubjectKind } from "../subject/subject-kind.js";
+import { runLegacyKnowledgeBitSourceItems } from "./knowledge-bit-source-items.legacy.agent.js";
 import { buildLanguageHeaderLines, LANGUAGE_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
 
 export const CARDS_MAX_PER_LESSON = 3;
@@ -152,6 +154,7 @@ export interface RunKnowledgeBitSourceItemsOptions {
   feedbackBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
+  subjectKind?: SubjectKind;
   abortSignal?: AbortSignal;
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
@@ -188,6 +191,10 @@ export async function runKnowledgeBitSourceItems(
   chunk: string,
   options: RunKnowledgeBitSourceItemsOptions = {},
 ): Promise<LessonDraft[]> {
+  if (options.subjectKind === "language") {
+    return runLegacyKnowledgeBitSourceItems(chunk, options);
+  }
+
   const modelId = options.modelId ?? (await getKnowledgeItemModelId());
   const requestContext = new RequestContext([["knowledgeItemModelId", modelId]]);
   const callOptions = {

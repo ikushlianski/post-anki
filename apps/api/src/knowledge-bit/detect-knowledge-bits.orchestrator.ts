@@ -17,9 +17,9 @@ import {
   resolveKnowledgeBitLearningIntent,
   type LearningIntentLoader,
 } from "./knowledge-bit-learning-intent.js";
+import { resolveSubjectKind, type SubjectKind } from "../subject/subject-kind.js";
 import { chunkSourceText, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
 import {
-  LESSONS_MAX_PER_CHUNK,
   normalizeStatement,
   selectNewItems,
   validateSourceItems,
@@ -36,7 +36,7 @@ export const DETECT_BITS_BATCH_CAP = 20;
 export const MAX_SOURCE_CHARS = 50_000;
 export const STALE_PROCESSING_THRESHOLD_MS = 15 * 60 * 1000;
 export const CHUNK_MAX_CHARS = SOURCE_CHUNK_MAX_CHARS;
-export const MAX_ITEMS_PER_CHUNK = LESSONS_MAX_PER_CHUNK;
+export const MAX_ITEMS_PER_CHUNK = 8;
 export const MAX_ITEMS_PER_SOURCE = 40;
 export const CHUNK_CONCURRENCY = 3;
 export const ORDINAL_STRIDE_PER_CHUNK = 1000;
@@ -47,6 +47,7 @@ export interface WriteOptions {
   feedbackBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
+  subjectKind?: SubjectKind;
   abortSignal?: AbortSignal;
 }
 
@@ -59,6 +60,7 @@ export interface GenerateItemsDeps {
   loadFeedbackBlock: (subjectId: string | null) => Promise<string>;
   loadStyleNotesBlock?: (subjectId: string | null) => Promise<string>;
   loadLearningIntent?: LearningIntentLoader;
+  loadSubjectKind?: (subjectId: string | null) => Promise<SubjectKind>;
 }
 
 export function defaultGenerateItemsDeps(): GenerateItemsDeps {
@@ -72,6 +74,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
       buildReviewerFeedbackBlock(await loadRecentFeedbackForExtraction(subjectId)),
     loadStyleNotesBlock,
     loadLearningIntent: resolveKnowledgeBitLearningIntent,
+    loadSubjectKind: resolveSubjectKind,
   };
 }
 
@@ -244,8 +247,10 @@ export async function generateItemsForSource(
   const feedbackBlock = await loadFeedbackBlockSafely(source, deps);
   const styleNotesBlock = await loadStyleNotesBlockSafely(source, deps);
   const learningIntent = await loadLearningIntentSafely(source.subjectId, source.id, deps.loadLearningIntent);
+  const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(source.subjectId);
   const options: WriteOptions = {
     learningIntent,
+    subjectKind,
     ...(modelId ? { modelId } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),

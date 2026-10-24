@@ -98,6 +98,7 @@ describe("generateItemsForSource", () => {
     const deps = buildGenerateDeps({
       writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
       loadFeedbackBlock,
+      loadSubjectKind: vi.fn().mockResolvedValue("business"),
     });
 
     await generateItemsForSource({ ...source("ks_1", RU_SOURCE_TEXT), subjectId: "sub_sales" }, {}, deps);
@@ -135,6 +136,7 @@ describe("generateItemsForSource", () => {
 
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
+      subjectKind: "other",
       modelId: "openrouter/openai/gpt-6-luna",
     });
   });
@@ -150,6 +152,7 @@ describe("generateItemsForSource", () => {
 
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
+      subjectKind: "other",
       modelId: "openrouter/openai/gpt-5-mini",
     });
   });
@@ -165,6 +168,7 @@ describe("generateItemsForSource", () => {
 
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
+      subjectKind: "other",
       modelId: "openrouter/google/gemma-4-31b-it",
     });
   });
@@ -174,7 +178,7 @@ describe("generateItemsForSource", () => {
 
     await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT, "openrouter/evil/model"), {}, deps);
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT });
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT, subjectKind: "other" });
   });
 
   it("should fall back to the admin default once a listed model has passed its retirement date", async () => {
@@ -190,7 +194,7 @@ describe("generateItemsForSource", () => {
 
     vi.useRealTimers();
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT });
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT, subjectKind: "other" });
   });
 
   it("should start ordinals after the existing ones and give each chunk its own ordinal range", async () => {
