@@ -1,65 +1,152 @@
 import type http from "node:http";
 import { z } from "zod";
-import { knowledgeItemModelIdSchema } from "@post-anki/shared";
-import { convert } from "html-to-text";
-import { readJsonBody, sendJson } from "../shared/http.js";
+import { isSafeSourceUrl } from "@post-anki/core";
+import {
+  describeKnowledgeSourceRefusal,
+  KNOWLEDGE_SOURCE_MAX_CHARS,
+  knowledgeItemModelIdSchema,
+} from "@post-anki/shared";
+import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
-import { kickKnowledgeBitPipeline } from "../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js";
+import { startKnowledgeBitPipelineKick } from "../knowledge-bit/pipeline-kick.starter.js";
+import {
+  isDurableExtractionEnabled,
+  startDurableExtraction,
+} from "../knowledge-bit/durable-extraction.starter.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
-import { getSubject } from "../subject/subject.repo.js";
+import { runArticleSummary } from "../mastra/article-summary.agent.js";
+import { extractArticleText } from "./article-text.js";
+import {
+  MAX_PAGE_TITLE_CHARS,
+  MAX_PAGE_URL_CHARS,
+  safePageUrl,
+  withPageTitle,
+} from "./knowledge-source-page-context.js";
+import {
+  findEarlierSourceByUrl,
+  findEarlierSourcesByText,
+  type EarlierKnowledgeSource,
+} from "./knowledge-source-duplicate.repo.js";
+import { findSubjectAssignmentError } from "../subject/subject-leaf.js";
 import {
   insertKnowledgeSource,
   insertKnowledgeSources,
   MAX_SOURCES_PER_BATCH_ADD,
+  updateKnowledgeSourceSummary,
 } from "./knowledge-source.repo.js";
 
 const subjectIdInput = z.string().min(1).nullable().optional();
 const modelIdInput = knowledgeItemModelIdSchema.nullable().optional();
 const singleTextInput = z.object({
-  text: z.string().max(50_000),
+  text: z.string().max(KNOWLEDGE_SOURCE_MAX_CHARS),
   subjectId: subjectIdInput,
   modelId: modelIdInput,
+  force: z.boolean().optional(),
+  sourceUrl: z.string().max(MAX_PAGE_URL_CHARS).optional(),
+  title: z.string().max(MAX_PAGE_TITLE_CHARS).optional(),
 });
 const batchTextInput = z.object({
-  texts: z.array(z.string().max(50_000)).min(1),
+  texts: z.array(z.string().max(KNOWLEDGE_SOURCE_MAX_CHARS)).min(1),
   subjectId: subjectIdInput,
   modelId: modelIdInput,
+  force: z.boolean().optional(),
 });
 const urlInput = z
-  .object({ url: z.string().url(), subjectId: subjectIdInput, modelId: modelIdInput })
+  .object({
+    url: z.string().url(),
+    subjectId: subjectIdInput,
+    modelId: modelIdInput,
+    force: z.boolean().optional(),
+  })
   .strict();
 
-// Null means "no subject"; a non-null id must name an existing subject.
-async function isUnknownSubject(subjectId: string | null): Promise<boolean> {
-  return subjectId !== null && (await getSubject(subjectId)) === null;
+// Null means "no subject"; a non-null id must name an existing leaf subject.
+async function rejectSubject(res: http.ServerResponse, subjectId: string | null): Promise<boolean> {
+  const error = subjectId === null ? null : await findSubjectAssignmentError(subjectId);
+
+  if (error === "subject_has_children") {
+    sendError(res, 409, error, describeKnowledgeSourceRefusal("subject_has_children"));
+
+    return true;
+  }
+
+  if (error) {
+    sendError(res, 400, "subject_not_found", describeKnowledgeSourceRefusal("subject_not_found"));
+
+    return true;
+  }
+
+  return false;
 }
 
-function kickPipelineInBackground(): void {
-  void kickKnowledgeBitPipeline().catch((err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"));
+function sendInvalidInputIssues(res: http.ServerResponse, error: z.ZodError): void {
+  const issues = error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+  const tooLong = error.issues.some((i) => i.code === "too_big" && i.type === "string");
+
+  if (!tooLong) {
+    sendError(res, 400, "invalid_input", issues);
+    return;
+  }
+
+  sendJson(res, 400, {
+    error: "invalid_input",
+    message: `${describeKnowledgeSourceRefusal("text_too_long")} (${issues})`,
+    reason: "text_too_long",
+  });
 }
 
-const HIDDEN_CONTENT_SELECTORS = [
-  "script",
-  "style",
-  "noscript",
-  "template",
-  "iframe",
-  "[hidden]",
-  "[aria-hidden='true']",
-  "[style*='display:none']",
-  "[style*='display: none']",
-  "[style*='visibility:hidden']",
-  "[style*='visibility: hidden']",
-  "[style*='font-size:0']",
-  "[style*='font-size: 0']",
-].map((selector) => ({ selector, format: "skip" }));
+function sendAlreadyAdded(
+  res: http.ServerResponse,
+  earlier: { index?: number; source: EarlierKnowledgeSource }[],
+): void {
+  const duplicates = earlier.map(({ index, source }) => ({
+    ...(index === undefined ? {} : { index }),
+    existingId: source.id,
+    addedAt: source.addedAt,
+  }));
 
-export function extractVisibleText(html: string): string {
-  return convert(html, { selectors: HIDDEN_CONTENT_SELECTORS }).trim();
+  sendJson(res, 409, {
+    error: "already_added",
+    message: describeKnowledgeSourceRefusal("already_added"),
+    existingId: duplicates[0]?.existingId,
+    addedAt: duplicates[0]?.addedAt,
+    duplicates,
+  });
 }
+
+function kickInBackground(sourceIds: string[]): void {
+  if (isDurableExtractionEnabled()) {
+    void startDurableExtraction(sourceIds, { regeneration: false })
+      .then((result) => {
+        if (result.fallbackIds.length > 0) {
+          void startKnowledgeBitPipelineKick().catch((err) =>
+            log.error({ err }, "knowledge_bit_pipeline_kick_failed"),
+          );
+        }
+      })
+      .catch((err) => {
+        log.error({ err }, "durable_extraction_start_failed");
+        void startKnowledgeBitPipelineKick().catch((kickErr) =>
+          log.error({ err: kickErr }, "knowledge_bit_pipeline_kick_failed"),
+        );
+      });
+
+    return;
+  }
+
+  void startKnowledgeBitPipelineKick().catch((err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"));
+}
+
+function summarizeInBackground(sourceId: string, articleText: string): void {
+  void runArticleSummary(articleText)
+    .then((summary) => updateKnowledgeSourceSummary(sourceId, summary))
+    .catch((err) => log.error({ err, sourceId }, "article_summary_failed"));
+}
+
+export const extractVisibleText = extractArticleText;
 
 const URL_FETCH_TIMEOUT_MS = 8_000;
-const MAX_URL_SOURCE_CHARS = 50_000;
+const MAX_URL_SOURCE_CHARS = KNOWLEDGE_SOURCE_MAX_CHARS;
 
 export async function handleCreateKnowledgeSource(
   req: http.IncomingMessage,
@@ -73,35 +160,48 @@ export async function handleCreateKnowledgeSource(
     const body = urlInput.safeParse(rawBody.ok ? rawBody.data : undefined);
 
     if (!body.success) {
-      const issues = body.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-
-      sendJson(res, 400, { error: "invalid_input", message: issues });
+      sendInvalidInputIssues(res, body.error);
       return;
     }
 
     const subjectId = body.data.subjectId ?? null;
 
-    if (await isUnknownSubject(subjectId)) {
-      sendJson(res, 400, { error: "subject_not_found" });
+    if (await rejectSubject(res, subjectId)) {
       return;
     }
 
-    const html = await fetchWithTimeout(body.data.url, URL_FETCH_TIMEOUT_MS);
+    let finalUrl = body.data.url;
+    const html = await fetchWithTimeout(body.data.url, URL_FETCH_TIMEOUT_MS, (url) => {
+      finalUrl = url;
+    });
 
     if (html === null) {
-      sendJson(res, 400, { error: "fetch_failed" });
+      sendError(res, 400, "fetch_failed", describeKnowledgeSourceRefusal("fetch_failed"));
       return;
     }
 
-    const extractedText = truncateText(extractVisibleText(html), MAX_URL_SOURCE_CHARS);
+    const fullText = extractVisibleText(html);
+    const truncated = fullText.length > MAX_URL_SOURCE_CHARS;
+    const extractedText = truncateText(fullText, MAX_URL_SOURCE_CHARS);
 
     if (extractedText.length === 0) {
-      sendJson(res, 400, { error: "empty_content" });
+      sendError(res, 400, "empty_content", describeKnowledgeSourceRefusal("empty_content"));
       return;
     }
 
-    sendJson(res, 201, await insertKnowledgeSource(extractedText, subjectId, body.data.modelId ?? null));
-    kickPipelineInBackground();
+    const sourceUrl = isSafeSourceUrl(finalUrl).allowed ? finalUrl : null;
+    const earlierByUrl =
+      body.data.force === true || sourceUrl === null ? null : await findEarlierSourceByUrl(sourceUrl, subjectId);
+
+    if (earlierByUrl !== null) {
+      sendAlreadyAdded(res, [{ source: earlierByUrl }]);
+      return;
+    }
+
+    const urlSource = await insertKnowledgeSource(extractedText, subjectId, body.data.modelId ?? null, sourceUrl);
+    sendJson(res, 201, { ...urlSource, truncated });
+    kickInBackground([urlSource.id]);
+    summarizeInBackground(urlSource.id, extractedText);
     return;
   }
 
@@ -109,67 +209,91 @@ export async function handleCreateKnowledgeSource(
     const body = batchTextInput.safeParse(rawBody.ok ? rawBody.data : undefined);
 
     if (!body.success) {
-      const issues = body.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-
-      sendJson(res, 400, { error: "invalid_input", message: issues });
+      sendInvalidInputIssues(res, body.error);
       return;
     }
 
     const subjectId = body.data.subjectId ?? null;
 
-    if (await isUnknownSubject(subjectId)) {
-      sendJson(res, 400, { error: "subject_not_found" });
+    if (await rejectSubject(res, subjectId)) {
       return;
     }
 
     const texts = body.data.texts.map((text) => text.trim()).filter((text) => text.length > 0);
 
     if (texts.length === 0) {
-      sendJson(res, 400, { error: "invalid_input", message: "texts: must not be empty" });
+      sendError(res, 400, "invalid_input", "texts: must not be empty");
       return;
     }
 
     if (texts.length > MAX_SOURCES_PER_BATCH_ADD) {
-      sendJson(res, 400, {
-        error: "invalid_input",
-        message: `texts: must not exceed ${MAX_SOURCES_PER_BATCH_ADD} entries`,
-      });
+      sendError(
+        res,
+        400,
+        "invalid_input",
+        `texts: must not exceed ${MAX_SOURCES_PER_BATCH_ADD} entries`,
+      );
       return;
     }
 
-    sendJson(res, 201, await insertKnowledgeSources(texts, subjectId, body.data.modelId ?? null));
-    kickPipelineInBackground();
+    const earlierByText =
+      body.data.force === true ? new Map<string, EarlierKnowledgeSource>() : await findEarlierSourcesByText(texts, subjectId);
+    const repeated = texts.flatMap((text, index) => {
+      const source = earlierByText.get(text);
+
+      return source === undefined ? [] : [{ index, source }];
+    });
+
+    if (repeated.length > 0) {
+      sendAlreadyAdded(res, repeated);
+      return;
+    }
+
+    const batchSources = await insertKnowledgeSources(texts, subjectId, body.data.modelId ?? null);
+    sendJson(res, 201, batchSources);
+    kickInBackground(batchSources.map((s) => s.id));
     return;
   }
 
   const body = singleTextInput.safeParse(rawBody.ok ? rawBody.data : undefined);
 
   if (!rawBody.ok) {
-    sendJson(res, 400, { error: "invalid_input", message: rawBody.issues });
+    sendError(res, 400, "invalid_input", rawBody.issues || "Request body is not valid JSON.");
     return;
   }
 
   if (!body.success) {
-    const issues = body.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-
-    sendJson(res, 400, { error: "invalid_input", message: issues });
+    sendInvalidInputIssues(res, body.error);
     return;
   }
 
   const text = body.data.text.trim();
 
   if (text.length === 0) {
-    sendJson(res, 400, { error: "invalid_input", message: "text: must not be empty" });
+    sendError(res, 400, "invalid_input", "text: must not be empty");
     return;
   }
 
   const subjectId = body.data.subjectId ?? null;
 
-  if (await isUnknownSubject(subjectId)) {
-    sendJson(res, 400, { error: "subject_not_found" });
+  if (await rejectSubject(res, subjectId)) {
     return;
   }
 
-  sendJson(res, 201, await insertKnowledgeSource(text, subjectId, body.data.modelId ?? null));
-  kickPipelineInBackground();
+  const pageUrl = safePageUrl(body.data.sourceUrl);
+  const storedText = withPageTitle(text, body.data.title);
+  const earlierSingle =
+    body.data.force === true ? undefined : (await findEarlierSourcesByText([storedText], subjectId)).get(storedText);
+
+  if (earlierSingle !== undefined) {
+    sendAlreadyAdded(res, [{ source: earlierSingle }]);
+    return;
+  }
+
+  const source =
+    pageUrl === null
+      ? await insertKnowledgeSource(storedText, subjectId, body.data.modelId ?? null)
+      : await insertKnowledgeSource(storedText, subjectId, body.data.modelId ?? null, pageUrl);
+  sendJson(res, 201, source);
+  kickInBackground([source.id]);
 }

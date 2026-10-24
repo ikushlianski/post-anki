@@ -54,7 +54,7 @@ describe("handleRegenerateKnowledgeSource", () => {
     const res = fakeRes();
 
     await handleRegenerateKnowledgeSource(
-      fakeReq({ modelId: "openrouter/google/gemini-2.5-flash-lite" }),
+      fakeReq({ modelId: "openrouter/openai/gpt-4o-mini" }),
       res,
       "ks_1",
     );
@@ -62,7 +62,7 @@ describe("handleRegenerateKnowledgeSource", () => {
     expect(res.status).toBe(202);
     expect(res.body).toEqual({ status: "running", supersededCount: 3 });
     expect(generateItemsForSource).toHaveBeenCalledWith(source, {
-      modelId: "openrouter/google/gemini-2.5-flash-lite",
+      modelId: "openrouter/openai/gpt-4o-mini",
     });
   });
 

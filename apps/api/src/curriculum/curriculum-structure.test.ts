@@ -41,11 +41,11 @@ vi.mock("./curriculum.repo.js", () => ({
   listTopicIdsForCurriculum: (...args: unknown[]) => listTopicIdsForCurriculum(...args),
 }));
 
-const startCardsForTopicsWithConcurrencyCap = vi.fn(async (_topicIds: string[]) => {});
+const startCardsForTopics = vi.fn(async (_topicIds: string[]) => {});
 
-vi.mock("../cards/cards.orchestrator.js", () => ({
-  startCardsForTopicsWithConcurrencyCap: (...args: unknown[]) =>
-    startCardsForTopicsWithConcurrencyCap(...(args as [string[]])),
+vi.mock("../cards/cards.starter.js", () => ({
+  startCardsForTopics: (...args: unknown[]) =>
+    startCardsForTopics(...(args as [string[]])),
 }));
 
 const agentGenerate = vi.fn();
@@ -77,6 +77,12 @@ vi.mock("./source-text.js", () => ({
 
 vi.mock("../tag/tag.repo.js", () => ({
   listTags: vi.fn(async () => []),
+}));
+
+vi.mock("../shared/spend-guard.js", () => ({
+  assertLlmBudgetAvailable: vi.fn(),
+  estimateCostUsd: vi.fn(() => 0),
+  recordLlmSpend: vi.fn(),
 }));
 
 vi.mock("../shared/log.js", () => ({
@@ -452,8 +458,8 @@ describe("confirmStructure", () => {
     await confirmStructure("cur_1");
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(startCardsForTopicsWithConcurrencyCap).toHaveBeenCalledTimes(1);
-    expect(startCardsForTopicsWithConcurrencyCap).toHaveBeenCalledWith(["top_1", "top_2"]);
+    expect(startCardsForTopics).toHaveBeenCalledTimes(1);
+    expect(startCardsForTopics).toHaveBeenCalledWith(["top_1", "top_2"]);
   });
 
   it("never starts card generation when the curriculum isn't in shaping_structure", async () => {
@@ -462,7 +468,7 @@ describe("confirmStructure", () => {
     await confirmStructure("cur_1");
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(startCardsForTopicsWithConcurrencyCap).not.toHaveBeenCalled();
+    expect(startCardsForTopics).not.toHaveBeenCalled();
   });
 });
 

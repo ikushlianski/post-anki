@@ -42,13 +42,37 @@ export const knowledgeBitFeedbackVerdictSchema = z.enum(["rejected", "approved"]
 
 export type KnowledgeBitFeedbackVerdict = z.infer<typeof knowledgeBitFeedbackVerdictSchema>;
 
-// PATCH /knowledge-bit-feedback/:id
+// PATCH /knowledge-bit-feedback/:id (legacy — requires reasonCode)
 export const setKnowledgeBitFeedbackReasonInput = z.object({
   reasonCode: knowledgeBitRejectReasonSchema,
   note: z.string().trim().max(KNOWLEDGE_BIT_FEEDBACK_NOTE_MAX_CHARS).optional(),
 });
 
 export type SetKnowledgeBitFeedbackReasonInput = z.input<typeof setKnowledgeBitFeedbackReasonInput>;
+
+// PATCH /knowledge-bit-feedback/:id (partial update — any field optional)
+export const updateKnowledgeBitFeedbackInput = z.object({
+  reasonCode: knowledgeBitRejectReasonSchema.optional(),
+  note: z.string().trim().max(KNOWLEDGE_BIT_FEEDBACK_NOTE_MAX_CHARS).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+});
+
+export type UpdateKnowledgeBitFeedbackInput = z.input<typeof updateKnowledgeBitFeedbackInput>;
+
+// POST /knowledge-bits/:id/grades
+export const gradeKnowledgeBitInput = z.object({
+  rating: z.number().int().min(1).max(5),
+  note: z.string().trim().max(KNOWLEDGE_BIT_FEEDBACK_NOTE_MAX_CHARS).optional(),
+});
+
+export type GradeKnowledgeBitInput = z.input<typeof gradeKnowledgeBitInput>;
+
+export const gradeKnowledgeBitResponse = z.object({
+  ok: z.literal(true),
+  feedbackId: z.string(),
+});
+
+export type GradeKnowledgeBitResponse = z.infer<typeof gradeKnowledgeBitResponse>;
 
 // POST /knowledge-bits/:id/reject
 export const rejectKnowledgeBitResponse = z.object({
@@ -68,4 +92,26 @@ export interface KnowledgeBitFeedbackModelStats {
 
 export interface KnowledgeBitFeedbackByModelResponse {
   models: KnowledgeBitFeedbackModelStats[];
+}
+
+// Summary of the most recent feedback for a specific knowledge bit — surfaced in the review UI.
+export interface KnowledgeBitFeedbackSummary {
+  feedbackId: string;
+  verdict: KnowledgeBitFeedbackVerdict;
+  rating: number | null;
+  wordingRating: number | null;
+}
+
+// PUT /knowledge-sources/:id/extraction-grade
+export const setSourceExtractionGradeInput = z.object({
+  rating: z.number().int().min(1).max(5),
+  note: z.string().trim().max(KNOWLEDGE_BIT_FEEDBACK_NOTE_MAX_CHARS).optional(),
+});
+
+export type SetSourceExtractionGradeInput = z.input<typeof setSourceExtractionGradeInput>;
+
+export interface SourceExtractionGrade {
+  rating: number;
+  note: string | null;
+  run: number;
 }

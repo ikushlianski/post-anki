@@ -46,6 +46,9 @@ const { getTopicCards } = await import("./get-topic-cards.tool.js");
 const { listCourseCards } = await import("./list-course-cards.tool.js");
 const { getDeckItems } = await import("./get-deck-items.tool.js");
 const { searchKnowledgeItems } = await import("./search-knowledge-items.tool.js");
+const { listKnowledgeSources } = await import("./list-knowledge-sources.tool.js");
+const { getSourceKnowledgeBits } = await import("./get-source-knowledge-bits.tool.js");
+const { getKnowledgeBit } = await import("./get-knowledge-bit.tool.js");
 
 let client: pg.Client;
 
@@ -81,7 +84,10 @@ async function tableSnapshot(): Promise<string> {
       (SELECT coalesce(string_agg(tc::text, '|' ORDER BY tc::text), '') FROM topic_cards tc) ||
       (SELECT coalesce(string_agg(v::text, '|' ORDER BY v::text), '') FROM topic_card_variants v) ||
       (SELECT coalesce(string_agg(pbe::text, '|' ORDER BY pbe::text), '') FROM phrase_bank_entries pbe) ||
-      (SELECT coalesce(string_agg(p::text, '|' ORDER BY p::text), '') FROM phrases p)
+      (SELECT coalesce(string_agg(p::text, '|' ORDER BY p::text), '') FROM phrases p) ||
+      (SELECT coalesce(string_agg(ks::text, '|' ORDER BY ks::text), '') FROM knowledge_sources ks) ||
+      (SELECT coalesce(string_agg(kb::text, '|' ORDER BY kb::text), '') FROM knowledge_bits kb) ||
+      (SELECT coalesce(string_agg(kv::text, '|' ORDER BY kv::text), '') FROM knowledge_bit_question_variants kv)
     ) AS digest
   `);
 
@@ -149,6 +155,15 @@ describe("MCP tools, read-only guarantee", () => {
       [id("variant"), cardId, "What is a closure?", "A bundled scope."],
     );
 
+    const sourceId = id("ksrc");
+    const bitId = id("kbit");
+
+    await client.query(`INSERT INTO knowledge_sources (id, kind, raw_text, status) VALUES ($1, 'prose', 'text', 'detected')`, [sourceId]);
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state) VALUES ($1, $2, 1, 'bit body', 'approved')`,
+      [bitId, sourceId],
+    );
+
     const before = await tableSnapshot();
 
     const decks = await listDecks({});
@@ -172,6 +187,15 @@ describe("MCP tools, read-only guarantee", () => {
 
     const search = await searchKnowledgeItems({ query: "closure" });
     expect(search.cards.length + search.courses.length + search.topics.length).toBeGreaterThan(0);
+
+    const sources = await listKnowledgeSources({});
+    expect(sources.items.map((s) => s.id)).toContain(sourceId);
+
+    const sourceBits = await getSourceKnowledgeBits({ sourceId });
+    expect("items" in sourceBits ? sourceBits.items : []).toHaveLength(1);
+
+    const bit = await getKnowledgeBit({ id: bitId });
+    expect("error" in bit).toBe(false);
 
     const after = await tableSnapshot();
 

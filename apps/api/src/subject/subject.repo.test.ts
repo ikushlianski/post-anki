@@ -26,6 +26,7 @@ vi.mock("../db/client.js", () => {
     set: (patch: unknown) => typeof chain;
     where: () => typeof chain | SubjectRow[];
     returning: () => SubjectRow[];
+    transaction: <T>(run: (tx: typeof chain) => Promise<T>) => Promise<T>;
   } = {
     select: () => {
       state.mode = "select";
@@ -51,6 +52,7 @@ vi.mock("../db/client.js", () => {
       return chain;
     },
     returning: () => state.updateRows,
+    transaction: (run) => run(chain),
   };
 
   return { getDb: () => chain };

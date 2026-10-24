@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { chatMessageSchema, MAX_CHAT_MESSAGE_CHARS } from "./study-chat";
+import { chatTranscriptSchema, MAX_CHAT_MESSAGE_CHARS, MAX_CHAT_TRANSCRIPT_MESSAGES } from "./study-chat";
 
 // Durable content like detect-knowledge-bits.orchestrator.ts's MAX_SOURCE_CHARS, not a chat turn.
 export const MAX_KNOWLEDGE_BIT_BODY_CHARS = 50_000;
 
 export const askKnowledgeBitChatInput = z.object({
   message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
-  transcript: z.array(chatMessageSchema).optional(),
+  transcript: chatTranscriptSchema.optional(),
   allowGeneralKnowledge: z.boolean().optional().default(false),
   allowWebSearch: z.boolean().optional().default(false),
 });
@@ -19,15 +19,41 @@ export const askKnowledgeBitChatResultSchema = z.object({
 
 export type AskKnowledgeBitChatResult = z.infer<typeof askKnowledgeBitChatResultSchema>;
 
+export const MAX_CARD_FRONT_CHARS = 300;
+export const MAX_CARD_BACK_CHARS = 600;
+export const MAX_CARD_EXAMPLE_CHARS = 300;
+export const MAX_CARD_SOURCES = 5;
+export const MAX_DRAFT_INSTRUCTION_CHARS = 2_000;
+export const MAX_DRAFT_TRANSCRIPT_MESSAGES = MAX_CHAT_TRANSCRIPT_MESSAGES;
+
+const httpUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), "must be an http or https url");
+
+export const cardProposalSchema = z.object({
+  front: z.string().min(1).max(MAX_CARD_FRONT_CHARS),
+  back: z.string().min(1).max(MAX_CARD_BACK_CHARS),
+  example: z.string().min(1).max(MAX_CARD_EXAMPLE_CHARS).optional(),
+  sources: z.array(httpUrlSchema).max(MAX_CARD_SOURCES),
+  usedWebSearch: z.boolean(),
+});
+
+export type CardProposal = z.infer<typeof cardProposalSchema>;
+
 export const draftKnowledgeBitChatInput = z.object({
-  transcript: z.array(chatMessageSchema),
+  transcript: chatTranscriptSchema,
   mode: z.enum(["create", "edit"]),
+  instruction: z.string().trim().max(MAX_DRAFT_INSTRUCTION_CHARS).optional(),
+  previous: cardProposalSchema.optional(),
+  allowWebSearch: z.boolean().optional().default(false),
 });
 
 export type DraftKnowledgeBitChatInput = z.input<typeof draftKnowledgeBitChatInput>;
 
 export const draftKnowledgeBitChatResultSchema = z.object({
-  proposedBody: z.string(),
+  sources: z.array(z.string()),
+  card: cardProposalSchema,
 });
 
 export type DraftKnowledgeBitChatResult = z.infer<typeof draftKnowledgeBitChatResultSchema>;

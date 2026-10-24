@@ -27,6 +27,8 @@ async function embedVariants(
 
   const { toEmbed, reused, capped } = selectSubjectsForScan(scanCandidates, EMBEDDING_CAP);
 
+  let savedCount = 0;
+
   if (toEmbed.length > 0) {
     const variantsById = new Map(variants.map((variant) => [variant.id, variant]));
     const toEmbedItems = toEmbed.map((id) => ({
@@ -44,10 +46,16 @@ async function embedVariants(
         result.embedding,
         hashContent(contentTextFor(variant)),
       );
+      savedCount += 1;
     }
   }
 
-  return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
+  return {
+    embeddedCount: savedCount,
+    reusedCount: reused.length,
+    capped,
+    ...(toEmbed.length > savedCount ? { skippedCount: toEmbed.length - savedCount } : {}),
+  };
 }
 
 export async function triggerCardEmbeddingScan(): Promise<EmbeddingScanCounts> {

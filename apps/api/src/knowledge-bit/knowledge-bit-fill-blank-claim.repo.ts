@@ -1,5 +1,8 @@
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
-import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
+import {
+  bitOpenForVariantGeneration,
+  type VariantGenerationScope,
+} from "./knowledge-bit-variant-generation-gate.js";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type Db, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
@@ -18,6 +21,7 @@ function staleClaimCutoff(): Date {
 
 export async function listKnowledgeBitsForFillBlankGenerationScan(
   limit: number,
+  scope: VariantGenerationScope = {},
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitForQuestionGenerationScan[]> {
   return db
@@ -29,7 +33,7 @@ export async function listKnowledgeBitsForFillBlankGenerationScan(
     .where(
       and(
         isNull(knowledgeBits.fillBlankGeneratedAt),
-        bitNotDiscarded,
+        bitOpenForVariantGeneration(scope),
         or(
           isNull(knowledgeBits.fillBlankGenerationFailedAt),
           lt(knowledgeBits.fillBlankGenerationAttempts, FILL_BLANK_GENERATION_MAX_ATTEMPTS),
@@ -51,6 +55,7 @@ export async function listKnowledgeBitsForFillBlankGenerationScan(
 export async function claimKnowledgeBitForFillBlankGeneration(
   id: string,
   expectedBody: string,
+  scope: VariantGenerationScope = {},
   db: DbExecutor = getDb(),
 ): Promise<string | null> {
   const claimToken = newId("fbgc");
@@ -62,7 +67,7 @@ export async function claimKnowledgeBitForFillBlankGeneration(
         eq(knowledgeBits.id, id),
         eq(knowledgeBits.body, expectedBody),
         isNull(knowledgeBits.fillBlankGeneratedAt),
-        bitNotDiscarded,
+        bitOpenForVariantGeneration(scope),
         or(
           isNull(knowledgeBits.fillBlankGenerationFailedAt),
           lt(knowledgeBits.fillBlankGenerationAttempts, FILL_BLANK_GENERATION_MAX_ATTEMPTS),
@@ -150,9 +155,10 @@ export async function recordGeneratedFillBlankVariant(
   answer: string,
   claimToken: string,
   db: Db = getDb(),
+  sentence?: string,
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx);
+    await insertQuestionVariant(knowledgeBitId, kind, order, prompt, answer, tx, sentence);
     await markFillBlankGenerated(knowledgeBitId, claimToken, tx);
   });
 }

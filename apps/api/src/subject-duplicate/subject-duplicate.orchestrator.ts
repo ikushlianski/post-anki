@@ -1,9 +1,8 @@
 import {
   buildSubjectContentText,
-  findDuplicatePairs,
   hashSubjectContent,
   selectSubjectsForScan,
-  type EmbeddedSubject,
+  DUPLICATE_SIMILARITY_THRESHOLD,
 } from "@post-anki/core";
 import type { SubjectDuplicateSuggestion, TriggerSubjectDuplicateScanResult } from "@post-anki/shared";
 import { startTracingSpan } from "../mastra/mastra.js";
@@ -13,6 +12,7 @@ import {
   type SubjectForDuplicateScan,
 } from "../subject/subject.repo.js";
 import { embedSubjectTexts } from "./embeddings-client.js";
+import { findSimilarSubjectPairs } from "./subject-duplicate-pairs.repo.js";
 import { insertDuplicateSuggestionIfNew } from "./subject-duplicate.repo.js";
 
 // Decision #3 (spec.md) — bounds only the paid embedding call this run,
@@ -61,9 +61,8 @@ export async function triggerSubjectDuplicateScan(): Promise<TriggerSubjectDupli
 
       freshlyEmbedded = await embedSubjectTexts(toEmbedItems);
 
-      // No embedding/hash is written for any subject whose call failed —
-      // embedSubjectTexts either returns a result for every requested
-      // subject or throws (SCENARIO 6's "no partial/corrupt cache write").
+      // Only subjects with a returned embedding are written; a rejected one is
+      // skipped and counted, a total failure throws (no partial/corrupt cache write).
       for (const result of freshlyEmbedded) {
         const subject = subjectsById.get(result.id)!;
 
@@ -71,25 +70,7 @@ export async function triggerSubjectDuplicateScan(): Promise<TriggerSubjectDupli
       }
     }
 
-    const freshlyEmbeddedById = new Map(freshlyEmbedded.map((r) => [r.id, r.embedding]));
-
-    // The comparison set: every subject with ANY cached embedding after
-    // this run's writes — reused subjects keep their original (still
-    // valid) embedding from the initial read, freshly embedded subjects
-    // use the new vector just returned, and a stale-but-cap-excluded
-    // subject still contributes its OLD embedding rather than being
-    // dropped from comparison entirely.
-    const embeddedSubjects: EmbeddedSubject[] = [];
-
-    for (const row of subjectRows) {
-      const embedding = freshlyEmbeddedById.get(row.id) ?? row.embedding;
-
-      if (embedding) {
-        embeddedSubjects.push({ id: row.id, embedding });
-      }
-    }
-
-    const pairs = findDuplicatePairs(embeddedSubjects);
+    const pairs = await findSimilarSubjectPairs(DUPLICATE_SIMILARITY_THRESHOLD);
 
     const suggestions: SubjectDuplicateSuggestion[] = [];
 
@@ -108,15 +89,19 @@ export async function triggerSubjectDuplicateScan(): Promise<TriggerSubjectDupli
 
     const result: TriggerSubjectDuplicateScanResult = {
       suggestions,
-      embeddedCount: toEmbed.length,
+      embeddedCount: freshlyEmbedded.length,
       reusedCount: reused.length,
       capped,
+      ...(toEmbed.length > freshlyEmbedded.length
+        ? { skippedCount: toEmbed.length - freshlyEmbedded.length }
+        : {}),
     };
 
     span?.end({
       output: {
         considered: subjectRows.length,
         embeddedCount: result.embeddedCount,
+        skippedCount: result.skippedCount ?? 0,
         reusedCount: result.reusedCount,
         capped: result.capped,
         pairsSurfaced: pairs.length,

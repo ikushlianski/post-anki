@@ -1,5 +1,8 @@
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
-import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
+import {
+  bitOpenForVariantGeneration,
+  type VariantGenerationScope,
+} from "./knowledge-bit-variant-generation-gate.js";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type Db, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
@@ -18,6 +21,7 @@ function staleClaimCutoff(): Date {
 
 export async function listKnowledgeBitsForWhQuestionGenerationScan(
   limit: number,
+  scope: VariantGenerationScope = {},
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitForQuestionGenerationScan[]> {
   return db
@@ -29,7 +33,7 @@ export async function listKnowledgeBitsForWhQuestionGenerationScan(
     .where(
       and(
         isNull(knowledgeBits.whQuestionGeneratedAt),
-        bitNotDiscarded,
+        bitOpenForVariantGeneration(scope),
         or(
           isNull(knowledgeBits.whQuestionGenerationFailedAt),
           lt(knowledgeBits.whQuestionGenerationAttempts, WH_QUESTION_GENERATION_MAX_ATTEMPTS),
@@ -51,6 +55,7 @@ export async function listKnowledgeBitsForWhQuestionGenerationScan(
 export async function claimKnowledgeBitForWhQuestionGeneration(
   id: string,
   expectedBody: string,
+  scope: VariantGenerationScope = {},
   db: DbExecutor = getDb(),
 ): Promise<string | null> {
   const claimToken = newId("whgc");
@@ -62,7 +67,7 @@ export async function claimKnowledgeBitForWhQuestionGeneration(
         eq(knowledgeBits.id, id),
         eq(knowledgeBits.body, expectedBody),
         isNull(knowledgeBits.whQuestionGeneratedAt),
-        bitNotDiscarded,
+        bitOpenForVariantGeneration(scope),
         or(
           isNull(knowledgeBits.whQuestionGenerationFailedAt),
           lt(knowledgeBits.whQuestionGenerationAttempts, WH_QUESTION_GENERATION_MAX_ATTEMPTS),

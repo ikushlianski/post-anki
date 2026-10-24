@@ -75,6 +75,8 @@ export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
       background: knowledgeBits.background,
+      isAiGenerated: knowledgeBits.isAiGenerated,
+      sourceLinks: knowledgeBits.sourceLinks,
       bitCreatedAt: knowledgeBits.createdAt,
       scheduleBitId: sql<string | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.knowledgeBitId} end`.as("schedule_bit_id"),
       easeFactor: knowledgeBitSchedules.easeFactor,

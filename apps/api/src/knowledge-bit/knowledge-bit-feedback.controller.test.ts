@@ -2,12 +2,17 @@ import { Readable } from "node:stream";
 import type http from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const setKnowledgeBitFeedbackReason = vi.fn();
+const updateKnowledgeBitFeedback = vi.fn();
 const restoreRejectedKnowledgeBit = vi.fn();
 const aggregateFeedbackByModel = vi.fn();
+const gradeKnowledgeBit = vi.fn();
+
+vi.mock("./knowledge-bit-grade.repo.js", () => ({
+  gradeKnowledgeBit: (...args: unknown[]) => gradeKnowledgeBit(...args),
+}));
 
 vi.mock("./knowledge-bit-feedback.repo.js", () => ({
-  setKnowledgeBitFeedbackReason: (...args: unknown[]) => setKnowledgeBitFeedbackReason(...args),
+  updateKnowledgeBitFeedback: (...args: unknown[]) => updateKnowledgeBitFeedback(...args),
   restoreRejectedKnowledgeBit: (...args: unknown[]) => restoreRejectedKnowledgeBit(...args),
   aggregateFeedbackByModel: (...args: unknown[]) => aggregateFeedbackByModel(...args),
 }));
@@ -16,6 +21,7 @@ const {
   handleSetKnowledgeBitFeedbackReason,
   handleRestoreRejectedKnowledgeBit,
   handleGetKnowledgeBitFeedbackByModel,
+  handleGradeKnowledgeBit,
 } = await import("./knowledge-bit-feedback.controller.js");
 
 function fakeReq(body: unknown): http.IncomingMessage {
@@ -51,7 +57,7 @@ describe("handleSetKnowledgeBitFeedbackReason", () => {
   });
 
   it("should store a known reason with its note on the rejection", async () => {
-    setKnowledgeBitFeedbackReason.mockResolvedValue(true);
+    updateKnowledgeBitFeedback.mockResolvedValue(true);
 
     const res = fakeRes();
 
@@ -61,7 +67,7 @@ describe("handleSetKnowledgeBitFeedbackReason", () => {
       "kbf_1",
     );
 
-    expect(setKnowledgeBitFeedbackReason).toHaveBeenCalledWith("kbf_1", {
+    expect(updateKnowledgeBitFeedback).toHaveBeenCalledWith("kbf_1", {
       reasonCode: "meta_wording",
       note: "says according to the text",
     });
@@ -74,7 +80,7 @@ describe("handleSetKnowledgeBitFeedbackReason", () => {
     await handleSetKnowledgeBitFeedbackReason(fakeReq({ reasonCode: "i_just_dislike_it" }), res, "kbf_1");
 
     expect(res.status).toBe(400);
-    expect(setKnowledgeBitFeedbackReason).not.toHaveBeenCalled();
+    expect(updateKnowledgeBitFeedback).not.toHaveBeenCalled();
   });
 
   it("should not accept the unspecified marker as a chosen reason", async () => {
@@ -88,13 +94,13 @@ describe("handleSetKnowledgeBitFeedbackReason", () => {
   it("should reject a note longer than the cap", async () => {
     const res = fakeRes();
 
-    await handleSetKnowledgeBitFeedbackReason(fakeReq({ reasonCode: "other", note: "x".repeat(501) }), res, "kbf_1");
+    await handleSetKnowledgeBitFeedbackReason(fakeReq({ note: "x".repeat(501) }), res, "kbf_1");
 
     expect(res.status).toBe(400);
   });
 
   it("should return 404 when the rejection record does not exist", async () => {
-    setKnowledgeBitFeedbackReason.mockResolvedValue(false);
+    updateKnowledgeBitFeedback.mockResolvedValue(false);
 
     const res = fakeRes();
 
@@ -141,5 +147,68 @@ describe("handleGetKnowledgeBitFeedbackByModel", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ models: [] });
+  });
+});
+
+describe("handleGradeKnowledgeBit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should record a grade with its note for a card that has no decision yet", async () => {
+    gradeKnowledgeBit.mockResolvedValue({ status: "ok", feedbackId: "kbf_9" });
+
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBit(fakeReq({ rating: 4, note: " clear " }), res, "kb_1");
+
+    expect(gradeKnowledgeBit).toHaveBeenCalledWith("kb_1", { rating: 4, note: "clear" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, feedbackId: "kbf_9" });
+  });
+
+  it.each([0, 6, 2.5, "3"])("should reject the rating %s", async (rating) => {
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBit(fakeReq({ rating }), res, "kb_1");
+
+    expect(res.status).toBe(400);
+    expect(gradeKnowledgeBit).not.toHaveBeenCalled();
+  });
+
+  it("should reject a grade without a rating", async () => {
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBit(fakeReq({ note: "hm" }), res, "kb_1");
+
+    expect(res.status).toBe(400);
+  });
+
+  it("should reject a note longer than the cap", async () => {
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBit(fakeReq({ rating: 3, note: "x".repeat(501) }), res, "kb_1");
+
+    expect(res.status).toBe(400);
+  });
+
+  it("should return 404 for an unknown card", async () => {
+    gradeKnowledgeBit.mockResolvedValue({ status: "not_found" });
+
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBit(fakeReq({ rating: 3 }), res, "missing");
+
+    expect(res.status).toBe(404);
+  });
+
+  it("should refuse to grade a manually written card", async () => {
+    gradeKnowledgeBit.mockResolvedValue({ status: "not_applicable" });
+
+    const res = fakeRes();
+
+    await handleGradeKnowledgeBit(fakeReq({ rating: 3 }), res, "kb_manual");
+
+    expect(res.status).toBe(400);
   });
 });

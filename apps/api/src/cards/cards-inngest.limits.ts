@@ -1,0 +1,9 @@
+export const CARDS_COMPILE_RETRIES = 1;
+export const CARDS_COMPILE_CONCURRENCY = 3;
+export const CARDS_COMPILE_START_TIMEOUT = "14m";
+export const CARDS_COMPILE_START_TIMEOUT_MS = 14 * 60 * 1000;
+export const CARDS_COMPILE_FINISH_TIMEOUT = "10m";
+export const CARDS_COMPILE_FINISH_TIMEOUT_MS = 10 * 60 * 1000;
+export const CARDS_TIMEOUT_SWEEP_DELAY = "6m";
+export const CARDS_TIMEOUT_SWEEP_DELAY_MS = 6 * 60 * 1000;
+export const CARDS_COMPILE_THROTTLE = { limit: 30, period: "1m", burst: 3 } as const;

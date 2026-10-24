@@ -51,6 +51,7 @@ export const triggerSourceDuplicateScanResultSchema = z.object({
   embeddedCount: z.number().int().nonnegative(),
   reusedCount: z.number().int().nonnegative(),
   capped: z.boolean(),
+  skippedCount: z.number().int().nonnegative().optional(),
 });
 
 export type TriggerSourceDuplicateScanResult = z.infer<typeof triggerSourceDuplicateScanResultSchema>;

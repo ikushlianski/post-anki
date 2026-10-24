@@ -9,7 +9,7 @@ services:
       - '${ELECTRIC_HOST_PORT:-5561}:3000'
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: post-anki-dev-db
     command: ['postgres', '-c', 'wal_level=logical']
     environment:

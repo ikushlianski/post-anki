@@ -62,7 +62,7 @@ import {
   topics,
 } from "../db/schema.js";
 import { rowToGap } from "../gap/gap.repo.js";
-import { getDueCountsForModules, getTopicBitMasteryLevels } from "../knowledge-bit/topic-due.repo.js";
+import { getDueCountsForModules, getDueCountsForTopics, getTopicBitMasteryLevels } from "../knowledge-bit/topic-due.repo.js";
 import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
 import { deleteGapArchetypeStateForGapIds } from "../gap/gap-archetype.repo.js";
 import { newId } from "../shared/id.js";
@@ -1693,8 +1693,8 @@ export async function insertApprovedTextSource(
  */
 export async function deleteAllCurriculumSources(
   curriculumId: string,
+  db: DbExecutor = getDb(),
 ): Promise<void> {
-  const db = getDb();
   const ownSourceRows = await db
     .select({ id: sources.id, kind: sources.kind, discoveryTier: sources.discoveryTier })
     .from(sources)
@@ -2248,10 +2248,11 @@ export async function getCurriculumDetail(
       : [];
   const masteryByGapId = new Map(masteryRows.map((m) => [m.gapId, m]));
 
-  const [tagsByNode, dueCountByModuleId, bitKnowledgeByTopicId] = await Promise.all([
+  const [tagsByNode, dueCountByModuleId, bitKnowledgeByTopicId, dueCountByTopicId] = await Promise.all([
     loadTagsByNode([...moduleRows.map((m) => m.id), ...topicRows.map((t) => t.id)]),
     getDueCountsForModules(moduleRows.map((m) => m.id)),
     getTopicBitMasteryLevels(topicRows.map((t) => t.id)),
+    getDueCountsForTopics(topicRows.map((t) => t.id)),
   ]);
 
   const assembledModules = buildModules(
@@ -2263,6 +2264,7 @@ export async function getCurriculumDetail(
     masteryByGapId,
     dueCountByModuleId,
     bitKnowledgeByTopicId,
+    dueCountByTopicId,
   );
 
   const [citableUrls, hasStructureDraftAttempt, domainMappings] = await Promise.all([
@@ -2510,6 +2512,7 @@ function buildModules(
   masteryByGapId: Map<string, typeof gapMastery.$inferSelect> = new Map(),
   dueCountByModuleId: Map<string, number> = new Map(),
   bitKnowledgeByTopicId: Map<string, MasteryEntryState> = new Map(),
+  dueCountByTopicId: Map<string, number> = new Map(),
 ): Module[] {
   return sortForDisplay(moduleRows, strictOrder).map((m) => {
     const moduleTopics = sortForDisplay(
@@ -2524,6 +2527,7 @@ function buildModules(
       gaps: gapRows
         .filter((g) => g.topicId === t.id)
         .map((g) => rowToGap(g, masteryByGapId.get(g.id))),
+      dueCount: dueCountByTopicId.get(t.id) ?? 0,
     }));
 
     return {

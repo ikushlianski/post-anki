@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { log } from "../shared/log.js";
+import type { VariantGenerationScope } from "./knowledge-bit-variant-generation-gate.js";
 import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
+import { loadStyleNotesBlocksForBits } from "../card-triage/style-notes-loader.js";
 import { runKnowledgeBitFillBlankGenerator } from "../mastra/knowledge-bit-fill-blank-generator.agent.js";
 import { isWellFormedFillBlankPrompt } from "./knowledge-bit-fill-blank-prompt-validation.js";
 import {
@@ -34,8 +36,12 @@ export interface FillBlankGenerationScanCounts {
   skipped: number;
 }
 
-export async function generateKnowledgeBitFillBlanks(): Promise<FillBlankGenerationScanCounts> {
-  const bits = await listKnowledgeBitsForFillBlankGenerationScan(FILL_BLANK_GENERATION_CAP);
+export async function generateKnowledgeBitFillBlanks(
+  scope: VariantGenerationScope = {},
+): Promise<FillBlankGenerationScanCounts> {
+  const bits = await listKnowledgeBitsForFillBlankGenerationScan(FILL_BLANK_GENERATION_CAP, scope);
+
+  const styleBlocks = await loadStyleNotesBlocksForBits(bits.map((bit) => bit.id));
 
   const outcomes = await mapWithConcurrency(
     bits,
@@ -43,14 +49,14 @@ export async function generateKnowledgeBitFillBlanks(): Promise<FillBlankGenerat
     async (bit): Promise<ItemOutcome> => {
       // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
       // finished) this bit makes this claim fail, and we skip it without paying for a generation.
-      const claimToken = await claimKnowledgeBitForFillBlankGeneration(bit.id, bit.body);
+      const claimToken = await claimKnowledgeBitForFillBlankGeneration(bit.id, bit.body, scope);
 
       if (!claimToken) {
         return "skipped";
       }
 
       try {
-        const result = await runKnowledgeBitFillBlankGenerator(bit.body);
+        const result = await runKnowledgeBitFillBlankGenerator(bit.body, styleBlocks.get(bit.id) ?? "");
         const sentence = fillBlankTextSchema.safeParse(result.sentence);
         const prompt = fillBlankTextSchema.safeParse(result.prompt);
         const answer = fillBlankTextSchema.safeParse(result.answer);
@@ -85,6 +91,8 @@ export async function generateKnowledgeBitFillBlanks(): Promise<FillBlankGenerat
           prompt.data,
           answer.data,
           claimToken,
+          undefined,
+          sentence.data,
         );
         return "generated";
       } catch (err) {

@@ -42,8 +42,8 @@ describe("handleDraftKnowledgeBitChat", () => {
     vi.clearAllMocks();
   });
 
-  it("dispatches the parsed id and body to the service and returns the proposed body", async () => {
-    draftKnowledgeBitChat.mockResolvedValue({ proposedBody: "Revised body text." });
+  it("dispatches the parsed id and body to the service and returns the draft result", async () => {
+    draftKnowledgeBitChat.mockResolvedValue({ sources: [] });
 
     const req = fakeReq({
       transcript: [{ role: "user", text: "What starts the handshake?" }],
@@ -56,9 +56,10 @@ describe("handleDraftKnowledgeBitChat", () => {
     expect(draftKnowledgeBitChat).toHaveBeenCalledWith("kb_1", {
       transcript: [{ role: "user", text: "What starts the handshake?" }],
       mode: "edit",
+      allowWebSearch: false,
     });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ proposedBody: "Revised body text." });
+    expect(res.body).toEqual({ sources: [] });
   });
 
   it("returns 404 not_found when the service reports the bit is missing", async () => {

@@ -33,7 +33,7 @@ import {
   updateStructureTurn,
 } from "./curriculum.repo.js";
 import { assembleAllSourceText } from "./source-text.js";
-import { startCardsForTopicsWithConcurrencyCap } from "../cards/cards.orchestrator.js";
+import { startCardsForTopics } from "../cards/cards.starter.js";
 import { listTags } from "../tag/tag.repo.js";
 
 // Postgres's SQLSTATE for a unique-violation — surfaces here as the raw `pg`
@@ -78,7 +78,7 @@ function isPendingTurnConflict(err: unknown): boolean {
  * prior one, and only once it's older than `STALE_PENDING_TURN_AGE_MS`
  * (see that constant for why the age check exists).
  */
-async function finalizeStalePendingTurn(curriculumId: string): Promise<void> {
+export async function finalizeStalePendingTurn(curriculumId: string): Promise<void> {
   const turns = await getStructureTurns(curriculumId);
   const last = turns[turns.length - 1];
 
@@ -106,17 +106,14 @@ async function finalizeStalePendingTurn(curriculumId: string): Promise<void> {
  * assistant turn, and lands the curriculum on "shaping_structure" for
  * conversational review — never straight to "ready".
  */
-export async function generateDraftStructure(curriculumId: string): Promise<void> {
-  // Written before anything else — including before the curriculum/context
-  // lookups below — so ANY failure in this function, not just an agent
-  // failure, leaves a durable trace in `curriculum_structure_turns`. That
-  // trace is what lets the frontend (via `hasAnyStructureTurns`) tell a
-  // Phase 5 draft-generation failure apart from an old pre-Phase-5
-  // research/parse failure, which never reaches this function at all.
-  let placeholderId: string;
+export const DRAFT_PLACEHOLDER_BUSY = "busy" as const;
+export const DRAFT_FAILED_MESSAGE = "The mentor couldn't draft a structure for this course.";
 
+export async function insertDraftPlaceholder(
+  curriculumId: string,
+): Promise<string | typeof DRAFT_PLACEHOLDER_BUSY> {
   try {
-    placeholderId = await insertStructureTurn(curriculumId, {
+    return await insertStructureTurn(curriculumId, {
       role: "assistant",
       message: "Drafting the first version of the structure…",
       structureSnapshot: null,
@@ -130,71 +127,92 @@ export async function generateDraftStructure(curriculumId: string): Promise<void
       // else here would race with whichever attempt is already resolving
       // that row.
       log.warn({ curriculumId }, "structure_draft_generation_already_in_progress");
-      return;
+
+      return DRAFT_PLACEHOLDER_BUSY;
     }
 
     throw err;
+  }
+}
+
+// One trusted search, one architect call, then the turn and status writes; returns no text.
+export async function draftStructureOrThrow(
+  curriculumId: string,
+  placeholderId: string,
+): Promise<number> {
+  const curriculum = await getCurriculum(curriculumId);
+
+  if (!curriculum) {
+    throw new Error("curriculum not found for draft structure generation");
+  }
+
+  const ctx = await getCurriculumPromptContext(curriculumId);
+
+  if (!ctx) {
+    throw new Error("curriculum context not found for draft structure generation");
+  }
+
+  const [sourceText, trustedSources, existingTags] = await Promise.all([
+    assembleAllSourceText(curriculumId),
+    gatherTrustedSourceCandidates(curriculum.name, { curriculumId, subjectId: curriculum.subjectId }).catch((err) => {
+      log.warn({ err, curriculumId }, "structure_draft_trusted_search_failed");
+      return [];
+    }),
+    listTags().then((tags) => tags.map((t) => t.name)),
+  ]);
+
+  const prompt = buildStructureDraftPrompt(ctx, sourceText, trustedSources, existingTags);
+  const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
+
+  const result = await generateWithRetry(
+    "generateDraftStructure",
+    curriculumId,
+    AGENT_KEYS.docResearchArchitect,
+    () =>
+      agent.generate(prompt, {
+        structuredOutput: { schema: docResearchPlanSchema },
+        requestContext: new RequestContext([["curriculumId", curriculumId]]),
+      }),
+  );
+
+  if (!result.object) {
+    throw new Error("doc-research architect returned no structured draft");
+  }
+
+  await updateStructureTurn(placeholderId, {
+    message: "Here's a first draft of the course structure — flag anything you're unsure about, or just tell me what to change.",
+    structureSnapshot: result.object,
+    status: "complete",
+  });
+
+  await setCurriculumStatus(curriculumId, "shaping_structure");
+
+  log.info({ curriculumId, modules: result.object.modules.length }, "structure_draft_generated");
+
+  return result.object.modules.length;
+}
+
+export async function generateDraftStructure(curriculumId: string): Promise<void> {
+  // Written before anything else — including before the curriculum/context
+  // lookups — so ANY failure leaves a durable trace in `curriculum_structure_turns`.
+  // That trace is what lets the frontend (via `hasAnyStructureTurns`) tell a
+  // Phase 5 draft-generation failure apart from an old pre-Phase-5
+  // research/parse failure, which never reaches this function at all.
+  const placeholderId = await insertDraftPlaceholder(curriculumId);
+
+  if (placeholderId === DRAFT_PLACEHOLDER_BUSY) {
+    return;
   }
 
   await setCurriculumStatus(curriculumId, "shaping_structure");
 
   try {
-    const curriculum = await getCurriculum(curriculumId);
-
-    if (!curriculum) {
-      throw new Error("curriculum not found for draft structure generation");
-    }
-
-    const ctx = await getCurriculumPromptContext(curriculumId);
-
-    if (!ctx) {
-      throw new Error("curriculum context not found for draft structure generation");
-    }
-
-    const [sourceText, trustedSources, existingTags] = await Promise.all([
-      assembleAllSourceText(curriculumId),
-      gatherTrustedSourceCandidates(curriculum.name, { curriculumId, subjectId: curriculum.subjectId }).catch((err) => {
-        log.warn({ err, curriculumId }, "structure_draft_trusted_search_failed");
-        return [];
-      }),
-      listTags().then((tags) => tags.map((t) => t.name)),
-    ]);
-
-    const prompt = buildStructureDraftPrompt(ctx, sourceText, trustedSources, existingTags);
-    const agent = getMastra().getAgent(AGENT_KEYS.docResearchArchitect);
-
-    const result = await generateWithRetry(
-      "generateDraftStructure",
-      curriculumId,
-      AGENT_KEYS.docResearchArchitect,
-      () =>
-        agent.generate(prompt, {
-          structuredOutput: { schema: docResearchPlanSchema },
-          requestContext: new RequestContext([["curriculumId", curriculumId]]),
-        }),
-    );
-
-    if (!result.object) {
-      throw new Error("doc-research architect returned no structured draft");
-    }
-
-    await updateStructureTurn(placeholderId, {
-      message: "Here's a first draft of the course structure — flag anything you're unsure about, or just tell me what to change.",
-      structureSnapshot: result.object,
-      status: "complete",
-    });
-
-    await setCurriculumStatus(curriculumId, "shaping_structure");
-
-    log.info(
-      { curriculumId, modules: result.object.modules.length },
-      "structure_draft_generated",
-    );
+    await draftStructureOrThrow(curriculumId, placeholderId);
   } catch (err) {
     log.error({ err, curriculumId }, "structure_draft_generation_failed");
 
     await updateStructureTurn(placeholderId, {
-      message: "The mentor couldn't draft a structure for this course.",
+      message: DRAFT_FAILED_MESSAGE,
       status: "failed",
     });
     await setCurriculumStatus(curriculumId, "failed");
@@ -675,7 +693,7 @@ export async function confirmStructure(curriculumId: string): Promise<ConfirmStr
 
   const topicIds = await listTopicIdsForCurriculum(curriculumId);
 
-  void startCardsForTopicsWithConcurrencyCap(topicIds).catch((err) =>
+  void startCardsForTopics(topicIds).catch((err) =>
     log.error({ err, curriculumId }, "confirm_structure_cards_fanout_failed"),
   );
 

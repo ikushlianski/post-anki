@@ -19,7 +19,7 @@ import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 // call args/count are assertable and a single call can be overridden with
 // mockImplementationOnce for the subject_not_found recovery test) rather
 // than a full mock — AC 21 needs the real args assertion, AC 22/23 need the
-// real side effect, AC 24 needs one forced failure. researchCurriculum is
+// real side effect, AC 24 needs one forced failure. startResearch is
 // fully mocked (a no-op) since it dispatches a real agent call this test
 // must never actually make.
 
@@ -44,8 +44,8 @@ vi.mock("../curriculum/curriculum.repo.js", async (importOriginal) => {
   return { ...actual, createCurriculum: vi.fn(actual.createCurriculum) };
 });
 
-vi.mock("../curriculum/curriculum-parse.orchestrator.js", () => ({
-  researchCurriculum: vi.fn().mockResolvedValue(undefined),
+vi.mock("../curriculum/curriculum-jobs.starter.js", () => ({
+  startResearch: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../shared/log.js", () => ({

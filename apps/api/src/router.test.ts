@@ -105,6 +105,14 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat/draft")).toBeNull();
     });
 
+    it("resolves POST /knowledge-bits/:id/derived-items to the derived item handler", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/derived-items")).toEqual({
+        name: "createDerivedKnowledgeItem",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1/derived-items")).toBeNull();
+    });
+
     it("resolves POST /knowledge-bits/basic-card-generation-scan to the basic card scan", () => {
       expect(resolveRoute("POST", "/knowledge-bits/basic-card-generation-scan")?.name).toBe(
         "triggerKnowledgeBitBasicCardGenerationScan",
@@ -128,6 +136,20 @@ describe("resolveRoute", () => {
         params: { id: "kb_1" },
       });
       expect(resolveRoute("GET", "/knowledge-bits/kb_1")).toBeNull();
+    });
+
+    it("routes the variant triage decision to the triage handler", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/triage")).toEqual({
+        name: "triageKnowledgeBit",
+        params: { id: "kb_1" },
+      });
+    });
+
+    it("routes the triage undo to its own handler", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/triage/undo")).toEqual({
+        name: "undoTriageKnowledgeBit",
+        params: { id: "kb_1" },
+      });
     });
 
     it("captures the source-approval routes", () => {
@@ -466,6 +488,43 @@ describe("resolveRoute", () => {
         params: { id: "b1" },
       });
       expect(resolveRoute("PATCH", "/knowledge-bits/x")?.name).toBe("editKnowledgeBit");
+    });
+  });
+
+  describe("literal routes resolve before parameterised siblings", () => {
+    it("should resolve PATCH /knowledge-bits/:id sub-routes before the bit edit route", () => {
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1/schedule")?.name).toBe(
+        "updateKnowledgeBitScheduleControls",
+      );
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1/placement-suggestion")?.name).toBe(
+        "resolvePlacementSuggestion",
+      );
+      expect(resolveRoute("PATCH", "/knowledge-bits/question-variants/v1")?.name).not.toBe(
+        "editKnowledgeBit",
+      );
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")?.name).toBe("editKnowledgeBit");
+    });
+
+    it("should only edit a bit for a single-segment PATCH id, never for deeper unknown paths", () => {
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1/unknown")).toBeNull();
+      expect(resolveRoute("PATCH", "/knowledge-bits/a/b/c")).toBeNull();
+    });
+
+    it("should resolve literal /knowledge-bits paths before the :id patterns for every method", () => {
+      expect(resolveRoute("GET", "/knowledge-bits/suspended")?.name).toBe("listSuspendedKnowledgeBits");
+      expect(resolveRoute("GET", "/knowledge-bits/pending-review/count")?.name).toBe(
+        "countPendingKnowledgeBits",
+      );
+      expect(resolveRoute("POST", "/knowledge-bits/approvals")?.name).toBe("bulkApproveKnowledgeBits");
+      expect(resolveRoute("DELETE", "/knowledge-bits/reviews/r1")?.name).toBe("undoKnowledgeBitReview");
+    });
+
+    it("should resolve literal siblings before their parameterised neighbours outside knowledge-bits", () => {
+      expect(resolveRoute("PATCH", "/subjects/order")?.name).toBe("reorderSubjects");
+      expect(resolveRoute("PATCH", "/modules/m1/topics/order")?.name).toBe("reorderTopics");
+      expect(resolveRoute("GET", "/tags/mastery")?.name).toBe("getTagMastery");
+      expect(resolveRoute("GET", "/study-sessions/consistency")?.name).toBe("getStudySessionConsistency");
+      expect(resolveRoute("GET", "/notes/search")?.name).toBe("searchNotes");
     });
   });
 });

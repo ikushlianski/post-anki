@@ -1,7 +1,8 @@
-import type {
-  AskGlobalCardChatInput,
-  AskGlobalCardChatResult,
-  CardMatchResult,
+import {
+  takeRecentChatMessages,
+  type AskGlobalCardChatInput,
+  type AskGlobalCardChatResult,
+  type CardMatchResult,
 } from "@post-anki/shared";
 import { formatTranscript, MIN_MATCH_SIMILARITY } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
@@ -18,7 +19,11 @@ function factPreview(body: string): string {
   return body.length > FACT_PREVIEW_CHARS ? `${body.slice(0, FACT_PREVIEW_CHARS)}…` : body;
 }
 
-function cardsBlock(cards: CardMatchResult[]): string {
+function cardsBlock(cards: CardMatchResult[], lookupFailed: boolean): string {
+  if (lookupFailed) {
+    return "Card lookup is currently unavailable — answer from general knowledge only.";
+  }
+
   if (cards.length === 0) {
     return "The learner has no cards matching this question.";
   }
@@ -30,10 +35,10 @@ function cardsBlock(cards: CardMatchResult[]): string {
   return ["Cards and facts from the learner's own notes:", ...lines].join("\n");
 }
 
-function buildPrompt(input: AskGlobalCardChatInput, cards: CardMatchResult[]): string {
-  const history = formatTranscript(input.transcript ?? [], { assistantLabel: "Tutor" });
+function buildPrompt(input: AskGlobalCardChatInput, cards: CardMatchResult[], lookupFailed: boolean): string {
+  const history = formatTranscript(takeRecentChatMessages(input.transcript), { assistantLabel: "Tutor" });
 
-  return [cardsBlock(cards), history ? `Conversation so far:\n${history}` : null, `Learner: ${input.message}`]
+  return [cardsBlock(cards, lookupFailed), history ? `Conversation so far:\n${history}` : null, `Learner: ${input.message}`]
     .filter((section): section is string => Boolean(section))
     .join("\n\n");
 }
@@ -62,7 +67,7 @@ export async function askGlobalCardChat(
     lookupFailed = true;
   }
 
-  const prompt = buildPrompt(input, matchedCards);
+  const prompt = buildPrompt(input, matchedCards, lookupFailed);
 
   try {
     const result = await generateWithRetry(

@@ -10,6 +10,10 @@ vi.mock("../admin-settings/admin-settings.repo.js", () => ({
   getKnowledgeItemModelId: getKnowledgeItemModelIdMock,
 }));
 
+vi.mock("../shared/env.js", () => ({
+  loadEnv: () => ({ LLM_MODE: "real", LLM_DAILY_BUDGET_USD: 0 }),
+}));
+
 vi.mock("./tier-resolver.js", () => ({
   resolveEffectiveModelTier: vi.fn(),
 }));

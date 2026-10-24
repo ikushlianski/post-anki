@@ -13,6 +13,7 @@ vi.mock("./curriculum.repo.js", () => ({
   getApprovableSourceCount: (...args: unknown[]) => getApprovableSourceCount(...args),
   getStructureTurns: (...args: unknown[]) => getStructureTurns(...args),
   setCurriculumStatus: (...args: unknown[]) => setCurriculumStatus(...args),
+  insertApprovedTextSource: vi.fn(),
 }));
 
 const generateCurriculumFromApprovedSources = vi.fn();
@@ -26,6 +27,7 @@ const retryDraftStructure = vi.fn();
 
 vi.mock("./curriculum-structure.js", () => ({
   retryDraftStructure: (...args: unknown[]) => retryDraftStructure(...args),
+  generateDraftStructure: vi.fn(),
 }));
 
 vi.mock("../shared/log.js", () => ({

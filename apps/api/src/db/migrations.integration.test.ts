@@ -294,6 +294,19 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       }),
       expect.objectContaining({ column_name: "subject_id", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "extraction_model_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({
+        column_name: "extraction_run",
+        data_type: "integer",
+        is_nullable: "NO",
+        column_default: "1",
+      }),
+      expect.objectContaining({
+        column_name: "processed_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({ column_name: "source_url", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "summary", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
@@ -493,7 +506,7 @@ describe("migrations — knowledge_sources.updated_at (prose-knowledge-fisher--s
 describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-knowledge-bits)", () => {
   it("creates knowledge_bits with the columns schema.ts declares", async () => {
     const { rows } = await client.query(
-      `SELECT column_name, data_type, is_nullable, column_default
+      `SELECT column_name, data_type, udt_name, is_nullable, column_default
          FROM information_schema.columns
         WHERE table_name = 'knowledge_bits'
         ORDER BY ordinal_position`,
@@ -643,6 +656,20 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         data_type: "text",
         is_nullable: "YES",
       }),
+      expect.objectContaining({
+        column_name: "origin",
+        data_type: "text",
+        is_nullable: "NO",
+        column_default: "'extracted'::text",
+      }),
+      expect.objectContaining({
+        column_name: "is_ai_generated",
+        data_type: "boolean",
+        is_nullable: "NO",
+        column_default: "false",
+      }),
+      expect.objectContaining({ column_name: "source_links", data_type: "jsonb", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "embedding_vec", udt_name: "vector", is_nullable: "YES" }),
     ]);
   });
 

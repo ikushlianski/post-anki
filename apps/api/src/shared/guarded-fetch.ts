@@ -1,5 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { Agent } from "undici";
+import type { Dispatcher } from "undici";
 import {
   isPublicIpAddress,
   isSafeSourceUrl,
@@ -83,7 +85,13 @@ export async function guardedFetchText(
         };
       }
 
-      if (!(await resolvesToPublicAddresses(current))) {
+      const pin = await resolveAndPin(current, controller.signal);
+
+      if (!pin.ok) {
+        if (pin.reason === "dns_timeout") {
+          return { ok: false, outcome: "network_error" };
+        }
+
         return {
           ok: false,
           outcome: "blocked",
@@ -93,7 +101,11 @@ export async function guardedFetchText(
         };
       }
 
-      const res = await fetch(current, { signal: controller.signal, redirect: "manual" });
+      const res = await fetch(current, {
+        signal: controller.signal,
+        redirect: "manual",
+        dispatcher: pin.dispatcher,
+      } as RequestInit & { dispatcher: Dispatcher });
 
       if (REDIRECT_STATUSES.has(res.status)) {
         await res.body?.cancel();
@@ -178,26 +190,101 @@ export function isReadableContentType(contentType: string | null): boolean {
   return contentType === null || contentType.trim() === "" || READABLE_CONTENT_TYPE.test(contentType.trim());
 }
 
-async function resolvesToPublicAddresses(url: string): Promise<boolean> {
+type PinFailReason = "private_address" | "dns_error" | "dns_timeout";
+type PinResult = { ok: true; dispatcher: Dispatcher } | { ok: false; reason: PinFailReason };
+
+interface DnsEntry { address: string; family: number }
+
+async function resolveAndPin(url: string, signal: AbortSignal): Promise<PinResult> {
   const parsed = new URL(url);
-
-  if (exemptOrigins().has(parsed.origin)) {
-    return true;
-  }
-
   const host = parsed.hostname.replace(/^\[|\]$/g, "");
 
-  if (isIP(host) !== 0) {
-    return true;
+  if (exemptOrigins().has(parsed.origin)) {
+    // Exempt origin: skip the DNS-public-check but still pin to the resolved address
+    // so the connection goes exactly where we validated it.
+    if (isIP(host) !== 0) {
+      return { ok: true, dispatcher: new Agent() };
+    }
+
+    try {
+      const addresses = await raceDns(lookup(host, { all: true }) as Promise<DnsEntry[]>, signal);
+      const primary = addresses[0];
+
+      if (!primary) {
+        return { ok: false, reason: "dns_error" };
+      }
+
+      return { ok: true, dispatcher: pinnedAgent(primary) };
+    } catch (err) {
+      return { ok: false, reason: isAbortError(err) ? "dns_timeout" : "dns_error" };
+    }
   }
+
+  if (isIP(host) !== 0) {
+    // IP literal — already validated by isSafeSourceUrl; no DNS to pin.
+    return { ok: true, dispatcher: new Agent() };
+  }
+
+  let addresses: DnsEntry[];
 
   try {
-    const addresses = await lookup(host, { all: true });
-
-    return addresses.length > 0 && addresses.every((entry) => isPublicIpAddress(entry.address));
-  } catch {
-    return false;
+    addresses = await raceDns(lookup(host, { all: true }) as Promise<DnsEntry[]>, signal);
+  } catch (err) {
+    return { ok: false, reason: isAbortError(err) ? "dns_timeout" : "dns_error" };
   }
+
+  if (addresses.length === 0 || !addresses.every((entry) => isPublicIpAddress(entry.address))) {
+    return { ok: false, reason: "private_address" };
+  }
+
+  return { ok: true, dispatcher: pinnedAgent(addresses[0]!) };
+}
+
+const DNS_ABORT_MARKER = "dns_abort";
+
+function raceDns<T>(
+  promise: Promise<T>,
+  signal: AbortSignal,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DnsAbortError());
+      return;
+    }
+
+    const onAbort = () => reject(new DnsAbortError());
+
+    signal.addEventListener("abort", onAbort, { once: true });
+
+    promise.then(
+      (result) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(result);
+      },
+      (err: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      },
+    );
+  });
+}
+
+class DnsAbortError extends Error {
+  readonly marker = DNS_ABORT_MARKER;
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof DnsAbortError;
+}
+
+function pinnedAgent(entry: { address: string; family: number }): Dispatcher {
+  return new Agent({
+    connect: {
+      lookup: (_host: string, _options: unknown, callback: (err: Error | null, addresses: Array<{ address: string; family: number }>) => void) => {
+        callback(null, [{ address: entry.address, family: entry.family }]);
+      },
+    },
+  });
 }
 
 function resolveLocation(location: string | null, currentUrl: string): string | null {

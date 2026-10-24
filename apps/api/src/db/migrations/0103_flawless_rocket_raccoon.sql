@@ -1,0 +1,1 @@
+ALTER TABLE "curricula" ADD COLUMN "research_owner" text;

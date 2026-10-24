@@ -4,6 +4,7 @@ import { loadEnv } from "./shared/env.js";
 import { resolveCorsDecision } from "./shared/cors.js";
 import { log } from "./shared/log.js";
 import { sendError, sendJson } from "./shared/http.js";
+import { LlmBudgetExceededError, secondsUntilUtcMidnight } from "./shared/spend-guard.js";
 import {
   handleCreateSubject,
   handleDeleteSubject,
@@ -41,6 +42,21 @@ import {
 } from "./knowledge-bit/knowledge-bit-review.controller.js";
 import { handleListSuspendedKnowledgeBits } from "./knowledge-bit/knowledge-bit-suspended.controller.js";
 import {
+  handleCountKnowledgeBitBrowserSubjects,
+  handleListKnowledgeBitBrowser,
+} from "./knowledge-bit/knowledge-bit-browser.controller.js";
+import {
+  handleDistillTriageSession,
+  handleFinishTriageSession,
+  handleGetTriageSession,
+  handleStartTriageSession,
+} from "./card-triage/card-triage-session.controller.js";
+import { handleListCardStyleNotes, handleUpdateCardStyleNote } from "./card-triage/card-style-note.controller.js";
+import { handleListKnowledgeBitOverview } from "./knowledge-bit/knowledge-bit-overview.controller.js";
+import { handleExportKnowledgeBits } from "./knowledge-bit/knowledge-bit-export.controller.js";
+import { handleBulkDeleteKnowledgeBits } from "./knowledge-bit/knowledge-bit-delete.controller.js";
+import { handleBulkMoveKnowledgeBits } from "./knowledge-bit/knowledge-bit-move.controller.js";
+import {
   handleBulkApproveKnowledgeBits,
   handleCountPendingKnowledgeBits,
 } from "./knowledge-bit/knowledge-bit-bulk-approval.controller.js";
@@ -50,6 +66,8 @@ import {
   handleListPendingKnowledgeBitsForReview,
   handleRejectKnowledgeBit,
 } from "./knowledge-bit/knowledge-bit-approval.controller.js";
+import { handleTriageKnowledgeBit } from "./knowledge-bit/knowledge-bit-triage.controller.js";
+import { handleUndoTriageKnowledgeBit } from "./knowledge-bit/knowledge-bit-triage-undo.controller.js";
 import {
   handleCreateSubjectCategory,
   handleListAllSubjectCategories,
@@ -143,6 +161,7 @@ import {
 } from "./admin-settings/admin-settings.controller.js";
 import {
   handleGetKnowledgeBitFeedbackByModel,
+  handleGradeKnowledgeBit,
   handleRestoreRejectedKnowledgeBit,
   handleSetKnowledgeBitFeedbackReason,
 } from "./knowledge-bit/knowledge-bit-feedback.controller.js";
@@ -162,6 +181,9 @@ import { handleAskQaChat } from "./qa-chat/qa-chat.controller.js";
 import { handleAskGlobalCardChat } from "./global-card-chat/global-card-chat.controller.js";
 import { handleAskKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat.controller.js";
 import { handleDraftKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat-draft.controller.js";
+import { handleCreateDerivedKnowledgeItem } from "./knowledge-bit/knowledge-bit-derived-item.controller.js";
+import { handleListKnowledgeBitVariants } from "./knowledge-bit/list-knowledge-bit-variants.controller.js";
+import { handleGenerateKnowledgeBitVariants } from "./knowledge-bit/knowledge-bit-generate-variants.controller.js";
 import { handleEditKnowledgeBit } from "./knowledge-bit/knowledge-bit-edit.controller.js";
 import {
   handleGenerateRecommendations,
@@ -292,7 +314,33 @@ import {
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
+import { handleCreateSyncToken, handleListSyncKeys } from "./sync-auth/sync-auth.controller.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
+import { createInngestServeHandler } from "./shared/inngest-serve.js";
+import {
+  extractionCancelHandler,
+  extractionInngestFunction,
+} from "./knowledge-bit/extraction-inngest.workflow.js";
+import {
+  cardsCompileFunction,
+  cardsCompileTimeoutHandler,
+} from "./cards/cards-inngest.workflow.js";
+import {
+  curriculumResearchFunction,
+  curriculumResearchTimeoutHandler,
+} from "./curriculum/curriculum-research-inngest.workflow.js";
+import {
+  curriculumDraftFunction,
+  curriculumDraftTimeoutHandler,
+} from "./curriculum/curriculum-draft-inngest.workflow.js";
+import {
+  curriculumParseFunction,
+  curriculumParseTimeoutHandler,
+} from "./curriculum/curriculum-parse-inngest.workflow.js";
+import {
+  pipelineKickFollowUpFunction,
+  pipelineKickInngestFunction,
+} from "./knowledge-bit/pipeline-kick-inngest.workflow.js";
 
 function timingSafeEqualStrings(a: string, b: string): boolean {
   const digestA = crypto.createHash("sha256").update(a).digest();
@@ -331,25 +379,45 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
   return true;
 }
 
-export function createApiServer(): http.Server {
-  const server = http.createServer((req, res) => {
+const inngestServeHandler = createInngestServeHandler([
+  extractionInngestFunction,
+  extractionCancelHandler,
+  pipelineKickInngestFunction,
+  pipelineKickFollowUpFunction,
+  cardsCompileFunction,
+  cardsCompileTimeoutHandler,
+  curriculumResearchFunction,
+  curriculumResearchTimeoutHandler,
+  curriculumDraftFunction,
+  curriculumDraftTimeoutHandler,
+  curriculumParseFunction,
+  curriculumParseTimeoutHandler,
+]);
+
+export function createApiRequestListener(): http.RequestListener {
+  return (req, res) => {
     const method = req.method ?? "GET";
     const url = new URL(req.url ?? "/", "http://localhost");
     const path = url.pathname;
 
     const env = loadEnv();
+    const extraOrigins = env.WEB_ORIGINS
+      ? env.WEB_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+      : undefined;
+
     const cors = resolveCorsDecision({
       requestOrigin: req.headers.origin,
       webOrigin: env.WEB_ORIGIN,
       extensionId: env.EXTENSION_ID,
+      extraOrigins,
     });
+
+    res.setHeader("Vary", "Origin");
 
     if ("forbidden" in cors) {
       sendError(res, 403, "origin_not_allowed");
       return;
     }
-
-    res.setHeader("Vary", "Origin");
     res.setHeader(
       "Access-Control-Allow-Origin",
       "allowedOrigin" in cors ? cors.allowedOrigin : env.WEB_ORIGIN,
@@ -368,10 +436,28 @@ export function createApiServer(): http.Server {
       return;
     }
 
-    void handleRequest(req, res, method, path, url);
-  });
+    if (method === "GET" && path === "/sync-keys") {
+      void handleListSyncKeys(res).catch((err: unknown) => {
+        log.error({ err }, "sync_keys_failed");
 
-  return server;
+        if (!res.headersSent) {
+          sendError(res, 500, "internal_error");
+        }
+      });
+      return;
+    }
+
+    if (path === "/api/inngest") {
+      inngestServeHandler(req, res);
+      return;
+    }
+
+    void handleRequest(req, res, method, path, url);
+  };
+}
+
+export function createApiServer(): http.Server {
+  return http.createServer(createApiRequestListener());
 }
 
 async function handleRequest(
@@ -389,6 +475,17 @@ async function handleRequest(
 
     await route(req, res, method, path, url);
   } catch (err) {
+    if (err instanceof LlmBudgetExceededError) {
+      log.warn({ method, path }, "llm_budget_exceeded");
+
+      if (!res.headersSent) {
+        res.setHeader("Retry-After", String(secondsUntilUtcMidnight()));
+        sendError(res, 429, "llm_budget_exceeded", err.message);
+      }
+
+      return;
+    }
+
     log.error({ err, method, path }, "request_failed");
 
     if (!res.headersSent) {
@@ -418,6 +515,10 @@ async function route(
       return handleMcpRequest(req, res);
     case "mcpMethodNotAllowed":
       return handleMcpMethodNotAllowed(res);
+    case "createSyncToken":
+      return handleCreateSyncToken(req, res);
+    case "listSyncKeys":
+      return handleListSyncKeys(res);
     case "listSubjects":
       return handleListSubjects(res, url.searchParams.get("query"));
     case "createSubject":
@@ -466,6 +567,18 @@ async function route(
       return handleListPendingKnowledgeBitsForReview(res);
     case "countPendingKnowledgeBits":
       return handleCountPendingKnowledgeBits(res);
+    case "listKnowledgeBitOverview":
+      return handleListKnowledgeBitOverview(res, url.search);
+    case "listKnowledgeBitBrowser":
+      return handleListKnowledgeBitBrowser(res, url.search);
+    case "countKnowledgeBitBrowserSubjects":
+      return handleCountKnowledgeBitBrowserSubjects(res);
+    case "exportKnowledgeBits":
+      return handleExportKnowledgeBits(res, url.search);
+    case "bulkDeleteKnowledgeBits":
+      return handleBulkDeleteKnowledgeBits(req, res);
+    case "bulkMoveKnowledgeBits":
+      return handleBulkMoveKnowledgeBits(req, res);
     case "bulkApproveKnowledgeBits":
       return handleBulkApproveKnowledgeBits(req, res);
     case "regenerateKnowledgeSource":
@@ -474,10 +587,28 @@ async function route(
       return handleGetKnowledgeSourceRegeneration(res, id);
     case "approveKnowledgeBit":
       return handleApproveKnowledgeBit(res, id);
+    case "triageKnowledgeBit":
+      return handleTriageKnowledgeBit(req, res, id);
+    case "undoTriageKnowledgeBit":
+      return handleUndoTriageKnowledgeBit(req, res, id);
     case "rejectKnowledgeBit":
       return handleRejectKnowledgeBit(res, id);
+    case "startTriageSession":
+      return handleStartTriageSession(req, res);
+    case "getTriageSession":
+      return handleGetTriageSession(res, id);
+    case "finishTriageSession":
+      return handleFinishTriageSession(req, res, id);
+    case "distillTriageSession":
+      return handleDistillTriageSession(res, id);
+    case "listCardStyleNotes":
+      return handleListCardStyleNotes(res, url.search);
+    case "updateCardStyleNote":
+      return handleUpdateCardStyleNote(req, res, id);
     case "restoreRejectedKnowledgeBit":
       return handleRestoreRejectedKnowledgeBit(res, id);
+    case "gradeKnowledgeBit":
+      return handleGradeKnowledgeBit(req, res, id);
     case "setKnowledgeBitFeedbackReason":
       return handleSetKnowledgeBitFeedbackReason(req, res, id);
     case "getKnowledgeBitFeedbackByModel":
@@ -667,6 +798,12 @@ async function route(
       return handleAskKnowledgeBitChat(req, res, id);
     case "draftKnowledgeBitChat":
       return handleDraftKnowledgeBitChat(req, res, id);
+    case "createDerivedKnowledgeItem":
+      return handleCreateDerivedKnowledgeItem(req, res, id);
+    case "listKnowledgeBitVariants":
+      return handleListKnowledgeBitVariants(res, id);
+    case "generateKnowledgeBitVariants":
+      return handleGenerateKnowledgeBitVariants(res, id);
     case "editKnowledgeBit":
       return handleEditKnowledgeBit(req, res, id);
     case "getCurriculumStats":

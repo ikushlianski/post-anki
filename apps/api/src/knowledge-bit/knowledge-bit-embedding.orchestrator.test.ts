@@ -117,4 +117,19 @@ describe("embedKnowledgeBits", () => {
     await expect(embedKnowledgeBits()).rejects.toThrow("embedding provider unavailable");
     expect(updateKnowledgeBitEmbedding).not.toHaveBeenCalled();
   });
+
+  it("should report only the bits actually saved and count the rest as skipped", async () => {
+    const bits = [
+      { id: "kb_a", body: "Body A", embeddingHash: null },
+      { id: "kb_b", body: "Body B", embeddingHash: null },
+    ];
+
+    vi.mocked(listKnowledgeBitsForEmbeddingScan).mockResolvedValue(bits);
+    vi.mocked(embedTexts).mockResolvedValue([{ id: "kb_a", embedding: [1] }]);
+
+    const result = await embedKnowledgeBits();
+
+    expect(updateKnowledgeBitEmbedding).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ embeddedCount: 1, reusedCount: 0, capped: false, skippedCount: 1 });
+  });
 });

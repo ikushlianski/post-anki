@@ -24,10 +24,15 @@ export async function handleApproveKnowledgeBit(
   res: http.ServerResponse,
   id: string,
 ): Promise<void> {
-  const approved = await approveKnowledgeBit(id);
+  const result = await approveKnowledgeBit(id);
 
-  if (!approved) {
+  if (result === "not_found") {
     sendError(res, 404, "not_found");
+    return;
+  }
+
+  if (result === "blocked" || result === "no_variant") {
+    sendError(res, 409, result);
     return;
   }
 
@@ -42,7 +47,9 @@ export async function handleRejectKnowledgeBit(
   const rejected = await rejectKnowledgeBit(id);
 
   if (!rejected.ok) {
-    sendError(res, 404, "not_found");
+    const status = rejected.reason === "blocked" ? 409 : 404;
+
+    sendError(res, status, rejected.reason);
     return;
   }
 
@@ -69,7 +76,9 @@ export async function handleEditKnowledgeBitQuestionVariant(
   );
 
   if ("error" in result) {
-    sendError(res, 404, result.error);
+    const status = result.error === "blocked" ? 409 : 404;
+
+    sendError(res, status, result.error);
     return;
   }
 

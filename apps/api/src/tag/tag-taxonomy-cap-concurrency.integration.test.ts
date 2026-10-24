@@ -45,6 +45,7 @@ await migrate(migrateDb, {
 await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
+process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
 const { listTags } = await import("./tag.repo.js");
 const { resolveTagUnderCapGuard } = await import("./tag-cap-guard.repo.js");

@@ -8,12 +8,19 @@ vi.mock("../shared/log.js", () => ({
   log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+vi.mock("../shared/spend-guard.js", () => ({
+  assertLlmBudgetAvailable: vi.fn(),
+  estimateCostUsd: vi.fn(() => 0),
+  recordLlmSpend: vi.fn(),
+}));
+
 vi.mock("../llm-call-events/llm-call-events.repo.js", () => ({
   recordLlmCallEvent: recordLlmCallEventMock,
 }));
 
 import {
   generateWithRetry,
+  isRateLimitError,
   recordGenerateCall,
 } from "./generate-with-retry.js";
 
@@ -187,5 +194,47 @@ describe("recordGenerateCall model recording", () => {
     expect(recordLlmCallEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, modelId: null }),
     );
+  });
+});
+
+describe("generateWithRetry rate-limit handling", () => {
+  beforeEach(() => {
+    recordLlmCallEventMock.mockReset();
+  });
+
+  it("should retry a 429 by default so every other caller keeps today's behaviour", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error("slow down"), { statusCode: 429 }))
+      .mockResolvedValue({});
+
+    await generateWithRetry("op", null, "agent", fn);
+
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("should rethrow a 429 at once when the caller opts out so only the engine waits and retries", async () => {
+    const fn = vi.fn().mockRejectedValue(Object.assign(new Error("slow down"), { statusCode: 429 }));
+
+    await expect(
+      generateWithRetry("op", null, "agent", fn, { retryRateLimit: false }),
+    ).rejects.toThrow("slow down");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("should still retry a non-429 failure when the caller opts out of 429 retries", async () => {
+    const fn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("upstream 500"))
+      .mockResolvedValue({});
+
+    await generateWithRetry("op", null, "agent", fn, { retryRateLimit: false });
+
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("should recognise a 429 buried in the error cause chain", () => {
+    expect(isRateLimitError(new Error("x", { cause: { status: 429 } }))).toBe(true);
+    expect(isRateLimitError(new Error("x"))).toBe(false);
   });
 });

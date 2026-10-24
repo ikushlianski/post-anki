@@ -19,6 +19,8 @@ export async function embedKnowledgeBits(): Promise<EmbeddingScanCounts> {
 
   const { toEmbed, reused, capped } = selectSubjectsForScan(candidates, EMBEDDING_CAP);
 
+  let savedCount = 0;
+
   if (toEmbed.length > 0) {
     const bodyById = new Map(rows.map((bit) => [bit.id, bit.body]));
     const embedded = await embedTexts(toEmbed.map((id) => ({ id, text: bodyById.get(id)! })));
@@ -27,8 +29,14 @@ export async function embedKnowledgeBits(): Promise<EmbeddingScanCounts> {
       const body = bodyById.get(result.id)!;
 
       await updateKnowledgeBitEmbedding(result.id, result.embedding, hashContent(body), body);
+      savedCount += 1;
     }
   }
 
-  return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
+  return {
+    embeddedCount: savedCount,
+    reusedCount: reused.length,
+    capped,
+    ...(toEmbed.length > savedCount ? { skippedCount: toEmbed.length - savedCount } : {}),
+  };
 }

@@ -288,3 +288,43 @@ describe("claimKnowledgeBitForFillBlankGeneration (real Postgres)", () => {
     expect(rows[0]!.fill_blank_generation_claim_token).toBeNull();
   });
 });
+
+describe("fill-blank generation skips approved bits (real Postgres)", () => {
+  async function seedApprovedBit(ordinal: number, body: string): Promise<{ id: string }> {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, ordinal, body);
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'approved' WHERE id = $1`, [{ id }.id]);
+
+    return { id };
+  }
+
+  it("should leave an approved bit out of the scan and still list a pending one", async () => {
+    const approved = await seedApprovedBit(900, "An approved bit");
+    const sourceId = await seedKnowledgeSource();
+    const pendingId = await seedKnowledgeBit(sourceId, 901, "A pending bit");
+
+    const ids = (await listKnowledgeBitsForFillBlankGenerationScan(1000)).map((row) => row.id);
+
+    expect(ids).toContain(pendingId);
+    expect(ids).not.toContain(approved.id);
+  });
+
+  it("should refuse to claim an approved bit in a background scan", async () => {
+    const approved = await seedApprovedBit(902, "Approved claim target");
+
+    expect(await claimKnowledgeBitForFillBlankGeneration(approved.id, "Approved claim target")).toBeNull();
+  });
+
+  it("should let an explicit scan scoped to one approved bit list and claim it", async () => {
+    const approved = await seedApprovedBit(903, "Explicitly requested");
+    const other = await seedApprovedBit(904, "Not requested");
+    const scope = { bitId: approved.id, includeApproved: true };
+
+    const ids = (await listKnowledgeBitsForFillBlankGenerationScan(1000, scope)).map((row) => row.id);
+
+    expect(ids).toEqual([approved.id]);
+    expect(ids).not.toContain(other.id);
+    expect(await claimKnowledgeBitForFillBlankGeneration(approved.id, "Explicitly requested", scope)).toEqual(expect.any(String));
+  });
+});

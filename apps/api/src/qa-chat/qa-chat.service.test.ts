@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_CHAT_TRANSCRIPT_MESSAGES } from "@post-anki/shared";
 
 const generate = vi.fn();
 
@@ -54,6 +55,13 @@ const PROMPT_CTX = {
   subjectDescription: null,
   subjectKind: "architecture-mentor",
 };
+
+function longTranscript(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+    text: `turn-${i}`,
+  }));
+}
 
 describe("askQaChat", () => {
   beforeEach(() => {
@@ -150,5 +158,19 @@ describe("askQaChat", () => {
     const result = await askQaChat({ topicId: "t1", message: "hi" });
 
     expect(result).toEqual({ reply: "I couldn't reach the tutor right now — try again." });
+  });
+
+  it("should send only the newest turns plus the current message when the transcript is longer than the limit", async () => {
+    const total = MAX_CHAT_TRANSCRIPT_MESSAGES + 10;
+
+    await askQaChat({ topicId: "t1", message: "current question", transcript: longTranscript(total) });
+
+    const prompt = generate.mock.calls[0]![0] as string;
+
+    expect(prompt).not.toContain("turn-0\n");
+    expect(prompt).not.toMatch(/turn-9(?!\d)/);
+    expect(prompt).toContain(`turn-${total - MAX_CHAT_TRANSCRIPT_MESSAGES}`);
+    expect(prompt).toContain(`turn-${total - 1}`);
+    expect(prompt).toContain("current question");
   });
 });

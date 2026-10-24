@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, cosineDistance, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import type { CardSetStatus, TopicCardSet } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
@@ -14,6 +14,7 @@ import {
   domainNodes,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { efSearchFor } from "../db/vector-search.js";
 
 export interface CurriculumCardsSummary {
   cardsReady: number;
@@ -141,7 +142,7 @@ export async function updateCardVariantEmbedding(
 ): Promise<void> {
   await getDb()
     .update(topicCardVariants)
-    .set({ embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(topicCardVariants.id, variantId));
 }
 
@@ -165,7 +166,7 @@ export interface EmbeddedCardVariant {
   id: string;
   prompt: string;
   answer: string;
-  embedding: number[];
+  similarity: number;
   topicId: string;
   topicTitle: string;
   subjectId: string;
@@ -276,22 +277,50 @@ async function labelsForCardVariants(
   return { subjectIdByCurriculumId, subjectNameById, tagNamesByTopicId, domainNodeNamesByCurriculumId };
 }
 
-export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]> {
-  const rows = await getDb()
-    .select({
-      id: topicCardVariants.id,
-      prompt: topicCardVariants.prompt,
-      answer: topicCardVariants.answer,
-      embedding: topicCardVariants.embedding,
-      topicId: topics.id,
-      topicTitle: topics.title,
-      curriculumId: topics.curriculumId,
-    })
+export async function hasEmbeddedCardVariants(): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: topicCardVariants.id })
     .from(topicCardVariants)
-    .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
-    .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
-    .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
-    .where(isNotNull(topicCardVariants.embedding));
+    .where(isNotNull(topicCardVariants.embeddingVec))
+    .limit(1);
+
+  return row !== undefined;
+}
+
+export async function searchEmbeddedCardVariants(
+  queryEmbedding: number[],
+  topK: number,
+  minSimilarity: number,
+): Promise<EmbeddedCardVariant[]> {
+  const distance = cosineDistance(topicCardVariants.embeddingVec, queryEmbedding);
+  const similarity = sql<number>`1 - (${distance})`;
+
+  const rows = await getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('hnsw.ef_search', ${String(efSearchFor(topK))}, true)`);
+
+    return tx
+      .select({
+        id: topicCardVariants.id,
+        prompt: topicCardVariants.prompt,
+        answer: topicCardVariants.answer,
+        similarity,
+        topicId: topics.id,
+        topicTitle: topics.title,
+        curriculumId: topics.curriculumId,
+      })
+      .from(topicCardVariants)
+      .innerJoin(topicCards, eq(topicCardVariants.cardId, topicCards.id))
+      .innerJoin(topicCardSets, eq(topicCards.cardSetId, topicCardSets.id))
+      .innerJoin(topics, eq(topicCardSets.topicId, topics.id))
+      .where(
+        and(
+          isNotNull(topicCardVariants.embeddingVec),
+          Number.isFinite(minSimilarity) ? sql`${similarity} >= ${minSimilarity}` : undefined,
+        ),
+      )
+      .orderBy(distance)
+      .limit(topK);
+  });
 
   const { subjectIdByCurriculumId, subjectNameById, tagNamesByTopicId, domainNodeNamesByCurriculumId } =
     await labelsForCardVariants(rows);
@@ -303,7 +332,7 @@ export async function listEmbeddedCardVariants(): Promise<EmbeddedCardVariant[]>
       id: row.id,
       prompt: row.prompt,
       answer: row.answer,
-      embedding: row.embedding!,
+      similarity: Number(row.similarity),
       topicId: row.topicId,
       topicTitle: row.topicTitle,
       subjectId,
@@ -431,6 +460,32 @@ export async function setCardsStatus(
     .update(topicCardSets)
     .set({ status, updatedAt: new Date() })
     .where(eq(topicCardSets.topicId, topicId));
+}
+
+export async function touchGeneratingCards(topicId: string): Promise<boolean> {
+  const rows = await getDb()
+    .update(topicCardSets)
+    .set({ updatedAt: new Date() })
+    .where(and(eq(topicCardSets.topicId, topicId), eq(topicCardSets.status, "generating")))
+    .returning({ id: topicCardSets.id });
+
+  return rows.length > 0;
+}
+
+export async function failStaleGeneratingCards(olderThanMs: number): Promise<number> {
+  const now = Date.now();
+  const rows = await getDb()
+    .update(topicCardSets)
+    .set({ status: "failed", updatedAt: new Date(now) })
+    .where(
+      and(
+        eq(topicCardSets.status, "generating"),
+        lt(topicCardSets.updatedAt, new Date(now - olderThanMs)),
+      ),
+    )
+    .returning({ id: topicCardSets.id });
+
+  return rows.length;
 }
 
 export async function deleteCardsForTopic(

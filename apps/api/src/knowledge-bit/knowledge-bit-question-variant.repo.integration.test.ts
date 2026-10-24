@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -139,7 +140,7 @@ describe("listQuestionVariantsForEmbeddingScan (real Postgres)", () => {
     );
     const variantId = variantRows[0]!.id as string;
 
-    await updateQuestionVariantEmbedding(variantId, [1, 2, 3], "abc123");
+    await updateQuestionVariantEmbedding(variantId, padEmbedding([1, 2, 3]), "abc123");
 
     const rows = await listQuestionVariantsForEmbeddingScan(1000);
 
@@ -179,14 +180,15 @@ describe("updateQuestionVariantEmbedding (real Postgres)", () => {
     );
     const variantId = variantRows[0]!.id as string;
 
-    await updateQuestionVariantEmbedding(variantId, [1, 2, 3], "hash123");
+    await updateQuestionVariantEmbedding(variantId, padEmbedding([1, 2, 3]), "hash123");
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bit_question_variants WHERE id = $1`,
+      `SELECT embedding, embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bit_question_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual([1, 2, 3]);
+    expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
+    expect(JSON.parse(rows[0]!.embedding_vec)).toEqual(padEmbedding([1, 2, 3]));
     expect(rows[0]!.embedding_hash).toBe("hash123");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
   });

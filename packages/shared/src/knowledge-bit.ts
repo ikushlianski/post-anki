@@ -66,6 +66,37 @@ export type EditKnowledgeBitQuestionVariantInput = z.input<
   typeof editKnowledgeBitQuestionVariantInput
 >;
 
+// POST /knowledge-bits/:id/triage
+export const TRIAGE_KEEP_VARIANTS_MAX = 2;
+
+export const triageKnowledgeBitInput = z.object({
+  keepVariantIds: z
+    .array(z.string().min(1))
+    .min(1)
+    .max(TRIAGE_KEEP_VARIANTS_MAX)
+    .refine((ids) => new Set(ids).size === ids.length),
+});
+
+export type TriageKnowledgeBitInput = z.input<typeof triageKnowledgeBitInput>;
+
+export interface TriageKnowledgeBitResponse {
+  ok: true;
+  droppedVariantIds: string[];
+}
+
+// POST /knowledge-bits/:id/triage/undo
+export const TRIAGE_UNDO_VARIANTS_MAX = 20;
+
+export const undoTriageKnowledgeBitInput = z.object({
+  restoreVariantIds: z
+    .array(z.string().min(1))
+    .min(1)
+    .max(TRIAGE_UNDO_VARIANTS_MAX)
+    .refine((ids) => new Set(ids).size === ids.length),
+});
+
+export type UndoTriageKnowledgeBitInput = z.input<typeof undoTriageKnowledgeBitInput>;
+
 export interface PendingKnowledgeBitQuestionVariant {
   id: string;
   kind: KnowledgeBitQuestionVariantKind;
@@ -73,17 +104,43 @@ export interface PendingKnowledgeBitQuestionVariant {
   answer: string;
 }
 
+export interface PendingKnowledgeBitFeedback {
+  feedbackId: string;
+  verdict: "approved" | "rejected";
+  rating: number | null;
+  wordingRating: number | null;
+}
+
 export interface PendingKnowledgeBitForReview {
   id: string;
   body: string;
   background: string | null;
   variants: PendingKnowledgeBitQuestionVariant[];
+  origin: "extracted" | "manual";
+  isAiGenerated: boolean;
+  sourceLinks: string[];
+  feedback?: PendingKnowledgeBitFeedback | null;
+}
+
+export interface PendingKnowledgeSourceExtractionGrade {
+  rating: number;
+  note: string | null;
+  run: number;
 }
 
 export interface PendingKnowledgeSourceForReview {
   knowledgeSourceId: string;
   sourceText: string | null;
+  sourceUrl?: string | null;
+  summary?: string | null;
+  subjectName: string | null;
+  subjectId?: string | null;
   bits: PendingKnowledgeBitForReview[];
+  processedAt?: Date | string | null;
+  groupTotal?: number;
+  extractionRun?: number;
+  extractionGrade?: PendingKnowledgeSourceExtractionGrade | null;
+  decidedCount?: number;
 }
 
 export const BULK_APPROVAL_MAX_IDS = 200;
@@ -112,3 +169,33 @@ export const pendingKnowledgeBitReviewCountResponse = z.object({ count: z.number
 export type PendingKnowledgeBitReviewCountResponse = z.infer<
   typeof pendingKnowledgeBitReviewCountResponse
 >;
+
+// POST /knowledge-sources/manual-items
+export const MANUAL_ITEM_FRONT_MAX_CHARS = 300;
+export const MANUAL_ITEM_BACK_MAX_CHARS = 600;
+export const MANUAL_ITEM_EXAMPLE_MAX_CHARS = 300;
+export const MANUAL_ITEM_SOURCE_LINKS_MAX = 5;
+export const MANUAL_ITEM_SOURCE_LINK_MAX_CHARS = 500;
+
+const sourceLinkSchema = z
+  .string()
+  .trim()
+  .max(MANUAL_ITEM_SOURCE_LINK_MAX_CHARS)
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value));
+
+export const createManualKnowledgeItemInput = z.object({
+  front: z.string().trim().min(1).max(MANUAL_ITEM_FRONT_MAX_CHARS),
+  back: z.string().trim().min(1).max(MANUAL_ITEM_BACK_MAX_CHARS),
+  example: z
+    .string()
+    .trim()
+    .max(MANUAL_ITEM_EXAMPLE_MAX_CHARS)
+    .nullable()
+    .optional()
+    .transform((v) => (v == null || v === "" ? undefined : v)),
+  aiGenerated: z.boolean().optional().default(false),
+  sourceLinks: z.array(sourceLinkSchema).max(MANUAL_ITEM_SOURCE_LINKS_MAX).optional(),
+});
+
+export type CreateManualKnowledgeItemInput = z.input<typeof createManualKnowledgeItemInput>;

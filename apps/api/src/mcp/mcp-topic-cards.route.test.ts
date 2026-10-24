@@ -11,7 +11,8 @@ const state = vi.hoisted(() => ({
   cardSetByTopicId: new Map<string, TopicCardSet>(),
 }));
 
-vi.mock("../cards/cards.repo.js", () => ({
+vi.mock("../cards/cards.repo.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../cards/cards.repo.js")>()),
   getCardsByTopic: vi.fn(async (topicId: string) => state.cardSetByTopicId.get(topicId) ?? null),
 }));
 

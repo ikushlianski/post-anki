@@ -1,4 +1,4 @@
-import type { AskStudyChatInput, AskStudyChatResult } from "@post-anki/shared";
+import { takeRecentChatMessages, type AskStudyChatInput, type AskStudyChatResult } from "@post-anki/shared";
 import { formatTranscript, summarizeLearningMap } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -17,7 +17,7 @@ export type StudyChatError = "not_found";
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 
 function transcriptBlock(transcript: AskStudyChatInput["transcript"]): string {
-  return formatTranscript(transcript ?? [], { assistantLabel: "Mentor" });
+  return formatTranscript(takeRecentChatMessages(transcript), { assistantLabel: "Mentor" });
 }
 
 export async function askStudyChat(

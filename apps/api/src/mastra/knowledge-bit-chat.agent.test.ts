@@ -94,7 +94,7 @@ describe("resolveKnowledgeBitChatTools", () => {
 
     const tools = resolveKnowledgeBitChatTools(requestContext);
 
-    expect(Object.keys(tools)).toEqual(["searchWeb"]);
+    expect(Object.keys(tools)).toEqual(["searchWeb", "fetchPage"]);
   });
 
   it("returns no tools when allowWebSearch is false", () => {

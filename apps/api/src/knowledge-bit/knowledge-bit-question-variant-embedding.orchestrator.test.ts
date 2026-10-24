@@ -136,4 +136,19 @@ describe("embedKnowledgeBitQuestionVariants", () => {
     );
     expect(updateQuestionVariantEmbedding).not.toHaveBeenCalled();
   });
+
+  it("should report only the variants actually saved and count the rest as skipped", async () => {
+    const variants = [
+      { id: "kbqv_a", prompt: "Prompt A", answer: "Answer A", embeddingHash: null },
+      { id: "kbqv_b", prompt: "Prompt B", answer: "Answer B", embeddingHash: null },
+    ];
+
+    vi.mocked(listQuestionVariantsForEmbeddingScan).mockResolvedValue(variants);
+    vi.mocked(embedTexts).mockResolvedValue([{ id: "kbqv_b", embedding: [2] }]);
+
+    const result = await embedKnowledgeBitQuestionVariants();
+
+    expect(updateQuestionVariantEmbedding).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ embeddedCount: 1, reusedCount: 0, capped: false, skippedCount: 1 });
+  });
 });

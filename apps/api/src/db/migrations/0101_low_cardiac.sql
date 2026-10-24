@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" ADD COLUMN "new_cards_per_day" integer DEFAULT 20 NOT NULL;

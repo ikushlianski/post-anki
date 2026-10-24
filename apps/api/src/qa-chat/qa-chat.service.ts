@@ -1,4 +1,4 @@
-import type { AskQaChatInput, AskQaChatResult } from "@post-anki/shared";
+import { takeRecentChatMessages, type AskQaChatInput, type AskQaChatResult } from "@post-anki/shared";
 import { formatTranscript } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -22,7 +22,7 @@ const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 const MAX_TOOL_STEPS = 4;
 
 function transcriptBlock(transcript: AskQaChatInput["transcript"]): string {
-  return formatTranscript(transcript ?? [], { assistantLabel: "Tutor" });
+  return formatTranscript(takeRecentChatMessages(transcript), { assistantLabel: "Tutor" });
 }
 
 function curriculumLine(ctx: CurriculumPromptContext): string {

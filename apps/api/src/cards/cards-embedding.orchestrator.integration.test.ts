@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -118,7 +119,7 @@ beforeEach(() => {
   global.fetch = vi.fn(async (...args: Parameters<typeof fetch>) => {
     const init = args[1];
     const body = JSON.parse(String(init?.body)) as { input: string[]; model: string };
-    const data = body.input.map((_text, index) => ({ index, embedding: [1, 2, 3] }));
+    const data = body.input.map((_text, index) => ({ index, embedding: padEmbedding([1, 2, 3]) }));
 
     return new Response(JSON.stringify({ data, model: body.model }), {
       status: 200,
@@ -143,11 +144,12 @@ describe("triggerCardEmbeddingScan", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_hash, embedded_at FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding, embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual([1, 2, 3]);
+    expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
+    expect(JSON.parse(rows[0]!.embedding_vec)).toEqual(padEmbedding([1, 2, 3]));
     expect(rows[0]!.embedding_hash).not.toBeNull();
     expect(rows[0]!.embedded_at).not.toBeNull();
   });
@@ -188,7 +190,7 @@ describe("triggerCardEmbeddingScan", () => {
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual([1, 2, 3]);
+    expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
   });
 
   it("makes zero embedding API calls on a rescan when nothing changed", async () => {
@@ -203,7 +205,7 @@ describe("triggerCardEmbeddingScan", () => {
       `SELECT embedding, embedding_hash FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
-    expect(firstRows[0]!.embedding).toEqual([1, 2, 3]);
+    expect(firstRows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
 
     vi.mocked(global.fetch).mockClear();
 

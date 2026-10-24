@@ -1,5 +1,8 @@
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
-import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
+import {
+  bitOpenForVariantGeneration,
+  type VariantGenerationScope,
+} from "./knowledge-bit-variant-generation-gate.js";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { getDb, type Db, type DbExecutor } from "../db/client.js";
 import { knowledgeBits } from "../db/schema.js";
@@ -18,6 +21,7 @@ function staleClaimCutoff(): Date {
 
 export async function listKnowledgeBitsForBasicCardGenerationScan(
   limit: number,
+  scope: VariantGenerationScope = {},
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitForQuestionGenerationScan[]> {
   return db
@@ -29,7 +33,7 @@ export async function listKnowledgeBitsForBasicCardGenerationScan(
     .where(
       and(
         isNull(knowledgeBits.basicCardGeneratedAt),
-        bitNotDiscarded,
+        bitOpenForVariantGeneration(scope),
         or(
           isNull(knowledgeBits.basicCardGenerationFailedAt),
           lt(knowledgeBits.basicCardGenerationAttempts, BASIC_CARD_GENERATION_MAX_ATTEMPTS),
@@ -51,6 +55,7 @@ export async function listKnowledgeBitsForBasicCardGenerationScan(
 export async function claimKnowledgeBitForBasicCardGeneration(
   id: string,
   expectedBody: string,
+  scope: VariantGenerationScope = {},
   db: DbExecutor = getDb(),
 ): Promise<string | null> {
   const claimToken = newId("bcgc");
@@ -62,7 +67,7 @@ export async function claimKnowledgeBitForBasicCardGeneration(
         eq(knowledgeBits.id, id),
         eq(knowledgeBits.body, expectedBody),
         isNull(knowledgeBits.basicCardGeneratedAt),
-        bitNotDiscarded,
+        bitOpenForVariantGeneration(scope),
         or(
           isNull(knowledgeBits.basicCardGenerationFailedAt),
           lt(knowledgeBits.basicCardGenerationAttempts, BASIC_CARD_GENERATION_MAX_ATTEMPTS),

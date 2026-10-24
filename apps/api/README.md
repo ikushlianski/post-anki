@@ -70,6 +70,47 @@ If `API_SHARED_SECRET` is set, every route except `/healthz` requires
 (default `openrouter/google/gemini-2.5-flash`), `API_SHARED_SECRET` (optional),
 `PORT` (5560), `LOG_LEVEL`.
 
+## Local development — zero-cost mock LLM
+
+Set `LLM_MODE=mock` in `apps/api/.env.local` (or the shell) and run `npm run dev`
+from the project root. No `OPENROUTER_API_KEY` is needed: `scripts/dev.sh` starts
+`scripts/mock-llm.mjs` (port `MOCK_LLM_PORT`, default 4989) and the API sends all
+chat and embedding calls there. Chat answers match the requested JSON schema with
+placeholder values; embeddings are deterministic 1536-number vectors
+(`MOCK_EMBEDDING_DIM` overrides). Content is fake, so use it to exercise flows,
+not to judge quality. Run the mock alone with `npm run dev:mock-llm`. With
+`LLM_MODE` unset or `real`, the API still refuses to boot without a key.
+
+## LLM spend guard
+
+`LLM_MODE=real|cheap|mock`. `cheap` makes real calls but forces the cheapest tier
+(`mastra/model-tier.ts`) for every agent. `LLM_DAILY_BUDGET_USD` (default 5, 0 = off)
+caps estimated spend per UTC day; once reached, chat, embedding and transcription
+calls throw `LlmBudgetExceededError` (code `LLM_BUDGET_EXCEEDED`). pino warns at 80%
+and at the cap. Mock mode never counts or refuses. The counter is in memory per API
+process (resets on restart and per Cloud Run instance) and uses blended per-token
+estimates, so treat it as a safety net, not billing; set an OpenRouter key credit
+limit as the hard stop.
+
+## Local development — Inngest
+
+Run `npm run inngest:dev` from the project root to start the local Inngest
+server. The dev UI is available at http://localhost:8288.
+
+To route extractions through Inngest instead of the default engine, set these
+variables in `apps/api/.env`:
+
+```
+DURABLE_EXTRACTION_ENGINE=inngest
+DURABLE_EXTRACTION=1
+INNGEST_DEV=1
+```
+
+Outside local dev (`INNGEST_DEV` not `1`) with `DURABLE_EXTRACTION` on, the API
+refuses to boot without `INNGEST_SIGNING_KEY`, so only signed requests reach
+`/api/inngest`. Set `INNGEST_SIGNING_KEY_FALLBACK` to the previous key while
+rotating.
+
 ## Migrations
 
 `npm run db:generate -w @post-anki/api` then `npm run db:migrate -w @post-anki/api`.

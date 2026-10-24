@@ -35,6 +35,6 @@ export async function updateKnowledgeBitEmbedding(
 ): Promise<void> {
   await db
     .update(knowledgeBits)
-    .set({ embedding, embeddingHash, embeddedAt: new Date() })
+    .set({ embedding, embeddingVec: embedding, embeddingHash, embeddedAt: new Date() })
     .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.body, expectedBody)));
 }

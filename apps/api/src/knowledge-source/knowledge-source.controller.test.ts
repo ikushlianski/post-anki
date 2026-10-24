@@ -5,20 +5,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockInsertKnowledgeSource = vi.fn();
 const mockInsertKnowledgeSources = vi.fn();
 const mockFetchWithTimeout = vi.fn();
-const mockGetSubject = vi.fn();
+const mockFindAssignmentError = vi.fn();
+
+vi.mock("./knowledge-source-duplicate.repo.js", () => ({
+  findEarlierSourceByUrl: vi.fn().mockResolvedValue(null),
+  findEarlierSourcesByText: vi.fn().mockResolvedValue(new Map()),
+}));
 
 vi.mock("./knowledge-source.repo.js", () => ({
   insertKnowledgeSource: (...args: unknown[]) => mockInsertKnowledgeSource(...args),
   insertKnowledgeSources: (...args: unknown[]) => mockInsertKnowledgeSources(...args),
   MAX_SOURCES_PER_BATCH_ADD: 100,
+  updateKnowledgeSourceSummary: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../subject/subject.repo.js", () => ({
-  getSubject: (...args: unknown[]) => mockGetSubject(...args),
+vi.mock("../mastra/article-summary.agent.js", () => ({
+  runArticleSummary: vi.fn().mockResolvedValue("Summary."),
 }));
 
-vi.mock("../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js", () => ({
-  kickKnowledgeBitPipeline: () => Promise.resolve(),
+vi.mock("../subject/subject-leaf.js", () => ({
+  findSubjectAssignmentError: (...args: unknown[]) => mockFindAssignmentError(...args),
+}));
+
+vi.mock("../knowledge-bit/pipeline-kick.starter.js", () => ({
+  startKnowledgeBitPipelineKick: () => Promise.resolve(),
 }));
 
 vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), info: vi.fn() } }));
@@ -65,7 +75,7 @@ function fakeRes(): http.ServerResponse & { status: number | null; body: unknown
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetSubject.mockResolvedValue({ id: "sub_web" });
+  mockFindAssignmentError.mockResolvedValue(null);
 });
 
 describe("handleCreateKnowledgeSource", () => {
@@ -198,7 +208,11 @@ describe("handleCreateKnowledgeSource", () => {
     const res = fakeRes();
     await handleCreateKnowledgeSource(fakeReq({ url: "https://example.com/article" }), res);
 
-    expect(mockFetchWithTimeout).toHaveBeenCalledWith("https://example.com/article", expect.any(Number));
+    expect(mockFetchWithTimeout).toHaveBeenCalledWith(
+      "https://example.com/article",
+      expect.any(Number),
+      expect.any(Function),
+    );
     expect(mockInsertKnowledgeSource).toHaveBeenCalledTimes(1);
 
     const storedText = mockInsertKnowledgeSource.mock.calls[0]?.[0] as string;
@@ -283,17 +297,69 @@ describe("handleCreateKnowledgeSource subject filing", () => {
     await handleCreateKnowledgeSource(fakeReq({ url: "https://example.com/article", subjectId: "sub_web" }), res);
 
     expect(res.status).toBe(201);
-    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith(expect.any(String), "sub_web", null);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith(expect.any(String), "sub_web", null, "https://example.com/article");
+  });
+
+  it("should store the address the page redirected to as the source link", async () => {
+    mockFetchWithTimeout.mockImplementation(
+      async (_url: string, _timeout: number, onFinalUrl?: (url: string) => void) => {
+        onFinalUrl?.("https://example.com/final-article");
+
+        return "<html><body><p>Hello world.</p></body></html>";
+      },
+    );
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_2" });
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ url: "https://short.example/abc" }), res);
+
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith(
+      expect.any(String),
+      null,
+      null,
+      "https://example.com/final-article",
+    );
+  });
+
+  it("should store no source link when the redirect target is not a safe public address", async () => {
+    mockFetchWithTimeout.mockImplementation(
+      async (_url: string, _timeout: number, onFinalUrl?: (url: string) => void) => {
+        onFinalUrl?.("http://127.0.0.1/admin");
+
+        return "<html><body><p>Hello world.</p></body></html>";
+      },
+    );
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_2" });
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ url: "https://short.example/abc" }), res);
+
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith(expect.any(String), null, null, null);
   });
 
   it("should answer 400 subject_not_found and insert nothing when the subject is unknown", async () => {
-    mockGetSubject.mockResolvedValue(null);
+    mockFindAssignmentError.mockResolvedValue("subject_not_found");
     const res = fakeRes();
 
     await handleCreateKnowledgeSource(fakeReq({ text: "hello prose", subjectId: "sub_missing" }), res);
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: "subject_not_found" });
+    expect(res.body).toEqual({ error: "subject_not_found", message: expect.any(String) });
+    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["text", { text: "hello prose", subjectId: "sub_parent" }],
+    ["batch", { texts: ["First idea."], subjectId: "sub_parent" }],
+    ["url", { url: "https://example.com/article", subjectId: "sub_parent" }],
+  ])("should answer 409 subject_has_children and insert nothing when a %s is filed under a subject with sub-subjects", async (_kind, body) => {
+    mockFindAssignmentError.mockResolvedValue("subject_has_children");
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq(body), res);
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "subject_has_children", message: expect.any(String) });
     expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
   });
 
@@ -303,7 +369,7 @@ describe("handleCreateKnowledgeSource subject filing", () => {
 
     await handleCreateKnowledgeSource(fakeReq({ text: "hello prose" }), res);
 
-    expect(mockGetSubject).not.toHaveBeenCalled();
+    expect(mockFindAssignmentError).not.toHaveBeenCalled();
     expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello prose", null, null);
   });
 });
@@ -350,6 +416,7 @@ describe("handleCreateKnowledgeSource model choice", () => {
       expect.any(String),
       null,
       "openrouter/google/gemma-4-31b-it",
+      "https://example.com/article",
     );
   });
 

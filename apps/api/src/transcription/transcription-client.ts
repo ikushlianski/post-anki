@@ -1,6 +1,7 @@
 import pRetry from "p-retry";
 import { loadEnv, type Env } from "../shared/env.js";
 import { log } from "../shared/log.js";
+import { assertLlmBudgetAvailable, FLAT_TRANSCRIPTION_USD, recordLlmSpend } from "../shared/spend-guard.js";
 
 // This module calls OpenRouter's /chat/completions endpoint directly via
 // fetch() rather than through a Mastra Agent — this is a single non-
@@ -88,6 +89,8 @@ async function callTranscriptionEndpoint(params: TranscribeAudioParams): Promise
 
     const data = (await res.json()) as ChatResponse;
 
+    recordLlmSpend(FLAT_TRANSCRIPTION_USD);
+
     return data.choices?.[0]?.message?.content?.trim() ?? "";
   } finally {
     clearTimeout(timer);
@@ -101,6 +104,8 @@ async function callTranscriptionEndpoint(params: TranscribeAudioParams): Promise
 // call into a null (never a thrown/unhandled rejection reaching the message
 // handler).
 export async function transcribeAudio(params: TranscribeAudioParams): Promise<string> {
+  assertLlmBudgetAvailable();
+
   return pRetry(() => callTranscriptionEndpoint(params), {
     retries: RETRIES,
     onFailedAttempt: ({ error, attemptNumber, retriesLeft }) => {

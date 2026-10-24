@@ -1,8 +1,11 @@
 import { z } from "zod";
 
-const envSchema = z.object({
+const envObject = z.object({
   DATABASE_URL: z.string().min(1),
-  OPENROUTER_API_KEY: z.string().min(1),
+  OPENROUTER_API_KEY: z.string().optional(),
+  LLM_MODE: z.enum(["real", "cheap", "mock"]).default("real"),
+  LLM_DAILY_BUDGET_USD: z.coerce.number().min(0).default(5),
+  MOCK_LLM_PORT: z.coerce.number().int().positive().default(4989),
   CURRICULUM_MODEL: z.string().min(1).default("openrouter/google/gemini-2.5-flash"),
   EMBEDDING_MODEL: z.string().min(1).default("openai/text-embedding-3-small"),
   // Voice responses (issue #22, spec.md Decision 2) — deliberately its own
@@ -13,6 +16,9 @@ const envSchema = z.object({
   TRANSCRIPTION_MODEL: z.string().min(1).default("openrouter/google/gemini-2.5-flash"),
   OPENROUTER_BASE_URL: z.string().min(1).optional(),
   API_SHARED_SECRET: z.string().min(1).optional(),
+  SYNC_JWT_PRIVATE_KEY: z.string().min(1).optional(),
+  SYNC_JWT_KEY_ID: z.string().min(1).default("sync-key-1"),
+  SYNC_JWT_AUDIENCE: z.string().min(1).default("http://localhost:5590"),
   ELECTRIC_SERVICE_URL: z.string().min(1).optional(),
   ELECTRIC_AUTH_MODE: z.enum(["iam", "none"]).default("iam"),
   PORT: z.coerce.number().int().positive().default(5560),
@@ -41,9 +47,55 @@ const envSchema = z.object({
   // separate ports in dev — so this is never optional in practice; it
   // defaults to the local dev web port only.
   WEB_ORIGIN: z.string().min(1).default("http://localhost:5540"),
+  // Extra exact web origins, comma separated (for example the custom domain next
+  // to the Cloud Run URL). Entries that are not https origins, or http on localhost, are ignored.
+  WEB_ORIGINS: z.string().min(1).optional(),
   EXTENSION_ID: z.string().min(1).optional(),
   NOTION_TOKEN: z.string().min(1).optional(),
+  // Durable extraction pilot. Plain strings on purpose: an empty or odd value must never stop the
+  // API from booting; the pilot code parses them and falls back to its defaults (off, 10 s, 30 min).
+  DURABLE_EXTRACTION: z.string().optional(),
+  DURABLE_CARDS: z.string().optional(),
+  DURABLE_COURSE_JOBS: z.string().optional(),
+  DBOS_APPLICATION_VERSION: z.string().optional(),
+  DBOS_EXECUTOR_ID: z.string().optional(),
+  DURABLE_EXTRACTION_TIMEOUT_MS: z.string().optional(),
+  DURABLE_EXTRACTION_STALE_MS: z.string().optional(),
+  INNGEST_DEV: z.string().optional(),
+  INNGEST_BASE_URL: z.string().optional(),
+  INNGEST_EVENT_KEY: z.string().optional(),
+  INNGEST_SIGNING_KEY: z.string().optional(),
+  INNGEST_SIGNING_KEY_FALLBACK: z.string().optional(),
+  DURABLE_EXTRACTION_ENGINE: z.string().optional().default("dbos"),
 });
+
+const envSchema = envObject.superRefine((env, ctx) => {
+  const durableOn = [env.DURABLE_EXTRACTION, env.DURABLE_CARDS, env.DURABLE_COURSE_JOBS].some(
+    (flag) => flag === "1" || flag === "true",
+  );
+  const localDev = env.INNGEST_DEV === "1";
+
+  if (env.LLM_MODE !== "mock" && !env.OPENROUTER_API_KEY?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["OPENROUTER_API_KEY"],
+      message: "required unless LLM_MODE=mock",
+    });
+  }
+
+  if (durableOn && !localDev && !env.INNGEST_SIGNING_KEY?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["INNGEST_SIGNING_KEY"],
+      message: "required when DURABLE_EXTRACTION, DURABLE_CARDS or DURABLE_COURSE_JOBS is on and INNGEST_DEV is not 1",
+    });
+  }
+}).transform((env) => ({
+  ...env,
+  OPENROUTER_API_KEY: env.OPENROUTER_API_KEY?.trim() || "mock-unused",
+  OPENROUTER_BASE_URL:
+    env.OPENROUTER_BASE_URL ?? (env.LLM_MODE === "mock" ? `http://127.0.0.1:${env.MOCK_LLM_PORT}/v1` : undefined),
+}));
 
 export type Env = z.infer<typeof envSchema>;
 

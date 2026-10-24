@@ -114,6 +114,8 @@ describe("approveKnowledgeBit (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to approve", "Some background.");
 
+    await seedQuestionVariant(id, "basic", 0);
+
     const approved = await approveKnowledgeBit(id);
 
     expect(approved).toBe(true);
@@ -128,19 +130,19 @@ describe("approveKnowledgeBit (real Postgres)", () => {
     expect(rows[0]!.background).toBe("Some background.");
   });
 
-  it("should return false for a knowledge bit id that does not exist", async () => {
+  it("should return not_found for a knowledge bit id that does not exist", async () => {
     const approved = await approveKnowledgeBit("kb_missing");
 
-    expect(approved).toBe(false);
+    expect(approved).toBe("not_found");
   });
 
-  it("should return false and leave the state untouched for an already-rejected bit", async () => {
+  it("should return blocked and leave the state untouched for an already-rejected bit", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "Already rejected", null, "rejected");
 
     const approved = await approveKnowledgeBit(id);
 
-    expect(approved).toBe(false);
+    expect(approved).toBe("blocked");
 
     const { rows } = await client.query(
       `SELECT approval_state FROM knowledge_bits WHERE id = $1`,
@@ -157,6 +159,15 @@ describe("approveKnowledgeBit (real Postgres)", () => {
     const approved = await approveKnowledgeBit(id);
 
     expect(approved).toBe(true);
+  });
+
+  it("should return no_variant when the bit has no active variants after a body edit", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "A pending bit");
+
+    const approved = await approveKnowledgeBit(id);
+
+    expect(approved).toBe("no_variant");
   });
 });
 
@@ -206,6 +217,24 @@ describe("rejectKnowledgeBit (real Postgres)", () => {
     const rejected = await rejectKnowledgeBit(id);
 
     expect(rejected.ok).toBe(true);
+  });
+
+  it("should clear topicId when rejecting a bit that was already placed", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedKnowledgeBit(sourceId, 0, "A placed bit");
+
+    await client.query(`UPDATE knowledge_bits SET topic_id = 'topic_abc' WHERE id = $1`, [id]);
+
+    const rejected = await rejectKnowledgeBit(id);
+
+    expect(rejected.ok).toBe(true);
+
+    const { rows } = await client.query(
+      `SELECT topic_id FROM knowledge_bits WHERE id = $1`,
+      [id],
+    );
+
+    expect(rows[0]!.topic_id).toBeNull();
   });
 });
 
@@ -281,14 +310,14 @@ describe("editKnowledgeBitQuestionVariant (real Postgres)", () => {
     expect(rows[0]!.superseded_at).not.toBeNull();
   });
 
-  it("should return not_found and leave the variant untouched for a rejected bit", async () => {
+  it("should return blocked and leave the variant untouched for a rejected bit", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A rejected bit", null, "rejected");
     const variantId = await seedQuestionVariant(bitId, "wh_question", 0, "Old prompt", "Old answer");
 
     const result = await editKnowledgeBitQuestionVariant(variantId, "New prompt", "New answer");
 
-    expect(result).toEqual({ error: "not_found" });
+    expect(result).toEqual({ error: "blocked" });
 
     const { rows } = await client.query(
       `SELECT prompt, answer, superseded_at FROM knowledge_bit_question_variants WHERE id = $1`,
@@ -371,6 +400,45 @@ describe("listPendingKnowledgeBitsForReview (real Postgres)", () => {
     const thisSource = sources.find((source) => source.knowledgeSourceId === sourceId);
 
     expect(thisSource).toBeUndefined();
+  });
+
+  it("should return subjectName from linked subject when present", async () => {
+    const subjectId = `subj_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO subjects (id, name, kind) VALUES ($1, 'Physics', 'architecture-mentor')`,
+      [subjectId],
+    );
+
+    const sourceId = `ksrc_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status, subject_id) VALUES ($1, 'prose', 'Some prose.', 'pending', $2)`,
+      [sourceId, subjectId],
+    );
+
+    const bitId = await seedKnowledgeBit(sourceId, 0, "A bit with subject");
+
+    const sources = await listPendingKnowledgeBitsForReview(100);
+    const thisSource = sources.find((source) => source.knowledgeSourceId === sourceId);
+
+    expect(thisSource).toBeDefined();
+    expect(thisSource!.subjectName).toBe("Physics");
+
+    await client.query(`DELETE FROM knowledge_bits WHERE id = $1`, [bitId]);
+    await client.query(`DELETE FROM knowledge_sources WHERE id = $1`, [sourceId]);
+    await client.query(`DELETE FROM subjects WHERE id = $1`, [subjectId]);
+  });
+
+  it("should return null subjectName when source has no subject", async () => {
+    const sourceId = await seedKnowledgeSource("Prose without subject.");
+    await seedKnowledgeBit(sourceId, 0, "A bit without subject");
+
+    const sources = await listPendingKnowledgeBitsForReview(100);
+    const thisSource = sources.find((source) => source.knowledgeSourceId === sourceId);
+
+    expect(thisSource).toBeDefined();
+    expect(thisSource!.subjectName).toBeNull();
   });
 
   it("should never include a superseded variant for a pending bit", async () => {

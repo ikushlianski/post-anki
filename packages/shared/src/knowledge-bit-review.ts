@@ -56,6 +56,8 @@ export const reviewCardSchema = z.object({
   prompt: z.string(),
   answer: z.string(),
   background: z.string().nullable(),
+  isAiGenerated: z.boolean(),
+  sourceLinks: z.array(z.string()),
   phase: cardPhaseSchema,
   leech: z.boolean(),
   intervalPreview: intervalPreviewSchema,
@@ -67,6 +69,7 @@ export const reviewCardsResponseSchema = z.object({
   cards: z.array(reviewCardSchema),
   counts: reviewCountsSchema,
   newRemainingToday: z.number().int().min(0),
+  newLimitReached: z.boolean().optional(),
   nextDueAt: z.string().nullable(),
 });
 

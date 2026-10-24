@@ -54,6 +54,13 @@ vi.mock("../shared/embeddings-client.js", () => ({
   embedTexts: vi.fn(async () => []),
 }));
 
+const mockSend = vi.fn(async (_events: unknown) => ({ ids: [] }));
+
+vi.mock("../shared/inngest-client.js", () => ({
+  createInngestClient: () => ({ send: (events: unknown) => mockSend(events) }),
+}));
+
+const { failStaleGeneratingCards, touchGeneratingCards } = await import("./cards.repo.js");
 const { maybeStartCardsInBackground, startCardsManually } = await import("./cards.orchestrator.js");
 
 let client: pg.Client;
@@ -277,5 +284,83 @@ describe("startCardsManually alongside a background-triggered run (real Postgres
 
     expect(result.alreadyInProgress).toBe(false);
     await vi.waitFor(() => expect(mockAgentGenerate).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("claim semantics with the durable flag on (real Postgres)", () => {
+  it("should claim once, send one event, and block a manual click while the run is in flight", async () => {
+    process.env.DURABLE_CARDS = "1";
+
+    try {
+      const topicId = await seedTopic();
+
+      await Promise.all([maybeStartCardsInBackground(topicId), maybeStartCardsInBackground(topicId)]);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockAgentGenerate).not.toHaveBeenCalled();
+      expect(await cardSetStatus(topicId)).toBe("generating");
+
+      const manual = await startCardsManually(topicId);
+
+      expect(manual.alreadyInProgress).toBe(true);
+      expect(mockSend).toHaveBeenCalledTimes(1);
+    } finally {
+      delete process.env.DURABLE_CARDS;
+    }
+  });
+
+  it("should fall back to in-process generation when the event cannot be sent", async () => {
+    process.env.DURABLE_CARDS = "1";
+
+    try {
+      const topicId = await seedTopic();
+
+      mockSend.mockRejectedValueOnce(new Error("inngest down"));
+      mockAgentGenerate.mockResolvedValue({
+        object: { cards: [{ concept: "Concept A", variants: [] }] },
+      });
+
+      await maybeStartCardsInBackground(topicId);
+
+      await vi.waitFor(async () => {
+        expect(await cardSetStatus(topicId)).toBe("ready");
+      });
+    } finally {
+      delete process.env.DURABLE_CARDS;
+    }
+  });
+});
+
+describe("stale generating cleanup and begin touch (real Postgres)", () => {
+  it("should fail only generating sets older than the cutoff and leave recent and ready ones", async () => {
+    const stale = await seedTopic();
+    const recent = await seedTopic();
+    const ready = await seedTopic();
+
+    await seedCardSet(stale, "generating", new Date(Date.now() - 20 * 60 * 1000));
+    await seedCardSet(recent, "generating", new Date());
+    await seedCardSet(ready, "ready", new Date(Date.now() - 20 * 60 * 1000));
+
+    await failStaleGeneratingCards(10 * 60 * 1000);
+
+    expect(await cardSetStatus(stale)).toBe("failed");
+    expect(await cardSetStatus(recent)).toBe("generating");
+    expect(await cardSetStatus(ready)).toBe("ready");
+  });
+
+  it("should refresh a generating claim so a queued job is not reclaimed, and report false otherwise", async () => {
+    const queued = await seedTopic();
+    const failed = await seedTopic();
+
+    await seedCardSet(queued, "generating", new Date(Date.now() - 14 * 60 * 1000));
+    await seedCardSet(failed, "failed", new Date());
+
+    expect(await touchGeneratingCards(queued)).toBe(true);
+    expect(await touchGeneratingCards(failed)).toBe(false);
+
+    await maybeStartCardsInBackground(queued);
+
+    expect(mockSend).not.toHaveBeenCalled();
+    expect(mockAgentGenerate).not.toHaveBeenCalled();
   });
 });

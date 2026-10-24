@@ -1,13 +1,15 @@
 import { eq } from "drizzle-orm";
 import {
+  clampNewCardsPerDay,
   DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
+  DEFAULT_NEW_CARDS_PER_DAY,
   knowledgeItemModelIdSchema,
   type AdminSettings,
   type KnowledgeItemModelId,
   type ModelTier,
   type UpdateAdminSettingsInput,
 } from "@post-anki/shared";
-import { getDb } from "../db/client.js";
+import { getDb, type DbExecutor } from "../db/client.js";
 import { appSettings } from "../db/schema.js";
 
 const SETTINGS_ID = "app";
@@ -34,6 +36,7 @@ async function toAdminSettings(row: typeof appSettings.$inferSelect): Promise<Ad
     testToggle: row.testToggle,
     modelTier: row.modelTier as ModelTier,
     knowledgeItemModelId: await parseKnowledgeItemModelId(row.knowledgeItemModelId),
+    newCardsPerDay: clampNewCardsPerDay(row.newCardsPerDay),
   };
 }
 
@@ -58,6 +61,7 @@ export async function getAdminSettings(): Promise<AdminSettings> {
     testToggle: false,
     modelTier: DEFAULT_MODEL_TIER,
     knowledgeItemModelId: DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
+    newCardsPerDay: DEFAULT_NEW_CARDS_PER_DAY,
   };
 }
 
@@ -68,6 +72,7 @@ export async function updateAdminSettings(
   const testToggle = input.testToggle ?? current.testToggle;
   const modelTier = input.modelTier ?? current.modelTier;
   const knowledgeItemModelId = input.knowledgeItemModelId ?? current.knowledgeItemModelId;
+  const newCardsPerDay = input.newCardsPerDay ?? current.newCardsPerDay;
 
   await getDb()
     .insert(appSettings)
@@ -76,14 +81,15 @@ export async function updateAdminSettings(
       testToggle,
       modelTier,
       knowledgeItemModelId,
+      newCardsPerDay,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: appSettings.id,
-      set: { testToggle, modelTier, knowledgeItemModelId, updatedAt: new Date() },
+      set: { testToggle, modelTier, knowledgeItemModelId, newCardsPerDay, updatedAt: new Date() },
     });
 
-  return { testToggle, modelTier, knowledgeItemModelId };
+  return { testToggle, modelTier, knowledgeItemModelId, newCardsPerDay };
 }
 
 export async function getGlobalModelTier(): Promise<ModelTier> {
@@ -92,4 +98,13 @@ export async function getGlobalModelTier(): Promise<ModelTier> {
 
 export async function getKnowledgeItemModelId(): Promise<KnowledgeItemModelId> {
   return (await getAdminSettings()).knowledgeItemModelId;
+}
+
+export async function getNewCardsPerDay(db: DbExecutor = getDb()): Promise<number> {
+  const [row] = await db
+    .select({ newCardsPerDay: appSettings.newCardsPerDay })
+    .from(appSettings)
+    .where(eq(appSettings.id, SETTINGS_ID));
+
+  return row ? clampNewCardsPerDay(row.newCardsPerDay) : DEFAULT_NEW_CARDS_PER_DAY;
 }

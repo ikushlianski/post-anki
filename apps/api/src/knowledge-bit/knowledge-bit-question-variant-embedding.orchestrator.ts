@@ -23,6 +23,8 @@ export async function embedKnowledgeBitQuestionVariants(): Promise<EmbeddingScan
 
   const { toEmbed, reused, capped } = selectSubjectsForScan(candidates, EMBEDDING_CAP);
 
+  let savedCount = 0;
+
   if (toEmbed.length > 0) {
     const rowById = new Map(rows.map((variant) => [variant.id, variant]));
     const embedded = await embedTexts(
@@ -37,8 +39,14 @@ export async function embedKnowledgeBitQuestionVariants(): Promise<EmbeddingScan
         result.embedding,
         hashContent(embeddingText(variant.prompt, variant.answer)),
       );
+      savedCount += 1;
     }
   }
 
-  return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
+  return {
+    embeddedCount: savedCount,
+    reusedCount: reused.length,
+    capped,
+    ...(toEmbed.length > savedCount ? { skippedCount: toEmbed.length - savedCount } : {}),
+  };
 }

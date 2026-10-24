@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_CHAT_TRANSCRIPT_MESSAGES } from "@post-anki/shared";
 
 const generate = vi.fn();
 const generateWithRetry = vi.fn(
@@ -30,7 +31,21 @@ vi.mock("../probe/probe-grounding.js", () => ({
   webSearch: (...args: unknown[]) => webSearch(...args),
 }));
 
+const fetchWithTimeout = vi.fn();
+
+vi.mock("../shared/outbound-fetch.js", () => ({
+  fetchWithTimeout: (...args: unknown[]) => fetchWithTimeout(...args),
+  truncateText: (text: string, max: number) => text.slice(0, max),
+}));
+
 const { askKnowledgeBitChat } = await import("./knowledge-bit-chat.service.js");
+
+function longTranscript(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+    text: `turn-${i}`,
+  }));
+}
 
 describe("askKnowledgeBitChat", () => {
   beforeEach(() => {
@@ -152,7 +167,7 @@ describe("askKnowledgeBitChat", () => {
     });
     expect(generate).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ maxSteps: 4 }),
+      expect.objectContaining({ maxSteps: 6 }),
     );
   });
 
@@ -193,5 +208,43 @@ describe("askKnowledgeBitChat", () => {
     });
 
     expect(result).toEqual({ reply: "Fell back to the item's own content." });
+  });
+
+  it("fetches only pages searchWeb cited and caps the plain text", async () => {
+    fetchWithTimeout.mockResolvedValue(`<html><body><p>${"x".repeat(9000)}</p></body></html>`);
+    let cited = false;
+    let uncited = true;
+    let page: { text: string } | null = null;
+
+    generate.mockImplementation(async (_prompt, opts) => {
+      const deps = opts.requestContext.get("knowledgeBitChatDeps");
+
+      uncited = deps.isCitedUrl("https://example.com/web");
+      await deps.searchWeb("q");
+      cited = deps.isCitedUrl("https://example.com/web");
+      page = await deps.fetchPage("https://example.com/web");
+
+      return { text: "ok" };
+    });
+
+    await askKnowledgeBitChat("kb_1", { message: "q", allowWebSearch: true });
+
+    expect(uncited).toBe(false);
+    expect(cited).toBe(true);
+    expect(page).toEqual({ text: "x".repeat(8000) });
+  });
+
+  it("should send only the newest turns plus the current message when the transcript is longer than the limit", async () => {
+    const total = MAX_CHAT_TRANSCRIPT_MESSAGES + 10;
+
+    await askKnowledgeBitChat("kb_1", { message: "current question", transcript: longTranscript(total) });
+
+    const prompt = generate.mock.calls[0]![0] as string;
+
+    expect(prompt).not.toContain("turn-0\n");
+    expect(prompt).not.toMatch(/turn-9(?!\d)/);
+    expect(prompt).toContain(`turn-${total - MAX_CHAT_TRANSCRIPT_MESSAGES}`);
+    expect(prompt).toContain(`turn-${total - 1}`);
+    expect(prompt).toContain("current question");
   });
 });

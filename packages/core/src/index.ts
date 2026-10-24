@@ -39,3 +39,4 @@ export * from "./shared/hash-content";
 export * from "./notion-connector/index";
 export * from "./biz-education-distiller/index";
 export * from "./subject-hierarchy/subject-hierarchy";
+export * from "./model-suggestion/index";

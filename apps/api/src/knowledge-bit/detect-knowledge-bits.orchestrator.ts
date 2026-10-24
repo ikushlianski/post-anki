@@ -1,6 +1,7 @@
 import { resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
 import { log } from "../shared/log.js";
 import { loadRecentFeedbackForExtraction } from "./knowledge-bit-feedback.repo.js";
+import { loadStyleNotesBlock } from "../card-triage/style-notes-loader.js";
 import { buildReviewerFeedbackBlock } from "./knowledge-bit-review-feedback-block.js";
 import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
 import { runKnowledgeBitSourceItems } from "../mastra/knowledge-bit-source-items.agent.js";
@@ -34,10 +35,12 @@ export const MAX_ITEMS_PER_SOURCE = 40;
 export const CHUNK_CONCURRENCY = 3;
 export const ORDINAL_STRIDE_PER_CHUNK = 1000;
 
-interface WriteOptions {
+export interface WriteOptions {
   modelId?: string;
   strictLanguage?: boolean;
   feedbackBlock?: string;
+  styleNotesBlock?: string;
+  abortSignal?: AbortSignal;
 }
 
 export interface GenerateItemsDeps {
@@ -47,6 +50,7 @@ export interface GenerateItemsDeps {
   markDetected: (id: string, claimedAt: Date) => Promise<boolean>;
   markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
   loadFeedbackBlock: (subjectId: string | null) => Promise<string>;
+  loadStyleNotesBlock?: (subjectId: string | null) => Promise<string>;
 }
 
 export function defaultGenerateItemsDeps(): GenerateItemsDeps {
@@ -58,6 +62,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     markFailed: markKnowledgeSourceFailed,
     loadFeedbackBlock: async (subjectId) =>
       buildReviewerFeedbackBlock(await loadRecentFeedbackForExtraction(subjectId)),
+    loadStyleNotesBlock,
   };
 }
 
@@ -74,13 +79,13 @@ interface RunState {
   reclaimed: Error | null;
 }
 
-function truncateReason(err: unknown): string {
+export function truncateReason(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
 
   return message.slice(0, 200);
 }
 
-function rejectRawText(rawText: string | null): string | null {
+export function rejectRawText(rawText: string | null): string | null {
   if (!rawText || rawText.trim().length === 0) {
     return "source_empty";
   }
@@ -92,7 +97,7 @@ function allDroppedForLanguage(result: { valid: unknown[]; dropped: string[] }):
   return result.valid.length === 0 && result.dropped.length > 0 && result.dropped.every((reason) => reason === "wrong_language");
 }
 
-async function writeAndValidate(
+export async function writeAndValidate(
   chunk: string,
   options: { modelId?: string },
   deps: GenerateItemsDeps,
@@ -181,7 +186,7 @@ async function processChunk(
   }
 }
 
-function chooseModelId(requested: string | null | undefined, sourceId: string): string | undefined {
+export function chooseModelId(requested: string | null | undefined, sourceId: string): string | undefined {
   if (!requested) {
     return undefined;
   }
@@ -195,7 +200,7 @@ function chooseModelId(requested: string | null | undefined, sourceId: string): 
   return usable ?? undefined;
 }
 
-async function loadFeedbackBlockSafely(
+export async function loadFeedbackBlockSafely(
   source: PendingKnowledgeSource,
   deps: GenerateItemsDeps,
 ): Promise<string> {
@@ -208,6 +213,19 @@ async function loadFeedbackBlockSafely(
   }
 }
 
+export async function loadStyleNotesBlockSafely(
+  source: PendingKnowledgeSource,
+  deps: GenerateItemsDeps,
+): Promise<string> {
+  try {
+    return (await deps.loadStyleNotesBlock?.(source.subjectId)) ?? "";
+  } catch (err) {
+    log.warn({ err, knowledgeSourceId: source.id }, "card_style_notes_load_failed");
+
+    return "";
+  }
+}
+
 export async function generateItemsForSource(
   source: PendingKnowledgeSource,
   requestedOptions: { modelId?: string } = {},
@@ -215,9 +233,11 @@ export async function generateItemsForSource(
 ): Promise<GenerateItemsResult> {
   const modelId = chooseModelId(requestedOptions.modelId ?? source.extractionModelId, source.id);
   const feedbackBlock = await loadFeedbackBlockSafely(source, deps);
+  const styleNotesBlock = await loadStyleNotesBlockSafely(source, deps);
   const options: WriteOptions = {
     ...(modelId ? { modelId } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
+    ...(styleNotesBlock ? { styleNotesBlock } : {}),
   };
   const rawText = source.rawText;
 

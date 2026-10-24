@@ -31,7 +31,6 @@ import {
   getCurriculum,
   getCurriculumDetail,
   getStructureTurns,
-  insertApprovedTextSource,
   insertPendingSources,
   listCurricula,
   markPreAssessmentCompleted,
@@ -50,19 +49,17 @@ import {
   isSourceMandateUnmet,
   resolveSourceMergeAction,
 } from "./curriculum-rules.js";
+import { startMerge, startParse, startReparse } from "./curriculum-parse.starter.js";
+import { startResearch, startRetryResearch } from "./curriculum-jobs.starter.js";
 import {
-  generateCurriculumFromApprovedSources,
-  mergeSourcesIntoCurriculum,
-  parseCurriculum,
-  reparseCurriculum,
-  researchCurriculum,
-  retryResearch,
-} from "./curriculum-parse.orchestrator.js";
+  insertPastedMaterialEarly,
+  startDraftFromApprovedSources,
+  startPastedDraft,
+  startRetryDraft,
+} from "./curriculum-draft.starter.js";
 import {
   confirmStructure,
-  generateDraftStructure,
   resolveSupplementalResearch,
-  retryDraftStructure,
   submitStructureTurn,
 } from "./curriculum-structure.js";
 
@@ -240,11 +237,14 @@ export async function handleCreateCurriculum(
 
   const curriculum = created;
 
+  const pastedInsertedEarly = materialPasted
+    ? await insertPastedMaterialEarly(curriculum.id, pastedMaterial!)
+    : false;
+
   sendJson(res, 202, curriculum);
 
   if (materialPasted) {
-    void insertApprovedTextSource(curriculum.id, pastedMaterial!)
-      .then(() => generateDraftStructure(curriculum.id))
+    void startPastedDraft(curriculum.id, pastedMaterial!, pastedInsertedEarly)
       .catch((err) =>
         log.error({ err, curriculumId: curriculum.id }, "pasted_material_dispatch_failed"),
       );
@@ -253,7 +253,7 @@ export async function handleCreateCurriculum(
   }
 
   if (docUrl) {
-    void researchCurriculum(curriculum.id, { name: curriculum.name, docUrl }).catch((err) =>
+    void startResearch(curriculum.id, { name: curriculum.name, docUrl }).catch((err) =>
       log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
     );
 
@@ -261,14 +261,14 @@ export async function handleCreateCurriculum(
   }
 
   if (researchTopic) {
-    void researchCurriculum(curriculum.id, { name: researchTopic }).catch((err) =>
+    void startResearch(curriculum.id, { name: researchTopic }).catch((err) =>
       log.error({ err, curriculumId: curriculum.id }, "research_dispatch_failed"),
     );
 
     return;
   }
 
-  void parseCurriculum(curriculum.id).catch((err) =>
+  void startParse(curriculum.id).catch((err) =>
     log.error({ err, curriculumId: curriculum.id }, "parse_dispatch_failed"),
   );
 }
@@ -319,7 +319,7 @@ export async function handleApproveSources(
 
   sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
 
-  void generateCurriculumFromApprovedSources(curriculumId).catch((err) => {
+  void startDraftFromApprovedSources(curriculumId).catch((err) => {
     log.error({ err, curriculumId }, "generate_from_approved_sources_dispatch_failed");
 
     void setCurriculumStatus(curriculumId, "failed").catch((statusErr) =>
@@ -516,7 +516,7 @@ export async function handleRetryResearch(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void retryResearch(curriculumId).catch((err) =>
+  void startRetryResearch(curriculumId).catch((err) =>
     log.error({ err, curriculumId }, "retry_research_dispatch_failed"),
   );
 }
@@ -555,7 +555,7 @@ export async function handleRetryDraftStructure(
 
   sendJson(res, 202, { ...curriculum, status: "shaping_structure" });
 
-  void retryDraftStructure(curriculumId).catch((err) =>
+  void startRetryDraft(curriculumId).catch((err) =>
     log.error({ err, curriculumId }, "retry_draft_structure_dispatch_failed"),
   );
 }
@@ -756,7 +756,7 @@ export async function handleAddSources(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void mergeSourcesIntoCurriculum(curriculumId, body.data.sources).catch((err) =>
+  void startMerge(curriculumId, body.data.sources).catch((err) =>
     log.error({ err, curriculumId }, "merge_dispatch_failed"),
   );
 }
@@ -808,7 +808,7 @@ export async function handleReparse(
 
   sendJson(res, 202, { ...curriculum, status: "curating" });
 
-  void reparseCurriculum(curriculumId).catch((err) =>
+  void startReparse(curriculumId).catch((err) =>
     log.error({ err, curriculumId }, "reparse_dispatch_failed"),
   );
 }

@@ -28,8 +28,6 @@ export async function insertKnowledgeBitReview(
   return id;
 }
 
-export const NEW_CARDS_PER_DAY = 20;
-
 export interface LocalDayWindow {
   startsAt: Date;
   endsAt: Date;

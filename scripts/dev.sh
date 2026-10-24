@@ -7,6 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 APP_PID=""
+MOCK_PID=""
 
 cleanup() {
   trap - EXIT INT TERM
@@ -15,6 +16,9 @@ cleanup() {
   if [ -n "$APP_PID" ]; then
     kill "$APP_PID" 2>/dev/null || true
     wait "$APP_PID" 2>/dev/null || true
+  fi
+  if [ -n "$MOCK_PID" ]; then
+    kill "$MOCK_PID" 2>/dev/null || true
   fi
   echo "[dev] stopping dev DB container (data volume kept)..."
   docker compose down --remove-orphans >/dev/null 2>&1 || true
@@ -92,6 +96,18 @@ if [ -f "$DEVPORTS" ]; then
         });'
     fi
   done
+fi
+
+# LLM_MODE=mock (shell, apps/api/.env or .env.local) starts the offline mock LLM; the API then needs no OpenRouter key.
+env_value() { grep -hE "^$1=" apps/api/.env apps/api/.env.local 2>/dev/null | tail -1 | cut -d= -f2; }
+LLM_MODE="${LLM_MODE:-$(env_value LLM_MODE)}"
+if [ "${LLM_MODE:-real}" = "mock" ]; then
+  MOCK_LLM_PORT="${MOCK_LLM_PORT:-$(env_value MOCK_LLM_PORT)}"
+  MOCK_LLM_PORT="${MOCK_LLM_PORT:-4989}"
+  echo "[dev] LLM_MODE=mock — starting mock LLM on :$MOCK_LLM_PORT (no OpenRouter calls, no cost)."
+  MOCK_LLM_PORT="$MOCK_LLM_PORT" node scripts/mock-llm.mjs &
+  MOCK_PID=$!
+  export LLM_MODE MOCK_LLM_PORT
 fi
 
 echo "[dev] launching api (:$API_PORT) + web (:$WEB_PORT) — Ctrl+C stops everything."

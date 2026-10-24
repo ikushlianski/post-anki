@@ -7,14 +7,24 @@ const mockInsertKnowledgeSources = vi.fn();
 const mockFetchWithTimeout = vi.fn();
 const mockKick = vi.fn();
 
+vi.mock("./knowledge-source-duplicate.repo.js", () => ({
+  findEarlierSourceByUrl: vi.fn().mockResolvedValue(null),
+  findEarlierSourcesByText: vi.fn().mockResolvedValue(new Map()),
+}));
+
 vi.mock("./knowledge-source.repo.js", () => ({
   insertKnowledgeSource: (...args: unknown[]) => mockInsertKnowledgeSource(...args),
   insertKnowledgeSources: (...args: unknown[]) => mockInsertKnowledgeSources(...args),
   MAX_SOURCES_PER_BATCH_ADD: 100,
+  updateKnowledgeSourceSummary: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.js", () => ({
-  kickKnowledgeBitPipeline: () => mockKick(),
+vi.mock("../mastra/article-summary.agent.js", () => ({
+  runArticleSummary: vi.fn().mockResolvedValue("Summary."),
+}));
+
+vi.mock("../knowledge-bit/pipeline-kick.starter.js", () => ({
+  startKnowledgeBitPipelineKick: () => mockKick(),
 }));
 
 vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), info: vi.fn() } }));

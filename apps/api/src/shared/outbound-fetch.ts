@@ -5,10 +5,20 @@ const CONTROL_CHARS_EXCEPT_WHITESPACE = new RegExp(
   "g",
 );
 
-export async function fetchWithTimeout(url: string, timeoutMs: number): Promise<string | null> {
+export async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number,
+  onFinalUrl?: (finalUrl: string) => void,
+): Promise<string | null> {
   const result = await guardedFetchText(url, { timeoutMs });
 
-  return result.ok ? result.text : null;
+  if (!result.ok) {
+    return null;
+  }
+
+  onFinalUrl?.(result.finalUrl);
+
+  return result.text;
 }
 
 export function truncateText(text: string, maxChars: number): string {

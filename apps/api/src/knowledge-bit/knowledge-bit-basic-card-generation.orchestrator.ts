@@ -1,5 +1,7 @@
 import { log } from "../shared/log.js";
+import type { VariantGenerationScope } from "./knowledge-bit-variant-generation-gate.js";
 import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
+import { loadStyleNotesBlocksForBits } from "../card-triage/style-notes-loader.js";
 import { runKnowledgeBitBasicCardGenerator } from "../mastra/knowledge-bit-basic-card-generator.agent.js";
 import { validateBasicCard } from "./knowledge-bit-basic-card-validation.js";
 import {
@@ -22,21 +24,25 @@ export interface BasicCardGenerationScanCounts {
   skipped: number;
 }
 
-export async function generateKnowledgeBitBasicCards(): Promise<BasicCardGenerationScanCounts> {
-  const bits = await listKnowledgeBitsForBasicCardGenerationScan(BASIC_CARD_GENERATION_CAP);
+export async function generateKnowledgeBitBasicCards(
+  scope: VariantGenerationScope = {},
+): Promise<BasicCardGenerationScanCounts> {
+  const bits = await listKnowledgeBitsForBasicCardGenerationScan(BASIC_CARD_GENERATION_CAP, scope);
+
+  const styleBlocks = await loadStyleNotesBlocksForBits(bits.map((bit) => bit.id));
 
   const outcomes = await mapWithConcurrency(
     bits,
     ITEM_CONCURRENCY,
     async (bit): Promise<ItemOutcome> => {
-      const claimToken = await claimKnowledgeBitForBasicCardGeneration(bit.id, bit.body);
+      const claimToken = await claimKnowledgeBitForBasicCardGeneration(bit.id, bit.body, scope);
 
       if (!claimToken) {
         return "skipped";
       }
 
       try {
-        const result = await runKnowledgeBitBasicCardGenerator(bit.body);
+        const result = await runKnowledgeBitBasicCardGenerator(bit.body, styleBlocks.get(bit.id) ?? "");
         const card = validateBasicCard(result, bit.body);
 
         if (!card.ok) {

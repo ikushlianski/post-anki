@@ -8,6 +8,10 @@ const PROMPT_TAG_NAMES = [
   "kind",
   "verdict",
   "reviewer_feedback",
+  "style_notes",
+  "session_feedback",
+  "rejected_examples",
+  "current_notes",
 ];
 
 const PROMPT_TAG_PATTERN = new RegExp(`<(\\s*/?\\s*(?:${PROMPT_TAG_NAMES.join("|")})(?![\\p{L}\\p{N}_]))`, "giu");

@@ -18,8 +18,8 @@ function daysAfterCheck(days: number): Date {
 }
 
 describe("knowledgeItemModelIdSchema", () => {
-  it("should accept each of the eleven listed model ids", () => {
-    expect(KNOWLEDGE_ITEM_MODEL_IDS).toHaveLength(11);
+  it("should accept each of the ten listed model ids", () => {
+    expect(KNOWLEDGE_ITEM_MODEL_IDS).toHaveLength(10);
 
     for (const id of KNOWLEDGE_ITEM_MODEL_IDS) {
       expect(knowledgeItemModelIdSchema.safeParse(id).success).toBe(true);
@@ -64,8 +64,8 @@ describe("KNOWLEDGE_ITEM_MODELS", () => {
     expect(expiresOn === null || new Date(`${expiresOn}T00:00:00Z`) > daysAfterCheck(EXPIRY_WINDOW_DAYS)).toBe(true);
   });
 
-  it("should record the expiry date of a listed model that expires within 60 days", () => {
-    expect(KNOWLEDGE_ITEM_MODELS["openrouter/google/gemini-2.5-flash-lite"].expiresOn).toBe("2026-10-20");
+  it("should reject the retired gemini-2.5-flash-lite id that old settings rows may store", () => {
+    expect(knowledgeItemModelIdSchema.safeParse("openrouter/google/gemini-2.5-flash-lite").success).toBe(false);
   });
 
   it("should record no expiry date for a listed model with none on OpenRouter", () => {

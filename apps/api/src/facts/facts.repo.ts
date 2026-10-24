@@ -1,7 +1,8 @@
-import { eq, isNotNull } from "drizzle-orm";
+import { and, cosineDistance, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { facts } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { efSearchFor } from "../db/vector-search.js";
 
 export interface InsertFactWithTopicInput {
   body: string;
@@ -37,7 +38,7 @@ export async function updateFactEmbedding(
 ): Promise<void> {
   await getDb()
     .update(facts)
-    .set({ embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(facts.id, factId));
 }
 
@@ -45,14 +46,42 @@ export interface EmbeddedFact {
   id: string;
   body: string;
   tags: string[];
-  embedding: number[];
+  similarity: number;
 }
 
-export async function listEmbeddedFacts(): Promise<EmbeddedFact[]> {
-  const rows = await getDb()
-    .select({ id: facts.id, body: facts.body, tags: facts.tags, embedding: facts.embedding })
+export async function hasEmbeddedFacts(): Promise<boolean> {
+  const [row] = await getDb()
+    .select({ id: facts.id })
     .from(facts)
-    .where(isNotNull(facts.embedding));
+    .where(isNotNull(facts.embeddingVec))
+    .limit(1);
 
-  return rows.map((row) => ({ ...row, embedding: row.embedding! }));
+  return row !== undefined;
+}
+
+export async function searchEmbeddedFacts(
+  queryEmbedding: number[],
+  topK: number,
+  minSimilarity: number,
+): Promise<EmbeddedFact[]> {
+  const distance = cosineDistance(facts.embeddingVec, queryEmbedding);
+  const similarity = sql<number>`1 - (${distance})`;
+
+  const rows = await getDb().transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('hnsw.ef_search', ${String(efSearchFor(topK))}, true)`);
+
+    return tx
+      .select({ id: facts.id, body: facts.body, tags: facts.tags, similarity })
+      .from(facts)
+      .where(
+        and(
+          isNotNull(facts.embeddingVec),
+          Number.isFinite(minSimilarity) ? sql`${similarity} >= ${minSimilarity}` : undefined,
+        ),
+      )
+      .orderBy(distance)
+      .limit(topK);
+  });
+
+  return rows.map((row) => ({ ...row, similarity: Number(row.similarity) }));
 }

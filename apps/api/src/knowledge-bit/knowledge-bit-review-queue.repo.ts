@@ -28,6 +28,8 @@ export interface KnowledgeBitReviewCardRow {
   prompt: string;
   answer: string;
   background: string | null;
+  isAiGenerated: boolean;
+  sourceLinks: string[];
   phase: CardPhase;
   leech: boolean;
   intervalPreview: IntervalPreview;
@@ -44,6 +46,7 @@ export interface KnowledgeBitReviewQueue {
   cards: KnowledgeBitReviewCardRow[];
   counts: ReviewCounts;
   newRemainingToday: number;
+  newLimitReached: boolean;
   nextDueAt: string | null;
 }
 
@@ -85,6 +88,7 @@ export async function getKnowledgeBitReviewQueue(
       cards,
       counts: { new: totals.fresh, learning: totals.learning, review: totals.due },
       newRemainingToday: remaining,
+      newLimitReached: false,
       nextDueAt: totals.nextDue?.toISOString() ?? null,
     };
   }
@@ -109,6 +113,7 @@ export async function getKnowledgeBitReviewQueue(
       review: totals.due,
     },
     newRemainingToday: remaining,
+    newLimitReached: capHidesNew,
     nextDueAt: nextDue?.toISOString() ?? null,
   };
 }

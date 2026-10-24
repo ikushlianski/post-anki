@@ -190,11 +190,38 @@ describe("runKnowledgeBitSourceItems", () => {
     );
   });
 
+  it("should turn off both the wrapper and the Mastra loop retries when the durable path opts out of 429 retries", async () => {
+    generateMock.mockResolvedValueOnce({ object: { items: [VALID_ITEM] } });
+
+    await runKnowledgeBitSourceItems("Some source.", { retryRateLimit: false });
+
+    const [, options] = generateMock.mock.calls.at(-1) as [string, { modelSettings?: { maxRetries: number } }];
+
+    expect(options.modelSettings).toEqual({ maxRetries: 0 });
+    expect(vi.mocked(generateWithRetry)).toHaveBeenLastCalledWith(
+      "knowledge_bit_source_items",
+      null,
+      "knowledgeBitSourceItems",
+      expect.any(Function),
+      expect.objectContaining({ retryRateLimit: false }),
+    );
+  });
+
+  it("should leave Mastra retry settings untouched for every other caller", async () => {
+    generateMock.mockResolvedValueOnce({ object: { items: [VALID_ITEM] } });
+
+    await runKnowledgeBitSourceItems("Some source.");
+
+    const [, options] = generateMock.mock.calls.at(-1) as [string, { modelSettings?: unknown }];
+
+    expect(options.modelSettings).toBeUndefined();
+  });
+
   it("should pin the model chosen for this run instead of the stored one", async () => {
     generateMock.mockResolvedValueOnce({ object: { items: [VALID_ITEM] } });
     vi.mocked(getKnowledgeItemModelId).mockClear();
 
-    await runKnowledgeBitSourceItems("Some source.", { modelId: "openrouter/google/gemini-2.5-flash-lite" });
+    await runKnowledgeBitSourceItems("Some source.", { modelId: "openrouter/openai/gpt-4o-mini" });
 
     const [, options] = generateMock.mock.calls.at(-1) as [
       string,
@@ -202,7 +229,7 @@ describe("runKnowledgeBitSourceItems", () => {
     ];
 
     expect(options.requestContext.get("knowledgeItemModelId")).toBe(
-      "openrouter/google/gemini-2.5-flash-lite",
+      "openrouter/openai/gpt-4o-mini",
     );
     expect(getKnowledgeItemModelId).not.toHaveBeenCalled();
   });

@@ -48,7 +48,7 @@ function makeRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     id: "app",
     testToggle: false,
     modelTier: "cheap",
-    knowledgeItemModelId: "openrouter/google/gemini-2.5-flash-lite",
+    knowledgeItemModelId: "openrouter/openai/gpt-4o-mini",
     ...overrides,
   };
 }
@@ -77,7 +77,7 @@ describe("getAdminSettings", () => {
 
     const settings = await getAdminSettings();
 
-    expect(settings.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(settings.knowledgeItemModelId).toBe("openrouter/openai/gpt-4o-mini");
   });
 
   it("should fall back to the default and log a warning when the stored model is unknown", async () => {
@@ -172,8 +172,8 @@ describe("updateAdminSettings", () => {
 
     expect(state.inserted).toMatchObject({
       testToggle: true,
-      knowledgeItemModelId: "openrouter/google/gemini-2.5-flash-lite",
+      knowledgeItemModelId: "openrouter/openai/gpt-4o-mini",
     });
-    expect(updated.knowledgeItemModelId).toBe("openrouter/google/gemini-2.5-flash-lite");
+    expect(updated.knowledgeItemModelId).toBe("openrouter/openai/gpt-4o-mini");
   });
 });

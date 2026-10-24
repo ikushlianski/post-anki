@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -74,6 +75,12 @@ async function seedFact(
   return id;
 }
 
+async function vectorOf(id: string): Promise<number[]> {
+  const { rows } = await client.query(`SELECT embedding_vec::text AS v FROM facts WHERE id = $1`, [id]);
+
+  return JSON.parse(rows[0]!.v);
+}
+
 async function embeddingOf(id: string): Promise<number[] | null> {
   const { rows } = await client.query(`SELECT embedding FROM facts WHERE id = $1`, [id]);
 
@@ -85,7 +92,7 @@ const originalFetch = global.fetch;
 beforeEach(() => {
   global.fetch = vi.fn(async (...args: Parameters<typeof fetch>) => {
     const body = JSON.parse(String(args[1]?.body)) as { input: string[]; model: string };
-    const data = body.input.map((_text, index) => ({ index, embedding: [1, 2, 3] }));
+    const data = body.input.map((_text, index) => ({ index, embedding: padEmbedding([1, 2, 3]) }));
 
     return new Response(JSON.stringify({ data, model: body.model }), {
       status: 200,
@@ -105,7 +112,8 @@ describe("embedFacts", () => {
 
     await embedFacts();
 
-    expect(await embeddingOf(id)).toEqual([1, 2, 3]);
+    expect(await embeddingOf(id)).toEqual(padEmbedding([1, 2, 3]));
+    expect(await vectorOf(id)).toEqual(padEmbedding([1, 2, 3]));
   });
 
   it("keeps the stored embedding when the fact's body is unchanged", async () => {
@@ -122,7 +130,7 @@ describe("embedFacts", () => {
 
     await embedFacts();
 
-    expect(await embeddingOf(id)).toEqual([1, 2, 3]);
+    expect(await embeddingOf(id)).toEqual(padEmbedding([1, 2, 3]));
   });
 
   it("makes no embedding API call when every fact is already current", async () => {

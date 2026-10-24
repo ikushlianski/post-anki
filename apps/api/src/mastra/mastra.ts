@@ -32,6 +32,7 @@ import { createStudyMaterialWriter } from "./study-material-writer.agent.js";
 import { createBizEducationClassifierAgent } from "./biz-education-classifier.agent.js";
 import { createTagAutoAssignAgent } from "./tag-auto-assign.agent.js";
 import { createKnowledgeBitSourceItemsAgent } from "./knowledge-bit-source-items.agent.js";
+import { createArticleSummaryAgent } from "./article-summary.agent.js";
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
 import { createKnowledgeBitPlacerAgent } from "./knowledge-bit-placer.agent.js";
 import { createKnowledgeBitQuestionGeneratorAgent } from "./knowledge-bit-question-generator.agent.js";
@@ -39,6 +40,7 @@ import { createKnowledgeBitFillBlankGeneratorAgent } from "./knowledge-bit-fill-
 import { createKnowledgeBitBasicCardGeneratorAgent } from "./knowledge-bit-basic-card-generator.agent.js";
 import { createKnowledgeBitAnswerGraderAgent } from "./knowledge-bit-answer-grader.agent.js";
 import { createKnowledgeBitFollowupGeneratorAgent } from "./knowledge-bit-followup-generator.agent.js";
+import { createCardStyleNotesDistillerAgent } from "./card-style-notes-distiller.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -71,6 +73,7 @@ export const AGENT_KEYS = {
   bizEducationClassifier: "bizEducationClassifier",
   tagAutoAssign: "tagAutoAssign",
   knowledgeBitSourceItems: "knowledgeBitSourceItems",
+  articleSummary: "articleSummary",
   knowledgeBitTagger: "knowledgeBitTagger",
   knowledgeBitPlacer: "knowledgeBitPlacer",
   knowledgeBitQuestionGenerator: "knowledgeBitQuestionGenerator",
@@ -78,9 +81,16 @@ export const AGENT_KEYS = {
   knowledgeBitBasicCardGenerator: "knowledgeBitBasicCardGenerator",
   knowledgeBitAnswerGrader: "knowledgeBitAnswerGrader",
   knowledgeBitFollowupGenerator: "knowledgeBitFollowupGenerator",
+  cardStyleNotesDistiller: "cardStyleNotesDistiller",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
+  if (env.LLM_MODE === "mock") {
+    log.info({}, "tracing_disabled_mock_mode");
+
+    return undefined;
+  }
+
   if (!env.LANGFUSE_PUBLIC_KEY || !env.LANGFUSE_SECRET_KEY) {
     log.warn({}, "tracing_disabled_no_langfuse_keys");
 
@@ -150,6 +160,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.bizEducationClassifier]: createBizEducationClassifierAgent(),
         [AGENT_KEYS.tagAutoAssign]: createTagAutoAssignAgent(),
         [AGENT_KEYS.knowledgeBitSourceItems]: createKnowledgeBitSourceItemsAgent(),
+        [AGENT_KEYS.articleSummary]: createArticleSummaryAgent(),
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),
         [AGENT_KEYS.knowledgeBitPlacer]: createKnowledgeBitPlacerAgent(),
         [AGENT_KEYS.knowledgeBitQuestionGenerator]: createKnowledgeBitQuestionGeneratorAgent(),
@@ -157,6 +168,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.knowledgeBitBasicCardGenerator]: createKnowledgeBitBasicCardGeneratorAgent(),
         [AGENT_KEYS.knowledgeBitAnswerGrader]: createKnowledgeBitAnswerGraderAgent(),
         [AGENT_KEYS.knowledgeBitFollowupGenerator]: createKnowledgeBitFollowupGeneratorAgent(),
+        [AGENT_KEYS.cardStyleNotesDistiller]: createCardStyleNotesDistillerAgent(),
       },
       ...(observability ? { observability } : {}),
     });

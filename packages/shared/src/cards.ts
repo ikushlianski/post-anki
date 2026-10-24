@@ -53,6 +53,7 @@ export const embeddingScanCountsSchema = z.object({
   embeddedCount: z.number().int().nonnegative(),
   reusedCount: z.number().int().nonnegative(),
   capped: z.boolean(),
+  skippedCount: z.number().int().nonnegative().optional(),
 });
 
 export type EmbeddingScanCounts = z.infer<typeof embeddingScanCountsSchema>;

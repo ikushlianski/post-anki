@@ -1,11 +1,10 @@
 import {
   buildSourceContentText,
-  findDuplicatePairs,
   findExactUrlDuplicates,
   hashSourceContent,
   normalizeSourceUrl,
   selectSubjectsForScan,
-  type EmbeddedSubject,
+  DUPLICATE_SIMILARITY_THRESHOLD,
 } from "@post-anki/core";
 import type { SourceDuplicateSuggestion, TriggerSourceDuplicateScanResult } from "@post-anki/shared";
 import {
@@ -15,6 +14,7 @@ import {
 } from "../content-library/content-library.repo.js";
 import { startTracingSpan } from "../mastra/mastra.js";
 import { embedSourceTexts } from "./embeddings-client.js";
+import { findSimilarSourcePairs } from "./source-duplicate-pairs.repo.js";
 import { insertSourceDuplicateSuggestionIfNew } from "./source-duplicate.repo.js";
 
 // Bounds only the paid embedding call (Scenario 4's tier), never the
@@ -100,24 +100,12 @@ export async function triggerSourceDuplicateScan(): Promise<TriggerSourceDuplica
       }
     }
 
-    const freshlyEmbeddedById = new Map(freshlyEmbedded.map((r) => [r.id, r.embedding]));
-
-    const embeddedSources: EmbeddedSubject[] = [];
-
-    for (const row of sourceRows) {
-      const embedding = freshlyEmbeddedById.get(row.id) ?? row.embedding;
-
-      if (embedding) {
-        embeddedSources.push({ id: row.id, embedding });
-      }
-    }
-
-    const embeddingPairs = findDuplicatePairs(embeddedSources);
+    const embeddingPairs = await findSimilarSourcePairs(DUPLICATE_SIMILARITY_THRESHOLD);
 
     for (const pair of embeddingPairs) {
       const inserted = await insertSourceDuplicateSuggestionIfNew({
-        sourceXId: pair.subjectAId,
-        sourceYId: pair.subjectBId,
+        sourceXId: pair.sourceAId,
+        sourceYId: pair.sourceBId,
         similarity: pair.similarity,
         matchKind: "embedding_similarity",
         reason: `similarity ${pair.similarity.toFixed(2)} between title+content embeddings`,
@@ -131,9 +119,12 @@ export async function triggerSourceDuplicateScan(): Promise<TriggerSourceDuplica
     const result: TriggerSourceDuplicateScanResult = {
       suggestions,
       exactUrlPairsFound: urlPairs.length,
-      embeddedCount: toEmbed.length,
+      embeddedCount: freshlyEmbedded.length,
       reusedCount: reused.length,
       capped,
+      ...(toEmbed.length > freshlyEmbedded.length
+        ? { skippedCount: toEmbed.length - freshlyEmbedded.length }
+        : {}),
     };
 
     span?.end({
@@ -141,6 +132,7 @@ export async function triggerSourceDuplicateScan(): Promise<TriggerSourceDuplica
         considered: sourceRows.length,
         exactUrlPairsFound: result.exactUrlPairsFound,
         embeddedCount: result.embeddedCount,
+        skippedCount: result.skippedCount ?? 0,
         reusedCount: result.reusedCount,
         capped: result.capped,
         embeddingPairsSurfaced: embeddingPairs.length,

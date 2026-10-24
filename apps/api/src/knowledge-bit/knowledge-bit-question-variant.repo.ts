@@ -27,6 +27,7 @@ export async function insertQuestionVariant(
   prompt: string,
   answer: string,
   db: DbExecutor = getDb(),
+  sentence?: string,
 ): Promise<void> {
   await db.insert(knowledgeBitQuestionVariants).values({
     id: newId("kbqv"),
@@ -35,6 +36,7 @@ export async function insertQuestionVariant(
     order,
     prompt,
     answer,
+    sentence,
   });
 }
 
@@ -266,6 +268,34 @@ export async function updateQuestionVariantEmbedding(
 ): Promise<void> {
   await db
     .update(knowledgeBitQuestionVariants)
-    .set({ embedding, embeddingHash, embeddedAt: new Date() })
+    .set({ embedding, embeddingVec: embedding, embeddingHash, embeddedAt: new Date() })
     .where(eq(knowledgeBitQuestionVariants.id, id));
+}
+
+export interface KnowledgeBitVariantRow {
+  id: string;
+  kind: string;
+  prompt: string;
+  answer: string;
+}
+
+export async function listActiveVariantsForBit(
+  knowledgeBitId: string,
+  db: DbExecutor = getDb(),
+): Promise<KnowledgeBitVariantRow[]> {
+  return db
+    .select({
+      id: knowledgeBitQuestionVariants.id,
+      kind: knowledgeBitQuestionVariants.kind,
+      prompt: knowledgeBitQuestionVariants.prompt,
+      answer: knowledgeBitQuestionVariants.answer,
+    })
+    .from(knowledgeBitQuestionVariants)
+    .where(
+      and(
+        eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBitId),
+        isNull(knowledgeBitQuestionVariants.supersededAt),
+      ),
+    )
+    .orderBy(asc(knowledgeBitQuestionVariants.order), asc(knowledgeBitQuestionVariants.createdAt));
 }

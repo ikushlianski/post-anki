@@ -11,7 +11,7 @@ process.env.OPENROUTER_API_KEY ??= "test-key";
 process.env.API_SHARED_SECRET = "the-shared-secret";
 
 function emptyQueue(): KnowledgeBitReviewQueue {
-  return { cards: [], counts: { new: 0, learning: 0, review: 0 }, newRemainingToday: 20, nextDueAt: null };
+  return { cards: [], counts: { new: 0, learning: 0, review: 0 }, newRemainingToday: 20, newLimitReached: false, nextDueAt: null };
 }
 
 const state = vi.hoisted(() => ({
@@ -85,6 +85,8 @@ describe("GET /knowledge-bits/review-cards", () => {
           prompt: "Why does TCP use a handshake?",
           answer: "To agree on sequence numbers before sending data.",
           background: null,
+          isAiGenerated: false,
+          sourceLinks: [],
           phase: "new",
           leech: false,
           intervalPreview: { again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 },
@@ -92,6 +94,7 @@ describe("GET /knowledge-bits/review-cards", () => {
       ],
       counts: { new: 3, learning: 0, review: 2 },
       newRemainingToday: 17,
+      newLimitReached: false,
       nextDueAt: "2026-10-11T12:00:00.000Z",
     };
 
@@ -101,6 +104,8 @@ describe("GET /knowledge-bits/review-cards", () => {
     expect(response.status).toBe(200);
     expect(body.cards[0]?.answer).toBe("To agree on sequence numbers before sending data.");
     expect(body.cards[0]?.intervalPreview).toEqual({ again: 86_400, hard: 86_400, good: 86_400, easy: 345_600 });
+    expect(body.cards[0]?.isAiGenerated).toBe(false);
+    expect(body.cards[0]?.sourceLinks).toEqual([]);
     expect(body.cards[0]).not.toHaveProperty("bitBody");
     expect(body.counts).toEqual({ new: 3, learning: 0, review: 2 });
     expect(body.newRemainingToday).toBe(17);

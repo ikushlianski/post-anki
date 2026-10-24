@@ -1,6 +1,7 @@
 import { and, eq, max, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
+import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import type { SourceItemDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
 
@@ -56,7 +57,7 @@ export async function insertSourceItemsForChunk(
 
   return db.transaction(async (tx) => {
     const owned = await tx
-      .select({ id: knowledgeSources.id })
+      .select({ id: knowledgeSources.id, sourceUrl: knowledgeSources.sourceUrl })
       .from(knowledgeSources)
       .where(
         and(
@@ -71,6 +72,8 @@ export async function insertSourceItemsForChunk(
       throw new Error("knowledge_source_reclaimed");
     }
 
+    const sourceUrl = owned[0]?.sourceUrl;
+    const sourceLinks = sourceUrl && isSafeSourceUrl(sourceUrl).allowed ? [sourceUrl] : null;
     const stampedAt = new Date();
     const itemsByOrdinal = new Map(items.map((item, index) => [firstOrdinal + index, item]));
     const bitRows = [...itemsByOrdinal].map(([ordinal, item]) => ({
@@ -79,6 +82,7 @@ export async function insertSourceItemsForChunk(
       ordinal,
       body: item.statement,
       background: null,
+      sourceLinks,
       approvalState: "pending",
       whQuestionGeneratedAt: stampedAt,
       fillBlankGeneratedAt: stampedAt,

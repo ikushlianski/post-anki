@@ -2,6 +2,7 @@ import type { RequestContext } from "@mastra/core/request-context";
 import type { Env } from "../shared/env.js";
 import { resolveEffectiveModelTier } from "./tier-resolver.js";
 import { tierToModelId } from "./model-tier.js";
+import { assertLlmBudgetAvailable, isCheapLlmMode } from "../shared/spend-guard.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 
 type ModelId = `${string}/${string}`;
@@ -14,7 +15,9 @@ export type AgentModel = ModelId | { id: ModelId; url: string };
 // wants. It no longer reads env.CURRICULUM_MODEL itself — every caller
 // passes a resolved id explicitly.
 export function resolveAgentModel(modelId: string, baseUrl?: string): AgentModel {
-  const id = modelId as ModelId;
+  assertLlmBudgetAvailable();
+
+  const id = (isCheapLlmMode() ? tierToModelId("cheap") : modelId) as ModelId;
 
   if (baseUrl) {
     return { id, url: baseUrl };

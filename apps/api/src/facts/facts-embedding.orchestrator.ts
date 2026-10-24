@@ -15,14 +15,22 @@ export async function embedFacts(): Promise<EmbeddingScanCounts> {
 
   const { toEmbed, reused, capped } = selectSubjectsForScan(candidates, EMBEDDING_CAP);
 
+  let savedCount = 0;
+
   if (toEmbed.length > 0) {
     const bodyById = new Map(rows.map((fact) => [fact.id, fact.body]));
     const embedded = await embedTexts(toEmbed.map((id) => ({ id, text: bodyById.get(id)! })));
 
     for (const result of embedded) {
       await updateFactEmbedding(result.id, result.embedding, hashContent(bodyById.get(result.id)!));
+      savedCount += 1;
     }
   }
 
-  return { embeddedCount: toEmbed.length, reusedCount: reused.length, capped };
+  return {
+    embeddedCount: savedCount,
+    reusedCount: reused.length,
+    capped,
+    ...(toEmbed.length > savedCount ? { skippedCount: toEmbed.length - savedCount } : {}),
+  };
 }

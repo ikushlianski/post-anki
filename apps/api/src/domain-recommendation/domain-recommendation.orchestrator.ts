@@ -2,7 +2,7 @@ import type { DomainNodeTreeItem, DomainRecommendation } from "@post-anki/shared
 import { computeDeepenCandidates, computeWidenCandidates } from "@post-anki/core";
 import { getDomainMapForSubject, getDomainNode } from "../domain-map/domain-map.repo.js";
 import { createCurriculum } from "../curriculum/curriculum.repo.js";
-import { researchCurriculum } from "../curriculum/curriculum-parse.orchestrator.js";
+import { startResearch } from "../curriculum/curriculum-jobs.starter.js";
 import { log } from "../shared/log.js";
 import {
   insertRecommendation,
@@ -84,7 +84,7 @@ export type ResolveDomainRecommendationError =
 // domainNodeSource: "manual" }) call shape the research-topic intake path
 // already uses for a bare topic name (curriculum.repo.ts's own
 // "placement... in the same subject-locked transaction" comment), and then
-// dispatches researchCurriculum the same fire-and-forget way
+// dispatches startResearch the same fire-and-forget way
 // handleCreateCurriculum does for that path — createCurriculum ITSELF never
 // dispatches research (only the controller does), so this orchestrator has
 // to reproduce that dispatch explicitly or an accepted recommendation would
@@ -131,7 +131,7 @@ export async function resolveDomainRecommendation(
 
   const resolved = await setCreatedCurriculumId(id, created.id);
 
-  void researchCurriculum(created.id, { name: nodeName }).catch((err) =>
+  void startResearch(created.id, { name: nodeName }).catch((err) =>
     log.error({ err, curriculumId: created.id }, "domain_recommendation_research_dispatch_failed"),
   );
 

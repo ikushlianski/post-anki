@@ -47,6 +47,7 @@ function makeRow(overrides: Partial<SourceRow> = {}): SourceRow {
     lastFetchedAt: null,
     lastFetchOutcome: null,
     embedding: null,
+    embeddingVec: null,
     embeddingHash: null,
     embeddedAt: null,
     mergedFromCurriculumId: null,

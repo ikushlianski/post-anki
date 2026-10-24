@@ -1,21 +1,23 @@
-import type { AskKnowledgeBitChatInput, AskKnowledgeBitChatResult } from "@post-anki/shared";
+import {
+  takeRecentChatMessages,
+  type AskKnowledgeBitChatInput,
+  type AskKnowledgeBitChatResult,
+} from "@post-anki/shared";
 import { formatTranscript } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
-import { webSearch } from "../probe/probe-grounding.js";
 import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
 import { getKnowledgeBitById } from "./knowledge-bit.repo.js";
+import { createKnowledgeBitWebTools, WEB_TOOLS_MAX_STEPS } from "./knowledge-bit-web-tools.deps.js";
 
 export type KnowledgeBitChatError = "not_found" | "not_approved";
 
 const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again.";
 
-const MAX_TOOL_STEPS = 4;
-
 function buildPrompt(body: string, input: AskKnowledgeBitChatInput): string {
-  const history = formatTranscript(input.transcript ?? [], { assistantLabel: "Tutor" });
+  const history = formatTranscript(takeRecentChatMessages(input.transcript), { assistantLabel: "Tutor" });
 
   return [
     `Knowledge item: ${body}`,
@@ -46,21 +48,12 @@ export async function askKnowledgeBitChat(
   const allowGeneralKnowledge = input.allowGeneralKnowledge ?? false;
   const allowWebSearch = input.allowWebSearch ?? false;
 
-  const deps: KnowledgeBitChatToolsDeps = {
-    searchWeb: async (query) => {
-      const outcome = await webSearch(
-        `Search the web for current, authoritative information to answer this learner question about this knowledge item: ${query}`,
-        "knowledge_bit_chat.web_search",
-        { query, knowledgeBitId },
-      );
-
-      if (!outcome.ok) {
-        return { text: "", citations: [] };
-      }
-
-      return { text: outcome.text, citations: outcome.citations };
-    },
-  };
+  const { deps } = createKnowledgeBitWebTools({
+    knowledgeBitId,
+    searchOp: "knowledge_bit_chat.web_search",
+    searchPurpose:
+      "Search the web for current, authoritative information to answer this learner question about this knowledge item",
+  });
 
   const requestContext = new RequestContext([
     ["allowGeneralKnowledge", allowGeneralKnowledge],
@@ -78,7 +71,7 @@ export async function askKnowledgeBitChat(
       () =>
         agent.generate(prompt, {
           requestContext,
-          ...(allowWebSearch ? { maxSteps: MAX_TOOL_STEPS } : {}),
+          ...(allowWebSearch ? { maxSteps: WEB_TOOLS_MAX_STEPS } : {}),
         }),
     );
 

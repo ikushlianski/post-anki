@@ -40,6 +40,14 @@ describe("buildKnowledgeBitQuestionGeneratorPrompt", () => {
     expect(prompt.indexOf("<bit>")).toBeLessThan(prompt.indexOf("Anchoring biases"));
     expect(prompt.indexOf("Anchoring biases")).toBeLessThan(prompt.indexOf("</bit>"));
   });
+
+  it("puts the style notes block in the prompt before the bit", () => {
+    const block = "<style_notes>\n- short wording\n</style_notes>";
+    const prompt = buildKnowledgeBitQuestionGeneratorPrompt("Anchoring biases price perception.", block);
+
+    expect(prompt).toContain(block);
+    expect(prompt.indexOf(block)).toBeLessThan(prompt.indexOf("<bit>"));
+  });
 });
 
 describe("knowledgeBitQuestionGeneratorResultSchema", () => {

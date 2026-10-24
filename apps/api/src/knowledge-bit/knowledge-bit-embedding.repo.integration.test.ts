@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -140,14 +141,15 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to embed");
 
-    await updateKnowledgeBitEmbedding(id, [0.1, 0.2, 0.3], "hash_abc", "A bit to embed");
+    await updateKnowledgeBitEmbedding(id, padEmbedding([0.1, 0.2, 0.3]), "hash_abc", "A bit to embed");
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
+      `SELECT embedding, embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
       [id],
     );
 
-    expect(rows[0]!.embedding).toEqual([0.1, 0.2, 0.3]);
+    expect(rows[0]!.embedding).toEqual(padEmbedding([0.1, 0.2, 0.3]));
+    expect(JSON.parse(rows[0]!.embedding_vec)).toEqual(padEmbedding([0.1, 0.2, 0.3]));
     expect(rows[0]!.embedding_hash).toBe("hash_abc");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
   });
@@ -161,7 +163,7 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
       id,
     ]);
 
-    await updateKnowledgeBitEmbedding(id, [0.1, 0.2, 0.3], "hash_abc", "The original body");
+    await updateKnowledgeBitEmbedding(id, padEmbedding([0.1, 0.2, 0.3]), "hash_abc", "The original body");
 
     const { rows } = await client.query(
       `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,

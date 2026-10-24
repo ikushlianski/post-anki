@@ -1,5 +1,6 @@
 import pRetry from "p-retry";
 import { log } from "../shared/log.js";
+import { assertLlmBudgetAvailable, estimateCostUsd, recordLlmSpend } from "../shared/spend-guard.js";
 import { recordLlmCallEvent } from "../llm-call-events/llm-call-events.repo.js";
 
 // Every real network/model call to an LLM agent across the codebase should
@@ -49,7 +50,29 @@ type GenerateResultWithUsage = {
 type GenerateCallOptions = {
   // The model the run pinned, so the logged row names what actually ran.
   modelId?: string | null;
+  // false: a provider 429 is rethrown at once so a caller-side engine can wait and retry it.
+  retryRateLimit?: boolean;
 };
+
+export function isRateLimitError(err: unknown): boolean {
+  let current: unknown = err;
+
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== "object" || current === null) {
+      return false;
+    }
+
+    const record = current as Record<string, unknown>;
+
+    if (record.statusCode === 429 || record.status === 429) {
+      return true;
+    }
+
+    current = record.cause;
+  }
+
+  return false;
+}
 
 function tokenCostFrom(result: GenerateResultWithUsage) {
   return {
@@ -77,6 +100,8 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
   fn: () => Promise<T>,
   options: GenerateCallOptions = {},
 ): Promise<T> {
+  assertLlmBudgetAvailable();
+
   const startedAt = Date.now();
 
   let result: T;
@@ -84,6 +109,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
   try {
     result = await pRetry(fn, {
       retries: AGENT_GENERATE_RETRIES,
+      shouldRetry: ({ error }) => options.retryRateLimit !== false || !isRateLimitError(error),
       onFailedAttempt: ({ error, attemptNumber, retriesLeft }) => {
         log.warn(
           { curriculumId, op, attempt: attemptNumber, retriesLeft, err: error },
@@ -108,6 +134,9 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
     throw err;
   }
 
+  const tokenCost = tokenCostFrom(result);
+
+  recordLlmSpend(estimateCostUsd(options.modelId ?? "", tokenCost.totalTokens));
   await safeRecordLlmCallEvent({
     curriculumId,
     op,
@@ -116,7 +145,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,
-    ...tokenCostFrom(result),
+    ...tokenCost,
   });
 
   return result;
@@ -136,6 +165,8 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
   fn: () => Promise<T>,
   options: GenerateCallOptions = {},
 ): Promise<T> {
+  assertLlmBudgetAvailable();
+
   const startedAt = Date.now();
 
   let result: T;
@@ -159,6 +190,9 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
     throw err;
   }
 
+  const tokenCost = tokenCostFrom(result);
+
+  recordLlmSpend(estimateCostUsd(options.modelId ?? "", tokenCost.totalTokens));
   await safeRecordLlmCallEvent({
     curriculumId,
     op,
@@ -167,7 +201,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,
-    ...tokenCostFrom(result),
+    ...tokenCost,
   });
 
   return result;

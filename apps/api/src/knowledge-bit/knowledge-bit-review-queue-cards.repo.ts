@@ -25,8 +25,12 @@ import type {
 } from "./knowledge-bit-review-queue.repo.js";
 
 export function toCard(
-  row: Omit<KnowledgeBitReviewCardRow, "phase" | "leech" | "intervalPreview" | "kind"> & {
+  row: Omit<
+    KnowledgeBitReviewCardRow,
+    "phase" | "leech" | "intervalPreview" | "kind" | "sourceLinks"
+  > & {
     kind: string;
+    sourceLinks: string[] | null;
     isNew: boolean;
     easeFactor: number | null;
     intervalDays: number | null;
@@ -36,7 +40,7 @@ export function toCard(
   },
   now: Date,
 ): KnowledgeBitReviewCardRow {
-  const { isNew, easeFactor, intervalDays, phase, learningStep, lapses, ...card } = row;
+  const { isNew, easeFactor, intervalDays, phase, learningStep, lapses, sourceLinks, ...card } = row;
   const parsed = cardPhaseSchema.safeParse(phase);
   const storedPhase = parsed.success ? parsed.data : "review";
   const state =
@@ -52,6 +56,7 @@ export function toCard(
 
   return {
     ...card,
+    sourceLinks: sourceLinks ?? [],
     kind: card.kind as KnowledgeBitQuestionVariantKind,
     phase: isNew ? "new" : storedPhase,
     leech: isLeech(lapses ?? 0),
@@ -83,6 +88,8 @@ export async function listScopedCards(
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
       background: knowledgeBits.background,
+      isAiGenerated: knowledgeBits.isAiGenerated,
+      sourceLinks: knowledgeBits.sourceLinks,
       easeFactor: knowledgeBitSchedules.easeFactor,
       intervalDays: knowledgeBitSchedules.intervalDays,
       phase: knowledgeBitSchedules.phase,
@@ -111,6 +118,8 @@ export async function listScopedCards(
       knowledgeBitQuestionVariants.createdAt,
       knowledgeBits.id,
       knowledgeBits.background,
+      knowledgeBits.isAiGenerated,
+      knowledgeBits.sourceLinks,
       knowledgeBitSchedules.easeFactor,
       knowledgeBitSchedules.intervalDays,
       knowledgeBitSchedules.phase,
@@ -148,6 +157,8 @@ export async function listPickedCards(
       prompt: picked.prompt,
       answer: picked.answer,
       background: picked.background,
+      isAiGenerated: picked.isAiGenerated,
+      sourceLinks: picked.sourceLinks,
       easeFactor: picked.easeFactor,
       intervalDays: picked.intervalDays,
       phase: picked.phase,

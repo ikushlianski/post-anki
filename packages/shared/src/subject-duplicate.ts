@@ -47,6 +47,7 @@ export const triggerSubjectDuplicateScanResultSchema = z.object({
   embeddedCount: z.number().int().nonnegative(),
   reusedCount: z.number().int().nonnegative(),
   capped: z.boolean(),
+  skippedCount: z.number().int().nonnegative().optional(),
 });
 
 export type TriggerSubjectDuplicateScanResult = z.infer<

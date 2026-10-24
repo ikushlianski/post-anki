@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MIN_MATCH_SIMILARITY } from "@post-anki/core";
+import { MAX_CHAT_TRANSCRIPT_MESSAGES } from "@post-anki/shared";
 
 const generate = vi.fn();
 
@@ -57,6 +58,13 @@ const MATCHED_FACT = {
   tags: ["SPA"],
   domainNodeNames: [],
 };
+
+function longTranscript(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+    text: `turn-${i}`,
+  }));
+}
 
 describe("askGlobalCardChat", () => {
   beforeEach(() => {
@@ -138,6 +146,18 @@ describe("askGlobalCardChat", () => {
     expect(result.lookupFailed).toBe(true);
   });
 
+  it("tells the agent the lookup is unavailable rather than falsely saying no cards matched", async () => {
+    findTopMatchingCards.mockRejectedValue(new Error("embeddings API down"));
+    generate.mockResolvedValue({ text: "General answer." });
+
+    await askGlobalCardChat({ message: "What is a closure?" });
+
+    const prompt = generate.mock.calls[0]![0] as string;
+
+    expect(prompt).toContain("unavailable");
+    expect(prompt).not.toContain("no cards matching");
+  });
+
   it("defaults the agent to cards-only when allowGeneralKnowledge is omitted", async () => {
     await askGlobalCardChat({ message: "What is a closure?" });
 
@@ -177,5 +197,19 @@ describe("askGlobalCardChat", () => {
         topicTitle: "Reading notes",
       },
     ]);
+  });
+
+  it("should send only the newest turns plus the current message when the transcript is longer than the limit", async () => {
+    const total = MAX_CHAT_TRANSCRIPT_MESSAGES + 10;
+
+    await askGlobalCardChat({ message: "current question", transcript: longTranscript(total) });
+
+    const prompt = generate.mock.calls[0]![0] as string;
+
+    expect(prompt).not.toContain("turn-0\n");
+    expect(prompt).not.toMatch(/turn-9(?!\d)/);
+    expect(prompt).toContain(`turn-${total - MAX_CHAT_TRANSCRIPT_MESSAGES}`);
+    expect(prompt).toContain(`turn-${total - 1}`);
+    expect(prompt).toContain("current question");
   });
 });

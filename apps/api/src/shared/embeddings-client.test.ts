@@ -124,10 +124,13 @@ describe("embedTexts", () => {
         return new Response("server error", { status: 500 });
       }
 
-      return new Response(JSON.stringify({ data: [{ index: 0, embedding: [9] }] }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ data: [{ index: 0, embedding: [9] }] }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
     });
 
     vi.stubGlobal("fetch", spy);
@@ -178,5 +181,88 @@ describe("embedTexts", () => {
         durationMs: expect.any(Number),
       }),
     );
+  });
+
+  it("caps an oversized text before sending so the provider never sees it in full", async () => {
+    const spy = mockFetchOnce({ data: [{ index: 0, embedding: [1] }] });
+    const { embedTexts, MAX_EMBEDDING_INPUT_CHARS } =
+      await import("./embeddings-client.js");
+
+    await embedTexts([
+      { id: "a", text: "я".repeat(MAX_EMBEDDING_INPUT_CHARS * 3) },
+    ]);
+
+    const body = JSON.parse(
+      (spy.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+    );
+
+    expect(body.input[0]).toHaveLength(MAX_EMBEDDING_INPUT_CHARS);
+  });
+
+  it("still returns embeddings for the other items when one item is rejected", async () => {
+    const spy = vi.fn(async (_url: string, init: RequestInit) => {
+      const { input } = JSON.parse(init.body as string) as { input: string[] };
+
+      if (input.includes("bad")) {
+        return new Response("input too long", { status: 400 });
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: input.map((_, index) => ({ index, embedding: [index + 7] })),
+        }),
+        { status: 200 },
+      );
+    });
+
+    vi.stubGlobal("fetch", spy);
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    const result = await embedTexts([
+      { id: "a", text: "ok" },
+      { id: "b", text: "bad" },
+      { id: "c", text: "fine" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "a", embedding: [7] },
+      { id: "c", embedding: [7] },
+    ]);
+    expect(spy).toHaveBeenCalledTimes(4);
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        errorMessage: expect.stringContaining("item b"),
+      }),
+    );
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+    );
+  });
+
+  it("throws when every item in a multi-item batch is rejected", async () => {
+    const spy = mockFetchOnce("too long", 400);
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    await expect(
+      embedTexts([
+        { id: "a", text: "x" },
+        { id: "b", text: "y" },
+      ]),
+    ).rejects.toThrow(/400/);
+    expect(spy).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not split a batch on a 5xx and keeps the same retry budget", async () => {
+    const spy = mockFetchOnce("down", 500);
+    const { embedTexts } = await import("./embeddings-client.js");
+
+    await expect(
+      embedTexts([
+        { id: "a", text: "x" },
+        { id: "b", text: "y" },
+      ]),
+    ).rejects.toThrow(/500/);
+    expect(spy).toHaveBeenCalledTimes(3);
   });
 });

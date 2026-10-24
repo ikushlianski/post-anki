@@ -4,6 +4,12 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("../card-triage/style-notes-loader.js", () => ({
+  loadStyleNotesBlocksForBits: vi.fn(),
+}));
+
+const { loadStyleNotesBlocksForBits } = await import("../card-triage/style-notes-loader.js");
+
 vi.mock("./knowledge-bit-wh-question-claim.repo.js", () => ({
   listKnowledgeBitsForWhQuestionGenerationScan: vi.fn(),
   recordGeneratedQuestionVariant: vi.fn(),
@@ -33,6 +39,7 @@ const FAKE_CLAIM_TOKEN = "whgc_fake_claim_token";
 describe("generateKnowledgeBitQuestions", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 
@@ -59,6 +66,37 @@ describe("generateKnowledgeBitQuestions", () => {
     expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
   });
 
+  it("should hand each bit its own style notes block when the learner has notes", async () => {
+    const bit = { id: "kb_1", body: "Price anchors shape perceived value" };
+    const block = "<style_notes>\n- short wording\n</style_notes>";
+
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map([["kb_1", block]]));
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockResolvedValue({
+      question: "Why does an anchor shift what feels fair?",
+      answer: "It sets the reference point.",
+    });
+
+    await generateKnowledgeBitQuestions();
+
+    expect(loadStyleNotesBlocksForBits).toHaveBeenCalledWith(["kb_1"]);
+    expect(runKnowledgeBitQuestionGenerator).toHaveBeenCalledWith(bit.body, block);
+  });
+
+  it("should hand an empty style notes block to a bit that has none", async () => {
+    const bit = { id: "kb_1", body: "Price anchors shape perceived value" };
+
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockResolvedValue({
+      question: "Why does an anchor shift what feels fair?",
+      answer: "It sets the reference point.",
+    });
+
+    await generateKnowledgeBitQuestions();
+
+    expect(runKnowledgeBitQuestionGenerator).toHaveBeenCalledWith(bit.body, "");
+  });
+
   it("should skip a bit without calling the agent when a concurrent scan already claimed it", async () => {
     const bit = { id: "kb_claimed_elsewhere", body: "Some content" };
 
@@ -67,7 +105,7 @@ describe("generateKnowledgeBitQuestions", () => {
 
     const result = await generateKnowledgeBitQuestions();
 
-    expect(claimKnowledgeBitForWhQuestionGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere", "Some content");
+    expect(claimKnowledgeBitForWhQuestionGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere", "Some content", {});
     expect(runKnowledgeBitQuestionGenerator).not.toHaveBeenCalled();
     expect(recordGeneratedQuestionVariant).not.toHaveBeenCalled();
     expect(markWhQuestionGenerationFailed).not.toHaveBeenCalled();
@@ -202,6 +240,7 @@ describe("generateKnowledgeBitQuestions", () => {
 describe("generateKnowledgeBitQuestions language guard", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 
@@ -225,6 +264,7 @@ describe("generateKnowledgeBitQuestions language guard", () => {
 describe("generateKnowledgeBitQuestions source meta-reference guard", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 
@@ -249,6 +289,7 @@ describe("generateKnowledgeBitQuestions source meta-reference guard", () => {
 describe("generateKnowledgeBitQuestions concurrency", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 

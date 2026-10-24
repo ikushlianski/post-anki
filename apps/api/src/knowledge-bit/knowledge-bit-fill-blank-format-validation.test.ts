@@ -110,6 +110,8 @@ describe("generateKnowledgeBitFillBlanks blank-shape validation", () => {
       "The `max_connections` limit is enforced by ____.",
       "the connection pool",
       FAKE_CLAIM_TOKEN,
+      undefined,
+      "The `max_connections` limit is enforced by the connection pool.",
     );
     expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
@@ -134,6 +136,8 @@ describe("generateKnowledgeBitFillBlanks blank-shape validation", () => {
       "Node's __dirname points to ____.",
       "the directory of the running script",
       FAKE_CLAIM_TOKEN,
+      undefined,
+      "Node's __dirname points to the directory of the running script.",
     );
     expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });

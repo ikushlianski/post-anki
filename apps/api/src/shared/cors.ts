@@ -7,12 +7,14 @@ export interface CorsInput {
   requestOrigin: string | undefined;
   webOrigin: string;
   extensionId: string | undefined;
+  extraOrigins?: string[];
 }
 
 export function resolveCorsDecision({
   requestOrigin,
   webOrigin,
   extensionId,
+  extraOrigins,
 }: CorsInput): CorsDecision {
   if (!requestOrigin) {
     return { noOrigin: true };
@@ -22,6 +24,10 @@ export function resolveCorsDecision({
 
   if (extensionId) {
     allowList.push(`chrome-extension://${extensionId}`);
+  }
+
+  if (extraOrigins) {
+    allowList.push(...extraOrigins);
   }
 
   if (allowList.includes(requestOrigin)) {

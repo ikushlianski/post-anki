@@ -14,11 +14,13 @@ import {
   domainPrioritySuggestions,
   domainSupersessionSuggestions,
   domainTopicSuggestions,
+  knowledgeSources,
   subjectDuplicateSuggestions,
   subjects,
   trackedToolScanState,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { absorbParentItemsOnFirstChild, hasChildSubjects } from "./subject-leaf.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
 import { withMergeLock, withSubjectLock, type Tx } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
@@ -156,13 +158,25 @@ export async function updateSubject(
     return { ok: true, subject: await getSubject(subjectId) };
   }
 
-  const row = (
-    await getDb()
-      .update(subjects)
-      .set(patch)
-      .where(eq(subjects.id, subjectId))
-      .returning()
-  )[0];
+  const row = await getDb().transaction(async (tx) => {
+    const newParentId = input.parentId ?? null;
+
+    if (newParentId !== null) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${newParentId})::bigint)`);
+    }
+
+    const hadChildren = newParentId === null ? true : await hasChildSubjects(newParentId, tx);
+
+    const updated = (
+      await tx.update(subjects).set(patch).where(eq(subjects.id, subjectId)).returning()
+    )[0];
+
+    if (updated && newParentId !== null && updated.parentId === newParentId) {
+      await absorbParentItemsOnFirstChild(newParentId, updated, hadChildren, tx);
+    }
+
+    return updated;
+  });
 
   return { ok: true, subject: row ? toSubject(row) : null };
 }
@@ -227,7 +241,6 @@ export interface SubjectForDuplicateScan {
   id: string;
   name: string;
   description: string | null;
-  embedding: number[] | null;
   embeddingHash: string | null;
 }
 
@@ -245,7 +258,6 @@ export async function listArchitectureMentorSubjectsForDuplicateScan(): Promise<
       id: subjects.id,
       name: subjects.name,
       description: subjects.description,
-      embedding: subjects.embedding,
       embeddingHash: subjects.embeddingHash,
     })
     .from(subjects)
@@ -262,12 +274,26 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     parentId: input.parentId ?? null,
   };
 
-  await getDb().insert(subjects).values(row);
+  await getDb().transaction(async (tx) => {
+    if (row.parentId === null) {
+      await tx.insert(subjects).values(row);
+
+      return;
+    }
+
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${row.parentId})::bigint)`);
+
+    const hadChildren = await hasChildSubjects(row.parentId, tx);
+
+    await tx.insert(subjects).values(row);
+    await absorbParentItemsOnFirstChild(row.parentId, row, hadChildren, tx);
+  });
 
   return toSubject({
     ...row,
     createdAt: new Date(),
     embedding: null,
+    embeddingVec: null,
     embeddingHash: null,
     embeddedAt: null,
     modelTier: null,
@@ -287,7 +313,7 @@ export async function updateSubjectEmbedding(
 ): Promise<void> {
   await getDb()
     .update(subjects)
-    .set({ embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(subjects.id, subjectId));
 }
 
@@ -573,6 +599,11 @@ export async function mergeSubjects(
       .set({ subjectId: targetId })
       .where(eq(domainNodes.subjectId, sourceId))
       .returning({ id: domainNodes.id });
+
+    await tx
+      .update(knowledgeSources)
+      .set({ subjectId: targetId })
+      .where(eq(knowledgeSources.subjectId, sourceId));
 
     await reassignSubjectSuggestions(tx, sourceId, targetId);
     await reassignTrackedToolScanState(tx, sourceId, targetId);

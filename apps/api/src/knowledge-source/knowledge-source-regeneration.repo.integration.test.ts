@@ -254,9 +254,9 @@ describe("superseded bits (real Postgres)", () => {
     const bit = await seedBit(sourceId, 0, "superseded");
     const variant = await seedVariant(bit);
 
-    expect(await approveKnowledgeBit(bit)).toBe(false);
+    expect(await approveKnowledgeBit(bit)).toBe("blocked");
     expect((await rejectKnowledgeBit(bit)).ok).toBe(false);
-    expect(await editKnowledgeBitQuestionVariant(variant, "new q", "new a")).toEqual({ error: "not_found" });
+    expect(await editKnowledgeBitQuestionVariant(variant, "new q", "new a")).toEqual({ error: "blocked" });
     expect(await stateOf(bit)).toBe("superseded");
   });
 
@@ -265,11 +265,13 @@ describe("superseded bits (real Postgres)", () => {
     const toApprove = await seedBit(sourceId, 0, "pending");
     const toReject = await seedBit(sourceId, 1, "pending");
 
+    await seedVariant(toApprove);
+
     expect(await approveKnowledgeBit(toApprove)).toBe(true);
     expect(await approveKnowledgeBit(toApprove)).toBe(true);
     expect((await rejectKnowledgeBit(toApprove)).ok).toBe(false);
     expect((await rejectKnowledgeBit(toReject)).ok).toBe(true);
-    expect(await approveKnowledgeBit(toReject)).toBe(false);
+    expect(await approveKnowledgeBit(toReject)).toBe("blocked");
   });
 });
 
@@ -291,7 +293,9 @@ describe("a second generation run after regeneration (real Postgres)", () => {
       ])
     ).rows[0].id as string;
 
-    await approveKnowledgeBit(approvedBit);
+    await seedVariant(approvedBit);
+
+    expect(await approveKnowledgeBit(approvedBit)).toBe(true);
 
     const claim = await claimSourceForRegeneration(sourceId);
 
@@ -304,14 +308,14 @@ describe("a second generation run after regeneration (real Postgres)", () => {
     const second = vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS);
     const result = await generateItemsForSource(
       claim.source,
-      { modelId: "openrouter/google/gemini-2.5-flash-lite" },
+      { modelId: "openrouter/google/gemini-3.1-flash-lite" },
       { ...defaultGenerateItemsDeps(), writeItems: second },
     );
 
     expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
     expect(second).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ modelId: "openrouter/google/gemini-2.5-flash-lite" }),
+      expect.objectContaining({ modelId: "openrouter/google/gemini-3.1-flash-lite" }),
     );
 
     const bits = (

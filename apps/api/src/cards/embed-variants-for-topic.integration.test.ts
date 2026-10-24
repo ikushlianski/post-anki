@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -115,7 +116,7 @@ beforeEach(() => {
   global.fetch = vi.fn(async (...args: Parameters<typeof fetch>) => {
     const init = args[1];
     const body = JSON.parse(String(init?.body)) as { input: string[]; model: string };
-    const data = body.input.map((_text, index) => ({ index, embedding: [4, 4, 4] }));
+    const data = body.input.map((_text, index) => ({ index, embedding: padEmbedding([4, 4, 4]) }));
 
     return new Response(JSON.stringify({ data, model: body.model }), {
       status: 200,
@@ -143,7 +144,7 @@ describe("embedVariantsForTopic", () => {
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual([4, 4, 4]);
+    expect(rows[0]!.embedding).toEqual(padEmbedding([4, 4, 4]));
     expect(rows[0]!.embedding_hash).not.toBeNull();
     expect(rows[0]!.embedded_at).not.toBeNull();
   });
@@ -163,7 +164,7 @@ describe("embedVariantsForTopic", () => {
       [other.variantId],
     );
 
-    expect(ownRows[0]!.embedding).toEqual([4, 4, 4]);
+    expect(ownRows[0]!.embedding).toEqual(padEmbedding([4, 4, 4]));
     expect(otherRows[0]!.embedding).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
 import { loadEnv } from "../shared/env.js";
 import { dynamicKnowledgeItemModel } from "./model.js";
+import type { ReportedUsage } from "./generate-usage.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
@@ -102,6 +103,7 @@ export function buildKnowledgeBitSourceItemsPrompt(
   chunk: string,
   strictLanguage = false,
   feedbackBlock = "",
+  styleNotesBlock = "",
 ): string {
   const languageLine = buildSourceLanguageLine(chunk);
   const lines = strictLanguage
@@ -113,8 +115,9 @@ export function buildKnowledgeBitSourceItemsPrompt(
     : [languageLine];
 
   const feedbackLines = feedbackBlock ? [feedbackBlock] : [];
+  const styleLines = styleNotesBlock ? [styleNotesBlock] : [];
 
-  return [...lines, ...feedbackLines, "<source>", escapeSourceText(chunk), "</source>"].join("\n");
+  return [...lines, ...feedbackLines, ...styleLines, "<source>", escapeSourceText(chunk), "</source>"].join("\n");
 }
 
 export const knowledgeBitSourceItemsResultSchema = z.object({
@@ -149,6 +152,10 @@ export interface RunKnowledgeBitSourceItemsOptions {
   modelId?: string;
   strictLanguage?: boolean;
   feedbackBlock?: string;
+  styleNotesBlock?: string;
+  abortSignal?: AbortSignal;
+  retryRateLimit?: boolean;
+  onUsage?: (usage: ReportedUsage) => void;
 }
 
 export async function runKnowledgeBitSourceItems(
@@ -156,7 +163,12 @@ export async function runKnowledgeBitSourceItems(
   options: RunKnowledgeBitSourceItemsOptions = {},
 ): Promise<SourceItemDraft[]> {
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitSourceItems);
-  const prompt = buildKnowledgeBitSourceItemsPrompt(chunk, options.strictLanguage, options.feedbackBlock);
+  const prompt = buildKnowledgeBitSourceItemsPrompt(
+    chunk,
+    options.strictLanguage,
+    options.feedbackBlock,
+    options.styleNotesBlock,
+  );
   const knowledgeItemModelId = options.modelId ?? (await getKnowledgeItemModelId());
   const requestContext = new RequestContext([["knowledgeItemModelId", knowledgeItemModelId]]);
 
@@ -168,8 +180,9 @@ export async function runKnowledgeBitSourceItems(
       agent.generate(prompt, {
         structuredOutput: { schema: knowledgeBitSourceItemsResultSchema },
         requestContext,
+        ...(options.retryRateLimit === false ? { modelSettings: { maxRetries: 0 } } : {}),
       }),
-    { modelId: knowledgeItemModelId },
+    { modelId: knowledgeItemModelId, retryRateLimit: options.retryRateLimit },
   );
 
   const parsed = knowledgeBitSourceItemsResultSchema.safeParse(result.object);

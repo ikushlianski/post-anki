@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 // SCENARIO 1 (.planning/ai-duplicate-detection/scenarios.md) —
 // subject-duplicate.orchestrator.ts's triggerSubjectDuplicateScan(), with
@@ -104,7 +105,7 @@ beforeEach(() => {
     const body = JSON.parse(String(init?.body)) as { input: string[]; model: string };
     const data = body.input.map((text, index) => ({
       index,
-      embedding: fakeEmbeddingForText(text),
+      embedding: padEmbedding(fakeEmbeddingForText(text)),
     }));
 
     return new Response(JSON.stringify({ data, model: body.model }), {

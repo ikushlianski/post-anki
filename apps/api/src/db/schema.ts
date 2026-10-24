@@ -3,6 +3,7 @@ import {
   pgTable,
   text,
   integer,
+  smallint,
   boolean,
   timestamp,
   jsonb,
@@ -11,7 +12,11 @@ import {
   real,
   primaryKey,
   customType,
+  numeric,
+  vector,
 } from "drizzle-orm/pg-core";
+
+export const EMBEDDING_DIMENSIONS = 1536;
 
 // Postgres tsvector has no native drizzle column type; shared custom type
 // for every tsvector/GIN search column below (topics, modules, knowledge_bits, notes).
@@ -35,6 +40,7 @@ export const subjects = pgTable("subjects", {
   // embedded (the real cost bound, not just a subject-count cap — see
   // architecture.md's "Data model evolution").
   embedding: jsonb("embedding").$type<number[]>(),
+  embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   // cost-tier-model-selection — nullable, no default: unset means "inherit
@@ -46,7 +52,11 @@ export const subjects = pgTable("subjects", {
   parentId: text("parent_id"),
   // Reserved for drag-to-reorder: nullable, no default; lists order by this, then name.
   sortOrder: integer("sort_order"),
-});
+},
+(table) => [
+  index("subjects_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
+],
+);
 
 export const curricula = pgTable(
   "curricula",
@@ -102,6 +112,10 @@ export const curricula = pgTable(
     // validateCategoryBelongsToSubject, not the database. See
     // subject_categories below.
     categoryId: text("category_id"),
+    // durable-course-jobs — last touch by a durable research job; null whenever no
+    // job owns the row. Read only by the timeout sweep, never by the product.
+    researchTouchedAt: timestamp("research_touched_at", { withTimezone: true }),
+    researchOwner: text("research_owner"),
   },
   (table) => [
     // The find-or-create DB-level race guard (mirrors milestones_entity_
@@ -407,6 +421,7 @@ export const sources = pgTable("sources", {
   // don't-re-embed-unchanged-content cache selectSubjectsForScan already
   // assumes, applied here to source-duplicate detection's embedding tier.
   embedding: jsonb("embedding").$type<number[]>(),
+  embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   // Same provenance marker as `modules.mergedFromCurriculumId`/
@@ -415,7 +430,11 @@ export const sources = pgTable("sources", {
   // same way `clearCurriculumStructure` is already guarded for modules/
   // topics: a source row merged in from an absorbed curriculum survives.
   mergedFromCurriculumId: text("merged_from_curriculum_id"),
-});
+},
+(table) => [
+  index("sources_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
+],
+);
 
 // `mergedFromCurriculumId` (on modules, topics, AND sources) is the
 // provenance marker docs/architecture/curriculum-merge/review.md's
@@ -556,6 +575,7 @@ export const appSettings = pgTable("app_settings", {
   knowledgeItemModelId: text("knowledge_item_model_id")
     .notNull()
     .default("openrouter/deepseek/deepseek-v4-flash"),
+  newCardsPerDay: integer("new_cards_per_day").notNull().default(20),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -1042,9 +1062,14 @@ export const topicCardVariants = pgTable("topic_card_variants", {
   // Mirrors subjects.embedding/embeddingHash/embeddedAt — nullable, additive,
   // no backfill; embeddingHash lets a scan skip re-embedding unchanged text.
   embedding: jsonb("embedding").$type<number[]>(),
+  embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
-});
+},
+(table) => [
+  index("topic_card_variants_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
+],
+);
 
 export const facts = pgTable("facts", {
   id: text("id").primaryKey(),
@@ -1053,12 +1078,17 @@ export const facts = pgTable("facts", {
   sourceRef: text("source_ref").notNull().unique(),
   tags: jsonb("tags").$type<string[]>().notNull().default([]),
   embedding: jsonb("embedding").$type<number[]>(),
+  embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   // Set only when the distiller matched this fact to a topic; no FK, matching this schema's convention.
   topicId: text("topic_id"),
-});
+},
+(table) => [
+  index("facts_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
+],
+);
 
 // A distiller row that didn't match a topic; suggestedPlacement is never auto-applied.
 export const contentInbox = pgTable("content_inbox", {
@@ -1102,6 +1132,14 @@ export const knowledgeSources = pgTable(
     subjectId: text("subject_id"),
     // Model chosen when the source was pasted; null means "use the admin default".
     extractionModelId: text("extraction_model_id"),
+    // Which extraction pass this source is on (bumped on regeneration). Default 1 (added in migration 0093).
+    extractionRun: integer("extraction_run").notNull().default(1),
+    // Set once a source has been explicitly marked exhausted by the learner (added in migration 0096).
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    // Article link for sources imported from a URL; copied onto extracted bits as a source link.
+    sourceUrl: text("source_url"),
+    // Short background-generated summary of an imported article.
+    summary: text("summary"),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(
@@ -1125,10 +1163,14 @@ export const knowledgeBits = pgTable(
     // Bit-level review gate (ki-approval-gate/spec.md) — distinct from knowledgeSources.status's
     // own "pending", which means "not yet detected". Every row, old and new, defaults here.
     approvalState: text("approval_state").notNull().default("pending"),
+    // True when the bit was created from AI web search/fetch rather than the learner's own source.
+    isAiGenerated: boolean("is_ai_generated").notNull().default(false),
+    sourceLinks: jsonb("source_links").$type<string[]>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // Mirrors topicCardVariants.embedding/embeddingHash/embeddedAt — nullable,
     // additive, no backfill; embeddingHash skips re-embedding unchanged text.
     embedding: jsonb("embedding").$type<number[]>(),
+    embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
     taggedAt: timestamp("tagged_at", { withTimezone: true }),
@@ -1183,6 +1225,8 @@ export const knowledgeBits = pgTable(
       withTimezone: true,
     }),
     whQuestionGenerationClaimToken: text("wh_question_generation_claim_token"),
+    // Tracks whether this bit was created by AI extraction or added manually by the user.
+    origin: text("origin").$type<"extracted" | "manual">().notNull().default("extracted"),
     // Same DB-generated tsvector/GIN column as modules.searchVector above (body).
     searchVector: tsvector("search_vector").generatedAlwaysAs(
       sql`to_tsvector('english', "body")`,
@@ -1194,6 +1238,10 @@ export const knowledgeBits = pgTable(
       table.ordinal,
     ),
     searchVectorIdx: index("knowledge_bits_search_vector_idx").using("gin", table.searchVector),
+    embeddingVecIdx: index("knowledge_bits_embedding_vec_hnsw_idx").using(
+      "hnsw",
+      table.embeddingVec.op("vector_cosine_ops"),
+    ),
   }),
 );
 
@@ -1209,9 +1257,12 @@ export const knowledgeBitQuestionVariants = pgTable(
     order: integer("order").notNull(),
     prompt: text("prompt").notNull(),
     answer: text("answer").notNull(),
+    // fill-in-the-blank source sentence — nullable, no default; only present for kind="fill_in_the_blank".
+    sentence: text("sentence"),
     // Populated by a later backlog item ("Embed each generated question and answer...") — added now
     // so that item is additive, mirrors topicCardVariants.embedding/embeddingHash/embeddedAt.
     embedding: jsonb("embedding").$type<number[]>(),
+    embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1228,6 +1279,10 @@ export const knowledgeBitQuestionVariants = pgTable(
     uniqueIndex("knowledge_bit_question_variants_bit_kind_order_unique")
       .on(table.knowledgeBitId, table.kind, table.order)
       .where(sql`${table.supersededAt} is null`),
+    index("knowledge_bit_question_variants_embedding_vec_hnsw_idx").using(
+      "hnsw",
+      table.embeddingVec.op("vector_cosine_ops"),
+    ),
   ],
 );
 
@@ -1317,12 +1372,46 @@ export const knowledgeBitFeedback = pgTable(
     front: text("front"),
     back: text("back"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Which extraction run produced the bit this feedback is about (added in migration 0093).
+    extractionRun: integer("extraction_run"),
+    // 1-5 quality rating for the specific card (added in migration 0093).
+    rating: smallint("rating"),
+    // 1-5 rating for the phrasing/wording quality (added in migration 0093).
+    wordingRating: smallint("wording_rating"),
   },
   (table) => [
     index("knowledge_bit_feedback_subject_created_idx").on(table.subjectId, table.createdAt),
     index("knowledge_bit_feedback_model_idx").on(table.modelId),
     index("knowledge_bit_feedback_bit_idx").on(table.knowledgeBitId),
   ],
+);
+
+// One row per bulk card-triage session; feedbackText is the user's pasted or dictated summary.
+export const cardTriageSessions = pgTable("card_triage_sessions", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
+  status: text("status").notNull().default("open"),
+  acceptedCount: integer("accepted_count").notNull().default(0),
+  rejectedCount: integer("rejected_count").notNull().default(0),
+  feedbackText: text("feedback_text"),
+});
+
+// Short style preferences distilled from a session. subjectId null means global; superseded_at
+// null means the row is part of the active set.
+export const cardStyleNotes = pgTable(
+  "card_style_notes",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id"),
+    sessionId: text("session_id"),
+    text: text("text").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    supersededAt: timestamp("superseded_at", { withTimezone: true }),
+  },
+  (table) => [index("card_style_notes_subject_superseded_idx").on(table.subjectId, table.supersededAt)],
 );
 
 export const notionSyncItems = pgTable("notion_sync_items", {
@@ -1337,6 +1426,30 @@ export const notionConnectorRuns = pgTable("notion_connector_runs", {
   connector: text("connector").primaryKey(),
   lastRunAt: timestamp("last_run_at", { withTimezone: true }).notNull(),
 });
+
+// One row per extraction run rating; tracks the overall quality of a source's extraction pass
+// so model selection can learn from both good and bad runs (added in migration 0093).
+export const knowledgeSourceExtractionGrade = pgTable(
+  "knowledge_source_extraction_grade",
+  {
+    id: text("id").primaryKey(),
+    knowledgeSourceId: text("knowledge_source_id").notNull(),
+    subjectId: text("subject_id"),
+    modelId: text("model_id"),
+    runNumber: integer("run_number").notNull(),
+    rating: smallint("rating").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("knowledge_source_extraction_grade_source_run_unique").on(
+      table.knowledgeSourceId,
+      table.runNumber,
+    ),
+    index("knowledge_source_extraction_grade_model_idx").on(table.modelId),
+  ],
+);
 
 export const languagePracticeSettings = pgTable("language_practice_settings", {
   subjectId: text("subject_id").primaryKey(),
@@ -1982,5 +2095,55 @@ export const studyMaterials = pgTable(
     // (re-request accumulates a new row) — same growing-scan-and-sort hazard
     // domain_priority_suggestions_subject_created_at_idx exists to prevent.
     index("study_materials_topic_id_created_at_idx").on(table.topicId, table.createdAt.desc()),
+  ],
+);
+
+export const modelComparisonRun = pgTable("model_comparison_run", {
+  id: text("id").primaryKey(),
+  excerpt: text("excerpt").notNull(),
+  modelIds: jsonb("model_ids").$type<string[]>().notNull(),
+  estimatedCostUsd: numeric("estimated_cost_usd", { precision: 10, scale: 6 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const modelComparisonResult = pgTable(
+  "model_comparison_result",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id").notNull(),
+    modelId: text("model_id").notNull(),
+    status: text("status").notNull(),
+    ms: integer("ms").notNull(),
+    returned: integer("returned").notNull(),
+    cards: jsonb("cards").$type<{ statement: string; question: string; answer: string; kind: string; quote: string }[]>().notNull(),
+    dropped: jsonb("dropped").$type<string[]>().notNull(),
+    error: text("error"),
+    extractionRating: smallint("extraction_rating"),
+    extractionNote: text("extraction_note"),
+    gradedAt: timestamp("graded_at", { withTimezone: true }),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    actualCostUsd: numeric("actual_cost_usd", { precision: 10, scale: 6 }),
+    estimatedCostUsd: numeric("estimated_cost_usd", { precision: 10, scale: 6 }),
+  },
+  (table) => [
+    uniqueIndex("model_comparison_result_run_model_unique").on(table.runId, table.modelId),
+    index("model_comparison_result_model_idx").on(table.modelId),
+  ],
+);
+
+export const modelComparisonCardGrade = pgTable(
+  "model_comparison_card_grade",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id").notNull(),
+    modelId: text("model_id").notNull(),
+    cardIndex: integer("card_index").notNull(),
+    rating: smallint("rating"),
+    wordingRating: smallint("wording_rating"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("model_comparison_card_grade_card_unique").on(table.runId, table.modelId, table.cardIndex),
   ],
 );

@@ -11,7 +11,6 @@ export const KNOWLEDGE_ITEM_MODEL_IDS = [
   "openrouter/google/gemini-3.1-flash-lite",
   "openrouter/openai/gpt-4o-mini",
   "openrouter/openai/gpt-4.1-nano",
-  "openrouter/google/gemini-2.5-flash-lite",
 ] as const;
 
 export const knowledgeItemModelIdSchema = z.enum(KNOWLEDGE_ITEM_MODEL_IDS);
@@ -112,14 +111,6 @@ export const KNOWLEDGE_ITEM_MODELS: Record<KnowledgeItemModelId, KnowledgeItemMo
     outputPerMillion: 0.4,
     expiresOn: null,
     note: "Budget option. Unstable on English.",
-  },
-  "openrouter/google/gemini-2.5-flash-lite": {
-    id: "openrouter/google/gemini-2.5-flash-lite",
-    label: "Gemini 2.5 Flash Lite",
-    inputPerMillion: 0.1,
-    outputPerMillion: 0.4,
-    expiresOn: "2026-10-20",
-    note: "Good results but OpenRouter retires it on 2026-10-20. Remove it by then.",
   },
 };
 

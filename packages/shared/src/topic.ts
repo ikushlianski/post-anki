@@ -49,6 +49,7 @@ export const topicSchema = z.object({
   // which conflates two unrelated signals.
   depthElectedAt: z.string().nullable(),
   headroomOfferedAt: z.string().nullable().optional(),
+  dueCount: z.number().int().optional(),
 });
 
 export type Topic = z.infer<typeof topicSchema>;

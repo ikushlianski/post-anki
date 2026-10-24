@@ -1,10 +1,11 @@
 import type http from "node:http";
-import { setKnowledgeBitFeedbackReasonInput } from "@post-anki/shared";
+import { gradeKnowledgeBitInput, updateKnowledgeBitFeedbackInput } from "@post-anki/shared";
+import { gradeKnowledgeBit } from "./knowledge-bit-grade.repo.js";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   aggregateFeedbackByModel,
   restoreRejectedKnowledgeBit,
-  setKnowledgeBitFeedbackReason,
+  updateKnowledgeBitFeedback,
 } from "./knowledge-bit-feedback.repo.js";
 
 // PATCH /knowledge-bit-feedback/:id
@@ -13,14 +14,14 @@ export async function handleSetKnowledgeBitFeedbackReason(
   res: http.ServerResponse,
   id: string,
 ): Promise<void> {
-  const body = await readJsonBody(req, setKnowledgeBitFeedbackReasonInput);
+  const body = await readJsonBody(req, updateKnowledgeBitFeedbackInput);
 
   if (!body.ok) {
     sendJson(res, 400, { error: "invalid_input", message: body.issues });
     return;
   }
 
-  const updated = await setKnowledgeBitFeedbackReason(id, body.data);
+  const updated = await updateKnowledgeBitFeedback(id, body.data);
 
   if (!updated) {
     sendError(res, 404, "not_found");
@@ -28,6 +29,34 @@ export async function handleSetKnowledgeBitFeedbackReason(
   }
 
   sendJson(res, 200, { ok: true });
+}
+
+// POST /knowledge-bits/:id/grades
+export async function handleGradeKnowledgeBit(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  id: string,
+): Promise<void> {
+  const body = await readJsonBody(req, gradeKnowledgeBitInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await gradeKnowledgeBit(id, body.data);
+
+  if (result.status === "not_found") {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  if (result.status === "not_applicable") {
+    sendError(res, 400, "grades_not_applicable");
+    return;
+  }
+
+  sendJson(res, 200, { ok: true, feedbackId: result.feedbackId });
 }
 
 // POST /knowledge-bits/:id/restore

@@ -1,12 +1,12 @@
 import { eq, sql } from "drizzle-orm";
 import type { DbExecutor } from "../db/client.js";
+import { getNewCardsPerDay } from "../admin-settings/admin-settings.repo.js";
 import { learnAheadUntil } from "./knowledge-bit-review-queue-learning.repo.js";
 import type { Picked } from "./knowledge-bit-review-queue-picked.repo.js";
 import type { KnowledgeBitReviewQueueClock } from "./knowledge-bit-review-queue.repo.js";
 import {
   countNewCardsReviewedToday,
   getLocalDayWindow,
-  NEW_CARDS_PER_DAY,
 } from "./knowledge-bit-review.repo.js";
 
 export async function readEligibleTotals(picked: Picked, now: Date, db: DbExecutor) {
@@ -35,7 +35,10 @@ export async function readNewRemainingToday(
   db: DbExecutor,
 ): Promise<{ remaining: number; dayEndsAt: Date }> {
   const { startsAt, endsAt } = await getLocalDayWindow(tz, now, db);
-  const newToday = await countNewCardsReviewedToday(startsAt, db);
+  const [newToday, limit] = await Promise.all([
+    countNewCardsReviewedToday(startsAt, db),
+    getNewCardsPerDay(db),
+  ]);
 
-  return { remaining: Math.max(0, NEW_CARDS_PER_DAY - newToday), dayEndsAt: endsAt };
+  return { remaining: Math.max(0, limit - newToday), dayEndsAt: endsAt };
 }

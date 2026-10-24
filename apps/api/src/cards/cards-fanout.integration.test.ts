@@ -54,7 +54,14 @@ vi.mock("../shared/embeddings-client.js", () => ({
   embedTexts: vi.fn(async () => []),
 }));
 
+const mockSend = vi.fn(async (_events: unknown) => ({ ids: [] }));
+
+vi.mock("../shared/inngest-client.js", () => ({
+  createInngestClient: () => ({ send: (events: unknown) => mockSend(events) }),
+}));
+
 const { startCardsForTopicsWithConcurrencyCap } = await import("./cards.orchestrator.js");
+const { startCardsForTopics } = await import("./cards.starter.js");
 
 let client: pg.Client;
 
@@ -134,4 +141,50 @@ describe("startCardsForTopicsWithConcurrencyCap (real Postgres)", () => {
     expect(maxInFlight).toBeGreaterThan(0);
     expect(maxInFlight).toBeLessThanOrEqual(3);
   }, 20_000);
+});
+
+describe("startCardsForTopics with the durable flag on (real Postgres)", () => {
+  async function statusOf(topicId: string): Promise<string | undefined> {
+    const { rows } = await client.query(`SELECT status FROM topic_card_sets WHERE topic_id = $1`, [topicId]);
+
+    return rows[0]?.status;
+  }
+
+  it("should claim every topic as generating and send one batch without calling the model", async () => {
+    process.env.DURABLE_CARDS = "1";
+
+    try {
+      const topicIds = await Promise.all(Array.from({ length: 4 }, () => seedTopic()));
+
+      await startCardsForTopics(topicIds);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend.mock.calls[0]![0]).toHaveLength(4);
+      expect(mockAgentGenerate).not.toHaveBeenCalled();
+
+      for (const topicId of topicIds) {
+        expect(await statusOf(topicId)).toBe("generating");
+      }
+    } finally {
+      delete process.env.DURABLE_CARDS;
+    }
+  });
+
+  it("should not send a topic that is already generating so a second trigger never pays twice", async () => {
+    process.env.DURABLE_CARDS = "1";
+
+    try {
+      const [first, second] = await Promise.all([seedTopic(), seedTopic()]);
+
+      await startCardsForTopics([first]);
+      mockSend.mockClear();
+      await startCardsForTopics([first, second]);
+
+      const sent = mockSend.mock.calls[0]![0] as { data: { topicId: string } }[];
+
+      expect(sent.map((e) => e.data.topicId)).toEqual([second]);
+    } finally {
+      delete process.env.DURABLE_CARDS;
+    }
+  });
 });

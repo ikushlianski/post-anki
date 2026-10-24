@@ -101,7 +101,6 @@ export interface SourceForDuplicateScan {
   value: string;
   title: string | null;
   fetchedText: string | null;
-  embedding: number[] | null;
   embeddingHash: string | null;
 }
 
@@ -118,7 +117,6 @@ export async function listSourcesForDuplicateScan(): Promise<SourceForDuplicateS
       value: sources.value,
       title: sources.title,
       fetchedText: sources.fetchedText,
-      embedding: sources.embedding,
       embeddingHash: sources.embeddingHash,
     })
     .from(sources)
@@ -132,6 +130,6 @@ export async function updateSourceEmbedding(
 ): Promise<void> {
   await getDb()
     .update(sources)
-    .set({ embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(sources.id, sourceId));
 }

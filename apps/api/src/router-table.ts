@@ -12,6 +12,8 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/mcp", name: "mcp" },
   { method: "GET", pattern: "/mcp", name: "mcpMethodNotAllowed" },
   { method: "DELETE", pattern: "/mcp", name: "mcpMethodNotAllowed" },
+  { method: "POST", pattern: "/sync-tokens", name: "createSyncToken" },
+  { method: "GET", pattern: "/sync-keys", name: "listSyncKeys" },
   { method: "GET", pattern: "/subjects", name: "listSubjects" },
   { method: "POST", pattern: "/subjects", name: "createSubject" },
   { method: "POST", pattern: "/knowledge-sources", name: "createKnowledgeSource" },
@@ -135,6 +137,36 @@ export const ROUTES: RouteDef[] = [
     name: "countPendingKnowledgeBits",
   },
   {
+    method: "GET",
+    pattern: "/knowledge-bits/overview",
+    name: "listKnowledgeBitOverview",
+  },
+  {
+    method: "GET",
+    pattern: "/knowledge-bits/browser",
+    name: "listKnowledgeBitBrowser",
+  },
+  {
+    method: "GET",
+    pattern: "/knowledge-bits/browser/subjects",
+    name: "countKnowledgeBitBrowserSubjects",
+  },
+  {
+    method: "GET",
+    pattern: "/knowledge-bits/export",
+    name: "exportKnowledgeBits",
+  },
+  {
+    method: "POST",
+    pattern: "/knowledge-bits/deletions",
+    name: "bulkDeleteKnowledgeBits",
+  },
+  {
+    method: "POST",
+    pattern: "/knowledge-bits/moves",
+    name: "bulkMoveKnowledgeBits",
+  },
+  {
     method: "POST",
     pattern: "/knowledge-bits/approvals",
     name: "bulkApproveKnowledgeBits",
@@ -147,6 +179,18 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/triage$/,
+    name: "triageKnowledgeBit",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/triage\/undo$/,
+    name: "undoTriageKnowledgeBit",
+    param: "id",
+  },
+  {
+    method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/reject$/,
     name: "rejectKnowledgeBit",
     param: "id",
@@ -155,6 +199,12 @@ export const ROUTES: RouteDef[] = [
     method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/restore$/,
     name: "restoreRejectedKnowledgeBit",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/grades$/,
+    name: "gradeKnowledgeBit",
     param: "id",
   },
   {
@@ -356,6 +406,24 @@ export const ROUTES: RouteDef[] = [
     method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/chat\/draft$/,
     name: "draftKnowledgeBitChat",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/derived-items$/,
+    name: "createDerivedKnowledgeItem",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/knowledge-bits\/([^/]+)\/variants$/,
+    name: "listKnowledgeBitVariants",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/variants$/,
+    name: "generateKnowledgeBitVariants",
     param: "id",
   },
   {
@@ -712,5 +780,31 @@ export const ROUTES: RouteDef[] = [
     pattern: /^\/curricula\/([^/]+)\/refocus-dismissals\/([^/]+)$/,
     name: "dismissCourseRefocusSuggestion",
     params: ["curriculumId", "reason"],
+  },
+  { method: "POST", pattern: "/triage-sessions", name: "startTriageSession" },
+  {
+    method: "GET",
+    pattern: /^\/triage-sessions\/([^/]+)$/,
+    name: "getTriageSession",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/triage-sessions\/([^/]+)\/finish$/,
+    name: "finishTriageSession",
+    param: "id",
+  },
+  {
+    method: "POST",
+    pattern: /^\/triage-sessions\/([^/]+)\/distill$/,
+    name: "distillTriageSession",
+    param: "id",
+  },
+  { method: "GET", pattern: "/card-style-notes", name: "listCardStyleNotes" },
+  {
+    method: "PATCH",
+    pattern: /^\/card-style-notes\/([^/]+)$/,
+    name: "updateCardStyleNote",
+    param: "id",
   },
 ];

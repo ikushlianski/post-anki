@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { log } from "../shared/log.js";
+import type { VariantGenerationScope } from "./knowledge-bit-variant-generation-gate.js";
 import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
+import { loadStyleNotesBlocksForBits } from "../card-triage/style-notes-loader.js";
 import { runKnowledgeBitQuestionGenerator } from "../mastra/knowledge-bit-question-generator.agent.js";
 import {
   looksLikeDifferentScript,
@@ -29,8 +31,12 @@ export interface QuestionGenerationScanCounts {
   skipped: number;
 }
 
-export async function generateKnowledgeBitQuestions(): Promise<QuestionGenerationScanCounts> {
-  const bits = await listKnowledgeBitsForWhQuestionGenerationScan(QUESTION_GENERATION_CAP);
+export async function generateKnowledgeBitQuestions(
+  scope: VariantGenerationScope = {},
+): Promise<QuestionGenerationScanCounts> {
+  const bits = await listKnowledgeBitsForWhQuestionGenerationScan(QUESTION_GENERATION_CAP, scope);
+
+  const styleBlocks = await loadStyleNotesBlocksForBits(bits.map((bit) => bit.id));
 
   const outcomes = await mapWithConcurrency(
     bits,
@@ -38,14 +44,14 @@ export async function generateKnowledgeBitQuestions(): Promise<QuestionGeneratio
     async (bit): Promise<ItemOutcome> => {
       // Claim before ever calling the LLM — a concurrently running scan that already claimed (or
       // finished) this bit makes this claim fail, and we skip it without paying for a generation.
-      const claimToken = await claimKnowledgeBitForWhQuestionGeneration(bit.id, bit.body);
+      const claimToken = await claimKnowledgeBitForWhQuestionGeneration(bit.id, bit.body, scope);
 
       if (!claimToken) {
         return "skipped";
       }
 
       try {
-        const result = await runKnowledgeBitQuestionGenerator(bit.body);
+        const result = await runKnowledgeBitQuestionGenerator(bit.body, styleBlocks.get(bit.id) ?? "");
         const question = questionTextSchema.safeParse(result.question);
         const answer = questionTextSchema.safeParse(result.answer);
 

@@ -4,6 +4,12 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("../card-triage/style-notes-loader.js", () => ({
+  loadStyleNotesBlocksForBits: vi.fn(),
+}));
+
+const { loadStyleNotesBlocksForBits } = await import("../card-triage/style-notes-loader.js");
+
 vi.mock("./knowledge-bit-fill-blank-claim.repo.js", () => ({
   listKnowledgeBitsForFillBlankGenerationScan: vi.fn(),
   recordGeneratedFillBlankVariant: vi.fn(),
@@ -33,6 +39,7 @@ const FAKE_CLAIM_TOKEN = "fbgc_fake_claim_token";
 describe("generateKnowledgeBitFillBlanks", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 
@@ -55,9 +62,44 @@ describe("generateKnowledgeBitFillBlanks", () => {
       "An initial price ____ shifts what feels fair later.",
       "anchor",
       FAKE_CLAIM_TOKEN,
+      undefined,
+      "An initial price anchor shifts what feels fair later.",
     );
     expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
+  });
+
+  it("should hand each bit its own style notes block when the learner has notes", async () => {
+    const bit = { id: "kb_1", body: "Price anchors shape perceived value" };
+    const block = "<style_notes>\n- short wording\n</style_notes>";
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map([["kb_1", block]]));
+    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "A price anchor shifts what feels fair.",
+      prompt: "A price ____ shifts what feels fair.",
+      answer: "anchor",
+    });
+
+    await generateKnowledgeBitFillBlanks();
+
+    expect(loadStyleNotesBlocksForBits).toHaveBeenCalledWith(["kb_1"]);
+    expect(runKnowledgeBitFillBlankGenerator).toHaveBeenCalledWith(bit.body, block);
+  });
+
+  it("should hand an empty style notes block to a bit that has none", async () => {
+    const bit = { id: "kb_1", body: "Price anchors shape perceived value" };
+
+    vi.mocked(listKnowledgeBitsForFillBlankGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitFillBlankGenerator).mockResolvedValue({
+      sentence: "A price anchor shifts what feels fair.",
+      prompt: "A price ____ shifts what feels fair.",
+      answer: "anchor",
+    });
+
+    await generateKnowledgeBitFillBlanks();
+
+    expect(runKnowledgeBitFillBlankGenerator).toHaveBeenCalledWith(bit.body, "");
   });
 
   it("should skip a bit without calling the agent when a concurrent scan already claimed it", async () => {
@@ -68,7 +110,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
 
     const result = await generateKnowledgeBitFillBlanks();
 
-    expect(claimKnowledgeBitForFillBlankGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere", "Some content");
+    expect(claimKnowledgeBitForFillBlankGeneration).toHaveBeenCalledWith("kb_claimed_elsewhere", "Some content", {});
     expect(runKnowledgeBitFillBlankGenerator).not.toHaveBeenCalled();
     expect(recordGeneratedFillBlankVariant).not.toHaveBeenCalled();
     expect(markFillBlankGenerationFailed).not.toHaveBeenCalled();
@@ -98,6 +140,8 @@ describe("generateKnowledgeBitFillBlanks", () => {
       "This ____ matters.",
       "fact",
       FAKE_CLAIM_TOKEN,
+      undefined,
+      "This fact matters.",
     );
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 0, skipped: 1 });
   });
@@ -121,6 +165,8 @@ describe("generateKnowledgeBitFillBlanks", () => {
       "This ____ matters.",
       "fact",
       FAKE_CLAIM_TOKEN,
+      undefined,
+      "This fact matters.",
     );
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
@@ -185,6 +231,8 @@ describe("generateKnowledgeBitFillBlanks", () => {
       "This ____ matters.",
       "fact",
       FAKE_CLAIM_TOKEN,
+      undefined,
+      "This fact matters.",
     );
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
@@ -193,6 +241,7 @@ describe("generateKnowledgeBitFillBlanks", () => {
 describe("generateKnowledgeBitFillBlanks language guard", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 
@@ -217,6 +266,7 @@ describe("generateKnowledgeBitFillBlanks language guard", () => {
 describe("generateKnowledgeBitFillBlanks concurrency", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForFillBlankGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
   });
 

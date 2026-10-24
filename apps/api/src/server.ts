@@ -9,6 +9,10 @@ const server = createApiServer();
 
 server.listen(env.PORT, () => {
   log.info({ port: env.PORT }, "api_listening");
+
+  if (env.INNGEST_DEV === "1") {
+    log.info("Inngest dev UI: http://localhost:8288 (run `npm run inngest:dev`)");
+  }
 });
 
 let shuttingDown = false;

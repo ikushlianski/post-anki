@@ -4,7 +4,9 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
+import { rankBySimilarity } from "@post-anki/core";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -60,6 +62,16 @@ afterAll(async () => {
   await adminPool.end();
 });
 
+function jsonAndVector(embedding: number[] | null): [string | null, string | null] {
+  if (!embedding) {
+    return [null, null];
+  }
+
+  const padded = JSON.stringify(padEmbedding(embedding));
+
+  return [padded, padded];
+}
+
 function id(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
@@ -110,9 +122,9 @@ async function seedTopicWithCardVariant(
     [cardId, cardSetId, "Concept"],
   );
   await client.query(
-    `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer, embedding)
-     VALUES ($1, $2, 1, $3, $4, $5)`,
-    [variantId, cardId, prompt, answer, embedding ? JSON.stringify(embedding) : null],
+    `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer, embedding, embedding_vec)
+     VALUES ($1, $2, 1, $3, $4, $5, $6)`,
+    [variantId, cardId, prompt, answer, ...jsonAndVector(embedding)],
   );
 
   return { variantId, topicId, curriculumId, subjectId };
@@ -168,8 +180,9 @@ async function seedFact(body: string, embedding: number[] | null, tags: string[]
   const factId = id("fact");
 
   await client.query(
-    `INSERT INTO facts (id, body, source, source_ref, tags, embedding) VALUES ($1, $2, 'notion', $3, $4, $5)`,
-    [factId, body, `notion:${factId}`, JSON.stringify(tags), embedding ? JSON.stringify(embedding) : null],
+    `INSERT INTO facts (id, body, source, source_ref, tags, embedding, embedding_vec)
+     VALUES ($1, $2, 'notion', $3, $4, $5, $6)`,
+    [factId, body, `notion:${factId}`, JSON.stringify(tags), ...jsonAndVector(embedding)],
   );
 
   return factId;
@@ -181,7 +194,7 @@ beforeEach(() => {
   global.fetch = vi.fn(async (...args: Parameters<typeof fetch>) => {
     const init = args[1];
     const body = JSON.parse(String(init?.body)) as { input: string[]; model: string };
-    const data = body.input.map((_text, index) => ({ index, embedding: [1, 0] }));
+    const data = body.input.map((_text, index) => ({ index, embedding: padEmbedding([1, 0]) }));
 
     return new Response(JSON.stringify({ data, model: body.model }), {
       status: 200,
@@ -346,5 +359,44 @@ describe("findTopMatchingCards", () => {
     const results = await findTopMatchingCards("anything", 100);
 
     expect(results.map((r) => r.variantId)).not.toContain(factId);
+  });
+
+  it("returns the same ids, order and similarities as the old in-memory ranking on fixed vectors", async () => {
+    const fixed: Record<string, number[]> = {
+      closest: [0.9, 0.1, 0.05],
+      close: [0.7, 0.5, 0.1],
+      middling: [0.5, 0.8, 0.3],
+      belowThreshold: [0.05, 0.1, 0.99],
+      opposite: [-1, -0.2, 0],
+    };
+    const query = [1, 0.2, 0.1];
+    const idsByName = new Map<string, string>();
+
+    for (const [name, vector] of Object.entries(fixed)) {
+      const seeded = await seedTopicWithCardVariant(name, "A", vector);
+
+      idsByName.set(seeded.variantId, name);
+    }
+
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ data: [{ index: 0, embedding: padEmbedding(query) }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+
+    const expected = rankBySimilarity(
+      padEmbedding(query),
+      Object.entries(fixed).map(([name, vector]) => ({ name, embedding: padEmbedding(vector) })),
+      1000,
+      0.3,
+    );
+    const results = (await findTopMatchingCards("fixed", 1000, 0.3)).filter((r) =>
+      idsByName.has(r.variantId),
+    );
+
+    expect(results.map((r) => idsByName.get(r.variantId))).toEqual(expected.map((e) => e.name));
+    results.forEach((r, i) => expect(r.similarity).toBeCloseTo(expected[i]!.similarity, 5));
+    expect(results.map((r) => r.prompt)).not.toContain("belowThreshold");
   });
 });

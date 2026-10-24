@@ -68,13 +68,33 @@ describe("handleApproveKnowledgeBit", () => {
   });
 
   it("should return 404 when the bit does not exist", async () => {
-    approveKnowledgeBit.mockResolvedValue(false);
+    approveKnowledgeBit.mockResolvedValue("not_found");
 
     const res = fakeRes();
 
     await handleApproveKnowledgeBit(res, "missing");
 
     expect(res.status).toBe(404);
+  });
+
+  it("should return 409 when the bit is blocked from approval", async () => {
+    approveKnowledgeBit.mockResolvedValue("blocked");
+
+    const res = fakeRes();
+
+    await handleApproveKnowledgeBit(res, "kb_rejected");
+
+    expect(res.status).toBe(409);
+  });
+
+  it("should return 409 when the bit has no active variant yet", async () => {
+    approveKnowledgeBit.mockResolvedValue("no_variant");
+
+    const res = fakeRes();
+
+    await handleApproveKnowledgeBit(res, "kb_no_variant");
+
+    expect(res.status).toBe(409);
   });
 });
 
@@ -96,13 +116,23 @@ describe("handleRejectKnowledgeBit", () => {
   });
 
   it("should return 404 when the bit does not exist", async () => {
-    rejectKnowledgeBit.mockResolvedValue({ ok: false });
+    rejectKnowledgeBit.mockResolvedValue({ ok: false, reason: "not_found" });
 
     const res = fakeRes();
 
     await handleRejectKnowledgeBit(res, "missing");
 
     expect(res.status).toBe(404);
+  });
+
+  it("should return 409 when the bit is blocked from rejection", async () => {
+    rejectKnowledgeBit.mockResolvedValue({ ok: false, reason: "blocked" });
+
+    const res = fakeRes();
+
+    await handleRejectKnowledgeBit(res, "kb_approved");
+
+    expect(res.status).toBe(409);
   });
 });
 
@@ -138,6 +168,18 @@ describe("handleEditKnowledgeBitQuestionVariant", () => {
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: "not_found" });
+  });
+
+  it("should return 409 when the repo reports the variant edit is blocked", async () => {
+    editKnowledgeBitQuestionVariant.mockResolvedValue({ error: "blocked" });
+
+    const req = fakeReq({ prompt: "New prompt", answer: "New answer" });
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(req, res, "kbqv_blocked");
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: "blocked" });
   });
 
   it("should reject an empty prompt with a 400 and never call the repo", async () => {

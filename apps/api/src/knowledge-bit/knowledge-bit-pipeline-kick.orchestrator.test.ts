@@ -1,154 +1,175 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
-vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), info: vi.fn() } }));
-vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({ detectKnowledgeBits: vi.fn() }));
+vi.mock("../shared/log.js", () => ({
+  log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+}));
 
-const { log } = await import("../shared/log.js");
-const { createKnowledgeBitPipelineKick, KNOWLEDGE_BIT_PIPELINE_STAGES } = await import(
-  "./knowledge-bit-pipeline-kick.orchestrator.js"
-);
+vi.mock("./detect-knowledge-bits.orchestrator.js", () => ({
+  detectKnowledgeBits: vi.fn().mockResolvedValue({}),
+}));
 
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((r) => {
-    resolve = r;
-  });
+vi.mock("./knowledge-bit-question-generation.orchestrator.js", () => ({
+  generateKnowledgeBitQuestions: vi.fn().mockResolvedValue({}),
+}));
 
-  return { promise, resolve };
+vi.mock("./knowledge-bit-fill-blank-generation.orchestrator.js", () => ({
+  generateKnowledgeBitFillBlanks: vi.fn().mockResolvedValue({}),
+}));
+
+import { createKnowledgeBitPipelineKick } from "./knowledge-bit-pipeline-kick.orchestrator.js";
+
+function makePass(name: string, impl?: () => Promise<unknown>) {
+  return { name, run: impl ?? vi.fn().mockResolvedValue({ processed: 1 }) };
 }
 
-function nextTick() {
-  return new Promise<void>((resolve) => setTimeout(resolve, 0));
-}
+describe("createKnowledgeBitPipelineKick", () => {
+  describe("pass ordering", () => {
+    it("should run all passes in the order they are given", async () => {
+      const order: string[] = [];
+      const passes = [
+        { name: "a", run: async () => { order.push("a"); } },
+        { name: "b", run: async () => { order.push("b"); } },
+        { name: "c", run: async () => { order.push("c"); } },
+      ];
+      const kick = createKnowledgeBitPipelineKick(passes);
 
-describe("knowledge bit pipeline kick", () => {
-  it("should run a single source_items stage so the per-bit card writers are no longer part of the kick", () => {
-    expect(KNOWLEDGE_BIT_PIPELINE_STAGES.map((stage) => stage.map((pass) => pass.name))).toEqual([
-      ["source_items"],
-    ]);
-  });
+      await kick();
 
-  it("should run the stages in order on a fresh kick", async () => {
-    const order: string[] = [];
-    const kick = createKnowledgeBitPipelineKick([
-      [{ name: "a", run: async () => order.push("a") }],
-      [{ name: "b", run: async () => order.push("b") }],
-    ]);
-
-    await kick();
-
-    expect(order).toEqual(["a", "b"]);
-  });
-
-  it("should run the passes of one stage concurrently and start the next stage only after they all finish", async () => {
-    const gate = deferred();
-    const started: string[] = [];
-    const kick = createKnowledgeBitPipelineKick([
-      [
-        {
-          name: "a",
-          run: async () => {
-            started.push("a");
-            await gate.promise;
-          },
-        },
-        {
-          name: "b",
-          run: async () => {
-            started.push("b");
-            await gate.promise;
-          },
-        },
-      ],
-      [{ name: "c", run: async () => started.push("c") }],
-    ]);
-
-    const running = kick();
-    await nextTick();
-
-    expect(started).toEqual(["a", "b"]);
-
-    gate.resolve();
-    await running;
-
-    expect(started).toEqual(["a", "b", "c"]);
-  });
-
-  it("should still run later passes and log the pass name when one fails", async () => {
-    const second = vi.fn().mockResolvedValue(undefined);
-    const kick = createKnowledgeBitPipelineKick([
-      [{ name: "a", run: () => Promise.reject(new Error("llm down")) }],
-      [{ name: "b", run: second }],
-    ]);
-
-    await expect(kick()).resolves.toBeUndefined();
-
-    expect(second).toHaveBeenCalledTimes(1);
-    expect(log.error).toHaveBeenCalledWith(
-      expect.objectContaining({ pass: "a" }),
-      "knowledge_bit_pipeline_kick_pass_failed",
-    );
-  });
-
-  it("should let a failing writer pass not block its sibling passes in the same stage", async () => {
-    const sibling = vi.fn().mockResolvedValue(undefined);
-    const kick = createKnowledgeBitPipelineKick([
-      [
-        { name: "wh_question", run: () => Promise.reject(new Error("wh down")) },
-        { name: "fill_blank", run: sibling },
-      ],
-    ]);
-
-    await expect(kick()).resolves.toBeUndefined();
-
-    expect(sibling).toHaveBeenCalledTimes(1);
-    expect(log.error).toHaveBeenCalledWith(
-      expect.objectContaining({ pass: "wh_question" }),
-      "knowledge_bit_pipeline_kick_pass_failed",
-    );
-  });
-
-  it("should never overlap runs and cover ten mid-run pastes with exactly one follow-up", async () => {
-    const gate = deferred();
-    let active = 0;
-    let maxActive = 0;
-    const run = vi.fn(async () => {
-      active += 1;
-      maxActive = Math.max(maxActive, active);
-      await gate.promise;
-      active -= 1;
+      expect(order).toEqual(["a", "b", "c"]);
     });
-    const kick = createKnowledgeBitPipelineKick([[{ name: "a", run }]]);
-    const first = kick();
-
-    for (let i = 0; i < 10; i += 1) {
-      void kick();
-    }
-
-    gate.resolve();
-    await first;
-
-    expect(run).toHaveBeenCalledTimes(2);
-    expect(maxActive).toBe(1);
   });
 
-  it("should start a fresh run after everything has finished", async () => {
-    const run = vi.fn().mockResolvedValue(undefined);
-    const kick = createKnowledgeBitPipelineKick([[{ name: "a", run }]]);
+  describe("pass isolation", () => {
+    it("should run later passes even when an earlier pass throws", async () => {
+      const order: string[] = [];
+      const passes = [
+        { name: "a", run: async () => { order.push("a"); throw new Error("fail-a"); } },
+        { name: "b", run: async () => { order.push("b"); } },
+        { name: "c", run: async () => { order.push("c"); } },
+      ];
+      const kick = createKnowledgeBitPipelineKick(passes);
 
-    await kick();
-    await kick();
+      await kick();
 
-    expect(run).toHaveBeenCalledTimes(2);
+      expect(order).toEqual(["a", "b", "c"]);
+    });
+
+    it("should not reject even when every pass throws", async () => {
+      const passes = [
+        { name: "a", run: async () => { throw new Error("fail-a"); } },
+        { name: "b", run: async () => { throw new Error("fail-b"); } },
+      ];
+      const kick = createKnowledgeBitPipelineKick(passes);
+
+      await expect(kick()).resolves.toBeUndefined();
+    });
   });
 
-  it("should accept new runs after a pass threw", async () => {
-    const run = vi.fn().mockRejectedValueOnce(new Error("boom")).mockResolvedValue(undefined);
-    const kick = createKnowledgeBitPipelineKick([[{ name: "a", run }]]);
+  describe("coalescing", () => {
+    it("should start a fresh run when called while idle", async () => {
+      const pass = makePass("a");
+      const kick = createKnowledgeBitPipelineKick([pass]);
 
-    await kick();
-    await kick();
+      await kick();
+      vi.mocked(pass.run).mockClear();
+      await kick();
 
-    expect(run).toHaveBeenCalledTimes(2);
+      expect(pass.run).toHaveBeenCalledOnce();
+    });
+
+    it("should queue at most one follow-up run when kicked multiple times mid-run", async () => {
+      const resolvers: Array<() => void> = [];
+      let callCount = 0;
+      const pass = {
+        name: "slow",
+        run: () =>
+          new Promise<void>((res) => {
+            callCount += 1;
+            resolvers.push(res);
+          }),
+      };
+      const kick = createKnowledgeBitPipelineKick([pass]);
+
+      kick();
+
+      kick();
+      kick();
+      kick();
+
+      expect(callCount).toBe(1);
+
+      resolvers[0]!();
+
+      await new Promise<void>((res) => setTimeout(res, 0));
+
+      expect(callCount).toBe(2);
+
+      resolvers[1]!();
+
+      await new Promise<void>((res) => setTimeout(res, 0));
+
+      expect(callCount).toBe(2);
+    });
+
+    it("should not queue a third run when only one follow-up is in flight", async () => {
+      let resolveFirst!: () => void;
+      let callCount = 0;
+      const pass = {
+        name: "slow",
+        run: () =>
+          new Promise<void>((res) => {
+            callCount += 1;
+            if (callCount === 1) {
+              resolveFirst = res;
+            } else {
+              res();
+            }
+          }),
+      };
+      const kick = createKnowledgeBitPipelineKick([pass]);
+
+      const p1 = kick();
+
+      kick();
+
+      resolveFirst();
+      await p1;
+
+      await new Promise<void>((res) => setTimeout(res, 0));
+
+      expect(callCount).toBe(2);
+    });
+  });
+
+  describe("guard reset", () => {
+    it("should set current to null after a successful run so a later kick starts fresh", async () => {
+      const pass = makePass("a");
+      const kick = createKnowledgeBitPipelineKick([pass]);
+
+      await kick();
+
+      const second = kick();
+
+      expect(second).not.toBe(undefined);
+      await second;
+      expect(vi.mocked(pass.run)).toHaveBeenCalledTimes(2);
+    });
+
+    it("should reset the busy guard even when a pass throws, so the next kick is not stuck", async () => {
+      let callCount = 0;
+      const pass = {
+        name: "failing",
+        run: async () => {
+          callCount += 1;
+          if (callCount === 1) throw new Error("first run fails");
+        },
+      };
+      const kick = createKnowledgeBitPipelineKick([pass]);
+
+      await kick();
+      await kick();
+
+      expect(callCount).toBe(2);
+    });
   });
 });

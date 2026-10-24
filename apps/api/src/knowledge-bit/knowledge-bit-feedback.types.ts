@@ -13,7 +13,15 @@ export interface FeedbackRow {
   back: string | null;
 }
 
+export interface ExtractionGradeRow {
+  sourceId: string;
+  rating: number;
+  run: number;
+  note: string | null;
+}
+
 export interface RecentFeedback {
   recent: FeedbackRow[];
   approved: FeedbackRow[];
+  extractionGrades?: ExtractionGradeRow[];
 }

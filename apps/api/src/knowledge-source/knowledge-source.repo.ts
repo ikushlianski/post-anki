@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -10,12 +11,15 @@ export interface KnowledgeSource {
   createdAt: Date;
   subjectId: string | null;
   extractionModelId: string | null;
+  sourceUrl?: string | null;
+  summary?: string | null;
 }
 
 export async function insertKnowledgeSource(
   rawText: string,
   subjectId: string | null = null,
   extractionModelId: string | null = null,
+  sourceUrl: string | null = null,
 ): Promise<KnowledgeSource> {
   const row = {
     id: newId("ks"),
@@ -24,6 +28,7 @@ export async function insertKnowledgeSource(
     status: "pending",
     subjectId,
     extractionModelId,
+    ...(sourceUrl === null ? {} : { sourceUrl }),
   };
 
   await getDb().insert(knowledgeSources).values(row);
@@ -32,6 +37,10 @@ export async function insertKnowledgeSource(
     ...row,
     createdAt: new Date(),
   };
+}
+
+export async function updateKnowledgeSourceSummary(sourceId: string, summary: string): Promise<void> {
+  await getDb().update(knowledgeSources).set({ summary }).where(eq(knowledgeSources.id, sourceId));
 }
 
 // Batch counterpart to insertKnowledgeSource — one submission, several separate prose sources,

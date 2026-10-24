@@ -4,6 +4,12 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("../card-triage/style-notes-loader.js", () => ({
+  loadStyleNotesBlocksForBits: vi.fn(),
+}));
+
+const { loadStyleNotesBlocksForBits } = await import("../card-triage/style-notes-loader.js");
+
 vi.mock("./knowledge-bit-basic-card-claim.repo.js", () => ({
   listKnowledgeBitsForBasicCardGenerationScan: vi.fn(),
   recordGeneratedBasicCardVariant: vi.fn(),
@@ -34,6 +40,7 @@ const bit = { id: "kb_1", body: "TTL means time to live." };
 describe("generateKnowledgeBitBasicCards", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForBasicCardGeneration).mockResolvedValue(TOKEN);
   });
 
@@ -46,7 +53,7 @@ describe("generateKnowledgeBitBasicCards", () => {
 
     const result = await generateKnowledgeBitBasicCards();
 
-    expect(listKnowledgeBitsForBasicCardGenerationScan).toHaveBeenCalledWith(BASIC_CARD_GENERATION_CAP);
+    expect(listKnowledgeBitsForBasicCardGenerationScan).toHaveBeenCalledWith(BASIC_CARD_GENERATION_CAP, {});
     expect(recordGeneratedBasicCardVariant).toHaveBeenCalledWith(
       "kb_1",
       "basic",
@@ -56,6 +63,16 @@ describe("generateKnowledgeBitBasicCards", () => {
       TOKEN,
     );
     expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
+  });
+
+  it("should hand each bit its own style notes block when the learner has notes", async () => {
+    vi.mocked(listKnowledgeBitsForBasicCardGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map([["kb_1", "<style_notes>\n- short fronts\n</style_notes>"]]));
+    vi.mocked(runKnowledgeBitBasicCardGenerator).mockResolvedValue({ front: "What does TTL stand for?", back: "Time to live" });
+
+    await generateKnowledgeBitBasicCards();
+
+    expect(runKnowledgeBitBasicCardGenerator).toHaveBeenCalledWith(bit.body, "<style_notes>\n- short fronts\n</style_notes>");
   });
 
   it("should skip a bit without paying for an AI call when another run already claimed it", async () => {
@@ -115,6 +132,7 @@ describe("generateKnowledgeBitBasicCards", () => {
 describe("generateKnowledgeBitBasicCards language guard", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForBasicCardGeneration).mockResolvedValue(TOKEN);
   });
 
@@ -138,6 +156,7 @@ describe("generateKnowledgeBitBasicCards language guard", () => {
 describe("generateKnowledgeBitBasicCards concurrency", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
     vi.mocked(claimKnowledgeBitForBasicCardGeneration).mockResolvedValue(TOKEN);
   });
 

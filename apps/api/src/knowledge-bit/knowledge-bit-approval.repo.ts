@@ -4,9 +4,10 @@ import type {
   PendingKnowledgeSourceForReview,
 } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
+import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources, subjects } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { findRejectionFeedbackId, recordKnowledgeBitFeedback } from "./knowledge-bit-feedback.repo.js";
+import { findRejectionFeedbackId } from "./knowledge-bit-feedback.repo.js";
+import { recordKnowledgeBitDecision } from "./knowledge-bit-feedback-decision.repo.js";
 
 // Learner-facing read gate — every surface that lets a learner answer, chat with, search, or
 // browse a knowledge bit must apply this, so a bit stays invisible until a human approves it.
@@ -18,10 +19,12 @@ export const bitNotDiscarded = notInArray(knowledgeBits.approvalState, ["rejecte
 // A decision, once made, can't flip to the other decision — but retrying the same one (the
 // panel keeps a row listed and lets the reviewer click again after a lost response) must still
 // succeed, so only the cross-transition is blocked, not a repeat of the same outcome.
+export type ApproveKnowledgeBitResult = true | "blocked" | "not_found" | "no_variant";
+
 export async function approveKnowledgeBit(
   id: string,
   db: DbExecutor = getDb(),
-): Promise<boolean> {
+): Promise<ApproveKnowledgeBitResult> {
   return db.transaction(async (tx) => {
     const current = (
       await tx
@@ -31,20 +34,41 @@ export async function approveKnowledgeBit(
         .for("update")
     )[0];
 
-    if (!current || !["pending", "approved"].includes(current.approvalState)) {
-      return false;
+    if (!current) {
+      return "not_found";
+    }
+
+    if (!["pending", "approved"].includes(current.approvalState)) {
+      return "blocked";
     }
 
     if (current.approvalState === "pending") {
+      const hasVariant = await tx
+        .select({ one: knowledgeBitQuestionVariants.id })
+        .from(knowledgeBitQuestionVariants)
+        .where(
+          and(
+            eq(knowledgeBitQuestionVariants.knowledgeBitId, id),
+            isNull(knowledgeBitQuestionVariants.supersededAt),
+          ),
+        )
+        .limit(1);
+
+      if (hasVariant.length === 0) {
+        return "no_variant";
+      }
+
       await tx.update(knowledgeBits).set({ approvalState: "approved" }).where(eq(knowledgeBits.id, id));
-      await recordKnowledgeBitFeedback(tx, { bitId: id, verdict: "approved" });
+      await recordKnowledgeBitDecision(tx, { bitId: id, verdict: "approved" });
     }
 
     return true;
   });
 }
 
-export type RejectKnowledgeBitResult = { ok: true; feedbackId: string | null } | { ok: false };
+export type RejectKnowledgeBitResult =
+  | { ok: true; feedbackId: string | null }
+  | { ok: false; reason: "blocked" | "not_found" };
 
 export async function rejectKnowledgeBit(
   id: string,
@@ -59,23 +83,30 @@ export async function rejectKnowledgeBit(
         .for("update")
     )[0];
 
-    if (!current || !["pending", "rejected"].includes(current.approvalState)) {
-      return { ok: false };
+    if (!current) {
+      return { ok: false, reason: "not_found" as const };
+    }
+
+    if (!["pending", "rejected"].includes(current.approvalState)) {
+      return { ok: false, reason: "blocked" as const };
     }
 
     if (current.approvalState === "rejected") {
       return { ok: true, feedbackId: await findRejectionFeedbackId(tx, id) };
     }
 
-    await tx.update(knowledgeBits).set({ approvalState: "rejected" }).where(eq(knowledgeBits.id, id));
+    await tx
+      .update(knowledgeBits)
+      .set({ approvalState: "rejected", topicId: null })
+      .where(eq(knowledgeBits.id, id));
 
-    return { ok: true, feedbackId: await recordKnowledgeBitFeedback(tx, { bitId: id, verdict: "rejected" }) };
+    return { ok: true, feedbackId: await recordKnowledgeBitDecision(tx, { bitId: id, verdict: "rejected" }) };
   });
 }
 
 export type EditKnowledgeBitQuestionVariantResult =
   | { ok: true; variantId: string }
-  | { error: "not_found" };
+  | { error: "not_found" | "blocked" };
 
 // Mirrors updateKnowledgeBitBody's supersede step: detach the old row, insert a fresh one in the
 // same (bit, kind, order) slot — never rewrite, so attempt history stays honest.
@@ -116,8 +147,12 @@ export async function editKnowledgeBitQuestionVariant(
         .for("update")
     )[0];
 
-    if (!bit || bit.approvalState === "rejected" || bit.approvalState === "superseded") {
+    if (!bit) {
       return { error: "not_found" as const };
+    }
+
+    if (bit.approvalState === "rejected" || bit.approvalState === "superseded") {
+      return { error: "blocked" as const };
     }
 
     // Re-check "still active" here, after the bit lock — a concurrent body-edit regeneration
@@ -161,11 +196,20 @@ export async function listPendingKnowledgeBitsForReview(
       id: knowledgeBits.id,
       body: knowledgeBits.body,
       background: knowledgeBits.background,
+      origin: knowledgeBits.origin,
+      isAiGenerated: knowledgeBits.isAiGenerated,
+      sourceLinks: knowledgeBits.sourceLinks,
       knowledgeSourceId: knowledgeBits.knowledgeSourceId,
       sourceText: knowledgeSources.rawText,
+      sourceUrl: knowledgeSources.sourceUrl,
+      summary: knowledgeSources.summary,
+      processedAt: knowledgeSources.processedAt,
+      subjectName: subjects.name,
+      subjectId: subjects.id,
     })
     .from(knowledgeBits)
     .innerJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
+    .leftJoin(subjects, eq(subjects.id, knowledgeSources.subjectId))
     .where(eq(knowledgeBits.approvalState, "pending"))
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
@@ -208,13 +252,26 @@ export async function listPendingKnowledgeBitsForReview(
     const source = sourcesById.get(row.knowledgeSourceId) ?? {
       knowledgeSourceId: row.knowledgeSourceId,
       sourceText: row.sourceText,
+      sourceUrl: row.sourceUrl,
+      summary: row.summary,
+      subjectName: row.subjectName ?? null,
+      subjectId: row.subjectId ?? null,
+      processedAt: row.processedAt?.toISOString() ?? null,
       bits: [],
     };
+
+    if (row.processedAt) {
+      sourcesById.set(row.knowledgeSourceId, source);
+      continue;
+    }
 
     source.bits.push({
       id: row.id,
       body: row.body,
       background: row.background,
+      origin: row.origin ?? "extracted",
+      isAiGenerated: row.isAiGenerated,
+      sourceLinks: row.sourceLinks ?? [],
       variants: (variantsByBitId.get(row.id) ?? []).map((variant) => ({
         id: variant.id,
         kind: variant.kind as KnowledgeBitQuestionVariantKind,

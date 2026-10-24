@@ -121,13 +121,21 @@ afterAll(async () => {
 
 async function seedBit(
   approvalState: "approved" | "pending" = "approved",
-  options: { background?: string; topicId?: string } = {},
+  options: { background?: string; topicId?: string; aiSourceLinks?: string[] } = {},
 ): Promise<string> {
   const knowledgeBitId = `kb_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state, background, topic_id) VALUES ($1, $2, 0, 'SECRET BIT BODY', $3, $4, $5)`,
-    [knowledgeBitId, `ks_${randomUUID()}`, approvalState, options.background ?? null, options.topicId ?? null],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, approval_state, background, topic_id, is_ai_generated, source_links) VALUES ($1, $2, 0, 'SECRET BIT BODY', $3, $4, $5, $6, $7)`,
+    [
+      knowledgeBitId,
+      `ks_${randomUUID()}`,
+      approvalState,
+      options.background ?? null,
+      options.topicId ?? null,
+      options.aiSourceLinks !== undefined,
+      options.aiSourceLinks ? JSON.stringify(options.aiSourceLinks) : null,
+    ],
   );
 
   return knowledgeBitId;
@@ -192,12 +200,25 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
         prompt: "Why a handshake?",
         answer: "To agree on sequence numbers.",
         background: "Networking basics",
+        isAiGenerated: false,
+        sourceLinks: [],
         phase: "new",
         leech: false,
         intervalPreview: { again: 60, hard: 330, good: 600, easy: 4 * 86_400 },
       },
     ]);
     expect(JSON.stringify(cards)).not.toContain("SECRET BIT BODY");
+  });
+
+  it("should flag AI-generated cards and carry their source links", async () => {
+    const links = ["https://example.com/a", "https://example.org/b"];
+    const knowledgeBitId = await seedBit("approved", { aiSourceLinks: links });
+
+    await seedVariant(knowledgeBitId);
+
+    const cards = await listKnowledgeBitReviewCards(10, { knowledgeBitId });
+
+    expect(cards[0]).toMatchObject({ isAiGenerated: true, sourceLinks: links });
   });
 
   it("should never serve a card whose bit is still awaiting approval", async () => {
