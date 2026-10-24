@@ -16,6 +16,10 @@ vi.mock('../gamification/level-chip', () => ({
   LevelChip: () => <div data-testid="level-chip" />,
 }))
 
+vi.mock('../knowledge-source/add-knowledge-button', () => ({
+  AddKnowledgeButton: () => <a data-testid="add-knowledge-button" href="/add-knowledge" />,
+}))
+
 vi.mock('./home-options', () => ({
   HomeOptions: () => <div data-testid="options" />,
 }))

@@ -7,6 +7,7 @@ import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-brows
 import { KnowledgeBrowserSourceBar } from './knowledge-browser-source-bar'
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
+import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
 import { useKnowledgeBrowserColumnOrder } from './use-knowledge-browser-column-order'
 import { useKnowledgeBrowserRows } from './use-knowledge-browser-data'
 import { useKnowledgeBrowserSelectionDelete } from './use-knowledge-browser-selection-delete'
@@ -31,9 +32,12 @@ export function KnowledgeBrowserScreen({
       <BrowserShell>
         <div className="mb-6 flex items-baseline justify-between gap-4">
           <h1 className="text-2xl font-semibold">Subjects</h1>
-          <Link to="/knowledge" className="text-sm text-neutral-600 underline">
-            Manage cards
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/knowledge" className="text-sm text-neutral-600 underline">
+              Manage cards
+            </Link>
+            <AddKnowledgeButton />
+          </div>
         </div>
         <KnowledgeBrowserSubjectList />
       </BrowserShell>
@@ -69,6 +73,10 @@ function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) 
       )}
       <div className="mb-6 mt-2 flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">{title}</h1>
+        <div className="flex items-center gap-4">
+          <AddKnowledgeButton
+            subjectId={subjectId && subjectId !== NO_SUBJECT_PARAM ? subjectId : undefined}
+          />
         <button
           type="button"
           data-testid="knowledge-browser-reset-columns"
@@ -78,6 +86,7 @@ function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) 
         >
           Reset column order
         </button>
+        </div>
       </div>
       {data.isPending && (
         <p data-testid="knowledge-browser-loading" className="text-neutral-500">

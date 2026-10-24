@@ -65,6 +65,7 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link')
 
     expect(links.map((link) => link.getAttribute('data-to'))).toEqual([
+      '/add-knowledge',
       '/knowledge/browser',
       '/knowledge/browser',
       '/knowledge/browser',
@@ -73,6 +74,7 @@ describe('Sidebar', () => {
       '/profile',
     ])
     expect(links.map((link) => link.textContent?.split(' (')[0])).toEqual([
+      '+Add knowledge',
       'Knowledge browser',
       'Math',
       'Subjects',

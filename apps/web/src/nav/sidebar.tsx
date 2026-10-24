@@ -5,6 +5,7 @@ import { getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
 import { browserTimeZone } from '../knowledge-bit/anki-review-session-actions'
 import { PENDING_REVIEW_CHANGED_EVENT } from '../knowledge-bit/knowledge-bit-review-events'
 import { getPendingKnowledgeBitCountForNav } from '../knowledge-bit/knowledge-bit-review.api'
+import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
 import { SidebarSubjects } from './sidebar-subjects'
 
 const PENDING_COUNT_REFRESH_MS = 60_000
@@ -95,6 +96,7 @@ export function Sidebar() {
 
   return (
     <nav className="flex flex-col gap-1 p-4">
+      <AddKnowledgeButton className="mb-2" />
       <Link
         to="/knowledge/browser"
         className={navLinkClass}
