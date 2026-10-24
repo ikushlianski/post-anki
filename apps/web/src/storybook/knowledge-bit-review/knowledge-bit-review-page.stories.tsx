@@ -12,7 +12,7 @@ const meta: Meta<typeof KnowledgeBitReviewPage> = {
     docs: {
       description: {
         component:
-          'The Approve suggestions page at /knowledge-bit-review. Shows how many suggestions are waiting and a Start triage button; the cards are then reviewed one at a time in full-screen focus mode.',
+          'The Knowledge triage page at /knowledge-bit-review. Shows how many suggestions are waiting and a Start triage button; the cards are then reviewed one at a time in full-screen focus mode.',
       },
     },
   },

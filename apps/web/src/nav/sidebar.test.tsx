@@ -78,7 +78,7 @@ describe('Sidebar', () => {
       'Knowledge browser',
       'Math',
       'Subjects',
-      'Knowledge inbox',
+      'Knowledge triage',
       'Review',
       'Profile',
     ])
@@ -91,11 +91,11 @@ describe('Sidebar', () => {
     expect(screen.getByTestId('nav-subjects').getAttribute('data-view')).toBe('subjects')
   })
 
-  it('should show the pending count on the Knowledge inbox link', async () => {
+  it('should show the pending count on the Knowledge triage link', async () => {
     render(<Sidebar />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge inbox (0)')
+      expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge triage (0)')
     })
   })
 

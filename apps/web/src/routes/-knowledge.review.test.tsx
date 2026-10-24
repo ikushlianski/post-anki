@@ -285,7 +285,7 @@ describe('Anki review page', () => {
 
     expect((await screen.findByTestId('anki-review-empty')).textContent).toBe('No cards to review yet')
     expect(screen.queryByText('Done for today')).toBeNull()
-    expect(screen.getByRole('link', { name: 'Approve suggestions' }).getAttribute('data-to')).toBe(
+    expect(screen.getByRole('link', { name: 'Knowledge triage' }).getAttribute('data-to')).toBe(
       '/knowledge-bit-review',
     )
     expect(screen.getByRole('link', { name: 'Add knowledge' }).getAttribute('data-to')).toBe('/add-knowledge')

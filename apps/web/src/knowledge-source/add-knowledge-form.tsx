@@ -256,7 +256,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
             data-testid="knowledge-success-review-link"
             className="text-neutral-700 underline"
           >
-            Approve suggestions
+            Knowledge triage
           </Link>
           {preselectedLabel && initialSubjectId && (
             <Link

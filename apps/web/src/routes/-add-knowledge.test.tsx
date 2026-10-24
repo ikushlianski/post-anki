@@ -685,7 +685,7 @@ describe('Sidebar', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe(
-        'Knowledge inbox (3)',
+        'Knowledge triage (3)',
       )
     })
     expect(screen.getByTestId('nav-knowledge-bit-review').getAttribute('data-to')).toBe(

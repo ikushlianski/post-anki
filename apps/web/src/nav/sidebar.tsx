@@ -118,7 +118,7 @@ export function Sidebar() {
         className={navLinkClass}
         data-testid="nav-knowledge-bit-review"
       >
-        {pendingCount === null ? 'Knowledge inbox' : `Knowledge inbox (${pendingCount})`}
+        {pendingCount === null ? 'Knowledge triage' : `Knowledge triage (${pendingCount})`}
       </Link>
       <Link to="/knowledge/review" className={navLinkClass} data-testid="nav-knowledge-review">
         {reviewCounts !== null && (reviewCounts.due > 0 || reviewCounts.new > 0)

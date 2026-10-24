@@ -155,7 +155,7 @@ describe('Anki review feedback and next steps', () => {
     expect(screen.queryByTestId('anki-review-grade-retry')).toBeNull()
   })
 
-  it('should offer Add knowledge and Approve suggestions as next steps on the done-for-today screen', async () => {
+  it('should offer Add knowledge and Knowledge triage as next steps on the done-for-today screen', async () => {
     mockedGetReviewCards.mockResolvedValue(
       queueResponse([], { nextDueAt: '2026-10-11T12:00:00.000Z', counts: { new: 0, learning: 0, review: 1 } }),
     )
@@ -166,7 +166,7 @@ describe('Anki review feedback and next steps', () => {
 
     expect(done.textContent).toContain('Done for today')
     expect(screen.getByRole('link', { name: 'Add knowledge' }).getAttribute('data-to')).toBe('/add-knowledge')
-    expect(screen.getByRole('link', { name: 'Approve suggestions' }).getAttribute('data-to')).toBe(
+    expect(screen.getByRole('link', { name: 'Knowledge triage' }).getAttribute('data-to')).toBe(
       '/knowledge-bit-review',
     )
   })

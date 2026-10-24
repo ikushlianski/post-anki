@@ -28,7 +28,7 @@ function NextSteps() {
         Add knowledge
       </Link>
       <Link to="/knowledge-bit-review" className="text-indigo-600 hover:underline">
-        Approve suggestions
+        Knowledge triage
       </Link>
     </div>
   )
