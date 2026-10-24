@@ -19,6 +19,8 @@
     "db:seed:subject-categories": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subject-categories.ts",
     "migrate:english-practice-data": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate-english-practice-data.ts",
     "db:seed:domain-taxonomy": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-domain-taxonomy.ts",
+    "eval:lessons": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/eval-lesson-extraction.ts",
+    "reextract:sources": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/reextract-knowledge-sources.ts",
     "verify:e2e": "tsx scripts/verify-e2e.ts",
     "notion:sync": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/notion-sync.ts",
     "biz-education:distill": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/biz-education-distill.ts"
