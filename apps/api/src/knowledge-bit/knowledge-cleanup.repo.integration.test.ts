@@ -7,7 +7,9 @@ import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
 
 const BASE_DATABASE_URL =
-  process.env.KNOWLEDGE_CLEANUP_TEST_BASE_URL ?? "postgres://postanki:postanki@localhost:5562/postgres";
+  process.env.KNOWLEDGE_CLEANUP_TEST_BASE_URL ??
+  process.env.DATABASE_URL ??
+  "postgres://postanki:postanki@localhost:5562/postgres";
 
 assertLocalDbTarget(BASE_DATABASE_URL);
 
