@@ -1,5 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
+import { addLambdaApi } from "./lambda-api.js";
 
 // Shared, reusable ECS Fargate cluster + ALB for every personal, single-user app on this AWS
 // account — not just post-anki. One cluster, one ALB, one wildcard cert, host-header routing.
@@ -424,6 +425,13 @@ const botFargateService = addFargateHttpService({
     { name: "OWNER_TELEGRAM_CHAT_ID", valueFrom: ownerTelegramChatIdParam.arn },
   ],
 });
+
+// --- api on Lambda (function URL), alongside the Fargate api ---
+
+const apiLambda = addLambdaApi({ webHostname });
+
+export const apiLambdaFunctionName = apiLambda.fn.name;
+export const apiLambdaUrl = apiLambda.url.functionUrl;
 
 export const albDnsName = alb.dnsName;
 export const clusterArn = cluster.arn;
