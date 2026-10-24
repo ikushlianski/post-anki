@@ -7,10 +7,8 @@ import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import { KnowledgeBitReviewPanel } from './knowledge-bit-review-panel'
 import {
-  approveKnowledgeBitForReview,
   bulkApproveKnowledgeBitsForReview,
   getPendingKnowledgeBitsForReview,
-  rejectKnowledgeBitForReview,
 } from './knowledge-bit-review.api'
 import {
   QUESTION_POLL_IDLE_LIMIT,
@@ -34,12 +32,12 @@ vi.mock('./knowledge-bit-review.api', () => ({
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
   getPendingKnowledgeBitsForReview: vi.fn(),
+  gradeKnowledgeBitForReview: vi.fn(),
+  updateKnowledgeBitFeedbackForReview: vi.fn(),
 }))
 
 const mockedBulk = vi.mocked(bulkApproveKnowledgeBitsForReview)
 const mockedGetPending = vi.mocked(getPendingKnowledgeBitsForReview)
-const mockedApprove = vi.mocked(approveKnowledgeBitForReview)
-const mockedReject = vi.mocked(rejectKnowledgeBitForReview)
 
 function bit(id: string, withVariant: boolean) {
   return {
@@ -61,12 +59,10 @@ function requestApproveAll() {
   fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all'))
 }
 
-describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
+describe('KnowledgeBitReviewPanel landing: bulk approval and polling', () => {
   beforeEach(() => {
     mockedBulk.mockReset()
     mockedGetPending.mockReset()
-    mockedApprove.mockReset()
-    mockedReject.mockReset()
   })
 
   afterEach(() => {
@@ -91,33 +87,12 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
 
     await waitFor(() => {
-      expect(screen.getByTestId('knowledge-bit-review-status-b1').textContent).toBe('Approved')
+      expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['b1', 'b2'] } })
     })
-    expect(screen.getByTestId('knowledge-bit-review-status-b2').textContent).toBe('Approved')
-    expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['b1', 'b2'] } })
-    expect(screen.getByTestId('knowledge-bit-review-item-b3')).toBeDefined()
-  })
-
-  it('should leave decided cards out of bulk approve and out of its count', async () => {
-    mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
-    mockedBulk.mockResolvedValue({ approved: ['b2'], skipped: [] })
-    render(
-      <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
-    )
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-reject-b1'))
-    await screen.findByTestId('knowledge-bit-review-status-b1')
-
-    requestApproveAll()
-
-    expect(screen.getByText('Approve 1 item?')).toBeDefined()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
-
     await waitFor(() => {
-      expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['b2'] } })
+      expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('0 cards')
     })
-    expect(screen.getByTestId('knowledge-bit-review-status-b1').textContent).toBe('Rejected')
+    expect(screen.getByTestId('knowledge-bit-review-progress').textContent).toContain('0 of 1 ready')
   })
 
   it('should keep a skipped bit listed and tell the reviewer it was skipped', async () => {
@@ -137,71 +112,7 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
         'Approved 1. Skipped 1: 1 has no questions yet.',
       )
     })
-    expect(screen.getByTestId('knowledge-bit-review-item-b2')).toBeDefined()
-  })
-
-  it('should approve only the chosen source with its own button', async () => {
-    mockedBulk.mockResolvedValue({ approved: ['a1', 'a2'], skipped: [] })
-    render(
-      <KnowledgeBitReviewPanel
-        initialSources={[
-          source('s1', [bit('a1', true), bit('a2', true)]),
-          source('s2', [bit('c1', true), bit('c2', true)]),
-        ]}
-      />,
-    )
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-source-s1'))
-
-    expect(screen.getByText('Approve 2 items?')).toBeDefined()
-    expect(mockedBulk).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-source-confirm-s1'))
-
-    await waitFor(() => {
-      expect(mockedBulk).toHaveBeenCalledWith({ data: { knowledgeBitIds: ['a1', 'a2'] } })
-    })
-  })
-
-  it('should approve the focused suggestion with the a key and move focus with j', async () => {
-    mockedApprove.mockResolvedValue({ ok: true })
-    render(
-      <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
-    )
-
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
-    fireEvent.keyDown(window, { key: 'a' })
-
-    await waitFor(() => {
-      expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'b2' } })
-    })
-  })
-
-  it('should reject the focused suggestion with the r key', async () => {
-    mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
-    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
-
-    fireEvent.keyDown(window, { key: 'r' })
-
-    await waitFor(() => {
-      expect(mockedReject).toHaveBeenCalledWith({ data: { bitId: 'b1' } })
-    })
-  })
-
-  it('should not approve with the a key while a suggestion has no questions yet', () => {
-    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', false)])]} />)
-
-    fireEvent.keyDown(window, { key: 'a' })
-
-    expect(mockedApprove).not.toHaveBeenCalled()
-  })
-
-  it('should ignore shortcut keys typed into an editor field', () => {
-    render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
-
-    fireEvent.keyDown(screen.getAllByRole('textbox')[0]!, { key: 'a' })
-
-    expect(mockedApprove).not.toHaveBeenCalled()
+    expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('1 card')
   })
 
   it('should make a waiting bit approvable once its questions arrive, then stop polling', async () => {
@@ -213,9 +124,8 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
       await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS)
     })
 
-    expect(
-      (screen.getByTestId('knowledge-bit-review-approve-b1') as HTMLButtonElement).disabled,
-    ).toBe(false)
+    expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('1 card is')
+    expect((screen.getByTestId('triage-start') as HTMLButtonElement).disabled).toBe(false)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * (QUESTION_POLL_IDLE_LIMIT + 1))
@@ -238,32 +148,27 @@ describe('KnowledgeBitReviewPanel bulk approval and keyboard', () => {
     ])
     render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true)])]} />)
 
-    expect(screen.queryByTestId('knowledge-bit-review-item-new1')).toBeNull()
+    expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('1 card is')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS)
     })
 
-    expect(screen.getByTestId('knowledge-bit-review-item-new1')).toBeDefined()
-    expect(screen.getByTestId('knowledge-bit-review-item-b1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('2 cards')
   })
 
-  it('should stop promising automatic checks and ask for a reload once polling gives up', async () => {
+  it('should stop showing the writing progress once polling gives up', async () => {
     vi.useFakeTimers()
     mockedGetPending.mockResolvedValue([source('s1', [bit('b1', false)])])
     render(<KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', false)])]} />)
 
-    expect(screen.getByTestId('knowledge-bit-review-no-variants-b1').textContent).toBe(
-      'Writing cards…',
-    )
+    expect(screen.getByTestId('knowledge-bit-review-progress').textContent).toContain('Writing cards')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(QUESTION_POLL_INTERVAL_MS * (QUESTION_POLL_MAX_ATTEMPTS + 1))
     })
 
-    expect(screen.getByTestId('knowledge-bit-review-no-variants-b1').textContent).toBe(
-      'Still waiting. Reload the page to check again.',
-    )
+    expect(screen.queryByTestId('knowledge-bit-review-progress')).toBeNull()
   })
 
   it('should stop checking for new suggestions once the page has been quiet for a while', async () => {

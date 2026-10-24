@@ -49,9 +49,9 @@ export function useReviewDecisions({
     bitId: string,
     failure: string,
     run: () => Promise<ReviewDecision>,
-  ) {
+  ): Promise<ReviewDecision | undefined> {
     if (!claimBit(bitId)) {
-      return
+      return undefined
     }
 
     setRowError(bitId, null)
@@ -63,8 +63,12 @@ export function useReviewDecisions({
       decidedStack.current = [...decidedStack.current.filter((id) => id !== bitId), bitId]
       setDecisions((prev) => ({ ...prev, [bitId]: decision }))
       notifyPendingReviewChanged()
+
+      return decision
     } catch {
       setRowError(bitId, failure)
+
+      return undefined
     } finally {
       releaseBit(bitId)
     }

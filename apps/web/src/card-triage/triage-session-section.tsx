@@ -3,9 +3,21 @@ import { TriageFeedbackPanel, TriageResultPanel } from './triage-feedback-panel'
 import { TriageSessionBar } from './triage-session-bar'
 import type { TriageSession } from './use-triage-session'
 
-export function TriageSessionSection({ session }: { session: TriageSession }) {
+export function TriageSessionSection({
+  session,
+  canStart = true,
+  hideOpenBar = false,
+}: {
+  session: TriageSession
+  canStart?: boolean
+  hideOpenBar?: boolean
+}) {
   useTriageSessionKeys({
-    onStart: () => void session.start(),
+    onStart: () => {
+      if (canStart) {
+        void session.start()
+      }
+    },
     onFinish: session.openFinish,
   })
 
@@ -34,5 +46,9 @@ export function TriageSessionSection({ session }: { session: TriageSession }) {
     )
   }
 
-  return <TriageSessionBar session={session} />
+  if (session.isOpen && hideOpenBar) {
+    return null
+  }
+
+  return <TriageSessionBar session={session} canStart={canStart} />
 }

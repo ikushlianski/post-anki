@@ -21,6 +21,13 @@ import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions
 
 export const REGENERATION_POLL_INTERVAL_MS = 3000
 
+export interface SourceRegenerationActions {
+  onRequest: (sourceId: string) => void
+  onCancel: (sourceId: string) => void
+  onConfirm: (sourceId: string, modelId?: KnowledgeItemModelId) => void
+  onRetry: (sourceId: string) => void
+}
+
 export type SourceRegenerationPhase = 'confirming' | 'starting' | 'running' | 'failed'
 
 export interface SourceRegenerationState {

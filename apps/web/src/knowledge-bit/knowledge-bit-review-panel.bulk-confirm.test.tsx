@@ -24,6 +24,8 @@ vi.mock('./knowledge-bit-review.api', () => ({
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
   getPendingKnowledgeBitsForReview: vi.fn(),
+  gradeKnowledgeBitForReview: vi.fn(),
+  updateKnowledgeBitFeedbackForReview: vi.fn(),
 }))
 
 const mockedBulk = vi.mocked(bulkApproveKnowledgeBitsForReview)
@@ -68,7 +70,7 @@ describe('KnowledgeBitReviewPanel bulk approval confirmation', () => {
     expect(mockedBulk).not.toHaveBeenCalled()
     expect(screen.queryByTestId('knowledge-bit-review-approve-all-confirm')).toBeNull()
     expect(screen.getByTestId('knowledge-bit-review-approve-all')).toBeDefined()
-    expect(screen.getByTestId('knowledge-bit-review-item-b1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('2 cards')
   })
 
   it('should tell the reviewer why each skipped item was skipped', async () => {
@@ -89,20 +91,9 @@ describe('KnowledgeBitReviewPanel bulk approval confirmation', () => {
     fireEvent.click(screen.getByTestId('knowledge-bit-review-approve-all-confirm'))
 
     await waitFor(() => {
-      expect(screen.getByRole('status').textContent).toBe(
+      expect(screen.getByTestId('knowledge-bit-review-bulk-message').textContent).toBe(
         'Approved 1. Skipped 2: 1 already decided, 1 has no questions yet.',
       )
     })
-  })
-
-  it('should ask for confirmation before approving the whole source with Shift+A', () => {
-    render(
-      <KnowledgeBitReviewPanel initialSources={[source('s1', [bit('b1', true), bit('b2', true)])]} />,
-    )
-
-    fireEvent.keyDown(window, { key: 'A' })
-
-    expect(screen.getByTestId('knowledge-bit-review-approve-source-confirm-s1')).toBeDefined()
-    expect(mockedBulk).not.toHaveBeenCalled()
   })
 })

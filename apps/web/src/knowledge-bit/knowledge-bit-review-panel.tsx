@@ -3,24 +3,24 @@ import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import {
   editKnowledgeBitForReview,
+  gradeKnowledgeBitForReview,
+  updateKnowledgeBitFeedbackForReview,
   getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
 } from './knowledge-bit-review.api'
 import { applyBitEdit, applyVariantEdit } from './knowledge-bit-review-sources'
-import { KnowledgeBitReviewWhyStrip } from './knowledge-bit-review-why-strip'
-import { KnowledgeBitReviewBulkBar } from './knowledge-bit-review-bulk-bar'
 import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
 import {
   REGENERATION_POLL_INTERVAL_MS,
   useSourceRegeneration,
 } from './knowledge-bit-review-regeneration'
-import { KnowledgeBitReviewEmptyState } from './knowledge-bit-review-empty-state'
-import { KnowledgeBitReviewSourceGroup } from './knowledge-bit-review-source-group'
-import {
-  useReviewKeyboard,
-  variantIndexOf,
-  type ReviewKeyAction,
-} from './knowledge-bit-review-keyboard'
+import { KnowledgeBitReviewLanding } from './knowledge-bit-review-landing'
+import { buildFocusQueue } from './knowledge-bit-focus-queue'
+import { useFocusKeyboard, type FocusKeyAction } from './knowledge-bit-focus-keyboard'
+import { KnowledgeBitFocusShell } from './knowledge-bit-focus-shell'
+import { KnowledgeBitFocusCard } from './knowledge-bit-focus-card'
+import { KnowledgeBitFocusDone } from './knowledge-bit-focus-done'
+import { KnowledgeBitReviewAnnouncer, useReviewAnnouncer } from './knowledge-bit-review-announcer'
 import {
   QUESTION_POLL_IDLE_LIMIT,
   hasBitAwaitingQuestions,
@@ -31,11 +31,11 @@ import {
   useQuestionPolling,
 } from './knowledge-bit-review-polling'
 import { useReviewDecisions } from './use-review-decisions'
-import { useReviewTriage } from './use-review-triage'
-import { useReviewGrading } from './use-review-grading'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
 import { TriageSessionSection } from '../card-triage/triage-session-section'
 import { useTriageSession } from '../card-triage/use-triage-session'
+
+const NEUTRAL_RATING = 3
 
 function singleSubjectId(pending: PendingKnowledgeSourceForReview[]): string | null {
   const ids = new Set(
@@ -52,9 +52,8 @@ export function KnowledgeBitReviewPanel({
   initialSources: PendingKnowledgeSourceForReview[]
 }) {
   const [sources, setSources] = useState(initialSources)
-  const [focusedIndex, setFocusedIndex] = useState(0)
-  const [focusedBitId, setFocusedBitId] = useState<string>()
   const [idleStopped, setIdleStopped] = useState(false)
+  const [note, setNote] = useState<{ bitId: string; text: string }>({ bitId: '', text: '' })
   const editingBitIds = useRef(new Set<string>())
   const knownBitIds = useRef(
     new Set(initialSources.flatMap((source) => source.bits.map((bit) => bit.id))),
@@ -67,17 +66,12 @@ export function KnowledgeBitReviewPanel({
     useResolvingSuggestions()
   const { claim: claimVariant, release: releaseVariant } = useResolvingSuggestions()
   const { claim: claimBitEdit, release: releaseBitEdit } = useResolvingSuggestions()
-  const { decisions, rowErrors, approve, keepVariants, reject, undo, undoLast, markApproved } = useReviewDecisions({
+  const { decisions, rowErrors, approve, reject, undoLast, markApproved } = useReviewDecisions({
     knownBitIds,
     claimBit,
     releaseBit,
   })
-  const triage = useReviewTriage({
-    findBit: (bitId) => sources.flatMap((source) => source.bits).find((bit) => bit.id === bitId),
-    approve,
-    keepVariants,
-  })
-  const { why, openGrade } = useReviewGrading({ sources, decisions })
+  const { announcement, announce } = useReviewAnnouncer()
   const pendingSources = sources.map((source) => ({
     ...source,
     bits: source.bits.filter((bit) => !decisions[bit.id]),
@@ -86,21 +80,11 @@ export function KnowledgeBitReviewPanel({
     decisions,
     subjectId: singleSubjectId(pendingSources),
   })
+  const queue = buildFocusQueue(pendingSources)
   const allBits = pendingSources.flatMap((source) => source.bits)
-  const focusPosition = allBits.findIndex((bit) => bit.id === focusedBitId)
-  const activeIndex =
-    focusPosition >= 0 ? focusPosition : Math.min(focusedIndex, allBits.length - 1)
-  const focusedBit = allBits[activeIndex]
   const readyBits = allBits.filter((bit) => bit.variants.length > 0)
-
-  if (focusPosition >= 0 && focusPosition !== focusedIndex) {
-    setFocusedIndex(focusPosition)
-  }
-
-  function moveFocus(index: number) {
-    setFocusedIndex(index)
-    setFocusedBitId(allBits[index]?.id)
-  }
+  const undoError = Object.keys(rowErrors).find((id) => rowErrors[id] && decisions[id])
+  const inFocus = triageSession.isOpen && triageSession.phase === 'idle'
 
   const refreshQuestions = useCallback(async () => {
     const statuses = await fetchStatuses()
@@ -189,95 +173,116 @@ export function KnowledgeBitReviewPanel({
     }
   }
 
-  function handleKey(action: ReviewKeyAction) {
-    if (action === 'undo') {
-      void undoLast()
-
-      return
-    }
-
-    if (!focusedBit) {
-      return
-    }
-
-    const variantIndex = variantIndexOf(action)
-
-    if (action === 'next') {
-      moveFocus(Math.min(activeIndex + 1, allBits.length - 1))
-    } else if (action === 'previous') {
-      moveFocus(Math.max(activeIndex - 1, 0))
-    } else if (editingBitIds.current.has(focusedBit.id) || isBitResolving(focusedBit.id)) {
-      return
-    } else if (variantIndex !== null) {
-      triage.onToggle?.(focusedBit.id, variantIndex)
-    } else if (action === 'reject') {
-      void reject(focusedBit.id)
-    } else if (action === 'approve' || action === 'keep') {
-      triage.onKeep?.(focusedBit.id)
-    } else {
-      const source = pendingSources.find((c) => c.bits.some((bit) => bit.id === focusedBit.id))
-
-      if (source) {
-        bulk.requestApproveSource(source.knowledgeSourceId)
+  async function sendNote(action: 'approve' | 'reject', bitId: string, text: string, feedbackId: string | null) {
+    try {
+      if (action === 'reject' && feedbackId) {
+        await updateKnowledgeBitFeedbackForReview({ data: { feedbackId, note: text } })
+      } else if (action === 'approve') {
+        await gradeKnowledgeBitForReview({ data: { bitId, rating: NEUTRAL_RATING, note: text } })
       }
+    } catch {
+      announce('assertive', "Couldn't save your note.")
     }
   }
 
-  useReviewKeyboard(handleKey)
+  async function decide(action: 'approve' | 'reject') {
+    const bitId = queue.current?.bit.id
+
+    if (!bitId || editingBitIds.current.has(bitId) || isBitResolving(bitId)) {
+      return
+    }
+
+    const text = note.bitId === bitId ? note.text.trim() : ''
+    const left = Math.max(queue.readyCount - 1, 0)
+    const decision = await (action === 'approve' ? approve(bitId) : reject(bitId))
+
+    if (!decision) {
+      return
+    }
+
+    announce('polite', `${action === 'approve' ? 'Approved' : 'Rejected'}, ${left} left`)
+
+    if (text) {
+      void sendNote(action, bitId, text, decision.feedbackId)
+    }
+  }
+
+  function handleAction(action: FocusKeyAction) {
+    if (action === 'undo') {
+      void undoLast()
+    } else {
+      void decide(action)
+    }
+  }
+
+  useFocusKeyboard(handleAction, inFocus)
+
+  const session = (
+    <TriageSessionSection
+      session={triageSession}
+      canStart={readyBits.length > 0}
+      hideOpenBar
+    />
+  )
+
+  if (triageSession.isOpen) {
+    return (
+      <div data-testid="knowledge-bit-review-panel">
+        <KnowledgeBitFocusShell
+          readyCount={queue.readyCount}
+          waitingCount={queue.waitingCount}
+          canUndo={Object.keys(decisions).length > 0}
+          onUndo={() => void undoLast()}
+          onFinish={triageSession.openFinish}
+        >
+          {inFocus ? (
+            queue.current ? (
+              <KnowledgeBitFocusCard
+                bit={queue.current.bit}
+                subjectName={queue.current.source.subjectName ?? null}
+                sourceText={queue.current.source.sourceText ?? null}
+                isResolving={isBitResolving(queue.current.bit.id)}
+                pollingGaveUp={pollingGaveUp}
+                errorMessage={
+                  rowErrors[queue.current.bit.id] || (undoError ? rowErrors[undoError] : null) || null
+                }
+                note={note.bitId === queue.current.bit.id ? note.text : ''}
+                onNoteChange={(text) => setNote({ bitId: queue.current?.bit.id ?? '', text })}
+                onApprove={() => void decide('approve')}
+                onReject={() => void decide('reject')}
+                onEditingChange={handleEditingChange}
+                onSaveVariant={saveVariant}
+                onSaveBit={saveBit}
+              />
+            ) : (
+              <KnowledgeBitFocusDone
+                waitingCount={queue.waitingCount}
+                decidedCount={triageSession.decidedCount}
+                onFinish={triageSession.openFinish}
+              />
+            )
+          ) : null}
+          {session}
+        </KnowledgeBitFocusShell>
+        <KnowledgeBitReviewAnnouncer announcement={announcement} />
+      </div>
+    )
+  }
 
   return (
-    <div data-testid="knowledge-bit-review-panel" className="space-y-4">
-      {hasBitAwaitingQuestions(pendingSources) && !pollingGaveUp ? (
-        <p data-testid="knowledge-bit-review-progress" className="text-sm text-neutral-600">
-          Writing cards… {readyBits.length} of {allBits.length} ready
-        </p>
-      ) : null}
-
-      <TriageSessionSection session={triageSession} />
-
-      <KnowledgeBitReviewBulkBar
-        readyCount={readyBits.length}
-        bulkMessage={bulk.bulkMessage}
-        isConfirming={bulk.isConfirmingAll}
-        onRequestApproveAll={bulk.requestApproveAll}
-        onConfirmApproveAll={bulk.confirmBulk}
-        onCancelApproveAll={bulk.cancelBulk}
-      />
-
-      {sources.length === 0 ? (
-        <KnowledgeBitReviewEmptyState />
-      ) : (
-        <ul className="space-y-4">
-          {sources.map((source) => (
-            <KnowledgeBitReviewSourceGroup
-              key={source.knowledgeSourceId}
-              source={source}
-              focusedBitId={focusedBit?.id}
-              decisions={decisions}
-              pollingGaveUp={pollingGaveUp}
-              rowErrors={rowErrors}
-              isBitResolving={isBitResolving}
-              isConfirmingBulk={bulk.confirmingSourceId === source.knowledgeSourceId}
-              triage={triage}
-              regeneration={regeneration.states[source.knowledgeSourceId]}
-              regenerationActions={regeneration.actions}
-              onRequestApproveSource={bulk.requestApproveSource}
-              onConfirmBulk={bulk.confirmBulk}
-              onCancelBulk={bulk.cancelBulk}
-              onEditingChange={handleEditingChange}
-              onApprove={approve}
-              onReject={reject}
-              onUndo={undo}
-              onGrade={openGrade}
-              hideGrading={triageSession.isOpen}
-              onSaveVariant={saveVariant}
-              onSaveBit={saveBit}
-            />
-          ))}
-        </ul>
-      )}
-
-      {triageSession.isOpen ? null : <KnowledgeBitReviewWhyStrip why={why} />}
+    <div data-testid="knowledge-bit-review-panel">
+      <KnowledgeBitReviewLanding
+        sources={pendingSources}
+        readyCount={queue.readyCount}
+        waitingCount={queue.waitingCount}
+        showWaiting={!pollingGaveUp}
+        regenerationStates={regeneration.states}
+        regenerationActions={regeneration.actions}
+        bulk={bulk}
+      >
+        {session}
+      </KnowledgeBitReviewLanding>
+      <KnowledgeBitReviewAnnouncer announcement={announcement} />
     </div>
   )
 }

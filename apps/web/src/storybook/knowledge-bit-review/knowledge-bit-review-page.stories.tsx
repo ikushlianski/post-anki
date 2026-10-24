@@ -12,7 +12,7 @@ const meta: Meta<typeof KnowledgeBitReviewPage> = {
     docs: {
       description: {
         component:
-          'The Approve suggestions page at /knowledge-bit-review. Lists suggested knowledge items grouped by their source, each with generated question cards that the reviewer approves, edits or rejects.',
+          'The Approve suggestions page at /knowledge-bit-review. Shows how many suggestions are waiting and a Start triage button; the cards are then reviewed one at a time in full-screen focus mode.',
       },
     },
   },
@@ -28,7 +28,7 @@ export const ReadyToApprove: Story = {
     docs: {
       description: {
         story:
-          'Two sources, one with three items that each carry question cards, so the per-source approve-all button and the bulk bar are both visible.',
+          'Two sources with ready cards: the count, Start triage, the bulk bar and the per-source rows are visible.',
       },
     },
   },
@@ -50,7 +50,7 @@ export const PhoneWidth: Story = {
     docs: {
       description: {
         story:
-          'The same page at phone width. Cards stack, and the approve and reject buttons span the full card width.',
+          'The same page at phone width. The Start triage button spans the full width.',
       },
     },
   },

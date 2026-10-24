@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
 
 import { AiLabelBadge } from './ai-label-badge'
+import { TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
 import { KnowledgeBitReviewExampleField } from './knowledge-bit-review-card-fields'
 import { KnowledgeBitReviewVariantList } from './knowledge-bit-review-variant-list'
 
@@ -15,6 +16,8 @@ interface KnowledgeBitFocusCardProps {
   isResolving: boolean
   pollingGaveUp?: boolean
   errorMessage?: string | null
+  note?: string
+  onNoteChange?: (note: string) => void
   onApprove: (bitId: string) => void
   onReject: (bitId: string) => void
   onEditingChange?: (bitId: string, editing: boolean) => void
@@ -34,6 +37,8 @@ function FocusCardBody({
   isResolving,
   pollingGaveUp = false,
   errorMessage = null,
+  note = '',
+  onNoteChange,
   onApprove,
   onReject,
   onEditingChange,
@@ -128,6 +133,21 @@ function FocusCardBody({
             onBusyChange={(busy) => setBusy('example', busy)}
           />
         )}
+
+        {onNoteChange ? (
+          <label className="block space-y-1 text-sm text-neutral-700">
+            <span className="text-xs font-medium text-neutral-600">Note (optional)</span>
+            <textarea
+              data-testid="knowledge-bit-focus-note"
+              value={note}
+              maxLength={500}
+              rows={2}
+              placeholder="Why approve or reject? Helps future cards."
+              onChange={(event) => onNoteChange(event.target.value)}
+              className={TEXT_FIELD_CLASS}
+            />
+          </label>
+        ) : null}
 
         {errorMessage ? (
           <p

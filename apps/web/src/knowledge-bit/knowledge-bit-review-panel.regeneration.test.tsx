@@ -29,6 +29,8 @@ vi.mock('./knowledge-bit-review.api', () => ({
   editKnowledgeBitForReview: vi.fn(),
   bulkApproveKnowledgeBitsForReview: vi.fn(),
   getPendingKnowledgeBitsForReview: vi.fn(),
+  gradeKnowledgeBitForReview: vi.fn(),
+  updateKnowledgeBitFeedbackForReview: vi.fn(),
   regenerateKnowledgeSourceForReview: vi.fn(),
   getKnowledgeSourceRegenerationForReview: vi.fn(),
 }))
@@ -111,7 +113,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
     fireEvent.click(screen.getByTestId('knowledge-bit-review-regenerate-s1-cancel'))
 
     expect(screen.getByTestId('knowledge-bit-review-regenerate-s1')).toBeDefined()
-    expect(screen.getByTestId('knowledge-bit-review-item-b1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s1').textContent).toBe('1 suggestion')
     expect(mockedRegenerate).not.toHaveBeenCalled()
   })
 
@@ -144,7 +146,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
     expect(
       (screen.getByTestId('knowledge-bit-review-regenerate-s1') as HTMLButtonElement).disabled,
     ).toBe(true)
-    expect(screen.queryByTestId('knowledge-bit-review-item-b1')).toBeNull()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s1').textContent).toBe('0 suggestions')
     expect(screen.getByTestId('knowledge-bit-review-source-s1')).toBeDefined()
   })
 
@@ -158,7 +160,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
       'Regenerating…',
     )
     expect(screen.queryByTestId('knowledge-bit-review-regenerate-s1-retry')).toBeNull()
-    expect(screen.queryByTestId('knowledge-bit-review-item-b1')).toBeNull()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s1').textContent).toBe('0 suggestions')
   })
 
   it('should send one request when the confirm button is clicked twice', async () => {
@@ -187,7 +189,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
     expect(screen.getByTestId('knowledge-bit-review-regenerate-s1-status').textContent).toBe(
       "Couldn't start. Try again.",
     )
-    expect(screen.getByTestId('knowledge-bit-review-item-b1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s1').textContent).toBe('1 suggestion')
 
     mockedRegenerate.mockResolvedValueOnce({ status: 'running', supersededCount: 1 })
     await act(async () => {
@@ -221,8 +223,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
       await vi.advanceTimersByTimeAsync(REGENERATION_POLL_INTERVAL_MS)
     })
 
-    expect(screen.getByTestId('knowledge-bit-review-item-n1')).toBeDefined()
-    expect(screen.getByTestId('knowledge-bit-review-item-n2')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s1').textContent).toBe('2 suggestions')
     expect(screen.queryByTestId('knowledge-bit-review-regenerate-s1-status')).toBeNull()
     expect(
       (screen.getByTestId('knowledge-bit-review-regenerate-s1') as HTMLButtonElement).disabled,
@@ -255,7 +256,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
       await vi.advanceTimersByTimeAsync(REGENERATION_POLL_INTERVAL_MS)
     })
 
-    expect(screen.getByTestId('knowledge-bit-review-item-n1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s1').textContent).toBe('1 suggestion')
     expect(screen.getByTestId('knowledge-bit-review-regenerate-s1-retry')).toBeDefined()
   })
 
@@ -271,7 +272,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
       await vi.advanceTimersByTimeAsync(REGENERATION_POLL_INTERVAL_MS)
     })
 
-    expect(screen.getByTestId('knowledge-bit-review-item-c1')).toBeDefined()
+    expect(screen.getByTestId('knowledge-bit-review-source-count-s2').textContent).toBe('1 suggestion')
     expect(screen.getByTestId('knowledge-bit-review-source-s1')).toBeDefined()
     expect(mockedStatus).toHaveBeenCalledTimes(1)
     expect(mockedStatus).toHaveBeenCalledWith({ data: { sourceId: 's1' } })

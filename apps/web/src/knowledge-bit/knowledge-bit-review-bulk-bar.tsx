@@ -37,9 +37,6 @@ export function KnowledgeBitReviewBulkBar({
             >
               Approve all ready ({readyCount})
             </button>
-            <span className="hidden text-xs text-neutral-600 sm:inline">
-              Keys: left/right arrows move, a approve, r reject, Shift+A approve all from source
-            </span>
           </div>
         )
       ) : null}

@@ -12,7 +12,7 @@ export function KnowledgeBitReviewPage({
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Approve suggestions</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Check each suggested question and answer. Approved questions go into your review queue.
+          Start triage to review suggestions one at a time. Approved questions go into your review queue.
         </p>
       </header>
 

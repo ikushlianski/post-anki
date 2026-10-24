@@ -1,21 +1,27 @@
 import { Link } from '@tanstack/react-router'
 
-import {
-  PRIMARY_BUTTON_CLASS,
-  SECONDARY_BUTTON_CLASS,
-} from '../knowledge-bit/knowledge-bit-review-classes'
+import { PRIMARY_BUTTON_CLASS } from '../knowledge-bit/knowledge-bit-review-classes'
 import type { TriageSession } from './use-triage-session'
 
-export function TriageSessionBar({ session }: { session: TriageSession }) {
+const START_BUTTON_CLASS =
+  'inline-flex min-h-14 w-full items-center justify-center rounded-xl bg-neutral-900 px-8 text-lg font-semibold text-white shadow-sm hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 sm:w-auto'
+
+export function TriageSessionBar({
+  session,
+  canStart = true,
+}: {
+  session: TriageSession
+  canStart?: boolean
+}) {
   if (!session.isOpen) {
     return (
-      <div className="flex flex-wrap items-center gap-3" data-testid="triage-session-bar">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3" data-testid="triage-session-bar">
         <button
           type="button"
           data-testid="triage-start"
-          disabled={session.busy}
+          disabled={session.busy || !canStart}
           onClick={() => void session.start()}
-          className={SECONDARY_BUTTON_CLASS}
+          className={START_BUTTON_CLASS}
         >
           Start triage
         </button>
