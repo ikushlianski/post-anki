@@ -148,14 +148,28 @@ describe("runKnowledgeBitSourceItems", () => {
 
   it("should skip the cards call and return nothing when no lesson survives validation", async () => {
     generateMock.mockClear();
-    generateMock.mockResolvedValueOnce({
-      object: { lessons: [{ lesson: "Made up.", quote: "this sentence is not in the paste at all" }] },
-    });
+    const made = { object: { lessons: [{ lesson: "Made up.", quote: "this sentence is not in the paste at all" }] } };
+
+    generateMock.mockResolvedValueOnce(made);
+    generateMock.mockResolvedValueOnce(made);
 
     const drafts = await runKnowledgeBitSourceItems(SOURCE);
 
     expect(drafts).toEqual([]);
-    expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(generateMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("should ask for lessons once more when the first answer holds none, instead of failing the chunk", async () => {
+    generateMock.mockClear();
+    generateMock.mockResolvedValueOnce({
+      object: { lessons: [{ lesson: "Made up.", quote: "this sentence is not in the paste at all" }] },
+    });
+    mockTwoCalls([LESSON], [CARD]);
+
+    const drafts = await runKnowledgeBitSourceItems(SOURCE);
+
+    expect(generateMock).toHaveBeenCalledTimes(3);
+    expect(drafts).toHaveLength(1);
   });
 
   it("should keep at most two cards per lesson and drop a lesson that got no card", async () => {

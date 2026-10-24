@@ -167,6 +167,22 @@ function sumUsage(a: ReportedUsage, b: ReportedUsage): ReportedUsage {
   };
 }
 
+function pickValidLessons(result: { object?: unknown }, chunk: string) {
+  const parsed = knowledgeBitLessonsResultSchema.safeParse(result.object);
+
+  if (!parsed.success) {
+    throw new Error(`knowledge_bit_lessons_invalid_output: ${parsed.error.message}`);
+  }
+
+  return parsed.data.lessons
+    .map((raw) => ({
+      statement: raw.lesson,
+      quote: raw.quote,
+      example: raw.example?.trim() ? raw.example.trim().slice(0, LESSON_EXAMPLE_MAX_CHARS) : null,
+    }))
+    .filter((lesson) => validateLesson(lesson, chunk).ok);
+}
+
 export async function runKnowledgeBitSourceItems(
   chunk: string,
   options: RunKnowledgeBitSourceItemsOptions = {},
@@ -188,30 +204,29 @@ export async function runKnowledgeBitSourceItems(
     options.strictLanguage,
     options.feedbackBlock,
   );
-  const lessonsResult = await generateWithRetry(
-    "knowledge_bit_lessons",
-    null,
-    AGENT_KEYS.knowledgeBitLessons,
-    () =>
-      lessonsAgent.generate(lessonsPrompt, {
-        structuredOutput: { schema: knowledgeBitLessonsResultSchema },
-        ...callOptions,
-      }),
-    retryOptions,
-  );
-  const lessonsParsed = knowledgeBitLessonsResultSchema.safeParse(lessonsResult.object);
+  let lessonsResult = await generateLessons();
+  let lessons = pickValidLessons(lessonsResult, chunk);
 
-  if (!lessonsParsed.success) {
-    throw new Error(`knowledge_bit_lessons_invalid_output: ${lessonsParsed.error.message}`);
+  if (lessons.length === 0) {
+    const retried = await generateLessons();
+
+    lessons = pickValidLessons(retried, chunk);
+    lessonsResult = retried;
   }
 
-  const lessons = lessonsParsed.data.lessons
-    .map((raw) => ({
-      statement: raw.lesson,
-      quote: raw.quote,
-      example: raw.example?.trim() ? raw.example.trim().slice(0, LESSON_EXAMPLE_MAX_CHARS) : null,
-    }))
-    .filter((lesson) => validateLesson(lesson, chunk).ok);
+  async function generateLessons() {
+    return generateWithRetry(
+      "knowledge_bit_lessons",
+      null,
+      AGENT_KEYS.knowledgeBitLessons,
+      () =>
+        lessonsAgent.generate(lessonsPrompt, {
+          structuredOutput: { schema: knowledgeBitLessonsResultSchema },
+          ...callOptions,
+        }),
+      retryOptions,
+    );
+  }
 
   if (lessons.length === 0) {
     options.onUsage?.(readGenerateUsage(lessonsResult));
