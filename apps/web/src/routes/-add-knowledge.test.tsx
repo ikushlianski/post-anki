@@ -10,7 +10,6 @@ import {
   createKnowledgeSourceFromUrl,
   createKnowledgeSources,
 } from '../knowledge-source/knowledge-source.api'
-vi.mock('../nav/sidebar-subjects', () => ({ SidebarSubjects: () => null }))
 
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'

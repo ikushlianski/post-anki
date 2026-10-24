@@ -6,7 +6,6 @@ import { browserTimeZone } from '../knowledge-bit/anki-review-session-actions'
 import { PENDING_REVIEW_CHANGED_EVENT } from '../knowledge-bit/knowledge-bit-review-events'
 import { getPendingKnowledgeBitCountForNav } from '../knowledge-bit/knowledge-bit-review.api'
 import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
-import { SidebarSubjects } from './sidebar-subjects'
 
 const PENDING_COUNT_REFRESH_MS = 60_000
 
@@ -104,7 +103,6 @@ export function Sidebar() {
       >
         Knowledge browser
       </Link>
-      <SidebarSubjects />
       <Link
         to="/knowledge/browser"
         search={{ view: 'subjects' }}

@@ -38,16 +38,6 @@ vi.mock('../knowledge-bit/anki-review-session-actions', () => ({
   browserTimeZone: () => 'Europe/Berlin',
 }))
 
-vi.mock('./sidebar-subjects', () => ({
-  SidebarSubjects: () => (
-    <>
-      <a href="#" data-to="/knowledge/browser" data-testid="sidebar-subject-s1">
-        Math
-      </a>
-    </>
-  ),
-}))
-
 import { act } from '@testing-library/react'
 
 import { getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
@@ -59,14 +49,13 @@ afterEach(() => {
 })
 
 describe('Sidebar', () => {
-  it('should show the browser, the user subjects, the Subjects entry, inbox and review in that order', () => {
+  it('should show the browser, the Subjects entry, inbox and review in that order', () => {
     render(<Sidebar />)
 
     const links = screen.getAllByRole('link')
 
     expect(links.map((link) => link.getAttribute('data-to'))).toEqual([
       '/add-knowledge',
-      '/knowledge/browser',
       '/knowledge/browser',
       '/knowledge/browser',
       '/knowledge-bit-review',
@@ -76,7 +65,6 @@ describe('Sidebar', () => {
     expect(links.map((link) => link.textContent?.split(' (')[0])).toEqual([
       '+Add knowledge',
       'Knowledge browser',
-      'Math',
       'Subjects',
       'Knowledge triage',
       'Review',

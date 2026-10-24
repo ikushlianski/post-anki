@@ -45,7 +45,6 @@ vi.mock('../knowledge-bit/anki-review.api')
 vi.mock('../knowledge-bit/knowledge-bit-chat.api')
 
 import { getReviewCards, submitReview } from '../knowledge-bit/anki-review.api'
-vi.mock('../nav/sidebar-subjects', () => ({ SidebarSubjects: () => null }))
 
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './knowledge.review'
