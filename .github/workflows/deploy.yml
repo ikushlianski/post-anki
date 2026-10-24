@@ -28,7 +28,7 @@ jobs:
     # throwaway database off this one and migrates into it, so no seed step is needed.
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postanki
           POSTGRES_PASSWORD: postanki
@@ -264,7 +264,7 @@ jobs:
             --max-instances 1 \
             --memory 512Mi \
             --cpu 1 \
-            --timeout 60s \
+            --timeout 300s \
             --port 8030 \
             --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars "OPENROUTER_API_KEY=${{ secrets.PROD_OPENROUTER_API_KEY }}" \
