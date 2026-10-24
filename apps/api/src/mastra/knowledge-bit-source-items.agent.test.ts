@@ -172,18 +172,18 @@ describe("runKnowledgeBitSourceItems", () => {
     expect(drafts).toHaveLength(1);
   });
 
-  it("should keep at most two cards per lesson and drop a lesson that got no card", async () => {
+  it("should keep at most three cards per lesson and drop a lesson that got no card", async () => {
     const second = { lesson: "Crews spread salt before dawn so roads are clear for commuters.", quote: "Crews spread it before dawn." };
 
     mockTwoCalls(
       [LESSON, second],
-      [CARD, { ...CARD, kind: "basic" as const }, { ...CARD, kind: "fill_blank" as const }, { ...CARD, lessonIndex: 5 }],
+      [CARD, { ...CARD, kind: "basic" as const }, { ...CARD, kind: "fill_blank" as const }, { ...CARD, kind: "basic" as const }, { ...CARD, lessonIndex: 5 }],
     );
 
     const drafts = await runKnowledgeBitSourceItems(SOURCE);
 
     expect(drafts).toHaveLength(1);
-    expect(drafts[0]?.cards.map((card) => card.kind)).toEqual(["why", "basic"]);
+    expect(drafts[0]?.cards.map((card) => card.kind)).toEqual(["why", "basic", "fill_blank"]);
   });
 
   it("should report the summed usage of both calls once", async () => {

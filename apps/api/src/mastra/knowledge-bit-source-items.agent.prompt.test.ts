@@ -35,8 +35,8 @@ describe("INSTRUCTIONS (cards)", () => {
     "fill_blank on the load-bearing term": "load-bearing term",
     "basic otherwise": "basic - everything else",
     "basic is never yes/no": "never a yes/no question",
-    "one card by default": "Write 1 card per lesson by default",
-    "at most two cards": "Never more than 2 per lesson",
+    "several cards by default": "Write 2 to 3 cards per lesson",
+    "at most three cards": "Never more than 3 per lesson",
     "apply the principle": "make the learner apply",
     "keep claim strength": "Keep the strength of every claim",
     "keep hedges": "Keep hedges",
@@ -84,10 +84,10 @@ describe("buildKnowledgeBitCardsPrompt", () => {
 });
 
 describe("knowledgeBitCardsResultSchema", () => {
-  it("should accept one to six cards and reject none or seven", () => {
+  it("should accept one to nine cards and reject none or ten", () => {
     expect(knowledgeBitCardsResultSchema.safeParse({ cards: [CARD] }).success).toBe(true);
     expect(knowledgeBitCardsResultSchema.safeParse({ cards: [] }).success).toBe(false);
-    expect(knowledgeBitCardsResultSchema.safeParse({ cards: Array(7).fill(CARD) }).success).toBe(false);
+    expect(knowledgeBitCardsResultSchema.safeParse({ cards: Array(10).fill(CARD) }).success).toBe(false);
   });
 
   it("should reject an unknown kind", () => {

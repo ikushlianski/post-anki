@@ -22,12 +22,12 @@ import {
 } from "./knowledge-bit-lessons.agent.js";
 import { buildLanguageHeaderLines, LANGUAGE_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
 
-export const CARDS_MAX_PER_LESSON = 2;
+export const CARDS_MAX_PER_LESSON = 3;
 const CARD_FIELD_MAX_CHARS = 2000;
 
 export const INSTRUCTIONS = [
   "You turn already-extracted lessons into flashcards for a spaced-repetition app. You receive the",
-  "lessons only, not the original text. Each lesson becomes one or two cards that test whether the",
+  "lessons only, not the original text. Each lesson becomes two or three cards that test whether the",
   "learner can apply the principle.",
   "",
   SECURITY_RULES,
@@ -69,8 +69,9 @@ export const INSTRUCTIONS = [
   "  3. basic - everything else: a plain definition, contrast or fact, asked as a direct question",
   "     (what, which, how many), never a yes/no question.",
   "",
-  `QUANTITY. Write 1 card per lesson by default. Write ${CARDS_MAX_PER_LESSON} only when the lesson holds a distinct rule plus a`,
-  `distinct reason, and then make them different kinds. Never more than ${CARDS_MAX_PER_LESSON} per lesson. Cover every lesson.`,
+  `QUANTITY. Write 2 to ${CARDS_MAX_PER_LESSON} cards per lesson, each testing the same principle from a different angle`,
+  "and each of a different kind where the lesson allows (a why, a fill_blank, a basic). Write only 1 when the",
+  `lesson is too thin for a second distinct card. Never more than ${CARDS_MAX_PER_LESSON} per lesson. Cover every lesson.`,
   "FAITHFULNESS. Keep the strength of every claim: \"not necessary\" is not \"forbidden\", \"may\" is not \"must\".",
   "Two cards never state the same fact in different words. A question is never answered by yes or no.",
   "Keep hedges (\"possibly\", \"sometimes\") and never turn a possibility into a fact. Replace \"we\", \"our\" and \"I\"",
