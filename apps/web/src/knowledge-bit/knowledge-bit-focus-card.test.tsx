@@ -126,6 +126,47 @@ describe('KnowledgeBitFocusCard', () => {
     expect(screen.getByRole('button', { name: 'Approve' }).className).toContain('min-h-12')
   })
 
+  it('should show the loader only on the button that was pressed while it saves', () => {
+    const { rerender } = render(
+      <KnowledgeBitFocusCard
+        bit={makeBit()}
+        subjectName="Physics"
+        sourceText={null}
+        isResolving={false}
+        onApprove={vi.fn()}
+        onReject={vi.fn()}
+        onSaveVariant={vi.fn(async () => true)}
+        onSaveBit={vi.fn(async () => true)}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    rerender(
+      <KnowledgeBitFocusCard
+        bit={makeBit()}
+        subjectName="Physics"
+        sourceText={null}
+        isResolving
+        onApprove={vi.fn()}
+        onReject={vi.fn()}
+        onSaveVariant={vi.fn(async () => true)}
+        onSaveBit={vi.fn(async () => true)}
+      />,
+    )
+
+    expect(screen.getAllByTestId('knowledge-bit-focus-spinner')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Approve' }).querySelector('[data-testid="knowledge-bit-focus-spinner"]')).not.toBeNull()
+  })
+
+  it('should show the fact below the question fields and the example', () => {
+    renderCard()
+
+    const fact = screen.getByTestId('knowledge-bit-focus-fact')
+    const prompt = screen.getByTestId('knowledge-bit-review-edit-prompt-v1')
+
+    expect(prompt.compareDocumentPosition(fact) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('should disable both decisions while a decision is being saved', () => {
     renderCard(makeBit(), { isResolving: true })
 

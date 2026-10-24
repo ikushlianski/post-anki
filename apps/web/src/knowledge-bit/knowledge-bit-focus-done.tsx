@@ -1,12 +1,18 @@
-import { PRIMARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
+import { TRIAGE_FEEDBACK_MAX_CHARS } from '@post-anki/shared'
+
+import { PRIMARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
 
 export function KnowledgeBitFocusDone({
   waitingCount,
   decidedCount,
+  feedback = '',
+  onFeedbackChange,
   onFinish,
 }: {
   waitingCount: number
   decidedCount: number
+  feedback?: string
+  onFeedbackChange?: (text: string) => void
   onFinish: () => void
 }) {
   const isWaiting = waitingCount > 0
@@ -34,6 +40,20 @@ export function KnowledgeBitFocusDone({
       >
         Finish triage
       </button>
+      {onFeedbackChange ? (
+        <label className="mt-2 block w-full space-y-1 text-left text-sm text-neutral-700">
+          <span className="text-xs font-medium text-neutral-600">Feedback (optional)</span>
+          <textarea
+            data-testid="knowledge-bit-focus-done-feedback"
+            rows={4}
+            maxLength={TRIAGE_FEEDBACK_MAX_CHARS}
+            value={feedback}
+            placeholder="What did you like or not like about these cards? Helps future cards."
+            onChange={(event) => onFeedbackChange(event.target.value)}
+            className={TEXT_FIELD_CLASS}
+          />
+        </label>
+      ) : null}
     </div>
   )
 }

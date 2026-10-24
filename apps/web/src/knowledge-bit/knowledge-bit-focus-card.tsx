@@ -30,6 +30,16 @@ interface KnowledgeBitFocusCardProps {
   onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
 }
 
+function ButtonSpinner() {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="knowledge-bit-focus-spinner"
+      className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+    />
+  )
+}
+
 function FocusCardBody({
   bit,
   subjectName,
@@ -46,6 +56,7 @@ function FocusCardBody({
   onSaveBit,
 }: KnowledgeBitFocusCardProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const [pressed, setPressed] = useState<'approve' | 'reject' | null>(null)
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(new Set())
 
   const setBusy = useCallback((key: string, busy: boolean) => {
@@ -94,6 +105,28 @@ function FocusCardBody({
           >
             {subjectName ?? 'No subject'}
           </p>
+        </div>
+
+        <KnowledgeBitReviewVariantList
+          bitId={bit.id}
+          variants={bit.variants}
+          pollingGaveUp={pollingGaveUp}
+          defaultOpen
+          onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
+          onBusyChange={setBusy}
+        />
+
+        {hasNoVariants ? null : (
+          <KnowledgeBitReviewExampleField
+            bitId={bit.id}
+            example={bit.background ?? ''}
+            onSave={(example) => onSaveBit(bit.id, bit.body, example)}
+            onBusyChange={(busy) => setBusy('example', busy)}
+          />
+        )}
+
+        <div className="space-y-2" data-testid="knowledge-bit-focus-fact">
+          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Fact</p>
           <h2
             ref={headingRef}
             tabIndex={-1}
@@ -116,24 +149,6 @@ function FocusCardBody({
             </details>
           ) : null}
         </div>
-
-        <KnowledgeBitReviewVariantList
-          bitId={bit.id}
-          variants={bit.variants}
-          pollingGaveUp={pollingGaveUp}
-          defaultOpen
-          onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
-          onBusyChange={setBusy}
-        />
-
-        {hasNoVariants ? null : (
-          <KnowledgeBitReviewExampleField
-            bitId={bit.id}
-            example={bit.background ?? ''}
-            onSave={(example) => onSaveBit(bit.id, bit.body, example)}
-            onBusyChange={(busy) => setBusy('example', busy)}
-          />
-        )}
 
         {onNoteChange ? (
           <label className="block space-y-1 text-sm text-neutral-700">
@@ -166,21 +181,35 @@ function FocusCardBody({
           type="button"
           data-testid={`knowledge-bit-focus-reject-${bit.id}`}
           disabled={actionsDisabled}
-          onClick={() => onReject(bit.id)}
+          onClick={() => {
+            setPressed('reject')
+            onReject(bit.id)
+          }}
           className={`${ACTION_CLASS} bg-neutral-100 text-neutral-800 hover:bg-neutral-200`}
         >
-          <span aria-hidden="true" className="hidden text-neutral-500 sm:inline">←</span>
+          {isResolving && pressed === 'reject' ? (
+            <ButtonSpinner />
+          ) : (
+            <span aria-hidden="true" className="hidden text-neutral-500 sm:inline">←</span>
+          )}
           Reject
         </button>
         <button
           type="button"
           data-testid={`knowledge-bit-focus-approve-${bit.id}`}
           disabled={approveDisabled}
-          onClick={() => onApprove(bit.id)}
+          onClick={() => {
+            setPressed('approve')
+            onApprove(bit.id)
+          }}
           className={`${ACTION_CLASS} bg-neutral-900 text-white hover:bg-neutral-800`}
         >
           Approve
-          <span aria-hidden="true" className="hidden text-neutral-300 sm:inline">→</span>
+          {isResolving && pressed === 'approve' ? (
+            <ButtonSpinner />
+          ) : (
+            <span aria-hidden="true" className="hidden text-neutral-300 sm:inline">→</span>
+          )}
         </button>
       </div>
     </article>

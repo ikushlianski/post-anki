@@ -84,6 +84,7 @@ export function KnowledgeBitReviewPanel({
   const allBits = pendingSources.flatMap((source) => source.bits)
   const readyBits = allBits.filter((bit) => bit.variants.length > 0)
   const undoError = Object.keys(rowErrors).find((id) => rowErrors[id] && decisions[id])
+  const [doneFeedback, setDoneFeedback] = useState('')
   const inFocus = triageSession.isOpen && triageSession.phase === 'idle'
 
   const refreshQuestions = useCallback(async () => {
@@ -258,7 +259,9 @@ export function KnowledgeBitReviewPanel({
               <KnowledgeBitFocusDone
                 waitingCount={queue.waitingCount}
                 decidedCount={triageSession.decidedCount}
-                onFinish={triageSession.openFinish}
+                feedback={doneFeedback}
+                onFeedbackChange={setDoneFeedback}
+                onFinish={() => void triageSession.finish(doneFeedback)}
               />
             )
           ) : null}

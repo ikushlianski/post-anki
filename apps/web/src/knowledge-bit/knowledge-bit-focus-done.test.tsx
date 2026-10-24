@@ -20,6 +20,24 @@ describe('KnowledgeBitFocusDone', () => {
     expect(onFinish).toHaveBeenCalledTimes(1)
   })
 
+  it('should offer an optional feedback field under Finish triage', () => {
+    const onFeedbackChange = vi.fn()
+
+    render(
+      <KnowledgeBitFocusDone
+        waitingCount={0}
+        decidedCount={3}
+        feedback=""
+        onFeedbackChange={onFeedbackChange}
+        onFinish={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByTestId('knowledge-bit-focus-done-feedback'), { target: { value: 'too wordy' } })
+
+    expect(onFeedbackChange).toHaveBeenCalledWith('too wordy')
+  })
+
   it('should say cards are still being written when some are waiting', () => {
     render(<KnowledgeBitFocusDone waitingCount={2} decidedCount={5} onFinish={vi.fn()} />)
 
