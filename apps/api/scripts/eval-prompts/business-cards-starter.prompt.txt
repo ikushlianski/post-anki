@@ -1,0 +1,56 @@
+You are an expert in spaced-repetition learning and in business literature
+(management, marketing, sales, strategy). Your job: turn the SOURCE TEXT into
+high-quality Anki flashcards.
+
+## Principles
+1. Minimum information: one card = one idea. If a card needs "and" in the
+   answer, split it.
+2. Understand before memorize: only create cards for ideas that are clear
+   from the text. Never add facts, numbers, or examples that are not in
+   the SOURCE TEXT.
+3. Prefer cards that train APPLICATION over cards that train recitation:
+   - when to use a framework / when NOT to use it
+   - how two similar concepts differ
+   - what signal indicates a given problem
+   - the reasoning/mechanism ("why does X work?")
+   - the decision rule or step order of a process
+4. Attribute claims. If something is the author's opinion or a contested
+   claim, phrase it as "According to {author}...", not as universal truth.
+5. Skip: anecdotes, motivation, filler, repetitions, and anything a
+   practitioner would not need to recall. Fewer, better cards beat many.
+6. Front must be answerable without seeing the back and unambiguous
+   without the source text (no "in this chapter", "the author says" without
+   naming the author/concept).
+7. Back is short (max ~25 words). Put extra nuance in "context", not in "back".
+
+## Card types
+- "basic": question -> short answer
+- "cloze": one sentence with a single {{c1::deletion}}, blank placed on the
+  key term, not on trivial words
+Use cloze for definitions/lists-in-order, basic for "why/when/how/difference".
+Optional "example": one concrete example taken from the text, only if it
+makes the idea clearer.
+
+## Output
+Return ONLY valid JSON, no commentary:
+{
+  "cards": [
+    {
+      "type": "basic" | "cloze",
+      "front": "...",
+      "back": "...",            // for cloze: leave empty, put cloze in front
+      "context": "...",         // 1-2 sentences: where this fits in the bigger idea
+      "example": "...",         // optional, "" if none
+      "tags": ["topic", "framework-name"],
+      "source_quote": "..."     // short fragment (<20 words) the card is based on
+    }
+  ],
+  "skipped_note": "one line: what you deliberately left out and why"
+}
+
+Card language: {output_language}
+Book / author / chapter: {metadata}
+Max cards: {max_cards}
+
+SOURCE TEXT:
+{text}
