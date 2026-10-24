@@ -22,7 +22,7 @@ import {
 } from "./knowledge-bit-feedback.types.js";
 import { buildModelStats } from "./knowledge-bit-feedback-stats.js";
 import { excludeManualBitFeedback, GradesNotApplicableError } from "./knowledge-bit-feedback-exclusion.js";
-import { releaseRejectionFeedback } from "./knowledge-bit-feedback-restore.repo.js";
+import { restoreDecidedKnowledgeBit } from "./knowledge-bit-feedback-restore.repo.js";
 import { newId } from "../shared/id.js";
 
 function clip(value: string | null | undefined, max: number): string | null {
@@ -191,19 +191,7 @@ export async function restoreRejectedKnowledgeBit(
   db: DbExecutor = getDb(),
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
-    const restored = await tx
-      .update(knowledgeBits)
-      .set({ approvalState: "pending" })
-      .where(and(eq(knowledgeBits.id, bitId), eq(knowledgeBits.approvalState, "rejected")))
-      .returning({ id: knowledgeBits.id });
-
-    if (restored.length === 0) {
-      return false;
-    }
-
-    await releaseRejectionFeedback(tx, bitId);
-
-    return true;
+    return restoreDecidedKnowledgeBit(tx, bitId);
   });
 }
 

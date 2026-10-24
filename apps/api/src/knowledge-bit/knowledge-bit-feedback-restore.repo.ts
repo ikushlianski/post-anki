@@ -1,6 +1,24 @@
 import { and, eq, isNotNull, isNull, or } from "drizzle-orm";
 import type { DbExecutor } from "../db/client.js";
-import { knowledgeBitFeedback } from "../db/schema.js";
+import { knowledgeBitFeedback, knowledgeBits } from "../db/schema.js";
+
+export async function restoreDecidedKnowledgeBit(db: DbExecutor, bitId: string): Promise<boolean> {
+  for (const verdict of ["rejected", "approved"] as const) {
+    const restored = await db
+      .update(knowledgeBits)
+      .set({ approvalState: "pending" })
+      .where(and(eq(knowledgeBits.id, bitId), eq(knowledgeBits.approvalState, verdict)))
+      .returning({ id: knowledgeBits.id });
+
+    if (restored.length > 0) {
+      await releaseDecisionFeedback(db, bitId, verdict);
+
+      return true;
+    }
+  }
+
+  return false;
+}
 
 export async function releaseRejectionFeedback(db: DbExecutor, bitId: string): Promise<void> {
   await releaseDecisionFeedback(db, bitId, "rejected");

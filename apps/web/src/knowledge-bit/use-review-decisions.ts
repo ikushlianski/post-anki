@@ -29,7 +29,7 @@ export function useReviewDecisions({
 }) {
   const [decisions, setDecisions] = useState<ReviewDecisions>({})
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
-  const lastDecidedId = useRef<string | null>(null)
+  const decidedStack = useRef<string[]>([])
 
   function setRowError(bitId: string, message: string | null) {
     setRowErrors((prev) => ({ ...prev, [bitId]: message ?? '' }))
@@ -60,7 +60,7 @@ export function useReviewDecisions({
       const decision = await run()
 
       knownBitIds.current.add(bitId)
-      lastDecidedId.current = bitId
+      decidedStack.current = [...decidedStack.current.filter((id) => id !== bitId), bitId]
       setDecisions((prev) => ({ ...prev, [bitId]: decision }))
       notifyPendingReviewChanged()
     } catch {
@@ -117,9 +117,7 @@ export function useReviewDecisions({
         await restoreKnowledgeBitForReview({ data: { bitId } })
       }
 
-      if (lastDecidedId.current === bitId) {
-        lastDecidedId.current = null
-      }
+      decidedStack.current = decidedStack.current.filter((id) => id !== bitId)
 
       setDecisions((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([id]) => id !== bitId)),
@@ -133,9 +131,9 @@ export function useReviewDecisions({
   }
 
   function undoLast() {
-    const bitId = lastDecidedId.current
+    const bitId = [...decidedStack.current].reverse().find((id) => decisions[id])
 
-    if (bitId && decisions[bitId]) {
+    if (bitId) {
       return undo(bitId)
     }
   }

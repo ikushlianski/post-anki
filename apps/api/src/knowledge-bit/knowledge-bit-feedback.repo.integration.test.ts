@@ -218,13 +218,26 @@ describe("review feedback (real Postgres)", () => {
     expect(await feedbackFor(bitId)).toHaveLength(0);
   });
 
-  it("should not restore a suggestion that was approved", async () => {
+  it("should bring an approved suggestion back to pending and forget the approval", async () => {
     const sourceId = await seedSource(null, "m/x");
     const bitId = await seedBit(sourceId, "S", "F?", "B.");
 
     await approveKnowledgeBit(bitId);
 
+    expect(await restoreRejectedKnowledgeBit(bitId)).toBe(true);
+
+    const { rows } = await client.query(`SELECT approval_state FROM knowledge_bits WHERE id = $1`, [bitId]);
+
+    expect(rows[0]!.approval_state).toBe("pending");
+    expect(await feedbackFor(bitId)).toHaveLength(0);
+  });
+
+  it("should not restore a suggestion that is already pending or unknown", async () => {
+    const sourceId = await seedSource(null, "m/x");
+    const bitId = await seedBit(sourceId, "S", "F?", "B.");
+
     expect(await restoreRejectedKnowledgeBit(bitId)).toBe(false);
+    expect(await restoreRejectedKnowledgeBit("kb_missing")).toBe(false);
   });
 
   it("should load the feedback of the subject, and use everything when the subject has none", async () => {

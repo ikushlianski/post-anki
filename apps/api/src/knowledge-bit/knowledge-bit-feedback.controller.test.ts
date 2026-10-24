@@ -115,7 +115,7 @@ describe("handleRestoreRejectedKnowledgeBit", () => {
     vi.clearAllMocks();
   });
 
-  it("should bring a rejected suggestion back to the review list", async () => {
+  it("should bring a decided suggestion back to the review list", async () => {
     restoreRejectedKnowledgeBit.mockResolvedValue(true);
 
     const res = fakeRes();
@@ -126,7 +126,7 @@ describe("handleRestoreRejectedKnowledgeBit", () => {
     expect(res.status).toBe(200);
   });
 
-  it("should return 404 when the suggestion is not in the rejected state", async () => {
+  it("should return 404 when the suggestion is not approved or rejected", async () => {
     restoreRejectedKnowledgeBit.mockResolvedValue(false);
 
     const res = fakeRes();
