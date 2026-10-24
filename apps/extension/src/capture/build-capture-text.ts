@@ -1,47 +1,72 @@
 export const MAX_CAPTURE_CHARS = 50_000;
+export const MAX_TITLE_CHARS = 300;
+export const MAX_SOURCE_URL_CHARS = 2048;
 
-const SOURCE_PREFIX = "\n\nSource: ";
+export type CaptureBody = {
+  text: string;
+  sourceUrl?: string;
+  title?: string;
+  subjectId?: string;
+};
 
 export type BuildCaptureResult =
-  | { ok: true; text: string }
-  | { ok: false; reason: "empty_selection" | "invalid_url" };
+  | { ok: true; body: CaptureBody }
+  | { ok: false; reason: "empty_selection" };
 
-export type BuildCaptureInput = { selection: string; pageUrl: string };
+export type BuildCaptureInput = {
+  selection: string;
+  pageUrl?: string;
+  title?: string;
+  subjectId?: string;
+};
 
-function normalizeUrl(raw: string): string | null {
+function safeSourceUrl(raw: string | undefined): string | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+
   let parsed: URL;
 
   try {
     parsed = new URL(raw);
   } catch {
-    return null;
+    return undefined;
   }
 
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return null;
+    return undefined;
   }
 
   parsed.hash = "";
 
-  return parsed.toString();
+  const url = parsed.toString();
+
+  return url.length <= MAX_SOURCE_URL_CHARS ? url : undefined;
 }
 
 export function buildCaptureText(input: BuildCaptureInput): BuildCaptureResult {
-  const selection = input.selection.trim();
+  const text = input.selection.trim().slice(0, MAX_CAPTURE_CHARS).trimEnd();
 
-  if (selection.length === 0) {
+  if (text.length === 0) {
     return { ok: false, reason: "empty_selection" };
   }
 
-  const url = normalizeUrl(input.pageUrl);
+  const body: CaptureBody = { text };
+  const sourceUrl = safeSourceUrl(input.pageUrl);
+  const title = input.title?.trim().slice(0, MAX_TITLE_CHARS).trimEnd();
+  const subjectId = input.subjectId?.trim();
 
-  if (url === null) {
-    return { ok: false, reason: "invalid_url" };
+  if (sourceUrl !== undefined) {
+    body.sourceUrl = sourceUrl;
   }
 
-  const suffix = SOURCE_PREFIX + url;
-  const room = Math.max(0, MAX_CAPTURE_CHARS - suffix.length);
-  const body = selection.length > room ? selection.slice(0, room).trimEnd() : selection;
+  if (title) {
+    body.title = title;
+  }
 
-  return { ok: true, text: body + suffix };
+  if (subjectId) {
+    body.subjectId = subjectId;
+  }
+
+  return { ok: true, body };
 }

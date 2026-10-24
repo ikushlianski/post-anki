@@ -3,8 +3,22 @@
   "name": "post-anki capture",
   "version": "0.1.0",
   "description": "Send selected text to post-anki as a knowledge source.",
-  "permissions": ["contextMenus", "storage"],
-  "background": { "service_worker": "background.js", "type": "module" },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvotXaxJUmBLx+3G3OyFm/QrtBD0zUQHlzGnf3Qg+OZIp0FZdFMjUugyaK0NOnLkUcrrU88Kh7zSB1TwRw+grzlJL43cN3qOVzIder4gDqLOEKQ7PAiChYZp0Y8y3sa5ofvu8O3FZncizChT8AsFi888qBRd5W1/cWb2L2fP2KzqnL2Z4SFIlp4wCjnJnvFiv6O4cbbYafYVBJaPhto9tnradkji+G7JJLyqSRsVMV413BdAHW14K7CVXs7//mad+Nwp4Af2Tu3DRCLu4IHOcbVeRsLTODxg9cUYDwDqg1B/QGeQncwiibK3Ul+fJpUYPCkmc5R1AY6mD3g17YQ9w3wIDAQAB",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:5560/*",
+    "http://127.0.0.1:5560/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "options_page": "options.html",
-  "action": { "default_title": "post-anki capture" }
+  "action": {
+    "default_title": "post-anki capture"
+  }
 }

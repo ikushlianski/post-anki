@@ -1,29 +1,35 @@
+import type { CaptureBody } from "./build-capture-text.js";
 import type { Settings } from "../settings/settings.js";
 
 export type SendCaptureResult =
   | { ok: true }
-  | { ok: false; reason: "bad_request" | "unauthorized" | "forbidden" | "network" | "unexpected" };
+  | { ok: false; reason: "bad_request" | "already_added" | "unauthorized" | "forbidden" | "network" }
+  | { ok: false; reason: "unexpected"; status: number };
 
 type FetchImpl = typeof fetch;
 
-function reasonForStatus(status: number): Extract<SendCaptureResult, { ok: false }>["reason"] {
+function failureForStatus(status: number): Extract<SendCaptureResult, { ok: false }> {
   if (status === 400) {
-    return "bad_request";
+    return { ok: false, reason: "bad_request" };
+  }
+
+  if (status === 409) {
+    return { ok: false, reason: "already_added" };
   }
 
   if (status === 401) {
-    return "unauthorized";
+    return { ok: false, reason: "unauthorized" };
   }
 
   if (status === 403) {
-    return "forbidden";
+    return { ok: false, reason: "forbidden" };
   }
 
-  return "unexpected";
+  return { ok: false, reason: "unexpected", status };
 }
 
 export async function sendCapture(
-  text: string,
+  body: CaptureBody,
   settings: Settings,
   fetchImpl: FetchImpl = fetch,
 ): Promise<SendCaptureResult> {
@@ -37,14 +43,14 @@ export async function sendCapture(
     const response = await fetchImpl(`${settings.baseUrl}/knowledge-sources`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(body),
     });
 
     if (response.status === 201) {
       return { ok: true };
     }
 
-    return { ok: false, reason: reasonForStatus(response.status) };
+    return failureForStatus(response.status);
   } catch {
     return { ok: false, reason: "network" };
   }

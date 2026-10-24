@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && cp -R public/. dist/",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "node e2e/capture-e2e.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.3.5",

@@ -1,16 +1,31 @@
 import { buildCaptureText } from "./capture/build-capture-text.js";
 import { sendCapture } from "./capture/send-capture.js";
-import { getSettings } from "./settings/settings.js";
+import { describeSendResult } from "./feedback/describe-send-result.js";
+import { openReviewTab } from "./feedback/open-review-tab.js";
+import { getSettings, getWebUrl } from "./settings/settings.js";
 
 const MENU_ID = "send-to-post-anki";
 const BADGE_CLEAR_MS = 4000;
+const DEFAULT_TITLE = "post-anki capture";
 
-function showBadge(text: "OK" | "ERR"): void {
-  void chrome.action.setBadgeText({ text });
-  setTimeout(() => {
+function showStatus(badge: "..." | "OK" | "DUP" | "ERR", title: string): void {
+  void chrome.action.setBadgeText({ text: badge });
+  void chrome.action.setTitle({ title });
+}
+
+let clearTimer: ReturnType<typeof setTimeout> | undefined;
+
+function clearStatusLater(): void {
+  clearTimeout(clearTimer);
+  clearTimer = setTimeout(() => {
     void chrome.action.setBadgeText({ text: "" });
+    void chrome.action.setTitle({ title: DEFAULT_TITLE });
   }, BADGE_CLEAR_MS);
 }
+
+chrome.action.onClicked.addListener(async () => {
+  openReviewTab(await getWebUrl(), (properties) => chrome.tabs.create(properties));
+});
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -25,18 +40,26 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return;
   }
 
+  const settings = await getSettings();
   const built = buildCaptureText({
     selection: info.selectionText ?? "",
-    pageUrl: info.pageUrl ?? tab?.url ?? "",
+    pageUrl: tab?.url ?? info.pageUrl,
+    title: tab?.title,
+    subjectId: settings.subjectId,
   });
 
   if (!built.ok) {
-    showBadge("ERR");
+    showStatus("ERR", "No text selected");
+    clearStatusLater();
 
     return;
   }
 
-  const result = await sendCapture(built.text, await getSettings());
+  showStatus("...", "Sending...");
 
-  showBadge(result.ok ? "OK" : "ERR");
+  const result = await sendCapture(built.body, settings);
+  const feedback = describeSendResult(result, settings.baseUrl);
+
+  showStatus(feedback.badge, feedback.title);
+  clearStatusLater();
 });
