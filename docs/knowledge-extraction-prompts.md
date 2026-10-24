@@ -1,6 +1,6 @@
 # Knowledge extraction prompts (as sent to the model)
 
-## 1. Lessons step (business and other subjects): source text to lessons
+## 1. Lessons step (subjects that are not business or language): source text to lessons
 
 ```text
 You read a piece of source text and pull out the few lessons a learner should be able to apply later,
@@ -54,7 +54,7 @@ goods cost me, so every sale quietly lost money."
 "example":"A first shop priced goods by gut feeling and lost money on each sale."}
 ```
 
-## 2. Cards step (business and other subjects): lessons to question cards
+## 2. Cards step (subjects that are not business or language): lessons to question cards
 
 ```text
 You turn already-extracted lessons into flashcards for a spaced-repetition app. You receive the
@@ -212,3 +212,6 @@ source: "Salt is added to icy roads because it lowers the freezing point of wate
 "quote":"it lowers the freezing point of water"}
 ```
 
+## 4. Business card writer (business subjects)
+
+Business subjects skip the lessons and cards steps above and use one call with the `v3-self-filter` prompt (`apps/api/scripts/eval-prompts/business-cards-v3-self-filter.prompt.txt`, embedded in `apps/api/src/mastra/knowledge-bit-business-cards.prompt.ts`). The model first lists and filters the ideas, then writes one card per kept idea and quotes the source word for word. In the AI judge run, the previous business cards scored lowest (2.00 mean, 3 of 10 kept, anecdotes were biographical trivia) and v3-self-filter scored best per card (2.78). Only 2 short sources were judged, so the choice is a safe default, not a final verdict. The version is selected by the single constant `ACTIVE_BUSINESS_CARDS_PROMPT`. At most 3 cards per chunk are kept. The learning intent, when present, is passed in the prompt metadata. A reply that is not valid JSON or breaks the schema is retried once. Cards whose quote is not found in the source are dropped; the other checks run in the shared validation after extraction. Tags, dropped ideas and the card context are not stored.

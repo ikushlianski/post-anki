@@ -22,6 +22,7 @@ import {
 } from "./knowledge-bit-lessons.agent.js";
 import type { SubjectKind } from "../subject/subject-kind.js";
 import { runLegacyKnowledgeBitSourceItems } from "./knowledge-bit-source-items.legacy.agent.js";
+import { runBusinessKnowledgeBitCards } from "./knowledge-bit-business-cards.agent.js";
 import { buildLanguageHeaderLines, LANGUAGE_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
 
 export const CARDS_MAX_PER_LESSON = 3;
@@ -193,6 +194,10 @@ export async function runKnowledgeBitSourceItems(
 ): Promise<LessonDraft[]> {
   if (options.subjectKind === "language") {
     return runLegacyKnowledgeBitSourceItems(chunk, options);
+  }
+
+  if (options.subjectKind === "business") {
+    return runBusinessKnowledgeBitCards(chunk, options);
   }
 
   const modelId = options.modelId ?? (await getKnowledgeItemModelId());

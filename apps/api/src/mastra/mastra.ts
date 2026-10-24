@@ -35,6 +35,7 @@ import { createTagAutoAssignAgent } from "./tag-auto-assign.agent.js";
 import { createKnowledgeBitLessonsAgent } from "./knowledge-bit-lessons.agent.js";
 import { createKnowledgeBitSourceItemsAgent } from "./knowledge-bit-source-items.agent.js";
 import { createKnowledgeBitSourceItemsLegacyAgent } from "./knowledge-bit-source-items.legacy.agent.js";
+import { createKnowledgeBitBusinessCardsAgent } from "./knowledge-bit-business-cards.agent.js";
 import { createArticleSummaryAgent } from "./article-summary.agent.js";
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
 import { createKnowledgeBitPlacerAgent } from "./knowledge-bit-placer.agent.js";
@@ -80,6 +81,7 @@ export const AGENT_KEYS = {
   knowledgeBitLessons: "knowledgeBitLessons",
   knowledgeBitSourceItems: "knowledgeBitSourceItems",
   knowledgeBitSourceItemsLegacy: "knowledgeBitSourceItemsLegacy",
+  knowledgeBitBusinessCards: "knowledgeBitBusinessCards",
   articleSummary: "articleSummary",
   knowledgeBitTagger: "knowledgeBitTagger",
   knowledgeBitPlacer: "knowledgeBitPlacer",
@@ -171,6 +173,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.knowledgeBitLessons]: createKnowledgeBitLessonsAgent(),
         [AGENT_KEYS.knowledgeBitSourceItems]: createKnowledgeBitSourceItemsAgent(),
         [AGENT_KEYS.knowledgeBitSourceItemsLegacy]: createKnowledgeBitSourceItemsLegacyAgent(),
+        [AGENT_KEYS.knowledgeBitBusinessCards]: createKnowledgeBitBusinessCardsAgent(),
         [AGENT_KEYS.articleSummary]: createArticleSummaryAgent(),
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),
         [AGENT_KEYS.knowledgeBitPlacer]: createKnowledgeBitPlacerAgent(),

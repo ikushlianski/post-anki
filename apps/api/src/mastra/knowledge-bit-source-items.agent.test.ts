@@ -317,7 +317,7 @@ describe("runKnowledgeBitSourceItems by subject kind", () => {
     expect(drafts[0]?.example).toBeNull();
   });
 
-  it.each([["business" as const], ["other" as const], [undefined]])(
+  it.each([["other" as const], [undefined]])(
     "should keep the lessons-then-cards pipeline for %s",
     async (subjectKind) => {
       vi.mocked(generateWithRetry).mockClear();
@@ -330,4 +330,3 @@ describe("runKnowledgeBitSourceItems by subject kind", () => {
     },
   );
 });
-
