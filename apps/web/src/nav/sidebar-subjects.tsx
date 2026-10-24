@@ -11,10 +11,10 @@ import { useKnowledgeOverviewSubjects } from '../knowledge-bit/use-knowledge-ove
 export const SIDEBAR_SUBJECTS_LIMIT = 12
 
 const subjectLinkClass =
-  'flex min-h-[44px] items-center rounded-md px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 sm:min-h-0'
+  'flex min-h-[44px] shrink-0 items-center rounded-md px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 sm:min-h-0'
 
 export function pickTopLevelSubjects(entries: BrowserSubjectEntry[]): BrowserSubjectEntry[] {
-  return entries.filter((entry) => !entry.label.includes(' / ')).slice(0, SIDEBAR_SUBJECTS_LIMIT)
+  return entries.filter((entry) => !entry.label.includes(' › ')).slice(0, SIDEBAR_SUBJECTS_LIMIT)
 }
 
 export function SidebarSubjects() {

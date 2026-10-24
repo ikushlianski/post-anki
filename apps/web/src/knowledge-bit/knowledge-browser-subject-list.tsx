@@ -23,7 +23,7 @@ export function buildBrowserSubjectEntries(
     id: option.id,
     label: option.label,
     count: options
-      .filter((other) => other.label === option.label || other.label.startsWith(`${option.label} / `))
+      .filter((other) => other.label === option.label || other.label.startsWith(`${option.label} › `))
       .reduce((sum, other) => sum + (direct.get(other.id) ?? 0), 0),
   }))
   const unsorted = direct.get(null) ?? 0

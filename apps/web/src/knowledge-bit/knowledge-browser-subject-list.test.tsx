@@ -15,7 +15,7 @@ vi.mock('./use-knowledge-overview-subjects', () => ({
   useKnowledgeOverviewSubjects: () => ({
     options: [
       { id: 'lang', label: 'Languages' },
-      { id: 'ru', label: 'Languages / Russian' },
+      { id: 'ru', label: 'Languages › Russian' },
       { id: 'empty', label: 'Empty' },
     ],
     labelFor: () => '',
@@ -35,7 +35,7 @@ afterEach(cleanup)
 describe('buildBrowserSubjectEntries', () => {
   const options = [
     { id: 'lang', label: 'Languages' },
-    { id: 'ru', label: 'Languages / Russian' },
+    { id: 'ru', label: 'Languages › Russian' },
     { id: 'empty', label: 'Empty' },
   ]
 
@@ -44,7 +44,7 @@ describe('buildBrowserSubjectEntries', () => {
 
     expect(entries).toEqual([
       { id: 'lang', label: 'Languages', count: 4 },
-      { id: 'ru', label: 'Languages / Russian', count: 4 },
+      { id: 'ru', label: 'Languages › Russian', count: 4 },
       { id: 'empty', label: 'Empty', count: 0 },
     ])
   })

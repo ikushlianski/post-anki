@@ -45,7 +45,7 @@ describe('SidebarSubjects', () => {
   it('should link each top-level subject to its slice of the knowledge browser', () => {
     givenSubjects([
       { id: 's1', label: 'Math' },
-      { id: 's2', label: 'Math / Algebra' },
+      { id: 's2', label: 'Math › Algebra' },
       { id: 's3', label: 'Physics' },
     ])
 
