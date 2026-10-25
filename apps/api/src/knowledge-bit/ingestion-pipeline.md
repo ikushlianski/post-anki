@@ -4,6 +4,16 @@
 
 A user pastes text, submits a batch of texts, or imports a URL via `POST /api/knowledge-sources` (`knowledge-source.controller.ts`). After the row is saved and the 201 response is sent, the controller calls `kickPipelineInBackground()`, which calls `kickKnowledgeBitPipeline()` from the kick orchestrator in a detached promise. Any rejection is logged and swallowed so it never surfaces to the caller.
 
+## Pre-save subject check
+
+Before the save above, the Add knowledge form asks `POST /knowledge-sources/subject-checks` for advice when the Subject is blank. A chosen subject or a preselected leaf subject sends no request; a preselected parent limits suggestions to its sub-subjects. The check is read-only and stores nothing except one LLM call log row.
+
+- The orchestrator (`knowledge-source-subject-check.orchestrator.ts`) applies the server switch `SUBJECT_CHECK_ENABLED`, the hourly cap of 30 checks (counted from the call log), and the daily spend guard, then shortlists at most 15 leaf subjects, makes one cheap-tier agent call with a 12 second timeout, and validates the answer.
+- Pasted text is untrusted. The agent sees escaped excerpts in tags and candidates as aliases (`S1`, `P1`), never real ids. Aliases that were not offered are dropped, names and reasons lose markup and line breaks, and a new-subject proposal is dropped when a high-confidence recommendation exists or its name clashes with a sibling.
+- The response is always HTTP 200 for valid input: `ok` (up to three ranked recommendations and an optional new-subject proposal), `none`, or `unavailable` with reason `disabled`, `budget`, `rate_limited`, `timeout` or `failed`. Invalid input gets 400.
+- The form never saves automatically. The owner taps a suggestion, accepts a proposed new subject (created through the existing create-subject call, then saved under its id), picks another subject, or adds without a subject. `none` and `unavailable` save the text unfiled with a visible notice. Declining suppresses a re-check until a block is edited.
+- Saving then follows the unchanged flow above, so a subject chosen through a suggestion sets the extraction style exactly as a manual pick.
+
 ## Kick orchestrator (`knowledge-bit-pipeline-kick.orchestrator.ts`)
 
 The orchestrator runs a fixed, ordered list of passes. Each pass calls an independent scan that processes all currently-claimable rows for its stage:
