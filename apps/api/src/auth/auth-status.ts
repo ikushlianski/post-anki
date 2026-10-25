@@ -1,29 +1,15 @@
-import { count } from "drizzle-orm";
 import type { WebAuthState } from "@post-anki/shared";
-import { getDb } from "../db/client.js";
-import { users } from "../db/schema.js";
 import { loadEnv } from "../shared/env.js";
 import { getAuth } from "./auth.js";
 
 export interface AuthStatusDeps {
   isConfigured: () => boolean;
-  countUsers: () => Promise<number>;
   hasSession: (cookie: string) => Promise<boolean>;
 }
 
 export function createWebSessionChecker(deps: AuthStatusDeps) {
-  let ownerSeen = false;
-
   return async (cookie: string): Promise<WebAuthState> => {
     if (!deps.isConfigured()) {
-      return "unconfigured";
-    }
-
-    if (!ownerSeen) {
-      ownerSeen = (await deps.countUsers()) > 0;
-    }
-
-    if (!ownerSeen) {
       return "unconfigured";
     }
 
@@ -32,11 +18,10 @@ export function createWebSessionChecker(deps: AuthStatusDeps) {
 }
 
 export const checkWebSession = createWebSessionChecker({
-  isConfigured: () => Boolean(loadEnv().RESEND_API_KEY),
-  countUsers: async () => {
-    const [row] = await getDb().select({ total: count() }).from(users);
+  isConfigured: () => {
+    const env = loadEnv();
 
-    return row?.total ?? 0;
+    return Boolean(env.BETTER_AUTH_SECRET) && Boolean(env.OWNER_EMAIL);
   },
   hasSession: async (cookie) => {
     const session = await getAuth().api.getSession({ headers: new Headers({ cookie }) });

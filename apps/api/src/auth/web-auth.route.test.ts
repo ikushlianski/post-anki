@@ -13,6 +13,7 @@ const state = vi.hoisted(() => ({
   nodeEnv: undefined as string | undefined,
   tokenRows: [] as { id: string; tokenHash: string; revokedAt: Date | null }[],
   seen: [] as { url: string; body: string }[],
+  validSessionHeaders: [] as string[],
 }));
 
 vi.mock("../db/client.js", () => {
@@ -52,6 +53,10 @@ vi.mock("./auth-status.js", () => ({ checkWebSession: vi.fn(async () => "signed_
 
 vi.mock("./auth.js", () => ({
   getAuth: () => ({
+    api: {
+      getSession: async ({ headers }: { headers: Headers }) =>
+        state.validSessionHeaders.includes(headers.get("authorization") ?? "") ? { session: { id: "s" } } : null,
+    },
     handler: async (request: Request) => {
       state.seen.push({ url: request.url, body: await request.text() });
 
@@ -85,6 +90,7 @@ afterEach(() => {
   state.nodeEnv = undefined;
   state.tokenRows = [];
   state.seen = [];
+  state.validSessionHeaders = [];
 });
 
 function signIn(headers: Record<string, string>): Promise<Response> {
@@ -164,5 +170,57 @@ describe("web auth routes", () => {
     });
 
     expect(await res.json()).toEqual({ state: "signed_out" });
+  });
+
+  it("should reach the auth handler for native password sign-in, sign-out and session lookup without the shared secret", async () => {
+    const signInRes = await fetch(`${baseUrl}/api/auth/sign-in/email`, { method: "POST", body: "{}" });
+    const signOutRes = await fetch(`${baseUrl}/api/auth/sign-out`, { method: "POST", body: "{}" });
+    const sessionRes = await fetch(`${baseUrl}/api/auth/get-session`);
+
+    expect([signInRes.status, signOutRes.status, sessionRes.status]).toEqual([200, 200, 200]);
+    expect(state.seen).toHaveLength(3);
+  });
+
+  it("should keep key sign-in and other auth paths behind the shared secret even with a valid session token", async () => {
+    state.validSessionHeaders = ["Bearer session.token"];
+    const headers = { authorization: "Bearer session.token" };
+
+    const keySignIn = await fetch(`${baseUrl}/api/auth/sign-in/api-key`, { method: "POST", body: "{}", headers });
+    const changePassword = await fetch(`${baseUrl}/api/auth/change-password`, { method: "POST", body: "{}", headers });
+    const anonymousKey = await fetch(`${baseUrl}/api/auth/sign-in/api-key`, { method: "POST", body: "{}" });
+
+    expect([keySignIn.status, changePassword.status, anonymousKey.status]).toEqual([401, 401, 401]);
+    expect(state.seen).toHaveLength(0);
+  });
+
+  it("should accept a valid session token on an ordinary route", async () => {
+    state.validSessionHeaders = ["Bearer session.token"];
+
+    const res = await fetch(`${baseUrl}/sync-tokens`, { method: "POST", headers: { authorization: "Bearer session.token" } });
+
+    expect(res.status).not.toBe(401);
+  });
+
+  it("should refuse an expired, revoked or tampered session token on an ordinary route", async () => {
+    state.validSessionHeaders = ["Bearer session.token"];
+
+    const tampered = await fetch(`${baseUrl}/sync-tokens`, { method: "POST", headers: { authorization: "Bearer session.tokeX" } });
+    const gone = await fetch(`${baseUrl}/sync-tokens`, { method: "POST", headers: { authorization: "Bearer other.value" } });
+
+    expect([tampered.status, gone.status]).toEqual([401, 401]);
+  });
+
+  it("should still accept the shared secret on an ordinary route", async () => {
+    const res = await fetch(`${baseUrl}/sync-tokens`, { method: "POST", headers: { authorization: `Bearer ${SECRET}` } });
+
+    expect(res.status).not.toBe(401);
+  });
+
+  it("should refuse an unknown device token on an ordinary route", async () => {
+    state.tokenRows = [];
+
+    const res = await fetch(`${baseUrl}/sync-tokens`, { method: "POST", headers: { authorization: "Bearer pat_unknown" } });
+
+    expect(res.status).toBe(401);
   });
 });

@@ -330,6 +330,7 @@ import {
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
+import { classifyCredential, hasValidSessionToken, isNativeAuthRoute } from "./auth/api-credential.js";
 import { handleAuthRequest, handleWebAuthCheck, isAuthPath } from "./auth/web-auth.controller.js";
 import { handleCreateSyncToken, handleListSyncKeys } from "./sync-auth/sync-auth.controller.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
@@ -381,20 +382,20 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
     return true;
   }
 
-  if (!header?.startsWith("Bearer ")) {
+  if (classifyCredential(header, env.API_SHARED_SECRET) === "none" || header === undefined) {
     return false;
   }
 
   const rawToken = header.slice("Bearer ".length);
   const token = await findActiveTokenByHash(hashApiToken(rawToken));
 
-  if (!token) {
-    return false;
+  if (token) {
+    await touchLastUsed(token.id).catch((err: unknown) => log.error({ err }, "api_token_touch_last_used_failed"));
+
+    return true;
   }
 
-  await touchLastUsed(token.id).catch((err: unknown) => log.error({ err }, "api_token_touch_last_used_failed"));
-
-  return true;
+  return classifyCredential(header, env.API_SHARED_SECRET) === "session_token" && (await hasValidSessionToken(header));
 }
 
 function requiresSharedSecretOnly(path: string): boolean {
@@ -503,6 +504,11 @@ async function handleRequest(
   url: URL,
 ): Promise<void> {
   try {
+    if (isNativeAuthRoute(method, path)) {
+      await handleAuthRequest(req, res);
+      return;
+    }
+
     if (!(await authorized(req))) {
       sendError(res, 401, "unauthorized");
       return;

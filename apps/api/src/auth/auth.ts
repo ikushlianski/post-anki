@@ -5,13 +5,14 @@ import { bearer, magicLink } from "better-auth/plugins";
 import { getDb, type Db } from "../db/client.js";
 import * as schema from "../db/schema.js";
 import { loadEnv } from "../shared/env.js";
+import { apiKeySignIn } from "./api-key-sign-in.plugin.js";
+import { MIN_PASSWORD_LENGTH } from "./owner-password.js";
 import { isOwnerEmail } from "./owner-user.js";
 import { sendMagicLink } from "./send-magic-link.js";
 
 const DEFAULT_WEB_ORIGIN = "http://localhost:5540";
 const MAGIC_LINK_TTL_SECONDS = 600;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
-const MIN_PASSWORD_LENGTH = 12;
 const SIGN_IN_RATE = { window: 60, max: 5 };
 const SIGN_OUT_RATE = { window: 60, max: 20 };
 const EMAIL_SIGN_IN_PATH = "/sign-in/email";
@@ -69,6 +70,7 @@ export function createAuth(db: Db, sendLink: typeof sendMagicLink = sendMagicLin
     advanced: { ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] } },
     plugins: [
       bearer(),
+      apiKeySignIn(db),
       ...(env.RESEND_API_KEY
         ? [
             magicLink({
