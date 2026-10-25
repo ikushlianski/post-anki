@@ -5,6 +5,7 @@ struct FocusTriageStoredSession: Codable, Equatable {
     let server: String
     let sessionId: String
     let decisions: [TriageDecision]
+    var subjectId: String?
 }
 
 struct FocusTriageSessionStore {
@@ -26,8 +27,8 @@ struct FocusTriageSessionStore {
         return stored
     }
 
-    func save(sessionId: String, decisions: [TriageDecision]) {
-        let stored = FocusTriageStoredSession(server: scope(), sessionId: sessionId, decisions: decisions)
+    func save(sessionId: String, decisions: [TriageDecision], subjectId: String? = nil) {
+        let stored = FocusTriageStoredSession(server: scope(), sessionId: sessionId, decisions: decisions, subjectId: subjectId)
 
         if let data = try? JSONEncoder().encode(stored) { defaults.set(data, forKey: Self.key) }
     }

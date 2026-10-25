@@ -81,7 +81,7 @@ extension PendingReviewDecision {
             case .cancelled:
                 return .kept(message: "")
             case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
-                return .kept(message: "You're offline. Nothing was changed, try again when you're back.")
+                return .kept(message: "Couldn't connect to the server. Nothing was changed, try again in a moment.")
             default:
                 break
             }
@@ -217,7 +217,7 @@ public enum PendingReviewRestoreOutcome: Sendable {
             case .cancelled:
                 return .cancelled
             case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
-                return .retryable(message: "You're offline. Try Undo again.")
+                return .retryable(message: "Couldn't connect to the server. Try Undo again.")
             default:
                 break
             }
@@ -269,7 +269,7 @@ extension PendingReviewDecision {
             case .cancelled:
                 return nil
             case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
-                return "You're offline. Nothing was changed, try again when you're back."
+                return "Couldn't connect to the server. Nothing was changed, try again in a moment."
             default:
                 break
             }

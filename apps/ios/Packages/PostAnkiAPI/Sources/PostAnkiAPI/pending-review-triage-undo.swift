@@ -27,7 +27,7 @@ public enum PendingReviewTriageUndoOutcome: Sendable, Equatable {
         if let urlError = error as? URLError {
             switch urlError.code {
             case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
-                return .retryable(message: "You're offline. Press Z to try the undo again.")
+                return .retryable(message: "Couldn't connect to the server. Press Z to try the undo again.")
             default:
                 break
             }

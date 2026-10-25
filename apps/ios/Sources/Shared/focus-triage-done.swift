@@ -9,13 +9,23 @@ struct FocusTriageDone: View {
     let resumed: Bool
     let error: String?
     let stale: Bool
+    let rows: [FocusTriageDecisionRow]
+    let editing: FocusTriageDecisionEditing
     let onFinish: () -> Void
+    let onFinishWithoutFeedback: () -> Void
     let onDiscard: () -> Void
     let onKeepGoing: (() -> Void)?
 
     var body: some View {
         ScrollView {
             ZoomVStack(alignment: .leading, spacing: 12) {
+                if isAllDone {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.green)
+                        .accessibilityHidden(true)
+                }
+
                 Text(title)
                     .zoomFont(.title2.weight(.semibold))
 
@@ -28,6 +38,8 @@ struct FocusTriageDone: View {
                         .zoomFont(.callout)
                         .foregroundStyle(.secondary)
                 }
+
+                FocusTriageDecisionList(rows: rows, editing: editing)
 
                 Text("Feedback (optional)")
                     .zoomFont(.caption.weight(.semibold))
@@ -54,7 +66,13 @@ struct FocusTriageDone: View {
                     Button("Discard this session", action: onDiscard)
                         .buttonStyle(.bordered)
                 }
-
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .zoomPadding()
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            ZoomVStack(spacing: 8) {
                 Button(action: onFinish) {
                     ZoomHStack(spacing: 6) {
                         if isSaving { ProgressView() }
@@ -66,22 +84,28 @@ struct FocusTriageDone: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isSaving)
 
+                Button("Finish without feedback", action: onFinishWithoutFeedback)
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .disabled(isSaving)
+
                 if let onKeepGoing {
                     Button("Keep triaging", action: onKeepGoing)
                         .buttonStyle(.bordered)
                         .disabled(isSaving)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .zoomPadding()
+            .background(.bar)
         }
-        .scrollDismissesKeyboard(.interactively)
     }
+
+    private var isAllDone: Bool { remaining == 0 && waitingCount == 0 }
 
     private var title: String {
         if remaining > 0 { return "Finish triage?" }
 
-        return waitingCount > 0 ? "Writing more cards…" : "All cards decided"
+        return waitingCount > 0 ? "Writing more cards…" : "All done"
     }
 
     private var detail: String {

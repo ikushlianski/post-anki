@@ -66,18 +66,57 @@ extension SmokeTests {
             #expect(FakeServer.writes.first?.bodyObject?["subjectId"] == nil)
         }
 
-        @Test("should let triage carry on without feedback when the session cannot be started")
-        func startFailureStillTriages() async {
+        @Test("should start the session on the chosen subject and remember it for a later resume")
+        func startsWithChosenSubject() async {
+            let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
+            let (model, session) = await make(subjectId: "sub1", store: store, extra: ["POST /triage-sessions": .json(200, started)])
+            defer { session.end() }
+
+            model.triage.subjectFilter = "sub1"
+            await model.start()
+
+            #expect(FakeServer.writes.first?.bodyObject?["subjectId"] as? String == "sub1")
+            #expect(store.load()?.subjectId == "sub1")
+        }
+
+        @Test("should fix the triage subject to the one of a resumed session")
+        func resumeRestoresSubject() async {
+            let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
+
+            store.save(sessionId: "ts9", decisions: [], subjectId: "sub1")
+
+            let (model, session) = await make(store: store)
+            defer { session.end() }
+
+            await model.start()
+
+            #expect(model.resumed)
+            #expect(model.triage.subjectFilter == "sub1")
+        }
+
+        @Test("should still load a stored session saved before subjects were remembered")
+        func oldStoredSessionLoads() {
+            let suite = defaults()
+            let store = FocusTriageSessionStore(defaults: suite, scope: { "https://one" })
+            let legacy = #"{"server":"https://one","sessionId":"ts1","decisions":[]}"#
+
+            suite.set(Data(legacy.utf8), forKey: FocusTriageSessionStore.key)
+
+            #expect(store.load()?.sessionId == "ts1")
+            #expect(store.load()?.subjectId == nil)
+        }
+
+        @Test("should not open triage and offer a retry when the session cannot be started")
+        func startFailureBlocksTriage() async {
             let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
             let (model, session) = await make(store: store, extra: ["POST /triage-sessions": .json(500, "{}")])
             defer { session.end() }
 
-            await model.start()
-            await model.triage.approve()
+            let opened = await model.start()
 
+            #expect(!opened)
             #expect(!model.isOpen)
-            #expect(model.error == "Couldn't start triage. Try again.")
-            #expect(model.triage.current?.id == "b")
+            #expect(model.error != nil)
             #expect(store.load() == nil)
         }
 
@@ -92,6 +131,7 @@ extension SmokeTests {
 
             await model.start()
             await model.triage.approve()
+            await model.triage.settlePending()
 
             #expect(model.resumed)
             #expect(!FakeServer.writes.contains { $0.path == "/triage-sessions" })
@@ -135,8 +175,11 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.triage.approve()
+
+            await model.triage.settlePending()
             await model.start()
             await model.triage.reject()
+            await model.triage.settlePending()
 
             #expect(model.acceptedCount == 0)
             #expect(model.rejectedCount == 1)
@@ -177,7 +220,7 @@ extension SmokeTests {
 
                 #expect(model.stale)
 
-                model.discard()
+                await model.discard()
                 session.end()
 
                 #expect(!model.stale)

@@ -1,25 +1,54 @@
 import PostAnkiAPI
 import SwiftUI
 
+enum FocusTriageCardSection: Equatable {
+    case question
+    case answer
+    case example
+}
+
+struct FocusTriageCardParts: Equatable {
+    let front: String?
+    let back: String?
+    let example: String?
+    let sourceName: String
+    let sourceText: String?
+
+    init(bit: PendingReviewBit, source: PendingReviewSource?) {
+        let variant = PendingReviewTriageSelection.bestVariant(in: bit.variants)
+        let trimmedExample = bit.background?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let text = source?.sourceText ?? ""
+
+        front = variant?.prompt
+        back = variant?.answer
+        example = trimmedExample.isEmpty ? nil : trimmedExample
+        sourceName = source?.subjectName ?? "No subject"
+        sourceText = text.isEmpty ? nil : text
+    }
+
+    var sections: [FocusTriageCardSection] {
+        [.question, .answer] + (example == nil ? [] : [.example])
+    }
+}
+
 struct FocusTriageCard: View {
     let bit: PendingReviewBit
     let source: PendingReviewSource?
     @Binding var note: String
-    let isBusy: Bool
     let message: String?
-    let onApprove: () -> Void
-    let onReject: () -> Void
     let onEdit: () -> Void
 
-    @State private var pressed: PendingReviewDecision?
+    private var parts: FocusTriageCardParts { FocusTriageCardParts(bit: bit, source: source) }
 
     var body: some View {
         ScrollView {
             ZoomVStack(alignment: .leading, spacing: 16) {
-                topRow
-                variations
-                example
-                fact
+                Text(parts.sourceName.uppercased())
+                    .zoomFont(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                editableArea
+                sourceDisclosure
                 noteField
 
                 if let message {
@@ -33,83 +62,52 @@ struct FocusTriageCard: View {
             .zoomPadding()
         }
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom) { actions }
-        .onChange(of: isBusy) { if !isBusy { pressed = nil } }
     }
 
-    private var topRow: some View {
-        ZoomHStack(spacing: 8) {
-            Text((source?.subjectName ?? "No subject").uppercased())
-                .zoomFont(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Button("Edit", action: onEdit)
-                .zoomFont(.callout)
-                .disabled(isBusy)
-        }
-    }
-
-    private var variations: some View {
-        ZoomVStack(alignment: .leading, spacing: 10) {
-            ForEach(bit.variants) { variant in
-                ZoomVStack(alignment: .leading, spacing: 4) {
-                    Text(variant.kindLabel)
-                        .zoomFont(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(variant.prompt)
-                        .zoomFont(.title3)
-                    Text(variant.answer)
-                        .zoomFont(.body)
-                        .foregroundStyle(.secondary)
-                }
+    private var editableArea: some View {
+        ZoomVStack(alignment: .leading, spacing: 12) {
+            Text(parts.front ?? "")
+                .zoomFont(.title2.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .zoomPadding(12)
-                .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                .accessibilityElement(children: .combine)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Question: \(parts.front ?? "")")
+
+            Text(parts.back ?? "")
+                .zoomFont(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("Answer: \(parts.back ?? "")")
+
+            if let example = parts.example {
+                Text(example)
+                    .zoomFont(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Example: \(example)")
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onEdit)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens the editor")
     }
 
     @ViewBuilder
-    private var example: some View {
-        if let background = bit.background, !background.isEmpty {
-            ZoomVStack(alignment: .leading, spacing: 4) {
-                Text("EXAMPLE")
-                    .zoomFont(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(background)
-                    .zoomFont(.callout)
-            }
-        }
-    }
-
-    private var fact: some View {
-        ZoomVStack(alignment: .leading, spacing: 6) {
-            Text("FACT")
-                .zoomFont(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(bit.body)
-                .zoomFont(.headline)
-
-            if bit.origin != "manual" {
-                Text("AI-generated")
-                    .zoomFont(.caption2)
-                    .zoomPadding(.horizontal, 6)
-                    .zoomPadding(.vertical, 2)
-                    .background(.quaternary, in: Capsule())
-            }
-
-            if let text = source?.sourceText, !text.isEmpty {
-                DisclosureGroup("Where this came from") {
+    private var sourceDisclosure: some View {
+        if let text = parts.sourceText {
+            DisclosureGroup("Original source") {
+                ZoomVStack(alignment: .leading, spacing: 4) {
+                    Text(parts.sourceName)
+                        .zoomFont(.caption.weight(.semibold))
                     Text(text)
                         .zoomFont(.callout)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .zoomFont(.caption)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .zoomFont(.caption)
         }
     }
 
@@ -127,42 +125,5 @@ struct FocusTriageCard: View {
                     }
                 }
         }
-    }
-
-    private var actions: some View {
-        ZoomHStack(spacing: 12) {
-            Button {
-                pressed = .reject
-                onReject()
-            } label: {
-                label("Reject", for: .reject)
-            }
-            .buttonStyle(.bordered)
-            .tint(.red)
-
-            Button {
-                pressed = .approve
-                onApprove()
-            } label: {
-                label("Approve", for: .approve)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(bit.variants.isEmpty)
-        }
-        .controlSize(.large)
-        .disabled(isBusy)
-        .zoomPadding()
-        .background(.bar)
-    }
-
-    private func label(_ title: String, for decision: PendingReviewDecision) -> some View {
-        ZoomHStack(spacing: 6) {
-            if isBusy && pressed == decision {
-                ProgressView()
-            }
-
-            Text(title).zoomFont(.headline)
-        }
-        .frame(maxWidth: .infinity, minHeight: 44)
     }
 }

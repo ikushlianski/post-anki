@@ -113,7 +113,10 @@ struct PendingReviewScreen: View {
             await model.load()
 
             #if os(iOS)
-            if onDone != nil, !model.sources.isEmpty { focusOpen = true }
+            if onDone != nil, !model.sources.isEmpty, let stored = session.storedSession {
+                focus.subjectFilter = stored.subjectId
+                focusOpen = true
+            }
             #endif
         }
         .onAppear {
@@ -122,6 +125,14 @@ struct PendingReviewScreen: View {
             }
         }
     }
+
+    #if os(iOS)
+    private func startTriage() async {
+        if let stored = session.storedSession { focus.subjectFilter = stored.subjectId }
+
+        if await session.start() { focusOpen = true }
+    }
+    #endif
 
     private var showsTriage: Bool {
         #if os(iOS)
@@ -214,7 +225,13 @@ struct PendingReviewScreen: View {
             List {
                 #if os(iOS)
                 Section {
-                    PendingReviewInboxSummary(sources: model.sources) { focusOpen = true }
+                    PendingReviewInboxSummary(
+                        sources: model.sources,
+                        subjectId: $focus.subjectFilter,
+                        resumed: session.storedSession,
+                        isStarting: session.busy,
+                        startError: session.error
+                    )
                 }
                 #endif
 
@@ -260,6 +277,19 @@ struct PendingReviewScreen: View {
                 }
             }
             .refreshable { await model.load() }
+            #if os(iOS)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                PendingReviewInboxStartBar(
+                    sources: model.sources,
+                    subjectId: focus.subjectFilter,
+                    resumed: session.storedSession,
+                    isStarting: session.busy,
+                    hasError: session.error != nil
+                ) {
+                    Task { await startTriage() }
+                }
+            }
+            #endif
         }
     }
 }

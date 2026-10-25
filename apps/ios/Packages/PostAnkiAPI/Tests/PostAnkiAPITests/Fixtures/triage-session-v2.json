@@ -1,0 +1,16 @@
+{
+  "id": "cts_02",
+  "subjectId": null,
+  "status": "discarded",
+  "startedAt": "2026-10-25T09:00:00.000Z",
+  "endedAt": "2026-10-25T09:04:00.000Z",
+  "acceptedCount": 0,
+  "rejectedCount": 0,
+  "feedbackText": null,
+  "client": "ios",
+  "endedBy": "discarded",
+  "undecidedCount": 7,
+  "lastActivityAt": "2026-10-25T09:03:00.000Z",
+  "futureField": {"x": 1},
+  "notes": []
+}

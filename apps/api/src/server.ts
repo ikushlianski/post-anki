@@ -1,10 +1,13 @@
 import { createApiServer } from "./api-server.js";
+import { assertDevDbIsLocal } from "./db/assert-dev-db-is-local.js";
 import { loadEnv } from "./shared/env.js";
 import { log } from "./shared/log.js";
 import { flushTracing } from "./mastra/mastra.js";
 import { closeDb } from "./db/client.js";
 import { createGracefulShutdown } from "./shared/graceful-shutdown.js";
 import { listDisabledDurableFlags } from "./shared/durable-flags.js";
+
+assertDevDbIsLocal(process.env);
 
 const env = loadEnv();
 const server = createApiServer();

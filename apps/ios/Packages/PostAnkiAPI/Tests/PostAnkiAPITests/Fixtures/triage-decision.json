@@ -1,0 +1,16 @@
+{
+  "id": "ctd_01",
+  "sessionId": "cts_02",
+  "bitId": "kb_1",
+  "verdict": "rejected",
+  "reasonCode": "bad_format",
+  "note": "odd blank",
+  "decidedAt": "2026-10-25T09:01:00.000Z",
+  "orderIndex": 0,
+  "dwellMs": 2500,
+  "front": "What is TTL?",
+  "back": "Time to live",
+  "variants": [{"id": "kbqv_1", "kind": "wh_question", "kept": true}],
+  "undoneAt": null,
+  "source": "client"
+}

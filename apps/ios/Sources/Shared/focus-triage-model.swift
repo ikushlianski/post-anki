@@ -6,6 +6,7 @@ import SwiftUI
 final class FocusTriageModel {
     let list: PendingReviewListModel
     var pinnedBitId: String?
+    var subjectFilter: String?
     var notes: [String: String] = [:]
     var log = FocusTriageDecisionLog()
     var notice: String?
@@ -15,7 +16,11 @@ final class FocusTriageModel {
     var pollAttempts = 0
 
     @ObservationIgnored var onDecisionsChanged: (() -> Void)?
+    @ObservationIgnored var onDecided: ((FocusTriageDecisionEntry) -> Void)?
+    @ObservationIgnored var onUndone: ((String) -> Void)?
+    @ObservationIgnored var shown: (bitId: String, at: Date)?
     @ObservationIgnored var pollTask: Task<Void, Never>?
+    @ObservationIgnored var pendingDecisions: [String: Task<Void, Never>] = [:]
     @ObservationIgnored let pollInterval: Duration
 
     init(list: PendingReviewListModel, pollInterval: Duration = FocusTriagePollPlan.interval) {
@@ -24,7 +29,7 @@ final class FocusTriageModel {
     }
 
     var queue: FocusTriageQueue {
-        FocusTriageQueue.build(sources: list.sources, pinnedBitId: pinnedBitId)
+        FocusTriageQueue.build(sources: sourcesWithoutPending, pinnedBitId: pinnedBitId, subjectId: subjectFilter)
     }
 
     var current: PendingReviewBit? { queue.current }
@@ -47,6 +52,18 @@ final class FocusTriageModel {
 
     func syncPin() {
         pinnedBitId = queue.current?.id
+
+        if let id = pinnedBitId, shown?.bitId != id {
+            shown = (id, Date())
+        } else if pinnedBitId == nil {
+            shown = nil
+        }
+    }
+
+    func dwellMs(for bitId: String) -> Int? {
+        guard let shown, shown.bitId == bitId else { return nil }
+
+        return max(0, Int(Date().timeIntervalSince(shown.at) * 1000))
     }
 
     func load() async {
@@ -58,82 +75,20 @@ final class FocusTriageModel {
 
     func reject() async { await decide(.reject) }
 
-    private func decide(_ decision: PendingReviewDecision) async {
-        guard let bit = current, !list.inFlight.contains(bit.id) else { return }
-
-        let bitId = bit.id
-        let note = FocusTriageNote.trimmed(notes[bitId] ?? "")
-        let snapshot = list.snapshot(of: bitId)
-
-        list.inFlight.insert(bitId)
-        list.rowMessages[bitId] = nil
-        notice = nil
-        undoMessage = nil
-        defer { list.inFlight.remove(bitId) }
-
-        var feedbackId: String?
-        let outcome: PendingReviewDecisionOutcome
-
-        do {
-            switch decision {
-            case .approve: try await APIClient.approveKnowledgeBit(id: bitId)
-            case .reject: feedbackId = try await APIClient.rejectKnowledgeBit(id: bitId)
-            }
-
-            outcome = .removed
-        } catch {
-            outcome = decision.outcome(for: error)
-        }
-
-        switch outcome {
-        case .removed:
-            log.record(FocusTriageDecisionEntry(
-                bitId: bitId,
-                verdict: decision == .approve ? .approved : .rejected,
-                removed: snapshot
-            ))
-            list.remove(bitId: bitId)
-            list.counts.adjust(by: -1)
-            notes[bitId] = nil
-            syncPin()
-            onDecisionsChanged?()
-
-            if let note { await sendNote(note, decision: decision, bitId: bitId, feedbackId: feedbackId) }
-        case .removedElsewhere:
-            list.remove(bitId: bitId)
-            notes[bitId] = nil
-            notice = "That item was already decided elsewhere, so it was removed."
-            syncPin()
-            Task { await list.counts.refresh() }
-        case .kept(let message):
-            if !message.isEmpty { list.rowMessages[bitId] = message }
-        }
-    }
-
-    private func sendNote(_ note: String, decision: PendingReviewDecision, bitId: String, feedbackId: String?) async {
-        do {
-            switch decision {
-            case .approve:
-                try await APIClient.gradeKnowledgeBit(id: bitId, rating: 3, note: note)
-            case .reject:
-                guard let feedbackId else { throw APIError.badStatus(404, nil) }
-
-                try await APIClient.updateKnowledgeBitFeedbackNote(id: feedbackId, note: note)
-            }
-        } catch is CancellationError {
-            return
-        } catch {
-            notice = "Couldn't save your note."
-        }
-    }
-
     func undo() async {
         guard let entry = log.lastDecided, !isUndoing else { return }
 
         isUndoing = true
+        defer { isUndoing = false }
+
+        if let pending = pendingDecisions[entry.bitId] {
+            await pending.value
+
+            guard log.lastDecided?.bitId == entry.bitId else { return }
+        }
+
         undoMessage = nil
         notice = nil
-        defer { isUndoing = false }
 
         let outcome: PendingReviewRestoreOutcome
 
@@ -157,6 +112,7 @@ final class FocusTriageModel {
 
             syncPin()
             onDecisionsChanged?()
+            onUndone?(entry.bitId)
         case .alreadyChanged:
             log.remove(bitId: entry.bitId)
             undoMessage = "Couldn't undo. That item was already changed."

@@ -19,6 +19,17 @@ extension NetworkContracts {
             #expect(session.status == "open")
         }
 
+        @Test("should start a session as the iOS client and replay the same key on retry")
+        func startsWithClientAndKey() async throws {
+            RecordingStub.install(body: try Fixture.data("triage-session"))
+
+            _ = try await APIClient.startTriageSession(subjectId: nil, startKey: "key-1")
+            let request = try #require(RecordingStub.last)
+
+            #expect(request.body?["client"] as? String == "ios")
+            #expect(request.body?["startKey"] as? String == "key-1")
+        }
+
         @Test("should start a session without a subject by sending no subject")
         func startsSessionWithoutSubject() async throws {
             RecordingStub.install(body: try Fixture.data("triage-session"))

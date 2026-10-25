@@ -6,7 +6,8 @@ struct FocusTriageQueue {
     let readyCount: Int
     let waitingCount: Int
 
-    static func build(sources: [PendingReviewSource], pinnedBitId: String?) -> FocusTriageQueue {
+    static func build(sources: [PendingReviewSource], pinnedBitId: String?, subjectId: String? = nil) -> FocusTriageQueue {
+        let sources = FocusTriageSubject.filter(sources, subjectId: subjectId)
         let ready = sources.flatMap { source in
             source.bits.filter { !$0.variants.isEmpty }.map { (source, $0) }
         }

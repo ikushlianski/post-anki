@@ -48,6 +48,6 @@ struct PendingReviewTriageTests {
             return
         }
 
-        #expect(message.contains("offline"))
+        #expect(message.contains("connect"))
     }
 }

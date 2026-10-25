@@ -171,9 +171,9 @@ final class PendingReviewListModel {
             switch urlError.code {
             case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
                 #if os(macOS)
-                return "You're offline. Try again when you're back."
+                return "Couldn't connect to the server. Try again in a moment."
                 #else
-                return "You're offline. Pull to refresh when you're back."
+                return "Couldn't connect to the server. Pull to refresh to try again."
                 #endif
             default:
                 break

@@ -6,6 +6,7 @@ enum FakeReply: Sendable {
     case status(Int)
     case failure(URLError.Code)
     case json(Int, String)
+    case held(Int, String)
 }
 
 struct RecordedRequest: Sendable {
@@ -25,12 +26,14 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) private static var routes: [String: FakeReply] = [:]
     nonisolated(unsafe) private static var requestedPaths: [String] = []
     nonisolated(unsafe) private static var recorded: [RecordedRequest] = []
+    nonisolated(unsafe) private static var heldRequests: [FakeServer] = []
 
     static func start(_ routes: [String: FakeReply]) {
         lock.withLock {
             self.routes = routes
             requestedPaths = []
             recorded = []
+            heldRequests = []
         }
 
         URLProtocol.registerClass(FakeServer.self)
@@ -81,12 +84,37 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
             respond(url: url, status: status, body: Data("{}".utf8))
         case .json(let status, let text):
             respond(url: url, status: status, body: Data(text.utf8))
+        case .held(let status, let text):
+            heldStatus = status
+            heldBody = Data(text.utf8)
+            Self.lock.withLock { Self.heldRequests.append(self) }
         case .fixture(let name):
             respond(url: url, status: 200, body: (try? SmokeFixture.data(name)) ?? Data("{}".utf8))
         }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        Self.lock.withLock { Self.heldRequests.removeAll { $0 === self } }
+    }
+
+    private var heldStatus = 200
+    private var heldBody = Data()
+
+    static var heldCount: Int { lock.withLock { heldRequests.count } }
+
+    static func releaseHeld() {
+        let held = lock.withLock { () -> [FakeServer] in
+            defer { heldRequests = [] }
+
+            return heldRequests
+        }
+
+        for request in held {
+            guard let url = request.request.url else { continue }
+
+            request.respond(url: url, status: request.heldStatus, body: request.heldBody)
+        }
+    }
 
     private func requestBody() -> Data? {
         if let body = request.httpBody { return body }

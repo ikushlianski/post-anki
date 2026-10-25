@@ -19,9 +19,12 @@ struct FocusTriageView: View {
             Divider()
             content
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if showsActionBar { actionBar }
+        }
         .task {
             await triage.load()
-            await session.start()
+            session.resume()
             triage.startPolling()
         }
         .onDisappear { triage.stopPolling() }
@@ -44,29 +47,35 @@ struct FocusTriageView: View {
                 resumed: session.resumed,
                 error: session.error,
                 stale: session.stale,
-                onFinish: finish,
+                rows: session.decisionRows,
+                editing: session.editing,
+                onFinish: { finish(feedback: feedback) },
+                onFinishWithoutFeedback: { finish(feedback: "") },
                 onDiscard: {
-                    session.discard()
+                    Task { await session.discard() }
                     onClose()
                 },
                 onKeepGoing: triage.readyCount > 0 ? { session.phase = .idle } : nil
             )
         } else if let bit = triage.current {
-            FocusTriageCard(
-                bit: bit,
-                source: triage.currentSource,
-                note: Binding(
-                    get: { triage.notes[bit.id] ?? "" },
-                    set: { triage.notes[bit.id] = $0 }
-                ),
-                isBusy: triage.isBusy,
-                message: triage.message,
-                onApprove: { decide(bit.id, approve: true) },
-                onReject: { decide(bit.id, approve: false) },
-                onEdit: { editingBit = bit }
-            )
+            FocusTriageSwipeCard(isBusy: triage.isBusy, onDecide: { await decide(bit.id, approve: $0 == .approve) }) {
+                FocusTriageCard(
+                    bit: bit,
+                    source: triage.currentSource,
+                    note: Binding(
+                        get: { triage.notes[bit.id] ?? "" },
+                        set: { triage.notes[bit.id] = $0 }
+                    ),
+                    message: triage.message,
+                    onEdit: { editingBit = bit }
+                )
+            }
             .id(bit.id)
         }
+    }
+
+    private var showsActionBar: Bool {
+        !showsFinish && !(session.phase == .result && session.result != nil)
     }
 
     private var showsFinish: Bool {
@@ -76,7 +85,7 @@ struct FocusTriageView: View {
     private var header: some View {
         ZoomHStack(spacing: 8) {
             ZoomVStack(alignment: .leading, spacing: 2) {
-                Text("\(triage.readyCount) to review")
+                Text(triage.readyCount > 0 ? "\(triage.readyCount) left to review" : "All done, 0 left")
                     .zoomFont(.headline.monospacedDigit())
 
                 if triage.waitingCount > 0 {
@@ -87,19 +96,27 @@ struct FocusTriageView: View {
             }
 
             Spacer()
+        }
+        .zoomPadding()
+    }
 
+    private var actionBar: some View {
+        ZoomHStack(spacing: 12) {
             Button("Undo") { Task { await triage.undo() } }
                 .disabled(!triage.canUndo || triage.isBusy)
+                .frame(maxWidth: .infinity, minHeight: 44)
             Button("Finish", action: openFinish)
-                .disabled(session.phase == .saving || session.phase == .result)
+                .disabled(session.phase == .saving || session.phase == .result || triage.isBusy || session.busy)
+                .frame(maxWidth: .infinity, minHeight: 44)
         }
         .buttonStyle(.bordered)
         .zoomPadding()
+        .background(.bar)
     }
 
     @ViewBuilder
     private var notices: some View {
-        let texts = [triage.undoMessage, triage.notice, triage.list.notice].compactMap { $0 }
+        let texts = [triage.undoMessage, triage.notice, triage.list.notice, session.syncNotice].compactMap { $0 }
 
         if !texts.isEmpty {
             ZoomVStack(alignment: .leading, spacing: 2) {
@@ -115,14 +132,12 @@ struct FocusTriageView: View {
         }
     }
 
-    private func decide(_ bitId: String, approve: Bool) {
-        Task {
-            if approve { await triage.approve() } else { await triage.reject() }
+    private func decide(_ bitId: String, approve: Bool) async {
+        if approve { await triage.approve() } else { await triage.reject() }
 
-            guard approve, triage.log.lastDecided?.bitId == bitId else { return }
+        guard approve, triage.log.lastDecided?.bitId == bitId else { return }
 
-            announce("Approved, \(triage.readyCount) left")
-        }
+        announce("Approved, \(triage.readyCount) left")
     }
 
     private func openFinish() {
@@ -133,7 +148,7 @@ struct FocusTriageView: View {
         }
     }
 
-    private func finish() {
+    private func finish(feedback: String) {
         guard session.isOpen else { return closeWithoutSession() }
 
         Task { _ = await session.finish(feedback: feedback) }

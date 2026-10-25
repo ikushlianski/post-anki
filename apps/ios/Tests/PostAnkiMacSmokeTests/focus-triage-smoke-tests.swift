@@ -123,6 +123,41 @@ extension SmokeTests {
             #expect(FocusTriageSubject.single(none) == nil)
         }
 
+        @Test("should narrow the queue and its counts to the chosen subject and keep every subject when none is chosen")
+        func subjectFilterNarrowsQueue() throws {
+            let sources = try FocusTriageFixtures.sources([
+                FocusTriageFixtures.source("s1", subjectId: "sub1", bits: [FocusTriageFixtures.bit("a"), FocusTriageFixtures.bit("w", variants: 0)]),
+                FocusTriageFixtures.source("s2", subjectId: "sub2", bits: [FocusTriageFixtures.bit("b"), FocusTriageFixtures.bit("c")])
+            ])
+            let all = FocusTriageQueue.build(sources: sources, pinnedBitId: nil)
+            let second = FocusTriageQueue.build(sources: sources, pinnedBitId: nil, subjectId: "sub2")
+            let first = FocusTriageQueue.build(sources: sources, pinnedBitId: nil, subjectId: "sub1")
+
+            #expect(all.current?.id == "a")
+            #expect(all.readyCount == 3)
+            #expect(all.waitingCount == 1)
+            #expect(second.current?.id == "b")
+            #expect(second.readyCount == 2)
+            #expect(second.waitingCount == 0)
+            #expect(first.readyCount == 1)
+            #expect(first.waitingCount == 1)
+        }
+
+        @Test("should list All subjects first and then each subject with the cards ready to decide")
+        func subjectOptions() throws {
+            let sources = try FocusTriageFixtures.sources([
+                FocusTriageFixtures.source("s1", subjectId: "sub1", bits: [FocusTriageFixtures.bit("a"), FocusTriageFixtures.bit("w", variants: 0)]),
+                FocusTriageFixtures.source("s2", subjectId: "sub2", bits: [FocusTriageFixtures.bit("b")]),
+                FocusTriageFixtures.source("s3", subjectId: "sub1", bits: [FocusTriageFixtures.bit("c")]),
+                FocusTriageFixtures.source("s4", bits: [FocusTriageFixtures.bit("d")])
+            ])
+            let options = FocusTriageSubject.options(sources)
+
+            #expect(options.map(\.id) == [nil, "sub1", "sub2"])
+            #expect(options.first?.name == "All subjects")
+            #expect(options.map(\.readyCount) == [4, 2, 1])
+        }
+
         @Test("should poll every 8 seconds only while cards are waiting and stop after 40 tries")
         func pollPlan() {
             #expect(FocusTriagePollPlan.interval == .seconds(8))
@@ -130,6 +165,46 @@ extension SmokeTests {
             #expect(FocusTriagePollPlan.shouldPoll(waiting: 1, attempts: 39))
             #expect(!FocusTriagePollPlan.shouldPoll(waiting: 1, attempts: 40))
             #expect(!FocusTriagePollPlan.shouldPoll(waiting: 0, attempts: 3))
+        }
+
+        @Test("should approve on a right swipe, reject on a left swipe and ignore short drags")
+        func swipeThresholds() {
+            #expect(FocusTriageSwipe.decision(width: 150, predictedWidth: 160) == .approve)
+            #expect(FocusTriageSwipe.decision(width: -150, predictedWidth: -160) == .reject)
+            #expect(FocusTriageSwipe.decision(width: 40, predictedWidth: 60) == nil)
+            #expect(FocusTriageSwipe.decision(width: -40, predictedWidth: -60) == nil)
+            #expect(FocusTriageSwipe.decision(width: 0, predictedWidth: 0) == nil)
+        }
+
+        @Test("should count a fast short flick as a decision only in the direction of the drag")
+        func swipeFlick() {
+            #expect(FocusTriageSwipe.decision(width: 60, predictedWidth: 400) == .approve)
+            #expect(FocusTriageSwipe.decision(width: -60, predictedWidth: -400) == .reject)
+            #expect(FocusTriageSwipe.decision(width: 60, predictedWidth: -400) == nil)
+            #expect(FocusTriageSwipe.decision(width: 5, predictedWidth: 400) == nil)
+        }
+
+        @Test("should show front, back and example, hide an empty example and never show the FACT body")
+        func cardParts() throws {
+            func parts(background: String) throws -> FocusTriageCardParts {
+                let variants = #"[{"id":"v1","kind":"wh_question","prompt":"Q?","answer":"A"},{"id":"v2","kind":"basic","prompt":"Front","answer":"Back"}]"#
+                let bit = #"{"id":"a","body":"SECRET FACT","background":\#(background),"origin":"extracted","variants":\#(variants)}"#
+                let sources = try FocusTriageFixtures.sources([FocusTriageFixtures.source("s1", bits: [bit])])
+
+                return FocusTriageCardParts(bit: sources[0].bits[0], source: sources[0])
+            }
+
+            let withExample = try parts(background: #""e.g. a case""#)
+
+            #expect(withExample.front == "Front")
+            #expect(withExample.back == "Back")
+            #expect(withExample.example == "e.g. a case")
+            #expect(withExample.sourceText == "text")
+            #expect(withExample.sections == [.question, .answer, .example])
+            #expect(try parts(background: "null").sections == [.question, .answer])
+            #expect(try parts(background: "null").example == nil)
+            #expect(try parts(background: "\"  \\n \"").example == nil)
+            #expect(![withExample.front, withExample.back, withExample.example, withExample.sourceText].contains("SECRET FACT"))
         }
     }
 }

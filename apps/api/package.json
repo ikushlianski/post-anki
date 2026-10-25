@@ -15,6 +15,7 @@
     "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
     "db:create-user": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-user.ts",
     "db:set-owner-password": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/set-owner-password.ts",
+    "db:approved-to-pending": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/reset-approved-cards-to-pending.ts",
     "db:revoke-api-token": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/revoke-api-token.ts",
     "db:create-web-key": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-web-api-key.ts",
     "db:rebuild-review-points": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/rebuild-review-points.ts",

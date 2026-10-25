@@ -39,6 +39,8 @@ extension SmokeTests {
 
             await model.approve()
 
+            await model.settlePending()
+
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve"])
             #expect(model.current?.id == "b")
             #expect(model.readyCount == 1)
@@ -47,12 +49,32 @@ extension SmokeTests {
             #expect(model.list.pendingUndo == nil)
         }
 
+        @Test("should keep the subject filter through a reload and show only that subject's cards")
+        func filterSurvivesReload() async {
+            let two = FocusTriageFixtures.list([
+                FocusTriageFixtures.source("s1", subjectId: "sub1", bits: [FocusTriageFixtures.bit("a")]),
+                FocusTriageFixtures.source("s2", subjectId: "sub2", bits: [FocusTriageFixtures.bit("b"), FocusTriageFixtures.bit("w", variants: 0)])
+            ])
+            let (model, session) = await make(extra: ["/knowledge-bits/pending-review": .json(200, two)])
+            defer { session.end() }
+
+            model.subjectFilter = "sub2"
+            await model.load()
+
+            #expect(model.current?.id == "b")
+            #expect(model.readyCount == 1)
+            #expect(model.waitingCount == 1)
+            #expect(model.subjectFilter == "sub2")
+        }
+
         @Test("should reject without showing the reject banner or the reason sheet")
         func rejectIsQuiet() async {
             let (model, session) = await make(extra: ["POST /knowledge-bits/a/reject": .json(200, #"{"ok":true,"feedbackId":"fb1"}"#)])
             defer { session.end() }
 
             await model.reject()
+
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/reject"])
             #expect(model.current?.id == "b")
@@ -67,8 +89,10 @@ extension SmokeTests {
 
             await model.approve()
 
+            await model.settlePending()
+
             #expect(model.current?.id == "a")
-            #expect(model.message == "You're offline. Nothing was changed, try again when you're back.")
+            #expect(model.message == "Couldn't connect to the server. Nothing was changed, try again in a moment.")
             #expect(!model.canUndo)
         }
 
@@ -78,6 +102,8 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.approve()
+
+            await model.settlePending()
 
             #expect(model.current?.id == "b")
             #expect(model.notice == "That item was already decided elsewhere, so it was removed.")
@@ -93,6 +119,8 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.approve()
+
+            await model.settlePending()
             await model.undo()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve", "/knowledge-bits/a/restore"])
@@ -111,7 +139,10 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.approve()
+
+            await model.settlePending()
             await model.reject()
+            await model.settlePending()
             await model.undo()
 
             #expect(model.current?.id == "b")
@@ -131,6 +162,8 @@ extension SmokeTests {
                 ])
 
                 await model.approve()
+
+                await model.settlePending()
                 await model.undo()
                 session.end()
 
@@ -149,9 +182,11 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.approve()
+
+            await model.settlePending()
             await model.undo()
 
-            #expect(model.undoMessage == "You're offline. Try Undo again.")
+            #expect(model.undoMessage == "Couldn't connect to the server. Try Undo again.")
             #expect(model.canUndo)
         }
 
@@ -165,6 +200,7 @@ extension SmokeTests {
 
             model.notes["a"] = "  nice wording "
             await model.approve()
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve", "/knowledge-bits/a/grades"])
             #expect(FakeServer.writes[1].bodyObject?["rating"] as? Int == 3)
@@ -182,6 +218,7 @@ extension SmokeTests {
 
             model.notes["a"] = "too easy"
             await model.reject()
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/reject", "/knowledge-bit-feedback/fb1"])
             #expect(FakeServer.writes[1].bodyObject?["note"] as? String == "too easy")
@@ -194,6 +231,7 @@ extension SmokeTests {
 
             model.notes["a"] = "keep me"
             await model.approve()
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve"])
             #expect(model.current?.id == "a")
@@ -210,6 +248,7 @@ extension SmokeTests {
 
             model.notes["a"] = "note"
             await model.approve()
+            await model.settlePending()
 
             #expect(model.notice == "Couldn't save your note.")
             #expect(model.current?.id == "b")

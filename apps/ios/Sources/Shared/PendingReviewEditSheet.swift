@@ -72,7 +72,7 @@ struct PendingReviewEditSheet: View {
                     }
                 }
 
-                Section("Background") {
+                Section("Example") {
                     TextField("Background", text: $background, axis: .vertical)
                 }
 
