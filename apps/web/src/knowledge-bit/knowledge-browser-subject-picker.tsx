@@ -44,7 +44,7 @@ export function KnowledgeBrowserSubjectPicker({
     <KnowledgeBrowserToolbarPopover
       buttonLabel="Subject"
       testId="knowledge-browser-subject-button"
-      buttonClassName={`${SECONDARY_BUTTON_CLASS} max-w-[12rem]`}
+      buttonClassName={`${SECONDARY_BUTTON_CLASS} max-w-[8.5rem] sm:max-w-[12rem]`}
       panelWidthClass="w-64"
       buttonContent={<span className="truncate">Subject: {current}</span>}
     >
