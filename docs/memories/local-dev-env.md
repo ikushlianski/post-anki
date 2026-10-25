@@ -42,3 +42,9 @@ database `postanki_dev`), set through `DATABASE_URL` in `apps/api/.env.local`, w
 Migrations and seeds run against the local database first; a Neon migration is a separate,
 deliberate step. If the API returns 500 on every request, check the log for a database name
 that does not exist and restart the API so it re-reads `.env.local`.
+
+## Neon dev branch
+
+Neon has a `dev` branch kept for a future shared dev environment. Day-to-day work does not use it: local development stays on the docker Postgres above.
+
+Its connection string is stored as `NEON_DEV_DATABASE_URL` in the gitignored `apps/api/.env.local`. Nothing reads that variable yet, so no process connects to the branch by default. To use it, copy the value into `DATABASE_URL` for that run only; the local-database guard refuses migrations against a non-local host outside CI, so a Neon dev migration is a deliberate step. Never commit the value, and rotate the password if it is pasted anywhere shared.
