@@ -81,20 +81,20 @@ struct FocusTriageDone: View {
                         .background(.bar)
                 }
 
-                FocusTriageSplitBar(
-                    leading: FocusTriageBarAction(
+                MainActionControls(tiles: [
+                    MainActionTile(
                         title: "Finish triage",
+                        style: .prominent,
                         isLoading: isSaving,
-                        isProminent: true,
                         isDisabled: isSaving,
                         action: onFinish
                     ),
-                    trailing: FocusTriageBarAction(
+                    MainActionTile(
                         title: "Finish without feedback",
                         isDisabled: isSaving,
                         action: onFinishWithoutFeedback
                     )
-                )
+                ])
             }
         }
     }

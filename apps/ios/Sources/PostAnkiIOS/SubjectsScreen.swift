@@ -128,15 +128,16 @@ struct SubjectDetailScreen: View {
         .navigationTitle(subject.name)
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadCards() }
-        .bottomActionBar {
-            if let closeId {
-                BottomActionBarButton(
+        .mainActionControls(closeId.map { closeId in
+            [
+                MainActionTile(
                     title: gapModel.requestedIds.contains(closeId) ? "Practice requested" : "Close this gap now",
+                    style: .prominent,
                     isLoading: gapModel.isBusy,
                     isDisabled: gapModel.requestedIds.contains(closeId)
                 ) { Task { await gapModel.closeGap(for: closeId) } }
-            }
-        }
+            ]
+        } ?? [])
     }
 
     private func loadCards() async {

@@ -25,10 +25,10 @@ private struct TriageCardPreview: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            FocusTriageSplitBar(
-                leading: FocusTriageBarAction(title: "Undo", isDisabled: true, action: {}),
-                trailing: FocusTriageBarAction(title: "Finish", isDisabled: false, action: {})
-            )
+            MainActionControls(tiles: [
+                MainActionTile(title: "Undo", isDisabled: true, action: {}),
+                MainActionTile(title: "Finish", action: {})
+            ])
         }
     }
 }

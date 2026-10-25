@@ -24,17 +24,14 @@ struct PendingReviewInboxStartBar: View {
     var body: some View {
         let queue = FocusTriageQueue.build(sources: sources, pinnedBitId: nil, subjectId: shownSubject)
 
-        Button(action: onStart) {
-            ZoomHStack(spacing: 6) {
-                if isStarting { ProgressView() }
-
-                Text(buttonTitle).zoomFont(.headline)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled((queue.readyCount == 0 && resumed == nil) || isStarting)
-        .zoomPadding()
-        .background(.bar)
+        MainActionControls(tiles: [
+            MainActionTile(
+                title: buttonTitle,
+                style: .prominent,
+                isLoading: isStarting,
+                isDisabled: queue.readyCount == 0 && resumed == nil,
+                action: onStart
+            )
+        ])
     }
 }

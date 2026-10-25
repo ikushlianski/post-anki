@@ -84,30 +84,27 @@ struct KnowledgeListScreen: View {
     @ViewBuilder
     private var selectionBar: some View {
         if editMode.isEditing {
-            VStack(spacing: 4) {
+            let blocked = model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
+
+            VStack(spacing: 0) {
                 if model.selectionTooLarge {
                     Text("Select up to \(KnowledgeListModel.selectionLimit)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity)
+                        .background(.bar)
                 }
 
-                HStack(spacing: 12) {
-                    BottomActionBarButton(
-                        title: "Move (\(model.selection.count))",
-                        isDisabled: model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
-                    ) { choosingSubject = true }
-
-                    BottomActionBarButton(
-                        title: "Delete (\(model.selection.count))",
-                        role: .destructive,
-                        isDisabled: model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
-                    ) { confirmingDelete = true }
-                }
+                MainActionControls(tiles: [
+                    MainActionTile(title: "Move (\(model.selection.count))", style: .prominent, isDisabled: blocked) {
+                        choosingSubject = true
+                    },
+                    MainActionTile(title: "Delete (\(model.selection.count))", style: .destructive, isDisabled: blocked) {
+                        confirmingDelete = true
+                    }
+                ])
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(.bar)
         }
     }
 

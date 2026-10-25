@@ -101,6 +101,22 @@ struct IngestionDictationScreen: View {
         _model = State(initialValue: IngestionDictationScreenModel(topic: topic, subjectId: subjectId))
     }
 
+    private var submitTile: MainActionTile {
+        #if os(macOS)
+        let shortcut: KeyboardShortcut? = KeyboardShortcut(.return, modifiers: .command)
+        #else
+        let shortcut: KeyboardShortcut? = nil
+        #endif
+
+        return MainActionTile(
+            title: "Submit",
+            style: .prominent,
+            isLoading: model.isSubmitting,
+            isDisabled: model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            shortcut: shortcut
+        ) { Task { await model.submit() } }
+    }
+
     var body: some View {
         Form {
             if let topic = model.topic {
@@ -147,18 +163,7 @@ struct IngestionDictationScreen: View {
             }
         }
         .navigationTitle("Add Knowledge")
-        .bottomActionBar {
-            BottomActionBarButton(
-                title: "Submit",
-                isLoading: model.isSubmitting,
-                isDisabled: model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ) {
-                Task { await model.submit() }
-            }
-            #if os(macOS)
-            .keyboardShortcut(.return, modifiers: .command)
-            #endif
-        }
+        .mainActionControls([submitTile])
         .reportsUnsentInput("add-knowledge", model.hasInput)
         .sheet(isPresented: $model.showReview) {
             PendingReviewScreen(onDone: { model.showReview = false })

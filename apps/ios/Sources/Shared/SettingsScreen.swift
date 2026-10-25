@@ -167,6 +167,21 @@ struct SettingsScreen: View {
     @State private var model = SettingsScreenModel()
     @State private var confirmingRemoveToken = false
 
+    private var settingsTiles: [MainActionTile] {
+        if model.hasToken {
+            return [MainActionTile(title: "Save", style: .prominent) { model.save() }]
+        }
+
+        return [
+            MainActionTile(
+                title: "Sign in",
+                style: .prominent,
+                isLoading: model.isSigningIn,
+                isDisabled: model.email.isEmpty || model.password.isEmpty
+            ) { Task { await model.signIn() } }
+        ]
+    }
+
     var body: some View {
         Form {
             Section("API server address") {
@@ -252,19 +267,7 @@ struct SettingsScreen: View {
         .formStyle(.grouped)
         #endif
         .navigationTitle("Settings")
-        .bottomActionBar {
-            if model.hasToken {
-                BottomActionBarButton(title: "Save") { model.save() }
-            } else {
-                BottomActionBarButton(
-                    title: "Sign in",
-                    isLoading: model.isSigningIn,
-                    isDisabled: model.email.isEmpty || model.password.isEmpty
-                ) {
-                    Task { await model.signIn() }
-                }
-            }
-        }
+        .mainActionControls(settingsTiles)
         .confirmationDialog("Sign out of this device?", isPresented: $confirmingRemoveToken) {
             Button("Sign out", role: .destructive) { Task { await model.removeToken() } }
         } message: {

@@ -39,9 +39,7 @@ struct SubjectManageScreen: View {
             }
             #endif
         }
-        .bottomActionBar {
-            BottomActionBarButton(title: "New subject") { showNew = true }
-        }
+        .mainActionControls([MainActionTile(title: "New subject", style: .prominent) { showNew = true }])
         .sheet(isPresented: $showNew) {
             SubjectNewSheet(subjects: model.subjects) { name, parentId in
                 SheetFailure.message(await model.create(name: name, parentId: parentId), model.errorMessage)

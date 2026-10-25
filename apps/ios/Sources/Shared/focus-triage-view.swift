@@ -139,18 +139,18 @@ struct FocusTriageView: View {
     }
 
     private var actionBar: some View {
-        FocusTriageSplitBar(
-            leading: FocusTriageBarAction(
+        MainActionControls(tiles: [
+            MainActionTile(
                 title: "Undo",
                 isDisabled: !triage.canUndo || triage.isBusy,
                 action: { Task { await triage.undo() } }
             ),
-            trailing: FocusTriageBarAction(
+            MainActionTile(
                 title: "Finish",
                 isDisabled: session.phase == .saving || session.phase == .result || triage.isBusy || session.busy,
                 action: openFinish
             )
-        )
+        ])
     }
 
     @ViewBuilder

@@ -5,17 +5,9 @@ struct DueReviewBottomBar: View {
 
     var body: some View {
         if !model.isRevealed {
-            Button {
-                model.reveal()
-            } label: {
-                Text("Show Answer")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(.bar)
+            MainActionControls(tiles: [
+                MainActionTile(title: "Show Answer", style: .prominent) { model.reveal() }
+            ])
         }
     }
 }

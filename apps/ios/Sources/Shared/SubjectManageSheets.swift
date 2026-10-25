@@ -36,8 +36,8 @@ struct SubjectNewSheet: View {
                 }
 
             }
-            .bottomActionBar {
-                BottomActionBarButton(title: "Add", isLoading: isSaving, isDisabled: trimmed.isEmpty) {
+            .mainActionControls([
+                MainActionTile(title: "Add", style: .prominent, isLoading: isSaving, isDisabled: trimmed.isEmpty) {
                     Task {
                         isSaving = true
                         errorMessage = nil
@@ -51,7 +51,7 @@ struct SubjectNewSheet: View {
                         isSaving = false
                     }
                 }
-            }
+            ])
         }
     }
 }
@@ -90,8 +90,8 @@ struct SubjectRenameSheet: View {
                 }
 
             }
-            .bottomActionBar {
-                BottomActionBarButton(title: "Save", isLoading: isSaving, isDisabled: trimmed.isEmpty) {
+            .mainActionControls([
+                MainActionTile(title: "Save", style: .prominent, isLoading: isSaving, isDisabled: trimmed.isEmpty) {
                     Task {
                         isSaving = true
                         errorMessage = nil
@@ -105,7 +105,7 @@ struct SubjectRenameSheet: View {
                         isSaving = false
                     }
                 }
-            }
+            ])
         }
     }
 }
