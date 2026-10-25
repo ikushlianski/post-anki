@@ -44,6 +44,7 @@ vi.mock("./knowledge-bit-review-suspension.orchestrator.js", () => ({
 const { createApiServer } = await import("../api-server.js");
 const { getKnowledgeBitReviewQueue } = await import("./knowledge-bit-review-queue.repo.js");
 const { recordKnowledgeBitReview } = await import("./knowledge-bit-review.orchestrator.js");
+const { recordActivityToday } = await import("../streak/streak.service.js");
 
 const AUTH = { authorization: `Bearer ${process.env.API_SHARED_SECRET}` };
 
@@ -163,6 +164,21 @@ describe("GET /knowledge-bits/review-cards", () => {
   });
 });
 
+function savedReview(): RecordKnowledgeBitReviewOutcome {
+  return {
+    ok: true,
+    reviewId: "kbreview_1",
+    knowledgeBitId: "kb_1",
+    phase: "review",
+    dueAt: "2026-10-11T12:00:00.000Z",
+    intervalDays: 1,
+    lapses: 0,
+    leech: false,
+    suspended: false,
+    points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
+  };
+}
+
 describe("POST /knowledge-bits/reviews", () => {
   it("should save a self-grade and return when the card comes back", async () => {
     state.outcome = {
@@ -193,6 +209,44 @@ describe("POST /knowledge-bits/reviews", () => {
       suspended: false,
       points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
     });
+  });
+
+  it("should send the reply only after the streak write has finished", async () => {
+    state.outcome = savedReview();
+
+    let finishStreak: () => void = () => undefined;
+
+    vi.mocked(recordActivityToday).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishStreak = () => resolve({ currentStreak: 1, longestStreak: 1, lastActiveDate: "2026-10-10" });
+        }),
+    );
+
+    let replied = false;
+    const pending = postReview({ variantId: "kbqv_1", grade: "good" }).then((response) => {
+      replied = true;
+
+      return response;
+    });
+
+    await vi.waitFor(() => expect(vi.mocked(recordActivityToday)).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(replied).toBe(false);
+
+    finishStreak();
+
+    expect((await pending).status).toBe(201);
+  });
+
+  it("should still confirm the grade when the streak write fails", async () => {
+    state.outcome = savedReview();
+    vi.mocked(recordActivityToday).mockRejectedValueOnce(new Error("db down"));
+
+    const response = await postReview({ variantId: "kbqv_1", grade: "good" });
+
+    expect(response.status).toBe(201);
   });
 
   it("should reject a grade outside Again, Hard, Good and Easy without saving anything", async () => {

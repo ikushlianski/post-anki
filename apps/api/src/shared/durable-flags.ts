@@ -15,3 +15,16 @@ export function isDurableBackgroundJobsEnabled(
 ): boolean {
   return parseDurableFlag(raw);
 }
+
+const DURABLE_FLAG_NAMES = [
+  "DURABLE_EXTRACTION",
+  "DURABLE_CARDS",
+  "DURABLE_COURSE_JOBS",
+  "DURABLE_BACKGROUND_JOBS",
+] as const;
+
+export function listDisabledDurableFlags(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
+  return DURABLE_FLAG_NAMES.filter((name) => !parseDurableFlag(env[name]));
+}

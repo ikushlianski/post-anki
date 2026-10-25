@@ -54,11 +54,13 @@ export async function handleRecordKnowledgeBitReview(
 
   const { ok: _ok, ...result } = outcome;
 
-  sendJson(res, 201, result);
-
-  void recordActivityToday(new Date().toISOString()).catch((error: unknown) => {
+  try {
+    await recordActivityToday(new Date().toISOString());
+  } catch (error) {
     log.warn({ error }, "record_activity_after_review_failed");
-  });
+  }
+
+  sendJson(res, 201, result);
 }
 
 export async function handleUndoKnowledgeBitReview(

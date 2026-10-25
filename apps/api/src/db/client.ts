@@ -1,5 +1,6 @@
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { RetryingPool } from "./connection-retry.js";
 import { loadEnv } from "../shared/env.js";
 import * as schema from "./schema.js";
 
@@ -26,7 +27,7 @@ export function getDb() {
     // the process restarts. 10s matches idleTimeoutMillis and is longer than
     // any legitimate wait here: every caller is behind an HTTP request or a
     // cron job, where failing loudly beats waiting.
-    pool = new pg.Pool({
+    pool = new RetryingPool({
       connectionString: env.DATABASE_URL,
       max: 4,
       idleTimeoutMillis: 10_000,
