@@ -13,10 +13,29 @@ describe("card triage routes", () => {
       name: "distillTriageSession",
       params: { id: "cts_1" },
     });
+    expect(resolveRoute("POST", "/triage-sessions/cts_1/discards")).toEqual({
+      name: "discardTriageSession",
+      params: { id: "cts_1" },
+    });
     expect(resolveRoute("GET", "/card-style-notes")?.name).toBe("listCardStyleNotes");
     expect(resolveRoute("PATCH", "/card-style-notes/csn_1")).toEqual({
       name: "updateCardStyleNote",
       params: { id: "csn_1" },
+    });
+  });
+
+  it("should route the per-card decision endpoints with session and card ids", () => {
+    const params = { id: "cts_1", bitId: "kb_1" };
+
+    expect(resolveRoute("PUT", "/triage-sessions/cts_1/decisions/kb_1")).toEqual({ name: "putTriageDecision", params });
+    expect(resolveRoute("DELETE", "/triage-sessions/cts_1/decisions/kb_1")).toEqual({
+      name: "deleteTriageDecision",
+      params,
+    });
+    expect(resolveRoute("GET", "/triage-sessions/cts_1/decisions/kb_1")).toEqual({ name: "getTriageDecision", params });
+    expect(resolveRoute("GET", "/triage-sessions/cts_1/decisions")).toEqual({
+      name: "listTriageDecisions",
+      params: { id: "cts_1" },
     });
   });
 });

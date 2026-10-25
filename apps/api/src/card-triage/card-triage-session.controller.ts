@@ -1,8 +1,9 @@
 import type http from "node:http";
-import { finishTriageSessionInput, startTriageSessionInput } from "@post-anki/shared";
+import { discardTriageSessionInput, finishTriageSessionInput, startTriageSessionInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { distillTriageSession } from "./card-triage-distill.orchestrator.js";
 import {
+  discardTriageSession,
   finishTriageSession,
   getTriageSessionRow,
   startTriageSession,
@@ -18,9 +19,9 @@ export async function handleStartTriageSession(req: http.IncomingMessage, res: h
     return;
   }
 
-  const session = await startTriageSession(body.data.subjectId ?? null);
+  const { session, created } = await startTriageSession(body.data);
 
-  sendJson(res, 201, await toTriageSessionResponse(session));
+  sendJson(res, created ? 201 : 200, await toTriageSessionResponse(session));
 }
 
 // GET /triage-sessions/:id
@@ -56,7 +57,7 @@ export async function handleFinishTriageSession(
   }
 
   if (result.status === "already_finished") {
-    sendError(res, 409, "already_finished");
+    sendJson(res, 200, await toTriageSessionResponse(result.session));
     return;
   }
 
@@ -65,6 +66,34 @@ export async function handleFinishTriageSession(
   const session = await getTriageSessionRow(id);
 
   sendJson(res, 200, await toTriageSessionResponse(session ?? result.session));
+}
+
+// POST /triage-sessions/:id/discards
+export async function handleDiscardTriageSession(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  id: string,
+): Promise<void> {
+  const body = await readJsonBody(req, discardTriageSessionInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await discardTriageSession(id, body.data);
+
+  if (result.status === "not_found") {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  if (result.status === "already_finished" && result.session.status !== "discarded") {
+    sendError(res, 409, "already_finished");
+    return;
+  }
+
+  sendJson(res, 200, await toTriageSessionResponse(result.session));
 }
 
 // POST /triage-sessions/:id/distill

@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { CardStyleNote, TriageSessionResponse } from '@post-anki/shared'
 
-import type { ReviewDecisions } from '../knowledge-bit/use-review-decisions'
-import { finishTriageSession, startTriageSession } from './card-triage.api'
-import { TriageSessionSection } from './triage-session-section'
-import { useTriageSession } from './use-triage-session'
+import {
+  finishTriageSession,
+  listTriageDecisions,
+  putTriageDecision,
+  startTriageSession,
+} from './card-triage.api'
+import { Harness, NOTE, decisionRow, session, startSession } from './triage-session.test-helpers'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ to, children, ...rest }: { to: string; children: ReactNode } & Record<string, unknown>) => (
@@ -20,80 +22,27 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./card-triage.api', () => ({
   startTriageSession: vi.fn(),
   finishTriageSession: vi.fn(),
+  discardTriageSession: vi.fn(),
+  putTriageDecision: vi.fn(),
+  deleteTriageDecision: vi.fn(),
+  listTriageDecisions: vi.fn(),
 }))
 
 const mockedStart = vi.mocked(startTriageSession)
 const mockedFinish = vi.mocked(finishTriageSession)
-
-const NOTE: CardStyleNote = {
-  id: 'n1',
-  subjectId: null,
-  sessionId: 's1',
-  text: 'Prefer short answers',
-  enabled: true,
-  createdAt: '2026-10-24T10:00:00.000Z',
-}
-
-function session(overrides: Partial<TriageSessionResponse> = {}): TriageSessionResponse {
-  return {
-    id: 's1',
-    subjectId: null,
-    status: 'open',
-    startedAt: '2026-10-24T10:00:00.000Z',
-    endedAt: null,
-    acceptedCount: 0,
-    rejectedCount: 0,
-    feedbackText: null,
-    notes: [],
-    ...overrides,
-  }
-}
-
-function Harness({ initial = {} }: { initial?: ReviewDecisions }) {
-  const [decisions, setDecisions] = useState<ReviewDecisions>(initial)
-  const triage = useTriageSession({ decisions })
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() =>
-          setDecisions((prev) => ({
-            ...prev,
-            [`bit-${Object.keys(prev).length + 1}`]: { verdict: 'approved', feedbackId: null },
-          }))
-        }
-      >
-        decide-approve
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          setDecisions((prev) => ({
-            ...prev,
-            [`bit-${Object.keys(prev).length + 1}`]: { verdict: 'rejected', feedbackId: 'f' },
-          }))
-        }
-      >
-        decide-reject
-      </button>
-      <input aria-label="other-field" />
-      <TriageSessionSection session={triage} />
-    </div>
-  )
-}
-
-async function startSession() {
-  fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
-  await screen.findByRole('button', { name: 'Finish triage' })
-}
+const mockedPut = vi.mocked(putTriageDecision)
+const mockedList = vi.mocked(listTriageDecisions)
 
 describe('TriageSessionSection', () => {
   beforeEach(() => {
     window.localStorage.clear()
     mockedStart.mockReset()
     mockedFinish.mockReset()
+    mockedPut.mockReset()
+    mockedList.mockReset()
     mockedStart.mockResolvedValue({ ok: true, data: session() })
+    mockedPut.mockResolvedValue({ ok: true, data: decisionRow('bit-1', 'approved') })
+    mockedList.mockResolvedValue({ ok: true, data: [] })
   })
 
   afterEach(() => {

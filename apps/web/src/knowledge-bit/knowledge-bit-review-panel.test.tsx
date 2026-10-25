@@ -40,6 +40,10 @@ vi.mock('./knowledge-bit-review.api', () => ({
 vi.mock('../card-triage/card-triage.api', () => ({
   startTriageSession: vi.fn(),
   finishTriageSession: vi.fn(),
+  discardTriageSession: vi.fn(),
+  putTriageDecision: vi.fn(),
+  deleteTriageDecision: vi.fn(),
+  listTriageDecisions: vi.fn(),
 }))
 
 const mockedApprove = vi.mocked(approveKnowledgeBitForReview)

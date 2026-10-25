@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { PendingKnowledgeBitQuestionVariant } from "@post-anki/shared";
 
 import { KnowledgeBitReviewCardFields } from "./knowledge-bit-review-card-fields";
@@ -12,6 +12,8 @@ export function KnowledgeBitReviewVariantList({
   keptIds = [],
   pickDisabled = false,
   defaultOpen = false,
+  prominentMain = false,
+  afterMain = null,
   onToggle,
   onSave,
   onBusyChange,
@@ -22,6 +24,8 @@ export function KnowledgeBitReviewVariantList({
   keptIds?: string[];
   pickDisabled?: boolean;
   defaultOpen?: boolean;
+  prominentMain?: boolean;
+  afterMain?: ReactNode;
   onToggle?: (index: number) => void;
   onSave: (
     variantId: string,
@@ -64,11 +68,13 @@ export function KnowledgeBitReviewVariantList({
         >
           <KnowledgeBitReviewCardFields
             variant={main}
+            prominent={prominentMain}
             onSave={onSave}
             onBusyChange={(busy) => onBusyChange("card-0", busy)}
           />
         </div>
       ) : null}
+      {afterMain}
       {variations.length > 0 ? (
         <>
           <button

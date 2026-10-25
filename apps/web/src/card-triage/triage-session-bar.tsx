@@ -61,6 +61,11 @@ export function TriageSessionBar({
         Finish triage
       </button>
       <span className="hidden text-xs text-neutral-600 sm:inline">Key: f</span>
+      {session.notice ? (
+        <span role="status" data-testid="triage-sync-notice" className="text-xs text-amber-800">
+          {session.notice}
+        </span>
+      ) : null}
     </div>
   )
 }

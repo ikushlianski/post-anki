@@ -1,15 +1,24 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { TRIAGE_FEEDBACK_MAX_CHARS, type TriageSessionResponse } from '@post-anki/shared'
+import {
+  TRIAGE_FEEDBACK_MAX_CHARS,
+  type TriageDecision,
+  type TriageDecisionResponse,
+  type TriageSessionResponse,
+} from '@post-anki/shared'
 
 import {
   PRIMARY_BUTTON_CLASS,
   SECONDARY_BUTTON_CLASS,
   TEXT_FIELD_CLASS,
 } from '../knowledge-bit/knowledge-bit-review-classes'
+import { TriageDecisionsList, type TriageDecisionPatch } from './triage-decisions-list'
 
 export function TriageFeedbackPanel({
   decidedCount,
+  decisions = [],
+  cards = {},
+  onEditDecision = () => undefined,
   saving,
   error,
   resumed,
@@ -19,6 +28,9 @@ export function TriageFeedbackPanel({
   onSkip,
 }: {
   decidedCount: number
+  decisions?: TriageDecision[]
+  cards?: Record<string, TriageDecisionResponse>
+  onEditDecision?: (bitId: string, patch: TriageDecisionPatch) => void
   saving: boolean
   error: string | null
   resumed: boolean
@@ -46,6 +58,12 @@ export function TriageFeedbackPanel({
           still counted.
         </p>
       ) : null}
+      <TriageDecisionsList
+        decisions={decisions}
+        cards={cards}
+        readOnly={saving}
+        onEdit={onEditDecision}
+      />
       <textarea
         data-testid="triage-feedback-text"
         aria-label="Feedback"

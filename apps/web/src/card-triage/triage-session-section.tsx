@@ -35,6 +35,9 @@ export function TriageSessionSection({
     return (
       <TriageFeedbackPanel
         decidedCount={session.decidedCount}
+        decisions={session.decisions}
+        cards={session.cards}
+        onEditDecision={session.editDecision}
         saving={session.phase === 'saving'}
         error={session.error}
         resumed={session.resumed}
@@ -47,7 +50,11 @@ export function TriageSessionSection({
   }
 
   if (session.isOpen && hideOpenBar) {
-    return null
+    return session.notice ? (
+      <p role="status" data-testid="triage-sync-notice" className="text-xs text-amber-800">
+        {session.notice}
+      </p>
+    ) : null
   }
 
   return <TriageSessionBar session={session} canStart={canStart} />
