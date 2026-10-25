@@ -58,6 +58,8 @@ function FocusCardBody({
 }: KnowledgeBitFocusCardProps) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const [pressed, setPressed] = useState<'approve' | 'reject' | null>(null)
+  const [addingExample, setAddingExample] = useState(false)
+  const [focusExample, setFocusExample] = useState(false)
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(new Set())
 
   const setBusy = useCallback((key: string, busy: boolean) => {
@@ -80,12 +82,22 @@ function FocusCardBody({
 
   const hasUnsavedEdits = busyKeys.size > 0
   const hasNoVariants = bit.variants.length === 0
+  const showExample = addingExample || Boolean(bit.background?.trim())
   const actionsDisabled = isResolving || hasUnsavedEdits
   const approveDisabled = actionsDisabled || hasNoVariants
 
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
+
+  useEffect(() => {
+    if (focusExample) {
+      document
+        .querySelector<HTMLTextAreaElement>(`[data-testid="knowledge-bit-review-edit-example-${bit.id}"]`)
+        ?.focus()
+      setFocusExample(false)
+    }
+  }, [focusExample, bit.id])
 
   useEffect(() => {
     onEditingChange?.(bit.id, hasUnsavedEdits)
@@ -96,9 +108,9 @@ function FocusCardBody({
   return (
     <article
       data-testid={`knowledge-bit-focus-card-${bit.id}`}
-      className="mx-auto flex min-h-full w-full max-w-2xl flex-col"
+      className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col"
     >
-      <div className="flex-1 space-y-4 px-4 py-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
         <div className="space-y-2">
           <p
             data-testid="knowledge-bit-focus-subject"
@@ -115,26 +127,41 @@ function FocusCardBody({
           variants={bit.variants}
           pollingGaveUp={pollingGaveUp}
           defaultOpen
+          prominentMain
+          afterMain={
+            hasNoVariants ? null : showExample ? (
+              <KnowledgeBitReviewExampleField
+                bitId={bit.id}
+                example={bit.background ?? ''}
+                muted
+                onSave={(example) => onSaveBit(bit.id, bit.body, example)}
+                onBusyChange={(busy) => setBusy('example', busy)}
+              />
+            ) : (
+              <button
+                type="button"
+                data-testid="knowledge-bit-focus-add-example"
+                onClick={() => {
+                  setAddingExample(true)
+                  setFocusExample(true)
+                }}
+                className="min-h-11 text-xs font-medium text-neutral-500 hover:text-neutral-900 sm:min-h-8"
+              >
+                Add example
+              </button>
+            )
+          }
           onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
           onBusyChange={setBusy}
         />
 
-        {hasNoVariants ? null : (
-          <KnowledgeBitReviewExampleField
-            bitId={bit.id}
-            example={bit.background ?? ''}
-            onSave={(example) => onSaveBit(bit.id, bit.body, example)}
-            onBusyChange={(busy) => setBusy('example', busy)}
-          />
-        )}
-
-        <div className="space-y-2" data-testid="knowledge-bit-focus-fact">
+        <div data-testid="knowledge-bit-focus-fact" className="space-y-1 text-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Fact</p>
           <h2
             ref={headingRef}
             tabIndex={-1}
             data-testid="knowledge-bit-focus-statement"
-            className="text-lg font-semibold leading-snug text-neutral-900 outline-none"
+            className="text-sm font-medium leading-snug text-neutral-800 outline-none"
           >
             {bit.body}
           </h2>
@@ -179,7 +206,7 @@ function FocusCardBody({
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 flex gap-3 border-t border-neutral-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+      <div className="flex shrink-0 gap-3 border-t border-neutral-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <button
           type="button"
           data-testid={`knowledge-bit-focus-reject-${bit.id}`}

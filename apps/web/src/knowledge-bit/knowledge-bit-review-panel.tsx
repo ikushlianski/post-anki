@@ -3,11 +3,10 @@ import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import {
   editKnowledgeBitForReview,
-  gradeKnowledgeBitForReview,
-  updateKnowledgeBitFeedbackForReview,
   getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
 } from './knowledge-bit-review.api'
+import { sendDecisionNote } from './knowledge-bit-review-note'
 import { applyBitEdit, applyVariantEdit, singleSubjectId } from './knowledge-bit-review-sources'
 import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
 import {
@@ -35,9 +34,8 @@ import {
 import { useReviewDecisions } from './use-review-decisions'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
 import { TriageSessionSection } from '../card-triage/triage-session-section'
+import { useCardDwell } from '../card-triage/use-card-dwell'
 import { useTriageSession } from '../card-triage/use-triage-session'
-
-const NEUTRAL_RATING = 3
 
 export function KnowledgeBitReviewPanel({
   initialSources,
@@ -68,6 +66,12 @@ export function KnowledgeBitReviewPanel({
     knownBitIds,
     claimBit,
     releaseBit,
+    onDecided: (bitId, decision) =>
+      triageSession.recordDecision(bitId, decision.verdict, {
+        note: note.bitId === bitId ? note.text.trim() : '',
+        dwellMs: takeDwell(bitId),
+      }),
+    onUndone: (bitId) => triageSession.recordUndo(bitId),
   })
   const { announcement, announce } = useReviewAnnouncer()
   const pendingSources = sources.map((source) => ({
@@ -77,6 +81,7 @@ export function KnowledgeBitReviewPanel({
   const triageSession = useTriageSession({
     decisions,
     subjectId: singleSubjectId(pendingSources),
+    undecidedCount: pendingSources.reduce((total, source) => total + source.bits.length, 0),
   })
   const queue = buildFocusQueue(pendingSources)
   const allBits = pendingSources.flatMap((source) => source.bits)
@@ -84,6 +89,7 @@ export function KnowledgeBitReviewPanel({
   const undoError = Object.keys(rowErrors).find((id) => rowErrors[id] && decisions[id])
   const [doneFeedback, setDoneFeedback] = useState('')
   const inFocus = triageSession.isOpen && triageSession.phase === 'idle'
+  const takeDwell = useCardDwell(inFocus ? queue.current?.bit.id : undefined)
 
   const refreshQuestions = useCallback(async () => {
     const statuses = await fetchStatuses()
@@ -173,18 +179,6 @@ export function KnowledgeBitReviewPanel({
     }
   }
 
-  async function sendNote(action: 'approve' | 'reject', bitId: string, text: string, feedbackId: string | null) {
-    try {
-      if (action === 'reject' && feedbackId) {
-        await updateKnowledgeBitFeedbackForReview({ data: { feedbackId, note: text } })
-      } else if (action === 'approve') {
-        await gradeKnowledgeBitForReview({ data: { bitId, rating: NEUTRAL_RATING, note: text } })
-      }
-    } catch {
-      announce('assertive', "Couldn't save your note.")
-    }
-  }
-
   async function decide(action: 'approve' | 'reject') {
     const bitId = queue.current?.bit.id
 
@@ -203,7 +197,9 @@ export function KnowledgeBitReviewPanel({
     announce('polite', `${action === 'approve' ? 'Approved' : 'Rejected'}, ${left} left`)
 
     if (text) {
-      void sendNote(action, bitId, text, decision.feedbackId)
+      void sendDecisionNote(action, bitId, text, decision.feedbackId, () =>
+        announce('assertive', "Couldn't save your note."),
+      )
     }
   }
 

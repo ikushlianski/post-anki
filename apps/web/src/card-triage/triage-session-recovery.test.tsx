@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { TriageSessionResponse } from '@post-anki/shared'
 
-import { finishTriageSession, startTriageSession } from './card-triage.api'
+import {
+  discardTriageSession,
+  finishTriageSession,
+  listTriageDecisions,
+  putTriageDecision,
+  startTriageSession,
+} from './card-triage.api'
 import { TriageSessionSection } from './triage-session-section'
 import { useTriageSession } from './use-triage-session'
 
@@ -15,10 +21,15 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('./card-triage.api', () => ({
   startTriageSession: vi.fn(),
   finishTriageSession: vi.fn(),
+  discardTriageSession: vi.fn(),
+  putTriageDecision: vi.fn(),
+  deleteTriageDecision: vi.fn(),
+  listTriageDecisions: vi.fn(),
 }))
 
 const mockedStart = vi.mocked(startTriageSession)
 const mockedFinish = vi.mocked(finishTriageSession)
+const mockedDiscard = vi.mocked(discardTriageSession)
 const STORAGE_KEY = 'post-anki:open-triage-session'
 const DECISIONS_KEY = 'post-anki:open-triage-session-decisions'
 
@@ -36,6 +47,10 @@ function session(id = 's1'): TriageSessionResponse {
   }
 }
 
+function startKeys(): string[] {
+  return mockedStart.mock.calls.map(([arg]) => (arg as { data: { startKey: string } }).data.startKey)
+}
+
 function Harness({ subjectId = null }: { subjectId?: string | null }) {
   const triage = useTriageSession({ decisions: {}, subjectId })
 
@@ -47,6 +62,12 @@ describe('triage session recovery', () => {
     window.localStorage.clear()
     mockedStart.mockReset()
     mockedFinish.mockReset()
+    mockedDiscard.mockReset()
+    mockedDiscard.mockResolvedValue({ ok: true, data: session() })
+    vi.mocked(putTriageDecision).mockReset()
+    vi.mocked(putTriageDecision).mockResolvedValue({ ok: false, error: 'unused' })
+    vi.mocked(listTriageDecisions).mockReset()
+    vi.mocked(listTriageDecisions).mockResolvedValue({ ok: true, data: [] })
     mockedStart.mockResolvedValue({ ok: true, data: session() })
   })
 
@@ -141,7 +162,9 @@ describe('triage session recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
     await screen.findByRole('button', { name: 'Finish triage' })
 
-    expect(mockedStart).toHaveBeenCalledWith({ data: { subjectId: 'sub-1' } })
+    expect(mockedStart).toHaveBeenCalledWith({
+      data: { subjectId: 'sub-1', client: 'web', startKey: expect.any(String) },
+    })
   })
 
   it('should start a global session when the on-screen cards have no single subject', async () => {
@@ -150,6 +173,72 @@ describe('triage session recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
     await screen.findByRole('button', { name: 'Finish triage' })
 
-    expect(mockedStart).toHaveBeenCalledWith({ data: { subjectId: null } })
+    expect(mockedStart).toHaveBeenCalledWith({
+      data: { subjectId: null, client: 'web', startKey: expect.any(String) },
+    })
+  })
+
+  it('should reuse the same start key when a failed start is retried so no second session is made', async () => {
+    mockedStart.mockResolvedValueOnce({ ok: false, error: 'network' })
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
+    await screen.findByText("Couldn't start triage. Try again.")
+    fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
+    await screen.findByRole('button', { name: 'Finish triage' })
+
+    const keys = startKeys()
+
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toBeTruthy()
+    expect(keys[1]).toBe(keys[0])
+  })
+
+  it('should use a fresh start key for the next session after a successful start', async () => {
+    mockedFinish.mockResolvedValue({ ok: true, data: session() })
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish triage' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
+
+    await screen.findByRole('button', { name: 'Start triage' })
+    fireEvent.click(screen.getByRole('button', { name: 'Start triage' }))
+    await screen.findByRole('button', { name: 'Finish triage' })
+
+    const [first, second] = startKeys()
+
+    expect(second).not.toBe(first)
+  })
+
+  it('should record the discard on the server and still clear locally when the server says gone', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'old')
+    mockedFinish.mockResolvedValue({ ok: false, error: 'gone', status: 409 })
+    mockedDiscard.mockResolvedValue({ ok: false, error: 'already_finished', status: 409 })
+    render(<Harness />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish triage' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard this session' }))
+
+    await waitFor(() =>
+      expect(mockedDiscard).toHaveBeenCalledWith({ data: { sessionId: 'old' } }),
+    )
+    expect(screen.getByRole('button', { name: 'Start triage' })).toBeTruthy()
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull()
+  })
+
+  it('should still clear the local session when the discard call throws', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'old')
+    mockedFinish.mockResolvedValue({ ok: false, error: 'gone', status: 404 })
+    mockedDiscard.mockRejectedValue(new Error('offline'))
+    render(<Harness />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish triage' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard this session' }))
+
+    expect(screen.getByRole('button', { name: 'Start triage' })).toBeTruthy()
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 })

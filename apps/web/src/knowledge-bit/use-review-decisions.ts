@@ -22,11 +22,19 @@ export function useReviewDecisions({
   knownBitIds,
   claimBit,
   releaseBit,
+  onDecided,
+  onUndone,
 }: {
   knownBitIds: MutableRefObject<Set<string>>
   claimBit: (bitId: string) => boolean
   releaseBit: (bitId: string) => void
+  onDecided?: (bitId: string, decision: ReviewDecision) => void
+  onUndone?: (bitId: string) => void
 }) {
+  const callbacks = useRef({ onDecided, onUndone })
+
+  callbacks.current = { onDecided, onUndone }
+
   const [decisions, setDecisions] = useState<ReviewDecisions>({})
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const decidedStack = useRef<string[]>([])
@@ -61,6 +69,7 @@ export function useReviewDecisions({
 
       knownBitIds.current.add(bitId)
       decidedStack.current = [...decidedStack.current.filter((id) => id !== bitId), bitId]
+      callbacks.current.onDecided?.(bitId, decision)
       setDecisions((prev) => ({ ...prev, [bitId]: decision }))
       notifyPendingReviewChanged()
 
@@ -122,6 +131,7 @@ export function useReviewDecisions({
       }
 
       decidedStack.current = decidedStack.current.filter((id) => id !== bitId)
+      callbacks.current.onUndone?.(bitId)
 
       setDecisions((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([id]) => id !== bitId)),

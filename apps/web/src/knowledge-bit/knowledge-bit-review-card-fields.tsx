@@ -3,8 +3,18 @@ import type { PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
 
 import { AUTOSAVE_STATUS_TEXT, useAutoSave } from './knowledge-bit-review-autosave'
 
-export const BORDERLESS_FIELD_CLASS =
-  'field-sizing-content w-full resize-none rounded-md bg-neutral-100/70 px-3 py-2 text-sm leading-relaxed text-neutral-900 placeholder:text-neutral-400 hover:bg-neutral-100 focus:bg-white focus:outline-2 focus:outline-neutral-300'
+const FIELD_BASE_CLASS =
+  'field-sizing-content w-full resize-none rounded-md bg-neutral-100/70 px-3 py-2 leading-relaxed placeholder:text-neutral-400 hover:bg-neutral-100 focus:bg-white focus:outline-2 focus:outline-neutral-300'
+
+export type ReviewFieldSize = 'normal' | 'large' | 'small'
+
+const FIELD_SIZE_CLASS: Record<ReviewFieldSize, string> = {
+  normal: 'text-sm text-neutral-900',
+  large: 'text-xl text-neutral-900',
+  small: 'text-xs text-neutral-600',
+}
+
+export const BORDERLESS_FIELD_CLASS = `${FIELD_BASE_CLASS} ${FIELD_SIZE_CLASS.normal}`
 
 export function ReviewField({
   id,
@@ -14,6 +24,7 @@ export function ReviewField({
   placeholder,
   fieldRef,
   strong = false,
+  size = 'normal',
 }: {
   id: string
   label: string
@@ -22,6 +33,7 @@ export function ReviewField({
   placeholder?: string
   fieldRef: React.Ref<HTMLTextAreaElement>
   strong?: boolean
+  size?: ReviewFieldSize
 }) {
   return (
     <div className="space-y-1">
@@ -35,7 +47,7 @@ export function ReviewField({
         defaultValue={defaultValue}
         placeholder={placeholder}
         rows={1}
-        className={`${BORDERLESS_FIELD_CLASS} ${strong ? 'font-semibold' : ''}`}
+        className={`${FIELD_BASE_CLASS} ${FIELD_SIZE_CLASS[size]} ${strong ? 'font-semibold' : ''}`}
       />
     </div>
   )
@@ -55,10 +67,12 @@ export function StatusLine({ status, testId }: { status: keyof typeof AUTOSAVE_S
 
 export function KnowledgeBitReviewCardFields({
   variant,
+  prominent = false,
   onSave,
   onBusyChange,
 }: {
   variant: PendingKnowledgeBitQuestionVariant
+  prominent?: boolean
   onSave: (variantId: string, prompt: string, answer: string) => Promise<boolean>
   onBusyChange: (busy: boolean) => void
 }) {
@@ -89,6 +103,7 @@ export function KnowledgeBitReviewCardFields({
         testId={`knowledge-bit-review-edit-prompt-${variant.id}`}
         defaultValue={variant.prompt}
         fieldRef={promptRef}
+        size={prominent ? 'large' : 'normal'}
         strong
       />
       <ReviewField
@@ -106,11 +121,13 @@ export function KnowledgeBitReviewCardFields({
 export function KnowledgeBitReviewExampleField({
   bitId,
   example,
+  muted = false,
   onSave,
   onBusyChange,
 }: {
   bitId: string
   example: string
+  muted?: boolean
   onSave: (example: string | null) => Promise<boolean>
   onBusyChange: (busy: boolean) => void
 }) {
@@ -134,6 +151,7 @@ export function KnowledgeBitReviewExampleField({
         defaultValue={example}
         placeholder="Optional: an example that helps to remember it"
         fieldRef={ref}
+        size={muted ? 'small' : 'normal'}
       />
       <StatusLine status={status} testId={`knowledge-bit-review-example-status-${bitId}`} />
     </div>

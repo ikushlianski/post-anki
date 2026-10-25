@@ -167,6 +167,51 @@ describe('KnowledgeBitFocusCard', () => {
     expect(prompt.compareDocumentPosition(fact) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
+  it('should show the question first, then the answer, then the example, then the fact', () => {
+    renderCard()
+
+    const order = [
+      screen.getByTestId('knowledge-bit-review-edit-prompt-v1'),
+      screen.getByTestId('knowledge-bit-review-edit-answer-v1'),
+      screen.getByTestId('knowledge-bit-review-edit-example-bit-1'),
+      screen.getByTestId('knowledge-bit-focus-fact'),
+    ]
+
+    order.slice(1).forEach((element, index) => {
+      expect(
+        order[index]!.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+  })
+
+  it('should put the example before the other variations', () => {
+    renderCard()
+
+    const example = screen.getByTestId('knowledge-bit-review-edit-example-bit-1')
+    const variations = screen.getByTestId('knowledge-bit-review-variations-bit-1')
+
+    expect(example.compareDocumentPosition(variations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('should hide the example field when the card has no example and reveal it on request', () => {
+    renderCard(makeBit({ background: null }))
+
+    expect(screen.queryByTestId('knowledge-bit-review-edit-example-bit-1')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-focus-add-example'))
+
+    expect(document.activeElement).toBe(screen.getByTestId('knowledge-bit-review-edit-example-bit-1'))
+  })
+
+  it('should scroll long card content while the decision buttons stay outside the scrolled area', () => {
+    renderCard()
+
+    const scroller = screen.getByTestId('knowledge-bit-review-edit-prompt-v1').closest('.overflow-y-auto')
+
+    expect(scroller).not.toBeNull()
+    expect(scroller?.contains(screen.getByRole('button', { name: 'Approve' }))).toBe(false)
+  })
+
   it('should disable both decisions while a decision is being saved', () => {
     renderCard(makeBit(), { isResolving: true })
 

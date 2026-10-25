@@ -3,12 +3,17 @@ import { z } from 'zod'
 import {
   cardStyleNoteListResponse,
   cardStyleNoteSchema,
+  discardTriageSessionInput,
   finishTriageSessionInput,
   listCardStyleNotesQuery,
+  putTriageDecisionInput,
   startTriageSessionInput,
+  triageDecisionListResponse,
+  triageDecisionResponse,
   triageSessionResponse,
   updateCardStyleNoteInput,
   type CardStyleNote,
+  type TriageDecisionResponse,
   type TriageSessionResponse,
 } from '@post-anki/shared'
 
@@ -56,6 +61,59 @@ export const finishTriageSession = createServerFn({ method: 'POST' })
         }),
       ),
     ),
+  )
+
+const discardInput = discardTriageSessionInput.extend({ sessionId: z.string().min(1) })
+
+export const discardTriageSession = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => discardInput.parse(data))
+  .handler(({ data: { sessionId, ...body } }): Promise<TriageOutcome<TriageSessionResponse>> =>
+    run(async () =>
+      triageSessionResponse.parse(
+        await request<unknown>(`/triage-sessions/${encodeURIComponent(sessionId)}/discards`, {
+          method: 'POST',
+          body,
+        }),
+      ),
+    ),
+  )
+
+const decisionTarget = z.object({ sessionId: z.string().min(1), bitId: z.string().min(1) })
+
+function decisionPath({ sessionId, bitId }: { sessionId: string; bitId: string }) {
+  return `/triage-sessions/${encodeURIComponent(sessionId)}/decisions/${encodeURIComponent(bitId)}`
+}
+
+export const putTriageDecision = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => decisionTarget.and(putTriageDecisionInput).parse(data))
+  .handler(({ data }): Promise<TriageOutcome<TriageDecisionResponse>> => {
+    const { sessionId, bitId, ...body } = data
+
+    return run(async () =>
+      triageDecisionResponse.parse(
+        await request<unknown>(decisionPath({ sessionId, bitId }), { method: 'PUT', body }),
+      ),
+    )
+  })
+
+export const deleteTriageDecision = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => decisionTarget.parse(data))
+  .handler(({ data }): Promise<TriageOutcome<TriageDecisionResponse>> =>
+    run(async () =>
+      triageDecisionResponse.parse(await request<unknown>(decisionPath(data), { method: 'DELETE' })),
+    ),
+  )
+
+export const listTriageDecisions = createServerFn({ method: 'GET' })
+  .inputValidator((data: unknown) => z.object({ sessionId: z.string().min(1) }).parse(data))
+  .handler(({ data }): Promise<TriageOutcome<TriageDecisionResponse[]>> =>
+    run(async () => {
+      const body = await request<unknown>(
+        `/triage-sessions/${encodeURIComponent(data.sessionId)}/decisions`,
+      )
+
+      return triageDecisionListResponse.parse(body).decisions
+    }),
   )
 
 export const listCardStyleNotes = createServerFn({ method: 'GET' })
