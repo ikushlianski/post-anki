@@ -229,6 +229,12 @@ export const ROUTES: RouteDef[] = [
   },
   { method: "GET", pattern: "/admin/knowledge-bit-feedback/by-model", name: "getKnowledgeBitFeedbackByModel" },
   {
+    method: "GET",
+    pattern: /^\/knowledge-bits\/([^/]+)$/,
+    name: "getKnowledgeBitDetail",
+    param: "id",
+  },
+  {
     method: "PATCH",
     pattern: /^\/knowledge-bits\/([^/]+)$/,
     name: "editKnowledgeBit",

@@ -98,6 +98,33 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/topics/t1/study-chat")).toEqual({ name: "askStudyChat", params: { id: "t1" } });
     });
 
+    it("resolves GET /knowledge-bits/:id to the single-piece read", () => {
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1")).toEqual({
+        name: "getKnowledgeBitDetail",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")?.name).toBe("editKnowledgeBit");
+    });
+
+    it("keeps the fixed GET /knowledge-bits routes ahead of the single-piece read", () => {
+      const fixed: Array<[string, string]> = [
+        ["overview", "listKnowledgeBitOverview"],
+        ["browser", "listKnowledgeBitBrowser"],
+        ["export", "exportKnowledgeBits"],
+        ["suspended", "listSuspendedKnowledgeBits"],
+        ["pending-review", "listPendingKnowledgeBitsForReview"],
+        ["review-cards", "listKnowledgeBitReviewCards"],
+      ];
+
+      for (const [path, name] of fixed) {
+        expect(resolveRoute("GET", `/knowledge-bits/${path}`)?.name).toBe(name);
+      }
+
+      expect(resolveRoute("GET", "/knowledge-bits/browser/subjects")?.name).toBe(
+        "countKnowledgeBitBrowserSubjects",
+      );
+    });
+
     it("resolves POST /knowledge-bits/:id/chat to the knowledge-bit-scoped chat handler", () => {
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat")).toEqual({
         name: "askKnowledgeBitChat",
@@ -126,14 +153,14 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/knowledge-bits/basic-card-generation-scan")?.name).toBe(
         "triggerKnowledgeBitBasicCardGenerationScan",
       );
-      expect(resolveRoute("GET", "/knowledge-bits/basic-card-generation-scan")).toBeNull();
+      expect(resolveRoute("GET", "/knowledge-bits/basic-card-generation-scan")?.name).toBe("getKnowledgeBitDetail");
     });
 
     it("resolves the bulk-approval and pending-count routes", () => {
       expect(resolveRoute("POST", "/knowledge-bits/approvals")?.name).toBe(
         "bulkApproveKnowledgeBits",
       );
-      expect(resolveRoute("GET", "/knowledge-bits/approvals")).toBeNull();
+      expect(resolveRoute("GET", "/knowledge-bits/approvals")?.name).toBe("getKnowledgeBitDetail");
       expect(resolveRoute("GET", "/knowledge-bits/pending-review/count")?.name).toBe(
         "countPendingKnowledgeBits",
       );
@@ -144,7 +171,7 @@ describe("resolveRoute", () => {
         name: "editKnowledgeBit",
         params: { id: "kb_1" },
       });
-      expect(resolveRoute("GET", "/knowledge-bits/kb_1")).toBeNull();
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1")?.name).toBe("getKnowledgeBitDetail");
     });
 
     it("routes the variant triage decision to the triage handler", () => {
@@ -476,7 +503,7 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/knowledge-bits/reviews")?.name).toBe(
         "recordKnowledgeBitReview",
       );
-      expect(resolveRoute("GET", "/knowledge-bits/reviews")).toBeNull();
+      expect(resolveRoute("GET", "/knowledge-bits/reviews")?.name).toBe("getKnowledgeBitDetail");
     });
 
     it("routes GET /knowledge-bits/suspended to the suspended list, not to a bit id", () => {

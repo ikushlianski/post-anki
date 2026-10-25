@@ -46,6 +46,7 @@ import {
   handleCountKnowledgeBitBrowserSubjects,
   handleListKnowledgeBitBrowser,
 } from "./knowledge-bit/knowledge-bit-browser.controller.js";
+import { handleGetKnowledgeBitDetail } from "./knowledge-bit/knowledge-bit-detail.controller.js";
 import { handleKnowledgeBitBrowserMatches } from "./knowledge-bit/knowledge-bit-browser-matches.controller.js";
 import {
   handleDistillTriageSession,
@@ -843,6 +844,8 @@ async function route(
       return handleListKnowledgeBitVariants(res, id);
     case "generateKnowledgeBitVariants":
       return handleGenerateKnowledgeBitVariants(res, id);
+    case "getKnowledgeBitDetail":
+      return handleGetKnowledgeBitDetail(res, id);
     case "editKnowledgeBit":
       return handleEditKnowledgeBit(req, res, id);
     case "getCurriculumStats":

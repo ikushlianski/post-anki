@@ -72,6 +72,7 @@ export * from "./knowledge-cleanup";
 export * from "./knowledge-bit-browser";
 export * from "./knowledge-bit-browser-filters";
 export * from "./knowledge-bit-browser-matches";
+export * from "./knowledge-bit-detail";
 export * from "./model-comparison";
 export * from "./knowledge-bit-origin";
 export * from "./knowledge-source-refusal";

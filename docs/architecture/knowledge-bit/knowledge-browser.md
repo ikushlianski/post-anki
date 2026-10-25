@@ -19,6 +19,14 @@ The knowledge browser lists approved pieces with filters, a total count and pagi
 - Only new words count toward the limit of 20 per rolling minute per server; beyond it the answer is 429 `search_rate_limited` before any paid call.
 - Refusals: 429 `llm_budget_exceeded` (existing daily spend guard), 429 `search_rate_limited`, 502 `embedding_failed` (after the client's own retry and timeout), 400 `invalid_input`, 400 `invalid_date_range`.
 
+## Single piece: `GET /knowledge-bits/:id`
+
+- Returns the full version of one approved piece: text, context or example, every active phrasing (card type label, prompt, own answer, fill-in-the-blank sentence) in list order, subject path, tags, source (type, label, link, added-by, added date) and review state (state, next due date, times forgotten, review count).
+- Subject path is computed on the server from the subject tree, top-level name first, and stops safely on a loop or a missing parent. Tags are sorted by name.
+- The due date is null for new and suspended pieces.
+- Unknown, unapproved or phrasing-less ids answer 404 `not_found`. The read is free and never writes.
+- It is registered after every fixed `GET /knowledge-bits/*` route so `overview`, `browser`, `export` and the others keep resolving; the router test guards the order.
+
 ## Operating rules
 
 - Stored pieces do not record their embedding model; changing `EMBEDDING_MODEL` without re-embedding makes rankings meaningless.
