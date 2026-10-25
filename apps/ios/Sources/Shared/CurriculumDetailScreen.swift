@@ -146,7 +146,7 @@ extension CurriculumDetailScreen {
                 MacEmptyStateView(
                     title: "No topics yet",
                     systemImage: "list.bullet",
-                    message: "This course has no topics. Add some from your server or the iOS app."
+                    message: "This subject has no topics. Add some from your server or the iOS app."
                 )
             } else {
                 topicList(modules)

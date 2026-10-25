@@ -7,7 +7,7 @@ struct LectureSourcesSection: View {
     var body: some View {
         Section("Lecture sources") {
             if model.needsSources {
-                Text("This course has no sources yet. Find and approve some, then compile.")
+                Text("This subject has no sources yet. Find and approve some, then compile.")
                     .foregroundStyle(.secondary)
             }
 

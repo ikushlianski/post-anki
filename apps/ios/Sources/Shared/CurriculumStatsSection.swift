@@ -138,7 +138,7 @@ struct CurriculumStatsScreen: View {
                 }
             }
         }
-        .navigationTitle("Course stats")
+        .navigationTitle("Subject stats")
         .refreshable {
             if let id = model.stats?.curriculumId { await model.load(curriculumId: id) }
         }

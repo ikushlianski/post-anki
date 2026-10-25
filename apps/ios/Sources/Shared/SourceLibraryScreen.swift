@@ -39,7 +39,7 @@ struct SourceLibraryScreen: View {
             }
             Button("Cancel", role: .cancel) { deleting = nil }
         } message: {
-            Text("Lectures and research for that course will no longer use it.")
+            Text("Lectures and research for that subject will no longer use it.")
         }
         .refreshable { await model.load() }
         .task { await model.load() }

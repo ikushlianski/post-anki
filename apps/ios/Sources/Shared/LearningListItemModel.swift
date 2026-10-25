@@ -20,7 +20,7 @@ final class LearningListItemModel {
 
         switch recommendation.destination {
         case "fold_in": return "Add to \(recommendation.areaName ?? "an existing area")"
-        case "mini_course": return "Make a short course"
+        case "mini_course": return "Make a short subject"
         case "extend_curriculum":
             return "Extend \(recommendation.existingCurriculumMatch?.title ?? "an existing course")"
         default: return "Park for later"
@@ -57,7 +57,7 @@ final class LearningListItemModel {
 
             curriculum = all.first { $0.id == id }
 
-            if curriculum == nil { message = "Couldn't open this course." }
+            if curriculum == nil { message = "Couldn't open this subject." }
         }
     }
 

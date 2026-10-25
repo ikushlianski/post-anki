@@ -15,7 +15,7 @@ public enum APIClient {
     private static let fallback = FallbackBaseURL()
     private static let sessionBox = SessionBox()
 
-    private static var session: URLSession { sessionBox.session }
+    static var session: URLSession { sessionBox.session }
 
     public static var recentFailures: [RequestFailure] { FailureLog.shared.recent }
 

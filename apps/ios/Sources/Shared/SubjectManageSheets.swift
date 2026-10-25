@@ -144,7 +144,7 @@ struct SubjectMergeSheet: View {
                 }
             }
             .confirmationDialog(
-                "Merge \(source.name) into \(chosen?.name ?? "")? All of \(source.name)'s courses move to \(chosen?.name ?? "") and \(source.name) is deleted.",
+                "Merge \(source.name) into \(chosen?.name ?? "")? All of \(source.name)'s subjects move to \(chosen?.name ?? "") and \(source.name) is deleted.",
                 isPresented: Binding(get: { chosen != nil }, set: { if !$0 { chosen = nil } }),
                 titleVisibility: .visible
             ) {

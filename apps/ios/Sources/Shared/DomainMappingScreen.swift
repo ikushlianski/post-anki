@@ -95,7 +95,7 @@ struct DomainMappingScreen: View {
             } else if model.isLoading && !model.hasLoaded {
                 ProgressView()
             } else if model.hasLoaded && model.mappings.isEmpty {
-                Text("This course isn't placed in the map yet.").foregroundStyle(.secondary)
+                Text("This subject isn't placed in the map yet.").foregroundStyle(.secondary)
             }
 
             Section {

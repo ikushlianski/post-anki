@@ -43,9 +43,9 @@ struct HomeScreen: View {
                     }
                 } else if !model.isLoading {
                     ContentUnavailableView(
-                        "No course yet",
+                        "No subject yet",
                         systemImage: "book.closed",
-                        description: Text("Open a course from the Courses tab to see it here.")
+                        description: Text("Open a subject from the Subjects tab to see it here.")
                     )
                 }
 

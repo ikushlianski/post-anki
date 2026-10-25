@@ -41,7 +41,7 @@ struct CourseBuildListScreen: View {
             } else if model.isLoading && !model.hasLoaded {
                 ProgressView()
             } else if model.hasLoaded && model.courses.isEmpty {
-                Text("No courses are being built.").foregroundStyle(.secondary)
+                Text("No subjects are being built.").foregroundStyle(.secondary)
             }
 
             ForEach(model.courses) { course in
@@ -55,7 +55,7 @@ struct CourseBuildListScreen: View {
                 }
             }
         }
-        .navigationTitle("Courses being built")
+        .navigationTitle("Subjects being built")
         .refreshable { await model.load() }
         .task { await model.load() }
     }

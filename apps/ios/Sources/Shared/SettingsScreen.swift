@@ -243,6 +243,8 @@ struct SettingsScreen: View {
                 Button("Copy diagnostics") { model.copyDiagnostics() }
             }
 
+            SettingsExportSection(isSignedIn: model.hasToken)
+
             Section("About this build") {
                 LabeledContent("Environment", value: BuildInfo.environmentName)
                 LabeledContent("Version", value: BuildInfo.versionText)

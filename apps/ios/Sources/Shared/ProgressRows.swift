@@ -6,7 +6,7 @@ struct MilestoneRow: View {
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 2) {
-            Text(milestone.entityLabel ?? "Deleted course")
+            Text(milestone.entityLabel ?? "Deleted subject")
                 .zoomFont(.headline)
 
             HStack {

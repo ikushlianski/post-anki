@@ -108,6 +108,8 @@ struct SubjectDetailScreen: View {
                 }
             }
 
+            SubjectExtrasSection(subject: subject)
+
             Section("Cards") {
                 if isLoading {
                     ProgressView()

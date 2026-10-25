@@ -72,7 +72,7 @@ final class IngestionDictationScreenModel {
     private func present(_ error: Error) {
         if let refusal = KnowledgeSourceRefusal.from(error) {
             if refusal == .subjectNotFound, subjectId != nil {
-                errorMessage = "That course no longer exists. Go back and pick another."
+                errorMessage = "That subject no longer exists. Go back and pick another."
             } else {
                 errorMessage = refusal.message
             }

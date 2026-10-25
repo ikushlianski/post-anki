@@ -75,7 +75,7 @@ struct LearningListItemScreen: View {
             }
 
             if item.status == "parked" {
-                Button("Make a short course") { Task { await model.choose(destination: "mini_course") } }
+                Button("Make a short subject") { Task { await model.choose(destination: "mini_course") } }
                 Button("Add to an existing area") { Task { await model.choose(destination: "fold_in") } }
             }
 
@@ -91,7 +91,7 @@ struct LearningListItemScreen: View {
             }
 
             if model.openableCurriculumId != nil {
-                Button("Open course") { Task { await model.openCourse() } }
+                Button("Open subject") { Task { await model.openCourse() } }
             }
         }
         .disabled(model.isWorking)

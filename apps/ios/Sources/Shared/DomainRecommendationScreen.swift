@@ -66,7 +66,7 @@ final class DomainRecommendationModel {
         do {
             let result = try await APIClient.resolveDomainRecommendation(id: item.id, accepted: true)
 
-            notice = "Course created."
+            notice = "Subject created."
 
             if let courseId = result.createdCurriculumId {
                 createdCourse = try? await APIClient.listCurricula().first { $0.id == courseId }
@@ -99,7 +99,7 @@ struct DomainRecommendationScreen: View {
             }
 
             if let course = model.createdCourse {
-                Button("Open course \(course.name)") { opened = course }
+                Button("Open subject \(course.name)") { opened = course }
             }
 
             if let errorMessage = model.errorMessage {
@@ -141,11 +141,11 @@ struct DomainRecommendationScreen: View {
             Button("Get recommendations") { Task { await model.generate() } }
         }
         .confirmationDialog(
-            "Accepting creates a new course for \(acceptTarget.flatMap { names[$0.domainNodeId] } ?? "this area").",
+            "Accepting creates a new subject for \(acceptTarget.flatMap { names[$0.domainNodeId] } ?? "this area").",
             isPresented: Binding(get: { acceptTarget != nil }, set: { if !$0 { acceptTarget = nil } }),
             titleVisibility: .visible
         ) {
-            Button("Accept and create course") {
+            Button("Accept and create subject") {
                 guard let item = acceptTarget else { return }
 
                 Task { await model.accept(item) }

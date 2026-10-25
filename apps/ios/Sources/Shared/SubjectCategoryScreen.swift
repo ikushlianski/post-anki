@@ -19,7 +19,7 @@ struct SubjectCategoryScreen: View {
             } else if model.isLoading && !model.hasLoaded {
                 ProgressView()
             } else if model.hasLoaded && model.categories.isEmpty && model.courses.isEmpty {
-                Text("No categories or courses yet.").foregroundStyle(.secondary)
+                Text("No categories or subjects yet.").foregroundStyle(.secondary)
             }
 
             ForEach(model.rows) { row in

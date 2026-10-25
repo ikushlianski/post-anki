@@ -46,7 +46,7 @@ final class CourseRefocusModel {
         let course = try? await APIClient.listCurricula().first { $0.id == item.curriculumId }
 
         if course == nil {
-            notice = "Couldn't open this course."
+            notice = "Couldn't open this subject."
         }
 
         return course
@@ -78,7 +78,7 @@ struct CourseRefocusScreen: View {
                     Text(item.reasonText).zoomFont(.caption).foregroundStyle(.secondary)
 
                     HStack {
-                        Button("Open course") {
+                        Button("Open subject") {
                             Task { opened = await model.course(for: item) }
                         }
                         .buttonStyle(.borderedProminent)

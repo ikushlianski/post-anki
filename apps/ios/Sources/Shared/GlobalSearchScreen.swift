@@ -8,7 +8,7 @@ struct GlobalSearchScreen: View {
     var body: some View {
         List {
             #if os(macOS)
-            TextField("Search courses, topics and subjects", text: $model.query)
+            TextField("Search subjects and topics", text: $model.query)
                 .textFieldStyle(.roundedBorder)
                 .focused($searchFocused)
             #endif
@@ -95,7 +95,7 @@ struct GlobalSearchScreen: View {
         }
 
         if !response.curricula.isEmpty {
-            Section("Courses") {
+            Section("Subjects") {
                 ForEach(response.curricula) { course in
                     Button { Task { await model.openCurriculum(id: course.id) } } label: { Text(course.label) }
                         .foregroundStyle(.primary)

@@ -25,7 +25,7 @@ struct CourseBuildTopicPickSection: View {
         }
 
         Section {
-            Button("Confirm course") { Task { await model.confirmCourse() } }
+            Button("Confirm subject") { Task { await model.confirmCourse() } }
         }
     }
 }

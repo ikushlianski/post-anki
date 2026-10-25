@@ -43,7 +43,7 @@ struct CourseEditScreen: View {
         #if os(iOS)
         .environment(\.editMode, orderingModules ? .constant(.active) : nil)
         #endif
-        .navigationTitle("Edit course")
+        .navigationTitle("Edit subject")
         .inlineNavigationTitle()
         .toolbar {
             ToolbarItemGroup(placement: .trailingBar) {
@@ -76,7 +76,7 @@ struct CourseEditScreen: View {
             Button("Cancel", role: .cancel) { deletingModule = nil }
         }
         .confirmationDialog(
-            "Delete \(deletingTopic?.title ?? "")? Its study history in this course is removed.",
+            "Delete \(deletingTopic?.title ?? "")? Its study history in this subject is removed.",
             isPresented: Binding(get: { deletingTopic != nil }, set: { if !$0 { deletingTopic = nil } }),
             titleVisibility: .visible
         ) {

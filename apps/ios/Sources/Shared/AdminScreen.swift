@@ -39,7 +39,7 @@ struct AdminOverviewSections: View {
             }
 
             if let observability = model.observability {
-                Section("Stuck course builds") {
+                Section("Stuck subject builds") {
                     if observability.stuckCurricula.isEmpty {
                         Text("None.").foregroundStyle(.secondary)
                     }

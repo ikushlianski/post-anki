@@ -89,7 +89,7 @@ extension SmokeTests {
             #expect(model.didChange)
         }
 
-        @Test("should post the source subject to the kept one and say how many courses moved")
+        @Test("should post the source subject to the kept one and say how many subjects moved")
         func mergeSucceeds() async throws {
             let (model, session) = await loadedModel(extra: ["POST /subjects/s_a/merge": .json(200, #"{"curriculaMoved":2}"#)])
             defer { session.end() }
@@ -99,7 +99,7 @@ extension SmokeTests {
             #expect(merged)
             #expect(FakeServer.writes.map(\.path) == ["/subjects/s_a/merge"])
             #expect(FakeServer.writes.first?.bodyObject == ["sourceSubjectId": "s_b"] as NSDictionary)
-            #expect(model.notice == "Moved 2 courses.")
+            #expect(model.notice == "Moved 2 subjects.")
         }
 
         @Test("should send the new order of siblings after a drag")

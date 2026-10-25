@@ -23,7 +23,7 @@ final class CoursesScreenModel {
             curricula = try await curriculaTask
             hasLoaded = true
         } catch {
-            errorMessage = "Couldn't load your courses."
+            errorMessage = "Couldn't load your subjects."
             failure = ProgressLoadError.from(error)
         }
 
@@ -59,7 +59,7 @@ final class CurriculumDetailScreenModel {
         do {
             detail = try await APIClient.getCurriculumDetail(curriculumId)
         } catch {
-            errorMessage = "Couldn't load this course."
+            errorMessage = "Couldn't load this subject."
             failure = ProgressLoadError.from(error)
         }
 

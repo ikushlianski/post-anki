@@ -14,13 +14,13 @@ struct CourseOrganizeSection: View {
             NavigationLink {
                 CourseBuildCreateScreen()
             } label: {
-                Label("New course", systemImage: "plus.rectangle.on.folder")
+                Label("New subject", systemImage: "plus.rectangle.on.folder")
             }
 
             NavigationLink {
                 CourseBuildListScreen()
             } label: {
-                Label("Courses being built", systemImage: "hammer")
+                Label("Subjects being built", systemImage: "hammer")
             }
         }
     }

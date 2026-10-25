@@ -8,7 +8,7 @@ struct TopicChatScreen: View {
     init(topic: Topic) {
         self.topic = topic
         let topicId = topic.id
-        _chat = State(initialValue: StudyChatModel(notFoundMessage: "This topic is no longer in a course.") { message, transcript in
+        _chat = State(initialValue: StudyChatModel(notFoundMessage: "This topic is no longer in a subject.") { message, transcript in
             let result = try await APIClient.askTopicChat(
                 topicId: topicId,
                 message: message,

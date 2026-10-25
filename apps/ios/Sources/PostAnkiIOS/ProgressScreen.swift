@@ -122,7 +122,7 @@ struct ProgressScreen: View {
                 ContentUnavailableView(
                     "No milestones yet",
                     systemImage: "trophy",
-                    description: Text("Master every topic in a course to earn one.")
+                    description: Text("Master every topic in a subject to earn one.")
                 )
             } else {
                 ForEach(model.milestones) { MilestoneRow(milestone: $0) }

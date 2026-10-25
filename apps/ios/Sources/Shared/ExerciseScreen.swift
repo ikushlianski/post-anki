@@ -263,7 +263,7 @@ struct ExerciseScreen: View {
                 ContentUnavailableView(
                     "Nothing left to practice",
                     systemImage: "checkmark.seal",
-                    description: Text("You've worked through every topic's queue for this course.")
+                    description: Text("You've worked through every topic's queue for this subject.")
                 )
             }
         }

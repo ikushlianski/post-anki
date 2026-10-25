@@ -13,7 +13,7 @@ struct GlobalSearchSubjectScreen: View {
             if !hasLoaded {
                 ProgressView()
             } else if courses.isEmpty {
-                Text("No courses in this subject.").foregroundStyle(.secondary)
+                Text("No subjects in this subject.").foregroundStyle(.secondary)
             }
 
             ForEach(courses) { course in

@@ -62,7 +62,7 @@ final class StudySessionsModel {
     func targetLabel(type: String?, id: String?) -> String {
         switch type {
         case nil: "Anything"
-        case "curriculum"?: id.flatMap { courseNames[$0] } ?? "Course"
+        case "curriculum"?: id.flatMap { courseNames[$0] } ?? "Subject"
         case "learning_path"?: "Learning path"
         default: "Area"
         }

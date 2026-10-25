@@ -80,12 +80,12 @@ struct CourseBuildScreen: View {
             CourseBuildTopicPickSection(model: model, modules: detail.modules, course: detail.curriculum)
         case "failed":
             Section {
-                Text("Building this course failed.").foregroundStyle(.red)
+                Text("Building this subject failed.").foregroundStyle(.red)
                 Button("Try again") { Task { await model.retry() } }
             }
         default:
             Section {
-                NavigationLink("Open course") {
+                NavigationLink("Open subject") {
                     CurriculumDetailScreen(curriculum: detail.curriculum.asCurriculum)
                 }
             }

@@ -86,7 +86,7 @@ final class SubjectManageModel {
         let succeeded = await run { _ = try await APIClient.mergeSubject(into: target.id, from: source.id) }
 
         if succeeded {
-            notice = "Moved \(moved) \(moved == 1 ? "course" : "courses")."
+            notice = "Moved \(moved) \(moved == 1 ? "subject" : "subjects")."
         }
 
         return succeeded

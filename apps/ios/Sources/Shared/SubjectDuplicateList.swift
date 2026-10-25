@@ -60,6 +60,6 @@ struct SubjectDuplicateList: View {
         let otherId = pending.keepId == pending.pair.subjectAId ? pending.pair.subjectBId : pending.pair.subjectAId
         let other = model.subjectName(otherId)
 
-        return "Merge \(other) into \(model.subjectName(pending.keepId))? Its courses move over and \(other) is deleted."
+        return "Merge \(other) into \(model.subjectName(pending.keepId))? Its subjects move over and \(other) is deleted."
     }
 }

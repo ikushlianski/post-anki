@@ -27,7 +27,7 @@ final class HomeScreenModel {
         do {
             detail = try await APIClient.getCurriculumDetail(curriculumId)
         } catch {
-            errorMessage = "Couldn't load your last course."
+            errorMessage = "Couldn't load your last subject."
         }
 
         isLoading = false

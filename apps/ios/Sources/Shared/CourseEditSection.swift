@@ -10,7 +10,7 @@ struct CourseEditSection: View {
             NavigationLink {
                 CourseEditScreen(curriculum: curriculum, onClose: onClose)
             } label: {
-                Label("Edit course structure", systemImage: "pencil")
+                Label("Edit subject structure", systemImage: "pencil")
             }
         }
     }

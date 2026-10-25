@@ -42,9 +42,9 @@ struct DomainNodeScreen: View {
                 }
             }
 
-            Section("Courses") {
+            Section("Subjects") {
                 if model.node.curricula.isEmpty {
-                    Text("No courses cover this area yet.").foregroundStyle(.secondary)
+                    Text("No subjects cover this area yet.").foregroundStyle(.secondary)
                 }
 
                 ForEach(model.node.curricula) { course in
@@ -103,7 +103,7 @@ struct DomainNodeMergeSheet: View {
                 }
             }
             .confirmationDialog(
-                "Merge \(chosen?.name ?? "") into \(target.name)? Its courses and sub-areas move here and \(chosen?.name ?? "") is removed.",
+                "Merge \(chosen?.name ?? "") into \(target.name)? Its subjects and sub-areas move here and \(chosen?.name ?? "") is removed.",
                 isPresented: Binding(get: { chosen != nil }, set: { if !$0 { chosen = nil } }),
                 titleVisibility: .visible
             ) {

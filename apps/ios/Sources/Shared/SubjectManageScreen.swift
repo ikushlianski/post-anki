@@ -81,7 +81,7 @@ struct SubjectManageScreen: View {
 
         let count = model.courseCount(of: subject.id)
 
-        return "Delete \(subject.name)? Its \(count) \(count == 1 ? "course is" : "courses are") deleted too. Subjects inside it move up a level."
+        return "Delete \(subject.name)? Its \(count) \(count == 1 ? "subject is" : "subjects are") deleted too. Subjects inside it move up a level."
     }
 
     @ViewBuilder

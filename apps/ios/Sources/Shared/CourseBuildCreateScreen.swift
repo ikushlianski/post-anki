@@ -23,7 +23,7 @@ struct CourseBuildCreateScreen: View {
                     }
                 }
 
-                TextField("Course name", text: $model.name)
+                TextField("Subject name", text: $model.name)
                 TextField("Description (optional)", text: $model.details)
             }
 
@@ -46,8 +46,8 @@ struct CourseBuildCreateScreen: View {
         #if os(macOS)
         .formStyle(.grouped)
         #endif
-        .navigationTitle("New course")
-        .reportsUnsentInput("course-create", model.hasInput)
+        .navigationTitle("New subject")
+        .reportsUnsentInput("subject-create", model.hasInput)
         .inlineNavigationTitle()
         .navigationDestination(item: $model.created) { course in
             CourseBuildScreen(courseId: course.id, title: course.name)
@@ -57,7 +57,7 @@ struct CourseBuildCreateScreen: View {
 
     @ViewBuilder
     private var createButton: some View {
-        let button = Button("Create course") { Task { await model.create() } }
+        let button = Button("Create subject") { Task { await model.create() } }
             .disabled(!model.canCreate)
 
         #if os(macOS)
