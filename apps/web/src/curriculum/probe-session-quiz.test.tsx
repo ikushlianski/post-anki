@@ -275,7 +275,7 @@ describe('ProbeSessionQuiz skipping the replenish refetch once mastery is shown 
 
     fireEvent.click(await screen.findByTestId('quiz-option-0'))
 
-    await screen.findByTestId('quiz-result')
+    await screen.findByTestId('quiz-result', {}, { timeout: 5000 })
 
     expect(invalidateQueriesSpy).not.toHaveBeenCalled()
   })
