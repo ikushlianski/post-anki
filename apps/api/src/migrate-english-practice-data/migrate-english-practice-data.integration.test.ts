@@ -129,12 +129,22 @@ async function createSourceFixtureDb(
 }
 
 async function dropTestDb(dbName: string, adminPool: pg.Pool, pool: pg.Pool): Promise<void> {
+  pool.on("error", () => undefined);
   await pool.end();
-  await adminPool.query(
-    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
-    [dbName],
-  );
-  await adminPool.query(`DROP DATABASE IF EXISTS ${dbName}`);
+
+  const deadline = Date.now() + 5_000;
+
+  while (Date.now() < deadline) {
+    const { rows } = await adminPool.query(`SELECT 1 FROM pg_stat_activity WHERE datname = $1`, [dbName]);
+
+    if (rows.length === 0) {
+      break;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  await adminPool.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
   await adminPool.end();
 }
 
