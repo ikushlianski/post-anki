@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
 
 import {
@@ -18,12 +18,6 @@ import type { Curriculum, Subject } from '../curriculum/model'
 import { browserTimeZone } from '../knowledge-bit/anki-review-session-actions'
 import { listLearningPaths } from '../learning-path/learning-path.api'
 import { listStudySessions } from '../study-session/study-session.api'
-import {
-  createSubject,
-  deleteSubject as deleteSubjectRequest,
-  updateSubjectName,
-  updateSubjectParent,
-} from '../subject/subject.api'
 import { DashboardView } from '../dashboard/dashboard-view'
 import { HomeSubjectsAndReview } from '../home/home-subjects-and-review'
 
@@ -67,53 +61,12 @@ interface LiveBoardData {
 
 function Home() {
   const initial = Route.useLoaderData()
-  const router = useRouter()
   const [isClient, setIsClient] = useState(false)
   const [live, setLive] = useState<LiveBoardData | null>(null)
 
   useEffect(() => {
     setIsClient(true)
   }, [])
-
-  async function renameSubject(subjectId: string, name: string): Promise<boolean> {
-    try {
-      await updateSubjectName({ data: { subjectId, name } })
-      await router.invalidate()
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  async function createSubSubject(parentId: string, name: string): Promise<boolean> {
-    try {
-      await createSubject({ data: { name, kind: 'architecture-mentor', parentId } })
-      await router.invalidate()
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  async function moveSubject(subjectId: string, parentId: string | null): Promise<boolean> {
-    try {
-      await updateSubjectParent({ data: { subjectId, parentId } })
-      await router.invalidate()
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  async function deleteSubject(subjectId: string): Promise<boolean> {
-    try {
-      await deleteSubjectRequest({ data: subjectId })
-      await router.invalidate()
-      return true
-    } catch {
-      return false
-    }
-  }
 
   // DashboardView stays mounted at the same tree position across the isClient
   // flip — LiveDataBridge is a SIBLING, not a wrapper, so it can mount only
@@ -126,7 +79,6 @@ function Home() {
       {isClient && <LiveDataBridge onData={setLive} />}
       <HomeSubjectsAndReview />
       <DashboardView
-        subjects={live?.subjects ?? initial.subjects}
         curricula={live?.curricula ?? initial.curricula}
         courseRefocusSuggestions={initial.courseRefocusSuggestions}
         sessions={initial.sessions}
@@ -134,10 +86,6 @@ function Home() {
         streak={initial.streak}
         dueTopics={initial.dueTopics}
         subjectDueCounts={initial.subjectDueCounts}
-        onRenameSubject={renameSubject}
-        onDeleteSubject={deleteSubject}
-        onCreateSubSubject={createSubSubject}
-        onMoveSubject={moveSubject}
       />
     </>
   )

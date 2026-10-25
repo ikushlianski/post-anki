@@ -9,7 +9,6 @@ import {
   dashboardCurricula,
   dashboardDueTopics,
   dashboardStreak,
-  dashboardSubjects,
 } from '../mocks/dashboard.mock'
 import type { DashboardViewProps } from './dashboard-view'
 import { DashboardView } from './dashboard-view'
@@ -58,7 +57,6 @@ function renderView(subjectDueCounts?: DashboardViewProps['subjectDueCounts']) {
   render(
     <QueryClientProvider client={queryClient}>
       <DashboardView
-        subjects={dashboardSubjects}
         curricula={dashboardCurricula}
         courseRefocusSuggestions={{ ok: true, data: [] }}
         sessions={{ ok: true, data: [] }}
@@ -66,44 +64,35 @@ function renderView(subjectDueCounts?: DashboardViewProps['subjectDueCounts']) {
         streak={{ ok: true, data: dashboardStreak }}
         dueTopics={{ ok: true, data: dashboardDueTopics }}
         subjectDueCounts={subjectDueCounts}
-        onRenameSubject={vi.fn(async () => true)}
-        onDeleteSubject={vi.fn(async () => true)}
-        onCreateSubSubject={vi.fn(async () => true)}
-        onMoveSubject={vi.fn(async () => true)}
       />
     </QueryClientProvider>,
   )
 }
 
 describe('DashboardView due counts', () => {
-  it('should show each subject its due count and the unsorted bucket when the counts load', () => {
+  it('should show the unsorted bucket when the counts load', () => {
     renderView({ ok: true, data: COUNTS })
 
-    expect(screen.getByTestId('subject-due-count-subject-business').textContent).toBe('3 due')
-    expect(screen.getByTestId('subject-due-count-subject-english').textContent).toBe('0 due')
     expect(screen.getByTestId('unsorted-due-count').textContent).toBe('2 due')
   })
 
-  it('should offer a review link only for a subject with cards due', () => {
+  it('should not list subjects on the overview', () => {
     renderView({ ok: true, data: COUNTS })
 
-    expect(screen.getByTestId('subject-review-subject-business')).toBeDefined()
-    expect(screen.queryByTestId('subject-review-subject-english')).toBeNull()
+    expect(screen.queryAllByTestId('subject-name')).toHaveLength(0)
+    expect(screen.queryByText('Your subjects')).toBeNull()
   })
 
-  it('should show a load error and still list the subjects when the counts fail to load', () => {
+  it('should show a load error when the counts fail to load', () => {
     renderView({ ok: false })
 
     expect(screen.getByText("Couldn't load your review counts — try refreshing.")).toBeDefined()
     expect(screen.queryByTestId('unsorted-due-bucket')).toBeNull()
-    expect(screen.queryByTestId('subject-due-count-subject-business')).toBeNull()
-    expect(screen.getAllByTestId('subject-name')).toHaveLength(dashboardSubjects.length)
   })
 
   it('should show no due counts before the counts are loaded', () => {
     renderView(undefined)
 
-    expect(screen.queryByTestId('subject-due-count-subject-business')).toBeNull()
     expect(screen.queryByTestId('unsorted-due-bucket')).toBeNull()
     expect(screen.queryByText("Couldn't load your review counts — try refreshing.")).toBeNull()
   })

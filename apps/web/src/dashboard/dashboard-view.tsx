@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, useRouter } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 
 import type {
   LearningPath,
@@ -10,19 +9,16 @@ import type {
 } from '@post-anki/shared'
 
 import type { DueTopic } from '../curriculum/api-client'
-import type { CourseRefocusSuggestion, Curriculum, Subject } from '../curriculum/model'
+import type { CourseRefocusSuggestion, Curriculum } from '../curriculum/model'
 import type { LoadResult } from '../shared/load-result'
 import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
 import { SourceApprovalBanner } from '../curriculum/source-approval-banner'
 import { StreakBanner } from '../curriculum/streak-banner'
 import { ContinueSessionCard } from '../home/continue-session-card'
 import { selectResumableSession } from '../home/select-resumable-session'
-import { DashboardSubjectList } from './dashboard-subject-list'
-import { DashboardSubjectSearch } from './dashboard-subject-search'
 import { UnsortedDueBucket } from './unsorted-due-bucket'
 
 export interface DashboardViewProps {
-  subjects: Subject[]
   curricula: Curriculum[]
   courseRefocusSuggestions: LoadResult<CourseRefocusSuggestion[]>
   sessions: LoadResult<StudySessionListItem[]>
@@ -30,10 +26,6 @@ export interface DashboardViewProps {
   streak: LoadResult<Streak>
   dueTopics: LoadResult<DueTopic[]>
   subjectDueCounts?: LoadResult<SubjectReviewDueCounts>
-  onRenameSubject: (subjectId: string, name: string) => Promise<boolean>
-  onDeleteSubject: (subjectId: string) => Promise<boolean>
-  onCreateSubSubject: (parentId: string, name: string) => Promise<boolean>
-  onMoveSubject: (subjectId: string, parentId: string | null) => Promise<boolean>
 }
 
 function LoadError({ children }: { children: ReactNode }) {
@@ -45,7 +37,6 @@ function LoadError({ children }: { children: ReactNode }) {
 }
 
 export function DashboardView({
-  subjects,
   curricula,
   courseRefocusSuggestions,
   sessions,
@@ -53,15 +44,8 @@ export function DashboardView({
   streak,
   dueTopics,
   subjectDueCounts,
-  onRenameSubject,
-  onDeleteSubject,
-  onCreateSubSubject,
-  onMoveSubject,
 }: DashboardViewProps) {
   const namesById: Record<string, string> = {}
-  const dueBySubjectId = subjectDueCounts?.ok
-    ? Object.fromEntries(subjectDueCounts.data.subjects.map((row) => [row.subjectId, row.dueCount]))
-    : undefined
 
   for (const curriculum of curricula) {
     namesById[curriculum.id] = curriculum.name
@@ -73,9 +57,6 @@ export function DashboardView({
     }
   }
 
-  const router = useRouter()
-  const [isSearching, setIsSearching] = useState(false)
-
   const resumableSession = sessions.ok
     ? selectResumableSession(sessions.data, new Date())
     : null
@@ -83,15 +64,8 @@ export function DashboardView({
   return (
     <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Your subjects</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Everything you're learning and where each piece stands. Change any
-          status to re-steer — drop a topic to Skipping, push one to Going
-          deeper, or mark it Done.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
       </header>
-
-      <DashboardSubjectSearch subjects={subjects} onSearchingChange={setIsSearching} />
 
       {sessions.ok ? (
         <ContinueSessionCard session={resumableSession} namesById={namesById} />
@@ -140,32 +114,13 @@ export function DashboardView({
         <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
       </div>
 
-      {isSearching ? null : (
-        <>
-          {subjectDueCounts && !subjectDueCounts.ok ? (
-            <LoadError>Couldn't load your review counts — try refreshing.</LoadError>
-          ) : null}
+      {subjectDueCounts && !subjectDueCounts.ok ? (
+        <LoadError>Couldn't load your review counts — try refreshing.</LoadError>
+      ) : null}
 
-          {subjectDueCounts?.ok ? (
-            <UnsortedDueBucket dueCount={subjectDueCounts.data.unsorted.dueCount} />
-          ) : null}
-
-          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-            Your subjects
-          </h2>
-
-          <DashboardSubjectList
-            subjects={subjects}
-            curricula={curricula}
-            onRenameSubject={onRenameSubject}
-            onDeleteSubject={onDeleteSubject}
-            onCreateSubSubject={onCreateSubSubject}
-            onMoveSubject={onMoveSubject}
-            onSubjectOrderSaved={() => void router.invalidate()}
-            dueBySubjectId={dueBySubjectId}
-          />
-        </>
-      )}
+      {subjectDueCounts?.ok ? (
+        <UnsortedDueBucket dueCount={subjectDueCounts.data.unsorted.dueCount} />
+      ) : null}
     </main>
   )
 }
