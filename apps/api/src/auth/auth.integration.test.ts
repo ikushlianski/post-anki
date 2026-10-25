@@ -221,7 +221,7 @@ describe("owner email and password sign-in", () => {
     expect(await tableCount(schema.users)).toBe(usersBefore);
   });
 
-  it("should reject a new password shorter than 12 characters", async () => {
+  it("should reject a new password shorter than 8 characters", async () => {
     const signIn = await signInWithPassword("owner@example.com", OWNER_PASSWORD, "10.0.2.7");
     const response = await auth.handler(
       new Request(`${ORIGIN}/api/auth/change-password`, {
@@ -232,7 +232,7 @@ describe("owner email and password sign-in", () => {
           "x-pa-client-ip": "10.0.2.8",
           authorization: `Bearer ${signIn.headers.get("set-auth-token") ?? ""}`,
         },
-        body: JSON.stringify({ currentPassword: OWNER_PASSWORD, newPassword: "short-pw-11" }),
+        body: JSON.stringify({ currentPassword: OWNER_PASSWORD, newPassword: "short-7" }),
       }),
     );
 

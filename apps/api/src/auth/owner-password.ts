@@ -1,4 +1,4 @@
-export const MIN_PASSWORD_LENGTH = 12;
+export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_LENGTH = 128;
 
 export type PasswordCheck = { ok: true } | { ok: false; reason: "too_short" | "too_long" | "mismatch" };

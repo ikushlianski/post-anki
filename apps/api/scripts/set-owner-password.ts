@@ -3,18 +3,16 @@ import { closeDb, getDb } from "../src/db/client.js";
 import { assertLocalOrConfirmed } from "../src/db/assert-local-or-confirmed.js";
 import { describePasswordProblem, validateNewPassword } from "../src/auth/owner-password.js";
 import { setOwnerPassword } from "../src/auth/set-owner-password.js";
-import { readHiddenLine } from "./hidden-prompt.js";
 
 async function main() {
   assertLocalOrConfirmed(process.env.DATABASE_URL, process.env);
 
   if (process.argv.length > 2) {
-    throw new Error("This script takes no arguments; the password is typed at the prompt");
+    throw new Error("This script takes no arguments; the password comes from ILYA_USER_PASSWORD");
   }
 
-  const password = await readHiddenLine("New owner password: ");
-  const confirmation = await readHiddenLine("Repeat password: ");
-  const check = validateNewPassword(password, confirmation);
+  const password = process.env.ILYA_USER_PASSWORD ?? "";
+  const check = validateNewPassword(password, password);
 
   if (!check.ok) {
     throw new Error(describePasswordProblem(check.reason));
