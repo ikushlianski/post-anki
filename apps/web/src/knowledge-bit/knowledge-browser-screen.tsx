@@ -11,7 +11,7 @@ import { KnowledgeBrowserDetailPanel } from './knowledge-browser-detail-panel'
 import { KnowledgeBrowserMeaningSearch } from './knowledge-browser-meaning-search'
 import { BROWSER_ROW_SELECTOR } from './knowledge-browser-slide-over'
 import { KnowledgeBrowserToolbar } from './knowledge-browser-toolbar'
-import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
+import { NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
 import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
@@ -23,7 +23,7 @@ import { useKnowledgeBrowserSelectionDelete } from './use-knowledge-browser-sele
 import { useKnowledgeBrowserSourceDelete } from './use-knowledge-browser-source-delete'
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
 
-function BrowserShell({ children }: { children: ReactNode }) {
+export function BrowserShell({ children }: { children: ReactNode }) {
   return <main className="w-full px-5 py-8 sm:px-8 sm:py-10">{children}</main>
 }
 
@@ -31,7 +31,6 @@ export const ALL_SUBJECTS_TABLE_ID = 'all-subjects'
 
 export interface KnowledgeBrowserScreenProps {
   subjectId: string | null
-  view?: 'subjects'
   filters?: KnowledgeBitBrowserFilters
   onFiltersChange?: BrowserFiltersChange
   onSubjectChange?: (subjectId: string | null) => void
@@ -44,25 +43,8 @@ export interface KnowledgeBrowserScreenProps {
 
 const NO_FILTERS: KnowledgeBitBrowserFilters = {}
 
-export function KnowledgeBrowserScreen({ subjectId, view, ...controls }: KnowledgeBrowserScreenProps) {
-  if (!subjectId && view === 'subjects') {
-    return (
-      <BrowserShell>
-        <div className="mb-6 flex items-baseline justify-between gap-4">
-          <h1 className="text-2xl font-semibold">Subjects</h1>
-          <div className="flex items-center gap-4">
-            <Link to="/knowledge" className="text-sm text-neutral-600 underline">
-              Manage cards
-            </Link>
-            <AddKnowledgeButton />
-          </div>
-        </div>
-        <KnowledgeBrowserSubjectList />
-      </BrowserShell>
-    )
-  }
-
-  return <KnowledgeBrowserCardTable subjectId={subjectId} {...controls} />
+export function KnowledgeBrowserScreen(props: KnowledgeBrowserScreenProps) {
+  return <KnowledgeBrowserCardTable {...props} />
 }
 
 function KnowledgeBrowserCardTable({
@@ -75,7 +57,7 @@ function KnowledgeBrowserCardTable({
   onOpenChange = () => undefined,
   meaningWords,
   onMeaningWordsChange = () => undefined,
-}: Omit<KnowledgeBrowserScreenProps, 'view'>) {
+}: KnowledgeBrowserScreenProps) {
   const { labelFor, options } = useKnowledgeOverviewSubjects()
   const data = useKnowledgeBrowserRows(subjectId, filters)
   const matches = useKnowledgeBrowserMatches(meaningWords, subjectId, filters)
@@ -109,8 +91,7 @@ function KnowledgeBrowserCardTable({
     <BrowserShell>
       {subjectId && (
         <Link
-          to="/knowledge/browser"
-          search={{ view: 'subjects' }}
+          to="/subjects"
           className="text-sm text-neutral-600 underline"
         >
           All subjects

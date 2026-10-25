@@ -128,13 +128,6 @@ describe('KnowledgeBrowserScreen', () => {
     expect(columnsHook.ids).toEqual(['all-subjects'])
   })
 
-  it('should show the subject list when the Subjects view is asked for', () => {
-    render(<KnowledgeBrowserScreen subjectId={null} view="subjects" />)
-
-    expect(screen.getByTestId('subject-list')).toBeTruthy()
-    expect(screen.queryByTestId('card-table')).toBeNull()
-  })
-
   it('should show only that subject table with its own column order when a subject is chosen', () => {
     render(<KnowledgeBrowserScreen subjectId="s1" />)
 

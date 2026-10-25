@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 
 import { KnowledgeBrowserScreen } from '../knowledge-bit/knowledge-browser-screen'
 import {
@@ -11,6 +11,11 @@ import { openNavigationMode, withOpen } from '../knowledge-bit/knowledge-browser
 
 export const Route = createFileRoute('/knowledge/browser')({
   validateSearch: (search: Record<string, unknown>): BrowserSearch => parseBrowserSearch(search),
+  beforeLoad: ({ search }) => {
+    if (search.view === 'subjects' && !search.subject) {
+      throw redirect({ to: '/subjects' })
+    }
+  },
   component: KnowledgeBrowserRoute,
 })
 
@@ -21,7 +26,6 @@ function KnowledgeBrowserRoute() {
   return (
     <KnowledgeBrowserScreen
       subjectId={search.subject ?? null}
-      view={search.view}
       filters={filtersFromSearch(search)}
       openId={search.open ?? null}
       onOpenChange={(id) =>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -60,8 +60,25 @@ describe('KnowledgeBrowserSubjectList', () => {
   it('should open the subject table by linking with the subject id', () => {
     counts.value = { counts: [{ subjectId: 'ru', count: 4 }], isPending: false, isError: false, retry: vi.fn() }
     render(<KnowledgeBrowserSubjectList />)
+    fireEvent.click(screen.getByTestId('knowledge-browser-subject-toggle-lang'))
 
     expect(screen.getByTestId('knowledge-browser-subject-ru').getAttribute('data-subject')).toBe('ru')
+  })
+
+  it('should hide a sub-subject under its parent until the parent is expanded with +', () => {
+    counts.value = { counts: [{ subjectId: 'ru', count: 4 }], isPending: false, isError: false, retry: vi.fn() }
+    render(<KnowledgeBrowserSubjectList />)
+
+    expect(screen.queryByTestId('knowledge-browser-subject-ru')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('knowledge-browser-subject-toggle-lang'))
+
+    expect(screen.getByTestId('knowledge-browser-subject-ru').textContent).toContain('Russian')
+    expect(screen.getByTestId('knowledge-browser-subject-toggle-lang').textContent).toBe('−')
+
+    fireEvent.click(screen.getByTestId('knowledge-browser-subject-toggle-lang'))
+
+    expect(screen.queryByTestId('knowledge-browser-subject-ru')).toBeNull()
   })
 
   it('should list every subject even when no card has been approved yet', () => {

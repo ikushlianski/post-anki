@@ -61,7 +61,7 @@ describe('Sidebar', () => {
     expect(links.map((link) => link.getAttribute('data-to'))).toEqual([
       '/add-knowledge',
       '/knowledge/browser',
-      '/knowledge/browser',
+      '/subjects',
       '/knowledge-bit-review',
       '/knowledge/review',
       '/profile',
@@ -74,13 +74,6 @@ describe('Sidebar', () => {
       'Review',
       'Profile',
     ])
-  })
-
-  it('should open the all-cards table from Knowledge browser and the subject list from Subjects', () => {
-    render(<Sidebar />)
-
-    expect(screen.getByTestId('nav-knowledge-browser').getAttribute('data-view')).toBeNull()
-    expect(screen.getByTestId('nav-subjects').getAttribute('data-view')).toBe('subjects')
   })
 
   it('should show the pending count on the Knowledge triage link', async () => {

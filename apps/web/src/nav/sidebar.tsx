@@ -110,8 +110,7 @@ export function Sidebar() {
         Knowledge browser
       </Link>
       <Link
-        to="/knowledge/browser"
-        search={{ view: 'subjects' }}
+        to="/subjects"
         className={navLinkClass}
         data-testid="nav-subjects"
       >

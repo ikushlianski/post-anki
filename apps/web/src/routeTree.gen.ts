@@ -31,6 +31,7 @@ import { Route as AdminObservabilityRouteImport } from './routes/admin-observabi
 import { Route as AdminCompareModelsRouteImport } from './routes/admin-compare-models'
 import { Route as AddKnowledgeRouteImport } from './routes/add-knowledge'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SubjectsIndexRouteImport } from './routes/subjects.index'
 import { Route as KnowledgeIndexRouteImport } from './routes/knowledge.index'
 import { Route as SubjectsNewRouteImport } from './routes/subjects.new'
 import { Route as SubjectSubjectIdRouteImport } from './routes/subject.$subjectId'
@@ -168,6 +169,11 @@ const AddKnowledgeRoute = AddKnowledgeRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubjectsIndexRoute = SubjectsIndexRouteImport.update({
+  id: '/subjects/',
+  path: '/subjects/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KnowledgeIndexRoute = KnowledgeIndexRouteImport.update({
@@ -358,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/knowledge/': typeof KnowledgeIndexRoute
+  '/subjects/': typeof SubjectsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
@@ -410,6 +417,7 @@ export interface FileRoutesByTo {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/knowledge': typeof KnowledgeIndexRoute
+  '/subjects': typeof SubjectsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
@@ -463,6 +471,7 @@ export interface FileRoutesById {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/knowledge/': typeof KnowledgeIndexRoute
+  '/subjects/': typeof SubjectsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
@@ -517,6 +526,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/knowledge/'
+    | '/subjects/'
     | '/api/auth/$'
     | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId/assess'
@@ -569,6 +579,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/knowledge'
+    | '/subjects'
     | '/api/auth/$'
     | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId/assess'
@@ -621,6 +632,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/knowledge/'
+    | '/subjects/'
     | '/api/auth/$'
     | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId_/assess'
@@ -674,6 +686,7 @@ export interface RootRouteChildren {
   SubjectSubjectIdRoute: typeof SubjectSubjectIdRoute
   SubjectsNewRoute: typeof SubjectsNewRoute
   KnowledgeIndexRoute: typeof KnowledgeIndexRoute
+  SubjectsIndexRoute: typeof SubjectsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiKnowledgeBitsExportRoute: typeof ApiKnowledgeBitsExportRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
@@ -842,6 +855,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subjects/': {
+      id: '/subjects/'
+      path: '/subjects'
+      fullPath: '/subjects/'
+      preLoaderRoute: typeof SubjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/knowledge/': {
@@ -1082,6 +1102,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubjectSubjectIdRoute: SubjectSubjectIdRoute,
   SubjectsNewRoute: SubjectsNewRoute,
   KnowledgeIndexRoute: KnowledgeIndexRoute,
+  SubjectsIndexRoute: SubjectsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiKnowledgeBitsExportRoute: ApiKnowledgeBitsExportRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
