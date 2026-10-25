@@ -331,6 +331,7 @@ import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
 import { classifyCredential, hasValidSessionToken, isNativeAuthRoute } from "./auth/api-credential.js";
+import { CLIENT_IP_HEADER } from "./auth/auth.js";
 import { handleAuthRequest, handleWebAuthCheck, isAuthPath } from "./auth/web-auth.controller.js";
 import { handleCreateSyncToken, handleListSyncKeys } from "./sync-auth/sync-auth.controller.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
@@ -505,6 +506,10 @@ async function handleRequest(
 ): Promise<void> {
   try {
     if (isNativeAuthRoute(method, path)) {
+      if (!hasSharedSecret(req)) {
+        req.headers[CLIENT_IP_HEADER] = req.socket.remoteAddress ?? "unknown";
+      }
+
       await handleAuthRequest(req, res);
       return;
     }

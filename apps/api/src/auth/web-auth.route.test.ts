@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
   secret: "the-shared-secret" as string | undefined,
   nodeEnv: undefined as string | undefined,
   tokenRows: [] as { id: string; tokenHash: string; revokedAt: Date | null }[],
-  seen: [] as { url: string; body: string }[],
+  seen: [] as { url: string; body: string; clientIp: string | null }[],
   validSessionHeaders: [] as string[],
 }));
 
@@ -52,13 +52,14 @@ vi.mock("../api-token/api-token.repo.js", async () => {
 vi.mock("./auth-status.js", () => ({ checkWebSession: vi.fn(async () => "signed_out") }));
 
 vi.mock("./auth.js", () => ({
+  CLIENT_IP_HEADER: "x-pa-client-ip",
   getAuth: () => ({
     api: {
       getSession: async ({ headers }: { headers: Headers }) =>
         state.validSessionHeaders.includes(headers.get("authorization") ?? "") ? { session: { id: "s" } } : null,
     },
     handler: async (request: Request) => {
-      state.seen.push({ url: request.url, body: await request.text() });
+      state.seen.push({ url: request.url, body: await request.text(), clientIp: request.headers.get("x-pa-client-ip") });
 
       const headers = new Headers({ "content-type": "application/json" });
 
@@ -179,6 +180,17 @@ describe("web auth routes", () => {
 
     expect([signInRes.status, signOutRes.status, sessionRes.status]).toEqual([200, 200, 200]);
     expect(state.seen).toHaveLength(3);
+  });
+
+  it("should ignore a client-supplied IP header on native sign-in but keep the proxy one when the secret is sent", async () => {
+    await fetch(`${baseUrl}/api/auth/sign-in/email`, { method: "POST", headers: { "x-pa-client-ip": "9.9.9.9" }, body: "{}" });
+    await fetch(`${baseUrl}/api/auth/sign-in/email`, {
+      method: "POST",
+      headers: { "x-pa-client-ip": "9.9.9.9", authorization: `Bearer ${SECRET}` },
+      body: "{}",
+    });
+
+    expect(state.seen.map((entry) => entry.clientIp)).toEqual([expect.stringContaining("127.0.0.1"), "9.9.9.9"]);
   });
 
   it("should keep key sign-in and other auth paths behind the shared secret even with a valid session token", async () => {
