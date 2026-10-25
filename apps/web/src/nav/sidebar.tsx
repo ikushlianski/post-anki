@@ -9,8 +9,13 @@ import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
 
 const PENDING_COUNT_REFRESH_MS = 60_000
 
-function usePendingReviewCount(): number | null {
-  const [count, setCount] = useState<number | null>(null)
+interface TriageCounts {
+  pending: number
+  attention: number
+}
+
+function usePendingReviewCount(): TriageCounts | null {
+  const [count, setCount] = useState<TriageCounts | null>(null)
 
   useEffect(() => {
     let active = true
@@ -20,7 +25,7 @@ function usePendingReviewCount(): number | null {
         const result = await getPendingKnowledgeBitCountForNav()
 
         if (active) {
-          setCount(result.count)
+          setCount({ pending: result.count, attention: result.attentionCount ?? 0 })
         }
       } catch {
         // Badge is optional; keep the last known count.
@@ -116,7 +121,18 @@ export function Sidebar() {
         className={navLinkClass}
         data-testid="nav-knowledge-bit-review"
       >
-        {pendingCount === null ? 'Knowledge triage' : `Knowledge triage (${pendingCount})`}
+        {pendingCount === null
+          ? 'Knowledge triage'
+          : `Knowledge triage (${pendingCount.pending + pendingCount.attention})`}
+        {pendingCount !== null && pendingCount.attention > 0 ? (
+          <span
+            role="img"
+            aria-label="Some notes need attention"
+            title="Some notes need attention"
+            data-testid="nav-knowledge-bit-review-attention-dot"
+            className="ml-2 inline-block size-2 shrink-0 rounded-full bg-amber-500"
+          />
+        ) : null}
       </Link>
       <Link to="/knowledge/review" className={navLinkClass} data-testid="nav-knowledge-review">
         {reviewCounts !== null && (reviewCounts.due > 0 || reviewCounts.new > 0)

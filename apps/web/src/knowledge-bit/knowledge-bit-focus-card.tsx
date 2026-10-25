@@ -3,6 +3,7 @@ import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
 
 import { AiLabelBadge } from './ai-label-badge'
 import { TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
+import { KnowledgeBitReviewFlagBanner } from './knowledge-bit-review-flag-banner'
 import { KnowledgeBitReviewExampleField } from './knowledge-bit-review-card-fields'
 import { KnowledgeBitReviewVariantList } from './knowledge-bit-review-variant-list'
 
@@ -106,6 +107,8 @@ function FocusCardBody({
             {subjectName ?? 'No subject'}
           </p>
         </div>
+
+        <KnowledgeBitReviewFlagBanner bitId={bit.id} reviewFlag={bit.reviewFlag} />
 
         <KnowledgeBitReviewVariantList
           bitId={bit.id}

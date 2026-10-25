@@ -26,6 +26,7 @@ export interface SourceRegenerationActions {
   onCancel: (sourceId: string) => void
   onConfirm: (sourceId: string, modelId?: KnowledgeItemModelId) => void
   onRetry: (sourceId: string) => void
+  onRetryWithText: (sourceId: string, text: string) => void
 }
 
 export type SourceRegenerationPhase = 'confirming' | 'starting' | 'running' | 'failed'
@@ -70,7 +71,7 @@ export function useSourceRegeneration({
     })
   }, [])
 
-  async function start(sourceId: string, modelId?: KnowledgeItemModelId) {
+  async function start(sourceId: string, modelId?: KnowledgeItemModelId, text?: string) {
     if (!claim(sourceId)) {
       return
     }
@@ -78,7 +79,7 @@ export function useSourceRegeneration({
     setState(sourceId, { phase: 'starting', modelId })
 
     try {
-      await regenerateKnowledgeSourceForReview({ data: { sourceId, modelId } })
+      await regenerateKnowledgeSourceForReview({ data: { sourceId, modelId, text } })
 
       const gone = new Set(
         sources.find((source) => source.knowledgeSourceId === sourceId)?.bits.map((bit) => bit.id),
@@ -144,6 +145,7 @@ export function useSourceRegeneration({
       onCancel: (sourceId: string) => setState(sourceId, null),
       onConfirm: (sourceId: string, modelId?: KnowledgeItemModelId) => start(sourceId, modelId),
       onRetry: (sourceId: string) => start(sourceId, statesRef.current[sourceId]?.modelId),
+      onRetryWithText: (sourceId: string, text: string) => start(sourceId, undefined, text),
     },
     fetchStatuses,
     applyStatuses,

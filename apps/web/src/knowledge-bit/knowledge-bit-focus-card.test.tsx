@@ -260,4 +260,25 @@ describe('KnowledgeBitFocusShell', () => {
 
     expect((screen.getByTestId('knowledge-bit-focus-undo') as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it('should show the Needs manual review banner with a plain reason on a flagged card and keep it approvable', () => {
+    const handlers = renderCard(makeBit({ reviewFlag: 'quote_not_in_source' }))
+
+    expect(screen.getByTestId('knowledge-bit-review-flag-bit-1').textContent).toContain(
+      'Needs manual review',
+    )
+    expect(screen.getByTestId('knowledge-bit-review-flag-bit-1').textContent).toContain(
+      'The supporting quote could not be matched to your note',
+    )
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-focus-approve-bit-1'))
+
+    expect(handlers.onApprove).toHaveBeenCalledWith('bit-1')
+  })
+
+  it('should show no banner on a clean card', () => {
+    renderCard()
+
+    expect(screen.queryByTestId('knowledge-bit-review-flag-bit-1')).toBeNull()
+  })
 })

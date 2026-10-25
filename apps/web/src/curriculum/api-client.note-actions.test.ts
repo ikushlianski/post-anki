@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { discardKnowledgeSource, regenerateKnowledgeSource } from './api-client'
+import {
+  discardKnowledgeSource,
+  listPendingKnowledgeBitsForReview,
+  regenerateKnowledgeSource,
+} from './api-client'
 
 const fetchMock = vi.fn()
 
@@ -50,5 +54,17 @@ describe('note actions client', () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.test/knowledge-sources/ks_1/discards')
     expect(fetchMock.mock.calls[0][1].method).toBe('POST')
     expect(result.counts.knowledgeSources).toBe(1)
+  })
+
+  it('should ask for notes that need attention only when the triage page opts in', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(200, []))
+
+    await listPendingKnowledgeBitsForReview()
+    await listPendingKnowledgeBitsForReview({ attention: true })
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.test/knowledge-bits/pending-review')
+    expect(String(fetchMock.mock.calls[1][0])).toBe(
+      'https://api.test/knowledge-bits/pending-review?attention=1',
+    )
   })
 })

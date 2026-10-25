@@ -23,7 +23,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('../knowledge-bit/knowledge-bit-review.api', () => ({
-  getPendingKnowledgeBitCountForNav: vi.fn(async () => ({ count: 0 })),
+  getPendingKnowledgeBitCountForNav: vi.fn(async () => ({ count: 0, attentionCount: 0 })),
 }))
 
 vi.mock('../curriculum/curriculum.api', () => ({
@@ -41,6 +41,7 @@ vi.mock('../knowledge-bit/anki-review-session-actions', () => ({
 import { act } from '@testing-library/react'
 
 import { getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
+import { getPendingKnowledgeBitCountForNav } from '../knowledge-bit/knowledge-bit-review.api'
 import { PENDING_REVIEW_CHANGED_EVENT } from '../knowledge-bit/knowledge-bit-review-events'
 import { Sidebar } from './sidebar'
 
@@ -85,6 +86,36 @@ describe('Sidebar', () => {
     await waitFor(() => {
       expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge triage (0)')
     })
+  })
+
+  it('should add notes that need attention to the triage count and show a dot', async () => {
+    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({ count: 2, attentionCount: 1 })
+
+    render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge triage (3)')
+    })
+    expect(screen.getByTestId('nav-knowledge-bit-review-attention-dot')).toBeTruthy()
+  })
+
+  it('should never read zero while only a failed note is waiting', async () => {
+    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({ count: 0, attentionCount: 2 })
+
+    render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge triage (2)')
+    })
+  })
+
+  it('should show no dot when nothing needs attention', async () => {
+    render(<Sidebar />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge triage (0)')
+    })
+    expect(screen.queryByTestId('nav-knowledge-bit-review-attention-dot')).toBeNull()
   })
 
   it('should show Review with no count when zero due', async () => {

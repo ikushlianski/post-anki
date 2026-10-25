@@ -83,3 +83,12 @@ export function addManualBit(
     return { ...source, bits: [...source.bits, bit] }
   })
 }
+
+export function singleSubjectId(pending: PendingKnowledgeSourceForReview[]): string | null {
+  const ids = new Set(
+    pending.filter((source) => source.bits.length > 0).map((source) => source.subjectId ?? null),
+  )
+  const [only] = ids
+
+  return ids.size === 1 ? (only ?? null) : null
+}

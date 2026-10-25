@@ -46,6 +46,13 @@ export const getPendingKnowledgeBitsForReview = createServerFn({ method: 'GET' }
   (): Promise<PendingKnowledgeSourceForReview[]> => listPendingKnowledgeBitsForReview(),
 )
 
+export const getPendingKnowledgeBitsWithAttentionForReview = createServerFn({
+  method: 'GET',
+}).handler(
+  (): Promise<PendingKnowledgeSourceForReview[]> =>
+    listPendingKnowledgeBitsForReview({ attention: true }),
+)
+
 const bitIdInput = z.object({ bitId: z.string().min(1) })
 
 export const approveKnowledgeBitForReview = createServerFn({ method: 'POST' })

@@ -8,13 +8,15 @@ import {
   getPendingKnowledgeBitsForReview,
   editKnowledgeBitQuestionVariantForReview,
 } from './knowledge-bit-review.api'
-import { applyBitEdit, applyVariantEdit } from './knowledge-bit-review-sources'
+import { applyBitEdit, applyVariantEdit, singleSubjectId } from './knowledge-bit-review-sources'
 import { useBulkApproval } from './knowledge-bit-review-bulk-approval'
 import {
   REGENERATION_POLL_INTERVAL_MS,
   useSourceRegeneration,
 } from './knowledge-bit-review-regeneration'
 import { KnowledgeBitReviewLanding } from './knowledge-bit-review-landing'
+import { KnowledgeBitReviewAttentionBlock } from './knowledge-bit-review-attention-block'
+import { splitAttentionSources, useAttentionNotices } from './use-attention-notices'
 import { buildFocusQueue } from './knowledge-bit-focus-queue'
 import { useFocusKeyboard, type FocusKeyAction } from './knowledge-bit-focus-keyboard'
 import { KnowledgeBitFocusShell } from './knowledge-bit-focus-shell'
@@ -37,21 +39,12 @@ import { useTriageSession } from '../card-triage/use-triage-session'
 
 const NEUTRAL_RATING = 3
 
-function singleSubjectId(pending: PendingKnowledgeSourceForReview[]): string | null {
-  const ids = new Set(
-    pending.filter((source) => source.bits.length > 0).map((source) => source.subjectId ?? null),
-  )
-  const [only] = ids
-
-  return ids.size === 1 ? (only ?? null) : null
-}
-
 export function KnowledgeBitReviewPanel({
   initialSources,
 }: {
   initialSources: PendingKnowledgeSourceForReview[]
 }) {
-  const [sources, setSources] = useState(initialSources)
+  const [sources, setSources] = useState(() => splitAttentionSources(initialSources).cards)
   const [idleStopped, setIdleStopped] = useState(false)
   const [note, setNote] = useState<{ bitId: string; text: string }>({ bitId: '', text: '' })
   const editingBitIds = useRef(new Set<string>())
@@ -61,6 +54,11 @@ export function KnowledgeBitReviewPanel({
   const quietPolls = useRef(0)
   const regeneration = useSourceRegeneration({ sources, setSources, knownBitIds })
   const { fetchStatuses, applyStatuses } = regeneration
+  const attention = useAttentionNotices({
+    initial: splitAttentionSources(initialSources).notices,
+    clearRetryState: regeneration.actions.onCancel,
+  })
+  const { reloadAfterRetry } = attention
 
   const { claim: claimBit, release: releaseBit, isResolving: isBitResolving } =
     useResolvingSuggestions()
@@ -103,7 +101,8 @@ export function KnowledgeBitReviewPanel({
       mergeArrivedBits(mergeArrivedVariants(prev, fresh, protectedBitIds), fresh, arrived),
     )
     applyStatuses(statuses)
-  }, [rowErrors, fetchStatuses, applyStatuses])
+    await reloadAfterRetry(statuses)
+  }, [rowErrors, fetchStatuses, applyStatuses, reloadAfterRetry])
 
   const pollingGaveUp = useQuestionPolling(
     hasBitAwaitingQuestions(pendingSources) || !idleStopped || regeneration.isRegenerating,
@@ -282,6 +281,15 @@ export function KnowledgeBitReviewPanel({
         regenerationStates={regeneration.states}
         regenerationActions={regeneration.actions}
         bulk={bulk}
+        hasNotices={attention.notices.length > 0}
+        notices={
+          <KnowledgeBitReviewAttentionBlock
+            notices={attention.notices}
+            states={regeneration.states}
+            actions={regeneration.actions}
+            onDiscard={attention.discard}
+          />
+        }
       >
         {session}
       </KnowledgeBitReviewLanding>

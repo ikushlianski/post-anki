@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
 
 import { AiLabelBadge } from './ai-label-badge'
+import { KnowledgeBitReviewFlagBanner } from './knowledge-bit-review-flag-banner'
 import { KnowledgeBitReviewExampleField } from './knowledge-bit-review-card-fields'
 import { KnowledgeBitReviewVariantList } from './knowledge-bit-review-variant-list'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
@@ -98,6 +99,8 @@ export function KnowledgeBitReviewItem({
         sourceLinks={bit.sourceLinks}
         testIdSuffix={`-${bit.id}`}
       />
+
+      <KnowledgeBitReviewFlagBanner bitId={bit.id} reviewFlag={bit.reviewFlag} />
 
       <KnowledgeBitReviewVariantList
         bitId={bit.id}

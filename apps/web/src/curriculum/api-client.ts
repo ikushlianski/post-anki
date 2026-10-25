@@ -505,10 +505,12 @@ export async function resolvePlacementSuggestion(
 
 // ki-approval-gate (review screen) additions below.
 
-export async function listPendingKnowledgeBitsForReview(): Promise<
-  be.PendingKnowledgeSourceForReview[]
-> {
-  return request<be.PendingKnowledgeSourceForReview[]>('/knowledge-bits/pending-review')
+export async function listPendingKnowledgeBitsForReview(
+  options: { attention?: boolean } = {},
+): Promise<be.PendingKnowledgeSourceForReview[]> {
+  return request<be.PendingKnowledgeSourceForReview[]>(
+    options.attention ? '/knowledge-bits/pending-review?attention=1' : '/knowledge-bits/pending-review',
+  )
 }
 
 export async function approveKnowledgeBit(bitId: string): Promise<{ ok: true }> {

@@ -23,6 +23,8 @@ interface KnowledgeBitReviewLandingProps {
     confirmBulk: () => void
     cancelBulk: () => void
   }
+  hasNotices?: boolean
+  notices?: ReactNode
   children: ReactNode
 }
 
@@ -34,6 +36,8 @@ export function KnowledgeBitReviewLanding({
   regenerationStates,
   regenerationActions,
   bulk,
+  hasNotices = false,
+  notices = null,
   children,
 }: KnowledgeBitReviewLandingProps) {
   const total = readyCount + waitingCount
@@ -43,8 +47,10 @@ export function KnowledgeBitReviewLanding({
 
   return (
     <div data-testid="knowledge-bit-review-landing" className="space-y-4">
+      {notices}
+
       {total === 0 ? (
-        <KnowledgeBitReviewEmptyState />
+        hasNotices ? null : <KnowledgeBitReviewEmptyState />
       ) : (
         <p data-testid="knowledge-bit-review-count" className="text-lg font-medium text-neutral-900">
           {readyCount} {readyCount === 1 ? 'card is' : 'cards are'} waiting for your decision
