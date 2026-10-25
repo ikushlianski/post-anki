@@ -4,6 +4,7 @@ struct FocusTriageDecisionEntry {
     let bitId: String
     let verdict: TriageVerdict
     let removed: PendingReviewRemovedBit?
+    let front: String?
     var note: String?
     var reasonCode: String?
     var dwellMs: Int?
@@ -12,6 +13,7 @@ struct FocusTriageDecisionEntry {
         bitId: String,
         verdict: TriageVerdict,
         removed: PendingReviewRemovedBit?,
+        front: String? = nil,
         note: String? = nil,
         reasonCode: String? = nil,
         dwellMs: Int? = nil
@@ -19,9 +21,19 @@ struct FocusTriageDecisionEntry {
         self.bitId = bitId
         self.verdict = verdict
         self.removed = removed
+        self.front = front
         self.note = note
         self.reasonCode = reasonCode
         self.dwellMs = dwellMs
+    }
+
+    static func frontText(of bit: PendingReviewBit) -> String {
+        let prompt = PendingReviewTriageSelection.bestVariant(in: bit.variants)?.prompt
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let prompt, !prompt.isEmpty { return prompt }
+
+        return bit.body
     }
 
     var decision: TriageDecision {
@@ -56,7 +68,9 @@ struct FocusTriageDecisionLog {
     }
 
     func title(for bitId: String) -> String? {
-        entries.first { $0.bitId == bitId }?.removed?.bit.body
+        guard let entry = entries.first(where: { $0.bitId == bitId }) else { return nil }
+
+        return entry.front ?? entry.removed.map { FocusTriageDecisionEntry.frontText(of: $0.bit) }
     }
 
     mutating func markBaseline() {

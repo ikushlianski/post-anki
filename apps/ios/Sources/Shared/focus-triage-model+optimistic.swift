@@ -27,6 +27,7 @@ extension FocusTriageModel {
             bitId: bitId,
             verdict: decision == .approve ? .approved : .rejected,
             removed: snapshot,
+            front: FocusTriageDecisionEntry.frontText(of: bit),
             note: note,
             dwellMs: dwellMs(for: bitId)
         )

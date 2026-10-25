@@ -89,7 +89,8 @@ extension FocusTriageSessionModel {
     }
 
     func loadServerFronts() async {
-        guard let sessionId, let records = try? await APIClient.listTriageDecisions(sessionId: sessionId) else { return }
+        guard let sessionId, decisions.contains(where: { triage.log.title(for: $0.bitId) == nil && serverFronts[$0.bitId] == nil }),
+              let records = try? await APIClient.listTriageDecisions(sessionId: sessionId) else { return }
 
         for record in records {
             if let bitId = record.bitId, let front = record.front { serverFronts[bitId] = front }

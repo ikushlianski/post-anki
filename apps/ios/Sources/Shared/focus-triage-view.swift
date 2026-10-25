@@ -66,6 +66,7 @@ struct FocusTriageView: View {
                 },
                 onKeepGoing: triage.readyCount > 0 ? { session.phase = .idle } : nil
             )
+            .task { await session.loadServerFronts() }
         } else if let shown {
             ZStack {
                 card(shown.bit, source: shown.source)

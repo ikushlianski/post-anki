@@ -25,15 +25,12 @@ struct FocusTriageDecisionList: View {
                 }
 
                 if !approved.isEmpty {
-                    DisclosureGroup("Accepted (\(approved.count))") {
-                        ZoomVStack(alignment: .leading, spacing: 12) {
-                            ForEach(approved) { row in
-                                FocusTriageDecisionRowView(row: row, editing: editing)
-                            }
-                        }
-                        .zoomPadding(.top, 8)
+                    Text("Accepted (\(approved.count))")
+                        .zoomFont(.subheadline.weight(.semibold))
+
+                    ForEach(approved) { row in
+                        FocusTriageDecisionRowView(row: row, editing: editing)
                     }
-                    .zoomFont(.subheadline.weight(.semibold))
                 }
             }
         }
@@ -55,9 +52,15 @@ private struct FocusTriageDecisionRowView: View {
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 6) {
-            Text(row.title)
-                .zoomFont(.callout)
-                .lineLimit(3)
+            ZoomHStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: row.verdict == .approved ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(row.verdict == .approved ? Color.green : Color.red)
+                    .accessibilityLabel(row.verdict == .approved ? "Accepted" : "Rejected")
+
+                Text(row.title)
+                    .zoomFont(.callout)
+                    .lineLimit(3)
+            }
 
             if row.verdict == .rejected {
                 reasonChips
