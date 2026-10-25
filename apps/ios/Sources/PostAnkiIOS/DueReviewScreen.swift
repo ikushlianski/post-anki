@@ -18,8 +18,12 @@ struct DueReviewScreen: View {
             case .empty:
                 DueReviewEmptyView(model: model)
             case .error(let message):
-                DueReviewMessageView(message: message, actionTitle: "Retry") {
-                    Task { await model.load() }
+                DueReviewBottomActionView(message: message) {
+                    Button("Retry") {
+                        Task { await model.load() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 }
             case .unauthorized:
                 DueReviewUnauthorizedView {
@@ -85,25 +89,22 @@ private struct DueReviewCardView: View {
     let model: DueReviewModel
 
     var body: some View {
-        ScrollView {
-            if let card = model.current {
-                DueReviewCardBody(
-                    model: model,
-                    card: card,
-                    answerInput: { EmptyView() },
-                    revealedFooter: { EmptyView() },
-                    unrevealed: {
-                        Button {
-                            model.reveal()
-                        } label: {
-                            Text("Show answer")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    }
-                )
+        DueReviewTapSurface(model: model) {
+            ScrollView {
+                if let card = model.current {
+                    DueReviewCardBody(
+                        model: model,
+                        card: card,
+                        showsGradeButtons: false,
+                        answerInput: { EmptyView() },
+                        revealedFooter: { EmptyView() },
+                        unrevealed: { EmptyView() }
+                    )
+                }
             }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            DueReviewBottomBar(model: model)
         }
     }
 }
@@ -112,20 +113,43 @@ private struct DueReviewUnauthorizedView: View {
     let onRetry: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text("Your session isn't authorized. Add or update your token in Settings.")
-                .multilineTextAlignment(.center)
+        DueReviewBottomActionView(message: "Your session isn't authorized. Add or update your token in Settings.") {
+            VStack(spacing: 8) {
+                NavigationLink {
+                    SettingsScreen()
+                } label: {
+                    Text("Open Settings")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
 
-            NavigationLink("Open Settings") {
-                SettingsScreen()
-            }
-            .buttonStyle(.borderedProminent)
-
-            Button("Try again", action: onRetry)
+                Button(action: onRetry) {
+                    Text("Try again")
+                        .frame(maxWidth: .infinity)
+                }
                 .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct DueReviewBottomActionView<Actions: View>: View {
+    let message: String
+    @ViewBuilder let actions: () -> Actions
+
+    var body: some View {
+        Text(message)
+            .multilineTextAlignment(.center)
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                actions()
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+            }
     }
 }
 

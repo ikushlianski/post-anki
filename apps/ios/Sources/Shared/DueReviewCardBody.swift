@@ -4,6 +4,7 @@ import SwiftUI
 struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: View>: View {
     let model: DueReviewModel
     let card: ReviewCard
+    var showsGradeButtons = true
     @ViewBuilder let answerInput: () -> AnswerInput
     @ViewBuilder let revealedFooter: () -> RevealedFooter
     @ViewBuilder let unrevealed: () -> Unrevealed
@@ -33,8 +34,10 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                         .foregroundStyle(.secondary)
                 }
 
-                DueReviewGradeButtons(preview: card.intervalPreview, isDisabled: model.isGrading) { grade in
-                    Task { await model.grade(grade) }
+                if showsGradeButtons {
+                    DueReviewGradeButtons(preview: card.intervalPreview, isDisabled: model.isGrading) { grade in
+                        Task { await model.grade(grade) }
+                    }
                 }
 
                 revealedFooter()
