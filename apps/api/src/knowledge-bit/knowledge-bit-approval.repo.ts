@@ -1,7 +1,9 @@
+import { alias } from "drizzle-orm/pg-core";
 import { and, asc, eq, inArray, isNull, notInArray } from "drizzle-orm";
-import type {
-  KnowledgeBitQuestionVariantKind,
-  PendingKnowledgeSourceForReview,
+import {
+  subjectCheckConfidenceSchema,
+  type KnowledgeBitQuestionVariantKind,
+  type PendingKnowledgeSourceForReview,
 } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources, subjects } from "../db/schema.js";
@@ -198,6 +200,7 @@ export async function listPendingKnowledgeBitsForReview(
   limit: number,
   db: DbExecutor = getDb(),
 ): Promise<PendingKnowledgeSourceForReview[]> {
+  const suggestedSubjects = alias(subjects, "suggested_subjects");
   const bitRows = await db
     .select({
       id: knowledgeBits.id,
@@ -214,10 +217,14 @@ export async function listPendingKnowledgeBitsForReview(
       processedAt: knowledgeSources.processedAt,
       subjectName: subjects.name,
       subjectId: subjects.id,
+      suggestedSubjectId: suggestedSubjects.id,
+      suggestedSubjectName: suggestedSubjects.name,
+      suggestedSubjectConfidence: knowledgeSources.suggestedSubjectConfidence,
     })
     .from(knowledgeBits)
     .innerJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
     .leftJoin(subjects, eq(subjects.id, knowledgeSources.subjectId))
+    .leftJoin(suggestedSubjects, and(isNull(knowledgeSources.subjectId), eq(suggestedSubjects.id, knowledgeSources.suggestedSubjectId)))
     .where(eq(knowledgeBits.approvalState, "pending"))
     .orderBy(asc(knowledgeBits.createdAt))
     .limit(limit);
@@ -264,6 +271,9 @@ export async function listPendingKnowledgeBitsForReview(
       summary: row.summary,
       subjectName: row.subjectName ?? null,
       subjectId: row.subjectId ?? null,
+      suggestedSubjectId: row.suggestedSubjectId ?? null,
+      suggestedSubjectName: row.suggestedSubjectName ?? null,
+      suggestedSubjectConfidence: subjectCheckConfidenceSchema.safeParse(row.suggestedSubjectConfidence).data ?? null,
       processedAt: row.processedAt?.toISOString() ?? null,
       bits: [],
     };

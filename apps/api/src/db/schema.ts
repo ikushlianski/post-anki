@@ -1134,6 +1134,10 @@ export const knowledgeSources = pgTable(
     sourceUrl: text("source_url"),
     // Short background-generated summary of an imported article.
     summary: text("summary"),
+    // Automatic subject proposal, never an owner choice; only written while subject_id is null.
+    suggestedSubjectId: text("suggested_subject_id"),
+    suggestedSubjectConfidence: text("suggested_subject_confidence"),
+    subjectSuggestionCheckedAt: timestamp("subject_suggestion_checked_at", { withTimezone: true }),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(

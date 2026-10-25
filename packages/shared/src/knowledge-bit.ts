@@ -2,6 +2,7 @@ import { z } from "zod";
 import { knowledgeItemModelIdSchema } from "./knowledge-item-model";
 import type { KnowledgeSourceAttention } from "./extraction-failure";
 import { KNOWLEDGE_SOURCE_MAX_CHARS } from "./knowledge-source-refusal";
+import { subjectCheckConfidenceSchema, type SubjectCheckConfidence } from "./knowledge-source-subject-check";
 
 export interface PendingPlacementSuggestion {
   id: string;
@@ -132,6 +133,12 @@ export interface PendingKnowledgeSourceExtractionGrade {
   run: number;
 }
 
+export const pendingSubjectSuggestionSchema = z.object({
+  suggestedSubjectId: z.string().min(1).nullable(),
+  suggestedSubjectName: z.string().min(1).nullable(),
+  suggestedSubjectConfidence: subjectCheckConfidenceSchema.nullable(),
+});
+
 export interface PendingKnowledgeSourceForReview {
   knowledgeSourceId: string;
   sourceText: string | null;
@@ -139,6 +146,9 @@ export interface PendingKnowledgeSourceForReview {
   summary?: string | null;
   subjectName: string | null;
   subjectId?: string | null;
+  suggestedSubjectId?: string | null;
+  suggestedSubjectName?: string | null;
+  suggestedSubjectConfidence?: SubjectCheckConfidence | null;
   bits: PendingKnowledgeBitForReview[];
   processedAt?: Date | string | null;
   groupTotal?: number;

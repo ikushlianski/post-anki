@@ -36,6 +36,8 @@ Concurrent kicks coalesce: if a kick arrives while a run is already in progress,
 
 **fill_blank** follows the same claim-generate-store pattern for fill-in-the-blank variants.
 
+**subject_assignment** picks a subject proposal for sources that have cards but no owner-chosen subject and have not been checked (up to 10 per scan, switch `SUBJECT_ASSIGNMENT_ENABLED`). Each source goes through the existing cheap subject check (`runSubjectCheck`, same hourly cap and spend guard). High and medium confidence results are stored as-is. Low confidence and no-match sources are collected and sent in one batch to a balanced-tier agent (30 second timeout, no retries) that must answer with an offered subject alias or nothing. The proposal is stored on the source (`suggested_subject_id`, `suggested_subject_confidence`); `subject_id` is never written, a new subject is never created, and a source is checked once. When the check is disabled or out of budget the scan stops and leaves the rest unchecked. `GET /knowledge-bits/pending-review` returns `suggestedSubjectId`, `suggestedSubjectName` and `suggestedSubjectConfidence` per source, empty when the owner set a subject.
+
 ## Extension
 
 To add a new pass, append a `{ name, run }` entry to `KNOWLEDGE_BIT_PIPELINE_PASSES` in the kick orchestrator. The orchestrator handles ordering, error isolation, and coalescing automatically.
