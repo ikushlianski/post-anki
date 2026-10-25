@@ -13,26 +13,83 @@ export interface BrowserSubjectEntry {
   id: string
   label: string
   count: number
+  newCount: number
+  learningCount: number
+  matureCount: number
+}
+
+type CountField = 'count' | 'newCount' | 'learningCount' | 'matureCount'
+
+function sumOf(rows: (KnowledgeBitBrowserSubjectCounts[number] | undefined)[], field: CountField): number {
+  return rows.reduce((sum, row) => sum + (row?.[field] ?? 0), 0)
 }
 
 export function buildBrowserSubjectEntries(
   options: { id: string; label: string }[],
   counts: KnowledgeBitBrowserSubjectCounts,
 ): BrowserSubjectEntry[] {
-  const direct = new Map(counts.map((row) => [row.subjectId, row.count]))
-  const entries = options.map((option) => ({
-    id: option.id,
-    label: option.label,
-    count: options
+  const direct = new Map(counts.map((row) => [row.subjectId, row]))
+  const entries = options.map((option) => {
+    const group = options
       .filter((other) => other.label === option.label || other.label.startsWith(`${option.label} › `))
-      .reduce((sum, other) => sum + (direct.get(other.id) ?? 0), 0),
-  }))
-  const unsorted = direct.get(null) ?? 0
+      .map((other) => direct.get(other.id))
+
+    return {
+      id: option.id,
+      label: option.label,
+      count: sumOf(group, 'count'),
+      newCount: sumOf(group, 'newCount'),
+      learningCount: sumOf(group, 'learningCount'),
+      matureCount: sumOf(group, 'matureCount'),
+    }
+  })
+  const unsorted = direct.get(null)
 
   return [
     ...entries,
-    ...(unsorted > 0 ? [{ id: NO_SUBJECT_PARAM, label: 'No subject', count: unsorted }] : []),
+    ...(unsorted && unsorted.count > 0
+      ? [
+          {
+            id: NO_SUBJECT_PARAM,
+            label: 'No subject',
+            count: unsorted.count,
+            newCount: unsorted.newCount,
+            learningCount: unsorted.learningCount,
+            matureCount: unsorted.matureCount,
+          },
+        ]
+      : []),
   ]
+}
+
+export function DepthBar({ entry }: { entry: BrowserSubjectEntry }) {
+  const parts = [
+    { key: 'mature', label: 'mature', value: entry.matureCount, color: 'bg-emerald-500' },
+    { key: 'learning', label: 'learning', value: entry.learningCount, color: 'bg-amber-400' },
+    { key: 'new', label: 'new', value: entry.newCount, color: 'bg-sky-400' },
+  ]
+  const title = parts.map((part) => `${part.value} ${part.label}`).join(', ')
+
+  return (
+    <span
+      role="img"
+      aria-label={title}
+      title={title}
+      data-testid={`knowledge-browser-subject-depth-${entry.id}`}
+      className="flex h-2 w-24 shrink-0 overflow-hidden rounded-full bg-neutral-200 sm:w-40"
+    >
+      {entry.count > 0
+        ? parts.map((part) => (
+            <span
+              key={part.key}
+              data-part={part.key}
+              className={part.color}
+              style={{ width: `${(part.value / entry.count) * 100}%` }}
+            />
+          ))
+        : null}
+    </span>
+  )
 }
 
 const PATH_SEPARATOR = ' › '
@@ -75,7 +132,7 @@ function SubjectRow({ node, depth }: { node: SubjectTreeNode; depth: number }) {
             aria-label={`${open ? 'Collapse' : 'Expand'} ${name}`}
             data-testid={`knowledge-browser-subject-toggle-${entry.id}`}
             onClick={() => setOpen(!open)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center text-lg text-neutral-600"
+            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-lg text-neutral-600"
           >
             {open ? '−' : '+'}
           </button>
@@ -88,8 +145,9 @@ function SubjectRow({ node, depth }: { node: SubjectTreeNode; depth: number }) {
           data-testid={`knowledge-browser-subject-${entry.id}`}
           className="flex flex-1 items-center justify-between gap-3 py-3 pr-4"
         >
-          <span>{name}</span>
-          <span className="text-sm text-neutral-500">{entry.count}</span>
+          <span className="min-w-0 flex-1 truncate">{name}</span>
+          <DepthBar entry={entry} />
+          <span className="w-10 text-right text-sm text-neutral-500">{entry.count}</span>
         </Link>
       </div>
       {open && children.length > 0 ? (

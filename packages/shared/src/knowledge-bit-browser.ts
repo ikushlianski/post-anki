@@ -69,6 +69,9 @@ export const knowledgeBitBrowserSubjectCountsSchema = z.array(
   z.object({
     subjectId: z.string().nullable(),
     count: z.number().int().min(0),
+    newCount: z.number().int().min(0),
+    learningCount: z.number().int().min(0),
+    matureCount: z.number().int().min(0),
   }),
 );
 

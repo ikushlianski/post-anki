@@ -21,6 +21,8 @@ import { buildBrowserFilterCondition, sourceTypeSql } from "./knowledge-bit-brow
 import { assembleBrowserItems } from "./knowledge-bit-browser-items.js";
 import { effectiveSubjectIdSql } from "./knowledge-bit-subject.js";
 
+const MATURE_INTERVAL_DAYS = 21;
+
 export const hasActiveVariant = (db: DbExecutor) =>
   exists(
     db
@@ -98,13 +100,25 @@ export async function countKnowledgeBitBrowserSubjects(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitBrowserSubjectCounts> {
   const rows = await db
-    .select({ subjectId: effectiveSubjectIdSql, count: sql<number>`count(*)::int` })
+    .select({
+      subjectId: effectiveSubjectIdSql,
+      count: sql<number>`count(*)::int`,
+      newCount: sql<number>`count(*) filter (where ${knowledgeBitSchedules.phase} is null or ${knowledgeBitSchedules.phase} = 'new')::int`,
+      matureCount: sql<number>`count(*) filter (where ${knowledgeBitSchedules.phase} = 'review' and ${knowledgeBitSchedules.intervalDays} >= ${MATURE_INTERVAL_DAYS})::int`,
+    })
     .from(knowledgeBits)
+    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
     .where(and(bitApproved, hasActiveVariant(db)))
     .groupBy(effectiveSubjectIdSql);
 
-  return rows.map((row) => ({ subjectId: row.subjectId, count: row.count }));
+  return rows.map((row) => ({
+    subjectId: row.subjectId,
+    count: row.count,
+    newCount: row.newCount,
+    learningCount: row.count - row.newCount - row.matureCount,
+    matureCount: row.matureCount,
+  }));
 }
