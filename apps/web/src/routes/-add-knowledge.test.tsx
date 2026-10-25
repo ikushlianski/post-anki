@@ -60,6 +60,7 @@ vi.mock('../knowledge-source/knowledge-source.api', () => ({
   createKnowledgeSource: vi.fn(),
   createKnowledgeSources: vi.fn(),
   createKnowledgeSourceFromUrl: vi.fn(),
+  checkKnowledgeSourceSubject: vi.fn().mockResolvedValue({ status: 'none' }),
 }))
 
 const mockedCreateKnowledgeSource = vi.mocked(createKnowledgeSource)
