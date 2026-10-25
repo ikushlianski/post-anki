@@ -14,6 +14,7 @@ import {
   type PendingKnowledgeBitForReview,
   regenerateKnowledgeSourceInput,
   type KnowledgeSourceRegenerationStatus,
+  type KnowledgeDeletionResponse,
   type BulkApproveKnowledgeBitsResponse,
   type PendingKnowledgeBitReviewCountResponse,
   type PendingKnowledgeSourceForReview,
@@ -23,6 +24,7 @@ import {
   approveKnowledgeBit,
   bulkApproveKnowledgeBits,
   createManualKnowledgeItem,
+  discardKnowledgeSource,
   editKnowledgeBit,
   getKnowledgeBitFeedbackByModel,
   gradeKnowledgeBit,
@@ -136,10 +138,14 @@ export const regenerateKnowledgeSourceForReview = createServerFn({ method: 'POST
   .inputValidator((data: unknown) => regenerateKnowledgeSourceForReviewInput.parse(data))
   .handler(
     ({ data }): Promise<RegenerateKnowledgeSourceOutcome> =>
-      regenerateKnowledgeSource(data.sourceId, data.modelId),
+      regenerateKnowledgeSource(data.sourceId, data.modelId, data.text),
   )
 
 const sourceIdInput = z.object({ sourceId: z.string().min(1) })
+
+export const discardKnowledgeSourceForReview = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => sourceIdInput.parse(data))
+  .handler(({ data }): Promise<KnowledgeDeletionResponse> => discardKnowledgeSource(data.sourceId))
 
 export const getKnowledgeSourceRegenerationForReview = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => sourceIdInput.parse(data))

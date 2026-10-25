@@ -48,6 +48,9 @@ process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 const { claimSourceForRegeneration, getKnowledgeSourceRegenerationStatus } = await import(
   "./knowledge-source-regeneration.repo.js"
 );
+const { markKnowledgeSourceBitsDetected, markKnowledgeSourceFailed } = await import(
+  "../knowledge-bit/knowledge-bit.repo.js"
+);
 const { generateItemsForSource, defaultGenerateItemsDeps } = await import(
   "../knowledge-bit/detect-knowledge-bits.orchestrator.js"
 );
@@ -213,6 +216,92 @@ describe("claimSourceForRegeneration (real Postgres)", () => {
     await client.query(`UPDATE knowledge_sources SET status = 'bits_detected' WHERE id = $1`, [sourceId]);
 
     expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({ status: "done", failureReason: null });
+  });
+});
+
+describe("claimSourceForRegeneration stuck takeover and replacement text (real Postgres)", () => {
+  async function ageSource(sourceId: string, minutes: number): Promise<Date> {
+    const updatedAt = new Date(Date.now() - minutes * 60_000);
+
+    await client.query(`UPDATE knowledge_sources SET updated_at = $2 WHERE id = $1`, [sourceId, updatedAt]);
+
+    return updatedAt;
+  }
+
+  it("should take over a note stuck in processing for over 20 minutes and supersede its pending cards", async () => {
+    const sourceId = await seedSource("processing");
+    const pending = await seedBit(sourceId, 0, "pending");
+    const approved = await seedBit(sourceId, 1, "approved");
+
+    await ageSource(sourceId, 21);
+
+    expect(await claimSourceForRegeneration(sourceId)).toMatchObject({ ok: true, supersededCount: 1 });
+    expect(await stateOf(pending)).toBe("superseded");
+    expect(await stateOf(approved)).toBe("approved");
+  });
+
+  it("should leave a note processing for under 20 minutes alone", async () => {
+    const sourceId = await seedSource("processing");
+
+    await ageSource(sourceId, 5);
+
+    expect(await claimSourceForRegeneration(sourceId)).toEqual({ ok: false, error: "already_running" });
+  });
+
+  it("should let the taken-over run lose its writes while the new run owns the note", async () => {
+    const sourceId = await seedSource("processing");
+    const oldClaimedAt = await ageSource(sourceId, 30);
+    const claim = await claimSourceForRegeneration(sourceId);
+
+    expect(claim.ok).toBe(true);
+    expect(await markKnowledgeSourceBitsDetected(sourceId, oldClaimedAt)).toBe(false);
+    expect(await markKnowledgeSourceFailed(sourceId, "x", oldClaimedAt)).toBe(false);
+    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({ status: "running", failureReason: null });
+  });
+
+  it("should let only one of two simultaneous takeovers win", async () => {
+    const sourceId = await seedSource("processing");
+
+    await ageSource(sourceId, 25);
+
+    const results = await Promise.all([claimSourceForRegeneration(sourceId), claimSourceForRegeneration(sourceId)]);
+
+    expect(results.filter((result) => result.ok)).toHaveLength(1);
+  });
+
+  it("should replace the note text and clear the failure when replacement text is given", async () => {
+    const sourceId = await seedSource("failed", "old text");
+
+    await client.query(`UPDATE knowledge_sources SET failure_reason = 'no_valid_items' WHERE id = $1`, [sourceId]);
+
+    const claim = await claimSourceForRegeneration(sourceId, { replacementText: "new text" });
+    const row = (await client.query(`SELECT raw_text, failure_reason FROM knowledge_sources WHERE id = $1`, [sourceId]))
+      .rows[0];
+
+    expect(claim).toMatchObject({ ok: true, source: { rawText: "new text" } });
+    expect(row).toEqual({ raw_text: "new text", failure_reason: null });
+  });
+
+  it("should leave the old text untouched when the claim loses", async () => {
+    const sourceId = await seedSource("processing", "old text");
+
+    expect(await claimSourceForRegeneration(sourceId, { replacementText: "new text" })).toEqual({
+      ok: false,
+      error: "already_running",
+    });
+
+    const row = (await client.query(`SELECT raw_text FROM knowledge_sources WHERE id = $1`, [sourceId])).rows[0];
+
+    expect(row.raw_text).toBe("old text");
+  });
+
+  it("should accept replacement text for a note whose text is gone", async () => {
+    const sourceId = await seedSource("failed", null);
+
+    expect(await claimSourceForRegeneration(sourceId, { replacementText: "fresh" })).toMatchObject({
+      ok: true,
+      source: { rawText: "fresh" },
+    });
   });
 });
 

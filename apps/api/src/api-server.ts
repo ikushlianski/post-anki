@@ -17,6 +17,7 @@ import {
   handleGetKnowledgeSourceRegeneration,
   handleRegenerateKnowledgeSource,
 } from "./knowledge-source/knowledge-source-regeneration.controller.js";
+import { handleDiscardKnowledgeSource } from "./knowledge-source/knowledge-source-discard.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import { handleCreateKnowledgeSourceSubjectCheck } from "./knowledge-source/knowledge-source-subject-check.controller.js";
 import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
@@ -651,6 +652,8 @@ async function route(
       return handleGetKnowledgeBitFeedbackByModel(res);
     case "editKnowledgeBitQuestionVariant":
       return handleEditKnowledgeBitQuestionVariant(req, res, id);
+    case "discardKnowledgeSource":
+      return handleDiscardKnowledgeSource(res, id);
     case "deleteKnowledgeSource":
       return handleDeleteKnowledgeSource(res, id);
     case "deleteSubject":

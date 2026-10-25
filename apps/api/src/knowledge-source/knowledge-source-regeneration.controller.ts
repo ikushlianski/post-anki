@@ -28,7 +28,7 @@ export async function handleRegenerateKnowledgeSource(
     return;
   }
 
-  const claim = await claimSourceForRegeneration(id);
+  const claim = await claimSourceForRegeneration(id, { replacementText: body.data.text });
 
   if (!claim.ok) {
     sendError(res, ERROR_STATUS[claim.error], claim.error);

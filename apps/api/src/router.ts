@@ -14,6 +14,7 @@ export type RouteName =
   | "detectKnowledgeBits"
   | "createKnowledgeSourceSubjectCheck"
   | "regenerateKnowledgeSource"
+  | "discardKnowledgeSource"
   | "getKnowledgeSourceRegeneration"
   | "triggerKnowledgeBitEmbeddingScan"
   | "triggerKnowledgeBitTaggingScan"

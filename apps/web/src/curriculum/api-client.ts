@@ -688,11 +688,12 @@ export async function getKnowledgeSourceText(sourceId: string): Promise<{ text: 
 export async function regenerateKnowledgeSource(
   sourceId: string,
   modelId?: be.KnowledgeItemModelId,
+  text?: string,
 ): Promise<RegenerateKnowledgeSourceOutcome> {
   try {
     return await request<be.RegenerateKnowledgeSourceResult>(
       `/knowledge-sources/${sourceId}/regeneration`,
-      { method: 'POST', body: modelId ? { modelId } : {} },
+      { method: 'POST', body: { ...(modelId ? { modelId } : {}), ...(text ? { text } : {}) } },
     )
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
@@ -701,6 +702,15 @@ export async function regenerateKnowledgeSource(
 
     throw err
   }
+}
+
+export async function discardKnowledgeSource(
+  sourceId: string,
+): Promise<be.KnowledgeDeletionResponse> {
+  return request<be.KnowledgeDeletionResponse>(`/knowledge-sources/${sourceId}/discards`, {
+    method: 'POST',
+    body: {},
+  })
 }
 
 export async function getKnowledgeSourceRegeneration(

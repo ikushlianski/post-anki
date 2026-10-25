@@ -27,6 +27,12 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   {
+    method: "POST",
+    pattern: /^\/knowledge-sources\/([^/]+)\/discards$/,
+    name: "discardKnowledgeSource",
+    param: "id",
+  },
+  {
     method: "GET",
     pattern: /^\/knowledge-sources\/([^/]+)\/regeneration$/,
     name: "getKnowledgeSourceRegeneration",

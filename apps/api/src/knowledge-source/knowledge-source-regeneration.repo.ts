@@ -1,5 +1,5 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
-import type { KnowledgeSourceRegenerationStatus } from "@post-anki/shared";
+import { and, eq, inArray, isNotNull, lt, or } from "drizzle-orm";
+import { EXTRACTION_STUCK_AFTER_MS, type KnowledgeSourceRegenerationStatus } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 import type { PendingKnowledgeSource } from "../knowledge-bit/knowledge-bit.repo.js";
@@ -8,21 +8,37 @@ export type ClaimSourceForRegenerationResult =
   | { ok: true; source: PendingKnowledgeSource; supersededCount: number }
   | { ok: false; error: "not_found" | "already_running" | "source_text_missing" };
 
+export interface ClaimSourceForRegenerationOptions {
+  replacementText?: string;
+  now?: Date;
+}
+
 export async function claimSourceForRegeneration(
   id: string,
+  options: ClaimSourceForRegenerationOptions = {},
   db: DbExecutor = getDb(),
 ): Promise<ClaimSourceForRegenerationResult> {
   return db.transaction(async (tx) => {
-    const claimedAt = new Date();
+    const claimedAt = options.now ?? new Date();
+    const stuckBefore = new Date(claimedAt.getTime() - EXTRACTION_STUCK_AFTER_MS);
+    const replacementText = options.replacementText;
     const claimed = (
       await tx
         .update(knowledgeSources)
-        .set({ status: "processing", updatedAt: claimedAt, failureReason: null })
+        .set({
+          status: "processing",
+          updatedAt: claimedAt,
+          failureReason: null,
+          ...(replacementText === undefined ? {} : { rawText: replacementText }),
+        })
         .where(
           and(
             eq(knowledgeSources.id, id),
-            inArray(knowledgeSources.status, ["bits_detected", "failed"]),
-            isNotNull(knowledgeSources.rawText),
+            or(
+              inArray(knowledgeSources.status, ["bits_detected", "failed"]),
+              and(eq(knowledgeSources.status, "processing"), lt(knowledgeSources.updatedAt, stuckBefore)),
+            ),
+            replacementText === undefined ? isNotNull(knowledgeSources.rawText) : undefined,
           ),
         )
         .returning({

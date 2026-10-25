@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { knowledgeItemModelIdSchema } from "./knowledge-item-model";
 import type { KnowledgeSourceAttention } from "./extraction-failure";
+import { KNOWLEDGE_SOURCE_MAX_CHARS } from "./knowledge-source-refusal";
 
 export interface PendingPlacementSuggestion {
   id: string;
@@ -42,6 +43,7 @@ export type KnowledgeBitApprovalState = z.infer<typeof knowledgeBitApprovalState
 // POST /knowledge-sources/:id/regeneration
 export const regenerateKnowledgeSourceInput = z.object({
   modelId: knowledgeItemModelIdSchema.optional(),
+  text: z.string().trim().min(1).max(KNOWLEDGE_SOURCE_MAX_CHARS).optional(),
 });
 
 export type RegenerateKnowledgeSourceInput = z.input<typeof regenerateKnowledgeSourceInput>;

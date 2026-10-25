@@ -77,6 +77,29 @@ describe("handleRegenerateKnowledgeSource", () => {
     expect(generateItemsForSource).toHaveBeenCalledWith(source, { modelId: undefined });
   });
 
+  it("should pass replacement text to the claim", async () => {
+    claimSourceForRegeneration.mockResolvedValue({ ok: true, source, supersededCount: 0 });
+
+    const res = fakeRes();
+
+    await handleRegenerateKnowledgeSource(fakeReq({ text: "  edited note  " }), res, "ks_1");
+
+    expect(res.status).toBe(202);
+    expect(claimSourceForRegeneration).toHaveBeenCalledWith("ks_1", { replacementText: "edited note" });
+  });
+
+  it.each([["blank", "   "], ["over 50000 characters", "a".repeat(50_001)]])(
+    "should refuse replacement text that is %s with 400 and change nothing",
+    async (_label, text) => {
+      const res = fakeRes();
+
+      await handleRegenerateKnowledgeSource(fakeReq({ text }), res, "ks_1");
+
+      expect(res.status).toBe(400);
+      expect(claimSourceForRegeneration).not.toHaveBeenCalled();
+    },
+  );
+
   it("should reject a model outside the allowlist with 400 and claim nothing", async () => {
     const res = fakeRes();
 
