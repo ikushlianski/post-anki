@@ -4,6 +4,7 @@ public struct AdminSettings: Decodable, Sendable {
     public let testToggle: Bool
     public let modelTier: String
     public let knowledgeItemModelId: String?
+    public let newCardsPerDay: Int?
 }
 
 public struct AdminStuckCourse: Decodable, Sendable, Hashable, Identifiable {

@@ -7,6 +7,10 @@ extension APIClient {
         try await request("/admin/settings")
     }
 
+    public static func updateAdminSettings(_ update: AdminSettingsUpdate) async throws -> AdminSettings {
+        try await request("/admin/settings", method: "PATCH", body: update)
+    }
+
     public static func adminObservability() async throws -> AdminObservability {
         try await request("/admin/observability")
     }

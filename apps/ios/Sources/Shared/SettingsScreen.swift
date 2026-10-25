@@ -225,6 +225,10 @@ struct SettingsScreen: View {
                     .disabled(!model.hasToken)
             }
 
+            Section {
+                NavigationLink("Admin settings") { AdminSettingsScreen() }
+            }
+
             Section("Connection") {
                 Button("Test connection") { Task { await model.testConnection() } }
                     .disabled(model.isTesting)
