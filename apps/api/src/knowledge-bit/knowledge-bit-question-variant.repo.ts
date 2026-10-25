@@ -284,7 +284,7 @@ export async function updateQuestionVariantEmbedding(
 ): Promise<void> {
   await db
     .update(knowledgeBitQuestionVariants)
-    .set({ embedding, embeddingVec: embedding, embeddingHash, embeddedAt: new Date() })
+    .set({ embeddingVec: embedding, embeddingHash, embeddedAt: new Date() })
     .where(eq(knowledgeBitQuestionVariants.id, id));
 }
 

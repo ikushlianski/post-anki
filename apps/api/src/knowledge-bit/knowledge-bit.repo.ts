@@ -211,7 +211,6 @@ export async function updateKnowledgeBitBody(
       .set({
         body,
         ...(background !== undefined ? { background } : {}),
-        embedding: null,
         embeddingVec: null,
         embeddingHash: null,
         embeddedAt: null,

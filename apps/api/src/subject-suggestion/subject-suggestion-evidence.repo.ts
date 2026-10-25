@@ -30,7 +30,7 @@ function bitsWithEffectiveSubject() {
     .select({
       id: knowledgeBits.id,
       body: knowledgeBits.body,
-      embedding: knowledgeBits.embedding,
+      embedding: knowledgeBits.embeddingVec,
     })
     .from(knowledgeBits)
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
@@ -49,7 +49,7 @@ function withEmbedding(
 export async function listUnplacedApprovedBits(limit: number): Promise<EvidenceBit[]> {
   const rows = await bitsWithEffectiveSubject()
     .where(
-      and(bitApproved, isNotNull(knowledgeBits.embedding), sql`${effectiveSubjectIdSql} is null`),
+      and(bitApproved, isNotNull(knowledgeBits.embeddingVec), sql`${effectiveSubjectIdSql} is null`),
     )
     .orderBy(desc(knowledgeBits.createdAt), desc(knowledgeBits.id))
     .limit(limit);
@@ -64,7 +64,7 @@ export async function listSubjectsForSuggestion(): Promise<EvidenceSubject[]> {
       name: subjects.name,
       description: subjects.description,
       parentId: subjects.parentId,
-      embedding: subjects.embedding,
+      embedding: subjects.embeddingVec,
     })
     .from(subjects);
 }
@@ -93,7 +93,7 @@ export async function listApprovedBitsForSubjects(
     .where(
       and(
         bitApproved,
-        isNotNull(knowledgeBits.embedding),
+        isNotNull(knowledgeBits.embeddingVec),
         inArray(effectiveSubjectIdSql, subjectIds),
       ),
     )

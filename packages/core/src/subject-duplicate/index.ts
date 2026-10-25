@@ -1,4 +1,4 @@
 export * from "./content-hash";
 export * from "./cosine-similarity";
-export * from "./find-duplicate-pairs";
+export * from "./duplicate-similarity-threshold";
 export * from "./select-scan-candidates";

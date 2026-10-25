@@ -7,7 +7,7 @@ interface BitRow {
   embeddingHash: string | null;
   embeddedAt: Date | null;
   createdAt: Date;
-  embedding: number[] | null;
+  embeddingVec: number[] | null;
 }
 
 const mockDbState = {
@@ -108,7 +108,7 @@ function seedBit(overrides: Partial<BitRow> & { id: string }): BitRow {
     embeddingHash: null,
     embeddedAt: null,
     createdAt: new Date(),
-    embedding: null,
+    embeddingVec: null,
     ...overrides,
   };
 
@@ -155,7 +155,7 @@ describe("listKnowledgeBitsForEmbeddingScan", () => {
 });
 
 describe("updateKnowledgeBitEmbedding", () => {
-  it("writes the embedding, hash, and embeddedAt together", async () => {
+  it("writes the vector, hash, and embeddedAt together", async () => {
     seedBit({ id: "kb_1", body: "some bit text" });
 
     await updateKnowledgeBitEmbedding("kb_1", [0.1, 0.2, 0.3], "hash_abc", "some bit text");
@@ -163,7 +163,7 @@ describe("updateKnowledgeBitEmbedding", () => {
     const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
 
     expect(row).toMatchObject({
-      embedding: [0.1, 0.2, 0.3],
+      embeddingVec: [0.1, 0.2, 0.3],
       embeddingHash: "hash_abc",
     });
     expect(row?.embeddedAt).toBeInstanceOf(Date);
@@ -177,7 +177,7 @@ describe("updateKnowledgeBitEmbedding", () => {
     const row = mockDbState.bits.find((bit) => bit.id === "kb_1");
 
     expect(row?.embeddedAt).toBeNull();
-    expect(row?.embedding).toBeNull();
+    expect(row?.embeddingVec).toBeNull();
     expect(row?.embeddingHash).toBeNull();
   });
 });

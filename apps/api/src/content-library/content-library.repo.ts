@@ -130,6 +130,6 @@ export async function updateSourceEmbedding(
 ): Promise<void> {
   await getDb()
     .update(sources)
-    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(sources.id, sourceId));
 }

@@ -168,7 +168,7 @@ describe("listQuestionVariantsForEmbeddingScan (real Postgres)", () => {
 });
 
 describe("updateQuestionVariantEmbedding (real Postgres)", () => {
-  it("persists embedding/embeddingHash/embeddedAt on read-back", async () => {
+  it("persists the vector, hash and timestamp on read-back", async () => {
     const sourceId = await seedKnowledgeSource();
     const bitId = await seedKnowledgeBit(sourceId, 0, "A bit to embed a variant for");
 
@@ -183,11 +183,10 @@ describe("updateQuestionVariantEmbedding (real Postgres)", () => {
     await updateQuestionVariantEmbedding(variantId, padEmbedding([1, 2, 3]), "hash123");
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bit_question_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bit_question_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
     expect(JSON.parse(rows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([1, 2, 3]).map((n) => expect.closeTo(n, 3)));
     expect(rows[0]!.embedding_hash).toBe("hash123");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);

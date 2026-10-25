@@ -142,7 +142,7 @@ export async function updateCardVariantEmbedding(
 ): Promise<void> {
   await getDb()
     .update(topicCardVariants)
-    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(topicCardVariants.id, variantId));
 }
 

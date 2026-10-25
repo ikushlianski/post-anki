@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
-import { rankBySimilarity } from "@post-anki/core";
+import { cosineSimilarity } from "@post-anki/core";
 import { closeDb } from "../db/client.js";
 import { padEmbedding } from "../db/pad-embedding.js";
 
@@ -62,14 +62,8 @@ afterAll(async () => {
   await adminPool.end();
 });
 
-function jsonAndVector(embedding: number[] | null): [string | null, string | null] {
-  if (!embedding) {
-    return [null, null];
-  }
-
-  const padded = JSON.stringify(padEmbedding(embedding));
-
-  return [padded, padded];
+function toVector(embedding: number[] | null): string | null {
+  return embedding ? JSON.stringify(padEmbedding(embedding)) : null;
 }
 
 function id(prefix: string): string {
@@ -122,9 +116,9 @@ async function seedTopicWithCardVariant(
     [cardId, cardSetId, "Concept"],
   );
   await client.query(
-    `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer, embedding, embedding_vec)
-     VALUES ($1, $2, 1, $3, $4, $5, $6)`,
-    [variantId, cardId, prompt, answer, ...jsonAndVector(embedding)],
+    `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer, embedding_vec)
+     VALUES ($1, $2, 1, $3, $4, $5)`,
+    [variantId, cardId, prompt, answer, toVector(embedding)],
   );
 
   return { variantId, topicId, curriculumId, subjectId };
@@ -180,9 +174,9 @@ async function seedFact(body: string, embedding: number[] | null, tags: string[]
   const factId = id("fact");
 
   await client.query(
-    `INSERT INTO facts (id, body, source, source_ref, tags, embedding, embedding_vec)
-     VALUES ($1, $2, 'notion', $3, $4, $5, $6)`,
-    [factId, body, `notion:${factId}`, JSON.stringify(tags), ...jsonAndVector(embedding)],
+    `INSERT INTO facts (id, body, source, source_ref, tags, embedding_vec)
+     VALUES ($1, $2, 'notion', $3, $4, $5)`,
+    [factId, body, `notion:${factId}`, JSON.stringify(tags), toVector(embedding)],
   );
 
   return factId;
@@ -361,7 +355,7 @@ describe("findTopMatchingCards", () => {
     expect(results.map((r) => r.variantId)).not.toContain(factId);
   });
 
-  it("returns the same ids, order and similarities as the old in-memory ranking on fixed vectors", async () => {
+  it("should rank cards in search after the JSON copy is gone", async () => {
     const fixed: Record<string, number[]> = {
       closest: [0.9, 0.1, 0.05],
       close: [0.7, 0.5, 0.1],
@@ -385,12 +379,13 @@ describe("findTopMatchingCards", () => {
       }),
     ) as unknown as typeof fetch;
 
-    const expected = rankBySimilarity(
-      padEmbedding(query),
-      Object.entries(fixed).map(([name, vector]) => ({ name, embedding: padEmbedding(vector) })),
-      1000,
-      0.3,
-    );
+    const expected = Object.entries(fixed)
+      .map(([name, vector]) => ({
+        name,
+        similarity: cosineSimilarity(padEmbedding(query), padEmbedding(vector)),
+      }))
+      .filter((item) => item.similarity >= 0.3)
+      .sort((a, b) => b.similarity - a.similarity);
     const results = (await findTopMatchingCards("fixed", 1000, 0.3)).filter((r) =>
       idsByName.has(r.variantId),
     );

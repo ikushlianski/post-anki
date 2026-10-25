@@ -67,9 +67,9 @@ async function seedFact(
   const id = `fact_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO facts (id, body, source, source_ref, tags, embedding, embedding_hash)
+    `INSERT INTO facts (id, body, source, source_ref, tags, embedding_vec, embedding_hash)
      VALUES ($1, $2, 'notion', $3, '["SPA"]', $4, $5)`,
-    [id, body, `notion:${randomUUID()}`, embedding ? JSON.stringify(embedding) : null, embeddingHash],
+    [id, body, `notion:${randomUUID()}`, embedding ? JSON.stringify(padEmbedding(embedding)) : null, embeddingHash],
   );
 
   return id;
@@ -79,12 +79,6 @@ async function vectorOf(id: string): Promise<number[]> {
   const { rows } = await client.query(`SELECT embedding_vec::text AS v FROM facts WHERE id = $1`, [id]);
 
   return JSON.parse(rows[0]!.v);
-}
-
-async function embeddingOf(id: string): Promise<number[] | null> {
-  const { rows } = await client.query(`SELECT embedding FROM facts WHERE id = $1`, [id]);
-
-  return rows[0]!.embedding;
 }
 
 const originalFetch = global.fetch;
@@ -112,7 +106,6 @@ describe("embedFacts", () => {
 
     await embedFacts();
 
-    expect(await embeddingOf(id)).toEqual(padEmbedding([1, 2, 3]));
     expect(await vectorOf(id)).toEqual(padEmbedding([1, 2, 3]));
   });
 
@@ -122,7 +115,7 @@ describe("embedFacts", () => {
 
     await embedFacts();
 
-    expect(await embeddingOf(id)).toEqual([9, 9, 9]);
+    expect(await vectorOf(id)).toEqual(padEmbedding([9, 9, 9]));
   });
 
   it("re-embeds a fact whose body changed since it was last embedded", async () => {
@@ -130,7 +123,7 @@ describe("embedFacts", () => {
 
     await embedFacts();
 
-    expect(await embeddingOf(id)).toEqual(padEmbedding([1, 2, 3]));
+    expect(await vectorOf(id)).toEqual(padEmbedding([1, 2, 3]));
   });
 
   it("makes no embedding API call when every fact is already current", async () => {

@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -60,12 +61,12 @@ async function seedBit(
       ordinal: Number(id.replace(/\D/g, "")) || 0,
       body: `body ${id}`,
       approvalState: options.approved === false ? "pending" : "approved",
-      embedding: options.embedding === undefined ? [1, 0, 0] : options.embedding,
+      embeddingVec: options.embedding === undefined ? padEmbedding([1, 0, 0]) : options.embedding && padEmbedding(options.embedding),
     });
 }
 
 describe("subject suggestion evidence repo", () => {
-  it("should list only approved, embedded bits with no subject as unplaced", async () => {
+  it("should cluster unplaced bits from embedding_vec only", async () => {
     await getDb().insert(subjects).values({ id: "sub_a", name: "A" });
     await seedSource("src_free", null);
     await seedSource("src_filed", "sub_a");
@@ -77,6 +78,7 @@ describe("subject suggestion evidence repo", () => {
     const unplaced = await evidence.listUnplacedApprovedBits(10);
 
     expect(unplaced.map((bit) => bit.id)).toEqual(["kb_1"]);
+    expect(unplaced[0]!.embedding).toEqual(padEmbedding([1, 0, 0]));
   });
 
   it("should count approved bits per effective subject", async () => {

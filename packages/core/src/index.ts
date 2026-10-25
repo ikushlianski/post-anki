@@ -34,7 +34,7 @@ export * from "./topic/is-calibration-required-for-socratic";
 export * from "./subject-category/index";
 export * from "./mastra/index";
 export * from "./cards/filter-card-browser-rows";
-export * from "./cards/rank-by-similarity";
+export * from "./cards/min-match-similarity";
 export * from "./shared/hash-content";
 export * from "./notion-connector/index";
 export * from "./biz-education-distiller/index";

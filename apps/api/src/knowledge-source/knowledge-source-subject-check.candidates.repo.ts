@@ -65,7 +65,7 @@ export async function listSubjectCheckCandidateSet(db: DbExecutor = getDb()): Pr
       parentId: subjects.parentId,
       kind: subjects.kind,
       description: subjects.description,
-      embedding: subjects.embedding,
+      embedding: subjects.embeddingVec,
     })
     .from(subjects);
   const parentIds = new Set(rows.flatMap((row) => (row.parentId === null ? [] : [row.parentId])));

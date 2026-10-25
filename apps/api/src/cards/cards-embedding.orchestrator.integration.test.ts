@@ -105,12 +105,16 @@ async function seedTopicWithCardVariant(
     [cardId, cardSetId, "Concept"],
   );
   await client.query(
-    `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer, embedding, embedding_hash)
+    `INSERT INTO topic_card_variants (id, card_id, "order", prompt, answer, embedding_vec, embedding_hash)
      VALUES ($1, $2, 1, $3, $4, $5, $6)`,
-    [variantId, cardId, prompt, answer, embedding ? JSON.stringify(embedding) : null, embeddingHash],
+    [variantId, cardId, prompt, answer, embedding ? JSON.stringify(padEmbedding(embedding)) : null, embeddingHash],
   );
 
   return variantId;
+}
+
+function parseVector(text: string): number[] {
+  return JSON.parse(text) as number[];
 }
 
 const originalFetch = global.fetch;
@@ -144,11 +148,10 @@ describe("triggerCardEmbeddingScan", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
     expect(JSON.parse(rows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([1, 2, 3]).map((n) => expect.closeTo(n, 3)));
     expect(rows[0]!.embedding_hash).not.toBeNull();
     expect(rows[0]!.embedded_at).not.toBeNull();
@@ -168,11 +171,11 @@ describe("triggerCardEmbeddingScan", () => {
     await triggerCardEmbeddingScan();
 
     const { rows } = await client.query(
-      `SELECT embedding FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual([9, 9, 9]);
+    expect(parseVector(rows[0]!.embedding_vec)).toEqual(padEmbedding([9, 9, 9]));
   });
 
   it("re-embeds a variant whose content changed since its cached hash", async () => {
@@ -186,11 +189,11 @@ describe("triggerCardEmbeddingScan", () => {
     await triggerCardEmbeddingScan();
 
     const { rows } = await client.query(
-      `SELECT embedding FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
+    expect(parseVector(rows[0]!.embedding_vec)).toEqual(padEmbedding([1, 2, 3]));
   });
 
   it("makes zero embedding API calls on a rescan when nothing changed", async () => {
@@ -202,10 +205,10 @@ describe("triggerCardEmbeddingScan", () => {
     await triggerCardEmbeddingScan();
 
     const { rows: firstRows } = await client.query(
-      `SELECT embedding, embedding_hash FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec, embedding_hash FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
-    expect(firstRows[0]!.embedding).toEqual(padEmbedding([1, 2, 3]));
+    expect(parseVector(firstRows[0]!.embedding_vec)).toEqual(padEmbedding([1, 2, 3]));
 
     vi.mocked(global.fetch).mockClear();
 

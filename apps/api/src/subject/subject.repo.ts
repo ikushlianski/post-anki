@@ -305,7 +305,7 @@ export async function updateSubjectEmbedding(
 ): Promise<void> {
   await getDb()
     .update(subjects)
-    .set({ embedding, embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
+    .set({ embeddingVec: embedding, embeddingHash: hash, embeddedAt: new Date() })
     .where(eq(subjects.id, subjectId));
 }
 

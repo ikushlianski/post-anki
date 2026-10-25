@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+import { padEmbedding } from "../db/pad-embedding.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -82,7 +83,7 @@ async function seedFullyDerivedKnowledgeBit(
   await client.query(
     `INSERT INTO knowledge_bits
        (id, knowledge_source_id, ordinal, body,
-        embedding, embedding_hash, embedded_at,
+        embedding_vec, embedding_hash, embedded_at,
         tagged_at, tag_failed_at,
         topic_id, placement_suggestion, placement_checked_at, placement_failed_at,
         placement_suggestion_resolved_at,
@@ -109,7 +110,7 @@ async function seedFullyDerivedKnowledgeBit(
         $4, $4,
         2, $4,
         'basic-card-claim-token')`,
-    [id, knowledgeSourceId, JSON.stringify([0.1, 0.2]), now, topicId, ordinal],
+    [id, knowledgeSourceId, JSON.stringify(padEmbedding([0.1, 0.2])), now, topicId, ordinal],
   );
 
   return id;
@@ -264,14 +265,14 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     expect(rows[0]!.background).toBe("Original background.");
   });
 
-  it("resets embedding, tagging, and placement columns to null", async () => {
+  it("should reset embedding_vec, hash and embedded_at when a bit's body is edited", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedFullyDerivedKnowledgeBit(sourceId);
 
     await updateKnowledgeBitBody(id, "Revised body.");
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_hash, embedded_at, tagged_at, tag_failed_at,
+      `SELECT embedding_vec, embedding_hash, embedded_at, tagged_at, tag_failed_at,
               placement_suggestion, placement_checked_at, placement_failed_at,
               placement_suggestion_resolved_at
        FROM knowledge_bits WHERE id = $1`,
@@ -279,7 +280,7 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     );
     const row = rows[0]!;
 
-    expect(row.embedding).toBeNull();
+    expect(row.embedding_vec).toBeNull();
     expect(row.embedding_hash).toBeNull();
     expect(row.embedded_at).toBeNull();
     expect(row.tagged_at).toBeNull();

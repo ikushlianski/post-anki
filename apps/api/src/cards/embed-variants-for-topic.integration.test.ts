@@ -140,11 +140,11 @@ describe("embedVariantsForTopic", () => {
     await embedVariantsForTopic(topicId);
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_hash, embedded_at FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM topic_card_variants WHERE id = $1`,
       [variantId],
     );
 
-    expect(rows[0]!.embedding).toEqual(padEmbedding([4, 4, 4]));
+    expect(JSON.parse(rows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([4, 4, 4]));
     expect(rows[0]!.embedding_hash).not.toBeNull();
     expect(rows[0]!.embedded_at).not.toBeNull();
   });
@@ -156,15 +156,15 @@ describe("embedVariantsForTopic", () => {
     await embedVariantsForTopic(own.topicId);
 
     const { rows: ownRows } = await client.query(
-      `SELECT embedding FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec FROM topic_card_variants WHERE id = $1`,
       [own.variantId],
     );
     const { rows: otherRows } = await client.query(
-      `SELECT embedding FROM topic_card_variants WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec FROM topic_card_variants WHERE id = $1`,
       [other.variantId],
     );
 
-    expect(ownRows[0]!.embedding).toEqual(padEmbedding([4, 4, 4]));
-    expect(otherRows[0]!.embedding).toBeNull();
+    expect(JSON.parse(ownRows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([4, 4, 4]));
+    expect(otherRows[0]!.embedding_vec).toBeNull();
   });
 });

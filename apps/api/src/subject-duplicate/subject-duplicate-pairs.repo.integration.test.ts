@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { findDuplicatePairs } from "@post-anki/core";
+import { cosineSimilarity } from "@post-anki/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
@@ -52,7 +52,7 @@ afterAll(async () => {
 });
 
 describe("findSimilarSubjectPairs", () => {
-  it("should surface the same pairs, canonical order and similarities as the old in-memory comparison", async () => {
+  it("should surface near-duplicate subjects of the same kind as one canonically ordered pair with its cosine similarity", async () => {
     const fixed = [
       { id: "sub_b", kind: "architecture-mentor", embedding: [1, 0.001, 0] },
       { id: "sub_a", kind: "architecture-mentor", embedding: [0.9995, 0.002, 0] },
@@ -66,28 +66,22 @@ describe("findSimilarSubjectPairs", () => {
       const value = row.embedding ? JSON.stringify(padEmbedding(row.embedding)) : null;
 
       await client.query(
-        `INSERT INTO subjects (id, name, kind, embedding, embedding_vec) VALUES ($1, $1, $2, $3, $4)`,
-        [row.id, row.kind, value, value],
+        `INSERT INTO subjects (id, name, kind, embedding_vec) VALUES ($1, $1, $2, $3)`,
+        [row.id, row.kind, value],
       );
     }
 
-    const expected = findDuplicatePairs(
-      fixed
-        .filter((row) => row.kind === "architecture-mentor" && row.embedding)
-        .map((row) => ({ id: row.id, embedding: padEmbedding(row.embedding!) })),
-    );
     const actual = await findSimilarSubjectPairs(0.86);
     const byKey = (p: { subjectAId: string; subjectBId: string }) => `${p.subjectAId}|${p.subjectBId}`;
 
-    expect(actual.map(byKey).sort()).toEqual(expected.map(byKey).sort());
-    expect(actual.map(byKey)).toContain("sub_a|sub_b");
-    expect(actual.map(byKey)).toContain("sub_c|sub_d");
-    expect(actual.length).toBe(2);
+    expect(actual.map(byKey).sort()).toEqual(["sub_a|sub_b", "sub_c|sub_d"]);
 
-    for (const pair of actual) {
-      const match = expected.find((e) => byKey(e) === byKey(pair))!;
+    const similarityOf = (left: number[], right: number[]) =>
+      cosineSimilarity(padEmbedding(left), padEmbedding(right));
+    const sabPair = actual.find((pair) => byKey(pair) === "sub_a|sub_b")!;
+    const scdPair = actual.find((pair) => byKey(pair) === "sub_c|sub_d")!;
 
-      expect(pair.similarity).toBeCloseTo(match.similarity, 5);
-    }
+    expect(sabPair.similarity).toBeCloseTo(similarityOf([0.9995, 0.002, 0], [1, 0.001, 0]), 5);
+    expect(scdPair.similarity).toBeCloseTo(similarityOf([0, 1, 0], [0, 0.98, 0.1]), 5);
   });
 });

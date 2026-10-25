@@ -86,14 +86,14 @@ async function seedKnowledgeBit(
   const id = `kb_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, embedding, embedding_hash, embedded_at, approval_state)
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, embedding_vec, embedding_hash, embedded_at, approval_state)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')`,
     [
       id,
       knowledgeSourceId,
       ordinal,
       body,
-      embedding ? JSON.stringify(embedding) : null,
+      embedding ? JSON.stringify(padEmbedding(embedding)) : null,
       embeddingHash,
       embeddedAt,
     ],
@@ -145,18 +145,17 @@ describe("listKnowledgeBitsForEmbeddingScan (real Postgres)", () => {
 });
 
 describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
-  it("persists all three columns correctly when read back from the database", async () => {
+  it("persists the vector, hash and timestamp correctly when read back from the database", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedKnowledgeBit(sourceId, 0, "A bit to embed");
 
     await updateKnowledgeBitEmbedding(id, padEmbedding([0.1, 0.2, 0.3]), "hash_abc", "A bit to embed");
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
       [id],
     );
 
-    expect(rows[0]!.embedding).toEqual(padEmbedding([0.1, 0.2, 0.3]));
     expect(JSON.parse(rows[0]!.embedding_vec) as number[]).toEqual(padEmbedding([0.1, 0.2, 0.3]).map((n) => expect.closeTo(n, 3)));
     expect(rows[0]!.embedding_hash).toBe("hash_abc");
     expect(rows[0]!.embedded_at).toBeInstanceOf(Date);
@@ -174,11 +173,11 @@ describe("updateKnowledgeBitEmbedding (real Postgres)", () => {
     await updateKnowledgeBitEmbedding(id, padEmbedding([0.1, 0.2, 0.3]), "hash_abc", "The original body");
 
     const { rows } = await client.query(
-      `SELECT embedding, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
+      `SELECT embedding_vec::text AS embedding_vec, embedding_hash, embedded_at FROM knowledge_bits WHERE id = $1`,
       [id],
     );
 
-    expect(rows[0]!.embedding).toBeNull();
+    expect(rows[0]!.embedding_vec).toBeNull();
     expect(rows[0]!.embedding_hash).toBeNull();
     expect(rows[0]!.embedded_at).toBeNull();
   });
