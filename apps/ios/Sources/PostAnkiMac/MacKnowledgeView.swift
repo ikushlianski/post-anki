@@ -23,9 +23,13 @@ struct MacKnowledgeView: View {
                 .navigationDestination(for: MacKnowledgeRoute.self) { route in
                     switch route {
                     case .item(let item):
-                        KnowledgeItemDetailScreen(item: item, subjectName: model.subjectName(for: item.subjectId)) { state in
-                            model.update(item.id, state: state)
-                        }
+                        KnowledgeItemDetailScreen(
+                            item: item,
+                            subjectName: model.subjectName(for: item.subjectId),
+                            onStateChange: { state in model.update(item.id, state: state) },
+                            onDeleted: { model.remove(item.id) },
+                            onMoved: { _ in Task { await model.reload() } }
+                        )
                         .id(item.id)
                     case .suspended:
                         SuspendedKnowledgeScreen()

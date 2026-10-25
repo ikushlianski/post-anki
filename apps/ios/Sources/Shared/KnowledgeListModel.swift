@@ -128,6 +128,11 @@ final class KnowledgeListModel {
         items[index].state = state
     }
 
+    func remove(_ itemId: String) {
+        items.removeAll { $0.id == itemId }
+        selection.remove(itemId)
+    }
+
     func toggle(_ id: String) {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }

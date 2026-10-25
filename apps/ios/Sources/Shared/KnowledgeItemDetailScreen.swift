@@ -5,17 +5,35 @@ struct KnowledgeItemDetailScreen: View {
     let item: KnowledgeOverviewItem
     let subjectName: String?
     let onStateChange: (String) -> Void
+    let onDeleted: () -> Void
+    let onMoved: (String) -> Void
 
     @State private var state: String
     @State private var isBusy = false
     @State private var message: String?
+    @State private var actions: KnowledgeItemActionsModel
+    @State private var editing = false
+    @State private var choosingSubject = false
+    @State private var confirmingDelete = false
+    @Environment(\.dismiss) private var dismiss
 
-    init(item: KnowledgeOverviewItem, subjectName: String?, onStateChange: @escaping (String) -> Void) {
+    init(
+        item: KnowledgeOverviewItem,
+        subjectName: String?,
+        onStateChange: @escaping (String) -> Void,
+        onDeleted: @escaping () -> Void = {},
+        onMoved: @escaping (String) -> Void = { _ in }
+    ) {
         self.item = item
         self.subjectName = subjectName
         self.onStateChange = onStateChange
+        self.onDeleted = onDeleted
+        self.onMoved = onMoved
         _state = State(initialValue: item.state)
+        _actions = State(initialValue: KnowledgeItemActionsModel(item: item))
     }
+
+    private var shownSubjectName: String? { actions.subjectName ?? subjectName }
 
     private var isSuspended: Bool { state == "suspended" }
     private var isBuried: Bool { state == "buried" }
@@ -28,15 +46,15 @@ struct KnowledgeItemDetailScreen: View {
 
     var body: some View {
         List {
-            Section("Question") { Text(item.question) }
-            Section("Answer") { Text(item.answer) }
+            Section("Question") { Text(actions.question) }
+            Section("Answer") { Text(actions.answer) }
 
-            SynonymsSection(bitId: item.id, question: item.question)
+            SynonymsSection(bitId: item.id, question: actions.question)
 
             Section {
                 LabeledContent("Status", value: KnowledgeOverviewItem.label(for: state))
 
-                if let subjectName { LabeledContent("Subject", value: subjectName) }
+                if let shownSubjectName { LabeledContent("Subject", value: shownSubjectName) }
 
                 if let due = item.dueAt.flatMap({ DueReviewModel.nextDueText($0) }) {
                     LabeledContent("Due", value: due)
@@ -47,13 +65,11 @@ struct KnowledgeItemDetailScreen: View {
 
             Section {
                 Button(actionTitle) { Task { await toggle() } }
-                    .disabled(isBusy)
+                    .disabled(isBusy || actions.isBusy)
 
-                if let message {
+                if let message = message ?? actions.message {
                     Text(message).zoomFont(.caption).foregroundStyle(.red)
                 }
-            } footer: {
-                Text("To change the wording, edit it while reviewing it.")
             }
 
             MoreVariantsSection(bitId: item.id)
@@ -62,6 +78,43 @@ struct KnowledgeItemDetailScreen: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .toolbar { toolbar }
+        .sheet(isPresented: $editing) {
+            QuestionVariantEditSheet(prompt: actions.question, answer: actions.answer) { prompt, answer in
+                await actions.edit(prompt: prompt, answer: answer)
+            }
+        }
+        .sheet(isPresented: $choosingSubject) {
+            KnowledgeMoveSheet(subjects: actions.subjects.filter { $0.id != actions.subjectId }) { subject in
+                Task { if await actions.move(to: subject) { onMoved(subject.id) } }
+            }
+        }
+        .confirmationDialog("Delete this item? This can't be undone.", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) { Task { await delete() } }
+            Button("Cancel", role: .cancel) {}
+        }
+        .task { await actions.loadSubjects() }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button("Edit", systemImage: "pencil") { editing = true }
+                Button("Move to subject", systemImage: "folder") { choosingSubject = true }
+                Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+            } label: {
+                Label("Actions", systemImage: "ellipsis.circle")
+            }
+            .disabled(isBusy || actions.isBusy)
+        }
+    }
+
+    private func delete() async {
+        guard await actions.delete() else { return }
+
+        onDeleted()
+        dismiss()
     }
 
     private func toggle() async {

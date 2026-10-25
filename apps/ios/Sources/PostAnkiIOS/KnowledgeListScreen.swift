@@ -19,9 +19,13 @@ struct KnowledgeListScreen: View {
             .toolbar { toolbar }
             .safeAreaInset(edge: .bottom, spacing: 0) { selectionBar }
             .navigationDestination(for: KnowledgeOverviewItem.self) { item in
-                KnowledgeItemDetailScreen(item: item, subjectName: model.subjectName(for: item.subjectId)) { state in
-                    model.update(item.id, state: state)
-                }
+                KnowledgeItemDetailScreen(
+                    item: item,
+                    subjectName: model.subjectName(for: item.subjectId),
+                    onStateChange: { state in model.update(item.id, state: state) },
+                    onDeleted: { model.remove(item.id) },
+                    onMoved: { _ in Task { await model.reload() } }
+                )
             }
             .navigationDestination(isPresented: $showSuspended) { SuspendedKnowledgeScreen() }
             .confirmationDialog(
