@@ -23,6 +23,20 @@ let poolB: pg.Pool;
 let dbA: ReturnType<typeof drizzle<typeof schema>>;
 let dbB: ReturnType<typeof drizzle<typeof schema>>;
 
+async function waitForSessionsToClose(): Promise<void> {
+  const deadline = Date.now() + 5_000;
+
+  while (Date.now() < deadline) {
+    const { rows } = await adminPool.query(`SELECT 1 FROM pg_stat_activity WHERE datname = $1`, [TEST_DB_NAME]);
+
+    if (rows.length === 0) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 beforeAll(async () => {
   adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
   await adminPool.query(`CREATE DATABASE ${TEST_DB_NAME}`);
@@ -39,6 +53,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await poolA?.end();
   await poolB?.end();
+  await waitForSessionsToClose();
   await adminPool?.query(`DROP DATABASE IF EXISTS ${TEST_DB_NAME} WITH (FORCE)`);
   await adminPool?.end();
 });
