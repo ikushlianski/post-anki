@@ -108,7 +108,7 @@ export async function rejectKnowledgeBit(
 }
 
 export type EditKnowledgeBitQuestionVariantResult =
-  | { ok: true; variantId: string }
+  | { ok: true; variantId: string; knowledgeBitId: string }
   | { error: "not_found" | "blocked" };
 
 // Mirrors updateKnowledgeBitBody's supersede step: detach the old row, insert a fresh one in the
@@ -186,7 +186,11 @@ export async function editKnowledgeBitQuestionVariant(
       answer,
     });
 
-    return { ok: true as const, variantId: newVariantId };
+    return {
+      ok: true as const,
+      variantId: newVariantId,
+      knowledgeBitId: existing.knowledgeBitId,
+    };
   });
 }
 

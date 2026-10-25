@@ -156,7 +156,11 @@ describe("handleEditKnowledgeBitQuestionVariant", () => {
   });
 
   it("should dispatch the parsed prompt and answer to the repo and return the new variant", async () => {
-    editKnowledgeBitQuestionVariant.mockResolvedValue({ ok: true, variantId: "kbqv_new" });
+    editKnowledgeBitQuestionVariant.mockResolvedValue({
+      ok: true,
+      variantId: "kbqv_new",
+      knowledgeBitId: "kb_1",
+    });
 
     const req = fakeReq({ prompt: "New prompt", answer: "New answer" });
     const res = fakeRes();
@@ -170,6 +174,38 @@ describe("handleEditKnowledgeBitQuestionVariant", () => {
     );
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, variantId: "kbqv_new" });
+  });
+
+  it("an edited card is re-embedded for its bit so search finds the new wording", async () => {
+    editKnowledgeBitQuestionVariant.mockResolvedValue({
+      ok: true,
+      variantId: "kbqv_new",
+      knowledgeBitId: "kb_1",
+    });
+
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(
+      fakeReq({ prompt: "New prompt", answer: "New answer" }),
+      res,
+      "kbqv_1",
+    );
+
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledTimes(1);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
+    expect(res.body).toEqual({ ok: true, variantId: "kbqv_new" });
+  });
+
+  it("a rejected edit triggers no embedding", async () => {
+    editKnowledgeBitQuestionVariant.mockResolvedValue({ error: "blocked" });
+
+    await handleEditKnowledgeBitQuestionVariant(
+      fakeReq({ prompt: "New prompt", answer: "New answer" }),
+      fakeRes(),
+      "kbqv_1",
+    );
+
+    expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
   });
 
   it("should return 404 not_found when the repo reports the variant is missing", async () => {

@@ -4,10 +4,15 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
+  embedApprovedKnowledgeBits: vi.fn(),
+}));
+
 vi.mock("../card-triage/style-notes-loader.js", () => ({
   loadStyleNotesBlocksForBits: vi.fn(),
 }));
 
+const { embedApprovedKnowledgeBits } = await import("./knowledge-bit-approval-embedding.orchestrator.js");
 const { loadStyleNotesBlocksForBits } = await import("../card-triage/style-notes-loader.js");
 
 vi.mock("./knowledge-bit-wh-question-claim.repo.js", () => ({
@@ -316,5 +321,52 @@ describe("generateKnowledgeBitQuestions concurrency", () => {
     expect(maxInFlight).toBe(4);
     expect(recordGeneratedQuestionVariant).toHaveBeenCalledTimes(6);
     expect(result).toEqual({ scanned: 6, generated: 6, failed: 0, skipped: 0 });
+  });
+});
+
+describe("generateKnowledgeBitQuestions embedding", () => {
+  const bit = { id: "kb_1", body: "Price anchors shape perceived value" };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
+    vi.mocked(claimKnowledgeBitForWhQuestionGeneration).mockResolvedValue(FAKE_CLAIM_TOKEN);
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockResolvedValue({
+      question: "Why does an initial price anchor shift what feels fair later?",
+      answer: "Because the first number seen sets the reference point comparisons are made against.",
+    });
+  });
+
+  it("a newly generated card becomes searchable without waiting for the scan", async () => {
+    vi.mocked(recordGeneratedQuestionVariant).mockImplementation(async () => {
+      expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
+    });
+
+    await generateKnowledgeBitQuestions();
+
+    expect(recordGeneratedQuestionVariant).toHaveBeenCalledTimes(1);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledTimes(1);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
+  });
+
+  it("an embedding outage does not lose the generated card", async () => {
+    vi.mocked(embedApprovedKnowledgeBits).mockRejectedValue(new Error("embeddings down"));
+
+    const result = await generateKnowledgeBitQuestions();
+
+    expect(recordGeneratedQuestionVariant).toHaveBeenCalledTimes(1);
+    expect(markWhQuestionGenerationFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
+  });
+
+  it("a bit whose card could not be generated is not sent for embedding", async () => {
+    vi.mocked(listKnowledgeBitsForWhQuestionGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitQuestionGenerator).mockRejectedValue(new Error("provider down"));
+
+    await generateKnowledgeBitQuestions();
+
+    expect(recordGeneratedQuestionVariant).not.toHaveBeenCalled();
+    expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
   });
 });

@@ -93,5 +93,7 @@ export async function handleEditKnowledgeBitQuestionVariant(
     return;
   }
 
-  sendJson(res, 200, result);
+  await embedApprovedKnowledgeBits([result.knowledgeBitId]);
+
+  sendJson(res, 200, { ok: true, variantId: result.variantId });
 }

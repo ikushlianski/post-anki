@@ -13,6 +13,7 @@ vi.mock("./knowledge-bit-question-variant.repo.js", () => ({
   updateQuestionVariantEmbedding: vi.fn(),
 }));
 
+const { LlmBudgetExceededError } = await import("../shared/spend-guard.js");
 const { embedTexts } = await import("../shared/embeddings-client.js");
 const repo = await import("./knowledge-bit-embedding.repo.js");
 const { updateQuestionVariantEmbedding } = await import("./knowledge-bit-question-variant.repo.js");
@@ -75,6 +76,31 @@ describe("embedApprovedKnowledgeBits", () => {
 
     expect(repo.updateKnowledgeBitEmbedding).not.toHaveBeenCalled();
     expect(updateQuestionVariantEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("a spend-limit stop leaves the card unembedded for the scan and does not throw", async () => {
+    vi.mocked(embedTexts).mockRejectedValue(new LlmBudgetExceededError(1, 1));
+
+    await expect(embedApprovedKnowledgeBits(["b1"])).resolves.toBeUndefined();
+
+    expect(updateQuestionVariantEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("a bit-embedding failure does not stop its cards from being embedded", async () => {
+    vi.mocked(embedTexts)
+      .mockRejectedValueOnce(new Error("bit step down"))
+      .mockImplementationOnce(async (items) =>
+        items.map((item) => ({ id: item.id, embedding: [0.1, 0.2] })),
+      );
+
+    await embedApprovedKnowledgeBits(["b1"]);
+
+    expect(repo.updateKnowledgeBitEmbedding).not.toHaveBeenCalled();
+    expect(updateQuestionVariantEmbedding).toHaveBeenCalledWith(
+      "v1",
+      [0.1, 0.2],
+      hashContent("Q?\nA"),
+    );
   });
 
   it("should never fail the approval when the database lookup errors", async () => {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { log } from "../shared/log.js";
+import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.orchestrator.js";
 import type { VariantGenerationScope } from "./knowledge-bit-variant-generation-gate.js";
 import { mapWithConcurrency } from "../shared/map-with-concurrency.js";
 import { loadStyleNotesBlocksForBits } from "../card-triage/style-notes-loader.js";
@@ -94,6 +95,12 @@ export async function generateKnowledgeBitFillBlanks(
           undefined,
           sentence.data,
         );
+        try {
+          await embedApprovedKnowledgeBits([bit.id]);
+        } catch (embedErr) {
+          log.warn({ err: embedErr, knowledgeBitId: bit.id }, "knowledge_bit_fill_blank_generation_embed_failed");
+        }
+
         return "generated";
       } catch (err) {
         log.warn({ err, knowledgeBitId: bit.id }, "knowledge_bit_fill_blank_generation_failed");

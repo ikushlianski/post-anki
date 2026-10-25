@@ -4,10 +4,15 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
+  embedApprovedKnowledgeBits: vi.fn(),
+}));
+
 vi.mock("../card-triage/style-notes-loader.js", () => ({
   loadStyleNotesBlocksForBits: vi.fn(),
 }));
 
+const { embedApprovedKnowledgeBits } = await import("./knowledge-bit-approval-embedding.orchestrator.js");
 const { loadStyleNotesBlocksForBits } = await import("../card-triage/style-notes-loader.js");
 
 vi.mock("./knowledge-bit-basic-card-claim.repo.js", () => ({
@@ -183,5 +188,49 @@ describe("generateKnowledgeBitBasicCards concurrency", () => {
     expect(maxInFlight).toBe(4);
     expect(recordGeneratedBasicCardVariant).toHaveBeenCalledTimes(6);
     expect(result).toEqual({ scanned: 6, generated: 6, failed: 0, skipped: 0 });
+  });
+});
+
+describe("generateKnowledgeBitBasicCards embedding", () => {
+  const bit = { id: "kb_1", body: "Price anchors shape perceived value" };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(loadStyleNotesBlocksForBits).mockResolvedValue(new Map());
+    vi.mocked(claimKnowledgeBitForBasicCardGeneration).mockResolvedValue(TOKEN);
+    vi.mocked(listKnowledgeBitsForBasicCardGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitBasicCardGenerator).mockResolvedValue({ front: "What does TTL stand for?", back: "Time to live" });
+  });
+
+  it("a newly generated card becomes searchable without waiting for the scan", async () => {
+    vi.mocked(recordGeneratedBasicCardVariant).mockImplementation(async () => {
+      expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
+    });
+
+    await generateKnowledgeBitBasicCards();
+
+    expect(recordGeneratedBasicCardVariant).toHaveBeenCalledTimes(1);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledTimes(1);
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
+  });
+
+  it("an embedding outage does not lose the generated card", async () => {
+    vi.mocked(embedApprovedKnowledgeBits).mockRejectedValue(new Error("embeddings down"));
+
+    const result = await generateKnowledgeBitBasicCards();
+
+    expect(recordGeneratedBasicCardVariant).toHaveBeenCalledTimes(1);
+    expect(markBasicCardGenerationFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({ scanned: 1, generated: 1, failed: 0, skipped: 0 });
+  });
+
+  it("a bit whose card could not be generated is not sent for embedding", async () => {
+    vi.mocked(listKnowledgeBitsForBasicCardGenerationScan).mockResolvedValue([bit]);
+    vi.mocked(runKnowledgeBitBasicCardGenerator).mockResolvedValue({ front: "What is TTL?", back: "what is ttl?" });
+
+    await generateKnowledgeBitBasicCards();
+
+    expect(recordGeneratedBasicCardVariant).not.toHaveBeenCalled();
+    expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
   });
 });
