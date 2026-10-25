@@ -702,6 +702,7 @@ export const apiTokens = pgTable("api_tokens", {
   id: text("id").primaryKey(),
   label: text("label").notNull(),
   tokenHash: text("token_hash").notNull().unique(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
