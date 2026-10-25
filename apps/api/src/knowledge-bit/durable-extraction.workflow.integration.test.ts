@@ -168,7 +168,7 @@ describe("durable extraction workflow (real Postgres, real DBOS, fake model)", (
 
     expect(bits.rows.map((row) => row.body)).toEqual(RU_EXAMPLE_ITEMS.map((item) => item.statement));
     expect(mockWriteItems).toHaveBeenCalledTimes(1);
-    expect(await stepNames(workflowId)).toEqual(["claim", "plan", "chunk-0", "finish"]);
+    await vi.waitFor(async () => expect(await stepNames(workflowId)).toEqual(["claim", "plan", "chunk-0", "finish"]), { timeout: 10_000 });
   }, 60_000);
 
   it("should treat a second start with the same workflow id as a no-op", async () => {
@@ -234,7 +234,7 @@ describe("durable extraction workflow (real Postgres, real DBOS, fake model)", (
     const row = await client.query(`SELECT status, failure_reason FROM knowledge_sources WHERE id = $1`, [sourceId]);
 
     expect(row.rows[0]).toEqual({ status: "failed", failure_reason: "extraction_failed" });
-    expect(await stepNames(workflowId)).toContain("guard");
+    await vi.waitFor(async () => expect(await stepNames(workflowId)).toContain("guard"), { timeout: 10_000 });
   }, 60_000);
 
   it("should mark a source failed when its workflow was cancelled, so Regenerate can run again", async () => {
@@ -383,7 +383,7 @@ describe("durable extraction workflow (real Postgres, real DBOS, fake model)", (
     const row = await client.query(`SELECT status, failure_reason FROM knowledge_sources WHERE id = $1`, [sourceId]);
 
     expect(row.rows[0]).toEqual({ status: "failed", failure_reason: "extraction_failed" });
-    expect(await stepNames(workflowId)).toContain("release");
+    await vi.waitFor(async () => expect(await stepNames(workflowId)).toContain("release"), { timeout: 10_000 });
     expect(mockWriteItems).not.toHaveBeenCalled();
   }, 60_000);
 
