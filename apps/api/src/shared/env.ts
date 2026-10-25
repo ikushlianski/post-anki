@@ -104,11 +104,13 @@ const envSchema = envObject.superRefine((env, ctx) => {
 
   const secretRequired = env.NODE_ENV === "production" || Boolean(env.RESEND_API_KEY);
 
-  if (secretRequired && (env.BETTER_AUTH_SECRET?.length ?? 0) < MIN_AUTH_SECRET_LENGTH) {
+  const hasOwnAuthSecret = (env.BETTER_AUTH_SECRET?.length ?? 0) >= MIN_AUTH_SECRET_LENGTH;
+
+  if (secretRequired && !hasOwnAuthSecret && !env.API_SHARED_SECRET) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["BETTER_AUTH_SECRET"],
-      message: `required (at least ${MIN_AUTH_SECRET_LENGTH} characters) in production or when RESEND_API_KEY is set`,
+      message: `required (at least ${MIN_AUTH_SECRET_LENGTH} characters) in production or when RESEND_API_KEY is set, unless API_SHARED_SECRET is set`,
     });
   }
 

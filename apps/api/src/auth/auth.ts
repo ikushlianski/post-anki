@@ -1,3 +1,4 @@
+import { hkdfSync } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -11,6 +12,7 @@ import { isOwnerEmail } from "./owner-user.js";
 import { sendMagicLink } from "./send-magic-link.js";
 
 const DEFAULT_WEB_ORIGIN = "http://localhost:5540";
+const MIN_AUTH_SECRET_LENGTH = 32;
 const MAGIC_LINK_TTL_SECONDS = 600;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const SIGN_IN_RATE = { window: 60, max: 5 };
@@ -38,13 +40,25 @@ const ownerOnlySignIn = createAuthMiddleware(async (ctx) => {
   });
 });
 
+function resolveAuthSecret(env: ReturnType<typeof loadEnv>): string | undefined {
+  if (env.BETTER_AUTH_SECRET && env.BETTER_AUTH_SECRET.length >= MIN_AUTH_SECRET_LENGTH) {
+    return env.BETTER_AUTH_SECRET;
+  }
+
+  if (!env.API_SHARED_SECRET) {
+    return env.BETTER_AUTH_SECRET;
+  }
+
+  return Buffer.from(hkdfSync("sha256", env.API_SHARED_SECRET, "post-anki", "better-auth-secret", 32)).toString("hex");
+}
+
 export function createAuth(db: Db, sendLink: typeof sendMagicLink = sendMagicLink) {
   const env = loadEnv();
   const origin = env.BETTER_AUTH_URL ?? DEFAULT_WEB_ORIGIN;
 
   return betterAuth({
     baseURL: origin,
-    secret: env.BETTER_AUTH_SECRET,
+    secret: resolveAuthSecret(env),
     trustedOrigins: [origin],
     database: drizzleAdapter(db, { provider: "pg", usePlural: true, schema }),
     session: { expiresIn: SESSION_TTL_SECONDS },

@@ -21,7 +21,7 @@ export const checkWebSession = createWebSessionChecker({
   isConfigured: () => {
     const env = loadEnv();
 
-    return Boolean(env.BETTER_AUTH_SECRET) && Boolean(env.OWNER_EMAIL);
+    return Boolean(env.BETTER_AUTH_SECRET || env.API_SHARED_SECRET) && Boolean(env.OWNER_EMAIL);
   },
   hasSession: async (cookie) => {
     const session = await getAuth().api.getSession({ headers: new Headers({ cookie }) });
