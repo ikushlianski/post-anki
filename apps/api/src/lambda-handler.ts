@@ -37,8 +37,8 @@ export async function loadSecretsFromSsm(
     return;
   }
 
-  const moduleName = "@aws-sdk/client-ssm";
-  const { SSMClient, GetParameterCommand } = (await import(moduleName)) as SsmModule;
+  // @ts-expect-error -- provided by the Lambda runtime, not installed locally
+  const { SSMClient, GetParameterCommand } = (await import("@aws-sdk/client-ssm")) as SsmModule;
   const client = new SSMClient();
 
   await Promise.all(

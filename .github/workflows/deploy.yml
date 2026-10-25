@@ -102,6 +102,13 @@ jobs:
           workload_identity_provider: ${{ vars.PROD_WIF_PROVIDER }}
           service_account: ${{ vars.PROD_CI_SA_EMAIL }}
       - uses: pulumi/actions@v6
+      - name: Set Pulumi secrets from GitHub
+        working-directory: infra
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
+          API_SHARED_SECRET: ${{ secrets.PROD_API_SHARED_SECRET }}
+        run: printf '%s' "$API_SHARED_SECRET" | pulumi config set --secret apiSharedSecret --stack prod
+      - uses: pulumi/actions@v6
         with:
           command: up
           stack-name: prod
