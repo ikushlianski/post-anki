@@ -126,3 +126,10 @@ event key every send would fail and fall back to the in-process path. Set
 Uses its own `drizzle_migrations_api` ledger table so it can share a database
 with the bot without collision. Run migrations against the local DB; deployed Neon
 migrations are a separate, deliberate step.
+
+Vector search needs the `vector` extension (pgvector 0.7.0 or newer for `halfvec`;
+Neon offers 0.8.0). The migrations install it, add the `embedding_vec` columns,
+copy existing 1536-number embeddings into them and build the HNSW indexes, so a
+deploy needs no manual step. Take a Neon backup branch before the first deploy that
+applies them, and apply the same migrations to the Neon `dev` branch so local dev
+matches prod.
