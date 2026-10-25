@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SubjectCombobox } from '../ui/subject-combobox'
+import { SearchableSelect } from '../ui/searchable-select'
 
 import type {
   CaptureLearningListItemInput,
@@ -129,13 +129,16 @@ export function CaptureForm({
       >
         Subject
       </label>
-      <SubjectCombobox
+      <SearchableSelect
+        clearable
         ariaLabel="Subject"
         options={subjects.map((subject) => ({ id: subject.id, label: subject.name }))}
         value={subjectId}
         onChange={setSubjectId}
         testId="capture-subject"
-        className="mt-1 w-full input"
+        placeholder="Search subjects…"
+        containerClassName="mt-1"
+        className="w-full input pr-9"
       />
 
       {error ? (

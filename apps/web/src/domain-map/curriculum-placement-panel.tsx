@@ -4,6 +4,7 @@ import type { DomainNodeTreeItem } from '@post-anki/shared'
 
 import { changeCurriculumPlacement } from './domain-map.api'
 import { findDomainPath, flattenDomainOptions } from './domain-tree'
+import { SearchableSelect } from '../ui/searchable-select'
 
 // Renders inside the curriculum detail page's settings disclosure. The
 // subject's domain tree is fetched once by that parent and handed down, so a
@@ -56,20 +57,19 @@ export function CurriculumPlacementPanel({
         {path ? `Placed under ${path.join(' > ')}` : 'Not placed in the domain map yet'}
       </p>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <select
-          data-testid="change-placement-select"
+        <SearchableSelect
+          ariaLabel="Placement in the domain map"
+          testId="change-placement-select"
+          options={options.map((option) => ({
+            id: option.id,
+            label: `${'— '.repeat(option.depth)}${option.label}`,
+          }))}
           value={selected}
-          onChange={(event) => setSelected(event.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
-        >
-          <option value="">— unplaced —</option>
-          {options.map((option) => (
-            <option key={option.id} value={option.id}>
-              {'— '.repeat(option.depth)}
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={setSelected}
+          clearable
+          placeholder="— unplaced —"
+          className="w-full min-w-48 cursor-pointer rounded-md border border-neutral-300 bg-white py-1 pl-2 pr-8 text-xs"
+        />
         <button
           type="button"
           data-testid="change-placement-submit"

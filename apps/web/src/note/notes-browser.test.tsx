@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { NotesBrowser } from './notes-browser'
+import { pickSearchableOption, searchableValue } from '../ui/searchable-select-test-utils'
 
 afterEach(cleanup)
 
@@ -165,7 +166,7 @@ describe('NotesBrowser', () => {
     await waitFor(() =>
       expect(screen.getByTestId('notes-search-domain-node')).not.toHaveProperty('disabled', true),
     )
-    expect(screen.getByTestId('notes-search-domain-node')).toHaveProperty('value', 'node-1')
+    expect(searchableValue('notes-search-domain-node')).toBe('Networking')
   })
 
   it('should not load the area dropdown when no subject is in the URL', () => {
@@ -179,9 +180,7 @@ describe('NotesBrowser', () => {
 
     renderBrowser({ onLoadDomainMap })
 
-    fireEvent.change(screen.getByTestId('notes-search-subject'), {
-      target: { value: 'subject-1' },
-    })
+    pickSearchableOption('notes-search-subject', 'subject-1')
 
     await waitFor(() => expect(onLoadDomainMap).toHaveBeenCalledWith('subject-1'))
   })

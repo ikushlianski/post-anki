@@ -8,6 +8,7 @@ import type { SubjectCheckResponse } from '@post-anki/shared'
 import { AddKnowledgeForm } from './add-knowledge-form'
 import { checkKnowledgeSourceSubject, createKnowledgeSource } from './knowledge-source.api'
 import { createSubject } from '../subject/subject.api'
+import { searchableValue } from '../ui/searchable-select-test-utils'
 
 const liveRows = vi.hoisted(() => ({
   rows: [
@@ -70,6 +71,7 @@ function press() {
 describe('AddKnowledgeForm subject check', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     mockedCheck.mockReset()
     mockedCreate.mockReset()
     mockedCreateSubject.mockReset()
@@ -91,7 +93,7 @@ describe('AddKnowledgeForm subject check', () => {
     await waitFor(() => {
       expect(mockedCreate).toHaveBeenCalledWith({ data: { text: 'alpha text', subjectId: 'sub_a' } })
     })
-    expect((screen.getByTestId('knowledge-adding-to-label')).textContent).toContain('Alpha')
+    expect(searchableValue('knowledge-subject-select')).toContain('Alpha')
   })
 
   it('does not check or spend anything when a subject is already chosen', async () => {

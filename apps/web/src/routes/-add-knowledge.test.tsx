@@ -11,6 +11,7 @@ import {
   createKnowledgeSources,
 } from '../knowledge-source/knowledge-source.api'
 
+import { pickSearchableOption, searchableValue } from '../ui/searchable-select-test-utils'
 import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'
 
@@ -76,6 +77,7 @@ function source(id: string) {
 describe('AddKnowledgeForm', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     liveSubjectRows.rows = []
     mockedCreateKnowledgeSource.mockReset()
     mockedCreateKnowledgeSources.mockReset()
@@ -436,16 +438,16 @@ describe('AddKnowledgeForm', () => {
     })
   })
 
-  it('marks the selected mode toggle with aria-pressed and moves it when the mode changes', () => {
+  it('marks the selected source tab with aria-selected and moves it when the mode changes', () => {
     render(<AddKnowledgeForm />)
 
-    expect(screen.getByTestId('knowledge-block-type-text-0').getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByTestId('knowledge-block-type-url-0').getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByTestId('knowledge-block-type-text-0').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByTestId('knowledge-block-type-url-0').getAttribute('aria-selected')).toBe('false')
 
     fireEvent.click(screen.getByTestId('knowledge-block-type-url-0'))
 
-    expect(screen.getByTestId('knowledge-block-type-text-0').getAttribute('aria-pressed')).toBe('false')
-    expect(screen.getByTestId('knowledge-block-type-url-0').getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByTestId('knowledge-block-type-text-0').getAttribute('aria-selected')).toBe('false')
+    expect(screen.getByTestId('knowledge-block-type-url-0').getAttribute('aria-selected')).toBe('true')
   })
 
   it('gives every text and link input an accessible label that names its block', () => {
@@ -481,7 +483,7 @@ describe('AddKnowledgeForm', () => {
 
     render(<AddKnowledgeForm />)
 
-    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'Web' } })
+    pickSearchableOption('knowledge-subject-select', 'sub_web')
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Block one' } })
     fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
     fireEvent.change(screen.getByTestId('knowledge-block-input-1'), { target: { value: 'Block two' } })
@@ -501,7 +503,7 @@ describe('AddKnowledgeForm', () => {
 
     render(<AddKnowledgeForm />)
 
-    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('')
+    expect(searchableValue('knowledge-subject-select')).toBe('')
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Loose thought' } })
     fireEvent.click(screen.getByTestId('knowledge-submit-button'))
 
@@ -523,19 +525,52 @@ const salesRows = [
 describe('AddKnowledgeForm with a preselected subject', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     liveSubjectRows.rows = []
     mockedCreateKnowledgeSource.mockReset()
   })
 
-  it('preselects the subject passed in and names it in the Adding to label', () => {
+  it('preselects the subject passed in and shows it in the subject field', () => {
     liveSubjectRows.rows = salesRows
 
     render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
 
-    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('Business › Sales')
-    expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe(
-      'Adding to: Business › Sales',
-    )
+    expect(searchableValue('knowledge-subject-select')).toBe('Business › Sales')
+  })
+
+  it('starts on the subject used for the last successful add on this device', async () => {
+    liveSubjectRows.rows = salesRows
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    const first = render(<AddKnowledgeForm />)
+
+    pickSearchableOption('knowledge-subject-select', 'sub_sales')
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+    await waitFor(() => expect(screen.getByTestId('knowledge-success-message')).toBeDefined())
+    first.unmount()
+
+    render(<AddKnowledgeForm />)
+
+    expect(searchableValue('knowledge-subject-select')).toBe('Business › Sales')
+  })
+
+  it('lets a subject from the link win over the remembered one', () => {
+    liveSubjectRows.rows = salesRows
+    window.localStorage.setItem('post-anki:add-knowledge:last-subject-id', 'sub_sales')
+
+    render(<AddKnowledgeForm initialSubjectId="sub_business" />)
+
+    expect(searchableValue('knowledge-subject-select')).toBe('Business')
+  })
+
+  it('starts empty when the remembered subject no longer exists', () => {
+    liveSubjectRows.rows = salesRows
+    window.localStorage.setItem('post-anki:add-knowledge:last-subject-id', 'sub_deleted')
+
+    render(<AddKnowledgeForm />)
+
+    expect(searchableValue('knowledge-subject-select')).toBe('')
   })
 
   it('ignores an initialSubjectId that matches no subject and sends no subject', async () => {
@@ -544,8 +579,7 @@ describe('AddKnowledgeForm with a preselected subject', () => {
 
     render(<AddKnowledgeForm initialSubjectId="sub_missing" />)
 
-    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('')
-    expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe('Adding to: No subject')
+    expect(searchableValue('knowledge-subject-select')).toBe('')
 
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Loose thought' } })
     fireEvent.click(screen.getByTestId('knowledge-submit-button'))
@@ -566,8 +600,8 @@ describe('AddKnowledgeForm with a preselected subject', () => {
 
     render(<AddKnowledgeForm initialSubjectId="sub_sales" />)
 
-    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'Business' } })
-    expect(screen.getByTestId('knowledge-adding-to-label').textContent).toBe('Adding to: Business')
+    pickSearchableOption('knowledge-subject-select', 'sub_business')
+    expect(searchableValue('knowledge-subject-select')).toBe('Business')
 
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
     fireEvent.click(screen.getByTestId('knowledge-submit-button'))
@@ -587,7 +621,7 @@ describe('AddKnowledgeForm with a preselected subject', () => {
 
     render(<AddKnowledgeForm />)
 
-    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'Business' } })
+    pickSearchableOption('knowledge-subject-select', 'sub_business')
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Parent level note' } })
     fireEvent.click(screen.getByTestId('knowledge-submit-button'))
 
@@ -625,6 +659,7 @@ describe('Route (/add-knowledge) subject search param', () => {
 
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     liveSubjectRows.rows = []
     searchState.value = {}
   })
@@ -649,7 +684,7 @@ describe('Route (/add-knowledge) subject search param', () => {
 
     render(<AddKnowledgePage />)
 
-    expect((screen.getByTestId('knowledge-subject-select') as HTMLSelectElement).value).toBe('Business › Sales')
+    expect(searchableValue('knowledge-subject-select')).toBe('Business › Sales')
   })
 })
 
@@ -658,6 +693,7 @@ describe('Route (/add-knowledge)', () => {
 
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
   })
 
   it('mounts the add-knowledge form on the route page', () => {
@@ -678,6 +714,7 @@ describe('Route (/add-knowledge)', () => {
 describe('add-knowledge success link', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     mockedCreateKnowledgeSource.mockReset()
   })
 
@@ -699,6 +736,7 @@ describe('add-knowledge success link', () => {
 describe('Sidebar', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
   })
 
   it('should show the number of suggestions waiting for approval', async () => {
@@ -716,16 +754,17 @@ describe('Sidebar', () => {
 })
 
 describe('AddKnowledgeForm model choice', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    window.localStorage.clear()
+  })
 
   it('sends the chosen model with a pasted text so that model parses this knowledge', async () => {
     mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
 
     render(<AddKnowledgeForm />)
 
-    fireEvent.change(screen.getByTestId('knowledge-model-select'), {
-      target: { value: 'openrouter/openai/gpt-6-luna' },
-    })
+    pickSearchableOption('knowledge-model-select', 'openrouter/openai/gpt-6-luna')
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
     fireEvent.click(screen.getByTestId('knowledge-submit-button'))
 
@@ -741,9 +780,7 @@ describe('AddKnowledgeForm model choice', () => {
 
     render(<AddKnowledgeForm />)
 
-    fireEvent.change(screen.getByTestId('knowledge-model-select'), {
-      target: { value: 'openrouter/openai/gpt-5-mini' },
-    })
+    pickSearchableOption('knowledge-model-select', 'openrouter/openai/gpt-5-mini')
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Block one' } })
     fireEvent.click(screen.getByTestId('knowledge-add-block-button'))
     fireEvent.change(screen.getByTestId('knowledge-block-input-1'), { target: { value: 'Block two' } })
@@ -765,7 +802,7 @@ describe('AddKnowledgeForm model choice', () => {
 
     render(<AddKnowledgeForm />)
 
-    expect((screen.getByTestId('knowledge-model-select') as HTMLSelectElement).value).toBe('')
+    expect(searchableValue('knowledge-model-select')).toBe('Default model (set in admin settings)')
 
     fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Some prose' } })
     fireEvent.click(screen.getByTestId('knowledge-submit-button'))

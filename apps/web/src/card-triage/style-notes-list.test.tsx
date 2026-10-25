@@ -6,6 +6,7 @@ import type { CardStyleNote } from '@post-anki/shared'
 
 import { listCardStyleNotes, listTriageSubjects, updateCardStyleNote } from './card-triage.api'
 import { StyleNotesList } from './style-notes-list'
+import { pickSearchableOption, searchableValue } from '../ui/searchable-select-test-utils'
 
 vi.mock('./card-triage.api', () => ({
   listCardStyleNotes: vi.fn(),
@@ -91,8 +92,9 @@ describe('StyleNotesList', () => {
 
     const scope = await screen.findByTestId('style-note-scope-n1')
 
+    fireEvent.click(scope)
     await screen.findByRole('option', { name: 'Rust' })
-    fireEvent.change(scope, { target: { value: 'sub-1' } })
+    pickSearchableOption('style-note-scope-n1', 'sub-1')
 
     await waitFor(() =>
       expect(mockedUpdate).toHaveBeenCalledWith({ data: { noteId: 'n1', subjectId: 'sub-1' } }),
@@ -100,9 +102,9 @@ describe('StyleNotesList', () => {
 
     mockedUpdate.mockResolvedValue({ ok: true, data: NOTE })
     await waitFor(() =>
-      expect((screen.getByTestId('style-note-scope-n1') as HTMLSelectElement).value).toBe('sub-1'),
+      expect(searchableValue('style-note-scope-n1')).toBe('Rust'),
     )
-    fireEvent.change(screen.getByTestId('style-note-scope-n1'), { target: { value: '' } })
+    pickSearchableOption('style-note-scope-n1', '__all__')
 
     await waitFor(() =>
       expect(mockedUpdate).toHaveBeenLastCalledWith({ data: { noteId: 'n1', subjectId: null } }),

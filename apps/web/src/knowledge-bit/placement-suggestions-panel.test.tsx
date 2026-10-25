@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { PendingPlacementSuggestion } from '@post-anki/shared'
 import type { Curriculum, Subject } from '../curriculum/model'
 
+import { pickSearchableOption } from '../ui/searchable-select-test-utils'
 import { PlacementSuggestionsPanel } from './placement-suggestions-panel'
 import { resolvePlacementSuggestionStatus } from './knowledge-bit.api'
 import { getCurriculum } from '../curriculum/curriculum.api'
@@ -64,23 +65,17 @@ function renderPanel(suggestions: PendingPlacementSuggestion[] = [SUGGESTION]) {
 }
 
 async function pickModule() {
-  fireEvent.change(screen.getByTestId('placement-suggestion-subject-kb-1'), {
-    target: { value: 'sub-1' },
-  })
-  fireEvent.change(screen.getByTestId('placement-suggestion-curriculum-kb-1'), {
-    target: { value: 'cur-1' },
-  })
+  pickSearchableOption('placement-suggestion-subject-kb-1', 'sub-1')
+  pickSearchableOption('placement-suggestion-curriculum-kb-1', 'cur-1')
 
   await waitFor(() => expect(mockedGetCurriculum).toHaveBeenCalledWith({ data: 'cur-1' }))
   await waitFor(() => {
     expect(
-      (screen.getByTestId('placement-suggestion-module-kb-1') as HTMLSelectElement).disabled,
+      (screen.getByTestId('placement-suggestion-module-kb-1') as HTMLInputElement).disabled,
     ).toBe(false)
   })
 
-  fireEvent.change(screen.getByTestId('placement-suggestion-module-kb-1'), {
-    target: { value: 'mod-1' },
-  })
+  pickSearchableOption('placement-suggestion-module-kb-1', 'mod-1')
 }
 
 describe('PlacementSuggestionsPanel', () => {
@@ -142,20 +137,16 @@ describe('PlacementSuggestionsPanel', () => {
 
     renderPanel()
 
-    fireEvent.change(screen.getByTestId('placement-suggestion-subject-kb-1'), {
-      target: { value: 'sub-1' },
-    })
-    fireEvent.change(screen.getByTestId('placement-suggestion-curriculum-kb-1'), {
-      target: { value: 'cur-1' },
-    })
+    pickSearchableOption('placement-suggestion-subject-kb-1', 'sub-1')
+    pickSearchableOption('placement-suggestion-curriculum-kb-1', 'cur-1')
 
     await waitFor(() => {
       expect(
-        (screen.getByTestId('placement-suggestion-module-kb-1') as HTMLSelectElement).disabled,
+        (screen.getByTestId('placement-suggestion-module-kb-1') as HTMLInputElement).disabled,
       ).toBe(false)
     })
 
-    expect(screen.getByTestId('placement-suggestion-module-kb-1').textContent).toContain(
+    expect(screen.getByTestId('placement-suggestion-module-kb-1').getAttribute('placeholder')).toContain(
       'Module…',
     )
   })
@@ -202,24 +193,20 @@ describe('PlacementSuggestionsPanel', () => {
       />,
     )
 
-    fireEvent.change(screen.getByTestId('placement-suggestion-subject-kb-2'), {
-      target: { value: 'sub-1' },
-    })
-    fireEvent.change(screen.getByTestId('placement-suggestion-curriculum-kb-2'), {
-      target: { value: 'cur-2' },
-    })
+    pickSearchableOption('placement-suggestion-subject-kb-2', 'sub-1')
+    pickSearchableOption('placement-suggestion-curriculum-kb-2', 'cur-2')
 
     await pickModule()
 
     expect(
-      (screen.getByTestId('placement-suggestion-module-kb-2') as HTMLSelectElement).disabled,
+      (screen.getByTestId('placement-suggestion-module-kb-2') as HTMLInputElement).disabled,
     ).toBe(true)
 
     resolveSecond?.()
 
     await waitFor(() => {
       expect(
-        (screen.getByTestId('placement-suggestion-module-kb-2') as HTMLSelectElement).disabled,
+        (screen.getByTestId('placement-suggestion-module-kb-2') as HTMLInputElement).disabled,
       ).toBe(false)
     })
   })

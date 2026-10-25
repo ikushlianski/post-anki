@@ -61,6 +61,7 @@ const earlier = { existingId: 'ks_old', addedAt: '2026-02-03T10:00:00.000Z' }
 describe('AddKnowledgeForm duplicate warning', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     mockedText.mockReset()
     mockedTexts.mockReset()
     mockedUrl.mockReset()

@@ -7,6 +7,11 @@ import {
   type KnowledgeItemModelOption,
 } from '@post-anki/shared'
 
+import { SearchableSelect } from '../ui/searchable-select'
+import type { SearchableOption } from '../ui/searchable-select'
+
+const DEFAULT_ID = '__default__'
+
 export function describeExtractionModelOption(option: KnowledgeItemModelOption): string {
   const expiry = option.expiresOn ? ` — retires ${option.expiresOn}` : ''
 
@@ -31,31 +36,30 @@ export function ExtractionModelSelect({
   className?: string
 }) {
   const selected = value === '' ? null : KNOWLEDGE_ITEM_MODELS[value]
+  const options: SearchableOption[] = [
+    ...(emptyLabel ? [{ id: DEFAULT_ID, label: emptyLabel }] : []),
+    ...KNOWLEDGE_ITEM_MODEL_OPTIONS.map((option) => ({
+      id: option.id,
+      label: describeExtractionModelOption(option),
+    })),
+  ]
 
   return (
     <div className="min-w-0 space-y-1">
-      <select
-        aria-label={ariaLabel}
-        data-testid={testId}
-        value={value}
+      <SearchableSelect
+        ariaLabel={ariaLabel}
+        testId={testId}
+        options={options}
+        value={value === '' && emptyLabel ? DEFAULT_ID : value}
         disabled={disabled}
-        onChange={(event) => {
-          const parsed = knowledgeItemModelIdSchema.safeParse(event.target.value)
+        placeholder="Search models…"
+        className={className}
+        onChange={(id) => {
+          const parsed = knowledgeItemModelIdSchema.safeParse(id)
 
           onChange(parsed.success ? parsed.data : '')
         }}
-        className={
-          className ??
-          'w-full rounded-md bg-neutral-100/70 px-2 py-1.5 text-sm text-neutral-900 hover:bg-neutral-100 focus:bg-white focus:outline-2 focus:outline-neutral-300 disabled:opacity-50'
-        }
-      >
-        {emptyLabel ? <option value="">{emptyLabel}</option> : null}
-        {KNOWLEDGE_ITEM_MODEL_OPTIONS.map((option) => (
-          <option key={option.id} value={option.id}>
-            {describeExtractionModelOption(option)}
-          </option>
-        ))}
-      </select>
+      />
       {selected ? <p className="text-xs text-neutral-500">{selected.note}</p> : null}
     </div>
   )

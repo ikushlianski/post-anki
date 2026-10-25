@@ -4,6 +4,7 @@ import { CONCERNS, type Concern } from '@post-anki/shared'
 
 import { buildNoteSearchParams, type NoteSearchParams } from './note-search-params'
 import { indentedLabel, type DomainNodeOption } from './note-taxonomy-options'
+import { SearchableSelect } from '../ui/searchable-select'
 
 export interface NotesSearchFormProps {
   subjects: Array<{ id: string; name: string }>
@@ -83,37 +84,31 @@ export function NotesSearchForm({
           ))}
         </select>
 
-        <select
+        <SearchableSelect
+          ariaLabel="Subject"
+          testId="notes-search-subject"
+          options={subjects.map((subject) => ({ id: subject.id, label: subject.name }))}
           value={selectedSubjectId}
-          onChange={(event) => {
-            onSubjectChange(event.target.value)
+          onChange={(id) => {
+            onSubjectChange(id)
             setDomainNodeId('')
           }}
-          data-testid="notes-search-subject"
-          className="rounded-md border border-neutral-300 px-2 py-1.5 text-xs"
-        >
-          <option value="">Any subject</option>
-          {subjects.map((subject) => (
-            <option key={subject.id} value={subject.id}>
-              {subject.name}
-            </option>
-          ))}
-        </select>
+          clearable
+          placeholder="Any subject"
+          className="w-48 cursor-pointer rounded-md border border-neutral-300 bg-white py-1.5 pl-2 pr-8 text-xs"
+        />
 
-        <select
+        <SearchableSelect
+          ariaLabel="Area"
+          testId="notes-search-domain-node"
+          options={domainNodeOptions.map((option) => ({ id: option.id, label: indentedLabel(option) }))}
           value={domainNodeId}
-          onChange={(event) => setDomainNodeId(event.target.value)}
+          onChange={setDomainNodeId}
           disabled={domainNodeOptions.length === 0}
-          data-testid="notes-search-domain-node"
-          className="rounded-md border border-neutral-300 px-2 py-1.5 text-xs disabled:opacity-50"
-        >
-          <option value="">Any area</option>
-          {domainNodeOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {indentedLabel(option)}
-            </option>
-          ))}
-        </select>
+          clearable
+          placeholder="Any area"
+          className="w-48 cursor-pointer rounded-md border border-neutral-300 bg-white py-1.5 pl-2 pr-8 text-xs disabled:opacity-50"
+        />
       </div>
 
       <button

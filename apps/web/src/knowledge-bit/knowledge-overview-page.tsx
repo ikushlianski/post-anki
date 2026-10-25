@@ -2,14 +2,14 @@ import type { KeyboardEvent } from 'react'
 import type { KnowledgeBitOverviewItem } from '@post-anki/shared'
 
 import { SearchableSelect } from '../ui/searchable-select'
-import type { SubjectComboboxOption } from '../ui/subject-combobox'
+import type { SearchableOption } from '../ui/searchable-select'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
 import { KnowledgeOverviewDownload } from './knowledge-overview-download'
 import { KnowledgeOverviewTable } from './knowledge-overview-table'
 import type { OverviewFocusRequest, OverviewRowState } from './knowledge-overview-table'
 
 interface OverviewSubjectFilterProps {
-  options: SubjectComboboxOption[]
+  options: SearchableOption[]
   value: string
   onChange: (id: string) => void
 }
@@ -34,7 +34,7 @@ function OverviewSubjectFilter({ options, value, onChange }: OverviewSubjectFilt
 
 export interface KnowledgeOverviewPageProps {
   rows: KnowledgeBitOverviewItem[]
-  subjectOptions: SubjectComboboxOption[]
+  subjectOptions: SearchableOption[]
   subjectId: string
   search: string
   selected: ReadonlySet<string>

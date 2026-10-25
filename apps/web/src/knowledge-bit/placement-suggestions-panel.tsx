@@ -5,6 +5,7 @@ import type { Curriculum, Module, Subject } from '../curriculum/model'
 import { resolvePlacementSuggestionStatus } from './knowledge-bit.api'
 import { getCurriculum } from '../curriculum/curriculum.api'
 import { useResolvingSuggestions } from '../domain-map/use-resolving-suggestions'
+import { SearchableSelect } from '../ui/searchable-select'
 
 interface Picker {
   subjectId: string
@@ -145,57 +146,42 @@ export function PlacementSuggestionsPanel({
                 </p>
 
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-4">
-                  <select
-                    data-testid={`placement-suggestion-subject-${suggestion.id}`}
+                  <SearchableSelect
+                    ariaLabel="Subject"
+                    testId={`placement-suggestion-subject-${suggestion.id}`}
+                    options={subjects.map((subject) => ({ id: subject.id, label: subject.name }))}
                     value={state.subjectId}
-                    onChange={(e) =>
-                      updatePicker(suggestion.id, {
-                        subjectId: e.target.value,
-                        curriculumId: '',
-                        moduleId: '',
-                      })
+                    onChange={(id) =>
+                      updatePicker(suggestion.id, { subjectId: id, curriculumId: '', moduleId: '' })
                     }
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
-                  >
-                    <option value="">Subject…</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
+                    clearable
+                    placeholder="Subject…"
+                    className="w-full cursor-pointer rounded-md border border-neutral-300 bg-white py-1 pl-2 pr-8 text-sm"
+                  />
 
-                  <select
-                    data-testid={`placement-suggestion-curriculum-${suggestion.id}`}
+                  <SearchableSelect
+                    ariaLabel="Curriculum"
+                    testId={`placement-suggestion-curriculum-${suggestion.id}`}
+                    options={subjectCurricula.map((curriculum) => ({ id: curriculum.id, label: curriculum.name }))}
                     value={state.curriculumId}
                     disabled={!state.subjectId}
-                    onChange={(e) => selectCurriculum(suggestion.id, e.target.value)}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-50"
-                  >
-                    <option value="">Curriculum…</option>
-                    {subjectCurricula.map((curriculum) => (
-                      <option key={curriculum.id} value={curriculum.id}>
-                        {curriculum.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(id) => selectCurriculum(suggestion.id, id)}
+                    clearable
+                    placeholder="Curriculum…"
+                    className="w-full cursor-pointer rounded-md border border-neutral-300 bg-white py-1 pl-2 pr-8 text-sm disabled:opacity-50"
+                  />
 
-                  <select
-                    data-testid={`placement-suggestion-module-${suggestion.id}`}
+                  <SearchableSelect
+                    ariaLabel="Module"
+                    testId={`placement-suggestion-module-${suggestion.id}`}
+                    options={modules.map((module) => ({ id: module.id, label: module.title }))}
                     value={state.moduleId}
                     disabled={!state.curriculumId || loadingCurriculumIds.has(state.curriculumId)}
-                    onChange={(e) => updatePicker(suggestion.id, { moduleId: e.target.value })}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-50"
-                  >
-                    <option value="">
-                      {loadingCurriculumIds.has(state.curriculumId) ? 'Loading…' : 'Module…'}
-                    </option>
-                    {modules.map((module) => (
-                      <option key={module.id} value={module.id}>
-                        {module.title}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(id) => updatePicker(suggestion.id, { moduleId: id })}
+                    clearable
+                    placeholder={loadingCurriculumIds.has(state.curriculumId) ? 'Loading…' : 'Module…'}
+                    className="w-full cursor-pointer rounded-md border border-neutral-300 bg-white py-1 pl-2 pr-8 text-sm disabled:opacity-50"
+                  />
 
                   <input
                     data-testid={`placement-suggestion-title-${suggestion.id}`}

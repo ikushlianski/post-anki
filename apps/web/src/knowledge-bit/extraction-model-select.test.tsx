@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import { KNOWLEDGE_ITEM_MODELS, type KnowledgeItemModelId } from '@post-anki/shared'
 
+import { pickSearchableOption, searchableValue } from '../ui/searchable-select-test-utils'
 import { describeExtractionModelOption, ExtractionModelSelect } from './extraction-model-select'
 
 function renderSelect(value: KnowledgeItemModelId | '' = '', emptyLabel?: string) {
@@ -44,14 +45,17 @@ describe('ExtractionModelSelect', () => {
   it('should offer an empty choice that stands for the default model', () => {
     renderSelect('', 'Default model')
 
-    expect((screen.getByTestId('model') as HTMLSelectElement).value).toBe('')
+    expect(searchableValue('model')).toBe('Default model')
+
+    fireEvent.click(screen.getByTestId('model'))
+
     expect(screen.getByRole('option', { name: 'Default model' })).toBeTruthy()
   })
 
   it('should report the chosen model id', () => {
     const { onChange } = renderSelect()
 
-    fireEvent.change(screen.getByTestId('model'), { target: { value: 'openrouter/openai/gpt-6-luna' } })
+    pickSearchableOption('model', 'openrouter/openai/gpt-6-luna')
 
     expect(onChange).toHaveBeenCalledWith('openrouter/openai/gpt-6-luna')
   })
@@ -59,7 +63,7 @@ describe('ExtractionModelSelect', () => {
   it('should report the empty choice when the default is picked again', () => {
     const { onChange } = renderSelect('openrouter/openai/gpt-6-luna', 'Default model')
 
-    fireEvent.change(screen.getByTestId('model'), { target: { value: '' } })
+    pickSearchableOption('model', '__default__')
 
     expect(onChange).toHaveBeenCalledWith('')
   })

@@ -10,12 +10,6 @@ export function emptyBlock(): Block {
   return { type: 'text', value: '' }
 }
 
-export function modeButtonClass(selected: boolean) {
-  return selected
-    ? 'rounded-md bg-neutral-900 px-3 py-1 text-sm font-medium text-white disabled:opacity-50'
-    : 'rounded-md border border-neutral-300 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50'
-}
-
 export function failedBlocksMessage(count: number): string {
   if (count === 1) {
     return 'Block 1 could not be added. Try again.'

@@ -7,8 +7,9 @@ import {
   TEXT_FIELD_CLASS,
 } from '../knowledge-bit/knowledge-bit-review-classes'
 import type { TriageSubject } from './card-triage.api'
+import { SearchableSelect } from '../ui/searchable-select'
 
-const GLOBAL_VALUE = ''
+const GLOBAL_VALUE = '__all__'
 
 export function StyleNoteRow({
   note,
@@ -53,20 +54,18 @@ export function StyleNoteRow({
         </label>
         <label className="flex items-center gap-1">
           Scope
-          <select
-            data-testid={`style-note-scope-${note.id}`}
+          <SearchableSelect
+            ariaLabel="Scope"
+            testId={`style-note-scope-${note.id}`}
+            options={[
+              { id: GLOBAL_VALUE, label: 'All subjects' },
+              ...subjects.map((subject) => ({ id: subject.id, label: subject.name })),
+            ]}
             value={note.subjectId ?? GLOBAL_VALUE}
             disabled={saving}
-            onChange={(event) => onChange({ subjectId: event.target.value || null })}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1"
-          >
-            <option value={GLOBAL_VALUE}>All subjects</option>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
-          </select>
+            onChange={(id) => onChange({ subjectId: id === GLOBAL_VALUE ? null : id })}
+            className="w-full min-w-40 cursor-pointer rounded-md border border-neutral-300 bg-white py-1 pl-2 pr-8"
+          />
         </label>
         <span data-testid={`style-note-created-${note.id}`}>Created {created}</span>
         {dirty ? (

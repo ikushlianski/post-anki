@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SubjectCombobox } from '../ui/subject-combobox'
+import { SearchableSelect } from '../ui/searchable-select'
 import { Link, useRouter } from '@tanstack/react-router'
 import {
   DndContext,
@@ -613,20 +613,19 @@ function MergeCurriculumButton({
 
   return (
     <span className="flex shrink-0 items-center gap-2 text-xs">
-      <select
-        data-testid={`curriculum-merge-target-select-${curriculum.id}`}
+      <SearchableSelect
+        ariaLabel="Merge into curriculum"
+        testId={`curriculum-merge-target-select-${curriculum.id}`}
+        options={options.map((option) => ({
+          id: option.id,
+          label: option.name,
+          disabledReason: option.status === 'failed' ? 'Failed — cannot merge into this' : undefined,
+        }))}
         value={targetCurriculumId}
-        onChange={(event) => setTargetCurriculumId(event.target.value)}
-        className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
-      >
-        <option value="">select target…</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id} disabled={option.status === 'failed'}>
-            {option.name}
-            {option.status === 'failed' ? ' (failed — cannot merge into this)' : ''}
-          </option>
-        ))}
-      </select>
+        onChange={setTargetCurriculumId}
+        placeholder="select target…"
+        className="w-full min-w-48 cursor-pointer rounded-md border border-neutral-200 bg-white py-0.5 pl-1.5 pr-7 text-xs"
+      />
       <button
         type="button"
         disabled={busy || !targetCurriculumId}
@@ -719,7 +718,8 @@ function MoveCurriculumButton({
 
   return (
     <span className="flex shrink-0 items-center gap-2 text-xs">
-      <SubjectCombobox
+      <SearchableSelect
+        clearable
         ariaLabel="Move to subject"
         options={options.map((option) => ({ id: option.id, label: option.name }))}
         value={targetSubjectId}
@@ -729,23 +729,17 @@ function MoveCurriculumButton({
         }}
         testId={`curriculum-move-target-select-${curriculum.id}`}
         placeholder="Search subjects…"
-        className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
+        className="w-full min-w-48 cursor-pointer rounded-md border border-neutral-200 bg-white py-0.5 pl-1.5 pr-7 text-xs"
       />
       {targetSubjectId ? (
-        <select
-          data-testid={`curriculum-move-category-select-${curriculum.id}`}
-          value={targetCategoryId ?? ''}
-          onChange={(event) =>
-            setTargetCategoryId(event.target.value === '' ? null : event.target.value)
-          }
-          className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
-        >
-          {categoryOptions.map((option) => (
-            <option key={option.nodeId ?? '__root__'} value={option.nodeId ?? ''}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <SearchableSelect
+          ariaLabel="Move to category"
+          testId={`curriculum-move-category-select-${curriculum.id}`}
+          options={categoryOptions.map((option) => ({ id: option.nodeId ?? '__root__', label: option.label }))}
+          value={targetCategoryId ?? '__root__'}
+          onChange={(id) => setTargetCategoryId(id === '' || id === '__root__' ? null : id)}
+          className="w-full min-w-48 cursor-pointer rounded-md border border-neutral-200 bg-white py-0.5 pl-1.5 pr-7 text-xs"
+        />
       ) : null}
       <button
         type="button"

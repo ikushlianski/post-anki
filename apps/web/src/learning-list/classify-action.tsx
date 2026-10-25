@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SubjectCombobox } from '../ui/subject-combobox'
+import { SearchableSelect } from '../ui/searchable-select'
 
 import type { ApiResult } from './learning-list.model'
 
@@ -51,13 +51,15 @@ export function ClassifyAction({
       </p>
 
       <div className="mt-3 flex items-center gap-2">
-        <SubjectCombobox
+        <SearchableSelect
+          clearable
           ariaLabel="Subject to classify under"
           options={subjects.map((subject) => ({ id: subject.id, label: subject.name }))}
           value={subjectId}
           onChange={setSubjectId}
           testId="classify-action-subject"
-          className="rounded-md border border-sky-300 bg-white px-3 py-1.5 text-xs"
+          placeholder="Search subjects…"
+          className="w-full min-w-48 cursor-pointer rounded-md border border-sky-300 bg-white py-1.5 pl-3 pr-9 text-xs"
         />
         <button
           type="button"

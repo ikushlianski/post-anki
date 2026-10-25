@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { buildSubjectPathLabel, collectSubjectSubtreeIds } from '@post-anki/core'
 import type { SubjectHierarchyRow } from '@post-anki/core'
 
-import type { SubjectComboboxOption } from '../ui/subject-combobox'
+import type { SearchableOption } from '../ui/searchable-select'
 
 export interface KnowledgeSubjectChoice {
-  options: SubjectComboboxOption[]
+  options: SearchableOption[]
   selectedSubjectId: string
   selectedLabel: string | undefined
   parentHintName: string | null

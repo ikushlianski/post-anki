@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
-import type { SubjectComboboxOption } from '../ui/subject-combobox'
+import { SearchableSelect, type SearchableOption } from '../ui/searchable-select'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
 export interface KnowledgeOverviewMoveDialogProps {
   count: number
-  subjectOptions: SubjectComboboxOption[]
+  subjectOptions: SearchableOption[]
   busy: boolean
   error: string | null
   onConfirm: (subjectId: string) => void
@@ -77,23 +77,15 @@ export function KnowledgeOverviewMoveDialog({
           subject.
         </p>
         <div className="mt-4">
-          <label htmlFor="knowledge-overview-move-subject" className="mb-1 block text-sm font-medium text-neutral-700">
-            Subject
-          </label>
-          <select
-            id="knowledge-overview-move-subject"
-            data-testid="knowledge-overview-move-subject"
+          <span className="mb-1 block text-sm font-medium text-neutral-700">Subject</span>
+          <SearchableSelect
+            ariaLabel="Subject"
+            testId="knowledge-overview-move-subject"
+            options={subjectOptions}
             value={subjectId}
-            onChange={(e) => setSubjectId(e.target.value)}
-            className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-neutral-500"
-          >
-            <option value="">Choose a subject…</option>
-            {subjectOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={setSubjectId}
+            placeholder="Choose a subject…"
+          />
         </div>
         {error ? (
           <p role="alert" data-testid="knowledge-overview-move-error" className="mt-2 text-sm text-red-700">

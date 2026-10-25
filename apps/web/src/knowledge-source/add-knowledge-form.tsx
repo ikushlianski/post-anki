@@ -7,7 +7,7 @@ import type { KnowledgeItemModelId, SubjectCheckNewSubject } from '@post-anki/sh
 
 import { mapSubjectRow, subjectsCollection } from '../curriculum/board.collection'
 import { ExtractionModelSelect } from '../knowledge-bit/extraction-model-select'
-import { SubjectCombobox } from '../ui/subject-combobox'
+import { SearchableSelect } from '../ui/searchable-select'
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 
 import { emptyBlock, failedBlocksMessage, remapByPosition } from './knowledge-form-blocks'
@@ -17,6 +17,7 @@ import { createProposedSubject } from './create-proposed-subject'
 import { SubjectCheckPanel, UnfiledNotice } from './subject-check-panel'
 import { useSubjectCheck } from './use-subject-check'
 import { submitKnowledgeBlocks } from './submit-knowledge-blocks'
+import { readLastSubjectId, writeLastSubjectId } from './last-subject-storage'
 import { addedKnowledgeMessage } from './added-knowledge-message'
 import { AddedNoteProgressList } from './added-note-progress-list'
 import { useAddedNoteProgress } from './use-added-note-progress'
@@ -31,8 +32,8 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [unfiledNotice, setUnfiledNotice] = useState(false)
   const progress = useAddedNoteProgress()
-  const subjectFieldRef = useRef<HTMLLabelElement>(null)
-  const [subjectId, setSubjectId] = useState(initialSubjectId ?? '')
+  const subjectFieldRef = useRef<HTMLDivElement>(null)
+  const [subjectId, setSubjectId] = useState(() => initialSubjectId ?? readLastSubjectId())
   const [modelId, setModelId] = useState<KnowledgeItemModelId | ''>('')
   const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
   const subjects = (subjectsQuery.data ?? []).map(mapSubjectRow)
@@ -40,7 +41,6 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
     .map((subject) => ({ id: subject.id, label: buildSubjectPathLabel(subject.id, subjects) }))
     .sort((a, b) => a.label.localeCompare(b.label))
   const selectedSubjectId = subjectOptions.some((option) => option.id === subjectId) ? subjectId : ''
-  const selectedLabel = subjectOptions.find((option) => option.id === selectedSubjectId)?.label
   const preselectedLabel = subjectOptions.find((option) => option.id === initialSubjectId)?.label
 
   const nonEmptyBlocks = blocks
@@ -158,6 +158,12 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
     })
 
     if (createdCount > 0) {
+      const savedSubjectId = options.subjectId ?? selectedSubjectId
+
+      if (savedSubjectId) {
+        writeLastSubjectId(savedSubjectId)
+      }
+
       notifyPendingReviewChanged()
       setUnfiledNotice(options.notice === true)
       progress.track(added)
@@ -183,37 +189,30 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3" data-testid="knowledge-add-form">
-      <label ref={subjectFieldRef} className="flex items-center gap-2 text-sm text-neutral-700">
-        <span>Subject</span>
-        <SubjectCombobox
-          ariaLabel="Subject for these sources"
-          options={subjectOptions}
-          value={selectedSubjectId}
-          disabled={busy}
-          onChange={setSubjectId}
-          testId="knowledge-subject-select"
-          placeholder="No subject — type to search"
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm text-neutral-700 sm:flex-row sm:items-start sm:gap-2">
-        <span className="shrink-0 pt-1.5">Model</span>
-        <div className="w-full max-w-xl">
-          <ExtractionModelSelect
-            ariaLabel="Model that will parse this knowledge"
-            testId="knowledge-model-select"
-            emptyLabel="Default model (set in admin settings)"
-            value={modelId}
-            onChange={setModelId}
+    <form onSubmit={submit} className="space-y-4" data-testid="knowledge-add-form">
+      <div className="w-full max-w-xl space-y-4">
+        <div ref={subjectFieldRef}>
+          <SearchableSelect
+            clearable
+            ariaLabel="Subject for these sources"
+            options={subjectOptions}
+            value={selectedSubjectId}
             disabled={busy}
+            onChange={setSubjectId}
+            testId="knowledge-subject-select"
+            placeholder="Subject — none, type to search"
           />
         </div>
-      </label>
 
-      <p data-testid="knowledge-adding-to-label" className="-mt-1 text-sm text-neutral-600">
-        Adding to: {selectedLabel ?? 'No subject'}
-      </p>
+        <ExtractionModelSelect
+          ariaLabel="Model that will parse this knowledge"
+          testId="knowledge-model-select"
+          emptyLabel="Default model (set in admin settings)"
+          value={modelId}
+          onChange={setModelId}
+          disabled={busy}
+        />
+      </div>
 
       <KnowledgeBlockList
         blocks={blocks}

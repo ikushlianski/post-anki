@@ -5,7 +5,7 @@ import type { KnowledgeItemModelId } from '@post-anki/shared'
 
 import { ExtractionModelSelect } from '../../knowledge-bit/extraction-model-select'
 import { useKnowledgeSubjectChoice } from '../../knowledge-source/use-knowledge-subject-choice'
-import { SubjectCombobox } from '../../ui/subject-combobox'
+import { SearchableSelect } from '../../ui/searchable-select'
 import { SUBJECTS } from './lab-data'
 
 const VIEWPORTS = {
@@ -25,7 +25,8 @@ function SharedSelects({
     <div className="mx-auto max-w-xl space-y-4 p-4 sm:p-8">
       <label className="block space-y-1 text-sm text-neutral-700">
         <span>Subject</span>
-        <SubjectCombobox
+        <SearchableSelect
+          clearable
           ariaLabel="Subject for these sources"
           testId="story-subject"
           options={choice.options}

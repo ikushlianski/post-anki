@@ -12,6 +12,7 @@ import {
   regenerateKnowledgeSourceForReview,
 } from './knowledge-bit-review.api'
 import { REGENERATION_POLL_INTERVAL_MS } from './knowledge-bit-review-regeneration'
+import { pickSearchableOption } from '../ui/searchable-select-test-utils'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ to, children, ...rest }: { to: string; children: ReactNode } & Record<string, unknown>) => (
@@ -97,9 +98,9 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
 
     openConfirm()
 
-    const options = Array.from(
-      (screen.getByTestId('knowledge-bit-review-regenerate-s1-model') as HTMLSelectElement).options,
-    ).map((option) => option.textContent)
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-regenerate-s1-model'))
+
+    const options = screen.getAllByRole('option').map((option) => option.textContent)
 
     expect(options[0]).toBe('Same model as before')
     expect(options).toContain('GPT-6 Luna — $0.10 in / $0.50 out per 1M')
@@ -128,9 +129,7 @@ describe('KnowledgeBitReviewPanel regeneration', () => {
     renderPanel([source('s1', ['b1'])])
 
     openConfirm()
-    fireEvent.change(screen.getByTestId('knowledge-bit-review-regenerate-s1-model'), {
-      target: { value: 'openrouter/openai/gpt-4o-mini' },
-    })
+    pickSearchableOption('knowledge-bit-review-regenerate-s1-model', 'openrouter/openai/gpt-4o-mini')
     await act(async () => {
       fireEvent.click(screen.getByTestId('knowledge-bit-review-regenerate-s1-confirm'))
     })

@@ -57,6 +57,7 @@ function fillUrlBlock(index: number, url: string) {
 describe('AddKnowledgeForm refusal reasons', () => {
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     mockedText.mockReset()
     mockedTexts.mockReset()
     mockedUrl.mockReset()

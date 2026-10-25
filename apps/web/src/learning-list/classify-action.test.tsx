@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { ClassifyAction } from './classify-action'
+import { pickSearchableOption } from '../ui/searchable-select-test-utils'
 
 afterEach(cleanup)
 
@@ -32,9 +33,7 @@ describe('ClassifyAction', () => {
   it('should classify a discovered sibling against the chosen subject', async () => {
     const { onClassify, onClassified } = renderAction()
 
-    fireEvent.change(screen.getByTestId('classify-action-subject'), {
-      target: { value: 'Cloud & AWS' },
-    })
+    pickSearchableOption('classify-action-subject', 'subject-2')
     fireEvent.click(screen.getByTestId('classify-action-submit'))
 
     await waitFor(() => expect(onClassified).toHaveBeenCalled())

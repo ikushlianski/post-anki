@@ -85,6 +85,7 @@ describe('AddKnowledgeForm outcome feedback', () => {
 
   afterEach(() => {
     cleanup()
+    window.localStorage.clear()
     vi.useRealTimers()
     mockedCreate.mockReset()
     mockedStatus.mockReset()

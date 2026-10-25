@@ -3,6 +3,7 @@ import { useRouter } from '@tanstack/react-router'
 import type { DomainNodeTreeItem } from '@post-anki/shared'
 
 import { mergeDomainNodes } from './domain-map.api'
+import { SearchableSelect } from '../ui/searchable-select'
 
 // domain-node-merge (issue #61) — same confirm-arm interaction as
 // MergeSubjectButton (apps/web/src/subject/subject-section.tsx). The picker
@@ -83,19 +84,15 @@ export function MergeDomainNodeButton({
 
   return (
     <span className="flex shrink-0 items-center gap-2 text-xs">
-      <select
-        data-testid={`domain-map-node-merge-target-select-${node.id}`}
+      <SearchableSelect
+        ariaLabel="Merge into area"
+        testId={`domain-map-node-merge-target-select-${node.id}`}
+        options={validOptions}
         value={targetNodeId}
-        onChange={(event) => setTargetNodeId(event.target.value)}
-        className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-xs"
-      >
-        <option value="">select target…</option>
-        {validOptions.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        onChange={setTargetNodeId}
+        placeholder="select target…"
+        className="w-full min-w-48 cursor-pointer rounded-md border border-neutral-200 bg-white py-0.5 pl-1.5 pr-7 text-xs"
+      />
       <button
         type="button"
         disabled={busy || !targetNodeId}
