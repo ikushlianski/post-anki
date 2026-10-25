@@ -22,11 +22,18 @@ function KnowledgeBrowserRoute() {
       subjectId={search.subject ?? null}
       view={search.view}
       filters={filtersFromSearch(search)}
+      meaningWords={search.q}
+      onMeaningWordsChange={(words) =>
+        void navigate({
+          search: (prev) => ({ ...prev, q: words }),
+        })
+      }
       onFiltersChange={(next, mode) =>
         void navigate({
           search: (prev) => ({
             ...(prev.subject ? { subject: prev.subject } : {}),
             ...(prev.view ? { view: prev.view } : {}),
+            ...(prev.q ? { q: prev.q } : {}),
             ...searchFromFilters(next),
           }),
           replace: mode === 'replace',

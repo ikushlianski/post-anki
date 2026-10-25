@@ -36,6 +36,23 @@ export function formatAddedAt(iso: string): string {
   })
 }
 
+export function matchPercentOf(item: KnowledgeBitBrowserItem): number | null {
+  return 'similarity' in item && typeof item.similarity === 'number'
+    ? Math.round(item.similarity * 100)
+    : null
+}
+
+function MatchPercent({ percent }: { percent: number }) {
+  return (
+    <span
+      data-testid="knowledge-browser-match-percent"
+      className="mr-2 shrink-0 rounded bg-neutral-100 px-1.5 text-xs font-medium text-neutral-700"
+    >
+      {percent}% match
+    </span>
+  )
+}
+
 export interface BrowserSourceCellActions {
   countFor: (sourceId: string) => number
   onDeleteSource: (sourceId: string) => void
@@ -47,8 +64,22 @@ export function renderBrowserCell(
   sourceActions?: BrowserSourceCellActions,
 ): ReactNode {
   switch (columnId) {
-    case 'phrasings':
-      return <KnowledgeBrowserPhrasings phrasings={item.phrasings} />
+    case 'phrasings': {
+      const percent = matchPercentOf(item)
+
+      if (percent === null) {
+        return <KnowledgeBrowserPhrasings phrasings={item.phrasings} />
+      }
+
+      return (
+        <span className="flex items-center">
+          <MatchPercent percent={percent} />
+          <span className="min-w-0 flex-1">
+            <KnowledgeBrowserPhrasings phrasings={item.phrasings} />
+          </span>
+        </span>
+      )
+    }
     case 'source':
       return <KnowledgeBrowserOriginCell label={BROWSER_ORIGIN_LABELS[item.origin]} item={item} actions={sourceActions} />
     case 'sourceUrl':

@@ -8,6 +8,7 @@ import {
   filtersFromSearch,
   hasAnyFilter,
   localDayBound,
+  meaningWordsFrom,
   parseBrowserSearch,
   removeChip,
   searchFromFilters,
@@ -129,5 +130,20 @@ describe('applying a filter change', () => {
       question: 'pod',
       origins: ['manual'],
     })
+  })
+})
+
+describe('meaning search words in the page address', () => {
+  it('should keep trimmed meaning words from a shared link next to the filters', () => {
+    expect(parseBrowserSearch({ q: '  how does the heart pump ', question: 'pod' })).toEqual({
+      q: 'how does the heart pump',
+      question: 'pod',
+    })
+  })
+
+  it('should drop empty or non-text meaning words and cap long ones at 300 characters', () => {
+    expect(parseBrowserSearch({ q: '   ' })).toEqual({})
+    expect(parseBrowserSearch({ q: ['a'] })).toEqual({})
+    expect(meaningWordsFrom('x'.repeat(400))?.length).toBe(300)
   })
 })

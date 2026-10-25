@@ -99,4 +99,20 @@ describe('KnowledgeBrowserTable column filters and visibility', () => {
     expect(screen.getByTestId('browser-column-filtered-source')).toBeTruthy()
     expect(screen.queryByTestId('browser-column-filtered-answer')).toBeNull()
   })
+
+  it('should show a whole-number match percentage in the question cell only for meaning matches', () => {
+    render(
+      <KnowledgeBrowserTable
+        rows={[{ ...item, similarity: 0.874 } as KnowledgeBitBrowserItem, { ...item, knowledgeBitId: 'b2' }]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        {...selectionProps}
+      />,
+    )
+
+    const percents = screen.getAllByTestId('knowledge-browser-match-percent')
+
+    expect(percents).toHaveLength(1)
+    expect(percents[0].textContent).toBe('87% match')
+  })
 })

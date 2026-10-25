@@ -19,6 +19,7 @@ export type BrowserFilterColumnId =
 export type BrowserSearch = {
   subject?: string
   view?: 'subjects'
+  q?: string
   question?: string
   answer?: string
   origins?: string
@@ -94,10 +95,25 @@ export function filtersFromSearch(raw: Record<string, unknown>): KnowledgeBitBro
   return parseKnowledgeBitBrowserFilters(rawFromAny(raw))
 }
 
+export const MEANING_WORDS_MAX = 300
+
+export function meaningWordsFrom(value: unknown): string | undefined {
+  const text = typeof value === 'number' ? String(value) : value
+
+  if (typeof text !== 'string') {
+    return undefined
+  }
+
+  const trimmed = text.trim().slice(0, MEANING_WORDS_MAX).trim()
+
+  return trimmed === '' ? undefined : trimmed
+}
+
 export function parseBrowserSearch(raw: Record<string, unknown>): BrowserSearch {
   return {
     ...(typeof raw.subject === 'string' && raw.subject !== '' ? { subject: raw.subject } : {}),
     ...(raw.view === 'subjects' ? { view: 'subjects' as const } : {}),
+    ...(meaningWordsFrom(raw.q) ? { q: meaningWordsFrom(raw.q) } : {}),
     ...searchFromFilters(filtersFromSearch(raw)),
   }
 }

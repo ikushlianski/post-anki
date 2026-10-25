@@ -17,7 +17,9 @@ vi.mock('./knowledge-browser-subject-list', () => ({
 }))
 
 vi.mock('./knowledge-browser-table', () => ({
-  KnowledgeBrowserTable: () => <p data-testid="card-table" />,
+  KnowledgeBrowserTable: ({ rows }: { rows: { knowledgeBitId: string }[] }) => (
+    <p data-testid="card-table">{rows.map((row) => row.knowledgeBitId).join(',')}</p>
+  ),
 }))
 
 vi.mock('./use-knowledge-overview-subjects', () => ({
@@ -63,6 +65,28 @@ vi.mock('./use-knowledge-browser-data', () => ({
   },
 }))
 
+const matchesHook = vi.hoisted(() => ({
+  calls: [] as unknown[][],
+  state: {
+    active: false,
+    status: 'off',
+    rows: [] as { knowledgeBitId: string }[],
+    readyCount: 0,
+    notReadyCount: 0,
+    capped: false,
+    errorCode: null,
+    retry: vi.fn(),
+  },
+}))
+
+vi.mock('./use-knowledge-browser-matches', () => ({
+  useKnowledgeBrowserMatches: (...args: unknown[]) => {
+    matchesHook.calls.push(args)
+
+    return matchesHook.state
+  },
+}))
+
 const columnsHook = vi.hoisted(() => ({ ids: [] as string[] }))
 
 vi.mock('./use-knowledge-browser-column-order', () => ({
@@ -81,6 +105,17 @@ afterEach(() => {
   rowsHook.filterCalls.length = 0
   rowsHook.rows = [{ knowledgeBitId: 'b1' }]
   columnsHook.ids.length = 0
+  matchesHook.calls.length = 0
+  matchesHook.state = {
+    active: false,
+    status: 'off',
+    rows: [],
+    readyCount: 0,
+    notReadyCount: 0,
+    capped: false,
+    errorCode: null,
+    retry: vi.fn(),
+  }
 })
 
 describe('KnowledgeBrowserScreen', () => {
@@ -141,5 +176,43 @@ describe('KnowledgeBrowserScreen', () => {
     render(<KnowledgeBrowserScreen subjectId={null} filters={{ answer: 'x' }} />)
 
     expect(screen.getByTestId('knowledge-browser-toolbar')).toBeTruthy()
+  })
+
+  it('should list the meaning matches instead of the newest-first rows while a meaning search is active', () => {
+    matchesHook.state = { ...matchesHook.state, active: true, status: 'success', readyCount: 2, rows: [{ knowledgeBitId: 'm1' }, { knowledgeBitId: 'm2' }] }
+    render(<KnowledgeBrowserScreen subjectId="s1" filters={{ question: 'x' }} meaningWords="heart" />)
+
+    expect(screen.getByTestId('card-table').textContent).toBe('m1,m2')
+    expect(matchesHook.calls[0]).toEqual(['heart', 's1', { question: 'x' }])
+  })
+
+  it('should not offer Load more or the filter empty message in meaning mode', () => {
+    rowsHook.rows = []
+    matchesHook.state = { ...matchesHook.state, active: true, status: 'success', readyCount: 3 }
+    render(<KnowledgeBrowserScreen subjectId={null} filters={{ question: 'x' }} meaningWords="heart" />)
+
+    expect(screen.queryByTestId('knowledge-browser-no-match')).toBeNull()
+    expect(screen.queryByTestId('knowledge-browser-load-more')).toBeNull()
+    expect(screen.getByTestId('meaning-status-nothing-close')).toBeTruthy()
+  })
+
+  it('should return to the newest-first rows when no meaning words are set', () => {
+    render(<KnowledgeBrowserScreen subjectId={null} />)
+
+    expect(screen.getByTestId('card-table').textContent).toBe('b1')
+    expect(screen.getByTestId('meaning-search-input')).toBeTruthy()
+  })
+
+  it('should hand the typed words to the address only when the owner submits', () => {
+    const onMeaningWordsChange = vi.fn()
+
+    render(<KnowledgeBrowserScreen subjectId={null} onMeaningWordsChange={onMeaningWordsChange} />)
+    fireEvent.change(screen.getByTestId('meaning-search-input'), { target: { value: 'heart pump' } })
+
+    expect(onMeaningWordsChange).not.toHaveBeenCalled()
+
+    fireEvent.submit(screen.getByTestId('meaning-search-form'))
+
+    expect(onMeaningWordsChange).toHaveBeenCalledWith('heart pump')
   })
 })

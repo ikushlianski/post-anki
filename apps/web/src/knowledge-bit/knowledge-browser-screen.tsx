@@ -6,6 +6,7 @@ import { CardListLoadError } from './card-list-load-error'
 import { KnowledgeBrowserColumnFilter } from './knowledge-browser-column-filter'
 import type { BrowserFiltersChange } from './knowledge-browser-column-filter'
 import { filteredColumns, hasAnyFilter } from './knowledge-browser-filters'
+import { KnowledgeBrowserMeaningSearch } from './knowledge-browser-meaning-search'
 import { KnowledgeBrowserToolbar } from './knowledge-browser-toolbar'
 import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
@@ -13,6 +14,7 @@ import { KnowledgeBrowserTable } from './knowledge-browser-table'
 import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
 import { useKnowledgeBrowserColumnOrder } from './use-knowledge-browser-column-order'
 import { useKnowledgeBrowserRows } from './use-knowledge-browser-data'
+import { useKnowledgeBrowserMatches } from './use-knowledge-browser-matches'
 import { useKnowledgeBrowserSelectionDelete } from './use-knowledge-browser-selection-delete'
 import { useKnowledgeBrowserSourceDelete } from './use-knowledge-browser-source-delete'
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
@@ -30,6 +32,8 @@ export interface KnowledgeBrowserScreenProps {
   onFiltersChange?: BrowserFiltersChange
   onSubjectChange?: (subjectId: string | null) => void
   onClearAll?: () => void
+  meaningWords?: string
+  onMeaningWordsChange?: (words: string | undefined) => void
 }
 
 const NO_FILTERS: KnowledgeBitBrowserFilters = {}
@@ -61,12 +65,17 @@ function KnowledgeBrowserCardTable({
   onFiltersChange = () => undefined,
   onSubjectChange = () => undefined,
   onClearAll = () => undefined,
+  meaningWords,
+  onMeaningWordsChange = () => undefined,
 }: Omit<KnowledgeBrowserScreenProps, 'view'>) {
   const { labelFor, options } = useKnowledgeOverviewSubjects()
   const data = useKnowledgeBrowserRows(subjectId, filters)
-  const selection = useKnowledgeBrowserSelectionDelete(data.rows.map((row) => row.knowledgeBitId))
-  const sourceDelete = useKnowledgeBrowserSourceDelete(data.rows, selection.clear)
-  const activeSource = singleSelectedSource(data.rows, selection.selected)
+  const matches = useKnowledgeBrowserMatches(meaningWords, subjectId, filters)
+  const meaning = matches.active
+  const rows = meaning ? matches.rows : data.rows
+  const selection = useKnowledgeBrowserSelectionDelete(rows.map((row) => row.knowledgeBitId))
+  const sourceDelete = useKnowledgeBrowserSourceDelete(rows, selection.clear)
+  const activeSource = singleSelectedSource(rows, selection.selected)
   const columns = useKnowledgeBrowserColumnOrder(subjectId ?? ALL_SUBJECTS_TABLE_ID)
   const filtered = filteredColumns(filters)
   const filtering = hasAnyFilter(filters)
@@ -96,6 +105,13 @@ function KnowledgeBrowserCardTable({
         </div>
       </div>
       <KnowledgeBrowserToolbar
+        searchSlot={
+          <KnowledgeBrowserMeaningSearch
+            words={meaningWords}
+            matches={matches}
+            onSearch={onMeaningWordsChange}
+          />
+        }
         subjectId={subjectId}
         subjectOptions={options}
         onSubjectChange={onSubjectChange}
@@ -110,25 +126,25 @@ function KnowledgeBrowserCardTable({
           activeSource
             ? {
                 count: sourceDelete.countFor(activeSource),
-                onSelectAll: () => selection.addRows(idsFromSource(data.rows, activeSource)),
+                onSelectAll: () => selection.addRows(idsFromSource(rows, activeSource)),
                 onDelete: () => sourceDelete.open(activeSource),
               }
             : null
         }
       />
-      {data.isPending && (
+      {!meaning && data.isPending && (
         <p data-testid="knowledge-browser-loading" className="text-neutral-500">
           Loading…
         </p>
       )}
-      {data.isError && (
+      {!meaning && data.isError && (
         <CardListLoadError
           testId="knowledge-browser-error"
           retryTestId="knowledge-browser-retry"
           onRetry={data.retry}
         />
       )}
-      {!data.isPending && !data.isError && data.rows.length === 0 && filtering && (
+      {!meaning && !data.isPending && !data.isError && data.rows.length === 0 && filtering && (
         <p data-testid="knowledge-browser-no-match" className="text-neutral-500">
           No pieces match these filters.{' '}
           <button
@@ -141,14 +157,14 @@ function KnowledgeBrowserCardTable({
           </button>
         </p>
       )}
-      {!data.isPending && !data.isError && data.rows.length === 0 && !filtering && (
+      {!meaning && !data.isPending && !data.isError && data.rows.length === 0 && !filtering && (
         <p data-testid="knowledge-browser-empty" className="text-neutral-500">
           {subjectId ? 'Nothing in this subject yet.' : 'No approved knowledge yet.'}
         </p>
       )}
-      {data.rows.length > 0 && (
+      {rows.length > 0 && (
         <KnowledgeBrowserTable
-          rows={data.rows}
+          rows={rows}
           columnOrder={columns.order}
           onColumnOrderChange={columns.changeOrder}
           selected={selection.selected}
@@ -163,7 +179,7 @@ function KnowledgeBrowserCardTable({
           }}
         />
       )}
-      {data.hasMore && (
+      {!meaning && data.hasMore && (
         <button
           type="button"
           data-testid="knowledge-browser-load-more"
