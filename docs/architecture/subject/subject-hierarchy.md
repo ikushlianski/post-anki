@@ -3,7 +3,7 @@ type: architecture
 domain: subject
 component: subject-hierarchy
 state: as-built
-updated: 2026-10-11
+updated: 2026-10-25
 ---
 # Subject hierarchy
 
@@ -44,6 +44,17 @@ Code: `apps/api/src/subject/subject.controller.ts` and `apps/api/src/subject/sub
 - `knowledge_sources.subject_id` is set when a source is created through `POST /knowledge-sources`, whether the body holds one text, a `texts` batch, or a `url`. An unknown `subjectId` gives 400 `subject_not_found`. The browser extension sends no subject, so its captures are unsorted (see `docs/architecture/extension/highlight-capture.md`).
 - A bit's subject is read at query time, not copied. A placed bit (has a topic) belongs to its curriculum's subject. An unplaced bit belongs to its source's subject. The same rule appears in `apps/api/src/knowledge-bit/knowledge-bit-review-queue-picked.repo.ts` (`scopeCondition`), `subject-review-due-counts.repo.ts`, and `knowledge-bit-suspended.repo.ts` (`coalesce`).
 - Review scoping by subject lives in `apps/api/src/knowledge-bit/knowledge-bit-review-queue.repo.ts`. It expands the chosen subject to its subtree with `collectSubjectSubtreeIds`, then filters the review queue. The subject-review due counts roll each subject's count up its whole subtree.
+
+## Where cards live
+
+Any existing subject can hold cards, whether or not it has sub-subjects. `POST /knowledge-sources` and the bulk card move accept a parent subject the same way they accept a leaf; only an unknown subject is refused (`subject_not_found`). The check is `apps/api/src/subject/subject-leaf.ts`.
+
+- Creating or re-parenting a sub-subject never moves cards. A parent keeps its own cards when it gets its first child, and no "Common" sub-subject is created. Both still run under the per-subject lock, so they wait for a merge or delete of that parent.
+- A "Common" sub-subject made before this rule stays an ordinary sub-subject. Nothing folds it back into its parent.
+- Review, due counts, the knowledge browser filter and the card overview treat a subject as itself plus every descendant, so a parent shows its own cards and its sub-subjects' cards together.
+- AI card placement offers topics from courses owned by any subject, parents included, within its existing topic cap. AI sub-subject suggestions for a parent read the parent's own cards plus the cards of an old "Common" child (`apps/api/src/subject-suggestion/subject-suggestion-pool.ts`). "Common" is never split further.
+- The subject checker still recommends only subjects without children. A parent appears there only as a home for a proposed new subject.
+- Deleting a parent leaves the cards placed directly on it pointing at a removed subject, as deleting any subject does.
 
 ## Dashboard
 

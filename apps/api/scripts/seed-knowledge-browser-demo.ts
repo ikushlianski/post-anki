@@ -12,7 +12,7 @@ type Kind = "manual" | "pasted" | "notion" | "article" | "ai";
 type Study = "new" | "learning" | "review" | "relearning" | "suspended" | "buried";
 
 interface Piece {
-  subject: "prog" | "ts" | "lang" | "cook" | null;
+  subject: "prog" | "ts" | "common" | "lang" | "cook" | null;
   kind: Kind;
   front: string;
   back: string;
@@ -77,12 +77,16 @@ const PIECES: Piece[] = [
   { subject: "ts", kind: "manual", front: "Что делает оператор keyof?", back: "Возвращает объединение ключей типа.", daysAgo: 7, noMeaning: true },
   { subject: "lang", kind: "manual", front: "Past tense of go?", back: "Went.", daysAgo: 8, noMeaning: true },
   { subject: "cook", kind: "manual", front: "Oven temperature for pizza?", back: "As hot as it goes, around 250 C.", daysAgo: 10, noMeaning: true },
+  { subject: "common", kind: "manual", front: "What is a pure function?", back: "Same input, same output, no side effects.", daysAgo: 13 },
+  { subject: "common", kind: "pasted", front: "What is memoization?", back: "Caching a function result by its arguments.", daysAgo: 16, study: "review" },
+  { subject: "common", kind: "manual", front: "What is a closure?", back: "A function that keeps access to its defining scope.", daysAgo: 19, study: "learning" },
   { subject: null, kind: "manual", front: "Capital of Australia?", back: "Canberra.", daysAgo: 11, noMeaning: true },
 ];
 
 const SUBJECTS = [
   { key: "prog", id: "subj_demo_prog", name: "Demo Programming", parent: null },
   { key: "ts", id: "subj_demo_ts", name: "Demo TypeScript", parent: "subj_demo_prog" },
+  { key: "common", id: "subj_demo_common", name: "Common", parent: "subj_demo_prog" },
   { key: "lang", id: "subj_demo_lang", name: "Demo Languages", parent: null },
   { key: "cook", id: "subj_demo_cook", name: "Demo Cooking", parent: null },
 ];
