@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { encodeKnowledgeSourceRefusal, knowledgeItemModelIdSchema } from '@post-anki/shared'
+import { encodeKnowledgeSourceRefusal, knowledgeItemModelIdSchema, subjectCheckRequestSchema } from '@post-anki/shared'
+import type { SubjectCheckResponse } from '@post-anki/shared'
 
 import * as api from '../curriculum/api-client'
 
@@ -63,3 +64,13 @@ export const createKnowledgeSourceFromUrl = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     api.createKnowledgeSourceFromUrl(data.url, data.subjectId ?? undefined, data.modelId, data.force).catch(rethrowRefusal),
   )
+
+export const checkKnowledgeSourceSubject = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => subjectCheckRequestSchema.parse(data))
+  .handler(async ({ data }): Promise<SubjectCheckResponse> => {
+    try {
+      return await api.checkKnowledgeSourceSubject(data)
+    } catch {
+      return { status: 'unavailable', reason: 'failed' }
+    }
+  })

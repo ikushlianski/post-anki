@@ -758,6 +758,15 @@ export interface KnowledgeSource {
   truncated?: boolean
 }
 
+export async function checkKnowledgeSourceSubject(
+  input: be.SubjectCheckRequest,
+): Promise<be.SubjectCheckResponse> {
+  return request<be.SubjectCheckResponse>('/knowledge-sources/subject-checks', {
+    method: 'POST',
+    body: input,
+  })
+}
+
 export async function createKnowledgeSource(
   text: string,
   subjectId?: string,
