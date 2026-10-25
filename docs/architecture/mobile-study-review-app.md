@@ -27,6 +27,11 @@ migrations already sit behind. The raw token is shown once and stored only in th
 secure keychain (`expo-secure-store`), never in plain `AsyncStorage` and never in source control
 or the app bundle.
 
+The gate also accepts a third credential after those two: a Better Auth session token sent as
+`Authorization: Bearer`, obtained from email and password sign-in (`POST /api/auth/sign-in/email`,
+token in the `set-auth-token` response header). The device token keeps working unchanged. See
+`docs/architecture/web-auth/web-auth.md` for the credential order, rate limits and revocation.
+
 The Connect screen (`apps/mobile/app/connect.tsx`) visibly distinguishes first-time pairing from
 post-eviction re-pairing, rather than showing identical copy either way. When `apiFetch`'s 401
 branch clears a rejected token, it records `"revoked"` as a module-level, read-once reason in

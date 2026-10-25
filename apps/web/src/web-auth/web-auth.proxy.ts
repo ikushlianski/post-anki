@@ -1,6 +1,8 @@
 import { apiBaseUrl, authHeaders } from '../curriculum/api-client'
 
 const ALLOWED_ENDPOINTS: Record<string, string> = {
+  'sign-in/api-key': 'POST',
+  'sign-in/email': 'POST',
   'sign-in/magic-link': 'POST',
   'magic-link/verify': 'GET',
   'sign-out': 'POST',

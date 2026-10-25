@@ -38,6 +38,16 @@ Ports: API 5560, web 5540, Postgres 5562.
 
 Tokens belong to one database. After pointing the API at another database, create a new token.
 
+## Web sign-in
+
+The login page accepts a device key or the owner email and password. Locally, set `OWNER_EMAIL` and `BETTER_AUTH_SECRET` (at least 32 characters) in `apps/api/.env.local`.
+
+- Mint a key for the dev database: `npm run db:create-web-key -w @post-anki/api -- web`. It prints once.
+- Set the owner password: `npm run db:set-owner-password -w @post-anki/api`. It asks twice with hidden typing and ends all owner sessions.
+- Revoke a key: `npm run db:revoke-api-token -w @post-anki/api -- <label-or-id>`. It also ends all owner sessions.
+
+These scripts refuse a non-local `DATABASE_URL` unless `ALLOW_REMOTE_DB_MIGRATE=1` is set. Production steps are in `web-auth/web-auth.md`.
+
 ## Known problems
 
 - Electric can fail to start with `waiting_on_lock` after an interrupted run, which makes `npm run dev` wait forever. The native apps do not need Electric. Start the API by hand (`npm run dev:api`) while Electric is stuck, or run `docker compose restart electric`.

@@ -1,65 +1,49 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
 
-import { requestMagicLink } from './web-auth.browser'
-import type { MagicLinkOutcome } from './web-auth.browser'
+import { KeySignInForm } from './key-sign-in-form'
+import { MagicLinkForm } from './magic-link-form'
+import { PasswordSignInForm } from './password-sign-in-form'
 
-const MESSAGES: Record<Exclude<MagicLinkOutcome, 'sent'>, string> = {
-  rate_limited: 'Too many attempts. Please try again later.',
-  failed: 'Something went wrong. Please try again.',
+type Method = 'key' | 'password' | 'link'
+
+interface LoginFormProps {
+  linkError?: boolean
+  magicLinkAvailable?: boolean
 }
 
-export function LoginForm({ linkError }: { linkError?: boolean }) {
-  const [email, setEmail] = useState('')
-  const [pending, setPending] = useState(false)
-  const [outcome, setOutcome] = useState<MagicLinkOutcome | null>(null)
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setOutcome(await requestMagicLink(email.trim()))
-    setPending(false)
-  }
-
-  if (outcome === 'sent') {
-    return (
-      <p data-testid="login-sent" className="text-sm text-neutral-700">
-        Check your inbox. If that address can sign in, a link is on its way.
-      </p>
-    )
-  }
+export function LoginForm({ linkError, magicLinkAvailable = false }: LoginFormProps) {
+  const [method, setMethod] = useState<Method>('key')
+  const methods: Array<{ id: Method; label: string }> = [
+    { id: 'key', label: 'Paste your key' },
+    { id: 'password', label: 'Email and password' },
+    ...(magicLinkAvailable ? [{ id: 'link' as const, label: 'Email link' }] : []),
+  ]
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {linkError ? (
         <p data-testid="login-link-error" role="alert" className="text-sm text-red-600">
           That sign-in link is invalid or has expired. Request a new one.
         </p>
       ) : null}
-      <label className="text-sm font-medium" htmlFor="login-email">
-        Email
-      </label>
-      <input
-        id="login-email"
-        type="email"
-        required
-        autoComplete="email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-neutral-900 px-3 py-2 text-sm text-white disabled:opacity-50"
-      >
-        Email me a sign-in link
-      </button>
-      {outcome ? (
-        <p data-testid="login-error" role="alert" className="text-sm text-red-600">
-          {MESSAGES[outcome]}
-        </p>
-      ) : null}
-    </form>
+      <div role="group" aria-label="Sign-in method" className="flex flex-wrap gap-2">
+        {methods.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={method === id}
+            onClick={() => setMethod(id)}
+            className={`rounded-md border px-3 py-1 text-sm ${
+              method === id ? 'border-neutral-900 font-medium' : 'border-neutral-300'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {method === 'key' ? <KeySignInForm /> : null}
+      {method === 'password' ? <PasswordSignInForm /> : null}
+      {method === 'link' && magicLinkAvailable ? <MagicLinkForm /> : null}
+    </div>
   )
 }
