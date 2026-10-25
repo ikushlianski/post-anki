@@ -29,4 +29,30 @@ describe("web session status", () => {
   it("should report signed_out when the cookie has no valid session", async () => {
     expect(await checker({ session: false })("")).toBe("signed_out");
   });
+
+  it("should stop counting users once an owner has been seen", async () => {
+    const countUsers = vi.fn(async () => 1);
+    const check = createWebSessionChecker({
+      isConfigured: () => true,
+      countUsers,
+      hasSession: async () => true,
+    });
+
+    await check("c=1");
+    await check("c=1");
+
+    expect(countUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it("should keep checking for an owner until one is created", async () => {
+    const countUsers = vi.fn<() => Promise<number>>().mockResolvedValueOnce(0).mockResolvedValue(1);
+    const check = createWebSessionChecker({
+      isConfigured: () => true,
+      countUsers,
+      hasSession: async () => true,
+    });
+
+    expect(await check("c=1")).toBe("unconfigured");
+    expect(await check("c=1")).toBe("signed_in");
+  });
 });

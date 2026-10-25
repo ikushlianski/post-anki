@@ -12,8 +12,18 @@ export interface AuthStatusDeps {
 }
 
 export function createWebSessionChecker(deps: AuthStatusDeps) {
+  let ownerSeen = false;
+
   return async (cookie: string): Promise<WebAuthState> => {
-    if (!deps.isConfigured() || (await deps.countUsers()) === 0) {
+    if (!deps.isConfigured()) {
+      return "unconfigured";
+    }
+
+    if (!ownerSeen) {
+      ownerSeen = (await deps.countUsers()) > 0;
+    }
+
+    if (!ownerSeen) {
       return "unconfigured";
     }
 
