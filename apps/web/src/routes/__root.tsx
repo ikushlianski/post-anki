@@ -8,6 +8,7 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useEffect, useState } from 'react'
+import { AccountLinks } from '../nav/account-links'
 import { Sidebar } from '../nav/sidebar'
 import { GlobalSearch } from '../search/global-search'
 import { combineHeaderSearch } from '../search/header-search'
@@ -78,6 +79,7 @@ function RootDocument({ children }: { children: ReactNode }) {
                 Post Anki
               </Link>
               <GlobalSearch onSearch={headerSearch} />
+              <AccountLinks />
               <button
                 type="button"
                 className="md:hidden"

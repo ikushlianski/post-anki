@@ -46,33 +46,32 @@ import { getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
 import { getPendingKnowledgeBitCountForNav } from '../knowledge-bit/knowledge-bit-review.api'
 import { PENDING_REVIEW_CHANGED_EVENT } from '../knowledge-bit/knowledge-bit-review-events'
 import { Sidebar } from './sidebar'
-import { signOut } from '../web-auth/web-auth.browser'
 
 afterEach(() => {
   cleanup()
 })
 
 describe('Sidebar', () => {
-  it('should show the browser, the Subjects entry, inbox and review in that order', () => {
+  it('should show Overview, the browser, the Subjects entry, inbox and review in that order', () => {
     render(<Sidebar />)
 
     const links = screen.getAllByRole('link')
 
     expect(links.map((link) => link.getAttribute('data-to'))).toEqual([
       '/add-knowledge',
+      '/',
       '/knowledge/browser',
       '/subjects',
       '/knowledge-bit-review',
       '/knowledge/review',
-      '/profile',
     ])
     expect(links.map((link) => link.textContent?.split(' (')[0])).toEqual([
       '+Add knowledge',
+      'Overview',
       'Knowledge browser',
       'Subjects',
       'Knowledge triage',
       'Review',
-      'Profile',
     ])
   })
 
@@ -250,12 +249,10 @@ describe('Sidebar', () => {
     })
   })
 
-  it('should end the session when Sign out is pressed', async () => {
-    const { fireEvent } = await import('@testing-library/react')
-
+  it('should leave Profile and Sign out to the top bar', () => {
     render(<Sidebar />)
-    fireEvent.click(screen.getByTestId('nav-sign-out'))
 
-    expect(signOut).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('nav-profile')).toBeNull()
+    expect(screen.queryByTestId('nav-sign-out')).toBeNull()
   })
 })
