@@ -18,6 +18,7 @@ import {
   handleRegenerateKnowledgeSource,
 } from "./knowledge-source/knowledge-source-regeneration.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
+import { handleCreateKnowledgeSourceSubjectCheck } from "./knowledge-source/knowledge-source-subject-check.controller.js";
 import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
 import {
   handleDetectKnowledgeBits,
@@ -45,6 +46,7 @@ import {
   handleCountKnowledgeBitBrowserSubjects,
   handleListKnowledgeBitBrowser,
 } from "./knowledge-bit/knowledge-bit-browser.controller.js";
+import { handleKnowledgeBitBrowserMatches } from "./knowledge-bit/knowledge-bit-browser-matches.controller.js";
 import {
   handleDistillTriageSession,
   handleFinishTriageSession,
@@ -552,6 +554,8 @@ async function route(
       return handleCreateKnowledgeSource(req, res);
     case "createKnowledgeSourceFromNotion":
       return handleCreateKnowledgeSourceFromNotion(req, res);
+    case "createKnowledgeSourceSubjectCheck":
+      return handleCreateKnowledgeSourceSubjectCheck(req, res);
     case "detectKnowledgeBits":
       return handleDetectKnowledgeBits(res);
     case "triggerKnowledgeBitEmbeddingScan":
@@ -598,6 +602,8 @@ async function route(
       return handleListKnowledgeBitBrowser(res, url.search);
     case "countKnowledgeBitBrowserSubjects":
       return handleCountKnowledgeBitBrowserSubjects(res);
+    case "listKnowledgeBitBrowserMatches":
+      return handleKnowledgeBitBrowserMatches(res, url.search);
     case "exportKnowledgeBits":
       return handleExportKnowledgeBits(res, url.search);
     case "bulkDeleteKnowledgeBits":

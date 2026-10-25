@@ -75,4 +75,16 @@ describe("countRecentLlmCallEventsByOp", () => {
 
     expect(await countRecentLlmCallEventsByOp("subject_check", 60 * 60 * 1000)).toBe(2);
   });
+
+  it("should leave out a call just outside a shorter window and count it in a longer one", async () => {
+    await seedEvent("window_op", 10);
+    await seedEvent("window_op", 20);
+
+    expect(await countRecentLlmCallEventsByOp("window_op", 15 * 60 * 1000)).toBe(1);
+    expect(await countRecentLlmCallEventsByOp("window_op", 25 * 60 * 1000)).toBe(2);
+  });
+
+  it("should count nothing for an operation that never ran", async () => {
+    expect(await countRecentLlmCallEventsByOp("never_ran", 60 * 60 * 1000)).toBe(0);
+  });
 });

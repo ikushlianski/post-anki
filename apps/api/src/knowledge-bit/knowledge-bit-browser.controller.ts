@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { knowledgeBitBrowserQuerySchema } from "@post-anki/shared";
+import { isBrowserDateRangeReversed, knowledgeBitBrowserQuerySchema } from "@post-anki/shared";
 import { sendJson } from "../shared/http.js";
 import {
   countKnowledgeBitBrowserSubjects,
@@ -17,6 +17,14 @@ export async function handleListKnowledgeBitBrowser(
 
   if (!parsed.success) {
     sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    return;
+  }
+
+  if (isBrowserDateRangeReversed(parsed.data)) {
+    sendJson(res, 400, {
+      error: "invalid_date_range",
+      message: "The from date must not be later than the to date.",
+    });
     return;
   }
 

@@ -16,6 +16,7 @@
     "db:rebuild-review-points": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/rebuild-review-points.ts",
     "db:seed:subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subjects.ts",
     "db:seed:business-sub-subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-business-sub-subjects.ts",
+    "db:seed:knowledge-browser-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-knowledge-browser-demo.ts",
     "db:seed:subject-categories": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subject-categories.ts",
     "migrate:english-practice-data": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate-english-practice-data.ts",
     "db:seed:domain-taxonomy": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-domain-taxonomy.ts",

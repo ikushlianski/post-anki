@@ -70,6 +70,8 @@ export * from "./card-triage-session";
 export * from "./knowledge-bit-overview";
 export * from "./knowledge-cleanup";
 export * from "./knowledge-bit-browser";
+export * from "./knowledge-bit-browser-filters";
+export * from "./knowledge-bit-browser-matches";
 export * from "./model-comparison";
 export * from "./knowledge-bit-origin";
 export * from "./knowledge-source-refusal";

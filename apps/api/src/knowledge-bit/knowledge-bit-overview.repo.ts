@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNull } from "drizzle-orm";
 import { collectSubjectSubtreeIds } from "@post-anki/core";
 import type { KnowledgeBitOverviewPage, KnowledgeBitOverviewQuery } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
@@ -11,11 +11,11 @@ import {
   subjects,
   topics,
 } from "../db/schema.js";
-import { escapeLikePattern } from "../shared/escape-like-pattern.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { deriveOverviewState } from "./knowledge-bit-overview-state.js";
 import { pickPreferredVariants } from "./knowledge-bit-preferred-variant.js";
 import { effectiveSubjectIdSql } from "./knowledge-bit-subject.js";
+import { containsPattern, questionOrAnswerContains } from "./knowledge-bit-text-match.js";
 
 async function resolveSubjectScopeIds(subjectId: string, db: DbExecutor): Promise<string[]> {
   const rows = await db
@@ -25,24 +25,6 @@ async function resolveSubjectScopeIds(subjectId: string, db: DbExecutor): Promis
   return collectSubjectSubtreeIds(subjectId, rows);
 }
 
-function matchesText(pattern: string, db: DbExecutor) {
-  return exists(
-    db
-      .select({ one: knowledgeBitQuestionVariants.id })
-      .from(knowledgeBitQuestionVariants)
-      .where(
-        and(
-          eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBits.id),
-          isNull(knowledgeBitQuestionVariants.supersededAt),
-          or(
-            ilike(knowledgeBitQuestionVariants.prompt, pattern),
-            ilike(knowledgeBitQuestionVariants.answer, pattern),
-          ),
-        ),
-      ),
-  );
-}
-
 // Approved bits with a live question, newest first. Subject filter includes descendants.
 export async function listKnowledgeBitOverview(
   { subjectId, q, limit, offset }: KnowledgeBitOverviewQuery,
@@ -50,7 +32,7 @@ export async function listKnowledgeBitOverview(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitOverviewPage> {
   const scopeIds = subjectId ? await resolveSubjectScopeIds(subjectId, db) : null;
-  const pattern = q ? `%${escapeLikePattern(q)}%` : null;
+  const pattern = q ? containsPattern(q) : null;
 
   const rows = await db
     .select({
@@ -84,7 +66,7 @@ export async function listKnowledgeBitOverview(
             ),
         ),
         scopeIds ? inArray(effectiveSubjectIdSql, scopeIds) : undefined,
-        pattern ? matchesText(pattern, db) : undefined,
+        pattern ? questionOrAnswerContains(pattern, db) : undefined,
       ),
     )
     .orderBy(desc(knowledgeBits.createdAt), asc(knowledgeBits.id))

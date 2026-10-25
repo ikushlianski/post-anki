@@ -45,6 +45,33 @@ describe("knowledge browser controller", () => {
     expect(res.status).toBe(200);
   });
 
+  it("should pass clean filters on and ignore unknown values", async () => {
+    listKnowledgeBitBrowser.mockResolvedValue({ items: [], hasMore: false, total: 0 });
+
+    const res = fakeRes();
+
+    await handleListKnowledgeBitBrowser(res, "?origins=article,bogus&states=nope&site=https://www.Example.com/a");
+
+    expect(listKnowledgeBitBrowser).toHaveBeenCalledWith({
+      limit: 50,
+      offset: 0,
+      origins: ["article"],
+      site: "example.com",
+      link: "has",
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("should refuse a date range that ends before it starts without reading anything", async () => {
+    const res = fakeRes();
+
+    await handleListKnowledgeBitBrowser(res, "?from=2026-03-02&to=2026-03-01");
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: "invalid_date_range" });
+    expect(listKnowledgeBitBrowser).not.toHaveBeenCalled();
+  });
+
   it("should reject a page size above 100 without reading anything", async () => {
     const res = fakeRes();
 

@@ -24,3 +24,11 @@ describe("knowledgeBitBrowserItemSchema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("knowledgeBitBrowserQuerySchema filters", () => {
+  it("should carry clean filters next to the paging values", () => {
+    expect(
+      knowledgeBitBrowserQuerySchema.parse({ limit: "10", origins: "article", question: "cat", states: "zzz" }),
+    ).toEqual({ limit: 10, offset: 0, origins: ["article"], question: "cat" });
+  });
+});

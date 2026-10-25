@@ -19,6 +19,7 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/knowledge-sources", name: "createKnowledgeSource" },
   { method: "POST", pattern: "/knowledge-sources/notion", name: "createKnowledgeSourceFromNotion" },
   { method: "POST", pattern: "/knowledge-sources/detect-bits", name: "detectKnowledgeBits" },
+  { method: "POST", pattern: "/knowledge-sources/subject-checks", name: "createKnowledgeSourceSubjectCheck" },
   {
     method: "POST",
     pattern: /^\/knowledge-sources\/([^/]+)\/regeneration$/,
@@ -150,6 +151,11 @@ export const ROUTES: RouteDef[] = [
     method: "GET",
     pattern: "/knowledge-bits/browser/subjects",
     name: "countKnowledgeBitBrowserSubjects",
+  },
+  {
+    method: "GET",
+    pattern: "/knowledge-bits/browser/matches",
+    name: "listKnowledgeBitBrowserMatches",
   },
   {
     method: "GET",
