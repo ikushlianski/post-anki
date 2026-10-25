@@ -362,9 +362,9 @@ jobs:
       - name: Verify web health
         run: |
           URL=$(gcloud run services describe post-anki-web --region ${{ vars.PROD_REGION }} --project ${{ vars.PROD_PROJECT_ID }} --format='value(status.url)')
-          echo "Health check: $URL/"
+          echo "Health check: $URL/login"
           for i in $(seq 1 12); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/login")
             if [ "$STATUS" = "200" ]; then
               echo "Web health check passed"
               exit 0
