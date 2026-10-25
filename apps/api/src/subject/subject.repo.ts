@@ -283,7 +283,6 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
   return toSubject({
     ...row,
     createdAt: new Date(),
-    embedding: null,
     embeddingVec: null,
     embeddingHash: null,
     embeddedAt: null,

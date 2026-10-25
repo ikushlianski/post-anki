@@ -503,6 +503,19 @@ describe("migrations — knowledge_sources.updated_at (prose-knowledge-fisher--s
   });
 });
 
+describe("migrations — embedding columns", () => {
+  it("should have no jsonb embedding column on the six embedded tables", async () => {
+    const { rows } = await client.query(
+      `SELECT table_name
+         FROM information_schema.columns
+        WHERE column_name = 'embedding'
+          AND table_name IN ('subjects', 'sources', 'topic_card_variants', 'facts', 'knowledge_bits', 'knowledge_bit_question_variants')`,
+    );
+
+    expect(rows).toEqual([]);
+  });
+});
+
 describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-knowledge-bits)", () => {
   it("creates knowledge_bits with the columns schema.ts declares", async () => {
     const { rows } = await client.query(
@@ -526,7 +539,6 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         data_type: "timestamp with time zone",
         is_nullable: "NO",
       }),
-      expect.objectContaining({ column_name: "embedding", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "embedding_hash", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({
         column_name: "embedded_at",

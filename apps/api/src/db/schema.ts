@@ -35,13 +35,6 @@ export const subjects = pgTable("subjects", {
   requireSources: boolean("require_sources").notNull().default(false),
   kind: text("kind").notNull().default("architecture-mentor"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  // ai-duplicate-detection (issue #63) — nullable, additive, no backfill:
-  // every existing subject simply starts with no cached embedding, which
-  // the first scan fills in. embeddingHash lets a scan skip re-embedding a
-  // subject whose name+description text hasn't changed since it was last
-  // embedded (the real cost bound, not just a subject-count cap — see
-  // architecture.md's "Data model evolution").
-  embedding: jsonb("embedding").$type<number[]>(),
   embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
@@ -419,11 +412,6 @@ export const sources = pgTable("sources", {
   // (guardedFetchText's own outcome vocabulary) — deliberately not a pg enum,
   // matching every other enum-ish text column in this file.
   lastFetchOutcome: text("last_fetch_outcome"),
-  // content-library (module 5) — mirrors subjects.embedding/embeddingHash/
-  // embeddedAt exactly (see that column's own comment above), for the same
-  // don't-re-embed-unchanged-content cache selectSubjectsForScan already
-  // assumes, applied here to source-duplicate detection's embedding tier.
-  embedding: jsonb("embedding").$type<number[]>(),
   embeddingVec: vector("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
@@ -1068,9 +1056,6 @@ export const topicCardVariants = pgTable("topic_card_variants", {
   order: integer("order").notNull(),
   prompt: text("prompt").notNull(),
   answer: text("answer").notNull(),
-  // Mirrors subjects.embedding/embeddingHash/embeddedAt — nullable, additive,
-  // no backfill; embeddingHash lets a scan skip re-embedding unchanged text.
-  embedding: jsonb("embedding").$type<number[]>(),
   embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
@@ -1086,7 +1071,6 @@ export const facts = pgTable("facts", {
   source: text("source").notNull(),
   sourceRef: text("source_ref").notNull().unique(),
   tags: jsonb("tags").$type<string[]>().notNull().default([]),
-  embedding: jsonb("embedding").$type<number[]>(),
   embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
   embeddingHash: text("embedding_hash"),
   embeddedAt: timestamp("embedded_at", { withTimezone: true }),
@@ -1176,9 +1160,6 @@ export const knowledgeBits = pgTable(
     isAiGenerated: boolean("is_ai_generated").notNull().default(false),
     sourceLinks: jsonb("source_links").$type<string[]>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    // Mirrors topicCardVariants.embedding/embeddingHash/embeddedAt — nullable,
-    // additive, no backfill; embeddingHash skips re-embedding unchanged text.
-    embedding: jsonb("embedding").$type<number[]>(),
     embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
@@ -1269,9 +1250,6 @@ export const knowledgeBitQuestionVariants = pgTable(
     answer: text("answer").notNull(),
     // fill-in-the-blank source sentence — nullable, no default; only present for kind="fill_in_the_blank".
     sentence: text("sentence"),
-    // Populated by a later backlog item ("Embed each generated question and answer...") — added now
-    // so that item is additive, mirrors topicCardVariants.embedding/embeddingHash/embeddedAt.
-    embedding: jsonb("embedding").$type<number[]>(),
     embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
