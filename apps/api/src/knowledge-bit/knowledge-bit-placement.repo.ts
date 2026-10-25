@@ -1,10 +1,9 @@
-import { and, asc, desc, eq, isNotNull, isNull, notInArray } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { bitNotDiscarded } from "./knowledge-bit-approval.repo.js";
 import type { PendingPlacementSuggestion } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, topics, curricula, subjects } from "../db/schema.js";
 import { createTopic } from "../topic/topic.repo.js";
-import { listParentSubjectIds } from "../subject/subject-leaf.js";
 
 export interface KnowledgeBitForPlacementScan {
   id: string;
@@ -46,8 +45,6 @@ export const TOPIC_HIERARCHY_PROMPT_LIMIT = 500;
 export async function listTopicsForPlacement(
   db: DbExecutor = getDb(),
 ): Promise<TopicForPlacement[]> {
-  const parents = [...(await listParentSubjectIds(db))];
-
   return db
     .select({
       topicId: topics.id,
@@ -62,7 +59,6 @@ export async function listTopicsForPlacement(
       and(
         eq(topics.included, true),
         isNull(curricula.containerAreaNodeId),
-        parents.length > 0 ? notInArray(subjects.id, parents) : undefined,
       ),
     )
     .orderBy(topics.id)

@@ -3,8 +3,6 @@ import { useState } from 'react'
 import { moveKnowledgeBits } from './knowledge-overview.api'
 
 const OVERVIEW_MOVE_FAILED_MESSAGE = 'Could not move cards. Try again.'
-const OVERVIEW_MOVE_HAS_CHILDREN_MESSAGE =
-  "Pick a sub-subject. Items can't go in a subject that has sub-subjects."
 
 interface Options {
   selectedIds: string[]
@@ -54,13 +52,8 @@ export function useKnowledgeOverviewMove(options: Options) {
     setBusy(false)
 
     if (!outcome || !outcome.ok) {
-      const message =
-        outcome && outcome.error === 'subject_has_children'
-          ? OVERVIEW_MOVE_HAS_CHILDREN_MESSAGE
-          : OVERVIEW_MOVE_FAILED_MESSAGE
-
-      setError(message)
-      announce('assertive', message)
+      setError(OVERVIEW_MOVE_FAILED_MESSAGE)
+      announce('assertive', OVERVIEW_MOVE_FAILED_MESSAGE)
 
       return
     }

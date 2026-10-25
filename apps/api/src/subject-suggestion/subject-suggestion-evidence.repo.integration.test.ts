@@ -87,7 +87,7 @@ describe("subject suggestion evidence repo", () => {
   });
 
   it("should list a subject's own approved embedded bits", async () => {
-    const bits = await evidence.listApprovedBitsForSubject("sub_a", 10);
+    const bits = await evidence.listApprovedBitsForSubjects(["sub_a"], 10);
 
     expect(bits.map((bit) => bit.id)).toEqual(["kb_4"]);
   });

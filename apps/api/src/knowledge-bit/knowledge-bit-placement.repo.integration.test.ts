@@ -225,7 +225,7 @@ describe("listTopicsForPlacement (real Postgres)", () => {
     ]);
   });
 
-  it("never offers topics of a subject that has sub-subjects, only of its leaves", async () => {
+  it("offers topics of courses owned by a subject that has sub-subjects", async () => {
     const parentId = await seedSubject("Parent With Children");
     const childId = await seedSubject("Leaf Child");
 
@@ -233,16 +233,12 @@ describe("listTopicsForPlacement (real Postgres)", () => {
 
     const parentCurriculumId = await seedCurriculum(parentId, "Parent Curriculum");
     const childCurriculumId = await seedCurriculum(childId, "Child Curriculum");
-
-    await seedTopic(parentCurriculumId, "Parent Topic", true);
-
+    const parentTopicId = await seedTopic(parentCurriculumId, "Parent Topic", true);
     const childTopicId = await seedTopic(childCurriculumId, "Child Topic", true);
     const offered = (await listTopicsForPlacement()).map((row) => row.topicId);
 
+    expect(offered).toContain(parentTopicId);
     expect(offered).toContain(childTopicId);
-    expect(offered.filter((id) => id !== childTopicId)).not.toContain(
-      (await client.query(`SELECT id FROM topics WHERE title = 'Parent Topic'`)).rows[0].id,
-    );
   });
 
   it(`caps the returned rows at TOPIC_HIERARCHY_PROMPT_LIMIT (${TOPIC_HIERARCHY_PROMPT_LIMIT})`, async () => {

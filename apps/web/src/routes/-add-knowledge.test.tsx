@@ -579,6 +579,25 @@ describe('AddKnowledgeForm with a preselected subject', () => {
     })
   })
 
+  it('saves knowledge straight to a parent subject chosen from the picker', async () => {
+    liveSubjectRows.rows = salesRows
+    mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))
+
+    render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-subject-select'), { target: { value: 'Business' } })
+    fireEvent.change(screen.getByTestId('knowledge-block-input-0'), { target: { value: 'Parent level note' } })
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('knowledge-success-message')).toBeDefined()
+    })
+
+    expect(mockedCreateKnowledgeSource).toHaveBeenCalledWith({
+      data: { text: 'Parent level note', subjectId: 'sub_business' },
+    })
+  })
+
   it('links back to the preselected subject after a successful save', async () => {
     liveSubjectRows.rows = salesRows
     mockedCreateKnowledgeSource.mockResolvedValue(source('ks_1'))

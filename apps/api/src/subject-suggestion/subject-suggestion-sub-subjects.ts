@@ -4,6 +4,7 @@ import { COMMON_SUBJECT_NAME } from "../subject/subject-leaf.js";
 import { closestToCentroid, leaderCluster } from "./subject-suggestion-clustering.js";
 import type { ScanContext } from "./subject-suggestion-scan.types.js";
 import { sanitizeProposedName, sanitizeReason, toEvidenceSample } from "./subject-suggestion-text.js";
+import { pickSubSubjectPoolIds } from "./subject-suggestion-pool.js";
 import { normalizeSubjectName } from "./subject-suggestion.keys.js";
 import {
   SUBJECT_SUGGESTION_CLUSTER_JOIN_SIMILARITY,
@@ -56,19 +57,16 @@ export async function suggestSubSubjects(
     )
     .flatMap((subject) => {
       const children = childrenByParent.get(subject.id) ?? [];
-      const poolSubjectId =
-        children.length === 0
-          ? subject.id
-          : children.find((child) => child.name === COMMON_SUBJECT_NAME)?.id;
-      const poolSize = poolSubjectId ? (bitCounts.get(poolSubjectId) ?? 0) : 0;
+      const poolSubjectIds = pickSubSubjectPoolIds(subject, children);
+      const poolSize = poolSubjectIds.reduce((sum, id) => sum + (bitCounts.get(id) ?? 0), 0);
 
-      return poolSubjectId && poolSize >= SUBJECT_SUGGESTION_MIN_POOL_FOR_SUB_SUBJECTS
-        ? [{ subject, children, poolSubjectId, poolSize }]
+      return poolSize >= SUBJECT_SUGGESTION_MIN_POOL_FOR_SUB_SUBJECTS
+        ? [{ subject, children, poolSubjectIds, poolSize }]
         : [];
     })
     .sort((a, b) => b.poolSize - a.poolSize);
 
-  for (const { subject, children, poolSubjectId } of candidates) {
+  for (const { subject, children, poolSubjectIds } of candidates) {
     if (ctx.state.calls >= SUBJECT_SUGGESTION_MAX_CALLS_PER_RUN) {
       return;
     }
@@ -80,7 +78,7 @@ export async function suggestSubSubjects(
       continue;
     }
 
-    const bits = await ctx.deps.evidence.listBitsForSubject(poolSubjectId, SUBJECT_SUGGESTION_MAX_POOL_BITS);
+    const bits = await ctx.deps.evidence.listBitsForSubjects(poolSubjectIds, SUBJECT_SUGGESTION_MAX_POOL_BITS);
     const clusters = leaderCluster(bits, SUBJECT_SUGGESTION_CLUSTER_JOIN_SIMILARITY)
       .filter((cluster) => cluster.members.length >= SUBJECT_SUGGESTION_MIN_CLUSTER_SIZE)
       .sort((a, b) => b.members.length - a.members.length)

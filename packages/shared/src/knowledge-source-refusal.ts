@@ -6,7 +6,6 @@ const REFUSAL_SENTENCES = {
   fetch_failed: "That page could not be opened.",
   empty_content: "That page has no readable text.",
   subject_not_found: "The chosen subject no longer exists. Pick another subject.",
-  subject_has_children: "This subject has sub-subjects. Choose one of them.",
   already_added: "This was already added.",
   text_too_long: `This text is longer than ${KNOWLEDGE_SOURCE_MAX_CHARS.toLocaleString("en-US")} characters. Split it into smaller blocks.`,
 } as const;

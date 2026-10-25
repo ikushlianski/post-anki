@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { curricula, knowledgeBits, knowledgeSources, subjects, topics } from "../db/schema.js";
 import { bitApproved } from "../knowledge-bit/knowledge-bit-approval.repo.js";
@@ -22,7 +22,7 @@ export interface SubjectSuggestionEvidence {
   listUnplacedBits(limit: number): Promise<EvidenceBit[]>;
   listSubjects(): Promise<EvidenceSubject[]>;
   countBitsBySubject(): Promise<Map<string, number>>;
-  listBitsForSubject(subjectId: string, limit: number): Promise<EvidenceBit[]>;
+  listBitsForSubjects(subjectIds: string[], limit: number): Promise<EvidenceBit[]>;
 }
 
 function bitsWithEffectiveSubject() {
@@ -85,8 +85,8 @@ export async function countApprovedBitsBySubject(): Promise<Map<string, number>>
   return new Map(rows.flatMap((row) => (row.subjectId === null ? [] : [[row.subjectId, row.count] as const])));
 }
 
-export async function listApprovedBitsForSubject(
-  subjectId: string,
+export async function listApprovedBitsForSubjects(
+  subjectIds: string[],
   limit: number,
 ): Promise<EvidenceBit[]> {
   const rows = await bitsWithEffectiveSubject()
@@ -94,7 +94,7 @@ export async function listApprovedBitsForSubject(
       and(
         bitApproved,
         isNotNull(knowledgeBits.embedding),
-        sql`${effectiveSubjectIdSql} = ${subjectId}`,
+        inArray(effectiveSubjectIdSql, subjectIds),
       ),
     )
     .orderBy(desc(knowledgeBits.createdAt), desc(knowledgeBits.id))
@@ -107,5 +107,5 @@ export const subjectSuggestionEvidence: SubjectSuggestionEvidence = {
   listUnplacedBits: listUnplacedApprovedBits,
   listSubjects: listSubjectsForSuggestion,
   countBitsBySubject: countApprovedBitsBySubject,
-  listBitsForSubject: listApprovedBitsForSubject,
+  listBitsForSubjects: listApprovedBitsForSubjects,
 };

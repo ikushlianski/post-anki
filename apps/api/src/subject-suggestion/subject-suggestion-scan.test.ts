@@ -41,7 +41,7 @@ function makeDeps(overrides: {
       listUnplacedBits: vi.fn().mockResolvedValue(overrides.unplaced ?? []),
       listSubjects: vi.fn().mockResolvedValue(overrides.subjects ?? [subject("s1", "Cooking", THEME_B)]),
       countBitsBySubject: vi.fn().mockResolvedValue(overrides.counts ?? new Map()),
-      listBitsForSubject: vi.fn().mockResolvedValue(overrides.poolBits ?? []),
+      listBitsForSubjects: vi.fn().mockResolvedValue(overrides.poolBits ?? []),
     },
     grader: {
       gradeNewSubject: vi.fn().mockResolvedValue({ suggest: true, name: "Astronomy", reason: "Stars" }),
@@ -284,7 +284,7 @@ describe("runSubjectSuggestionScanWith: sub-subjects", () => {
   it("should not call the model when the bits form fewer than two clusters", async () => {
     const deps = subDeps();
 
-    deps.evidence.listBitsForSubject.mockResolvedValue(bits("x", 45, THEME_A));
+    deps.evidence.listBitsForSubjects.mockResolvedValue(bits("x", 45, THEME_A));
 
     await runSubjectSuggestionScanWith(deps, manual);
 
@@ -306,7 +306,42 @@ describe("runSubjectSuggestionScanWith: sub-subjects", () => {
     expect(deps.grader.gradeSubSubjects).not.toHaveBeenCalled();
   });
 
-  it("should use the Common child's bits when the subject already has children", async () => {
+  it("should use the Common child's bits when the subject only has a Common child", async () => {
+    const deps = subDeps();
+
+    deps.evidence.listSubjects.mockResolvedValue([parent, subject("c", "Common", null, "p")]);
+    deps.evidence.countBitsBySubject.mockResolvedValue(new Map([["c", 50]]));
+
+    const result = await runSubjectSuggestionScanWith(deps, manual);
+
+    expect(result.created).toBe(2);
+    expect(deps.evidence.listBitsForSubjects).toHaveBeenCalledWith(["p", "c"], expect.any(Number));
+  });
+
+  it("should suggest for a parent whose own cards are enough even with ordinary sub-subjects", async () => {
+    const deps = subDeps();
+
+    deps.evidence.listSubjects.mockResolvedValue([parent, subject("s", "Support", null, "p")]);
+    deps.evidence.countBitsBySubject.mockResolvedValue(new Map([["p", 45]]));
+
+    const result = await runSubjectSuggestionScanWith(deps, manual);
+
+    expect(result.created).toBe(2);
+    expect(deps.evidence.listBitsForSubjects).toHaveBeenCalledWith(["p"], expect.any(Number));
+  });
+
+  it("should add a Common child's cards to the parent's own cards to reach the minimum", async () => {
+    const deps = subDeps();
+
+    deps.evidence.listSubjects.mockResolvedValue([parent, subject("c", "Common", null, "p")]);
+    deps.evidence.countBitsBySubject.mockResolvedValue(new Map([["p", 25], ["c", 25]]));
+
+    await runSubjectSuggestionScanWith(deps, manual);
+
+    expect(deps.grader.gradeSubSubjects).toHaveBeenCalled();
+  });
+
+  it("should never split a Common sub-subject itself", async () => {
     const deps = subDeps();
 
     deps.evidence.listSubjects.mockResolvedValue([parent, subject("c", "Common", null, "p")]);
@@ -314,7 +349,7 @@ describe("runSubjectSuggestionScanWith: sub-subjects", () => {
 
     await runSubjectSuggestionScanWith(deps, manual);
 
-    expect(deps.evidence.listBitsForSubject).toHaveBeenCalledWith("c", expect.any(Number));
+    expect(deps.evidence.listBitsForSubjects).not.toHaveBeenCalledWith(["c"], expect.any(Number));
   });
 
   it("should skip a parent that already has 6 pending suggestions", async () => {
