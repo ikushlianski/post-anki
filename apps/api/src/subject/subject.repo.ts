@@ -20,7 +20,6 @@ import {
   trackedToolScanState,
 } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { absorbParentItemsOnFirstChild, hasChildSubjects } from "./subject-leaf.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
 import { withMergeLock, withSubjectLock, type Tx } from "../shared/merge-lock.js";
 import { insertOntologyMergeLog } from "../ontology-merge/ontology-merge.repo.js";
@@ -170,17 +169,7 @@ export async function updateSubject(
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${newParentId})::bigint)`);
     }
 
-    const hadChildren = newParentId === null ? true : await hasChildSubjects(newParentId, tx);
-
-    const updated = (
-      await tx.update(subjects).set(patch).where(eq(subjects.id, subjectId)).returning()
-    )[0];
-
-    if (updated && newParentId !== null && updated.parentId === newParentId) {
-      await absorbParentItemsOnFirstChild(newParentId, updated, hadChildren, tx);
-    }
-
-    return updated;
+    return (await tx.update(subjects).set(patch).where(eq(subjects.id, subjectId)).returning())[0];
   });
 
   return { ok: true, subject: row ? toSubject(row) : null };
@@ -288,10 +277,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
 
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${row.parentId})::bigint)`);
 
-    const hadChildren = await hasChildSubjects(row.parentId, tx);
-
     await tx.insert(subjects).values(row);
-    await absorbParentItemsOnFirstChild(row.parentId, row, hadChildren, tx);
   });
 
   return toSubject({

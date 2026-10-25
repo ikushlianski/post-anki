@@ -1,5 +1,5 @@
 import type http from "node:http";
-import { bulkMoveKnowledgeBitsInput, describeKnowledgeSourceRefusal } from "@post-anki/shared";
+import { bulkMoveKnowledgeBitsInput } from "@post-anki/shared";
 import { readJsonBody, sendJson } from "../shared/http.js";
 import { moveKnowledgeBitsBulk } from "./knowledge-bit-move.repo.js";
 
@@ -16,14 +16,6 @@ export async function handleBulkMoveKnowledgeBits(
   }
 
   const result = await moveKnowledgeBitsBulk(body.data.knowledgeBitIds, body.data.subjectId);
-
-  if ("error" in result && result.error === "subject_has_children") {
-    sendJson(res, 409, {
-      error: result.error,
-      message: describeKnowledgeSourceRefusal("subject_has_children"),
-    });
-    return;
-  }
 
   if ("error" in result) {
     sendJson(res, 404, { error: result.error });

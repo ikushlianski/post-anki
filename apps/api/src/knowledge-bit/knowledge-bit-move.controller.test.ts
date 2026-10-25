@@ -63,19 +63,6 @@ describe("handleBulkMoveKnowledgeBits", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("should return 409 subject_has_children when the subject has sub-subjects", async () => {
-    mockMove.mockResolvedValue({ error: "subject_has_children" });
-
-    const res = fakeRes();
-    await handleBulkMoveKnowledgeBits(
-      fakeReq({ knowledgeBitIds: ["kb_1"], subjectId: "sub_1" }),
-      res,
-    );
-
-    expect(res.statusCode).toBe(409);
-    expect(res.json()).toMatchObject({ error: "subject_has_children" });
-  });
-
   it("should return 200 with moved and skipped arrays on success", async () => {
     mockMove.mockResolvedValue({ moved: ["kb_1"], skipped: [] });
 

@@ -348,19 +348,35 @@ describe("handleCreateKnowledgeSource subject filing", () => {
     expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["text", { text: "hello prose", subjectId: "sub_parent" }],
-    ["batch", { texts: ["First idea."], subjectId: "sub_parent" }],
-    ["url", { url: "https://example.com/article", subjectId: "sub_parent" }],
-  ])("should answer 409 subject_has_children and insert nothing when a %s is filed under a subject with sub-subjects", async (_kind, body) => {
-    mockFindAssignmentError.mockResolvedValue("subject_has_children");
+  it("should file a text under a subject that has sub-subjects", async () => {
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_p1" });
     const res = fakeRes();
 
-    await handleCreateKnowledgeSource(fakeReq(body), res);
+    await handleCreateKnowledgeSource(fakeReq({ text: "hello prose", subjectId: "sub_parent" }), res);
 
-    expect(res.status).toBe(409);
-    expect(res.body).toEqual({ error: "subject_has_children", message: expect.any(String) });
-    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello prose", "sub_parent", null);
+  });
+
+  it("should file a batch under a subject that has sub-subjects", async () => {
+    mockInsertKnowledgeSources.mockResolvedValue([]);
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ texts: ["First idea."], subjectId: "sub_parent" }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSources).toHaveBeenCalledWith(["First idea."], "sub_parent", null);
+  });
+
+  it("should file a link under a subject that has sub-subjects", async () => {
+    mockFetchWithTimeout.mockResolvedValue("<html><body><p>Hello world.</p></body></html>");
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_p2" });
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq({ url: "https://example.com/article", subjectId: "sub_parent" }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith(expect.any(String), "sub_parent", null, "https://example.com/article");
   });
 
   it("should file the source under no subject when subjectId is omitted", async () => {

@@ -162,6 +162,31 @@ describe("listKnowledgeBitBrowser (real Postgres)", () => {
     expect(counts).toContainEqual({ subjectId: other, count: 1 });
   });
 
+  it("should list a piece filed directly on a parent subject alongside its sub-subjects' pieces", async () => {
+    const parent = `subj_${randomUUID()}`;
+    const child = `subj_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO subjects (id, name, parent_id) VALUES ($1, 'Own Parent', NULL), ($2, 'Own Child', $1)`,
+      [parent, child],
+    );
+
+    const onParent = await seedBit(await seedSource(parent), 0, "2026-02-02T00:00:00Z");
+    const onChild = await seedBit(await seedSource(child), 0, "2026-02-03T00:00:00Z");
+
+    await seedVariant(onParent, "basic", 0, "p");
+    await seedVariant(onChild, "basic", 0, "c");
+
+    const page = await listKnowledgeBitBrowser({ subjectId: parent, limit: 50, offset: 0 });
+
+    expect(page.items.map((i) => i.knowledgeBitId).sort()).toEqual([onParent, onChild].sort());
+
+    const counts = await countKnowledgeBitBrowserSubjects();
+
+    expect(counts).toContainEqual({ subjectId: parent, count: 1 });
+    expect(counts).toContainEqual({ subjectId: child, count: 1 });
+  });
+
   it("should return the newest piece first and report when more remain", async () => {
     const subject = `subj_${randomUUID()}`;
 

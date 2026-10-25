@@ -158,6 +158,24 @@ describe("getSubjectReviewDueCounts", () => {
     expect(dueBySubject).toMatchObject({ sdc_leaf: 1, sdc_mid: 2, sdc_root: 2 });
   });
 
+  it("should count a bit filed directly on a parent subject in the parent's own due and new totals", async () => {
+    await insertSubject({ id: "sdc_own_parent", name: "Own parent" });
+    await insertSubject({ id: "sdc_own_child", name: "Own child", parentId: "sdc_own_parent" });
+    await insertSource({ id: "src_own_parent", subjectId: "sdc_own_parent" });
+    await insertSource({ id: "src_own_child", subjectId: "sdc_own_child" });
+
+    await insertKnowledgeBit({ id: "bit_own_due", knowledgeSourceId: "src_own_parent", ordinal: 1 });
+    await insertSchedule({ knowledgeBitId: "bit_own_due", dueAt: YESTERDAY });
+    await insertKnowledgeBit({ id: "bit_own_new", knowledgeSourceId: "src_own_parent", ordinal: 2 });
+    await insertKnowledgeBit({ id: "bit_own_child_new", knowledgeSourceId: "src_own_child", ordinal: 3 });
+
+    const counts = await getSubjectReviewDueCounts(CLOCK);
+    const byId = Object.fromEntries(counts.subjects.map((row) => [row.subjectId, row]));
+
+    expect(byId.sdc_own_parent).toEqual({ subjectId: "sdc_own_parent", dueCount: 1, newCount: 2 });
+    expect(byId.sdc_own_child).toEqual({ subjectId: "sdc_own_child", dueCount: 0, newCount: 1 });
+  });
+
   it("should count an unplaced bit through its source's subject, without a curriculum placement", async () => {
     await insertSubject({ id: "sdc_unplaced", name: "Unplaced home" });
     await insertSource({ id: "src_unplaced", subjectId: "sdc_unplaced" });

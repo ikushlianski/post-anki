@@ -552,6 +552,20 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
     expect(served).not.toContain(unplacedInUnrelated);
   });
 
+  it("should serve a bit filed directly on the parent together with its sub-subjects' bits when the review is scoped to the parent", async () => {
+    const parentSubjectId = await seedSubject("Own cards parent");
+    const childSubjectId = await seedSubject("Own cards child", parentSubjectId);
+
+    const onParent = await seedVariant(await seedBitFromSource(parentSubjectId));
+    const onChild = await seedVariant(await seedBitFromSource(childSubjectId));
+
+    const served = (await listKnowledgeBitReviewCards(50, { subjectId: parentSubjectId })).map(
+      (card) => card.variantId,
+    );
+
+    expect(served).toEqual(expect.arrayContaining([onParent, onChild]));
+  });
+
   it("should serve only the subject's own bits when the review is scoped to a sub-subject", async () => {
     const parentSubjectId = await seedSubject("Languages");
     const childSubjectId = await seedSubject("Spanish", parentSubjectId);

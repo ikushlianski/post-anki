@@ -103,39 +103,28 @@ describe("findSubjectAssignmentError", () => {
     expect(await leaf.findSubjectAssignmentError(leafSubject.id)).toBeNull();
   });
 
-  it("should refuse a subject that has sub-subjects", async () => {
+  it("should accept a subject that has sub-subjects", async () => {
     const parent = await topLevel("Parent");
 
     await child("Kid", parent.id);
 
-    expect(await leaf.findSubjectAssignmentError(parent.id)).toBe("subject_has_children");
+    expect(await leaf.findSubjectAssignmentError(parent.id)).toBeNull();
   });
 
   it("should report an unknown subject as not found", async () => {
     expect(await leaf.findSubjectAssignmentError("sub_missing")).toBe("subject_not_found");
   });
-
-  it("should list only subjects without children as leaves", async () => {
-    const parent = await topLevel("Parent2");
-    const kid = await child("Kid2", parent.id);
-    const leaves = await leaf.listLeafSubjectIds();
-
-    expect(leaves).toContain(kid.id);
-    expect(leaves).not.toContain(parent.id);
-  });
 });
 
-describe("first sub-subject takes over the parent's items", () => {
-  it("should move existing items into Common when the first sub-subject is created", async () => {
+describe("first sub-subject leaves the parent's items in place", () => {
+  it("should keep existing items on the parent and create no Common when the first sub-subject is created", async () => {
     const parent = await topLevel("Programming");
     const sourceId = await seedSource(parent.id);
 
     const web = await child("Web", parent.id);
 
-    const commonRows = (await client.query(`SELECT id FROM subjects WHERE parent_id = $1 AND name = 'Common'`, [parent.id])).rows;
-
-    expect(commonRows).toHaveLength(1);
-    expect(await sourceSubject(sourceId)).toBe(commonRows[0].id);
+    expect(await sourceSubject(sourceId)).toBe(parent.id);
+    expect(await childNamesOf(parent.id)).toEqual(["Web"]);
     expect(web.parentId).toBe(parent.id);
   });
 
@@ -152,49 +141,41 @@ describe("first sub-subject takes over the parent's items", () => {
     expect(await childNamesOf(parent.id)).toEqual(["AWS", "GCP"]);
   });
 
-  it("should create no Common when the parent has no items", async () => {
-    const parent = await topLevel("Empty");
-
-    await child("Only", parent.id);
-
-    expect(await childNamesOf(parent.id)).toEqual(["Only"]);
-  });
-
-  it("should use the new sub-subject itself when it is named Common", async () => {
+  it("should keep items on the parent when the first sub-subject is named Common", async () => {
     const parent = await topLevel("Named");
     const sourceId = await seedSource(parent.id);
-    const common = await child("Common", parent.id);
 
-    expect(await sourceSubject(sourceId)).toBe(common.id);
+    await child("Common", parent.id);
+
+    expect(await sourceSubject(sourceId)).toBe(parent.id);
     expect(await childNamesOf(parent.id)).toEqual(["Common"]);
   });
 
-  it("should move existing items into Common when an existing subject is re-parented as the first child", async () => {
+  it("should keep items on the parent and create no Common when an existing subject is re-parented as the first child", async () => {
     const parent = await topLevel("Reparent");
     const sourceId = await seedSource(parent.id);
     const other = await topLevel("Other");
 
     await repo.updateSubject(other.id, { parentId: parent.id });
 
-    expect(await sourceSubject(sourceId)).not.toBe(parent.id);
-    expect(await childNamesOf(parent.id)).toEqual(["Common", "Other"]);
+    expect(await sourceSubject(sourceId)).toBe(parent.id);
+    expect(await childNamesOf(parent.id)).toEqual(["Other"]);
   });
 
-  it("should create Common only once when run again", async () => {
-    const parent = await topLevel("Idem");
+  it("should leave an existing Common sub-subject and its items untouched when another child is added", async () => {
+    const parent = await topLevel("Legacy");
+    const common = await child("Common", parent.id);
+    const commonSource = await seedSource(common.id);
 
-    await seedSource(parent.id);
-    await child("A", parent.id);
+    await child("Fresh", parent.id);
 
-    const first = await leaf.moveSourcesToCommon(parent.id, (await import("../db/client.js")).getDb());
-
-    expect(first).toBe(0);
-    expect(await childNamesOf(parent.id)).toEqual(["A", "Common"]);
+    expect(await sourceSubject(commonSource)).toBe(common.id);
+    expect(await childNamesOf(parent.id)).toEqual(["Common", "Fresh"]);
   });
 });
 
 describe("moving items between subjects", () => {
-  it("should refuse a move into a subject with sub-subjects and move nothing", async () => {
+  it("should move items onto a subject that has sub-subjects", async () => {
     const parent = await topLevel("MoveParent");
 
     await child("MoveKid", parent.id);
@@ -205,8 +186,8 @@ describe("moving items between subjects", () => {
 
     const result = await moveKnowledgeBitsBulk([bitId], parent.id);
 
-    expect(result).toEqual({ error: "subject_has_children" });
-    expect(await sourceSubject(sourceId)).toBe(origin.id);
+    expect(result).toMatchObject({ moved: [bitId] });
+    expect(await sourceSubject(sourceId)).toBe(parent.id);
   });
 
   it("should move items into a leaf subject", async () => {
@@ -220,6 +201,17 @@ describe("moving items between subjects", () => {
 
     expect(result).toMatchObject({ moved: [bitId] });
     expect(await sourceSubject(sourceId)).toBe(kid.id);
+  });
+
+  it("should report an unknown target subject as not found and move nothing", async () => {
+    const origin = await topLevel("Origin3");
+    const sourceId = await seedSource(origin.id);
+    const bitId = await seedApprovedBit(sourceId);
+
+    const result = await moveKnowledgeBitsBulk([bitId], "sub_missing");
+
+    expect(result).toEqual({ error: "subject_not_found" });
+    expect(await sourceSubject(sourceId)).toBe(origin.id);
   });
 });
 

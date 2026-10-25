@@ -54,15 +54,9 @@ const urlInput = z
   })
   .strict();
 
-// Null means "no subject"; a non-null id must name an existing leaf subject.
+// Null means "no subject"; a non-null id must name an existing subject.
 async function rejectSubject(res: http.ServerResponse, subjectId: string | null): Promise<boolean> {
   const error = subjectId === null ? null : await findSubjectAssignmentError(subjectId);
-
-  if (error === "subject_has_children") {
-    sendError(res, 409, error, describeKnowledgeSourceRefusal("subject_has_children"));
-
-    return true;
-  }
 
   if (error) {
     sendError(res, 400, "subject_not_found", describeKnowledgeSourceRefusal("subject_not_found"));

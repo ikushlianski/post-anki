@@ -4,7 +4,6 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
 import { newId } from "../src/shared/id.ts";
-import { absorbParentItemsOnFirstChild, hasChildSubjects } from "../src/subject/subject-leaf.ts";
 import {
   seedBusinessSubSubjects,
   type SubjectSeedStore,
@@ -52,7 +51,6 @@ async function main() {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${parentId})::bigint)`);
 
         const [parent] = await tx.select().from(subjects).where(eq(subjects.id, parentId)).limit(1);
-        const hadChildren = await hasChildSubjects(parentId, tx);
         const id = newId("sub");
 
         await tx.insert(subjects).values({
@@ -62,7 +60,6 @@ async function main() {
           requireSources: parent?.requireSources ?? false,
           parentId,
         });
-        await absorbParentItemsOnFirstChild(parentId, { id, name }, hadChildren, tx);
 
         return id;
       });
