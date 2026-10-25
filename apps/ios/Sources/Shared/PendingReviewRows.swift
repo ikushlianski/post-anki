@@ -27,6 +27,7 @@ struct PendingReviewSourceHeader: View {
 
 struct PendingReviewBitRow: View {
     let bit: PendingReviewBit
+    var subjectName: String?
     let isBusy: Bool
     let message: String?
     let onDecide: (PendingReviewDecision) -> Void
@@ -34,23 +35,22 @@ struct PendingReviewBitRow: View {
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(bit.body)
-                    .zoomFont(.headline)
+            if subjectName != nil || bit.origin == "manual" {
+                HStack(alignment: .firstTextBaseline) {
+                    if let subjectName {
+                        Text(subjectName)
+                            .zoomFont(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
-                if bit.origin == "manual" {
-                    Text("Manual")
-                        .zoomFont(.caption2)
-                        .zoomPadding(.horizontal, 6)
-                        .zoomPadding(.vertical, 2)
-                        .background(.quaternary, in: Capsule())
+                    if bit.origin == "manual" {
+                        Text("Manual")
+                            .zoomFont(.caption2)
+                            .zoomPadding(.horizontal, 6)
+                            .zoomPadding(.vertical, 2)
+                            .background(.quaternary, in: Capsule())
+                    }
                 }
-            }
-
-            if let background = bit.background, !background.isEmpty {
-                Text(background)
-                    .zoomFont(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             if bit.variants.isEmpty {
@@ -61,6 +61,13 @@ struct PendingReviewBitRow: View {
                 ForEach(bit.variants) { variant in
                     PendingReviewVariantBlock(variant: variant)
                 }
+            }
+
+            if let background = bit.background, !background.isEmpty {
+                Text(background)
+                    .zoomFont(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
             }
 
             if isBusy {

@@ -142,6 +142,14 @@ struct PendingReviewScreen: View {
         #endif
     }
 
+    private var visibleSources: [PendingReviewSource] {
+        #if os(iOS)
+        return PendingReviewInboxScope.visibleSources(model.sources, subjectId: focus.subjectFilter, resumed: session.storedSession)
+        #else
+        return model.sources
+        #endif
+    }
+
     private var isMac: Bool {
         #if os(macOS)
         return true
@@ -247,11 +255,18 @@ struct PendingReviewScreen: View {
                         .foregroundStyle(.secondary)
                 }
 
-                ForEach(model.sources) { source in
+                if visibleSources.isEmpty {
+                    Section {
+                        ContentUnavailableView("No cards to triage in this subject", systemImage: "tray")
+                    }
+                }
+
+                ForEach(visibleSources) { source in
                     Section {
                         ForEach(source.bits) { bit in
                             PendingReviewBitRow(
                                 bit: bit,
+                                subjectName: source.subjectName,
                                 isBusy: model.inFlight.contains(bit.id),
                                 message: model.rowMessages[bit.id],
                                 onDecide: { decision in
