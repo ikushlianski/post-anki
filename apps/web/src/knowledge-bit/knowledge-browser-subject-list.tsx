@@ -5,6 +5,7 @@ import type { KnowledgeBitBrowserSubjectCounts } from '@post-anki/shared'
 
 import { CardListLoadError } from './card-list-load-error'
 import { useKnowledgeBrowserSubjectCounts } from './use-knowledge-browser-data'
+import { SubjectDragProvider, useSubjectDragRow } from './subject-tree-drag'
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
 
 export const NO_SUBJECT_PARAM = KNOWLEDGE_BIT_BROWSER_NO_SUBJECT
@@ -121,10 +122,30 @@ function SubjectRow({ node, depth }: { node: SubjectTreeNode; depth: number }) {
   const [open, setOpen] = useState(false)
   const { entry, children } = node
   const name = entry.label.split(PATH_SEPARATOR).at(-1)
+  const drag = useSubjectDragRow(entry.id)
+  const movable = entry.id !== NO_SUBJECT_PARAM
 
   return (
-    <li>
-      <div className="flex items-center hover:bg-neutral-50" style={{ paddingLeft: `${depth * 1.5}rem` }}>
+    <li ref={movable ? drag.rowRef : undefined} className={drag.isDragging ? 'opacity-40' : ''}>
+      <div
+        className={`flex items-center hover:bg-neutral-50 ${drag.isOver ? 'bg-neutral-100 ring-2 ring-inset ring-neutral-900' : ''}`}
+        style={{ paddingLeft: `${depth * 1.5}rem` }}
+      >
+        {movable ? (
+          <button
+            type="button"
+            ref={drag.handleRef}
+            aria-label={`Move ${name}`}
+            title="Drag onto another subject to nest it, or onto the top strip to make it top-level"
+            data-testid={`knowledge-browser-subject-drag-${entry.id}`}
+            className="flex h-10 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-neutral-400 hover:text-neutral-700"
+            {...drag.handleProps}
+          >
+            ⋮⋮
+          </button>
+        ) : (
+          <span className="w-6 shrink-0" />
+        )}
         {children.length > 0 ? (
           <button
             type="button"
@@ -161,13 +182,21 @@ function SubjectRow({ node, depth }: { node: SubjectTreeNode; depth: number }) {
   )
 }
 
+function toDragNode(node: SubjectTreeNode): { id: string; children: ReturnType<typeof toDragNode>[] } {
+  return { id: node.entry.id, children: node.children.map(toDragNode) }
+}
+
 function SubjectTree({ entries }: { entries: BrowserSubjectEntry[] }) {
+  const tree = buildSubjectTree(entries)
+
   return (
-    <ul className="flex flex-col divide-y divide-neutral-200 rounded border border-neutral-200">
-      {buildSubjectTree(entries).map((node) => (
-        <SubjectRow key={node.entry.id} node={node} depth={0} />
-      ))}
-    </ul>
+    <SubjectDragProvider nodes={tree.map(toDragNode)}>
+      <ul className="flex flex-col divide-y divide-neutral-200 rounded border border-neutral-200">
+        {tree.map((node) => (
+          <SubjectRow key={node.entry.id} node={node} depth={0} />
+        ))}
+      </ul>
+    </SubjectDragProvider>
   )
 }
 
