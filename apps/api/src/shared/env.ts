@@ -57,6 +57,7 @@ const envObject = z.object({
   DURABLE_EXTRACTION: z.string().optional(),
   DURABLE_CARDS: z.string().optional(),
   DURABLE_COURSE_JOBS: z.string().optional(),
+  DURABLE_BACKGROUND_JOBS: z.string().optional(),
   DBOS_APPLICATION_VERSION: z.string().optional(),
   DBOS_EXECUTOR_ID: z.string().optional(),
   DURABLE_EXTRACTION_TIMEOUT_MS: z.string().optional(),
@@ -66,13 +67,16 @@ const envObject = z.object({
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY_FALLBACK: z.string().optional(),
-  DURABLE_EXTRACTION_ENGINE: z.string().optional().default("dbos"),
+  DURABLE_EXTRACTION_ENGINE: z.string().optional().default("inngest"),
 });
 
 const envSchema = envObject.superRefine((env, ctx) => {
-  const durableOn = [env.DURABLE_EXTRACTION, env.DURABLE_CARDS, env.DURABLE_COURSE_JOBS].some(
-    (flag) => flag === "1" || flag === "true",
-  );
+  const durableOn = [
+    env.DURABLE_EXTRACTION,
+    env.DURABLE_CARDS,
+    env.DURABLE_COURSE_JOBS,
+    env.DURABLE_BACKGROUND_JOBS,
+  ].some((flag) => flag === "1" || flag === "true");
   const localDev = env.INNGEST_DEV === "1";
 
   if (env.LLM_MODE !== "mock" && !env.OPENROUTER_API_KEY?.trim()) {
@@ -87,7 +91,17 @@ const envSchema = envObject.superRefine((env, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["INNGEST_SIGNING_KEY"],
-      message: "required when DURABLE_EXTRACTION, DURABLE_CARDS or DURABLE_COURSE_JOBS is on and INNGEST_DEV is not 1",
+      message:
+        "required when DURABLE_EXTRACTION, DURABLE_CARDS, DURABLE_COURSE_JOBS or DURABLE_BACKGROUND_JOBS is on and INNGEST_DEV is not 1",
+    });
+  }
+
+  if (durableOn && !localDev && !env.INNGEST_EVENT_KEY?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["INNGEST_EVENT_KEY"],
+      message:
+        "required when DURABLE_EXTRACTION, DURABLE_CARDS, DURABLE_COURSE_JOBS or DURABLE_BACKGROUND_JOBS is on and INNGEST_DEV is not 1",
     });
   }
 }).transform((env) => ({

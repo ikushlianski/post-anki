@@ -12,7 +12,12 @@ beforeEach(() => {
   delete process.env.DBOS_APPLICATION_VERSION;
   delete process.env.DBOS_EXECUTOR_ID;
   delete process.env.INNGEST_DEV;
+  delete process.env.DURABLE_CARDS;
+  delete process.env.DURABLE_COURSE_JOBS;
+  delete process.env.DURABLE_BACKGROUND_JOBS;
+  delete process.env.DURABLE_EXTRACTION_ENGINE;
   delete process.env.INNGEST_SIGNING_KEY;
+  delete process.env.INNGEST_EVENT_KEY;
   delete process.env.INNGEST_SIGNING_KEY_FALLBACK;
 });
 
@@ -110,6 +115,7 @@ describe("inngest signing key requirement", () => {
   it("should boot with a signing key and an optional fallback key", async () => {
     process.env.DURABLE_EXTRACTION = "1";
     process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+    process.env.INNGEST_EVENT_KEY = "event-test-abc123";
     process.env.INNGEST_SIGNING_KEY_FALLBACK = "signkey-test-old456";
 
     const env = await boot();
@@ -122,5 +128,68 @@ describe("inngest signing key requirement", () => {
     process.env.INNGEST_SIGNING_KEY_FALLBACK = "signkey-test-old456";
 
     await expect(boot()).rejects.toThrow(/^((?!signkey-test-old456).)*$/s);
+  });
+});
+
+describe("background jobs flag and event key", () => {
+  it("should demand the signing key when only DURABLE_BACKGROUND_JOBS is on", async () => {
+    process.env.DURABLE_BACKGROUND_JOBS = "1";
+    process.env.INNGEST_EVENT_KEY = "event-test-abc123";
+
+    await expect(boot()).rejects.toThrow(/INNGEST_SIGNING_KEY/);
+  });
+
+  it.each(["DURABLE_EXTRACTION", "DURABLE_CARDS", "DURABLE_COURSE_JOBS", "DURABLE_BACKGROUND_JOBS"])(
+    "should refuse to boot without an event key when %s is on outside local dev",
+    async (flag) => {
+      process.env[flag] = "1";
+      process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+
+      await expect(boot()).rejects.toThrow(/INNGEST_EVENT_KEY/);
+    },
+  );
+
+  it("should boot when both keys are set and every flag is on", async () => {
+    process.env.DURABLE_EXTRACTION = "1";
+    process.env.DURABLE_CARDS = "1";
+    process.env.DURABLE_COURSE_JOBS = "1";
+    process.env.DURABLE_BACKGROUND_JOBS = "1";
+    process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+    process.env.INNGEST_EVENT_KEY = "event-test-abc123";
+
+    await expect(boot()).resolves.toBeDefined();
+  });
+
+  it("should boot without any key when INNGEST_DEV=1 and every flag is on", async () => {
+    process.env.DURABLE_EXTRACTION = "1";
+    process.env.DURABLE_CARDS = "1";
+    process.env.DURABLE_COURSE_JOBS = "1";
+    process.env.DURABLE_BACKGROUND_JOBS = "1";
+    process.env.INNGEST_DEV = "1";
+
+    await expect(boot()).resolves.toBeDefined();
+  });
+
+  it("should not require an event key when every flag is off", async () => {
+    await expect(boot()).resolves.toBeDefined();
+  });
+
+  it("should not print secret values when the event key check fails", async () => {
+    process.env.DURABLE_CARDS = "1";
+    process.env.INNGEST_SIGNING_KEY = "signkey-test-secret789";
+
+    await expect(boot()).rejects.toThrow(/^((?!signkey-test-secret789).)*$/s);
+  });
+});
+
+describe("durable extraction engine default", () => {
+  it("should use inngest when DURABLE_EXTRACTION_ENGINE is unset", async () => {
+    expect((await boot()).DURABLE_EXTRACTION_ENGINE).toBe("inngest");
+  });
+
+  it("should keep an explicit dbos choice", async () => {
+    process.env.DURABLE_EXTRACTION_ENGINE = "dbos";
+
+    expect((await boot()).DURABLE_EXTRACTION_ENGINE).toBe("dbos");
   });
 });

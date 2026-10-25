@@ -97,19 +97,28 @@ limit as the hard stop.
 Run `npm run inngest:dev` from the project root to start the local Inngest
 server. The dev UI is available at http://localhost:8288.
 
-To route extractions through Inngest instead of the default engine, set these
-variables in `apps/api/.env`:
+Inngest is the default engine (`DURABLE_EXTRACTION_ENGINE=inngest`). To run all
+background work durably against the Neon `dev` branch, set these variables in
+`apps/api/.env.local` (no keys needed in dev):
 
 ```
-DURABLE_EXTRACTION_ENGINE=inngest
-DURABLE_EXTRACTION=1
 INNGEST_DEV=1
+DURABLE_EXTRACTION=1
+DURABLE_CARDS=1
+DURABLE_COURSE_JOBS=1
+DURABLE_BACKGROUND_JOBS=1
 ```
 
-Outside local dev (`INNGEST_DEV` not `1`) with `DURABLE_EXTRACTION` on, the API
-refuses to boot without `INNGEST_SIGNING_KEY`, so only signed requests reach
-`/api/inngest`. Set `INNGEST_SIGNING_KEY_FALLBACK` to the previous key while
-rotating.
+Then run `npm run inngest:dev`. With a flag off, that kind of work runs in the
+API process and can stall once the reply is sent.
+
+Outside local dev (`INNGEST_DEV` not `1`) with any of the four `DURABLE_*` flags
+on, the API refuses to boot without `INNGEST_SIGNING_KEY` and `INNGEST_EVENT_KEY`:
+the signing key means only signed requests reach `/api/inngest`, and without the
+event key every send would fail and fall back to the in-process path. Set
+`INNGEST_SIGNING_KEY_FALLBACK` to the previous key while rotating. In prod, set
+`INNGEST_SERVE_ORIGIN` to the API's public URL so Inngest can call
+`/api/inngest`.
 
 ## Migrations
 
