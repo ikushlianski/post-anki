@@ -5,6 +5,9 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
     public let sourceText: String?
     public let subjectName: String?
     public let subjectId: String?
+    public let suggestedSubjectId: String?
+    public let suggestedSubjectName: String?
+    public let suggestedSubjectConfidence: String?
     public let bits: [PendingReviewBit]
 
     public var id: String { knowledgeSourceId }
@@ -14,12 +17,18 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
         sourceText: String?,
         subjectName: String?,
         bits: [PendingReviewBit],
-        subjectId: String? = nil
+        subjectId: String? = nil,
+        suggestedSubjectId: String? = nil,
+        suggestedSubjectName: String? = nil,
+        suggestedSubjectConfidence: String? = nil
     ) {
         self.knowledgeSourceId = knowledgeSourceId
         self.sourceText = sourceText
         self.subjectName = subjectName
         self.subjectId = subjectId
+        self.suggestedSubjectId = suggestedSubjectId
+        self.suggestedSubjectName = suggestedSubjectName
+        self.suggestedSubjectConfidence = suggestedSubjectConfidence
         self.bits = bits
     }
 }
@@ -106,7 +115,13 @@ extension PendingReviewDecision {
 
 extension PendingReviewSource {
     public func withBits(_ bits: [PendingReviewBit]) -> PendingReviewSource {
-        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId)
+        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId, suggestedSubjectId: suggestedSubjectId, suggestedSubjectName: suggestedSubjectName, suggestedSubjectConfidence: suggestedSubjectConfidence)
+    }
+
+    public var subjectSuggestion: (id: String, name: String)? {
+        guard let suggestedSubjectId, let suggestedSubjectName, suggestedSubjectId != subjectId else { return nil }
+
+        return (suggestedSubjectId, suggestedSubjectName)
     }
 }
 

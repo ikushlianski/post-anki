@@ -47,6 +47,8 @@ struct FocusTriageCard: View {
                     .zoomFont(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
+                FocusTriageSubjectSuggestion(bit: bit, source: source)
+
                 editableArea
                 sourceDisclosure
                 noteField
