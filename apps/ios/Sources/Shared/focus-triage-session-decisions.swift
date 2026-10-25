@@ -48,20 +48,18 @@ extension FocusTriageSessionModel {
         enqueue(entry.bitId) { [self] in
             guard sessionId == sid else { return }
 
-            do {
-                try await APIClient.putTriageDecision(
-                    sessionId: sid,
-                    bitId: entry.bitId,
-                    verdict: entry.verdict,
-                    note: entry.note,
-                    dwellMs: entry.dwellMs
-                )
-            } catch is CancellationError {
-                return
-            } catch {
-                noteSyncFailure(sid)
-            }
+            _ = await attempt(sid) { try await self.sendDecision(entry, sid: sid) }
         }
+    }
+
+    private func sendDecision(_ entry: FocusTriageDecisionEntry, sid: String) async throws {
+        try await APIClient.putTriageDecision(
+            sessionId: sid,
+            bitId: entry.bitId,
+            verdict: entry.verdict,
+            note: entry.note,
+            dwellMs: entry.dwellMs
+        )
     }
 
     func recordUndo(_ bitId: String) {
@@ -82,6 +80,10 @@ extension FocusTriageSessionModel {
                 noteSyncFailure(sid)
             }
         }
+    }
+
+    func settleBit(_ bitId: String) async {
+        await bitTails[bitId]?.value
     }
 
     func settle() async {
@@ -113,6 +115,8 @@ extension FocusTriageSessionModel {
     }
 
     func commit(_ bitId: String) async {
+        await triage.pendingDecisions[bitId]?.value
+
         guard dirty.contains(bitId), let sid = sessionId else { return }
 
         let task = enqueue(bitId) { [self] in
@@ -123,7 +127,7 @@ extension FocusTriageSessionModel {
                 ? current.reasonCode.map(TriageReasonUpdate.set) ?? .clear
                 : .unchanged
 
-            do {
+            let sent = await attempt(sid) {
                 try await APIClient.putTriageDecision(
                     sessionId: sid,
                     bitId: bitId,
@@ -131,17 +135,13 @@ extension FocusTriageSessionModel {
                     note: current.note ?? "",
                     reason: reason
                 )
-
-                guard sessionId == sid else { return }
-
-                let latest = decisions.first { $0.bitId == bitId }
-
-                if latest?.note == current.note, latest?.reasonCode == current.reasonCode { dirty.remove(bitId) }
-            } catch is CancellationError {
-                return
-            } catch {
-                noteSyncFailure(sid)
             }
+
+            guard sent, sessionId == sid else { return }
+
+            let latest = decisions.first { $0.bitId == bitId }
+
+            if latest?.note == current.note, latest?.reasonCode == current.reasonCode { dirty.remove(bitId) }
         }
 
         await task.value
@@ -154,7 +154,7 @@ extension FocusTriageSessionModel {
     }
 
     @discardableResult
-    private func enqueue(_ bitId: String, _ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+    func enqueue(_ bitId: String, _ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
         let previous = bitTails[bitId]
         let task = Task { @MainActor in
             await previous?.value
@@ -178,7 +178,7 @@ extension FocusTriageSessionModel {
         persist()
     }
 
-    private func noteSyncFailure(_ sid: String) {
+    func noteSyncFailure(_ sid: String) {
         guard sessionId == sid else { return }
 
         syncNotice = "Some decisions couldn't be recorded live. They are sent when you finish."

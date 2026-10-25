@@ -26,6 +26,7 @@ final class FocusTriageSessionModel {
     @ObservationIgnored var earlier: [TriageDecision] = []
     @ObservationIgnored var subjectId: String?
     @ObservationIgnored var dirty: Set<String> = []
+    @ObservationIgnored var recovering = false
     @ObservationIgnored var bitTails: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var startKey: (key: String, subject: String?)?
 
@@ -34,6 +35,7 @@ final class FocusTriageSessionModel {
         self.store = store
         triage.onDecisionsChanged = { [weak self] in self?.persist() }
         triage.onDecided = { [weak self] entry in self?.recordDecision(entry) }
+        triage.beforeRestore = { [weak self] bitId in await self?.settleBit(bitId) }
         triage.onUndone = { [weak self] bitId in self?.recordUndo(bitId) }
     }
 

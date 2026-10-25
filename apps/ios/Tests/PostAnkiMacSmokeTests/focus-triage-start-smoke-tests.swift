@@ -130,7 +130,7 @@ extension SmokeTests {
 
             let puts = FakeServer.writes.filter { $0.method == "PUT" }
 
-            #expect(puts.map(\.path) == ["/triage-sessions/ts1/decisions/a", "/triage-sessions/ts1/decisions/b"])
+            #expect(puts.map(\.path) == ["/triage-sessions/ts1/decisions/a", "/triage-sessions/ts1/decisions/b", "/triage-sessions/ts1/decisions/b"])
             #expect(puts.first?.bodyObject?["verdict"] as? String == "approved")
             #expect(puts.first?.bodyObject?["note"] as? String == "clear")
             #expect(puts.first?.bodyObject?["dwellMs"] as? Int != nil)

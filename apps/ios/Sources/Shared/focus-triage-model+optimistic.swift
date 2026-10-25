@@ -44,7 +44,6 @@ extension FocusTriageModel {
         notes[bitId] = nil
         syncPin()
         onDecisionsChanged?()
-        onDecided?(entry)
     }
 
     private func saveDecision(_ decision: PendingReviewDecision, entry: FocusTriageDecisionEntry, rawNote: String) async {
@@ -66,6 +65,7 @@ extension FocusTriageModel {
         switch outcome {
         case .removed:
             list.remove(bitId: bitId)
+            onDecided?(entry)
 
             if let note = entry.note { await sendNote(note, decision: decision, bitId: bitId, feedbackId: feedbackId) }
 
@@ -79,7 +79,6 @@ extension FocusTriageModel {
             syncPin()
             Task { await list.counts.refresh() }
             onDecisionsChanged?()
-            onUndone?(bitId)
         case .kept(let message):
             pendingDecisions[bitId] = nil
             log.remove(bitId: bitId)
@@ -94,7 +93,6 @@ extension FocusTriageModel {
             syncPin()
             notice = "Couldn't save that decision. The card is back in the queue."
             onDecisionsChanged?()
-            onUndone?(bitId)
         }
     }
 

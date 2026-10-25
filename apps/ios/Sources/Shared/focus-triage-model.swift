@@ -17,6 +17,7 @@ final class FocusTriageModel {
 
     @ObservationIgnored var onDecisionsChanged: (() -> Void)?
     @ObservationIgnored var onDecided: ((FocusTriageDecisionEntry) -> Void)?
+    @ObservationIgnored var beforeRestore: ((String) async -> Void)?
     @ObservationIgnored var onUndone: ((String) -> Void)?
     @ObservationIgnored var shown: (bitId: String, at: Date)?
     @ObservationIgnored var pollTask: Task<Void, Never>?
@@ -86,6 +87,10 @@ final class FocusTriageModel {
 
             guard log.lastDecided?.bitId == entry.bitId else { return }
         }
+
+        await beforeRestore?(entry.bitId)
+
+        guard log.lastDecided?.bitId == entry.bitId else { return }
 
         undoMessage = nil
         notice = nil

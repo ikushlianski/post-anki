@@ -1,12 +1,20 @@
 import PostAnkiAPI
 
 enum FocusTriageNote {
-    static let maxCharacters = 500
+    static let maxUnits = 500
 
     static func trimmed(_ raw: String) -> String? {
-        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = clamped(raw.trimmingCharacters(in: .whitespacesAndNewlines))
 
-        return text.isEmpty ? nil : String(text.prefix(maxCharacters))
+        return text.isEmpty ? nil : text
+    }
+
+    static func clamped(_ raw: String) -> String {
+        var text = raw
+
+        while text.utf16.count > maxUnits { text.removeLast() }
+
+        return text
     }
 }
 

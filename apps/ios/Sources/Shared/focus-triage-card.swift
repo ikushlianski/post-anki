@@ -120,8 +120,8 @@ struct FocusTriageCard: View {
                 .lineLimit(2...5)
                 .textFieldStyle(.roundedBorder)
                 .onChange(of: note) {
-                    if note.count > FocusTriageNote.maxCharacters {
-                        note = String(note.prefix(FocusTriageNote.maxCharacters))
+                    if note.utf16.count > FocusTriageNote.maxUnits {
+                        note = FocusTriageNote.clamped(note)
                     }
                 }
         }
