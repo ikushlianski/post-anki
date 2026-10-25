@@ -19,6 +19,7 @@ COPY package.json ./
 COPY packages/shared ./packages/shared
 COPY packages/core ./packages/core
 COPY apps/api ./apps/api
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 RUN addgroup --system app && adduser --system --ingroup app app \
     && chown -R app:app /app
 USER app
