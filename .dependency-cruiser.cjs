@@ -95,7 +95,8 @@ module.exports = {
         // string) are a real, intentional bundler convention dependency-cruiser's static
         // resolver doesn't understand — not a broken import. Excluded here rather than at
         // each call site, since this is a class of false positive, not a one-off.
-        pathNot: "\\?(url|raw|worker|inline)$",
+        // `@aws-sdk/*` is provided by the Lambda runtime and kept external by build-lambda.
+        pathNot: "\\?(url|raw|worker|inline)$|^@aws-sdk/",
       },
     },
   ],
