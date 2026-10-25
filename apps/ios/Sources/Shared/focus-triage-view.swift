@@ -11,6 +11,15 @@ struct FocusTriageView: View {
     let onClose: () -> Void
 
     @State private var feedback = ""
+    @State private var departing: DepartingCard?
+    @State private var generation = 0
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private struct DepartingCard {
+        let bit: PendingReviewBit
+        let source: PendingReviewSource?
+    }
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 0) {
@@ -57,20 +66,46 @@ struct FocusTriageView: View {
                 },
                 onKeepGoing: triage.readyCount > 0 ? { session.phase = .idle } : nil
             )
-        } else if let bit = triage.current {
-            FocusTriageSwipeCard(isBusy: triage.isBusy, onDecide: { await decide(bit.id, approve: $0 == .approve) }) {
-                FocusTriageCard(
-                    bit: bit,
-                    source: triage.currentSource,
-                    note: Binding(
-                        get: { triage.notes[bit.id] ?? "" },
-                        set: { triage.notes[bit.id] = $0 }
-                    ),
-                    message: triage.message,
-                    onEdit: { editingBit = bit }
-                )
+        } else if let shown {
+            ZStack {
+                card(shown.bit, source: shown.source)
+                    .id(cardKey(shown.bit.id))
+                    .transition(.asymmetric(insertion: appearTransition, removal: .identity))
             }
-            .id(bit.id)
+            .animation(.easeOut(duration: 0.3), value: cardKey(shown.bit.id))
+        }
+    }
+
+    private var shown: DepartingCard? {
+        if let departing { return departing }
+
+        guard let bit = triage.current else { return nil }
+
+        return DepartingCard(bit: bit, source: triage.currentSource)
+    }
+
+    private var appearTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .offset(y: 24))
+    }
+
+    private func cardKey(_ bitId: String) -> String { "\(bitId)#\(generation)" }
+
+    private func card(_ bit: PendingReviewBit, source: PendingReviewSource?) -> some View {
+        FocusTriageSwipeCard(
+            isBusy: triage.isBusy || departing != nil,
+            onDecide: { await decide(bit, source: source, approve: $0 == .approve) },
+            onFlownOff: finishDeparture
+        ) {
+            FocusTriageCard(
+                bit: bit,
+                source: source,
+                note: Binding(
+                    get: { triage.notes[bit.id] ?? "" },
+                    set: { triage.notes[bit.id] = $0 }
+                ),
+                message: triage.message,
+                onEdit: { editingBit = bit }
+            )
         }
     }
 
@@ -79,7 +114,7 @@ struct FocusTriageView: View {
     }
 
     private var showsFinish: Bool {
-        session.phase == .writing || session.phase == .saving || triage.current == nil
+        session.phase == .writing || session.phase == .saving || shown == nil
     }
 
     private var header: some View {
@@ -101,17 +136,18 @@ struct FocusTriageView: View {
     }
 
     private var actionBar: some View {
-        ZoomHStack(spacing: 12) {
-            Button("Undo") { Task { await triage.undo() } }
-                .disabled(!triage.canUndo || triage.isBusy)
-                .frame(maxWidth: .infinity, minHeight: 44)
-            Button("Finish", action: openFinish)
-                .disabled(session.phase == .saving || session.phase == .result || triage.isBusy || session.busy)
-                .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.bordered)
-        .zoomPadding()
-        .background(.bar)
+        FocusTriageSplitBar(
+            leading: FocusTriageBarAction(
+                title: "Undo",
+                isDisabled: !triage.canUndo || triage.isBusy,
+                action: { Task { await triage.undo() } }
+            ),
+            trailing: FocusTriageBarAction(
+                title: "Finish",
+                isDisabled: session.phase == .saving || session.phase == .result || triage.isBusy || session.busy,
+                action: openFinish
+            )
+        )
     }
 
     @ViewBuilder
@@ -132,12 +168,24 @@ struct FocusTriageView: View {
         }
     }
 
-    private func decide(_ bitId: String, approve: Bool) async {
+    private func decide(_ bit: PendingReviewBit, source: PendingReviewSource?, approve: Bool) async -> Bool {
+        departing = DepartingCard(bit: bit, source: source)
+
         if approve { await triage.approve() } else { await triage.reject() }
 
-        guard approve, triage.log.lastDecided?.bitId == bitId else { return }
+        guard triage.log.lastDecided?.bitId == bit.id else {
+            departing = nil
+            return false
+        }
 
-        announce("Approved, \(triage.readyCount) left")
+        if approve { announce("Approved, \(triage.readyCount) left") }
+
+        return true
+    }
+
+    private func finishDeparture() {
+        generation += 1
+        departing = nil
     }
 
     private func openFinish() {

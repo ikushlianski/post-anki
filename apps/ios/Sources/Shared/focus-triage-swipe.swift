@@ -24,12 +24,16 @@ enum FocusTriageSwipe {
 
 struct FocusTriageSwipeCard<Content: View>: View {
     let isBusy: Bool
-    let onDecide: (PendingReviewDecision) async -> Void
+    let onDecide: (PendingReviewDecision) async -> Bool
+    let onFlownOff: () -> Void
     @ViewBuilder let content: () -> Content
 
     @State private var offset: CGFloat = 0
     @State private var axis: Axis?
     @State private var isDeciding = false
+    @State private var opacity: Double = 1
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let flyDistance: CGFloat = 700
 
@@ -38,6 +42,7 @@ struct FocusTriageSwipeCard<Content: View>: View {
             .offset(x: offset)
             .rotationEffect(.degrees(Double(offset) / 40))
             .overlay { tint }
+            .opacity(opacity)
             .simultaneousGesture(drag)
             .accessibilityAction(named: "Approve") { perform(.approve) }
             .accessibilityAction(named: "Reject") { perform(.reject) }
@@ -101,14 +106,29 @@ struct FocusTriageSwipeCard<Content: View>: View {
 
         isDeciding = true
 
-        withAnimation(.easeIn(duration: 0.2)) {
-            offset = decision == .approve ? flyDistance : -flyDistance
-        }
-
         Task {
-            await onDecide(decision)
-            isDeciding = false
-            snapBack()
+            guard await onDecide(decision) else {
+                isDeciding = false
+                return snapBack()
+            }
+
+            flyOff(decision)
+        }
+    }
+
+    private func flyOff(_ decision: PendingReviewDecision) {
+        if reduceMotion {
+            withAnimation(.easeOut(duration: 0.15), completionCriteria: .logicallyComplete) {
+                opacity = 0
+            } completion: {
+                onFlownOff()
+            }
+        } else {
+            withAnimation(.easeIn(duration: 0.22), completionCriteria: .logicallyComplete) {
+                offset = decision == .approve ? flyDistance : -flyDistance
+            } completion: {
+                onFlownOff()
+            }
         }
     }
 

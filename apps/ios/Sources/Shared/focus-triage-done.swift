@@ -72,31 +72,30 @@ struct FocusTriageDone: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            ZoomVStack(spacing: 8) {
-                Button(action: onFinish) {
-                    ZoomHStack(spacing: 6) {
-                        if isSaving { ProgressView() }
-
-                        Text("Finish triage").zoomFont(.headline)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isSaving)
-
-                Button("Finish without feedback", action: onFinishWithoutFeedback)
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .disabled(isSaving)
-
+            VStack(spacing: 0) {
                 if let onKeepGoing {
                     Button("Keep triaging", action: onKeepGoing)
-                        .buttonStyle(.bordered)
+                        .zoomFont(.subheadline)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .disabled(isSaving)
+                        .background(.bar)
                 }
+
+                FocusTriageSplitBar(
+                    leading: FocusTriageBarAction(
+                        title: "Finish triage",
+                        isLoading: isSaving,
+                        isProminent: true,
+                        isDisabled: isSaving,
+                        action: onFinish
+                    ),
+                    trailing: FocusTriageBarAction(
+                        title: "Finish without feedback",
+                        isDisabled: isSaving,
+                        action: onFinishWithoutFeedback
+                    )
+                )
             }
-            .zoomPadding()
-            .background(.bar)
         }
     }
 
