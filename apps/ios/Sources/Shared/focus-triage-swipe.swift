@@ -39,9 +39,11 @@ struct FocusTriageSwipeCard<Content: View>: View {
 
     var body: some View {
         content()
+            .focusTriageCardSurface()
+            .overlay { tint.clipShape(RoundedRectangle(cornerRadius: FocusTriageCardStyle.cornerRadius, style: .continuous)) }
+            .focusTriageCardMargins()
             .offset(x: offset)
             .rotationEffect(.degrees(Double(offset) / 40))
-            .overlay { tint }
             .opacity(opacity)
             .simultaneousGesture(drag)
             .accessibilityAction(named: "Approve") { perform(.approve) }

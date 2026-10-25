@@ -69,6 +69,8 @@ struct FocusTriageView: View {
             .task { await session.loadServerFronts() }
         } else if let shown {
             ZStack {
+                if triage.readyCount > 1 { FocusTriageCardStackHint() }
+
                 card(shown.bit, source: shown.source)
                     .id(cardKey(shown.bit.id))
                     .transition(.asymmetric(insertion: appearTransition, removal: .identity))
