@@ -164,13 +164,18 @@ describe("confirmStructure fan-out (real Postgres)", () => {
       expect(mockAgentGenerate).toHaveBeenCalledTimes(1);
     });
 
-    const { rows: cardStatusRows } = await client.query<{ status: string }>(
-      `SELECT status FROM topic_card_sets WHERE topic_id = $1`,
-      [includedTopicId],
-    );
+    await vi.waitFor(
+      async () => {
+        const { rows: cardStatusRows } = await client.query<{ status: string }>(
+          `SELECT status FROM topic_card_sets WHERE topic_id = $1`,
+          [includedTopicId],
+        );
 
-    expect(cardStatusRows).toHaveLength(1);
-    expect(cardStatusRows[0]!.status).toBe("ready");
+        expect(cardStatusRows).toHaveLength(1);
+        expect(cardStatusRows[0]!.status).toBe("ready");
+      },
+      { timeout: 10_000 },
+    );
 
     const { rows: everyTopicCardRow } = await client.query<{ topic_id: string }>(
       `SELECT topic_id FROM topic_card_sets WHERE topic_id IN (
