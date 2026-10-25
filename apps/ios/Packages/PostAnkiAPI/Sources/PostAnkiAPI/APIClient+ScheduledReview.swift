@@ -1,13 +1,15 @@
 import Foundation
 
 extension APIClient {
-    public static func reviewCards(limit: Int = 20, tz: String, subjectId: String? = nil) async throws -> ReviewCardsResponse {
+    public static func reviewCards(limit: Int = 20, tz: String, subjectId: String? = nil, tagId: String? = nil, topicId: String? = nil, knowledgeBitId: String? = nil) async throws -> ReviewCardsResponse {
         var query = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "tz", value: tz)
         ]
 
-        if let subjectId { query.append(URLQueryItem(name: "subjectId", value: subjectId)) }
+        let scopes = [("subjectId", subjectId), ("tagId", tagId), ("topicId", topicId), ("knowledgeBitId", knowledgeBitId)]
+
+        for case (let name, let value?) in scopes { query.append(URLQueryItem(name: name, value: value)) }
 
         return try await request(encodedPath("/knowledge-bits/review-cards", query: query))
     }

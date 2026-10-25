@@ -4,6 +4,7 @@ import SwiftUI
 struct TagsScreen: View {
     @State private var model = TagsModel()
     @State private var mergeSource: Tag?
+    @State private var reviewTag: Tag?
 
     var body: some View {
         List {
@@ -35,6 +36,11 @@ struct TagsScreen: View {
                     }
                 }
                 .swipeActions {
+                    #if os(iOS)
+                    Button("Review") { reviewTag = tag }
+                        .tint(.blue)
+                    #endif
+
                     Button("Merge into...") { mergeSource = tag }
                         .tint(.orange)
                 }
@@ -42,6 +48,9 @@ struct TagsScreen: View {
         }
         .navigationTitle("Tags")
         .searchable(text: $model.query)
+        #if os(iOS)
+        .navigationDestination(item: $reviewTag) { DueReviewScreen(scope: DueReviewScope(tag: $0)) }
+        #endif
         .sheet(item: $mergeSource) { source in
             MergeTagSheet(source: source, candidates: model.tags.filter { $0.id != source.id }) { target in
                 await model.merge(source: source, into: target)

@@ -48,6 +48,14 @@ struct TopicStudyScreen: View {
     var body: some View {
         List {
             Section("Study") {
+                #if os(iOS)
+                NavigationLink {
+                    DueReviewScreen(scope: DueReviewScope(topic: topic))
+                } label: {
+                    Label("Review", systemImage: "rectangle.stack")
+                }
+                #endif
+
                 NavigationLink {
                     ExerciseScreen(topics: [topic])
                 } label: {

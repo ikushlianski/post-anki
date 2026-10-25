@@ -55,11 +55,11 @@ final class DueReviewModel {
     var skippedVariantIds: Set<String> = []
     var hasLoaded = false
     let gradeQueue: PendingGradeQueue
-    let subjectId: String?
+    let scope: DueReviewScope?
 
-    init(gradeQueue: PendingGradeQueue = .shared, subjectId: String? = nil) {
+    init(gradeQueue: PendingGradeQueue = .shared, scope: DueReviewScope? = nil) {
         self.gradeQueue = gradeQueue
-        self.subjectId = subjectId
+        self.scope = scope
 
         Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(named: .pendingQueuesFlushed) {

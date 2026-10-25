@@ -7,9 +7,13 @@ struct DueReviewScreen: View {
     @State private var editingCard: ReviewCard?
     private let title: String
 
-    init(subject: Subject? = nil) {
-        _model = State(initialValue: DueReviewModel(subjectId: subject?.id))
-        title = subject?.name ?? "Due today"
+    init(scope: DueReviewScope? = nil) {
+        _model = State(initialValue: DueReviewModel(scope: scope))
+        title = scope?.title ?? "Due today"
+    }
+
+    init(subject: Subject) {
+        self.init(scope: DueReviewScope(subject: subject))
     }
 
     @ViewBuilder

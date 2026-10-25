@@ -33,7 +33,13 @@ extension DueReviewModel {
         state = .loading
 
         do {
-            let response = try await APIClient.reviewCards(tz: TimeZone.current.identifier, subjectId: subjectId)
+            let response = try await APIClient.reviewCards(
+                tz: TimeZone.current.identifier,
+                subjectId: scope?.subjectId,
+                tagId: scope?.tagId,
+                topicId: scope?.topicId,
+                knowledgeBitId: scope?.knowledgeBitId
+            )
             let pendingBits = await gradeQueue.pendingKnowledgeBitIds()
             let cards = response.cards.filter {
                 !skippedVariantIds.contains($0.variantId) && !pendingBits.contains($0.knowledgeBitId)
