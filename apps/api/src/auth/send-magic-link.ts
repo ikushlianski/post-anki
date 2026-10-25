@@ -4,6 +4,7 @@ import { getDb } from "../db/client.js";
 import { users } from "../db/schema.js";
 import { log } from "../shared/log.js";
 import { sendAuthEmail, type AuthEmail } from "./auth-email.js";
+import { purgeExpiredAuthRowsHourly } from "./purge-expired-auth-rows.js";
 
 export const UNKNOWN_EMAIL_DELAY_MS = 700;
 
@@ -16,6 +17,7 @@ export interface MagicLinkDeps {
   userExists: (email: string) => Promise<boolean>;
   sendEmail: (email: AuthEmail) => Promise<void>;
   wait: (ms: number) => Promise<void>;
+  purgeExpired?: () => void;
 }
 
 function redactEmail(email: string): string {
@@ -35,6 +37,8 @@ export function createMagicLinkSender(deps: MagicLinkDeps) {
   return async (payload: MagicLinkPayload): Promise<void> => {
     const email = payload.email.trim().toLowerCase();
 
+    deps.purgeExpired?.();
+
     if (!(await deps.userExists(email))) {
       log.info({ emailHash: redactEmail(email) }, "magic_link_unknown_email");
       await deps.wait(UNKNOWN_EMAIL_DELAY_MS);
@@ -42,7 +46,13 @@ export function createMagicLinkSender(deps: MagicLinkDeps) {
       return;
     }
 
-    await deps.sendEmail(buildEmail({ ...payload, email }));
+    try {
+      await deps.sendEmail(buildEmail({ ...payload, email }));
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "unknown";
+
+      log.error({ emailHash: redactEmail(email), reason }, "magic_link_send_failed");
+    }
   };
 }
 
@@ -54,4 +64,5 @@ export const sendMagicLink = createMagicLinkSender({
   },
   sendEmail: (email) => sendAuthEmail(email),
   wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  purgeExpired: purgeExpiredAuthRowsHourly,
 });

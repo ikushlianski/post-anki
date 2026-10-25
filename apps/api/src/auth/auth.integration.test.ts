@@ -143,3 +143,30 @@ describe("magic link sign-in", () => {
     expect(statuses[5]).toBe(429);
   });
 });
+
+describe("expired auth row purge", () => {
+  it("should delete expired verifications and sessions while keeping live ones", async () => {
+    const { purgeExpiredAuthRows } = await import("./purge-expired-auth-rows.js");
+    const past = new Date(Date.now() - 60_000);
+    const future = new Date(Date.now() + 60_000);
+
+    await db.delete(schema.verifications);
+    await db.delete(schema.sessions);
+    await db.insert(schema.verifications).values([
+      { id: "v_old", identifier: "a", value: "x", expiresAt: past },
+      { id: "v_live", identifier: "b", value: "y", expiresAt: future },
+    ]);
+    await db.insert(schema.sessions).values([
+      { id: "s_old", token: "t_old", userId: "user_owner", expiresAt: past },
+      { id: "s_live", token: "t_live", userId: "user_owner", expiresAt: future },
+    ]);
+
+    await purgeExpiredAuthRows(db);
+
+    const remainingVerifications = await db.select({ id: schema.verifications.id }).from(schema.verifications);
+    const remainingSessions = await db.select({ id: schema.sessions.id }).from(schema.sessions);
+
+    expect(remainingVerifications.map((r) => r.id)).toEqual(["v_live"]);
+    expect(remainingSessions.map((r) => r.id)).toEqual(["s_live"]);
+  });
+});

@@ -31,4 +31,32 @@ describe("error log serializer", () => {
     expect(serialized.message).toBe("plain failure");
     expect(serialized.type).toBe("Error");
   });
+
+  it("should keep params out of a query error nested several causes deep inside an ordinary error", () => {
+    const inner = new FakeQueryError(
+      'Failed query: select 1 where token = $1\nparams: nested-secret-token',
+      "select 1 where token = $1",
+      ["nested-secret-token"],
+      new Error("root"),
+    );
+    const wrapper = new Error("auth failed", { cause: new Error("middle", { cause: inner }) });
+
+    const text = JSON.stringify(serializeError(wrapper));
+
+    expect(text).not.toContain("nested-secret-token");
+    expect(text).toContain("root");
+  });
+
+  it("should stop following causes at a bounded depth", () => {
+    let err = new Error("level-0", { cause: undefined });
+
+    for (let i = 1; i < 20; i += 1) {
+      err = Object.assign(new Error(`level-${i}`, { cause: err }), { params: ["p"] });
+    }
+
+    const text = JSON.stringify(serializeError(err));
+
+    expect(text).toContain("level-18");
+    expect(text).not.toContain("level-0");
+  });
 });
