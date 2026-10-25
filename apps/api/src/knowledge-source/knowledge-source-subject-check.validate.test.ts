@@ -157,14 +157,14 @@ describe("placeNewSubject", () => {
     });
   });
 
-  it("should place a business proposal at top level when no Business root exists", () => {
+  it("should drop a business proposal when no Business root exists", () => {
     const withoutRoot: ValidateAdviceContext = {
       ...context,
       parents: context.parents.filter((parent) => parent.id !== "par_biz"),
       hierarchy: context.hierarchy.filter((row) => row.id !== "par_biz" && row.id !== "sub_a"),
     };
 
-    expect(placeNewSubject(proposal, withoutRoot)).toEqual({ kind: "business", parentSubjectId: null, parentLabel: null });
+    expect(placeNewSubject(proposal, withoutRoot)).toBeNull();
   });
 
   it("should not place a business proposal under a Business root that holds items itself", () => {
@@ -182,5 +182,74 @@ describe("placeNewSubject", () => {
       parentSubjectId: null,
       parentLabel: null,
     });
+  });
+});
+
+describe("validateAdvice without a Business root", () => {
+  it("should keep recommendations but not turn a business proposal into a top-level general subject", () => {
+    const withoutRoot: ValidateAdviceContext = {
+      ...context,
+      parents: context.parents.filter((parent) => parent.id !== "par_biz"),
+      hierarchy: context.hierarchy.filter((row) => row.id !== "par_biz" && row.id !== "sub_a"),
+    };
+    const result = validateAdvice(
+      output({
+        recommendations: [{ alias: "S3", confidence: "medium", reason: "cooking" }],
+        newSubject: { name: "Negotiation", parentAlias: null, kindHint: "business", reason: "r" },
+      }),
+      withoutRoot,
+    );
+
+    expect(result).toMatchObject({ status: "ok", recommendations: [{ subjectId: "sub_c" }], newSubject: null });
+  });
+});
+
+describe("validateAdvice recommendation count", () => {
+  it("should keep the three strongest when the model returns more", () => {
+    const result = validateAdvice(
+      output({
+        recommendations: [
+          { alias: "S1", confidence: "low", reason: "a" },
+          { alias: "S2", confidence: "medium", reason: "b" },
+          { alias: "S3", confidence: "high", reason: "c" },
+          { alias: "S99", confidence: "high", reason: "d" },
+        ],
+      }),
+      context,
+    );
+
+    expect(result).toMatchObject({ recommendations: [{ subjectId: "sub_c" }, { subjectId: "sub_b" }, { subjectId: "sub_a" }] });
+  });
+});
+
+describe("validateAdvice with a preselected parent", () => {
+  const scoped: ValidateAdviceContext = { ...context, scopeParentId: "par_cook" };
+  const propose = (parentAlias: string | null, kindHint: "other" | "business" = "other") =>
+    output({ newSubject: { name: "Negotiation", parentAlias, kindHint, reason: "r" } });
+
+  it("should accept a new subject placed under the preselected parent", () => {
+    expect(validateAdvice(propose("P2"), scoped)).toMatchObject({ newSubject: { parentSubjectId: "par_cook" } });
+  });
+
+  it("should drop a new subject placed under a different parent", () => {
+    expect(validateAdvice(propose("P1"), scoped)).toEqual({ status: "none" });
+  });
+
+  it("should drop a top-level new subject", () => {
+    expect(validateAdvice(propose(null), scoped)).toEqual({ status: "none" });
+  });
+
+  it("should drop a business proposal that would land under the Business root outside the scope", () => {
+    expect(validateAdvice(propose("P2", "business"), scoped)).toEqual({ status: "none" });
+  });
+
+  it("should accept a new subject placed under a descendant of the preselected parent", () => {
+    const nested: ValidateAdviceContext = {
+      ...scoped,
+      aliases: { ...aliases, parents: new Map([["P3", { id: "par_deep", label: "Hobbies › Deep" }]]) },
+      hierarchy: [...context.hierarchy, { id: "par_deep", name: "Deep", parentId: "par_cook" }],
+    };
+
+    expect(validateAdvice(propose("P3"), nested)).toMatchObject({ newSubject: { parentSubjectId: "par_deep" } });
   });
 });

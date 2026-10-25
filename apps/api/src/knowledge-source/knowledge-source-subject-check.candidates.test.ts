@@ -45,6 +45,25 @@ describe("shortlistCandidates", () => {
     expect(result.filter((entry) => entry.embedding === null)).toHaveLength(5);
   });
 
+  it("should keep three slots for subjects without an embedding when many embedded ones compete", () => {
+    const leaves = [
+      ...numbered(20, (index) => [index + 1, 1]),
+      ...Array.from({ length: 5 }, (_, index) => candidate(`z${index}`, null)),
+    ];
+    const result = shortlistCandidates(leaves, [1, 0]);
+
+    expect(result).toHaveLength(15);
+    expect(result.filter((entry) => entry.embedding === null).map((entry) => entry.id)).toEqual(["z0", "z1", "z2"]);
+  });
+
+  it("should still reserve slots for subjects without an embedding when the text could not be embedded", () => {
+    const leaves = [...numbered(20, () => [1, 0]), candidate("zz_new", null)];
+    const result = shortlistCandidates(leaves, null);
+
+    expect(result).toHaveLength(15);
+    expect(result.map((entry) => entry.id)).toContain("zz_new");
+  });
+
   it("should fall back to name order when the text could not be embedded", () => {
     const leaves = numbered(20, () => [1, 0]);
     const result = shortlistCandidates(leaves, null);

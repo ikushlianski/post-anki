@@ -38,7 +38,7 @@ await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
 
-const { listSubjectCheckCandidateSet } = await import("./knowledge-source-subject-check.candidates.repo.js");
+const { listSubjectCheckCandidateSet, listSubjectCheckSamples } = await import("./knowledge-source-subject-check.candidates.repo.js");
 
 let client: pg.Client;
 
@@ -104,18 +104,50 @@ describe("listSubjectCheckCandidateSet (real Postgres)", () => {
     expect(set.candidates.find((entry) => entry.id === polish)?.kind).toBe("language");
   });
 
-  it("should sample at most two approved statements from the subject's own cards", async () => {
+  it("should sample at most two approved statements from the subject's own cards, newest first", async () => {
     const subjectId = await seedSubject("Cooking", null);
 
-    await seedBit(subjectId, "Salt early", "approved");
+    await seedBit(subjectId, "Oldest approved", "approved");
     await seedBit(subjectId, "Rest the meat", "approved");
-    await seedBit(subjectId, "Third approved", "approved");
+    await seedBit(subjectId, "Salt early", "approved");
     await seedBit(subjectId, "Still pending", "pending");
 
-    const set = await listSubjectCheckCandidateSet();
-    const samples = set.candidates.find((entry) => entry.id === subjectId)?.samples ?? [];
+    const samples = (await listSubjectCheckSamples([subjectId])).get(subjectId) ?? [];
 
     expect(samples).toHaveLength(2);
     expect(samples).not.toContain("Still pending");
+    expect(samples).not.toContain("Oldest approved");
+  });
+
+  it("should return samples only for the subjects asked about", async () => {
+    const asked = await seedSubject("Asked", null);
+    const other = await seedSubject("Other", null);
+
+    await seedBit(asked, "Asked card", "approved");
+    await seedBit(other, "Other card", "approved");
+
+    const samples = await listSubjectCheckSamples([asked]);
+
+    expect([...samples.keys()]).toEqual([asked]);
+  });
+
+  it("should cut very long card bodies in the database instead of returning them whole", async () => {
+    const subjectId = await seedSubject("Long", null);
+
+    await seedBit(subjectId, "x".repeat(5_000), "approved");
+
+    const [sample] = (await listSubjectCheckSamples([subjectId])).get(subjectId) ?? [];
+
+    expect(sample?.length).toBeLessThanOrEqual(400);
+  });
+
+  it("should not load any card text for candidates in the plain subject list", async () => {
+    const subjectId = await seedSubject("Plain", null);
+
+    await seedBit(subjectId, "Some card", "approved");
+
+    const set = await listSubjectCheckCandidateSet();
+
+    expect(set.candidates.find((entry) => entry.id === subjectId)?.samples).toEqual([]);
   });
 });

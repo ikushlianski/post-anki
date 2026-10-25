@@ -14,10 +14,12 @@ import {
 } from "../shared/spend-guard.js";
 import {
   SUBJECT_CHECK_CANDIDATE_CAP,
+  type SubjectCheckCandidate,
+  buildCandidateSamples,
   scopeCandidatesToParent,
   shortlistCandidates,
 } from "./knowledge-source-subject-check.candidates.js";
-import { listSubjectCheckCandidateSet } from "./knowledge-source-subject-check.candidates.repo.js";
+import { listSubjectCheckCandidateSet, listSubjectCheckSamples } from "./knowledge-source-subject-check.candidates.repo.js";
 import {
   SUBJECT_CHECK_EMBED_CHARS,
   SUBJECT_CHECK_HOURLY_CAP,
@@ -52,12 +54,22 @@ function reasonFor(err: unknown): SubjectCheckUnavailableReason {
   return "failed";
 }
 
-async function assertUnderHourlyCap(): Promise<void> {
+let inFlight = 0;
+
+async function reserveHourlySlot(): Promise<void> {
   const used = await countRecentLlmCallEventsByOp(SUBJECT_CHECK_OPERATION, SUBJECT_CHECK_WINDOW_MS);
 
-  if (used >= SUBJECT_CHECK_HOURLY_CAP) {
+  if (used + inFlight >= SUBJECT_CHECK_HOURLY_CAP) {
     throw new UnavailableError("rate_limited");
   }
+
+  inFlight += 1;
+}
+
+async function withSamples(shortlist: SubjectCheckCandidate[]): Promise<SubjectCheckCandidate[]> {
+  const statements = await listSubjectCheckSamples(shortlist.map((entry) => entry.id));
+
+  return shortlist.map((entry) => ({ ...entry, samples: buildCandidateSamples(statements.get(entry.id) ?? []) }));
 }
 
 async function embedExcerpt(blocks: SubjectCheckRequest["blocks"]): Promise<number[] | null> {
@@ -79,22 +91,34 @@ export async function runSubjectCheck(request: SubjectCheckRequest): Promise<Sub
     return unavailable("disabled");
   }
 
+  let reserved = false;
+
   try {
-    await assertUnderHourlyCap();
+    await reserveHourlySlot();
+    reserved = true;
     await assertLlmBudgetAvailable();
 
     const set = await listSubjectCheckCandidateSet();
     const scoped = scopeCandidatesToParent(set.candidates, set.hierarchy, request.parentSubjectId);
     const queryEmbedding = scoped.length > SUBJECT_CHECK_CANDIDATE_CAP ? await embedExcerpt(request.blocks) : null;
-    const shortlist = shortlistCandidates(scoped, queryEmbedding);
+    const shortlist = await withSamples(shortlistCandidates(scoped, queryEmbedding));
     const { output, aliases } = await runSubjectChecker(request.blocks, shortlist, set.parents);
 
-    return validateAdvice(output, { aliases, hierarchy: set.hierarchy, parents: set.parents });
+    return validateAdvice(output, {
+      aliases,
+      hierarchy: set.hierarchy,
+      parents: set.parents,
+      scopeParentId: request.parentSubjectId,
+    });
   } catch (err) {
     const reason = reasonFor(err);
 
     log.warn({ err, reason }, "subject_check_unavailable");
 
     return unavailable(reason);
+  } finally {
+    if (reserved) {
+      inFlight -= 1;
+    }
   }
 }

@@ -4,7 +4,7 @@ import type {
   SubjectCheckRecommendation,
   SubjectCheckResponse,
 } from "@post-anki/shared";
-import type { SubjectHierarchyRow } from "@post-anki/core";
+import { collectSubjectSubtreeIds, type SubjectHierarchyRow } from "@post-anki/core";
 import type { SubjectCheckAliases, SubjectCheckModelOutput } from "../mastra/knowledge-source-subject-checker.agent.js";
 import { sanitizeProposedName, sanitizeReason } from "../subject-suggestion/subject-suggestion-text.js";
 import type { SubjectCheckParent } from "./knowledge-source-subject-check.candidates.js";
@@ -17,6 +17,7 @@ export interface ValidateAdviceContext {
   aliases: SubjectCheckAliases;
   hierarchy: SubjectHierarchyRow[];
   parents: SubjectCheckParent[];
+  scopeParentId?: string;
 }
 
 function cleanName(raw: string): string | null {
@@ -63,11 +64,11 @@ export function placeNewSubject(
     const root = context.hierarchy.find((row) => row.parentId === null && row.name.trim().toLowerCase() === BUSINESS_NAME);
     const rootParent = root ? context.parents.find((parent) => parent.id === root.id) : undefined;
 
-    if (root && !rootParent) {
+    if (!root || !rootParent) {
       return null;
     }
 
-    return { kind, parentSubjectId: rootParent?.id ?? null, parentLabel: rootParent?.label ?? null };
+    return { kind, parentSubjectId: rootParent.id, parentLabel: rootParent.label };
   }
 
   if (proposal.parentAlias === null) {
@@ -77,6 +78,14 @@ export function placeNewSubject(
   const parent = context.aliases.parents.get(proposal.parentAlias);
 
   return parent ? { kind, parentSubjectId: parent.id, parentLabel: parent.label } : null;
+}
+
+function isInsideScope(parentSubjectId: string | null, context: ValidateAdviceContext): boolean {
+  if (!context.scopeParentId) {
+    return true;
+  }
+
+  return parentSubjectId !== null && collectSubjectSubtreeIds(context.scopeParentId, context.hierarchy).includes(parentSubjectId);
 }
 
 function validateNewSubject(
@@ -90,7 +99,7 @@ function validateNewSubject(
   const name = cleanName(output.newSubject.name);
   const placement = placeNewSubject(output.newSubject, context);
 
-  if (!name || !placement) {
+  if (!name || !placement || !isInsideScope(placement.parentSubjectId, context)) {
     return null;
   }
 

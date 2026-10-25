@@ -49,8 +49,7 @@ export const subjectCheckModelOutputSchema = z.object({
         confidence: z.enum(["high", "medium", "low"]),
         reason: z.string(),
       }),
-    )
-    .max(3),
+    ),
   newSubject: z
     .object({
       name: z.string(),

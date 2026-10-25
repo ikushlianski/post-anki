@@ -5,6 +5,7 @@ export const SUBJECT_CHECK_CANDIDATE_CAP = 15;
 export const SUBJECT_CHECK_DESCRIPTION_CHARS = 120;
 export const SUBJECT_CHECK_SAMPLE_CHARS = 100;
 export const SUBJECT_CHECK_SAMPLE_COUNT = 2;
+export const SUBJECT_CHECK_UNEMBEDDED_RESERVE = 3;
 
 export interface SubjectCheckCandidate {
   id: string;
@@ -55,8 +56,12 @@ function byLabel(a: SubjectCheckCandidate, b: SubjectCheckCandidate): number {
   return a.label.localeCompare(b.label);
 }
 
-function hasComparableEmbedding(candidate: SubjectCheckCandidate, query: number[]): boolean {
-  return candidate.embedding !== null && candidate.embedding.length === query.length;
+function hasComparableEmbedding(candidate: SubjectCheckCandidate, query: number[] | null): boolean {
+  if (candidate.embedding === null) {
+    return false;
+  }
+
+  return query === null || candidate.embedding.length === query.length;
 }
 
 export function shortlistCandidates(
@@ -70,16 +75,17 @@ export function shortlistCandidates(
     return ordered;
   }
 
-  if (!queryEmbedding || queryEmbedding.length === 0) {
-    return ordered.slice(0, cap);
-  }
+  const query = queryEmbedding && queryEmbedding.length > 0 ? queryEmbedding : null;
+  const embedded = ordered.filter((candidate) => hasComparableEmbedding(candidate, query));
+  const unembedded = ordered.filter((candidate) => !hasComparableEmbedding(candidate, query));
+  const ranked = query
+    ? embedded
+        .map((candidate) => ({ candidate, score: cosineSimilarity(query, candidate.embedding ?? []) }))
+        .sort((a, b) => b.score - a.score || byLabel(a.candidate, b.candidate))
+        .map((entry) => entry.candidate)
+    : embedded;
+  const reserved = Math.min(SUBJECT_CHECK_UNEMBEDDED_RESERVE, unembedded.length);
+  const picked = ranked.slice(0, cap - reserved);
 
-  const embedded = ordered
-    .filter((candidate) => hasComparableEmbedding(candidate, queryEmbedding))
-    .map((candidate) => ({ candidate, score: cosineSimilarity(queryEmbedding, candidate.embedding ?? []) }))
-    .sort((a, b) => b.score - a.score || byLabel(a.candidate, b.candidate))
-    .map((entry) => entry.candidate);
-  const unembedded = ordered.filter((candidate) => !hasComparableEmbedding(candidate, queryEmbedding));
-
-  return [...embedded, ...unembedded].slice(0, cap);
+  return [...picked, ...unembedded.slice(0, cap - picked.length)];
 }
