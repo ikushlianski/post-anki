@@ -232,7 +232,7 @@ public enum KnowledgeManageError: Sendable {
         if let urlError = error as? URLError {
             switch urlError.code {
             case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
-                return "You're offline. Nothing was changed, try again when you're back."
+                return "Couldn't connect to the server. Nothing was changed, try again in a moment."
             default:
                 break
             }

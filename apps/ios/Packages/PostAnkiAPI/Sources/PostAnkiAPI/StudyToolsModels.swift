@@ -127,7 +127,7 @@ public enum StudyToolsError: Sendable {
         }
 
         if error is URLError {
-            return "You appear to be offline. Try again."
+            return "Couldn't connect to the server. Try again."
         }
 
         return "Something went wrong. Try again."

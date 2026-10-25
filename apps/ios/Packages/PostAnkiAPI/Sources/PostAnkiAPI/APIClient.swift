@@ -9,7 +9,7 @@ public enum APIError: Error, Sendable {
 // Requests carry a bearer access token from the Keychain (TokenStore) when one
 // is stored. Base URL is configurable in case a local dev server is preferred.
 public enum APIClient {
-    public static let productionBaseURLString = "https://api.postanki.ilya.online"
+    public static let productionBaseURLString = "https://post-anki-api-pl6jw2mdla-ew.a.run.app"
 
     private static let savedKey = "apiBaseURL"
     private static let fallback = FallbackBaseURL()
@@ -74,8 +74,30 @@ public enum APIClient {
         return productionBaseURLString
     }
 
+    public static func allowsPlainHTTP(host: String?) -> Bool {
+        guard let host = host?.lowercased() else { return false }
+
+        if host == "localhost" || host == "127.0.0.1" { return true }
+
+        #if DEBUG
+        return host.hasSuffix(".local") || isPrivateIPv4(host)
+        #else
+        return false
+        #endif
+    }
+
+    private static func isPrivateIPv4(_ host: String) -> Bool {
+        let parts = host.split(separator: ".").compactMap { Int($0) }
+
+        guard parts.count == 4, parts.allSatisfy({ (0...255).contains($0) }) else { return false }
+
+        return parts[0] == 10
+            || (parts[0] == 172 && (16...31).contains(parts[1]))
+            || (parts[0] == 192 && parts[1] == 168)
+    }
+
     private static func canSendToken(to url: URL) -> Bool {
-        url.scheme?.lowercased() == "https" || url.host == "localhost" || url.host == "127.0.0.1"
+        url.scheme?.lowercased() == "https" || allowsPlainHTTP(host: url.host())
     }
 
     static func makeRequest(

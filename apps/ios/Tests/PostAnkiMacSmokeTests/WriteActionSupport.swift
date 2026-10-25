@@ -19,7 +19,7 @@ struct WriteFailureCase: Sendable, CustomTestStringConvertible {
     var testDescription: String { name }
 
     static let signedOutMessage = "Check Settings: your access token was rejected."
-    static let offlineMessage = "You appear to be offline. Try again."
+    static let offlineMessage = "Couldn't connect to the server. Try again."
 
     static let signedOut = WriteFailureCase(name: "signed out", reply: .status(401), message: signedOutMessage)
 

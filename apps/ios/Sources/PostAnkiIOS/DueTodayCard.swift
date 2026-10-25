@@ -64,7 +64,7 @@ struct DueTodayRow: View {
 
     private func message(for failure: DueTodayFailure) -> String {
         switch failure {
-        case .offline: "Can't check offline"
+        case .offline: "Couldn't connect"
         case .unauthorized: "Add your access token in Settings"
         case .other: "Couldn't load due reviews"
         }

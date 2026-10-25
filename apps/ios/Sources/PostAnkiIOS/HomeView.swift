@@ -1,26 +1,49 @@
+import PostAnkiAPI
 import SwiftUI
 
 struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @State private var isSignedIn = TokenStore.read() != nil
 
     var body: some View {
+        Group {
+            if isSignedIn {
+                tabs
+            } else {
+                NavigationStack { SettingsScreen() }
+            }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if BuildInfo.isDev {
+                Color.orange.frame(height: 3)
+            }
+        }
+        .tint(BuildInfo.isDev ? .orange : nil)
+        .onReceive(NotificationCenter.default.publisher(for: .postAnkiSettingsDidSave)) { _ in
+            isSignedIn = TokenStore.read() != nil
+            Task { await PendingReviewCountStore.shared.refresh() }
+        }
+    }
+
+    private var tabs: some View {
         TabView {
-            HomeScreen()
-                .tabItem { Label("Home", systemImage: "house") }
-
-            NavigationStack { DueReviewScreen() }
-                .tabItem { Label("Review", systemImage: "checkmark.seal") }
-
             KnowledgeInboxScreen()
-                .tabItem { Label("Inbox", systemImage: "tray.full") }
+                .tabItem { Label("Triage", systemImage: "tray.full") }
                 .badge(PendingReviewCountStore.shared.count)
 
             NavigationStack { IngestionDictationScreen() }
                 .tabItem { Label("Add", systemImage: "square.and.pencil") }
 
-            CoursesScreen()
-                .tabItem { Label("Courses", systemImage: "book") }
+            NavigationStack { DueReviewScreen() }
+                .tabItem { Label("Review", systemImage: "checkmark.seal") }
+
+            NavigationStack { KnowledgeListScreen() }
+                .tabItem { Label("Knowledge", systemImage: "books.vertical") }
+
+            SubjectsScreen()
+                .tabItem { Label("Subjects", systemImage: "book") }
         }
+        .task { await PendingReviewCountStore.shared.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await PendingAnswerQueue.shared.flush() }

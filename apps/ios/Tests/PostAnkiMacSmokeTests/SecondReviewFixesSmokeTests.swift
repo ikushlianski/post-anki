@@ -30,7 +30,7 @@ extension SmokeTests {
 
             await model.run(scan)
 
-            #expect(model.results[scan.id]?.contains("offline") == true)
+            #expect(model.results[scan.id]?.contains("connect") == true)
 
             FakeServer.start([scan.path: .status(401)])
             await model.run(scan)

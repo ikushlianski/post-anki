@@ -3,6 +3,8 @@
 POSTANKI_DEV_API_URL = http:/$()/localhost:5560
 // Debug-only dev API token saved to the keychain at launch when set; put it in Local.xcconfig.
 POSTANKI_DEV_API_TOKEN =
+// Debug-only token for the Post Anki Dev iPhone app against the local dev DB; seeded when none is saved.
+POSTANKI_LOCAL_DEV_API_TOKEN =
 // PowerSync spike (see spike/README.md): service address and dev token; override in Local.xcconfig.
 POSTANKI_POWERSYNC_URL =
 POSTANKI_POWERSYNC_TOKEN =

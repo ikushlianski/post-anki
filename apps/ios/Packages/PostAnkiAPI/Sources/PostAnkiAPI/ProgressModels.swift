@@ -191,7 +191,7 @@ public enum ProgressLoadError: Sendable, Hashable {
 
     public var message: String {
         switch self {
-        case .offline: return "You're offline. Pull to refresh when you're back."
+        case .offline: return "Couldn't connect to the server. Pull to refresh to try again."
         case .unauthorized: return "Add your access token in Settings."
         case .notFound: return "Stats aren't available for this course."
         case .other: return "Couldn't load your progress."

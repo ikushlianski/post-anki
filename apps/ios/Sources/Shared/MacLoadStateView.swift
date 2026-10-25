@@ -5,7 +5,7 @@ import SwiftUI
 extension ProgressLoadError {
     var macTitle: String {
         switch self {
-        case .offline: return "You're offline"
+        case .offline: return "Couldn't connect"
         case .unauthorized: return "Add your access token"
         case .notFound: return "Not found"
         case .other: return "Something went wrong"
@@ -23,7 +23,7 @@ extension ProgressLoadError {
 
     var macDetail: String {
         switch self {
-        case .offline: return "Check your connection, then try again."
+        case .offline: return "Check your connection and the server address in Settings, then try again."
         case .unauthorized: return "Open Settings and paste your access token."
         case .notFound: return "This item no longer exists."
         case .other: return "Couldn't load this screen. Try again."

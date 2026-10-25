@@ -6,7 +6,7 @@ extension SmokeTests {
     @Suite("Study sessions and resurfacing gaps load from a fake server")
     struct StudyModesSmokeTests {
         private let signedOut = "Check Settings: your access token was rejected."
-        private let offline = "You appear to be offline. Try again."
+        private let offline = "Couldn't connect to the server. Try again."
 
         private func sessionRoutes(_ reply: FakeReply? = nil) -> [String: FakeReply] {
             [

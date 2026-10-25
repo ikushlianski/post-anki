@@ -4,6 +4,7 @@ public struct Subject: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let name: String
     public let description: String?
+    public let parentId: String?
 }
 
 public struct Curriculum: Codable, Identifiable, Hashable, Sendable {

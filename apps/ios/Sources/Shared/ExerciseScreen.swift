@@ -89,7 +89,7 @@ final class ExerciseScreenModel {
             let cached = VariantCache.load(topicId: currentTopic.id)
 
             if cached.isEmpty {
-                errorMessage = "You're offline and no saved questions are available."
+                errorMessage = "Couldn't connect to the server and no saved questions are available."
                 failed = true
             } else {
                 queue = cached
@@ -194,7 +194,7 @@ struct ExerciseScreen: View {
                                 .foregroundStyle(.secondary)
 
                             if model.isOffline {
-                                Text("Offline — showing saved questions")
+                                Text("Couldn't connect — showing saved questions")
                                     .zoomFont(.caption)
                                     .foregroundStyle(.orange)
                             }

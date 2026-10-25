@@ -30,6 +30,14 @@ final class CoursesScreenModel {
         isLoading = false
     }
 
+    var topLevelSubjects: [Subject] {
+        subjects.filter { $0.parentId == nil }
+    }
+
+    func children(of subjectId: String) -> [Subject] {
+        subjects.filter { $0.parentId == subjectId }
+    }
+
     func curricula(for subjectId: String) -> [Curriculum] {
         curricula.filter { $0.subjectId == subjectId }
     }

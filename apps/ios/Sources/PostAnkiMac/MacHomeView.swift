@@ -112,7 +112,7 @@ struct MacHomeView: View {
 
         if case .failed(let failure) = dueModel.state {
             switch failure {
-            case .offline: return "Can't check offline"
+            case .offline: return "Couldn't connect"
             case .unauthorized: return "Add your access token in Settings"
             case .other: return "Couldn't load due reviews"
             }

@@ -78,7 +78,7 @@ enum AdminScanError {
 
         switch ProgressLoadError.from(error) {
         case .unauthorized: return "Scan failed. Add your access token in Settings."
-        case .offline: return "Scan failed. You're offline; the scan may or may not have started."
+        case .offline: return "Scan failed. Couldn't connect to the server; the scan may or may not have started."
         default: return "Scan failed."
         }
     }

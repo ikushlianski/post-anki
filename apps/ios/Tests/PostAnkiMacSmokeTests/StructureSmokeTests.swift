@@ -6,7 +6,7 @@ extension SmokeTests {
     @Suite("Subjects and knowledge maps load from a fake server")
     struct StructureSmokeTests {
         private let signedOut = "Check Settings: your access token was rejected."
-        private let offline = "You appear to be offline. Try again."
+        private let offline = "Couldn't connect to the server. Try again."
 
         @Test("should load subjects with their courses and nest child subjects under their parent")
         func subjectsLoad() async throws {

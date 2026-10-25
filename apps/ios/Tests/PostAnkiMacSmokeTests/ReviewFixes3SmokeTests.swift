@@ -45,8 +45,8 @@ extension SmokeTests {
             let cancelled = StudyToolsError.message(for: URLError(.cancelled))
             let offline = StudyToolsError.message(for: URLError(.notConnectedToInternet))
 
-            #expect(!cancelled.localizedCaseInsensitiveContains("offline"))
-            #expect(offline.localizedCaseInsensitiveContains("offline"))
+            #expect(!cancelled.localizedCaseInsensitiveContains("connect"))
+            #expect(offline.localizedCaseInsensitiveContains("connect"))
         }
 
         @Test("should send only the most recent chat turns to the tutor")

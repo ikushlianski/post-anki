@@ -71,7 +71,7 @@ extension SmokeTests {
             WriteFailureCase(
                 name: "dropped connection",
                 reply: .failure(.notConnectedToInternet),
-                message: "You're offline. Nothing was changed, try again when you're back."
+                message: "Couldn't connect to the server. Nothing was changed, try again in a moment."
             )
         ])
         func approveFails(failure: WriteFailureCase) async throws {
@@ -109,7 +109,7 @@ extension SmokeTests {
             WriteFailureCase(
                 name: "dropped connection",
                 reply: .failure(.networkConnectionLost),
-                message: "You're offline. Nothing was changed, try again when you're back."
+                message: "Couldn't connect to the server. Nothing was changed, try again in a moment."
             )
         ])
         func rejectFails(failure: WriteFailureCase) async throws {
@@ -149,7 +149,7 @@ extension SmokeTests {
             WriteFailureCase(
                 name: "dropped connection",
                 reply: .failure(.notConnectedToInternet),
-                message: "You're offline. Nothing was changed, try again when you're back."
+                message: "Couldn't connect to the server. Nothing was changed, try again in a moment."
             )
         ])
         func bulkApproveFails(failure: WriteFailureCase) async throws {
@@ -192,7 +192,7 @@ extension SmokeTests {
 
             #expect(bitIds(model) == ["kb_11"])
             #expect(model.pendingUndo?.canRetry == true)
-            #expect(model.pendingUndo?.message == "You're offline. Try Undo again.")
+            #expect(model.pendingUndo?.message == "Couldn't connect to the server. Try Undo again.")
             model.dismissUndo()
         }
     }
