@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { KnowledgeBrowserPhrasings } from './knowledge-browser-phrasings'
 import { KnowledgeBrowserOriginCell } from './knowledge-browser-origin-cell'
+import { BROWSER_ORIGIN_LABELS } from './knowledge-browser-filters'
 import type { KnowledgeBitBrowserItem, KnowledgeBitBrowserOrigin } from '@post-anki/shared'
 
 export type BrowserColumnId = 'phrasings' | 'answer' | 'source' | 'sourceUrl' | 'addedBy' | 'addedAt'
@@ -21,14 +22,6 @@ export const BROWSER_COLUMN_LABELS: Record<BrowserColumnId, string> = {
   sourceUrl: 'Source URL',
   addedBy: 'Added by',
   addedAt: 'Date added',
-}
-
-const SOURCE_LABELS: Record<KnowledgeBitBrowserOrigin, string> = {
-  manual: 'Typed in',
-  ai_web: 'AI web search',
-  pasted: 'Pasted text',
-  notion: 'Notion',
-  article: 'Article',
 }
 
 function addedByLabel(origin: KnowledgeBitBrowserOrigin): string {
@@ -57,7 +50,7 @@ export function renderBrowserCell(
     case 'phrasings':
       return <KnowledgeBrowserPhrasings phrasings={item.phrasings} />
     case 'source':
-      return <KnowledgeBrowserOriginCell label={SOURCE_LABELS[item.origin]} item={item} actions={sourceActions} />
+      return <KnowledgeBrowserOriginCell label={BROWSER_ORIGIN_LABELS[item.origin]} item={item} actions={sourceActions} />
     case 'sourceUrl':
       return item.sourceUrl ? (
         <a href={item.sourceUrl} target="_blank" rel="noreferrer" title={item.sourceUrl} className="text-blue-700 underline">

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -28,23 +28,31 @@ vi.mock('./use-knowledge-browser-selection-delete', () => ({
   useKnowledgeBrowserSelectionDelete: () => ({
     selected: new Set<string>(),
     count: 0,
+    unselectedCount: 0,
+    confirming: false,
     toggleRow: vi.fn(),
     toggleAll: vi.fn(),
   }),
 }))
 
 vi.mock('./use-knowledge-browser-source-delete', () => ({
-  useKnowledgeBrowserSourceDelete: () => ({ sourceId: null, countFor: () => 0, open: vi.fn() }),
+  useKnowledgeBrowserSourceDelete: () => ({ sourceId: null, hiddenCount: 0, countFor: () => 0, open: vi.fn() }),
 }))
 
-const rowsHook = vi.hoisted(() => ({ calls: [] as (string | null)[] }))
+const rowsHook = vi.hoisted(() => ({
+  calls: [] as (string | null)[],
+  filterCalls: [] as unknown[],
+  rows: [{ knowledgeBitId: 'b1' }] as { knowledgeBitId: string }[],
+}))
 
 vi.mock('./use-knowledge-browser-data', () => ({
-  useKnowledgeBrowserRows: (subjectId: string | null) => {
+  useKnowledgeBrowserRows: (subjectId: string | null, filters: unknown) => {
     rowsHook.calls.push(subjectId)
+    rowsHook.filterCalls.push(filters)
 
     return {
-      rows: [{ knowledgeBitId: 'b1' }],
+      rows: rowsHook.rows,
+      total: rowsHook.rows.length,
       isPending: false,
       isError: false,
       hasMore: false,
@@ -61,7 +69,7 @@ vi.mock('./use-knowledge-browser-column-order', () => ({
   useKnowledgeBrowserColumnOrder: (id: string) => {
     columnsHook.ids.push(id)
 
-    return { order: [], changeOrder: vi.fn(), reset: vi.fn(), isDefault: true }
+    return { order: [], hidden: [], allColumns: [], changeOrder: vi.fn(), toggle: vi.fn(), reset: vi.fn(), isDefault: true }
   },
 }))
 
@@ -70,6 +78,8 @@ import { KnowledgeBrowserScreen } from './knowledge-browser-screen'
 afterEach(() => {
   cleanup()
   rowsHook.calls.length = 0
+  rowsHook.filterCalls.length = 0
+  rowsHook.rows = [{ knowledgeBitId: 'b1' }]
   columnsHook.ids.length = 0
 })
 
@@ -96,5 +106,40 @@ describe('KnowledgeBrowserScreen', () => {
     expect(screen.getByTestId('card-table')).toBeTruthy()
     expect(rowsHook.calls).toEqual(['s1'])
     expect(columnsHook.ids).toEqual(['s1'])
+  })
+
+  it('should read the rows with the filters from the page address', () => {
+    render(<KnowledgeBrowserScreen subjectId={null} filters={{ question: 'pod' }} />)
+
+    expect(rowsHook.filterCalls).toEqual([{ question: 'pod' }])
+  })
+
+  it('should say nothing matches and offer Clear all when filters leave no rows', () => {
+    const onClearAll = vi.fn()
+
+    rowsHook.rows = []
+    render(<KnowledgeBrowserScreen subjectId={null} filters={{ question: 'zzz' }} onClearAll={onClearAll} />)
+
+    expect(screen.getByTestId('knowledge-browser-no-match')).toBeTruthy()
+    expect(screen.queryByTestId('knowledge-browser-empty')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('knowledge-browser-no-match-clear'))
+
+    expect(onClearAll).toHaveBeenCalledOnce()
+  })
+
+  it('should keep the empty collection message when no filter is set', () => {
+    rowsHook.rows = []
+    render(<KnowledgeBrowserScreen subjectId={null} />)
+
+    expect(screen.getByTestId('knowledge-browser-empty').textContent).toBe('No approved knowledge yet.')
+    expect(screen.queryByTestId('knowledge-browser-no-match')).toBeNull()
+  })
+
+  it('should keep the toolbar on screen even when no rows match', () => {
+    rowsHook.rows = []
+    render(<KnowledgeBrowserScreen subjectId={null} filters={{ answer: 'x' }} />)
+
+    expect(screen.getByTestId('knowledge-browser-toolbar')).toBeTruthy()
   })
 })

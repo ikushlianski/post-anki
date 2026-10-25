@@ -18,6 +18,7 @@ const rows: KnowledgeBitBrowserItem[] = ['b1', 'b2', 'b3', 'b4'].map((id) => ({
   answer: `A ${id}`,
   origin: 'manual',
   addedAt: '2026-03-04T12:00:00.000Z',
+  sourcePieceCount: 1,
 }))
 
 function Harness() {

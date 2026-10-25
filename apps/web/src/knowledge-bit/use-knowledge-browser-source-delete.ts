@@ -7,6 +7,12 @@ import { idsFromSource } from './knowledge-browser-source'
 
 export const SOURCE_DELETE_FAILED_MESSAGE = 'Could not delete the source. Nothing was removed. Try again.'
 
+function realCount(rows: readonly KnowledgeBitBrowserItem[], sourceId: string): number {
+  const first = rows.find((row) => row.sourceId === sourceId)
+
+  return first ? Math.max(first.sourcePieceCount, idsFromSource(rows, sourceId).length) : 0
+}
+
 export function useKnowledgeBrowserSourceDelete(
   rows: readonly KnowledgeBitBrowserItem[],
   onDeleted: () => void,
@@ -16,7 +22,8 @@ export function useKnowledgeBrowserSourceDelete(
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const first = sourceId ? rows.find((row) => row.sourceId === sourceId) : undefined
-  const count = sourceId ? idsFromSource(rows, sourceId).length : 0
+  const count = sourceId ? realCount(rows, sourceId) : 0
+  const shown = sourceId ? idsFromSource(rows, sourceId).length : 0
 
   function open(id: string) {
     if (!busy) {
@@ -65,12 +72,13 @@ export function useKnowledgeBrowserSourceDelete(
     sourceId,
     label: first?.sourceLabel ?? null,
     count,
+    hiddenCount: Math.max(0, count - shown),
     busy,
     error,
     open,
     cancel,
     confirm,
-    countFor: (id: string) => idsFromSource(rows, id).length,
+    countFor: (id: string) => realCount(rows, id),
   }
 }
 

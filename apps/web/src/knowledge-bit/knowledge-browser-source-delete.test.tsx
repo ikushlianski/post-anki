@@ -23,6 +23,7 @@ const make = (id: string, sourceId: string | null, sourceLabel: string | null): 
   sourceId,
   sourceLabel,
   addedAt: '2026-03-04T12:00:00.000Z',
+  sourcePieceCount: sourceId === 's1' ? 8 : 1,
 })
 
 const rows = [
@@ -90,8 +91,23 @@ describe('Knowledge browser delete whole source', () => {
   it('should name the number of pieces from that source and delete nothing before confirming', () => {
     fireEvent.click(screen.getAllByTestId('knowledge-browser-row-delete-source')[0])
 
-    expect(screen.getByRole('alertdialog').textContent).toContain('blog.example.com" and its 2 pieces')
+    expect(screen.getByRole('alertdialog').textContent).toContain('blog.example.com" and its 8 pieces')
     expect(deleteSource).not.toHaveBeenCalled()
+  })
+
+  it('should state the real number of pieces and say that some are hidden by the filters', () => {
+    fireEvent.click(screen.getAllByTestId('knowledge-browser-row-delete-source')[0])
+
+    expect(screen.getByTestId('knowledge-browser-source-bar').textContent).toContain(
+      '6 of them are hidden by the filters or not loaded yet.',
+    )
+    expect(screen.getByTestId('knowledge-browser-source-confirm').textContent).toBe('Yes, delete 8 pieces')
+  })
+
+  it('should not mention hidden pieces when every piece of the source is shown', () => {
+    fireEvent.click(screen.getAllByTestId('knowledge-browser-row-delete-source')[1])
+
+    expect(screen.getByTestId('knowledge-browser-source-bar').textContent).not.toContain('hidden')
   })
 
   it('should delete the source once confirmed, then clear the selection and refresh the data', async () => {
@@ -134,7 +150,7 @@ describe('Knowledge browser delete whole source', () => {
     fireEvent.click(screen.getByTestId('knowledge-browser-select-source'))
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('2 selected')
-    expect(screen.getByTestId('knowledge-browser-delete-source').textContent).toContain('(2 pieces)')
+    expect(screen.getByTestId('knowledge-browser-delete-source').textContent).toContain('(8 pieces)')
 
     fireEvent.click(boxes()[1])
 

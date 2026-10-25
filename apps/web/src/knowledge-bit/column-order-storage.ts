@@ -1,37 +1,65 @@
-const STORAGE_KEY_PREFIX = 'knowledge-browser-columns:v1'
+import type { SavedColumnLayout } from './knowledge-browser-column-layout'
+
+const LEGACY_KEY_PREFIX = 'knowledge-browser-columns:v1'
+const STORAGE_KEY_PREFIX = 'knowledge-browser-columns:v2'
+
+function legacyKey(tableId: string): string {
+  return `${LEGACY_KEY_PREFIX}:${tableId}`
+}
 
 function storageKey(tableId: string): string {
   return `${STORAGE_KEY_PREFIX}:${tableId}`
 }
 
-export function readColumnOrder(tableId: string): string[] | null {
+function stringList(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((id) => typeof id === 'string') ? value : null
+}
+
+function readJson(key: string): unknown {
+  const raw = window.localStorage.getItem(key)
+
+  return raw === null ? null : JSON.parse(raw)
+}
+
+export function readColumnLayout(tableId: string): SavedColumnLayout | null {
   if (typeof window === 'undefined') return null
 
   try {
-    const raw = window.localStorage.getItem(storageKey(tableId))
-    const parsed: unknown = raw === null ? null : JSON.parse(raw)
+    const current = readJson(storageKey(tableId))
 
-    return Array.isArray(parsed) && parsed.every((id) => typeof id === 'string') ? parsed : null
+    if (typeof current === 'object' && current !== null && !Array.isArray(current)) {
+      const record = current as Record<string, unknown>
+
+      return { order: stringList(record.order), hidden: stringList(record.hidden) }
+    }
+
+    const legacy = stringList(readJson(legacyKey(tableId)))
+
+    return legacy ? { order: legacy, hidden: null } : null
   } catch {
     return null
   }
 }
 
-export function writeColumnOrder(tableId: string, order: readonly string[]): void {
+export function writeColumnLayout(
+  tableId: string,
+  layout: { order: readonly string[]; hidden: readonly string[] },
+): void {
   if (typeof window === 'undefined') return
 
   try {
-    window.localStorage.setItem(storageKey(tableId), JSON.stringify(order))
+    window.localStorage.setItem(storageKey(tableId), JSON.stringify(layout))
   } catch {
     return
   }
 }
 
-export function clearColumnOrder(tableId: string): void {
+export function clearColumnLayout(tableId: string): void {
   if (typeof window === 'undefined') return
 
   try {
     window.localStorage.removeItem(storageKey(tableId))
+    window.localStorage.removeItem(legacyKey(tableId))
   } catch {
     return
   }

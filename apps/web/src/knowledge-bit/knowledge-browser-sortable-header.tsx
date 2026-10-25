@@ -1,5 +1,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import type { ReactNode } from 'react'
+
+import { KnowledgeBrowserToolbarPopover } from './knowledge-browser-toolbar-popover'
 
 const COLUMN_WIDTHS: Record<string, string> = {
   phrasings: '30%',
@@ -13,9 +16,16 @@ const COLUMN_WIDTHS: Record<string, string> = {
 interface KnowledgeBrowserSortableHeaderProps {
   id: string
   label: string
+  filterEditor?: ReactNode
+  filtered?: boolean
 }
 
-export function KnowledgeBrowserSortableHeader({ id, label }: KnowledgeBrowserSortableHeaderProps) {
+export function KnowledgeBrowserSortableHeader({
+  id,
+  label,
+  filterEditor,
+  filtered = false,
+}: KnowledgeBrowserSortableHeaderProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
 
   return (
@@ -38,6 +48,29 @@ export function KnowledgeBrowserSortableHeader({ id, label }: KnowledgeBrowserSo
           ⋮⋮
         </button>
         {label}
+        {filterEditor && (
+          <KnowledgeBrowserToolbarPopover
+            buttonLabel={`Filter ${label}`}
+            testId={`browser-column-filter-${id}`}
+            placement="fixed"
+            panelWidthClass="w-64"
+            buttonClassName={`relative rounded px-1 text-xs hover:bg-neutral-100 ${filtered ? 'text-neutral-900' : 'text-neutral-400 hover:text-neutral-700'}`}
+            buttonContent={
+              <>
+                ▾
+                {filtered && (
+                  <span
+                    data-testid={`browser-column-filtered-${id}`}
+                    aria-label="Filtered"
+                    className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-blue-600"
+                  />
+                )}
+              </>
+            }
+          >
+            {filterEditor}
+          </KnowledgeBrowserToolbarPopover>
+        )}
       </span>
     </th>
   )

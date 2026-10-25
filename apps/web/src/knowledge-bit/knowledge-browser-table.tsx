@@ -13,11 +13,17 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
+import type { ReactNode } from 'react'
 
 import { moveColumn } from './column-order'
 import { BROWSER_COLUMN_LABELS, renderBrowserCell } from './knowledge-browser-columns'
 import type { BrowserColumnId, BrowserSourceCellActions } from './knowledge-browser-columns'
 import { KnowledgeBrowserSortableHeader } from './knowledge-browser-sortable-header'
+
+export interface BrowserColumnFilters {
+  isFiltered: (id: BrowserColumnId) => boolean
+  renderEditor: (id: BrowserColumnId) => ReactNode
+}
 
 interface KnowledgeBrowserTableProps {
   rows: KnowledgeBitBrowserItem[]
@@ -27,6 +33,7 @@ interface KnowledgeBrowserTableProps {
   onToggleRow: (id: string, shift: boolean) => void
   onToggleAll: () => void
   sourceActions?: BrowserSourceCellActions
+  columnFilters?: BrowserColumnFilters
 }
 
 export function KnowledgeBrowserTable({
@@ -37,6 +44,7 @@ export function KnowledgeBrowserTable({
   onToggleRow,
   onToggleAll,
   sourceActions,
+  columnFilters,
 }: KnowledgeBrowserTableProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -72,7 +80,13 @@ export function KnowledgeBrowserTable({
               </th>
               <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                 {columnOrder.map((id) => (
-                  <KnowledgeBrowserSortableHeader key={id} id={id} label={BROWSER_COLUMN_LABELS[id]} />
+                  <KnowledgeBrowserSortableHeader
+                    key={id}
+                    id={id}
+                    label={BROWSER_COLUMN_LABELS[id]}
+                    filterEditor={columnFilters?.renderEditor(id)}
+                    filtered={columnFilters?.isFiltered(id)}
+                  />
                 ))}
               </SortableContext>
             </tr>

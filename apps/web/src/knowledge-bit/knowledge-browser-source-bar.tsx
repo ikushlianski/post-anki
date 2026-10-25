@@ -14,10 +14,12 @@ export function KnowledgeBrowserSourceBar({ state }: { state: BrowserSourceDelet
       role="alertdialog"
       aria-label="Confirm delete source"
       data-testid="knowledge-browser-source-bar"
-      className="sticky top-0 z-30 mb-3 flex flex-wrap items-center gap-3 rounded border border-red-300 bg-white px-3 py-2 shadow-sm"
+      className="flex basis-full flex-wrap items-center gap-2 rounded border border-red-300 px-3 py-2"
     >
       <span className="text-sm text-red-700">
         Delete the whole source{name} and its {state.count} {noun}? This cannot be undone.
+        {state.hiddenCount > 0 &&
+          ` ${state.hiddenCount} of them ${state.hiddenCount === 1 ? 'is' : 'are'} hidden by the filters or not loaded yet.`}
       </span>
       <button
         type="button"

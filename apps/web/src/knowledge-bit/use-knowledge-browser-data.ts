@@ -1,8 +1,9 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import type { KnowledgeBitBrowserFilters, KnowledgeBitBrowserItem } from '@post-anki/shared'
 
 import { listKnowledgeBrowser, listKnowledgeBrowserSubjectCounts } from './knowledge-browser.api'
 import type { KnowledgeBrowserOutcome } from './knowledge-browser.api'
+import { isDateRangeReversed, toApiFilters } from './knowledge-browser-filters'
 
 const PAGE_SIZE = 50
 
@@ -10,12 +11,18 @@ export const KNOWLEDGE_BROWSER_QUERY_KEY = ['knowledge-bits', 'browser'] as cons
 
 type BrowserPage = Extract<KnowledgeBrowserOutcome, { ok: true }>
 
-export function useKnowledgeBrowserRows(subjectId: string | null) {
+export function useKnowledgeBrowserRows(
+  subjectId: string | null,
+  filters: KnowledgeBitBrowserFilters = {},
+) {
+  const apiFilters = toApiFilters(filters)
   const query = useInfiniteQuery({
-    queryKey: [...KNOWLEDGE_BROWSER_QUERY_KEY, 'rows', subjectId ?? ''],
+    queryKey: [...KNOWLEDGE_BROWSER_QUERY_KEY, 'rows', subjectId ?? '', filters],
+    enabled: !isDateRangeReversed(filters),
+    placeholderData: keepPreviousData,
     queryFn: async ({ pageParam }): Promise<BrowserPage> => {
       const outcome = await listKnowledgeBrowser({
-        data: { limit: PAGE_SIZE, offset: pageParam, ...(subjectId ? { subjectId } : {}) },
+        data: { limit: PAGE_SIZE, offset: pageParam, ...apiFilters, ...(subjectId ? { subjectId } : {}) },
       })
 
       if (!outcome.ok) {
@@ -32,7 +39,8 @@ export function useKnowledgeBrowserRows(subjectId: string | null) {
 
   return {
     rows,
-    isPending: query.isPending,
+    total: query.data?.pages.at(-1)?.total ?? null,
+    isPending: query.isPending && query.fetchStatus !== 'idle',
     isError: query.isError,
     hasMore: query.hasNextPage,
     loadingMore: query.isFetchingNextPage,

@@ -1,28 +1,55 @@
 import { useEffect, useState } from 'react'
 
-import { applyColumnOrder } from './column-order'
-import { clearColumnOrder, readColumnOrder, writeColumnOrder } from './column-order-storage'
+import { clearColumnLayout, readColumnLayout, writeColumnLayout } from './column-order-storage'
+import {
+  isDefaultLayout,
+  reorderVisible,
+  resolveColumnLayout,
+  toggleColumn,
+  visibleColumns,
+} from './knowledge-browser-column-layout'
+import type { ColumnLayout } from './knowledge-browser-column-layout'
 import { DEFAULT_BROWSER_COLUMNS } from './knowledge-browser-columns'
 import type { BrowserColumnId } from './knowledge-browser-columns'
 
+function defaultLayout(): ColumnLayout<BrowserColumnId> {
+  return resolveColumnLayout(null, DEFAULT_BROWSER_COLUMNS)
+}
+
 export function useKnowledgeBrowserColumnOrder(tableId: string) {
-  const [order, setOrder] = useState<BrowserColumnId[]>(DEFAULT_BROWSER_COLUMNS)
+  const [layout, setLayout] = useState<ColumnLayout<BrowserColumnId>>(defaultLayout)
 
   useEffect(() => {
-    setOrder(applyColumnOrder(readColumnOrder(tableId), DEFAULT_BROWSER_COLUMNS) as BrowserColumnId[])
+    setLayout(resolveColumnLayout(readColumnLayout(tableId), DEFAULT_BROWSER_COLUMNS))
   }, [tableId])
 
-  function changeOrder(next: BrowserColumnId[]) {
-    setOrder(next)
-    writeColumnOrder(tableId, next)
+  function save(next: ColumnLayout<BrowserColumnId>) {
+    setLayout(next)
+    writeColumnLayout(tableId, next)
+  }
+
+  function changeOrder(nextVisible: BrowserColumnId[]) {
+    save(reorderVisible(layout, nextVisible))
+  }
+
+  function toggle(id: BrowserColumnId) {
+    save(toggleColumn(layout, id))
   }
 
   function reset() {
-    setOrder(DEFAULT_BROWSER_COLUMNS)
-    clearColumnOrder(tableId)
+    setLayout(defaultLayout())
+    clearColumnLayout(tableId)
   }
 
-  const isDefault = order.every((id, index) => id === DEFAULT_BROWSER_COLUMNS[index])
-
-  return { order, changeOrder, reset, isDefault }
+  return {
+    order: visibleColumns(layout),
+    hidden: layout.hidden,
+    allColumns: layout.order,
+    changeOrder,
+    toggle,
+    reset,
+    isDefault: isDefaultLayout(layout, DEFAULT_BROWSER_COLUMNS),
+  }
 }
+
+export type BrowserColumns = ReturnType<typeof useKnowledgeBrowserColumnOrder>

@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import type { KnowledgeBitBrowserFilters } from '@post-anki/shared'
 
 import { CardListLoadError } from './card-list-load-error'
-import { KnowledgeBrowserActionBar } from './knowledge-browser-action-bar'
+import { KnowledgeBrowserColumnFilter } from './knowledge-browser-column-filter'
+import type { BrowserFiltersChange } from './knowledge-browser-column-filter'
+import { filteredColumns, hasAnyFilter } from './knowledge-browser-filters'
+import { KnowledgeBrowserToolbar } from './knowledge-browser-toolbar'
 import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
-import { KnowledgeBrowserSourceBar } from './knowledge-browser-source-bar'
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
 import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
@@ -20,13 +23,18 @@ function BrowserShell({ children }: { children: ReactNode }) {
 
 export const ALL_SUBJECTS_TABLE_ID = 'all-subjects'
 
-export function KnowledgeBrowserScreen({
-  subjectId,
-  view,
-}: {
+export interface KnowledgeBrowserScreenProps {
   subjectId: string | null
   view?: 'subjects'
-}) {
+  filters?: KnowledgeBitBrowserFilters
+  onFiltersChange?: BrowserFiltersChange
+  onSubjectChange?: (subjectId: string | null) => void
+  onClearAll?: () => void
+}
+
+const NO_FILTERS: KnowledgeBitBrowserFilters = {}
+
+export function KnowledgeBrowserScreen({ subjectId, view, ...controls }: KnowledgeBrowserScreenProps) {
   if (!subjectId && view === 'subjects') {
     return (
       <BrowserShell>
@@ -44,16 +52,24 @@ export function KnowledgeBrowserScreen({
     )
   }
 
-  return <KnowledgeBrowserCardTable subjectId={subjectId} />
+  return <KnowledgeBrowserCardTable subjectId={subjectId} {...controls} />
 }
 
-function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) {
-  const { labelFor } = useKnowledgeOverviewSubjects()
-  const data = useKnowledgeBrowserRows(subjectId)
+function KnowledgeBrowserCardTable({
+  subjectId,
+  filters = NO_FILTERS,
+  onFiltersChange = () => undefined,
+  onSubjectChange = () => undefined,
+  onClearAll = () => undefined,
+}: Omit<KnowledgeBrowserScreenProps, 'view'>) {
+  const { labelFor, options } = useKnowledgeOverviewSubjects()
+  const data = useKnowledgeBrowserRows(subjectId, filters)
   const selection = useKnowledgeBrowserSelectionDelete(data.rows.map((row) => row.knowledgeBitId))
   const sourceDelete = useKnowledgeBrowserSourceDelete(data.rows, selection.clear)
   const activeSource = singleSelectedSource(data.rows, selection.selected)
   const columns = useKnowledgeBrowserColumnOrder(subjectId ?? ALL_SUBJECTS_TABLE_ID)
+  const filtered = filteredColumns(filters)
+  const filtering = hasAnyFilter(filters)
   const title = !subjectId
     ? 'Knowledge browser'
     : subjectId === NO_SUBJECT_PARAM
@@ -77,17 +93,29 @@ function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) 
           <AddKnowledgeButton
             subjectId={subjectId && subjectId !== NO_SUBJECT_PARAM ? subjectId : undefined}
           />
-        <button
-          type="button"
-          data-testid="knowledge-browser-reset-columns"
-          disabled={columns.isDefault}
-          className="text-sm text-neutral-600 underline disabled:no-underline disabled:opacity-40"
-          onClick={columns.reset}
-        >
-          Reset column order
-        </button>
         </div>
       </div>
+      <KnowledgeBrowserToolbar
+        subjectId={subjectId}
+        subjectOptions={options}
+        onSubjectChange={onSubjectChange}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        onClearAll={onClearAll}
+        total={data.total}
+        columns={columns}
+        selection={selection}
+        sourceDelete={sourceDelete}
+        activeSource={
+          activeSource
+            ? {
+                count: sourceDelete.countFor(activeSource),
+                onSelectAll: () => selection.addRows(idsFromSource(data.rows, activeSource)),
+                onDelete: () => sourceDelete.open(activeSource),
+              }
+            : null
+        }
+      />
       {data.isPending && (
         <p data-testid="knowledge-browser-loading" className="text-neutral-500">
           Loading…
@@ -100,24 +128,24 @@ function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) 
           onRetry={data.retry}
         />
       )}
-      {!data.isPending && !data.isError && data.rows.length === 0 && (
+      {!data.isPending && !data.isError && data.rows.length === 0 && filtering && (
+        <p data-testid="knowledge-browser-no-match" className="text-neutral-500">
+          No pieces match these filters.{' '}
+          <button
+            type="button"
+            data-testid="knowledge-browser-no-match-clear"
+            className="underline"
+            onClick={onClearAll}
+          >
+            Clear all
+          </button>
+        </p>
+      )}
+      {!data.isPending && !data.isError && data.rows.length === 0 && !filtering && (
         <p data-testid="knowledge-browser-empty" className="text-neutral-500">
           {subjectId ? 'Nothing in this subject yet.' : 'No approved knowledge yet.'}
         </p>
       )}
-      <KnowledgeBrowserSourceBar state={sourceDelete} />
-      <KnowledgeBrowserActionBar
-        state={selection}
-        source={
-          activeSource
-            ? {
-                count: sourceDelete.countFor(activeSource),
-                onSelectAll: () => selection.addRows(idsFromSource(data.rows, activeSource)),
-                onDelete: () => sourceDelete.open(activeSource),
-              }
-            : null
-        }
-      />
       {data.rows.length > 0 && (
         <KnowledgeBrowserTable
           rows={data.rows}
@@ -127,6 +155,12 @@ function KnowledgeBrowserCardTable({ subjectId }: { subjectId: string | null }) 
           onToggleRow={selection.toggleRow}
           onToggleAll={selection.toggleAll}
           sourceActions={{ countFor: sourceDelete.countFor, onDeleteSource: sourceDelete.open }}
+          columnFilters={{
+            isFiltered: (id) => filtered.has(id),
+            renderEditor: (id) => (
+              <KnowledgeBrowserColumnFilter column={id} filters={filters} onChange={onFiltersChange} />
+            ),
+          }}
         />
       )}
       {data.hasMore && (

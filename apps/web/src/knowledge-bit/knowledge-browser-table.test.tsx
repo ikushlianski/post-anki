@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
 
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
@@ -17,6 +17,7 @@ const item: KnowledgeBitBrowserItem = {
   answer: 'The smallest deployable unit',
   origin: 'manual',
   addedAt: '2026-03-04T12:00:00.000Z',
+  sourcePieceCount: 1,
 }
 
 const defaultOrder: BrowserColumnId[] = ['phrasings', 'answer', 'source', 'sourceUrl', 'addedBy', 'addedAt']
@@ -56,5 +57,46 @@ describe('KnowledgeBrowserTable', () => {
     render(<KnowledgeBrowserTable rows={[item]} columnOrder={defaultOrder} onColumnOrderChange={vi.fn()} {...selectionProps} />)
 
     expect(screen.getByRole('button', { name: 'Move column Answer' })).toBeTruthy()
+  })
+})
+
+describe('KnowledgeBrowserTable column filters and visibility', () => {
+  it('should show only the columns it is given', () => {
+    render(<KnowledgeBrowserTable rows={[item]} columnOrder={['phrasings', 'answer']} onColumnOrderChange={vi.fn()} {...selectionProps} />)
+
+    expect(screen.getAllByRole('columnheader')).toHaveLength(3)
+    expect(screen.queryByText('Typed in')).toBeNull()
+  })
+
+  it('should open the column editor from a button beside the grip', () => {
+    render(
+      <KnowledgeBrowserTable
+        rows={[item]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        {...selectionProps}
+        columnFilters={{ isFiltered: () => false, renderEditor: (id) => <p>editor for {id}</p> }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filter Answer' }))
+
+    expect(screen.getByText('editor for answer')).toBeTruthy()
+    expect(screen.queryByText('editor for source')).toBeNull()
+  })
+
+  it('should mark a filtered column in its header and no other', () => {
+    render(
+      <KnowledgeBrowserTable
+        rows={[item]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        {...selectionProps}
+        columnFilters={{ isFiltered: (id) => id === 'source', renderEditor: () => <p>editor</p> }}
+      />,
+    )
+
+    expect(screen.getByTestId('browser-column-filtered-source')).toBeTruthy()
+    expect(screen.queryByTestId('browser-column-filtered-answer')).toBeNull()
   })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { purgeKnowledgeBits } from './knowledge-browser-purge.api'
@@ -27,20 +27,33 @@ export function useKnowledgeBrowserSelectionDelete(rowIds: string[]) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [unselectedCount, setUnselectedCount] = useState(0)
+  const selectionRef = useRef(selection)
   const idsKey = rowIds.join('\n')
   const count = selection.selected.size
 
+  selectionRef.current = selection
+
   useEffect(() => {
-    setSelection((current) => pruneBrowserSelection(current, rowIds))
+    const current = selectionRef.current
+    const next = pruneBrowserSelection(current, rowIds)
+    const dropped = current.selected.size - next.selected.size
+
+    if (dropped > 0) {
+      setSelection(next)
+      setUnselectedCount(dropped)
+    }
   }, [idsKey])
 
   function clear() {
+    setUnselectedCount(0)
     setSelection(EMPTY_BROWSER_SELECTION)
     setConfirming(false)
     setError(null)
   }
 
   function toggleRow(id: string, shift: boolean) {
+    setUnselectedCount(0)
     setSelection((current) =>
       shift ? selectBrowserRange(current, rowIds, id) : toggleBrowserRow(current, id),
     )
@@ -84,6 +97,7 @@ export function useKnowledgeBrowserSelectionDelete(rowIds: string[]) {
       return
     }
 
+    setUnselectedCount(0)
     setSelection(EMPTY_BROWSER_SELECTION)
     setConfirming(false)
     await queryClient.invalidateQueries({ queryKey: ['knowledge-bits'] })
@@ -117,12 +131,19 @@ export function useKnowledgeBrowserSelectionDelete(rowIds: string[]) {
   return {
     selected: selection.selected,
     count,
+    unselectedCount,
     confirming,
     busy,
     error,
     toggleRow,
-    addRows: (ids: string[]) => setSelection((current) => addBrowserRows(current, ids)),
-    toggleAll: () => setSelection((current) => toggleAllBrowserRows(current, rowIds)),
+    addRows: (ids: string[]) => {
+      setUnselectedCount(0)
+      setSelection((current) => addBrowserRows(current, ids))
+    },
+    toggleAll: () => {
+      setUnselectedCount(0)
+      setSelection((current) => toggleAllBrowserRows(current, rowIds))
+    },
     openConfirm,
     cancelConfirm,
     confirm,

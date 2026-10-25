@@ -35,8 +35,23 @@ export const listKnowledgeBrowser = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<KnowledgeBrowserOutcome> => {
     const params = new URLSearchParams({ limit: String(data.limit), offset: String(data.offset) })
 
-    if (data.subjectId) {
-      params.set('subjectId', data.subjectId)
+    const text: [string, string | undefined][] = [
+      ['subjectId', data.subjectId],
+      ['question', data.question],
+      ['answer', data.answer],
+      ['origins', data.origins?.join(',')],
+      ['addedBy', data.addedBy?.join(',')],
+      ['link', data.link],
+      ['site', data.site],
+      ['from', data.from],
+      ['to', data.to],
+      ['states', data.states?.join(',')],
+    ]
+
+    for (const [key, value] of text) {
+      if (value) {
+        params.set(key, value)
+      }
     }
 
     try {
