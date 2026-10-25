@@ -33,17 +33,14 @@ struct SubjectManageScreen: View {
         }
         .navigationTitle("Manage subjects")
         .toolbar {
-            ToolbarItem(placement: .trailingBar) {
-                Button { showNew = true } label: { Image(systemName: "plus") }
-                    .accessibilityLabel("New subject")
-                    .help("New subject")
-            }
-
             #if os(iOS)
             ToolbarItem(placement: .leadingBar) {
                 EditButton()
             }
             #endif
+        }
+        .bottomActionBar {
+            BottomActionBarButton(title: "New subject") { showNew = true }
         }
         .sheet(isPresented: $showNew) {
             SubjectNewSheet(subjects: model.subjects) { name, parentId in

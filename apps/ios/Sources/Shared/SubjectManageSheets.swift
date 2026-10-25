@@ -35,22 +35,21 @@ struct SubjectNewSheet: View {
                     Button("Cancel") { dismiss() }
                 }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        Task {
-                            isSaving = true
-                            errorMessage = nil
+            }
+            .bottomActionBar {
+                BottomActionBarButton(title: "Add", isLoading: isSaving, isDisabled: trimmed.isEmpty) {
+                    Task {
+                        isSaving = true
+                        errorMessage = nil
 
-                            if let failure = await onCreate(trimmed, parentId) {
-                                errorMessage = failure
-                            } else {
-                                dismiss()
-                            }
-
-                            isSaving = false
+                        if let failure = await onCreate(trimmed, parentId) {
+                            errorMessage = failure
+                        } else {
+                            dismiss()
                         }
+
+                        isSaving = false
                     }
-                    .disabled(trimmed.isEmpty || isSaving)
                 }
             }
         }
@@ -90,22 +89,21 @@ struct SubjectRenameSheet: View {
                     Button("Cancel") { dismiss() }
                 }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        Task {
-                            isSaving = true
-                            errorMessage = nil
+            }
+            .bottomActionBar {
+                BottomActionBarButton(title: "Save", isLoading: isSaving, isDisabled: trimmed.isEmpty) {
+                    Task {
+                        isSaving = true
+                        errorMessage = nil
 
-                            if let failure = await onSave(trimmed) {
-                                errorMessage = failure
-                            } else {
-                                dismiss()
-                            }
-
-                            isSaving = false
+                        if let failure = await onSave(trimmed) {
+                            errorMessage = failure
+                        } else {
+                            dismiss()
                         }
+
+                        isSaving = false
                     }
-                    .disabled(trimmed.isEmpty || isSaving)
                 }
             }
         }

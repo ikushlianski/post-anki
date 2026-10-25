@@ -12,6 +12,9 @@ final class SettingsScreenModel {
         didSet { if address != oldValue { connectionResult = nil } }
     }
     var token = ""
+    var email = "kushliansky@gmail.com"
+    var password = ""
+    var isSigningIn = false
     var hasToken = TokenStore.read() != nil
     var hasSavedAddress = APIClient.hasSavedBaseURL
     var errorMessage: String?
@@ -24,9 +27,7 @@ final class SettingsScreenModel {
 
         if scheme == "https" { return true }
 
-        let host = url.host()?.lowercased()
-
-        return scheme == "http" && (host == "localhost" || host == "127.0.0.1")
+        return scheme == "http" && APIClient.allowsPlainHTTP(host: url.host())
     }
 
     private func validatedAddress() -> String? {
@@ -48,7 +49,7 @@ final class SettingsScreenModel {
         }
 
         guard Self.isAddressAllowed(url) else {
-            errorMessage = "Use an https:// address. Plain http:// is only allowed for localhost, because your access token is never sent over an unencrypted connection."
+            errorMessage = "Use an https:// address. Plain http:// is only allowed for localhost (and home-network addresses in debug builds), because your access token is never sent over an unencrypted connection."
             return nil
         }
 
@@ -115,9 +116,38 @@ final class SettingsScreenModel {
         NotificationCenter.default.post(name: .postAnkiSettingsDidSave, object: nil)
     }
 
-    func removeToken() {
+    func signIn() async {
         errorMessage = nil
         statusMessage = nil
+        isSigningIn = true
+        defer { isSigningIn = false }
+
+        do {
+            try await PasswordSignIn.signIn(
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                password: password
+            )
+            password = ""
+            hasToken = TokenStore.read() != nil
+            statusMessage = "Signed in."
+            NotificationCenter.default.post(name: .postAnkiSettingsDidSave, object: nil)
+        } catch PasswordSignInError.wrongCredentials {
+            errorMessage = "Wrong email or password."
+        } catch PasswordSignInError.rateLimited {
+            errorMessage = "Too many attempts. Wait a minute and try again."
+        } catch PasswordSignInError.insecureAddress {
+            errorMessage = "Use an https:// server address to sign in."
+        } catch is URLError {
+            errorMessage = "Couldn't connect to the server. Try again."
+        } catch {
+            errorMessage = "Couldn't sign in."
+        }
+    }
+
+    func removeToken() async {
+        errorMessage = nil
+        statusMessage = nil
+        await PasswordSignIn.signOut()
 
         do {
             try TokenStore.clear()
@@ -125,7 +155,7 @@ final class SettingsScreenModel {
             hasToken = false
             connectionResult = nil
             UnsentDraftStore.shared.reset()
-            statusMessage = "Token removed."
+            statusMessage = "Signed out."
             NotificationCenter.default.post(name: .postAnkiSettingsDidSave, object: nil)
         } catch {
             errorMessage = "Couldn't remove the access token."
@@ -154,6 +184,24 @@ struct SettingsScreen: View {
                     .disabled(!model.hasSavedAddress)
             }
 
+            Section("Sign in") {
+                TextField("Email", text: $model.email)
+                    #if os(iOS)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .textContentType(.username)
+                    #endif
+                    .autocorrectionDisabled()
+
+                SecureField("Password", text: $model.password)
+                    #if os(iOS)
+                    .textContentType(.password)
+                    #endif
+
+                Text(model.hasToken ? "Signed in" : "Not signed in")
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Access token") {
                 SecureField("Paste new token", text: $model.token)
                     #if os(iOS)
@@ -166,9 +214,7 @@ struct SettingsScreen: View {
             }
 
             Section {
-                Button("Save") { model.save() }
-
-                Button("Remove token", role: .destructive) { confirmingRemoveToken = true }
+                Button("Sign out", role: .destructive) { confirmingRemoveToken = true }
                     .disabled(!model.hasToken)
             }
 
@@ -186,9 +232,11 @@ struct SettingsScreen: View {
                 Button("Copy diagnostics") { model.copyDiagnostics() }
             }
 
-            #if os(iOS)
-            SettingsToolsSection()
-            #endif
+            Section("About this build") {
+                LabeledContent("Environment", value: BuildInfo.environmentName)
+                LabeledContent("Version", value: BuildInfo.versionText)
+                LabeledContent("Server", value: BuildInfo.serverHost)
+            }
 
             if let errorMessage = model.errorMessage {
                 Text(errorMessage)
@@ -204,8 +252,21 @@ struct SettingsScreen: View {
         .formStyle(.grouped)
         #endif
         .navigationTitle("Settings")
-        .confirmationDialog("Remove the saved access token?", isPresented: $confirmingRemoveToken) {
-            Button("Remove token", role: .destructive) { model.removeToken() }
+        .bottomActionBar {
+            if model.hasToken {
+                BottomActionBarButton(title: "Save") { model.save() }
+            } else {
+                BottomActionBarButton(
+                    title: "Sign in",
+                    isLoading: model.isSigningIn,
+                    isDisabled: model.email.isEmpty || model.password.isEmpty
+                ) {
+                    Task { await model.signIn() }
+                }
+            }
+        }
+        .confirmationDialog("Sign out of this device?", isPresented: $confirmingRemoveToken) {
+            Button("Sign out", role: .destructive) { Task { await model.removeToken() } }
         } message: {
             Text("You will need to paste it again to load your data.")
         }

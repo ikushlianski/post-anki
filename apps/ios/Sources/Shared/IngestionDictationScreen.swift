@@ -84,7 +84,7 @@ final class IngestionDictationScreenModel {
 
         #if os(macOS)
         switch ProgressLoadError.from(error) {
-        case .offline: errorMessage = "You're offline. Your text is still here, send it when you're back."
+        case .offline: errorMessage = "Couldn't connect to the server. Your text is still here, send it again in a moment."
         case .unauthorized: errorMessage = "Add your access token in Settings, then send again."
         default: errorMessage = "Couldn't send that — try again."
         }
@@ -120,16 +120,6 @@ struct IngestionDictationScreen: View {
                     .frame(minHeight: 200)
             }
 
-            Section {
-                Button("Submit") {
-                    Task { await model.submit() }
-                }
-                .disabled(model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isSubmitting)
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-            }
-
             if model.hasSent {
                 Section {
                     Text(model.isDetecting
@@ -157,6 +147,18 @@ struct IngestionDictationScreen: View {
             }
         }
         .navigationTitle("Add Knowledge")
+        .bottomActionBar {
+            BottomActionBarButton(
+                title: "Submit",
+                isLoading: model.isSubmitting,
+                isDisabled: model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ) {
+                Task { await model.submit() }
+            }
+            #if os(macOS)
+            .keyboardShortcut(.return, modifiers: .command)
+            #endif
+        }
         .reportsUnsentInput("add-knowledge", model.hasInput)
         .sheet(isPresented: $model.showReview) {
             PendingReviewScreen(onDone: { model.showReview = false })

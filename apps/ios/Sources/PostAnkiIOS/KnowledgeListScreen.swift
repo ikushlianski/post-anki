@@ -17,6 +17,7 @@ struct KnowledgeListScreen: View {
             .searchable(text: $model.query, prompt: "Search items")
             .environment(\.editMode, $editMode)
             .toolbar { toolbar }
+            .safeAreaInset(edge: .bottom, spacing: 0) { selectionBar }
             .navigationDestination(for: KnowledgeOverviewItem.self) { item in
                 KnowledgeItemDetailScreen(item: item, subjectName: model.subjectName(for: item.subjectId)) { state in
                     model.update(item.id, state: state)
@@ -78,25 +79,35 @@ struct KnowledgeListScreen: View {
         }
 
         ToolbarItem(placement: .topBarTrailing) { EditButton() }
+    }
 
-        ToolbarItemGroup(placement: .bottomBar) {
-            if editMode.isEditing {
-                Button("Move (\(model.selection.count))") { choosingSubject = true }
-                    .disabled(model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy)
-
-                Spacer()
-
+    @ViewBuilder
+    private var selectionBar: some View {
+        if editMode.isEditing {
+            VStack(spacing: 4) {
                 if model.selectionTooLarge {
                     Text("Select up to \(KnowledgeListModel.selectionLimit)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-
-                    Spacer()
                 }
 
-                Button("Delete (\(model.selection.count))", role: .destructive) { confirmingDelete = true }
-                    .disabled(model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy)
+                HStack(spacing: 12) {
+                    BottomActionBarButton(
+                        title: "Move (\(model.selection.count))",
+                        isDisabled: model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
+                    ) { choosingSubject = true }
+
+                    BottomActionBarButton(
+                        title: "Delete (\(model.selection.count))",
+                        role: .destructive,
+                        isDisabled: model.selection.isEmpty || model.selectionTooLarge || model.isBulkBusy
+                    ) { confirmingDelete = true }
+                }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(.bar)
         }
     }
 
