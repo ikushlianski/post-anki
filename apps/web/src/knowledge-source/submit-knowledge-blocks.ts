@@ -5,6 +5,8 @@ import {
   knowledgeSourceRefusalFromError,
 } from '@post-anki/shared'
 
+import { attentionFirstWords } from '@post-anki/shared'
+
 import {
   createKnowledgeSource,
   createKnowledgeSourceFromUrl,
@@ -23,9 +25,19 @@ export interface EarlierSource {
   addedAt: string
 }
 
+export interface AddedSource {
+  sourceId: string
+  label: string
+}
+
 interface JobOutcome {
   created: number
   truncated: boolean
+  added: AddedSource[]
+}
+
+function addedFrom(created: { id?: unknown } | null | undefined, label: string): AddedSource[] {
+  return typeof created?.id === 'string' ? [{ sourceId: created.id, label: attentionFirstWords(label) }] : []
 }
 
 interface Job {
@@ -36,6 +48,7 @@ interface Job {
 export interface SubmitOutcome {
   createdCount: number
   truncatedCount: number
+  added: AddedSource[]
   failedReasons: Map<number, string | null>
   duplicates: Map<number, EarlierSource>
 }
@@ -51,9 +64,9 @@ function buildJobs(
   const jobs: Job[] = forcedTextBlocks.map((block) => ({
     indices: [block.index],
     run: async () => {
-      await createKnowledgeSource({ data: { text: block.value, subjectId, modelId, force: true } })
+      const created = await createKnowledgeSource({ data: { text: block.value, subjectId, modelId, force: true } })
 
-      return { created: 1, truncated: false }
+      return { created: 1, truncated: false, added: addedFrom(created, block.value) }
     },
   }))
 
@@ -63,9 +76,9 @@ function buildJobs(
     jobs.push({
       indices: [block.index],
       run: async () => {
-        await createKnowledgeSource({ data: { text: block.value, subjectId, modelId } })
+        const created = await createKnowledgeSource({ data: { text: block.value, subjectId, modelId } })
 
-        return { created: 1, truncated: false }
+        return { created: 1, truncated: false, added: addedFrom(created, block.value) }
       },
     })
   } else if (textBlocks.length > 1) {
@@ -76,7 +89,9 @@ function buildJobs(
           data: { texts: textBlocks.map((block) => block.value), subjectId, modelId },
         })
 
-        return { created: created.length, truncated: false }
+        const added = created.flatMap((source, i) => addedFrom(source, textBlocks[i]?.value ?? ''))
+
+        return { created: created.length, truncated: false, added }
       },
     })
   }
@@ -87,7 +102,7 @@ function buildJobs(
       run: async () => {
         const created = await createKnowledgeSourceFromUrl({ data: { url: block.value, subjectId, modelId, force: block.force } })
 
-        return { created: 1, truncated: created.truncated === true }
+        return { created: 1, truncated: created.truncated === true, added: addedFrom(created, block.value) }
       },
     })
   }
@@ -114,11 +129,13 @@ export async function submitKnowledgeBlocks(
   const results = await Promise.allSettled(jobs.map((job) => job.run()))
   let createdCount = 0
   let truncatedCount = 0
+  const added: AddedSource[] = []
 
   results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
       createdCount += result.value.created
       truncatedCount += result.value.truncated ? 1 : 0
+      added.push(...result.value.added)
 
       return
     }
@@ -145,5 +162,5 @@ export async function submitKnowledgeBlocks(
     }
   })
 
-  return { createdCount, truncatedCount, failedReasons, duplicates }
+  return { createdCount, truncatedCount, added, failedReasons, duplicates }
 }

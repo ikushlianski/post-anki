@@ -54,6 +54,8 @@ vi.mock('../curriculum/board.collection', () => ({
 
 vi.mock('../knowledge-bit/knowledge-bit-review.api', () => ({
   getPendingKnowledgeBitCountForNav: vi.fn().mockResolvedValue({ count: 3 }),
+  getKnowledgeSourceRegenerationForReview: vi.fn().mockResolvedValue({ status: 'running', failureReason: null }),
+  getPendingKnowledgeBitsWithAttentionForReview: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('../knowledge-source/knowledge-source.api', () => ({
@@ -256,7 +258,7 @@ describe('AddKnowledgeForm', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('knowledge-success-message').textContent).toBe(
-        '2 knowledge sources added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.',
+        '2 knowledge sources added. Questions take a minute or two to appear. If anything goes wrong, it shows in Knowledge triage.',
       )
     })
 
@@ -307,7 +309,7 @@ describe('AddKnowledgeForm', () => {
       expect(screen.getByTestId('knowledge-error-message')).toBeDefined()
     })
 
-    expect(screen.getByTestId('knowledge-success-message').textContent).toBe('Added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.')
+    expect(screen.getByTestId('knowledge-success-message').textContent).toBe('Added. Questions take a minute or two to appear. If anything goes wrong, it shows in Knowledge triage.')
     expect(screen.queryByTestId('knowledge-block-input-1')).toBeNull()
     expect((screen.getByTestId('knowledge-block-input-0') as HTMLInputElement).value).toBe(
       'https://example.com/broken',
@@ -349,7 +351,7 @@ describe('AddKnowledgeForm', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('knowledge-success-message').textContent).toBe(
-        '2 knowledge sources added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.',
+        '2 knowledge sources added. Questions take a minute or two to appear. If anything goes wrong, it shows in Knowledge triage.',
       )
     })
   })

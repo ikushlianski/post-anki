@@ -45,3 +45,40 @@ To add a new pass, append a `{ name, run }` entry to `KNOWLEDGE_BIT_PIPELINE_PAS
 - A pass rejection does not propagate beyond the run loop — it is logged as `pass_failed` and the run continues.
 - A kick rejection (e.g. the entire run loop throws) is caught in `kickPipelineInBackground` and logged as `knowledge_bit_pipeline_kick_failed`. The HTTP response has already been sent, so the caller is unaffected.
 - There are no unhandled rejections from kick calls.
+
+## Failure handling and visibility
+
+A note never ends silently. Every outcome is either cards in Knowledge triage or a visible notice there.
+
+### Flagged cards
+
+- Cards the validators reject are kept, not dropped. They become pending bits with `review_flag` set to the rejection code (for example `quote_not_in_source`, `bad_card`, `wrong_language`). Unsafe (`unsafe_content`) and empty cards are never kept.
+- At most `FLAGGED_MAX_PER_CHUNK = 3` flagged cards are kept per chunk, deduplicated by statement.
+- In a mixed lesson the clean cards stay in the normal bit and the rejected ones become a second flagged bit.
+- Flagged cards are editable and approvable one at a time; approve clears the flag. Bulk approve skips them with the skip reason `needs_manual_review`, so nothing flagged enters review unseen.
+- A note fails with `no_valid_items` only when a chunk gets nothing at all from the AI. Cards still in the wrong language after the strict retry are kept flagged instead of failing the note.
+
+### Attention rules
+
+A note needs attention when any of these hold (derived from the notes table, not stored):
+
+- `failed`: status is failed.
+- `empty_result`: finished, has no live cards, and is not marked done.
+- `stuck`: still processing after `EXTRACTION_STUCK_AFTER_MS` (20 minutes).
+- `rate_limited` (info only): processing under 20 minutes with failure reason `provider_rate_limited`.
+
+`GET /knowledge-bits/pending-review/count` returns `attentionCount` next to `count`. `GET /knowledge-bits/pending-review?attention=1` adds card-less attention entries (merged into the group if the note still has cards). Without the parameter the list is unchanged, so clients that do not ask (iOS) are unaffected.
+
+### Plain reasons
+
+Stored failure codes are mapped to plain wording in `packages/shared/src/extraction-failure.ts` (`extractionFailureWording`, `attentionWording`, `cardFlagWording`). Unknown codes and raw error text fall back to a generic message; raw text is never shown.
+
+### Retry, edit and retry, discard
+
+- Retry now and Edit text and retry both call `POST /knowledge-sources/:id/regeneration`. The optional `text` (1 to 50,000 characters) replaces the note text in the same atomic claim. Pending bits, flagged included, are superseded in the same transaction; approved and rejected bits are untouched.
+- The claim accepts failed and finished notes, and a note stuck in processing for over 20 minutes (takeover). A fresh processing note returns `already_running` (409). The takeover bumps the claim time so the old run fails its ownership checks and cannot write.
+- Discard is `POST /knowledge-sources/:id/discards`. Without approved cards it deletes the note and all its bits. With approved cards it removes only the non-approved cards, keeps the note and approved cards, and clears the failure. Unknown notes return 404.
+
+### Add knowledge feedback
+
+After a note is added, the Add knowledge screen names Knowledge triage as the place problems show and refreshes the sidebar count. It then polls `GET /knowledge-sources/:id/regeneration` every 3 seconds (up to 200 polls) and shows queued, working, ready with N cards (and how many need a manual check), or needs attention with the plain reason and a link to Knowledge triage.

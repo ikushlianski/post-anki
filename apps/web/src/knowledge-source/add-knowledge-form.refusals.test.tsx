@@ -32,6 +32,11 @@ vi.mock('./knowledge-source.api', () => ({
   checkKnowledgeSourceSubject: vi.fn().mockResolvedValue({ status: 'none' }),
 }))
 
+vi.mock('../knowledge-bit/knowledge-bit-review.api', () => ({
+  getKnowledgeSourceRegenerationForReview: vi.fn().mockResolvedValue({ status: 'running', failureReason: null }),
+  getPendingKnowledgeBitsWithAttentionForReview: vi.fn().mockResolvedValue([]),
+}))
+
 const mockedText = vi.mocked(createKnowledgeSource)
 const mockedTexts = vi.mocked(createKnowledgeSources)
 const mockedUrl = vi.mocked(createKnowledgeSourceFromUrl)

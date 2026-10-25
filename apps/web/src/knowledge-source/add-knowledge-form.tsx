@@ -3,7 +3,6 @@ import type { FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useLiveQuery } from '@tanstack/react-db'
 import { buildSubjectPathLabel } from '@post-anki/core'
-import { KNOWLEDGE_SOURCE_TRUNCATED_NOTICE } from '@post-anki/shared'
 import type { KnowledgeItemModelId, SubjectCheckNewSubject } from '@post-anki/shared'
 
 import { mapSubjectRow, subjectsCollection } from '../curriculum/board.collection'
@@ -18,6 +17,9 @@ import { createProposedSubject } from './create-proposed-subject'
 import { SubjectCheckPanel, UnfiledNotice } from './subject-check-panel'
 import { useSubjectCheck } from './use-subject-check'
 import { submitKnowledgeBlocks } from './submit-knowledge-blocks'
+import { addedKnowledgeMessage } from './added-knowledge-message'
+import { AddedNoteProgressList } from './added-note-progress-list'
+import { useAddedNoteProgress } from './use-added-note-progress'
 import type { EarlierSource, SubmittedBlock } from './submit-knowledge-blocks'
 
 export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: string }) {
@@ -28,6 +30,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const [duplicates, setDuplicates] = useState<Record<number, EarlierSource>>({})
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [unfiledNotice, setUnfiledNotice] = useState(false)
+  const progress = useAddedNoteProgress()
   const subjectFieldRef = useRef<HTMLLabelElement>(null)
   const [subjectId, setSubjectId] = useState(initialSubjectId ?? '')
   const [modelId, setModelId] = useState<KnowledgeItemModelId | ''>('')
@@ -149,7 +152,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
     setDuplicates({})
     setSuccessMessage(null)
 
-    const { createdCount, truncatedCount, failedReasons, duplicates: earlier } = await submitKnowledgeBlocks(toSend, {
+    const { createdCount, truncatedCount, added, failedReasons, duplicates: earlier } = await submitKnowledgeBlocks(toSend, {
       subjectId: options.subjectId ?? (selectedSubjectId || undefined),
       modelId: modelId || undefined,
     })
@@ -157,12 +160,8 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
     if (createdCount > 0) {
       notifyPendingReviewChanged()
       setUnfiledNotice(options.notice === true)
-      const addedText =
-        createdCount === 1 ? 'Added.' : `${createdCount} knowledge sources added.`
-      const truncatedText = truncatedCount > 0 ? ` ${KNOWLEDGE_SOURCE_TRUNCATED_NOTICE}` : ''
-      setSuccessMessage(
-        `${addedText}${truncatedText} Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.`,
-      )
+      progress.track(added)
+      setSuccessMessage(addedKnowledgeMessage(createdCount, truncatedCount))
     }
 
     const failedIndices = [...failedReasons.keys()].sort((x, y) => x - y)
@@ -283,6 +282,8 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
       )}
 
       {successMessage && unfiledNotice && <UnfiledNotice />}
+
+      <AddedNoteProgressList notes={progress.notes} />
 
       {error && (
         <p data-testid="knowledge-error-message" className="text-sm text-red-700">
