@@ -37,18 +37,21 @@ struct PendingReviewBitRow: View {
         ZoomVStack(alignment: .leading, spacing: 8) {
             if subjectName != nil || bit.origin == "manual" {
                 HStack(alignment: .firstTextBaseline) {
-                    if let subjectName {
-                        Text(subjectName)
-                            .zoomFont(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
                     if bit.origin == "manual" {
                         Text("Manual")
                             .zoomFont(.caption2)
                             .zoomPadding(.horizontal, 6)
                             .zoomPadding(.vertical, 2)
                             .background(.quaternary, in: Capsule())
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if let subjectName {
+                        Text(subjectName)
+                            .zoomFont(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
             }
