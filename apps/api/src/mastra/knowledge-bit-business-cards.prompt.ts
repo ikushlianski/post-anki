@@ -12,18 +12,25 @@ then keep only the ones that pass ALL of these tests:
   a date, a name or a one-off story.
 - The text states it clearly enough to be understood without outside knowledge.
 - It is not a repeat of another kept idea in different words.
-Fewer is better. Keep at most {max_cards} ideas. Put every dropped idea, with a
+Fewer is better. A short note that states one such claim in a sentence or two
+still holds one idea: write one card for it and do not return an empty list.
+Never invent content to fill a card. Keep at most {max_cards} ideas. Put every dropped idea, with a
 five-word reason, in "dropped_ideas".
 
 ## Pass 2: write the cards (one card per kept idea)
-- One card = one idea; the back is one short statement (max 25 words).
+- One card = one idea; the back is one short statement (max 25 words) that
+  directly answers the front in compact wording, never a copy of the source
+  sentence or paragraph.
+- The front is ONE clear question in one clause (max 20 words) with a concrete
+  answer. It is never a yes/no question and the back never starts with yes/no.
 - The card must train USE, not recall of wording. Pick the question that makes
   the learner decide something: when to use it, when NOT to use it, how it
   differs from a similar idea, what signal shows it is needed, why it works,
   what comes next in the process.
 - The front stands alone months later: no "this chapter", "the text", "the
   author says". Name the idea or the situation instead.
-- Claims that are the author's opinion are phrased as the author's view.
+- Opinions and advice are phrased as a general rule or condition ("When ...,
+  ..."), without naming the author, the text or the source.
 - Use a "cloze" card only for an ordered list or a definition where one key
   term is hidden in a single sentence; otherwise use "basic".
 - Never add facts, numbers or examples that are not in the text.
