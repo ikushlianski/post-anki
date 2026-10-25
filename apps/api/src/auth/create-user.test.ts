@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Db } from "../db/client.js";
-import { createOwnerUser } from "./create-user.js";
+import { createOwnerUser, normalizeEmail } from "./create-user.js";
 
 function fakeDb(inserted: { id: string }[]) {
   const values = vi.fn(() => ({
@@ -28,5 +28,9 @@ describe("create owner user", () => {
 
     expect(result.created).toBe(false);
     expect(values).toHaveBeenCalledTimes(1);
+  });
+
+  it("should compare emails ignoring case and surrounding spaces", () => {
+    expect(normalizeEmail("  Owner@Example.COM ")).toBe("owner@example.com");
   });
 });

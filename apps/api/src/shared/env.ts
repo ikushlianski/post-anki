@@ -61,6 +61,10 @@ const envObject = z.object({
   AUTH_EMAIL_FROM: optionalNonEmpty,
   BETTER_AUTH_SECRET: optionalNonEmpty,
   BETTER_AUTH_URL: optionalNonEmpty,
+  OWNER_EMAIL: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() || undefined : value),
+    z.string().email().optional(),
+  ),
   EXTENSION_ID: z.string().min(1).optional(),
   NOTION_TOKEN: z.string().min(1).optional(),
   // Durable extraction pilot. Plain strings on purpose: an empty or odd value must never stop the
@@ -98,11 +102,13 @@ const envSchema = envObject.superRefine((env, ctx) => {
     });
   }
 
-  if (env.RESEND_API_KEY && (env.BETTER_AUTH_SECRET?.length ?? 0) < MIN_AUTH_SECRET_LENGTH) {
+  const secretRequired = env.NODE_ENV === "production" || Boolean(env.RESEND_API_KEY);
+
+  if (secretRequired && (env.BETTER_AUTH_SECRET?.length ?? 0) < MIN_AUTH_SECRET_LENGTH) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["BETTER_AUTH_SECRET"],
-      message: `required (at least ${MIN_AUTH_SECRET_LENGTH} characters) when RESEND_API_KEY is set`,
+      message: `required (at least ${MIN_AUTH_SECRET_LENGTH} characters) in production or when RESEND_API_KEY is set`,
     });
   }
 
