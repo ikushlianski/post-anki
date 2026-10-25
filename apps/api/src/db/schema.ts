@@ -1235,6 +1235,7 @@ export const knowledgeBits = pgTable(
     whQuestionGenerationClaimToken: text("wh_question_generation_claim_token"),
     // Tracks whether this bit was created by AI extraction or added manually by the user.
     origin: text("origin").$type<"extracted" | "manual">().notNull().default("extracted"),
+    reviewFlag: text("review_flag"),
     // Same DB-generated tsvector/GIN column as modules.searchVector above (body).
     searchVector: tsvector("search_vector").generatedAlwaysAs(
       sql`to_tsvector('english', "body")`,

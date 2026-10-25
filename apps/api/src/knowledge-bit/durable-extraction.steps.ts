@@ -11,14 +11,15 @@ import {
   rejectRawText,
   truncateReason,
   writeAndValidate,
+  type ChunkCards,
   type GenerateItemsDeps,
   type WriteOptions,
 } from "./detect-knowledge-bits.orchestrator.js";
 import {
   normalizeStatement,
   selectNewItems,
-  type LessonDraft,
 } from "./knowledge-bit-source-item-validation.js";
+import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { loadLearningIntentSafely } from "./knowledge-bit-learning-intent.js";
 import { resolveSubjectKind } from "../subject/subject-kind.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
@@ -118,7 +119,7 @@ export async function chunkStep(
   snapshot: DurableSourceSnapshot,
   index: number,
   deps: DurableStepDeps,
-): Promise<LessonDraft[]> {
+): Promise<ChunkCards> {
   const rawText = await deps.loadRawText(snapshot.id);
   const chunk = rawText ? chunkSourceText(rawText, CHUNK_MAX_CHARS)[index] : undefined;
 
@@ -126,13 +127,13 @@ export async function chunkStep(
     throw new Error("source_chunk_missing");
   }
 
-  const valid = await writeAndValidate(chunk, await writeOptionsFor(snapshot, deps), deps);
+  const cards = await writeAndValidate(chunk, await writeOptionsFor(snapshot, deps), deps);
 
-  if (valid.length === 0) {
+  if (cards.valid.length === 0 && cards.flagged.length === 0) {
     throw new Error("no_valid_items");
   }
 
-  return valid;
+  return cards;
 }
 
 export async function failStep(
@@ -148,7 +149,7 @@ export async function failStep(
 export async function finishStep(
   snapshot: DurableSourceSnapshot,
   firstOrdinal: number,
-  chunkResults: readonly (LessonDraft[] | null)[],
+  chunkResults: readonly (ChunkCards | null)[],
   failureReason: string | null,
   deps: GenerateItemsDeps,
 ): Promise<DurableOutcome> {
@@ -158,21 +159,27 @@ export async function finishStep(
   let accepted = 0;
   let inserted = 0;
 
-  for (const [index, valid] of chunkResults.entries()) {
-    if (!valid || accepted >= MAX_ITEMS_PER_SOURCE) {
+  for (const [index, cards] of chunkResults.entries()) {
+    if (!cards || (accepted >= MAX_ITEMS_PER_SOURCE && cards.flagged.length === 0)) {
       continue;
     }
 
-    const items = selectNewItems(valid, seen, Math.min(MAX_ITEMS_PER_CHUNK, MAX_ITEMS_PER_SOURCE - accepted));
+    const flagged = selectFlaggedLessons(cards.flagged, seen);
+    const items = selectNewItems(
+      cards.valid,
+      seen,
+      Math.max(0, Math.min(MAX_ITEMS_PER_CHUNK, MAX_ITEMS_PER_SOURCE - accepted)),
+    );
 
     accepted += items.length;
 
-    if (items.length > 0) {
+    if (items.length > 0 || flagged.length > 0) {
       inserted += await deps.insertItems({
         sourceId: snapshot.id,
         claimedAt,
         firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
         items,
+        flagged,
       });
     }
   }

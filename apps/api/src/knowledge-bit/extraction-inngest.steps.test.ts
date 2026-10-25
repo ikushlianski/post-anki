@@ -58,6 +58,28 @@ describe("chunkInsertStep", () => {
   });
 });
 
+describe("chunkInsertStep with rejected cards", () => {
+  const rejected = { ...RU_EXAMPLE_ITEMS[1]!, quote: "цитата которой нет в источнике вообще" };
+
+  it("should save a rejected card flagged and count it as inserted when the chunk has only rejected cards", async () => {
+    const d = deps({
+      writeItems: vi.fn().mockResolvedValue([rejected]),
+      insertItems: vi.fn(async (input) => input.items.length + (input.flagged?.length ?? 0)),
+    });
+
+    const result = await chunkInsertStep(snapshot, 0, 10, 0, d);
+
+    expect(result).toEqual({ accepted: 0, inserted: 1 });
+    expect(vi.mocked(d.insertItems).mock.calls[0]?.[0].flagged?.[0]?.reason).toBe("quote_not_in_source");
+  });
+
+  it("should still fail the chunk when the model returned no cards at all", async () => {
+    const d = deps({ writeItems: vi.fn().mockResolvedValue([]) });
+
+    await expect(chunkInsertStep(snapshot, 0, 10, 0, d)).rejects.toThrow("no_valid_items");
+  });
+});
+
 describe("finishCountsStep", () => {
   it("should mark the source detected and report only the count", async () => {
     const d = deps();

@@ -70,7 +70,7 @@ export async function triageKnowledgeBit(
         ),
       )
       .returning({ id: knowledgeBitQuestionVariants.id });
-    await tx.update(knowledgeBits).set({ approvalState: "approved" }).where(eq(knowledgeBits.id, id));
+    await tx.update(knowledgeBits).set({ approvalState: "approved", reviewFlag: null }).where(eq(knowledgeBits.id, id));
     await recordKnowledgeBitDecision(tx, { bitId: id, verdict: "approved" });
 
     return { ok: true, droppedVariantIds: dropped.map((row) => row.id) };

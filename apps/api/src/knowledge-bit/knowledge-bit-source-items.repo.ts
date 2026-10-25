@@ -4,7 +4,7 @@ import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from ".
 import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
-import type { LessonDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
+import type { FlaggedLesson, LessonDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
 
 const VARIANT_KIND_BY_ITEM_KIND = {
   why: "wh_question",
@@ -43,6 +43,7 @@ export interface InsertSourceItemsInput {
   claimedAt: Date;
   firstOrdinal: number;
   items: readonly LessonDraft[];
+  flagged?: readonly FlaggedLesson[];
 }
 
 // Inserts bits and their variants in one transaction while this run owns the source claim; skips if the source was deleted.
@@ -50,9 +51,9 @@ export async function insertSourceItemsForChunk(
   input: InsertSourceItemsInput,
   db: DbExecutor = getDb(),
 ): Promise<number> {
-  const { sourceId, claimedAt, firstOrdinal, items } = input;
+  const { sourceId, claimedAt, firstOrdinal, items, flagged = [] } = input;
 
-  if (items.length === 0) {
+  if (items.length === 0 && flagged.length === 0) {
     return 0;
   }
 
@@ -88,7 +89,12 @@ export async function insertSourceItemsForChunk(
     const sourceUrl = owned[0]?.sourceUrl;
     const sourceLinks = sourceUrl && isSafeSourceUrl(sourceUrl).allowed ? [sourceUrl] : null;
     const stampedAt = new Date();
-    const itemsByOrdinal = new Map(items.map((item, index) => [firstOrdinal + index, item]));
+    const entries = [
+      ...items.map((item) => ({ item, reviewFlag: null as string | null })),
+      ...flagged.map((entry) => ({ item: entry.lesson, reviewFlag: entry.reason as string | null })),
+    ];
+    const itemsByOrdinal = new Map(entries.map((entry, index) => [firstOrdinal + index, entry.item]));
+    const flagByOrdinal = new Map(entries.map((entry, index) => [firstOrdinal + index, entry.reviewFlag]));
     const bitRows = [...itemsByOrdinal].map(([ordinal, item]) => ({
       id: newId("kb"),
       knowledgeSourceId: sourceId,
@@ -97,6 +103,7 @@ export async function insertSourceItemsForChunk(
       background: item.example,
       sourceLinks,
       approvalState: "pending",
+      reviewFlag: flagByOrdinal.get(ordinal) ?? null,
       whQuestionGeneratedAt: stampedAt,
       fillBlankGeneratedAt: stampedAt,
       basicCardGeneratedAt: stampedAt,

@@ -18,12 +18,15 @@ import {
   type LearningIntentLoader,
 } from "./knowledge-bit-learning-intent.js";
 import { resolveSubjectKind, type SubjectKind } from "../subject/subject-kind.js";
+import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { chunkSourceText, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
 import {
   normalizeStatement,
   selectNewItems,
   validateSourceItems,
+  type FlaggedLesson,
   type LessonDraft,
+  type SourceItemBatchValidation,
 } from "./knowledge-bit-source-item-validation.js";
 import {
   getSourceInsertState,
@@ -109,18 +112,39 @@ function allDroppedForLanguage(result: { valid: unknown[]; dropped: string[] }):
   return result.valid.length === 0 && result.dropped.length > 0 && result.dropped.every((reason) => reason === "wrong_language");
 }
 
+export interface ChunkCards {
+  valid: LessonDraft[];
+  flagged: FlaggedLesson[];
+}
+
+function toChunkCards(result: SourceItemBatchValidation): ChunkCards {
+  return { valid: result.valid, flagged: result.rejected };
+}
+
+function hasCards(cards: ChunkCards): boolean {
+  return cards.valid.length > 0 || cards.flagged.length > 0;
+}
+
+function betterOf(first: ChunkCards, second: ChunkCards): ChunkCards {
+  if (second.valid.length !== first.valid.length) {
+    return second.valid.length > first.valid.length ? second : first;
+  }
+
+  return first.valid.length === 0 && second.flagged.length > first.flagged.length ? second : first;
+}
+
 export async function writeAndValidate(
   chunk: string,
   options: WriteOptions,
   deps: GenerateItemsDeps,
-): Promise<LessonDraft[]> {
+): Promise<ChunkCards> {
   const first = await deps.writeItems(chunk, options);
   const firstResult = validateSourceItems(first, chunk);
   const needsRetry =
     firstResult.valid.length === 0 || firstResult.dropped.length * 2 >= first.length;
 
   if (!needsRetry) {
-    return firstResult.valid;
+    return toChunkCards(firstResult);
   }
 
   log.warn({ dropped: firstResult.dropped, returned: first.length }, "knowledge_bit_source_items_retry");
@@ -129,19 +153,14 @@ export async function writeAndValidate(
 
   try {
     const second = await deps.writeItems(chunk, languageOnly ? { ...options, strictLanguage: true } : options);
-    const secondResult = validateSourceItems(second, chunk);
 
-    if (languageOnly && allDroppedForLanguage(secondResult)) {
-      throw new Error("wrong_language");
-    }
-
-    return secondResult.valid.length > firstResult.valid.length ? secondResult.valid : firstResult.valid;
+    return betterOf(toChunkCards(firstResult), toChunkCards(validateSourceItems(second, chunk)));
   } catch (err) {
-    if (firstResult.valid.length === 0) {
+    if (!hasCards(toChunkCards(firstResult))) {
       throw err;
     }
 
-    return firstResult.valid;
+    return toChunkCards(firstResult);
   }
 }
 
@@ -162,12 +181,13 @@ async function processChunk(
     return;
   }
 
-  const valid = await writeAndValidate(chunk, options, deps);
+  const { valid, flagged } = await writeAndValidate(chunk, options, deps);
 
-  if (valid.length === 0) {
+  if (!hasCards({ valid, flagged })) {
     throw new Error("no_valid_items");
   }
 
+  const flaggedItems = selectFlaggedLessons(flagged, state.seenStatements);
   const items = selectNewItems(
     valid,
     state.seenStatements,
@@ -176,7 +196,7 @@ async function processChunk(
 
   state.accepted += items.length;
 
-  if (items.length === 0) {
+  if (items.length === 0 && flaggedItems.length === 0) {
     return;
   }
 
@@ -186,6 +206,7 @@ async function processChunk(
       claimedAt: source.claimedAt,
       firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
       items,
+      flagged: flaggedItems,
     });
 
     state.inserted += insertedCount;

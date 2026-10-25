@@ -21,6 +21,15 @@ describe('describeBulkApprovalResult', () => {
     ).toBe('Approved 1. Skipped 2: 1 already decided, 1 has no questions yet.')
   })
 
+  it('should tell the reviewer flagged cards were left for a manual review', () => {
+    expect(
+      describeBulkApprovalResult({
+        approved: ['a'],
+        skipped: [{ id: 'b', reason: 'needs_manual_review' }],
+      }),
+    ).toBe('Approved 1. Skipped 1: 1 needs a manual review first.')
+  })
+
   it('should group repeated reasons under one count and pluralise the wording', () => {
     expect(
       describeBulkApprovalResult({

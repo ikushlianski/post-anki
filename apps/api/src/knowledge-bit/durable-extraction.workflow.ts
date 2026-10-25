@@ -22,7 +22,7 @@ import {
   type DurableOutcome,
   type DurableStepDeps,
 } from "./durable-extraction.steps.js";
-import type { LessonDraft } from "./knowledge-bit-source-item-validation.js";
+import type { ChunkCards } from "./detect-knowledge-bits.orchestrator.js";
 
 function stepDeps(): DurableStepDeps {
   return {
@@ -64,7 +64,7 @@ async function extractSource(input: DurableExtractionInput): Promise<DurableOutc
       return await DBOS.runStep(() => plainFailure(() => failStep(claimed, plan.reason, deps)), { name: "fail" });
     }
 
-    const results: (LessonDraft[] | null)[] = [];
+    const results: (ChunkCards | null)[] = [];
     let failureReason: string | null = null;
 
     for (let index = 0; index < plan.chunkCount; index += 1) {

@@ -26,6 +26,7 @@ async function approveKnowledgeBitsBulkIn(
       and(
         inArray(knowledgeBits.id, uniqueIds),
         eq(knowledgeBits.approvalState, "pending"),
+        isNull(knowledgeBits.reviewFlag),
         exists(
           db
             .select({ one: knowledgeBitQuestionVariants.id })
@@ -54,11 +55,16 @@ async function approveKnowledgeBitsBulkIn(
   }
 
   const stateRows = await db
-    .select({ id: knowledgeBits.id, approvalState: knowledgeBits.approvalState })
+    .select({
+      id: knowledgeBits.id,
+      approvalState: knowledgeBits.approvalState,
+      reviewFlag: knowledgeBits.reviewFlag,
+    })
     .from(knowledgeBits)
     .where(inArray(knowledgeBits.id, leftover));
 
   const stateById = new Map(stateRows.map((row) => [row.id, row.approvalState]));
+  const flaggedIds = new Set(stateRows.filter((row) => row.reviewFlag !== null).map((row) => row.id));
 
   return {
     approved: [...approved],
@@ -67,6 +73,10 @@ async function approveKnowledgeBitsBulkIn(
 
       if (state === undefined) {
         return { id, reason: "not_found" as const };
+      }
+
+      if (state === "pending" && flaggedIds.has(id)) {
+        return { id, reason: "needs_manual_review" as const };
       }
 
       return {

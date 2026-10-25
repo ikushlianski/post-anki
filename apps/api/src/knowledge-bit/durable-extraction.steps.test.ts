@@ -10,7 +10,11 @@ vi.mock("./knowledge-bit-source-items.repo.js", () => ({}));
 const { chunkStep, claimStep, failStep, finishStep, planStep, toSnapshot } = await import(
   "./durable-extraction.steps.js"
 );
-const { itemsForChunk } = await import("./knowledge-bit-source-items.test-mocks.js");
+const { itemsForChunk: lessonsForChunk } = await import("./knowledge-bit-source-items.test-mocks.js");
+
+function cardsForChunk(prefix: string, count: number) {
+  return { valid: lessonsForChunk(prefix, count), flagged: [] };
+}
 
 const CLAIMED_AT = new Date("2026-10-11T12:00:00.000Z");
 const SECRET_TEXT = "СЕКРЕТНЫЙ-ТЕКСТ-ИСТОЧНИКА первый абзац.\n\nвторой абзац источника.";
@@ -21,7 +25,7 @@ function pending(extractionModelId: string | null = null) {
 
 function deps(overrides: Partial<DurableStepDeps> = {}): DurableStepDeps {
   return {
-    writeItems: vi.fn().mockResolvedValue(itemsForChunk("A", 1)),
+    writeItems: vi.fn().mockResolvedValue(lessonsForChunk("A", 1)),
     getInsertState: vi.fn().mockResolvedValue({ nextOrdinal: 10, existingStatements: ["old statement"] }),
     insertItems: vi.fn(async (input) => input.items.length),
     markDetected: vi.fn().mockResolvedValue(true),
@@ -129,11 +133,23 @@ describe("chunkStep", () => {
   });
 });
 
+describe("finishStep with rejected cards", () => {
+  it("should insert a chunk that has only flagged cards and still mark the source detected", async () => {
+    const d = deps();
+    const flagged = [{ reason: "bad_card" as const, lesson: lessonsForChunk("F", 1)[0]! }];
+
+    const outcome = await finishStep(snapshot, 10, [{ valid: [], flagged }], null, d);
+
+    expect(outcome.status).toBe("detected");
+    expect(d.insertItems).toHaveBeenCalledWith(expect.objectContaining({ items: [], flagged }));
+  });
+});
+
 describe("finishStep", () => {
   it("should insert every chunk at its own ordinal range and mark the source detected", async () => {
     const d = deps();
 
-    const outcome = await finishStep(snapshot, 10, [itemsForChunk("A", 2), itemsForChunk("B", 3)], null, d);
+    const outcome = await finishStep(snapshot, 10, [cardsForChunk("A", 2), cardsForChunk("B", 3)], null, d);
 
     expect(outcome).toEqual({ status: "detected", inserted: 5, failureReason: null });
     expect(d.insertItems).toHaveBeenNthCalledWith(1, expect.objectContaining({ firstOrdinal: 10 }));
@@ -144,7 +160,7 @@ describe("finishStep", () => {
   it("should keep the items of the chunks that worked and mark the source failed with the first failure reason", async () => {
     const d = deps();
 
-    const outcome = await finishStep(snapshot, 10, [itemsForChunk("A", 2), null], "provider timeout", d);
+    const outcome = await finishStep(snapshot, 10, [cardsForChunk("A", 2), null], "provider timeout", d);
 
     expect(outcome).toEqual({ status: "failed", inserted: 2, failureReason: "provider timeout" });
     expect(d.markFailed).toHaveBeenCalledWith("ks_1", "provider timeout", CLAIMED_AT);
@@ -152,9 +168,9 @@ describe("finishStep", () => {
   });
 
   it("should skip statements the source already holds", async () => {
-    const duplicate = itemsForChunk("A", 1);
+    const duplicate = cardsForChunk("A", 1);
     const d = deps({
-      getInsertState: vi.fn().mockResolvedValue({ nextOrdinal: 10, existingStatements: [duplicate[0]!.statement] }),
+      getInsertState: vi.fn().mockResolvedValue({ nextOrdinal: 10, existingStatements: [duplicate.valid[0]!.statement] }),
     });
 
     await finishStep(snapshot, 10, [duplicate, null], null, d);
@@ -165,7 +181,7 @@ describe("finishStep", () => {
   it("should fail loudly when the claim was reclaimed meanwhile, never writing over the new owner", async () => {
     const d = deps({ markDetected: vi.fn().mockResolvedValue(false) });
 
-    await expect(finishStep(snapshot, 10, [itemsForChunk("A", 1), null], null, d)).rejects.toThrow(
+    await expect(finishStep(snapshot, 10, [cardsForChunk("A", 1), null], null, d)).rejects.toThrow(
       "knowledge_source_reclaimed",
     );
   });

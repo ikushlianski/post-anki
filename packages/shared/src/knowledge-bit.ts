@@ -119,6 +119,7 @@ export interface PendingKnowledgeBitForReview {
   origin: "extracted" | "manual";
   isAiGenerated: boolean;
   sourceLinks: string[];
+  reviewFlag?: string | null;
   feedback?: PendingKnowledgeBitFeedback | null;
 }
 
@@ -152,7 +153,12 @@ export const bulkApproveKnowledgeBitsInput = z.object({
 
 export type BulkApproveKnowledgeBitsInput = z.input<typeof bulkApproveKnowledgeBitsInput>;
 
-export const bulkApprovalSkipReasonSchema = z.enum(["not_found", "already_decided", "no_variant"]);
+export const bulkApprovalSkipReasonSchema = z.enum([
+  "not_found",
+  "already_decided",
+  "no_variant",
+  "needs_manual_review",
+]);
 
 export type BulkApprovalSkipReason = z.infer<typeof bulkApprovalSkipReasonSchema>;
 

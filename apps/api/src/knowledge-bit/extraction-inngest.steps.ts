@@ -9,6 +9,7 @@ import {
   type DurableSourceSnapshot,
   type DurableStepDeps,
 } from "./durable-extraction.steps.js";
+import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { normalizeStatement, selectNewItems } from "./knowledge-bit-source-item-validation.js";
 
 export interface ChunkCounts {
@@ -23,13 +24,14 @@ export async function chunkInsertStep(
   acceptedSoFar: number,
   deps: DurableStepDeps,
 ): Promise<ChunkCounts> {
-  const valid = await chunkStep(snapshot, index, deps);
+  const { valid, flagged: rejected } = await chunkStep(snapshot, index, deps);
   const insertState = await deps.getInsertState(snapshot.id);
   const seen = new Set(insertState.existingStatements.map(normalizeStatement));
   const room = Math.min(MAX_ITEMS_PER_CHUNK, MAX_ITEMS_PER_SOURCE - acceptedSoFar);
+  const flagged = selectFlaggedLessons(rejected, seen);
   const items = room > 0 ? selectNewItems(valid, seen, room) : [];
 
-  if (items.length === 0) {
+  if (items.length === 0 && flagged.length === 0) {
     return { accepted: 0, inserted: 0 };
   }
 
@@ -38,6 +40,7 @@ export async function chunkInsertStep(
     claimedAt: new Date(snapshot.claimedAt),
     firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
     items,
+    flagged,
   });
 
   return { accepted: items.length, inserted };

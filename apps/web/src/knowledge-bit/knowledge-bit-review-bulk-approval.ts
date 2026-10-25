@@ -52,7 +52,9 @@ export function useBulkApproval({
       })
 
       const gone = new Set(
-        result.skipped.filter((item) => item.reason !== 'no_variant').map((item) => item.id),
+        result.skipped
+          .filter((item) => item.reason !== 'no_variant' && item.reason !== 'needs_manual_review')
+          .map((item) => item.id),
       )
 
       gone.forEach((bitId) => knownBitIds.current.add(bitId))

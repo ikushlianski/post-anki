@@ -88,6 +88,7 @@ describe("generateItemsForSource", () => {
       claimedAt: pending.claimedAt,
       firstOrdinal: 0,
       items: RU_EXAMPLE_ITEMS,
+      flagged: [],
     });
     expect(deps.markDetected).toHaveBeenCalledWith("ks_1", pending.claimedAt);
     expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });
@@ -266,9 +267,8 @@ describe("generateItemsForSource", () => {
     expect(vi.mocked(deps.insertItems).mock.calls[0]?.[0].items).toHaveLength(3);
   });
 
-  it("should mark the source failed with no_valid_items when the retry still yields nothing valid", async () => {
-    const bad = { ...ruItemFor("bad"), quote: "цитата которой нет в источнике" };
-    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue([bad]) });
+  it("should mark the source failed with no_valid_items only when the model returned no cards at all", async () => {
+    const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue([]) });
     const pending = source("ks_1", RU_SOURCE_TEXT);
 
     const result = await generateItemsForSource(pending, {}, deps);
@@ -308,7 +308,7 @@ describe("generateItemsForSource", () => {
     expect(result.status).toBe("detected");
   });
 
-  it("should fail with wrong_language when the stronger retry is still in the wrong language", async () => {
+  it("should keep wrong-language cards as flagged instead of failing the source when the stronger retry is still wrong", async () => {
     const english = { ...ruItemFor("en"), statement: "Every client company must be shown a new vision of its future", question: "What must every client company be shown about its future?", answer: "A new vision of its future" };
     const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue([english]) });
     const pending = source("ks_1", RU_SOURCE_TEXT);
@@ -316,8 +316,11 @@ describe("generateItemsForSource", () => {
     const result = await generateItemsForSource(pending, {}, deps);
 
     expect(deps.writeItems).toHaveBeenCalledTimes(2);
-    expect(deps.markFailed).toHaveBeenCalledWith("ks_1", "wrong_language", pending.claimedAt);
-    expect(result.failureReason).toBe("wrong_language");
+    expect(deps.markFailed).not.toHaveBeenCalled();
+    expect(vi.mocked(deps.insertItems).mock.calls[0]?.[0].flagged?.map((entry) => entry.reason)).toEqual([
+      "wrong_language",
+    ]);
+    expect(result.status).toBe("detected");
   });
 
   it("should store at most 40 items per source and skip chunks once the cap is reached", async () => {

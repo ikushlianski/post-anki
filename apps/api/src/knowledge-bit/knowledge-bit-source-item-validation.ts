@@ -4,6 +4,12 @@ import { hasInjectedMarkup } from "./knowledge-bit-source-item-markup-guard.js";
 import { isYesNoQuestion } from "./knowledge-bit-yes-no-question.js";
 import { cleanLessonExample, validateLesson } from "./knowledge-bit-lesson-validation.js";
 import {
+  flagWholeLesson,
+  isKeepable,
+  keepableCards,
+  type FlaggedLesson,
+} from "./knowledge-bit-flagged-lesson.js";
+import {
   SOURCE_ITEM_QUOTE_MAX_CHARS,
   SOURCE_ITEM_QUOTE_MIN_CHARS,
   SOURCE_ITEM_STATEMENT_MAX_CHARS,
@@ -205,9 +211,12 @@ export function validateSourceItem(raw: SourceItemDraft, sourceText: string): So
   return validateCard(asBasic, sourceText) ? { ok: false, reason: blankRejection } : { ok: true, item: asBasic };
 }
 
+export type { FlaggedLesson, ReviewFlagReason } from "./knowledge-bit-flagged-lesson.js";
+
 export interface SourceItemBatchValidation {
   valid: LessonDraft[];
   dropped: SourceItemRejection[];
+  rejected: FlaggedLesson[];
 }
 
 export function validateSourceItems(
@@ -216,6 +225,7 @@ export function validateSourceItems(
 ): SourceItemBatchValidation {
   const valid: LessonDraft[] = [];
   const dropped: SourceItemRejection[] = [];
+  const rejected: FlaggedLesson[] = [];
 
   for (const draft of drafts) {
     const lesson = validateLesson(draft, sourceText);
@@ -223,10 +233,17 @@ export function validateSourceItems(
     if (!lesson.ok) {
       dropped.push(lesson.reason);
 
+      const flagged = flagWholeLesson(draft, lesson.reason, sourceText);
+
+      if (flagged) {
+        rejected.push(flagged);
+      }
+
       continue;
     }
 
     const cards: SourceItemDraft[] = [];
+    const rejectedCards: { card: SourceItemDraft; reason: SourceItemRejection }[] = [];
 
     for (const card of draft.cards) {
       const result = validateSourceItem({ ...card, quote: lesson.lesson.quote }, sourceText);
@@ -235,7 +252,28 @@ export function validateSourceItems(
         cards.push(result.item);
       } else {
         dropped.push(result.reason);
+
+        if (isKeepable(result.reason)) {
+          rejectedCards.push({ card, reason: result.reason });
+        }
       }
+    }
+
+    const kept = keepableCards(
+      rejectedCards.map((entry) => entry.card),
+      sourceText,
+    );
+    const firstReason = rejectedCards[0]?.reason;
+
+    if (firstReason && kept.length > 0) {
+      rejected.push({
+        reason: firstReason,
+        lesson: {
+          ...lesson.lesson,
+          example: cleanLessonExample(draft.example, sourceText),
+          cards: kept.map((card) => ({ ...card, quote: lesson.lesson.quote })),
+        },
+      });
     }
 
     if (cards.length === 0) {
@@ -249,7 +287,7 @@ export function validateSourceItems(
     valid.push({ ...lesson.lesson, example: cleanLessonExample(draft.example, sourceText), cards });
   }
 
-  return { valid, dropped };
+  return { valid, dropped, rejected };
 }
 
 export function selectNewItems(

@@ -58,7 +58,10 @@ export async function approveKnowledgeBit(
         return "no_variant";
       }
 
-      await tx.update(knowledgeBits).set({ approvalState: "approved" }).where(eq(knowledgeBits.id, id));
+      await tx
+        .update(knowledgeBits)
+        .set({ approvalState: "approved", reviewFlag: null })
+        .where(eq(knowledgeBits.id, id));
       await recordKnowledgeBitDecision(tx, { bitId: id, verdict: "approved" });
     }
 
@@ -197,6 +200,7 @@ export async function listPendingKnowledgeBitsForReview(
       body: knowledgeBits.body,
       background: knowledgeBits.background,
       origin: knowledgeBits.origin,
+      reviewFlag: knowledgeBits.reviewFlag,
       isAiGenerated: knowledgeBits.isAiGenerated,
       sourceLinks: knowledgeBits.sourceLinks,
       knowledgeSourceId: knowledgeBits.knowledgeSourceId,
@@ -270,6 +274,7 @@ export async function listPendingKnowledgeBitsForReview(
       body: row.body,
       background: row.background,
       origin: row.origin ?? "extracted",
+      reviewFlag: row.reviewFlag,
       isAiGenerated: row.isAiGenerated,
       sourceLinks: row.sourceLinks ?? [],
       variants: (variantsByBitId.get(row.id) ?? []).map((variant) => ({

@@ -7,6 +7,8 @@ const SKIP_REASON_PHRASES: Record<BulkApprovalSkipReason, (count: number) => str
   not_found: (count) => `${count} ${count === 1 ? 'no longer exists' : 'no longer exist'}`,
   already_decided: (count) => `${count} already decided`,
   no_variant: (count) => `${count} ${count === 1 ? 'has no questions yet' : 'have no questions yet'}`,
+  needs_manual_review: (count) =>
+    `${count} ${count === 1 ? 'needs a manual review first' : 'need a manual review first'}`,
 }
 
 export function describeBulkApprovalResult(result: BulkApproveKnowledgeBitsResponse): string {
