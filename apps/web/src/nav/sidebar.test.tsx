@@ -34,6 +34,8 @@ vi.mock('../curriculum/curriculum.api', () => ({
   })),
 }))
 
+vi.mock('../web-auth/web-auth.browser', () => ({ signOut: vi.fn(async () => true) }))
+
 vi.mock('../knowledge-bit/anki-review-session-actions', () => ({
   browserTimeZone: () => 'Europe/Berlin',
 }))
@@ -44,6 +46,7 @@ import { getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
 import { getPendingKnowledgeBitCountForNav } from '../knowledge-bit/knowledge-bit-review.api'
 import { PENDING_REVIEW_CHANGED_EVENT } from '../knowledge-bit/knowledge-bit-review-events'
 import { Sidebar } from './sidebar'
+import { signOut } from '../web-auth/web-auth.browser'
 
 afterEach(() => {
   cleanup()
@@ -252,5 +255,14 @@ describe('Sidebar', () => {
     await waitFor(() => {
       expect(screen.getByTestId('nav-knowledge-review').textContent).toBe('Review (5 new)')
     })
+  })
+
+  it('should end the session when Sign out is pressed', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+
+    render(<Sidebar />)
+    fireEvent.click(screen.getByTestId('nav-sign-out'))
+
+    expect(signOut).toHaveBeenCalledTimes(1)
   })
 })

@@ -3,6 +3,7 @@ import {
   Link,
   Scripts,
   createRootRouteWithContext,
+  useRouterState,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
@@ -54,6 +55,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootDocument({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const onLoginPage = useRouterState({ select: (state) => state.location.pathname === '/login' })
 
   useEffect(() => {
     window.__APP_HYDRATED__ = true
@@ -65,6 +67,10 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
+        {onLoginPage ? (
+          children
+        ) : (
+        <>
         <div className="flex min-h-full flex-col bg-neutral-50 text-neutral-900">
           <div className="border-b border-neutral-200 bg-white">
             <div className="flex items-center gap-x-3 px-5 py-3 sm:px-8">
@@ -119,6 +125,8 @@ function RootDocument({ children }: { children: ReactNode }) {
           ) : null}
         </div>
         <GlobalCardChatPanel />
+        </>
+        )}
         <TanStackDevtools
           config={{
             position: 'bottom-right',

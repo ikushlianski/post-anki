@@ -120,7 +120,7 @@ export class ApiError extends Error {
 
 export async function request<T>(
   path: string,
-  init?: { method?: string; body?: unknown },
+  init?: { method?: string; body?: unknown; signal?: AbortSignal },
 ): Promise<T> {
   const base = apiBaseUrl()
 
@@ -132,6 +132,7 @@ export async function request<T>(
     method: init?.method ?? 'GET',
     headers: authHeaders(),
     body: init?.body === undefined ? undefined : JSON.stringify(init.body),
+    signal: init?.signal,
   })
 
   if (!response.ok) {

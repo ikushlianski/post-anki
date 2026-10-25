@@ -16,6 +16,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OpenQuestionsRouteImport } from './routes/open-questions'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MilestonesRouteImport } from './routes/milestones'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as LearningPathsRouteImport } from './routes/learning-paths'
 import { Route as LearningListRouteImport } from './routes/learning-list'
 import { Route as KnowledgeBitReviewRouteImport } from './routes/knowledge-bit-review'
@@ -56,6 +57,7 @@ import { Route as CurriculumCurriculumIdExamRouteImport } from './routes/curricu
 import { Route as CurriculumCurriculumIdCardsRouteImport } from './routes/curriculum.$curriculumId_.cards'
 import { Route as CurriculumCurriculumIdAssessRouteImport } from './routes/curriculum.$curriculumId_.assess'
 import { Route as ApiKnowledgeBitsExportRouteImport } from './routes/api.knowledge-bits.export'
+import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as SubjectSubjectIdCategoryCategoryIdRouteImport } from './routes/subject.$subjectId_.category.$categoryId'
 
 const TodayRoute = TodayRouteImport.update({
@@ -91,6 +93,11 @@ const NotesRoute = NotesRouteImport.update({
 const MilestonesRoute = MilestonesRouteImport.update({
   id: '/milestones',
   path: '/milestones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LearningPathsRoute = LearningPathsRouteImport.update({
@@ -300,6 +307,11 @@ const ApiKnowledgeBitsExportRoute = ApiKnowledgeBitsExportRouteImport.update({
   path: '/api/knowledge-bits/export',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubjectSubjectIdCategoryCategoryIdRoute =
   SubjectSubjectIdCategoryCategoryIdRouteImport.update({
     id: '/subject/$subjectId_/category/$categoryId',
@@ -322,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/knowledge-bit-review': typeof KnowledgeBitReviewRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
+  '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
   '/open-questions': typeof OpenQuestionsRoute
@@ -345,6 +358,7 @@ export interface FileRoutesByFullPath {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/knowledge/': typeof KnowledgeIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/cards': typeof CurriculumCurriculumIdCardsRoute
@@ -372,6 +386,7 @@ export interface FileRoutesByTo {
   '/knowledge-bit-review': typeof KnowledgeBitReviewRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
+  '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
   '/open-questions': typeof OpenQuestionsRoute
@@ -395,6 +410,7 @@ export interface FileRoutesByTo {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/knowledge': typeof KnowledgeIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId/cards': typeof CurriculumCurriculumIdCardsRoute
@@ -423,6 +439,7 @@ export interface FileRoutesById {
   '/knowledge-bit-review': typeof KnowledgeBitReviewRoute
   '/learning-list': typeof LearningListRoute
   '/learning-paths': typeof LearningPathsRoute
+  '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
   '/open-questions': typeof OpenQuestionsRoute
@@ -446,6 +463,7 @@ export interface FileRoutesById {
   '/subject/$subjectId': typeof SubjectSubjectIdRoute
   '/subjects/new': typeof SubjectsNewRoute
   '/knowledge/': typeof KnowledgeIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/knowledge-bits/export': typeof ApiKnowledgeBitsExportRoute
   '/curriculum/$curriculumId_/assess': typeof CurriculumCurriculumIdAssessRoute
   '/curriculum/$curriculumId_/cards': typeof CurriculumCurriculumIdCardsRoute
@@ -475,6 +493,7 @@ export interface FileRouteTypes {
     | '/knowledge-bit-review'
     | '/learning-list'
     | '/learning-paths'
+    | '/login'
     | '/milestones'
     | '/notes'
     | '/open-questions'
@@ -498,6 +517,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/knowledge/'
+    | '/api/auth/$'
     | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/cards'
@@ -525,6 +545,7 @@ export interface FileRouteTypes {
     | '/knowledge-bit-review'
     | '/learning-list'
     | '/learning-paths'
+    | '/login'
     | '/milestones'
     | '/notes'
     | '/open-questions'
@@ -548,6 +569,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/knowledge'
+    | '/api/auth/$'
     | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId/assess'
     | '/curriculum/$curriculumId/cards'
@@ -575,6 +597,7 @@ export interface FileRouteTypes {
     | '/knowledge-bit-review'
     | '/learning-list'
     | '/learning-paths'
+    | '/login'
     | '/milestones'
     | '/notes'
     | '/open-questions'
@@ -598,6 +621,7 @@ export interface FileRouteTypes {
     | '/subject/$subjectId'
     | '/subjects/new'
     | '/knowledge/'
+    | '/api/auth/$'
     | '/api/knowledge-bits/export'
     | '/curriculum/$curriculumId_/assess'
     | '/curriculum/$curriculumId_/cards'
@@ -626,6 +650,7 @@ export interface RootRouteChildren {
   KnowledgeBitReviewRoute: typeof KnowledgeBitReviewRoute
   LearningListRoute: typeof LearningListRoute
   LearningPathsRoute: typeof LearningPathsRoute
+  LoginRoute: typeof LoginRoute
   MilestonesRoute: typeof MilestonesRoute
   NotesRoute: typeof NotesRoute
   OpenQuestionsRoute: typeof OpenQuestionsRoute
@@ -649,6 +674,7 @@ export interface RootRouteChildren {
   SubjectSubjectIdRoute: typeof SubjectSubjectIdRoute
   SubjectsNewRoute: typeof SubjectsNewRoute
   KnowledgeIndexRoute: typeof KnowledgeIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiKnowledgeBitsExportRoute: typeof ApiKnowledgeBitsExportRoute
   CurriculumCurriculumIdAssessRoute: typeof CurriculumCurriculumIdAssessRoute
   CurriculumCurriculumIdCardsRoute: typeof CurriculumCurriculumIdCardsRoute
@@ -711,6 +737,13 @@ declare module '@tanstack/react-router' {
       path: '/milestones'
       fullPath: '/milestones'
       preLoaderRoute: typeof MilestonesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/learning-paths': {
@@ -993,6 +1026,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiKnowledgeBitsExportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subject/$subjectId_/category/$categoryId': {
       id: '/subject/$subjectId_/category/$categoryId'
       path: '/subject/$subjectId/category/$categoryId'
@@ -1018,6 +1058,7 @@ const rootRouteChildren: RootRouteChildren = {
   KnowledgeBitReviewRoute: KnowledgeBitReviewRoute,
   LearningListRoute: LearningListRoute,
   LearningPathsRoute: LearningPathsRoute,
+  LoginRoute: LoginRoute,
   MilestonesRoute: MilestonesRoute,
   NotesRoute: NotesRoute,
   OpenQuestionsRoute: OpenQuestionsRoute,
@@ -1041,6 +1082,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubjectSubjectIdRoute: SubjectSubjectIdRoute,
   SubjectsNewRoute: SubjectsNewRoute,
   KnowledgeIndexRoute: KnowledgeIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiKnowledgeBitsExportRoute: ApiKnowledgeBitsExportRoute,
   CurriculumCurriculumIdAssessRoute: CurriculumCurriculumIdAssessRoute,
   CurriculumCurriculumIdCardsRoute: CurriculumCurriculumIdCardsRoute,
@@ -1059,10 +1101,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
