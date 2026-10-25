@@ -8,6 +8,7 @@ import type {
 import { getDb } from "../db/client.js";
 import { sourceDuplicateSuggestions } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { hasPostgresErrorCode } from "../db/postgres-error-code.js";
 
 function toSuggestion(
   r: typeof sourceDuplicateSuggestions.$inferSelect,
@@ -32,12 +33,7 @@ function toSuggestion(
 const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
-  );
+  return hasPostgresErrorCode(err, POSTGRES_UNIQUE_VIOLATION);
 }
 
 export interface InsertSourceDuplicateSuggestionParams {

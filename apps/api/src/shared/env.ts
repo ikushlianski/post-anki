@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const MIN_AUTH_SECRET_LENGTH = 32;
+
+const optionalNonEmpty = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 const envObject = z.object({
   DATABASE_URL: z.string().min(1),
   OPENROUTER_API_KEY: z.string().optional(),
@@ -50,6 +57,10 @@ const envObject = z.object({
   // Extra exact web origins, comma separated (for example the custom domain next
   // to the Cloud Run URL). Entries that are not https origins, or http on localhost, are ignored.
   WEB_ORIGINS: z.string().min(1).optional(),
+  RESEND_API_KEY: optionalNonEmpty,
+  AUTH_EMAIL_FROM: optionalNonEmpty,
+  BETTER_AUTH_SECRET: optionalNonEmpty,
+  BETTER_AUTH_URL: optionalNonEmpty,
   EXTENSION_ID: z.string().min(1).optional(),
   NOTION_TOKEN: z.string().min(1).optional(),
   // Durable extraction pilot. Plain strings on purpose: an empty or odd value must never stop the
@@ -85,6 +96,26 @@ const envSchema = envObject.superRefine((env, ctx) => {
       path: ["OPENROUTER_API_KEY"],
       message: "required unless LLM_MODE=mock",
     });
+  }
+
+  if (env.RESEND_API_KEY && (env.BETTER_AUTH_SECRET?.length ?? 0) < MIN_AUTH_SECRET_LENGTH) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["BETTER_AUTH_SECRET"],
+      message: `required (at least ${MIN_AUTH_SECRET_LENGTH} characters) when RESEND_API_KEY is set`,
+    });
+  }
+
+  if (env.NODE_ENV === "production" && env.RESEND_API_KEY) {
+    for (const key of ["BETTER_AUTH_URL", "AUTH_EMAIL_FROM"] as const) {
+      if (!env[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: "required in production when RESEND_API_KEY is set",
+        });
+      }
+    }
   }
 
   if (durableOn && !localDev && !env.INNGEST_SIGNING_KEY?.trim()) {

@@ -3,16 +3,12 @@ import type { Curriculum } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula } from "../db/schema.js";
 import { createCurriculum, getCurriculum } from "../curriculum/curriculum.repo.js";
+import { hasPostgresErrorCode } from "../db/postgres-error-code.js";
 
 const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
-  );
+  return hasPostgresErrorCode(err, POSTGRES_UNIQUE_VIOLATION);
 }
 
 export interface AreaContainerParams {

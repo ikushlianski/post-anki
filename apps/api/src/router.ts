@@ -5,6 +5,7 @@ export type RouteName =
   | "mcpMethodNotAllowed"
   | "createSyncToken"
   | "listSyncKeys"
+  | "checkWebAuth"
   | "listContentInbox"
   | "triggerBizEducationDistill"
   | "listSubjects"

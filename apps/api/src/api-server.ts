@@ -330,6 +330,7 @@ import {
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
+import { handleAuthRequest, handleWebAuthCheck, isAuthPath } from "./auth/web-auth.controller.js";
 import { handleCreateSyncToken, handleListSyncKeys } from "./sync-auth/sync-auth.controller.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
 import { createInngestServeHandler } from "./shared/inngest-serve.js";
@@ -394,6 +395,22 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
   await touchLastUsed(token.id).catch((err: unknown) => log.error({ err }, "api_token_touch_last_used_failed"));
 
   return true;
+}
+
+function requiresSharedSecretOnly(path: string): boolean {
+  return isAuthPath(path) || path === "/web-auth/checks";
+}
+
+function hasSharedSecret(req: http.IncomingMessage): boolean {
+  const env = loadEnv();
+
+  if (!env.API_SHARED_SECRET) {
+    return env.NODE_ENV !== "production";
+  }
+
+  const header = req.headers.authorization;
+
+  return header !== undefined && timingSafeEqualStrings(header, `Bearer ${env.API_SHARED_SECRET}`);
 }
 
 const inngestServeHandler = createInngestServeHandler([
@@ -491,6 +508,16 @@ async function handleRequest(
       return;
     }
 
+    if (requiresSharedSecretOnly(path) && !hasSharedSecret(req)) {
+      sendError(res, 401, "unauthorized");
+      return;
+    }
+
+    if (isAuthPath(path)) {
+      await handleAuthRequest(req, res);
+      return;
+    }
+
     await route(req, res, method, path, url);
   } catch (err) {
     if (err instanceof LlmBudgetExceededError) {
@@ -548,6 +575,8 @@ async function route(
       return handleCreateSyncToken(req, res);
     case "listSyncKeys":
       return handleListSyncKeys(res);
+    case "checkWebAuth":
+      return handleWebAuthCheck(req, res);
     case "listSubjects":
       return handleListSubjects(res, url.searchParams.get("query"));
     case "createSubject":

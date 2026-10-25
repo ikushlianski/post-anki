@@ -8,6 +8,7 @@ import type {
 import { getDb, type DbExecutor } from "../db/client.js";
 import { curricula, curriculumDomainNodeMappings } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { hasPostgresErrorCode } from "../db/postgres-error-code.js";
 
 function toMapping(
   row: typeof curriculumDomainNodeMappings.$inferSelect,
@@ -184,12 +185,7 @@ export async function insertConfirmedMappingIdempotent(
 const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
-  );
+  return hasPostgresErrorCode(err, POSTGRES_UNIQUE_VIOLATION);
 }
 
 async function selectLiveMapping(

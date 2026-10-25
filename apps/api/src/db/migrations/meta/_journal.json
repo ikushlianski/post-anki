@@ -799,6 +799,13 @@
       "when": 1792887731432,
       "tag": "0113_add-knowledge-bit-review-flag",
       "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1792917509369,
+      "tag": "0114_add-web-auth-tables",
+      "breakpoints": true
     }
   ]
 }

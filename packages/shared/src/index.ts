@@ -81,3 +81,4 @@ export * from "./knowledge-bit-export";
 export * from "./subject-suggestion";
 export * from "./gamification";
 export * from "./knowledge-source-subject-check";
+export * from "./web-auth";

@@ -14,6 +14,7 @@ export const ROUTES: RouteDef[] = [
   { method: "DELETE", pattern: "/mcp", name: "mcpMethodNotAllowed" },
   { method: "POST", pattern: "/sync-tokens", name: "createSyncToken" },
   { method: "GET", pattern: "/sync-keys", name: "listSyncKeys" },
+  { method: "POST", pattern: "/web-auth/checks", name: "checkWebAuth" },
   { method: "GET", pattern: "/subjects", name: "listSubjects" },
   { method: "POST", pattern: "/subjects", name: "createSubject" },
   { method: "POST", pattern: "/knowledge-sources", name: "createKnowledgeSource" },

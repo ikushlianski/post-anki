@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@post-anki/shared": "*",
-    "drizzle-orm": "^0.36.0",
+    "drizzle-orm": "^0.45.2",
     "grammy": "^1.30.0",
     "pg": "^8.13.0",
     "pino": "^9.5.0",
@@ -27,7 +27,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
-    "drizzle-kit": "^0.28.0",
+    "drizzle-kit": "^0.31.4",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"

@@ -37,24 +37,16 @@ import {
 import { assembleAllSourceText } from "./source-text.js";
 import { startCardsForTopics } from "../cards/cards.starter.js";
 import { listTags } from "../tag/tag.repo.js";
+import { hasPostgresErrorCode } from "../db/postgres-error-code.js";
 
-// Postgres's SQLSTATE for a unique-violation — surfaces here as the raw `pg`
-// driver error (drizzle-orm's node-postgres session rethrows it unchanged),
-// carrying a `.code` property. This is what
-// `curriculum_structure_turns_pending_assistant_unique` (see schema.ts) hits
-// when two concurrent calls both try to insert a pending assistant
-// placeholder for the same curriculum — the real DB-level guarantee behind
-// the concurrency guard below, since a check-then-act read in application
-// code would just re-implement the same race.
+// Postgres's SQLSTATE for a unique-violation, found on the error or its `cause`
+// (drizzle wraps the driver error). Hit by
+// `curriculum_structure_turns_pending_assistant_unique` (see schema.ts) when two
+// concurrent calls insert a pending assistant placeholder for one curriculum.
 const POSTGRES_UNIQUE_VIOLATION = "23505";
 
 function isPendingTurnConflict(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION
-  );
+  return hasPostgresErrorCode(err, POSTGRES_UNIQUE_VIOLATION);
 }
 
 // How old a pending assistant turn has to be before this self-heal will
