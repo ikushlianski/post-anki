@@ -2,14 +2,21 @@ import PostAnkiAPI
 import SwiftUI
 
 struct ProgressScreen: View {
+    var embedded = false
     @State private var model = ProgressModel()
 
     var body: some View {
-        NavigationStack {
-            content
-                .navigationTitle("Progress")
-                .task { await model.load() }
+        if embedded {
+            screen
+        } else {
+            NavigationStack { screen }
         }
+    }
+
+    private var screen: some View {
+        content
+            .navigationTitle("Progress")
+            .task { await model.load() }
     }
 
     @ViewBuilder

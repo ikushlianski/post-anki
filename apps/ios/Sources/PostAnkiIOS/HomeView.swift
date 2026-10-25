@@ -42,6 +42,9 @@ struct HomeView: View {
 
             SubjectsScreen()
                 .tabItem { Label("Subjects", systemImage: "book") }
+
+            MoreScreen()
+                .tabItem { Label("More", systemImage: "ellipsis") }
         }
         .task { await PendingReviewCountStore.shared.refresh() }
         .onChange(of: scenePhase) { _, phase in
