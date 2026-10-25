@@ -15,6 +15,8 @@ import {
 import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
 import type { ReactNode } from 'react'
 
+import { ColumnResizeHandle } from '../ui/column-resize-handle'
+import { useColumnWidths } from '../ui/use-column-widths'
 import { moveColumn } from './column-order'
 import { BROWSER_COLUMN_LABELS, renderBrowserCell } from './knowledge-browser-columns'
 import type { BrowserColumnId, BrowserSourceCellActions } from './knowledge-browser-columns'
@@ -37,6 +39,18 @@ interface KnowledgeBrowserTableProps {
   onToggleAll: () => void
   sourceActions?: BrowserSourceCellActions
   columnFilters?: BrowserColumnFilters
+}
+
+const COLUMN_WIDTHS_KEY = 'post-anki:column-widths:knowledge-browser'
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  select: 40,
+  phrasings: 360,
+  answer: 240,
+  source: 190,
+  sourceUrl: 190,
+  addedBy: 110,
+  addedAt: 110,
 }
 
 function rowTone(isSelected: boolean, isOpen: boolean): string {
@@ -72,21 +86,39 @@ export function KnowledgeBrowserTable({
     }
   }
 
+  const { widths, setWidth } = useColumnWidths(COLUMN_WIDTHS_KEY, DEFAULT_WIDTHS)
+  const tableWidth = widths.select + columnOrder.reduce((total, id) => total + (widths[id] ?? 160), 0)
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.knowledgeBitId))
 
   return (
     <div className="overflow-x-auto rounded border border-neutral-200">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <table data-testid="knowledge-browser-table" className="w-full min-w-[40rem] table-fixed text-sm">
+        <table
+          data-testid="knowledge-browser-table"
+          style={{ width: tableWidth }}
+          className="table-fixed text-sm"
+        >
+          <colgroup>
+            <col style={{ width: widths.select }} />
+            {columnOrder.map((id) => (
+              <col key={id} style={{ width: widths[id] ?? 160 }} />
+            ))}
+          </colgroup>
           <thead className="bg-neutral-50">
             <tr>
-              <th scope="col" className="w-8 px-3 py-2">
+              <th scope="col" className="relative px-3 py-2">
                 <input
                   type="checkbox"
                   aria-label="Select all on this page"
                   data-testid="knowledge-browser-select-all"
                   checked={allSelected}
                   onChange={onToggleAll}
+                />
+                <ColumnResizeHandle
+                  label="Select"
+                  width={widths.select}
+                  onResize={(width) => setWidth('select', width)}
+                  testId="browser-column-resize-select"
                 />
               </th>
               <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
@@ -97,6 +129,8 @@ export function KnowledgeBrowserTable({
                     label={BROWSER_COLUMN_LABELS[id]}
                     filterEditor={columnFilters?.renderEditor(id)}
                     filtered={columnFilters?.isFiltered(id)}
+                    width={widths[id] ?? 160}
+                    onResize={(width) => setWidth(id, width)}
                   />
                 ))}
               </SortableContext>

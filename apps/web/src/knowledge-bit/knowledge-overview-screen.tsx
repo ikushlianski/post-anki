@@ -55,7 +55,7 @@ export function KnowledgeOverviewScreen() {
 
   if (data.isPending) {
     return (
-      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
+      <main className="mx-auto max-w-[110rem] px-5 py-8 sm:px-8 sm:py-10">
         <h1 className="sr-only">All cards</h1>
         <p data-testid="knowledge-overview-loading" className="text-neutral-500">
           Loading…
@@ -66,7 +66,7 @@ export function KnowledgeOverviewScreen() {
 
   if (data.isError) {
     return (
-      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
+      <main className="mx-auto max-w-[110rem] px-5 py-8 sm:px-8 sm:py-10">
         <h1 className="sr-only">All cards</h1>
         <div className="mb-6">
           <KnowledgeOverviewDownload />
@@ -102,6 +102,7 @@ export function KnowledgeOverviewScreen() {
         onToggleSuspend={rowActions.toggleSuspend}
         onDelete={deletion.open}
         onMove={move.open}
+        onBulkSuspend={(suspended) => rowActions.setSuspendedMany(selection.selectedIds, suspended)}
         onClear={selection.clear}
         onLoadMore={data.loadMore}
       />

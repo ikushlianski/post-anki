@@ -2,22 +2,16 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ReactNode } from 'react'
 
+import { ColumnResizeHandle } from '../ui/column-resize-handle'
 import { KnowledgeBrowserToolbarPopover } from './knowledge-browser-toolbar-popover'
-
-const COLUMN_WIDTHS: Record<string, string> = {
-  phrasings: '30%',
-  answer: '20%',
-  source: '16%',
-  sourceUrl: '16%',
-  addedBy: '9%',
-  addedAt: '9%',
-}
 
 interface KnowledgeBrowserSortableHeaderProps {
   id: string
   label: string
   filterEditor?: ReactNode
   filtered?: boolean
+  width: number
+  onResize: (width: number) => void
 }
 
 export function KnowledgeBrowserSortableHeader({
@@ -25,6 +19,8 @@ export function KnowledgeBrowserSortableHeader({
   label,
   filterEditor,
   filtered = false,
+  onResize,
+  width,
 }: KnowledgeBrowserSortableHeaderProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
 
@@ -33,8 +29,8 @@ export function KnowledgeBrowserSortableHeader({
       ref={setNodeRef}
       data-testid={`browser-column-${id}`}
       scope="col"
-      style={{ transform: CSS.Translate.toString(transform), transition, width: COLUMN_WIDTHS[id] }}
-      className={`px-3 py-2 text-left font-medium text-neutral-600 ${isDragging ? 'relative z-10 bg-neutral-100' : ''}`}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`relative px-3 py-2 text-left font-medium text-neutral-600 ${isDragging ? 'relative z-10 bg-neutral-100' : ''}`}
     >
       <span className="flex items-center gap-2">
         <button
@@ -72,6 +68,12 @@ export function KnowledgeBrowserSortableHeader({
           </KnowledgeBrowserToolbarPopover>
         )}
       </span>
+      <ColumnResizeHandle
+        label={label}
+        width={width}
+        onResize={onResize}
+        testId={`browser-column-resize-${id}`}
+      />
     </th>
   )
 }

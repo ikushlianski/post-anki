@@ -52,5 +52,34 @@ export function useKnowledgeOverviewRowActions({ announce, onUpdated }: Options)
     onUpdated()
   }
 
-  return { rowStates, toggleSuspend: (item: KnowledgeBitOverviewItem) => void toggleSuspend(item) }
+  async function setSuspendedMany(ids: string[], suspended: boolean) {
+    if (ids.length === 0) {
+      return
+    }
+
+    const results = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          return (await updateCardSchedule({ data: { knowledgeBitId: id, suspended } })).ok
+        } catch {
+          return false
+        }
+      }),
+    )
+    const failed = results.filter((ok) => !ok).length
+
+    if (failed > 0) {
+      announce('assertive', `Could not update ${failed} of ${ids.length} cards.`)
+    } else {
+      announce('polite', suspended ? `${ids.length} cards suspended.` : `${ids.length} cards unsuspended.`)
+    }
+
+    onUpdated()
+  }
+
+  return {
+    rowStates,
+    toggleSuspend: (item: KnowledgeBitOverviewItem) => void toggleSuspend(item),
+    setSuspendedMany: (ids: string[], suspended: boolean) => void setSuspendedMany(ids, suspended),
+  }
 }

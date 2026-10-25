@@ -1,6 +1,7 @@
-import { type KeyboardEvent, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import type { KnowledgeBitOverviewItem } from '@post-anki/shared'
 
+import { SearchableSelect } from '../ui/searchable-select'
 import type { SubjectComboboxOption } from '../ui/subject-combobox'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
 import { KnowledgeOverviewDownload } from './knowledge-overview-download'
@@ -14,52 +15,20 @@ interface OverviewSubjectFilterProps {
 }
 
 function OverviewSubjectFilter({ options, value, onChange }: OverviewSubjectFilterProps) {
-  const [open, setOpen] = useState(false)
-  const label = options.find((o) => o.id === value)?.label ?? ''
-
   return (
-    <div className="relative sm:w-72">
-      <input
-        type="text"
-        readOnly
-        aria-label="Filter by subject"
-        data-testid="knowledge-overview-subject-filter"
-        value={label}
-        placeholder="All subjects"
-        onClick={() => setOpen((prev) => !prev)}
-        onBlur={() => setOpen(false)}
-        className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm outline-none focus:border-neutral-500"
-      />
-      {open ? (
-        <ul className="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-md">
-          <li
-            data-testid="knowledge-overview-subject-filter-option-all"
-            onMouseDown={(e) => {
-              e.preventDefault()
-              onChange('')
-              setOpen(false)
-            }}
-            className="cursor-pointer px-3 py-1.5 text-sm hover:bg-neutral-100"
-          >
-            All subjects
-          </li>
-          {options.map((option) => (
-            <li
-              key={option.id}
-              data-testid={`knowledge-overview-subject-filter-option-${option.id}`}
-              onMouseDown={(e) => {
-                e.preventDefault()
-                onChange(option.id)
-                setOpen(false)
-              }}
-              className="cursor-pointer px-3 py-1.5 text-sm hover:bg-neutral-100"
-            >
-              {option.label}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <SearchableSelect
+      options={options}
+      value={value}
+      onChange={onChange}
+      ariaLabel="Filter by subject"
+      testId="knowledge-overview-subject-filter"
+      placeholder="All subjects"
+      emptyText="No subject matches"
+      clearable
+      maxRows={10}
+      className={`${TEXT_FIELD_CLASS} cursor-pointer pr-9`}
+      containerClassName="sm:w-72"
+    />
   )
 }
 
@@ -83,6 +52,7 @@ export interface KnowledgeOverviewPageProps {
   onToggleSuspend: (item: KnowledgeBitOverviewItem) => void
   onDelete: () => void
   onMove: () => void
+  onBulkSuspend: (suspended: boolean) => void
   onClear: () => void
   onLoadMore: () => void
 }
@@ -91,7 +61,7 @@ export function KnowledgeOverviewPage(props: KnowledgeOverviewPageProps) {
   const { rows, selected } = props
 
   return (
-    <main data-testid="knowledge-overview-page" className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
+    <main data-testid="knowledge-overview-page" className="mx-auto max-w-[110rem] px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">All cards</h1>
         <p className="mt-1 text-sm text-neutral-500">
@@ -115,19 +85,19 @@ export function KnowledgeOverviewPage(props: KnowledgeOverviewPageProps) {
           data-testid="knowledge-overview-search"
           value={props.search}
           onChange={(event) => props.onSearchChange(event.target.value)}
-          className={`${TEXT_FIELD_CLASS} sm:w-80`}
+          className={`${TEXT_FIELD_CLASS} sm:w-96`}
         />
       </div>
 
-      {selected.size > 0 ? (
-        <div
+      <div
           data-testid="knowledge-overview-selection-bar"
-          className="mb-4 flex items-center gap-3 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2"
+          className="mb-4 flex min-h-14 flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2"
         >
-          <span className="text-sm font-medium text-neutral-900">Selected {selected.size}</span>
+          <span className="text-sm font-medium text-neutral-900">{selected.size > 0 ? `Selected ${selected.size}` : 'None selected'}</span>
           <button
             type="button"
             data-testid="knowledge-overview-delete"
+            disabled={selected.size === 0}
             onClick={props.onDelete}
             className={PRIMARY_BUTTON_CLASS}
           >
@@ -136,6 +106,7 @@ export function KnowledgeOverviewPage(props: KnowledgeOverviewPageProps) {
           <button
             type="button"
             data-testid="knowledge-overview-move"
+            disabled={selected.size === 0}
             onClick={props.onMove}
             className={SECONDARY_BUTTON_CLASS}
           >
@@ -143,14 +114,32 @@ export function KnowledgeOverviewPage(props: KnowledgeOverviewPageProps) {
           </button>
           <button
             type="button"
+            data-testid="knowledge-overview-bulk-suspend"
+            disabled={selected.size === 0}
+            onClick={() => props.onBulkSuspend(true)}
+            className={SECONDARY_BUTTON_CLASS}
+          >
+            Suspend
+          </button>
+          <button
+            type="button"
+            data-testid="knowledge-overview-bulk-unsuspend"
+            disabled={selected.size === 0}
+            onClick={() => props.onBulkSuspend(false)}
+            className={SECONDARY_BUTTON_CLASS}
+          >
+            Unsuspend
+          </button>
+          <button
+            type="button"
             data-testid="knowledge-overview-clear"
+            disabled={selected.size === 0}
             onClick={props.onClear}
             className={SECONDARY_BUTTON_CLASS}
           >
             Clear
           </button>
-        </div>
-      ) : null}
+      </div>
 
       {rows.length === 0 ? (
         <p data-testid="knowledge-overview-empty" className="text-neutral-500">

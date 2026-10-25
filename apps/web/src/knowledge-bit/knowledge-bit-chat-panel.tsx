@@ -23,9 +23,10 @@ const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again."
 
 interface KnowledgeBitChatPanelProps {
   knowledgeBitId: string
+  iconOnly?: boolean
 }
 
-export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelProps) {
+export function KnowledgeBitChatPanel({ knowledgeBitId, iconOnly = false }: KnowledgeBitChatPanelProps) {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
@@ -137,6 +138,23 @@ export function KnowledgeBitChatPanel({ knowledgeBitId }: KnowledgeBitChatPanelP
           ])
         },
       },
+    )
+  }
+
+  if (!open && iconOnly) {
+    return (
+      <button
+        type="button"
+        data-testid="knowledge-bit-chat-open"
+        aria-label="Chat about this"
+        title="Chat about this"
+        onClick={() => setOpen(true)}
+        className="flex size-8 cursor-pointer items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-2 focus-visible:outline-neutral-900"
+      >
+        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />
+        </svg>
+      </button>
     )
   }
 

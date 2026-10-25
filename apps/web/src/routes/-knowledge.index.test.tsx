@@ -207,7 +207,7 @@ describe('KnowledgeOverviewPage', () => {
 
     await user.keyboard('{Escape}')
 
-    expect(screen.queryByTestId('knowledge-overview-selection-bar')).toBeNull()
+    expect(screen.getByTestId('knowledge-overview-selection-bar').textContent).toContain('None selected')
   })
 
   it('should toggle a row with Space', async () => {
@@ -260,7 +260,7 @@ describe('KnowledgeOverviewPage', () => {
     await user.click(screen.getByTestId('knowledge-overview-delete-cancel'))
     await user.click(screen.getByTestId('knowledge-overview-clear'))
 
-    expect(screen.queryByTestId('knowledge-overview-selection-bar')).toBeNull()
+    expect(screen.getByTestId('knowledge-overview-selection-bar').textContent).toContain('None selected')
   })
 
   it('should filter by the chosen subject and by the search text', async () => {
@@ -297,6 +297,7 @@ describe('KnowledgeOverviewPage', () => {
     })
     renderPage()
     await screen.findByTestId('knowledge-overview-grid')
+    await user.click(screen.getByTestId('knowledge-overview-menu-bit-1'))
     await user.click(screen.getByTestId('knowledge-overview-suspend-bit-1'))
 
     expect(mockedUpdate).toHaveBeenCalledWith({ data: { knowledgeBitId: 'bit-1', suspended: true } })
@@ -306,6 +307,7 @@ describe('KnowledgeOverviewPage', () => {
     serve([overviewItem(1, { state: 'suspended' })])
     renderPage()
 
+    await userEvent.click(await screen.findByTestId('knowledge-overview-menu-bit-1'))
     const button = await screen.findByTestId('knowledge-overview-suspend-bit-1')
 
     expect(button.textContent).toBe('Unsuspend')
@@ -330,7 +332,7 @@ describe('KnowledgeOverviewPage', () => {
     serve([overviewItem(1)])
     await userEvent.click(screen.getByTestId('knowledge-overview-retry'))
 
-    expect(await screen.findByTestId('knowledge-overview-suspend-bit-1')).toBeTruthy()
+    expect(await screen.findByTestId('knowledge-overview-menu-bit-1')).toBeTruthy()
     expect(screen.queryByTestId('knowledge-overview-error')).toBeNull()
   })
 })

@@ -26,6 +26,7 @@ export interface SearchableSelectProps {
   clearable?: boolean
   className?: string
   containerClassName?: string
+  maxRows?: number
 }
 
 const FIELD_CLASS =
@@ -77,6 +78,7 @@ export function SearchableSelect({
   clearable,
   className,
   containerClassName,
+  maxRows,
 }: SearchableSelectProps) {
   const baseId = useId()
   const [open, setOpen] = useState(false)
@@ -190,6 +192,7 @@ export function SearchableSelect({
           onMouseDown={(event) => event.preventDefault()}
           onClick={(event) => event.preventDefault()}
           className={POPOVER_CLASS}
+          style={maxRows ? { maxHeight: `${maxRows * 2.25 + 0.5}rem` } : undefined}
         >
           {visible.length === 0 ? (
             <li role="presentation" data-testid={testId ? `${testId}-empty` : undefined} className="px-3 py-3 text-sm text-neutral-500">
