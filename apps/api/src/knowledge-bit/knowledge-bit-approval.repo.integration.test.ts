@@ -300,7 +300,7 @@ describe("editKnowledgeBitQuestionVariant (real Postgres)", () => {
 
     const result = await editKnowledgeBitQuestionVariant(variantId, "New prompt", "New answer");
 
-    expect(result).toEqual({ ok: true, variantId: expect.any(String) });
+    expect(result).toEqual({ ok: true, variantId: expect.any(String), knowledgeBitId: bitId });
 
     const { rows } = await client.query(
       `SELECT prompt, answer, superseded_at FROM knowledge_bit_question_variants WHERE id = $1`,
@@ -336,7 +336,7 @@ describe("editKnowledgeBitQuestionVariant (real Postgres)", () => {
 
     const result = await editKnowledgeBitQuestionVariant(variantId, "New prompt", "New answer");
 
-    expect(result).toEqual({ ok: true, variantId: expect.any(String) });
+    expect(result).toEqual({ ok: true, variantId: expect.any(String), knowledgeBitId: bitId });
   });
 
   it("should let only one of two concurrent edits on the same variant win", async () => {
