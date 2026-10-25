@@ -1,4 +1,4 @@
-import { desc, lt } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { llmCallEvents } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -112,4 +112,14 @@ export async function getRecentLlmCallEvents(limit = 50): Promise<RecentLlmCallE
     totalTokens: r.totalTokens,
     createdAt: r.createdAt.toISOString(),
   }));
+}
+
+export async function countRecentLlmCallEventsByOp(op: string, windowMs: number): Promise<number> {
+  const since = new Date(Date.now() - windowMs);
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)::int` })
+    .from(llmCallEvents)
+    .where(and(eq(llmCallEvents.op, op), gte(llmCallEvents.createdAt, since)));
+
+  return row?.count ?? 0;
 }
