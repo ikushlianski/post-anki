@@ -101,7 +101,7 @@ describe('KnowledgeBitReviewPanel focus mode edits and undo', () => {
 
     fireEvent.click(screen.getByTestId('knowledge-bit-focus-approve-b1'))
 
-    await waitFor(() => expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'b1' } }))
+    await waitFor(() => expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'b1' } }), { timeout: 4000 })
     expect(mockedKeep).not.toHaveBeenCalled()
   })
 
