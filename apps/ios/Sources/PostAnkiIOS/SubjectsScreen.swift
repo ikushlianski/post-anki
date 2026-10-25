@@ -76,6 +76,7 @@ struct SubjectDetailScreen: View {
     @State private var failed = false
     @State private var hasMore = false
     @State private var gapModel = SubjectGapCloseModel()
+    @State private var showsReview = false
 
     private var hardest: [KnowledgeOverviewItem] { SubjectHardestCards.rank(cards) }
 
@@ -128,16 +129,28 @@ struct SubjectDetailScreen: View {
         .navigationTitle(subject.name)
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadCards() }
-        .mainActionControls(closeId.map { closeId in
-            [
-                MainActionTile(
-                    title: gapModel.requestedIds.contains(closeId) ? "Practice requested" : "Close this gap now",
-                    style: .prominent,
-                    isLoading: gapModel.isBusy,
-                    isDisabled: gapModel.requestedIds.contains(closeId)
-                ) { Task { await gapModel.closeGap(for: closeId) } }
-            ]
-        } ?? [])
+        .navigationDestination(isPresented: $showsReview) { DueReviewScreen(subject: subject) }
+        .mainActionControls(actionTiles)
+    }
+
+    private var actionTiles: [MainActionTile] {
+        var tiles: [MainActionTile] = []
+
+        if let closeId {
+            tiles.append(MainActionTile(
+                title: gapModel.requestedIds.contains(closeId) ? "Practice requested" : "Close this gap now",
+                style: .prominent,
+                isLoading: gapModel.isBusy,
+                isDisabled: gapModel.requestedIds.contains(closeId)
+            ) { Task { await gapModel.closeGap(for: closeId) } })
+        }
+
+        tiles.append(MainActionTile(
+            title: "Start review",
+            style: closeId == nil ? .prominent : .normal
+        ) { showsReview = true })
+
+        return tiles
     }
 
     private func loadCards() async {

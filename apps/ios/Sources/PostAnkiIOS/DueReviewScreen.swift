@@ -2,9 +2,15 @@ import PostAnkiAPI
 import SwiftUI
 
 struct DueReviewScreen: View {
-    @State private var model = DueReviewModel()
+    @State private var model: DueReviewModel
     @Environment(\.scenePhase) private var scenePhase
     @State private var editingCard: ReviewCard?
+    private let title: String
+
+    init(subject: Subject? = nil) {
+        _model = State(initialValue: DueReviewModel(subjectId: subject?.id))
+        title = subject?.name ?? "Due today"
+    }
 
     @ViewBuilder
     private var content: some View {
@@ -74,7 +80,7 @@ struct DueReviewScreen: View {
                 await model.editCurrent(prompt: prompt, answer: answer)
             }
         }
-        .navigationTitle("Due today")
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.loadIfNeeded() }
         .onChange(of: scenePhase) { _, phase in

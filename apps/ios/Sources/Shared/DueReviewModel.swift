@@ -55,9 +55,11 @@ final class DueReviewModel {
     var skippedVariantIds: Set<String> = []
     var hasLoaded = false
     let gradeQueue: PendingGradeQueue
+    let subjectId: String?
 
-    init(gradeQueue: PendingGradeQueue = .shared) {
+    init(gradeQueue: PendingGradeQueue = .shared, subjectId: String? = nil) {
         self.gradeQueue = gradeQueue
+        self.subjectId = subjectId
 
         Task { [weak self] in
             for await _ in NotificationCenter.default.notifications(named: .pendingQueuesFlushed) {
