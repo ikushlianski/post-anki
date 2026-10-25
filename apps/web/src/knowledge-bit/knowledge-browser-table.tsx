@@ -18,6 +18,7 @@ import type { ReactNode } from 'react'
 import { moveColumn } from './column-order'
 import { BROWSER_COLUMN_LABELS, renderBrowserCell } from './knowledge-browser-columns'
 import type { BrowserColumnId, BrowserSourceCellActions } from './knowledge-browser-columns'
+import { rowClickIntent } from './knowledge-browser-open-item'
 import { KnowledgeBrowserSortableHeader } from './knowledge-browser-sortable-header'
 
 export interface BrowserColumnFilters {
@@ -30,10 +31,18 @@ interface KnowledgeBrowserTableProps {
   columnOrder: BrowserColumnId[]
   onColumnOrderChange: (order: BrowserColumnId[]) => void
   selected: ReadonlySet<string>
+  openId?: string | null
+  onOpenRow?: (id: string) => void
   onToggleRow: (id: string, shift: boolean) => void
   onToggleAll: () => void
   sourceActions?: BrowserSourceCellActions
   columnFilters?: BrowserColumnFilters
+}
+
+function rowTone(isSelected: boolean, isOpen: boolean): string {
+  if (isOpen) return 'bg-blue-50'
+
+  return isSelected ? 'bg-neutral-100' : 'hover:bg-neutral-50'
 }
 
 export function KnowledgeBrowserTable({
@@ -41,6 +50,8 @@ export function KnowledgeBrowserTable({
   columnOrder,
   onColumnOrderChange,
   selected,
+  openId = null,
+  onOpenRow,
   onToggleRow,
   onToggleAll,
   sourceActions,
@@ -97,14 +108,19 @@ export function KnowledgeBrowserTable({
                 key={row.knowledgeBitId}
                 data-testid="knowledge-browser-row"
                 aria-selected={selected.has(row.knowledgeBitId)}
+                data-row-id={row.knowledgeBitId}
+                aria-current={openId === row.knowledgeBitId ? 'true' : undefined}
+                tabIndex={-1}
                 onClick={(event) => {
-                  if ((event.target as HTMLElement).closest('button, a, input, label')) {
-                    return
-                  }
+                  const intent = rowClickIntent(event)
 
-                  onToggleRow(row.knowledgeBitId, event.shiftKey)
+                  if (intent === 'open') {
+                    onOpenRow?.(row.knowledgeBitId)
+                  } else if (intent === 'range' || intent === 'toggle') {
+                    onToggleRow(row.knowledgeBitId, intent === 'range')
+                  }
                 }}
-                className={`cursor-pointer select-none border-t border-neutral-200 align-middle ${selected.has(row.knowledgeBitId) ? 'bg-neutral-100' : 'hover:bg-neutral-50'}`}
+                className={`cursor-pointer select-none border-t border-neutral-200 align-middle outline-none ${rowTone(selected.has(row.knowledgeBitId), openId === row.knowledgeBitId)}`}
               >
                 <td className="px-3 py-2">
                   <input

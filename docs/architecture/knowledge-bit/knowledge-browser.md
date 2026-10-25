@@ -27,6 +27,14 @@ The knowledge browser lists approved pieces with filters, a total count and pagi
 - Unknown, unapproved or phrasing-less ids answer 404 `not_found`. The read is free and never writes.
 - It is registered after every fixed `GET /knowledge-bits/*` route so `overview`, `browser`, `export` and the others keep resolving; the router test guards the order.
 
+## Detail slide-over
+
+- A plain click on a row opens a read-only slide-over with the piece's full version; it never changes the selection. Selecting is by the row checkbox, shift-click (range) and command or control click (toggle one). Clicks on a link, button, input or label inside a row do nothing to the panel.
+- The panel loads its piece with the single-piece read, keyed by id, and refetches whenever browser data is invalidated. When the row is in the loaded list its text paints first; otherwise the panel waits for the read. A 404 shows "no longer exists"; a failed read shows an error with Retry and keeps the row text.
+- The open piece lives in the page address as `open`. It is not a filter: it is not counted, not shown as a chip, and is carried through filter, subject, meaning search and Clear all changes. Opening from a closed panel adds a history entry, switching pieces and closing replace it, and closing removes the field.
+- The panel renders from its own read, so list refetches, Load more, filters and meaning search cannot close or blank it.
+- Escape closes the panel before it clears a selection (the panel listens in the capture phase and marks the event handled). The Delete key is ignored while the panel is open, except inside text fields.
+
 ## Operating rules
 
 - Stored pieces do not record their embedding model; changing `EMBEDDING_MODEL` without re-embedding makes rankings meaningless.

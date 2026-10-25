@@ -29,6 +29,7 @@ export type BrowserSearch = {
   from?: string
   to?: string
   states?: string
+  open?: string
 }
 
 export const BROWSER_ORIGIN_LABELS: Record<KnowledgeBitBrowserOrigin, string> = {
@@ -109,11 +110,18 @@ export function meaningWordsFrom(value: unknown): string | undefined {
   return trimmed === '' ? undefined : trimmed
 }
 
+export function openIdFrom(value: unknown): string | undefined {
+  const text = typeof value === 'number' ? String(value) : value
+
+  return typeof text === 'string' && text.trim() !== '' ? text.trim() : undefined
+}
+
 export function parseBrowserSearch(raw: Record<string, unknown>): BrowserSearch {
   return {
     ...(typeof raw.subject === 'string' && raw.subject !== '' ? { subject: raw.subject } : {}),
     ...(raw.view === 'subjects' ? { view: 'subjects' as const } : {}),
     ...(meaningWordsFrom(raw.q) ? { q: meaningWordsFrom(raw.q) } : {}),
+    ...(openIdFrom(raw.open) ? { open: openIdFrom(raw.open) } : {}),
     ...searchFromFilters(filtersFromSearch(raw)),
   }
 }

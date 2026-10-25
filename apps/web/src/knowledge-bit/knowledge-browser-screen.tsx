@@ -1,12 +1,15 @@
+import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
-import type { KnowledgeBitBrowserFilters } from '@post-anki/shared'
+import type { KnowledgeBitBrowserFilters, KnowledgeBitBrowserItem } from '@post-anki/shared'
 
 import { CardListLoadError } from './card-list-load-error'
 import { KnowledgeBrowserColumnFilter } from './knowledge-browser-column-filter'
 import type { BrowserFiltersChange } from './knowledge-browser-column-filter'
 import { filteredColumns, hasAnyFilter } from './knowledge-browser-filters'
+import { KnowledgeBrowserDetailPanel } from './knowledge-browser-detail-panel'
 import { KnowledgeBrowserMeaningSearch } from './knowledge-browser-meaning-search'
+import { BROWSER_ROW_SELECTOR } from './knowledge-browser-slide-over'
 import { KnowledgeBrowserToolbar } from './knowledge-browser-toolbar'
 import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
@@ -32,6 +35,8 @@ export interface KnowledgeBrowserScreenProps {
   onFiltersChange?: BrowserFiltersChange
   onSubjectChange?: (subjectId: string | null) => void
   onClearAll?: () => void
+  openId?: string | null
+  onOpenChange?: (id: string | null) => void
   meaningWords?: string
   onMeaningWordsChange?: (words: string | undefined) => void
 }
@@ -65,6 +70,8 @@ function KnowledgeBrowserCardTable({
   onFiltersChange = () => undefined,
   onSubjectChange = () => undefined,
   onClearAll = () => undefined,
+  openId = null,
+  onOpenChange = () => undefined,
   meaningWords,
   onMeaningWordsChange = () => undefined,
 }: Omit<KnowledgeBrowserScreenProps, 'view'>) {
@@ -74,6 +81,14 @@ function KnowledgeBrowserCardTable({
   const meaning = matches.active
   const rows = meaning ? matches.rows : data.rows
   const selection = useKnowledgeBrowserSelectionDelete(rows.map((row) => row.knowledgeBitId))
+  const lastOpenRow = useRef<KnowledgeBitBrowserItem | null>(null)
+  const listedOpenRow = openId ? rows.find((row) => row.knowledgeBitId === openId) : undefined
+
+  if (listedOpenRow) {
+    lastOpenRow.current = listedOpenRow
+  }
+
+  const openRow = listedOpenRow ?? (lastOpenRow.current?.knowledgeBitId === openId ? lastOpenRow.current : null)
   const sourceDelete = useKnowledgeBrowserSourceDelete(rows, selection.clear)
   const activeSource = singleSelectedSource(rows, selection.selected)
   const columns = useKnowledgeBrowserColumnOrder(subjectId ?? ALL_SUBJECTS_TABLE_ID)
@@ -168,6 +183,8 @@ function KnowledgeBrowserCardTable({
           columnOrder={columns.order}
           onColumnOrderChange={columns.changeOrder}
           selected={selection.selected}
+          openId={openId}
+          onOpenRow={onOpenChange}
           onToggleRow={selection.toggleRow}
           onToggleAll={selection.toggleAll}
           sourceActions={{ countFor: sourceDelete.countFor, onDeleteSource: sourceDelete.open }}
@@ -190,6 +207,20 @@ function KnowledgeBrowserCardTable({
           {data.loadingMore ? 'Loading…' : 'Load more'}
         </button>
       )}
+      {openId && (
+        <KnowledgeBrowserDetailPanel
+          id={openId}
+          row={openRow}
+          onClose={() => onOpenChange(null)}
+          getReturnFocus={() => findRowElement(openId)}
+        />
+      )}
     </BrowserShell>
   )
+}
+
+function findRowElement(id: string): HTMLElement | null {
+  const rowElements = Array.from(document.querySelectorAll<HTMLElement>(BROWSER_ROW_SELECTOR))
+
+  return rowElements.find((element) => element.dataset.rowId === id) ?? null
 }

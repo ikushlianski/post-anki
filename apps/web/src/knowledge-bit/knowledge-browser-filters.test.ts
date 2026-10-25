@@ -52,6 +52,19 @@ describe('browser filters in the page address', () => {
     expect(parseBrowserSearch({ view: 'subjects', subject: '' })).toEqual({ view: 'subjects' })
   })
 
+  it('should reopen the open piece from a shared link without counting it as a filter', () => {
+    const search = parseBrowserSearch({ open: ' b1 ', question: 'pod' })
+
+    expect(search).toEqual({ open: 'b1', question: 'pod' })
+    expect(countActiveFilters(filtersFromSearch(search))).toBe(1)
+    expect(hasAnyFilter(filtersFromSearch(search))).toBe(true)
+    expect(hasAnyFilter(filtersFromSearch({ open: 'b1' }))).toBe(false)
+  })
+
+  it('should drop an empty open piece from the address', () => {
+    expect(parseBrowserSearch({ open: '  ' })).toEqual({})
+  })
+
   it('should treat a typed site as a link requirement', () => {
     expect(filtersFromSearch({ site: 'https://www.wikipedia.org/wiki/X' })).toEqual({
       link: 'has',

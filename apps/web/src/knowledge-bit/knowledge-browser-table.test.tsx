@@ -116,3 +116,80 @@ describe('KnowledgeBrowserTable column filters and visibility', () => {
     expect(percents[0].textContent).toBe('87% match')
   })
 })
+
+describe('KnowledgeBrowserTable row clicks', () => {
+  function renderClickable() {
+    const onOpenRow = vi.fn()
+    const onToggleRow = vi.fn()
+
+    render(
+      <KnowledgeBrowserTable
+        rows={[{ ...item, sourceId: 's1' }]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        selected={new Set<string>()}
+        onToggleAll={vi.fn()}
+        onOpenRow={onOpenRow}
+        onToggleRow={onToggleRow}
+        sourceActions={{ countFor: () => 2, onDeleteSource: vi.fn() }}
+      />,
+    )
+
+    return { onOpenRow, onToggleRow }
+  }
+
+  it('should open the piece and leave the selection alone when a row is clicked', () => {
+    const { onOpenRow, onToggleRow } = renderClickable()
+
+    fireEvent.click(screen.getByText('The smallest deployable unit'))
+
+    expect(onOpenRow).toHaveBeenCalledWith('b1')
+    expect(onToggleRow).not.toHaveBeenCalled()
+  })
+
+  it('should select the range on shift-click and toggle one piece on command or control click without opening', () => {
+    const { onOpenRow, onToggleRow } = renderClickable()
+    const row = screen.getByTestId('knowledge-browser-row')
+
+    fireEvent.click(row, { shiftKey: true })
+    fireEvent.click(row, { metaKey: true })
+    fireEvent.click(row, { ctrlKey: true })
+
+    expect(onToggleRow.mock.calls).toEqual([['b1', true], ['b1', false], ['b1', false]])
+    expect(onOpenRow).not.toHaveBeenCalled()
+  })
+
+  it('should select through the checkbox without opening the piece', () => {
+    const { onOpenRow, onToggleRow } = renderClickable()
+
+    fireEvent.click(screen.getByTestId('knowledge-browser-select-row'))
+
+    expect(onToggleRow).toHaveBeenCalledWith('b1', false)
+    expect(onOpenRow).not.toHaveBeenCalled()
+  })
+
+  it('should not open the piece when a source button inside the row is clicked', () => {
+    const { onOpenRow } = renderClickable()
+
+    fireEvent.click(screen.getByTestId('knowledge-browser-row-delete-source'))
+
+    expect(onOpenRow).not.toHaveBeenCalled()
+  })
+
+  it('should highlight only the open row', () => {
+    render(
+      <KnowledgeBrowserTable
+        rows={[item, { ...item, knowledgeBitId: 'b2' }]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        openId="b2"
+        {...selectionProps}
+      />,
+    )
+
+    const [first, second] = screen.getAllByTestId('knowledge-browser-row')
+
+    expect(first.getAttribute('aria-current')).toBeNull()
+    expect(second.getAttribute('aria-current')).toBe('true')
+  })
+})

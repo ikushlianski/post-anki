@@ -7,6 +7,7 @@ import {
   searchFromFilters,
 } from '../knowledge-bit/knowledge-browser-filters'
 import type { BrowserSearch } from '../knowledge-bit/knowledge-browser-filters'
+import { openNavigationMode, withOpen } from '../knowledge-bit/knowledge-browser-open-item'
 
 export const Route = createFileRoute('/knowledge/browser')({
   validateSearch: (search: Record<string, unknown>): BrowserSearch => parseBrowserSearch(search),
@@ -22,6 +23,13 @@ function KnowledgeBrowserRoute() {
       subjectId={search.subject ?? null}
       view={search.view}
       filters={filtersFromSearch(search)}
+      openId={search.open ?? null}
+      onOpenChange={(id) =>
+        void navigate({
+          search: (prev) => withOpen(prev, id),
+          replace: openNavigationMode(search.open, id) === 'replace',
+        })
+      }
       meaningWords={search.q}
       onMeaningWordsChange={(words) =>
         void navigate({
@@ -30,12 +38,16 @@ function KnowledgeBrowserRoute() {
       }
       onFiltersChange={(next, mode) =>
         void navigate({
-          search: (prev) => ({
-            ...(prev.subject ? { subject: prev.subject } : {}),
-            ...(prev.view ? { view: prev.view } : {}),
-            ...(prev.q ? { q: prev.q } : {}),
-            ...searchFromFilters(next),
-          }),
+          search: (prev) =>
+            withOpen(
+              {
+                ...(prev.subject ? { subject: prev.subject } : {}),
+                ...(prev.view ? { view: prev.view } : {}),
+                ...(prev.q ? { q: prev.q } : {}),
+                ...searchFromFilters(next),
+              },
+              prev.open,
+            ),
           replace: mode === 'replace',
         })
       }
@@ -43,7 +55,9 @@ function KnowledgeBrowserRoute() {
         void navigate({ search: (prev) => ({ ...prev, subject: subject ?? undefined }) })
       }
       onClearAll={() =>
-        void navigate({ search: (prev) => ({ ...(prev.subject ? { subject: prev.subject } : {}) }) })
+        void navigate({
+          search: (prev) => withOpen(prev.subject ? { subject: prev.subject } : {}, prev.open),
+        })
       }
     />
   )

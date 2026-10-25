@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
 
 const purge = vi.hoisted(() => vi.fn())
+const openRow = vi.hoisted(() => vi.fn())
 
 vi.mock('./knowledge-browser-purge.api', () => ({ purgeKnowledgeBits: purge }))
 
@@ -32,6 +33,7 @@ function Harness() {
         columnOrder={['phrasings', 'answer']}
         onColumnOrderChange={vi.fn()}
         selected={state.selected}
+        onOpenRow={openRow}
         onToggleRow={state.toggleRow}
         onToggleAll={state.toggleAll}
       />
@@ -54,7 +56,10 @@ function checkboxes() {
   return screen.getAllByTestId('knowledge-browser-select-row')
 }
 
-beforeEach(() => purge.mockReset())
+beforeEach(() => {
+  purge.mockReset()
+  openRow.mockReset()
+})
 afterEach(cleanup)
 
 describe('Knowledge browser select and delete', () => {
@@ -78,11 +83,15 @@ describe('Knowledge browser select and delete', () => {
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
   })
 
-  it('should select a piece when its row is clicked anywhere, and extend with shift-click and command-click', () => {
+  it('should leave the selection alone when a row is clicked and extend it with shift-click and command-click', () => {
     renderHarness()
     const rowsEls = screen.getAllByTestId('knowledge-browser-row')
 
-    fireEvent.click(screen.getByText('A b1'))
+    fireEvent.click(checkboxes()[0])
+    fireEvent.click(screen.getByText('A b2'))
+
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('1 selected')
+
     fireEvent.click(rowsEls[2], { shiftKey: true })
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
@@ -91,9 +100,18 @@ describe('Knowledge browser select and delete', () => {
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('4 selected')
 
-    fireEvent.click(rowsEls[1], { metaKey: true })
+    fireEvent.click(rowsEls[1], { ctrlKey: true })
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
+  })
+
+  it('should open the piece instead of selecting it when a row is clicked with nothing selected', () => {
+    renderHarness()
+
+    fireEvent.click(screen.getByText('A b1'))
+
+    expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('0 selected')
+    expect(openRow).toHaveBeenCalledWith('b1')
   })
 
   it('should select every piece on the page with the header checkbox and clear with Clear selection', () => {
