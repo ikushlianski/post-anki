@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
 
 import { KnowledgeBrowserDetailBody, KnowledgeBrowserDetailPreview } from './knowledge-browser-detail-body'
+import { isTypingTarget } from './knowledge-browser-open-item'
 import { KnowledgeBrowserSlideOver } from './knowledge-browser-slide-over'
 import { useKnowledgeBrowserDetail } from './use-knowledge-browser-detail'
 
@@ -13,13 +14,6 @@ interface KnowledgeBrowserDetailPanelProps {
 }
 
 const MAX_TITLE = 60
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
-}
 
 function useIgnoreDeleteKey() {
   useEffect(() => {

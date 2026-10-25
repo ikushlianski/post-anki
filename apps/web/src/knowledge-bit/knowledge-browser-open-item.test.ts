@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { openNavigationMode, rowClickIntent, withOpen } from './knowledge-browser-open-item'
+import { isTypingTarget, neighbourId, openNavigationMode, rowClickIntent, withOpen } from './knowledge-browser-open-item'
 
 const plain = { shiftKey: false, metaKey: false, ctrlKey: false }
 
@@ -53,5 +53,34 @@ describe('withOpen', () => {
 
   it('should replace the open piece when another one is given', () => {
     expect(withOpen({ open: 'b1' }, 'b2')).toEqual({ open: 'b2' })
+  })
+})
+
+describe('neighbourId', () => {
+  const ids = ['a', 'b', 'c']
+
+  it('should give the next and previous visible piece', () => {
+    expect(neighbourId(ids, 'b', 'next')).toBe('c')
+    expect(neighbourId(ids, 'b', 'previous')).toBe('a')
+  })
+
+  it('should stop at the first and last piece instead of wrapping', () => {
+    expect(neighbourId(ids, 'a', 'previous')).toBeNull()
+    expect(neighbourId(ids, 'c', 'next')).toBeNull()
+  })
+
+  it('should give nothing when the open piece is filtered out of the list or nothing is open', () => {
+    expect(neighbourId(ids, 'zzz', 'next')).toBeNull()
+    expect(neighbourId(ids, null, 'next')).toBeNull()
+    expect(neighbourId([], 'a', 'next')).toBeNull()
+  })
+})
+
+describe('isTypingTarget', () => {
+  it('should treat inputs and text areas as typing and rows as not typing', () => {
+    expect(isTypingTarget(document.createElement('input'))).toBe(true)
+    expect(isTypingTarget(document.createElement('textarea'))).toBe(true)
+    expect(isTypingTarget(document.createElement('tr'))).toBe(false)
+    expect(isTypingTarget(null)).toBe(false)
   })
 })

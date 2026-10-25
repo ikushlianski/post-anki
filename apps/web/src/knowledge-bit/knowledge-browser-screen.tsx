@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import type { KnowledgeBitBrowserFilters, KnowledgeBitBrowserItem } from '@post-anki/shared'
@@ -15,6 +15,7 @@ import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM } from './knowledge-brows
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
 import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
+import { useKnowledgeBrowserArrowKeys } from './use-knowledge-browser-arrow-keys'
 import { useKnowledgeBrowserColumnOrder } from './use-knowledge-browser-column-order'
 import { useKnowledgeBrowserRows } from './use-knowledge-browser-data'
 import { useKnowledgeBrowserMatches } from './use-knowledge-browser-matches'
@@ -81,6 +82,10 @@ function KnowledgeBrowserCardTable({
   const meaning = matches.active
   const rows = meaning ? matches.rows : data.rows
   const selection = useKnowledgeBrowserSelectionDelete(rows.map((row) => row.knowledgeBitId))
+  const rowIds = useMemo(() => rows.map((row) => row.knowledgeBitId), [rows])
+
+  useKnowledgeBrowserArrowKeys(rowIds, openId, onOpenChange)
+
   const lastOpenRow = useRef<KnowledgeBitBrowserItem | null>(null)
   const listedOpenRow = openId ? rows.find((row) => row.knowledgeBitId === openId) : undefined
 

@@ -34,3 +34,22 @@ export function withOpen(search: BrowserSearch, open: string | null | undefined)
 
   return open ? { ...rest, open } : rest
 }
+
+export type ArrowDirection = 'previous' | 'next'
+
+export function neighbourId(ids: readonly string[], openId: string | null, direction: ArrowDirection): string | null {
+  const index = openId ? ids.indexOf(openId) : -1
+
+  if (index === -1) {
+    return null
+  }
+
+  return ids[direction === 'next' ? index + 1 : index - 1] ?? null
+}
+
+export function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  )
+}

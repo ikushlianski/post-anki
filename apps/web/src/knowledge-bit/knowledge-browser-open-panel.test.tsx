@@ -260,3 +260,58 @@ describe('knowledge browser panel survives list changes', () => {
     expect(await screen.findByTestId('knowledge-browser-detail-missing')).toBeTruthy()
   })
 })
+
+describe('knowledge browser arrow keys with the panel open', () => {
+  it('should move to the next and previous row and stop at both ends of the list', async () => {
+    renderScreen('b2')
+    await screen.findByTestId('knowledge-browser-detail-meta')
+
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+    fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+    fireEvent.keyDown(document.body, { key: 'ArrowUp' })
+
+    expect(opens).toEqual(['b3', 'b2', 'b1'])
+    expect(rowEl('b1').getAttribute('aria-current')).toBe('true')
+  })
+
+  it('should keep the arrows for typing while focus is in the search box', async () => {
+    renderScreen('b2')
+    await screen.findByTestId('knowledge-browser-detail-meta')
+    const box = document.createElement('input')
+
+    document.body.appendChild(box)
+    box.focus()
+    fireEvent.keyDown(box, { key: 'ArrowDown' })
+    box.remove()
+
+    expect(opens).toEqual([])
+  })
+
+  it('should do nothing when the panel is closed', () => {
+    renderScreen()
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+
+    expect(opens).toEqual([])
+  })
+
+  it('should do nothing when a filter hides the open piece from the list', async () => {
+    renderScreen('b2')
+    await screen.findByTestId('knowledge-browser-detail-meta')
+    world.rows = []
+    fireEvent.click(screen.getByTestId('harness-filter'))
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+
+    expect(opens).toEqual([])
+  })
+
+  it('should still close the panel on the first Escape after moving with the arrows', async () => {
+    renderScreen('b1')
+    await screen.findByTestId('knowledge-browser-detail-meta')
+    fireEvent.keyDown(document.body, { key: 'ArrowDown' })
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+
+    expect(opens).toEqual(['b2', null])
+  })
+})
