@@ -25,10 +25,7 @@ function post(headers: Record<string, string> = {}) {
 
 describe('auth proxy', () => {
   it.each([
-    ['POST', 'sign-in/magic-link'],
-    ['POST', 'sign-in/api-key'],
     ['POST', 'sign-in/email'],
-    ['GET', 'magic-link/verify'],
     ['POST', 'sign-out'],
   ])('should forward %s %s to the API', async (method, endpoint) => {
     fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
@@ -46,10 +43,10 @@ describe('auth proxy', () => {
   it.each([
     ['POST', 'sign-up/email'],
     ['GET', 'get-session'],
-    ['GET', 'sign-in/magic-link'],
-    ['GET', 'sign-in/api-key'],
+    ['POST', 'sign-in/magic-link'],
+    ['POST', 'sign-in/api-key'],
+    ['GET', 'magic-link/verify'],
     ['GET', 'sign-in/email'],
-    ['POST', 'magic-link/verify'],
     ['GET', ''],
   ])('should answer 404 for %s %s without calling the API', async (method, endpoint) => {
     const response = await proxyAuthRequest(
@@ -113,8 +110,8 @@ describe('auth proxy', () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 302, headers: upstreamHeaders }))
 
     const response = await proxyAuthRequest(
-      new Request('https://postanki.ilya.online/api/auth/magic-link/verify?token=t'),
-      'magic-link/verify',
+      new Request('https://postanki.ilya.online/api/auth/sign-in/email', { method: 'POST', body: '{}' }),
+      'sign-in/email',
     )
 
     expect(response.status).toBe(302)
@@ -150,7 +147,7 @@ describe('auth proxy', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: 'a'.repeat(5000) }),
       }),
-      'sign-in/magic-link',
+      'sign-in/email',
     )
 
     expect(response.status).toBe(413)
