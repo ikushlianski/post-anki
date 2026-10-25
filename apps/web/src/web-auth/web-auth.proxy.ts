@@ -6,6 +6,8 @@ const ALLOWED_ENDPOINTS: Record<string, string> = {
   'sign-out': 'POST',
 }
 
+const MAX_BODY_CHARS = 4096
+
 const FORWARDED_REQUEST_HEADERS = ['cookie', 'origin', 'content-type'] as const
 const STRIPPED_RESPONSE_HEADERS = new Set([
   'host',
@@ -68,19 +70,35 @@ export function buildDownstreamHeaders(upstream: Headers): Headers {
   return headers
 }
 
+async function readBoundedBody(request: Request): Promise<string | null> {
+  const declared = Number(request.headers.get('content-length') ?? 0)
+
+  if (declared > MAX_BODY_CHARS) {
+    return null
+  }
+
+  const body = await request.text()
+
+  return body.length > MAX_BODY_CHARS ? null : body
+}
+
 export async function proxyAuthRequest(request: Request, endpoint: string): Promise<Response> {
   if (!isAllowedAuthEndpoint(request.method, endpoint)) {
     return new Response('Not found', { status: 404 })
   }
 
   const { search } = new URL(request.url)
-  const hasBody = request.method !== 'GET'
+  const body = request.method === 'GET' ? undefined : await readBoundedBody(request)
+
+  if (body === null) {
+    return new Response('Request too large', { status: 413 })
+  }
 
   try {
     const upstream = await fetch(`${apiBaseUrl()}/api/auth/${endpoint}${search}`, {
       method: request.method,
       headers: buildUpstreamHeaders(request.headers),
-      body: hasBody ? await request.text() : undefined,
+      body,
       redirect: 'manual',
     })
 

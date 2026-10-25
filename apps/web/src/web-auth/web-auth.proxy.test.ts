@@ -138,4 +138,18 @@ describe('auth proxy', () => {
     expect(response.headers.get('connection')).toBeNull()
     expect(response.headers.get('keep-alive')).toBeNull()
   })
+
+  it('should refuse an oversized sign-in body without calling the API', async () => {
+    const response = await proxyAuthRequest(
+      new Request('https://postanki.ilya.online/api/auth/x', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: 'a'.repeat(5000) }),
+      }),
+      'sign-in/magic-link',
+    )
+
+    expect(response.status).toBe(413)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })
