@@ -45,12 +45,17 @@ describe("subject learning intent migration", () => {
   it("seeds the Business root intent only and leaves existing intents and other subjects alone", async () => {
     await adminPool.query(`CREATE DATABASE ${dbName}`);
     cpSync(fullFolder, priorFolder, { recursive: true });
-    rmSync(join(priorFolder, `${MIGRATION_TAG}.sql`));
 
     const journalPath = join(priorFolder, "meta", "_journal.json");
     const journal = JSON.parse(readFileSync(journalPath, "utf8")) as { entries: { tag: string }[] };
 
-    journal.entries = journal.entries.filter((entry) => entry.tag !== MIGRATION_TAG);
+    const cutIndex = journal.entries.findIndex((entry) => entry.tag === MIGRATION_TAG);
+
+    for (const entry of journal.entries.slice(cutIndex)) {
+      rmSync(join(priorFolder, `${entry.tag}.sql`));
+    }
+
+    journal.entries = journal.entries.slice(0, cutIndex);
     writeFileSync(journalPath, JSON.stringify(journal));
     await migrateFolder(priorFolder);
 
