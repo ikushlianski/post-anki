@@ -67,6 +67,7 @@ export * from "./knowledge-bit-review";
 export * from "./knowledge-bit-suspended";
 export * from "./subject-review-due";
 export * from "./knowledge-bit-review-feedback";
+export * from "./card-triage-decision";
 export * from "./card-triage-session";
 export * from "./knowledge-bit-overview";
 export * from "./knowledge-cleanup";

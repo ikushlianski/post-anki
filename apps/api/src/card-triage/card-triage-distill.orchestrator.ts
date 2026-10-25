@@ -1,9 +1,13 @@
-import { and, desc, eq, gte } from "drizzle-orm";
-import { STYLE_NOTE_MAX_CHARS, STYLE_NOTES_MAX_COUNT } from "@post-anki/shared";
+import { and, asc, desc, eq, gte, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { STYLE_NOTE_MAX_CHARS, STYLE_NOTES_MAX_COUNT, TRIAGE_CARD_FEEDBACK_MAX_ITEMS } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
-import { knowledgeBitFeedback } from "../db/schema.js";
+import { cardTriageDecisions, knowledgeBitFeedback } from "../db/schema.js";
 import { log } from "../shared/log.js";
-import { runCardStyleNotesDistiller, type DistillerInput } from "../mastra/card-style-notes-distiller.agent.js";
+import {
+  runCardStyleNotesDistiller,
+  type CardFeedbackItem,
+  type DistillerInput,
+} from "../mastra/card-style-notes-distiller.agent.js";
 import { listActiveStyleNotes, replaceActiveStyleNotes, type NewStyleNote } from "./card-style-note.repo.js";
 import { getTriageSessionRow, type TriageSessionRow } from "./card-triage-session.repo.js";
 
@@ -34,6 +38,39 @@ async function loadRejectedExamples(session: TriageSessionRow): Promise<string[]
   return rows.map((row) => (row.front ?? row.statement).slice(0, STYLE_NOTE_MAX_CHARS));
 }
 
+export async function loadCardFeedback(sessionId: string): Promise<CardFeedbackItem[]> {
+  const rows = await getDb()
+    .select({
+      verdict: cardTriageDecisions.verdict,
+      reasonCode: cardTriageDecisions.reasonCode,
+      note: cardTriageDecisions.note,
+      front: cardTriageDecisions.front,
+    })
+    .from(cardTriageDecisions)
+    .where(
+      and(
+        eq(cardTriageDecisions.sessionId, sessionId),
+        isNull(cardTriageDecisions.undoneAt),
+        or(
+          isNotNull(cardTriageDecisions.note),
+          and(isNotNull(cardTriageDecisions.reasonCode), ne(cardTriageDecisions.reasonCode, "unspecified")),
+        ),
+      ),
+    )
+    .orderBy(
+      sql`case when ${cardTriageDecisions.verdict} = 'rejected' then 0 else 1 end`,
+      asc(cardTriageDecisions.orderIndex),
+    )
+    .limit(TRIAGE_CARD_FEEDBACK_MAX_ITEMS);
+
+  return rows.map((row) => ({
+    verdict: row.verdict === "rejected" ? "rejected" : "approved",
+    reason: row.reasonCode && row.reasonCode !== "unspecified" ? row.reasonCode : null,
+    note: row.note,
+    front: row.front,
+  }));
+}
+
 async function defaultLoadInput(session: TriageSessionRow): Promise<DistillerInput> {
   const current = await listActiveStyleNotes(session.subjectId, { enabledOnly: true });
 
@@ -42,6 +79,7 @@ async function defaultLoadInput(session: TriageSessionRow): Promise<DistillerInp
     acceptedCount: session.acceptedCount,
     rejectedCount: session.rejectedCount,
     rejectedExamples: await loadRejectedExamples(session),
+    cardFeedback: await loadCardFeedback(session.id),
     currentNotes: current.map((note) => ({ text: note.text, scope: note.subjectId === null ? "global" : "subject" })),
   };
 }
@@ -79,18 +117,24 @@ export async function distillTriageSession(
 ): Promise<DistillOutcome> {
   const session = await getTriageSessionRow(sessionId);
 
-  if (!session || session.status !== "saved_text_only" || !session.feedbackText) {
+  if (!session || session.status !== "saved_text_only") {
     return "skipped";
   }
 
   try {
-    const proposed = await deps.run(await deps.loadInput(session));
+    const input = await deps.loadInput(session);
+
+    if (input.feedbackText === "" && input.cardFeedback.length === 0) {
+      return "skipped";
+    }
+
+    const proposed = await deps.run(input);
 
     await deps.replace(session.id, session.subjectId, toNewStyleNotes(proposed, session.subjectId));
 
     return "distilled";
   } catch (err) {
-    log.warn({ err, sessionId }, "card_triage_distill_failed");
+    log.warn({ sessionId, errorName: err instanceof Error ? err.name : "unknown" }, "card_triage_distill_failed");
 
     return "saved_text_only";
   }

@@ -833,6 +833,36 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "POST",
+    pattern: /^\/triage-sessions\/([^/]+)\/discards$/,
+    name: "discardTriageSession",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/triage-sessions\/([^/]+)\/decisions$/,
+    name: "listTriageDecisions",
+    param: "id",
+  },
+  {
+    method: "GET",
+    pattern: /^\/triage-sessions\/([^/]+)\/decisions\/([^/]+)$/,
+    name: "getTriageDecision",
+    params: ["id", "bitId"],
+  },
+  {
+    method: "PUT",
+    pattern: /^\/triage-sessions\/([^/]+)\/decisions\/([^/]+)$/,
+    name: "putTriageDecision",
+    params: ["id", "bitId"],
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/triage-sessions\/([^/]+)\/decisions\/([^/]+)$/,
+    name: "deleteTriageDecision",
+    params: ["id", "bitId"],
+  },
+  {
+    method: "POST",
     pattern: /^\/triage-sessions\/([^/]+)\/distill$/,
     name: "distillTriageSession",
     param: "id",

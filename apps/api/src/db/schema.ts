@@ -1393,16 +1393,65 @@ export const knowledgeBitFeedback = pgTable(
 );
 
 // One row per bulk card-triage session; feedbackText is the user's pasted or dictated summary.
-export const cardTriageSessions = pgTable("card_triage_sessions", {
-  id: text("id").primaryKey(),
-  subjectId: text("subject_id"),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
-  status: text("status").notNull().default("open"),
-  acceptedCount: integer("accepted_count").notNull().default(0),
-  rejectedCount: integer("rejected_count").notNull().default(0),
-  feedbackText: text("feedback_text"),
-});
+export const cardTriageSessions = pgTable(
+  "card_triage_sessions",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    status: text("status").notNull().default("open"),
+    acceptedCount: integer("accepted_count").notNull().default(0),
+    rejectedCount: integer("rejected_count").notNull().default(0),
+    feedbackText: text("feedback_text"),
+    client: text("client"),
+    startKey: text("start_key"),
+    endedBy: text("ended_by"),
+    undecidedCount: integer("undecided_count"),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("card_triage_sessions_start_key_unique")
+      .on(table.startKey)
+      .where(sql`${table.startKey} is not null`),
+  ],
+);
+
+// One row per decision made inside a triage session. Decision facts are insert-only; only note,
+// reasonCode and undoneAt change. A changed verdict adds a new row and marks the old one undone.
+export const cardTriageDecisions = pgTable(
+  "card_triage_decisions",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").notNull(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    verdict: text("verdict").notNull(),
+    reasonCode: text("reason_code"),
+    note: text("note"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),
+    orderIndex: integer("order_index").notNull(),
+    msSincePrevious: integer("ms_since_previous"),
+    dwellMs: integer("dwell_ms"),
+    subjectId: text("subject_id"),
+    knowledgeSourceId: text("knowledge_source_id"),
+    extractionModelId: text("extraction_model_id"),
+    extractionRun: integer("extraction_run"),
+    reviewFlag: text("review_flag"),
+    variants: jsonb("variants").$type<{ id: string; kind: string; kept: boolean }[]>(),
+    front: text("front"),
+    back: text("back"),
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
+    source: text("source").notNull().default("client"),
+    feedbackId: text("feedback_id"),
+  },
+  (table) => [
+    index("card_triage_decisions_session_order_idx").on(table.sessionId, table.orderIndex),
+    index("card_triage_decisions_bit_idx").on(table.knowledgeBitId),
+    uniqueIndex("card_triage_decisions_live_unique")
+      .on(table.sessionId, table.knowledgeBitId)
+      .where(sql`${table.undoneAt} is null`),
+  ],
+);
 
 // Short style preferences distilled from a session. subjectId null means global; superseded_at
 // null means the row is part of the active set.

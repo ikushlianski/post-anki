@@ -97,7 +97,7 @@ async function seedBit(subjectId: string | null): Promise<string> {
 }
 
 async function openSession(subjectId: string | null = null) {
-  return sessionRepo.startTriageSession(subjectId);
+  return (await sessionRepo.startTriageSession({ subjectId })).session;
 }
 
 describe("finishTriageSession (real Postgres)", () => {
@@ -141,7 +141,7 @@ describe("finishTriageSession (real Postgres)", () => {
 
     await sessionRepo.finishTriageSession(session.id, { feedbackText: "", decisions: [] });
 
-    await expect(sessionRepo.finishTriageSession(session.id, { feedbackText: "", decisions: [] })).resolves.toEqual({
+    await expect(sessionRepo.finishTriageSession(session.id, { feedbackText: "", decisions: [] })).resolves.toMatchObject({
       status: "already_finished",
     });
   });

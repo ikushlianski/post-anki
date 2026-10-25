@@ -12,6 +12,7 @@ const PROMPT_TAG_NAMES = [
   "style_notes",
   "session_feedback",
   "rejected_examples",
+  "card_feedback",
   "current_notes",
   "learning_intent",
   "lessons",

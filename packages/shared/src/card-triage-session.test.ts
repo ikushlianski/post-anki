@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  discardTriageSessionInput,
   finishTriageSessionInput,
   startTriageSessionInput,
   TRIAGE_FEEDBACK_MAX_CHARS,
@@ -27,6 +28,38 @@ describe("finishTriageSessionInput", () => {
     const result = finishTriageSessionInput.safeParse({ decisions: [{ bitId: "b1", verdict: "skipped" }] });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("finishTriageSessionInput extras", () => {
+  it("should carry the undecided count and per-card notes of a new client", () => {
+    const parsed = finishTriageSessionInput.parse({
+      undecidedCount: 4,
+      decisions: [{ bitId: "b1", verdict: "rejected", reasonCode: "meta_wording", note: "n", dwellMs: 1200 }],
+    });
+
+    expect(parsed.undecidedCount).toBe(4);
+    expect(parsed.decisions[0]).toMatchObject({ reasonCode: "meta_wording", note: "n", dwellMs: 1200 });
+  });
+
+  it("should refuse a negative undecided count", () => {
+    expect(finishTriageSessionInput.safeParse({ undecidedCount: -1 }).success).toBe(false);
+  });
+});
+
+describe("discardTriageSessionInput", () => {
+  it("should accept an empty body", () => {
+    expect(discardTriageSessionInput.parse({})).toEqual({});
+  });
+});
+
+describe("startTriageSessionInput client fields", () => {
+  it("should accept a client name and a retry key", () => {
+    expect(startTriageSessionInput.parse({ client: "ios", startKey: "k-1" })).toEqual({ client: "ios", startKey: "k-1" });
+  });
+
+  it("should refuse an unknown client", () => {
+    expect(startTriageSessionInput.safeParse({ client: "tv" }).success).toBe(false);
   });
 });
 

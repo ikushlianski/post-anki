@@ -50,6 +50,13 @@ import {
 import { handleGetKnowledgeBitDetail } from "./knowledge-bit/knowledge-bit-detail.controller.js";
 import { handleKnowledgeBitBrowserMatches } from "./knowledge-bit/knowledge-bit-browser-matches.controller.js";
 import {
+  handleDeleteTriageDecision,
+  handleGetTriageDecision,
+  handleListTriageDecisions,
+  handlePutTriageDecision,
+} from "./card-triage/card-triage-decision.controller.js";
+import {
+  handleDiscardTriageSession,
   handleDistillTriageSession,
   handleFinishTriageSession,
   handleGetTriageSession,
@@ -676,6 +683,16 @@ async function route(
       return handleGetTriageSession(res, id);
     case "finishTriageSession":
       return handleFinishTriageSession(req, res, id);
+    case "discardTriageSession":
+      return handleDiscardTriageSession(req, res, id);
+    case "listTriageDecisions":
+      return handleListTriageDecisions(res, id, url.search);
+    case "getTriageDecision":
+      return handleGetTriageDecision(res, id, resolved.params.bitId ?? "");
+    case "putTriageDecision":
+      return handlePutTriageDecision(req, res, id, resolved.params.bitId ?? "");
+    case "deleteTriageDecision":
+      return handleDeleteTriageDecision(res, id, resolved.params.bitId ?? "");
     case "distillTriageSession":
       return handleDistillTriageSession(res, id);
     case "listCardStyleNotes":
