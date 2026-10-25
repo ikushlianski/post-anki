@@ -131,16 +131,8 @@ final class SettingsScreenModel {
             hasToken = TokenStore.read() != nil
             statusMessage = "Signed in."
             NotificationCenter.default.post(name: .postAnkiSettingsDidSave, object: nil)
-        } catch PasswordSignInError.wrongCredentials {
-            errorMessage = "Wrong email or password."
-        } catch PasswordSignInError.rateLimited {
-            errorMessage = "Too many attempts. Wait a minute and try again."
-        } catch PasswordSignInError.insecureAddress {
-            errorMessage = "Use an https:// server address to sign in."
-        } catch is URLError {
-            errorMessage = "Couldn't connect to the server. Try again."
         } catch {
-            errorMessage = "Couldn't sign in."
+            errorMessage = SignInGate.message(for: error)
         }
     }
 

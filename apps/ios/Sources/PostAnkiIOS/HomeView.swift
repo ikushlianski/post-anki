@@ -3,14 +3,14 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var isSignedIn = TokenStore.read() != nil
+    @State private var isSignedIn = !SignInGate.needsSignIn(token: TokenStore.read())
 
     var body: some View {
         Group {
             if isSignedIn {
                 tabs
             } else {
-                NavigationStack { SettingsScreen() }
+                SignInGateScreen()
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -20,7 +20,7 @@ struct HomeView: View {
         }
         .tint(BuildInfo.isDev ? .orange : nil)
         .onReceive(NotificationCenter.default.publisher(for: .postAnkiSettingsDidSave)) { _ in
-            isSignedIn = TokenStore.read() != nil
+            isSignedIn = !SignInGate.needsSignIn(token: TokenStore.read())
             Task { await PendingReviewCountStore.shared.refresh() }
         }
     }
