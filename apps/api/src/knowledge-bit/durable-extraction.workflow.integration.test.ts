@@ -81,6 +81,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 process.env.DBOS_APPLICATION_VERSION = "integration-test";
+process.env.DURABLE_EXTRACTION_ENGINE = "dbos";
 
 const { startDurableExtraction, shutdownDurableExtraction } = await import("./durable-extraction.starter.js");
 const { DBOS } = await import("@dbos-inc/dbos-sdk");

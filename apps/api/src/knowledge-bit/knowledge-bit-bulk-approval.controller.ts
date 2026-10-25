@@ -6,6 +6,7 @@ import {
   approveKnowledgeBitsBulk,
   countPendingKnowledgeBits,
 } from "./knowledge-bit-bulk-approval.repo.js";
+import { countSourcesNeedingAttention } from "./knowledge-source-attention.repo.js";
 
 // POST /knowledge-bits/approvals
 export async function handleBulkApproveKnowledgeBits(
@@ -28,5 +29,10 @@ export async function handleBulkApproveKnowledgeBits(
 
 // GET /knowledge-bits/pending-review/count
 export async function handleCountPendingKnowledgeBits(res: http.ServerResponse): Promise<void> {
-  sendJson(res, 200, { count: await countPendingKnowledgeBits() });
+  const [count, attentionCount] = await Promise.all([
+    countPendingKnowledgeBits(),
+    countSourcesNeedingAttention(),
+  ]);
+
+  sendJson(res, 200, { count, attentionCount });
 }

@@ -6,6 +6,11 @@ const approveKnowledgeBit = vi.fn();
 const rejectKnowledgeBit = vi.fn();
 const editKnowledgeBitQuestionVariant = vi.fn();
 const listPendingKnowledgeBitsForReview = vi.fn();
+const listSourcesNeedingAttention = vi.fn();
+
+vi.mock("./knowledge-source-attention.repo.js", () => ({
+  listSourcesNeedingAttention: (...args: unknown[]) => listSourcesNeedingAttention(...args),
+}));
 
 const embedApprovedKnowledgeBits = vi.fn();
 
@@ -218,5 +223,42 @@ describe("handleListPendingKnowledgeBitsForReview", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([{ knowledgeSourceId: "ksrc_1", sourceText: "Prose.", bits: [] }]);
+  });
+
+  it("should not look for notes needing attention unless asked, so older clients see the same list", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, "?limit=5");
+
+    expect(res.body).toEqual([]);
+    expect(listSourcesNeedingAttention).not.toHaveBeenCalled();
+  });
+
+  it("should add notes needing attention as card-less entries when asked", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+    listSourcesNeedingAttention.mockResolvedValue([
+      {
+        knowledgeSourceId: "ksrc_f",
+        kind: "failed",
+        reason: "no_valid_items",
+        firstWords: "Prose",
+        sourceText: "Prose",
+        since: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, "?attention=1");
+
+    expect(res.body).toEqual([
+      expect.objectContaining({
+        knowledgeSourceId: "ksrc_f",
+        bits: [],
+        attention: expect.objectContaining({ kind: "failed", reason: "no_valid_items" }),
+      }),
+    ]);
   });
 });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { knowledgeItemModelIdSchema } from "./knowledge-item-model";
+import type { KnowledgeSourceAttention } from "./extraction-failure";
 
 export interface PendingPlacementSuggestion {
   id: string;
@@ -142,6 +143,7 @@ export interface PendingKnowledgeSourceForReview {
   extractionRun?: number;
   extractionGrade?: PendingKnowledgeSourceExtractionGrade | null;
   decidedCount?: number;
+  attention?: KnowledgeSourceAttention | null;
 }
 
 export const BULK_APPROVAL_MAX_IDS = 200;
@@ -170,7 +172,10 @@ export const bulkApproveKnowledgeBitsResponse = z.object({
 export type BulkApproveKnowledgeBitsResponse = z.infer<typeof bulkApproveKnowledgeBitsResponse>;
 
 // GET /knowledge-bits/pending-review/count
-export const pendingKnowledgeBitReviewCountResponse = z.object({ count: z.number().int().min(0) });
+export const pendingKnowledgeBitReviewCountResponse = z.object({
+  count: z.number().int().min(0),
+  attentionCount: z.number().int().min(0).default(0),
+});
 
 export type PendingKnowledgeBitReviewCountResponse = z.infer<
   typeof pendingKnowledgeBitReviewCountResponse

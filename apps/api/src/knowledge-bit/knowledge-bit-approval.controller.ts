@@ -8,16 +8,24 @@ import {
   listPendingKnowledgeBitsForReview,
   rejectKnowledgeBit,
 } from "./knowledge-bit-approval.repo.js";
+import { listSourcesNeedingAttention } from "./knowledge-source-attention.repo.js";
+import { mergeAttentionIntoSources } from "./knowledge-source-attention.merge.js";
 
 const PENDING_REVIEW_LIST_LIMIT = 200;
 
 // GET /knowledge-bits/pending-review
 export async function handleListPendingKnowledgeBitsForReview(
   res: http.ServerResponse,
+  search: string = "",
 ): Promise<void> {
   const sources = await listPendingKnowledgeBitsForReview(PENDING_REVIEW_LIST_LIMIT);
 
-  sendJson(res, 200, sources);
+  if (new URLSearchParams(search).get("attention") !== "1") {
+    sendJson(res, 200, sources);
+    return;
+  }
+
+  sendJson(res, 200, mergeAttentionIntoSources(sources, await listSourcesNeedingAttention()));
 }
 
 // POST /knowledge-bits/:id/approve

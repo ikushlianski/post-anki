@@ -594,7 +594,7 @@ async function route(
     case "updateKnowledgeBitScheduleControls":
       return handleUpdateKnowledgeBitScheduleControls(req, res, id);
     case "listPendingKnowledgeBitsForReview":
-      return handleListPendingKnowledgeBitsForReview(res);
+      return handleListPendingKnowledgeBitsForReview(res, url.search);
     case "countPendingKnowledgeBits":
       return handleCountPendingKnowledgeBits(res);
     case "listKnowledgeBitOverview":

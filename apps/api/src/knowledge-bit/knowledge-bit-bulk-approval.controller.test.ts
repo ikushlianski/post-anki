@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const approveKnowledgeBitsBulk = vi.fn();
 const countPendingKnowledgeBits = vi.fn();
+const countSourcesNeedingAttention = vi.fn();
 
 const embedApprovedKnowledgeBits = vi.fn();
 
@@ -14,6 +15,10 @@ vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
 vi.mock("./knowledge-bit-bulk-approval.repo.js", () => ({
   approveKnowledgeBitsBulk: (...args: unknown[]) => approveKnowledgeBitsBulk(...args),
   countPendingKnowledgeBits: (...args: unknown[]) => countPendingKnowledgeBits(...args),
+}));
+
+vi.mock("./knowledge-source-attention.repo.js", () => ({
+  countSourcesNeedingAttention: (...args: unknown[]) => countSourcesNeedingAttention(...args),
 }));
 
 const { handleBulkApproveKnowledgeBits, handleCountPendingKnowledgeBits } = await import(
@@ -84,14 +89,15 @@ describe("handleBulkApproveKnowledgeBits", () => {
 });
 
 describe("handleCountPendingKnowledgeBits", () => {
-  it("should return the pending count", async () => {
+  it("should return the pending count with the number of notes needing attention", async () => {
     countPendingKnowledgeBits.mockResolvedValue(7);
+    countSourcesNeedingAttention.mockResolvedValue(2);
 
     const res = fakeRes();
 
     await handleCountPendingKnowledgeBits(res);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ count: 7 });
+    expect(res.body).toEqual({ count: 7, attentionCount: 2 });
   });
 });
