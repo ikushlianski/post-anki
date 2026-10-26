@@ -3,6 +3,7 @@ import SwiftUI
 
 enum FocusTriageFinishPhase {
     case idle
+    case confirming
     case writing
     case saving
     case result
@@ -107,8 +108,21 @@ final class FocusTriageSessionModel {
         guard sessionId != nil, phase == .idle else { return }
 
         error = nil
+        phase = .confirming
+    }
+
+    func confirmFinish() {
+        guard sessionId != nil, phase == .confirming else { return }
+
         phase = .writing
         Task { await loadServerFronts() }
+    }
+
+    func keepTriaging() {
+        guard phase == .confirming || phase == .writing else { return }
+
+        error = nil
+        phase = .idle
     }
 
     func finish(feedback: String) async -> Bool {

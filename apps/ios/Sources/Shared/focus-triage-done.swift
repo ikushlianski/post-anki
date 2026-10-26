@@ -12,9 +12,7 @@ struct FocusTriageDone: View {
     let rows: [FocusTriageDecisionRow]
     let editing: FocusTriageDecisionEditing
     let onFinish: () -> Void
-    let onFinishWithoutFeedback: () -> Void
     let onDiscard: () -> Void
-    let onKeepGoing: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -72,37 +70,22 @@ struct FocusTriageDone: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if let onKeepGoing {
-                    Button("Keep triaging", action: onKeepGoing)
-                        .zoomFont(.subheadline)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .disabled(isSaving)
-                        .background(.bar)
-                }
-
-                MainActionControls(tiles: [
-                    MainActionTile(
-                        title: "Finish triage",
-                        style: .prominent,
-                        isLoading: isSaving,
-                        isDisabled: isSaving,
-                        action: onFinish
-                    ),
-                    MainActionTile(
-                        title: "Finish without feedback",
-                        isDisabled: isSaving,
-                        action: onFinishWithoutFeedback
-                    )
-                ])
-            }
+            MainActionControls(tiles: [
+                MainActionTile(
+                    title: "Done",
+                    style: .prominent,
+                    isLoading: isSaving,
+                    isDisabled: isSaving,
+                    action: onFinish
+                )
+            ])
         }
     }
 
     private var isAllDone: Bool { remaining == 0 && waitingCount == 0 }
 
     private var title: String {
-        if remaining > 0 { return "Finish triage?" }
+        if remaining > 0 { return "Finish triage" }
 
         return waitingCount > 0 ? "Writing more cards…" : "All done"
     }

@@ -95,6 +95,7 @@ struct PendingReviewBitRow: View {
 
                 Button("Approve") { onDecide(.approve) }
                     .buttonStyle(.borderedProminent)
+                    .tint(.green)
                     .disabled(bit.variants.isEmpty)
             }
             .buttonStyle(.borderless)

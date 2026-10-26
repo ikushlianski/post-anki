@@ -29,7 +29,11 @@ struct FocusTriageView: View {
             content
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if showsActionBar { actionBar }
+            if session.phase == .confirming && !showsFinish {
+                confirmBar
+            } else if showsActionBar {
+                actionBar
+            }
         }
         .task {
             await triage.load()
@@ -59,14 +63,14 @@ struct FocusTriageView: View {
                 rows: session.decisionRows,
                 editing: session.editing,
                 onFinish: { finish(feedback: feedback) },
-                onFinishWithoutFeedback: { finish(feedback: "") },
                 onDiscard: {
                     Task { await session.discard() }
                     onClose()
-                },
-                onKeepGoing: triage.readyCount > 0 ? { session.phase = .idle } : nil
+                }
             )
             .task { await session.loadServerFronts() }
+        } else if session.phase == .confirming {
+            FocusTriageConfirm(remaining: triage.readyCount, decidedCount: session.decisions.count)
         } else if let shown {
             ZStack {
                 if triage.readyCount > 1 { FocusTriageCardStackHint() }
@@ -123,8 +127,10 @@ struct FocusTriageView: View {
     private var header: some View {
         ZoomHStack(spacing: 8) {
             ZoomVStack(alignment: .leading, spacing: 2) {
-                Text(triage.readyCount > 0 ? "\(triage.readyCount) left to review" : "All done, 0 left")
-                    .zoomFont(.headline.monospacedDigit())
+                if let label = counterLabel {
+                    Text(label)
+                        .zoomFont(.headline.monospacedDigit())
+                }
 
                 if triage.waitingCount > 0 {
                     Text("Writing cards… \(triage.waitingCount) waiting")
@@ -136,6 +142,19 @@ struct FocusTriageView: View {
             Spacer()
         }
         .zoomPadding()
+    }
+
+    private var counterLabel: String? {
+        if triage.readyCount == 0 { return "All done, 0 left" }
+
+        return FocusTriageCounter.label(readyCount: triage.readyCount)
+    }
+
+    private var confirmBar: some View {
+        MainActionControls(tiles: [
+            MainActionTile(title: "Keep triaging", action: { session.keepTriaging() }),
+            MainActionTile(title: "Finish triage", style: .prominent, action: { session.confirmFinish() })
+        ])
     }
 
     private var actionBar: some View {

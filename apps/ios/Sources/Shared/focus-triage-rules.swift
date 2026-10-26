@@ -78,3 +78,11 @@ enum FocusTriagePollPlan {
         waiting > 0 && attempts < maxAttempts
     }
 }
+
+enum FocusTriageCounter {
+    static let minimumVisible = 3
+
+    static func label(readyCount: Int) -> String? {
+        readyCount >= minimumVisible ? "\(readyCount) left to review" : nil
+    }
+}

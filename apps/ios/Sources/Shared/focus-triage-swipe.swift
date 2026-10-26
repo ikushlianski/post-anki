@@ -5,9 +5,9 @@ import UIKit
 #endif
 
 enum FocusTriageSwipe {
-    static let threshold: CGFloat = 110
+    static let threshold: CGFloat = 40
     static let flingThreshold: CGFloat = 300
-    static let minimumDrag: CGFloat = 20
+    static let minimumDrag: CGFloat = 12
 
     static func decision(width: CGFloat, predictedWidth: CGFloat) -> PendingReviewDecision? {
         if abs(width) >= threshold { return width > 0 ? .approve : .reject }

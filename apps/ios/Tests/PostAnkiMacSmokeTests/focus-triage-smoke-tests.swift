@@ -171,16 +171,27 @@ extension SmokeTests {
         func swipeThresholds() {
             #expect(FocusTriageSwipe.decision(width: 150, predictedWidth: 160) == .approve)
             #expect(FocusTriageSwipe.decision(width: -150, predictedWidth: -160) == .reject)
-            #expect(FocusTriageSwipe.decision(width: 40, predictedWidth: 60) == nil)
-            #expect(FocusTriageSwipe.decision(width: -40, predictedWidth: -60) == nil)
+            #expect(FocusTriageSwipe.decision(width: 40, predictedWidth: 60) == .approve)
+            #expect(FocusTriageSwipe.decision(width: -40, predictedWidth: -60) == .reject)
+            #expect(FocusTriageSwipe.decision(width: 39, predictedWidth: 50) == nil)
+            #expect(FocusTriageSwipe.decision(width: -39, predictedWidth: -50) == nil)
             #expect(FocusTriageSwipe.decision(width: 0, predictedWidth: 0) == nil)
+        }
+
+        @Test("should show the left-to-review counter only while at least 3 cards are left")
+        func counterRule() {
+            #expect(FocusTriageCounter.label(readyCount: 5) == "5 left to review")
+            #expect(FocusTriageCounter.label(readyCount: 3) == "3 left to review")
+            #expect(FocusTriageCounter.label(readyCount: 2) == nil)
+            #expect(FocusTriageCounter.label(readyCount: 1) == nil)
+            #expect(FocusTriageCounter.label(readyCount: 0) == nil)
         }
 
         @Test("should count a fast short flick as a decision only in the direction of the drag")
         func swipeFlick() {
-            #expect(FocusTriageSwipe.decision(width: 60, predictedWidth: 400) == .approve)
-            #expect(FocusTriageSwipe.decision(width: -60, predictedWidth: -400) == .reject)
-            #expect(FocusTriageSwipe.decision(width: 60, predictedWidth: -400) == nil)
+            #expect(FocusTriageSwipe.decision(width: 20, predictedWidth: 400) == .approve)
+            #expect(FocusTriageSwipe.decision(width: -20, predictedWidth: -400) == .reject)
+            #expect(FocusTriageSwipe.decision(width: 20, predictedWidth: -400) == nil)
             #expect(FocusTriageSwipe.decision(width: 5, predictedWidth: 400) == nil)
         }
 

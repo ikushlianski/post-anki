@@ -197,12 +197,37 @@ extension SmokeTests {
 
             await model.start()
             model.openFinish()
+            model.confirmFinish()
 
             #expect(!(await model.finish(feedback: "text")))
             #expect(model.phase == .writing)
             #expect(!model.stale)
             #expect(model.error == "Couldn't save the feedback. Your text is kept; try again.")
             #expect(store.load()?.sessionId == "ts1")
+        }
+
+        @Test("should ask for confirmation first, return to swiping on keep triaging and only open feedback after confirming")
+        func confirmingPhase() async {
+            let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
+            let (model, session) = await make(store: store, extra: [
+                "POST /triage-sessions": .json(200, started)
+            ])
+            defer { session.end() }
+
+            await model.start()
+            model.openFinish()
+
+            #expect(model.phase == .confirming)
+
+            model.keepTriaging()
+
+            #expect(model.phase == .idle)
+            #expect(model.isOpen)
+
+            model.openFinish()
+            model.confirmFinish()
+
+            #expect(model.phase == .writing)
         }
 
         @Test("should mark the session stale when the server no longer knows it and clear it on discard")
