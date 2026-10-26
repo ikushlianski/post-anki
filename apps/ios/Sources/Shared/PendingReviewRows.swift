@@ -98,6 +98,7 @@ struct PendingReviewBitRow: View {
                     .disabled(bit.variants.isEmpty)
             }
             .buttonStyle(.borderless)
+            .zoomPadding(.top, 10)
             .disabled(isBusy)
         }
         .zoomPadding(.vertical, 4)
@@ -120,15 +121,16 @@ struct PendingReviewVariantBlock: View {
     let variant: PendingReviewVariant
 
     var body: some View {
-        ZoomVStack(alignment: .leading, spacing: 2) {
-            Text(variant.kindLabel)
-                .zoomFont(.caption2)
-                .foregroundStyle(.secondary)
-            Text(variant.prompt)
-                .zoomFont(.subheadline)
-            Text(variant.answer)
-                .zoomFont(.subheadline)
-                .foregroundStyle(.secondary)
+        ZoomVStack(alignment: .leading, spacing: 6) {
+            QuestionAnswerRow(kind: .question) {
+                Text(variant.prompt)
+                    .zoomFont(.subheadline)
+            }
+            QuestionAnswerRow(kind: .answer) {
+                Text(variant.answer)
+                    .zoomFont(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -143,6 +145,8 @@ struct PendingReviewSourceFooter: View {
         ZoomVStack(alignment: .leading, spacing: 6) {
             if readyCount > 1 || isBulkBusy {
                 HStack {
+                    Spacer(minLength: 0)
+
                     Button("Approve all (\(readyCount))", action: onApproveAll)
                         .buttonStyle(.bordered)
                         .disabled(isBulkBusy)
@@ -150,6 +154,8 @@ struct PendingReviewSourceFooter: View {
                     if isBulkBusy {
                         ProgressView()
                     }
+
+                    Spacer(minLength: 0)
                 }
             }
 

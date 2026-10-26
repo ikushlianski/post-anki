@@ -68,17 +68,21 @@ struct FocusTriageCard: View {
 
     private var editableArea: some View {
         ZoomVStack(alignment: .leading, spacing: 12) {
-            Text(parts.front ?? "")
-                .zoomFont(.title2.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel("Question: \(parts.front ?? "")")
+            QuestionAnswerRow(kind: .question, spacing: 10) {
+                Text(parts.front ?? "")
+                    .zoomFont(.title2.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Question: \(parts.front ?? "")")
+            }
 
-            Text(parts.back ?? "")
-                .zoomFont(.body)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityLabel("Answer: \(parts.back ?? "")")
+            QuestionAnswerRow(kind: .answer, spacing: 10) {
+                Text(parts.back ?? "")
+                    .zoomFont(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Answer: \(parts.back ?? "")")
+            }
 
             if let example = parts.example {
                 Text(example)

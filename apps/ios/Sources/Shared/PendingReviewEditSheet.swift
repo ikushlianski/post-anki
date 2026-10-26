@@ -77,7 +77,7 @@ struct PendingReviewEditSheet: View {
                 }
 
                 ForEach(bit.variants) { variant in
-                    Section(variant.kindLabel) {
+                    Section {
                         TextField("Question", text: binding(for: variant, \.prompt), axis: .vertical)
                         TextField("Answer", text: binding(for: variant, \.answer), axis: .vertical)
                     }

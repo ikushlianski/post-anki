@@ -18,16 +18,17 @@ struct PendingReviewTriageCard: View {
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
 
                 ZoomVStack(alignment: .leading, spacing: 4) {
-                    Text(label)
-                        .zoomFont(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(variant.prompt)
-                        .zoomFont(.title3)
-                        .multilineTextAlignment(.leading)
-                    Text(variant.answer)
-                        .zoomFont(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
+                    QuestionAnswerRow(kind: .question) {
+                        Text(variant.prompt)
+                            .zoomFont(.title3)
+                            .multilineTextAlignment(.leading)
+                    }
+                    QuestionAnswerRow(kind: .answer) {
+                        Text(variant.answer)
+                            .zoomFont(.body)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -44,7 +45,7 @@ struct PendingReviewTriageCard: View {
             .contentShape(RoundedRectangle(cornerRadius: corner))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(number). \(label). \(variant.prompt)")
+        .accessibilityLabel("\(number). \(variant.prompt)")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

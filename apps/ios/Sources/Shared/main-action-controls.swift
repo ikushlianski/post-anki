@@ -34,7 +34,7 @@ struct MainActionControls: View {
             .frame(minHeight: Self.minHeight)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .background(.bar)
+        .background(.bar, ignoresSafeAreaEdges: .bottom)
     }
 }
 
