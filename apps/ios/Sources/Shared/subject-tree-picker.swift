@@ -48,6 +48,7 @@ struct SubjectTreePicker: View {
                     .foregroundStyle(.tertiary)
             }
         }
+        .buttonStyle(.plain)
         .sheet(isPresented: $isPresented) {
             NavigationStack {
                 SubjectTreePickerLevel(title: title, parent: nil, nodes: nodes, selection: selection) { id in
@@ -94,7 +95,7 @@ struct SubjectTreePickerLevel: View {
                         )
                     } label: {
                         HStack {
-                            Text(node.entry.name)
+                            Text(node.entry.name).foregroundStyle(.primary)
                             Spacer()
 
                             if selection == node.id {
@@ -119,5 +120,6 @@ struct SubjectTreePickerLevel: View {
                 }
             }
         }
+        .buttonStyle(.plain)
     }
 }

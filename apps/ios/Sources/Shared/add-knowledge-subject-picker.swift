@@ -34,10 +34,10 @@ struct AddKnowledgeSubjectPicker: View {
                 SubjectTreePicker(title: "Subject", nodes: model.tree, selection: $model.selectedId)
             } else {
                 Picker("Subject", selection: $model.selectedId) {
-                    Text("No subject").tag(String?.none)
+                    Text("No subject").foregroundStyle(.primary).tag(String?.none)
 
                     ForEach(model.subjects) { subject in
-                        Text(subject.name).tag(String?.some(subject.id))
+                        Text(subject.name).foregroundStyle(.primary).tag(String?.some(subject.id))
                     }
                 }
             }
