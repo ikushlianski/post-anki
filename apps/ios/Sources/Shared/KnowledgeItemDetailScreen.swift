@@ -12,6 +12,7 @@ struct KnowledgeItemDetailScreen: View {
     @State private var isBusy = false
     @State private var message: String?
     @State private var actions: KnowledgeItemActionsModel
+    @State private var variants: MoreVariantsModel
     @State private var editing = false
     @State private var choosingSubject = false
     @State private var confirmingDelete = false
@@ -31,6 +32,7 @@ struct KnowledgeItemDetailScreen: View {
         self.onMoved = onMoved
         _state = State(initialValue: item.state)
         _actions = State(initialValue: KnowledgeItemActionsModel(item: item))
+        _variants = State(initialValue: MoreVariantsModel(bitId: item.id))
     }
 
     private var shownSubjectName: String? { actions.subjectName ?? subjectName }
@@ -46,8 +48,8 @@ struct KnowledgeItemDetailScreen: View {
 
     var body: some View {
         List {
-            Section("Question") { Text(actions.question) }
-            Section("Answer") { Text(actions.answer) }
+            Section("Question") { cardText(actions.question) }
+            Section("Answer") { cardText(actions.answer) }
 
             SynonymsSection(bitId: item.id, question: actions.question)
 
@@ -63,16 +65,11 @@ struct KnowledgeItemDetailScreen: View {
                 if item.lapses > 0 { LabeledContent("Lapses", value: String(item.lapses)) }
             }
 
-            Section {
-                Button(actionTitle) { Task { await toggle() } }
-                    .disabled(isBusy || actions.isBusy)
-
-                if let message = message ?? actions.message {
-                    Text(message).zoomFont(.caption).foregroundStyle(.red)
-                }
+            if let message = message ?? actions.message {
+                Section { Text(message).zoomFont(.caption).foregroundStyle(.red) }
             }
 
-            MoreVariantsSection(bitId: item.id)
+            MoreVariantsSection(model: variants)
         }
         .navigationTitle("Item")
         #if os(iOS)
@@ -102,12 +99,28 @@ struct KnowledgeItemDetailScreen: View {
             Menu {
                 Button("Edit", systemImage: "pencil") { editing = true }
                 Button("Move to subject", systemImage: "folder") { choosingSubject = true }
+                Button(actionTitle, systemImage: isSuspended ? "play.circle" : "pause.circle") {
+                    Task { await toggle() }
+                }
+                Button("Generate more question variants", systemImage: "sparkles") {
+                    Task { await variants.request() }
+                }
+                .disabled(variants.isBusy || variants.requested)
+
+                Divider()
+
                 Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
             } label: {
                 Label("Actions", systemImage: "ellipsis.circle")
             }
             .disabled(isBusy || actions.isBusy)
         }
+    }
+
+    private func cardText(_ text: String) -> some View {
+        Text(text)
+            .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
+            .textSelection(.enabled)
     }
 
     private func delete() async {
