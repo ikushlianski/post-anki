@@ -1,5 +1,6 @@
 import CoreGraphics
 import PostAnkiAPI
+import SwiftUI
 import Testing
 
 extension SmokeTests {
@@ -29,6 +30,18 @@ extension SmokeTests {
             #expect(ReviewTapGrading.action(isRevealed: true, isGrading: true, side: .right) == .ignore)
             #expect(ReviewTapGrading.action(isRevealed: true, isGrading: true, side: .left) == .ignore)
             #expect(ReviewTapGrading.action(isRevealed: false, isGrading: true, side: .left) == .ignore)
+        }
+    }
+}
+
+extension SmokeTests {
+    @Suite("Review grade buttons map to the API grades")
+    struct ReviewGradeButtonsSmokeTests {
+        @Test("should offer Again, Hard, Good, Easy mapped to the matching API grades in order")
+        func buttonsMapToGrades() {
+            #expect(DueReviewGradeOptions.ordered.map(\.title) == ["Again", "Hard", "Good", "Easy"])
+            #expect(DueReviewGradeOptions.ordered.map(\.grade) == [.again, .hard, .good, .easy])
+            #expect(DueReviewGradeOptions.ordered.map { $0.grade.rawValue } == ["again", "hard", "good", "easy"])
         }
     }
 }

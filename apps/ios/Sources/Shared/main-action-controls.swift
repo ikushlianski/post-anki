@@ -11,6 +11,7 @@ struct MainActionTile {
     var style = MainActionStyle.normal
     var isLoading = false
     var isDisabled = false
+    var tint: Color?
     var shortcut: KeyboardShortcut?
     let action: () -> Void
 }
@@ -19,6 +20,7 @@ struct MainActionControls: View {
     static let minHeight: CGFloat = 60
 
     let tiles: [MainActionTile]
+    var extendsIntoBottomSafeArea = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +36,7 @@ struct MainActionControls: View {
             .frame(minHeight: Self.minHeight)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .background(.bar, ignoresSafeAreaEdges: .bottom)
+        .background(.bar, ignoresSafeAreaEdges: extendsIntoBottomSafeArea ? .bottom : [])
     }
 }
 
@@ -42,6 +44,8 @@ private struct MainActionTileView: View {
     let tile: MainActionTile
 
     private var foreground: Color {
+        if let tint = tile.tint { return tint }
+
         switch tile.style {
         case .normal: return .primary
         case .prominent: return .white
@@ -50,7 +54,9 @@ private struct MainActionTileView: View {
     }
 
     private var background: Color {
-        tile.style == .prominent ? .accentColor : .clear
+        if let tint = tile.tint { return tint.opacity(0.15) }
+
+        return tile.style == .prominent ? .accentColor : .clear
     }
 
     var body: some View {
