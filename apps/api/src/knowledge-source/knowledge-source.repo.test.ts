@@ -174,6 +174,12 @@ describe("insertKnowledgeSourcesFromNotion", () => {
     expect(created.every((row) => row.createdAt instanceof Date)).toBe(true);
   });
 
+  it("files every imported row under the given subject", async () => {
+    await insertKnowledgeSourcesFromNotion([{ id: "r-1", text: "Idea one" }], "ds-1", "sub_web");
+
+    expect(state.insertedRows[0]).toMatchObject({ notionPageId: "r-1", subjectId: "sub_web" });
+  });
+
   it("inserts nothing and returns an empty array for a database with no rows", async () => {
     const created = await insertKnowledgeSourcesFromNotion([], "ds-empty");
 

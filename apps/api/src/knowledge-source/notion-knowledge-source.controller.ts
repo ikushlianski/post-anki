@@ -3,8 +3,10 @@ import { APIErrorCode, APIResponseError, isFullPage } from "@notionhq/client";
 import type { Client, PageObjectResponse } from "@notionhq/client";
 import { itemsFromDatabaseRows } from "@post-anki/core";
 import { z } from "zod";
-import { readJsonBody, sendJson } from "../shared/http.js";
+import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { getNotionClient } from "../notion-connector/notion.client.js";
+import { describeKnowledgeSourceRefusal } from "@post-anki/shared";
+import { findSubjectAssignmentError } from "../subject/subject-leaf.js";
 import { insertKnowledgeSourcesFromNotion, MAX_ROWS_PER_IMPORT } from "./knowledge-source.repo.js";
 
 // Notion ids are UUIDs, with or without dashes.
@@ -14,6 +16,7 @@ const NOTION_PAGE_SIZE = 100;
 const createKnowledgeSourceFromNotionInput = z.object({
   dataSourceId: z.string().trim().regex(NOTION_ID_PATTERN, "must be a Notion id"),
   startCursor: z.string().min(1).optional(),
+  subjectId: z.string().min(1).nullable().optional(),
 });
 
 // Only these codes mean the dataSourceId itself is bad — everything else
@@ -96,6 +99,12 @@ export async function handleCreateKnowledgeSourceFromNotion(
   }
 
   const { dataSourceId, startCursor } = body.data;
+  const subjectId = body.data.subjectId ?? null;
+
+  if (subjectId !== null && (await findSubjectAssignmentError(subjectId))) {
+    sendError(res, 400, "subject_not_found", describeKnowledgeSourceRefusal("subject_not_found"));
+    return;
+  }
 
   let read: NotionRowsRead;
 
@@ -116,6 +125,7 @@ export async function handleCreateKnowledgeSourceFromNotion(
   const created = await insertKnowledgeSourcesFromNotion(
     itemsFromDatabaseRows(read.rows),
     dataSourceId,
+    subjectId,
   );
 
   sendJson(res, 200, {

@@ -77,6 +77,7 @@ export const MAX_ROWS_PER_IMPORT = 500;
 export async function insertKnowledgeSourcesFromNotion(
   items: { id: string; text: string }[],
   dataSourceId: string,
+  subjectId: string | null = null,
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeSource[]> {
   if (items.length === 0) {
@@ -92,6 +93,7 @@ export async function insertKnowledgeSourcesFromNotion(
     status: "pending",
     notionDatabaseId: dataSourceId,
     notionPageId: item.id,
+    ...(subjectId === null ? {} : { subjectId }),
   }));
 
   // notionPageId is unique, so re-importing the same database skips rows

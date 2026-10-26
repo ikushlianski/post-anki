@@ -430,7 +430,7 @@ describe("migrations — knowledge_sources.notion_page_id (prose-knowledge-fishe
   it("keeps exactly one row when two concurrent imports race to insert the same notion_page_id", async () => {
     const pageId = `page-race-${randomUUID()}`;
     const importPage = (text: string) =>
-      insertKnowledgeSourcesFromNotion([{ id: pageId, text }], "ds-race", testDb);
+      insertKnowledgeSourcesFromNotion([{ id: pageId, text }], "ds-race", null, testDb);
 
     await Promise.all([importPage("First racer."), importPage("Second racer.")]);
 

@@ -19,6 +19,11 @@ function notionError(code: APIErrorCode, status = 400): APIResponseError {
 
 const mockQuery = vi.fn();
 const mockInsertKnowledgeSourcesFromNotion = vi.fn();
+const mockFindAssignmentError = vi.fn();
+
+vi.mock("../subject/subject-leaf.js", () => ({
+  findSubjectAssignmentError: (...args: unknown[]) => mockFindAssignmentError(...args),
+}));
 
 vi.mock("../notion-connector/notion.client.js", () => ({
   getNotionClient: () => ({ dataSources: { query: mockQuery } }),
@@ -97,6 +102,7 @@ function fakeRes(): http.ServerResponse & { status: number | null; body: unknown
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFindAssignmentError.mockResolvedValue(null);
 });
 
 describe("handleCreateKnowledgeSourceFromNotion", () => {
@@ -123,6 +129,7 @@ describe("handleCreateKnowledgeSourceFromNotion", () => {
         { id: "r-3", text: "Idea three", tags: [] },
       ],
       DATA_SOURCE_ID,
+      null,
     );
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ created: 3, truncated: false, nextCursor: null });
@@ -135,7 +142,7 @@ describe("handleCreateKnowledgeSourceFromNotion", () => {
     const res = fakeRes();
     await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: DATA_SOURCE_ID }), res);
 
-    expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith([], DATA_SOURCE_ID);
+    expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith([], DATA_SOURCE_ID, null);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ created: 0, truncated: false, nextCursor: null });
   });
@@ -241,6 +248,31 @@ describe("handleCreateKnowledgeSourceFromNotion", () => {
     await expect(
       handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: DATA_SOURCE_ID }), fakeRes()),
     ).rejects.toThrow("NOTION_TOKEN is not set");
+    expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCreateKnowledgeSourceFromNotion subject filing", () => {
+  it("should file every imported row under the chosen subject", async () => {
+    mockQuery.mockResolvedValue(queryPage([row("r-1", "Idea one")]));
+    mockInsertKnowledgeSourcesFromNotion.mockResolvedValue(insertedRowsFor(1));
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: DATA_SOURCE_ID, subjectId: "sub_web" }), res);
+
+    expect(mockInsertKnowledgeSourcesFromNotion).toHaveBeenCalledWith(expect.any(Array), DATA_SOURCE_ID, "sub_web");
+    expect(res.status).toBe(200);
+  });
+
+  it("should answer 400 subject_not_found and import nothing when the subject is unknown", async () => {
+    mockFindAssignmentError.mockResolvedValue("subject_not_found");
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: DATA_SOURCE_ID, subjectId: "sub_missing" }), res);
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "subject_not_found", message: expect.any(String) });
+    expect(mockQuery).not.toHaveBeenCalled();
     expect(mockInsertKnowledgeSourcesFromNotion).not.toHaveBeenCalled();
   });
 });
