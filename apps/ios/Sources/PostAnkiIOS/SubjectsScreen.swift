@@ -2,15 +2,53 @@ import PostAnkiAPI
 import SwiftUI
 
 struct SubjectsScreen: View {
-    @State private var model = CoursesScreenModel()
+    @State private var model = SubjectTreeScreenModel()
     @State private var showsProfile = false
 
     var body: some View {
         NavigationStack {
+            content
+                .navigationTitle("Subjects")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showsProfile = true } label: { Image(systemName: "person.crop.circle") }
+                    }
+                }
+                .sheet(isPresented: $showsProfile) {
+                    NavigationStack { SettingsScreen() }
+                }
+                .task { await model.load() }
+                .navigationDestination(for: Subject.self) { subject in
+                    SubjectDetailScreen(subject: subject, subjects: model.subjects)
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if !model.hasLoaded, let message = model.errorMessage {
+            ContentUnavailableView {
+                Label("Couldn't load", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(message)
+            } actions: {
+                Button("Try again") { Task { await model.load() } }
+            }
+        } else if !model.hasLoaded {
+            ProgressView()
+        } else {
             List {
-                ForEach(model.topLevelSubjects) { subject in
-                    NavigationLink(value: subject) {
-                        SubjectRow(subject: subject, childCount: model.children(of: subject.id).count)
+                if let message = model.errorMessage {
+                    Text(message).foregroundStyle(.red)
+                }
+
+                ForEach(model.rows) { row in
+                    if let subject = model.subject(for: row.id) {
+                        NavigationLink(value: subject) {
+                            SubjectTreeRowView(row: row) { withAnimation { model.toggle(row.id) } }
+                        }
+                    } else {
+                        SubjectTreeRowView(row: row) {}
                     }
                 }
 
@@ -21,49 +59,9 @@ struct SubjectsScreen: View {
                         Label("Manage subjects", systemImage: "folder.badge.gearshape")
                     }
                 }
-
-                if let errorMessage = model.errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
-            }
-            .navigationTitle("Subjects")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showsProfile = true } label: { Image(systemName: "person.crop.circle") }
-                }
-            }
-            .sheet(isPresented: $showsProfile) {
-                NavigationStack { SettingsScreen() }
             }
             .refreshable { await model.load() }
-            .task { await model.load() }
-            .navigationDestination(for: Subject.self) { subject in
-                SubjectDetailScreen(subject: subject, subjects: model.subjects)
-            }
         }
-    }
-}
-
-private struct SubjectRow: View {
-    let subject: Subject
-    let childCount: Int
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(subject.name).font(.headline)
-
-            if childCount > 0 {
-                Text("\(childCount) sub-subjects")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else if let description = subject.description, !description.isEmpty {
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-        }
-        .padding(.vertical, 2)
     }
 }
 

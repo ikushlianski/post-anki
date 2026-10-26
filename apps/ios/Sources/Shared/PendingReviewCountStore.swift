@@ -12,6 +12,9 @@ final class PendingReviewCountStore {
     static let shared = PendingReviewCountStore()
 
     private(set) var count = 0
+    private(set) var attentionCount = 0
+
+    var badgeCount: Int { count + attentionCount }
 
     @ObservationIgnored private var isRefreshing = false
     @ObservationIgnored private var mutations = 0
@@ -43,10 +46,11 @@ final class PendingReviewCountStore {
         for _ in 0..<2 {
             let before = mutations
 
-            guard let value = try? await APIClient.pendingReviewCount() else { return }
+            guard let value = try? await APIClient.pendingReviewCounts() else { return }
 
             if before == mutations {
-                count = max(0, value)
+                count = max(0, value.count)
+                attentionCount = max(0, value.attentionCount)
 
                 return
             }

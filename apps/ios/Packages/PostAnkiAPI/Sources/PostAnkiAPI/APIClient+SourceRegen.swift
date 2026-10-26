@@ -1,12 +1,16 @@
 import Foundation
 
 extension APIClient {
-    public static func regenerateKnowledgeSource(id: String) async throws -> SourceRegenStartResult {
+    public static func regenerateKnowledgeSource(id: String, text: String? = nil) async throws -> SourceRegenStartResult {
         try await request(
             "/knowledge-sources/\(encodedSegment(id))/regeneration",
             method: "POST",
-            body: SourceRegenInput()
+            body: SourceRegenInput(text: text)
         )
+    }
+
+    public static func discardKnowledgeSource(id: String) async throws {
+        let _: EmptyResponse = try await request("/knowledge-sources/\(encodedSegment(id))/discards", method: "POST")
     }
 
     public static func knowledgeSourceRegeneration(id: String) async throws -> SourceRegenStatus {

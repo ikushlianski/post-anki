@@ -5,6 +5,10 @@ extension APIClient {
         try await request("/knowledge-bits/pending-review")
     }
 
+    public static func listPendingReviewWithAttention() async throws -> [PendingReviewSource] {
+        try await request("/knowledge-bits/pending-review?attention=1")
+    }
+
     public static func approveKnowledgeBit(id: String) async throws {
         let _: EmptyResponse = try await request("/knowledge-bits/\(encodedSegment(id))/approve", method: "POST")
     }
@@ -47,8 +51,10 @@ extension APIClient {
     }
 
     public static func pendingReviewCount() async throws -> Int {
-        let response: PendingReviewCountResponse = try await request("/knowledge-bits/pending-review/count")
+        try await pendingReviewCounts().count
+    }
 
-        return response.count
+    public static func pendingReviewCounts() async throws -> PendingReviewCountResponse {
+        try await request("/knowledge-bits/pending-review/count")
     }
 }

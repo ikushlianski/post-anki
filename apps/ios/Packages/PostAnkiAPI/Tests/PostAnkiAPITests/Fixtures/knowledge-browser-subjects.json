@@ -1,0 +1,5 @@
+[
+  { "subjectId": "s_root", "count": 4, "newCount": 1, "learningCount": 1, "matureCount": 2 },
+  { "subjectId": "s_child", "count": 3, "newCount": 3, "learningCount": 0, "matureCount": 0 },
+  { "subjectId": null, "count": 2, "newCount": 2, "learningCount": 0, "matureCount": 0 }
+]

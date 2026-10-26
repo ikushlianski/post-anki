@@ -1,0 +1,36 @@
+[
+  {
+    "knowledgeSourceId": "src_fail",
+    "sourceText": "Notes about consistent hashing and rings",
+    "subjectName": null,
+    "bits": [],
+    "attention": {
+      "knowledgeSourceId": "src_fail",
+      "kind": "failed",
+      "reason": "no_valid_items",
+      "firstWords": "Notes about consistent hashing and rings",
+      "sourceText": "Notes about consistent hashing and rings",
+      "since": "2026-10-26T08:00:00.000Z"
+    }
+  },
+  {
+    "knowledgeSourceId": "src_busy",
+    "sourceText": null,
+    "subjectName": null,
+    "bits": [],
+    "attention": {
+      "knowledgeSourceId": "src_busy",
+      "kind": "rate_limited",
+      "reason": "provider_rate_limited",
+      "firstWords": "",
+      "sourceText": null,
+      "since": "2026-10-26T08:00:00Z"
+    }
+  },
+  {
+    "knowledgeSourceId": "src_01",
+    "sourceText": "Plain pending source",
+    "subjectName": "System design",
+    "bits": []
+  }
+]

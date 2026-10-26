@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 final class PendingReviewListModel {
     var sources: [PendingReviewSource] = []
+    var attentionNotices: [PendingReviewSource] = []
     var isLoading = false
     var hasLoaded = false
     var errorMessage: String?
@@ -89,8 +90,10 @@ final class PendingReviewListModel {
         defer { isLoading = false }
 
         do {
-            let fetched = try await APIClient.listPendingReview()
+            let fetched = try await APIClient.listPendingReviewWithAttention()
             let removed = removedDuringLoad
+
+            attentionNotices = fetched.filter { $0.attention != nil }
 
             sources = fetched.compactMap { source in
                 let bits = source.bits.filter { !removed.contains($0.id) }
@@ -113,6 +116,19 @@ final class PendingReviewListModel {
             errorMessage = Self.message(for: error)
             failureKind = ProgressLoadError.from(error) ?? .other
         }
+    }
+
+    func discardNote(sourceId: String) async -> Bool {
+        do {
+            try await APIClient.discardKnowledgeSource(id: sourceId)
+        } catch {
+            return false
+        }
+
+        attentionNotices.removeAll { $0.id == sourceId }
+        Task { await counts.refresh() }
+
+        return true
     }
 
     func snapshot(of bitId: String) -> PendingReviewRemovedBit? {

@@ -9,6 +9,7 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
     public let suggestedSubjectName: String?
     public let suggestedSubjectConfidence: String?
     public let bits: [PendingReviewBit]
+    public let attention: KnowledgeSourceAttention?
 
     public var id: String { knowledgeSourceId }
 
@@ -20,7 +21,8 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
         subjectId: String? = nil,
         suggestedSubjectId: String? = nil,
         suggestedSubjectName: String? = nil,
-        suggestedSubjectConfidence: String? = nil
+        suggestedSubjectConfidence: String? = nil,
+        attention: KnowledgeSourceAttention? = nil
     ) {
         self.knowledgeSourceId = knowledgeSourceId
         self.sourceText = sourceText
@@ -30,6 +32,7 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
         self.suggestedSubjectName = suggestedSubjectName
         self.suggestedSubjectConfidence = suggestedSubjectConfidence
         self.bits = bits
+        self.attention = attention
     }
 }
 
@@ -59,6 +62,18 @@ public struct PendingReviewVariant: Decodable, Sendable, Identifiable, Hashable 
 
 public struct PendingReviewCountResponse: Decodable, Sendable {
     public let count: Int
+    public let attentionCount: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case count, attentionCount
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        count = try container.decode(Int.self, forKey: .count)
+        attentionCount = try container.decodeIfPresent(Int.self, forKey: .attentionCount) ?? 0
+    }
 }
 
 public enum PendingReviewDecision: Sendable {
@@ -115,7 +130,7 @@ extension PendingReviewDecision {
 
 extension PendingReviewSource {
     public func withBits(_ bits: [PendingReviewBit]) -> PendingReviewSource {
-        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId, suggestedSubjectId: suggestedSubjectId, suggestedSubjectName: suggestedSubjectName, suggestedSubjectConfidence: suggestedSubjectConfidence)
+        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId, suggestedSubjectId: suggestedSubjectId, suggestedSubjectName: suggestedSubjectName, suggestedSubjectConfidence: suggestedSubjectConfidence, attention: attention)
     }
 
     public var subjectSuggestion: (id: String, name: String)? {

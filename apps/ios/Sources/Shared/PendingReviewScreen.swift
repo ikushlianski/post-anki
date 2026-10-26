@@ -11,6 +11,7 @@ struct PendingReviewScreen: View {
     @State private var focus: FocusTriageModel
     @State private var session: FocusTriageSessionModel
     @State private var focusOpen = false
+    @State private var retries: AttentionRetryCoordinator
 
     private let onDone: (() -> Void)?
 
@@ -26,6 +27,7 @@ struct PendingReviewScreen: View {
 
         _focus = State(initialValue: focusModel)
         _session = State(initialValue: FocusTriageSessionModel(triage: focusModel))
+        _retries = State(initialValue: AttentionRetryCoordinator(onFinished: { await list.load() }))
     }
 
     var body: some View {
@@ -217,7 +219,7 @@ struct PendingReviewScreen: View {
                 Button("Try again") { Task { await model.load() } }
             }
             #endif
-        } else if model.hasLoaded && model.sources.isEmpty {
+        } else if model.hasLoaded && model.sources.isEmpty && model.attentionNotices.isEmpty {
             #if os(macOS)
             MacEmptyStateView(
                 title: "Nothing to review",
@@ -231,15 +233,25 @@ struct PendingReviewScreen: View {
             PendingReviewTriageView(model: triage, editingBit: $editingBit)
         } else {
             List {
-                #if os(iOS)
-                Section {
-                    PendingReviewInboxSummary(
-                        sources: model.sources,
-                        subjectId: $focus.subjectFilter,
-                        resumed: session.storedSession,
-                        isStarting: session.busy,
-                        startError: session.error
+                if !model.attentionNotices.isEmpty {
+                    AttentionBlock(
+                        notices: model.attentionNotices,
+                        coordinator: retries,
+                        onDiscard: { await model.discardNote(sourceId: $0) }
                     )
+                }
+
+                #if os(iOS)
+                if !model.sources.isEmpty {
+                    Section {
+                        PendingReviewInboxSummary(
+                            sources: model.sources,
+                            subjectId: $focus.subjectFilter,
+                            resumed: session.storedSession,
+                            isStarting: session.busy,
+                            startError: session.error
+                        )
+                    }
                 }
                 #endif
 
@@ -255,7 +267,7 @@ struct PendingReviewScreen: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if visibleSources.isEmpty {
+                if visibleSources.isEmpty && !model.sources.isEmpty {
                     Section {
                         ContentUnavailableView("No cards to triage in this subject", systemImage: "tray")
                     }
@@ -294,14 +306,16 @@ struct PendingReviewScreen: View {
             .refreshable { await model.load() }
             #if os(iOS)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                PendingReviewInboxStartBar(
-                    sources: model.sources,
-                    subjectId: focus.subjectFilter,
-                    resumed: session.storedSession,
-                    isStarting: session.busy,
-                    hasError: session.error != nil
-                ) {
-                    Task { await startTriage() }
+                if !model.sources.isEmpty {
+                    PendingReviewInboxStartBar(
+                        sources: model.sources,
+                        subjectId: focus.subjectFilter,
+                        resumed: session.storedSession,
+                        isStarting: session.busy,
+                        hasError: session.error != nil
+                    ) {
+                        Task { await startTriage() }
+                    }
                 }
             }
             #endif

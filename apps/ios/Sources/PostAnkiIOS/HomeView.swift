@@ -29,7 +29,7 @@ struct HomeView: View {
         TabView {
             KnowledgeInboxScreen()
                 .tabItem { Label("Triage", systemImage: "tray.full") }
-                .badge(PendingReviewCountStore.shared.count)
+                .badge(PendingReviewCountStore.shared.badgeCount)
 
             NavigationStack { IngestionDictationScreen() }
                 .tabItem { Label("Add", systemImage: "square.and.pencil") }
