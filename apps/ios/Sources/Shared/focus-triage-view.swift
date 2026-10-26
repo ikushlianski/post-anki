@@ -41,6 +41,7 @@ struct FocusTriageView: View {
             triage.startPolling()
         }
         .onDisappear { triage.stopPolling() }
+        .keyboardDismissal()
     }
 
     @ViewBuilder

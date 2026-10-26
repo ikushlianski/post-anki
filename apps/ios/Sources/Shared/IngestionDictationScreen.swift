@@ -162,6 +162,7 @@ struct IngestionDictationScreen: View {
                 }
             }
         }
+        .keyboardDismissal()
         .navigationTitle("Add Knowledge")
         .mainActionControls([submitTile])
         .reportsUnsentInput("add-knowledge", model.hasInput)

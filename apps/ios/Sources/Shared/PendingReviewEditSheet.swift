@@ -11,6 +11,7 @@ struct PendingReviewEditSheet: View {
     @State private var variantTexts: [String: VariantText]
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var confirmingDiscard = false
 
     struct VariantText: Equatable {
         var prompt: String
@@ -53,6 +54,14 @@ struct PendingReviewEditSheet: View {
         }
     }
 
+    private var hasChanges: Bool {
+        bodyChanged || backgroundChanged || bit.variants.contains { variant in
+            guard let text = variantTexts[variant.id] else { return false }
+
+            return text.prompt != variant.prompt || text.answer != variant.answer
+        }
+    }
+
     private var canSave: Bool {
         guard !trimmedBody.isEmpty, !isSaving else { return false }
 
@@ -63,23 +72,21 @@ struct PendingReviewEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Wording", text: $wording, axis: .vertical)
-                } header: {
-                    Text("Wording")
+                    CardTextArea(label: "Wording", text: $wording)
                 } footer: {
                     if bodyChanged {
                         Text("Changing the wording regenerates its questions. Question edits are not saved with it.")
                     }
                 }
 
-                Section("Example") {
-                    TextField("Background", text: $background, axis: .vertical)
+                Section {
+                    CardTextArea(label: "Background", text: $background, minHeight: 70)
                 }
 
                 ForEach(bit.variants) { variant in
                     Section {
-                        TextField("Question", text: binding(for: variant, \.prompt), axis: .vertical)
-                        TextField("Answer", text: binding(for: variant, \.answer), axis: .vertical)
+                        CardTextArea(label: "Question", text: binding(for: variant, \.prompt))
+                        CardTextArea(label: "Answer", text: binding(for: variant, \.answer))
                     }
                     .disabled(bodyChanged)
                 }
@@ -88,20 +95,28 @@ struct PendingReviewEditSheet: View {
                     Text(errorMessage).zoomFont(.caption).foregroundStyle(.red)
                 }
             }
+            .keyboardDismissal()
             .navigationTitle("Edit item")
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { onClose(nil) }.disabled(isSaving)
+                    Button("Cancel") {
+                        if hasChanges { confirmingDiscard = true } else { onClose(nil) }
+                    }
+                    .disabled(isSaving)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }.disabled(!canSave)
                 }
             }
-            .interactiveDismissDisabled(isSaving)
+            .interactiveDismissDisabled(isSaving || hasChanges)
+            .confirmationDialog("Discard changes?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+                Button("Discard", role: .destructive) { onClose(nil) }
+                Button("Keep editing", role: .cancel) {}
+            }
         }
     }
 

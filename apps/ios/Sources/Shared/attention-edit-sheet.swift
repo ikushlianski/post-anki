@@ -8,6 +8,7 @@ struct AttentionEditSheet: View {
     let onCancel: () -> Void
 
     @State private var text: String
+    @State private var confirmingDiscard = false
 
     init(initialText: String, onSubmit: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
         self.initialText = initialText
@@ -17,6 +18,8 @@ struct AttentionEditSheet: View {
     }
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private var hasChanges: Bool { text != initialText }
 
     private var isTooLong: Bool { trimmed.count > Self.maxCharacters }
 
@@ -34,18 +37,26 @@ struct AttentionEditSheet: View {
                 }
             }
             .padding()
+            .keyboardDismissal()
             .navigationTitle("Edit note")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancel") {
+                        if hasChanges { confirmingDiscard = true } else { onCancel() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Retry") { onSubmit(trimmed) }
                         .disabled(trimmed.isEmpty || isTooLong)
                 }
+            }
+            .interactiveDismissDisabled(hasChanges)
+            .confirmationDialog("Discard changes?", isPresented: $confirmingDiscard, titleVisibility: .visible) {
+                Button("Discard", role: .destructive, action: onCancel)
+                Button("Keep editing", role: .cancel) {}
             }
         }
     }
