@@ -10,6 +10,15 @@ enum PreviewSampleData {
     ]
     """)
 
+    static let treeSubjects: [Subject] = decode("""
+    [
+      {"id": "s-swift", "name": "Swift", "description": null, "parentId": null},
+      {"id": "s-conc", "name": "Concurrency", "description": null, "parentId": "s-swift"},
+      {"id": "s-actors", "name": "Actors", "description": null, "parentId": "s-conc"},
+      {"id": "s-bio", "name": "Biology", "description": null, "parentId": null}
+    ]
+    """)
+
     static let pendingSources: [PendingReviewSource] = [
         PendingReviewSource(
             knowledgeSourceId: "src-1",

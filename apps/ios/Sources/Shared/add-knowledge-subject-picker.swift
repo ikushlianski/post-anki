@@ -8,6 +8,8 @@ final class AddKnowledgeSubjectPickerModel {
     var selectedId: String?
     var loadFailed = false
 
+    var tree: [SubjectTreeNode] { SubjectTreePath.tree(from: subjects) }
+
     func load() async {
         do {
             subjects = try await APIClient.listSubjects()
@@ -28,11 +30,15 @@ struct AddKnowledgeSubjectPicker: View {
 
     var body: some View {
         Section {
-            Picker("Subject", selection: $model.selectedId) {
-                Text("No subject").tag(String?.none)
+            if SubjectTreePath.hasChildren(model.tree) {
+                SubjectTreePicker(title: "Subject", nodes: model.tree, selection: $model.selectedId)
+            } else {
+                Picker("Subject", selection: $model.selectedId) {
+                    Text("No subject").tag(String?.none)
 
-                ForEach(model.subjects) { subject in
-                    Text(subject.name).tag(String?.some(subject.id))
+                    ForEach(model.subjects) { subject in
+                        Text(subject.name).tag(String?.some(subject.id))
+                    }
                 }
             }
 
