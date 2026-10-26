@@ -39,7 +39,7 @@ struct PendingReviewScreen: View {
                     if onDone == nil {
                         ToolbarItem(placement: .topBarLeading) {
                             NavigationLink {
-                                KnowledgeListScreen()
+                                KnowledgeListScreen(isPushed: true)
                             } label: {
                                 Label("All items", systemImage: "list.bullet.rectangle")
                             }

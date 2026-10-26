@@ -20,7 +20,7 @@ struct MainActionControls: View {
     static let minHeight: CGFloat = 60
 
     let tiles: [MainActionTile]
-    var extendsIntoBottomSafeArea = true
+    var extendsIntoBottomSafeArea = false
 
     var body: some View {
         VStack(spacing: 0) {

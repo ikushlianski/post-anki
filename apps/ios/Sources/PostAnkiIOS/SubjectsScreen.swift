@@ -15,7 +15,7 @@ struct SubjectsScreen: View {
                     }
                 }
                 .sheet(isPresented: $showsProfile) {
-                    NavigationStack { SettingsScreen() }
+                    SettingsSheet()
                 }
                 .task { await model.load() }
                 .navigationDestination(for: Subject.self) { subject in
@@ -167,5 +167,20 @@ struct SubjectDetailScreen: View {
         }
 
         isLoading = false
+    }
+}
+
+private struct SettingsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            SettingsScreen()
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
     }
 }

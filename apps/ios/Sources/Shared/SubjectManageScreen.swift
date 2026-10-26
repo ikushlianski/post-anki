@@ -34,7 +34,7 @@ struct SubjectManageScreen: View {
         .navigationTitle("Manage subjects")
         .toolbar {
             #if os(iOS)
-            ToolbarItem(placement: .leadingBar) {
+            ToolbarItem(placement: .trailingBar) {
                 EditButton()
             }
             #endif

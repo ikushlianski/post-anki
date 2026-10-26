@@ -7,6 +7,7 @@ struct KnowledgeListScreen: View {
     @State private var confirmingDelete = false
     @State private var choosingSubject = false
     @State private var showSuspended = false
+    var isPushed = false
 
     var body: some View {
         @Bindable var model = model
@@ -50,7 +51,7 @@ struct KnowledgeListScreen: View {
     private var toolbar: some ToolbarContent {
         @Bindable var model = model
 
-        ToolbarItem(placement: .topBarLeading) {
+        ToolbarItem(placement: isPushed ? .topBarTrailing : .topBarLeading) {
             Menu {
                 Picker("Subject", selection: $model.subjectId) {
                     Text("All subjects").tag(String?.none)
