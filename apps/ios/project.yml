@@ -37,6 +37,7 @@ targets:
     info:
       path: Config/PostAnkiIOS-Info.plist
       properties:
+        CFBundleShortVersionString: "0.1.0"
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
@@ -69,6 +70,7 @@ targets:
     info:
       path: Config/PostAnkiIOSDev-Info.plist
       properties:
+        CFBundleShortVersionString: "0.1.0"
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
         PostAnkiLocalDevAPIToken: $(POSTANKI_LOCAL_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
