@@ -4,17 +4,8 @@ import Testing
 
 extension SmokeTests {
     @MainActor
-    @Suite("Mac list screens keep the real failure and the review inbox handles bulk and cancelled loads")
+    @Suite("Mac list screens keep the real failure and cancelled loads")
     struct ReviewFixesSmokeTests {
-        private func inboxRoutes() -> [String: FakeReply] {
-            [
-                "/knowledge-bits/placement-suggestions": .fixture("placement-suggestions"),
-                "/curricula": .fixture("curricula"),
-                "/curricula/cur_01": .fixture("curriculum-detail"),
-                "/knowledge-bits/bit_01/placement-suggestion": .status(200)
-            ]
-        }
-
         @Test("should tell a signed-out user to add a token on every Mac list screen, not show a generic failure")
         func unauthorizedKinds() async throws {
             let session = FakeServerSession([
@@ -92,73 +83,6 @@ extension SmokeTests {
 
             #expect(model.failureKind == nil)
             #expect(model.hasLoaded)
-        }
-
-        @Test("should keep the inbox in its loading state and show no error when the first load is cancelled")
-        func inboxCancelledFirstLoad() async throws {
-            let session = FakeServerSession(inboxRoutes())
-            defer { session.end() }
-
-            let model = KnowledgeItemInboxModel()
-            let task = Task { await model.load() }
-
-            task.cancel()
-            await task.value
-
-            #expect(!model.hasLoaded)
-            #expect(model.errorMessage == nil)
-            #expect(!model.isLoading)
-        }
-
-        @Test("should not mark the inbox loaded when the first load fails, and show the signed-out state")
-        func inboxFailedFirstLoad() async throws {
-            let session = FakeServerSession([
-                "/knowledge-bits/placement-suggestions": .status(401),
-                "/curricula": .status(401)
-            ])
-            defer { session.end() }
-
-            let model = KnowledgeItemInboxModel()
-
-            await model.load()
-
-            #expect(!model.hasLoaded)
-            #expect(model.failureKind == .unauthorized)
-            #expect(model.errorMessage != nil)
-        }
-
-        @Test("should approve only confident matches in a bulk approve and leave the rest for one-by-one review")
-        func bulkApproveLeavesUnmatched() async throws {
-            let session = FakeServerSession(inboxRoutes())
-            defer { session.end() }
-
-            let model = KnowledgeItemInboxModel()
-
-            await model.load()
-            await model.approveSelected(model.items)
-
-            #expect(model.items.map(\.id) == ["bit_02", "bit_03"])
-            #expect(model.editingItem == nil)
-            #expect(model.notice?.hasPrefix("2 items need a deck") == true)
-            #expect(FakeServer.requested.contains("/knowledge-bits/bit_01/placement-suggestion"))
-            #expect(!FakeServer.requested.contains("/knowledge-bits/bit_02/placement-suggestion"))
-        }
-
-        @Test("should open the deck editor when a single unmatched item is approved")
-        func singleUnmatchedOpensEditor() async throws {
-            let session = FakeServerSession(inboxRoutes())
-            defer { session.end() }
-
-            let model = KnowledgeItemInboxModel()
-
-            await model.load()
-
-            let unmatched = try #require(model.items.first { $0.id == "bit_02" })
-
-            await model.approveSelected([unmatched])
-
-            #expect(model.editingItem?.id == "bit_02")
-            #expect(model.notice == nil)
         }
 
         @Test("should leave open questions without an error when a load is cancelled")

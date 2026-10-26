@@ -15,9 +15,4 @@ struct MacKnowledgeInboxRoutingTests {
         #expect(MacFeatureRegistry.feature(id: "inbox").badge != nil)
         #expect(MacFeatureRegistry.feature(id: "review").badge == nil)
     }
-
-    @Test func shouldOpenKnowledgeInboxOnPendingItemsFirst() {
-        #expect(KnowledgeInboxMode.defaultMode == .pending)
-        #expect(KnowledgeInboxMode.allCases.map(\.rawValue) == ["Pending items", "Placement suggestions"])
-    }
 }

@@ -89,46 +89,6 @@ public struct EmptyResponse: Decodable, Sendable {
     public init(from decoder: Decoder) throws {}
 }
 
-public struct PendingPlacementSuggestion: Codable, Identifiable, Hashable, Sendable {
-    public let id: String
-    public let body: String
-    public let placementSuggestion: String
-}
-
-// Mirrors the API's z.discriminatedUnion("status", [...]) — Swift has no
-// discriminated-union Encodable, so this hand-writes the same two JSON shapes.
-public struct ResolvePlacementSuggestionInput: Encodable, Sendable {
-    public let status: String
-    public let moduleId: String?
-    public let title: String?
-
-    public static func accepted(moduleId: String, title: String) -> ResolvePlacementSuggestionInput {
-        ResolvePlacementSuggestionInput(status: "accepted", moduleId: moduleId, title: title)
-    }
-
-    public static let rejected = ResolvePlacementSuggestionInput(status: "rejected", moduleId: nil, title: nil)
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(status, forKey: .status)
-        if let moduleId {
-            try container.encode(moduleId, forKey: .moduleId)
-        }
-        if let title {
-            try container.encode(title, forKey: .title)
-        }
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case status, moduleId, title
-    }
-}
-
-public struct ResolvePlacementSuggestionResult: Decodable, Sendable {
-    public let outcome: String?
-    public let topicId: String?
-}
-
 public struct ChatTranscriptEntry: Codable, Hashable, Sendable {
     public let role: String
     public let text: String

@@ -70,7 +70,7 @@ Rules for this folder:
 
 - Home: `HomeScreen.swift` with its sections (`HomeDailySection.swift`, `HomePracticeSection.swift`, and others). Progress and Answer practice open as sheets because those screens own their navigation stack.
 - Review: `DueReviewScreen.swift` in a `NavigationStack`. `review-counts-strip.swift` shows the remaining New, Learning and Due counts from `ReviewRemainingCounts` (`review-remaining-counts.swift`). `DueReviewModel` keeps the server counts plus counters of cards graded since the load (online and offline), subtracts them, and gives one back on undo; a reload resets the counters.
-- Inbox: `KnowledgeInboxScreen` (Pending items or Placement suggestions), badged with `PendingReviewCountStore.shared.count`.
+- Inbox: `KnowledgeInboxScreen` (pending items), badged with `PendingReviewCountStore.shared.count`.
 - Add: `IngestionDictationScreen` in a `NavigationStack`. `AddKnowledgeInput.classify` sends a lone http/https link as a url and anything else as text. `add-knowledge-subject-picker.swift` lists subjects (falling back to "No subject" if the list fails) and is hidden when a subject is passed in. The call is `APIClient.addKnowledgeSource`; `KnowledgeSourceRefusal` maps server refusal codes to sentences, and only `alreadyAdded` can be forced.
 - Courses: `CoursesScreen.swift`.
 

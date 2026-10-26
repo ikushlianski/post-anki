@@ -223,33 +223,6 @@ public enum APIClient {
         let _: EmptyResponse = try await request("/knowledge-sources/detect-bits", method: "POST")
     }
 
-    public static func listPlacementSuggestions() async throws -> [PendingPlacementSuggestion] {
-        try await request("/knowledge-bits/placement-suggestions")
-    }
-
-    public static func resolvePlacementSuggestion(
-        id: String,
-        accepted: Bool,
-        moduleId: String? = nil,
-        title: String? = nil
-    ) async throws -> ResolvePlacementSuggestionResult {
-        let body: ResolvePlacementSuggestionInput
-        if accepted {
-            guard let moduleId, let title else {
-                throw APIError.badURL
-            }
-            body = .accepted(moduleId: moduleId, title: title)
-        } else {
-            body = .rejected
-        }
-
-        return try await request(
-            "/knowledge-bits/\(encodedSegment(id))/placement-suggestion",
-            method: "PATCH",
-            body: body
-        )
-    }
-
     // Server route exists; callers still handle a 404 gracefully rather than crash.
     public static func chatWithKnowledgeBit(
         id: String,

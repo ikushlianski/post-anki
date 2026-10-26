@@ -12,7 +12,6 @@ struct AdminScan: Hashable, Identifiable {
         AdminScan(title: "Detect knowledge items", path: "/knowledge-sources/detect-bits", explanation: "Extracts items from new sources."),
         AdminScan(title: "Item embeddings", path: "/knowledge-bits/embedding-scan", explanation: "Embeds knowledge items."),
         AdminScan(title: "Tagging", path: "/knowledge-bits/tagging-scan", explanation: "Assigns tags to items automatically.", changesData: true),
-        AdminScan(title: "Placement", path: "/knowledge-bits/placement-scan", explanation: "Places items under topics."),
         AdminScan(title: "Question generation", path: "/knowledge-bits/question-generation-scan", explanation: "Writes question variants."),
         AdminScan(title: "Fill-in-the-blank cards", path: "/knowledge-bits/fill-blank-generation-scan", explanation: "Writes fill-in-the-blank cards."),
         AdminScan(title: "Basic cards", path: "/knowledge-bits/basic-card-generation-scan", explanation: "Writes basic cards."),

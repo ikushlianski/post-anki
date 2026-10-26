@@ -9,7 +9,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the package, shared screens
 
 - Home: due-today row, summary, the latest topic or course to continue, daily push, practice, study tools and study modes. A "Progress and practice" section opens Progress and Answer practice as sheets.
 - Review: one-card-at-a-time review with grade buttons, undo and offline queuing. A strip above the card shows the remaining New, Learning and Due counts for today and drops as you grade (undo raises it again). Grades made offline are queued and sent later.
-- Inbox: a picker between Pending items and Placement suggestions. The tab badge shows the number of pending items. Pending items show a summary ("N cards are waiting for your decision", with writing progress while cards are still being made) and a Start triage button that opens focus triage.
+- Inbox: pending items. The tab badge shows the number of pending items. Pending items show a summary ("N cards are waiting for your decision", with writing progress while cards are still being made) and a Start triage button that opens focus triage.
 - Add: add knowledge by typing, dictating or pasting text, or by pasting a single link. Pick a subject (or "No subject"); inside a course the course's subject is used and the picker is hidden. A refused input shows a plain sentence (page could not be opened, no readable text, subject missing, already added, text over 50,000 characters). "Already added" offers Add anyway, which resends the same input with force. After extraction finishes, "Review new items" opens focus triage when cards are pending.
 - Courses: all courses, decks and sub-decks.
 
@@ -117,7 +117,7 @@ Builds signed with "Sign to Run Locally" change signature each build, so macOS m
 ### Sidebar
 
 - Study: Home, Review, Quick practice, Study sessions, Gaps coming back, Daily push, Language practice, Progress
-- Library: Courses, Knowledge, Knowledge Inbox (pending items and placement suggestions), Sources, Content inbox, Tags, Search, Notes, Add knowledge, Notion import
+- Library: Courses, Knowledge, Knowledge Inbox (pending items), Sources, Content inbox, Tags, Search, Notes, Add knowledge, Notion import
 - Learn: Learning list, Learning paths, Challenge my thinking, Ask your cards, Open questions
 - Manage: Subjects, Knowledge maps, Course builds, Refocus suggestions, Duplicates
 - Admin: Admin scans
