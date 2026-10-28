@@ -34,7 +34,7 @@ struct HomeView: View {
             NavigationStack { IngestionDictationScreen() }
                 .tabItem { Label("Add", systemImage: "square.and.pencil") }
 
-            NavigationStack { DueReviewScreen() }
+            ReviewSubjectsScreen()
                 .tabItem { Label("Review", systemImage: "checkmark.seal") }
 
             NavigationStack { KnowledgeListScreen() }

@@ -4,7 +4,7 @@ import SwiftUI
 struct DueReviewScreen: View {
     @State private var model: DueReviewModel
     @Environment(\.scenePhase) private var scenePhase
-    @State private var editingCard: ReviewCard?
+    @State private var editRoute: DueReviewEditRoute?
     private let title: String
 
     init(scope: DueReviewScope? = nil) {
@@ -61,10 +61,14 @@ struct DueReviewScreen: View {
             if model.state == .card, !model.isGrading, let card = model.current {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        editingCard = card
+                        Task { editRoute = await model.editRoute(for: card) }
                     } label: {
                         Label("Edit", systemImage: "pencil")
                     }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    DueReviewCardControlsMenu(model: model)
                 }
             }
 
@@ -79,10 +83,8 @@ struct DueReviewScreen: View {
                 }
             }
         }
-        .sheet(item: $editingCard) { card in
-            QuestionVariantEditSheet(prompt: card.prompt, answer: card.answer) { prompt, answer in
-                await model.editCurrent(prompt: prompt, answer: answer)
-            }
+        .sheet(item: $editRoute) { route in
+            DueReviewEditSheet(model: model, route: route) { editRoute = nil }
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
@@ -112,6 +114,7 @@ private struct DueReviewCardView: View {
                     )
                 }
             }
+            .refreshable { await model.load() }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             DueReviewBottomBar(model: model)
