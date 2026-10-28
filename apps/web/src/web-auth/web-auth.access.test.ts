@@ -53,7 +53,7 @@ describe('decideWebAccess', () => {
 describe('isPublicWebPath', () => {
   it('should keep the login page, the auth proxy and static assets open without a session', () => {
     expect(isPublicWebPath('/login')).toBe(true)
-    expect(isPublicWebPath('/api/auth/sign-in/magic-link')).toBe(true)
+    expect(isPublicWebPath('/api/auth/sign-in/email')).toBe(true)
     expect(isPublicWebPath('/assets/index-abc.js')).toBe(true)
   })
 

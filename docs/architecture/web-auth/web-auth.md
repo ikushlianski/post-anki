@@ -10,7 +10,7 @@ One owner signs in. Better Auth in `apps/api` is the only session authority; eve
 | Email and password | `POST /api/auth/sign-in/email` | Always. Only the configured owner email; sign-up is off; password of at least 8 characters. |
 | Email link | `POST /api/auth/sign-in/magic-link` | Only when the API has an email provider key and the web server has `MAGIC_LINK_ENABLED=1`. |
 
-The login page offers the key form and the email-and-password form, and the email-link form only when `MAGIC_LINK_ENABLED=1`. Key and password travel only in POST bodies. Every failure shows one generic message; a rate limit shows a separate "too many attempts" message. The secret field is cleared after each submit. The key field is a password-type input with autocomplete off.
+The login page offers only the email-and-password form. The web proxy forwards only `sign-in/email` and `sign-out`, so key and email-link sign-in are unreachable from the browser even though the API still has those endpoints. The password travels only in POST bodies. Every failure shows one generic message; a rate limit shows a separate "too many attempts" message. The password field is cleared after each submit.
 
 The first valid key sign-in creates the owner user if it does not exist. The web is reported unconfigured (503 in production) only when the auth secret or the owner email is missing.
 
