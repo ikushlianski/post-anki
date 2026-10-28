@@ -272,6 +272,7 @@ jobs:
             --max-instances 1 \
             --memory 512Mi \
             --cpu 1 \
+            --cpu-boost \
             --timeout 300s \
             --port 8030 \
             --set-env-vars "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \

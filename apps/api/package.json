@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --env-file=.env --env-file-if-exists=.env.local --dns-result-order=ipv4first --no-network-family-autoselection --watch --import tsx src/server.ts",
     "start": "tsx src/server.ts",
+    "build:server": "node --import tsx scripts/build-server.ts",
     "build:lambda": "node --import tsx scripts/build-lambda.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

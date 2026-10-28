@@ -22,8 +22,9 @@ COPY apps/api ./apps/api
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 RUN addgroup --system app && adduser --system --ingroup app app \
     && chown -R app:app /app
+WORKDIR /app/apps/api
+RUN npm run build:server
 USER app
 EXPOSE 8030
 ENV NODE_ENV=production
-WORKDIR /app/apps/api
-CMD ["node", "--dns-result-order=ipv4first", "--no-network-family-autoselection", "--import", "tsx", "src/server.ts"]
+CMD ["node", "--dns-result-order=ipv4first", "--no-network-family-autoselection", "dist/server/server.mjs"]
