@@ -162,6 +162,7 @@ struct IngestionDictationScreen: View {
                 }
             }
         }
+        .refreshable { if model.showsSubjectPicker { await model.subjectPicker.load() } }
         .keyboardDismissal()
         .navigationTitle("Add Knowledge")
         .mainActionControls([submitTile])

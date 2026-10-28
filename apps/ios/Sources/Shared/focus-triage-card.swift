@@ -11,6 +11,7 @@ struct FocusTriageCardParts: Equatable {
     let front: String?
     let back: String?
     let example: String?
+    let exampleIsAI: Bool
     let sourceName: String
     let sourceText: String?
 
@@ -19,9 +20,10 @@ struct FocusTriageCardParts: Equatable {
         let trimmedExample = bit.background?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let text = source?.sourceText ?? ""
 
-        front = variant?.prompt
+        front = variant?.displayPrompt
         back = variant?.answer
         example = trimmedExample.isEmpty ? nil : trimmedExample
+        exampleIsAI = !trimmedExample.isEmpty && bit.exampleAiGeneratedAt != nil
         sourceName = source?.subjectName ?? "No subject"
         sourceText = text.isEmpty ? nil : text
     }
@@ -36,7 +38,10 @@ struct FocusTriageCard: View {
     let source: PendingReviewSource?
     @Binding var note: String
     let message: String?
+    var isWritingExample = false
+    var onScrollEdgeChange: ((FocusTriageScrollEdge) -> Void)?
     let onEdit: () -> Void
+    var onRefresh: (() async -> Void)?
 
     private var parts: FocusTriageCardParts { FocusTriageCardParts(bit: bit, source: source) }
 
@@ -62,8 +67,11 @@ struct FocusTriageCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .zoomPadding()
+            .readingScrollContentFrame()
         }
+        .refreshable { await onRefresh?() }
         .scrollDismissesKeyboard(.interactively)
+        .trackingScrollEdge { onScrollEdgeChange?($0) }
     }
 
     private var editableArea: some View {
@@ -84,13 +92,33 @@ struct FocusTriageCard: View {
                     .accessibilityLabel("Answer: \(parts.back ?? "")")
             }
 
-            if let example = parts.example {
-                Text(example)
-                    .zoomFont(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel("Example: \(example)")
+            if isWritingExample {
+                ZoomHStack(spacing: 8) {
+                    ProgressView()
+                    Text("Writing example…")
+                        .zoomFont(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+            } else if let example = parts.example {
+                ZoomHStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if parts.exampleIsAI {
+                        Text("AI")
+                            .zoomFont(.caption2.weight(.bold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(.quaternary, in: Capsule())
+                            .accessibilityHidden(true)
+                    }
+
+                    Text(example)
+                        .zoomFont(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(parts.exampleIsAI ? "AI example: \(example)" : "Example: \(example)")
             }
         }
         .contentShape(Rectangle())

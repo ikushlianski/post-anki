@@ -13,6 +13,7 @@ struct FocusTriageView: View {
     @State private var feedback = ""
     @State private var departing: DepartingCard?
     @State private var generation = 0
+    @State private var scrollEdge = FocusTriageScrollEdge()
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -32,8 +33,27 @@ struct FocusTriageView: View {
             if session.phase == .confirming && !showsFinish {
                 confirmBar
             } else if showsActionBar {
-                actionBar
+                VStack(spacing: 0) {
+                    if shown != nil { extraActionBar }
+
+                    actionBar
+                }
             }
+        }
+        .confirmationDialog(
+            "Replace your example?",
+            isPresented: Binding(
+                get: { triage.overwritePromptBitId != nil },
+                set: { if !$0 { triage.overwritePromptBitId = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Replace with AI example", role: .destructive) {
+                Task { await triage.generateExample(overwrite: true) }
+            }
+            Button("Keep mine", role: .cancel) { triage.overwritePromptBitId = nil }
+        } message: {
+            Text("This card has an example you wrote. The AI example replaces it. Undo brings yours back.")
         }
         .task {
             await triage.load()
@@ -56,6 +76,7 @@ struct FocusTriageView: View {
                 remaining: triage.readyCount,
                 waitingCount: triage.waitingCount,
                 decidedCount: session.decisions.count,
+                sentToInboxCount: triage.sentToInboxCount,
                 feedback: $feedback,
                 isSaving: session.phase == .saving,
                 resumed: session.resumed,
@@ -101,7 +122,10 @@ struct FocusTriageView: View {
     private func card(_ bit: PendingReviewBit, source: PendingReviewSource?) -> some View {
         FocusTriageSwipeCard(
             isBusy: triage.isBusy || departing != nil,
+            scrollEdge: scrollEdge,
+            exampleLabel: triage.currentExampleLabel,
             onDecide: { await decide(bit, source: source, approve: $0 == .approve) },
+            onVertical: { await vertical($0, bit: bit, source: source) },
             onFlownOff: finishDeparture
         ) {
             FocusTriageCard(
@@ -112,7 +136,10 @@ struct FocusTriageView: View {
                     set: { triage.notes[bit.id] = $0 }
                 ),
                 message: triage.message,
-                onEdit: { editingBit = bit }
+                isWritingExample: triage.isWritingExample(bit.id),
+                onScrollEdgeChange: { scrollEdge = $0 },
+                onEdit: { editingBit = bit },
+                onRefresh: { await triage.load() }
             )
         }
     }
@@ -158,11 +185,33 @@ struct FocusTriageView: View {
         ])
     }
 
+    private var extraActionBar: some View {
+        MainActionControls(
+            tiles: [
+                MainActionTile(
+                    title: TriageActionName.inbox,
+                    isDisabled: triage.isBusy || departing != nil,
+                    identifier: TriageAccessibilityID.inboxButton,
+                    action: { Task { _ = await inbox() } }
+                ),
+                MainActionTile(
+                    title: triage.currentExampleLabel,
+                    isLoading: triage.current.map { triage.isWritingExample($0.id) } ?? false,
+                    isDisabled: triage.isBusy || departing != nil || triage.exampleLimitReached,
+                    identifier: TriageAccessibilityID.exampleButton,
+                    action: { Task { _ = await triage.generateExample() } }
+                )
+            ],
+            minHeight: 48
+        )
+    }
+
     private var actionBar: some View {
         MainActionControls(tiles: [
             MainActionTile(
                 title: "Undo",
                 isDisabled: !triage.canUndo || triage.isBusy,
+                identifier: TriageAccessibilityID.undoButton,
                 action: { Task { await triage.undo() } }
             ),
             MainActionTile(
@@ -202,6 +251,39 @@ struct FocusTriageView: View {
         }
 
         if approve { announce("Approved, \(triage.readyCount) left") }
+
+        return true
+    }
+
+    private func vertical(_ action: FocusTriageVerticalAction, bit: PendingReviewBit, source: PendingReviewSource?) async -> Bool {
+        switch action {
+        case .inbox:
+            departing = DepartingCard(bit: bit, source: source)
+
+            guard await triage.sendToInbox() else {
+                departing = nil
+
+                return false
+            }
+
+            announce("Sent to Inbox, \(triage.readyCount) left")
+
+            return true
+        case .example:
+            let done = await triage.generateExample()
+
+            if done { announce("AI example added") }
+
+            return done
+        }
+    }
+
+    private func inbox() async -> Bool {
+        guard let bit = triage.current else { return false }
+
+        guard await vertical(.inbox, bit: bit, source: triage.currentSource) else { return false }
+
+        finishDeparture()
 
         return true
     }
