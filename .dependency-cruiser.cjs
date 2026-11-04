@@ -50,7 +50,7 @@ module.exports = {
         "accepted, separate testing convention, not application runtime code.",
       from: {
         path: "^apps/(api|bot)/src/(?!db/)",
-        pathNot: "\\.(test|spec|integration\\.test)\\.tsx?$",
+        pathNot: "\\.(test|spec|integration\\.test)\\.tsx?$|(test-db|integration-helpers)\\.ts$",
       },
       to: {
         path: "^(node_modules/)?pg(/|$)",
@@ -96,7 +96,8 @@ module.exports = {
         // resolver doesn't understand — not a broken import. Excluded here rather than at
         // each call site, since this is a class of false positive, not a one-off.
         // `@aws-sdk/*` is provided by the Lambda runtime and kept external by build-lambda.
-        pathNot: "\\?(url|raw|worker|inline)$|^@aws-sdk/",
+        // `@/` is apps/desktop's tsconfig alias; tsc already fails on a broken one.
+        pathNot: "\\?(url|raw|worker|inline)$|^@aws-sdk/|^@/",
       },
     },
   ],
