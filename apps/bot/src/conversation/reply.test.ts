@@ -31,6 +31,33 @@ describe("selectReply", () => {
       expect(selectReply(msg({ text: "/start@post_anki_bot" }))).toEqual({ kind: "start" });
     });
 
+    it("routes /digest to the digest branch", () => {
+      expect(selectReply(msg({ text: "/digest" }))).toEqual({ kind: "digest" });
+    });
+
+    it("routes /inbox", () => {
+      expect(selectReply(msg({ text: "/inbox" }))).toEqual({ kind: "inbox" });
+    });
+
+    it("routes /find with the search words, or null when none are given", () => {
+      expect(selectReply(msg({ text: "/find kubernetes pods" }))).toEqual({ kind: "find", arg: "kubernetes pods" });
+      expect(selectReply(msg({ text: "/find" }))).toEqual({ kind: "find", arg: null });
+    });
+
+    it("routes /rejected with and without a reason argument", () => {
+      expect(selectReply(msg({ text: "/rejected" }))).toEqual({ kind: "rejected", arg: null });
+      expect(selectReply(msg({ text: "/rejected@bot other" }))).toEqual({
+        kind: "rejected",
+        arg: "other",
+      });
+    });
+
+    it("routes /chat and /chat@bot to the chat branch", () => {
+      expect(selectReply(msg({ text: "/chat" }))).toEqual({ kind: "chat", arg: null });
+      expect(selectReply(msg({ text: "/chat@post_anki_bot" }))).toEqual({ kind: "chat", arg: null });
+      expect(selectReply(msg({ text: "/chat 2" }))).toEqual({ kind: "chat", arg: "2" });
+    });
+
     it("routes /today and /push to the today branch", () => {
       expect(selectReply(msg({ text: "/today" }))).toEqual({ kind: "today" });
       expect(selectReply(msg({ text: "/push@post_anki_bot" }))).toEqual({ kind: "today" });
@@ -58,6 +85,27 @@ describe("selectReply", () => {
       expect(selectReply(msg({ text: "SKIP!" }))).toEqual({ kind: "skip" });
       expect(selectReply(msg({ text: "skip." }))).toEqual({ kind: "skip" });
       expect(selectReply(msg({ text: "skip?" }))).toEqual({ kind: "skip" });
+    });
+
+    it("flags a mistyped slash command instead of treating it as a note", () => {
+      expect(selectReply(msg({ text: "/chats" }))).toEqual({ kind: "unknown_command" });
+      expect(selectReply(msg({ text: "/rejeted" }))).toEqual({ kind: "unknown_command" });
+      expect(selectReply(msg({ text: "/nope@my_bot" }))).toEqual({ kind: "unknown_command" });
+    });
+
+    it("keeps known commands with arguments and slash-containing notes unaffected", () => {
+      expect(selectReply(msg({ text: "/chat 2" }))).toEqual({ kind: "chat", arg: "2" });
+      expect(selectReply(msg({ text: "/rejected other" }))).toEqual({ kind: "rejected", arg: "other" });
+      expect(selectReply(msg({ text: "/chat@my_bot 2" }))).toEqual({ kind: "chat", arg: "2" });
+      expect(selectReply(msg({ text: "/help@my_bot" }))).toEqual({ kind: "help" });
+      expect(selectReply(msg({ text: "/nope with more words" }))).toEqual({
+        kind: "process",
+        text: "/nope with more words",
+      });
+      expect(selectReply(msg({ text: "/usr/bin/env is where it lives" }))).toEqual({
+        kind: "process",
+        text: "/usr/bin/env is where it lives",
+      });
     });
 
     it("does not treat a sentence that merely starts with 'skip' as the skip command", () => {

@@ -1,3 +1,4 @@
+import { sliceWithoutSplittingPairs } from "../telegram/safe-slice.js";
 import type {
   AnswerProbeSessionResult,
   ProbeSession,
@@ -8,6 +9,13 @@ export interface QuizProgress {
   answered: number;
   total: number;
   correct: number;
+}
+
+export const EXPLANATION_MAX_CHARS = 400;
+export const MULTI_ANSWER_NOTICE = "Several answers apply. Finish this one on the web, then tap Next.";
+
+function clip(text: string, max: number): string {
+  return text.length > max ? `${sliceWithoutSplittingPairs(text, max - 1).trimEnd()}…` : text;
 }
 
 export function formatQuestion(
@@ -22,6 +30,11 @@ export function formatQuestion(
   ];
 
   question.options.forEach((opt, i) => lines.push(`${i + 1}. ${opt}`));
+
+  if (question.type === "multi") {
+    lines.push("", MULTI_ANSWER_NOTICE);
+  }
+
   lines.push("", `Score so far: ${progress.correct}/${progress.answered}`);
 
   return lines.join("\n");
@@ -38,6 +51,16 @@ export function formatAnswerReveal(
 
   if (result.coveredGapLabels.length > 0) {
     lines.push(`Covered: ${result.coveredGapLabels.join(", ")}`);
+  }
+
+  const explanation = result.optionExplanations?.[result.correctAnswerIndex];
+
+  if (explanation && explanation.text.trim().length > 0) {
+    lines.push("", clip(explanation.text.trim(), EXPLANATION_MAX_CHARS));
+
+    if (explanation.citationUrl) {
+      lines.push(explanation.citationUrl);
+    }
   }
 
   lines.push("", `Progress: ${result.answered}/${result.total} · ${result.correct} correct`);

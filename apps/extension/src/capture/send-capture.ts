@@ -3,7 +3,7 @@ import type { Settings } from "../settings/settings.js";
 
 export type SendCaptureResult =
   | { ok: true }
-  | { ok: false; reason: "bad_request" | "already_added" | "unauthorized" | "forbidden" | "network" }
+  | { ok: false; reason: "bad_request" | "already_added" | "unauthorized" | "forbidden" | "too_large" | "rate_limited" | "network" }
   | { ok: false; reason: "unexpected"; status: number };
 
 type FetchImpl = typeof fetch;
@@ -25,8 +25,18 @@ function failureForStatus(status: number): Extract<SendCaptureResult, { ok: fals
     return { ok: false, reason: "forbidden" };
   }
 
+  if (status === 413) {
+    return { ok: false, reason: "too_large" };
+  }
+
+  if (status === 429) {
+    return { ok: false, reason: "rate_limited" };
+  }
+
   return { ok: false, reason: "unexpected", status };
 }
+
+export const REQUEST_TIMEOUT_MS = 15_000;
 
 export async function sendCapture(
   body: CaptureBody,
@@ -44,6 +54,7 @@ export async function sendCapture(
       method: "POST",
       headers,
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     if (response.status === 201) {

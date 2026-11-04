@@ -16,6 +16,10 @@ export function describeSendResult(result: SendCaptureResult, baseUrl: string): 
       return { badge: "ERR", title: "Token rejected (401)" };
     case "forbidden":
       return { badge: "ERR", title: "Extension not allowed (403): set EXTENSION_ID in the API env" };
+    case "too_large":
+      return { badge: "ERR", title: "Selection too large (413)" };
+    case "rate_limited":
+      return { badge: "ERR", title: "Rate limited (429): try again later" };
     case "network":
       return { badge: "ERR", title: `API not reachable at ${baseUrl}` };
     case "unexpected":

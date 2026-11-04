@@ -10,7 +10,7 @@ export type CaptureBody = {
 };
 
 export type BuildCaptureResult =
-  | { ok: true; body: CaptureBody }
+  | { ok: true; body: CaptureBody; truncated: boolean }
   | { ok: false; reason: "empty_selection" };
 
 export type BuildCaptureInput = {
@@ -45,7 +45,9 @@ function safeSourceUrl(raw: string | undefined): string | undefined {
 }
 
 export function buildCaptureText(input: BuildCaptureInput): BuildCaptureResult {
-  const text = input.selection.trim().slice(0, MAX_CAPTURE_CHARS).trimEnd();
+  const trimmed = input.selection.trim();
+  const truncated = trimmed.length > MAX_CAPTURE_CHARS;
+  const text = trimmed.slice(0, MAX_CAPTURE_CHARS).trimEnd();
 
   if (text.length === 0) {
     return { ok: false, reason: "empty_selection" };
@@ -68,5 +70,5 @@ export function buildCaptureText(input: BuildCaptureInput): BuildCaptureResult {
     body.subjectId = subjectId;
   }
 
-  return { ok: true, body };
+  return { ok: true, body, truncated };
 }

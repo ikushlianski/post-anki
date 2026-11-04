@@ -12,6 +12,7 @@ vi.mock("../env.js", () => ({
 }));
 
 vi.mock("../api/client.js", () => ({
+  apiTimeoutSignal: () => new AbortController().signal,
   transcribeAudio: (...args: unknown[]) => transcribeAudio(...args),
 }));
 

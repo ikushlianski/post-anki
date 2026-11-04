@@ -15,7 +15,8 @@ page URL and title are posted to `POST /knowledge-sources`, like a paste in /add
 5. Open `chrome://extensions`, turn on Developer mode, choose "Load unpacked", pick
    `apps/extension/dist`. The card must show ID `phmjgadfbbagfjlfgcdloehdcoapiohf`.
 6. Open the extension's options page: keep base URL `http://localhost:5560`, paste the token,
-   optionally pick an exam subject, save.
+   optionally set the web app address (default `http://localhost:5540`, opened by the toolbar button)
+   and pick an exam subject, save.
 7. On a docs page, select a paragraph, right-click, choose "Send to post-anki", and wait for
    the OK badge (it clears after 4 seconds).
 8. Click the toolbar icon to open `/knowledge-bit-review` and approve the extracted cards.
@@ -45,5 +46,9 @@ Hover the toolbar icon while the ERR badge shows to read the message.
 | `Extension not allowed (403): set EXTENSION_ID in the API env` | `EXTENSION_ID` is missing or differs from the loaded ID. Fix `apps/api/.env.local` and restart the API. |
 | `API not reachable at <url>` | API is not running, or the base URL is wrong. Start `npm run dev` and check options. |
 | `Rejected: text invalid or too long` | Selection is empty after trimming or over 50,000 characters. |
+| `Selection too large (413)` | The text exceeds the API size limit; select less. |
+| `Rate limited (429): try again later` | The API is limiting requests or the daily AI budget is used up. |
 | `API error (<status>)` | Server-side failure; check the API logs. |
 | `No text selected` | The menu was used without a selection. |
+
+A selection longer than 50,000 characters is cut to the first 50,000; the success toast then reads "Saved the first 50,000 characters".

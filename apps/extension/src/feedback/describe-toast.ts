@@ -1,11 +1,25 @@
+import { MAX_CAPTURE_CHARS } from "../capture/build-capture-text.js";
 import type { SendCaptureResult } from "../capture/send-capture.js";
 
 export type ToastKind = "success" | "info" | "error";
 export type ToastMessage = { kind: ToastKind; text: string };
 
-export function describeToast(result: SendCaptureResult, hasToken: boolean): ToastMessage {
+export function describeToast(result: SendCaptureResult, hasToken: boolean, truncated = false, retryable = false): ToastMessage {
+  const toast = baseToast(result, hasToken, truncated)
+
+  return retryable && toast.kind === "error" ? { ...toast, text: `${toast.text}${RETRY_HINT}` } : toast;
+}
+
+const RETRY_HINT = " Click the toolbar button to retry.";
+
+function baseToast(result: SendCaptureResult, hasToken: boolean, truncated: boolean): ToastMessage {
   if (result.ok) {
-    return { kind: "success", text: "Saved to Post Anki" };
+    return {
+      kind: "success",
+      text: truncated
+        ? `Saved the first ${MAX_CAPTURE_CHARS.toLocaleString("en-US")} characters`
+        : "Saved to Post Anki",
+    };
   }
 
   if (!hasToken || result.reason === "unauthorized") {
@@ -26,6 +40,10 @@ export function describeToast(result: SendCaptureResult, hasToken: boolean): Toa
       return { kind: "error", text: "Post Anki rejected this text. It may be empty or too long." };
     case "forbidden":
       return { kind: "error", text: "This extension isn't allowed by the Post Anki server." };
+    case "too_large":
+      return { kind: "error", text: "That selection is too large for Post Anki. Select less text." };
+    case "rate_limited":
+      return { kind: "error", text: "Post Anki is limiting requests right now. Try again later." };
     case "unexpected":
       return { kind: "error", text: "Post Anki had a server problem. Try again later." };
   }

@@ -6,6 +6,7 @@ const envSchema = z.object({
   OWNER_TELEGRAM_CHAT_ID: z.coerce.number().int(),
   API_BASE_URL: z.string().url(),
   API_SHARED_SECRET: z.string().min(1).optional(),
+  WEB_BASE_URL: z.string().url().optional(),
   DATABASE_URL: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(8080),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),

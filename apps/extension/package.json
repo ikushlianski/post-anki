@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && cp -R public/. dist/",
+    "build": "tsc -p tsconfig.build.json && cp -R public/. dist/ && node scripts/write-seed-token.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "e2e": "node e2e/capture-e2e.mjs"

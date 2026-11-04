@@ -10,11 +10,8 @@ import {
   setNavCurriculum,
 } from "../session/chat-context.repo.js";
 import { log } from "../telegram/log.js";
-import {
-  nextQuizQuestion,
-  startQuiz,
-  submitQuizAnswer,
-} from "../quiz/quiz-flow.js";
+import { startQuiz } from "../quiz/quiz-flow.js";
+import { onAnswer, onEndQuiz, onNext, regenerateModule, regenerateTopic } from "./quiz-callbacks.js";
 import { endSocratic, startSocratic } from "../socratic/socratic-flow.js";
 import { finalizeForPivot } from "../socratic/session-pivot-flow.js";
 import { handleCheckinCallback, handleTriageCallback } from "../gap-triage/gap-triage-flow.js";
@@ -53,12 +50,21 @@ async function moduleLabel(curriculumId: string, moduleId: string): Promise<stri
   return curriculumLabel(detail.curriculum.name, mod?.title);
 }
 
-export async function handleCallback(query: CallbackQuery): Promise<void> {
+export interface CallbackExtras {
+  onPauseDigest?: (chatId: number) => Promise<void>;
+  webBaseUrl?: string;
+}
+
+export async function handleCallback(query: CallbackQuery, extras: CallbackExtras = {}): Promise<void> {
   const chatId = query.message?.chat?.id;
   const messageId = query.message?.message_id;
   const data = query.data;
 
-  await answerCallbackQuery(query.id);
+  try {
+    await answerCallbackQuery(query.id);
+  } catch (err) {
+    log.warn({ err, callback_query_id: query.id }, "callback_answer_failed");
+  }
 
   if (typeof chatId !== "number" || typeof messageId !== "number" || !data) {
     return;
@@ -67,7 +73,17 @@ export async function handleCallback(query: CallbackQuery): Promise<void> {
   const { kind, arg } = parseCallback(data);
 
   try {
-    await route(chatId, messageId, kind, arg);
+    if (kind === "pause_digest") {
+      try {
+        await extras.onPauseDigest?.(chatId);
+      } catch (err) {
+        log.error({ err, chat_id: chatId, kind }, "callback_error");
+      }
+
+      return;
+    }
+
+    await route(chatId, messageId, kind, arg, extras.webBaseUrl);
   } catch (err) {
     log.error({ err, chat_id: chatId, kind }, "callback_error");
     await editMessageText(chatId, messageId, "Had a hiccup — send /start to begin again.");
@@ -79,9 +95,10 @@ async function route(
   messageId: number,
   kind: ReturnType<typeof parseCallback>["kind"],
   arg: string,
+  webBaseUrl?: string,
 ): Promise<void> {
   if (kind === "home") {
-    await editScreen(chatId, messageId, await showSubjects(chatId));
+    await editScreen(chatId, messageId, await showSubjects(chatId, webBaseUrl));
     return;
   }
 
@@ -131,13 +148,18 @@ async function route(
     return;
   }
 
-  if (kind === "next") {
+  if (kind === "next" || kind === "skip") {
     await onNext(chatId, messageId);
     return;
   }
 
+  if (kind === "end_quiz") {
+    await onEndQuiz(chatId, messageId);
+    return;
+  }
+
   if (kind === "continue") {
-    await onContinue(chatId, messageId);
+    await onContinue(chatId, messageId, webBaseUrl);
     return;
   }
 
@@ -235,56 +257,11 @@ async function startModule(
   await startQuiz(chatId, messageId, "module", moduleId, label, false);
 }
 
-async function regenerateTopic(chatId: number, messageId: number): Promise<void> {
-  const context = await getChatContext(chatId);
-
-  if (!context?.scopeId) {
-    return;
-  }
-
-  await startQuiz(chatId, messageId, "topic", context.scopeId, context.label ?? "this topic", true);
-}
-
-async function regenerateModule(chatId: number, messageId: number): Promise<void> {
-  const context = await getChatContext(chatId);
-
-  if (!context?.scopeId) {
-    return;
-  }
-
-  await startQuiz(chatId, messageId, "module", context.scopeId, context.label ?? "this module", true);
-}
-
-async function onAnswer(
-  chatId: number,
-  messageId: number,
-  arg: string,
-): Promise<void> {
-  const context = await getChatContext(chatId);
-  const selectedIndex = Number.parseInt(arg, 10);
-
-  if (!context || context.mode !== "quiz" || Number.isNaN(selectedIndex)) {
-    return;
-  }
-
-  await submitQuizAnswer(chatId, messageId, context, selectedIndex);
-}
-
-async function onNext(chatId: number, messageId: number): Promise<void> {
-  const context = await getChatContext(chatId);
-
-  if (!context || context.mode !== "quiz") {
-    return;
-  }
-
-  await nextQuizQuestion(chatId, messageId, context);
-}
-
-async function onContinue(chatId: number, messageId: number): Promise<void> {
+async function onContinue(chatId: number, messageId: number, webBaseUrl?: string): Promise<void> {
   const context = await getChatContext(chatId);
 
   if (!context || context.mode === "idle") {
-    await editScreen(chatId, messageId, await showSubjects(chatId));
+    await editScreen(chatId, messageId, await showSubjects(chatId, webBaseUrl));
     return;
   }
 

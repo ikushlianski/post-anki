@@ -20,3 +20,8 @@ export const chatContext = pgTable("chat_context", {
   messageId: integer("message_id"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const reminderState = pgTable("reminder_state", {
+  key: text("key").primaryKey(),
+  lastSentDay: text("last_sent_day").notNull(),
+});

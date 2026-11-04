@@ -34,4 +34,31 @@ describe("describeToast", () => {
     expect(describeToast({ ok: false, reason: "forbidden" }, true).text).toContain("isn't allowed");
     expect(describeToast({ ok: false, reason: "unexpected", status: 500 }, true).text).toContain("server problem");
   });
+
+  it("should tell the user the selection is too large for a 413", () => {
+    expect(describeToast({ ok: false, reason: "too_large" }, true)).toEqual({
+      kind: "error",
+      text: "That selection is too large for Post Anki. Select less text.",
+    });
+  });
+
+  it("should tell the user requests are being limited for a 429", () => {
+    expect(describeToast({ ok: false, reason: "rate_limited" }, true).text).toContain("limiting requests");
+  });
+
+  it("should say only the first 50,000 characters were saved when the selection was cut", () => {
+    expect(describeToast({ ok: true }, true, true)).toEqual({
+      kind: "success",
+      text: "Saved the first 50,000 characters",
+    });
+  });
+
+  it("should tell the user to click the toolbar to retry when the failure is retryable", () => {
+    expect(describeToast({ ok: false, reason: "rate_limited" }, true, false, true).text).toContain("Click the toolbar button to retry.");
+  });
+
+  it("should not mention retry when the failure is not retryable or the save worked", () => {
+    expect(describeToast({ ok: false, reason: "bad_request" }, true, false, false).text).not.toContain("retry");
+    expect(describeToast({ ok: true }, true, false, true).text).toBe("Saved to Post Anki");
+  });
 });

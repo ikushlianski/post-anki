@@ -1,4 +1,4 @@
-import type { CurriculumDetail, Module, Subject } from "@post-anki/shared";
+import { subjectPathLabel, type CurriculumDetail, type Module, type Subject } from "@post-anki/shared";
 import type { InlineKeyboard } from "../telegram/bot.js";
 import { editMessageText, sendMessageWithKeyboard } from "../telegram/bot.js";
 import {
@@ -27,7 +27,21 @@ interface Screen {
   keyboard: InlineKeyboard;
 }
 
-export async function showSubjects(chatId: number): Promise<Screen> {
+export function emptySubjectsText(webBaseUrl?: string): string {
+  const base = "No subjects yet. Add a note in the app first, then come back here.";
+
+  return webBaseUrl ? `${base}\n${webBaseUrl}` : base;
+}
+
+export function subjectButtonsOf(subjects: Subject[]): { text: string; callback_data: string }[] {
+  const byId = new Map(subjects.map((s) => [s.id, s]));
+
+  return subjects
+    .map((s) => ({ text: subjectPathLabel(s.id, byId), callback_data: buildCallback("subject", s.id) }))
+    .sort((a, b) => a.text.localeCompare(b.text));
+}
+
+export async function showSubjects(chatId: number, webBaseUrl?: string): Promise<Screen> {
   const [subjects, context] = await Promise.all([
     getSubjects(),
     getChatContext(chatId),
@@ -41,15 +55,12 @@ export async function showSubjects(chatId: number): Promise<Screen> {
     ]);
   }
 
-  const subjectButtons = subjects.map((s: Subject) => ({
-    text: s.name,
-    callback_data: buildCallback("subject", s.id),
-  }));
+  const subjectButtons = subjectButtonsOf(subjects);
 
   rows.push(...chunkButtons(subjectButtons, 1));
 
   return {
-    text: subjects.length > 0 ? "Choose a subject:" : "No subjects yet.",
+    text: subjects.length > 0 ? "Choose a subject:" : emptySubjectsText(webBaseUrl),
     keyboard: rows,
   };
 }

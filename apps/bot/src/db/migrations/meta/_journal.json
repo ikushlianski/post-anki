@@ -15,6 +15,13 @@
       "when": 1782770096298,
       "tag": "0001_hot_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793242568990,
+      "tag": "0002_steady_paibok",
+      "breakpoints": true
     }
   ]
 }

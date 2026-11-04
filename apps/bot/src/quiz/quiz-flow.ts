@@ -1,4 +1,4 @@
-import type { ProbeScope, ProbeSession } from "@post-anki/shared";
+import type { ProbeScope, ProbeSession, ProbeSessionQuestion } from "@post-anki/shared";
 import { editMessageText, sendChatAction } from "../telegram/bot.js";
 import {
   answerProbeSession,
@@ -8,6 +8,7 @@ import {
 import { setChatContext } from "../session/chat-context.repo.js";
 import type { ChatContext } from "../session/chat-context.repo.js";
 import { buildCallback } from "../nav/callback.js";
+import { loadEnv } from "../env.js";
 import type { InlineKeyboard } from "../telegram/bot.js";
 import {
   findQuestion,
@@ -22,11 +23,70 @@ const GENERATING = "⏳ Generating your quiz (questions + answers) and saving it
 function optionKeyboard(optionCount: number): InlineKeyboard {
   const rows: InlineKeyboard = [];
 
-  for (let i = 0; i < optionCount; i += 1) {
-    rows.push([{ text: String(i + 1), callback_data: buildCallback("answer", String(i)) }]);
+  const perRow = optionCount === 4 ? 2 : 3;
+
+  for (let i = 0; i < optionCount; i += perRow) {
+    const row: InlineKeyboard[number] = [];
+
+    for (let j = i; j < Math.min(i + perRow, optionCount); j += 1) {
+      row.push({ text: String(j + 1), callback_data: buildCallback("answer", String(j)) });
+    }
+
+    rows.push(row);
   }
 
   return rows;
+}
+
+function endQuizButton(): InlineKeyboard {
+  return [[{ text: "⏹ End quiz", callback_data: buildCallback("end_quiz") }]];
+}
+
+function webQuizUrl(session: ProbeSession): string | null {
+  const base = loadEnv().WEB_BASE_URL?.replace(/\/+$/, "");
+
+  if (!base) {
+    return null;
+  }
+
+  return session.scope === "topic"
+    ? `${base}/probe/${session.scopeId}`
+    : `${base}/curriculum/${session.curriculumId}`;
+}
+
+export function questionKeyboard(question: ProbeSessionQuestion, session: ProbeSession): InlineKeyboard {
+  if (question.type !== "multi") {
+    return [
+      ...optionKeyboard(question.options.length),
+      [
+        { text: "Skip", callback_data: buildCallback("skip") },
+        { text: "⏹ End quiz", callback_data: buildCallback("end_quiz") },
+      ],
+      ...regenerateButton(session.scope),
+    ];
+  }
+
+  const url = webQuizUrl(session);
+  const rows: InlineKeyboard = [];
+
+  if (url) {
+    rows.push([{ text: "Open on the web", url }]);
+  }
+
+  rows.push([{ text: "Next →", callback_data: buildCallback("next") }]);
+
+  return [...rows, ...endQuizButton(), ...regenerateButton(session.scope)];
+}
+
+export function endKeyboard(scope: ProbeScope): InlineKeyboard {
+  const kind = scope === "topic" ? "regenerate_topic" : "regenerate_module";
+
+  return [
+    [
+      { text: "🔄 New quiz", callback_data: buildCallback(kind) },
+      { text: "🏠 Home", callback_data: buildCallback("home") },
+    ],
+  ];
 }
 
 function regenerateButton(scope: ProbeScope): InlineKeyboard {
@@ -86,17 +146,25 @@ export async function renderSession(
       chatId,
       messageId,
       `✅ All questions answered for ${label}. ${current.correct}/${current.total} correct.`,
+      endKeyboard(current.scope),
     );
 
     return;
   }
 
+  await renderQuestion(chatId, messageId, current, next, label);
+}
+
+async function renderQuestion(
+  chatId: number,
+  messageId: number,
+  current: ProbeSession,
+  next: ProbeSessionQuestion,
+  label: string,
+): Promise<void> {
   await persist(chatId, current, next.id, label, messageId);
 
-  const keyboard = [
-    ...optionKeyboard(next.options.length),
-    ...regenerateButton(current.scope),
-  ];
+  const keyboard = questionKeyboard(next, current);
 
   await editMessageText(
     chatId,
@@ -166,7 +234,7 @@ export async function submitQuizAnswer(
       sessionId: null,
       currentItemId: null,
     });
-    await editMessageText(chatId, messageId, formatQuizComplete(result, label));
+    await editMessageText(chatId, messageId, formatQuizComplete(result, label), endKeyboard(scope));
 
     return;
   }
@@ -190,10 +258,35 @@ export async function nextQuizQuestion(
   const session = await getActiveProbeSession(scope, scopeId);
 
   if (!session) {
-    await editMessageText(chatId, messageId, "That quiz is no longer active.");
+    await editMessageText(chatId, messageId, "That quiz is no longer active.", endKeyboard(scope));
 
     return;
   }
 
-  await renderSession(chatId, messageId, session, context.label ?? "this topic");
+  const label = context.label ?? "this topic";
+  const current = session.questions.find((q) => q.id === context.currentItemId);
+  const following = current
+    ? session.questions
+        .filter((q) => q.answeredIndex === null && q.order > current.order)
+        .sort((a, b) => a.order - b.order)[0]
+    : undefined;
+
+  if (following) {
+    await renderQuestion(chatId, messageId, session, following, label);
+
+    return;
+  }
+
+  if (current && current.answeredIndex === null) {
+    await editMessageText(
+      chatId,
+      messageId,
+      `✅ No more questions to show for ${label}. ${session.correct}/${session.total} correct.`,
+      endKeyboard(session.scope),
+    );
+
+    return;
+  }
+
+  await renderSession(chatId, messageId, session, label);
 }

@@ -11,6 +11,9 @@ export type CallbackKind =
   | "regenerate_module"
   | "answer"
   | "next"
+  | "skip"
+  | "end_quiz"
+  | "pause_digest"
   | "triage_important"
   | "triage_defer"
   | "triage_dismiss"
@@ -38,6 +41,9 @@ const PREFIX_TO_KIND: Record<string, CallbackKind> = {
   rm: "regenerate_module",
   qa: "answer",
   qnext: "next",
+  qskip: "skip",
+  qend: "end_quiz",
+  dpause: "pause_digest",
   ti: "triage_important",
   td: "triage_defer",
   tds: "triage_dismiss",

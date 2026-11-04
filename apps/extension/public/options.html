@@ -2,21 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>post-anki capture settings</title>
   </head>
   <body>
     <h1>post-anki capture</h1>
-    <p>
-      <label>API base URL <input id="base-url" type="url" /></label>
-    </p>
-    <p>
-      <label>API token (optional) <input id="token" type="password" autocomplete="off" /></label>
-    </p>
-    <p>
-      <label>Default subject (optional) <select id="subject"><option value="">No subject</option></select></label>
-    </p>
-    <p id="subject-note"></p>
-    <button id="save" type="button">Save</button>
+    <form id="options-form" novalidate>
+      <p>
+        <label>API base URL <input id="base-url" type="url" readonly /></label>
+      </p>
+      <p>
+        <label>Web app address <input id="web-url" type="url" /></label>
+      </p>
+      <p>
+        <label>API token (optional) <input id="token" type="password" autocomplete="off" /></label>
+      </p>
+      <p>
+        <label>Default subject (optional) <select id="subject"><option value="">No subject</option></select></label>
+      </p>
+      <p id="subject-note" role="alert"></p>
+      <button id="save" type="submit">Save</button>
+    </form>
+    <h2>Add a subject</h2>
+    <form id="add-subject-form" novalidate>
+      <p>
+        <label>Name <input id="new-subject-name" type="text" maxlength="120" /></label>
+      </p>
+      <p>
+        <label>Inside <select id="new-subject-parent"><option value="">Top level</option></select></label>
+        <span id="new-subject-parent-note" role="status"></span>
+      </p>
+      <button id="add-subject" type="submit">Add subject</button>
+      <span id="add-subject-status" role="status"></span>
+    </form>
     <p id="status" role="status"></p>
     <script type="module" src="options.js"></script>
   </body>

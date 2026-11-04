@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { sendCapture } from "./send-capture.js";
+import { REQUEST_TIMEOUT_MS, sendCapture } from "./send-capture.js";
 
 const settings = { baseUrl: "http://localhost:5560", token: "" };
 
@@ -70,5 +70,42 @@ describe("sendCapture", () => {
       ok: false,
       reason: "network",
     });
+  });
+
+  it("should report a too-large result for HTTP 413 and a rate-limited result for HTTP 429", async () => {
+    expect(await sendCapture({ text: "hello" }, settings, fetchReturning(413))).toEqual({
+      ok: false,
+      reason: "too_large",
+    });
+    expect(await sendCapture({ text: "hello" }, settings, fetchReturning(429))).toEqual({
+      ok: false,
+      reason: "rate_limited",
+    });
+  });
+});
+
+describe("sendCapture timeout", () => {
+  it("should attach a 15 second abort signal to the request", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const fetchImpl = fetchReturning(201);
+
+    await sendCapture({ text: "hello" }, settings, fetchImpl);
+
+    expect(timeout).toHaveBeenCalledWith(REQUEST_TIMEOUT_MS);
+    expect(REQUEST_TIMEOUT_MS).toBe(15_000);
+    timeout.mockRestore();
+  });
+
+  it("should report a network failure when the server never answers", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(AbortSignal.abort());
+    const fetchImpl = vi.fn<typeof fetch>(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          if (init?.signal?.aborted) reject(new Error("aborted"));
+        }),
+    );
+
+    expect(await sendCapture({ text: "hello" }, settings, fetchImpl)).toEqual({ ok: false, reason: "network" });
+    timeout.mockRestore();
   });
 });

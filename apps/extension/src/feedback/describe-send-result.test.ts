@@ -48,4 +48,15 @@ describe("describeSendResult", () => {
       title: "API not reachable at http://localhost:9999",
     });
   });
+
+  it("should show their own badge text for a too-large selection and a rate limit", () => {
+    expect(describeSendResult({ ok: false, reason: "too_large" }, baseUrl)).toEqual({
+      badge: "ERR",
+      title: "Selection too large (413)",
+    });
+    expect(describeSendResult({ ok: false, reason: "rate_limited" }, baseUrl)).toEqual({
+      badge: "ERR",
+      title: "Rate limited (429): try again later",
+    });
+  });
 });

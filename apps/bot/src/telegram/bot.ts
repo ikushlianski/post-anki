@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import type { InlineKeyboardButton } from "grammy/types";
 import { loadEnv } from "../env.js";
+import { sliceWithoutSplittingPairs } from "./safe-slice.js";
 
 export type InlineKeyboard = InlineKeyboardButton[][];
 
@@ -14,8 +15,20 @@ export function getBot(): Bot {
   return bot;
 }
 
+export const TELEGRAM_MAX_MESSAGE_CHARS = 4096;
+
+export function capMessageText(text: string): string {
+  return text.length > TELEGRAM_MAX_MESSAGE_CHARS
+    ? `${sliceWithoutSplittingPairs(text, TELEGRAM_MAX_MESSAGE_CHARS - 1)}…`
+    : text;
+}
+
+function isNotModifiedError(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("message is not modified");
+}
+
 export async function sendMessage(chatId: number, text: string): Promise<void> {
-  await getBot().api.sendMessage(chatId, text);
+  await getBot().api.sendMessage(chatId, capMessageText(text));
 }
 
 export async function sendMessageWithKeyboard(
@@ -23,7 +36,7 @@ export async function sendMessageWithKeyboard(
   text: string,
   inlineKeyboard: InlineKeyboard,
 ): Promise<number> {
-  const sent = await getBot().api.sendMessage(chatId, text, {
+  const sent = await getBot().api.sendMessage(chatId, capMessageText(text), {
     reply_markup: { inline_keyboard: inlineKeyboard },
   });
 
@@ -36,11 +49,17 @@ export async function editMessageText(
   text: string,
   inlineKeyboard?: InlineKeyboard,
 ): Promise<void> {
-  await getBot().api.editMessageText(chatId, messageId, text, {
-    reply_markup: inlineKeyboard
-      ? { inline_keyboard: inlineKeyboard }
-      : undefined,
-  });
+  try {
+    await getBot().api.editMessageText(chatId, messageId, capMessageText(text), {
+      reply_markup: inlineKeyboard
+        ? { inline_keyboard: inlineKeyboard }
+        : undefined,
+    });
+  } catch (err) {
+    if (!isNotModifiedError(err)) {
+      throw err;
+    }
+  }
 }
 
 export async function answerCallbackQuery(
@@ -55,4 +74,10 @@ export async function sendChatAction(
   action: "typing",
 ): Promise<void> {
   await getBot().api.sendChatAction(chatId, action);
+}
+
+export async function setMyCommands(
+  commands: { command: string; description: string }[],
+): Promise<void> {
+  await getBot().api.setMyCommands(commands);
 }

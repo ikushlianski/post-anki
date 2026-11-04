@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { handleUpdate, MAX_VOICE_DURATION_SEC, type HandlerDeps } from "./webhook.handler.js";
+import { HELP_TEXT } from "./help-command.js";
 import { createUpdateLru } from "./update-lru.js";
 import {
   DECLINE_REPLY,
+  UNKNOWN_COMMAND_REPLY,
   ERROR_REPLY,
   VOICE_TOO_LONG_REPLY,
   TRANSCRIPTION_FAILED_REPLY,
@@ -106,12 +108,179 @@ describe("handleUpdate", () => {
     expect(flow.submitAnswer).toHaveBeenCalledTimes(1);
   });
 
+  it("ignores an edited message so a corrected note is not added a second time", async () => {
+    const flow = makeFlow();
+
+    vi.mocked(flow.getPending).mockResolvedValue(null);
+
+    const deps = makeDeps(flow);
+    const edited = { update_id: 20, edited_message: update({ text: "fixed note" }).message } as Update;
+
+    await handleUpdate(edited, deps);
+
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+    expect(flow.getDailyPush).not.toHaveBeenCalled();
+    expect(deps.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("still takes an edited message as the answer while a question is waiting", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    const edited = { update_id: 21, edited_message: update({ text: "better answer" }).message } as Update;
+
+    await handleUpdate(edited, deps);
+
+    expect(flow.submitAnswer).toHaveBeenCalledTimes(1);
+  });
+
   it("opens the subject menu on /start without touching the API", async () => {
     const flow = makeFlow();
     const deps = makeDeps(flow);
     await handleUpdate(update({ text: "/start" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, "Quiz yourself on your cards.\nSend /help for commands.");
     expect(flow.getDailyPush).not.toHaveBeenCalled();
     expect(deps.onStart).toHaveBeenCalledWith(OWNER);
+  });
+
+  it("/help replies with the command list without any API call", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "/help" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, HELP_TEXT);
+    expect(flow.getDailyPush).not.toHaveBeenCalled();
+  });
+
+  it("/chat from the owner runs the chat-cards listing", async () => {
+    const deps = { ...makeDeps(makeFlow()), onChat: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ text: "/chat" }), deps);
+    expect(deps.onChat).toHaveBeenCalledWith(OWNER, null);
+  });
+
+  it("/chat from a stranger is dropped without listing anything", async () => {
+    const deps = { ...makeDeps(makeFlow()), onChat: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ chatId: STRANGER, text: "/chat" }), deps);
+    expect(deps.onChat).not.toHaveBeenCalled();
+  });
+
+  it("/digest from the owner runs the weekly digest", async () => {
+    const deps = { ...makeDeps(makeFlow()), onDigest: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ text: "/digest" }), deps);
+    expect(deps.onDigest).toHaveBeenCalledWith(OWNER);
+  });
+
+  it("/digest failure replies with the generic error message", async () => {
+    const deps = { ...makeDeps(makeFlow()), onDigest: vi.fn().mockRejectedValue(new Error("down")) };
+    await handleUpdate(update({ text: "/digest" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, expect.stringContaining("hiccup"));
+  });
+
+  it("/rejected from the owner passes the reason argument through", async () => {
+    const deps = { ...makeDeps(makeFlow()), onRejected: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ text: "/rejected other" }), deps);
+    expect(deps.onRejected).toHaveBeenCalledWith(OWNER, "other");
+  });
+
+  it("/inbox from the owner runs the inbox count", async () => {
+    const deps = { ...makeDeps(makeFlow()), onInbox: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ text: "/inbox" }), deps);
+    expect(deps.onInbox).toHaveBeenCalledWith(OWNER);
+  });
+
+  it("/find from the owner passes the search words through", async () => {
+    const deps = { ...makeDeps(makeFlow()), onFind: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ text: "/find kubernetes" }), deps);
+    expect(deps.onFind).toHaveBeenCalledWith(OWNER, "kubernetes");
+  });
+
+  it("/inbox from a stranger is dropped", async () => {
+    const deps = { ...makeDeps(makeFlow()), onInbox: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ chatId: STRANGER, text: "/inbox" }), deps);
+    expect(deps.onInbox).not.toHaveBeenCalled();
+  });
+
+  it("treats an unknown command as the answer when a question is pending", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "/whatever" }), deps);
+    expect(flow.submitAnswer).toHaveBeenCalled();
+    expect(deps.sendMessage).not.toHaveBeenCalledWith(OWNER, UNKNOWN_COMMAND_REPLY);
+  });
+
+  it("treats an unknown command as the answer during a quiz", async () => {
+    const flow = makeFlow();
+    vi.mocked(flow.getPending).mockResolvedValue(null);
+    const deps = makeDeps(flow);
+    deps.onQuizText = vi.fn().mockResolvedValue(undefined);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "quiz",
+      sessionId: "q1",
+      currentItemId: "i1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "/whatever" }), deps);
+    expect(deps.onQuizText).toHaveBeenCalledWith(OWNER);
+    expect(deps.sendMessage).not.toHaveBeenCalledWith(OWNER, UNKNOWN_COMMAND_REPLY);
+  });
+
+  it("keeps a known command working even when a question is pending", async () => {
+    const flow = makeFlow();
+    const deps = { ...makeDeps(flow), onChat: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ text: "/chat" }), deps);
+    expect(deps.onChat).toHaveBeenCalledWith(OWNER, null);
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("replies that a mistyped command is unknown when nothing expects free text", async () => {
+    const flow = makeFlow();
+    vi.mocked(flow.getPending).mockResolvedValue(null);
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "/chats" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, UNKNOWN_COMMAND_REPLY);
+    expect(flow.submitAnswer).not.toHaveBeenCalled();
+  });
+
+  it("passes a socratic answer that is a single slash word to the session instead of rejecting it", async () => {
+    const flow = makeFlow();
+    vi.mocked(flow.getPending).mockResolvedValue(null);
+    const deps = makeDeps(flow);
+    deps.onSocraticText = vi.fn().mockResolvedValue(undefined);
+    deps.getChatContext = vi.fn().mockResolvedValue({
+      mode: "socratic",
+      sessionId: "ss1",
+      currentItemId: "turn1",
+      scopeKind: "topic",
+      scopeId: "t1",
+      navCurriculumId: "c1",
+      label: "x",
+      messageId: 5,
+    });
+    await handleUpdate(update({ text: "/etc" }), deps);
+    expect(deps.onSocraticText).toHaveBeenCalledWith(OWNER, expect.anything(), "/etc");
+    expect(deps.sendMessage).not.toHaveBeenCalledWith(OWNER, UNKNOWN_COMMAND_REPLY);
+  });
+
+  it("submits a pending-question answer that is a single slash word as an answer", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    await handleUpdate(update({ text: "/dev" }), deps);
+    expect(flow.submitAnswer).toHaveBeenCalled();
+    expect(deps.sendMessage).not.toHaveBeenCalledWith(OWNER, UNKNOWN_COMMAND_REPLY);
+  });
+
+  it("still handles a known command with a bot name suffix", async () => {
+    const deps = makeDeps(makeFlow());
+    await handleUpdate(update({ text: "/help@my_bot" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, HELP_TEXT);
+  });
+
+  it("/digest from a stranger is dropped", async () => {
+    const deps = { ...makeDeps(makeFlow()), onDigest: vi.fn().mockResolvedValue(undefined) };
+    await handleUpdate(update({ chatId: STRANGER, text: "/digest" }), deps);
+    expect(deps.onDigest).not.toHaveBeenCalled();
   });
 
   it("declines a voice message", async () => {
@@ -209,6 +378,22 @@ describe("handleUpdate", () => {
     await handleUpdate(update({ text: "/today" }), deps);
     expect(clearChatContext).toHaveBeenCalledWith(OWNER);
     expect(flow.getDailyPush).toHaveBeenCalledOnce();
+  });
+
+  it("/start tells the user to try again when the subject list cannot be loaded", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.onStart = vi.fn().mockRejectedValue(new Error("api down"));
+    await handleUpdate(update({ text: "/start" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, ERROR_REPLY);
+  });
+
+  it("/study tells the user to try again when starting the study fails", async () => {
+    const flow = makeFlow();
+    const deps = makeDeps(flow);
+    deps.onStudy = vi.fn().mockRejectedValue(new Error("api down"));
+    await handleUpdate(update({ text: "/study Temporal" }), deps);
+    expect(deps.sendMessage).toHaveBeenCalledWith(OWNER, ERROR_REPLY);
   });
 
   it("/study <name> hands off to onStudy with the parsed name", async () => {
@@ -342,6 +527,30 @@ describe("handleUpdate", () => {
     };
     await handleUpdate(cbUpdate, deps);
     expect(onCallback).toHaveBeenCalledOnce();
+  });
+
+  it("drops a Pause button press that comes from a stranger's chat", async () => {
+    const deps = makeDeps(makeFlow());
+    const onCallback = vi.fn().mockResolvedValue(undefined);
+    deps.onCallback = onCallback;
+    const cbUpdate: Update = {
+      update_id: 51,
+      callback_query: {
+        id: "cb2",
+        from: { id: STRANGER, is_bot: false, first_name: "x" },
+        chat_instance: "ci",
+        data: "dpause",
+        message: {
+          message_id: 9,
+          date: 0,
+          chat: { id: STRANGER, type: "private", first_name: "x" },
+        },
+      } as Update["callback_query"],
+    };
+
+    await handleUpdate(cbUpdate, deps);
+
+    expect(onCallback).not.toHaveBeenCalled();
   });
 
   it("/done dispatches to onDone only when a socratic session is active (AC 1, 2)", async () => {

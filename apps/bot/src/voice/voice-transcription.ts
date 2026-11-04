@@ -1,6 +1,6 @@
 import { getBot } from "../telegram/bot.js";
 import { loadEnv } from "../env.js";
-import { transcribeAudio } from "../api/client.js";
+import { apiTimeoutSignal, transcribeAudio } from "../api/client.js";
 import { log } from "../telegram/log.js";
 
 const DEFAULT_MIME_TYPE = "audio/ogg";
@@ -29,7 +29,9 @@ export async function transcribeVoiceNote(
     }
 
     const env = loadEnv();
-    const res = await fetch(fileDownloadUrl(env.TELEGRAM_BOT_TOKEN, file.file_path));
+    const res = await fetch(fileDownloadUrl(env.TELEGRAM_BOT_TOKEN, file.file_path), {
+      signal: apiTimeoutSignal(),
+    });
 
     if (!res.ok) {
       log.error({ file_id: fileId, status: res.status }, "voice_download_failed");

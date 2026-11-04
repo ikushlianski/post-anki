@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CallbackQuery } from "grammy/types";
+import { log } from "../telegram/log.js";
 
 const answerCallbackQuery = vi.fn();
 const editMessageText = vi.fn();
@@ -34,24 +35,30 @@ vi.mock("../socratic/session-pivot-flow.js", () => ({
 }));
 
 const startQuiz = vi.fn();
+const nextQuizQuestion = vi.fn();
+const endQuiz = vi.fn();
 
 vi.mock("../quiz/quiz-flow.js", () => ({
-  nextQuizQuestion: vi.fn(),
+  nextQuizQuestion,
   startQuiz: (...a: unknown[]) => startQuiz(...a),
   submitQuizAnswer: vi.fn(),
 }));
+
+vi.mock("../quiz/quiz-end.js", () => ({ endQuiz: (...a: unknown[]) => endQuiz(...a) }));
 
 vi.mock("../gap-triage/gap-triage-flow.js", () => ({
   handleCheckinCallback: vi.fn(),
   handleTriageCallback: vi.fn(),
 }));
 
+const showSubjects = vi.fn();
+
 vi.mock("./menu.js", () => ({
   editScreen: vi.fn(),
   showCurricula: vi.fn(),
   showCurriculum: vi.fn(),
   showModule: vi.fn(),
-  showSubjects: vi.fn(),
+  showSubjects: (...a: unknown[]) => showSubjects(...a),
   showTopic: vi.fn(),
 }));
 
@@ -326,5 +333,86 @@ describe("save_for_next callback (AC 25, 26)", () => {
       9,
       "Saved. Send /today or tap a topic to pick up later.",
     );
+  });
+
+  it("should still route the press and log a warning when answering the expired press rejects", async () => {
+    answerCallbackQuery.mockRejectedValueOnce(new Error("query is too old"));
+    getChatContext.mockResolvedValue({
+      state: "idle",
+      navCurriculumId: null,
+      label: null,
+      messageId: null,
+    });
+
+    await expect(handleCallback(callbackQuery("sv"))).resolves.toBeUndefined();
+
+    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ callback_query_id: expect.any(String) }), "callback_answer_failed");
+    expect(editMessageText).toHaveBeenCalled();
+  });
+
+  it("should run the pause handler for the digest Pause button without routing a screen", async () => {
+    const onPauseDigest = vi.fn().mockResolvedValue(undefined);
+
+    await handleCallback(callbackQuery("dpause"), { onPauseDigest });
+
+    expect(onPauseDigest).toHaveBeenCalledWith(42);
+    expect(editMessageText).not.toHaveBeenCalled();
+  });
+
+  it("should treat Skip as moving to the next question and End quiz as ending the quiz", async () => {
+    const context = { mode: "quiz", sessionId: "s1", currentItemId: "q1" };
+    getChatContext.mockResolvedValue(context);
+
+    await handleCallback(callbackQuery("qskip"));
+    await handleCallback(callbackQuery("qend"));
+
+    expect(nextQuizQuestion).toHaveBeenCalledWith(42, 9, context);
+    expect(endQuiz).toHaveBeenCalledWith(42, 9, context);
+  });
+
+  it("should tell the user the quiz ended when Skip or End quiz is tapped with no quiz active", async () => {
+    getChatContext.mockResolvedValue({ mode: "idle" });
+    nextQuizQuestion.mockClear();
+    endQuiz.mockClear();
+    editMessageText.mockClear();
+
+    await handleCallback(callbackQuery("qskip"));
+    await handleCallback(callbackQuery("qend"));
+
+    expect(nextQuizQuestion).not.toHaveBeenCalled();
+    expect(endQuiz).not.toHaveBeenCalled();
+    expect(editMessageText).toHaveBeenCalledTimes(2);
+    expect(editMessageText).toHaveBeenCalledWith(42, 9, expect.stringContaining("quiz has ended"));
+  });
+
+  it("should tell the user the quiz expired when Regenerate has no stored scope", async () => {
+    getChatContext.mockResolvedValue({ mode: "idle", scopeId: null });
+    startQuiz.mockClear();
+    editMessageText.mockClear();
+
+    await handleCallback(callbackQuery("rt"));
+    await handleCallback(callbackQuery("rm"));
+
+    expect(startQuiz).not.toHaveBeenCalled();
+    expect(editMessageText).toHaveBeenCalledTimes(2);
+    expect(editMessageText).toHaveBeenCalledWith(42, 9, expect.stringContaining("quiz has ended"));
+  });
+
+  it("should include the web link when the Home button rebuilds the subject list", async () => {
+    showSubjects.mockClear();
+
+    await handleCallback(callbackQuery("home"), { webBaseUrl: "https://app.example.com" });
+
+    expect(showSubjects).toHaveBeenCalledWith(42, "https://app.example.com");
+  });
+
+  it("should keep the question message when the digest Pause tap fails", async () => {
+    editMessageText.mockClear();
+    const onPauseDigest = vi.fn().mockRejectedValue(new Error("store down"));
+
+    await handleCallback(callbackQuery("dpause"), { onPauseDigest });
+
+    expect(editMessageText).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalled();
   });
 });

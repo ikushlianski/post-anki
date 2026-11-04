@@ -37,7 +37,7 @@ function createFakeSelect(): FakeSelect {
   return select;
 }
 
-function render(subjects: { id: string; name: string }[], selectedId: string | undefined): FakeSelect {
+function render(subjects: { id: string; name: string; parentId?: string }[], selectedId: string | undefined): FakeSelect {
   const select = createFakeSelect();
 
   renderSubjectOptions(select as unknown as HTMLSelectElement, subjects, selectedId);
@@ -84,5 +84,26 @@ describe("renderSubjectOptions", () => {
     const select = render([{ id: "s1", name: "One" }], "gone");
 
     expect(select.value).toBe("");
+  });
+
+  it("should order options by tree and label same-named children with their parent path", () => {
+    const select = render(
+      [
+        { id: "c2", name: "Common", parentId: "sales" },
+        { id: "c1", name: "Common", parentId: "hr" },
+        { id: "sales", name: "Sales", parentId: "biz" },
+        { id: "hr", name: "HR", parentId: "biz" },
+        { id: "biz", name: "Business" },
+      ],
+      undefined,
+    );
+
+    expect(select.options.slice(1).map((option) => [option.value, option.textContent])).toEqual([
+      ["biz", "Business"],
+      ["hr", "Business › HR"],
+      ["c1", "Business › HR › Common"],
+      ["sales", "Business › Sales"],
+      ["c2", "Business › Sales › Common"],
+    ]);
   });
 });

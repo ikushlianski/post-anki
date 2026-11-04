@@ -63,6 +63,70 @@ describe("formatQuestion", () => {
   });
 });
 
+describe("formatQuestion multi", () => {
+  it("should tell the learner to finish a multi-answer question on the web", () => {
+    const text = formatQuestion(question({ type: "multi" }), { answered: 0, total: 1, correct: 0 });
+
+    expect(text).toContain("Several answers apply");
+  });
+});
+
+describe("formatAnswerReveal explanation", () => {
+  const base: AnswerProbeSessionResult = {
+    questionId: "q1",
+    outcome: "pass",
+    correctAnswerIndex: 1,
+    correctAnswerIndexes: null,
+    correct: 1,
+    answered: 1,
+    total: 2,
+    status: "active",
+    coveredGapLabels: [],
+    optionExplanations: null,
+    gapMastery: null,
+    courseLengthRecommendation: null,
+  };
+
+  it("should add the correct option's explanation clipped to 400 characters, with its citation", () => {
+    const text = formatAnswerReveal(
+      {
+        ...base,
+        optionExplanations: [
+          { text: "wrong one", citationUrl: null },
+          { text: "x".repeat(600), citationUrl: "https://docs.example.com/a" },
+        ],
+      },
+      question(),
+    );
+
+    expect(text).toContain(`${"x".repeat(399)}…`);
+    expect(text).not.toContain("x".repeat(401));
+    expect(text).not.toContain("wrong one");
+    expect(text).toContain("https://docs.example.com/a");
+  });
+
+  it("should not cut an emoji in half when clipping the explanation", () => {
+    const text = formatAnswerReveal(
+      {
+        ...base,
+        optionExplanations: [
+          { text: "", citationUrl: null },
+          { text: `${"x".repeat(398)}😀 and more`, citationUrl: null },
+        ],
+      },
+      question(),
+    );
+
+    expect(() => encodeURIComponent(text)).not.toThrow();
+  });
+
+  it("should show no explanation block when none is provided", () => {
+    const text = formatAnswerReveal(base, question());
+
+    expect(text).toBe("✅ Correct\n\nAnswer: No\n\nProgress: 1/2 · 1 correct");
+  });
+});
+
 describe("formatAnswerReveal", () => {
   it("reveals the correct option text on a pass", () => {
     const result: AnswerProbeSessionResult = {

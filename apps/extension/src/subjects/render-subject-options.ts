@@ -1,4 +1,5 @@
 import type { SubjectOption } from "./fetch-subjects.js";
+import { orderSubjectTree } from "./order-subject-tree.js";
 
 export function renderSubjectOptions(
   select: HTMLSelectElement,
@@ -11,11 +12,11 @@ export function renderSubjectOptions(
   none.textContent = "No subject";
   select.replaceChildren(none);
 
-  for (const subject of subjects) {
+  for (const { subject, label } of orderSubjectTree(subjects)) {
     const option = document.createElement("option");
 
     option.value = subject.id;
-    option.textContent = subject.name;
+    option.textContent = label;
     select.append(option);
   }
 

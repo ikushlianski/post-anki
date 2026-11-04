@@ -6,6 +6,7 @@ import {
   classifyText,
   formatErrorReply,
   DECLINE_REPLY,
+  UNKNOWN_COMMAND_REPLY,
   SKIP_ACK,
   VOICE_TOO_LONG_REPLY,
   TRANSCRIPTION_FAILED_REPLY,
@@ -16,7 +17,14 @@ import {
   type FlowDeps,
 } from "../conversation/probe-flow.js";
 import { isDuplicateUpdate, type UpdateLru } from "./update-lru.js";
+import { HELP_TEXT, START_INTRO } from "./help-command.js";
+import { dispatchCommand } from "./command-dispatch.js";
+import { resolveUnknownCommand } from "./expects-free-text.js";
+import { messageText } from "./message-text.js";
 import { log } from "./log.js";
+import type { ChatContextLike } from "./chat-context.js";
+
+export type { ChatContextLike, ChatMode } from "./chat-context.js";
 
 // Sized against apps/api's real 1MB JSON body cap (readJsonBody's
 // MAX_BODY_BYTES), not Telegram's own far more generous 20MB getFile limit —
@@ -26,19 +34,6 @@ import { log } from "./log.js";
 // a deliberately conservative default, flagged as an empirical unknown not
 // verified against a real Telegram-issued file in this pass.
 export const MAX_VOICE_DURATION_SEC = 180;
-
-export type ChatMode = "idle" | "quiz" | "socratic";
-
-export interface ChatContextLike {
-  mode: ChatMode;
-  sessionId: string | null;
-  currentItemId: string | null;
-  scopeKind: string | null;
-  scopeId: string | null;
-  navCurriculumId: string | null;
-  label: string | null;
-  messageId: number | null;
-}
 
 export type HandlerDeps = {
   ownerChatId: number;
@@ -56,6 +51,14 @@ export type HandlerDeps = {
   ) => Promise<void>;
   onQuizText?: (chatId: number) => Promise<void>;
   clearChatContext?: (chatId: number) => Promise<void>;
+  onChat?: (chatId: number, arg: string | null) => Promise<void>;
+  onDigest?: (chatId: number) => Promise<void>;
+  onInbox?: (chatId: number) => Promise<void>;
+  onFind?: (chatId: number, arg: string | null) => Promise<void>;
+  onPause?: (chatId: number, arg: string | null) => Promise<void>;
+  onResume?: (chatId: number) => Promise<void>;
+  onStreak?: (chatId: number) => Promise<void>;
+  onRejected?: (chatId: number, arg: string | null) => Promise<void>;
   onStudy?: (chatId: number, name: string | null) => Promise<void>;
   onDone?: (chatId: number, context: ChatContextLike) => Promise<void>;
   onSkip?: (chatId: number, context: ChatContextLike) => Promise<void>;
@@ -100,6 +103,11 @@ export async function handleUpdate(update: Update, deps: HandlerDeps): Promise<v
     return;
   }
 
+  if (!update.message && (await deps.flow.getPending(message.chat.id)) === null) {
+    log.info({ update_id: update.update_id }, "edited_message_ignored");
+    return;
+  }
+
   await handleMessage(message, deps);
 }
 
@@ -107,7 +115,7 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
   const { flow, defaultMode, sendMessage } = deps;
   const chatId = message.chat.id;
   let decision = selectReply(message);
-  let text = message.text?.trim() ?? "";
+  let text = messageText(message);
 
   // Voice preprocessing (issue #22, spec.md Decision 3) — runs ahead of
   // every existing decision.kind check below so a transcribed answer
@@ -154,12 +162,20 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
   }
 
   if (decision.kind === "start") {
-    if (deps.onStart) {
-      await deps.onStart(chatId);
-    } else {
-      await sendMessage(chatId, DECLINE_REPLY);
+    await sendMessage(chatId, START_INTRO);
+
+    try {
+      await (deps.onStart ? deps.onStart(chatId) : sendMessage(chatId, DECLINE_REPLY));
+    } catch (err) {
+      log.error({ err, chat_id: chatId }, "start_failed");
+      await sendMessage(chatId, formatErrorReply(err));
     }
 
+    return;
+  }
+
+  if (decision.kind === "help") {
+    await sendMessage(chatId, HELP_TEXT);
     return;
   }
 
@@ -184,6 +200,15 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
     // (never /today, /done, skip, or a bare "continue"/"start") so a command
     // never gets a wasted curriculum-tree fan-out or a slim chance of being
     // hijacked by an accidental title match.
+    if (decision.kind === "unknown_command") {
+      decision = await resolveUnknownCommand(chatId, context, flow, text);
+    }
+
+    if (decision.kind === "unknown_command") {
+      await sendMessage(chatId, UNKNOWN_COMMAND_REPLY);
+      return;
+    }
+
     const steerEligible =
       decision.kind === "process" || decision.kind === "study" || decision.kind === "continue";
 
@@ -193,31 +218,7 @@ async function handleMessage(message: Message, deps: HandlerDeps): Promise<void>
       if (steered) return;
     }
 
-    if (decision.kind === "study") {
-      if (deps.onStudy) {
-        await deps.onStudy(chatId, decision.name);
-      } else {
-        await sendMessage(chatId, DECLINE_REPLY);
-      }
-
-      return;
-    }
-
-    if (decision.kind === "continue") {
-      if (decision.tool) {
-        if (deps.onStudy) {
-          await deps.onStudy(chatId, decision.tool);
-        } else {
-          await sendMessage(chatId, DECLINE_REPLY);
-        }
-      } else if (deps.onStart) {
-        await deps.onStart(chatId);
-      } else {
-        await sendMessage(chatId, DECLINE_REPLY);
-      }
-
-      return;
-    }
+    if (await dispatchCommand(decision, chatId, deps)) return;
 
     if (decision.kind === "today") {
       if (deps.clearChatContext) {

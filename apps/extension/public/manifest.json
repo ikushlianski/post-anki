@@ -11,6 +11,8 @@
     "scripting"
   ],
   "host_permissions": [
+    "https://api.postanki.ilya.online/*",
+    "https://post-anki-api-pl6jw2mdla-ew.a.run.app/*",
     "http://localhost:5560/*",
     "http://127.0.0.1:5560/*"
   ],
