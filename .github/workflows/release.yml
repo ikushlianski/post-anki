@@ -1,0 +1,30 @@
+name: release
+
+run-name: Release from main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v0.1.${{ github.run_number }}"
+          gh release create "$tag" \
+            --target "${{ github.sha }}" \
+            --title "$tag" \
+            --generate-notes

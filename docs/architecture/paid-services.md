@@ -18,7 +18,7 @@ Label key: **Fact** = read from the repo or an official page (URL given); **Assu
 | PowerSync service (`apps/ios/spike`) | apps/ios spike, `SYNC_JWT_*` in the API | Native sync spike | Only when working on the Swift apps | Self-hosted container in the spike. Hosted PowerSync is a paid product, https://www.powersync.com/pricing (Assumption: not used) | `apps/ios/spike/docker-compose.powersync.yml` plus `scripts/setup.sh` | Separate compose file, not started by `npm run dev` |
 | Notion (`NOTION_TOKEN`, `@notionhq/client`, `notion-connectors.json`) | apps/api, `scripts/notion-sync-agent` | Optional import and sync | No, optional | Assumption: API access is free with a Notion workspace | Unset token | None |
 | Telegram Bot API (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `OWNER_TELEGRAM_CHAT_ID`) | apps/bot, daily-push jobs | Reminders, voice notes | No | Assumption: Bot API is free | Do not run apps/bot | Bot voice path calls OpenRouter transcription, so it spends tokens when run |
-| Google Cloud Run, Artifact Registry, Cloud Scheduler, IAM (Pulumi `infra/`) | Prod hosting for web, api, bot, Electric; about 15 scheduler jobs that call the API | Prod only | No | Pay per use above a free tier. Source: https://cloud.google.com/run/pricing (page not machine-readable, so the free-tier amounts are an Assumption) | Not needed locally | Scheduler jobs (knowledge-bit detect, embed, tag, place, question and card generation, doc scan) trigger LLM spend in prod with no budget cap |
+| Google Cloud Run, Artifact Registry, Cloud Scheduler, IAM (Pulumi `infra/`) | Prod hosting for web, api, bot, Electric; 16 scheduler jobs that call the API | Prod only | No | Pay per use above a free tier. Source: https://cloud.google.com/run/pricing (page not machine-readable, so the free-tier amounts are an Assumption) | Not needed locally | Scheduler jobs (knowledge-bit detect, embed, tag, question and card generation, doc scan, business-education distill, Notion source tick) trigger LLM spend in prod, bounded by the daily budget |
 | AWS ECS Fargate, ALB, ACM, SSM (Pulumi `infra-aws/`) | Shared-infra Electric deploy | Prod only | No | Pay per use, no free tier for ALB or Fargate. Assumption | Not needed locally | Drafted alongside GCP; confirm which one is live |
 | GitHub Actions and secrets (`.github/workflows/deploy.yml`) | CI deploy | CI | No | Assumption: within free minutes for a personal repo | n/a | None |
 | Doc sites fetched by research (guarded fetch) | apps/api | Doc-link research and changelog scan | No | Free public HTTP; the LLM calls they trigger cost money | `E2E_MOCK_TRACKED_TOOL_CONTENT`, `E2E_SOURCE_FETCH_ALLOWED_ORIGINS`, local mock docs site (`E2E_MOCK_DOCS_PORT`) in e2e | Mocks are e2e-only |
@@ -31,7 +31,11 @@ Fact (from `apps/api/src`):
 
 - Model tiers exist (`mastra/model-tier.ts`) and a per-subject or per-curriculum tier cascade exists (`mastra/model.ts`). A tier is a choice of price, not a limit.
 - `generate-with-retry.ts` bounds retries at 3 attempts per call.
-- No monthly or daily budget cap, no token or cost counter that blocks calls, no per-request token ceiling applied across agents, and no switch such as `LLM_MODE=mock|cheap|real`.
+- `LLM_MODE=real|cheap|mock` (`shared/env.ts`). `cheap` forces the cheapest tier for every agent; `mock` never calls a paid service and is never counted.
+- `LLM_DAILY_BUDGET_USD` (default 5, 0 = off) caps estimated spend per UTC day (`shared/spend-guard.ts`). The day's total is stored in the database (`llm-daily-spend.repo.ts`), so it is shared by all API instances and survives restarts.
+- Before a paid call, `assertLlmBudgetAvailable` reads the total. At or over the cap it throws `LlmBudgetExceededError` (HTTP 429 `llm_budget_exceeded`, `Retry-After` until the next UTC midnight). If the total cannot be read, the call is refused (HTTP 503 `llm_budget_check_unavailable`).
+- After a call, `recordLlmSpend` adds an estimate from blended per-token prices (or a flat token estimate when usage is unknown). A failed write is logged, not thrown. pino warns at 80% and at the cap.
+- The guard covers chat, embedding and transcription calls, including unattended scheduler and Notion source jobs. The amounts are estimates, not billing.
 - Langfuse records usage when keys are set, but nothing reads it back to stop spending.
 - The default `CURRICULUM_MODEL` in `shared/env.ts` is `openrouter/google/gemini-2.5-flash`; `apps/api/.env.example` suggests gpt-4o-mini.
 
@@ -40,8 +44,8 @@ Fact (from `apps/api/src`):
 1. Fixed for dev: `LLM_MODE=mock` boots without `OPENROUTER_API_KEY` and `npm run dev` starts `scripts/mock-llm.mjs` (chat + embeddings). Real mode still requires the key.
 2. No documented or scripted local LLM (mock or Ollama); the only mock covers two fixture texts.
 3. No local or fake embedding path.
-4. No spend guard of any kind (budget cap, kill switch, token ceiling, dev cheap-mode).
-5. Prod scheduler jobs can run LLM work unattended with no cap.
+4. The daily budget is an estimate, not billing; there is no per-request token ceiling across agents. Set an OpenRouter key credit limit as the hard stop.
+5. Prod scheduler jobs run LLM work unattended, bounded only by the daily budget.
 6. `npm run dev` starts Postgres, Electric, api and web only. Inngest, PowerSync and the mock LLM are separate manual steps.
 7. Root `.env.example` still points `ELECTRIC_DATABASE_URL` at Neon.
 8. The iOS README lists the API's required env values as unverified.

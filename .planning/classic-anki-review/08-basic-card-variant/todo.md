@@ -12,7 +12,7 @@ Nothing to decide. Every fork took its default, and each default is logged in sp
 - [ ] Before building, check F-kick's and F-queue's real code: the kick orchestrator's pass list, and whether the queue's variant-preference constant already lists "basic". Adjust the edit to match, not the plan's assumption.
 - [ ] After rollout, review the approved bits that received unreviewed basic cards (decision D3). If the quality is poor, the fallback is to generate basic cards for pending bits only.
 ## Coding tasks
-- [ ] Steps 1–14 in spec.md "Implementation order"
+- [x] Steps 1–14 in spec.md "Implementation order"
 ## Manual steps
 - [ ] Generate the migration, then apply it to the local DB only: `DATABASE_URL=postgres://pet_projects:pet_projects@127.0.0.1:5999/post_anki_dev npm run db:migrate:api`
 - [ ] Paste a real article locally, run the after-paste flow and the scan endpoint, and confirm basic cards appear on the approval page and are served first in Anki review

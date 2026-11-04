@@ -26,7 +26,7 @@ Ports: API 5560, web 5540, Postgres 5562.
 - `LLM_MODE=real` (default) uses OpenRouter and needs `OPENROUTER_API_KEY`.
 - `LLM_MODE=cheap` uses the cheapest model tier everywhere.
 - `LLM_MODE=mock` answers from a local fake server. It writes text in the source's script (English or Cyrillic), so Russian knowledge extracts, but the cards are canned text, not real extraction.
-- `LLM_DAILY_BUDGET_USD` (default 5, 0 means unlimited) caps spend per API process per UTC day. A spent cap returns HTTP 429 with `Retry-After`.
+- `LLM_DAILY_BUDGET_USD` (default 5, 0 means unlimited) caps total LLM spend per UTC day, shared by every API process on the same database. Off with `LLM_MODE=mock`. A spent cap returns HTTP 429 with `Retry-After`.
 - With `LLM_MODE=mock`, Langfuse tracing is off.
 
 ## Native Mac and iOS apps

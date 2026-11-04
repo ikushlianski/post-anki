@@ -22,3 +22,8 @@ Nothing to decide — all decisions made during planning.
 ## Post-deploy checks
 - Confirm ordinary websites cannot reach the backend; only the extension itself is allowed.
 - Confirm a revoked access token is blocked immediately, not just after further use.
+
+## Coding tasks
+- [x] Make the extension always send to the production API address, ignoring any previously saved local address, with the field shown read-only.
+- [x] Let the extension add a new subject or sub-subject from its popup, sending it to the same account the capture token belongs to.
+

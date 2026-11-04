@@ -58,13 +58,13 @@ None. No new process, worker, queue or cloud resource. Both endpoints run in the
 
 ## Four-grade rule
 
-A never-reviewed card follows the learning steps below. A reviewed card: Again sends it to relearning with ease −0.20 (see Learning steps); Hard multiplies the interval by 1.2 with ease −0.15; Good multiplies it by ease; Easy multiplies it by ease × 1.3 with ease +0.15. The interval uses the pre-grade ease. Ease stays within 1.3–3.0 and the interval within 1–180 days. The typed mode keeps its own three-verdict rule.
+A never-reviewed card follows the learning steps below. A reviewed card: Again sends it to relearning with ease −0.20 (see Learning steps); Hard multiplies the interval by 1.2 with ease −0.15; Good multiplies it by ease; Easy multiplies it by ease × 1.3 with ease +0.15. The interval uses the pre-grade ease. Ease stays within 1.3–3.0 and the interval within 1 day and the subject's longest gap (180 days by default, see Retention and maximum interval). The typed mode keeps its own three-verdict rule.
 
 ## Due queue
 
 The unscoped Anki queue serves only bits that are approved, whose topic is not skipped, and that have no schedule row or a due date at or before now. Each bit contributes one card: basic (front/back), then fill-in-the-blank, then why-question. Due bits come first (oldest due date first), then never-reviewed bits (oldest bit first). Scoped queues keep their own behaviour and ignore the due rule and the cap.
 
-New cards are capped at 20 per local day. The count is the non-undone first-time reviews since local midnight, and the learner's day comes from the `tz` query parameter (IANA name, default UTC, invalid gives 400). The cap and `newRemainingToday` are global, not per scope.
+New cards are capped per subject per local day. A card's subject is its curriculum's subject when placed, else its source's subject; a card with no subject uses the app default. The cap is that subject's resolved `newCardsPerDay` (see Study options) and is not cumulative up the tree. The count is the non-undone first-time reviews of the subject's cards since local midnight, and the learner's day comes from the `tz` query parameter (IANA name, default UTC, invalid gives 400). `newRemainingToday` is the sum of the remaining allowance of every subject that has waiting new cards, and `newLimitReached` is true when any subject's cap hides new cards. Lowering a limit below today's count leaves 0 remaining, never a negative number.
 
 The cards response also carries counts (`new`, `learning` for step cards due within the learn-ahead window, `review` for due day-based bits), `newRemainingToday`, and `nextDueAt`: the earliest future due date in scope, or the next local midnight when only capped new cards remain. Each card carries `intervalPreview`, the seconds until it returns after Again, Hard, Good or Easy, computed on the server by the same four-grade rule as a real grade. The web app labels the grade buttons with it, lowers the counts as cards are graded within a batch, and shows a done-for-today screen with the next due time when the queue is empty.
 
@@ -81,11 +81,39 @@ The schedule row stores `phase` (`learning`, `review` or `relearning`; no row me
 | review | relearning, 10m, lapses +1, ease −0.20 | review rule | review rule | review rule |
 | relearning | stays, 10m | stays, 15m | review at the post-lapse interval (min 1d) | review at that interval + 1d |
 
-A stored step past the list counts as the last step. An unknown stored phase reads as review.
+The step lists in the table are the app defaults (learning 1m, 10m; relearning 10m). A stored step past the list counts as the last step, including when a subject's steps are shortened later. An unknown stored phase reads as review.
 
 The unscoped queue lists learning and relearning cards first, then due reviews, then new cards. When those leave free slots, cards in a step that are due within the next 20 minutes fill them, so a sitting does not end a minute before a card returns. Scoped queues keep their own order and show the stored phase.
 
 A typed-mode verdict sets the phase to review and the step to 0 and leaves `lapses` alone. The review history snapshot of the prior schedule carries `phase`, `learningStep` and `lapses`; snapshots written earlier lack them and read as review, 0, 0. The grade result returns `lapses`.
+
+## Study options
+
+Each subject can set `newCardsPerDay` (1-200), `learningStepsMinutes` and `relearningStepsMinutes` (1-10 whole minutes each, 1-1440), and `desiredRetention` (0.70-0.99). Every option is nullable on the subject and resolves independently: the nearest ancestor with a value wins, then the app-wide defaults in `app_settings` (the admin settings page). The parent walk stops after 20 levels or at a stored cycle. `GET` and `PATCH /subjects/:id/study-options` return `own` (the subject's own values), `effective` and `sources` (the subject id or `app` that supplied each value); a `null` in the `PATCH` body clears an override, an empty or out-of-range list gives 400, an unknown subject 404.
+
+A grade reads the card's resolved steps inside its transaction and the interval preview uses the resolved steps of each card's subject. Changing options never rewrites a stored due date; the next grade uses the new values.
+
+## Study intent
+
+Each subject has a study intent, `exam` or `long_term`, stored as `subjects.study_intent`, with `exam_date` (`YYYY-MM-DD`) and a server-set `exam_planned_at`. Intent, date and planned-at resolve together from the nearest subject in the chain with its own intent; the app default is Long-term. `GET` and `PATCH /subjects/:id/study-options` also carry `own.studyIntent`, `own.examDate` and `intent` (`studyIntent`, `examDate`, `source`: the subject id or `app`). A `PATCH` can send `studyIntent` and `examDate`: Exam needs a date today or later and at most 730 days ahead (400 `exam_date_required`, `exam_date_in_past`, `exam_date_too_far`); a date without the Exam intent is refused (400 `exam_date_requires_exam_intent`); Long-term or null clears the date. Setting Exam or moving its date stamps `exam_planned_at`. An exam date that has passed behaves as Long-term and the settings stay stored.
+
+"Today" for exam maths is the local date in the configured motivation time zone (UTC when unset), so a preview always equals the grade it predicts.
+
+## Retention and maximum interval
+
+Desired retention scales review-phase Hard, Good and Easy gaps by m = ln(retention) / ln(0.9), kept between 0.5 and 2.0. 90% gives m = 1, so default gaps are unchanged; 95% and above halve them, 80% and below double them. When m is below 1, Hard stays at least the previous gap, Good at least one day more and Easy at least one day more than Good. Learning and relearning steps and Again are not scaled.
+
+The longest gap is 180 days for Long-term. For Exam it is min(180, max(1, daysLeft - 1)), applied to every review-phase result including graduation from learning, so a card answered today is back by the day before the exam. Typed-answer grading keeps its own rule and ignores both.
+
+## Exam pacing and backlog pause
+
+Without a typed value, an Exam subject's new cards per card subject are spread so new material is done three quarters of the way from `exam_planned_at` to the exam, never later than the day before it: perDay = min(200, ceil(remainingAtDayStart / daysForNew)), where remainingAtDayStart counts eligible new cards plus new cards already graded today, so the number holds steady through the day. Past that point the remainder is spread up to the day before the exam. A typed new-cards value on the exam subject or below it wins; values above it and the app default are replaced by the pace. The pace feeds the same per-subject allowance as the stored limit, so the queue, home overview and subject due counts agree.
+
+Exam only: new cards for a card subject pause while its waiting reviews (due now, review phase) reach max(100, 20 x perDay), shown through the existing new-limit-reached flag, and resume once the pile is worked down. Long-term subjects are never paused.
+
+## Study forecast
+
+`GET /subjects/:id/study-forecast?tz=` (unknown subject 404, invalid `tz` 400) simulates the subject and its sub-subjects day by day, assuming every review is answered Good and adding (1 - retention) expected repeats per review. It returns `intent`, `examDate`, `daysLeft`, `examPassed`, `desiredRetention`, `recentRetention` (30-day pass rate or null), `maxIntervalDays`, `hasCards`, `newCards` (`perDay`, `paced`, `pausedToday`, `pauseThreshold`, `remaining`, `finishOn`, `finishesBeforeExam`), `reviews` (`dueToday`, `averagePerDay`, `peakPerDay`, `peakOn`, `horizonDays`) and `days`. The horizon is min(daysLeft, 90) for Exam and 30 days otherwise; a finish date past the horizon is extrapolated at the last pace and is null when the pace is zero.
 
 ## Session controls
 

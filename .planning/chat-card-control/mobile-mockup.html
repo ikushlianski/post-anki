@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat card control: mobile mockup</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #e5e5e5; font: 14px/1.4 system-ui, sans-serif; color: #262626; }
+  h1 { font-size: 16px; margin: 0 0 16px; }
+  .row { display: flex; gap: 24px; align-items: flex-start; overflow-x: auto; padding-bottom: 16px; }
+  .frame { flex: 0 0 390px; width: 390px; height: 780px; background: #fff; border: 8px solid #171717; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .cap { font-size: 12px; color: #525252; margin: 0 0 8px; width: 390px; }
+  .col { flex: 0 0 390px; }
+  .head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e5e5e5; }
+  .head b { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: #a3a3a3; font-weight: 600; }
+  .x { font-size: 20px; color: #a3a3a3; min-width: 44px; min-height: 44px; display: grid; place-items: center; margin: -8px -12px; }
+  .msgs { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .m { max-width: 90%; padding: 8px 12px; border-radius: 12px; }
+  .a { background: #fafafa; border-bottom-left-radius: 0; color: #262626; align-self: flex-start; }
+  .u { background: #171717; color: #fff; border-bottom-right-radius: 0; align-self: flex-end; }
+  .card { align-self: stretch; max-width: 100%; border: 1px solid #d4d4d4; border-radius: 6px; padding: 12px; background: #fff; }
+  .card .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #a3a3a3; margin: 8px 0 2px; }
+  .card .lbl:first-child { margin-top: 0; }
+  .card p { margin: 0; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn { flex: 1; min-height: 44px; border-radius: 6px; border: 1px solid #d4d4d4; background: #fff; font: 600 14px system-ui; color: #404040; }
+  .btn.pri { background: #171717; border-color: #171717; color: #fff; }
+  .ai { display: inline-block; margin-top: 8px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #ede9fe; color: #5b21b6; }
+  .src { font-size: 12px; margin-top: 4px; }
+  .src a { color: #1d4ed8; display: block; padding: 6px 0; }
+  .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid #e5e5e5; background: #fff; }
+  .composer .in { flex: 1; min-height: 44px; border: 1px solid #d4d4d4; border-radius: 6px; padding: 10px 12px; color: #a3a3a3; }
+  .chips { display: flex; gap: 8px; padding: 0 12px 8px; }
+  .chip { min-height: 44px; display: grid; place-items: center; padding: 0 12px; border: 1px solid #d4d4d4; border-radius: 999px; font-size: 13px; color: #404040; }
+  .hl { background: #fde68a; border-radius: 2px; }
+  .bar { position: absolute; left: 24px; top: 168px; background: #171717; border-radius: 8px; display: flex; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  .bar span { color: #fff; font-size: 13px; font-weight: 600; min-height: 44px; display: grid; place-items: center; padding: 0 12px; border-right: 1px solid #404040; }
+  .bar span:last-child { border-right: 0; }
+  .tray { border-top: 1px solid #e5e5e5; background: #fafafa; padding: 8px 12px; }
+  .tray .top { display: flex; justify-content: space-between; align-items: center; min-height: 44px; font-weight: 600; font-size: 13px; }
+  .field { background: #fff; border: 1px solid #d4d4d4; border-radius: 6px; padding: 8px; margin-bottom: 8px; min-height: 44px; }
+  .field small { display: block; font-size: 11px; text-transform: uppercase; color: #a3a3a3; letter-spacing: .05em; }
+  .empty { color: #a3a3a3; }
+  .sheet { position: absolute; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-end; }
+  .sheet .panel { background: #fff; width: 100%; border-radius: 16px 16px 0 0; padding: 16px; max-height: 92%; overflow: auto; }
+  .sheet .grip { width: 40px; height: 4px; background: #d4d4d4; border-radius: 2px; margin: 0 auto 12px; }
+  .ta { width: 100%; border: 1px solid #d4d4d4; border-radius: 6px; padding: 8px; font: 14px system-ui; margin-bottom: 4px; }
+  .count { font-size: 11px; color: #a3a3a3; text-align: right; margin-bottom: 8px; }
+  .lab { font-size: 12px; font-weight: 600; color: #525252; margin: 0 0 4px; }
+</style>
+</head>
+<body>
+<h1>Chat card control: mobile mockup (390px, static)</h1>
+<div class="row">
+
+  <div class="col">
+    <p class="cap">1. Tell the agent: inline card with Approve / Edit / Reject</p>
+    <div class="frame">
+      <div class="head"><b>Chat about this</b><span class="x">✕</span></div>
+      <div class="msgs">
+        <div class="m a">A mutex lets only one thread hold a lock at a time. A semaphore allows up to N holders.</div>
+        <div class="m u">card: Q what is the difference between a mutex and a semaphore? A a mutex has one owner, a semaphore counts permits. example: a parking lot with N spaces</div>
+        <div class="card">
+          <div class="lbl">Front</div>
+          <p>What is the difference between a mutex and a semaphore?</p>
+          <div class="lbl">Back</div>
+          <p>A mutex has one owner. A semaphore counts permits.</p>
+          <div class="lbl">Example</div>
+          <p>A parking lot with N spaces.</p>
+          <div class="actions">
+            <button class="btn">Reject</button>
+            <button class="btn">Edit</button>
+            <button class="btn pri">Approve</button>
+          </div>
+        </div>
+        <div class="m u">change the example to a bathroom key</div>
+        <div class="m a" style="color:#a3a3a3">Updating the card…</div>
+      </div>
+      <div class="chips"><div class="chip">Make a card from this chat</div></div>
+      <div class="composer"><div class="in">Ask or describe a card…</div><button class="btn pri" style="flex:0 0 72px">Send</button></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <p class="cap">2. Highlight text: floating bar and the card tray</p>
+    <div class="frame">
+      <div class="head"><b>Chat about this</b><span class="x">✕</span></div>
+      <div class="msgs">
+        <div class="m u">why does a semaphore count permits?</div>
+        <div class="m a">A semaphore guards a pool of identical resources. <span class="hl">It counts how many permits are free, and a thread waits when the count is zero.</span> A mutex is the special case with one permit.</div>
+      </div>
+      <div class="bar"><span>Use as front</span><span>Use as back</span><span>Use as example</span><span>Make fact</span></div>
+      <div class="tray">
+        <div class="top"><span>Card tray (2 of 3 filled)</span><span>▾</span></div>
+        <div class="field"><small>Front</small><span>Why does a semaphore count permits?</span></div>
+        <div class="field"><small>Back</small><span>It counts how many permits are free, and a thread waits when the count is zero.</span></div>
+        <div class="field"><small>Example</small><span class="empty">Optional. Select text and tap Use as example</span></div>
+        <div class="actions" style="margin:0 0 8px"><button class="btn">Clear</button><button class="btn pri">Create card</button></div>
+      </div>
+      <div class="composer"><div class="in">Ask or describe a card…</div><button class="btn pri" style="flex:0 0 72px">Send</button></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <p class="cap">3. Edit sheet: front, back, example, AI label, sources</p>
+    <div class="frame">
+      <div class="head"><b>Chat about this</b><span class="x">✕</span></div>
+      <div class="msgs">
+        <div class="m a">Here is a card based on the cited page.</div>
+      </div>
+      <div class="sheet">
+        <div class="panel">
+          <div class="grip"></div>
+          <p class="lab">Front</p>
+          <textarea class="ta" rows="2">What is the difference between a mutex and a semaphore?</textarea>
+          <div class="count">56 / 300</div>
+          <p class="lab">Back</p>
+          <textarea class="ta" rows="3">A mutex has one owner. A semaphore counts permits.</textarea>
+          <div class="count">51 / 600</div>
+          <p class="lab">Example (optional)</p>
+          <textarea class="ta" rows="2">A bathroom key: one key, one user.</textarea>
+          <div class="count">34 / 300</div>
+          <span class="ai">AI generated, web research</span>
+          <div class="src"><a href="#">https://example.com/concurrency-primer</a><a href="#">https://example.org/semaphores</a></div>
+          <div class="actions"><button class="btn">Cancel</button><button class="btn pri">Save as pending</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

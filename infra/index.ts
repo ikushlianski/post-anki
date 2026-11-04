@@ -40,7 +40,6 @@ const knowledgeBitPipelineTimeZone = config.get("knowledgeBitPipelineTimeZone") 
 const knowledgeBitDetectSchedule = config.get("knowledgeBitDetectSchedule") ?? "*/5 * * * *";
 const knowledgeBitEmbedSchedule = config.get("knowledgeBitEmbedSchedule") ?? "*/5 * * * *";
 const knowledgeBitTagSchedule = config.get("knowledgeBitTagSchedule") ?? "*/5 * * * *";
-const knowledgeBitPlaceSchedule = config.get("knowledgeBitPlaceSchedule") ?? "*/5 * * * *";
 const knowledgeBitQuestionGenSchedule =
   config.get("knowledgeBitQuestionGenSchedule") ?? "*/5 * * * *";
 const knowledgeBitFillBlankGenSchedule =
@@ -51,6 +50,7 @@ const knowledgeBitVariantEmbedSchedule =
   config.get("knowledgeBitVariantEmbedSchedule") ?? "*/5 * * * *";
 const cardEmbeddingScanSchedule = config.get("cardEmbeddingScanSchedule") ?? "0 */6 * * *";
 const bizEducationDistillSchedule = config.get("bizEducationDistillSchedule") ?? "*/15 * * * *";
+const notionSourceTickSchedule = config.get("notionSourceTickSchedule") ?? "*/15 * * * *";
 // Secret the API's own auth check (server.ts's authorized()) verifies as a
 // bearer token — must equal the API's API_SHARED_SECRET (today CI-owned only
 // via PROD_API_SHARED_SECRET, not previously in Pulumi config). One-time
@@ -493,24 +493,6 @@ const knowledgeBitTagJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
-const knowledgeBitPlaceJob = new gcp.cloudscheduler.Job(
-  "knowledge-bit-place",
-  {
-    project: projectId,
-    region,
-    name: "post-anki-knowledge-bit-place",
-    schedule: knowledgeBitPlaceSchedule,
-    timeZone: knowledgeBitPipelineTimeZone,
-    attemptDeadline: "300s",
-    httpTarget: {
-      httpMethod: "POST",
-      uri: pulumi.interpolate`https://${apiDomain}/knowledge-bits/placement-scan`,
-      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
-    },
-  },
-  { dependsOn: [apiService, ...enabledApis] },
-);
-
 const knowledgeBitQuestionGenJob = new gcp.cloudscheduler.Job(
   "knowledge-bit-question-gen",
   {
@@ -623,6 +605,26 @@ const bizEducationDistillJob = new gcp.cloudscheduler.Job(
   { dependsOn: [apiService, ...enabledApis] },
 );
 
+// notionSourceTickJob — one tick every 15 minutes; the API decides which
+// Notion ingestion sources are due, so there is no job per source.
+const notionSourceTickJob = new gcp.cloudscheduler.Job(
+  "notion-source-tick",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-notion-source-tick",
+    schedule: notionSourceTickSchedule,
+    timeZone: knowledgeBitPipelineTimeZone,
+    attemptDeadline: "300s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`https://${apiDomain}/notion-source-runs`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${projectId}/${registry.repositoryId}`;
 export const webServiceUrl = webService.statuses[0].url;
 export const webSaEmail = webSa.email;
@@ -646,10 +648,10 @@ export const sessionIdleSweepJobName = sessionIdleSweepJob.name;
 export const knowledgeBitDetectJobName = knowledgeBitDetectJob.name;
 export const knowledgeBitEmbedJobName = knowledgeBitEmbedJob.name;
 export const knowledgeBitTagJobName = knowledgeBitTagJob.name;
-export const knowledgeBitPlaceJobName = knowledgeBitPlaceJob.name;
 export const knowledgeBitQuestionGenJobName = knowledgeBitQuestionGenJob.name;
 export const knowledgeBitFillBlankGenJobName = knowledgeBitFillBlankGenJob.name;
 export const knowledgeBitBasicCardGenJobName = knowledgeBitBasicCardGenJob.name;
 export const knowledgeBitVariantEmbedJobName = knowledgeBitVariantEmbedJob.name;
 export const cardEmbeddingScanJobName = cardEmbeddingScanJob.name;
 export const bizEducationDistillJobName = bizEducationDistillJob.name;
+export const notionSourceTickJobName = notionSourceTickJob.name;

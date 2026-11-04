@@ -158,3 +158,5 @@ embedded authorities and mixed-case schemes.
    case for giving `apiFetch`'s and `verifyToken`'s generic network failures the same kind of
    distinct messaging Decision 6 gave the transport-guard failure, rather than lumping them into
    the existing catch-all copy?
+
+On iPhone, sign-out also deletes local data tied to the account: the pending grade and answer queues, the cached question variants, the last-studied course, Chat and Add drafts, in-memory unsent drafts, and the Review badge.

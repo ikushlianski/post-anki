@@ -1,0 +1,43 @@
+# DBOS Transact spike on the extraction flow (2026-10-11)
+
+Throwaway run on the shared pet-projects Postgres (127.0.0.1:5999, database `dbos_spike`, dropped at the end). Code lives outside the repo in the session scratchpad (`dbos-spike/spike.mjs`, `http.mjs`); nothing in the repo or its dependencies was changed. All numbers are from real runs on this machine.
+
+## Facts
+
+1. **Install and run.** `@dbos-inc/dbos-sdk` 5.2.11 installs and launches on Node v24.11.0 (npm 11.6.1) against Postgres 16.15. DBOS created 13 tables in its own schema `dbos` (application_versions, dbos_migrations, event_dispatch_kv, notifications, operation_outputs, queues, streams, workflow_events, workflow_events_history, workflow_input, workflow_output, workflow_schedules, workflow_status). Nothing was added to `public` by DBOS. `workflow_status` has 37 columns (status, executor_id, application_version, recovery_attempts, queue_name, deduplication_id, priority, timeouts, forked_from, parent_workflow_id, created_at, updated_at, completed_at, ...). `operation_outputs` holds one row per step (function_id, function_name, output, error, started_at_epoch_ms, completed_at_epoch_ms).
+2. **Crash and resume.** A workflow modelled on the app (chunk step, one fake model step per chunk with a 300 to 1500 ms delay, one insert step; chunk 2 fails once on purpose and is retried by the step policy 3 attempts, 1 s interval, backoff 2) was started with 8 chunks and killed with SIGKILL after about 6 s. Database state right after the kill: workflow `PENDING`, steps 0 to 4 stored as completed (chunk, llm-0..llm-3). On restart the log said `Recovering 1 workflows from application version ...`, and the workflow finished `SUCCESS`, `recovery_attempts` 2. Executions counted by a side table outside DBOS: `chunk=1 insert=1 llm-0=1 llm-1=1 llm-2=2 llm-3=1 llm-4=2 llm-5=1 llm-6=1 llm-7=1`. So completed steps were not re-run. `llm-2` ran twice only because of the injected failure and its retry. `llm-4` ran twice because it was in flight when the process died: a step interrupted mid-flight is executed again (at least once), a step that finished is never repeated.
+3. **Double start with the same id.** Starting `wf-dup` twice returned the same workflow id, one row in `workflow_status`, one execution of every step (`chunk=1 insert=1 llm-0=1 llm-1=1 llm-2=1`), and the same result for both handles.
+4. **Cancel.** `cancelWorkflow` moved the status to `CANCELLED` (also in the database). After 2.5 s more no later step started (steps run: chunk, llm-0..llm-3; llm-4 never started). A step already running when the cancel arrives is not interrupted; the workflow stops at the next step boundary.
+5. **Audit.** After the run, the API (`getWorkflowStatus`, `listWorkflowSteps`) and plain SQL return, per step: order, name, input/output (JSON with a serializer tag), error text, start and end time in epoch ms. A sample query that worked:
+   `select o.function_id, o.function_name, to_char(to_timestamp(o.started_at_epoch_ms/1000.0),'HH24:MI:SS.MS') started, (o.completed_at_epoch_ms-o.started_at_epoch_ms)||' ms' dur from dbos.operation_outputs o where o.workflow_uuid='wf-crash' order by o.function_id`
+   It showed, for example, `llm-2 | 3418 ms` (the injected failure plus retry back-off) next to `llm-3 | 374 ms`. `workflow_status` also shows the application version and recovery attempts.
+6. **Overhead.** 100 trivial steps in one workflow on the local pet-projects Postgres: step duration median 1 ms, p95 1 ms (millisecond clock resolution), gap between steps median 1 ms, p95 2 ms, workflow total 174 ms, 1.74 ms per step. Against model calls of hundreds of milliseconds this is noise on a local database; on Neon over the network each step is one write round trip (To verify, not measured).
+7. **Wrapping a real HTTP call.** One real OpenRouter call to `openai/gpt-oss-120b` ("say hello in five words") inside a step: HTTP 200, usage 73 in / 108 out tokens, reply "Hello, how are you today?". The key was read from `apps/api/.env.local` as a value and never printed.
+8. **Pooler behavior, from the installed SDK source.** `system_database.js:4933-4935` runs `LISTEN` on three channels (notifications, workflow events, streams) for send/recv/events/streams. Lines 4939-4960 run a self-test and, when a transaction-mode pooler is in the path, log "Workflow notifications will fall back to polling, which may increase latency" instead of failing. `system_database.js:2837` notes polling still delivers values. The extraction flow does not use send/recv/events, so a pooled connection costs nothing for it; a direct connection is only needed for low-latency notifications.
+
+## Assumptions
+
+- A deploy changes the DBOS application version (here `0886cddf...` derived from the code). Recovery on boot only picks up workflows of the same version, so a rolling deploy during a run would leave the old run for the old version unless versions are pinned or the old version keeps an instance. Not tested.
+- The legacy claim columns on `knowledge_bits` (`*_claimed_at`, `*_claim_token`, `*_attempts` for question, fill-blank and basic-card scans) belong to the old per-bit scan path; the new whole-source path uses only `knowledge_sources.status` plus `updated_at` as the claim token, with a 15-minute stale reset. Reading both orchestrators is the basis, not a run.
+- Neon with Cloud Run `minScale 0`: workflows only recover when an instance runs, so a cold start after a crash resumes the work only once something starts the app. Not tested.
+
+## To verify
+
+- The official DBOS pages on pooling and system database requirements: the SDK reference page fetched (https://docs.dbos.dev/typescript/reference/dbos-class) says nothing about poolers or LISTEN; the partner page https://dbos.dev/partnerships/neon only states that workflow state can be kept in Neon. Neon documents that its pooled endpoint runs in transaction mode and does not support LISTEN/NOTIFY (https://neon.com/guides/pg-notify).
+- Latency per step against Neon, behavior with Neon's scale-to-zero, and the cost of `dbos` schema writes on the free tier.
+- Deploy-time version handling and how to pin versions.
+- Whether `DBOS.cancelWorkflow` can interrupt a long provider call (a step already running was not interrupted).
+
+## Outline of a migration (from reading `knowledge-bit-pipeline-kick.orchestrator.ts` and `detect-knowledge-bits.orchestrator.ts`)
+
+- Today `kickKnowledgeBitPipeline` (69 lines) is an in-memory single-flight loop with a follow-up flag, and `detectKnowledgeBits` claims pending sources in the database (`claim`, `markFailed`, `markDetected`, `resetStale` with a 15-minute window) and runs chunks with `mapWithConcurrency`. A process restart loses the in-memory loop; recovery waits for the stale reset.
+- With DBOS: one workflow per source (`extractSource(sourceId, modelId)`) with steps `loadSource`, one step per chunk (`generateItems(chunk)` which wraps `runKnowledgeBitSourceItems`, retries 3 attempts), and one `insertItems` step. The workflow id equals the source id plus the run number, which gives double-click protection for Regenerate for free.
+- What could be deleted: the in-memory kick loop and its follow-up flag, `resetStaleProcessingKnowledgeSources`, the `claim`, `markDetected` claim-check (`updatedAt` as token) and the reclaim error path in the orchestrator. The `status` column stays as the user-facing state (`pending`, `processing`, `bits_detected`, `failed`) written by steps. The legacy `knowledge_bits` scan claim columns stay until the old scans are retired.
+- What stays: the production extraction code (`runKnowledgeBitSourceItems`, validation guards, escaping), chunking, quote verification, the claim-checked insert (its ordinal uniqueness still guards against a duplicate step replay), feedback loading, and the compare page.
+- Smallest first step: wrap only the per-source extraction call in a DBOS workflow behind a feature flag, started by id from `createKnowledgeSource` and the regeneration route, keep `detectKnowledgeBits` as the fallback, and measure stuck sources for a week before deleting claim logic.
+
+## Recommendation
+
+Go for a flagged pilot, no-go for a full rewrite yet. The runs show the properties the report recommended DBOS for: completed steps are not repeated after a SIGKILL, duplicate starts are no-ops, cancellation works at step boundaries, every step is readable in SQL, and overhead is about 2 ms per step locally. Open risks are deploy versioning, Neon latency and scale-to-zero behavior. Before the pilot: measure how often `processing` sources actually hang today (a query on `knowledge_sources` by `status` and age), and test version pinning with a rolling deploy.
+
+END-OF-REPORT

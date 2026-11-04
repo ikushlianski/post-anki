@@ -1,0 +1,10 @@
+{"ts":"2026-10-11T20:18:42.034Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Add processed_at to entries and a Mark as processed action"}
+{"ts":"2026-10-11T20:18:42.135Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Show processed entries in a collapsed Processed section with Reopen"}
+{"ts":"2026-10-11T20:18:42.201Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Mark manual knowledge items and keep them out of model statistics"}
+{"ts":"2026-10-11T20:18:42.268Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Add a server route creating one knowledge item by hand on an entry"}
+{"ts":"2026-10-11T20:18:42.329Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Add new KI button opens front, back and example fields as a draft card"}
+{"ts":"2026-10-11T20:18:42.388Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Save a hand-made item only when front and back are filled"}
+{"ts":"2026-10-11T20:18:42.453Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Keep fully reviewed entries on the page and count only open items in the badge"}
+{"ts":"2026-10-11T20:18:42.526Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Use excerpt and document wording for entries in the interface and docs"}
+{"ts":"2026-10-11T20:18:42.587Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Add a source container with name and category for entries"}
+{"ts":"2026-10-11T20:18:42.645Z","sessionId":"a720bb7b-3a8b-426c-854f-43e56b36f225","event":"added","direction":null,"itemText":"Let add and review pages file an entry under a source"}

@@ -32,3 +32,4 @@ apps/web/storybook.log
 .planning/sub-subjects/*.dump
 .planning/model-switcher/*.dump
 apps/api/dist-lambda/
+apps/extension/.seed-token

@@ -1,5 +1,11 @@
 # Decisions
 
+## [2026-10-31] — Notion ingestion sources: token in the database, encrypted
+- **The Notion token is stored in the database** (`connector_secrets`) as AES-256-GCM ciphertext, with the key in the server env `CONNECTOR_SECRET_KEY`. `NOTION_TOKEN` in the env is the fallback when nothing is stored. No API response or log line carries the token; the API only says whether one is set and where it comes from.
+- **Why not `app_settings`**: `GET /admin/settings` returns that table whole, so a secret there would leak to every settings reader.
+- **Why the Notion API with an integration token, not the Notion-hosted MCP**: the hosted MCP needs an interactive login, which an unattended scheduled run cannot do. A gateway interface (`NotionPageGateway`) lets an MCP-backed gateway replace the API one later.
+- **Removal from Notion** happens only when a source's toggle is on and only for items imported in that run.
+
 ## [2026-06-02] — deployment IaC: web service, bot subdomain, scheduler → bot
 - **Web Cloud Run service added** (`post-anki-web`) at the **root domain** `postanki.ilya.online`; the **bot moved** to `bot.postanki.ilya.online` (it used to own root); API stays at `api.`. Pulumi factored into `runService`/`publicInvoker`/`domainMapping` helpers; each service is a shell (placeholder image, `ignoreChanges: template`) with CI owning the real image/env.
 - **Daily scheduler repointed**: was `GET api/daily-push` (which only *returns* a question, never delivers); now `POST bot/push` (the bot fetches from the API and sends to Telegram). New Pulumi secret `telegramWebhookSecret` (the bearer the bot's `/push` checks — must equal the bot's `TELEGRAM_WEBHOOK_SECRET`).

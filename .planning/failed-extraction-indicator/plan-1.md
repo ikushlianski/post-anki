@@ -1,0 +1,70 @@
+# Plan 1: failed-extraction indicator with Retry and Delete
+
+Binding architecture: no `brief.md` exists in this task dir and there is no repo-root CLAUDE.md. Followed instead: the user's global rules, `.planning/knowledge-overview/plan-1.md` (sibling plural-noun routes, controller + repo per entity) and the existing regeneration flow.
+
+## Goal
+On /knowledge-bit-review and /add-knowledge, one collapsed notice ("N items could not be processed") lists every source that failed or got stuck, with plain-language reasons, and lets the user retry or permanently discard each one (or all).
+
+## Facts verified in code
+- `knowledge_sources.status`: pending (insert default), processing, bits_detected, failed (`apps/api/src/db/schema.ts:1085`). `failure_reason` is free text.
+- While processing under the durable flow, `failure_reason` holds an ownership marker `durable:<workflowId>` (`knowledge-bit.repo.ts:129`); it is cleared on success/regeneration. Failed values: known codes `no_valid_items, wrong_language, source_empty, source_too_long, source_chunk_missing, knowledge_source_reclaimed, extraction_failed` (`durable-extraction.config.ts:35`), `workflow_<status>`, `workflow_executor_lost`, `workflow_record_missing` (`knowledge-bit.repo.ts:187-216`). The legacy path stores `truncateReason(err)`, a raw provider message up to 200 chars (`detect-knowledge-bits.orchestrator.ts:79,273,323`). So the raw column must never reach the UI.
+- The review list only reads sources through their pending bits (`knowledge-bit-approval.repo.ts:173-190`). A failed source with no bits is invisible after a reload; the in-session "Regenerating didn't finish" message (`knowledge-bit-review-regeneration.ts:35`) disappears with it. Nothing in the web shows a source stuck in pending/processing; the only signal is the per-session "taking longer than usual" text.
+- Self-healing exists but is not visible: legacy sweep resets processing older than 15 min to pending (`STALE_PROCESSING_THRESHOLD_MS`), run only when the scheduled `POST /knowledge-sources/detect-bits` fires (`infra/index.ts:441`); durable reconcile fails ended workflows after `durableStaleMs()` (default 30 min, min 20 min).
+- Retry endpoint exists: `POST /knowledge-sources/:id/regeneration {modelId?}` claims with one conditional UPDATE (status in bits_detected/failed, raw_text not null), bumps `extraction_run`, clears the reason, supersedes pending non-manual bits, answers 202, then runs in-process or via `startDurableExtraction` (flag `DURABLE_EXTRACTION`, in-process fallback). 409 `already_running`, 422 `source_text_missing`, 404. A stuck pending/processing row is rejected with 409, so stuck sources need a claim extension (below).
+- Delete dependents: no foreign keys anywhere. Rows keyed to a source: `knowledge_bits` (`knowledge_source_id`), question variants (by bit id), attempts (by variant id), schedule/reviews/tag assignments (by bit id; exist only for approved bits), `knowledge_bit_feedback` and `knowledge_source_extraction_grade` (carry their own copies of statement/front/back/model). The feedback report view only anti-joins manual bits.
+- A failed source CAN own approved cards: a regeneration that fails after earlier approvals keeps them ("approved ones stay"). So "failed means no cards" is false; delete must guard it.
+
+## Approach (no new boundary; two new endpoints, one extended claim)
+- Shared contract `packages/shared/src/knowledge-source-failure.ts`: `FailedKnowledgeSourceItem {id, state: 'failed'|'stuck', reason, preview, modelId|null, updatedAt}`, `FailedKnowledgeSourcesResponse {items, total}`, delete input/response, and `toPublicFailureReason(raw, state)`. Public reasons: `no_valid_items, wrong_language, source_empty, source_too_long, interrupted` (workflow_*, source_chunk_missing, knowledge_source_reclaimed), `stalled` (stuck), `extraction_failed` (anything else, including raw legacy messages and durable markers).
+- API read, new `knowledge-source-failed.repo.ts` + controller: `GET /knowledge-sources/failed` returns up to 50 newest (`total` is the full count): status=failed, or status in (pending, processing) with `updated_at` older than `durableStaleMs()` (the "stuck" threshold, server clock only). Preview is `left(raw_text, 160)` with whitespace collapsed. Only unprocessed rows (`processed_at is null`). Never returns raw_text in full or the raw reason.
+- API retry: extend `claimSourceForRegeneration` (`knowledge-source-regeneration.repo.ts`) with a stuck clause in the same WHERE (`pending|processing and updated_at < now - durableStaleMs()`). The existing `claimedAt` ownership token already makes a late old attempt lose its writes. Controller, 202 flow and status endpoint unchanged; works with the durable flag on and off.
+- API delete, new `knowledge-source-deletion.repo.ts` + controller: `POST /knowledge-sources/deletions {ids: 1..50}` (plural noun, matching `/knowledge-bits/deletions`). One transaction: lock the source rows `for update`; per id the source must be failed or stuck, otherwise skip `not_deletable`; if any of its bits is approved or `origin='manual'` skip `has_cards`; missing id skip `not_found`. Then delete variants, attempts, tag assignments and bits of the deletable sources, then the source rows. Feedback and grade rows are kept (training signal, self-contained). Response `{deleted: id[], skipped: [{id, reason}]}`, always 200.
+- Web: one shared component `FailedExtractionsIndicator` in `apps/web/src/knowledge-source/`, self-fetching through a plain hook (no react-query, so existing route tests need no provider). Mounted at page level on both routes. Refetch on mount, window focus, `pending-review-changed` event, and every 10 s for up to 5 min after a retry. After a retry starts it emits a new `review-refresh-requested` event; `useReviewRefresh` listens and calls `checkNow`, so new suggestions merge into the open review list without a reload.
+
+## UX decisions
+- Hidden when nothing is wrong. Collapsed by default: a `<button aria-expanded aria-controls>` labelled "2 items could not be processed" (amber, like the existing trouble banner). A visually hidden `role="status"` line announces count changes. Request failures (retry/delete) use `role="alert"` inside the item.
+- Each item: first 120 chars of the pasted text (rendered as plain text), plain-language reason, "Model: <label>" (or "Default model"), Retry, Delete. Reasons: no_valid_items "The AI couldn't find anything to turn into cards in this text."; wrong_language "The text didn't match the language the cards must be in."; source_empty "The text was empty."; source_too_long "The text is too long. Delete it and paste it in smaller parts."; interrupted "Processing was interrupted."; stalled "This has been waiting too long and never finished."; extraction_failed "Something went wrong while reading this text."
+- source_empty and source_too_long: no Retry (retry cannot help), Delete only.
+- Retry keeps the same model (omit `modelId`). When the item's model is not the cheapest, also "Retry with <cheapest label>" (`cheapestKnowledgeItemModelId`). The item leaves the list on 202 and a polite line says "Retrying. New suggestions can take a few minutes." A repeat 409 is treated as "already retrying".
+- Retry all: retryable items only, at most 10 per click, run in slices of 3, same model each. No automatic retries anywhere, so a persistently failing source costs one model run per click.
+- Delete / Delete all: inline confirm panel (same pattern as `RegenerateConfirm`): "Delete 3 items? The pasted text is removed and can't be recovered." with Delete and Cancel. Focus moves to the panel on open, Escape cancels, Enter on the focused Delete button confirms, focus returns to the toggle (or the next item) afterwards. Delete all sends exactly the ids shown (max 50) and the text states that count. Skipped items stay with "Couldn't delete 1 item because it has approved cards."
+- 44 px targets via `PRIMARY_BUTTON_CLASS`/`SECONDARY_BUTTON_CLASS`/`TEXT_BUTTON_CLASS`. In-flight guard per source id with `useResolvingSuggestions` so a double click is one request.
+
+## Steps (file footprints; D1-D3 and W1 can run in parallel, router hunks serial)
+1. Contracts: new `packages/shared/src/knowledge-source-failure.ts` + `.test.ts`; one export line in `packages/shared/src/index.ts` (dirty, add that hunk only).
+2. API read: new `apps/api/src/knowledge-source/knowledge-source-failed.repo.ts`, `.controller.ts`, `.controller.test.ts`, `.repo.integration.test.ts`.
+3. API retry-stuck: one hunk in `knowledge-source-regeneration.repo.ts` (dirty, foreign edits present, do not restage); new test file `knowledge-source-regeneration.stuck.integration.test.ts`.
+4. API delete: new `knowledge-source-deletion.repo.ts`, `.controller.ts`, `.controller.test.ts`, `.repo.integration.test.ts`.
+5. Routes (after 2 and 4): literal `GET /knowledge-sources/failed` and `POST /knowledge-sources/deletions` in `router-table.ts`, names in `router.ts`, two `case`s in `api-server.ts`. All three are dirty; the knowledge-overview agent already added routes there. Add own single additive hunks next to their `/knowledge-sources/...` entries, change nothing else, do not restage. Neither path collides with the existing `/knowledge-sources/:id/<suffix>` regexes. No `routeTree.gen.ts` change (no new web route).
+6. Web data (needs 1): append `listFailedKnowledgeSources`, `deleteKnowledgeSources` to `apps/web/src/curriculum/api-client.ts` (dirty, append only); new `knowledge-source/failed-extractions.api.ts` (server fns; retry reuses `regenerateKnowledgeSourceForReview`), `use-failed-extractions.ts`, `failed-extraction-reason.ts` (+test).
+7. Web UI (needs 6, mock the api): `failed-extractions-indicator.tsx`, `failed-extraction-item.tsx`, `failed-extractions-confirm.tsx`, tests.
+8. Mounting (after 7): `routes/add-knowledge.tsx` (below the form), `knowledge-bit-review-page.tsx` (staged, one line), `knowledge-bit-review-events.ts` (new event), `knowledge-bit-review-refresh.ts` (staged, listener effect). In `routes/-add-knowledge.test.tsx` (dirty) and `-knowledge-bit-review.test.tsx` add `vi.mock('../knowledge-source/failed-extractions.api')` so the new fetch never hits the network; add one line to `apps/web/.storybook/stubs` only if a story renders the page.
+9. Browser check on the e2e stack :5550 only (never :5540/:5562): seed a failed and a stuck source, run with `DURABLE_EXTRACTION` on and off.
+
+## Tests (vitest, co-located, `npx vitest run`; integration via the pet-projects DB lane)
+- Shared: `toPublicFailureReason` maps every known code, `workflow_*`, `durable:abc`, a 200-char provider message to safe public reasons.
+- Read repo: lists failed and old pending/processing, excludes fresh processing, bits_detected and processed; no raw reason or full text in the payload; cap 50 with real `total`.
+- Claim: stuck row is claimed and extraction_run increments; a fresh processing row still 409; a late `markDetected` with the old token returns false; failed row unchanged behaviour; durable-flag controller test for a stuck row (pattern of `knowledge-source-regeneration.controller.durable.test.ts`).
+- Delete: removes bits, variants, tag assignments and the source in one transaction; keeps feedback/grade rows; skips a source with an approved bit or a manual bit (`has_cards`) and a healthy one (`not_deletable`); second call returns `not_found`; rollback leaves everything on a forced failure; 0 ids and 51 ids rejected with 400.
+- Web: collapsed by default and `aria-expanded` toggles; hidden at zero; reason text for each public reason and never the raw code; Retry calls regeneration without a model, cheapest button only when the model differs and passes the id; source_too_long has no Retry; Retry all caps at 10; 409 is not an error; request failure shows an alert and keeps the item; delete confirm states the count, Escape cancels, Enter confirms, focus returns, skipped items stay; 44 px classes on buttons; page-level tests on both routes with the api mocked.
+
+## Done when
+- Both pages show the collapsed notice only when failed or stuck sources exist, and a source that failed with no cards is findable again after a reload.
+- A user can retry or delete one item or all, by keyboard alone, with plain-language text and no raw codes, stack traces or full pasted text on screen.
+- Retry works for failed and stuck sources with the durable flag on and off, a double click causes one run, and no retry happens without a click.
+- Delete refuses sources with approved or manual cards, removes the rest atomically, and states the count before deleting.
+- A retry started here makes new suggestions appear in the open review list without a reload.
+- `npx tsc --noEmit`, lint, unit and integration tests pass; foreign dirty hunks in router.ts, router-table.ts, api-server.ts, regeneration.repo.ts and api-client.ts are untouched.
+
+## Defaults chosen
+- Stuck threshold = `durableStaleMs()` (30 min default): it matches the reconcile cutoff and is above the legacy 15 min sweep, so healthy slow runs are never flagged.
+- Retry reuses the regeneration endpoint and keeps the source's model: no new retry contract, and 409 gives idempotency for free.
+- Retry also replaces a failed source's leftover undecided suggestions (same as the existing Regenerate); the item text does not promise to keep them.
+- Delete is a bulk `POST /knowledge-sources/deletions`, single delete is a one-id call: one code path and one transaction.
+- Feedback and extraction-grade rows survive deletion: they feed future extraction prompts and report views and hold their own copies.
+- Sources with approved or manual cards are not deletable: avoids silent card loss from a failed regeneration.
+- List capped at 50 and Retry all at 10 per click: bounds model spend and request size.
+- Plain hook with fetch/focus/event refresh instead of react-query: avoids a provider dependency in existing route tests.
+- Indicator lives in `apps/web/src/knowledge-source/` and is mounted at page level, not inside the review panel, to keep the 183-line panel untouched.
+
+END-OF-REPORT

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: post-anki-e2e-db
     # wal_level=logical: the board and batch-practice local-first read paths
     # go through Electric, which requires logical replication. Prod/dev point

@@ -223,8 +223,13 @@ up() {
   $COMPOSE up -d electric
 
   echo "▸ starting mock OpenRouter, API and web"
-  start_process mock "$MOCK_PORT" "http://127.0.0.1:$MOCK_PORT/healthz" \
-    env PORT="$MOCK_PORT" node scripts/e2e-mock-openrouter.mjs
+  if [ "${E2E_MOCK_KIND:-stack}" = "local" ]; then
+    start_process mock "$MOCK_PORT" "http://127.0.0.1:$MOCK_PORT/healthz" \
+      env PORT="$MOCK_PORT" npx tsx e2e-local/mock-openrouter/server.ts
+  else
+    start_process mock "$MOCK_PORT" "http://127.0.0.1:$MOCK_PORT/healthz" \
+      env PORT="$MOCK_PORT" node scripts/e2e-mock-openrouter.mjs
+  fi
   start_process api "$API_PORT" "http://127.0.0.1:$API_PORT/_healthz" \
     env PORT="$API_PORT" DATABASE_URL="$E2E_DATABASE_URL" API_SHARED_SECRET="$API_SHARED_SECRET" \
       OPENROUTER_API_KEY=e2e-unused OPENROUTER_BASE_URL="http://127.0.0.1:$MOCK_PORT/v1" \

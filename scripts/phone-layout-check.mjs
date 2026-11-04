@@ -49,6 +49,12 @@ const SCREENS = [
   { name: "subject-page", url: "/subject/__SUBJECT__", landmark: "main h1" },
   { name: "admin-settings", url: "/admin-settings", landmark: '[data-testid^="admin-settings-model-tier"]' },
   { name: "admin-compare-models", url: "/admin-compare-models", landmark: '[data-testid="model-comparison-excerpt"]' },
+  { name: "chat-queue", url: "/knowledge/chat", landmark: "main h1" },
+  { name: "inbox", url: "/knowledge/inbox", landmark: "main h1" },
+  { name: "rejected", url: "/knowledge/rejected", landmark: "main h1" },
+  { name: "stats", url: "/stats", landmark: "main h1" },
+  { name: "tags", url: "/tags", landmark: "main h1" },
+  { name: "profile", url: "/profile", landmark: "main h1" },
 ];
 
 function measure({ minTarget, rootSelector }) {
@@ -76,6 +82,10 @@ function measure({ minTarget, rootSelector }) {
     const box = (label || el).getBoundingClientRect();
 
     if (style.visibility === "hidden" || style.display === "none" || box.width === 0 || box.height === 0) {
+      continue;
+    }
+
+    if (el.getAttribute("data-testid") === "skip-to-content" && document.activeElement !== el) {
       continue;
     }
 
