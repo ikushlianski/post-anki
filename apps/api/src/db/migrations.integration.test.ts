@@ -319,6 +319,8 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
         data_type: "timestamp with time zone",
         is_nullable: "YES",
       }),
+      expect.objectContaining({ column_name: "import_key", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "target_phrases", data_type: "jsonb", is_nullable: "YES" }),
     ]);
   });
 
@@ -767,8 +769,6 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
       expect.objectContaining({ column_name: "review_flag", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "duplicate_of_bit_id", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "duplicate_similarity", data_type: "real", is_nullable: "YES" }),
-      expect.objectContaining({ column_name: "duplicate_reason", data_type: "text", is_nullable: "YES" }),
-      expect.objectContaining({ column_name: "similar_bit_ids", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({
         column_name: "duplicate_checked_at",
         data_type: "timestamp with time zone",
@@ -805,6 +805,9 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
         data_type: "timestamp with time zone",
         is_nullable: "YES",
       }),
+      expect.objectContaining({ column_name: "ai_suggestion", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "duplicate_reason", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "similar_bit_ids", data_type: "jsonb", is_nullable: "YES" }),
     ]);
   });
 

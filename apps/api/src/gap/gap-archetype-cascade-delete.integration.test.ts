@@ -171,13 +171,13 @@ describe("SCENARIO 8 — deleting a gap's module or curriculum also deletes its 
     expect(await archetypeStateRowCountForGap(seeded.gapId)).toBe(0);
   }, 30_000);
 
-  it("deleteTopic (topic.repo.ts, fenced for this task) does NOT delete the gap_archetype_state row — the disclosed, real follow-up leak", async () => {
+  it("deleteTopic deletes the gap_archetype_state row of the topic's gaps", async () => {
     const seeded = await seedGapWithArchetypeState();
 
     expect(await archetypeStateRowCountForGap(seeded.gapId)).toBe(1);
 
     await deleteTopic(seeded.topicId);
 
-    expect(await archetypeStateRowCountForGap(seeded.gapId)).toBe(1);
+    expect(await archetypeStateRowCountForGap(seeded.gapId)).toBe(0);
   }, 30_000);
 });
