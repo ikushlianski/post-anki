@@ -78,6 +78,23 @@ beforeEach(() => api.get.mockReset())
 afterEach(cleanup)
 
 describe('knowledge browser detail panel', () => {
+  it('should show the main card context above the front and on its phrasing', async () => {
+    const withContext: KnowledgeBitDetail = {
+      ...full,
+      phrasings: [{ ...full.phrasings[0], context: 'Tuning a slow query' }, ...full.phrasings.slice(1)],
+    }
+
+    api.get.mockResolvedValue({ ok: true, detail: withContext })
+    renderPanel()
+
+    await waitFor(() => expect(screen.getAllByTestId('knowledge-browser-detail-phrasing')).toHaveLength(3))
+
+    const front = screen.getByTestId('knowledge-browser-detail-front')
+
+    expect(within(front).getByTestId('knowledge-browser-detail-front-context').textContent).toBe('Tuning a slow query')
+    expect(screen.getAllByTestId('knowledge-browser-detail-phrasing-context')).toHaveLength(1)
+  })
+
   it('should show front, back and every phrasing with its own answer and blank sentence', async () => {
     api.get.mockResolvedValue({ ok: true, detail: full })
     renderPanel()
@@ -113,7 +130,7 @@ describe('knowledge browser detail panel', () => {
     )
   })
 
-  it('should read None for empty fields and say new for a piece never reviewed', async () => {
+  it('should read None for empty fields and say new for a card never reviewed', async () => {
     api.get.mockResolvedValue({ ok: true, detail: bare })
     renderPanel()
 
@@ -125,7 +142,7 @@ describe('knowledge browser detail panel', () => {
     expect(meta.textContent).not.toContain('next due')
   })
 
-  it('should say suspended and show no due date for a suspended piece', async () => {
+  it('should say suspended and show no due date for a suspended card', async () => {
     api.get.mockResolvedValue({
       ok: true,
       detail: { ...full, review: { state: 'suspended', dueAt: null, lapses: 0, reviewCount: 3 } },
@@ -154,7 +171,7 @@ describe('knowledge browser detail panel', () => {
     expect(screen.queryByTestId('knowledge-browser-detail-loading')).toBeNull()
   })
 
-  it('should say the piece no longer exists when it is not found', async () => {
+  it('should say the card no longer exists when it is not found', async () => {
     api.get.mockResolvedValue({ ok: false, error: 'not_found' })
     renderPanel()
 
@@ -176,7 +193,7 @@ describe('knowledge browser detail panel', () => {
     expect(api.get).toHaveBeenCalledTimes(2)
   })
 
-  it('should show the missing state after a refresh finds the piece deleted', async () => {
+  it('should show the missing state after a refresh finds the card deleted', async () => {
     api.get.mockResolvedValueOnce({ ok: true, detail: full })
     const client = renderPanel()
 
@@ -208,5 +225,14 @@ describe('knowledge browser detail panel', () => {
     const field = document.body.appendChild(document.createElement('input'))
 
     expect(fireEvent.keyDown(field, { key: 'Delete' })).toBe(true)
+  })
+
+  it('should not link a javascript: source in the detail', async () => {
+    api.get.mockResolvedValue({ ok: true, detail: { ...full, sourceUrl: 'javascript:alert(1)' } })
+    renderPanel()
+
+    await screen.findByTestId('knowledge-browser-detail-meta')
+
+    expect(screen.queryByTestId('knowledge-browser-detail-source-link')).toBeNull()
   })
 })

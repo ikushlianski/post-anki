@@ -9,8 +9,10 @@ import {
 } from '../curriculum/curriculum.queries'
 import { WeakStrongList } from '../curriculum/weak-strong-list'
 import { RecommendationPanel } from '../curriculum/recommendation-panel'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/curriculum/$curriculumId_/stats')({
+  head: pageHead('Curriculum stats'),
   component: CurriculumStatsPage,
   loader: ({ params, context }) =>
     Promise.all([

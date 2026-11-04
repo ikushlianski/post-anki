@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { MODEL_TIER_LABEL, type ModelTier } from '@post-anki/shared'
 import type { Curriculum, Depth, Speed } from './model'
+import { ActionFailedLine } from './action-failed-line'
 import { updateCurriculumSettings } from './curriculum.api'
 import { curriculumDetailQuery } from './curriculum.queries'
 import { DepthSlider } from './depth-slider'
@@ -46,6 +47,7 @@ export function AdaptiveSettings({
   const router = useRouter()
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function update(patch: {
     speed?: Speed
@@ -55,14 +57,21 @@ export function AdaptiveSettings({
     modelTier?: ModelTier | null
   }) {
     setBusy(true)
-    await updateCurriculumSettings({
-      data: { curriculumId: curriculum.id, ...patch },
-    })
-    setBusy(false)
-    await queryClient.invalidateQueries({
-      queryKey: curriculumDetailQuery(curriculum.id).queryKey,
-    })
-    await router.invalidate()
+    setFailed(false)
+
+    try {
+      await updateCurriculumSettings({
+        data: { curriculumId: curriculum.id, ...patch },
+      })
+      await queryClient.invalidateQueries({
+        queryKey: curriculumDetailQuery(curriculum.id).queryKey,
+      })
+      await router.invalidate()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -70,6 +79,7 @@ export function AdaptiveSettings({
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
         Adaptive settings
       </p>
+      <ActionFailedLine failed={failed} testId="adaptive-settings-error" />
 
       <div>
         <p className="mb-1 text-xs text-neutral-400">
@@ -102,7 +112,7 @@ export function AdaptiveSettings({
           type="button"
           disabled={busy}
           onClick={() => update({ hinting: !curriculum.hinting })}
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 ${
+          className={`min-h-[44px] min-w-[44px] shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 sm:min-h-0 sm:min-w-0 ${
             curriculum.hinting
               ? 'bg-emerald-600 text-white'
               : 'bg-neutral-200 text-neutral-600'
@@ -134,7 +144,7 @@ export function AdaptiveSettings({
           data-testid="strict-order-toggle"
           disabled={busy}
           onClick={() => update({ strictOrder: !curriculum.strictOrder })}
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 ${
+          className={`min-h-[44px] min-w-[44px] shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 sm:min-h-0 sm:min-w-0 ${
             curriculum.strictOrder
               ? 'bg-amber-600 text-white'
               : 'bg-neutral-200 text-neutral-600'
@@ -154,7 +164,7 @@ export function AdaptiveSettings({
             disabled={busy}
             data-testid="curriculum-model-tier-inherit"
             onClick={() => update({ modelTier: null })}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+            className={`min-h-[44px] min-w-[44px] rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 sm:min-h-0 sm:min-w-0 ${
               curriculum.modelTier === null
                 ? 'bg-neutral-900 text-white'
                 : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
@@ -169,7 +179,7 @@ export function AdaptiveSettings({
               disabled={busy}
               data-testid={`curriculum-model-tier-option-${tier}`}
               onClick={() => update({ modelTier: tier })}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+              className={`min-h-[44px] min-w-[44px] rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 sm:min-h-0 sm:min-w-0 ${
                 curriculum.modelTier === tier
                   ? 'bg-neutral-900 text-white'
                   : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'

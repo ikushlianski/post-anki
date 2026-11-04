@@ -4,8 +4,10 @@ import { KnowledgeBitReviewPanel } from './knowledge-bit-review-panel'
 
 export function KnowledgeBitReviewPage({
   sources,
+  pendingTotal,
 }: {
   sources: PendingKnowledgeSourceForReview[]
+  pendingTotal?: number
 }) {
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
@@ -16,7 +18,7 @@ export function KnowledgeBitReviewPage({
         </p>
       </header>
 
-      <KnowledgeBitReviewPanel initialSources={sources} />
+      <KnowledgeBitReviewPanel initialSources={sources} pendingTotal={pendingTotal} />
     </main>
   )
 }

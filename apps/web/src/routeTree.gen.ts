@@ -12,8 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as TagsRouteImport } from './routes/tags'
 import { Route as StudySessionsRouteImport } from './routes/study-sessions'
+import { Route as StatsRouteImport } from './routes/stats'
+import { Route as StatisticsRouteImport } from './routes/statistics'
+import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OpenQuestionsRouteImport } from './routes/open-questions'
+import { Route as NotionSourcesRouteImport } from './routes/notion-sources'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MilestonesRouteImport } from './routes/milestones'
 import { Route as LoginRouteImport } from './routes/login'
@@ -40,9 +44,13 @@ import { Route as ProbeTopicIdRouteImport } from './routes/probe.$topicId'
 import { Route as PracticeSubjectIdRouteImport } from './routes/practice.$subjectId'
 import { Route as LectureTopicIdRouteImport } from './routes/lecture.$topicId'
 import { Route as LearningPathsPathIdRouteImport } from './routes/learning-paths_.$pathId'
+import { Route as KnowledgeTriageHistoryRouteImport } from './routes/knowledge.triage-history'
 import { Route as KnowledgeSuspendedRouteImport } from './routes/knowledge.suspended'
 import { Route as KnowledgeStyleNotesRouteImport } from './routes/knowledge.style-notes'
 import { Route as KnowledgeReviewRouteImport } from './routes/knowledge.review'
+import { Route as KnowledgeRejectedRouteImport } from './routes/knowledge.rejected'
+import { Route as KnowledgeInboxRouteImport } from './routes/knowledge.inbox'
+import { Route as KnowledgeChatRouteImport } from './routes/knowledge.chat'
 import { Route as KnowledgeBrowserRouteImport } from './routes/knowledge.browser'
 import { Route as KnowledgeAnswerRouteImport } from './routes/knowledge.answer'
 import { Route as CurriculumCurriculumIdRouteImport } from './routes/curriculum.$curriculumId'
@@ -76,6 +84,21 @@ const StudySessionsRoute = StudySessionsRouteImport.update({
   path: '/study-sessions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatisticsRoute = StatisticsRouteImport.update({
+  id: '/statistics',
+  path: '/statistics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -84,6 +107,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const OpenQuestionsRoute = OpenQuestionsRouteImport.update({
   id: '/open-questions',
   path: '/open-questions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotionSourcesRoute = NotionSourcesRouteImport.update({
+  id: '/notion-sources',
+  path: '/notion-sources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -216,6 +244,11 @@ const LearningPathsPathIdRoute = LearningPathsPathIdRouteImport.update({
   path: '/learning-paths/$pathId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KnowledgeTriageHistoryRoute = KnowledgeTriageHistoryRouteImport.update({
+  id: '/knowledge/triage-history',
+  path: '/knowledge/triage-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KnowledgeSuspendedRoute = KnowledgeSuspendedRouteImport.update({
   id: '/knowledge/suspended',
   path: '/knowledge/suspended',
@@ -229,6 +262,21 @@ const KnowledgeStyleNotesRoute = KnowledgeStyleNotesRouteImport.update({
 const KnowledgeReviewRoute = KnowledgeReviewRouteImport.update({
   id: '/knowledge/review',
   path: '/knowledge/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeRejectedRoute = KnowledgeRejectedRouteImport.update({
+  id: '/knowledge/rejected',
+  path: '/knowledge/rejected',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeInboxRoute = KnowledgeInboxRouteImport.update({
+  id: '/knowledge/inbox',
+  path: '/knowledge/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeChatRoute = KnowledgeChatRouteImport.update({
+  id: '/knowledge/chat',
+  path: '/knowledge/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KnowledgeBrowserRoute = KnowledgeBrowserRouteImport.update({
@@ -343,8 +391,12 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
+  '/notion-sources': typeof NotionSourcesRoute
   '/open-questions': typeof OpenQuestionsRoute
   '/profile': typeof ProfileRoute
+  '/sources': typeof SourcesRoute
+  '/statistics': typeof StatisticsRoute
+  '/stats': typeof StatsRoute
   '/study-sessions': typeof StudySessionsRoute
   '/tags': typeof TagsRoute
   '/today': typeof TodayRoute
@@ -353,9 +405,13 @@ export interface FileRoutesByFullPath {
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
   '/knowledge/browser': typeof KnowledgeBrowserRoute
+  '/knowledge/chat': typeof KnowledgeChatRoute
+  '/knowledge/inbox': typeof KnowledgeInboxRoute
+  '/knowledge/rejected': typeof KnowledgeRejectedRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
   '/knowledge/style-notes': typeof KnowledgeStyleNotesRoute
   '/knowledge/suspended': typeof KnowledgeSuspendedRoute
+  '/knowledge/triage-history': typeof KnowledgeTriageHistoryRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -396,8 +452,12 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
+  '/notion-sources': typeof NotionSourcesRoute
   '/open-questions': typeof OpenQuestionsRoute
   '/profile': typeof ProfileRoute
+  '/sources': typeof SourcesRoute
+  '/statistics': typeof StatisticsRoute
+  '/stats': typeof StatsRoute
   '/study-sessions': typeof StudySessionsRoute
   '/tags': typeof TagsRoute
   '/today': typeof TodayRoute
@@ -406,9 +466,13 @@ export interface FileRoutesByTo {
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
   '/knowledge/browser': typeof KnowledgeBrowserRoute
+  '/knowledge/chat': typeof KnowledgeChatRoute
+  '/knowledge/inbox': typeof KnowledgeInboxRoute
+  '/knowledge/rejected': typeof KnowledgeRejectedRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
   '/knowledge/style-notes': typeof KnowledgeStyleNotesRoute
   '/knowledge/suspended': typeof KnowledgeSuspendedRoute
+  '/knowledge/triage-history': typeof KnowledgeTriageHistoryRoute
   '/learning-paths/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -450,8 +514,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
+  '/notion-sources': typeof NotionSourcesRoute
   '/open-questions': typeof OpenQuestionsRoute
   '/profile': typeof ProfileRoute
+  '/sources': typeof SourcesRoute
+  '/statistics': typeof StatisticsRoute
+  '/stats': typeof StatsRoute
   '/study-sessions': typeof StudySessionsRoute
   '/tags': typeof TagsRoute
   '/today': typeof TodayRoute
@@ -460,9 +528,13 @@ export interface FileRoutesById {
   '/curriculum/$curriculumId': typeof CurriculumCurriculumIdRoute
   '/knowledge/answer': typeof KnowledgeAnswerRoute
   '/knowledge/browser': typeof KnowledgeBrowserRoute
+  '/knowledge/chat': typeof KnowledgeChatRoute
+  '/knowledge/inbox': typeof KnowledgeInboxRoute
+  '/knowledge/rejected': typeof KnowledgeRejectedRoute
   '/knowledge/review': typeof KnowledgeReviewRoute
   '/knowledge/style-notes': typeof KnowledgeStyleNotesRoute
   '/knowledge/suspended': typeof KnowledgeSuspendedRoute
+  '/knowledge/triage-history': typeof KnowledgeTriageHistoryRoute
   '/learning-paths_/$pathId': typeof LearningPathsPathIdRoute
   '/lecture/$topicId': typeof LectureTopicIdRoute
   '/practice/$subjectId': typeof PracticeSubjectIdRoute
@@ -505,8 +577,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/milestones'
     | '/notes'
+    | '/notion-sources'
     | '/open-questions'
     | '/profile'
+    | '/sources'
+    | '/statistics'
+    | '/stats'
     | '/study-sessions'
     | '/tags'
     | '/today'
@@ -515,9 +591,13 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
     | '/knowledge/browser'
+    | '/knowledge/chat'
+    | '/knowledge/inbox'
+    | '/knowledge/rejected'
     | '/knowledge/review'
     | '/knowledge/style-notes'
     | '/knowledge/suspended'
+    | '/knowledge/triage-history'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -558,8 +638,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/milestones'
     | '/notes'
+    | '/notion-sources'
     | '/open-questions'
     | '/profile'
+    | '/sources'
+    | '/statistics'
+    | '/stats'
     | '/study-sessions'
     | '/tags'
     | '/today'
@@ -568,9 +652,13 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
     | '/knowledge/browser'
+    | '/knowledge/chat'
+    | '/knowledge/inbox'
+    | '/knowledge/rejected'
     | '/knowledge/review'
     | '/knowledge/style-notes'
     | '/knowledge/suspended'
+    | '/knowledge/triage-history'
     | '/learning-paths/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -611,8 +699,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/milestones'
     | '/notes'
+    | '/notion-sources'
     | '/open-questions'
     | '/profile'
+    | '/sources'
+    | '/statistics'
+    | '/stats'
     | '/study-sessions'
     | '/tags'
     | '/today'
@@ -621,9 +713,13 @@ export interface FileRouteTypes {
     | '/curriculum/$curriculumId'
     | '/knowledge/answer'
     | '/knowledge/browser'
+    | '/knowledge/chat'
+    | '/knowledge/inbox'
+    | '/knowledge/rejected'
     | '/knowledge/review'
     | '/knowledge/style-notes'
     | '/knowledge/suspended'
+    | '/knowledge/triage-history'
     | '/learning-paths_/$pathId'
     | '/lecture/$topicId'
     | '/practice/$subjectId'
@@ -665,8 +761,12 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MilestonesRoute: typeof MilestonesRoute
   NotesRoute: typeof NotesRoute
+  NotionSourcesRoute: typeof NotionSourcesRoute
   OpenQuestionsRoute: typeof OpenQuestionsRoute
   ProfileRoute: typeof ProfileRoute
+  SourcesRoute: typeof SourcesRoute
+  StatisticsRoute: typeof StatisticsRoute
+  StatsRoute: typeof StatsRoute
   StudySessionsRoute: typeof StudySessionsRoute
   TagsRoute: typeof TagsRoute
   TodayRoute: typeof TodayRoute
@@ -675,9 +775,13 @@ export interface RootRouteChildren {
   CurriculumCurriculumIdRoute: typeof CurriculumCurriculumIdRoute
   KnowledgeAnswerRoute: typeof KnowledgeAnswerRoute
   KnowledgeBrowserRoute: typeof KnowledgeBrowserRoute
+  KnowledgeChatRoute: typeof KnowledgeChatRoute
+  KnowledgeInboxRoute: typeof KnowledgeInboxRoute
+  KnowledgeRejectedRoute: typeof KnowledgeRejectedRoute
   KnowledgeReviewRoute: typeof KnowledgeReviewRoute
   KnowledgeStyleNotesRoute: typeof KnowledgeStyleNotesRoute
   KnowledgeSuspendedRoute: typeof KnowledgeSuspendedRoute
+  KnowledgeTriageHistoryRoute: typeof KnowledgeTriageHistoryRoute
   LearningPathsPathIdRoute: typeof LearningPathsPathIdRoute
   LectureTopicIdRoute: typeof LectureTopicIdRoute
   PracticeSubjectIdRoute: typeof PracticeSubjectIdRoute
@@ -724,6 +828,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudySessionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/statistics': {
+      id: '/statistics'
+      path: '/statistics'
+      fullPath: '/statistics'
+      preLoaderRoute: typeof StatisticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -736,6 +861,13 @@ declare module '@tanstack/react-router' {
       path: '/open-questions'
       fullPath: '/open-questions'
       preLoaderRoute: typeof OpenQuestionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notion-sources': {
+      id: '/notion-sources'
+      path: '/notion-sources'
+      fullPath: '/notion-sources'
+      preLoaderRoute: typeof NotionSourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -920,6 +1052,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LearningPathsPathIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/knowledge/triage-history': {
+      id: '/knowledge/triage-history'
+      path: '/knowledge/triage-history'
+      fullPath: '/knowledge/triage-history'
+      preLoaderRoute: typeof KnowledgeTriageHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/knowledge/suspended': {
       id: '/knowledge/suspended'
       path: '/knowledge/suspended'
@@ -939,6 +1078,27 @@ declare module '@tanstack/react-router' {
       path: '/knowledge/review'
       fullPath: '/knowledge/review'
       preLoaderRoute: typeof KnowledgeReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge/rejected': {
+      id: '/knowledge/rejected'
+      path: '/knowledge/rejected'
+      fullPath: '/knowledge/rejected'
+      preLoaderRoute: typeof KnowledgeRejectedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge/inbox': {
+      id: '/knowledge/inbox'
+      path: '/knowledge/inbox'
+      fullPath: '/knowledge/inbox'
+      preLoaderRoute: typeof KnowledgeInboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge/chat': {
+      id: '/knowledge/chat'
+      path: '/knowledge/chat'
+      fullPath: '/knowledge/chat'
+      preLoaderRoute: typeof KnowledgeChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/knowledge/browser': {
@@ -1081,8 +1241,12 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MilestonesRoute: MilestonesRoute,
   NotesRoute: NotesRoute,
+  NotionSourcesRoute: NotionSourcesRoute,
   OpenQuestionsRoute: OpenQuestionsRoute,
   ProfileRoute: ProfileRoute,
+  SourcesRoute: SourcesRoute,
+  StatisticsRoute: StatisticsRoute,
+  StatsRoute: StatsRoute,
   StudySessionsRoute: StudySessionsRoute,
   TagsRoute: TagsRoute,
   TodayRoute: TodayRoute,
@@ -1091,9 +1255,13 @@ const rootRouteChildren: RootRouteChildren = {
   CurriculumCurriculumIdRoute: CurriculumCurriculumIdRoute,
   KnowledgeAnswerRoute: KnowledgeAnswerRoute,
   KnowledgeBrowserRoute: KnowledgeBrowserRoute,
+  KnowledgeChatRoute: KnowledgeChatRoute,
+  KnowledgeInboxRoute: KnowledgeInboxRoute,
+  KnowledgeRejectedRoute: KnowledgeRejectedRoute,
   KnowledgeReviewRoute: KnowledgeReviewRoute,
   KnowledgeStyleNotesRoute: KnowledgeStyleNotesRoute,
   KnowledgeSuspendedRoute: KnowledgeSuspendedRoute,
+  KnowledgeTriageHistoryRoute: KnowledgeTriageHistoryRoute,
   LearningPathsPathIdRoute: LearningPathsPathIdRoute,
   LectureTopicIdRoute: LectureTopicIdRoute,
   PracticeSubjectIdRoute: PracticeSubjectIdRoute,

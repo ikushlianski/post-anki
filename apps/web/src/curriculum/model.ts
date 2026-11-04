@@ -16,6 +16,7 @@ export const subjectSchema = z.object({
   parentId: z.string().nullable(),
   sortOrder: z.number().nullable().optional(),
   learningIntent: z.string().nullable().optional(),
+  cardCount: z.number().int().nonnegative().optional(),
 })
 
 export type Subject = z.infer<typeof subjectSchema>
@@ -631,6 +632,13 @@ export const mergeTagsInput = z.object({
 })
 
 export type MergeTagsInput = z.infer<typeof mergeTagsInput>
+
+export const renameTagInput = z.object({
+  tagId: z.string(),
+  name: z.string().trim().min(1).max(120),
+})
+
+export type RenameTagInput = z.infer<typeof renameTagInput>
 
 export const lectureStatusSchema = z.enum(['generating', 'ready', 'failed'])
 

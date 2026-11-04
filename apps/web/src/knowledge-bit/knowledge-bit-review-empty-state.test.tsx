@@ -22,7 +22,7 @@ describe('KnowledgeBitReviewEmptyState', () => {
     render(<KnowledgeBitReviewEmptyState />)
 
     expect(screen.getByTestId('knowledge-bit-review-empty-state').textContent).toContain(
-      'No pending knowledge bits. Everything is decided.',
+      'No pending cards. Everything is decided.',
     )
     expect(screen.getByRole('link', { name: 'Add knowledge' }).getAttribute('href')).toBe(
       '/add-knowledge',

@@ -1,7 +1,7 @@
 import type { ReviewCounts, ReviewGrade } from '@post-anki/shared'
 
 import type { SessionTally, SessionUndoEntry } from './anki-review-session'
-import { getDailyReviewCount, getStudyStreak } from './daily-review-storage'
+import { getDailyReviewCount } from './daily-review-storage'
 
 export interface SessionStats {
   reviewed: number
@@ -17,7 +17,6 @@ export interface SessionStats {
   done: number
   remaining: number
   totalGradedToday: number
-  studyStreak: number
   pointsEarned: number
   leveledUp: boolean
   levelReached: number | null
@@ -75,7 +74,6 @@ export function deriveSessionStats(
     done: undo.length,
     remaining: Math.max(0, serverLeft - graded),
     totalGradedToday: getDailyReviewCount(),
-    studyStreak: getStudyStreak(),
     pointsEarned,
     leveledUp: levelReached !== null,
     levelReached,

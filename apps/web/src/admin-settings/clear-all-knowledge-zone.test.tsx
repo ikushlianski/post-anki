@@ -53,7 +53,7 @@ describe('ClearAllKnowledgeZone', () => {
 
     const result = await screen.findByTestId('clear-all-knowledge-result')
 
-    expect(result.textContent).toContain('12 knowledge pieces')
+    expect(result.textContent).toContain('12 cards')
     expect(result.textContent).toContain('3 sources')
     expect(result.textContent).toContain('40 reviews')
     expect(onClear).toHaveBeenCalledTimes(1)

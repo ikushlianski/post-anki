@@ -6,15 +6,35 @@ import { mapPushQuestion } from './map-push-question'
 
 export interface SessionQuestionSurfaceProps {
   loading: boolean
+  loadFailed?: boolean
+  onRetry?: () => void
   pushResult: StudySessionPushResponse | null
   onAnswered: (result: AttemptResult) => void
 }
 
 export function SessionQuestionSurface({
   loading,
+  loadFailed = false,
+  onRetry,
   pushResult,
   onAnswered,
 }: SessionQuestionSurfaceProps) {
+  if (!loading && loadFailed) {
+    return (
+      <div data-testid="session-question-failed" role="alert" className="text-sm text-neutral-500">
+        <p>Couldn't load the next question.</p>
+        <button
+          type="button"
+          data-testid="session-question-retry"
+          onClick={onRetry}
+          className="mt-2 min-h-[44px] rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 sm:min-h-0"
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
+
   if (loading || pushResult === null) {
     return (
       <p data-testid="session-question-loading" className="text-sm text-neutral-500">

@@ -4,8 +4,10 @@ import { LecturePanel } from '../curriculum/lecture-panel'
 import { NoteCaptureBox } from '../note/note-capture-box'
 import { captureNote } from '../note/note.api'
 import { StudyMaterialPanel } from '../study-material/study-material-panel'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/lecture/$topicId')({
+  head: pageHead('Lecture'),
   component: LecturePage,
 })
 

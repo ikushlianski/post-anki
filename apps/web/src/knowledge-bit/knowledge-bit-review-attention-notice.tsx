@@ -15,12 +15,14 @@ export function KnowledgeBitReviewAttentionNotice({
   regeneration,
   onRetry,
   onRetryWithText,
+  onExtractAnyway,
   onDiscard,
 }: {
   source: PendingKnowledgeSourceForReview
   regeneration: SourceRegenerationState | undefined
   onRetry: (sourceId: string) => void
   onRetryWithText: (sourceId: string, text: string) => void
+  onExtractAnyway: (sourceId: string) => void
   onDiscard: (sourceId: string) => Promise<boolean>
 }) {
   const [mode, setMode] = useState<Mode>('idle')
@@ -34,7 +36,8 @@ export function KnowledgeBitReviewAttentionNotice({
   }
 
   const busy = regeneration?.phase === 'starting' || regeneration?.phase === 'running'
-  const isInfo = attention.kind === 'rate_limited'
+  const isInfo = attention.kind === 'rate_limited' || attention.kind === 'capped'
+  const isNothing = attention.kind === 'nothing_extracted'
   const fullText = attention.sourceText ?? source.sourceText ?? ''
 
   async function confirmDiscard() {
@@ -54,7 +57,11 @@ export function KnowledgeBitReviewAttentionNotice({
       data-testid={testId}
       data-kind={attention.kind}
       className={`space-y-3 rounded-2xl border p-4 ${
-        isInfo ? 'border-sky-200 bg-sky-50' : 'border-amber-300 bg-amber-50'
+        isInfo
+          ? 'border-sky-200 bg-sky-50'
+          : isNothing
+            ? 'border-neutral-200 bg-neutral-50'
+            : 'border-amber-300 bg-amber-50'
       }`}
     >
       <div className="min-w-0">
@@ -133,6 +140,33 @@ export function KnowledgeBitReviewAttentionNotice({
               Cancel
             </button>
           </div>
+        </div>
+      ) : isNothing ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <button
+            type="button"
+            data-testid={`${testId}-retry`}
+            onClick={() => onRetry(sourceId)}
+            className={SECONDARY_BUTTON_CLASS}
+          >
+            Retry anyway
+          </button>
+          <button
+            type="button"
+            data-testid={`${testId}-extract-anyway`}
+            onClick={() => onExtractAnyway(sourceId)}
+            className={SECONDARY_BUTTON_CLASS}
+          >
+            Extract anyway
+          </button>
+          <button
+            type="button"
+            data-testid={`${testId}-dismiss`}
+            onClick={() => void confirmDiscard()}
+            className={SECONDARY_BUTTON_CLASS}
+          >
+            Dismiss
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

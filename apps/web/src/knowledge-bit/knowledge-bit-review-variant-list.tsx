@@ -2,6 +2,8 @@ import { useState, type ReactNode } from "react";
 import type { PendingKnowledgeBitQuestionVariant } from "@post-anki/shared";
 
 import { KnowledgeBitReviewCardFields } from "./knowledge-bit-review-card-fields";
+import { noteEditTarget, type NoteMode } from "./knowledge-bit-review-note-edit";
+import { KnowledgeBitReviewNoteField } from "./knowledge-bit-review-note-field";
 import { KnowledgeBitReviewVariantPicker } from "./knowledge-bit-review-variant-picker";
 import { shownVariants, variantLabel } from "./knowledge-bit-triage-selection";
 
@@ -16,6 +18,7 @@ export function KnowledgeBitReviewVariantList({
   afterMain = null,
   onToggle,
   onSave,
+  onSaveNote,
   onBusyChange,
 }: {
   bitId: string;
@@ -31,6 +34,12 @@ export function KnowledgeBitReviewVariantList({
     variantId: string,
     prompt: string,
     answer: string,
+    context?: string | null,
+  ) => Promise<boolean>;
+  onSaveNote?: (
+    variantId: string,
+    mode: NoteMode,
+    text: string,
   ) => Promise<boolean>;
   onBusyChange: (key: string, busy: boolean) => void;
 }) {
@@ -49,6 +58,27 @@ export function KnowledgeBitReviewVariantList({
         {pollingGaveUp
           ? "Still waiting. Reload the page to check again."
           : "Writing cards…"}
+      </div>
+    );
+  }
+
+  const noteTarget = onSaveNote ? noteEditTarget(variants) : null;
+
+  if (noteTarget && onSaveNote) {
+    return (
+      <div
+        data-testid={`knowledge-bit-review-variants-${bitId}`}
+        className="space-y-3"
+      >
+        <KnowledgeBitReviewNoteField
+          bitId={bitId}
+          target={noteTarget}
+          onSave={(text) =>
+            onSaveNote(noteTarget.variantId, noteTarget.mode, text)
+          }
+          onBusyChange={(busy) => onBusyChange("card-0", busy)}
+        />
+        {afterMain}
       </div>
     );
   }

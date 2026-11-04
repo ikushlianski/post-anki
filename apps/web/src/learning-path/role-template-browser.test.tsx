@@ -81,7 +81,7 @@ describe('RoleTemplateBrowser', () => {
 
     await waitFor(() =>
       expect(screen.getByTestId('role-template-start-error').textContent).toContain(
-        'node not found',
+        'not in your taxonomy',
       ),
     )
   })

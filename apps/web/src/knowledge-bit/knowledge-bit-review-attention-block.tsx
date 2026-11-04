@@ -11,7 +11,7 @@ export function KnowledgeBitReviewAttentionBlock({
 }: {
   notices: PendingKnowledgeSourceForReview[]
   states: Record<string, SourceRegenerationState | undefined>
-  actions: Pick<SourceRegenerationActions, 'onRetry' | 'onRetryWithText'>
+  actions: Pick<SourceRegenerationActions, 'onRetry' | 'onRetryWithText' | 'onExtractAnyway'>
   onDiscard: (sourceId: string) => Promise<boolean>
 }) {
   if (notices.length === 0) {
@@ -50,6 +50,7 @@ export function KnowledgeBitReviewAttentionBlock({
             regeneration={states[notice.knowledgeSourceId]}
             onRetry={actions.onRetry}
             onRetryWithText={actions.onRetryWithText}
+            onExtractAnyway={actions.onExtractAnyway}
             onDiscard={onDiscard}
           />
         ))}

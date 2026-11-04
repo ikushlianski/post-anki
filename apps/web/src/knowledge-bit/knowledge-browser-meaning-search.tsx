@@ -7,14 +7,14 @@ export const MEANING_MESSAGES = {
   budget: 'Meaning search is paused until tomorrow. The column filters still work.',
   failed: 'Could not run the meaning search. Try again.',
   rateLimited: 'Too many searches in a row. Wait a moment.',
-  nothingReady: 'None of these pieces are ready for meaning search yet.',
+  nothingReady: 'None of these cards are ready for meaning search yet.',
   nothingClose: 'Nothing close to that. Try other words or loosen the filters.',
   dateRange: 'Fix the date range to run the meaning search.',
   unknown: 'Meaning search is not available right now.',
 } as const
 
 export function notReadyNote(count: number): string {
-  return `${count} ${count === 1 ? 'piece is' : 'pieces are'} not ready for meaning search and ${count === 1 ? 'is' : 'are'} not included`
+  return `${count} ${count === 1 ? 'card is' : 'cards are'} not ready for meaning search and ${count === 1 ? 'is' : 'are'} not included`
 }
 
 function errorMessage(code: string | null): string {
@@ -39,7 +39,7 @@ function MeaningStatus({ matches }: { matches: BrowserMatches }) {
     return (
       <p role="status" data-testid="meaning-status-error" className="text-sm text-neutral-700">
         {errorMessage(matches.errorCode)}{' '}
-        {matches.errorCode === 'embedding_failed' && (
+        {matches.errorCode !== 'invalid_date_range' && (
           <button type="button" data-testid="meaning-retry" className="underline" onClick={matches.retry}>
             Retry
           </button>
@@ -65,7 +65,7 @@ function MeaningStatus({ matches }: { matches: BrowserMatches }) {
         <Line testId="meaning-status-not-ready" text={notReadyNote(matches.notReadyCount)} />
       )}
       {matches.capped && (
-        <Line testId="meaning-status-capped" text="Showing only the closest 100 pieces." />
+        <Line testId="meaning-status-capped" text="Showing only the closest 100 cards." />
       )}
     </>
   )
@@ -127,7 +127,7 @@ export function KnowledgeBrowserMeaningSearch({
           aria-label="Search knowledge"
           data-testid="meaning-search-input"
           placeholder="Search knowledge by meaning, then press Enter"
-          title="Meaning search: finds pieces closest in meaning to your words. The Question and Answer filters match exact letters."
+          title="Meaning search: finds cards closest in meaning to your words. The Question and Answer filters match exact letters."
           className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
           onChange={(event) => {
             setDraft(event.target.value)

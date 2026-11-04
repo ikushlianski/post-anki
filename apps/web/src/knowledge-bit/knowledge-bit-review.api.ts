@@ -1,7 +1,6 @@
-import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import {
-  editKnowledgeBitQuestionVariantInput,
   bulkApproveKnowledgeBitsInput,
   gradeKnowledgeBitInput,
   triageKnowledgeBitInput,
@@ -18,7 +17,8 @@ import {
   type BulkApproveKnowledgeBitsResponse,
   type PendingKnowledgeBitReviewCountResponse,
   type PendingKnowledgeSourceForReview,
-} from '@post-anki/shared'
+  type PendingReviewListWithTotal,
+} from "@post-anki/shared";
 
 import {
   approveKnowledgeBit,
@@ -26,6 +26,8 @@ import {
   createManualKnowledgeItem,
   discardKnowledgeSource,
   editKnowledgeBit,
+  editKnowledgeBitNote,
+  type EditedNoteCard,
   getKnowledgeBitFeedbackByModel,
   gradeKnowledgeBit,
   getKnowledgeBitModelSuggestion,
@@ -40,154 +42,255 @@ import {
   undoTriageKnowledgeBit,
   restoreRejectedKnowledgeBit,
   type RegenerateKnowledgeSourceOutcome,
-} from '../curriculum/api-client'
+} from "../curriculum/api-client";
 
-export const getPendingKnowledgeBitsForReview = createServerFn({ method: 'GET' }).handler(
-  (): Promise<PendingKnowledgeSourceForReview[]> => listPendingKnowledgeBitsForReview(),
-)
+export const getPendingKnowledgeBitsForReview = createServerFn({
+  method: "GET",
+}).handler(
+  async (): Promise<PendingKnowledgeSourceForReview[]> =>
+    (await listPendingKnowledgeBitsForReview()).items,
+);
 
 export const getPendingKnowledgeBitsWithAttentionForReview = createServerFn({
-  method: 'GET',
+  method: "GET",
 }).handler(
-  (): Promise<PendingKnowledgeSourceForReview[]> =>
-    listPendingKnowledgeBitsForReview({ attention: true }),
-)
+  async (): Promise<PendingKnowledgeSourceForReview[]> =>
+    (await listPendingKnowledgeBitsForReview({ attention: true })).items,
+);
 
-const bitIdInput = z.object({ bitId: z.string().min(1) })
+export const getPendingKnowledgeBitsWithTotalForReview = createServerFn({
+  method: "GET",
+}).handler(
+  async (): Promise<
+    PendingReviewListWithTotal<PendingKnowledgeSourceForReview>
+  > => listPendingKnowledgeBitsForReview({ attention: true }),
+);
 
-export const approveKnowledgeBitForReview = createServerFn({ method: 'POST' })
+const bitIdInput = z.object({ bitId: z.string().min(1) });
+
+export const approveKnowledgeBitForReview = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bitIdInput.parse(data))
-  .handler(({ data }): Promise<{ ok: true }> => approveKnowledgeBit(data.bitId))
+  .handler(
+    ({ data }): Promise<{ ok: true }> => approveKnowledgeBit(data.bitId),
+  );
 
 const triageKnowledgeBitForReviewInput = z
   .object({ bitId: z.string().min(1) })
-  .and(triageKnowledgeBitInput)
+  .and(triageKnowledgeBitInput);
 
-export const triageKnowledgeBitForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => triageKnowledgeBitForReviewInput.parse(data))
+export const triageKnowledgeBitForReview = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    triageKnowledgeBitForReviewInput.parse(data),
+  )
   .handler(
     ({ data }): Promise<TriageKnowledgeBitResponse> =>
       triageKnowledgeBit(data.bitId, data.keepVariantIds),
-  )
+  );
 
 const undoTriageKnowledgeBitForReviewInput = z
   .object({ bitId: z.string().min(1) })
-  .and(undoTriageKnowledgeBitInput)
+  .and(undoTriageKnowledgeBitInput);
 
-export const undoTriageKnowledgeBitForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => undoTriageKnowledgeBitForReviewInput.parse(data))
-  .handler(
-    ({ data }): Promise<{ ok: true }> => undoTriageKnowledgeBit(data.bitId, data.restoreVariantIds),
+export const undoTriageKnowledgeBitForReview = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    undoTriageKnowledgeBitForReviewInput.parse(data),
   )
+  .handler(
+    ({ data }): Promise<{ ok: true }> =>
+      undoTriageKnowledgeBit(data.bitId, data.restoreVariantIds),
+  );
 
-export const rejectKnowledgeBitForReview = createServerFn({ method: 'POST' })
+export const rejectKnowledgeBitForReview = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bitIdInput.parse(data))
-  .handler(({ data }): Promise<RejectKnowledgeBitResponse> => rejectKnowledgeBit(data.bitId))
+  .handler(
+    ({ data }): Promise<RejectKnowledgeBitResponse> =>
+      rejectKnowledgeBit(data.bitId),
+  );
 
-export const restoreKnowledgeBitForReview = createServerFn({ method: 'POST' })
+export const restoreKnowledgeBitForReview = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => bitIdInput.parse(data))
-  .handler(({ data }): Promise<{ ok: true }> => restoreRejectedKnowledgeBit(data.bitId))
+  .handler(
+    ({ data }): Promise<{ ok: true }> =>
+      restoreRejectedKnowledgeBit(data.bitId),
+  );
 
 const gradeKnowledgeBitForReviewInput = z
   .object({ bitId: z.string().min(1) })
-  .and(gradeKnowledgeBitInput)
+  .and(gradeKnowledgeBitInput);
 
-export const gradeKnowledgeBitForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => gradeKnowledgeBitForReviewInput.parse(data))
+export const gradeKnowledgeBitForReview = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    gradeKnowledgeBitForReviewInput.parse(data),
+  )
   .handler(
     ({ data }): Promise<GradeKnowledgeBitResponse> =>
       gradeKnowledgeBit(data.bitId, { rating: data.rating, note: data.note }),
-  )
+  );
 
-export const getKnowledgeBitFeedbackByModelForAdmin = createServerFn({ method: 'GET' }).handler(
-  (): Promise<KnowledgeBitFeedbackByModelResponse> => getKnowledgeBitFeedbackByModel(),
-)
+export const getKnowledgeBitFeedbackByModelForAdmin = createServerFn({
+  method: "GET",
+}).handler(
+  (): Promise<KnowledgeBitFeedbackByModelResponse> =>
+    getKnowledgeBitFeedbackByModel(),
+);
 
 const editKnowledgeBitQuestionVariantForReviewInput = z
   .object({ variantId: z.string().min(1) })
-  .and(editKnowledgeBitQuestionVariantInput)
+  .and(
+    z.object({
+      prompt: z.string().trim().min(1),
+      answer: z.string().trim().min(1),
+      context: z.string().nullable().optional(),
+    }),
+  );
 
-export const editKnowledgeBitQuestionVariantForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => editKnowledgeBitQuestionVariantForReviewInput.parse(data))
+export const editKnowledgeBitQuestionVariantForReview = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    editKnowledgeBitQuestionVariantForReviewInput.parse(data),
+  )
   .handler(
     ({ data }): Promise<{ ok: true; variantId: string }> =>
-      editKnowledgeBitQuestionVariant(data.variantId, data.prompt, data.answer),
+      editKnowledgeBitQuestionVariant(
+        data.variantId,
+        data.prompt,
+        data.answer,
+        data.context,
+      ),
+  );
+
+const editKnowledgeBitNoteForReviewInput = z.object({
+  variantId: z.string().min(1),
+  text: z.string().min(1),
+  mode: z.enum(["cloze", "list"]),
+});
+
+export const editKnowledgeBitNoteForReview = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    editKnowledgeBitNoteForReviewInput.parse(data),
   )
+  .handler(
+    ({
+      data,
+    }): Promise<{ ok: true; variantId: string; cards: EditedNoteCard[] }> =>
+      editKnowledgeBitNote(
+        data.variantId,
+        data.mode === "list" ? { list: data.text } : { note: data.text },
+      ),
+  );
 
 const editKnowledgeBitForReviewInput = z.object({
   bitId: z.string().min(1),
   body: z.string().trim().min(1),
   background: z.string().trim().min(1).nullable(),
-})
+});
 
-export const editKnowledgeBitForReview = createServerFn({ method: 'POST' })
+export const editKnowledgeBitForReview = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => editKnowledgeBitForReviewInput.parse(data))
   .handler(
-    ({ data }): Promise<{ ok: true }> => editKnowledgeBit(data.bitId, data.body, data.background),
-  )
+    ({ data }): Promise<{ ok: true }> =>
+      editKnowledgeBit(data.bitId, data.body, data.background),
+  );
 
-export const bulkApproveKnowledgeBitsForReview = createServerFn({ method: 'POST' })
+export const bulkApproveKnowledgeBitsForReview = createServerFn({
+  method: "POST",
+})
   .inputValidator((data: unknown) => bulkApproveKnowledgeBitsInput.parse(data))
   .handler(
     ({ data }): Promise<BulkApproveKnowledgeBitsResponse> =>
       bulkApproveKnowledgeBits(data.knowledgeBitIds),
-  )
+  );
 
-export const getPendingKnowledgeBitCountForNav = createServerFn({ method: 'GET' }).handler(
-  (): Promise<PendingKnowledgeBitReviewCountResponse> => getPendingKnowledgeBitCount(),
-)
+export const getPendingKnowledgeBitCountForNav = createServerFn({
+  method: "GET",
+}).handler(
+  (): Promise<PendingKnowledgeBitReviewCountResponse> =>
+    getPendingKnowledgeBitCount(),
+);
 
 const regenerateKnowledgeSourceForReviewInput = z
   .object({ sourceId: z.string().min(1) })
-  .and(regenerateKnowledgeSourceInput)
+  .and(regenerateKnowledgeSourceInput);
 
-export const regenerateKnowledgeSourceForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => regenerateKnowledgeSourceForReviewInput.parse(data))
+export const regenerateKnowledgeSourceForReview = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    regenerateKnowledgeSourceForReviewInput.parse(data),
+  )
   .handler(
     ({ data }): Promise<RegenerateKnowledgeSourceOutcome> =>
-      regenerateKnowledgeSource(data.sourceId, data.modelId, data.text),
-  )
+      regenerateKnowledgeSource(
+        data.sourceId,
+        data.modelId,
+        data.text,
+        data.forceAtLeastOne,
+      ),
+  );
 
-const sourceIdInput = z.object({ sourceId: z.string().min(1) })
+const sourceIdInput = z.object({ sourceId: z.string().min(1) });
 
-export const discardKnowledgeSourceForReview = createServerFn({ method: 'POST' })
+export const discardKnowledgeSourceForReview = createServerFn({
+  method: "POST",
+})
   .inputValidator((data: unknown) => sourceIdInput.parse(data))
-  .handler(({ data }): Promise<KnowledgeDeletionResponse> => discardKnowledgeSource(data.sourceId))
+  .handler(
+    ({ data }): Promise<KnowledgeDeletionResponse> =>
+      discardKnowledgeSource(data.sourceId),
+  );
 
-export const getKnowledgeSourceRegenerationForReview = createServerFn({ method: 'GET' })
+export const getKnowledgeSourceRegenerationForReview = createServerFn({
+  method: "GET",
+})
   .inputValidator((data: unknown) => sourceIdInput.parse(data))
   .handler(
     ({ data }): Promise<KnowledgeSourceRegenerationStatus> =>
       getKnowledgeSourceRegeneration(data.sourceId),
-  )
+  );
 
 const updateKnowledgeBitFeedbackForReviewInput = z.object({
   feedbackId: z.string().min(1),
   reasonCode: z.string().optional(),
   note: z.string().trim().max(500).optional(),
   rating: z.number().int().min(1).max(5).optional(),
+});
+
+export const updateKnowledgeBitFeedbackForReview = createServerFn({
+  method: "POST",
 })
-
-export const updateKnowledgeBitFeedbackForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => updateKnowledgeBitFeedbackForReviewInput.parse(data))
-  .handler(
-    ({ data }): Promise<{ ok: true }> => {
-      const { feedbackId, ...patch } = data
-      return updateKnowledgeBitFeedback(feedbackId, patch as Parameters<typeof updateKnowledgeBitFeedback>[1])
-    },
+  .inputValidator((data: unknown) =>
+    updateKnowledgeBitFeedbackForReviewInput.parse(data),
   )
+  .handler(({ data }): Promise<{ ok: true }> => {
+    const { feedbackId, ...patch } = data;
+    return updateKnowledgeBitFeedback(
+      feedbackId,
+      patch as Parameters<typeof updateKnowledgeBitFeedback>[1],
+    );
+  });
 
-export const getKnowledgeBitModelSuggestionForAdmin = createServerFn({ method: 'GET' }).handler(
-  () => getKnowledgeBitModelSuggestion(),
-)
+export const getKnowledgeBitModelSuggestionForAdmin = createServerFn({
+  method: "GET",
+}).handler(() => getKnowledgeBitModelSuggestion());
 
 const createManualKnowledgeItemForReviewInput = z
   .object({ sourceId: z.string().min(1) })
-  .and(createManualKnowledgeItemInput)
+  .and(createManualKnowledgeItemInput);
 
-export const createManualKnowledgeItemForReview = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => createManualKnowledgeItemForReviewInput.parse(data))
+export const createManualKnowledgeItemForReview = createServerFn({
+  method: "POST",
+})
+  .inputValidator((data: unknown) =>
+    createManualKnowledgeItemForReviewInput.parse(data),
+  )
   .handler(
     ({ data }): Promise<PendingKnowledgeBitForReview> =>
-      createManualKnowledgeItem(data.sourceId, { front: data.front, back: data.back, example: data.example }),
-  )
+      createManualKnowledgeItem(data.sourceId, {
+        front: data.front,
+        back: data.back,
+        example: data.example,
+      }),
+  );

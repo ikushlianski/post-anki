@@ -40,27 +40,42 @@ export function SessionRunner({
   const [loadingPush, setLoadingPush] = useState(true)
   const [nowIso, setNowIso] = useState(() => new Date().toISOString())
   const [ending, setEnding] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [actionFailed, setActionFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     setLoadingPush(true)
+    setLoadFailed(false)
 
-    onLoadPush(excludeGapIds).then((result) => {
-      if (cancelled) {
-        return
-      }
+    onLoadPush(excludeGapIds)
+      .then((result) => {
+        if (cancelled) {
+          return
+        }
 
-      setLoadingPush(false)
+        setLoadingPush(false)
 
-      if (result.ok) {
-        setPushResult(result.data)
-      }
-    })
+        if (result.ok) {
+          setPushResult(result.data)
+        } else {
+          setLoadFailed(true)
+        }
+      })
+      .catch(() => {
+        if (cancelled) {
+          return
+        }
+
+        setLoadingPush(false)
+        setLoadFailed(true)
+      })
 
     return () => {
       cancelled = true
     }
-  }, [excludeGapIds])
+  }, [excludeGapIds, reloadKey])
 
   useEffect(() => {
     const interval = setInterval(() => setNowIso(new Date().toISOString()), 1000)
@@ -79,7 +94,13 @@ export function SessionRunner({
   async function handleAnswered(result: AttemptResult) {
     const gapId = pushResult?.push?.gap.id ?? null
 
-    await onRecordAnswer(result.outcome === 'pass')
+    setActionFailed(false)
+
+    try {
+      await onRecordAnswer(result.outcome === 'pass')
+    } catch {
+      setActionFailed(true)
+    }
 
     if (gapId) {
       setExcludeGapIds((prev) => [...prev, gapId])
@@ -88,12 +109,19 @@ export function SessionRunner({
 
   async function handleEnd(userRequestedEnd: boolean) {
     setEnding(true)
-    const result = await onEnd(userRequestedEnd)
+    setActionFailed(false)
+
+    const result = await onEnd(userRequestedEnd).catch(() => null)
+
     setEnding(false)
 
-    if (result.ok) {
-      await onEnded(result.data)
+    if (!result?.ok) {
+      setActionFailed(true)
+
+      return
     }
+
+    await onEnded(result.data)
   }
 
   return (
@@ -113,9 +141,16 @@ export function SessionRunner({
         ending={ending}
         onEndNow={() => void handleEnd(true)}
       />
+      {actionFailed ? (
+        <p role="alert" data-testid="session-action-failed" className="mb-2 text-xs text-red-600">
+          Couldn't save that — try again.
+        </p>
+      ) : null}
       <div className="card border-neutral-900">
         <SessionQuestionSurface
           loading={loadingPush}
+          loadFailed={loadFailed}
+          onRetry={() => setReloadKey((key) => key + 1)}
           pushResult={pushResult}
           onAnswered={(result) => void handleAnswered(result)}
         />

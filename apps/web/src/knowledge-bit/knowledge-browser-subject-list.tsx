@@ -3,9 +3,14 @@ import { Link } from '@tanstack/react-router'
 import { KNOWLEDGE_BIT_BROWSER_NO_SUBJECT } from '@post-anki/shared'
 import type { KnowledgeBitBrowserSubjectCounts } from '@post-anki/shared'
 
+import type { Subject } from '../curriculum/model'
+import { subjectKindBadge } from '../subject/subject-kind-badge'
+import { useLiveSubjects } from '../subject/subject-live-data'
 import { CardListLoadError } from './card-list-load-error'
+import { SubjectRowActions } from './subject-row-actions'
 import { useKnowledgeBrowserSubjectCounts } from './use-knowledge-browser-data'
 import { SubjectDragProvider, useSubjectDragRow } from './subject-tree-drag'
+import { useSubjectCardCounts } from './use-subject-card-counts'
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
 
 export const NO_SUBJECT_PARAM = KNOWLEDGE_BIT_BROWSER_NO_SUBJECT
@@ -19,29 +24,22 @@ export interface BrowserSubjectEntry {
   matureCount: number
 }
 
-type CountField = 'count' | 'newCount' | 'learningCount' | 'matureCount'
-
-function sumOf(rows: (KnowledgeBitBrowserSubjectCounts[number] | undefined)[], field: CountField): number {
-  return rows.reduce((sum, row) => sum + (row?.[field] ?? 0), 0)
-}
-
 export function buildBrowserSubjectEntries(
   options: { id: string; label: string }[],
   counts: KnowledgeBitBrowserSubjectCounts,
+  cardCounts: ReadonlyMap<string, number> = new Map(),
 ): BrowserSubjectEntry[] {
   const direct = new Map(counts.map((row) => [row.subjectId, row]))
   const entries = options.map((option) => {
-    const group = options
-      .filter((other) => other.label === option.label || other.label.startsWith(`${option.label} › `))
-      .map((other) => direct.get(other.id))
+    const row = direct.get(option.id)
 
     return {
       id: option.id,
       label: option.label,
-      count: sumOf(group, 'count'),
-      newCount: sumOf(group, 'newCount'),
-      learningCount: sumOf(group, 'learningCount'),
-      matureCount: sumOf(group, 'matureCount'),
+      count: cardCounts.get(option.id) ?? row?.count ?? 0,
+      newCount: row?.newCount ?? 0,
+      learningCount: row?.learningCount ?? 0,
+      matureCount: row?.matureCount ?? 0,
     }
   })
   const unsorted = direct.get(null)
@@ -64,6 +62,7 @@ export function buildBrowserSubjectEntries(
 }
 
 export function DepthBar({ entry }: { entry: BrowserSubjectEntry }) {
+  const shown = entry.matureCount + entry.learningCount + entry.newCount
   const parts = [
     { key: 'mature', label: 'mature', value: entry.matureCount, color: 'bg-emerald-500' },
     { key: 'learning', label: 'learning', value: entry.learningCount, color: 'bg-amber-400' },
@@ -79,13 +78,13 @@ export function DepthBar({ entry }: { entry: BrowserSubjectEntry }) {
       data-testid={`knowledge-browser-subject-depth-${entry.id}`}
       className="flex h-2 w-24 shrink-0 overflow-hidden rounded-full bg-neutral-200 sm:w-40"
     >
-      {entry.count > 0
+      {shown > 0
         ? parts.map((part) => (
             <span
               key={part.key}
               data-part={part.key}
               className={part.color}
-              style={{ width: `${(part.value / entry.count) * 100}%` }}
+              style={{ width: `${(part.value / shown) * 100}%` }}
             />
           ))
         : null}
@@ -118,12 +117,14 @@ export function buildSubjectTree(entries: BrowserSubjectEntry[]): SubjectTreeNod
   return roots
 }
 
-function SubjectRow({ node, depth }: { node: SubjectTreeNode; depth: number }) {
+function SubjectRow({ node, depth, subjects }: { node: SubjectTreeNode; depth: number; subjects: Subject[] }) {
   const [open, setOpen] = useState(false)
   const { entry, children } = node
   const name = entry.label.split(PATH_SEPARATOR).at(-1)
   const drag = useSubjectDragRow(entry.id)
   const movable = entry.id !== NO_SUBJECT_PARAM
+  const subject = subjects.find((candidate) => candidate.id === entry.id)
+  const kindBadge = subjectKindBadge(subject?.kind)
 
   return (
     <li ref={movable ? drag.rowRef : undefined} className={drag.isDragging ? 'opacity-40' : ''}>
@@ -166,15 +167,31 @@ function SubjectRow({ node, depth }: { node: SubjectTreeNode; depth: number }) {
           data-testid={`knowledge-browser-subject-${entry.id}`}
           className="flex flex-1 items-center justify-between gap-3 py-3 pr-4"
         >
-          <span className="min-w-0 flex-1 truncate">{name}</span>
+          <span className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="truncate">{name}</span>
+            {kindBadge ? (
+              <span
+                data-testid="subject-kind-badge"
+                title={kindBadge}
+                className="shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-500"
+              >
+                {kindBadge}
+              </span>
+            ) : null}
+          </span>
           <DepthBar entry={entry} />
           <span className="w-10 text-right text-sm text-neutral-500">{entry.count}</span>
         </Link>
+        {subject ? (
+          <span className="shrink-0 pr-2">
+            <SubjectRowActions subject={subject} allSubjects={subjects} />
+          </span>
+        ) : null}
       </div>
       {open && children.length > 0 ? (
         <ul className="divide-y divide-neutral-200 border-t border-neutral-200">
           {children.map((child) => (
-            <SubjectRow key={child.entry.id} node={child} depth={depth + 1} />
+            <SubjectRow key={child.entry.id} node={child} depth={depth + 1} subjects={subjects} />
           ))}
         </ul>
       ) : null}
@@ -186,14 +203,14 @@ function toDragNode(node: SubjectTreeNode): { id: string; children: ReturnType<t
   return { id: node.entry.id, children: node.children.map(toDragNode) }
 }
 
-function SubjectTree({ entries }: { entries: BrowserSubjectEntry[] }) {
+function SubjectTree({ entries, subjects }: { entries: BrowserSubjectEntry[]; subjects: Subject[] }) {
   const tree = buildSubjectTree(entries)
 
   return (
     <SubjectDragProvider nodes={tree.map(toDragNode)}>
       <ul className="flex flex-col divide-y divide-neutral-200 rounded border border-neutral-200">
         {tree.map((node) => (
-          <SubjectRow key={node.entry.id} node={node} depth={0} />
+          <SubjectRow key={node.entry.id} node={node} depth={0} subjects={subjects} />
         ))}
       </ul>
     </SubjectDragProvider>
@@ -203,9 +220,13 @@ function SubjectTree({ entries }: { entries: BrowserSubjectEntry[] }) {
 export function KnowledgeBrowserSubjectList() {
   const { options } = useKnowledgeOverviewSubjects()
   const data = useKnowledgeBrowserSubjectCounts()
+  const cardCounts = useSubjectCardCounts()
+  const subjects = useLiveSubjects() ?? []
 
   if (data.isPending) {
-    return <p data-testid="knowledge-browser-loading" className="text-neutral-500">Loading…</p>
+    return <p role="status" data-testid="knowledge-browser-loading" className="text-neutral-500">
+        Loading…
+      </p>
   }
 
   if (data.isError) {
@@ -218,11 +239,18 @@ export function KnowledgeBrowserSubjectList() {
     )
   }
 
-  const entries = buildBrowserSubjectEntries(options, data.counts)
+  const entries = buildBrowserSubjectEntries(options, data.counts, cardCounts)
 
   if (entries.length === 0) {
-    return <p data-testid="knowledge-browser-empty" className="text-neutral-500">No subjects yet.</p>
+    return (
+      <div data-testid="knowledge-browser-empty" className="space-y-2 text-neutral-500">
+        <p>No subjects yet.</p>
+        <Link to="/subjects/new" data-testid="knowledge-browser-create-subject" className="font-medium text-indigo-600 hover:underline">
+          Create a subject
+        </Link>
+      </div>
+    )
   }
 
-  return <SubjectTree entries={entries} />
+  return <SubjectTree entries={entries} subjects={subjects} />
 }

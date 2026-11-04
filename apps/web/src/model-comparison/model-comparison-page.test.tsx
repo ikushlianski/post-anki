@@ -404,4 +404,12 @@ describe('ModelComparisonPage', () => {
     await waitFor(() => expect(getKnowledgeBitModelSuggestionForAdmin).toHaveBeenCalled(), SESSION_WAIT)
     expect(screen.getByTestId('model-suggestion-summary').textContent).toContain('2 of 5 models')
   })
+
+  it('should say earlier comparisons could not be loaded instead of showing an empty history', async () => {
+    vi.mocked(listModelComparisonRuns).mockRejectedValue(new Error('network'))
+
+    render(<ModelComparisonPage />)
+
+    expect((await screen.findByTestId('model-comparison-runs-error')).textContent).toContain('Could not load earlier')
+  })
 })

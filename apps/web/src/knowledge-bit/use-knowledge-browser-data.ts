@@ -4,6 +4,7 @@ import type { KnowledgeBitBrowserFilters, KnowledgeBitBrowserItem } from '@post-
 import { listKnowledgeBrowser, listKnowledgeBrowserSubjectCounts } from './knowledge-browser.api'
 import type { KnowledgeBrowserOutcome } from './knowledge-browser.api'
 import { isDateRangeReversed, toApiFilters } from './knowledge-browser-filters'
+import { uniqueById } from '../shared/unique-by-id'
 
 const PAGE_SIZE = 50
 
@@ -35,7 +36,7 @@ export function useKnowledgeBrowserRows(
     getNextPageParam: (lastPage, pages) => (lastPage.hasMore ? pages.length * PAGE_SIZE : undefined),
   })
 
-  const rows: KnowledgeBitBrowserItem[] = (query.data?.pages ?? []).flatMap((page) => page.items)
+  const rows: KnowledgeBitBrowserItem[] = uniqueById((query.data?.pages ?? []).flatMap((page) => page.items), (row) => row.knowledgeBitId)
 
   return {
     rows,

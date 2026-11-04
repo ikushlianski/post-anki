@@ -24,7 +24,7 @@ export function AdminSettingsToggle({
         aria-label={label}
         disabled={disabled}
         onClick={() => onChange(!value)}
-        className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 ${
+        className={`min-h-[44px] min-w-[44px] shrink-0 rounded-full px-3 py-1 text-xs font-medium disabled:opacity-50 sm:min-h-0 sm:min-w-0 ${
           value
             ? 'bg-emerald-600 text-white'
             : 'bg-neutral-200 text-neutral-600'

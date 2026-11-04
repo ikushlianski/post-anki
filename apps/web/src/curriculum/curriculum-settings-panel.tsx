@@ -29,11 +29,13 @@ export function CurriculumSettingsPanel({
   useEffect(() => {
     let cancelled = false
 
-    getDomainMapForSubject({ data: curriculum.subjectId }).then((result) => {
-      if (!cancelled) {
-        setTree(result)
-      }
-    })
+    getDomainMapForSubject({ data: curriculum.subjectId })
+      .then((result) => {
+        if (!cancelled) {
+          setTree(result)
+        }
+      })
+      .catch(() => undefined)
 
     return () => {
       cancelled = true

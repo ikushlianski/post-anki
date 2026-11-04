@@ -1,7 +1,6 @@
-import { useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
-
 import { MODEL_TIER_LABEL, type ModelTier } from '@post-anki/shared'
+import { ActionFailedLine } from '../curriculum/action-failed-line'
+import { useGuardedRun } from '../curriculum/use-guarded-run'
 import { updateSubjectModelTier } from './subject.api'
 
 const TIERS: ModelTier[] = ['cheap', 'balanced', 'premium']
@@ -15,14 +14,10 @@ export function SubjectModelTier({
   modelTier: ModelTier | null
   globalModelTier: ModelTier
 }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
+  const { busy, failed, run } = useGuardedRun()
 
-  async function set(next: ModelTier | null) {
-    setBusy(true)
-    await updateSubjectModelTier({ data: { subjectId, modelTier: next } })
-    setBusy(false)
-    await router.invalidate()
+  function set(next: ModelTier | null) {
+    return run(() => updateSubjectModelTier({ data: { subjectId, modelTier: next } }))
   }
 
   const effective = modelTier ?? globalModelTier
@@ -40,8 +35,8 @@ export function SubjectModelTier({
         onClick={() => set(null)}
         className={
           modelTier === null
-            ? 'rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white disabled:opacity-50'
-            : 'rounded-full px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-700 disabled:opacity-50'
+            ? 'min-h-[44px] min-w-[44px] rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white disabled:opacity-50 sm:min-h-0 sm:min-w-0'
+            : 'min-h-[44px] min-w-[44px] rounded-full px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-700 disabled:opacity-50 sm:min-h-0 sm:min-w-0'
         }
       >
         Inherit
@@ -55,13 +50,14 @@ export function SubjectModelTier({
           onClick={() => set(tier)}
           className={
             modelTier === tier
-              ? 'rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white disabled:opacity-50'
-              : 'rounded-full px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-700 disabled:opacity-50'
+              ? 'min-h-[44px] min-w-[44px] rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-medium text-white disabled:opacity-50 sm:min-h-0 sm:min-w-0'
+              : 'min-h-[44px] min-w-[44px] rounded-full px-2 py-0.5 text-[11px] text-neutral-400 hover:text-neutral-700 disabled:opacity-50 sm:min-h-0 sm:min-w-0'
           }
         >
           {MODEL_TIER_LABEL[tier]}
         </button>
       ))}
+      <ActionFailedLine failed={failed} testId={`subject-model-tier-failed-${subjectId}`} />
     </div>
   )
 }

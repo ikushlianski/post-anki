@@ -163,4 +163,15 @@ describe('LearningPathDetail', () => {
 
     expect(screen.getByTestId('learning-path-completed-banner')).toBeTruthy()
   })
+
+  it('should show a failure instead of loading forever when the step push throws', async () => {
+    const onLoadStepPush = vi
+      .fn<(stepDomainNodeId: string) => Promise<ApiResult<StepPushResult>>>()
+      .mockRejectedValue(new Error('boom'))
+
+    renderDetail({ onLoadStepPush })
+
+    expect(await screen.findByTestId('learning-path-step-failed')).toBeTruthy()
+    expect(screen.queryByTestId('learning-path-step-loading')).toBeNull()
+  })
 })

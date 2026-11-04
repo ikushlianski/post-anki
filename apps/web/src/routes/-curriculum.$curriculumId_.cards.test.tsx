@@ -194,4 +194,16 @@ describe('CardsBrowserPage search URL state', () => {
       'No cards match "NonexistentTopic".',
     )
   })
+
+  it('should let the cards table scroll sideways and wrap long words on a phone', () => {
+    mockUseSearch.mockReturnValue({ search: '' })
+
+    render(<CardsBrowserPage />)
+
+    const scroll = screen.getByTestId('cards-browser-scroll')
+
+    expect(scroll.className).toContain('overflow-x-auto')
+    expect(scroll.querySelector('table')).toBeTruthy()
+    expect(screen.getByTestId('cards-browser-row-var_1').querySelector('td')?.className).toContain('break-words')
+  })
 })

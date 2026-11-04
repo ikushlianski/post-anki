@@ -25,3 +25,13 @@ export async function getHomeSummary(): Promise<be.HomeSummary | null> {
     return null
   }
 }
+
+export async function getStudyOverview(tz: string, days?: number): Promise<be.StudyOverview> {
+  const params = new URLSearchParams({ tz })
+
+  if (days !== undefined) {
+    params.set('days', String(days))
+  }
+
+  return request<be.StudyOverview>(`/home/study-overview?${params.toString()}`)
+}

@@ -97,6 +97,20 @@ describe('KnowledgeBitReviewPanel attention notices', () => {
     expect(screen.getByTestId('knowledge-bit-review-count').textContent).toContain('1 card is waiting')
   })
 
+  it('should send forceAtLeastOne when Extract anyway is pressed on a nothing-extracted note', async () => {
+    mockedRegenerate.mockResolvedValue({ status: 'running', supersededCount: 0 })
+
+    const source = noticeSource('s1')
+
+    renderPanel([{ ...source, attention: source.attention && { ...source.attention, kind: 'nothing_extracted', reason: null } }])
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('knowledge-bit-review-attention-s1-extract-anyway'))
+    })
+
+    expect(mockedRegenerate).toHaveBeenCalledWith({ data: { sourceId: 's1', forceAtLeastOne: true } })
+  })
+
   it('should show the empty message when there are no notices and no cards', () => {
     renderPanel([])
 

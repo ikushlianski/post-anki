@@ -64,6 +64,6 @@ describe('DestinationChoice', () => {
 
     expect(
       (await screen.findByTestId('destination-choice-error')).textContent,
-    ).toContain('not_parked')
+    ).toContain('no longer waiting')
   })
 })

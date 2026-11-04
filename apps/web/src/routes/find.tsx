@@ -3,8 +3,10 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import type { TopicModuleSearchResult } from '@post-anki/shared'
 
 import { searchTopicsAndModules } from '../curriculum/curriculum.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/find')({
+  head: pageHead('Find'),
   component: FindPage,
 })
 
@@ -50,6 +52,7 @@ export function FindPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search topics"
           placeholder="e.g. async error handling"
           data-testid="find-search-input"
           className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"

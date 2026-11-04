@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { listTagMasteryStatuses, listTags, mergeTags } from '../curriculum/curriculum.api'
 import type { TagMasteryStatus } from '../curriculum/api-client'
 import type { Tag } from '../curriculum/model'
+import { ActionFailedLine } from '../curriculum/action-failed-line'
+import { TagDeleteControl, TagRenameControl } from './tag-chip-actions'
 
 const STRENGTH_LABEL: Record<TagMasteryStatus['status'], string> = {
   new: 'untested',
@@ -37,6 +39,7 @@ function TagMergeControl({
 }) {
   const [armed, setArmed] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
   const [targetTagId, setTargetTagId] = useState('')
 
   const options = allTags.filter((candidate) => candidate.id !== tag.id)
@@ -47,10 +50,17 @@ function TagMergeControl({
     }
 
     setBusy(true)
-    await mergeTags({ data: { targetTagId, sourceTagId: tag.id } })
-    setBusy(false)
-    setArmed(false)
-    onMerged()
+    setFailed(false)
+
+    try {
+      await mergeTags({ data: { targetTagId, sourceTagId: tag.id } })
+      setArmed(false)
+      onMerged()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!armed) {
@@ -85,6 +95,7 @@ function TagMergeControl({
       <button
         type="button"
         disabled={busy || !targetTagId}
+        aria-label={`Confirm merge of ${tag.name}`}
         data-testid={`tag-list-merge-confirm-${tag.id}`}
         onClick={confirm}
         className="font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
@@ -93,12 +104,17 @@ function TagMergeControl({
       </button>
       <button
         type="button"
+        aria-label="Cancel merge"
         data-testid={`tag-list-merge-cancel-${tag.id}`}
-        onClick={() => setArmed(false)}
+        onClick={() => {
+          setFailed(false)
+          setArmed(false)
+        }}
         className="text-neutral-400 hover:text-neutral-700"
       >
         ✕
       </button>
+      <ActionFailedLine failed={failed} testId={`tag-list-merge-failed-${tag.id}`} />
     </span>
   )
 }
@@ -154,6 +170,8 @@ export function TagList() {
                 void queryClient.invalidateQueries({ queryKey: ['tags-mastery'] })
               }}
             />
+            <TagRenameControl tag={tag} />
+            <TagDeleteControl tag={tag} />
           </span>
         ))}
       </div>

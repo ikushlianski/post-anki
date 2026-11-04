@@ -4,6 +4,7 @@ import type { LibrarySource, RefetchSourceResult } from '@post-anki/shared'
 
 import { FetchStateBadge } from './fetch-state-badge'
 import type { ApiResult } from './content-library.model'
+import { ActionFailedLine } from '../curriculum/action-failed-line'
 
 export interface LibraryBrowserProps {
   sources: LibrarySource[]
@@ -57,12 +58,20 @@ function LibrarySourceRow({
   onRefetched: LibraryBrowserProps['onRefetched']
 }) {
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function refetch() {
     setBusy(true)
-    await onRefetch(source.id)
-    setBusy(false)
-    await onRefetched()
+    setFailed(false)
+
+    try {
+      await onRefetch(source.id)
+      await onRefetched()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -88,6 +97,7 @@ function LibrarySourceRow({
             {busy ? 'Fetching…' : 'Re-fetch'}
           </button>
         ) : null}
+        <ActionFailedLine failed={failed} testId="library-refetch-failed" />
       </td>
     </tr>
   )

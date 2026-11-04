@@ -11,18 +11,44 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
+const subjectOptions = vi.hoisted(() => ({
+  value: [
+    { id: 'lang', label: 'Languages' },
+    { id: 'ru', label: 'Languages › Russian' },
+    { id: 'empty', label: 'Empty' },
+  ],
+}))
+
 vi.mock('./use-knowledge-overview-subjects', () => ({
   useKnowledgeOverviewSubjects: () => ({
-    options: [
-      { id: 'lang', label: 'Languages' },
-      { id: 'ru', label: 'Languages › Russian' },
-      { id: 'empty', label: 'Empty' },
-    ],
+    options: subjectOptions.value,
     labelFor: () => '',
   }),
 }))
 
 const counts = vi.hoisted(() => ({ value: { counts: [] as { subjectId: string | null; count: number; newCount: number; learningCount: number; matureCount: number }[], isPending: false, isError: false, retry: vi.fn() } }))
+
+vi.mock('../subject/subject-live-data', () => ({
+  useLiveSubjects: () => [
+    { id: 'lang', name: 'Languages', parentId: null, kind: 'architecture-mentor' },
+    { id: 'ru', name: 'Russian', parentId: 'lang', kind: 'language-practice' },
+    { id: 'empty', name: 'Empty', parentId: null },
+  ],
+  useLiveCurriculumCount: () => 0,
+}))
+
+vi.mock('../subject/subject.api', () => ({
+  createSubject: vi.fn(),
+  deleteSubject: vi.fn(),
+  updateSubjectName: vi.fn(),
+  updateSubjectParent: vi.fn(),
+}))
+
+const cardCountMap = vi.hoisted(() => ({ value: new Map<string, number>() }))
+
+vi.mock('./use-subject-card-counts', () => ({
+  useSubjectCardCounts: () => cardCountMap.value,
+}))
 
 vi.mock('./use-knowledge-browser-data', () => ({
   useKnowledgeBrowserSubjectCounts: () => counts.value,
@@ -39,8 +65,11 @@ describe('buildBrowserSubjectEntries', () => {
     { id: 'empty', label: 'Empty' },
   ]
 
-  it('should count a parent subject together with its sub-subjects and still list subjects with no cards', () => {
-    const entries = buildBrowserSubjectEntries(options, [{ subjectId: 'ru', count: 4, newCount: 1, learningCount: 1, matureCount: 2 }])
+  it('should show the counts the API sends for each subject without adding sub-subjects again, and still list subjects with no cards', () => {
+    const entries = buildBrowserSubjectEntries(options, [
+      { subjectId: 'lang', count: 4, newCount: 1, learningCount: 1, matureCount: 2 },
+      { subjectId: 'ru', count: 4, newCount: 1, learningCount: 1, matureCount: 2 },
+    ])
 
     expect(entries).toEqual([
       { id: 'lang', label: 'Languages', count: 4, newCount: 1, learningCount: 1, matureCount: 2 },
@@ -49,10 +78,40 @@ describe('buildBrowserSubjectEntries', () => {
     ])
   })
 
-  it('should list pieces without a subject as their own entry', () => {
+  it('should prefer the subject card total from the subjects API over the browser count', () => {
+    const entries = buildBrowserSubjectEntries(
+      options,
+      [{ subjectId: 'ru', count: 4, newCount: 1, learningCount: 1, matureCount: 2 }],
+      new Map([['lang', 9], ['ru', 4]]),
+    )
+
+    expect(entries.map((entry) => [entry.id, entry.count])).toEqual([['lang', 9], ['ru', 4], ['empty', 0]])
+  })
+
+  it('should list cards without a subject as their own entry', () => {
     const entries = buildBrowserSubjectEntries(options, [{ subjectId: null, count: 2, newCount: 2, learningCount: 0, matureCount: 0 }])
 
     expect(entries.at(-1)).toEqual({ id: 'none', label: 'No subject', count: 2, newCount: 2, learningCount: 0, matureCount: 0 })
+  })
+})
+
+describe('KnowledgeBrowserSubjectList states', () => {
+  it('should announce loading to screen readers', () => {
+    counts.value = { counts: [], isPending: true, isError: false, retry: vi.fn() }
+    render(<KnowledgeBrowserSubjectList />)
+
+    expect(screen.getByTestId('knowledge-browser-loading').getAttribute('role')).toBe('status')
+  })
+
+  it('should offer a way to create a subject when there are none', () => {
+    const original = subjectOptions.value
+
+    subjectOptions.value = []
+    counts.value = { counts: [], isPending: false, isError: false, retry: vi.fn() }
+    render(<KnowledgeBrowserSubjectList />)
+    subjectOptions.value = original
+
+    expect(screen.getByTestId('knowledge-browser-create-subject').textContent).toBe('Create a subject')
   })
 })
 
@@ -82,13 +141,27 @@ describe('KnowledgeBrowserSubjectList', () => {
   })
 
   it('should draw the depth bar from mature, learning and new shares and name them for hover and screen readers', () => {
-    counts.value = { counts: [{ subjectId: 'ru', count: 4, newCount: 1, learningCount: 1, matureCount: 2 }], isPending: false, isError: false, retry: vi.fn() }
+    counts.value = { counts: [{ subjectId: 'lang', count: 4, newCount: 1, learningCount: 1, matureCount: 2 }], isPending: false, isError: false, retry: vi.fn() }
     render(<KnowledgeBrowserSubjectList />)
 
     const bar = screen.getByTestId('knowledge-browser-subject-depth-lang')
 
     expect(bar.getAttribute('aria-label')).toBe('2 mature, 1 learning, 1 new')
     expect(bar.querySelector('[data-part="mature"]')?.getAttribute('style')).toContain('width: 50%')
+  })
+
+  it('should show a kind badge only for non-default subject kinds', () => {
+    counts.value = { counts: [], isPending: false, isError: false, retry: vi.fn() }
+    render(<KnowledgeBrowserSubjectList />)
+
+    expect(screen.queryByTestId('subject-kind-badge')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('knowledge-browser-subject-toggle-lang'))
+
+    const badge = screen.getByTestId('subject-kind-badge')
+
+    expect(badge.textContent).toBe('Language practice')
+    expect(badge.getAttribute('title')).toBe('Language practice')
   })
 
   it('should show a pointer cursor on the expand and collapse button', () => {
@@ -103,6 +176,26 @@ describe('KnowledgeBrowserSubjectList', () => {
     render(<KnowledgeBrowserSubjectList />)
 
     expect(screen.getByTestId('knowledge-browser-subject-empty')).toBeTruthy()
+  })
+
+  it('should give every subject row a menu with rename, add sub-subject, move and delete', () => {
+    counts.value = { counts: [], isPending: false, isError: false, retry: vi.fn() }
+    render(<KnowledgeBrowserSubjectList />)
+    fireEvent.click(screen.getByTestId('subject-menu-button-lang'))
+
+    expect(screen.getByTestId('subject-menu-rename-lang')).toBeTruthy()
+    expect(screen.getByTestId('subject-menu-add-child-lang')).toBeTruthy()
+    expect(screen.getByTestId('subject-menu-move-lang')).toBeTruthy()
+    expect(screen.getByTestId('subject-menu-delete-lang')).toBeTruthy()
+  })
+
+  it('should warn that sub-subjects move to the top level before a subject is deleted', () => {
+    counts.value = { counts: [], isPending: false, isError: false, retry: vi.fn() }
+    render(<KnowledgeBrowserSubjectList />)
+    fireEvent.click(screen.getByTestId('subject-menu-button-lang'))
+    fireEvent.click(screen.getByTestId('subject-menu-delete-lang'))
+
+    expect(screen.getByText(/1 sub-subject will move to the top level/)).toBeTruthy()
   })
 
   it('should offer a retry when loading fails', () => {

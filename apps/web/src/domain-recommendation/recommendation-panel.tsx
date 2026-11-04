@@ -26,12 +26,16 @@ export function RecommendationPanel({
     null,
   )
 
+  const [errorText, setErrorText] = useState<string | null>(null)
+
   const { claim, release, isResolving } = useResolvingSuggestions()
 
   async function resolve(recommendation: DomainRecommendation, decision: 'accept' | 'reject') {
     if (!claim(recommendation.id)) {
       return
     }
+
+    setErrorText(null)
 
     const status = decision === 'accept' ? 'accepted' : 'rejected'
 
@@ -52,8 +56,7 @@ export function RecommendationPanel({
         setConfirmation({ name, curriculumId: result.suggestion.createdCurriculumId })
       }
     } catch {
-      // The row deliberately stays in the list on failure so the decision
-      // can be retried; `release` below re-enables its buttons.
+      setErrorText('Could not save your decision. Try again.')
     } finally {
       release(recommendation.id)
     }
@@ -71,6 +74,12 @@ export function RecommendationPanel({
           >
             {confirmation.name}
           </Link>
+        </p>
+      ) : null}
+
+      {errorText ? (
+        <p role="alert" data-testid="recommendation-error" className="text-sm text-red-600">
+          {errorText}
         </p>
       ) : null}
 

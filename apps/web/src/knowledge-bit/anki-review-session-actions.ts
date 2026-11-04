@@ -5,6 +5,7 @@ import type { AnkiReviewSessionAction, AnkiReviewSessionState, SessionUndoEntry 
 import { editReviewCard, submitReview, undoReview, updateCardSchedule } from './anki-review.api'
 import { incrementDailyReviewCount } from './daily-review-storage'
 import { notifyPendingReviewChanged } from './knowledge-bit-review-events'
+import { browserTimeZone } from '../shared/browser-time-zone'
 
 export const NON_RETRYABLE_ERRORS = new Set(['not_approved', 'variant_not_found'])
 
@@ -13,8 +14,8 @@ const LEECH_NOTICE =
 const UNDO_REFUSED_NOTICE =
   "That grade can't be undone any more, because the card was reviewed again since."
 
-export function browserTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+function cardScope(card: ReviewCard): { variantId?: string } {
+  return card.cardKey ? { variantId: card.variantId } : {}
 }
 
 function sameGradeAttempt(pending: PendingGrade | null, variantId: string, grade: ReviewGrade): pending is PendingGrade {
@@ -41,10 +42,11 @@ interface Input {
   current: ReviewCard | null
   batchSize: number
   stamp: number
+  burySiblings?: boolean
   refill: () => Promise<void>
 }
 
-export function useAnkiReviewSessionActions({ state, dispatch, current, batchSize, stamp, refill }: Input) {
+export function useAnkiReviewSessionActions({ state, dispatch, current, batchSize, stamp, burySiblings = true, refill }: Input) {
   const [busy, setBusy] = useState(false)
   const [refilling, setRefilling] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -72,9 +74,10 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
   }
 
   async function moveOnAfter(action: AnkiReviewSessionAction) {
+    const hasFollowUp = action.type === 'acted' && Boolean(action.followUp)
     const fromFront = state.front.length > 0
     const nextIndex = fromFront ? state.index : state.index + 1
-    const exhausted = state.front.length <= 1 && nextIndex >= batchSize
+    const exhausted = !hasFollowUp && state.front.length <= 1 && nextIndex >= batchSize
 
     dispatch(action)
 
@@ -97,6 +100,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
         return
       }
 
+      const rehearsal = state.rehearsal && state.front.length > 0
       const durationMs = Math.min(Math.max(Date.now() - state.shownAt, 0), 86_400_000)
       const attempt = sameGradeAttempt(pendingGrade.current, current.variantId, value)
         ? pendingGrade.current
@@ -105,7 +109,15 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       pendingGrade.current = attempt
 
       const outcome = await submitReview({
-        data: { variantId: current.variantId, grade: value, durationMs, requestId: attempt.requestId },
+        data: {
+          variantId: current.variantId,
+          grade: value,
+          durationMs,
+          requestId: attempt.requestId,
+          tz: browserTimeZone(),
+          burySiblings,
+          ...(rehearsal ? { rehearsal: true } : {}),
+        },
       }).catch(() => ({ ok: false as const, error: 'grading_failed' }))
 
       if (!outcome.ok) {
@@ -115,6 +127,12 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       }
 
       pendingGrade.current = null
+
+      if (rehearsal) {
+        await moveOnAfter({ type: 'advance', now: Date.now() })
+        return
+      }
+
       incrementDailyReviewCount()
       notifyPendingReviewChanged()
 
@@ -139,8 +157,18 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
         entry,
         now: Date.now(),
         notice: leechSuspended ? LEECH_NOTICE : undefined,
+        hide: outcome.buriedVariantIds,
+        followUp: outcome.followUp ?? null,
       })
     })
+
+  const gradeKey = async (value: ReviewGrade) => {
+    if (state.rehearsal && state.front.length > 0 && value !== 'again' && value !== 'good') {
+      return
+    }
+
+    await grade(value)
+  }
 
   const control = (kind: 'suspend' | 'bury') =>
     exclusive(async () => {
@@ -151,6 +179,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       const outcome = await updateCardSchedule({
         data: {
           knowledgeBitId: current.knowledgeBitId,
+          ...cardScope(current),
           tz: browserTimeZone(),
           ...(kind === 'suspend' ? { suspended: true } : { buried: true }),
         },
@@ -180,6 +209,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
           : await updateCardSchedule({
               data: {
                 knowledgeBitId: entry.card.knowledgeBitId,
+                ...cardScope(entry.card),
                 tz: browserTimeZone(),
                 ...(entry.kind === 'suspend' ? { suspended: false } : { buried: false }),
               },
@@ -199,7 +229,7 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       setError(outcome.error)
     }).catch(() => setError('undo_failed'))
 
-  const saveEdit = (prompt: string, answer: string) =>
+  const submitEdit = (payload: { prompt: string; answer: string; context?: string | null } | { note: string } | { list: string }) =>
     exclusive(async () => {
       if (!current) {
         return
@@ -208,14 +238,16 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
       setEditError(null)
 
       const outcome = await editReviewCard({
-        data: { variantId: current.variantId, prompt, answer },
-      }).catch(() => ({ ok: false as const, error: 'edit_failed' }))
+        data: { variantId: current.variantId, ...payload },
+      }).catch(() => ({ ok: false as const, error: 'edit_failed', message: undefined }))
 
       if (!outcome.ok) {
         setEditError(
           outcome.error === 'not_found'
             ? 'This card was changed or removed elsewhere.'
-            : "Couldn't save the edit. Try again.",
+            : (outcome.error === 'invalid_note' || outcome.error === 'invalid_list') && outcome.message
+              ? outcome.message
+              : "Couldn't save the edit. Try again.",
         )
         return
       }
@@ -226,12 +258,23 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
         edit: {
           variantId: outcome.variantId,
           replacesVariantId: current.variantId,
-          prompt: prompt.trim(),
-          answer: answer.trim(),
+          prompt: outcome.prompt ?? ('prompt' in payload ? payload.prompt.trim() : current.prompt),
+          answer: outcome.answer ?? ('answer' in payload ? payload.answer.trim() : current.answer),
+          context:
+            'context' in payload && payload.context !== undefined
+              ? payload.context?.trim() || null
+              : (current.context ?? null),
         },
         now: Date.now(),
       })
     })
+
+  const saveEdit = (prompt: string, answer: string, context?: string | null) =>
+    submitEdit(context === undefined ? { prompt, answer } : { prompt, answer, context })
+
+  const saveNote = (note: string) => submitEdit({ note })
+
+  const saveList = (list: string) => submitEdit({ list })
 
   const retryGrade = () => (failedGrade === null ? undefined : grade(failedGrade))
 
@@ -240,12 +283,16 @@ export function useAnkiReviewSessionActions({ state, dispatch, current, batchSiz
     refilling,
     error,
     editError,
+    rehearsal: state.rehearsal && state.front.length > 0,
     canRetryGrade: failedGrade !== null,
     grade,
+    gradeKey,
     retryGrade,
     control,
     undo,
     saveEdit,
+    saveNote,
+    saveList,
     advance,
     setEditError,
   }

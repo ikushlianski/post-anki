@@ -215,5 +215,34 @@ describe('RecommendationPanel — reject', () => {
 
     expect(screen.getByTestId('recommendation-domainrec-1')).toBeDefined()
     expect(mockedResolveRecommendation).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('recommendation-error').textContent).toContain('Try again')
+  })
+
+  it('clears the error message when the decision is retried and succeeds', async () => {
+    mockedResolveRecommendation.mockReset()
+    mockedResolveRecommendation.mockRejectedValueOnce(new Error('Conflict'))
+    mockedResolveRecommendation.mockResolvedValueOnce({
+      outcome: 'resolved',
+      suggestion: { ...PENDING_DEEPEN, status: 'rejected' },
+    })
+
+    renderPanel([PENDING_DEEPEN])
+
+    const reject = screen.getByTestId('recommendation-reject-domainrec-1') as HTMLButtonElement
+
+    reject.click()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recommendation-error')).toBeDefined()
+    })
+    await waitFor(() => {
+      expect(reject.disabled).toBe(false)
+    })
+
+    reject.click()
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('recommendation-error')).toBeNull()
+    })
   })
 })

@@ -5,11 +5,13 @@ import type { DomainNodeTreeItem } from '@post-anki/shared'
 import { getDomainMapForSubject, getSubjectForMap } from '../domain-map/domain-map.api'
 import { getDomainRecommendations, triggerRecommendations } from '../domain-recommendation/domain-recommendation.api'
 import { RecommendationPanel } from '../domain-recommendation/recommendation-panel'
+import { pageHead } from '../shared/page-title'
 
 // deepen-widen-recommendations (issue #90) — SSR-first, loader-seeded, same
 // Electric-avoidance rationale as subject.$subjectId.priority-review.tsx:
 // this screen has no live-multi-client requirement.
 export const Route = createFileRoute('/subject/$subjectId_/recommendations')({
+  head: pageHead('Recommendations'),
   component: RecommendationsPage,
   loader: async ({ params }) => {
     const [subject, tree, recommendations] = await Promise.all([

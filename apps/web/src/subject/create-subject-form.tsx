@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
+import { ActionFailedLine } from '../curriculum/action-failed-line'
 import { createSubject } from './subject.api'
 
 export function CreateSubjectForm() {
@@ -13,6 +14,7 @@ export function CreateSubjectForm() {
     'architecture-mentor',
   )
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -22,16 +24,24 @@ export function CreateSubjectForm() {
     }
 
     setBusy(true)
-    const subject = await createSubject({
-      data: {
-        name: name.trim(),
-        description: description.trim() || undefined,
-        requireSources,
-        kind,
-      },
-    })
-    setBusy(false)
-    await router.navigate({ to: '/subject/$subjectId/map', params: { subjectId: subject.id } })
+    setFailed(false)
+
+    try {
+      const subject = await createSubject({
+        data: {
+          name: name.trim(),
+          description: description.trim() || undefined,
+          requireSources,
+          kind,
+        },
+      })
+
+      await router.navigate({ to: '/subject/$subjectId/map', params: { subjectId: subject.id } })
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -44,6 +54,7 @@ export function CreateSubjectForm() {
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
+          aria-label="Subject name"
           placeholder="New subject…"
           data-testid="subject-name-input"
           className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-500"
@@ -61,6 +72,7 @@ export function CreateSubjectForm() {
       <textarea
         value={description}
         onChange={(event) => setDescription(event.target.value)}
+        aria-label="Subject description"
         placeholder="What is this subject about? (optional — gives the AI more context)"
         rows={2}
         data-testid="subject-description-input"
@@ -82,12 +94,15 @@ export function CreateSubjectForm() {
         onChange={(event) =>
           setKind(event.target.value as 'architecture-mentor' | 'language-practice')
         }
+        aria-label="Subject kind"
         data-testid="subject-kind-select"
         className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-500"
       >
         <option value="architecture-mentor">Architecture mentor</option>
         <option value="language-practice">Language practice</option>
       </select>
+
+      <ActionFailedLine failed={failed} testId="subject-create-failed" />
     </form>
   )
 }

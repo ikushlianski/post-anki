@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { SignOutButton } from '../web-auth/sign-out-button'
 
 const accountLinkClass =
-  'rounded-md px-2 py-1 text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 [&.active]:bg-neutral-900 [&.active]:text-white'
+  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md px-2 py-1 text-sm sm:min-h-0 sm:min-w-0 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 [&.active]:bg-neutral-900 [&.active]:text-white'
 
 export function AccountLinks() {
   return (

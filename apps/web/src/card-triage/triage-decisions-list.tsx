@@ -1,13 +1,15 @@
 import {
   KNOWLEDGE_BIT_FEEDBACK_NOTE_MAX_CHARS,
-  KNOWLEDGE_BIT_REJECT_REASONS,
+  KNOWLEDGE_BIT_SELECTABLE_REJECT_REASONS,
   KNOWLEDGE_BIT_REJECT_REASON_LABELS,
+  rejectReasonCodesForSubjectType,
   type KnowledgeBitRejectReason,
   type TriageDecision,
   type TriageDecisionResponse,
 } from '@post-anki/shared'
 
 import { TEXT_FIELD_CLASS } from '../knowledge-bit/knowledge-bit-review-classes'
+import { canSendDecisionToChat, TriageDecisionChatButton } from './triage-decision-chat-button'
 
 const CHIP_CLASS =
   'min-h-11 rounded-full border border-neutral-300 px-3 text-xs font-medium hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-neutral-900 sm:min-h-9'
@@ -17,22 +19,28 @@ export interface TriageDecisionPatch {
   reasonCode?: KnowledgeBitRejectReason | null
 }
 
+function reasonsFor(card: TriageDecisionResponse | undefined): readonly KnowledgeBitRejectReason[] {
+  return card?.subjectType ? rejectReasonCodesForSubjectType(card.subjectType) : KNOWLEDGE_BIT_SELECTABLE_REJECT_REASONS
+}
+
 function DecisionItem({
   decision,
   card,
   readOnly,
   onEdit,
+  onSendToChat,
 }: {
   decision: TriageDecision
   card: TriageDecisionResponse | undefined
   readOnly: boolean
   onEdit: (bitId: string, patch: TriageDecisionPatch) => void
+  onSendToChat?: (bitId: string) => Promise<boolean>
 }) {
   const { bitId } = decision
 
   return (
     <li data-testid={`triage-decision-${bitId}`} className="space-y-2 rounded-md border border-neutral-200 p-3">
-      <p className="text-sm font-medium">{card?.front ?? 'Card text unavailable'}</p>
+      <p className="whitespace-pre-line text-sm font-medium">{card?.front ?? 'Card text unavailable'}</p>
       {card?.back ? <p className="text-sm text-neutral-600">{card.back}</p> : null}
       <textarea
         data-testid={`triage-decision-note-${bitId}`}
@@ -46,7 +54,7 @@ function DecisionItem({
       />
       {decision.verdict === 'rejected' ? (
         <div className="flex flex-wrap gap-2">
-          {KNOWLEDGE_BIT_REJECT_REASONS.map((reason) => {
+          {reasonsFor(card).map((reason) => {
             const chosen = decision.reasonCode === reason
 
             return (
@@ -65,6 +73,9 @@ function DecisionItem({
           })}
         </div>
       ) : null}
+      {onSendToChat && canSendDecisionToChat(decision) ? (
+        <TriageDecisionChatButton bitId={bitId} disabled={readOnly} onSendToChat={onSendToChat} />
+      ) : null}
     </li>
   )
 }
@@ -77,6 +88,7 @@ function DecisionGroup({
   cards,
   readOnly,
   onEdit,
+  onSendToChat,
 }: {
   title: string
   testId: string
@@ -85,6 +97,7 @@ function DecisionGroup({
   cards: Record<string, TriageDecisionResponse>
   readOnly: boolean
   onEdit: (bitId: string, patch: TriageDecisionPatch) => void
+  onSendToChat?: (bitId: string) => Promise<boolean>
 }) {
   if (decisions.length === 0) {
     return null
@@ -103,6 +116,7 @@ function DecisionGroup({
             card={cards[decision.bitId]}
             readOnly={readOnly}
             onEdit={onEdit}
+            onSendToChat={onSendToChat}
           />
         ))}
       </ul>
@@ -115,11 +129,13 @@ export function TriageDecisionsList({
   cards,
   readOnly = false,
   onEdit,
+  onSendToChat,
 }: {
   decisions: TriageDecision[]
   cards: Record<string, TriageDecisionResponse>
   readOnly?: boolean
   onEdit: (bitId: string, patch: TriageDecisionPatch) => void
+  onSendToChat?: (bitId: string) => Promise<boolean>
 }) {
   if (decisions.length === 0) {
     return null
@@ -135,6 +151,7 @@ export function TriageDecisionsList({
         cards={cards}
         readOnly={readOnly}
         onEdit={onEdit}
+        onSendToChat={onSendToChat}
       />
       <DecisionGroup
         title="Accepted"
@@ -144,6 +161,7 @@ export function TriageDecisionsList({
         cards={cards}
         readOnly={readOnly}
         onEdit={onEdit}
+        onSendToChat={onSendToChat}
       />
     </div>
   )

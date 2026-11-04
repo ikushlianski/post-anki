@@ -2,6 +2,7 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { getBoard } from '../curriculum/curriculum.api'
 import { captureLearningListItem } from '../learning-list/learning-list.api'
+import { LearningPathLoadError } from '../learning-path/learning-path-load-error'
 import { LearningPathDetail } from '../learning-path/learning-path-detail'
 import {
   abandonLearningPath,
@@ -9,8 +10,10 @@ import {
   getLearningPathStepPush,
   listRoleTemplates,
 } from '../learning-path/learning-path.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/learning-paths_/$pathId')({
+  head: pageHead('Learning path'),
   component: LearningPathDetailPage,
   loader: async ({ params }) => {
     const [detailResult, templates, board] = await Promise.all([
@@ -29,14 +32,7 @@ function LearningPathDetailPage() {
   const router = useRouter()
 
   if (!detailResult.ok) {
-    return (
-      <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
-        <p className="text-sm text-neutral-500">Learning path not found.</p>
-        <Link to="/learning-paths" className="text-sm underline">
-          Back to learning paths
-        </Link>
-      </main>
-    )
+    return <LearningPathLoadError status={detailResult.status} onRetry={() => void router.invalidate()} />
   }
 
   const { path, steps, progress, nextStepDomainNodeId } = detailResult.data

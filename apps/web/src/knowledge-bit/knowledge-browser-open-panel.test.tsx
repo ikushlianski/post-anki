@@ -128,7 +128,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('knowledge browser row click opens the full version', () => {
-  it('should open the slide-over with the piece on a plain click and leave the selection as it was', async () => {
+  it('should open the slide-over with the card on a plain click and leave the selection as it was', async () => {
     renderScreen()
     fireEvent.click(screen.getAllByTestId('knowledge-browser-select-row')[2])
     fireEvent.click(screen.getByText('A b1'))
@@ -140,7 +140,7 @@ describe('knowledge browser row click opens the full version', () => {
     expect(rowEl('b1').getAttribute('aria-current')).toBe('true')
   })
 
-  it('should show the row text at once and then the details of that piece', async () => {
+  it('should show the row text at once and then the details of that card', async () => {
     renderScreen()
     fireEvent.click(screen.getByText('A b2'))
 
@@ -148,7 +148,7 @@ describe('knowledge browser row click opens the full version', () => {
     expect(await screen.findByTestId('knowledge-browser-detail-meta')).toBeTruthy()
   })
 
-  it('should switch the panel to another piece when another row is clicked', async () => {
+  it('should switch the panel to another card when another row is clicked', async () => {
     renderScreen('b1')
     await screen.findByTestId('knowledge-browser-detail-meta')
     fireEvent.mouseDown(rowEl('b2'))
@@ -221,7 +221,7 @@ describe('knowledge browser Escape and Delete with the panel open', () => {
 })
 
 describe('knowledge browser panel survives list changes', () => {
-  it('should keep showing the piece when a filter hides its row', async () => {
+  it('should keep showing the card when a filter hides its row', async () => {
     renderScreen()
     fireEvent.click(screen.getByText('A b2'))
     await screen.findByTestId('knowledge-browser-detail-meta')
@@ -234,7 +234,7 @@ describe('knowledge browser panel survives list changes', () => {
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
-  it('should keep showing the piece while a meaning search lists other pieces', async () => {
+  it('should keep showing the card while a meaning search lists other cards', async () => {
     renderScreen('b1')
     await screen.findByTestId('knowledge-browser-detail-meta')
 
@@ -246,14 +246,14 @@ describe('knowledge browser panel survives list changes', () => {
     expect(screen.getByTestId('knowledge-browser-detail-meta')).toBeTruthy()
   })
 
-  it('should open a piece from the address even when its row is not on the loaded page', async () => {
+  it('should open a card from the address even when its row is not on the loaded page', async () => {
     renderScreen('far-away')
 
     expect(await screen.findByTestId('knowledge-browser-detail-meta')).toBeTruthy()
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
-  it('should say the piece no longer exists for an unknown id in the address', async () => {
+  it('should say the card no longer exists for an unknown id in the address', async () => {
     world.detail.mockResolvedValue({ ok: false, error: 'not_found' })
     renderScreen('made-up')
 
@@ -296,7 +296,7 @@ describe('knowledge browser arrow keys with the panel open', () => {
     expect(opens).toEqual([])
   })
 
-  it('should do nothing when a filter hides the open piece from the list', async () => {
+  it('should do nothing when a filter hides the open card from the list', async () => {
     renderScreen('b2')
     await screen.findByTestId('knowledge-browser-detail-meta')
     world.rows = []

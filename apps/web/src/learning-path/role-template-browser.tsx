@@ -4,6 +4,7 @@ import type { RoleTemplate } from '@post-anki/shared'
 
 import { formatRoleTemplatePreview } from './role-template-preview'
 import type { ApiResult, CreateLearningPathResponse } from './learning-path.model'
+import { learningErrorMessage } from '../learning-list/learning-error'
 
 export interface RoleTemplateBrowserProps {
   templates: RoleTemplate[]
@@ -25,13 +26,19 @@ export function RoleTemplateBrowser({
     setErrorId(null)
     setErrorMessage(null)
 
-    const result = await onStart(roleTemplateId)
+    const result = await onStart(roleTemplateId).catch(() => null)
 
     setBusyId(null)
 
+    if (!result) {
+      setErrorId(roleTemplateId)
+      setErrorMessage('Could not start that path — try again.')
+      return
+    }
+
     if (!result.ok) {
       setErrorId(roleTemplateId)
-      setErrorMessage(result.message ?? result.code)
+      setErrorMessage(learningErrorMessage(result.code))
       return
     }
 

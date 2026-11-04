@@ -63,7 +63,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('Knowledge browser select and delete', () => {
-  it('should show how many pieces are selected and hide the bar when none are', () => {
+  it('should show how many cards are selected and hide the bar when none are', () => {
     renderHarness()
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('0 selected')
@@ -74,7 +74,7 @@ describe('Knowledge browser select and delete', () => {
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('2 selected')
   })
 
-  it('should select the whole range when a piece is shift-clicked', () => {
+  it('should select the whole range when a card is shift-clicked', () => {
     renderHarness()
 
     fireEvent.click(checkboxes()[0])
@@ -105,7 +105,7 @@ describe('Knowledge browser select and delete', () => {
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('3 selected')
   })
 
-  it('should open the piece instead of selecting it when a row is clicked with nothing selected', () => {
+  it('should open the card instead of selecting it when a row is clicked with nothing selected', () => {
     renderHarness()
 
     fireEvent.click(screen.getByText('A b1'))
@@ -114,7 +114,7 @@ describe('Knowledge browser select and delete', () => {
     expect(openRow).toHaveBeenCalledWith('b1')
   })
 
-  it('should select every piece on the page with the header checkbox and clear with Clear selection', () => {
+  it('should select every card on the page with the header checkbox and clear with Clear selection', () => {
     renderHarness()
 
     fireEvent.click(screen.getByTestId('knowledge-browser-select-all'))
@@ -132,7 +132,7 @@ describe('Knowledge browser select and delete', () => {
     fireEvent.click(checkboxes()[1])
     fireEvent.click(screen.getByTestId('knowledge-browser-delete'))
 
-    expect(screen.getByRole('alertdialog').textContent).toContain('Delete 2 pieces permanently? This cannot be undone.')
+    expect(screen.getByRole('alertdialog').textContent).toContain('Delete 2 cards permanently? This cannot be undone.')
     expect(purge).not.toHaveBeenCalled()
   })
 

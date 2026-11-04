@@ -1,64 +1,44 @@
-import { useEffect, useReducer, useRef } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ReviewCounts } from '@post-anki/shared'
+import { useEffect, useReducer, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { GAMIFICATION_PROFILE_KEY } from '../gamification/gamification-profile.query'
 import { SessionCelebration } from '../gamification/session-celebration'
 import { resolveCardSubjectId } from '../subject-chat/card-subject'
+import { SessionClosure } from '../motivation/session-closure'
+import { DailyGoalChipLoader } from '../study-goal/daily-goal-chip'
 import { SubjectChatPanel } from '../subject-chat/subject-chat-panel'
 import { useCardSelection } from '../subject-chat/use-card-selection'
+import { useSubjectHinting } from '../subject-study-options/use-subject-hinting'
 import { AnkiReviewCard } from './anki-review-card'
 import { AnkiReviewCardActions } from './anki-review-card-actions'
-import { AnkiReviewCardEditor } from './anki-review-card-editor'
+import { AnkiReviewCardEditPanel } from './anki-review-card-edit-panel'
+import { AnkiReviewGradeError } from './anki-review-grade-error'
 import { AnkiReviewCounts } from './anki-review-counts'
 import { AnkiReviewDone } from './anki-review-done'
 import { AnkiReviewGradeButtons } from './anki-review-grade-buttons'
+import { AnkiReviewRehearsalButtons, AnkiReviewRehearsalLabel } from './anki-review-rehearsal-buttons'
 import { useAnkiReviewKeyboard } from './anki-review-keyboard'
 import {
   ankiReviewSessionReducer,
   applyEdit,
   initialAnkiReviewSession,
-  type SessionTally,
 } from './anki-review-session'
-import {
-  actionErrorMessage,
-  browserTimeZone,
-  NON_RETRYABLE_ERRORS,
-  useAnkiReviewSessionActions,
-} from './anki-review-session-actions'
+import { useAnkiReviewSessionActions } from './anki-review-session-actions'
 import { AnkiReviewSessionBar } from './anki-review-session-bar'
 import { deriveSessionStats } from './anki-review-session-stats'
 import { AnkiReviewSummary } from './anki-review-summary'
-import { getReviewCards } from './anki-review.api'
+import { AnkiReviewLimitReached } from './anki-review-limit-reached'
+import { useAnkiReviewQueue } from './anki-review-queue-query'
+import {
+  isScoped,
+  remainingCounts,
+  reviewQueueQueryKey,
+  type AnkiReviewScope,
+} from './anki-review-queue'
+import { AnkiReviewShortcutsHelp } from './anki-review-shortcuts-help'
+import { useOnlineStatus } from '../shared/use-online-status'
 
-export interface AnkiReviewScope {
-  tagId?: string
-  topicId?: string
-  knowledgeBitId?: string
-  subjectId?: string
-}
-
-const BATCH_LIMIT = 10
-
-function remainingCounts(server: ReviewCounts, tally: SessionTally | null, stamp: number) {
-  const graded = tally && tally.stamp === stamp ? tally : { new: 0, review: 0 }
-
-  return {
-    ...server,
-    new: Math.max(0, server.new - graded.new),
-    review: Math.max(0, server.review - graded.review),
-  }
-}
-
-function reviewQueueQueryKey(scope: AnkiReviewScope) {
-  return [
-    'anki-review-queue',
-    scope.tagId ?? null,
-    scope.topicId ?? null,
-    scope.knowledgeBitId ?? null,
-    scope.subjectId ?? null,
-  ] as const
-}
+export type { AnkiReviewScope }
 
 export function AnkiReviewScreen({ scope }: { scope: AnkiReviewScope }) {
   const scopeKey = reviewQueueQueryKey(scope).join('|')
@@ -70,25 +50,35 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
   const queryClient = useQueryClient()
   const [state, dispatch] = useReducer(ankiReviewSessionReducer, Date.now(), initialAnkiReviewSession)
 
-  const queue = useQuery({
-    queryKey: reviewQueueQueryKey(scope),
-    queryFn: () => getReviewCards({ data: { limit: BATCH_LIMIT, tz: browserTimeZone(), ...scope } }),
-  })
+  const undoRef = useRef(state.undo)
+  const studyAheadRef = useRef(false)
 
-  const cards = queue.data?.ok ? queue.data.cards : []
+  undoRef.current = state.undo
+
+  const [aheadDays, setAheadDays] = useState(0)
+  const queue = useAnkiReviewQueue({ scope, aheadDays, undoRef, studyAheadRef })
+
+  const queuedCards = queue.data?.ok ? queue.data.cards : []
+  const cards = state.hidden.length > 0 ? queuedCards.filter((c) => !state.hidden.includes(c.variantId)) : queuedCards
   const stamp = queue.dataUpdatedAt
   const rawCurrent = state.front[0] ?? cards[state.index] ?? null
   const card = rawCurrent ? applyEdit(rawCurrent, state.edits) : null
+  const online = useOnlineStatus()
   const actions = useAnkiReviewSessionActions({
     state,
     dispatch,
     batchSize: cards.length,
     stamp,
+    burySiblings: scope.knowledgeBitId === undefined,
     current: card,
     refill: () => queryClient.invalidateQueries({ queryKey: reviewQueueQueryKey(scope) }),
   })
   const current = actions.refilling ? null : card
+  const hintingEnabled = useSubjectHinting(resolveCardSubjectId(current))
   const editing = state.editingSince !== null
+  const [chatCardId, setChatCardId] = useState<string | null>(null)
+  const chatOpen = current !== null && chatCardId === current.variantId
+  const setChatOpen = (open: boolean) => setChatCardId(open && current ? current.variantId : null)
   const loadFailed = queue.isError || queue.data?.ok === false
   const loaded = queue.data?.ok === true && !loadFailed
   const counts = queue.data?.ok ? remainingCounts(queue.data.counts, state.tally, stamp) : null
@@ -123,13 +113,13 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
     stats.done === 0
 
   useAnkiReviewKeyboard(
-    { hasCard: current !== null, revealed: state.revealed, busy: actions.busy, canUndo, editing },
+    { hasCard: current !== null, revealed: state.revealed, busy: actions.busy, canUndo, editing, chatOpen },
     (action) => {
       switch (action.type) {
         case 'reveal':
           return dispatch({ type: 'reveal' })
         case 'grade':
-          return void actions.grade(action.grade)
+          return void actions.gradeKey(action.grade)
         case 'undo':
           return void actions.undo()
         case 'edit':
@@ -138,12 +128,15 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
           return void actions.control('bury')
         case 'suspend':
           return void actions.control('suspend')
+        case 'chat':
+          return setChatOpen(true)
       }
     },
   )
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
+      <AnkiReviewShortcutsHelp />
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Review</h1>
         <p className="mt-1 text-sm text-neutral-500">
@@ -151,14 +144,19 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
         </p>
       </header>
 
+      <div className="mb-4">
+        <DailyGoalChipLoader refreshKey={stats.done} />
+      </div>
+
       {queue.isLoading && <p data-testid="anki-review-loading">Loading…</p>}
 
       {!queue.isLoading && loadFailed && (
-        <div data-testid="anki-review-load-error" className="flex flex-col gap-2">
+        <div role="alert" data-testid="anki-review-load-error" className="flex flex-col gap-2">
           <p className="text-sm text-red-600">Couldn't load cards.</p>
           <button
             type="button"
             data-testid="anki-review-retry"
+            disabled={!online}
             onClick={() => void queue.refetch()}
             className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
           >
@@ -197,24 +195,51 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
       )}
 
       {loaded && state.view === 'reviewing' && !actions.refilling && !current && queue.data?.ok && (
+        queue.data.limitReached && aheadDays === 0 && queuedCards.length === 0 ? (
+          <>
+            <AnkiReviewLimitReached
+              reviewedToday={queue.data.reviewedToday ?? 0}
+              limit={queue.data.limit ?? 0}
+              onReviewAhead={setAheadDays}
+            />
+            {celebration}
+            {canUndo && <AnkiReviewSummary stats={stats} />}
+          </>
+        ) : (
         <>
           <AnkiReviewDone
             nextDueAt={queue.data.nextDueAt}
             noApprovedCards={noApprovedCards}
             newLimitReached={queue.data.newLimitReached}
+            subjectId={scope.subjectId}
+            onStudyAhead={
+              isScoped(scope) && !studyAheadRef.current && queue.data.nextDueAt !== null
+                ? () => {
+                    studyAheadRef.current = true
+                    void queue.refetch()
+                  }
+                : undefined
+            }
           />
+          <SessionClosure refreshKey={stats.done} />
           {celebration}
           {canUndo && <AnkiReviewSummary stats={stats} />}
         </>
+        )
       )}
 
       {current && state.view === 'reviewing' && (
         <div className="flex flex-col gap-6">
           <div ref={cardAreaRef}>
+            {actions.rehearsal && <AnkiReviewRehearsalLabel />}
             <AnkiReviewCard
               card={current}
+              hintingEnabled={hintingEnabled}
               revealed={state.revealed}
               onReveal={() => dispatch({ type: 'reveal' })}
+              chatOpen={chatOpen}
+              onChatOpenChange={setChatOpen}
+              onReplaceAccepted={() => void actions.control('suspend')}
               actions={
                 <AnkiReviewCardActions
                   revealed={state.revealed && !editing}
@@ -223,16 +248,14 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
                   onEdit={() => dispatch({ type: 'editStarted', now: Date.now() })}
                   onBury={() => void actions.control('bury')}
                   onSuspend={() => void actions.control('suspend')}
+                  onChat={() => setChatOpen(true)}
                 />
               }
               editor={
                 editing ? (
-                  <AnkiReviewCardEditor
-                    prompt={current.prompt}
-                    answer={current.answer}
-                    error={actions.editError}
-                    disabled={actions.busy}
-                    onSave={(prompt, answer) => void actions.saveEdit(prompt, answer)}
+                  <AnkiReviewCardEditPanel
+                    card={current}
+                    actions={actions}
                     onCancel={() => {
                       actions.setEditError(null)
                       dispatch({ type: 'editCancelled', now: Date.now() })
@@ -243,7 +266,11 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
             />
           </div>
 
-          {state.revealed && !editing && (
+          {state.revealed && !editing && actions.rehearsal && (
+            <AnkiReviewRehearsalButtons disabled={actions.busy} onGrade={(value) => void actions.grade(value)} />
+          )}
+
+          {state.revealed && !editing && !actions.rehearsal && (
             <AnkiReviewGradeButtons
               disabled={actions.busy}
               intervalPreview={current.intervalPreview}
@@ -262,32 +289,7 @@ function AnkiReviewSession({ scope }: { scope: AnkiReviewScope }) {
             }}
           />
 
-          {actions.error && (
-            <div data-testid="anki-review-grade-error" className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">{actionErrorMessage(actions.error)}</p>
-              {actions.canRetryGrade && (
-                <button
-                  type="button"
-                  data-testid="anki-review-grade-retry"
-                  disabled={actions.busy}
-                  onClick={() => void actions.retryGrade()}
-                  className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
-                >
-                  Retry
-                </button>
-              )}
-              {NON_RETRYABLE_ERRORS.has(actions.error) && (
-                <button
-                  type="button"
-                  data-testid="anki-review-skip"
-                  onClick={() => void actions.advance()}
-                  className="self-start rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
-                >
-                  Skip this card
-                </button>
-              )}
-            </div>
-          )}
+          <AnkiReviewGradeError actions={actions} />
         </div>
       )}
     </main>

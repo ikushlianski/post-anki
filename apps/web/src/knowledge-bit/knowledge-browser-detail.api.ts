@@ -11,7 +11,7 @@ export type KnowledgeBrowserDetailOutcome =
 export const getKnowledgeBrowserDetail = createServerFn({ method: 'GET' })
   .inputValidator((data: { id: string }) => {
     if (typeof data.id !== 'string' || data.id === '') {
-      throw new Error('A piece id is required')
+      throw new Error('A card id is required')
     }
 
     return { id: data.id }

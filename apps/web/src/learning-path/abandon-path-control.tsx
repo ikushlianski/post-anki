@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { LearningPath, LearningPathStatus } from '@post-anki/shared'
 
 import type { ApiResult } from './learning-path.model'
+import { ActionFailedLine } from '../curriculum/action-failed-line'
 
 export interface AbandonPathControlProps {
   pathId: string
@@ -21,6 +22,7 @@ export function AbandonPathControl({
 }: AbandonPathControlProps) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   if (!ABANDONABLE.includes(status)) {
     return null
@@ -28,14 +30,19 @@ export function AbandonPathControl({
 
   async function confirm() {
     setBusy(true)
+    setFailed(false)
 
-    const result = await onAbandon(pathId)
+    const result = await onAbandon(pathId).catch(() => null)
 
     setBusy(false)
 
-    if (result.ok) {
-      await onAbandoned()
+    if (!result?.ok) {
+      setFailed(true)
+
+      return
     }
+
+    await onAbandoned()
   }
 
   if (!confirming) {
@@ -79,6 +86,7 @@ export function AbandonPathControl({
           Cancel
         </button>
       </div>
+      <ActionFailedLine failed={failed} testId="abandon-path-failed" />
     </div>
   )
 }

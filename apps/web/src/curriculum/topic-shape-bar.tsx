@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
 import { nextPriority } from '@post-anki/core'
 
 import type { Topic } from './model'
+import { ActionFailedLine } from './action-failed-line'
+import { useGuardedRun } from './use-guarded-run'
 import { deleteTopic, reorderTopics, setTopicState } from './curriculum.api'
 import { usePromoteDemoteTopic } from './curriculum.mutations'
 import {
@@ -27,18 +27,10 @@ export function TopicShapeBar({
   allModules: { id: string; title: string }[]
   hydrated: boolean
 }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
+  const { busy, failed, run } = useGuardedRun()
   const index = topicOrder.indexOf(topic.id)
   const otherModules = allModules.filter((module) => module.id !== moduleId)
   const promoteDemoteMutation = usePromoteDemoteTopic(curriculumId)
-
-  async function run(fn: () => Promise<unknown>) {
-    setBusy(true)
-    await fn()
-    setBusy(false)
-    await router.invalidate()
-  }
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-400">
@@ -101,8 +93,10 @@ export function TopicShapeBar({
         busy={busy}
         hydrated={hydrated}
         label="Delete topic"
+        consequence="Deletes this topic and its cards"
         onConfirm={() => run(() => deleteTopic({ data: topic.id }))}
       />
+      <ActionFailedLine failed={failed} testId={`topic-action-failed-${topic.id}`} />
     </div>
   )
 }

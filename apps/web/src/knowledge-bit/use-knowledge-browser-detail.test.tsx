@@ -20,7 +20,7 @@ afterEach(() => {
 })
 
 describe('useKnowledgeBrowserDetail', () => {
-  it('should ask for the piece by its own id and report it ready', async () => {
+  it('should ask for the card by its own id and report it ready', async () => {
     detailApi.mockResolvedValue({ ok: true, detail: { knowledgeBitId: 'b9' } })
 
     const { result } = renderHook(() => useKnowledgeBrowserDetail('b9'), { wrapper })
@@ -30,7 +30,7 @@ describe('useKnowledgeBrowserDetail', () => {
     expect(detailApi).toHaveBeenCalledWith({ data: { id: 'b9' } })
   })
 
-  it('should report a piece the server does not know as missing, not as a failure', async () => {
+  it('should report a card the server does not know as missing, not as a failure', async () => {
     detailApi.mockResolvedValue({ ok: false, error: 'not_found' })
 
     const { result } = renderHook(() => useKnowledgeBrowserDetail('gone'), { wrapper })

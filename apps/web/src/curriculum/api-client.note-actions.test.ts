@@ -57,14 +57,25 @@ describe('note actions client', () => {
   })
 
   it('should ask for notes that need attention only when the triage page opts in', async () => {
-    fetchMock.mockImplementation(async () => jsonResponse(200, []))
+    fetchMock.mockImplementation(async () => jsonResponse(200, { items: [], total: 0 }))
 
     await listPendingKnowledgeBitsForReview()
     await listPendingKnowledgeBitsForReview({ attention: true })
 
-    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.test/knowledge-bits/pending-review')
-    expect(String(fetchMock.mock.calls[1][0])).toBe(
-      'https://api.test/knowledge-bits/pending-review?attention=1',
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      'https://api.test/knowledge-bits/pending-review?includeTotal=1',
     )
+    expect(String(fetchMock.mock.calls[1][0])).toBe(
+      'https://api.test/knowledge-bits/pending-review?attention=1&includeTotal=1',
+    )
+  })
+
+  it('should return the server pending total alongside the loaded page', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { items: [{ id: 'ks_1', bits: [] }], total: 250 }))
+
+    const result = await listPendingKnowledgeBitsForReview()
+
+    expect(result.total).toBe(250)
+    expect(result.items).toHaveLength(1)
   })
 })

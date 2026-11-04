@@ -21,7 +21,9 @@ export function ProbePanel({
 
     async function load() {
       setLoading(true)
-      const next = await nextQuestion({ data: { topicId, mode } })
+
+      const next = await nextQuestion({ data: { topicId, mode } }).catch(() => null)
+
       if (active) {
         setQuestion(next)
         setLoading(false)

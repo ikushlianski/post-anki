@@ -5,8 +5,10 @@ import { DuplicateScanPanel } from '../subject-duplicate/duplicate-scan-panel'
 import { listPendingDuplicateSuggestions } from '../subject-duplicate/subject-duplicate.api'
 import { SubjectSuggestionPanel } from '../subject-suggestion/subject-suggestion-panel'
 import { listPendingSubjectSuggestions } from '../subject-suggestion/subject-suggestion.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/duplicates')({
+  head: pageHead('Duplicates'),
   component: DuplicatesPage,
   loader: async () => {
     const [board, duplicateSuggestions, subjectSuggestions] = await Promise.all([

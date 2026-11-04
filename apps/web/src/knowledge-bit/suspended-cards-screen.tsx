@@ -4,8 +4,9 @@ import type { SuspendedCard } from '@post-anki/shared'
 
 import { updateCardSchedule } from './anki-review.api'
 import { CardListLoadError } from './card-list-load-error'
-import { SuspendedCardsPage, type SuspendedCardRowState } from './suspended-cards-page'
+import { SuspendedCardsPage, suspendedCardRowKey, type SuspendedCardRowState } from './suspended-cards-page'
 import { listSuspendedKnowledgeBits, type SuspendedCardsOutcome } from './suspended-knowledge-bits.api'
+import { uniqueById } from '../shared/unique-by-id'
 
 const PAGE_SIZE = 50
 const SUSPENDED_QUERY_KEY = ['knowledge-bits', 'suspended'] as const
@@ -34,27 +35,27 @@ export function SuspendedCardsScreen() {
       lastPage.hasMore ? pages.length * PAGE_SIZE : undefined,
   })
 
-  function setRowState(knowledgeBitId: string, state: SuspendedCardRowState | null) {
+  function setRowState(rowKey: string, state: SuspendedCardRowState | null) {
     setRowStates((previous) => {
       const next = { ...previous }
 
       if (state) {
-        next[knowledgeBitId] = state
+        next[rowKey] = state
       } else {
-        delete next[knowledgeBitId]
+        delete next[rowKey]
       }
 
       return next
     })
   }
 
-  function dropFromCache(knowledgeBitId: string) {
+  function dropFromCache(rowKey: string) {
     queryClient.setQueryData<InfiniteData<SuspendedPage>>(SUSPENDED_QUERY_KEY, (previous) =>
       previous && {
         ...previous,
         pages: previous.pages.map((page) => ({
           ...page,
-          items: page.items.filter((item) => item.knowledgeBitId !== knowledgeBitId),
+          items: page.items.filter((item) => suspendedCardRowKey(item) !== rowKey),
         })),
       },
     )
@@ -62,8 +63,9 @@ export function SuspendedCardsScreen() {
 
   async function bringBack(card: SuspendedCard) {
     const { knowledgeBitId } = card
+    const rowKey = suspendedCardRowKey(card)
 
-    setRowState(knowledgeBitId, { pending: true, failed: false })
+    setRowState(rowKey, { pending: true, failed: false })
 
     let succeeded = false
 
@@ -71,6 +73,7 @@ export function SuspendedCardsScreen() {
       const outcome = await updateCardSchedule({
         data: {
           knowledgeBitId,
+          ...(card.cardKey && card.variantId ? { variantId: card.variantId } : {}),
           ...(card.suspended ? { suspended: false } : {}),
           ...(card.buriedUntil ? { buried: false } : {}),
         },
@@ -82,20 +85,20 @@ export function SuspendedCardsScreen() {
     }
 
     if (!succeeded) {
-      setRowState(knowledgeBitId, { pending: false, failed: true })
+      setRowState(rowKey, { pending: false, failed: true })
 
       return
     }
 
-    setRowState(knowledgeBitId, null)
-    dropFromCache(knowledgeBitId)
+    setRowState(rowKey, null)
+    dropFromCache(rowKey)
     void queryClient.invalidateQueries({ queryKey: SUSPENDED_QUERY_KEY })
   }
 
   if (query.isPending) {
     return (
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
-        <p data-testid="suspended-cards-loading" className="text-neutral-500">
+        <p role="status" data-testid="suspended-cards-loading" className="text-neutral-500">
           Loading…
         </p>
       </main>
@@ -114,7 +117,7 @@ export function SuspendedCardsScreen() {
     )
   }
 
-  const cards = (query.data?.pages ?? []).flatMap((page) => page.items)
+  const cards = uniqueById((query.data?.pages ?? []).flatMap((page) => page.items), (row) => `${row.knowledgeBitId}:${row.variantId ?? ''}`)
 
   return (
     <SuspendedCardsPage

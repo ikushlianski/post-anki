@@ -25,6 +25,18 @@ describe('KnowledgeBitReviewFlagBanner', () => {
     )
   })
 
+  it('should not mention an AI suggestion on a flagged phrase that has none', () => {
+    render(<KnowledgeBitReviewFlagBanner bitId="b1" reviewFlag="non_native_phrase" aiSuggestion={null} />)
+
+    expect(screen.getByTestId('knowledge-bit-review-flag-b1').textContent).not.toContain('AI-suggested')
+  })
+
+  it('should say an AI-suggested version is shown when the phrase has one', () => {
+    render(<KnowledgeBitReviewFlagBanner bitId="b1" reviewFlag="non_native_phrase" aiSuggestion="catch up" />)
+
+    expect(screen.getByTestId('knowledge-bit-review-flag-b1').textContent).toContain('AI-suggested')
+  })
+
   it('should show nothing on a clean card', () => {
     render(<KnowledgeBitReviewFlagBanner bitId="b1" reviewFlag={null} />)
 

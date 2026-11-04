@@ -2,8 +2,10 @@ import { ClientOnly, Link, createFileRoute, notFound } from '@tanstack/react-rou
 
 import { getBoard } from '../curriculum/curriculum.api'
 import { CheckWriting } from '../practice/check-writing'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/practice/$subjectId_/check-writing')({
+  head: pageHead('Check writing'),
   component: CheckWritingPage,
   loader: async ({ params }) => {
     const { subjects } = await getBoard()

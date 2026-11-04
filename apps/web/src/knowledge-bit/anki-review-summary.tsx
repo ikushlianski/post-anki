@@ -20,15 +20,15 @@ export function AnkiReviewSummary({
     ['New cards studied', stats.newStudied],
     ['Total time', seconds(stats.totalMs)],
     ['Average per card', seconds(stats.averageMs)],
+  ]
+  const optionalRows: [string, number][] = [
     ['Suspended', stats.suspended],
     ['Buried', stats.buried],
     ['Edited', stats.edited],
     ['Leeches flagged', stats.leeches],
   ]
 
-  if (stats.studyStreak > 1) {
-    rows.splice(1, 0, ['Streak', `${stats.studyStreak} days`])
-  }
+  rows.push(...optionalRows.filter(([, value]) => value > 0))
 
   return (
     <section data-testid="anki-review-summary" className="mt-4 flex flex-col gap-2">

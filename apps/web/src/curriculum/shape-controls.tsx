@@ -205,12 +205,16 @@ export function ConfirmDelete({
   busy,
   hydrated,
   label,
+  actionLabel = 'Delete',
+  consequence,
   onConfirm,
   testId,
 }: {
   busy: boolean
   hydrated: boolean
   label: string
+  actionLabel?: string
+  consequence?: string
   onConfirm: () => void
   testId?: string
 }) {
@@ -227,21 +231,26 @@ export function ConfirmDelete({
         disabled={disabled}
         onClick={() => setArmed(true)}
         data-testid={testId ? `${testId}-button` : undefined}
-        className="text-xs text-neutral-400 hover:text-red-600 disabled:opacity-40"
+        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-xs text-neutral-600 hover:text-red-600 disabled:opacity-40"
       >
-        Delete
+        {actionLabel}
       </button>
     )
   }
 
   return (
     <span className="flex items-center gap-1 text-xs">
+      {consequence ? (
+        <span data-testid={testId ? `${testId}-consequence` : undefined} className="text-neutral-500">
+          {consequence}
+        </span>
+      ) : null}
       <button
         type="button"
         disabled={disabled}
         onClick={onConfirm}
         data-testid={testId ? `${testId}-confirm` : undefined}
-        className="font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
+        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
       >
         Confirm
       </button>
@@ -249,7 +258,7 @@ export function ConfirmDelete({
         type="button"
         onClick={() => setArmed(false)}
         data-testid={testId ? `${testId}-cancel` : undefined}
-        className="text-neutral-400 hover:text-neutral-700"
+        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-neutral-600 hover:text-neutral-900"
       >
         cancel
       </button>
@@ -339,7 +348,7 @@ export function RenameButton({
         disabled={busy}
         onClick={() => setArmed(false)}
         data-testid={testId ? `${testId}-cancel` : undefined}
-        className="text-neutral-400 hover:text-neutral-700"
+        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-neutral-600 hover:text-neutral-900"
       >
         cancel
       </button>

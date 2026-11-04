@@ -1,11 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-
-import { KnowledgeOverviewScreen } from '../knowledge-bit/knowledge-overview-screen'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/knowledge/')({
-  component: KnowledgeOverviewRoute,
+  beforeLoad: () => {
+    throw redirect({ to: '/knowledge/browser', replace: true })
+  },
 })
-
-function KnowledgeOverviewRoute() {
-  return <KnowledgeOverviewScreen />
-}

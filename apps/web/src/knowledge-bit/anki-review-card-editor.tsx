@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from 'react'
 
 export function AnkiReviewCardEditor({
+  context,
   prompt,
   answer,
   error,
@@ -8,13 +9,15 @@ export function AnkiReviewCardEditor({
   onSave,
   onCancel,
 }: {
+  context: string
   prompt: string
   answer: string
   error: string | null
   disabled: boolean
-  onSave: (prompt: string, answer: string) => void
+  onSave: (prompt: string, answer: string, context: string) => void
   onCancel: () => void
 }) {
+  const [draftContext, setDraftContext] = useState(context)
   const [draftPrompt, setDraftPrompt] = useState(prompt)
   const [draftAnswer, setDraftAnswer] = useState(answer)
   const canSave = draftPrompt.trim() !== '' && draftAnswer.trim() !== '' && !disabled
@@ -25,12 +28,21 @@ export function AnkiReviewCardEditor({
     }
 
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && canSave) {
-      onSave(draftPrompt, draftAnswer)
+      onSave(draftPrompt, draftAnswer, draftContext)
     }
   }
 
   return (
     <div data-testid="anki-review-editor" className="flex flex-col gap-2" onKeyDown={handleKeyDown}>
+      <textarea
+        aria-label="Context"
+        data-testid="anki-review-editor-context"
+        value={draftContext}
+        onChange={(event) => setDraftContext(event.target.value)}
+        placeholder="Optional: who is speaking, and to whom"
+        className="rounded-md border border-neutral-300 p-2 text-xs text-neutral-600"
+        rows={1}
+      />
       <textarea
         aria-label="Question"
         data-testid="anki-review-editor-prompt"
@@ -57,7 +69,7 @@ export function AnkiReviewCardEditor({
           type="button"
           data-testid="anki-review-editor-save"
           disabled={!canSave}
-          onClick={() => onSave(draftPrompt, draftAnswer)}
+          onClick={() => onSave(draftPrompt, draftAnswer, draftContext)}
           className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
         >
           Save

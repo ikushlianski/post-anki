@@ -67,6 +67,7 @@ export function KnowledgeBitReviewSourceGroup({
     variantId: string,
     prompt: string,
     answer: string,
+    context?: string | null,
   ) => Promise<boolean>
   onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
 }) {

@@ -14,6 +14,7 @@ import {
 import { askKnowledgeBitChat } from './knowledge-bit-chat.api'
 import { KnowledgeBitChatSheet } from './knowledge-bit-chat-sheet'
 import { KnowledgeBitChatHighlightBar } from './knowledge-bit-chat-highlight-bar'
+import { KnowledgeBitChatReplacement } from './knowledge-bit-chat-replacement'
 import { KnowledgeBitChatCardTray } from './knowledge-bit-chat-card-tray'
 import { useCardTray } from './use-card-tray'
 import { useChatSelection } from './use-chat-selection'
@@ -24,10 +25,29 @@ const FALLBACK_REPLY = "I couldn't reach the tutor right now — try again."
 interface KnowledgeBitChatPanelProps {
   knowledgeBitId: string
   iconOnly?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  showTrigger?: boolean
+  onReplaceAccepted?: () => void
 }
 
-export function KnowledgeBitChatPanel({ knowledgeBitId, iconOnly = false }: KnowledgeBitChatPanelProps) {
-  const [open, setOpen] = useState(false)
+export function KnowledgeBitChatPanel({
+  knowledgeBitId,
+  iconOnly = false,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+  onReplaceAccepted,
+}: KnowledgeBitChatPanelProps) {
+  const [localOpen, setLocalOpen] = useState(false)
+  const controlled = controlledOpen !== undefined
+  const open = controlled ? controlledOpen : localOpen
+
+  function setOpen(next: boolean) {
+    setLocalOpen(next)
+    onOpenChange?.(next)
+  }
+
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
   const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
@@ -48,6 +68,7 @@ export function KnowledgeBitChatPanel({ knowledgeBitId, iconOnly = false }: Know
           message: vars.message,
           transcript: vars.transcript,
           allowGeneralKnowledge: vars.allowGeneralKnowledge,
+          clientMessageId: crypto.randomUUID(),
         },
       }),
   })
@@ -139,6 +160,10 @@ export function KnowledgeBitChatPanel({ knowledgeBitId, iconOnly = false }: Know
         },
       },
     )
+  }
+
+  if (!open && controlled && !showTrigger) {
+    return null
   }
 
   if (!open && iconOnly) {
@@ -272,6 +297,19 @@ export function KnowledgeBitChatPanel({ knowledgeBitId, iconOnly = false }: Know
             Draft a new card
           </button>
         </div>
+      ) : null}
+
+      {onReplaceAccepted && messages.some((m) => m.kind === 'text' && m.role === 'assistant') ? (
+        <KnowledgeBitChatReplacement
+          knowledgeBitId={knowledgeBitId}
+          transcript={toTranscript(messages)}
+          allowWebSearch={cardWebSearch}
+          disabled={busy}
+          onAccepted={() => {
+            setOpen(false)
+            onReplaceAccepted()
+          }}
+        />
       ) : null}
 
       <label className="flex min-h-11 shrink-0 items-center gap-2 border-t border-neutral-200 px-3 py-2 text-xs sm:min-h-0 text-neutral-500">

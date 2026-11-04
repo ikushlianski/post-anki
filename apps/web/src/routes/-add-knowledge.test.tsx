@@ -16,7 +16,7 @@ import { Sidebar } from '../nav/sidebar'
 import { Route } from './add-knowledge'
 
 const liveSubjectRows = vi.hoisted(() => ({ rows: [] as unknown[] }))
-const searchState = vi.hoisted(() => ({ value: {} as { subjectId?: string } }))
+const searchState = vi.hoisted(() => ({ value: {} as { subjectId?: string; q?: string } }))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
@@ -685,6 +685,38 @@ describe('Route (/add-knowledge) subject search param', () => {
     render(<AddKnowledgePage />)
 
     expect(searchableValue('knowledge-subject-select')).toBe('Business › Sales')
+  })
+})
+
+describe('Route (/add-knowledge) search prefill', () => {
+  const AddKnowledgePage = (Route as unknown as { component: () => ReactNode }).component
+
+  afterEach(() => {
+    cleanup()
+    window.localStorage.clear()
+    searchState.value = {}
+  })
+
+  it('should start the form with the text carried over from a search that found nothing', async () => {
+    searchState.value = { q: 'closures in js' }
+    render(<AddKnowledgePage />)
+
+    await waitFor(() =>
+      expect((screen.getByTestId('knowledge-block-input-0') as HTMLTextAreaElement).value).toBe('closures in js'),
+    )
+  })
+
+  it('should keep a draft the learner already has instead of overwriting it', async () => {
+    window.localStorage.setItem(
+      'post-anki:add-knowledge:draft-blocks',
+      JSON.stringify([{ type: 'text', value: 'my draft' }]),
+    )
+    searchState.value = { q: 'closures in js' }
+    render(<AddKnowledgePage />)
+
+    await waitFor(() =>
+      expect((screen.getByTestId('knowledge-block-input-0') as HTMLTextAreaElement).value).toBe('my draft'),
+    )
   })
 })
 

@@ -1,5 +1,5 @@
 import {
-  KNOWLEDGE_BIT_REJECT_REASONS,
+  KNOWLEDGE_BIT_SELECTABLE_REJECT_REASONS,
   KNOWLEDGE_BIT_REJECT_REASON_LABELS,
   KNOWLEDGE_BIT_FEEDBACK_NOTE_MAX_CHARS,
 } from '@post-anki/shared'
@@ -48,7 +48,7 @@ export function KnowledgeBitReviewWhyStrip({ why }: { why: RejectionWhy }) {
 
       {why.prompt.mode === 'rejected' ? (
         <div className="flex flex-wrap gap-2">
-          {KNOWLEDGE_BIT_REJECT_REASONS.map((reason) => (
+          {KNOWLEDGE_BIT_SELECTABLE_REJECT_REASONS.map((reason) => (
             <button
               key={reason}
               type="button"

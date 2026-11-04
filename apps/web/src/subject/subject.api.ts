@@ -65,3 +65,11 @@ export const deleteSubject = createServerFn({ method: 'POST' })
 export const mergeSubjects = createServerFn({ method: 'POST' })
   .inputValidator((data: MergeSubjectsInput) => mergeSubjectsInput.parse(data))
   .handler(({ data }) => api.mergeSubjects(data.targetSubjectId, data.sourceSubjectId))
+
+export const listSubjectCardCounts = createServerFn({ method: 'GET' }).handler(async () => {
+  const subjects = await api.listSubjects()
+
+  return subjects.flatMap((subject) =>
+    subject.cardCount === undefined ? [] : [{ subjectId: subject.id, cardCount: subject.cardCount }],
+  )
+})

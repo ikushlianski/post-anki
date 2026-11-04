@@ -15,7 +15,7 @@ export function KnowledgeBrowserActionBar({
   state: BrowserSelectionDelete
   source?: BrowserSourceBarActions | null
 }) {
-  const noun = state.count === 1 ? 'piece' : 'pieces'
+  const noun = state.count === 1 ? 'card' : 'cards'
 
   return (
     <>
@@ -54,7 +54,7 @@ export function KnowledgeBrowserActionBar({
                   className={SECONDARY_BUTTON_CLASS}
                   onClick={source.onDelete}
                 >
-                  Delete whole source ({source.count} {source.count === 1 ? 'piece' : 'pieces'})
+                  Delete whole source ({source.count} {source.count === 1 ? 'card' : 'cards'})
                 </button>
               </>
             )}

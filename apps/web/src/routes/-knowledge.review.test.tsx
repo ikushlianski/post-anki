@@ -106,6 +106,8 @@ function queueResponse(
 const savedGrade = {
   ok: true as const,
   reviewId: 'review-1',
+  cardKey: '',
+  buriedVariantIds: [],
   knowledgeBitId: 'bit-1',
   phase: 'review' as const,
   dueAt: '2026-10-11T12:00:00.000Z',
@@ -378,6 +380,34 @@ describe('Anki review page', () => {
     expect(mockedGetReviewCards).toHaveBeenCalledWith({
       data: expect.objectContaining({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
     })
+  })
+
+  it('should announce a load failure as an alert', async () => {
+    mockedGetReviewCards.mockResolvedValue({ ok: false, error: 'unknown' })
+
+    renderPage()
+
+    expect((await screen.findByTestId('anki-review-load-error')).getAttribute('role')).toBe('alert')
+  })
+
+  it('should keep the load Retry disabled while offline', async () => {
+    mockedGetReviewCards.mockResolvedValue({ ok: false, error: 'unknown' })
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+
+    renderPage()
+
+    expect((await screen.findByTestId('anki-review-retry') as HTMLButtonElement).disabled).toBe(true)
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
+  })
+
+  it('should list the review shortcuts when the learner presses question mark', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
+
+    renderPage()
+    await screen.findByTestId('anki-review-show-answer')
+    await userEvent.keyboard('?')
+
+    expect(screen.getByTestId('anki-review-shortcuts-dialog').textContent).toContain('Suspend the card')
   })
 
   it('should offer a retry when cards fail to load', async () => {

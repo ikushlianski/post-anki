@@ -1,11 +1,11 @@
-import { useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, Ref } from 'react'
 
 const NAVIGATION_KEYS = ['ArrowDown', 'ArrowUp', 'Home', 'End']
 const FOCUSABLE_SELECTOR = 'input:not(:disabled), button:not(:disabled), a[href]'
 
 export const OVERFLOW_MENU_ITEM_CLASS =
-  'block w-full rounded px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 focus:bg-neutral-100 focus:outline-none'
+  'block min-h-[44px] w-full rounded px-3 py-2 text-left sm:min-h-0 text-sm text-neutral-700 hover:bg-neutral-100 focus:bg-neutral-100 focus:outline-none'
 
 export interface OverflowMenuHandle {
   focusTrigger: () => void
@@ -37,6 +37,7 @@ export function OverflowMenu({
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [focusRequest, setFocusRequest] = useState(0)
+  const [flipUp, setFlipUp] = useState(false)
 
   useImperativeHandle(
     ref,
@@ -46,6 +47,21 @@ export function OverflowMenu({
     }),
     [],
   )
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current
+    const button = buttonRef.current
+
+    if (!open || !panel || !button) {
+      return
+    }
+
+    const triggerRect = button.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - triggerRect.bottom
+    const needed = panel.getBoundingClientRect().height + 8
+
+    setFlipUp(needed > spaceBelow && triggerRect.top > spaceBelow)
+  }, [open, viewKey])
 
   useEffect(() => {
     if (open) {
@@ -130,7 +146,7 @@ export function OverflowMenu({
         aria-expanded={open}
         data-testid={testId}
         onClick={handleTriggerClick}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 aria-expanded:bg-neutral-200 aria-expanded:text-neutral-700"
+        className="flex h-[44px] w-[44px] sm:h-8 sm:w-8 items-center justify-center rounded-full text-lg leading-none text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 aria-expanded:bg-neutral-200 aria-expanded:text-neutral-700"
       >
         ⋯
       </button>
@@ -140,7 +156,8 @@ export function OverflowMenu({
           ref={panelRef}
           role={panelRole}
           aria-label={label}
-          className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg"
+          data-placement={flipUp ? 'top' : 'bottom'}
+          className={`absolute right-0 z-20 w-56 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg ${flipUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}
         >
           {children}
         </div>

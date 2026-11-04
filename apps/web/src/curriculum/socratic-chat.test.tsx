@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { SocraticChat } from './socratic-chat'
-import { startSocraticSession } from './socratic.api'
+import { answerSocraticSession, startSocraticSession } from './socratic.api'
 
 vi.mock('./socratic.api', () => ({
   startSocraticSession: vi.fn(),
@@ -76,5 +76,30 @@ describe('SocraticChat', () => {
     expect(JSON.parse(link.getAttribute('data-params') ?? '{}')).toEqual({
       curriculumId: 'curr-1',
     })
+  })
+
+  it('should show an error and put the answer back in the box when sending fails', async () => {
+    mockedStartSocraticSession.mockResolvedValue({
+      ok: true,
+      session: {
+        id: 'ss1',
+        status: 'active',
+        topicMaturity: 0,
+        current: { id: 'turn-1', prompt: 'What is a cache?' },
+      },
+    } as never)
+    vi.mocked(answerSocraticSession).mockRejectedValueOnce(new Error('network'))
+    Element.prototype.scrollTo = vi.fn()
+
+    renderHarness('topic-1', 'curr-1')
+
+    const input = await screen.findByTestId('socratic-input')
+
+    fireEvent.change(input, { target: { value: 'fast storage' } })
+    fireEvent.click(screen.getByTestId('socratic-send'))
+
+    expect(await screen.findByTestId('socratic-error')).toBeTruthy()
+    expect((screen.getByTestId('socratic-input') as HTMLInputElement).value).toBe('fast storage')
+    expect(screen.queryAllByTestId('socratic-message-learner')).toHaveLength(0)
   })
 })

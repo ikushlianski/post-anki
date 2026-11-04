@@ -5,6 +5,7 @@ import { getDomainMapForSubject, getSubjectForMap } from '../domain-map/domain-m
 import { getPriorityReviewStatus, getPrioritySuggestions } from '../domain-map/domain-map.api'
 import { getDocScanSuggestions } from '../domain-map/domain-map.api'
 import { PriorityReviewPanel } from '../domain-map/priority-review-panel'
+import { pageHead } from '../shared/page-title'
 
 // domain-priority-review (issue #52) — SSR-first, loader-seeded, same
 // Electric-avoidance rationale as subject.$subjectId.map.tsx: this screen
@@ -14,6 +15,7 @@ import { PriorityReviewPanel } from '../domain-map/priority-review-panel'
 // pending doc-scan suggestions alongside the existing loader data — required
 // for S5's Integration acceptance ("matches ... on a fresh page load").
 export const Route = createFileRoute('/subject/$subjectId_/priority-review')({
+  head: pageHead('Priority review'),
   component: PriorityReviewPage,
   loader: async ({ params }) => {
     const [subject, tree, suggestions, status, docScanSuggestions] = await Promise.all([

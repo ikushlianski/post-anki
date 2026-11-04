@@ -14,7 +14,7 @@ export function TagNodeBrowser({ tagId }: { tagId: string }) {
 
   if (isLoading) {
     return (
-      <p className="mt-3 text-sm text-neutral-400" data-testid="tag-browse-loading">
+      <p role="status" className="mt-3 text-sm text-neutral-400" data-testid="tag-browse-loading">
         Loading everything tagged this…
       </p>
     )

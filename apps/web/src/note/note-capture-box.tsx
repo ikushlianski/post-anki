@@ -42,9 +42,14 @@ export function NoteCaptureBox({
       body: trimmed,
       isHighlight,
       concern: concern === '' ? null : concern,
-    })
+    }).catch(() => null)
 
     setBusy(false)
+
+    if (!result) {
+      setError('Could not save that note — try again.')
+      return
+    }
 
     if (!result.ok) {
       setError(noteCaptureErrorMessage(result.code, result.message))
@@ -89,6 +94,7 @@ export function NoteCaptureBox({
         placeholder={
           isHighlight ? 'Paste the passage, verbatim…' : 'Write what clicked…'
         }
+        aria-label="Note text"
         data-testid="note-capture-body"
         className="input mt-2 w-full"
       />
@@ -96,6 +102,7 @@ export function NoteCaptureBox({
       <select
         value={concern}
         onChange={(event) => setConcern(event.target.value as Concern | '')}
+        aria-label="Concern tag"
         data-testid="note-capture-concern"
         className="input mt-2 w-full text-xs"
       >

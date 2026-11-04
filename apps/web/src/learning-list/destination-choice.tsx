@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { ChosenLearningListDestination } from '@post-anki/shared'
 
 import type { ApiResult } from './learning-list.model'
+import { learningErrorMessage } from './learning-error'
 
 export interface DestinationChoiceProps {
   itemId: string
@@ -30,7 +31,7 @@ export function DestinationChoice({
     setBusy(false)
 
     if (!result.ok) {
-      setError(`That choice was not accepted (${result.code}).`)
+      setError(learningErrorMessage(result.code))
       return
     }
 

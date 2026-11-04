@@ -5,7 +5,7 @@ import {
 } from '@post-anki/shared'
 
 const COUNT_LABELS: Array<[keyof KnowledgeDeletionCounts, string]> = [
-  ['knowledgeBits', 'knowledge pieces'],
+  ['knowledgeBits', 'cards'],
   ['knowledgeSources', 'sources'],
   ['questionVariants', 'question variants'],
   ['reviews', 'reviews'],
@@ -66,7 +66,7 @@ export function ClearAllKnowledgeZone({
     >
       <h2 className="text-lg font-semibold tracking-tight text-red-700">Danger zone</h2>
       <p className="mt-1 text-sm text-neutral-500">
-        Permanently deletes every knowledge piece, every source and all review history. Subjects
+        Permanently deletes every card, every source and all review history. Subjects
         and settings are kept. This cannot be undone.
       </p>
 
@@ -95,7 +95,7 @@ export function ClearAllKnowledgeZone({
             disabled={busy}
             autoComplete="off"
             onChange={(event) => setTyped(event.target.value)}
-            className="w-full rounded-md border border-neutral-300 px-2 py-1 text-sm"
+            className="min-h-[44px] w-full rounded-md border border-neutral-300 px-2 py-1 text-sm sm:min-h-0"
           />
           {failed ? (
             <p role="alert" data-testid="clear-all-knowledge-error" className="text-sm text-red-600">
@@ -108,7 +108,7 @@ export function ClearAllKnowledgeZone({
               data-testid="clear-all-knowledge-confirm"
               disabled={!matches || busy}
               onClick={() => void confirm()}
-              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+              className="min-h-[44px] rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 sm:min-h-0"
             >
               {busy ? 'Clearing...' : 'Permanently delete everything'}
             </button>
@@ -117,7 +117,7 @@ export function ClearAllKnowledgeZone({
               data-testid="clear-all-knowledge-cancel"
               disabled={busy}
               onClick={close}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+              className="min-h-[44px] rounded-md border border-neutral-300 px-3 py-1.5 text-sm sm:min-h-0"
             >
               Cancel
             </button>
@@ -131,7 +131,7 @@ export function ClearAllKnowledgeZone({
             setCounts(null)
             setOpen(true)
           }}
-          className="mt-3 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700"
+          className="mt-3 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
         >
           Clear all knowledge
         </button>

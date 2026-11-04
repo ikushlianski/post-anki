@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
 
 import { AiLabelBadge } from './ai-label-badge'
+import { AiSuggestionBlock } from './ai-suggestion-block'
 import { KnowledgeBitReviewFlagBanner } from './knowledge-bit-review-flag-banner'
 import { KnowledgeBitReviewExampleField } from './knowledge-bit-review-card-fields'
 import { KnowledgeBitReviewVariantList } from './knowledge-bit-review-variant-list'
@@ -48,6 +49,7 @@ export function KnowledgeBitReviewItem({
     variantId: string,
     prompt: string,
     answer: string,
+    context?: string | null,
   ) => Promise<boolean>
   onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
 }) {
@@ -100,7 +102,9 @@ export function KnowledgeBitReviewItem({
         testIdSuffix={`-${bit.id}`}
       />
 
-      <KnowledgeBitReviewFlagBanner bitId={bit.id} reviewFlag={bit.reviewFlag} />
+      <KnowledgeBitReviewFlagBanner bitId={bit.id} reviewFlag={bit.reviewFlag} aiSuggestion={bit.aiSuggestion} />
+
+      <AiSuggestionBlock original={bit.body} aiSuggestion={bit.aiSuggestion} testIdSuffix={`-${bit.id}`} />
 
       <KnowledgeBitReviewVariantList
         bitId={bit.id}
@@ -109,7 +113,9 @@ export function KnowledgeBitReviewItem({
         keptIds={kept}
         pickDisabled={actionsDisabled}
         onToggle={canTriage ? (index) => onToggleVariant?.(bit.id, index) : undefined}
-        onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
+        onSave={(variantId, prompt, answer, context) =>
+          onSaveVariant(bit.id, variantId, prompt, answer, context)
+        }
         onBusyChange={setBusy}
       />
 

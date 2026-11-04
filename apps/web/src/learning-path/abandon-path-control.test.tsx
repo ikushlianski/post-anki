@@ -85,4 +85,23 @@ describe('AbandonPathControl', () => {
 
     expect(screen.queryByTestId('abandon-path-confirm')).toBeNull()
   })
+
+  it('should show a failure and keep the confirm usable when abandoning throws', async () => {
+    render(
+      <AbandonPathControl
+        pathId="path-1"
+        status="active"
+        onAbandon={vi.fn().mockRejectedValue(new Error('boom'))}
+        onAbandoned={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('abandon-path-start'))
+    fireEvent.click(screen.getByTestId('abandon-path-confirm-button'))
+
+    expect(await screen.findByTestId('abandon-path-failed')).toBeTruthy()
+    await waitFor(() =>
+      expect((screen.getByTestId('abandon-path-confirm-button') as HTMLButtonElement).disabled).toBe(false),
+    )
+  })
 })

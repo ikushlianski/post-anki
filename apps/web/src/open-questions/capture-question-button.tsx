@@ -75,7 +75,7 @@ export function CaptureQuestionButton({
           type="button"
           data-testid={`capture-question-${itemId}`}
           onClick={openPopover}
-          className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm hover:border-neutral-400"
+          className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm hover:border-neutral-400 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
         >
           ❓ Ask later
         </button>
@@ -88,23 +88,24 @@ export function CaptureQuestionButton({
             autoFocus
             disabled={mutation.isPending}
             onChange={(event) => setQuestionText(event.target.value)}
+            aria-label="Your question"
             placeholder="What's still unclear?"
             data-testid={`capture-question-input-${itemId}`}
-            className="min-h-[3rem] flex-1 rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
+            className="min-h-[44px] sm:min-h-[3rem] flex-1 rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
           />
           <div className="flex items-center gap-2">
             <button
               type="submit"
               disabled={mutation.isPending || !canSubmit}
               data-testid={`capture-question-submit-${itemId}`}
-              className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50"
+              className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
             >
               Save
             </button>
             <button
               type="button"
               onClick={closePopover}
-              className="text-xs text-neutral-400 hover:text-neutral-700"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-xs text-neutral-400 hover:text-neutral-700"
             >
               Close
             </button>

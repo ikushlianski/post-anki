@@ -2,11 +2,9 @@ import { createCollection } from '@tanstack/react-db'
 import { electricCollectionOptions } from '@tanstack/electric-db-collection'
 
 import type { Pack, Phrase, PracticeAttempt, PracticeLevel, PracticeSettings } from '@post-anki/shared'
+import { electricShapeUrl } from '../sync/electric-shape-url'
 
-const SHAPE_URL =
-  typeof window !== 'undefined'
-    ? `${window.location.origin}/api/electric-shape`
-    : '/api/electric-shape'
+const SHAPE_URL = electricShapeUrl()
 
 interface PhraseRow {
   [key: string]: unknown

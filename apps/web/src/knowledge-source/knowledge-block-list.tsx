@@ -1,28 +1,37 @@
 import { Tabs } from '../ui/tabs'
+import { LINK_ERROR_MESSAGE, isHttpUrl } from './knowledge-form-blocks'
 import type { Block, BlockType } from './knowledge-form-blocks'
+import { TargetPhrasesField } from './target-phrases-field'
 import { DuplicateSourceWarning } from './duplicate-source-warning'
+import { ShortTextHint } from './short-text-hint'
 import type { EarlierSource } from './submit-knowledge-blocks'
 
 interface KnowledgeBlockListProps {
   blocks: Block[]
+  showTargetPhrases: boolean
   busy: boolean
   duplicates: Record<number, EarlierSource>
   blockReasons: Record<number, string>
   onValueChange: (index: number, value: string) => void
   onTypeChange: (index: number, type: BlockType) => void
+  onTargetPhrasesChange: (index: number, phrases: string[]) => void
   onRemove: (index: number) => void
   onAddAgain: (index: number) => void
+  onSubmitShortcut: () => void
 }
 
 export function KnowledgeBlockList({
   blocks,
+  showTargetPhrases,
   busy,
   duplicates,
   blockReasons,
   onValueChange,
   onTypeChange,
+  onTargetPhrasesChange,
   onRemove,
   onAddAgain,
+  onSubmitShortcut,
 }: KnowledgeBlockListProps) {
   return (
     <>
@@ -44,6 +53,12 @@ export function KnowledgeBlockList({
                 value={block.value}
                 disabled={busy}
                 onChange={(event) => onValueChange(index, event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault()
+                    onSubmitShortcut()
+                  }
+                }}
                 placeholder="Paste a block of prose to learn from…"
                 rows={6}
                 data-testid={`knowledge-block-input-${index}`}
@@ -62,6 +77,23 @@ export function KnowledgeBlockList({
               />
             )}
           </Tabs>
+
+          {block.type === 'url' && block.value.trim() !== '' && !isHttpUrl(block.value) && (
+            <p role="alert" data-testid={`knowledge-block-link-error-${index}`} className="text-sm text-red-700">
+              {LINK_ERROR_MESSAGE}
+            </p>
+          )}
+
+          {block.type === 'text' && <ShortTextHint index={index} value={block.value} />}
+
+          {showTargetPhrases && (
+            <TargetPhrasesField
+              blockIndex={index}
+              phrases={block.targetPhrases ?? ['']}
+              disabled={busy}
+              onChange={(phrases) => onTargetPhrasesChange(index, phrases)}
+            />
+          )}
 
           {duplicates[index] && (
             <DuplicateSourceWarning

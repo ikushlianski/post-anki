@@ -9,6 +9,7 @@ import type {
 
 import { buildSourceLookup, sourceDisplayLabel } from './source-lookup'
 import type { ApiResult } from './content-library.model'
+import { ActionFailedLine } from '../curriculum/action-failed-line'
 
 export interface DuplicateSuggestionListProps {
   suggestions: SourceDuplicateSuggestion[]
@@ -98,12 +99,20 @@ function DuplicateSuggestionRow({
   onResolved: DuplicateSuggestionListProps['onResolved']
 }) {
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function resolve(status: 'acknowledged' | 'dismissed') {
     setBusy(true)
-    await onResolve(suggestion.id, { status })
-    setBusy(false)
-    await onResolved()
+    setFailed(false)
+
+    try {
+      await onResolve(suggestion.id, { status })
+      await onResolved()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -143,6 +152,7 @@ function DuplicateSuggestionRow({
         >
           Not a duplicate
         </button>
+        <ActionFailedLine failed={failed} testId="duplicate-action-failed" />
       </div>
     </li>
   )

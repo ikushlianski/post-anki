@@ -2,8 +2,11 @@ import { KNOWLEDGE_BIT_VARIANT_KIND_LABELS } from '@post-anki/shared'
 import type { KnowledgeBitBrowserItem, KnowledgeBitDetail } from '@post-anki/shared'
 import type { ReactNode } from 'react'
 
+import { CardContextLine } from './card-context-line'
+import { KnowledgeBrowserDetailCards } from './knowledge-browser-detail-cards'
 import { formatAddedAt } from './knowledge-browser-columns'
 import { BROWSER_ADDED_BY_LABELS, BROWSER_ORIGIN_LABELS, BROWSER_STATE_LABELS } from './knowledge-browser-filters'
+import { safeHref } from '../shared/safe-href'
 
 const NONE = 'None'
 
@@ -50,7 +53,9 @@ function reviewText(review: KnowledgeBitDetail['review']): string {
 function Source({ detail }: { detail: KnowledgeBitDetail }) {
   const type = BROWSER_ORIGIN_LABELS[detail.origin]
 
-  if (!detail.sourceUrl) {
+  const href = safeHref(detail.sourceUrl)
+
+  if (!href) {
     return <>{detail.sourceLabel ? `${type}, ${detail.sourceLabel}` : type}</>
   }
 
@@ -58,7 +63,7 @@ function Source({ detail }: { detail: KnowledgeBitDetail }) {
     <>
       {type},{' '}
       <a
-        href={detail.sourceUrl}
+        href={href}
         target="_blank"
         rel="noreferrer"
         data-testid="knowledge-browser-detail-source-link"
@@ -70,10 +75,11 @@ function Source({ detail }: { detail: KnowledgeBitDetail }) {
   )
 }
 
-function FrontBack({ front, back }: { front: string; back: string }) {
+function FrontBack({ front, back, context }: { front: string; back: string; context?: string | null }) {
   return (
     <>
       <Section title="Front" testId="knowledge-browser-detail-front">
+        <CardContextLine context={context} testId="knowledge-browser-detail-front-context" />
         <p className="whitespace-pre-wrap text-sm text-neutral-900">{front}</p>
       </Section>
       <Section title="Back" testId="knowledge-browser-detail-back">
@@ -86,12 +92,13 @@ function FrontBack({ front, back }: { front: string; back: string }) {
 export function KnowledgeBrowserDetailPreview({ row }: { row: KnowledgeBitBrowserItem }) {
   return (
     <div data-testid="knowledge-browser-detail-preview">
-      <FrontBack front={row.phrasings[0]?.prompt ?? ''} back={row.answer} />
+      <FrontBack front={row.phrasings[0]?.prompt ?? ''} back={row.answer} context={row.phrasings[0]?.context} />
       <Section title="Phrasings" testId="knowledge-browser-detail-phrasings">
         <ul className="space-y-2">
           {row.phrasings.map((phrasing) => (
             <li key={phrasing.id} className="rounded border border-neutral-200 p-2 text-sm">
               <p className="text-xs text-neutral-500">{KNOWLEDGE_BIT_VARIANT_KIND_LABELS[phrasing.kind]}</p>
+              <CardContextLine context={phrasing.context} testId="knowledge-browser-detail-phrasing-context" />
               <p className="whitespace-pre-wrap">{phrasing.prompt}</p>
             </li>
           ))}
@@ -106,7 +113,7 @@ export function KnowledgeBrowserDetailBody({ detail }: { detail: KnowledgeBitDet
 
   return (
     <div data-testid="knowledge-browser-detail-body">
-      <FrontBack front={first?.prompt ?? ''} back={first?.answer ?? ''} />
+      <FrontBack front={first?.prompt ?? ''} back={first?.answer ?? ''} context={first?.context} />
       <Section title="Phrasings" testId="knowledge-browser-detail-phrasings">
         <ul className="space-y-2">
           {detail.phrasings.map((phrasing) => (
@@ -116,6 +123,7 @@ export function KnowledgeBrowserDetailBody({ detail }: { detail: KnowledgeBitDet
               className="rounded border border-neutral-200 p-2 text-sm"
             >
               <p className="text-xs text-neutral-500">{phrasing.kindLabel}</p>
+              <CardContextLine context={phrasing.context} testId="knowledge-browser-detail-phrasing-context" />
               <p className="whitespace-pre-wrap">{phrasing.prompt}</p>
               <p className="mt-1 whitespace-pre-wrap text-neutral-700">Answer: {phrasing.answer}</p>
               {phrasing.sentence && (
@@ -125,6 +133,7 @@ export function KnowledgeBrowserDetailBody({ detail }: { detail: KnowledgeBitDet
           ))}
         </ul>
       </Section>
+      <KnowledgeBrowserDetailCards cards={detail.cards} />
       <Section title="Details" testId="knowledge-browser-detail-meta">
         <dl>
           <MetaRow label="Subject">

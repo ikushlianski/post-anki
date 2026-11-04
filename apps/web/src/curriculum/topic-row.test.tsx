@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import type { Gap, GapMastery, Topic } from './model'
 import { curateGap } from './curriculum.api'
-import { GapChecklist, isGapActionable } from './topic-row'
+import { GapChecklist, isGapActionable } from './gap-checklist'
 
 const mockedCurateGap = vi.mocked(curateGap)
 

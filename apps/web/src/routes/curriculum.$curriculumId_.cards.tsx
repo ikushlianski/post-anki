@@ -5,12 +5,14 @@ import { filterCardBrowserRows } from '@post-anki/core'
 
 import { curriculumCardsBrowserQuery, curriculumDetailQuery } from '../curriculum/curriculum.queries'
 import { searchParamString } from '../shared/search-param-string'
+import { pageHead } from '../shared/page-title'
 
 interface CardsBrowserSearchState {
   search: string
 }
 
 export const Route = createFileRoute('/curriculum/$curriculumId_/cards')({
+  head: pageHead('Curriculum cards'),
   validateSearch: (search: Record<string, unknown>): CardsBrowserSearchState => ({
     search: searchParamString(search.search),
   }),
@@ -78,7 +80,8 @@ function CardsBrowserPage() {
           No cards match "{search}".
         </p>
       ) : (
-        <table className="mt-4 w-full table-fixed border-collapse text-sm">
+        <div className="mt-4 overflow-x-auto" data-testid="cards-browser-scroll">
+        <table className="w-full min-w-[32rem] table-fixed border-collapse text-sm">
           <thead>
             <tr className="border-b border-neutral-200 text-left text-xs uppercase tracking-wide text-neutral-400">
               <th className="w-1/3 py-2 pr-3">Question</th>
@@ -93,13 +96,14 @@ function CardsBrowserPage() {
                 data-testid={`cards-browser-row-${row.variantId}`}
                 className="border-b border-neutral-100 align-top"
               >
-                <td className="py-2 pr-3">{row.prompt}</td>
-                <td className="py-2 pr-3 text-neutral-600">{row.answer}</td>
-                <td className="py-2 text-neutral-500">{row.topicTitle}</td>
+                <td className="break-words py-2 pr-3">{row.prompt}</td>
+                <td className="break-words py-2 pr-3 text-neutral-600">{row.answer}</td>
+                <td className="break-words py-2 text-neutral-500">{row.topicTitle}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </main>
   )

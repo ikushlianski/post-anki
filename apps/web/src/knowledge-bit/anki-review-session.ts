@@ -24,6 +24,7 @@ export interface SessionEdit {
   replacesVariantId: string
   prompt: string
   answer: string
+  context?: string | null
 }
 
 export interface AnkiReviewSessionState {
@@ -34,6 +35,8 @@ export interface AnkiReviewSessionState {
   editingSince: number | null
   undo: SessionUndoEntry[]
   edits: Record<string, SessionEdit>
+  hidden: string[]
+  rehearsal: boolean
   tally: SessionTally | null
   view: 'reviewing' | 'summary'
   notice: string | null
@@ -43,7 +46,7 @@ export type AnkiReviewSessionAction =
   | { type: 'reveal' }
   | { type: 'advance'; now: number }
   | { type: 'refilled'; now: number }
-  | { type: 'acted'; entry: SessionUndoEntry; now: number; notice?: string }
+  | { type: 'acted'; entry: SessionUndoEntry; now: number; notice?: string; hide?: string[]; followUp?: ReviewCard | null }
   | { type: 'undone'; now: number }
   | { type: 'undoDropped'; notice: string }
   | { type: 'editStarted'; now: number }
@@ -61,6 +64,8 @@ export function initialAnkiReviewSession(now: number): AnkiReviewSessionState {
     editingSince: null,
     undo: [],
     edits: {},
+    hidden: [],
+    rehearsal: false,
     tally: null,
     view: 'reviewing',
     notice: null,
@@ -74,7 +79,21 @@ export function applyEdit(card: ReviewCard, edits: Record<string, SessionEdit>):
     return card
   }
 
-  return { ...card, variantId: edit.variantId, prompt: edit.prompt, answer: edit.answer }
+  return { ...card, variantId: edit.variantId, prompt: edit.prompt, answer: edit.answer, context: edit.context ?? null }
+}
+
+export function withoutGradedThisSession(cards: ReviewCard[], undo: SessionUndoEntry[]): ReviewCard[] {
+  const lastGrade = new Map<string, ReviewGrade>()
+
+  for (const entry of undo) {
+    if (entry.kind === 'grade') {
+      lastGrade.set(entry.card.knowledgeBitId, entry.grade)
+    }
+  }
+
+  const done = new Set([...lastGrade].filter(([, grade]) => grade !== 'again').map(([bit]) => bit))
+
+  return done.size > 0 ? cards.filter((card) => !done.has(card.knowledgeBitId)) : cards
 }
 
 function shiftTally(
@@ -99,6 +118,7 @@ function moveOn(state: AnkiReviewSessionState, now: number): AnkiReviewSessionSt
     front: state.front.slice(1),
     index: state.front.length > 0 ? state.index : state.index + 1,
     revealed: false,
+    rehearsal: false,
     shownAt: now,
     editingSince: null,
   }
@@ -114,14 +134,23 @@ export function ankiReviewSessionReducer(
     case 'advance':
       return { ...moveOn(state, action.now), notice: null }
     case 'refilled':
-      return { ...state, index: 0, revealed: false, shownAt: action.now }
-    case 'acted':
+      return { ...state, index: 0, hidden: [], revealed: false, shownAt: action.now }
+    case 'acted': {
+      const moved = moveOn(state, action.now)
+      const hide = action.hide ?? []
+      const kept = hide.length > 0 ? moved.front.filter((card) => !hide.includes(card.variantId)) : moved.front
+      const followUp = action.followUp ?? null
+
       return {
-        ...moveOn(state, action.now),
+        ...moved,
+        front: followUp ? [followUp, ...kept] : kept,
+        rehearsal: followUp !== null,
+        hidden: hide.length > 0 ? [...state.hidden, ...hide] : state.hidden,
         undo: [...state.undo, action.entry],
         tally: shiftTally(state.tally, action.entry.stamp, action.entry.card, 1),
         notice: action.notice ?? null,
       }
+    }
     case 'undone': {
       const entry = state.undo[state.undo.length - 1]
 
@@ -131,7 +160,9 @@ export function ankiReviewSessionReducer(
 
       return {
         ...state,
-        front: [entry.card, ...state.front.filter((card) => card.knowledgeBitId !== entry.card.knowledgeBitId)],
+        front: [entry.card, ...(state.rehearsal ? state.front.slice(1) : state.front).filter((card) => card.variantId !== entry.card.variantId)],
+        rehearsal: false,
+        hidden: state.hidden.filter((id) => id !== entry.card.variantId),
         undo: state.undo.slice(0, -1),
         tally: shiftTally(state.tally, entry.stamp, entry.card, -1),
         revealed: false,

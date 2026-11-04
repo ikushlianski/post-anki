@@ -2,8 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { AnkiReviewScreen } from '../knowledge-bit/anki-review-screen'
 import type { AnkiReviewScope } from '../knowledge-bit/anki-review-screen'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/knowledge/review')({
+  head: pageHead('Review'),
   validateSearch: (search: Record<string, unknown>): AnkiReviewScope => ({
     tagId: typeof search.tagId === 'string' ? search.tagId : undefined,
     topicId: typeof search.topicId === 'string' ? search.topicId : undefined,

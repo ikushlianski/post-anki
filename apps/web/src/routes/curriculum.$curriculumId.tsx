@@ -26,8 +26,10 @@ import { useHydrated } from '../shared/use-hydrated'
 import { listSubjects } from '../curriculum/api-client'
 import { getAdminSettings } from '../admin-settings/admin-settings.api'
 import { settle } from '../shared/load-result'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/curriculum/$curriculumId')({
+  head: pageHead('Curriculum'),
   component: CurriculumPage,
   loader: async ({ params, context }) => {
     // subjects/adminSettings don't depend on the curriculum detail fetch at

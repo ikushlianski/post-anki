@@ -6,11 +6,13 @@ import { AUTOSAVE_STATUS_TEXT, useAutoSave } from './knowledge-bit-review-autosa
 const FIELD_BASE_CLASS =
   'field-sizing-content w-full resize-none rounded-md bg-neutral-100/70 px-3 py-2 leading-relaxed placeholder:text-neutral-400 hover:bg-neutral-100 focus:bg-white focus:outline-2 focus:outline-neutral-300'
 
-export type ReviewFieldSize = 'normal' | 'large' | 'small'
+export type ReviewFieldSize = 'normal' | 'medium' | 'large' | 'xlarge' | 'small'
 
 const FIELD_SIZE_CLASS: Record<ReviewFieldSize, string> = {
   normal: 'text-sm text-neutral-900',
+  medium: 'text-lg text-neutral-900',
   large: 'text-xl text-neutral-900',
+  xlarge: 'text-2xl text-neutral-900',
   small: 'text-xs text-neutral-600',
 }
 
@@ -73,11 +75,13 @@ export function KnowledgeBitReviewCardFields({
 }: {
   variant: PendingKnowledgeBitQuestionVariant
   prominent?: boolean
-  onSave: (variantId: string, prompt: string, answer: string) => Promise<boolean>
+  onSave: (variantId: string, prompt: string, answer: string, context?: string | null) => Promise<boolean>
   onBusyChange: (busy: boolean) => void
 }) {
+  const contextId = useId()
   const promptId = useId()
   const answerId = useId()
+  const contextRef = useRef<HTMLTextAreaElement>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
   const answerRef = useRef<HTMLTextAreaElement>(null)
   const variantId = useRef(variant.id)
@@ -85,33 +89,44 @@ export function KnowledgeBitReviewCardFields({
   variantId.current = variant.id
 
   const status = useAutoSave({
-    initial: { prompt: variant.prompt, answer: variant.answer },
+    initial: { context: variant.context ?? '', prompt: variant.prompt, answer: variant.answer },
     read: () => ({
+      context: contextRef.current?.value ?? variant.context ?? '',
       prompt: promptRef.current?.value ?? variant.prompt,
       answer: answerRef.current?.value ?? variant.answer,
     }),
     isValid: (fields) => fields.prompt.trim().length > 0 && fields.answer.trim().length > 0,
-    save: (fields) => onSave(variantId.current, fields.prompt.trim(), fields.answer.trim()),
+    save: (fields) => onSave(variantId.current, fields.prompt.trim(), fields.answer.trim(), fields.context.trim()),
     onBusyChange,
   })
 
   return (
     <div data-testid={`knowledge-bit-review-variant-${variant.id}`} className="space-y-3">
       <ReviewField
+        id={contextId}
+        label="Context"
+        testId={`knowledge-bit-review-edit-context-${variant.id}`}
+        defaultValue={variant.context ?? ''}
+        placeholder="Optional: who is speaking, and to whom"
+        fieldRef={contextRef}
+        size="small"
+      />
+      <ReviewField
         id={promptId}
-        label="Front"
+        label="Question"
         testId={`knowledge-bit-review-edit-prompt-${variant.id}`}
         defaultValue={variant.prompt}
         fieldRef={promptRef}
-        size={prominent ? 'large' : 'normal'}
+        size={prominent ? 'xlarge' : 'normal'}
         strong
       />
       <ReviewField
         id={answerId}
-        label="Back"
+        label="Answer"
         testId={`knowledge-bit-review-edit-answer-${variant.id}`}
         defaultValue={variant.answer}
         fieldRef={answerRef}
+        size={prominent ? 'medium' : 'normal'}
       />
       <StatusLine status={status} testId={`knowledge-bit-review-autosave-status-${variant.id}`} />
     </div>
@@ -146,7 +161,7 @@ export function KnowledgeBitReviewExampleField({
     <div className="space-y-1">
       <ReviewField
         id={id}
-        label="Example"
+        label="Examples"
         testId={`knowledge-bit-review-edit-example-${bitId}`}
         defaultValue={example}
         placeholder="Optional: an example that helps to remember it"

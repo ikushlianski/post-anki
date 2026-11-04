@@ -71,7 +71,7 @@ function OpenQuestionRow({
             onChange={(event) => setAnswerText(event.target.value)}
             placeholder="Answer this…"
             data-testid={`open-question-answer-input-${question.id}`}
-            className="min-h-[3rem] rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
+            className="min-h-[44px] sm:min-h-[3rem] rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
           />
           <div className="flex gap-2">
             <button
@@ -79,7 +79,7 @@ function OpenQuestionRow({
               disabled={busy || answerText.trim().length === 0}
               onClick={() => resolve('answered')}
               data-testid={`open-question-answer-submit-${question.id}`}
-              className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50"
+              className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
             >
               Answer
             </button>
@@ -88,7 +88,7 @@ function OpenQuestionRow({
               disabled={busy}
               onClick={() => resolve('dismissed')}
               data-testid={`open-question-dismiss-${question.id}`}
-              className="text-xs text-neutral-400 hover:text-neutral-700"
+              className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-xs text-neutral-400 hover:text-neutral-700"
             >
               Not needed
             </button>
@@ -141,7 +141,7 @@ export function OpenQuestionsList() {
           type="button"
           data-testid="open-questions-filter-open"
           onClick={() => setView('open')}
-          className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+          className={`min-h-[44px] rounded-md px-2.5 py-1 text-xs font-medium sm:min-h-0 ${
             view === 'open' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
           }`}
         >
@@ -151,7 +151,7 @@ export function OpenQuestionsList() {
           type="button"
           data-testid="open-questions-filter-history"
           onClick={() => setView('history')}
-          className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+          className={`min-h-[44px] rounded-md px-2.5 py-1 text-xs font-medium sm:min-h-0 ${
             view === 'history' ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
           }`}
         >

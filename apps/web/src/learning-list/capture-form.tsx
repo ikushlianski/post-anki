@@ -47,9 +47,14 @@ export function CaptureForm({
       pastedDescription: trimmed === '' ? null : trimmed,
       subjectId,
       subSubjectNodeId: null,
-    })
+    }).catch(() => null)
 
     setBusy(false)
+
+    if (!result) {
+      setError('Could not add that — try again.')
+      return
+    }
 
     if (!result.ok) {
       setError(captureErrorMessage(result.code, result.message))

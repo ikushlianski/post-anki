@@ -1,8 +1,10 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 
 import { CardPanel } from '../curriculum/card-panel'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/cards/$topicId')({
+  head: pageHead('Cards'),
   component: CardsPage,
 })
 

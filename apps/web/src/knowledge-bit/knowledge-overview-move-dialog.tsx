@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
+import { useRestoreFocus } from '../shared/use-restore-focus'
 import { SearchableSelect, type SearchableOption } from '../ui/searchable-select'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
@@ -21,6 +22,7 @@ export function KnowledgeOverviewMoveDialog({
   onConfirm,
   onCancel,
 }: KnowledgeOverviewMoveDialogProps) {
+  useRestoreFocus()
   const confirmRef = useRef<HTMLButtonElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [subjectId, setSubjectId] = useState('')

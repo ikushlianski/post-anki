@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 describe('useKnowledgeBrowserRows', () => {
-  it('should send the filters with the subject and report the total of matching pieces', async () => {
+  it('should send the filters with the subject and report the total of matching cards', async () => {
     list.mockResolvedValue({ ok: true, items: [], hasMore: false, total: 7 })
 
     const { result } = renderHook(

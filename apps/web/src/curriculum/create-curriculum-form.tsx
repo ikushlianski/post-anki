@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useRouter } from '@tanstack/react-router'
 
+import { ActionFailedLine } from './action-failed-line'
 import { createCurriculum } from './curriculum.api'
 import { SourceRowsEditor } from './source-rows-editor'
+import { useGuardedRun } from './use-guarded-run'
 import { useSourceRows } from './use-source-rows'
 
 export function CreateCurriculumForm({
@@ -26,11 +27,10 @@ export function CreateCurriculumForm({
   toggleTestId?: string
   toggleClassName?: string
 }) {
-  const router = useRouter()
+  const { busy, failed, run } = useGuardedRun()
   const sourceRows = useSourceRows()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
 
   function reset() {
     setName('')
@@ -48,13 +48,12 @@ export function CreateCurriculumForm({
       return
     }
 
-    setBusy(true)
-    await createCurriculum({
-      data: { subjectId, name: name.trim(), sources: drafts, domainNodeId },
+    await run(async () => {
+      await createCurriculum({
+        data: { subjectId, name: name.trim(), sources: drafts, domainNodeId },
+      })
+      reset()
     })
-    setBusy(false)
-    reset()
-    await router.invalidate()
   }
 
   if (!open) {
@@ -78,6 +77,7 @@ export function CreateCurriculumForm({
       <input
         value={name}
         onChange={(event) => setName(event.target.value)}
+        aria-label="Curriculum name"
         placeholder="Curriculum name…"
         autoFocus
         data-testid="curriculum-name-input"
@@ -113,6 +113,7 @@ export function CreateCurriculumForm({
         >
           Cancel
         </button>
+        <ActionFailedLine failed={failed} testId="curriculum-create-error" />
       </div>
     </form>
   )

@@ -36,8 +36,8 @@ export function ModelTierSelect({
             onClick={() => onChange(tier)}
             className={
               value === tier
-                ? 'rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50'
-                : 'rounded-full px-3 py-1 text-xs font-medium text-neutral-600 hover:text-neutral-900 disabled:opacity-50'
+                ? 'min-h-[44px] rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50 sm:min-h-0'
+                : 'min-h-[44px] rounded-full px-3 py-1 text-xs font-medium text-neutral-600 hover:text-neutral-900 disabled:opacity-50 sm:min-h-0'
             }
           >
             {MODEL_TIER_LABEL[tier]}

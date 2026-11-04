@@ -1,8 +1,10 @@
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 
 import { Decide } from '../decide/decide'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/decide')({
+  head: pageHead('Decide'),
   component: DecidePage,
 })
 

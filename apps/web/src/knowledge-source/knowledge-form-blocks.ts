@@ -4,6 +4,7 @@ export interface Block {
   type: BlockType
   value: string
   force?: boolean
+  targetPhrases?: string[]
 }
 
 export function emptyBlock(): Block {
@@ -32,4 +33,20 @@ export function remapByPosition<T>(
       return value ? [[position, value]] : []
     }),
   )
+}
+
+export const LINK_ERROR_MESSAGE = 'Enter a full link starting with https://'
+
+export function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value.trim()).protocol
+
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+export function hasInvalidLink(blocks: { type: BlockType; value: string }[]): boolean {
+  return blocks.some((block) => block.type === 'url' && block.value.trim() !== '' && !isHttpUrl(block.value))
 }

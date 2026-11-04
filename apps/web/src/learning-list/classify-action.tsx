@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { SearchableSelect } from '../ui/searchable-select'
 
 import type { ApiResult } from './learning-list.model'
+import { learningErrorMessage } from './learning-error'
 
 export interface ClassifyActionProps {
   itemId: string
@@ -33,7 +34,7 @@ export function ClassifyAction({
     setBusy(false)
 
     if (!result.ok) {
-      setError(`Classification did not run (${result.code}).`)
+      setError(learningErrorMessage(result.code))
       return
     }
 

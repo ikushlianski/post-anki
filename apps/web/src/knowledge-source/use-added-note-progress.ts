@@ -6,7 +6,7 @@ import {
 } from '../knowledge-bit/knowledge-bit-review.api'
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 
-import { isNoteActive, resolveDoneNote, resolveFailedNote } from './added-note-progress'
+import { isNoteActive, resolveFailedNote, resolveFinishedNote } from './added-note-progress'
 import type { AddedNote } from './added-note-progress'
 import type { AddedSource } from './submit-knowledge-blocks'
 
@@ -22,8 +22,10 @@ async function resolveNote(note: AddedNote, loadGroups: LoadGroups) {
     return resolveFailedNote(note, status)
   }
 
-  if (status.status === 'done') {
-    return resolveDoneNote(note, await loadGroups())
+  if (status.status === 'done' || status.status === 'nothing_extracted') {
+    const outcome = status.outcome ?? (status.status === 'nothing_extracted' ? 'nothing' : undefined)
+
+    return resolveFinishedNote(note, status, outcome === 'nothing' ? [] : await loadGroups())
   }
 
   return note.phase === 'working' ? note : { ...note, phase: 'working' as const }

@@ -87,20 +87,20 @@ export function ItemFeedbackButtons({
             onChange={(event) => setComment(event.target.value)}
             placeholder="What should change next time? (optional)"
             data-testid={`feedback-comment-input-${itemId}`}
-            className="flex-1 rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
+            className="min-h-[44px] flex-1 rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none sm:min-h-0 focus:border-neutral-400"
           />
           <button
             type="submit"
             disabled={mutation.isPending}
             data-testid={`feedback-comment-submit-${itemId}`}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50"
+            className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:border-neutral-500 disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
           >
             Save
           </button>
           <button
             type="button"
             onClick={closePopover}
-            className="text-xs text-neutral-400 hover:text-neutral-700"
+            className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 text-xs text-neutral-400 hover:text-neutral-700"
           >
             Close
           </button>
@@ -115,7 +115,7 @@ export function ItemFeedbackButtons({
 }
 
 function thumbClass(active: boolean): string {
-  const base = 'rounded-md border px-2 py-1 text-sm transition-colors disabled:opacity-50'
+  const base = 'rounded-md border px-2 py-1 text-sm transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0'
 
   return active
     ? `${base} border-neutral-500 bg-neutral-100`

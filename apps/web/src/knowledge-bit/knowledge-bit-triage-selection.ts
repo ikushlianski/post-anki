@@ -2,12 +2,16 @@ import type { PendingKnowledgeBitQuestionVariant } from "@post-anki/shared";
 
 export const TRIAGE_MAX_SHOWN = 9;
 
-const KIND_PREFERENCE = ["basic", "fill_in_the_blank", "wh_question"];
+const KIND_PREFERENCE = ["basic", "cloze", "fill_in_the_blank", "wh_question", "list_overview", "list_step", "list_next"];
 
 const KIND_LABELS: Record<string, string> = {
   wh_question: "Question",
   fill_in_the_blank: "Fill in the gap",
   basic: "Basic",
+  cloze: "Cloze gap",
+  list_step: "List step",
+  list_next: "Next step",
+  list_overview: "List overview",
 };
 
 type Variant = Pick<PendingKnowledgeBitQuestionVariant, "id" | "kind">;

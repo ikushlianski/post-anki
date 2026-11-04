@@ -47,6 +47,7 @@ function serveCards(initial: SuspendedCard[]) {
       knowledgeBitId: data.knowledgeBitId,
       suspended: false,
       buriedUntil: null,
+      cardKey: null,
       leech: false,
     }
   })
@@ -55,6 +56,15 @@ function serveCards(initial: SuspendedCard[]) {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+})
+
+describe('Suspended cards loading', () => {
+  it('should announce the loading text to screen readers', () => {
+    mockedList.mockReturnValue(new Promise(() => {}))
+    renderPage()
+
+    expect(screen.getByTestId('suspended-cards-loading').getAttribute('role')).toBe('status')
+  })
 })
 
 describe('SuspendedCardsPage', () => {
@@ -83,6 +93,19 @@ describe('SuspendedCardsPage', () => {
     expect(screen.getByTestId(`suspended-card-badge-${buriedCard.knowledgeBitId}`).textContent).toMatch(
       /^Buried until /,
     )
+  })
+
+  it('should show a card context above its question and no context line when the card has none', async () => {
+    serveCards([{ ...leechCard, context: 'During a long study session' }, suspendedByHandCard])
+
+    renderPage()
+
+    const context = await screen.findByTestId(`suspended-card-context-${leechCard.knowledgeBitId}`)
+    const question = screen.getByTestId(`suspended-card-question-${leechCard.knowledgeBitId}`)
+
+    expect(context.textContent).toBe('During a long study session')
+    expect(context.compareDocumentPosition(question) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.queryByTestId(`suspended-card-context-${suspendedByHandCard.knowledgeBitId}`)).toBeNull()
   })
 
   it('should show the empty state when nothing is suspended or buried', async () => {

@@ -18,10 +18,12 @@ import { ProbeAnswer } from '../curriculum/probe-answer'
 import { listOpenQuestions } from '../open-questions/open-questions.api'
 import { NudgePanel } from '../learning-list/nudge-panel'
 import { respondToNudge } from '../learning-list/learning-list.api'
+import { pageHead } from '../shared/page-title'
 
 const OPEN_QUESTIONS_BANNER_LIMIT = 3
 
 export const Route = createFileRoute('/today')({
+  head: pageHead('Today'),
   validateSearch: (search: Record<string, unknown>): { mode: QuestionKind } => ({
     mode: search.mode === 'quick_test' ? 'quick_test' : 'socratic',
   }),

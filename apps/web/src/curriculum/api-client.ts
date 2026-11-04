@@ -1,5 +1,5 @@
 import type * as be from '@post-anki/shared'
-import { takeRecentChatMessages } from '@post-anki/shared'
+import { pendingReviewListWithTotalResponse, takeRecentChatMessages } from '@post-anki/shared'
 import type {
   AttemptResult,
   Concern,
@@ -34,6 +34,7 @@ import type {
   TopicCardSet,
   TopicProgress,
 } from './model'
+import { requestTimeoutMs } from './request-timeouts'
 
 const DEFAULT_API_BASE_URL = 'http://localhost:5560'
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
@@ -120,7 +121,7 @@ export class ApiError extends Error {
 
 export async function request<T>(
   path: string,
-  init?: { method?: string; body?: unknown; signal?: AbortSignal },
+  init?: { method?: string; body?: unknown; signal?: AbortSignal; timeoutMs?: number },
 ): Promise<T> {
   const base = apiBaseUrl()
 
@@ -128,12 +129,25 @@ export async function request<T>(
     throw new Error('API_BASE_URL is not configured')
   }
 
-  const response = await fetch(`${base}${path}`, {
-    method: init?.method ?? 'GET',
-    headers: authHeaders(),
-    body: init?.body === undefined ? undefined : JSON.stringify(init.body),
-    signal: init?.signal,
-  })
+  const timeout = AbortSignal.timeout(init?.timeoutMs ?? requestTimeoutMs(path, init?.method))
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+
+  let response: Response
+
+  try {
+    response = await fetch(`${base}${path}`, {
+      method: init?.method ?? 'GET',
+      headers: authHeaders(),
+      body: init?.body === undefined ? undefined : JSON.stringify(init.body),
+      signal,
+    })
+  } catch (error) {
+    if (timeout.aborted && !init?.signal?.aborted) {
+      throw new ApiError(504, 'timeout', `api ${init?.method ?? 'GET'} ${path} timed out`)
+    }
+
+    throw error
+  }
 
   if (!response.ok) {
     const errorBody = await response
@@ -465,53 +479,19 @@ export async function resolveDomainSupersessionSuggestion(
   )
 }
 
-// review-placement-suggestions additions below.
-
-export async function listPendingPlacementSuggestions(): Promise<be.PendingPlacementSuggestion[]> {
-  return request<be.PendingPlacementSuggestion[]>('/knowledge-bits/placement-suggestions')
-}
-
-export type ResolvePlacementSuggestionResult =
-  | { outcome: 'accepted'; topicId: string }
-  | { outcome: 'rejected' }
-  | { outcome: 'already_resolved' }
-
-// Same 409-as-outcome translation as resolveDocScanSuggestion above — the
-// second tab or a double-click reading `already_resolved` is a decided row,
-// not a failure, so the panel should drop it exactly like a 200.
-export async function resolvePlacementSuggestion(
-  bitId: string,
-  status: 'accepted' | 'rejected',
-  moduleId?: string,
-  title?: string,
-): Promise<ResolvePlacementSuggestionResult> {
-  try {
-    const body =
-      status === 'accepted' ? { status, moduleId, title } : { status }
-
-    const result = await request<{ outcome: 'accepted'; topicId: string } | { outcome: 'rejected' }>(
-      `/knowledge-bits/${bitId}/placement-suggestion`,
-      { method: 'PATCH', body },
-    )
-
-    return result
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 409 && err.code === 'already_resolved') {
-      return { outcome: 'already_resolved' }
-    }
-
-    throw err
-  }
-}
-
 // ki-approval-gate (review screen) additions below.
 
 export async function listPendingKnowledgeBitsForReview(
   options: { attention?: boolean } = {},
-): Promise<be.PendingKnowledgeSourceForReview[]> {
-  return request<be.PendingKnowledgeSourceForReview[]>(
-    options.attention ? '/knowledge-bits/pending-review?attention=1' : '/knowledge-bits/pending-review',
-  )
+): Promise<be.PendingReviewListWithTotal<be.PendingKnowledgeSourceForReview>> {
+  const query = options.attention ? 'attention=1&includeTotal=1' : 'includeTotal=1'
+  const body = await request<unknown>(`/knowledge-bits/pending-review?${query}`)
+  const parsed = pendingReviewListWithTotalResponse.parse(body)
+
+  return {
+    items: parsed.items as be.PendingKnowledgeSourceForReview[],
+    total: parsed.total,
+  }
 }
 
 export async function approveKnowledgeBit(bitId: string): Promise<{ ok: true }> {
@@ -589,10 +569,29 @@ export async function editKnowledgeBitQuestionVariant(
   variantId: string,
   prompt: string,
   answer: string,
+  context?: string | null,
 ): Promise<{ ok: true; variantId: string }> {
   return request<{ ok: true; variantId: string }>(
     `/knowledge-bits/question-variants/${variantId}`,
-    { method: 'PATCH', body: { prompt, answer } },
+    { method: 'PATCH', body: context === undefined ? { prompt, answer } : { prompt, answer, context } },
+  )
+}
+
+export interface EditedNoteCard {
+  id: string
+  kind?: string
+  order: number
+  prompt: string
+  answer: string
+}
+
+export async function editKnowledgeBitNote(
+  variantId: string,
+  input: { note: string } | { list: string },
+): Promise<{ ok: true; variantId: string; cards: EditedNoteCard[] }> {
+  return request<{ ok: true; variantId: string; cards: EditedNoteCard[] }>(
+    `/knowledge-bits/question-variants/${variantId}`,
+    { method: 'PATCH', body: input },
   )
 }
 
@@ -692,11 +691,15 @@ export async function regenerateKnowledgeSource(
   sourceId: string,
   modelId?: be.KnowledgeItemModelId,
   text?: string,
+  forceAtLeastOne?: boolean,
 ): Promise<RegenerateKnowledgeSourceOutcome> {
   try {
     return await request<be.RegenerateKnowledgeSourceResult>(
       `/knowledge-sources/${sourceId}/regeneration`,
-      { method: 'POST', body: { ...(modelId ? { modelId } : {}), ...(text ? { text } : {}) } },
+      { method: 'POST', body: { ...(modelId ? { modelId } : {}), ...(text ? { text } : {}),
+          ...(forceAtLeastOne ? { forceAtLeastOne } : {}),
+        },
+      },
     )
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
@@ -785,10 +788,11 @@ export async function createKnowledgeSource(
   subjectId?: string,
   modelId?: string,
   force?: boolean,
+  targetPhrases?: string[],
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { text, subjectId, modelId, force },
+    body: { text, subjectId, modelId, force, targetPhrases },
   })
 }
 
@@ -797,10 +801,11 @@ export async function createKnowledgeSources(
   subjectId?: string,
   modelId?: string,
   force?: boolean,
+  targetPhrases?: string[],
 ): Promise<KnowledgeSource[]> {
   return request<KnowledgeSource[]>('/knowledge-sources', {
     method: 'POST',
-    body: { texts, subjectId, modelId, force },
+    body: { texts, subjectId, modelId, force, targetPhrases },
   })
 }
 
@@ -809,10 +814,11 @@ export async function createKnowledgeSourceFromUrl(
   subjectId?: string,
   modelId?: string,
   force?: boolean,
+  targetPhrases?: string[],
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { url, subjectId, modelId, force },
+    body: { url, subjectId, modelId, force, targetPhrases },
   })
 }
 
@@ -1897,6 +1903,7 @@ export async function askKnowledgeBitChat(
           message: input.message,
           transcript: takeRecentChatMessages(input.transcript),
           allowGeneralKnowledge: input.allowGeneralKnowledge,
+          clientMessageId: input.clientMessageId,
         },
       },
     )
@@ -2080,6 +2087,28 @@ export async function mergeTags(
   })
 }
 
+export type RenameTagResult =
+  | { ok: true; tag: Tag }
+  | { ok: false; reason: 'name_taken' }
+
+export async function renameTag(tagId: string, name: string): Promise<RenameTagResult> {
+  try {
+    const tag = await request<be.Tag>(`/tags/${tagId}`, { method: 'PATCH', body: { name } })
+
+    return { ok: true, tag: mapTag(tag) }
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      return { ok: false, reason: 'name_taken' }
+    }
+
+    throw error
+  }
+}
+
+export async function deleteTag(tagId: string): Promise<void> {
+  await request(`/tags/${tagId}`, { method: 'DELETE' })
+}
+
 export async function gatherLectureSources(
   topicId: string,
 ): Promise<LectureSourceCandidate[]> {
@@ -2144,17 +2173,21 @@ export async function getCards(topicId: string): Promise<TopicCardSet | null> {
   }
 }
 
-export async function getAdminSettings(): Promise<be.AdminSettings> {
-  return request<be.AdminSettings>('/admin/settings')
+export async function getAdminSettings(): Promise<be.AdminSettingsResponse> {
+  return request<be.AdminSettingsResponse>('/admin/settings')
 }
 
 export async function updateAdminSettings(
   input: be.UpdateAdminSettingsInput,
-): Promise<be.AdminSettings> {
-  return request<be.AdminSettings>('/admin/settings', {
+): Promise<be.AdminSettingsResponse> {
+  return request<be.AdminSettingsResponse>('/admin/settings', {
     method: 'PATCH',
     body: input,
   })
+}
+
+export async function getChatUsage(): Promise<be.ChatUsage> {
+  return request<be.ChatUsage>('/admin/chat-usage')
 }
 
 export async function getAdminObservability(): Promise<be.AdminObservability> {

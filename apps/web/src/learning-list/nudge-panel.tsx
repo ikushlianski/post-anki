@@ -32,11 +32,11 @@ export function NudgePanel({ nudge, onRespond, onResponded }: NudgePanelProps) {
       entityType: nudge.entityType,
       entityId: nudge.entityId,
       response,
-    })
+    }).catch(() => null)
 
     setBusy(false)
 
-    if (!result.ok) {
+    if (!result?.ok) {
       setError('That answer was not recorded — try again.')
       return
     }

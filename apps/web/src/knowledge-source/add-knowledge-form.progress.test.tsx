@@ -110,6 +110,14 @@ describe('AddKnowledgeForm outcome feedback', () => {
     expect(listener).toHaveBeenCalledTimes(1)
   })
 
+  it('announces the success line and the per-note progress to screen readers', async () => {
+    mockedStatus.mockResolvedValue({ status: 'running', failureReason: null })
+    await addNote()
+
+    expect(screen.getByTestId('knowledge-success-message').getAttribute('role')).toBe('status')
+    expect(screen.getByTestId('knowledge-added-notes').getAttribute('role')).toBe('status')
+  })
+
   it('shows the note as queued, then working while the AI runs', async () => {
     mockedStatus.mockResolvedValue({ status: 'running', failureReason: null })
     await addNote()
@@ -134,7 +142,7 @@ describe('AddKnowledgeForm outcome feedback', () => {
     await tick()
     window.removeEventListener(PENDING_REVIEW_CHANGED_EVENT, listener)
 
-    expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toContain('Ready with 2 cards')
+    expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toContain('2 cards created')
     expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toContain('1 of them need a manual check')
     expect(listener).toHaveBeenCalled()
   })
@@ -146,7 +154,7 @@ describe('AddKnowledgeForm outcome feedback', () => {
 
     const text = screen.getByTestId('knowledge-added-note-status-ks_1').textContent ?? ''
 
-    expect(text).toContain('Needs attention')
+    expect(text).toContain('Extraction failed, retry')
     expect(text).toContain('The AI could not produce a usable card from this note.')
     expect(text).not.toContain('no_valid_items')
     expect(screen.getByTestId('knowledge-added-note-link-ks_1').getAttribute('href')).toBe('/knowledge-bit-review')
@@ -159,6 +167,54 @@ describe('AddKnowledgeForm outcome feedback', () => {
     await tick()
 
     expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toContain('found nothing')
+  })
+
+  it('shows a neutral nothing-worth-keeping line when extraction found nothing', async () => {
+    mockedStatus.mockResolvedValue({ status: 'nothing_extracted', failureReason: null })
+    mockedGroups.mockResolvedValue([
+      {
+        knowledgeSourceId: 'ks_1',
+        sourceText: null,
+        subjectName: null,
+        bits: [],
+        attention: { knowledgeSourceId: 'ks_1', kind: 'nothing_extracted', reason: null, firstWords: 'hi', sourceText: null, since: '2026-10-28T00:00:00Z' },
+      },
+    ])
+    await addNote()
+    await tick()
+
+    const text = screen.getByTestId('knowledge-added-note-status-ks_1').textContent ?? ''
+
+    expect(text).toContain('Nothing worth keeping in this note')
+    expect(text).not.toContain('Extraction failed')
+  })
+
+  it('shows the neutral line from the status alone when triage has no entry for the note', async () => {
+    mockedStatus.mockResolvedValue({ status: 'nothing_extracted', failureReason: null, outcome: 'nothing', cardCount: 0 })
+    mockedGroups.mockResolvedValue([])
+    await addNote()
+    await tick()
+
+    expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toBe('Nothing worth keeping in this note')
+    expect(screen.getByTestId('knowledge-added-note-ks_1').className).not.toContain('amber')
+  })
+
+  it('reports all created cards even after some were approved or rejected', async () => {
+    mockedStatus.mockResolvedValue({ status: 'done', failureReason: null, outcome: 'cards', cardCount: 4 })
+    mockedGroups.mockResolvedValue([{ knowledgeSourceId: 'ks_1', sourceText: null, subjectName: null, bits: [bit('a')] }])
+    await addNote()
+    await tick()
+
+    expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toContain('4 cards created')
+  })
+
+  it('says 1 card created for a single card', async () => {
+    mockedStatus.mockResolvedValue({ status: 'done', failureReason: null, outcome: 'cards', cardCount: 1 })
+    mockedGroups.mockResolvedValue([{ knowledgeSourceId: 'ks_1', sourceText: null, subjectName: null, bits: [bit('a')] }])
+    await addNote()
+    await tick()
+
+    expect(screen.getByTestId('knowledge-added-note-status-ks_1').textContent).toContain('1 card created')
   })
 
   it('keeps the form usable and the note queued when the status read fails', async () => {

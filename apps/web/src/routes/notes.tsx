@@ -7,12 +7,14 @@ import { NotesBrowser } from '../note/notes-browser'
 import type { NotesSearchUrlState } from '../note/note-search-params'
 import { reviewNote, searchNotes } from '../note/note.api'
 import { searchParamString } from '../shared/search-param-string'
+import { pageHead } from '../shared/page-title'
 
 function isConcern(value: unknown): value is Concern {
   return typeof value === 'string' && (CONCERNS as readonly string[]).includes(value)
 }
 
 export const Route = createFileRoute('/notes')({
+  head: pageHead('Notes'),
   validateSearch: (search: Record<string, unknown>): NotesSearchUrlState => ({
     tab: search.tab === 'review' ? 'review' : 'search',
     query: searchParamString(search.query),

@@ -62,11 +62,11 @@ describe('KnowledgeBrowserMeaningSearch', () => {
     expect((screen.getByTestId('meaning-search-input') as HTMLInputElement).value).toBe('heart')
   })
 
-  it('should tell how many matching pieces are not ready and are not included', () => {
+  it('should tell how many matching cards are not ready and are not included', () => {
     renderSearch({ notReadyCount: 4 })
 
     expect(screen.getByTestId('meaning-status-not-ready').textContent).toBe(
-      '4 pieces are not ready for meaning search and are not included',
+      '4 cards are not ready for meaning search and are not included',
     )
   })
 
@@ -76,34 +76,34 @@ describe('KnowledgeBrowserMeaningSearch', () => {
     expect(screen.getByTestId('meaning-status-capped').textContent).toContain('closest 100')
   })
 
-  it('should say nothing is close when ready pieces exist but none is near', () => {
+  it('should say nothing is close when ready cards exist but none is near', () => {
     renderSearch({ readyCount: 8 })
 
     expect(screen.getByTestId('meaning-status-nothing-close').textContent).toBe(MEANING_MESSAGES.nothingClose)
   })
 
-  it('should say no piece is ready when nothing in scope has meaning data', () => {
+  it('should say no card is ready when nothing in scope has meaning data', () => {
     renderSearch({ readyCount: 0, notReadyCount: 3 })
 
     expect(screen.getByTestId('meaning-status-nothing-ready').textContent).toBe(MEANING_MESSAGES.nothingReady)
     expect(screen.queryByTestId('meaning-status-not-ready')).toBeNull()
   })
 
-  it('should say the search is paused until tomorrow when the daily limit is reached, without a retry', () => {
+  it('should say the search is paused until tomorrow when the daily limit is reached, with a retry', () => {
     renderSearch({ status: 'error', errorCode: 'llm_budget_exceeded' })
 
     expect(screen.getByTestId('meaning-status-error').textContent).toContain(MEANING_MESSAGES.budget)
-    expect(screen.queryByTestId('meaning-retry')).toBeNull()
+    expect(screen.getByTestId('meaning-retry')).toBeTruthy()
   })
 
-  it('should ask to wait when searches come too fast, without a retry', () => {
+  it('should ask to wait when searches come too fast, with a retry', () => {
     renderSearch({ status: 'error', errorCode: 'search_rate_limited' })
 
     expect(screen.getByTestId('meaning-status-error').textContent).toContain(MEANING_MESSAGES.rateLimited)
-    expect(screen.queryByTestId('meaning-retry')).toBeNull()
+    expect(screen.getByTestId('meaning-retry')).toBeTruthy()
   })
 
-  it('should offer a retry only after a service failure', () => {
+  it('should offer a retry after a service failure', () => {
     const { matches } = renderSearch({ status: 'error', errorCode: 'embedding_failed' })
 
     expect(screen.getByTestId('meaning-status-error').textContent).toContain(MEANING_MESSAGES.failed)
@@ -117,7 +117,7 @@ describe('KnowledgeBrowserMeaningSearch', () => {
     renderSearch({ status: 'error', errorCode: 'boom' })
 
     expect(screen.getByTestId('meaning-status-error').textContent).toContain(MEANING_MESSAGES.unknown)
-    expect(screen.queryByTestId('meaning-retry')).toBeNull()
+    expect(screen.getByTestId('meaning-retry')).toBeTruthy()
   })
 
   it('should retry on a repeated Enter with the same words only after a refusal', () => {

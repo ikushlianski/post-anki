@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import {
   clampNewCardsPerDay,
   MAX_NEW_CARDS_PER_DAY,
@@ -12,6 +12,7 @@ export function NewCardsPerDayField({
   onChange,
   disabled,
   testId,
+  hint,
 }: {
   label: string
   description: string
@@ -19,8 +20,10 @@ export function NewCardsPerDayField({
   onChange: (next: number) => void | Promise<boolean>
   disabled?: boolean
   testId?: string
+  hint?: ReactNode
 }) {
   const [draft, setDraft] = useState(String(value))
+  const inputId = useId()
 
   async function commit() {
     const parsed = draft.trim() === '' ? NaN : Number(draft)
@@ -43,13 +46,14 @@ export function NewCardsPerDayField({
       className="flex items-center justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-4"
     >
       <div className="min-w-0">
-        <label htmlFor={testId} className="text-sm font-medium">
+        <label htmlFor={inputId} className="text-sm font-medium">
           {label}
         </label>
         <p className="mt-0.5 text-xs text-neutral-400">{description}</p>
+        {hint}
       </div>
       <input
-        id={testId}
+        id={inputId}
         type="number"
         inputMode="numeric"
         min={MIN_NEW_CARDS_PER_DAY}
@@ -62,7 +66,7 @@ export function NewCardsPerDayField({
         onKeyDown={(event) => {
           if (event.key === 'Enter') void commit()
         }}
-        className="w-20 shrink-0 rounded-md border border-neutral-300 px-2 py-1 text-right text-sm disabled:opacity-50"
+        className="min-h-[44px] w-20 shrink-0 rounded-md border border-neutral-300 px-2 py-1 text-right text-sm disabled:opacity-50 sm:min-h-0"
       />
     </div>
   )

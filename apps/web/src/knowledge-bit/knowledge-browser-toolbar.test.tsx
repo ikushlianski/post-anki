@@ -147,7 +147,7 @@ describe('KnowledgeBrowserToolbar filters', () => {
   it('should show the whole matching count, not the loaded rows', () => {
     renderToolbar({ filters: { question: 'pod' } })
 
-    expect(screen.getByTestId('knowledge-browser-total').textContent).toBe('12 matching pieces')
+    expect(screen.getByTestId('knowledge-browser-total').textContent).toBe('12 matching cards')
   })
 
   it('should remove only the clicked filter and clear everything with Clear all', () => {
@@ -244,7 +244,7 @@ describe('KnowledgeBrowserToolbar columns', () => {
 })
 
 describe('KnowledgeBrowserToolbar selection', () => {
-  it('should say how many selected pieces a filter change unselected', () => {
+  it('should say how many selected cards a filter change unselected', () => {
     const view = renderToolbar()
 
     fireEvent.click(screen.getByText('select all rows'))
@@ -252,7 +252,7 @@ describe('KnowledgeBrowserToolbar selection', () => {
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('2 selected')
     expect(screen.getByTestId('knowledge-browser-unselected-note').textContent).toBe(
-      '1 selected piece is hidden by the filters and was unselected',
+      '1 selected card is hidden by the filters and was unselected',
     )
   })
 
@@ -266,8 +266,8 @@ describe('KnowledgeBrowserToolbar selection', () => {
     expect(screen.queryByTestId('knowledge-browser-unselected-note')).toBeNull()
   })
 
-  it('should word the note for several pieces', () => {
-    expect(unselectedNote(3)).toBe('3 selected pieces are hidden by the filters and were unselected')
+  it('should word the note for several cards', () => {
+    expect(unselectedNote(3)).toBe('3 selected cards are hidden by the filters and were unselected')
   })
 
   it('should show the delete confirmation inside the toolbar instead of a second bar', () => {

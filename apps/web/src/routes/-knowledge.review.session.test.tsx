@@ -106,6 +106,8 @@ function queueResponse(
 const savedGrade = {
   ok: true as const,
   reviewId: 'review-1',
+  cardKey: '',
+  buriedVariantIds: [],
   knowledgeBitId: 'bit-1',
   phase: 'review' as const,
   dueAt: '2026-10-11T12:00:00.000Z',
@@ -143,7 +145,7 @@ describe('Anki review session controls', () => {
   it('should take the last grade back and show the same card again, question side up', async () => {
     mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
-    mockedUndoReview.mockResolvedValue({ ok: true, knowledgeBitId: 'bit-1' })
+    mockedUndoReview.mockResolvedValue({ ok: true, knowledgeBitId: 'bit-1', variantId: 'variant-1', cardKey: '', unburiedVariantIds: [] })
 
     renderPage()
     await gradeFirstCard()
@@ -159,7 +161,7 @@ describe('Anki review session controls', () => {
   it('should undo with the Z key', async () => {
     mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
     mockedSubmitReview.mockResolvedValue(savedGrade)
-    mockedUndoReview.mockResolvedValue({ ok: true, knowledgeBitId: 'bit-1' })
+    mockedUndoReview.mockResolvedValue({ ok: true, knowledgeBitId: 'bit-1', variantId: 'variant-1', cardKey: '', unburiedVariantIds: [] })
 
     renderPage()
     await gradeFirstCard()
@@ -189,7 +191,7 @@ describe('Anki review session controls', () => {
       queueResponse([firstCard, secondCard], { counts: { new: 1, learning: 0, review: 1 } }),
     )
     mockedSubmitReview.mockResolvedValue(savedGrade)
-    mockedUndoReview.mockResolvedValue({ ok: true, knowledgeBitId: 'bit-1' })
+    mockedUndoReview.mockResolvedValue({ ok: true, knowledgeBitId: 'bit-1', variantId: 'variant-1', cardKey: '', unburiedVariantIds: [] })
 
     renderPage()
     await screen.findByText(firstCard.prompt)
@@ -300,6 +302,7 @@ describe('Anki review session controls', () => {
       knowledgeBitId: 'bit-1',
       suspended: true,
       buriedUntil: null,
+      cardKey: null,
       leech: false,
     })
 
@@ -326,6 +329,7 @@ describe('Anki review session controls', () => {
       knowledgeBitId: 'bit-1',
       suspended: false,
       buriedUntil: '2026-10-11T00:00:00.000Z',
+      cardKey: null,
       leech: false,
     })
 

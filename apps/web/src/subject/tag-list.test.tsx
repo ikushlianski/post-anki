@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 
 import { listTagMasteryStatuses } from '../curriculum/curriculum.api'
-import { listTags } from '../curriculum/curriculum.api'
+import { listTags, mergeTags } from '../curriculum/curriculum.api'
 import { TagList } from './tag-list'
 
 vi.mock('@tanstack/react-router', () => ({
+  useRouter: () => ({ invalidate: vi.fn().mockResolvedValue(undefined) }),
   Link: ({
     to,
     params,
@@ -89,5 +90,27 @@ describe('TagList strength badges', () => {
     const link = await screen.findByTestId('tag-list-strength-link-tag-strong')
     expect(link.getAttribute('href')).toBe('/knowledge/answer')
     expect(link.getAttribute('data-search')).toBe(JSON.stringify({ tagId: 'tag-strong' }))
+  })
+})
+
+describe('TagList merge failure', () => {
+  it('should show an alert and unlock the confirm button when the merge fails', async () => {
+    mockedListTags.mockResolvedValue([
+      { id: 'a', name: 'Alpha', normalizedName: 'alpha' },
+      { id: 'b', name: 'Beta', normalizedName: 'beta' },
+    ])
+    mockedListTagMasteryStatuses.mockResolvedValue([])
+    vi.mocked(mergeTags).mockRejectedValue(new Error('boom'))
+    renderWithClient(<TagList />)
+
+    fireEvent.click(await screen.findByTestId('tag-list-merge-button-a'))
+    fireEvent.change(screen.getByTestId('tag-list-merge-target-select-a'), { target: { value: 'b' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm merge of Alpha' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe("Couldn't do that, try again")
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Confirm merge of Alpha' }) as HTMLButtonElement).disabled).toBe(false),
+    )
+    expect(screen.getByRole('button', { name: 'Cancel merge' })).toBeTruthy()
   })
 })

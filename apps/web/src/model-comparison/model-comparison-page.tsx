@@ -50,6 +50,7 @@ export function ModelComparisonPage({
   const [error, setError] = useState<string | null>(null)
   const [run, setRun] = useState<ModelComparisonRunDetail | null>(null)
   const [runs, setRuns] = useState<ModelComparisonRunSummary[]>(initialRuns)
+  const [runsFailed, setRunsFailed] = useState(false)
   const [suggestion, setSuggestion] = useState<ModelSuggestionResult | null>(initialSuggestion)
   const { estimate, failed: estimateFailed } = useModelComparisonEstimate(excerpt, selected, (input) =>
     estimateModelComparison({ data: input }),
@@ -62,10 +63,11 @@ export function ModelComparisonPage({
 
   const refreshRuns = useCallback(async () => {
     setRuns(await listModelComparisonRuns())
+    setRunsFailed(false)
   }, [])
 
   useEffect(() => {
-    void refreshRuns().catch(() => undefined)
+    void refreshRuns().catch(() => setRunsFailed(true))
   }, [refreshRuns])
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export function ModelComparisonPage({
     }
 
     setRun(outcome.run)
-    await refreshRuns().catch(() => undefined)
+    await refreshRuns().catch(() => setRunsFailed(true))
   }
 
   async function startRun() {
@@ -315,6 +317,11 @@ export function ModelComparisonPage({
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold tracking-tight">Earlier comparisons</h2>
+        {runsFailed ? (
+          <p role="alert" data-testid="model-comparison-runs-error" className="text-sm text-red-600">
+            Could not load earlier comparisons.
+          </p>
+        ) : null}
         <ModelComparisonRunsList
           runs={runs}
           activeRunId={run?.runId ?? null}

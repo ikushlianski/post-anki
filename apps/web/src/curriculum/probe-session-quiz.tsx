@@ -277,7 +277,7 @@ export function ProbeSessionQuiz({
   if (isLoading) {
     return (
       <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-sm text-neutral-400">Checking for an active quiz…</p>
+        <p role="status" className="text-sm text-neutral-400">Checking for an active quiz…</p>
       </div>
     )
   }
@@ -399,6 +399,12 @@ export function ProbeSessionQuiz({
           </li>
         ))}
       </ul>
+
+      {mutation.isError && !answered ? (
+        <p role="alert" data-testid="quiz-answer-error" className="mt-2 text-sm text-red-600">
+          Couldn’t save that answer. Try again.
+        </p>
+      ) : null}
 
       {current.type === 'multi' && !answered ? (
         <button

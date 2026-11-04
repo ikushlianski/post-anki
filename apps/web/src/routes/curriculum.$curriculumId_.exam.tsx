@@ -5,6 +5,7 @@ import { probeScopeSchema, type ProbeScope } from '@post-anki/shared'
 import { curriculumDetailQuery } from '../curriculum/curriculum.queries'
 import { buildExamScopeOptions } from '../exam/exam-scope-options'
 import { MockExamSession } from '../exam/mock-exam-session'
+import { pageHead } from '../shared/page-title'
 
 interface ExamSearch {
   scope?: ProbeScope
@@ -12,6 +13,7 @@ interface ExamSearch {
 }
 
 export const Route = createFileRoute('/curriculum/$curriculumId_/exam')({
+  head: pageHead('Exam'),
   component: MockExamPage,
   validateSearch: (search: Record<string, unknown>): ExamSearch => {
     const scopeResult = probeScopeSchema.safeParse(search.scope)

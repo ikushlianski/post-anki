@@ -86,4 +86,24 @@ describe('AiLabelBadge', () => {
 
     expect(screen.queryByTestId('ai-label-badge-bit-spacing')).toBeNull()
   })
+
+  it('should show the original phrase beside the AI suggestion on a Triage review item', () => {
+    render(
+      <ul>
+        <KnowledgeBitReviewItem
+          bit={{ ...threeVariantBit, body: 'touch the base', aiSuggestion: 'touch base' }}
+          isResolving={false}
+          onApprove={() => {}}
+          onReject={() => {}}
+          onUndo={() => {}}
+          onGrade={() => {}}
+          onSaveVariant={async () => true}
+          onSaveBit={async () => true}
+        />
+      </ul>,
+    )
+
+    expect(screen.getByTestId('ai-suggestion-text-bit-spacing').textContent).toBe('touch base')
+    expect(screen.getByTestId('ai-suggestion-original-bit-spacing').textContent).toBe('touch the base')
+  })
 })

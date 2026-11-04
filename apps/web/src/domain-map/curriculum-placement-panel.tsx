@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
 import type { DomainNodeTreeItem } from '@post-anki/shared'
 
+import { ActionFailedLine } from '../curriculum/action-failed-line'
+import { useGuardedRun } from '../curriculum/use-guarded-run'
 import { changeCurriculumPlacement } from './domain-map.api'
 import { findDomainPath, flattenDomainOptions } from './domain-tree'
 import { SearchableSelect } from '../ui/searchable-select'
@@ -18,9 +19,8 @@ export function CurriculumPlacementPanel({
   tree: DomainNodeTreeItem[]
   domainNodeId: string | null
 }) {
-  const router = useRouter()
+  const { busy, failed, run } = useGuardedRun()
   const [selected, setSelected] = useState<string>(domainNodeId ?? '')
-  const [busy, setBusy] = useState(false)
   // Seeded from the mutation's own response rather than relying solely on
   // router.invalidate() re-fetching the parent route's query in time.
   const [committedDomainNodeId, setCommittedDomainNodeId] = useState<string | null>(domainNodeId)
@@ -38,14 +38,14 @@ export function CurriculumPlacementPanel({
 
   const path = committedDomainNodeId ? findDomainPath(tree, committedDomainNodeId) : null
 
-  async function submit() {
-    setBusy(true)
-    const updated = await changeCurriculumPlacement({
-      data: { curriculumId, domainNodeId: selected === '' ? null : selected },
+  function submit() {
+    return run(async () => {
+      const updated = await changeCurriculumPlacement({
+        data: { curriculumId, domainNodeId: selected === '' ? null : selected },
+      })
+
+      setCommittedDomainNodeId(updated.domainNodeId)
     })
-    setCommittedDomainNodeId(updated.domainNodeId)
-    setBusy(false)
-    await router.invalidate()
   }
 
   return (
@@ -79,6 +79,7 @@ export function CurriculumPlacementPanel({
         >
           Change placement
         </button>
+        <ActionFailedLine failed={failed} testId="change-placement-failed" />
       </div>
     </div>
   )

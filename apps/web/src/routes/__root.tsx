@@ -7,9 +7,13 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AccountLinks } from '../nav/account-links'
+import { OfflineBanner } from '../nav/offline-banner'
+import { MobileNavDrawer } from '../nav/mobile-nav-drawer'
 import { Sidebar } from '../nav/sidebar'
+import { installSessionExpiredRedirect } from '../web-auth/session-expired'
+import { MAIN_CONTENT_ID, SkipToContent } from '../nav/skip-to-content'
 import { GlobalSearch } from '../search/global-search'
 import { combineHeaderSearch } from '../search/header-search'
 import { search, searchTopicsAndModules } from '../curriculum/curriculum.api'
@@ -56,10 +60,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootDocument({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), [])
   const onLoginPage = useRouterState({ select: (state) => state.location.pathname === '/login' })
 
   useEffect(() => {
     window.__APP_HYDRATED__ = true
+
+    return installSessionExpiredRedirect(window)
   }, [])
 
   return (
@@ -72,17 +79,19 @@ function RootDocument({ children }: { children: ReactNode }) {
           children
         ) : (
         <>
-        <div className="flex min-h-full flex-col bg-neutral-50 text-neutral-900">
+        <SkipToContent />
+        <div className="flex min-h-full flex-col bg-neutral-50 text-neutral-900 md:h-screen md:overflow-hidden">
+          <OfflineBanner />
           <div className="border-b border-neutral-200 bg-white">
-            <div className="flex items-center gap-x-3 px-5 py-3 sm:px-8">
-              <Link to="/" className="shrink-0 text-base font-semibold tracking-tight">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-1 sm:flex-nowrap sm:px-8 sm:py-3">
+              <Link to="/" className="inline-flex min-h-[44px] shrink-0 items-center text-base font-semibold tracking-tight sm:min-h-0">
                 Post Anki
               </Link>
               <GlobalSearch onSearch={headerSearch} />
               <AccountLinks />
               <button
                 type="button"
-                className="md:hidden"
+                className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center md:hidden"
                 data-testid="mobile-nav-toggle"
                 aria-label="Open navigation"
                 onClick={() => setMobileNavOpen(true)}
@@ -106,25 +115,17 @@ function RootDocument({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="flex flex-1">
-            <aside className="hidden md:flex md:w-56 md:flex-col border-r border-neutral-200 bg-white">
+          <div className="flex flex-1 md:min-h-0">
+            <aside className="hidden md:flex md:w-56 md:flex-col md:overflow-hidden border-r border-neutral-200 bg-white">
               <Sidebar />
             </aside>
 
-            <div className="min-w-0 flex-1">{children}</div>
+            <div id={MAIN_CONTENT_ID} tabIndex={-1} className="min-w-0 flex-1 outline-none md:overflow-y-auto">
+              {children}
+            </div>
           </div>
 
-          {mobileNavOpen ? (
-            <>
-              <div
-                className="fixed inset-0 z-30 bg-black/30 md:hidden"
-                onClick={() => setMobileNavOpen(false)}
-              />
-              <div className="fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg md:hidden">
-                <Sidebar />
-              </div>
-            </>
-          ) : null}
+          <MobileNavDrawer open={mobileNavOpen} onClose={closeMobileNav} />
         </div>
         <GlobalCardChatPanel />
         </>

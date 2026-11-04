@@ -1,5 +1,5 @@
 import { KnowledgeBitReviewBulkConfirm } from './knowledge-bit-review-bulk-confirm'
-import { PRIMARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
+import { SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
 export function KnowledgeBitReviewBulkBar({
   readyCount,
@@ -33,7 +33,7 @@ export function KnowledgeBitReviewBulkBar({
               type="button"
               data-testid="knowledge-bit-review-approve-all"
               onClick={onRequestApproveAll}
-              className={PRIMARY_BUTTON_CLASS}
+              className={SECONDARY_BUTTON_CLASS}
             >
               Approve all ready ({readyCount})
             </button>

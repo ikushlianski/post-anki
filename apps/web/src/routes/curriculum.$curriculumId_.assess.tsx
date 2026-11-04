@@ -10,8 +10,10 @@ import { getActiveProbeSession } from '../curriculum/probe-session.api'
 import { SelfGrade } from '../curriculum/self-grade'
 import { ProbeSessionQuiz, probeSessionQueryKey } from '../curriculum/probe-session-quiz'
 import { summarizeProbeSessionByTopic } from '../curriculum/probe-topic-summary'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/curriculum/$curriculumId_/assess')({
+  head: pageHead('Assessment'),
   component: PreAssessmentPage,
   loader: async ({ params, context }) => {
     const detail = await context.queryClient.ensureQueryData(

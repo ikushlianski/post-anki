@@ -41,9 +41,11 @@ function BlindSpotItem({
   onResolve: (blindSpotId: string, status: 'accepted' | 'rejected') => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function resolve(status: 'accepted' | 'rejected') {
     setBusy(true)
+    setFailed(false)
 
     try {
       const updated = await resolveDecideBlindSpot({
@@ -51,6 +53,8 @@ function BlindSpotItem({
       })
 
       onResolve(updated.id, updated.status as 'accepted' | 'rejected')
+    } catch {
+      setFailed(true)
     } finally {
       setBusy(false)
     }
@@ -88,6 +92,11 @@ function BlindSpotItem({
           >
             Dismiss
           </button>
+          {failed ? (
+            <span role="alert" className="text-xs text-red-600">
+              Couldn't save that, try again
+            </span>
+          ) : null}
         </span>
       ) : (
         <span className="text-xs font-medium text-neutral-500">
@@ -105,6 +114,7 @@ export function Decide() {
   const [decision, setDecision] = useState('')
   const [opinion, setOpinion] = useState('')
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
   const [result, setResult] = useState<DecideSession | null>(null)
 
   const canSubmit = decision.trim().length > 0 && opinion.trim().length > 0
@@ -115,6 +125,7 @@ export function Decide() {
     }
 
     setBusy(true)
+    setFailed(false)
 
     try {
       const session = await submitDecide({
@@ -123,6 +134,8 @@ export function Decide() {
 
       setResult(session)
       void queryClient.invalidateQueries({ queryKey: decideHistoryQuery().queryKey })
+    } catch {
+      setFailed(true)
     } finally {
       setBusy(false)
     }
@@ -177,6 +190,11 @@ export function Decide() {
         >
           {busy ? 'Evaluating…' : 'Challenge my thinking'}
         </button>
+        {failed ? (
+          <p role="alert" data-testid="decide-error" className="text-sm text-red-600">
+            Couldn't evaluate that. Your text is kept, try again.
+          </p>
+        ) : null}
       </div>
 
       {result ? (

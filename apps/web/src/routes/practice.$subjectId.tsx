@@ -10,8 +10,10 @@ import { PackSelect } from '../practice/pack-select'
 import { phraseBankQuery, PhraseBankPanel } from '../practice/phrase-bank-panel'
 import { getPracticeSettings } from '../practice/practice.api'
 import { usePracticeSettings } from '../practice/use-practice-settings'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/practice/$subjectId')({
+  head: pageHead('Practice'),
   component: PracticePage,
   loader: async ({ params }) => {
     const { subjects } = await getBoard()

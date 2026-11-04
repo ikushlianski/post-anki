@@ -2,35 +2,45 @@ import { useState } from 'react'
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 
 import type { KnowledgeItemModelId, ModelTier, UpdateAdminSettingsInput } from '@post-anki/shared'
-import { getAdminSettings, updateAdminSettings } from '../admin-settings/admin-settings.api'
+import {
+  getAdminSettings,
+  saveFusionSettings,
+  updateAdminSettings,
+} from '../admin-settings/admin-settings.api'
 import { AdminSettingsToggle } from '../admin-settings/admin-settings-toggle'
+import { ChatUsagePanel } from '../chat-usage/chat-usage-panel'
 import { clearAllKnowledge } from '../admin-settings/clear-all-knowledge.api'
 import { ClearAllKnowledgeZone } from '../admin-settings/clear-all-knowledge-zone'
+import { FusionModeSection } from '../admin-settings/fusion-mode-section'
 import { KnowledgeItemModelSelect } from '../admin-settings/knowledge-item-model-select'
 import { ModelTierSelect } from '../admin-settings/model-tier-select'
+import { NotionConnectionPanel } from '../admin-settings/notion-connection-panel'
 import { NewCardsPerDayField } from '../admin-settings/new-cards-per-day-field'
-import { getPendingPlacementSuggestions } from '../knowledge-bit/knowledge-bit.api'
-import { PlacementSuggestionsPanel } from '../knowledge-bit/placement-suggestions-panel'
-import { settle } from '../shared/load-result'
-import { getBoard } from '../curriculum/curriculum.api'
+import { ReviewsPerDayField } from '../admin-settings/reviews-per-day-field'
+import { RetentionField } from '../subject-study-options/retention-field'
+import { StepsField } from '../subject-study-options/steps-field'
+import { DailyGoalField } from '../study-goal/daily-goal-field'
+import { MotivationSettingsField } from '../motivation/motivation-settings-form'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/admin-settings')({
+  head: pageHead('Admin settings'),
   component: AdminSettingsPage,
-  loader: async () => {
-    const [settings, placementSuggestions, board] = await Promise.all([
-      getAdminSettings(),
-      settle(getPendingPlacementSuggestions()),
-      settle(getBoard()),
-    ])
-
-    return { settings, placementSuggestions, board }
-  },
+  loader: async () => ({ settings: await getAdminSettings() }),
 })
 
-type SettingField = 'testToggle' | 'modelTier' | 'knowledgeItemModel' | 'newCardsPerDay'
+type SettingField =
+  | 'testToggle'
+  | 'modelTier'
+  | 'knowledgeItemModel'
+  | 'newCardsPerDay'
+  | 'maxReviewsPerDay'
+  | 'learningSteps'
+  | 'relearningSteps'
+  | 'desiredRetention'
 
 function AdminSettingsPage() {
-  const { settings, placementSuggestions, board } = Route.useLoaderData()
+  const { settings } = Route.useLoaderData()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [failedField, setFailedField] = useState<SettingField | null>(null)
@@ -61,6 +71,13 @@ function AdminSettingsPage() {
   const setKnowledgeItemModel = (knowledgeItemModelId: KnowledgeItemModelId) =>
     save('knowledgeItemModel', { knowledgeItemModelId })
   const setNewCardsPerDay = (newCardsPerDay: number) => save('newCardsPerDay', { newCardsPerDay })
+  const setMaxReviewsPerDay = (maxReviewsPerDay: number) => save('maxReviewsPerDay', { maxReviewsPerDay })
+  const setLearningSteps = (learningStepsMinutes: number[]) =>
+    save('learningSteps', { learningStepsMinutes })
+  const setRelearningSteps = (relearningStepsMinutes: number[]) =>
+    save('relearningSteps', { relearningStepsMinutes })
+  const setDesiredRetention = (desiredRetention: number) =>
+    save('desiredRetention', { desiredRetention })
 
   const saveError = (field: SettingField) =>
     failedField === field ? (
@@ -111,18 +128,66 @@ function AdminSettingsPage() {
           testId="admin-settings-knowledge-item-model"
         />
         {saveError('knowledgeItemModel')}
+        <FusionModeSection
+          initial={settings}
+          onSave={async (data) => {
+            const result = await saveFusionSettings({ data })
+
+            if (result.ok) {
+              await router.invalidate().catch(() => setRefreshFailed(true))
+            }
+
+            return result
+          }}
+        />
         <NewCardsPerDayField
           label="New cards per day"
-          description="Most new cards shown in a day, from 1 to 200. Reviews that are due are not limited."
+          description="App default for the most new cards shown per subject in a day, from 1 to 200. Subjects can override it. Reviews that are due are not limited."
           value={settings.newCardsPerDay}
           onChange={setNewCardsPerDay}
           disabled={busy}
           testId="admin-settings-new-cards-per-day"
         />
         {saveError('newCardsPerDay')}
+        <ReviewsPerDayField
+          label="Reviews per day"
+          description="The most reviews in a day before the session ends with a done-for-today message, from 0 to 9999. 0 means no limit. You can still review ahead."
+          value={settings.maxReviewsPerDay}
+          onChange={setMaxReviewsPerDay}
+          disabled={busy}
+          testId="admin-settings-max-reviews-per-day"
+        />
+        {saveError('maxReviewsPerDay')}
+        <StepsField
+          label="Learning steps (minutes)"
+          description="App default for how soon a new card repeats, for example 1, 10. Subjects can override it."
+          value={settings.learningStepsMinutes}
+          onChange={setLearningSteps}
+          disabled={busy}
+          testId="admin-settings-learning-steps"
+        />
+        {saveError('learningSteps')}
+        <StepsField
+          label="Relearning steps (minutes)"
+          description="App default for how soon a forgotten card comes back, for example 10. Subjects can override it."
+          value={settings.relearningStepsMinutes}
+          onChange={setRelearningSteps}
+          disabled={busy}
+          testId="admin-settings-relearning-steps"
+        />
+        {saveError('relearningSteps')}
+        <RetentionField
+          label="Desired retention (%)"
+          description="App default for how sure you want to be of remembering a card. Higher means shorter gaps and more reviews. 90% suits most; 80-95% is the useful range. Subjects can override it."
+          value={settings.desiredRetention}
+          onChange={setDesiredRetention}
+          disabled={busy}
+          testId="admin-settings-desired-retention"
+        />
+        {saveError('desiredRetention')}
         <AdminSettingsToggle
           label="Test toggle"
-          description="A placeholder switch for wiring up admin settings end to end."
+          description="Has no effect on your cards. It only confirms that settings save."
           value={settings.testToggle}
           onChange={setTestToggle}
           disabled={busy}
@@ -130,39 +195,26 @@ function AdminSettingsPage() {
         {saveError('testToggle')}
       </div>
 
+      <DailyGoalField />
+      <MotivationSettingsField />
+
       <section className="mt-8">
         <h2 className="text-lg font-semibold tracking-tight">Approve suggestions</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Approve, reject, or edit newly detected knowledge bits before they go live.
+          Approve, reject, or edit newly detected cards before they go live.
         </p>
         <Link
           to="/knowledge-bit-review"
           data-testid="admin-settings-knowledge-bit-review-link"
-          className="mt-2 inline-block text-sm font-medium text-neutral-900 underline"
+          className="mt-2 inline-flex min-h-[44px] items-center text-sm font-medium text-neutral-900 underline sm:min-h-0"
         >
-          Review pending knowledge bits
+          Review pending cards
         </Link>
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold tracking-tight">Placement suggestions</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Knowledge bits with no existing topic match — accept into a module or reject.
-        </p>
-        <div className="mt-3">
-          {placementSuggestions.ok && board.ok ? (
-            <PlacementSuggestionsPanel
-              initialSuggestions={placementSuggestions.data}
-              subjects={board.data.subjects}
-              curricula={board.data.curricula}
-            />
-          ) : (
-            <p data-testid="admin-settings-placement-load-error" className="text-sm text-red-600">
-              Could not load placement suggestions. Reload to try again.
-            </p>
-          )}
-        </div>
-      </section>
+      <NotionConnectionPanel />
+
+      <ChatUsagePanel />
 
       <ClearAllKnowledgeZone
         onClear={() => clearAllKnowledge()}

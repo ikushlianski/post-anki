@@ -25,7 +25,7 @@ const defaultOrder: BrowserColumnId[] = ['phrasings', 'answer', 'source', 'sourc
 const selectionProps = { selected: new Set<string>(), onToggleRow: vi.fn(), onToggleAll: vi.fn() }
 
 describe('KnowledgeBrowserTable', () => {
-  it('should show every phrasing of a piece, who added it and its answer', () => {
+  it('should show every phrasing of a card, who added it and its answer', () => {
     render(<KnowledgeBrowserTable rows={[item]} columnOrder={defaultOrder} onColumnOrderChange={vi.fn()} {...selectionProps} />)
 
     const row = screen.getByTestId('knowledge-browser-row')
@@ -138,7 +138,7 @@ describe('KnowledgeBrowserTable row clicks', () => {
     return { onOpenRow, onToggleRow }
   }
 
-  it('should open the piece and leave the selection alone when a row is clicked', () => {
+  it('should open the card and leave the selection alone when a row is clicked', () => {
     const { onOpenRow, onToggleRow } = renderClickable()
 
     fireEvent.click(screen.getByText('The smallest deployable unit'))
@@ -147,7 +147,7 @@ describe('KnowledgeBrowserTable row clicks', () => {
     expect(onToggleRow).not.toHaveBeenCalled()
   })
 
-  it('should select the range on shift-click and toggle one piece on command or control click without opening', () => {
+  it('should select the range on shift-click and toggle one card on command or control click without opening', () => {
     const { onOpenRow, onToggleRow } = renderClickable()
     const row = screen.getByTestId('knowledge-browser-row')
 
@@ -159,7 +159,7 @@ describe('KnowledgeBrowserTable row clicks', () => {
     expect(onOpenRow).not.toHaveBeenCalled()
   })
 
-  it('should select through the checkbox without opening the piece', () => {
+  it('should select through the checkbox without opening the card', () => {
     const { onOpenRow, onToggleRow } = renderClickable()
 
     fireEvent.click(screen.getByTestId('knowledge-browser-select-row'))
@@ -168,7 +168,7 @@ describe('KnowledgeBrowserTable row clicks', () => {
     expect(onOpenRow).not.toHaveBeenCalled()
   })
 
-  it('should not open the piece when a source button inside the row is clicked', () => {
+  it('should not open the card when a source button inside the row is clicked', () => {
     const { onOpenRow } = renderClickable()
 
     fireEvent.click(screen.getByTestId('knowledge-browser-row-delete-source'))
@@ -193,3 +193,35 @@ describe('KnowledgeBrowserTable row clicks', () => {
     expect(second.getAttribute('aria-current')).toBe('true')
   })
 })
+
+describe('KnowledgeBrowserTable source links', () => {
+  it('should show a javascript: source as plain text, not a link', () => {
+    render(
+      <KnowledgeBrowserTable
+        rows={[{ ...item, sourceUrl: 'javascript:alert(1)' }]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        {...selectionProps}
+      />,
+    )
+
+    const row = screen.getByTestId('knowledge-browser-row')
+
+    expect(within(row).queryByRole('link')).toBeNull()
+    expect(within(row).getByText('javascript:alert(1)')).toBeTruthy()
+  })
+
+  it('should link an https source', () => {
+    render(
+      <KnowledgeBrowserTable
+        rows={[{ ...item, sourceUrl: 'https://example.com/a' }]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        {...selectionProps}
+      />,
+    )
+
+    expect(within(screen.getByTestId('knowledge-browser-row')).getByRole('link').getAttribute('href')).toBe('https://example.com/a')
+  })
+})
+

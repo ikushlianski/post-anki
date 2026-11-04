@@ -15,6 +15,7 @@ import {
   declareGapInput,
   mergeCurriculaInput,
   mergeTagsInput,
+  renameTagInput,
   moveCurriculumInput,
   nextQuestionInput,
   recordAttemptInput,
@@ -442,3 +443,15 @@ export const removeTagAssignment = createServerFn({ method: 'POST' })
 export const mergeTags = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => mergeTagsInput.parse(data))
   .handler(({ data }) => api.mergeTags(data.targetTagId, data.sourceTagId))
+
+export const renameTag = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => renameTagInput.parse(data))
+  .handler(({ data }) => api.renameTag(data.tagId, data.name))
+
+export const deleteTag = createServerFn({ method: 'POST' })
+  .inputValidator((tagId: unknown): string => z.string().parse(tagId))
+  .handler(async ({ data }) => {
+    await api.deleteTag(data)
+
+    return null
+  })

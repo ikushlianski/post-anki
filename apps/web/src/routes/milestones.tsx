@@ -1,19 +1,24 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { MilestonesGallery } from '../milestone/milestones-gallery'
 import { listMilestones } from '../milestone/milestone.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/milestones')({
+  head: pageHead('Milestones'),
   component: MilestonesPage,
   loader: async () => {
     const result = await listMilestones()
 
-    return { milestones: result.ok ? result.data : [] }
+    return result.ok
+      ? { milestones: result.data, loadFailed: false }
+      : { milestones: [], loadFailed: true }
   },
 })
 
 function MilestonesPage() {
-  const { milestones } = Route.useLoaderData()
+  const { milestones, loadFailed } = Route.useLoaderData()
+  const router = useRouter()
 
   return (
     <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-10">
@@ -24,7 +29,11 @@ function MilestonesPage() {
         </p>
       </header>
 
-      <MilestonesGallery milestones={milestones} />
+      <MilestonesGallery
+        milestones={milestones}
+        loadFailed={loadFailed}
+        onRetry={() => void router.invalidate()}
+      />
     </main>
   )
 }

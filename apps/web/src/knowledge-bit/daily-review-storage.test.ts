@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 
-import { getDailyReviewCount, incrementDailyReviewCount, getStudyStreak } from './daily-review-storage'
+import { getDailyReviewCount, incrementDailyReviewCount } from './daily-review-storage'
 
 function localKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -45,36 +45,6 @@ describe('incrementDailyReviewCount', () => {
   })
 })
 
-describe('getStudyStreak', () => {
-  beforeEach(() => localStorage.clear())
-  afterEach(() => localStorage.clear())
-
-  function keyForDaysAgo(daysAgo: number): string {
-    const d = new Date()
-
-    d.setDate(d.getDate() - daysAgo)
-
-    return `review-count-${localKey(d)}`
-  }
-
-  it('should return 0 when no days are recorded', () => {
-    expect(getStudyStreak()).toBe(0)
-  })
-
-  it('should count consecutive days including today', () => {
-    localStorage.setItem(keyForDaysAgo(0), '5')
-    localStorage.setItem(keyForDaysAgo(1), '3')
-    localStorage.setItem(keyForDaysAgo(2), '4')
-    expect(getStudyStreak()).toBe(3)
-  })
-
-  it('should stop at a gap and not count days before the gap', () => {
-    localStorage.setItem(keyForDaysAgo(0), '5')
-    localStorage.setItem(keyForDaysAgo(2), '4')
-    expect(getStudyStreak()).toBe(1)
-  })
-})
-
 describe('local midnight', () => {
   beforeEach(() => localStorage.clear())
   afterEach(() => {
@@ -94,14 +64,5 @@ describe('local midnight', () => {
     expect(getDailyReviewCount()).toBe(0)
     incrementDailyReviewCount()
     expect(localStorage.getItem('review-count-2026-06-11')).toBe('1')
-  })
-
-  it('should carry the streak across local midnight without skipping or double counting a day', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(2026, 5, 10, 23, 30))
-    incrementDailyReviewCount()
-    vi.setSystemTime(new Date(2026, 5, 11, 0, 30))
-    incrementDailyReviewCount()
-    expect(getStudyStreak()).toBe(2)
   })
 })

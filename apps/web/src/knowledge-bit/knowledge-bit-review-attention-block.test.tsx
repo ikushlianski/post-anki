@@ -34,7 +34,7 @@ function renderBlock(
     <KnowledgeBitReviewAttentionBlock
       notices={ids.map(notice)}
       states={states}
-      actions={{ onRetry, onRetryWithText: vi.fn() }}
+      actions={{ onRetry, onRetryWithText: vi.fn(), onExtractAnyway: vi.fn() }}
       onDiscard={vi.fn(async () => true)}
     />,
   )

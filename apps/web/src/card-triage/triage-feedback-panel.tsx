@@ -12,6 +12,7 @@ import {
   SECONDARY_BUTTON_CLASS,
   TEXT_FIELD_CLASS,
 } from '../knowledge-bit/knowledge-bit-review-classes'
+import { sendRejectedDecisionToChat } from './triage-send-to-chat'
 import { TriageDecisionsList, type TriageDecisionPatch } from './triage-decisions-list'
 
 export function TriageFeedbackPanel({
@@ -19,6 +20,7 @@ export function TriageFeedbackPanel({
   decisions = [],
   cards = {},
   onEditDecision = () => undefined,
+  onSendToChat = sendRejectedDecisionToChat,
   saving,
   error,
   resumed,
@@ -31,6 +33,7 @@ export function TriageFeedbackPanel({
   decisions?: TriageDecision[]
   cards?: Record<string, TriageDecisionResponse>
   onEditDecision?: (bitId: string, patch: TriageDecisionPatch) => void
+  onSendToChat?: (bitId: string) => Promise<boolean>
   saving: boolean
   error: string | null
   resumed: boolean
@@ -63,6 +66,7 @@ export function TriageFeedbackPanel({
         cards={cards}
         readOnly={saving}
         onEdit={onEditDecision}
+        onSendToChat={onSendToChat}
       />
       <textarea
         data-testid="triage-feedback-text"

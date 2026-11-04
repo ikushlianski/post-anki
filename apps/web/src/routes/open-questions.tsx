@@ -1,6 +1,7 @@
 import { ClientOnly, createFileRoute } from '@tanstack/react-router'
 
 import { OpenQuestionsList } from '../open-questions/open-questions-list'
+import { pageHead } from '../shared/page-title'
 
 // open-questions-review (issue #87) — its own dedicated route rather than
 // folded into /today or /dashboard, same reasoning as
@@ -12,6 +13,7 @@ import { OpenQuestionsList } from '../open-questions/open-questions-list'
 // their new status without a full reload is the same requirement decide's
 // blind-spot resolution already solved.
 export const Route = createFileRoute('/open-questions')({
+  head: pageHead('Open questions'),
   component: OpenQuestionsPage,
 })
 

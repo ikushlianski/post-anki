@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createRef, useState } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import { OverflowMenu, type OverflowMenuHandle } from './overflow-menu'
@@ -99,5 +99,30 @@ describe('OverflowMenu', () => {
 
     expect(screen.getByRole('dialog', { name: 'Actions' })).toBeTruthy()
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('should open the menu upward when there is no room below the trigger in the viewport', () => {
+    const { trigger } = renderHarness()
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        const isPanel = this.getAttribute('role') === 'menu'
+
+        return { top: 700, bottom: 732, height: isPanel ? 250 : 32 } as DOMRect
+      })
+
+    Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true })
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('menu').getAttribute('data-placement')).toBe('top')
+    rectSpy.mockRestore()
+  })
+
+  it('should open the menu downward when there is room below the trigger', () => {
+    const { trigger } = renderHarness()
+
+    fireEvent.click(trigger)
+
+    expect(screen.getByRole('menu').getAttribute('data-placement')).toBe('bottom')
   })
 })

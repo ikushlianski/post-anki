@@ -5,10 +5,12 @@ import { listTags } from '../curriculum/curriculum.api'
 import { ProbeSessionQuiz } from '../curriculum/probe-session-quiz'
 import { TagNodeBrowser } from '../curriculum/tag-node-browser'
 import type { Tag } from '../curriculum/model'
+import { pageHead } from '../shared/page-title'
 
 type TagRoomView = 'browse' | 'practice'
 
 export const Route = createFileRoute('/probe/tag/$tagId')({
+  head: pageHead('Probe'),
   validateSearch: (search: Record<string, unknown>): { view?: TagRoomView } => ({
     view: search.view === 'browse' ? 'browse' : 'practice',
   }),
@@ -53,7 +55,7 @@ function TagProbeRoom() {
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
           {view === 'browse'
-            ? `Every topic, module, and knowledge bit tagged #${tag.name}, across every course that has it.`
+            ? `Every topic, module, and card tagged #${tag.name}, across every course that has it.`
             : `Questions drawn from every module or topic tagged #${tag.name}, across every course that has it.`}
         </p>
       </header>

@@ -1,3 +1,5 @@
+import { plural } from '../shared/plural'
+
 const MINUTE = 60
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
@@ -5,10 +7,6 @@ const MONTH = 30 * DAY
 
 function trimmed(value: number): string {
   return String(Math.round(value * 10) / 10)
-}
-
-function plural(count: number, unit: string): string {
-  return `${count} ${unit}${count === 1 ? '' : 's'}`
 }
 
 export function describeIntervalSeconds(seconds: number): string {

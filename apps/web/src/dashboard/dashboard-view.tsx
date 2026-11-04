@@ -1,22 +1,27 @@
 import type { ReactNode } from 'react'
-import { Link } from '@tanstack/react-router'
-
 import type {
   LearningPath,
   Streak,
+  StudyOverview,
   StudySessionListItem,
   SubjectReviewDueCounts,
 } from '@post-anki/shared'
 
-import type { DueTopic } from '../curriculum/api-client'
-import type { CourseRefocusSuggestion, Curriculum } from '../curriculum/model'
+import type { CourseRefocusSuggestion, Curriculum, Subject } from '../curriculum/model'
 import type { LoadResult } from '../shared/load-result'
 import { CourseRefocusBanner } from '../curriculum/course-refocus-banner'
 import { SourceApprovalBanner } from '../curriculum/source-approval-banner'
-import { StreakBanner } from '../curriculum/streak-banner'
 import { ContinueSessionCard } from '../home/continue-session-card'
 import { selectResumableSession } from '../home/select-resumable-session'
-import { UnsortedDueBucket } from './unsorted-due-bucket'
+import { BusiestSubjects } from '../home/busiest-subjects'
+import { HomeHeader } from '../home/home-header'
+import { ProgressStrip } from '../home/progress-strip'
+import { StartHereCard } from '../home/start-here-card'
+import { StudyNowCard } from '../home/study-now-card'
+import { HomeStreakCard } from '../motivation/streak-card'
+import { WeeklyDigestCard } from '../home/weekly-digest-card'
+import { WeeklySummaryCard } from '../motivation/weekly-summary-card'
+import { HomeStudyGoals } from '../study-goal/home-study-goals'
 
 export interface DashboardViewProps {
   curricula: Curriculum[]
@@ -24,7 +29,8 @@ export interface DashboardViewProps {
   sessions: LoadResult<StudySessionListItem[]>
   learningPaths: LoadResult<LearningPath[]>
   streak: LoadResult<Streak>
-  dueTopics: LoadResult<DueTopic[]>
+  subjects: Subject[]
+  studyOverview: LoadResult<StudyOverview>
   subjectDueCounts?: LoadResult<SubjectReviewDueCounts>
 }
 
@@ -42,7 +48,8 @@ export function DashboardView({
   sessions,
   learningPaths,
   streak,
-  dueTopics,
+  subjects,
+  studyOverview,
   subjectDueCounts,
 }: DashboardViewProps) {
   const namesById: Record<string, string> = {}
@@ -61,11 +68,32 @@ export function DashboardView({
     ? selectResumableSession(sessions.data, new Date())
     : null
 
+  const isNewAccount = studyOverview.ok && !studyOverview.data.hasCards && subjects.length === 0
+
   return (
     <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-      </header>
+      <HomeHeader />
+
+      {isNewAccount ? (
+        <StartHereCard />
+      ) : (
+        <>
+          <div className="mb-6 grid gap-4 md:grid-cols-2">
+            <StudyNowCard overview={studyOverview} />
+            <ProgressStrip overview={studyOverview} streak={streak} />
+          </div>
+
+          <HomeStreakCard />
+
+          <HomeStudyGoals subjectNames={Object.fromEntries(subjects.map((subject) => [subject.id, subject.name]))} />
+
+          <WeeklyDigestCard />
+
+          <WeeklySummaryCard />
+
+          <BusiestSubjects subjects={subjects} counts={subjectDueCounts} />
+        </>
+      )}
 
       {sessions.ok ? (
         <ContinueSessionCard session={resumableSession} namesById={namesById} />
@@ -73,54 +101,15 @@ export function DashboardView({
         <LoadError>Couldn't load your study sessions — try refreshing.</LoadError>
       )}
 
-      {dueTopics.ok && dueTopics.data.length > 0 ? (
-        <div data-testid="due-topics-section" className="mb-6">
-          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-            Most pressing topics
-          </h2>
-          <ul className="space-y-2">
-            {dueTopics.data.map((topic) => (
-              <li key={topic.topicId}>
-                <Link
-                  to="/knowledge/answer"
-                  search={{ topicId: topic.topicId }}
-                  data-testid="due-topic-link"
-                  className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white px-4 py-3 hover:border-neutral-400"
-                >
-                  <span className="font-medium tracking-tight">{topic.title}</span>
-                  <span className="text-sm text-neutral-400">
-                    {topic.dueCount} due
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
       {!learningPaths.ok ? (
         <LoadError>Couldn't load your learning paths — try refreshing.</LoadError>
       ) : null}
 
       <SourceApprovalBanner curricula={curricula} />
 
-      {streak.ok ? (
-        <StreakBanner streak={streak.data} />
-      ) : (
-        <LoadError>Couldn't load your streak — try refreshing.</LoadError>
-      )}
-
       <div className="mb-10">
         <CourseRefocusBanner suggestions={courseRefocusSuggestions} />
       </div>
-
-      {subjectDueCounts && !subjectDueCounts.ok ? (
-        <LoadError>Couldn't load your review counts — try refreshing.</LoadError>
-      ) : null}
-
-      {subjectDueCounts?.ok ? (
-        <UnsortedDueBucket dueCount={subjectDueCounts.data.unsorted.dueCount} />
-      ) : null}
     </main>
   )
 }

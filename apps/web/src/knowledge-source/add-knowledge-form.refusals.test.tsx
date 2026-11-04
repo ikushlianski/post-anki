@@ -75,6 +75,16 @@ describe('AddKnowledgeForm refusal reasons', () => {
     })
   })
 
+  it('announces a failed block as an alert', async () => {
+    mockedUrl.mockRejectedValue(refusal('fetch_failed'))
+
+    render(<AddKnowledgeForm />)
+    fillUrlBlock(0, 'https://example.com/down')
+    fireEvent.click(screen.getByTestId('knowledge-submit-button'))
+
+    await waitFor(() => expect(screen.getByTestId('knowledge-error-message').getAttribute('role')).toBe('alert'))
+  })
+
   it('says the page has no readable text for an empty page', async () => {
     mockedUrl.mockRejectedValue(refusal('empty_content'))
 

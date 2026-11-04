@@ -91,7 +91,7 @@ describe('KnowledgeBitReviewPanel focus mode edits and undo', () => {
     await waitFor(
       () => {
         expect(mockedEditVariant).toHaveBeenCalledWith({
-          data: { variantId: 'var-b1', prompt: 'Edited front?', answer: 'A b1' },
+          data: { variantId: 'var-b1', prompt: 'Edited front?', answer: 'A b1', context: '' },
         })
       },
       { timeout: 4000 },
@@ -127,7 +127,7 @@ describe('KnowledgeBitReviewPanel focus mode edits and undo', () => {
       { timeout: 4000 },
     )
 
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'a' })
 
     expect((screen.getByTestId('knowledge-bit-focus-approve-b1') as HTMLButtonElement).disabled).toBe(true)
     expect(mockedApprove).not.toHaveBeenCalled()
@@ -197,7 +197,7 @@ describe('KnowledgeBitReviewPanel focus mode edits and undo', () => {
     fireEvent.change(screen.getByTestId('knowledge-bit-focus-note'), {
       target: { value: 'Nice and clear' },
     })
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'a' })
 
     await waitFor(() => {
       expect(mockedGrade).toHaveBeenCalledWith({

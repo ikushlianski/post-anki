@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 
 import type { Source } from './model'
 import { SourceApprovalPanel } from './source-approval-panel'
-import { approveSources } from './curriculum.api'
+import { approveSources, removeSource } from './curriculum.api'
 
 const invalidate = vi.fn()
 
@@ -130,5 +130,20 @@ describe('SourceApprovalPanel.discoveryTier', () => {
     renderPanel([pendingSource()])
 
     expect(screen.queryByTestId('source-candidate-tier')).toBeNull()
+  })
+})
+
+describe('SourceApprovalPanel.remove', () => {
+  afterEach(cleanup)
+
+  it('should show an error and re-enable the buttons when removing a source fails', async () => {
+    vi.mocked(removeSource).mockRejectedValueOnce(new Error('network'))
+    renderPanel([pendingSource()])
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('source-candidate-remove'))
+    })
+
+    expect(screen.getByText("Couldn't remove that source — try again.")).toBeTruthy()
   })
 })

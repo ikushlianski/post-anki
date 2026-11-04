@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { CreateSubjectForm } from '../subject/create-subject-form'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/subjects/new')({
+  head: pageHead('New subject'),
   component: NewSubjectPage,
 })
 

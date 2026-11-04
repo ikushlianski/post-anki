@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import type { SearchResponse, TopicModuleSearchResult } from '@post-anki/shared'
@@ -94,9 +94,90 @@ describe('GlobalSearch', () => {
 
     expect(screen.getByText('Topics')).toBeDefined()
     expect(screen.getByText('Modules')).toBeDefined()
-    expect(screen.getByText('Knowledge bits')).toBeDefined()
+    expect(screen.getByText('Cards')).toBeDefined()
     expect(screen.getByTestId('global-search-result-module-mod_1')).toBeDefined()
     expect(screen.getByTestId('global-search-result-bit-bit_1')).toBeDefined()
+  })
+
+  it('should offer to add the typed text as knowledge when nothing matches', async () => {
+    render(<GlobalSearch onSearch={vi.fn().mockResolvedValue(emptyResults())} />)
+
+    await userEvent.type(screen.getByTestId('global-search-input'), 'closures')
+
+    const link = await screen.findByTestId('global-search-add-knowledge')
+
+    expect(link.getAttribute('data-to')).toBe('/add-knowledge')
+    expect(link.getAttribute('data-search')).toBe(JSON.stringify({ q: 'closures' }))
+  })
+
+  it('should focus the search with slash or Ctrl+K but not while typing in another field', () => {
+    render(
+      <>
+        <textarea data-testid="other" />
+        <GlobalSearch onSearch={vi.fn()} />
+      </>,
+    )
+
+    const input = screen.getByTestId('global-search-input')
+
+    fireEvent.keyDown(document.body, { key: '/' })
+    expect(document.activeElement).toBe(input)
+
+    ;(screen.getByTestId('other') as HTMLTextAreaElement).focus()
+    fireEvent.keyDown(screen.getByTestId('other'), { key: '/' })
+    expect(document.activeElement).toBe(screen.getByTestId('other'))
+
+    fireEvent.keyDown(screen.getByTestId('other'), { key: 'k', ctrlKey: true })
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('should ignore a slow earlier answer that arrives after a newer one', async () => {
+    let resolveFirst: (value: HeaderSearchResults) => void = () => {}
+    const onSearch = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise<HeaderSearchResults>((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValueOnce(emptyResults({ items: [result({ id: 'new', title: 'Newer result' })] }))
+
+    render(<GlobalSearch onSearch={onSearch} />)
+
+    const input = screen.getByTestId('global-search-input')
+
+    fireEvent.change(input, { target: { value: 'as' } })
+    await waitFor(() => expect(onSearch).toHaveBeenCalledTimes(1))
+    fireEvent.change(input, { target: { value: 'asy' } })
+    await screen.findByText('Newer result')
+    await act(async () => resolveFirst(emptyResults({ items: [result({ id: 'old', title: 'Older result' })] })))
+
+    expect(screen.queryByText('Older result')).toBeNull()
+    expect(screen.getByText('Newer result')).toBeTruthy()
+  })
+
+  it('should close the results on Escape and return focus to the search box', async () => {
+    const onSearch = vi.fn().mockResolvedValue(emptyResults({ items: [result({ id: 'top_1', title: 'Async error handling' })] }))
+
+    render(<GlobalSearch onSearch={onSearch} />)
+    await userEvent.type(screen.getByTestId('global-search-input'), 'async')
+    const hit = await screen.findByTestId('global-search-result-topic-top_1')
+
+    fireEvent.keyDown(hit, { key: 'Escape' })
+
+    expect(screen.queryByTestId('global-search-results')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByTestId('global-search-input'))
+  })
+
+  it('should announce the searching line and the number of results', async () => {
+    let finish: (value: HeaderSearchResults) => void = () => {}
+    const onSearch = vi.fn(() => new Promise<HeaderSearchResults>((resolve) => (finish = resolve)))
+
+    render(<GlobalSearch onSearch={onSearch} />)
+    fireEvent.change(screen.getByTestId('global-search-input'), { target: { value: 'async' } })
+    fireEvent.focus(screen.getByTestId('global-search-input'))
+    await waitFor(() => expect(onSearch).toHaveBeenCalled())
+
+    await act(async () => finish(emptyResults({ items: [result({ id: 'a' }), result({ id: 'b', kind: 'module' })] })))
+
+    expect(screen.getByTestId('global-search-count').getAttribute('role')).toBe('status')
+    expect(screen.getByTestId('global-search-count').textContent).toBe('2 results found')
   })
 
   it('should surface subjects and curricula from the legacy search alongside topics/modules/bits', async () => {

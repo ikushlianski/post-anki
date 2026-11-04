@@ -138,3 +138,17 @@ describe('TagPicker live refresh', () => {
     })
   })
 })
+
+describe('TagPicker failures', () => {
+  afterEach(cleanup)
+
+  it('should show a failure and re-enable adding when creating the tag fails', async () => {
+    mockedCreateOrGetTag.mockRejectedValueOnce(new Error('network'))
+    renderPicker()
+
+    await submitTagName('redis')
+
+    expect(screen.getByTestId(`tag-picker-error-${NODE_ID}`)).toBeTruthy()
+    expect((screen.getByTestId(`tag-picker-submit-${NODE_ID}`) as HTMLButtonElement).disabled).toBe(false)
+  })
+})

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import type { Module } from './model'
+import { deleteModule } from './curriculum.api'
 import { ModuleSection } from './module-section'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -40,7 +41,7 @@ function module(overrides: Partial<Module> = {}): Module {
   }
 }
 
-function renderModuleSection(overrides: Partial<Module> = {}) {
+function renderModuleSection(overrides: Partial<Module> = {}, editable = false) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   return render(
@@ -49,7 +50,7 @@ function renderModuleSection(overrides: Partial<Module> = {}) {
         module={module(overrides)}
         recommendedTopicId={null}
         canProbe={false}
-        editable={false}
+        editable={editable}
         curriculumId="cur_1"
         moduleOrder={['mod_1']}
         allModules={[{ id: 'mod_1', title: 'Connection management' }]}
@@ -72,5 +73,24 @@ describe('ModuleSection', () => {
     renderModuleSection({ dueCount: 0 })
 
     expect(screen.getByText(/·\s*0 due/)).toBeDefined()
+  })
+
+  it('should say a module delete also removes its topics and their cards', () => {
+    renderModuleSection({}, true)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(screen.getByText('Deletes this module, its topics and their cards')).toBeTruthy()
+  })
+
+  it('should unlock the controls and tell the learner when deleting a module fails', async () => {
+    vi.mocked(deleteModule).mockRejectedValue(new Error('boom'))
+    renderModuleSection({}, true)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+    const alert = await screen.findByRole('alert')
+
+    expect(alert.textContent).toBe("Couldn't do that, try again")
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Confirm' }) as HTMLButtonElement).disabled).toBe(false))
   })
 })

@@ -32,6 +32,7 @@ export function SocraticChat({
   const [answer, setAnswer] = useState('')
   const [turnId, setTurnId] = useState<string | null>(null)
   const [completed, setCompleted] = useState(false)
+  const pendingMessageId = useRef<string | null>(null)
   const seededSessionId = useRef<string | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -97,6 +98,10 @@ export function SocraticChat({
         void router.invalidate()
       }
     },
+    onError: (_error, vars) => {
+      setMessages((prev) => prev.filter((message) => message.id !== pendingMessageId.current))
+      setAnswer((current) => (current.length === 0 ? vars.answer : current))
+    },
   })
 
   function send() {
@@ -104,10 +109,10 @@ export function SocraticChat({
       return
     }
 
-    setMessages((prev) => [
-      ...prev,
-      { id: `${turnId}-answer-${Date.now()}`, role: 'learner', text: answer },
-    ])
+    const messageId = `${turnId}-answer-${Date.now()}`
+
+    pendingMessageId.current = messageId
+    setMessages((prev) => [...prev, { id: messageId, role: 'learner', text: answer }])
     mutation.mutate({ turnId, answer })
     setAnswer('')
   }
@@ -115,7 +120,7 @@ export function SocraticChat({
   if (isLoading) {
     return (
       <div className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-sm text-neutral-400">The mentor is preparing a question…</p>
+        <p role="status" className="text-sm text-neutral-400">The mentor is preparing a question…</p>
       </div>
     )
   }
@@ -192,6 +197,12 @@ export function SocraticChat({
           >
             <span className="animate-pulse">Thinking…</span>
           </div>
+        ) : null}
+
+        {mutation.isError ? (
+          <p role="alert" data-testid="socratic-error" className="text-xs text-red-600">
+            Couldn’t send that answer. Your text is back in the box, try again.
+          </p>
         ) : null}
 
         {completed ? (

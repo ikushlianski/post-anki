@@ -80,7 +80,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('Knowledge browser delete whole source', () => {
-  it('should show which source each piece came from', () => {
+  it('should show which source each card came from', () => {
     expect(screen.getAllByTestId('knowledge-browser-source-label').map((el) => el.textContent)).toEqual([
       'blog.example.com',
       'Notes',
@@ -88,23 +88,23 @@ describe('Knowledge browser delete whole source', () => {
     ])
   })
 
-  it('should name the number of pieces from that source and delete nothing before confirming', () => {
+  it('should name the number of cards from that source and delete nothing before confirming', () => {
     fireEvent.click(screen.getAllByTestId('knowledge-browser-row-delete-source')[0])
 
-    expect(screen.getByRole('alertdialog').textContent).toContain('blog.example.com" and its 8 pieces')
+    expect(screen.getByRole('alertdialog').textContent).toContain('blog.example.com" and its 8 cards')
     expect(deleteSource).not.toHaveBeenCalled()
   })
 
-  it('should state the real number of pieces and say that some are hidden by the filters', () => {
+  it('should state the real number of cards and say that some are hidden by the filters', () => {
     fireEvent.click(screen.getAllByTestId('knowledge-browser-row-delete-source')[0])
 
     expect(screen.getByTestId('knowledge-browser-source-bar').textContent).toContain(
       '6 of them are hidden by the filters or not loaded yet.',
     )
-    expect(screen.getByTestId('knowledge-browser-source-confirm').textContent).toBe('Yes, delete 8 pieces')
+    expect(screen.getByTestId('knowledge-browser-source-confirm').textContent).toBe('Yes, delete 8 cards')
   })
 
-  it('should not mention hidden pieces when every piece of the source is shown', () => {
+  it('should not mention hidden cards when every card of the source is shown', () => {
     fireEvent.click(screen.getAllByTestId('knowledge-browser-row-delete-source')[1])
 
     expect(screen.getByTestId('knowledge-browser-source-bar').textContent).not.toContain('hidden')
@@ -150,14 +150,14 @@ describe('Knowledge browser delete whole source', () => {
     fireEvent.click(screen.getByTestId('knowledge-browser-select-source'))
 
     expect(screen.getByTestId('knowledge-browser-selected-count').textContent).toBe('2 selected')
-    expect(screen.getByTestId('knowledge-browser-delete-source').textContent).toContain('(8 pieces)')
+    expect(screen.getByTestId('knowledge-browser-delete-source').textContent).toContain('(8 cards)')
 
     fireEvent.click(boxes()[1])
 
     expect(screen.queryByTestId('knowledge-browser-select-source')).toBeNull()
   })
 
-  it('should offer the source action only on pieces that have a source', () => {
+  it('should offer the source action only on cards that have a source', () => {
     expect(screen.getAllByTestId('knowledge-browser-row-delete-source')).toHaveLength(3)
   })
 })

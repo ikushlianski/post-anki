@@ -3,8 +3,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getCrossCutting } from '../curriculum/curriculum.api'
 import { ProgressBar } from '../curriculum/progress-bar'
 import { CONCERN_LABEL } from '../curriculum/concern-labels'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/concerns')({
+  head: pageHead('Concerns'),
   component: ConcernsPage,
   loader: () => getCrossCutting(),
 })

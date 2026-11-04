@@ -28,7 +28,7 @@ export function KnowledgeBrowserFilterChips({
     >
       {total !== null && (
         <span data-testid="knowledge-browser-total" className="text-sm text-neutral-600">
-          {total} matching {total === 1 ? 'piece' : 'pieces'}
+          {total} matching {total === 1 ? 'card' : 'cards'}
         </span>
       )}
       {chips.map((chip) => (

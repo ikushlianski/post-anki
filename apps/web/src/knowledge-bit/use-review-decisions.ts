@@ -112,9 +112,9 @@ export function useReviewDecisions({
     })
   }
 
-  async function undo(bitId: string) {
+  async function undo(bitId: string): Promise<boolean> {
     if (!claimBit(bitId)) {
-      return
+      return false
     }
 
     setRowError(bitId, null)
@@ -137,8 +137,12 @@ export function useReviewDecisions({
         Object.fromEntries(Object.entries(prev).filter(([id]) => id !== bitId)),
       )
       notifyPendingReviewChanged()
+
+      return true
     } catch {
       setRowError(bitId, "Couldn't undo. Try again.")
+
+      return false
     } finally {
       releaseBit(bitId)
     }

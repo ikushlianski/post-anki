@@ -121,6 +121,28 @@ describe('SearchableSelect', () => {
     expect(input().value).toBe('')
   })
 
+  it('should restore the chosen label and close the list when Tab leaves a half-typed filter', () => {
+    render(<Harness />)
+    fireEvent.click(input())
+    fireEvent.mouseDown(screen.getByTestId('pick-option-a'))
+    fireEvent.change(input(), { target: { value: 'gam' } })
+    fireEvent.keyDown(input(), { key: 'Tab' })
+    fireEvent.blur(input())
+
+    expect(input().value).toBe('Alpha')
+    expect(chosen()).toBe('a')
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('should empty a stale filter and close the list on blur when nothing was chosen', () => {
+    render(<Harness />)
+    fireEvent.change(input(), { target: { value: 'gam' } })
+    fireEvent.blur(input())
+
+    expect(input().value).toBe('')
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
   it('should choose an option clicked with the mouse', () => {
     render(<Harness />)
     fireEvent.click(input())

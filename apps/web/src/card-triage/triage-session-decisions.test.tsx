@@ -91,7 +91,7 @@ describe('Triage session decisions', () => {
     fireEvent.change(screen.getByTestId('triage-decision-note-bit-1'), {
       target: { value: 'odd blank' },
     })
-    fireEvent.click(screen.getByTestId('triage-decision-reason-bit-1-bad_format'))
+    fireEvent.click(screen.getByTestId('triage-decision-reason-bit-1-text_recall_only'))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await screen.findByTestId('triage-result')
@@ -101,14 +101,14 @@ describe('Triage session decisions', () => {
         bitId: 'bit-1',
         verdict: 'rejected',
         note: 'odd blank',
-        reasonCode: 'bad_format',
+        reasonCode: 'text_recall_only',
       },
     })
     expect(mockedFinish).toHaveBeenCalledWith({
       data: {
         sessionId: 's1',
         feedbackText: '',
-        decisions: [{ bitId: 'bit-1', verdict: 'rejected', note: 'odd blank', reasonCode: 'bad_format' }],
+        decisions: [{ bitId: 'bit-1', verdict: 'rejected', note: 'odd blank', reasonCode: 'text_recall_only' }],
       },
     })
   })
@@ -138,7 +138,7 @@ describe('Triage session decisions', () => {
     fireEvent.click(screen.getByText('decide-reject'))
     fireEvent.click(screen.getByRole('button', { name: 'Finish triage' }))
 
-    const chip = screen.getByTestId('triage-decision-reason-bit-1-bad_format')
+    const chip = screen.getByTestId('triage-decision-reason-bit-1-text_recall_only')
 
     fireEvent.click(chip)
     expect(chip.getAttribute('aria-pressed')).toBe('true')
@@ -160,11 +160,11 @@ describe('Triage session decisions', () => {
     await waitFor(() => expect(mockedFinish).toHaveBeenCalledTimes(1))
     expect((screen.getByTestId('triage-decision-note-bit-1') as HTMLTextAreaElement).disabled).toBe(true)
     expect(
-      (screen.getByTestId('triage-decision-reason-bit-1-bad_format') as HTMLButtonElement).disabled,
+      (screen.getByTestId('triage-decision-reason-bit-1-text_recall_only') as HTMLButtonElement).disabled,
     ).toBe(true)
 
     fireEvent.change(screen.getByTestId('triage-decision-note-bit-1'), { target: { value: 'late' } })
-    fireEvent.click(screen.getByTestId('triage-decision-reason-bit-1-bad_format'))
+    fireEvent.click(screen.getByTestId('triage-decision-reason-bit-1-text_recall_only'))
     await act(async () => {
       pending.resolve({ ok: true, data: session({ status: 'saved_text_only' }) })
     })

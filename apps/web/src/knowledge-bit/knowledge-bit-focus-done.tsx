@@ -5,12 +5,16 @@ import { PRIMARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from './knowledge-bit-review-c
 export function KnowledgeBitFocusDone({
   waitingCount,
   decidedCount,
+  inboxCount = 0,
+  chatCount = 0,
   feedback = '',
   onFeedbackChange,
   onFinish,
 }: {
   waitingCount: number
   decidedCount: number
+  inboxCount?: number
+  chatCount?: number
   feedback?: string
   onFeedbackChange?: (text: string) => void
   onFinish: () => void
@@ -32,6 +36,16 @@ export function KnowledgeBitFocusDone({
             ? `You went through ${decidedCount} ${decidedCount === 1 ? 'card' : 'cards'}. Finish to wrap up this session.`
             : 'There is nothing left to review. Finish to wrap up this session.'}
       </p>
+      {inboxCount > 0 ? (
+        <p data-testid="knowledge-bit-focus-done-inbox" className="text-sm text-neutral-600">
+          {inboxCount} set aside
+        </p>
+      ) : null}
+      {chatCount > 0 ? (
+        <p data-testid="knowledge-bit-focus-done-chat" className="text-sm text-neutral-600">
+          {chatCount} sent to Chat
+        </p>
+      ) : null}
       <button
         type="button"
         data-testid="knowledge-bit-focus-done-finish"

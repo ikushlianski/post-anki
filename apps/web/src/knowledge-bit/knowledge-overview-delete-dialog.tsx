@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { KeyboardEvent } from 'react'
 
+import { useRestoreFocus } from '../shared/use-restore-focus'
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 
 export interface KnowledgeOverviewDeleteDialogProps {
@@ -18,6 +19,7 @@ export function KnowledgeOverviewDeleteDialog({
   onConfirm,
   onCancel,
 }: KnowledgeOverviewDeleteDialogProps) {
+  useRestoreFocus()
   const deleteRef = useRef<HTMLButtonElement>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
   const title = `Delete ${count} ${count === 1 ? 'card' : 'cards'} permanently?`

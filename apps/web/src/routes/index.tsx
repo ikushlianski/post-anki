@@ -10,18 +10,20 @@ import {
   subjectsCollection,
 } from '../curriculum/board.collection'
 
-import { getBoard, getDueTopics, getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
+import { getBoard, getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
 import { getStreak } from '../curriculum/stats.api'
 import { settle, settleNullable } from '../shared/load-result'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
 import type { Curriculum, Subject } from '../curriculum/model'
-import { browserTimeZone } from '../knowledge-bit/anki-review-session-actions'
+import { browserTimeZone } from '../shared/browser-time-zone'
 import { listLearningPaths } from '../learning-path/learning-path.api'
 import { listStudySessions } from '../study-session/study-session.api'
 import { DashboardView } from '../dashboard/dashboard-view'
-import { HomeSubjectsAndReview } from '../home/home-subjects-and-review'
+import { getStudyOverview } from '../home/home.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/')({
+  head: pageHead('Overview'),
   component: Home,
   loader: async () => {
     const [
@@ -30,7 +32,7 @@ export const Route = createFileRoute('/')({
       sessions,
       learningPaths,
       streak,
-      dueTopics,
+      studyOverview,
       subjectDueCounts,
     ] = await Promise.all([
       getBoard(),
@@ -38,7 +40,7 @@ export const Route = createFileRoute('/')({
       settle(listStudySessions()),
       settle(listLearningPaths({ data: { onlyActive: true } })),
       settleNullable(getStreak()),
-      settle(getDueTopics({ data: { limit: 5 } })),
+      settle(getStudyOverview({ data: { tz: browserTimeZone() } })),
       settle(getSubjectReviewDueCounts({ data: { tz: browserTimeZone() } })),
     ])
 
@@ -48,7 +50,7 @@ export const Route = createFileRoute('/')({
       sessions,
       learningPaths,
       streak,
-      dueTopics,
+      studyOverview,
       subjectDueCounts,
     }
   },
@@ -68,23 +70,17 @@ function Home() {
     setIsClient(true)
   }, [])
 
-  // DashboardView stays mounted at the same tree position across the isClient
-  // flip — LiveDataBridge is a SIBLING, not a wrapper, so it can mount only
-  // client-side (useLiveQuery calls useSyncExternalStore with no
-  // getServerSnapshot, which errors out SSR entirely if called there) without
-  // ever remounting DashboardView and wiping out CreateSubjectForm's in-progress
-  // input state.
   return (
     <>
       {isClient && <LiveDataBridge onData={setLive} />}
-      <HomeSubjectsAndReview />
       <DashboardView
         curricula={live?.curricula ?? initial.curricula}
         courseRefocusSuggestions={initial.courseRefocusSuggestions}
         sessions={initial.sessions}
         learningPaths={initial.learningPaths}
         streak={initial.streak}
-        dueTopics={initial.dueTopics}
+        subjects={live?.subjects ?? initial.subjects}
+        studyOverview={initial.studyOverview}
         subjectDueCounts={initial.subjectDueCounts}
       />
     </>

@@ -3,6 +3,7 @@ import type { KnowledgeBitBrowserItem } from '@post-anki/shared'
 
 import { KnowledgeBrowserDetailBody, KnowledgeBrowserDetailPreview } from './knowledge-browser-detail-body'
 import { isTypingTarget } from './knowledge-browser-open-item'
+import { PhraseSplitAction } from './phrase-split-action'
 import { KnowledgeBrowserSlideOver } from './knowledge-browser-slide-over'
 import { useKnowledgeBrowserDetail } from './use-knowledge-browser-detail'
 
@@ -46,17 +47,22 @@ export function KnowledgeBrowserDetailPanel({ id, row, onClose, getReturnFocus }
 
   return (
     <KnowledgeBrowserSlideOver title={titleFor(front)} onClose={onClose} getReturnFocus={getReturnFocus}>
-      {status === 'ready' && detail && <KnowledgeBrowserDetailBody detail={detail} />}
+      {status === 'ready' && detail && (
+        <>
+          <PhraseSplitAction bitId={detail.knowledgeBitId} isPhrase={detail.isPhrase === true} />
+          <KnowledgeBrowserDetailBody detail={detail} />
+        </>
+      )}
       {status === 'missing' && (
         <p data-testid="knowledge-browser-detail-missing" className="text-sm text-neutral-700">
-          This piece no longer exists. It may have been deleted. Close this panel to go back to the list.
+          This card no longer exists. It may have been deleted. Close this panel to go back to the list.
         </p>
       )}
       {(status === 'pending' || status === 'error') && (
         <>
           {row && <KnowledgeBrowserDetailPreview row={row} />}
           {status === 'pending' && (
-            <p data-testid="knowledge-browser-detail-loading" className="text-sm text-neutral-500">
+            <p role="status" data-testid="knowledge-browser-detail-loading" className="text-sm text-neutral-500">
               Loading details…
             </p>
           )}

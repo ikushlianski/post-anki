@@ -5,6 +5,7 @@ export function AnkiReviewCardActions({
   onEdit,
   onBury,
   onSuspend,
+  onChat,
 }: {
   revealed: boolean
   leech: boolean
@@ -12,6 +13,7 @@ export function AnkiReviewCardActions({
   onEdit: () => void
   onBury: () => void
   onSuspend: () => void
+  onChat?: () => void
 }) {
   const button = 'inline-flex min-h-[44px] items-center justify-center rounded-md border border-neutral-200 px-2 py-1 text-xs disabled:opacity-40 sm:min-h-0'
 
@@ -25,6 +27,11 @@ export function AnkiReviewCardActions({
       {revealed && (
         <button type="button" data-testid="anki-review-edit" disabled={disabled} onClick={onEdit} className={button}>
           Edit <kbd>E</kbd>
+        </button>
+      )}
+      {onChat && (
+        <button type="button" data-testid="anki-review-chat" disabled={disabled} onClick={onChat} className={button}>
+          Chat <kbd>C</kbd>
         </button>
       )}
       <button

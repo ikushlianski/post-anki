@@ -62,7 +62,7 @@ describe('KnowledgeBrowserColumnFilter', () => {
     expect(onChange).toHaveBeenLastCalledWith({}, 'push')
   })
 
-  it('should offer who added the piece and the study states', () => {
+  it('should offer who added the card and the study states', () => {
     const added = setup('addedBy')
 
     fireEvent.click(screen.getByTestId('filter-added-by-you'))
@@ -89,7 +89,7 @@ describe('KnowledgeBrowserColumnFilter', () => {
     expect(onChange).toHaveBeenCalledWith({ link: 'has', site: 'wikipedia.org' }, 'replace')
   })
 
-  it('should drop the site when the owner asks for pieces without a link', () => {
+  it('should drop the site when the owner asks for cards without a link', () => {
     const onChange = setup('sourceUrl', { link: 'has', site: 'wikipedia.org' })
 
     fireEvent.click(screen.getByTestId('filter-link-none'))

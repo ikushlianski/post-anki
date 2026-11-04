@@ -10,11 +10,9 @@ import type {
   Speed,
   Subject,
 } from './model'
+import { electricShapeUrl } from '../sync/electric-shape-url'
 
-const SHAPE_URL =
-  typeof window !== 'undefined'
-    ? `${window.location.origin}/api/electric-shape`
-    : '/api/electric-shape'
+const SHAPE_URL = electricShapeUrl()
 
 interface SubjectRow {
   [key: string]: unknown

@@ -5,9 +5,27 @@ import { sortMilestonesNewestFirst } from './sort-milestones'
 
 export interface MilestonesGalleryProps {
   milestones: Milestone[]
+  loadFailed?: boolean
+  onRetry?: () => void
 }
 
-export function MilestonesGallery({ milestones }: MilestonesGalleryProps) {
+export function MilestonesGallery({ milestones, loadFailed, onRetry }: MilestonesGalleryProps) {
+  if (loadFailed) {
+    return (
+      <div role="alert" data-testid="milestones-load-error" className="space-y-2">
+        <p className="text-sm text-red-600">Could not load milestones.</p>
+        <button
+          type="button"
+          data-testid="milestones-retry"
+          onClick={onRetry}
+          className="min-h-[44px] rounded-md border border-neutral-300 px-3 py-1.5 text-sm sm:min-h-0"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
   if (milestones.length === 0) {
     return (
       <p

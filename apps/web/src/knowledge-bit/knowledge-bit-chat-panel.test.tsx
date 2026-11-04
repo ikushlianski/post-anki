@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -57,8 +57,32 @@ describe('KnowledgeBitChatPanel', () => {
         message: 'What does this mean?',
         transcript: [],
         allowGeneralKnowledge: false,
+        clientMessageId: expect.any(String),
       },
     })
+  })
+
+  it('should send a fresh clientMessageId with every message', async () => {
+    mockedAsk.mockResolvedValue({ reply: 'ok' })
+
+    const user = userEvent.setup()
+
+    renderHarness('bit-1')
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-open'))
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'one')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await screen.findByText('ok')
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'two')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await waitFor(() => expect(mockedAsk).toHaveBeenCalledTimes(2))
+
+    const ids = mockedAsk.mock.calls.map(
+      ([arg]) => (arg as { data: { clientMessageId?: string } }).data.clientMessageId,
+    )
+
+    expect(ids[0]).toBeTruthy()
+    expect(ids[0]).not.toBe(ids[1])
   })
 
   it('sends allowGeneralKnowledge: true only after the learner turns the toggle on', async () => {
@@ -81,6 +105,7 @@ describe('KnowledgeBitChatPanel', () => {
         message: 'Tell me more',
         transcript: [],
         allowGeneralKnowledge: true,
+        clientMessageId: expect.any(String),
       },
     })
   })

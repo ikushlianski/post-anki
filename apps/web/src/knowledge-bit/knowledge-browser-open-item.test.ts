@@ -13,11 +13,11 @@ function elementIn(html: string, selector: string): Element {
 }
 
 describe('rowClickIntent', () => {
-  it('should open the piece when a row is clicked with no modifier', () => {
+  it('should open the card when a row is clicked with no modifier', () => {
     expect(rowClickIntent({ ...plain, target: elementIn('<td>text</td>', 'td') })).toBe('open')
   })
 
-  it('should select the range on shift-click and toggle one piece on command or control click', () => {
+  it('should select the range on shift-click and toggle one card on command or control click', () => {
     const target = elementIn('<td>text</td>', 'td')
 
     expect(rowClickIntent({ ...plain, shiftKey: true, target })).toBe('range')
@@ -39,19 +39,19 @@ describe('openNavigationMode', () => {
     expect(openNavigationMode(undefined, 'b1')).toBe('push')
   })
 
-  it('should replace the entry when switching pieces or closing', () => {
+  it('should replace the entry when switching cards or closing', () => {
     expect(openNavigationMode('b1', 'b2')).toBe('replace')
     expect(openNavigationMode('b1', null)).toBe('replace')
   })
 })
 
 describe('withOpen', () => {
-  it('should carry the open piece alongside the filters and drop it when closed', () => {
+  it('should carry the open card alongside the filters and drop it when closed', () => {
     expect(withOpen({ subject: 's1', question: 'pod' }, 'b1')).toEqual({ subject: 's1', question: 'pod', open: 'b1' })
     expect(withOpen({ subject: 's1', open: 'b1' }, null)).toEqual({ subject: 's1' })
   })
 
-  it('should replace the open piece when another one is given', () => {
+  it('should replace the open card when another one is given', () => {
     expect(withOpen({ open: 'b1' }, 'b2')).toEqual({ open: 'b2' })
   })
 })
@@ -59,17 +59,17 @@ describe('withOpen', () => {
 describe('neighbourId', () => {
   const ids = ['a', 'b', 'c']
 
-  it('should give the next and previous visible piece', () => {
+  it('should give the next and previous visible card', () => {
     expect(neighbourId(ids, 'b', 'next')).toBe('c')
     expect(neighbourId(ids, 'b', 'previous')).toBe('a')
   })
 
-  it('should stop at the first and last piece instead of wrapping', () => {
+  it('should stop at the first and last card instead of wrapping', () => {
     expect(neighbourId(ids, 'a', 'previous')).toBeNull()
     expect(neighbourId(ids, 'c', 'next')).toBeNull()
   })
 
-  it('should give nothing when the open piece is filtered out of the list or nothing is open', () => {
+  it('should give nothing when the open card is filtered out of the list or nothing is open', () => {
     expect(neighbourId(ids, 'zzz', 'next')).toBeNull()
     expect(neighbourId(ids, null, 'next')).toBeNull()
     expect(neighbourId([], 'a', 'next')).toBeNull()

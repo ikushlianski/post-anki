@@ -9,8 +9,10 @@ import { ProbeRoomDrawer } from '../curriculum/probe-room-drawer'
 import { SocraticChat } from '../curriculum/socratic-chat'
 import { StudyChatSidebar } from '../curriculum/study-chat-sidebar'
 import { TopicDepthGate } from '../learning-list/topic-depth-gate'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/probe/$topicId')({
+  head: pageHead('Probe'),
   validateSearch: (
     search: Record<string, unknown>,
   ): { mode: QuestionKind; curriculumId: string } => ({

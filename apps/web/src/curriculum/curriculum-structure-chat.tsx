@@ -79,6 +79,8 @@ function lastUserMessageBefore(turns: StructureTurn[], turnId: string): string |
   return null
 }
 
+const REQUEST_FAILED_MESSAGE = "Couldn't do that, try again"
+
 const GUARD_MESSAGES: Record<'turn_in_progress' | 'turn_limit_reached', string> = {
   turn_in_progress: 'Still working on your last message — try again in a moment.',
   turn_limit_reached:
@@ -112,19 +114,27 @@ export function CurriculumStructureChat({ curriculumId }: { curriculumId: string
     setBusy(true)
     setError(null)
 
-    const result = await submitStructureTurn({
-      data: { curriculumId, message: text, researchGapLabels },
-    })
+    try {
+      const result = await submitStructureTurn({
+        data: { curriculumId, message: text, researchGapLabels },
+      })
 
-    if (!result.ok) {
-      setError(GUARD_MESSAGES[result.code])
-      setBusy(false)
+      if (!result.ok) {
+        setError(GUARD_MESSAGES[result.code])
+
+        return false
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['curriculum-structure-turns', curriculumId] })
+
+      return true
+    } catch {
+      setError(REQUEST_FAILED_MESSAGE)
+
       return false
+    } finally {
+      setBusy(false)
     }
-
-    await queryClient.invalidateQueries({ queryKey: ['curriculum-structure-turns', curriculumId] })
-    setBusy(false)
-    return true
   }
 
   function toggleFlag(label: string) {
@@ -186,17 +196,22 @@ export function CurriculumStructureChat({ curriculumId }: { curriculumId: string
     setBusy(true)
     setError(null)
 
-    const result = await resolveSupplementalResearch({ data: { curriculumId, approvedCandidateIds } })
+    try {
+      const result = await resolveSupplementalResearch({ data: { curriculumId, approvedCandidateIds } })
 
-    if (!result.ok) {
-      setError(GUARD_MESSAGES[result.code])
+      if (!result.ok) {
+        setError(GUARD_MESSAGES[result.code])
+
+        return
+      }
+
+      setRemovedCandidateIds(new Set())
+      await queryClient.invalidateQueries({ queryKey: ['curriculum-structure-turns', curriculumId] })
+    } catch {
+      setError(REQUEST_FAILED_MESSAGE)
+    } finally {
       setBusy(false)
-      return
     }
-
-    setRemovedCandidateIds(new Set())
-    await queryClient.invalidateQueries({ queryKey: ['curriculum-structure-turns', curriculumId] })
-    setBusy(false)
   }
 
   async function useResearchCandidates() {

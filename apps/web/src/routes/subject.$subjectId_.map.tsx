@@ -1,3 +1,4 @@
+import { pageTitle } from '../shared/page-title'
 import { useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import reactFlowCss from '@xyflow/react/dist/style.css?url'
@@ -15,6 +16,7 @@ export const Route = createFileRoute('/subject/$subjectId_/map')({
   // Scoped to this route only, not __root.tsx, since no other route needs
   // React Flow's styles.
   head: () => ({
+    meta: [{ title: pageTitle('Subject map') }],
     links: [
       {
         rel: 'stylesheet',

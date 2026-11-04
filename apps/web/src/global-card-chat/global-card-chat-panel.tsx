@@ -111,7 +111,7 @@ export function GlobalCardChatPanel() {
         type="button"
         data-testid="global-card-chat-open"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-20 rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
+        className="fixed bottom-4 right-4 z-20 min-h-[44px] rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
       >
         Ask my cards
       </button>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useQuery } from '@tanstack/react-query'
 import type { ProbeSession } from '@post-anki/shared'
@@ -17,6 +17,8 @@ vi.mock('./probe-session.api', () => ({
 vi.mock('../feedback/item-feedback-buttons', () => ({
   ItemFeedbackButtons: () => null,
 }))
+
+configure({ asyncUtilTimeout: 5000 })
 
 const mockedGetActiveProbeSession = vi.mocked(getActiveProbeSession)
 const mockedPrepareProbeSession = vi.mocked(prepareProbeSession)

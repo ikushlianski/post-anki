@@ -6,7 +6,7 @@ export function KnowledgeBrowserSourceBar({ state }: { state: BrowserSourceDelet
     return null
   }
 
-  const noun = state.count === 1 ? 'piece' : 'pieces'
+  const noun = state.count === 1 ? 'card' : 'cards'
   const name = state.label ? ` "${state.label}"` : ''
 
   return (

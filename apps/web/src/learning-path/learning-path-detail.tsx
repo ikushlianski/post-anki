@@ -52,6 +52,7 @@ export function LearningPathDetail({
   )
   const [pushByStep, setPushByStep] = useState<Record<string, StepPushResult>>({})
   const [loadingStepId, setLoadingStepId] = useState<string | null>(null)
+  const [failedStepId, setFailedStepId] = useState<string | null>(null)
 
   const stepModels = useMemo(
     () =>
@@ -76,14 +77,22 @@ export function LearningPathDetail({
     }
 
     setLoadingStepId(expandedStepId)
+    setFailedStepId(null)
 
-    void onLoadStepPush(expandedStepId).then((result) => {
-      setLoadingStepId(null)
+    void onLoadStepPush(expandedStepId)
+      .then((result) => {
+        setLoadingStepId(null)
 
-      if (result.ok) {
-        setPushByStep((prev) => ({ ...prev, [expandedStepId]: result.data }))
-      }
-    })
+        if (result.ok) {
+          setPushByStep((prev) => ({ ...prev, [expandedStepId]: result.data }))
+        } else {
+          setFailedStepId(expandedStepId)
+        }
+      })
+      .catch(() => {
+        setLoadingStepId(null)
+        setFailedStepId(expandedStepId)
+      })
   }, [expandedStepId])
 
   function toggle(domainNodeId: string) {
@@ -119,6 +128,7 @@ export function LearningPathDetail({
             step={step}
             expanded={expandedStepId === step.domainNodeId}
             loading={loadingStepId === step.domainNodeId}
+            failed={failedStepId === step.domainNodeId}
             pushResult={pushByStep[step.domainNodeId]}
             subjects={subjects}
             onToggle={() => toggle(step.domainNodeId)}

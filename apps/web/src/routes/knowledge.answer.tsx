@@ -8,6 +8,7 @@ import {
 } from '../knowledge-bit/knowledge-answer.api'
 import { KnowledgeBitChatPanel } from '../knowledge-bit/knowledge-bit-chat-panel'
 import type { GradeQuestionVariantAnswerResult } from '../curriculum/api-client'
+import { pageHead } from '../shared/page-title'
 
 interface AnswerScreenSearch {
   tagId?: string
@@ -16,6 +17,7 @@ interface AnswerScreenSearch {
 }
 
 export const Route = createFileRoute('/knowledge/answer')({
+  head: pageHead('Answer'),
   validateSearch: (search: Record<string, unknown>): AnswerScreenSearch => ({
     tagId: typeof search.tagId === 'string' ? search.tagId : undefined,
     topicId: typeof search.topicId === 'string' ? search.topicId : undefined,
@@ -111,7 +113,7 @@ function AnswerScreen() {
     <main className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
       <header className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Answer knowledge bits</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Answer cards</h1>
           <p className="mt-1 text-sm text-neutral-500">
             A knowledge fisher probing for the why behind what you've captured.
           </p>

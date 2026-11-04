@@ -27,6 +27,7 @@ export interface SourceRegenerationActions {
   onConfirm: (sourceId: string, modelId?: KnowledgeItemModelId) => void
   onRetry: (sourceId: string) => void
   onRetryWithText: (sourceId: string, text: string) => void
+  onExtractAnyway: (sourceId: string) => void
 }
 
 export type SourceRegenerationPhase = 'confirming' | 'starting' | 'running' | 'failed'
@@ -71,7 +72,12 @@ export function useSourceRegeneration({
     })
   }, [])
 
-  async function start(sourceId: string, modelId?: KnowledgeItemModelId, text?: string) {
+  async function start(
+    sourceId: string,
+    modelId?: KnowledgeItemModelId,
+    text?: string,
+    forceAtLeastOne?: boolean,
+  ) {
     if (!claim(sourceId)) {
       return
     }
@@ -79,7 +85,7 @@ export function useSourceRegeneration({
     setState(sourceId, { phase: 'starting', modelId })
 
     try {
-      await regenerateKnowledgeSourceForReview({ data: { sourceId, modelId, text } })
+      await regenerateKnowledgeSourceForReview({ data: { sourceId, modelId, text, ...(forceAtLeastOne ? { forceAtLeastOne } : {}) } })
 
       const gone = new Set(
         sources.find((source) => source.knowledgeSourceId === sourceId)?.bits.map((bit) => bit.id),
@@ -115,7 +121,8 @@ export function useSourceRegeneration({
     (statuses: RegenerationStatuses, _fresh?: unknown) => {
       const stillRunning = new Set(
         Object.keys(statesRef.current).filter(
-          (id) => statesRef.current[id]?.phase !== 'confirming' && statuses[id]?.status !== 'done',
+          (id) => statesRef.current[id]?.phase !== 'confirming' && statuses[id]?.status !== 'done' &&
+            statuses[id]?.status !== 'nothing_extracted',
         ),
       )
 
@@ -123,7 +130,7 @@ export function useSourceRegeneration({
         const next = { ...prev }
 
         for (const [sourceId, status] of Object.entries(statuses)) {
-          if (status.status === 'done') {
+          if (status.status === 'done' || status.status === 'nothing_extracted') {
             delete next[sourceId]
           } else if (status.status === 'failed') {
             next[sourceId] = { ...next[sourceId], phase: 'failed', message: RUN_FAILED_MESSAGE }
@@ -146,6 +153,8 @@ export function useSourceRegeneration({
       onConfirm: (sourceId: string, modelId?: KnowledgeItemModelId) => start(sourceId, modelId),
       onRetry: (sourceId: string) => start(sourceId, statesRef.current[sourceId]?.modelId),
       onRetryWithText: (sourceId: string, text: string) => start(sourceId, undefined, text),
+      onExtractAnyway: (sourceId: string) =>
+        start(sourceId, statesRef.current[sourceId]?.modelId, undefined, true),
     },
     fetchStatuses,
     applyStatuses,

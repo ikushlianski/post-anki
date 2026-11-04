@@ -159,7 +159,7 @@ export function KnowledgeBrowserTable({
                 <td className="px-3 py-2">
                   <input
                     type="checkbox"
-                    aria-label="Select piece"
+                    aria-label="Select card"
                     data-testid="knowledge-browser-select-row"
                     checked={selected.has(row.knowledgeBitId)}
                     onChange={() => undefined}

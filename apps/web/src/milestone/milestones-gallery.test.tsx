@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import type { Milestone } from '@post-anki/shared'
 
@@ -76,5 +76,21 @@ describe('MilestonesGallery', () => {
     render(<MilestonesGallery milestones={[milestone({ entityLabel: null })]} />)
 
     expect(screen.getByTestId('milestone-card')).toBeTruthy()
+  })
+
+  it('should show a load error instead of the empty message when milestones failed to load', () => {
+    render(<MilestonesGallery milestones={[]} loadFailed />)
+
+    expect(screen.getByTestId('milestones-load-error')).toBeTruthy()
+    expect(screen.queryByTestId('milestones-empty')).toBeNull()
+  })
+
+  it('should let the user retry a failed load', () => {
+    const onRetry = vi.fn()
+
+    render(<MilestonesGallery milestones={[]} loadFailed onRetry={onRetry} />)
+    fireEvent.click(screen.getByTestId('milestones-retry'))
+
+    expect(onRetry).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useRouter } from '@tanstack/react-router'
 
+import { ActionFailedLine } from './action-failed-line'
 import { addSourcesToCurriculum } from './curriculum.api'
 import { SourceRowsEditor } from './source-rows-editor'
+import { useGuardedRun } from './use-guarded-run'
 import { useSourceRows } from './use-source-rows'
 
 export function AddSourcesForm({ curriculumId }: { curriculumId: string }) {
-  const router = useRouter()
+  const { busy, failed, run } = useGuardedRun()
   const sourceRows = useSourceRows()
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
 
   function reset() {
     sourceRows.reset()
@@ -26,11 +26,10 @@ export function AddSourcesForm({ curriculumId }: { curriculumId: string }) {
       return
     }
 
-    setBusy(true)
-    await addSourcesToCurriculum({ data: { curriculumId, sources: drafts } })
-    setBusy(false)
-    reset()
-    await router.invalidate()
+    await run(async () => {
+      await addSourcesToCurriculum({ data: { curriculumId, sources: drafts } })
+      reset()
+    })
   }
 
   if (!open) {
@@ -72,6 +71,7 @@ export function AddSourcesForm({ curriculumId }: { curriculumId: string }) {
         >
           Cancel
         </button>
+        <ActionFailedLine failed={failed} testId="add-sources-error" />
       </div>
     </form>
   )

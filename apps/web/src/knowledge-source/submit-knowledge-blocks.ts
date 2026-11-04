@@ -5,7 +5,7 @@ import {
   knowledgeSourceRefusalFromError,
 } from '@post-anki/shared'
 
-import { attentionFirstWords } from '@post-anki/shared'
+import { attentionFirstWords, normalizeTargetPhrases } from '@post-anki/shared'
 
 import {
   createKnowledgeSource,
@@ -18,6 +18,7 @@ export interface SubmittedBlock {
   type: 'text' | 'url'
   value: string
   force?: boolean
+  targetPhrases?: string[]
 }
 
 export interface EarlierSource {
@@ -53,25 +54,32 @@ export interface SubmitOutcome {
   duplicates: Map<number, EarlierSource>
 }
 
-function buildJobs(
-  blocks: SubmittedBlock[],
-  options: { subjectId?: string; modelId?: string },
-): Job[] {
+function buildJobs(blocks: SubmittedBlock[], options: { subjectId?: string; modelId?: string }): Job[] {
   const { subjectId, modelId } = options
-  const forcedTextBlocks = blocks.filter((block) => block.type === 'text' && block.force === true)
-  const textBlocks = blocks.filter((block) => block.type === 'text' && block.force !== true)
-  const urlBlocks = blocks.filter((block) => block.type === 'url')
-  const jobs: Job[] = forcedTextBlocks.map((block) => ({
+  const withPhrases = blocks.map((block) => ({
+    block,
+    targetPhrases: normalizeTargetPhrases(block.targetPhrases ?? []) ?? undefined,
+  }))
+  const singleTextBlocks = withPhrases.filter(
+    ({ block, targetPhrases }) => block.type === 'text' && (block.force === true || targetPhrases !== undefined),
+  )
+  const batchedTextBlocks = withPhrases
+    .filter(({ block, targetPhrases }) => block.type === 'text' && block.force !== true && targetPhrases === undefined)
+    .map(({ block }) => block)
+  const urlBlocks = withPhrases.filter(({ block }) => block.type === 'url')
+  const jobs: Job[] = singleTextBlocks.map(({ block, targetPhrases }) => ({
     indices: [block.index],
     run: async () => {
-      const created = await createKnowledgeSource({ data: { text: block.value, subjectId, modelId, force: true } })
+      const created = await createKnowledgeSource({
+        data: { text: block.value, subjectId, modelId, force: block.force === true ? true : undefined, targetPhrases },
+      })
 
       return { created: 1, truncated: false, added: addedFrom(created, block.value) }
     },
   }))
 
-  if (textBlocks.length === 1) {
-    const [block] = textBlocks
+  if (batchedTextBlocks.length === 1) {
+    const [block] = batchedTextBlocks
 
     jobs.push({
       indices: [block.index],
@@ -81,26 +89,28 @@ function buildJobs(
         return { created: 1, truncated: false, added: addedFrom(created, block.value) }
       },
     })
-  } else if (textBlocks.length > 1) {
+  } else if (batchedTextBlocks.length > 1) {
     jobs.push({
-      indices: textBlocks.map((block) => block.index),
+      indices: batchedTextBlocks.map((block) => block.index),
       run: async () => {
         const created = await createKnowledgeSources({
-          data: { texts: textBlocks.map((block) => block.value), subjectId, modelId },
+          data: { texts: batchedTextBlocks.map((block) => block.value), subjectId, modelId },
         })
 
-        const added = created.flatMap((source, i) => addedFrom(source, textBlocks[i]?.value ?? ''))
+        const added = created.flatMap((source, i) => addedFrom(source, batchedTextBlocks[i]?.value ?? ''))
 
         return { created: created.length, truncated: false, added }
       },
     })
   }
 
-  for (const block of urlBlocks) {
+  for (const { block, targetPhrases } of urlBlocks) {
     jobs.push({
       indices: [block.index],
       run: async () => {
-        const created = await createKnowledgeSourceFromUrl({ data: { url: block.value, subjectId, modelId, force: block.force } })
+        const created = await createKnowledgeSourceFromUrl({
+          data: { url: block.value, subjectId, modelId, force: block.force, targetPhrases },
+        })
 
         return { created: 1, truncated: created.truncated === true, added: addedFrom(created, block.value) }
       },

@@ -14,18 +14,18 @@ export function LevelChip() {
   return (
     <div
       data-testid="level-chip"
-      className="mb-4 flex items-center gap-3 text-sm text-neutral-600"
+      className="mt-2 flex items-center gap-2 text-xs text-neutral-400"
     >
-      <span className="font-medium text-neutral-900">Level {player.level}</span>
+      <span className="text-neutral-500">Level {player.level}</span>
       <div
         role="progressbar"
         aria-label="Progress to next level"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        className="h-1.5 w-24 overflow-hidden rounded-full bg-neutral-200"
+        className="h-1 w-16 overflow-hidden rounded-full bg-neutral-200"
       >
-        <div className="h-full bg-indigo-500" style={{ width: `${percent}%` }} />
+        <div className="h-full bg-neutral-400" style={{ width: `${percent}%` }} />
       </div>
       <span>
         {player.totalPoints === 0

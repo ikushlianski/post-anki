@@ -20,6 +20,18 @@ describe('KnowledgeBitFocusDone', () => {
     expect(onFinish).toHaveBeenCalledTimes(1)
   })
 
+  it('should say how many items were set aside', () => {
+    render(<KnowledgeBitFocusDone waitingCount={0} decidedCount={1} inboxCount={2} onFinish={vi.fn()} />)
+
+    expect(screen.getByTestId('knowledge-bit-focus-done-inbox').textContent).toBe('2 set aside')
+  })
+
+  it('should not mention the Inbox when nothing was sent there', () => {
+    render(<KnowledgeBitFocusDone waitingCount={0} decidedCount={1} onFinish={vi.fn()} />)
+
+    expect(screen.queryByTestId('knowledge-bit-focus-done-inbox')).toBeNull()
+  })
+
   it('should offer an optional feedback field under Finish triage', () => {
     const onFeedbackChange = vi.fn()
 

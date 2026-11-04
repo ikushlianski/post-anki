@@ -10,8 +10,10 @@ import {
   listLearningListItems,
   resolveRecommendation,
 } from '../learning-list/learning-list.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/learning-list')({
+  head: pageHead('Learning list'),
   component: LearningListPage,
   loader: async () => {
     const [items, board] = await Promise.all([

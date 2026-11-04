@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import type { ReviewCard, ReviewCardsResponse } from '@post-anki/shared'
@@ -88,6 +88,8 @@ function queueResponse(
 const savedGrade = {
   ok: true as const,
   reviewId: 'review-1',
+  cardKey: '',
+  buriedVariantIds: [],
   knowledgeBitId: 'bit-1',
   phase: 'review' as const,
   dueAt: '2026-10-11T12:00:00.000Z',
@@ -110,6 +112,7 @@ function renderPage() {
 
 afterEach(() => {
   cleanup()
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
   vi.resetAllMocks()
 })
 
@@ -141,6 +144,40 @@ describe('Anki review feedback and next steps', () => {
     const sent = mockedSubmitReview.mock.calls.map(([input]) => input.data)
     expect(sent).toHaveLength(2)
     expect(sent[1]).toMatchObject({ variantId: 'variant-1', grade: 'good', requestId: sent[0]?.requestId })
+  })
+
+  it('should keep Retry disabled while offline and enable it again when the connection is back', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard, secondCard]))
+    mockedSubmitReview.mockResolvedValueOnce({ ok: false, error: 'network_error' })
+
+    renderPage()
+    await userEvent.click(await screen.findByTestId('anki-review-show-answer'))
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    await userEvent.click(screen.getByTestId('anki-review-grade-good'))
+
+    const retry = (await screen.findByTestId('anki-review-grade-retry')) as HTMLButtonElement
+
+    expect(retry.disabled).toBe(true)
+    expect(screen.getByTestId('anki-review-offline-hint')).toBeTruthy()
+
+    act(() => {
+      Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
+      window.dispatchEvent(new Event('online'))
+    })
+
+    expect(retry.disabled).toBe(false)
+    expect(screen.queryByTestId('anki-review-offline-hint')).toBeNull()
+  })
+
+  it('should announce a failed grade as an alert', async () => {
+    mockedGetReviewCards.mockResolvedValue(queueResponse([firstCard]))
+    mockedSubmitReview.mockResolvedValueOnce({ ok: false, error: 'network_error' })
+
+    renderPage()
+    await userEvent.click(await screen.findByTestId('anki-review-show-answer'))
+    await userEvent.click(screen.getByTestId('anki-review-grade-good'))
+
+    expect((await screen.findByTestId('anki-review-grade-error')).getAttribute('role')).toBe('alert')
   })
 
   it('should not offer Retry when the grade error cannot be fixed by retrying', async () => {

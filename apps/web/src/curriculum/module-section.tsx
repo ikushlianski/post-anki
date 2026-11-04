@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
 import { nextPriority } from '@post-anki/core'
 
 import type { Module } from './model'
@@ -26,6 +24,8 @@ import {
   StrictOrderNote,
   moveInOrder,
 } from './shape-controls'
+import { ActionFailedLine } from './action-failed-line'
+import { useGuardedRun } from './use-guarded-run'
 
 export function ModuleSection({
   module,
@@ -46,19 +46,11 @@ export function ModuleSection({
   allModules: { id: string; title: string }[]
   strictOrder: boolean
 }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
+  const { busy, failed, run } = useGuardedRun()
   const hydrated = useHydrated()
   const index = moduleOrder.indexOf(module.id)
   const topicOrder = module.topics.map((topic) => topic.id)
   const promoteDemoteMutation = usePromoteDemoteModule(curriculumId)
-
-  async function run(fn: () => Promise<unknown>) {
-    setBusy(true)
-    await fn()
-    setBusy(false)
-    await router.invalidate()
-  }
 
   return (
     <section className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-4">
@@ -128,9 +120,11 @@ export function ModuleSection({
               busy={busy}
               hydrated={hydrated}
               label="Delete module"
+              consequence="Deletes this module, its topics and their cards"
               onConfirm={() => run(() => deleteModule({ data: module.id }))}
             />
           ) : null}
+          <ActionFailedLine failed={failed} testId={`module-action-failed-${module.id}`} />
         </div>
       </div>
 

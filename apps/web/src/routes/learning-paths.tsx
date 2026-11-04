@@ -7,8 +7,10 @@ import {
   listLearningPaths,
   listRoleTemplates,
 } from '../learning-path/learning-path.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/learning-paths')({
+  head: pageHead('Learning paths'),
   component: LearningPathsPage,
   loader: async () => {
     const [templates, paths] = await Promise.all([

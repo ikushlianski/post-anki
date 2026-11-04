@@ -82,7 +82,7 @@ function KnowledgeBrowserCardTable({
   const filtered = filteredColumns(filters)
   const filtering = hasAnyFilter(filters)
   const title = !subjectId
-    ? 'Knowledge browser'
+    ? 'All cards'
     : subjectId === NO_SUBJECT_PARAM
       ? 'No subject'
       : labelFor(subjectId) || 'Subject'
@@ -134,7 +134,7 @@ function KnowledgeBrowserCardTable({
         }
       />
       {!meaning && data.isPending && (
-        <p data-testid="knowledge-browser-loading" className="text-neutral-500">
+        <p role="status" data-testid="knowledge-browser-loading" className="text-neutral-500">
           Loading…
         </p>
       )}
@@ -147,7 +147,7 @@ function KnowledgeBrowserCardTable({
       )}
       {!meaning && !data.isPending && !data.isError && data.rows.length === 0 && filtering && (
         <p data-testid="knowledge-browser-no-match" className="text-neutral-500">
-          No pieces match these filters.{' '}
+          No cards match these filters.{' '}
           <button
             type="button"
             data-testid="knowledge-browser-no-match-clear"

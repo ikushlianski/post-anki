@@ -3,9 +3,11 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { resolveCategoryPath } from '@post-anki/core'
 import { getBoard } from '../curriculum/curriculum.api'
 import { CreateMaterialForm } from '../subject/create-material-form'
-import { CurriculumRowActions } from '../subject/subject-section'
+import { CurriculumRowActions } from '../subject/curriculum-row-actions'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/subject/$subjectId_/category/$categoryId')({
+  head: pageHead('Category'),
   component: CategoryDetailPage,
   loader: async ({ params }) => {
     const board = await getBoard()

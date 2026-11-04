@@ -59,6 +59,12 @@ describe('FindPage', () => {
     mockedSearch.mockReset()
   })
 
+  it('gives the search box an accessible name', () => {
+    render(<FindPage />)
+
+    expect(screen.getByLabelText('Search topics')).toBeDefined()
+  })
+
   it('shows a distinct error message when the search request fails, not a false "no matches"', async () => {
     mockedSearch.mockRejectedValue(new Error('network down'))
 

@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from '@tanstack/react-router'
 
 import { getDailyPush } from '../curriculum/curriculum.api'
 import { respondToNudge } from '../learning-list/learning-list.api'
+import { StartPrompt } from '../study-session/start-prompt'
 import { SessionReview } from '../study-session/session-review'
 import { SessionRunner } from '../study-session/session-runner'
 import {
@@ -9,10 +10,11 @@ import {
   getStudySession,
   getStudySessionPush,
   recordStudySessionAnswer,
-  startStudySession,
 } from '../study-session/study-session.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/study-sessions_/$sessionId')({
+  head: pageHead('Study session'),
   component: StudySessionDetailPage,
   loader: async ({ params }) => {
     const sessionResult = await getStudySession({ data: params.sessionId })
@@ -74,36 +76,5 @@ function StudySessionDetailPage() {
         <SessionReview session={session} />
       ) : null}
     </main>
-  )
-}
-
-function StartPrompt({
-  sessionId,
-  onStarted,
-}: {
-  sessionId: string
-  onStarted: () => void | Promise<void>
-}) {
-  return (
-    <div
-      data-testid="session-start-prompt"
-      className="card text-center"
-    >
-      <p className="mb-4 text-sm text-neutral-500">Ready when you are.</p>
-      <button
-        type="button"
-        data-testid="session-start-button"
-        onClick={() => {
-          void startStudySession({ data: sessionId }).then((result) => {
-            if (result.ok) {
-              void onStarted()
-            }
-          })
-        }}
-        className="btn-primary"
-      >
-        Start session
-      </button>
-    </div>
   )
 }

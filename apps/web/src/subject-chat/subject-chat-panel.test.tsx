@@ -42,7 +42,7 @@ async function ask(question: string) {
 }
 
 describe('SubjectChatPanel', () => {
-  it('should list the knowledge pieces an answer was built from', async () => {
+  it('should list the knowledge cards an answer was built from', async () => {
     mockedAsk.mockResolvedValue({
       reply: 'A closure keeps its scope.',
       usedBits: [

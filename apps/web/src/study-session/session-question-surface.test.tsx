@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import type { StudySessionPushResponse } from '@post-anki/shared'
 
@@ -72,5 +72,18 @@ describe('SessionQuestionSurface', () => {
     expect(screen.getByText('React · Hooks')).toBeTruthy()
     expect(screen.getByText('useEffect cleanup')).toBeTruthy()
     expect(screen.getByTestId('mock-probe-answer')).toBeTruthy()
+  })
+
+  it('should offer a retry instead of loading forever when the question failed to load', () => {
+    const onRetry = vi.fn()
+
+    render(
+      <SessionQuestionSurface loading={false} loadFailed onRetry={onRetry} pushResult={null} onAnswered={vi.fn()} />,
+    )
+
+    fireEvent.click(screen.getByTestId('session-question-retry'))
+
+    expect(screen.queryByTestId('session-question-loading')).toBeNull()
+    expect(onRetry).toHaveBeenCalledOnce()
   })
 })

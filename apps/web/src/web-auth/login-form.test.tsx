@@ -16,7 +16,7 @@ function submitPassword(email: string, password: string) {
   render(<LoginForm />)
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } })
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } })
-  fireEvent.click(screen.getByRole('button', { name: 'Sign in with password' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 }
 
 describe('LoginForm password sign-in', () => {
@@ -47,6 +47,18 @@ describe('LoginForm password sign-in', () => {
     expect((await screen.findByTestId('login-error')).textContent).toBe('Could not sign in.')
     expect((screen.getByLabelText('Password') as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe('me@example.com')
+  })
+
+  it('should let the user reveal and hide the typed password', () => {
+    render(<LoginForm />)
+
+    const input = screen.getByLabelText('Password')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }))
+    expect(input.getAttribute('type')).toBe('text')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide password' }))
+    expect(input.getAttribute('type')).toBe('password')
   })
 
   it('should say too many attempts when the password is rate limited', async () => {

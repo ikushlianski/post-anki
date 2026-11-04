@@ -120,4 +120,16 @@ describe('CaptureForm', () => {
       screen.getByTestId<HTMLButtonElement>('capture-submit').disabled,
     ).toBe(true)
   })
+
+  it('should show an error and re-enable the button when the request throws', async () => {
+    renderForm(vi.fn().mockRejectedValue(new Error('boom')))
+
+    typeUrl('https://react.dev/learn')
+    fireEvent.click(screen.getByTestId('capture-submit'))
+
+    expect(await screen.findByText('Could not add that — try again.')).toBeTruthy()
+    await waitFor(() =>
+      expect((screen.getByTestId('capture-submit') as HTMLButtonElement).disabled).toBe(false),
+    )
+  })
 })

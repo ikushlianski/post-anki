@@ -84,4 +84,12 @@ describe('NewCardsPerDayField when saving fails', () => {
 
     await waitFor(() => expect(input.value).toBe('20'))
   })
+
+  it('should tie the label to the input with and without a test id', () => {
+    render(<NewCardsPerDayField label="Per day A" description="d" value={5} onChange={vi.fn()} />)
+    render(<NewCardsPerDayField label="Per day B" description="d" value={6} onChange={vi.fn()} testId="b" />)
+
+    expect((screen.getByLabelText('Per day A') as HTMLInputElement).value).toBe('5')
+    expect((screen.getByLabelText('Per day B') as HTMLInputElement).value).toBe('6')
+  })
 })

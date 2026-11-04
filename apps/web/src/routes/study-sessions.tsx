@@ -10,8 +10,10 @@ import {
   getStudySessionConsistency,
   listStudySessions,
 } from '../study-session/study-session.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/study-sessions')({
+  head: pageHead('Study sessions'),
   component: StudySessionsPage,
   loader: async () => {
     const [board, learningPaths, sessions, consistency] = await Promise.all([

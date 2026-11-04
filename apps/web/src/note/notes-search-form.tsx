@@ -64,6 +64,7 @@ export function NotesSearchForm({
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
+        aria-label="Search your notes"
         placeholder="Search everything you've written…"
         data-testid="notes-search-query"
         className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
@@ -73,6 +74,7 @@ export function NotesSearchForm({
         <select
           value={concern}
           onChange={(event) => setConcern(event.target.value as Concern | '')}
+          aria-label="Concern"
           data-testid="notes-search-concern"
           className="rounded-md border border-neutral-300 px-2 py-1.5 text-xs"
         >

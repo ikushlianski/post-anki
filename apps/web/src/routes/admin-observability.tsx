@@ -4,8 +4,10 @@ import { getAdminObservability } from '../admin-observability/admin-observabilit
 import { formatTokens } from '../admin-observability/format-tokens'
 import { getKnowledgeBitFeedbackByModelForAdmin } from '../knowledge-bit/knowledge-bit-review.api'
 import { KnowledgeBitFeedbackByModel } from '../knowledge-bit/knowledge-bit-feedback-by-model'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/admin-observability')({
+  head: pageHead('Observability'),
   component: AdminObservabilityPage,
   loader: async () => {
     const [observability, feedbackByModel] = await Promise.all([

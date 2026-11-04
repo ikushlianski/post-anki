@@ -1,5 +1,7 @@
 import type { SuspendedCard } from '@post-anki/shared'
 
+import { CardContextLine } from './card-context-line'
+
 export interface SuspendedCardRowState {
   pending: boolean
   failed: boolean
@@ -12,6 +14,10 @@ export interface SuspendedCardsPageProps {
   loadingMore: boolean
   onBringBack: (card: SuspendedCard) => void
   onLoadMore: () => void
+}
+
+export function suspendedCardRowKey(card: SuspendedCard): string {
+  return card.cardKey ? `${card.knowledgeBitId}:${card.cardKey}` : card.knowledgeBitId
 }
 
 function formatDay(iso: string | null): string {
@@ -49,18 +55,18 @@ function SuspendedCardRow({
 
   return (
     <li
-      data-testid={`suspended-card-row-${card.knowledgeBitId}`}
+      data-testid={`suspended-card-row-${suspendedCardRowKey(card)}`}
       className="rounded-lg border border-neutral-200 bg-white p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p
-          data-testid={`suspended-card-item-${card.knowledgeBitId}`}
+          data-testid={`suspended-card-item-${suspendedCardRowKey(card)}`}
           className="text-sm font-medium text-neutral-900"
         >
           {card.itemText}
         </p>
         <span
-          data-testid={`suspended-card-badge-${card.knowledgeBitId}`}
+          data-testid={`suspended-card-badge-${suspendedCardRowKey(card)}`}
           className={
             card.reason === 'leech'
               ? 'rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800'
@@ -74,13 +80,14 @@ function SuspendedCardRow({
       <dl className="mt-3 flex flex-col gap-2 text-sm">
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-neutral-400">Question</dt>
-          <dd data-testid={`suspended-card-question-${card.knowledgeBitId}`} className="text-neutral-800">
-            {card.question}
+          <dd className="text-neutral-800">
+            <CardContextLine context={card.context} testId={`suspended-card-context-${suspendedCardRowKey(card)}`} />
+            <span data-testid={`suspended-card-question-${suspendedCardRowKey(card)}`}>{card.question}</span>
           </dd>
         </div>
         <div>
           <dt className="text-xs font-medium uppercase tracking-wide text-neutral-400">Answer</dt>
-          <dd data-testid={`suspended-card-answer-${card.knowledgeBitId}`} className="text-neutral-800">
+          <dd data-testid={`suspended-card-answer-${suspendedCardRowKey(card)}`} className="text-neutral-800">
             {card.answer}
           </dd>
         </div>
@@ -89,11 +96,11 @@ function SuspendedCardRow({
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-neutral-500">
           {card.subjectName ? (
-            <span data-testid={`suspended-card-subject-${card.knowledgeBitId}`}>{card.subjectName}</span>
+            <span data-testid={`suspended-card-subject-${suspendedCardRowKey(card)}`}>{card.subjectName}</span>
           ) : null}
           {card.subjectName && card.since ? ' · ' : null}
           {card.since ? (
-            <span data-testid={`suspended-card-since-${card.knowledgeBitId}`}>
+            <span data-testid={`suspended-card-since-${suspendedCardRowKey(card)}`}>
               Suspended since {formatDay(card.since)}
             </span>
           ) : null}
@@ -101,7 +108,7 @@ function SuspendedCardRow({
 
         <button
           type="button"
-          data-testid={`suspended-card-action-${card.knowledgeBitId}`}
+          data-testid={`suspended-card-action-${suspendedCardRowKey(card)}`}
           disabled={pending}
           onClick={() => onBringBack(card)}
           className="rounded-md border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-50"
@@ -113,7 +120,7 @@ function SuspendedCardRow({
       {failed ? (
         <p
           role="alert"
-          data-testid={`suspended-card-error-${card.knowledgeBitId}`}
+          data-testid={`suspended-card-error-${suspendedCardRowKey(card)}`}
           className="mt-2 text-xs text-red-700"
         >
           Could not update this card. Try again.
@@ -155,9 +162,9 @@ export function SuspendedCardsPage({
         <ul className="flex flex-col gap-3">
           {cards.map((card) => (
             <SuspendedCardRow
-              key={card.knowledgeBitId}
+              key={suspendedCardRowKey(card)}
               card={card}
-              rowState={rowStates[card.knowledgeBitId]}
+              rowState={rowStates[suspendedCardRowKey(card)]}
               onBringBack={onBringBack}
             />
           ))}

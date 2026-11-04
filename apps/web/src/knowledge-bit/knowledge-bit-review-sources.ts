@@ -19,7 +19,10 @@ export function applyVariantEdit(
   newVariantId: string,
   prompt: string,
   answer: string,
+  context?: string | null,
 ): PendingKnowledgeSourceForReview[] {
+  const contextPatch = context === undefined ? {} : { context: context?.trim() || null }
+
   return sources.map((source) => ({
     ...source,
     bits: source.bits.map((bit) =>
@@ -28,7 +31,7 @@ export function applyVariantEdit(
         : {
             ...bit,
             variants: bit.variants.map((variant) =>
-              variant.id !== oldVariantId ? variant : { ...variant, id: newVariantId, prompt, answer },
+              variant.id !== oldVariantId ? variant : { ...variant, id: newVariantId, prompt, answer, ...contextPatch },
             ),
           },
     ),
@@ -46,7 +49,27 @@ export function applyBitEdit(
     bits: source.bits.map((bit) =>
       bit.id !== bitId
         ? bit
-        : { ...bit, body, background, variants: bit.body === body ? bit.variants : [] },
+        : {
+            ...bit,
+            body,
+            background,
+            exampleAiGeneratedAt: bit.background === background ? bit.exampleAiGeneratedAt : null,
+            variants: bit.body === body ? bit.variants : [],
+          },
+    ),
+  }))
+}
+
+export function applyBitExample(
+  sources: PendingKnowledgeSourceForReview[],
+  bitId: string,
+  background: string | null,
+  exampleAiGeneratedAt: string | null,
+): PendingKnowledgeSourceForReview[] {
+  return sources.map((source) => ({
+    ...source,
+    bits: source.bits.map((bit) =>
+      bit.id === bitId ? { ...bit, background, exampleAiGeneratedAt } : bit,
     ),
   }))
 }

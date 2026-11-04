@@ -13,6 +13,7 @@ export interface LearningPathStepRowProps {
   step: StepViewModel
   expanded: boolean
   loading: boolean
+  failed?: boolean
   pushResult: StepPushResult | undefined
   subjects: Array<{ id: string; name: string }>
   onToggle: () => void
@@ -26,6 +27,7 @@ export function LearningPathStepRow({
   step,
   expanded,
   loading,
+  failed = false,
   pushResult,
   subjects,
   onToggle,
@@ -85,7 +87,7 @@ export function LearningPathStepRow({
               onCaptured={onCaptured}
             />
           ) : (
-            <StepStudySurface loading={loading} pushResult={pushResult} />
+            <StepStudySurface loading={loading} failed={failed} pushResult={pushResult} />
           )}
         </div>
       ) : null}
@@ -115,14 +117,24 @@ function EmptyStepCta({
 
 function StepStudySurface({
   loading,
+  failed,
   pushResult,
 }: {
   loading: boolean
+  failed: boolean
   pushResult: StepPushResult | undefined
 }) {
+  if (!loading && failed) {
+    return (
+      <p role="alert" data-testid="learning-path-step-failed" className="text-sm text-neutral-500">
+        Couldn't load this step. Collapse it and open it again to retry.
+      </p>
+    )
+  }
+
   if (loading || pushResult === undefined) {
     return (
-      <p data-testid="learning-path-step-loading" className="text-sm text-neutral-500">
+      <p role="status" data-testid="learning-path-step-loading" className="text-sm text-neutral-500">
         Loading…
       </p>
     )

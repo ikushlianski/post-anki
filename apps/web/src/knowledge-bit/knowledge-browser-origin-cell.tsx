@@ -34,7 +34,7 @@ export function KnowledgeBrowserOriginCell({
           className="shrink-0 text-xs text-red-700 underline"
           onClick={() => actions.onDeleteSource(sourceId)}
         >
-          Delete whole source ({count} {count === 1 ? 'piece' : 'pieces'})
+          Delete whole source ({count} {count === 1 ? 'card' : 'cards'})
         </button>
       )}
     </div>

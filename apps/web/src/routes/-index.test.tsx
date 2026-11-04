@@ -8,9 +8,9 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('../curriculum/curriculum.api', () => ({
   getBoard: vi.fn(),
-  getDueTopics: vi.fn(),
   getSubjectReviewDueCounts: vi.fn(),
 }))
+vi.mock('../home/home.api', () => ({ getStudyOverview: vi.fn() }))
 vi.mock('../curriculum/stats.api', () => ({ getStreak: vi.fn() }))
 vi.mock('../curriculum/api-client', () => ({ listCourseRefocusSuggestions: vi.fn() }))
 vi.mock('../learning-path/learning-path.api', () => ({ listLearningPaths: vi.fn() }))
@@ -22,22 +22,22 @@ vi.mock('../curriculum/board.collection', () => ({
   mapCurriculumRow: vi.fn(),
   mapSubjectRow: vi.fn(),
 }))
-vi.mock('../knowledge-bit/anki-review-session-actions', () => ({
+vi.mock('../shared/browser-time-zone', () => ({
   browserTimeZone: () => 'Europe/Berlin',
 }))
 vi.mock('../dashboard/dashboard-view', () => ({ DashboardView: () => null }))
 
 import type { Subject } from '../curriculum/model'
-import type { DueTopic } from '../curriculum/api-client'
+import type { StudyOverview } from '@post-anki/shared'
 import type { LoadResult } from '../shared/load-result'
-import { getBoard, getDueTopics, getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
+import { getBoard, getSubjectReviewDueCounts } from '../curriculum/curriculum.api'
+import { getStudyOverview } from '../home/home.api'
 import { listCourseRefocusSuggestions } from '../curriculum/api-client'
 import { getStreak } from '../curriculum/stats.api'
 import { listLearningPaths } from '../learning-path/learning-path.api'
 import { listStudySessions } from '../study-session/study-session.api'
 import {
   dashboardCurricula,
-  dashboardDueTopics,
   dashboardStreak,
   dashboardSubjects,
 } from '../mocks/dashboard.mock'
@@ -45,8 +45,16 @@ import { Route } from './index'
 
 interface DashboardLoaderData {
   subjects: Subject[]
-  dueTopics: LoadResult<DueTopic[]>
+  studyOverview: LoadResult<StudyOverview>
   subjectDueCounts: LoadResult<SubjectReviewDueCounts>
+}
+
+const OVERVIEW: StudyOverview = {
+  counts: { new: 2, learning: 1, review: 3 },
+  reviewedToday: 4,
+  activity: [{ date: '2026-10-26', count: 4 }],
+  nextDueAt: null,
+  hasCards: true,
 }
 
 const LIVE_COUNTS: SubjectReviewDueCounts = {
@@ -73,7 +81,7 @@ beforeEach(() => {
   vi.mocked(listStudySessions).mockResolvedValue([])
   vi.mocked(listLearningPaths).mockResolvedValue([])
   vi.mocked(getStreak).mockResolvedValue(dashboardStreak)
-  vi.mocked(getDueTopics).mockResolvedValue(dashboardDueTopics)
+  vi.mocked(getStudyOverview).mockResolvedValue(OVERVIEW)
   vi.mocked(getSubjectReviewDueCounts).mockResolvedValue(LIVE_COUNTS)
 })
 
@@ -109,6 +117,21 @@ describe('home route loader', () => {
 
     expect(data.subjectDueCounts).toEqual({ ok: false })
     expect(data.subjects).toEqual(dashboardSubjects)
-    expect(data.dueTopics).toEqual({ ok: true, data: dashboardDueTopics })
+    expect(data.studyOverview).toEqual({ ok: true, data: OVERVIEW })
+  })
+
+  it('should request the study overview for the browser time zone', async () => {
+    await runLoader()
+
+    expect(getStudyOverview).toHaveBeenCalledWith({ data: { tz: 'Europe/Berlin' } })
+  })
+
+  it('should keep the rest of the home page when the study overview request fails', async () => {
+    vi.mocked(getStudyOverview).mockRejectedValue(new Error('network down'))
+
+    const data = await runLoader()
+
+    expect(data.studyOverview).toEqual({ ok: false })
+    expect(data.subjects).toEqual(dashboardSubjects)
   })
 })

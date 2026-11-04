@@ -1,44 +1,58 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PendingKnowledgeBitForReview } from "@post-anki/shared";
 
-import { AiLabelBadge } from './ai-label-badge'
-import { TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
-import { KnowledgeBitReviewFlagBanner } from './knowledge-bit-review-flag-banner'
-import { KnowledgeBitReviewExampleField } from './knowledge-bit-review-card-fields'
-import { KnowledgeBitReviewVariantList } from './knowledge-bit-review-variant-list'
-
-const ACTION_CLASS =
-  'inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg px-4 text-base font-medium disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900'
+import { AiSuggestionBlock } from "./ai-suggestion-block";
+import { TEXT_FIELD_CLASS } from "./knowledge-bit-review-classes";
+import { KnowledgeBitModelBadges } from "./knowledge-bit-model-badges";
+import { KnowledgeBitReviewFlagBanner } from "./knowledge-bit-review-flag-banner";
+import { KnowledgeBitDuplicateBlock } from "./knowledge-bit-duplicate-block";
+import { KnowledgeBitFocusExample } from "./knowledge-bit-focus-example";
+import { useVerticalDrag } from "./knowledge-bit-focus-drag";
+import {
+  KnowledgeBitFocusDecisionButtons,
+  type FocusPressedAction,
+} from "./knowledge-bit-focus-decision-buttons";
+import { KnowledgeBitFocusExtraActions } from "./knowledge-bit-focus-extra-actions";
+import type { NoteMode } from "./knowledge-bit-review-note-edit";
+import { KnowledgeBitFocusSourceBlock } from "./knowledge-bit-focus-source-block";
+import { KnowledgeBitFocusVariants } from "./knowledge-bit-focus-variants";
 
 interface KnowledgeBitFocusCardProps {
-  bit: PendingKnowledgeBitForReview
-  subjectName: string | null
-  sourceText: string | null
-  isResolving: boolean
-  pollingGaveUp?: boolean
-  errorMessage?: string | null
-  note?: string
-  onNoteChange?: (note: string) => void
-  onApprove: (bitId: string) => void
-  onReject: (bitId: string) => void
-  onEditingChange?: (bitId: string, editing: boolean) => void
+  bit: PendingKnowledgeBitForReview;
+  subjectName: string | null;
+  sourceText: string | null;
+  isResolving: boolean;
+  pollingGaveUp?: boolean;
+  errorMessage?: string | null;
+  note?: string;
+  onNoteChange?: (note: string) => void;
+  selectedIndex?: number;
+  onSelect?: (index: number) => void;
+  onApprove: (bitId: string) => void;
+  onReject: (bitId: string) => void;
+  onChat?: (bitId: string) => void;
+  onInbox?: (bitId: string) => void;
+  onExample?: (bitId: string) => void;
+  example?: { error: string | null; left: number | null; version: number };
+  onEditingChange?: (bitId: string, editing: boolean) => void;
   onSaveVariant: (
     bitId: string,
     variantId: string,
     prompt: string,
     answer: string,
-  ) => Promise<boolean>
-  onSaveBit: (bitId: string, body: string, background: string | null) => Promise<boolean>
-}
-
-function ButtonSpinner() {
-  return (
-    <span
-      aria-hidden="true"
-      data-testid="knowledge-bit-focus-spinner"
-      className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
-    />
-  )
+    context?: string | null,
+  ) => Promise<boolean>;
+  onSaveBit: (
+    bitId: string,
+    body: string,
+    background: string | null,
+  ) => Promise<boolean>;
+  onSaveNote?: (
+    bitId: string,
+    variantId: string,
+    mode: NoteMode,
+    text: string,
+  ) => Promise<boolean>;
 }
 
 function FocusCardBody({
@@ -48,141 +62,179 @@ function FocusCardBody({
   isResolving,
   pollingGaveUp = false,
   errorMessage = null,
-  note = '',
+  note = "",
   onNoteChange,
+  selectedIndex = 0,
+  onSelect,
   onApprove,
   onReject,
+  onChat,
+  onInbox,
+  onExample,
+  example = { error: null, left: null, version: 0 },
   onEditingChange,
   onSaveVariant,
   onSaveBit,
+  onSaveNote,
 }: KnowledgeBitFocusCardProps) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  const [pressed, setPressed] = useState<'approve' | 'reject' | null>(null)
-  const [addingExample, setAddingExample] = useState(false)
-  const [focusExample, setFocusExample] = useState(false)
-  const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(new Set())
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [pressed, setPressed] = useState<FocusPressedAction | null>(null);
+  const [addingExample, setAddingExample] = useState(false);
+  const [focusExample, setFocusExample] = useState(false);
+  const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(new Set());
 
   const setBusy = useCallback((key: string, busy: boolean) => {
     setBusyKeys((prev) => {
       if (prev.has(key) === busy) {
-        return prev
+        return prev;
       }
 
-      const next = new Set(prev)
+      const next = new Set(prev);
 
       if (busy) {
-        next.add(key)
+        next.add(key);
       } else {
-        next.delete(key)
+        next.delete(key);
       }
 
-      return next
-    })
-  }, [])
+      return next;
+    });
+  }, []);
 
-  const hasUnsavedEdits = busyKeys.size > 0
-  const hasNoVariants = bit.variants.length === 0
-  const showExample = addingExample || Boolean(bit.background?.trim())
-  const actionsDisabled = isResolving || hasUnsavedEdits
-  const approveDisabled = actionsDisabled || hasNoVariants
+  const hasUnsavedEdits = busyKeys.size > 0;
+  const hasNoVariants = bit.variants.length === 0;
+  const showExample = addingExample || Boolean(bit.background?.trim());
+  const actionsDisabled = isResolving || hasUnsavedEdits;
+  const approveDisabled = actionsDisabled || hasNoVariants;
+  const limitReached = example.left === 0;
+  const exampleNotice = limitReached
+    ? "5 AI examples used for this item"
+    : example.error;
+  const drag = useVerticalDrag({
+    enabled: !actionsDisabled,
+    onDrag: (direction) =>
+      direction === "down" ? onChat?.(bit.id) : requestExample(),
+  });
+
+  const exampleSlot = hasNoVariants ? null : showExample ? (
+    <KnowledgeBitFocusExample
+      bit={bit}
+      version={example.version}
+      onSaveBit={onSaveBit}
+      onBusyChange={(busy) => setBusy("example", busy)}
+    />
+  ) : (
+    <button
+      type="button"
+      data-testid="knowledge-bit-focus-add-example"
+      onClick={() => {
+        setAddingExample(true);
+        setFocusExample(true);
+      }}
+      className="min-h-11 text-xs font-medium text-neutral-500 hover:text-neutral-900 sm:min-h-8"
+    >
+      Add example
+    </button>
+  );
+
+  function requestExample() {
+    setPressed("example");
+    onExample?.(bit.id);
+  }
 
   useEffect(() => {
-    headingRef.current?.focus()
-  }, [])
+    headingRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (example.version > 0) {
+      headingRef.current?.focus();
+    }
+  }, [example.version]);
 
   useEffect(() => {
     if (focusExample) {
       document
-        .querySelector<HTMLTextAreaElement>(`[data-testid="knowledge-bit-review-edit-example-${bit.id}"]`)
-        ?.focus()
-      setFocusExample(false)
+        .querySelector<HTMLTextAreaElement>(
+          `[data-testid="knowledge-bit-review-edit-example-${bit.id}"]`,
+        )
+        ?.focus();
+      setFocusExample(false);
     }
-  }, [focusExample, bit.id])
+  }, [focusExample, bit.id]);
 
   useEffect(() => {
-    onEditingChange?.(bit.id, hasUnsavedEdits)
+    onEditingChange?.(bit.id, hasUnsavedEdits);
 
-    return () => onEditingChange?.(bit.id, false)
-  }, [bit.id, hasUnsavedEdits, onEditingChange])
+    return () => onEditingChange?.(bit.id, false);
+  }, [bit.id, hasUnsavedEdits, onEditingChange]);
 
   return (
     <article
       data-testid={`knowledge-bit-focus-card-${bit.id}`}
       className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col"
     >
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        <div className="space-y-2">
-          <p
-            data-testid="knowledge-bit-focus-subject"
-            className="text-xs font-medium uppercase tracking-wide text-neutral-500"
-          >
-            {subjectName ?? 'No subject'}
-          </p>
-        </div>
+      <div
+        data-testid="knowledge-bit-focus-scroll"
+        {...drag}
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
+      >
+        <p
+          data-testid="knowledge-bit-focus-subject"
+          className="text-xs font-medium uppercase tracking-wide text-neutral-500"
+        >
+          {subjectName ?? "No subject"}
+        </p>
 
-        <KnowledgeBitReviewFlagBanner bitId={bit.id} reviewFlag={bit.reviewFlag} />
+        <KnowledgeBitModelBadges bitId={bit.id} modelIds={bit.modelIds} />
 
-        <KnowledgeBitReviewVariantList
+        <KnowledgeBitReviewFlagBanner
           bitId={bit.id}
-          variants={bit.variants}
+          reviewFlag={bit.reviewFlag}
+          aiSuggestion={bit.aiSuggestion}
+        />
+
+        {bit.duplicateOf ? (
+          <KnowledgeBitDuplicateBlock
+            bitId={bit.id}
+            duplicateOf={bit.duplicateOf}
+            busy={isResolving || hasUnsavedEdits}
+            acceptDisabled={hasNoVariants}
+            errorMessage={errorMessage}
+            onReject={onReject}
+            onAccept={onApprove}
+          />
+        ) : null}
+
+        <KnowledgeBitFocusSourceBlock
+          bit={bit}
+          subjectName={subjectName}
+          sourceText={sourceText}
+          headingRef={headingRef}
+        />
+
+        <AiSuggestionBlock
+          original={bit.body}
+          aiSuggestion={bit.aiSuggestion}
+          testIdSuffix={`-${bit.id}`}
+        />
+
+        <KnowledgeBitFocusVariants
+          bit={bit}
           pollingGaveUp={pollingGaveUp}
-          defaultOpen
-          prominentMain
-          afterMain={
-            hasNoVariants ? null : showExample ? (
-              <KnowledgeBitReviewExampleField
-                bitId={bit.id}
-                example={bit.background ?? ''}
-                muted
-                onSave={(example) => onSaveBit(bit.id, bit.body, example)}
-                onBusyChange={(busy) => setBusy('example', busy)}
-              />
-            ) : (
-              <button
-                type="button"
-                data-testid="knowledge-bit-focus-add-example"
-                onClick={() => {
-                  setAddingExample(true)
-                  setFocusExample(true)
-                }}
-                className="min-h-11 text-xs font-medium text-neutral-500 hover:text-neutral-900 sm:min-h-8"
-              >
-                Add example
-              </button>
-            )
-          }
-          onSave={(variantId, prompt, answer) => onSaveVariant(bit.id, variantId, prompt, answer)}
+          selectedIndex={selectedIndex}
+          onSelect={onSelect}
+          exampleSlot={exampleSlot}
+          onSaveVariant={onSaveVariant}
+          onSaveNote={onSaveNote}
           onBusyChange={setBusy}
         />
 
-        <div data-testid="knowledge-bit-focus-fact" className="space-y-1 text-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Fact</p>
-          <h2
-            ref={headingRef}
-            tabIndex={-1}
-            data-testid="knowledge-bit-focus-statement"
-            className="text-sm font-medium leading-snug text-neutral-800 outline-none"
-          >
-            {bit.body}
-          </h2>
-          <AiLabelBadge
-            isAiGenerated={bit.isAiGenerated}
-            sourceLinks={bit.sourceLinks}
-            testIdSuffix={`-${bit.id}`}
-          />
-          {sourceText ? (
-            <details data-testid="knowledge-bit-focus-source" className="text-sm text-neutral-600">
-              <summary className="min-h-11 cursor-pointer py-2 text-xs font-medium">
-                Where this came from
-              </summary>
-              <p className="whitespace-pre-wrap rounded-md bg-white p-3">{sourceText}</p>
-            </details>
-          ) : null}
-        </div>
-
         {onNoteChange ? (
           <label className="block space-y-1 text-sm text-neutral-700">
-            <span className="text-xs font-medium text-neutral-600">Note (optional)</span>
+            <span className="text-xs font-medium text-neutral-600">
+              Note (optional)
+            </span>
             <textarea
               data-testid="knowledge-bit-focus-note"
               value={note}
@@ -193,6 +245,16 @@ function FocusCardBody({
               className={TEXT_FIELD_CLASS}
             />
           </label>
+        ) : null}
+
+        {exampleNotice ? (
+          <p
+            role="alert"
+            data-testid={`knowledge-bit-focus-example-notice-${bit.id}`}
+            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {exampleNotice}
+          </p>
         ) : null}
 
         {errorMessage ? (
@@ -206,46 +268,34 @@ function FocusCardBody({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 gap-3 border-t border-neutral-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-        <button
-          type="button"
-          data-testid={`knowledge-bit-focus-reject-${bit.id}`}
-          disabled={actionsDisabled}
-          onClick={() => {
-            setPressed('reject')
-            onReject(bit.id)
-          }}
-          className={`${ACTION_CLASS} bg-neutral-100 text-neutral-800 hover:bg-neutral-200`}
-        >
-          {isResolving && pressed === 'reject' ? (
-            <ButtonSpinner />
-          ) : (
-            <span aria-hidden="true" className="hidden text-neutral-500 sm:inline">←</span>
-          )}
-          Reject
-        </button>
-        <button
-          type="button"
-          data-testid={`knowledge-bit-focus-approve-${bit.id}`}
-          disabled={approveDisabled}
-          onClick={() => {
-            setPressed('approve')
-            onApprove(bit.id)
-          }}
-          className={`${ACTION_CLASS} bg-neutral-900 text-white hover:bg-neutral-800`}
-        >
-          Approve
-          {isResolving && pressed === 'approve' ? (
-            <ButtonSpinner />
-          ) : (
-            <span aria-hidden="true" className="hidden text-neutral-300 sm:inline">→</span>
-          )}
-        </button>
+      <div className="shrink-0 space-y-2 border-t border-neutral-200 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+        {onChat && onExample ? (
+          <KnowledgeBitFocusExtraActions
+            bitId={bit.id}
+            chatDisabled={actionsDisabled}
+            exampleDisabled={actionsDisabled || limitReached}
+            exampleWorking={isResolving && pressed === "example"}
+            hasAiExample={Boolean(bit.exampleAiGeneratedAt)}
+            onChat={() => onChat(bit.id)}
+            onInbox={onInbox ? () => onInbox(bit.id) : undefined}
+            onExample={requestExample}
+          />
+        ) : null}
+        <KnowledgeBitFocusDecisionButtons
+          bitId={bit.id}
+          isResolving={isResolving}
+          pressed={pressed}
+          rejectDisabled={actionsDisabled}
+          approveDisabled={approveDisabled}
+          onPress={setPressed}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
       </div>
     </article>
-  )
+  );
 }
 
 export function KnowledgeBitFocusCard(props: KnowledgeBitFocusCardProps) {
-  return <FocusCardBody key={props.bit.id} {...props} />
+  return <FocusCardBody key={props.bit.id} {...props} />;
 }

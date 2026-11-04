@@ -16,13 +16,11 @@ function press(key: string, overrides: Partial<Parameters<typeof resolveFocusKey
 }
 
 describe('resolveFocusKey', () => {
-  it('should approve with ArrowRight or a', () => {
-    expect(press('ArrowRight')).toBe('approve')
+  it('should approve with a', () => {
     expect(press('a')).toBe('approve')
   })
 
-  it('should reject with ArrowLeft, r or x', () => {
-    expect(press('ArrowLeft')).toBe('reject')
+  it('should reject with r or x', () => {
     expect(press('r')).toBe('reject')
     expect(press('x')).toBe('reject')
   })
@@ -31,14 +29,60 @@ describe('resolveFocusKey', () => {
     expect(press('z')).toBe('undo')
   })
 
+  it('should send the item to the Inbox with c and ask for an AI example with e', () => {
+    expect(press('c')).toBe('chat')
+    expect(press('i')).toBe('inbox')
+    expect(press('e')).toBe('example')
+  })
+
+  it('should leave ArrowUp and ArrowDown alone on ordinary cards so they keep scrolling', () => {
+    expect(press('ArrowUp')).toBeNull()
+    expect(press('ArrowDown')).toBeNull()
+  })
+
+  it('should not approve or reject with ArrowRight and ArrowLeft', () => {
+    expect(press('ArrowRight')).toBeNull()
+    expect(press('ArrowLeft')).toBeNull()
+  })
+
+  it('should cycle variations with ArrowLeft and ArrowRight only when the card offers options', () => {
+    const base = { ctrlKey: false, metaKey: false, altKey: false, target: null }
+
+    expect(resolveFocusKey({ key: 'ArrowLeft', ...base }, true)).toBe('option-prev')
+    expect(resolveFocusKey({ key: 'ArrowRight', ...base }, true)).toBe('option-next')
+  })
+
+  it('should move the highlight with ArrowUp and ArrowDown only when the card offers options', () => {
+    expect(resolveFocusKey({ key: 'ArrowUp', ctrlKey: false, metaKey: false, altKey: false, target: null }, true)).toBe(
+      'option-prev',
+    )
+    expect(resolveFocusKey({ key: 'ArrowDown', ctrlKey: false, metaKey: false, altKey: false, target: null }, true)).toBe(
+      'option-next',
+    )
+  })
+
+  it('should approve with Return unless Return is pressed on a button, link or summary', () => {
+    expect(press('Enter')).toBe('approve')
+    expect(press('Enter', { target: document.createElement('button') })).toBeNull()
+    expect(press('Enter', { target: document.createElement('a') })).toBeNull()
+    expect(press('Enter', { target: document.createElement('summary') })).toBeNull()
+    expect(press('Enter', { target: document.createElement('textarea') })).toBeNull()
+  })
+
+  it('should not trigger chat or example while typing in a note field', () => {
+    const field = document.createElement('textarea')
+
+    expect(press('c', { target: field })).toBeNull()
+    expect(press('e', { target: field })).toBeNull()
+  })
+
   it('should ignore the old review shortcuts so no hidden card is decided', () => {
-    expect(press('Enter')).toBeNull()
     expect(press('1')).toBeNull()
     expect(press('A', { shiftKey: true })).toBeNull()
   })
 
   it('should ignore a held key so one press decides one card', () => {
-    expect(press('ArrowRight', { repeat: true })).toBeNull()
+    expect(press('ArrowDown', { repeat: true })).toBeNull()
   })
 
   it('should ignore keys with a modifier', () => {
@@ -60,9 +104,24 @@ describe('useFocusKeyboard', () => {
     const onAction = vi.fn()
 
     renderHook(() => useFocusKeyboard(onAction, true))
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'a' })
 
     expect(onAction).toHaveBeenCalledWith('approve')
+  })
+
+  it('should keep arrow scrolling on ordinary cards and take over only when options exist', () => {
+    const onAction = vi.fn()
+    const { rerender } = renderHook(({ options }) => useFocusKeyboard(onAction, true, options), {
+      initialProps: { options: false },
+    })
+
+    expect(fireEvent.keyDown(window, { key: 'ArrowDown' })).toBe(true)
+    expect(onAction).not.toHaveBeenCalled()
+
+    rerender({ options: true })
+
+    expect(fireEvent.keyDown(window, { key: 'ArrowDown' })).toBe(false)
+    expect(onAction).toHaveBeenCalledWith('option-next')
   })
 
   it('should do nothing while disabled', () => {
@@ -97,7 +156,7 @@ describe('useFocusKeyboard', () => {
     expect(onAction).not.toHaveBeenCalled()
     expect(document.activeElement).not.toBe(input)
 
-    fireEvent.keyDown(document.body, { key: 'ArrowRight' })
+    fireEvent.keyDown(document.body, { key: 'a' })
 
     expect(onAction).toHaveBeenCalledWith('approve')
     input.remove()

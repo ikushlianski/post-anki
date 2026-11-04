@@ -19,6 +19,7 @@ export interface ReviewScreenFacts {
   busy: boolean
   canUndo: boolean
   editing: boolean
+  chatOpen?: boolean
 }
 
 export type ReviewKeyAction =
@@ -28,6 +29,7 @@ export type ReviewKeyAction =
   | { type: 'edit' }
   | { type: 'bury' }
   | { type: 'suspend' }
+  | { type: 'chat' }
 
 const GRADE_KEYS: Record<string, ReviewGrade> = {
   '1': 'again',
@@ -40,7 +42,7 @@ export function ankiReviewKeyAction(
   event: ReviewKeyFacts,
   screen: ReviewScreenFacts,
 ): ReviewKeyAction | null {
-  if (event.targetIsEditable || event.repeat || screen.editing || screen.busy) {
+  if (event.targetIsEditable || event.repeat || screen.editing || screen.busy || screen.chatOpen) {
     return null
   }
 
@@ -50,6 +52,10 @@ export function ankiReviewKeyAction(
 
   if (event.ctrlKey || event.metaKey || event.altKey || !screen.hasCard) {
     return null
+  }
+
+  if (event.code === 'KeyC' || event.key === 'c') {
+    return { type: 'chat' }
   }
 
   if (event.code === 'Minus' || event.key === '-') {

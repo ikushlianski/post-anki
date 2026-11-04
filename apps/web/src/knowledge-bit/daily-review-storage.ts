@@ -9,50 +9,6 @@ function todayKey(): string {
   return localDateKey(new Date())
 }
 
-function keyForDaysAgo(daysAgo: number): string {
-  const d = new Date()
-
-  d.setDate(d.getDate() - daysAgo)
-
-  return localDateKey(d)
-}
-
-function countForDaysAgo(daysAgo: number): number {
-  try {
-    const raw = localStorage.getItem(keyForDaysAgo(daysAgo))
-
-    if (raw === null) return 0
-
-    const parsed = parseInt(raw, 10)
-
-    return Number.isNaN(parsed) ? 0 : parsed
-  } catch {
-    return 0
-  }
-}
-
-export function getStudyStreak(): number {
-  try {
-    let streak = 0
-
-    for (let daysAgo = 1; daysAgo <= 365; daysAgo++) {
-      if (countForDaysAgo(daysAgo) > 0) {
-        streak++
-      } else {
-        break
-      }
-    }
-
-    if (countForDaysAgo(0) > 0) {
-      streak++
-    }
-
-    return streak
-  } catch {
-    return 0
-  }
-}
-
 export function getDailyReviewCount(): number {
   try {
     const raw = localStorage.getItem(todayKey())

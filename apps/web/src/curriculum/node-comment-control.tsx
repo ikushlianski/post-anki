@@ -10,7 +10,7 @@ export function NodeCommentControl({
 }: {
   busy: boolean
   hydrated: boolean
-  onSubmit: (comment: string) => Promise<void>
+  onSubmit: (comment: string) => Promise<boolean>
 }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
@@ -26,7 +26,10 @@ export function NodeCommentControl({
       return
     }
 
-    await onSubmit(trimmed)
+    if (!(await onSubmit(trimmed))) {
+      return
+    }
+
     setValue('')
     setOpen(false)
     setSaved(true)
@@ -58,6 +61,7 @@ export function NodeCommentControl({
         autoFocus
         disabled={busy}
         onChange={(event) => setValue(event.target.value)}
+        aria-label="Note"
         placeholder="A note for later — not sent to any AI…"
         className="flex-1 rounded-md border border-neutral-200 px-2 py-1 text-xs outline-none focus:border-neutral-400"
       />

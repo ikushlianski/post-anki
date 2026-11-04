@@ -52,7 +52,7 @@ describe('browser filters in the page address', () => {
     expect(parseBrowserSearch({ view: 'subjects', subject: '' })).toEqual({ view: 'subjects' })
   })
 
-  it('should reopen the open piece from a shared link without counting it as a filter', () => {
+  it('should reopen the open card from a shared link without counting it as a filter', () => {
     const search = parseBrowserSearch({ open: ' b1 ', question: 'pod' })
 
     expect(search).toEqual({ open: 'b1', question: 'pod' })
@@ -61,7 +61,7 @@ describe('browser filters in the page address', () => {
     expect(hasAnyFilter(filtersFromSearch({ open: 'b1' }))).toBe(false)
   })
 
-  it('should drop an empty open piece from the address', () => {
+  it('should drop an empty open card from the address', () => {
     expect(parseBrowserSearch({ open: '  ' })).toEqual({})
   })
 

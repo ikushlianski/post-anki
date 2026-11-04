@@ -2,8 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { AnalyticsDashboard } from '../analytics/analytics-dashboard'
 import { getCoverageReport, getRetentionReport, getWeeklyDigest } from '../analytics/analytics.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/analytics')({
+  head: pageHead('Analytics'),
   component: AnalyticsPage,
   loader: async () => {
     const [digest, coverage, retention] = await Promise.all([

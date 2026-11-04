@@ -141,17 +141,17 @@ describe('KnowledgeBitReviewPanel before and during a triage session', () => {
     expect(mockedKeep).not.toHaveBeenCalled()
   })
 
-  it('should approve with ArrowRight and reject with ArrowLeft', async () => {
+  it('should approve with a and reject with r', async () => {
     mockedApprove.mockResolvedValue({ ok: true })
     mockedReject.mockResolvedValue({ ok: true, feedbackId: 'fb-1' })
     renderPanel()
     await startTriage()
 
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    fireEvent.keyDown(window, { key: 'a' })
     await waitFor(() => expect(mockedApprove).toHaveBeenCalledWith({ data: { bitId: 'b1' } }))
     await screen.findByTestId('knowledge-bit-focus-approve-b2')
 
-    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    fireEvent.keyDown(window, { key: 'r' })
     await waitFor(() => expect(mockedReject).toHaveBeenCalledWith({ data: { bitId: 'b2' } }))
   })
 
@@ -160,9 +160,9 @@ describe('KnowledgeBitReviewPanel before and during a triage session', () => {
     renderPanel()
     await startTriage()
 
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
-    fireEvent.keyDown(window, { key: 'ArrowRight', repeat: true })
-    fireEvent.keyDown(window, { key: 'ArrowRight', repeat: true })
+    fireEvent.keyDown(window, { key: 'a' })
+    fireEvent.keyDown(window, { key: 'a', repeat: true })
+    fireEvent.keyDown(window, { key: 'a', repeat: true })
 
     await waitFor(() => expect(mockedApprove).toHaveBeenCalled())
     expect(mockedApprove).toHaveBeenCalledTimes(1)
@@ -173,7 +173,7 @@ describe('KnowledgeBitReviewPanel before and during a triage session', () => {
     await startTriage()
 
     fireEvent.keyDown(screen.getAllByRole('textbox')[0]!, { key: 'a' })
-    fireEvent.keyDown(screen.getAllByRole('textbox')[0]!, { key: 'ArrowRight' })
+    fireEvent.keyDown(screen.getAllByRole('textbox')[0]!, { key: 'ArrowLeft' })
 
     expect(mockedApprove).not.toHaveBeenCalled()
   })

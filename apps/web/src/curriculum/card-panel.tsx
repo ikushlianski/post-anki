@@ -24,6 +24,7 @@ export function CardPanel({ topicId }: { topicId: string }) {
   if (isLoading) {
     return (
       <div
+        role="status"
         className="rounded-lg border border-neutral-200 bg-white p-6 text-sm text-neutral-500"
         data-testid="cards-loading"
       >

@@ -4,8 +4,10 @@ import { z } from 'zod'
 import { getKnowledgeBitModelSuggestionForAdmin } from '../knowledge-bit/knowledge-bit-review.api'
 import { listModelComparisonRuns } from '../model-comparison/model-comparison.api'
 import { ModelComparisonPage } from '../model-comparison/model-comparison-page'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/admin-compare-models')({
+  head: pageHead('Compare models'),
   validateSearch: z.object({
     sourceId: z.string().min(1).max(100).optional().catch(undefined),
   }),

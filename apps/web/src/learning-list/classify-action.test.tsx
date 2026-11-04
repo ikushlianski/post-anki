@@ -69,6 +69,6 @@ describe('ClassifyAction', () => {
 
     expect(
       (await screen.findByTestId('classify-action-error')).textContent,
-    ).toContain('not_capturable')
+    ).toContain('already handled')
   })
 })

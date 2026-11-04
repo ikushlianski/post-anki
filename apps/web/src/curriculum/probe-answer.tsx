@@ -27,7 +27,9 @@ export function ProbeAnswer({
   const [result, setResult] = useState<AttemptResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [loadingNext, setLoadingNext] = useState(false)
+  const [failed, setFailed] = useState(false)
   const [noMore, setNoMore] = useState(false)
+  const [loadFailed, setLoadFailed] = useState(false)
 
   useEffect(() => {
     setCurrent(question)
@@ -48,16 +50,26 @@ export function ProbeAnswer({
     selfOutcome?: 'pass' | 'fail'
   }) {
     setBusy(true)
+    setFailed(false)
 
-    const res = await submitAttempt({
-      data: {
-        topicId,
-        gapId: current.gapId,
-        mode,
-        answer: payload.answer,
-        selfOutcome: payload.selfOutcome,
-      },
-    })
+    let res: Awaited<ReturnType<typeof submitAttempt>>
+
+    try {
+      res = await submitAttempt({
+        data: {
+          topicId,
+          gapId: current.gapId,
+          mode,
+          answer: payload.answer,
+          selfOutcome: payload.selfOutcome,
+        },
+      })
+    } catch {
+      setFailed(true)
+      setBusy(false)
+
+      return
+    }
 
     setBusy(false)
 
@@ -104,8 +116,18 @@ export function ProbeAnswer({
   async function loadNext() {
     setLoadingNext(true)
     setNoMore(false)
+    setLoadFailed(false)
 
-    const next = await nextQuestion({ data: { topicId, mode } })
+    let next: Awaited<ReturnType<typeof nextQuestion>>
+
+    try {
+      next = await nextQuestion({ data: { topicId, mode } })
+    } catch {
+      setLoadingNext(false)
+      setLoadFailed(true)
+
+      return
+    }
 
     setLoadingNext(false)
 
@@ -153,6 +175,7 @@ export function ProbeAnswer({
           <textarea
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
+            aria-label="Your answer"
             placeholder="Reason it through — say more than was asked; the mentor checks off what you cover."
             rows={3}
             disabled={result !== null}
@@ -196,6 +219,12 @@ export function ProbeAnswer({
         </ul>
       )}
 
+      {failed ? (
+        <p role="alert" data-testid="probe-answer-error" className="mt-3 text-sm text-red-600">
+          Couldn’t save that answer. Try again.
+        </p>
+      ) : null}
+
       {!current.gapId && busy && result === null ? (
         <p className="mt-3 text-sm text-neutral-500">
           Checking your answer and mapping the gaps it reveals…
@@ -238,6 +267,22 @@ export function ProbeAnswer({
                 <p className="text-xs text-neutral-500">
                   Nothing left to probe here right now — every in-scope gap is
                   covered. Try another topic from the menu.
+                </p>
+              ) : null}
+              {loadFailed ? (
+                <p
+                  role="alert"
+                  data-testid="probe-next-error"
+                  className="text-xs text-red-600"
+                >
+                  Couldn’t load the next gap.{' '}
+                  <button
+                    type="button"
+                    onClick={() => void loadNext()}
+                    className="underline underline-offset-2"
+                  >
+                    Retry
+                  </button>
                 </p>
               ) : null}
             </>

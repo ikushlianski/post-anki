@@ -277,6 +277,35 @@ describe('category drag and drop', () => {
   })
 })
 
+describe('category move failure', () => {
+  it('announces a failed move as an alert', async () => {
+    vi.mocked(moveCategory).mockRejectedValueOnce(new Error('Move failed'))
+    mockBoundingRects({
+      'category-card-cat-a': makeRect(0, 0, 200, 40),
+      'category-card-cat-b': makeRect(100, 0, 200, 40),
+    })
+
+    render(
+      <SubjectSection
+        subject={SUBJECT}
+        curricula={[]}
+        allSubjects={[SUBJECT]}
+        categories={[CATEGORY_A, CATEGORY_B]}
+        allCategories={[CATEGORY_A, CATEGORY_B]}
+        globalModelTier="cheap"
+      />,
+    )
+
+    dragTo(screen.getByTestId('category-drag-handle-cat-a'), { x: 10, y: 20 }, { x: 10, y: 120 })
+    await settleAfterDrag()
+    fireEvent.click(screen.getByTestId('category-move-confirm-cat-b'))
+
+    const error = await screen.findByTestId('category-move-error-cat-b')
+
+    expect(error.getAttribute('role')).toBe('alert')
+  })
+})
+
 describe('category rename', () => {
   it('arms a rename control and calls renameCategory only after confirm', () => {
     render(

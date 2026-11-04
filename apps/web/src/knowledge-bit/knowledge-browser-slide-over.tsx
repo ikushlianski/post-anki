@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 
+import { useRestoreFocus } from '../shared/use-restore-focus'
 import { useMobileScrollLock } from './use-keyboard-offset'
 
 export const BROWSER_ROW_SELECTOR = '[data-testid="knowledge-browser-row"]'
@@ -21,25 +22,14 @@ export function KnowledgeBrowserSlideOver({
   const panelRef = useRef<HTMLDivElement>(null)
   const backdropRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
-  const getReturnFocusRef = useRef(getReturnFocus)
 
   onCloseRef.current = onClose
-  getReturnFocusRef.current = getReturnFocus
+  useRestoreFocus(getReturnFocus)
 
   useMobileScrollLock(true)
 
   useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
-
     panelRef.current?.focus()
-
-    return () => {
-      const target = getReturnFocusRef.current?.() ?? opener
-
-      if (target?.isConnected) {
-        target.focus()
-      }
-    }
   }, [])
 
   useEffect(() => {

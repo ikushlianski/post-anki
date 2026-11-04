@@ -1,0 +1,296 @@
+import { useCallback } from "react";
+import {
+  CHAT_QUEUE_MAX_MESSAGE_CHARS,
+  CHAT_QUEUE_STARTER_PROMPTS,
+  type ChatQueueKnowledgeBit,
+} from "@post-anki/shared";
+
+import { toSafeLink } from "../knowledge-bit/ai-label-badge";
+import {
+  PRIMARY_BUTTON_CLASS,
+  SECONDARY_BUTTON_CLASS,
+  TEXT_BUTTON_CLASS,
+  TEXT_FIELD_CLASS,
+} from "../knowledge-bit/knowledge-bit-review-classes";
+import { ChatQueueDeleteLast } from "./chat-queue-delete-last";
+import { ChatQueueCopyButton } from "./chat-queue-copy-button";
+import { clearChatDraft } from "./chat-queue-draft-storage";
+import { ChatQueueMakeCard } from "./chat-queue-make-card";
+import { ChatQueueRejectReasons } from "./chat-queue-reject-reasons";
+import { ChatQueueSnooze } from "./chat-queue-snooze";
+import { ChatQueueTurnsMeter } from "./chat-queue-turns-meter";
+import { useChatCard } from "./use-chat-card";
+import { useChatThread } from "./use-chat-thread";
+import { chatWaitingDays, formatChatWaiting } from "./chat-queue-waiting";
+
+interface Props {
+  item: ChatQueueKnowledgeBit;
+  now?: Date;
+  onBack: () => void;
+  onResolved: (id: string) => void;
+  onSnoozeChanged: (id: string, snoozedUntil: string | null) => void;
+}
+
+export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged }: Props) {
+  const handleResolved = useCallback(
+    (id: string) => {
+      clearChatDraft(id);
+      onResolved(id);
+    },
+    [onResolved],
+  );
+  const handleSnoozeChanged = useCallback(
+    (id: string, snoozedUntil: string | null) => {
+      if (snoozedUntil) {
+        clearChatDraft(id);
+      }
+
+      onSnoozeChanged(id, snoozedUntil);
+    },
+    [onSnoozeChanged],
+  );
+  const thread = useChatThread(item, handleResolved);
+  const locked = thread.resolving || thread.sending;
+  const card = useChatCard(item.id, thread.resolving);
+  const sourceLink = item.sourceUrl ? toSafeLink(item.sourceUrl) : null;
+
+  return (
+    <section data-testid="chat-queue-thread" className="space-y-4">
+      <button type="button" onClick={onBack} className={TEXT_BUTTON_CLASS}>
+        All chats
+      </button>
+
+      <p data-testid="chat-queue-thread-waiting" className="text-xs text-neutral-500">
+        {formatChatWaiting(chatWaitingDays(item.chatAt, now ?? new Date()))}
+      </p>
+
+      {item.sourceTitle ? (
+        <p data-testid="chat-queue-thread-source" className="text-xs text-neutral-500">
+          From{" "}
+          {sourceLink ? (
+            <a
+              href={sourceLink.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-700 underline"
+            >
+              {item.sourceTitle}
+            </a>
+          ) : (
+            item.sourceTitle
+          )}
+        </p>
+      ) : null}
+
+      <ChatQueueTurnsMeter turnsLeft={thread.turnsLeft} />
+
+      {item.reviewChat ? null : (
+        <ChatQueueSnooze item={item} onChanged={handleSnoozeChanged} />
+      )}
+
+      <div className="rounded-lg border border-neutral-200 p-4">
+        <p className="text-sm font-medium whitespace-pre-wrap">{item.body}</p>
+        {item.background ? (
+          <p className="mt-2 text-xs text-neutral-500 whitespace-pre-wrap">
+            {item.background}
+          </p>
+        ) : null}
+      </div>
+
+      <ul className="space-y-3" data-testid="chat-queue-lines">
+        {thread.lines.map((line, index) => {
+          const seq = line.isUser ? undefined : line.seq;
+
+          return (
+            <li key={line.id}>
+              <p className="text-xs text-neutral-500">
+                {line.isUser ? "You" : "Tutor"}
+              </p>
+              <p className="text-sm whitespace-pre-wrap">{line.text}</p>
+              {line.isUser ? null : (
+                <ChatQueueCopyButton text={line.text} seq={line.id} />
+              )}
+              {!line.isUser && index === thread.lines.length - 1 && !thread.rejecting ? (
+                <button
+                  type="button"
+                  data-testid="chat-queue-retry"
+                  disabled={locked || thread.removal.deleting || thread.budgetPaused}
+                  onClick={() => void thread.retryLast()}
+                  className={TEXT_BUTTON_CLASS}
+                >
+                  Retry
+                </button>
+              ) : null}
+              {seq !== undefined ? (
+                card.savedSeqs.includes(seq) ? (
+                  <p
+                    data-testid={`chat-queue-card-saved-${seq}`}
+                    className="text-xs text-neutral-500"
+                  >
+                    Card added to review
+                  </p>
+                ) : card.draft?.seq === seq ? (
+                  <ChatQueueMakeCard
+                    draft={card.draft}
+                    saving={card.saving}
+                    error={card.error}
+                    onEdit={card.edit}
+                    onSave={() => void card.save()}
+                    onCancel={card.cancel}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    data-testid={`chat-queue-make-card-${seq}`}
+                    disabled={locked}
+                    onClick={() => card.open(seq, line.text)}
+                    className={TEXT_BUTTON_CLASS}
+                  >
+                    Make a card
+                  </button>
+                )
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      {thread.lines.length > 0 && !thread.rejecting ? (
+        <ChatQueueDeleteLast removal={thread.removal} disabled={locked} />
+      ) : null}
+
+      {thread.sending ? (
+        <p role="status" className="text-sm text-neutral-500">
+          Thinking…
+        </p>
+      ) : null}
+
+      {thread.error ? (
+        <p
+          role="alert"
+          data-testid="chat-queue-error"
+          className="text-sm text-red-700"
+        >
+          {thread.error}
+        </p>
+      ) : null}
+
+      {thread.rejecting ? (
+        <ChatQueueRejectReasons
+          reasonCodes={item.rejectReasonCodes}
+          onSend={thread.sendRejectReason}
+          onSkip={thread.skipRejectReason}
+        />
+      ) : (
+        <>
+          {thread.showsStarters ? (
+            <div
+              className="flex flex-wrap gap-2"
+              data-testid="chat-queue-starters"
+            >
+              {CHAT_QUEUE_STARTER_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => void thread.send(prompt)}
+                  className={SECONDARY_BUTTON_CLASS}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {thread.limitReached ? (
+            <p
+              data-testid="chat-queue-limit"
+              className="text-sm text-neutral-500"
+            >
+              Chat limit reached, decide now
+            </p>
+          ) : thread.budgetPaused ? (
+            <p
+              data-testid="chat-queue-paused"
+              className="text-sm text-neutral-500"
+            >
+              Chat is paused for today
+            </p>
+          ) : (
+            <form
+              className="space-y-1"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void thread.send();
+              }}
+            >
+              <div className="flex gap-2">
+                <textarea
+                  aria-label="Ask about this card"
+                  placeholder="Ask about this card"
+                  rows={2}
+                  maxLength={CHAT_QUEUE_MAX_MESSAGE_CHARS}
+                  value={thread.draft}
+                  onChange={(event) => thread.changeDraft(event.target.value)}
+                  className={TEXT_FIELD_CLASS}
+                />
+                <button
+                  type="submit"
+                  data-testid="chat-queue-send"
+                  disabled={!thread.canSend}
+                  className={PRIMARY_BUTTON_CLASS}
+                >
+                  Send
+                </button>
+              </div>
+            </form>
+          )}
+
+          {item.reviewChat ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                data-testid="chat-queue-clear"
+                disabled={locked}
+                onClick={() => void thread.clearChat()}
+                className={SECONDARY_BUTTON_CLASS}
+              >
+                Clear chat
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                data-testid="chat-queue-accept"
+                disabled={locked}
+                onClick={() => void thread.accept()}
+                className={PRIMARY_BUTTON_CLASS}
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                data-testid="chat-queue-reject"
+                disabled={locked}
+                onClick={() => void thread.reject()}
+                className={SECONDARY_BUTTON_CLASS}
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                data-testid="chat-queue-back"
+                disabled={locked}
+                onClick={() => void thread.backToTriage()}
+                className={SECONDARY_BUTTON_CLASS}
+              >
+                Back to triage
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

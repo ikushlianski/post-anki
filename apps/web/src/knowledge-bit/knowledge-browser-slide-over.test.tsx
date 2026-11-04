@@ -71,7 +71,7 @@ describe('knowledge browser slide-over', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('should stay open when the owner clicks another table row so the piece can switch', () => {
+  it('should stay open when the owner clicks another table row so the card can switch', () => {
     const { onClose } = renderWithRow()
 
     fireEvent.mouseDown(screen.getByText('Row text'))

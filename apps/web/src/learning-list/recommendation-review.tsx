@@ -6,6 +6,7 @@ import type { LearningListRecommendation } from '@post-anki/shared'
 import { RecommendationSignals } from './recommendation-signals'
 import { approveOutcome, declineOutcome } from './recommendation-summary'
 import type { ApiResult } from './learning-list.model'
+import { learningErrorMessage } from './learning-error'
 
 export interface RecommendationReviewProps {
   itemId: string
@@ -38,7 +39,7 @@ export function RecommendationReview({
     setBusy(false)
 
     if (!result.ok) {
-      setError(`That decision was not accepted (${result.code}).`)
+      setError(learningErrorMessage(result.code))
       return
     }
 

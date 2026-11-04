@@ -42,9 +42,16 @@ export function SourceApprovalPanel({
 
   async function remove(sourceId: string) {
     setBusy(true)
-    await removeSource({ data: sourceId })
-    setBusy(false)
-    await router.invalidate()
+    setError(null)
+
+    try {
+      await removeSource({ data: sourceId })
+      await router.invalidate()
+    } catch {
+      setError("Couldn't remove that source — try again.")
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function addLink(event: FormEvent) {
@@ -59,12 +66,18 @@ export function SourceApprovalPanel({
 
     setError(null)
     setBusy(true)
-    await addSourcesToCurriculum({
-      data: { curriculumId, sources: [{ kind: 'link', value: trimmed }] },
-    })
-    setLinkValue('')
-    setBusy(false)
-    await router.invalidate()
+
+    try {
+      await addSourcesToCurriculum({
+        data: { curriculumId, sources: [{ kind: 'link', value: trimmed }] },
+      })
+      setLinkValue('')
+      await router.invalidate()
+    } catch {
+      setError("Couldn't add that link — try again.")
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function approve(override: boolean) {

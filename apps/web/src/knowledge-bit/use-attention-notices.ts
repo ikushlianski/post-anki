@@ -44,7 +44,7 @@ export function useAttentionNotices({
   const reloadAfterRetry = useCallback(async (statuses: RegenerationStatuses) => {
     const finished = noticesRef.current
       .map((notice) => notice.knowledgeSourceId)
-      .filter((id) => statuses[id]?.status === 'done' || statuses[id]?.status === 'failed')
+      .filter((id) => statuses[id] && statuses[id].status !== 'running')
 
     if (finished.length === 0) {
       return

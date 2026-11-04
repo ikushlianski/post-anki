@@ -45,6 +45,7 @@ const rowsHook = vi.hoisted(() => ({
   calls: [] as (string | null)[],
   filterCalls: [] as unknown[],
   rows: [{ knowledgeBitId: 'b1' }] as { knowledgeBitId: string }[],
+  pending: false,
 }))
 
 vi.mock('./use-knowledge-browser-data', () => ({
@@ -55,7 +56,7 @@ vi.mock('./use-knowledge-browser-data', () => ({
     return {
       rows: rowsHook.rows,
       total: rowsHook.rows.length,
-      isPending: false,
+      isPending: rowsHook.pending,
       isError: false,
       hasMore: false,
       loadingMore: false,
@@ -101,6 +102,7 @@ import { KnowledgeBrowserScreen } from './knowledge-browser-screen'
 
 afterEach(() => {
   cleanup()
+  rowsHook.pending = false
   rowsHook.calls.length = 0
   rowsHook.filterCalls.length = 0
   rowsHook.rows = [{ knowledgeBitId: 'b1' }]
@@ -119,6 +121,13 @@ afterEach(() => {
 })
 
 describe('KnowledgeBrowserScreen', () => {
+  it('should announce the loading text to screen readers', () => {
+    rowsHook.pending = true
+    render(<KnowledgeBrowserScreen subjectId={null} />)
+
+    expect(screen.getByTestId('knowledge-browser-loading').getAttribute('role')).toBe('status')
+  })
+
   it('should show every approved card across subjects with its own saved column order when no subject is chosen', () => {
     render(<KnowledgeBrowserScreen subjectId={null} />)
 

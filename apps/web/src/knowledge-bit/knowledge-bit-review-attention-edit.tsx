@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { KNOWLEDGE_SOURCE_MAX_CHARS } from '@post-anki/shared'
 
 import { PRIMARY_BUTTON_CLASS, SECONDARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
 
-export const ATTENTION_TEXT_MAX_CHARS = 50_000
+export const ATTENTION_TEXT_MAX_CHARS = KNOWLEDGE_SOURCE_MAX_CHARS
 
 export function attentionTextProblem(text: string): string | null {
   const trimmed = text.trim()
@@ -12,7 +13,7 @@ export function attentionTextProblem(text: string): string | null {
   }
 
   if (trimmed.length > ATTENTION_TEXT_MAX_CHARS) {
-    return 'The text is over 50,000 characters. Shorten it and try again.'
+    return `The text is over ${ATTENTION_TEXT_MAX_CHARS.toLocaleString('en-US')} characters. Shorten it and try again.`
   }
 
   return null

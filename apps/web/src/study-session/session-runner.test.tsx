@@ -5,17 +5,30 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { StudySession, StudySessionPushResponse } from '@post-anki/shared'
 
 vi.mock('./session-question-surface', () => ({
-  SessionQuestionSurface: ({ onAnswered }: { onAnswered: (result: { outcome: 'pass' | 'fail'; coveredGapLabels: string[]; nextQuestion: null; feedback: string }) => void }) => (
-    <button
-      type="button"
-      data-testid="mock-answer"
-      onClick={() =>
-        onAnswered({ outcome: 'pass', coveredGapLabels: [], nextQuestion: null, feedback: 'ok' })
-      }
-    >
-      answer
-    </button>
-  ),
+  SessionQuestionSurface: ({
+    onAnswered,
+    loadFailed,
+    onRetry,
+  }: {
+    onAnswered: (result: { outcome: 'pass' | 'fail'; coveredGapLabels: string[]; nextQuestion: null; feedback: string }) => void
+    loadFailed?: boolean
+    onRetry?: () => void
+  }) =>
+    loadFailed ? (
+      <button type="button" data-testid="session-question-failed" onClick={onRetry}>
+        retry
+      </button>
+    ) : (
+      <button
+        type="button"
+        data-testid="mock-answer"
+        onClick={() =>
+          onAnswered({ outcome: 'pass', coveredGapLabels: [], nextQuestion: null, feedback: 'ok' })
+        }
+      >
+        answer
+      </button>
+    ),
 }))
 
 import { SessionRunner } from './session-runner'
@@ -163,5 +176,62 @@ describe('SessionRunner', () => {
     })
 
     expect(screen.getByTestId('nudge-panel')).toBeTruthy()
+  })
+
+  it('should stop loading and let the learner retry when the next question fails to load', async () => {
+    const onLoadPush = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ ok: true, data: pushResult })
+
+    await act(async () => {
+      render(
+        <SessionRunner
+          session={session()}
+          nudge={null}
+          onLoadPush={onLoadPush}
+          onRecordAnswer={vi.fn()}
+          onEnd={vi.fn()}
+          onEnded={vi.fn()}
+          onRespondNudge={vi.fn()}
+          onNudgeResponded={vi.fn()}
+        />,
+      )
+    })
+
+    expect(screen.getByTestId('session-question-failed')).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('session-question-failed'))
+    })
+
+    expect(onLoadPush).toHaveBeenCalledTimes(2)
+    expect(screen.queryByTestId('session-question-failed')).toBeNull()
+  })
+
+  it('should show a failure and not end the session when the end request throws', async () => {
+    const onEnded = vi.fn()
+
+    await act(async () => {
+      render(
+        <SessionRunner
+          session={session()}
+          nudge={null}
+          onLoadPush={vi.fn().mockResolvedValue({ ok: true, data: pushResult })}
+          onRecordAnswer={vi.fn()}
+          onEnd={vi.fn().mockRejectedValue(new Error('boom'))}
+          onEnded={onEnded}
+          onRespondNudge={vi.fn()}
+          onNudgeResponded={vi.fn()}
+        />,
+      )
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('session-end-now'))
+    })
+
+    expect(screen.getByTestId('session-action-failed')).toBeTruthy()
+    expect(onEnded).not.toHaveBeenCalled()
   })
 })

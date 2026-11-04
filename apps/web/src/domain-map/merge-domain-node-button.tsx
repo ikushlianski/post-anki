@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
 import type { DomainNodeTreeItem } from '@post-anki/shared'
 
+import { ActionFailedLine } from '../curriculum/action-failed-line'
+import { useGuardedRun } from '../curriculum/use-guarded-run'
 import { mergeDomainNodes } from './domain-map.api'
 import { SearchableSelect } from '../ui/searchable-select'
 
@@ -46,9 +47,8 @@ export function MergeDomainNodeButton({
   node: DomainNodeTreeItem
   allNodes: DomainNodeTreeItem[]
 }) {
-  const router = useRouter()
+  const { busy, failed, run } = useGuardedRun()
   const [armed, setArmed] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [targetNodeId, setTargetNodeId] = useState('')
 
   const excludedIds = new Set<string>()
@@ -63,10 +63,9 @@ export function MergeDomainNodeButton({
       return
     }
 
-    setBusy(true)
-    await mergeDomainNodes({ data: { targetDomainNodeId: targetNodeId, sourceDomainNodeId: node.id } })
-    setBusy(false)
-    await router.invalidate()
+    await run(() =>
+      mergeDomainNodes({ data: { targetDomainNodeId: targetNodeId, sourceDomainNodeId: node.id } }),
+    )
   }
 
   if (!armed) {
@@ -110,6 +109,7 @@ export function MergeDomainNodeButton({
       >
         cancel
       </button>
+      <ActionFailedLine failed={failed} testId={`domain-map-node-merge-failed-${node.id}`} />
     </span>
   )
 }

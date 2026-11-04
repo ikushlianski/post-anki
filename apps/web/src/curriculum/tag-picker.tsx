@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
 
 import type { NodeType, TagChip } from './model'
+import { ActionFailedLine } from './action-failed-line'
 import { assignTag, createOrGetTag, removeTagAssignment } from './curriculum.api'
 import { visibleTagChips } from './tag-chips'
 import { controlHint, controlState, isControlDisabled } from '../shared/control-state'
@@ -24,6 +25,7 @@ export function TagPicker({
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
   // Chips this component's own mutations already know about, reconciled with
   // (never replaced by) whatever the route hands down in `tags`. Seeding from
   // the mutation response is what makes an added or removed chip visible
@@ -47,23 +49,37 @@ export function TagPicker({
     }
 
     setBusy(true)
-    const tag = await createOrGetTag({ data: { name: trimmed } })
-    const assignment = await assignTag({ data: { tagId: tag.id, nodeType, nodeId } })
+    setFailed(false)
 
-    setSeededTags((current) => [...current, { ...tag, assignmentId: assignment.id }])
-    setRemovedAssignmentIds((current) => current.filter((id) => id !== assignment.id))
-    setValue('')
-    setOpen(false)
-    setBusy(false)
-    await router.invalidate()
+    try {
+      const tag = await createOrGetTag({ data: { name: trimmed } })
+      const assignment = await assignTag({ data: { tagId: tag.id, nodeType, nodeId } })
+
+      setSeededTags((current) => [...current, { ...tag, assignmentId: assignment.id }])
+      setRemovedAssignmentIds((current) => current.filter((id) => id !== assignment.id))
+      setValue('')
+      setOpen(false)
+      await router.invalidate()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function remove(assignmentId: string, tagId: string) {
     setBusy(true)
-    await removeTagAssignment({ data: { tagId, assignmentId } })
-    setRemovedAssignmentIds((current) => [...current, assignmentId])
-    setBusy(false)
-    await router.invalidate()
+    setFailed(false)
+
+    try {
+      await removeTagAssignment({ data: { tagId, assignmentId } })
+      setRemovedAssignmentIds((current) => [...current, assignmentId])
+      await router.invalidate()
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -97,6 +113,8 @@ export function TagPicker({
         </span>
       ))}
 
+      <ActionFailedLine failed={failed} testId={`tag-picker-error-${nodeId}`} />
+
       {state !== 'hidden' ? (
         open ? (
           <form onSubmit={addTag} className="flex items-center gap-1">
@@ -105,6 +123,7 @@ export function TagPicker({
               autoFocus
               disabled={busy}
               onChange={(event) => setValue(event.target.value)}
+              aria-label="Tag name"
               placeholder="tag name…"
               data-testid={`tag-picker-input-${nodeId}`}
               className="w-24 rounded-md border border-neutral-200 px-2 py-0.5 text-xs outline-none focus:border-neutral-400"

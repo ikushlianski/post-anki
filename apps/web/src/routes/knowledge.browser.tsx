@@ -8,8 +8,10 @@ import {
 } from '../knowledge-bit/knowledge-browser-filters'
 import type { BrowserSearch } from '../knowledge-bit/knowledge-browser-filters'
 import { openNavigationMode, withOpen } from '../knowledge-bit/knowledge-browser-open-item'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/knowledge/browser')({
+  head: pageHead('Card browser'),
   validateSearch: (search: Record<string, unknown>): BrowserSearch => parseBrowserSearch(search),
   beforeLoad: ({ search }) => {
     if (search.view === 'subjects' && !search.subject) {

@@ -2,6 +2,8 @@ import { Link } from '@tanstack/react-router'
 
 import type { AddedNote } from './added-note-progress'
 
+const NOTHING_WORTH_KEEPING_TEXT = 'Nothing worth keeping in this note'
+
 function noteStatusText(note: AddedNote): string {
   if (note.phase === 'queued') {
     return 'Queued. Waiting to start.'
@@ -17,7 +19,15 @@ function noteStatusText(note: AddedNote): string {
     const flagged = note.flaggedCount ?? 0
     const flaggedText = flagged > 0 ? ` ${flagged} of them need a manual check.` : ''
 
-    return `Ready with ${cards}.${flaggedText}`
+    return `${cards} created.${flaggedText}`
+  }
+
+  if (note.phase === 'attention' && note.attentionKind === 'nothing_extracted') {
+    return NOTHING_WORTH_KEEPING_TEXT
+  }
+
+  if (note.phase === 'attention' && note.attentionKind === 'failed') {
+    return `Extraction failed, retry. ${note.reason ?? ''}`.trim()
   }
 
   if (note.phase === 'attention') {
@@ -33,9 +43,9 @@ export function AddedNoteProgressList({ notes }: { notes: AddedNote[] }) {
   }
 
   return (
-    <ul className="space-y-1 text-sm" data-testid="knowledge-added-notes">
+    <ul role="status" className="space-y-1 text-sm" data-testid="knowledge-added-notes">
       {notes.map((note) => {
-        const tone = note.phase === 'attention' ? 'text-amber-800' : 'text-neutral-700'
+        const tone = note.phase === 'attention' && note.attentionKind !== 'nothing_extracted' ? 'text-amber-800' : 'text-neutral-700'
 
         return (
           <li

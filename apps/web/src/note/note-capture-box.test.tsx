@@ -106,4 +106,11 @@ describe('NoteCaptureBox', () => {
       'a note for a gap that vanished',
     )
   })
+
+  it('should give the note text and concern fields accessible names', () => {
+    renderBox('topic', vi.fn())
+
+    expect(screen.getByLabelText('Note text')).toBeTruthy()
+    expect(screen.getByLabelText('Concern tag')).toBeTruthy()
+  })
 })

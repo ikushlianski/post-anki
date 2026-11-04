@@ -80,4 +80,21 @@ describe('LibraryBrowser', () => {
     await waitFor(() => expect(onRefetched).toHaveBeenCalled())
     expect(onRefetch).toHaveBeenCalledWith('a')
   })
+
+  it('should show a failure and re-enable Re-fetch when the request throws', async () => {
+    render(
+      <LibraryBrowser
+        sources={[source({ id: 's1' })]}
+        onRefetch={vi.fn().mockRejectedValue(new Error('boom'))}
+        onRefetched={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('library-refetch-button'))
+
+    expect(await screen.findByTestId('library-refetch-failed')).toBeTruthy()
+    await waitFor(() =>
+      expect((screen.getByTestId('library-refetch-button') as HTMLButtonElement).disabled).toBe(false),
+    )
+  })
 })

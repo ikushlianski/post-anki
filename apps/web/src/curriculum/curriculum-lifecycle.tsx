@@ -8,7 +8,9 @@ import {
   retryDraftStructure,
   retryResearch,
 } from './curriculum.api'
+import { ActionFailedLine } from './action-failed-line'
 import { needsPreAssessment } from './pre-assessment'
+import { useGuardedRun } from './use-guarded-run'
 
 export function CuratingBanner() {
   const router = useRouter()
@@ -42,7 +44,7 @@ export function StructureDraftPending({
   stalled: boolean
 }) {
   const router = useRouter()
-  const [busy, setBusy] = useState(false)
+  const { busy, failed, run } = useGuardedRun()
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -53,10 +55,7 @@ export function StructureDraftPending({
   }, [router])
 
   async function retry() {
-    setBusy(true)
-    await retryDraftStructure({ data: curriculumId })
-    setBusy(false)
-    await router.invalidate()
+    await run(() => retryDraftStructure({ data: curriculumId }))
   }
 
   if (stalled) {
@@ -74,6 +73,7 @@ export function StructureDraftPending({
         >
           {busy ? 'Retrying…' : 'Retry drafting'}
         </button>
+        <ActionFailedLine failed={failed} testId="structure-draft-retry-error" />
       </div>
     )
   }
@@ -94,27 +94,18 @@ export function FailedBanner({
   origin: CurriculumOrigin
   hasStructureDraftAttempt: boolean
 }) {
-  const router = useRouter()
-  const [busy, setBusy] = useState(false)
+  const { busy, failed, run } = useGuardedRun()
 
   async function retry() {
-    setBusy(true)
-
-    if (origin === 'research') {
-      await retryResearch({ data: curriculumId })
-    } else {
-      await reparseCurriculum({ data: curriculumId })
-    }
-
-    setBusy(false)
-    await router.invalidate()
+    await run(() =>
+      origin === 'research'
+        ? retryResearch({ data: curriculumId })
+        : reparseCurriculum({ data: curriculumId }),
+    )
   }
 
   async function retryDraft() {
-    setBusy(true)
-    await retryDraftStructure({ data: curriculumId })
-    setBusy(false)
-    await router.invalidate()
+    await run(() => retryDraftStructure({ data: curriculumId }))
   }
 
   // A Phase 5 draft-generation failure (`generateDraftStructure`) — a real,
@@ -142,6 +133,7 @@ export function FailedBanner({
         >
           {busy ? 'Retrying…' : 'Retry drafting'}
         </button>
+        <ActionFailedLine failed={failed} testId="retry-failed" />
       </div>
     )
   }
@@ -164,6 +156,7 @@ export function FailedBanner({
         >
           {busy ? 'Retrying…' : 'Retry research'}
         </button>
+        <ActionFailedLine failed={failed} testId="retry-failed" />
       </div>
     )
   }
@@ -185,6 +178,7 @@ export function FailedBanner({
       >
         {busy ? 'Re-parsing…' : 'Re-parse sources'}
       </button>
+      <ActionFailedLine failed={failed} testId="retry-failed" />
     </div>
   )
 }
@@ -199,10 +193,23 @@ export function ConfirmBar({
   const router = useRouter()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
 
   async function confirm() {
     setBusy(true)
-    const confirmed = await confirmCurriculum({ data: curriculumId })
+    setFailed(false)
+
+    let confirmed: Awaited<ReturnType<typeof confirmCurriculum>>
+
+    try {
+      confirmed = await confirmCurriculum({ data: curriculumId })
+    } catch {
+      setFailed(true)
+      setBusy(false)
+
+      return
+    }
+
     setBusy(false)
 
     if (needsPreAssessment(confirmed)) {
@@ -240,6 +247,11 @@ export function ConfirmBar({
       >
         {busy ? 'Confirming…' : 'Confirm curriculum'}
       </button>
+      {failed ? (
+        <span role="alert" data-testid="confirm-curriculum-error" className="text-xs text-red-300">
+          Couldn't confirm, try again
+        </span>
+      ) : null}
     </div>
   )
 }

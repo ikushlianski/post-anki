@@ -3,6 +3,7 @@ import { KnowledgeBrowserPhrasings } from './knowledge-browser-phrasings'
 import { KnowledgeBrowserOriginCell } from './knowledge-browser-origin-cell'
 import { BROWSER_ORIGIN_LABELS } from './knowledge-browser-filters'
 import type { KnowledgeBitBrowserItem, KnowledgeBitBrowserOrigin } from '@post-anki/shared'
+import { safeHref } from '../shared/safe-href'
 
 export type BrowserColumnId = 'phrasings' | 'answer' | 'source' | 'sourceUrl' | 'addedBy' | 'addedAt'
 
@@ -83,12 +84,12 @@ export function renderBrowserCell(
     case 'source':
       return <KnowledgeBrowserOriginCell label={BROWSER_ORIGIN_LABELS[item.origin]} item={item} actions={sourceActions} />
     case 'sourceUrl':
-      return item.sourceUrl ? (
-        <a href={item.sourceUrl} target="_blank" rel="noreferrer" title={item.sourceUrl} className="text-blue-700 underline">
+      return safeHref(item.sourceUrl) ? (
+        <a href={safeHref(item.sourceUrl)} target="_blank" rel="noreferrer" title={item.sourceUrl ?? undefined} className="text-blue-700 underline">
           {item.sourceUrl}
         </a>
       ) : (
-        ''
+        (item.sourceUrl ?? '')
       )
     case 'addedBy':
       return addedByLabel(item.origin)

@@ -2,8 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { TagList } from '../subject/tag-list'
 import { TagDeepenList } from '../subject/tag-deepen-list'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/tags')({
+  head: pageHead('Tags'),
   component: TagsPage,
 })
 

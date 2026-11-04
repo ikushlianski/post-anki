@@ -15,7 +15,7 @@ import type { BrowserSelectionDelete } from './use-knowledge-browser-selection-d
 import type { BrowserSourceDelete } from './use-knowledge-browser-source-delete'
 
 export function unselectedNote(count: number): string {
-  return `${count} selected ${count === 1 ? 'piece is' : 'pieces are'} hidden by the filters and ${count === 1 ? 'was' : 'were'} unselected`
+  return `${count} selected ${count === 1 ? 'card is' : 'cards are'} hidden by the filters and ${count === 1 ? 'was' : 'were'} unselected`
 }
 
 export interface KnowledgeBrowserToolbarProps {

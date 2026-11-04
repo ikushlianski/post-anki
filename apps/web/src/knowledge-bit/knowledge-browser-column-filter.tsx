@@ -27,7 +27,7 @@ export type BrowserFiltersChange = (
   mode: BrowserFilterChangeMode,
 ) => void
 
-export const DATE_RANGE_MESSAGE = 'The From date is after the To date. No pieces are requested.'
+export const DATE_RANGE_MESSAGE = 'The From date is after the To date. No cards are requested.'
 
 const DEBOUNCE_MS = 250
 

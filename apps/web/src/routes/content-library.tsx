@@ -9,8 +9,10 @@ import {
   resolveSourceDuplicateSuggestion,
   triggerSourceDuplicateScan,
 } from '../content-library/content-library.api'
+import { pageHead } from '../shared/page-title'
 
 export const Route = createFileRoute('/content-library')({
+  head: pageHead('Content library'),
   component: ContentLibraryPage,
   loader: async () => {
     const [sources, suggestions] = await Promise.all([

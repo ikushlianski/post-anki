@@ -32,6 +32,7 @@ function renderNotice(
   handlers: Partial<{
     onRetry: (id: string) => void
     onRetryWithText: (id: string, text: string) => void
+    onExtractAnyway: (id: string) => void
     onDiscard: (id: string) => Promise<boolean>
   }> = {},
 ) {
@@ -42,6 +43,7 @@ function renderNotice(
         regeneration={regeneration}
         onRetry={handlers.onRetry ?? vi.fn()}
         onRetryWithText={handlers.onRetryWithText ?? vi.fn()}
+        onExtractAnyway={handlers.onExtractAnyway ?? vi.fn()}
         onDiscard={handlers.onDiscard ?? vi.fn().mockResolvedValue(true)}
       />
     </ul>,
@@ -201,5 +203,47 @@ describe('KnowledgeBitReviewAttentionNotice', () => {
 
     expect(text('discard-error')).toBe("Couldn't discard this note. Try again.")
     expect(screen.getByRole('button', { name: 'Retry now' })).toBeTruthy()
+  })
+})
+
+describe('KnowledgeBitReviewAttentionNotice nothing extracted', () => {
+  it('should show the plain message with Retry anyway and Dismiss, not styled as an error', () => {
+    const onRetry = vi.fn()
+
+    renderNotice(notice({ kind: 'nothing_extracted', reason: null }), undefined, { onRetry })
+
+    expect(text('reason')).toBe('Nothing here looked worth turning into a card.')
+    expect(screen.getByTestId('knowledge-bit-review-attention-s1').className).not.toContain('amber')
+    expect(screen.queryByTestId('knowledge-bit-review-attention-s1-edit')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-attention-s1-retry'))
+
+    expect(onRetry).toHaveBeenCalledWith('s1')
+    expect(screen.getByTestId('knowledge-bit-review-attention-s1-retry').textContent).toBe('Retry anyway')
+  })
+
+  it('should ask for at least one card when Extract anyway is pressed, only on a nothing-extracted note', () => {
+    const onExtractAnyway = vi.fn()
+
+    renderNotice(notice({ kind: 'nothing_extracted', reason: null }), undefined, { onExtractAnyway })
+    fireEvent.click(screen.getByTestId('knowledge-bit-review-attention-s1-extract-anyway'))
+
+    expect(onExtractAnyway).toHaveBeenCalledWith('s1')
+    cleanup()
+    renderNotice(notice())
+
+    expect(screen.queryByTestId('knowledge-bit-review-attention-s1-extract-anyway')).toBeNull()
+  })
+
+  it('should dismiss the note without a confirm step', async () => {
+    const onDiscard = vi.fn().mockResolvedValue(true)
+
+    renderNotice(notice({ kind: 'nothing_extracted', reason: null }), undefined, { onDiscard })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('knowledge-bit-review-attention-s1-dismiss'))
+    })
+
+    expect(onDiscard).toHaveBeenCalledWith('s1')
   })
 })
