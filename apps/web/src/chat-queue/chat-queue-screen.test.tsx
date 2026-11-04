@@ -85,7 +85,7 @@ describe('ChatQueueScreen', () => {
 
   it('should snooze a card for the chosen days and show when it wakes up', async () => {
     vi.mocked(snoozeChatQueueCard).mockResolvedValue(
-      ok({ ok: true as const, snoozedUntil: '2026-11-04T10:00:00.000Z' }),
+      ok({ ok: true as const, snoozedUntil: '2099-11-04T10:00:00.000Z' }),
     )
     render(<ChatQueueScreen />)
 
@@ -101,7 +101,7 @@ describe('ChatQueueScreen', () => {
 
     window.addEventListener(PENDING_REVIEW_CHANGED_EVENT, changed)
     vi.mocked(snoozeChatQueueCard).mockResolvedValue(
-      ok({ ok: true as const, snoozedUntil: '2026-11-04T10:00:00.000Z' }),
+      ok({ ok: true as const, snoozedUntil: '2099-11-04T10:00:00.000Z' }),
     )
     vi.mocked(unsnoozeChatQueueCard).mockResolvedValue(ok({ ok: true as const, snoozedUntil: null }))
     render(<ChatQueueScreen />)
@@ -116,7 +116,7 @@ describe('ChatQueueScreen', () => {
   it('should bring a snoozed card back into the reminder count when unsnoozed', async () => {
     vi.mocked(getChatQueue).mockResolvedValue(
       ok({
-        items: [{ ...item('a'), snoozedUntil: '2026-11-04T10:00:00.000Z' }],
+        items: [{ ...item('a'), snoozedUntil: '2099-11-04T10:00:00.000Z' }],
         count: 0,
       }),
     )
@@ -382,7 +382,7 @@ describe('ChatQueueScreen', () => {
 
   it('should snooze from inside the thread, return to the list and show the wake-up date', async () => {
     vi.mocked(snoozeChatQueueCard).mockResolvedValue(
-      ok({ ok: true as const, snoozedUntil: '2026-11-04T10:00:00.000Z' }),
+      ok({ ok: true as const, snoozedUntil: '2099-11-04T10:00:00.000Z' }),
     )
     await openThread()
 
@@ -396,7 +396,7 @@ describe('ChatQueueScreen', () => {
 
   it('should tell the user a snoozed card is snoozed when opening its thread and let them unsnooze it', async () => {
     vi.mocked(getChatQueue).mockResolvedValue(
-      ok({ items: [{ ...item('a'), snoozedUntil: '2026-11-04T10:00:00.000Z' }], count: 0 }),
+      ok({ items: [{ ...item('a'), snoozedUntil: '2099-11-04T10:00:00.000Z' }], count: 0 }),
     )
     vi.mocked(unsnoozeChatQueueCard).mockResolvedValue(ok({ ok: true as const, snoozedUntil: null }))
     await openThread()

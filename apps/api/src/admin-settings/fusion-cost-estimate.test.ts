@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KNOWLEDGE_ITEM_MODELS } from "@post-anki/shared";
 process.env.OPENROUTER_API_KEY ??= "test-key";
+process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/test";
 
 const { estimateFusionCostPerSource } = await import("./fusion-cost-estimate.js");
 

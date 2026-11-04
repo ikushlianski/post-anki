@@ -48,7 +48,7 @@ describe('ChatQueueOldestWait', () => {
     render(
       <ChatQueueOldestWait
         items={[
-          item('a', '2026-09-01T12:00:00.000Z', '2026-11-04T10:00:00.000Z'),
+          item('a', '2026-09-01T12:00:00.000Z', '2099-11-04T10:00:00.000Z'),
           item('b', '2026-10-23T12:00:00.000Z'),
         ]}
         now={NOW}
@@ -88,7 +88,7 @@ describe('ChatQueueOldestWait', () => {
   it('should stay hidden when only snoozed cards are left', () => {
     render(
       <ChatQueueOldestWait
-        items={[item('a', '2026-09-01T12:00:00.000Z', '2026-11-04T10:00:00.000Z')]}
+        items={[item('a', '2026-09-01T12:00:00.000Z', '2099-11-04T10:00:00.000Z')]}
         now={NOW}
       />,
     )
