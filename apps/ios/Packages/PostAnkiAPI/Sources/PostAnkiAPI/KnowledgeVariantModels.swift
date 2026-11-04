@@ -3,6 +3,7 @@ import Foundation
 public struct KnowledgeBitVariant: Decodable, Sendable, Identifiable, Hashable {
     public let id: String
     public let kind: String
+    public let context: String?
     public let prompt: String
     public let answer: String
 }

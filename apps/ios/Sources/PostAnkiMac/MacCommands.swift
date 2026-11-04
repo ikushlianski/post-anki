@@ -31,6 +31,11 @@ struct MacCommands: Commands {
                 .disabled(zoom <= MacZoom.steps[0])
         }
 
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") { MacSettingsRoute.show(openWindow: openWindow) }
+                .keyboardShortcut(",")
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("New Knowledge Item") {
                 MacNavigator.shared.select("ingest")

@@ -42,6 +42,19 @@ extension NetworkContracts {
             #expect(RecordingStub.last?.body?["force"] as? Bool == true)
         }
 
+        @Test("should send target phrases when given and omit the field otherwise")
+        func sendsTargetPhrases() async throws {
+            RecordingStub.install(body: Data(#"{"id":"src_4"}"#.utf8))
+            _ = try await APIClient.addKnowledgeSource(content: .text("Hi"), targetPhrases: ["thorough", "comfortable"])
+
+            #expect(RecordingStub.last?.body?["targetPhrases"] as? [String] == ["thorough", "comfortable"])
+
+            RecordingStub.install(body: Data(#"{"id":"src_5"}"#.utf8))
+            _ = try await APIClient.addKnowledgeSource(content: .text("Hi"))
+
+            #expect(RecordingStub.last?.body?["targetPhrases"] == nil)
+        }
+
         @Test("should map a 409 already_added reply from the server to its refusal")
         func mapsServerRefusal() async throws {
             RecordingStub.install(status: 409, body: Data(#"{"error":"already_added"}"#.utf8))

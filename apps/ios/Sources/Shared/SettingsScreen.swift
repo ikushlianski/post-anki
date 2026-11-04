@@ -12,7 +12,7 @@ final class SettingsScreenModel {
         didSet { if address != oldValue { connectionResult = nil } }
     }
     var token = ""
-    var email = "kushliansky@gmail.com"
+    var email: String
     var password = ""
     var isSigningIn = false
     var hasToken = TokenStore.read() != nil
@@ -21,6 +21,13 @@ final class SettingsScreenModel {
     var statusMessage: String?
     var connectionResult: ConnectionResult?
     var isTesting = false
+
+    private let emailStore: SignInEmailStore
+
+    init(emailStore: SignInEmailStore = SignInEmailStore()) {
+        self.emailStore = emailStore
+        email = emailStore.load()
+    }
 
     nonisolated static func isAddressAllowed(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased() else { return false }
@@ -125,8 +132,10 @@ final class SettingsScreenModel {
         do {
             try await PasswordSignIn.signIn(
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                password: password
+                password: password,
+                label: SignInGate.currentDeviceLabel
             )
+            emailStore.save(email)
             password = ""
             hasToken = TokenStore.read() != nil
             statusMessage = "Signed in."
@@ -140,13 +149,13 @@ final class SettingsScreenModel {
         errorMessage = nil
         statusMessage = nil
         await PasswordSignIn.signOut()
+        await SignOutCleanup.run()
 
         do {
             try TokenStore.clear()
             token = ""
             hasToken = false
             connectionResult = nil
-            UnsentDraftStore.shared.reset()
             statusMessage = "Signed out."
             NotificationCenter.default.post(name: .postAnkiSettingsDidSave, object: nil)
         } catch {
@@ -158,6 +167,13 @@ final class SettingsScreenModel {
 struct SettingsScreen: View {
     @State private var model = SettingsScreenModel()
     @State private var confirmingRemoveToken = false
+    @AppStorage(AnswerButtonSizeStore.key) private var answerButtonSize = AnswerButtonSize.defaultSize.rawValue
+
+    private let showsAdminLink: Bool
+
+    init(showsAdminLink: Bool = true) {
+        self.showsAdminLink = showsAdminLink
+    }
 
     private var settingsTiles: [MainActionTile] {
         if model.hasToken {
@@ -176,6 +192,20 @@ struct SettingsScreen: View {
 
     var body: some View {
         Form {
+            if model.errorMessage != nil || model.statusMessage != nil {
+                Section {
+                    if let errorMessage = model.errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    }
+
+                    if let statusMessage = model.statusMessage {
+                        Text(statusMessage)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             Section("API server address") {
                 TextField("https://", text: $model.address)
                     #if os(iOS)
@@ -225,8 +255,18 @@ struct SettingsScreen: View {
                     .disabled(!model.hasToken)
             }
 
-            Section {
-                NavigationLink("Admin settings") { AdminSettingsScreen() }
+            Section("Review") {
+                Picker("Answer button size", selection: $answerButtonSize) {
+                    ForEach(AnswerButtonSize.allCases) { size in
+                        Text(size.title).tag(size.rawValue)
+                    }
+                }
+            }
+
+            if showsAdminLink {
+                Section {
+                    NavigationLink("Admin settings") { AdminSettingsScreen() }
+                }
             }
 
             Section("Connection") {
@@ -250,26 +290,22 @@ struct SettingsScreen: View {
                 LabeledContent("Version", value: BuildInfo.versionText)
                 LabeledContent("Server", value: BuildInfo.serverHost)
             }
-
-            if let errorMessage = model.errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-            }
-
-            if let statusMessage = model.statusMessage {
-                Text(statusMessage)
-                    .foregroundStyle(.secondary)
-            }
         }
         #if os(macOS)
         .formStyle(.grouped)
         #endif
         .navigationTitle("Settings")
+        .onChange(of: model.errorMessage) { _, message in
+            if let message { TriageFeedbackPlayer.announce(message: message) }
+        }
+        .onChange(of: model.statusMessage) { _, message in
+            if let message { TriageFeedbackPlayer.announce(message: message) }
+        }
         .mainActionControls(settingsTiles)
         .confirmationDialog("Sign out of this device?", isPresented: $confirmingRemoveToken) {
             Button("Sign out", role: .destructive) { Task { await model.removeToken() } }
         } message: {
-            Text("You will need to paste it again to load your data.")
+            Text("You will need to sign in again.")
         }
     }
 }

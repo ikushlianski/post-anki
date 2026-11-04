@@ -63,11 +63,11 @@ struct MacProgressView: View {
     private func tiles(_ digest: WeeklyDigest) -> some View {
         card("This week") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 160 * zoom), alignment: .top)], spacing: 16) {
-                DigestTile(title: "Streak", value: "\(digest.streak.currentStreak) days", detail: nil)
+                DigestTile(title: "Streak", value: CountLabel.text(digest.streak.currentStreak, "day"), detail: nil)
                 DigestTile(
                     title: "Retention",
                     value: digest.retention.flatMap { $0.count > 0 ? $0.percentText : nil },
-                    detail: digest.retention.flatMap { $0.count > 0 ? "\($0.count) items" : nil }
+                    detail: digest.retention.flatMap { $0.count > 0 ? CountLabel.text($0.count, "item") : nil }
                 )
                 DigestTile(
                     title: "To mastery",

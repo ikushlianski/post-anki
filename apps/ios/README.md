@@ -1,29 +1,29 @@
 # post-anki-ios
 
 A simple native iOS companion app for post-anki, written in Swift/SwiftUI. Authenticates with a
-bearer access token kept in the Keychain and talks directly to the post-anki API.
+bearer token kept in the Keychain and talks directly to the post-anki API.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the package, shared screens, Mac registry and how to add a Mac feature.
 
 ## iPhone tabs
 
-- Home: due-today row, summary, the latest topic or course to continue, daily push, practice, study tools and study modes. A "Progress and practice" section opens Progress and Answer practice as sheets.
-- Review: one-card-at-a-time review with grade buttons, undo and offline queuing. A strip above the card shows the remaining New, Learning and Due counts for today and drops as you grade (undo raises it again). Grades made offline are queued and sent later.
-- Inbox: pending items. The tab badge shows the number of pending items. Pending items show a summary ("N cards are waiting for your decision", with writing progress while cards are still being made) and a Start triage button that opens focus triage.
+- Triage: pending items. The tab badge shows the number of pending items. Pending items show a summary ("N cards are waiting for your decision", with writing progress while cards are still being made) and a Start triage button that opens focus triage.
+- Review: subject list, then one-card-at-a-time review with grade buttons, undo and offline queuing. Grades made offline are queued and sent later.
 - Add: add knowledge by typing, dictating or pasting text, or by pasting a single link. Pick a subject (or "No subject"); inside a course the course's subject is used and the picker is hidden. A refused input shows a plain sentence (page could not be opened, no readable text, subject missing, already added, text over 50,000 characters). "Already added" offers Add anyway, which resends the same input with force. After extraction finishes, "Review new items" opens focus triage when cards are pending.
-- Courses: all courses, decks and sub-decks.
+- Chat: the queue of items parked from triage for a chat. The tab badge shows the queue count.
+- More: the remaining screens, grouped in sections.
 
 ## Focus triage
 
-On iPhone, Start triage opens a full-screen, one-card-at-a-time view: subject, all variations, example, fact, a "Where this came from" disclosure, an optional note, and sticky Reject and Approve buttons. Undo steps back through decisions made in the session. Finish takes optional feedback and shows counts and style notes. Cards that are still being written appear as they become ready. The Mac keeps its keep/drop triage with the layout picker and reject banner. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+On iPhone, Start triage opens a full-screen, one-card-at-a-time view: subject, all variations, example, fact, a "Where this came from" disclosure, an optional note, and sticky Reject and Approve buttons. Undo steps back through decisions made in the session. Finish takes optional feedback and shows counts and style notes. Cards that are still being written appear as they become ready. Two more choices need a connection and are never queued offline: Chat about this (swipe down, or the button) parks the item in the Inbox deck without approving or rejecting it, and AI example (swipe up, or the button) writes an example under the answer. Vertical swipes only fire when the card is scrolled to the matching edge. The Inbox opens from the triage summary and lists parked items with chat, Back to triage and Discard. Undo covers both. Approve and reject save in the background, in order and across app restarts, so the next card shows at once. If the server refuses a save, the card comes back with Retry and Skip. The Mac keeps its keep/drop triage with the layout picker and reject banner, saved the same way. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Sign-in
 
-The apps authenticate with a device access token. Email and password sign-in, which returns a session token kept in the Keychain, is planned and not built. The API already accepts that token; see [docs/architecture/web-auth/web-auth.md](../../docs/architecture/web-auth/web-auth.md).
+The apps authenticate with a bearer token kept in the Keychain. The sign-in screen takes an email and password, which returns a session token; Settings also accepts a pasted access token. See [docs/architecture/web-auth/web-auth.md](../../docs/architecture/web-auth/web-auth.md).
 
 ## Status
 
-The iPhone app has five tabs (Home, Review, Inbox, Add, Courses). The Mac app has the full sidebar below.
+The iPhone app has five tabs (Triage, Review, Add, Chat, More). The Mac app has the full sidebar below.
 
 ## Build
 
@@ -110,9 +110,34 @@ Source: the sibling repo `../post-anki` (`package.json`, `docker-compose.yml`, `
 
 ### Sign in
 
-Open Settings (Cmd-comma) and enter the access token. The token is stored in the Mac login keychain (service `com.ikushlianski.postankiios.api`). The app shows a launch banner when it is signed out or cannot reach the server.
+Open Settings (Cmd-comma) and sign in with email and password, or paste an access token. Signing in creates a token that does not expire and stores it on this Mac. In Debug builds a `POSTANKI_DEV_API_TOKEN` from `Local.xcconfig` is seeded only when no token is saved, and is tried once more if the saved token is rejected. The token is stored in the Mac login keychain (service `com.ikushlianski.postankiios.api`). The app shows a launch banner when it is signed out or cannot reach the server.
 
 Builds signed with "Sign to Run Locally" change signature each build, so macOS may prompt for keychain access or refuse an earlier item; set `DEVELOPMENT_TEAM` in `Local.xcconfig` for a stable signature.
+
+### Dev copy signing
+
+Build the dev copy signed with the stable team certificate so the keychain token stays readable across builds:
+
+```sh
+xcodebuild build -scheme PostAnkiMac -configuration Debug -destination 'platform=macOS' \
+  -derivedDataPath /tmp/mac-fix-dd CODE_SIGN_STYLE=Manual \
+  CODE_SIGN_IDENTITY='Apple Development: kushliansky@gmail.com (8C25356KX3)' DEVELOPMENT_TEAM=HXJTYD6A7J
+codesign -dv /tmp/mac-fix-dd/Build/Products/Debug/PostAnkiMac.app
+```
+
+`codesign` must show `TeamIdentifier=HXJTYD6A7J` and no `adhoc` flag.
+
+### Dev icon
+
+Debug builds of `PostAnkiMac` (the dev copy) use `AppIconDev`, the iOS PA icon with an orange DEV band (built from `Sources/PostAnkiIOS/Assets.xcassets/AppIconDev.appiconset/icon-1024.png` on the macOS icon grid); Release builds keep `AppIcon`. After changing the iOS dev icon, regenerate the Mac dev set from `apps/ios`:
+
+```sh
+swift scripts/generate-mac-dev-icon.swift "$PWD"
+```
+
+### Settings
+
+Cmd-comma opens a tabbed Settings window: General (menu bar), Connection (server address, sign in, token), Notion (connection and ingestion sources) and Admin. Notion sources are not in the sidebar; they remain in the command palette and Go menu.
 
 ### Sidebar
 

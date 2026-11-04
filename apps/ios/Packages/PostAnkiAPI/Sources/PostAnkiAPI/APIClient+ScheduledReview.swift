@@ -1,7 +1,7 @@
 import Foundation
 
 extension APIClient {
-    public static func reviewCards(limit: Int = 20, tz: String, subjectId: String? = nil, tagId: String? = nil, topicId: String? = nil, knowledgeBitId: String? = nil) async throws -> ReviewCardsResponse {
+    public static func reviewCards(limit: Int = 20, tz: String, subjectId: String? = nil, tagId: String? = nil, topicId: String? = nil, knowledgeBitId: String? = nil, aheadDays: Int = 0) async throws -> ReviewCardsResponse {
         var query = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "tz", value: tz)
@@ -10,6 +10,8 @@ extension APIClient {
         let scopes = [("subjectId", subjectId), ("tagId", tagId), ("topicId", topicId), ("knowledgeBitId", knowledgeBitId)]
 
         for case (let name, let value?) in scopes { query.append(URLQueryItem(name: name, value: value)) }
+
+        if aheadDays > 0 { query.append(URLQueryItem(name: "aheadDays", value: String(aheadDays))) }
 
         return try await request(encodedPath("/knowledge-bits/review-cards", query: query))
     }

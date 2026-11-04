@@ -31,6 +31,8 @@ struct FocusTriageSessionStore {
         let stored = FocusTriageStoredSession(server: scope(), sessionId: sessionId, decisions: decisions, subjectId: subjectId)
 
         if let data = try? JSONEncoder().encode(stored) { defaults.set(data, forKey: Self.key) }
+
+        TriageHistoryStore(defaults: defaults, scope: scope).record(sessionId)
     }
 
     func clear() {

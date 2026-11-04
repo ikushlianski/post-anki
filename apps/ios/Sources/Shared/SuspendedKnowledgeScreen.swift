@@ -67,9 +67,10 @@ final class SuspendedKnowledgeModel {
 
         do {
             _ = try await APIClient.setSchedule(
-                id: item.id,
+                id: item.knowledgeBitId,
                 suspended: item.suspended ? false : nil,
-                buried: item.buriedUntil != nil ? false : nil
+                buried: item.buriedUntil != nil ? false : nil,
+                variantId: item.variantId
             )
 
             withAnimation { items.removeAll { $0.id == item.id } }
@@ -162,7 +163,11 @@ private struct SuspendedKnowledgeRow: View {
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 4) {
-            Text(item.question).lineLimit(2)
+            if let label = item.cardLabel {
+                Text(label).zoomFont(.caption).foregroundStyle(.secondary)
+            }
+
+            Text(CardKind.hideBlanks(item.question)).lineLimit(2)
             Text(item.answer).zoomFont(.subheadline).foregroundStyle(.secondary).lineLimit(1)
 
             ZoomHStack(spacing: 6) {

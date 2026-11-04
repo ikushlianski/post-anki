@@ -31,7 +31,13 @@ extension ProgressLoadError {
     }
 }
 
+extension EnvironmentValues {
+    @Entry var macOpenSettings: @MainActor () -> Void = {}
+}
+
 struct MacLoadStateView: View {
+    @Environment(\.macOpenSettings) private var openSettings
+
     let failure: ProgressLoadError
     var detail: String?
     let onRetry: () -> Void
@@ -43,7 +49,7 @@ struct MacLoadStateView: View {
             Text(detail ?? failure.macDetail)
         } actions: {
             if failure == .unauthorized {
-                SettingsLink { Text("Open Settings") }
+                Button("Open Settings") { openSettings() }
             }
 
             Button("Try again", action: onRetry)

@@ -6,11 +6,13 @@ struct MacSubjectRow: Identifiable, Hashable {
     let depth: Int
 
     var id: String { subject.id }
+    var cardSortKey: Int { subject.cardCount ?? 0 }
 }
 
 struct MacSubjectsView: View {
     @State private var model = SubjectManageModel()
     @State private var selection: Set<String> = []
+    @State private var sortOrder: [KeyPathComparator<MacSubjectRow>] = []
     @State private var showNew = false
     @State private var renaming: SubjectManageSubject?
     @State private var merging: SubjectManageSubject?
@@ -38,25 +40,30 @@ struct MacSubjectsView: View {
             .toolbar {
                 ToolbarItem {
                     Button { showNew = true } label: { Label("New subject", systemImage: "plus") }
+                        .help("New subject")
                 }
 
                 ToolbarItem {
                     Button { renaming = single } label: { Label("Rename", systemImage: "pencil") }
+                        .help("Rename the selected subject")
                         .disabled(single == nil)
                 }
 
                 ToolbarItem {
                     Button { merging = single } label: { Label("Merge into…", systemImage: "arrow.triangle.merge") }
+                        .help("Merge the selected subject into another")
                         .disabled(single == nil)
                 }
 
                 ToolbarItem {
                     Button { pendingDelete = selected } label: { Label("Delete", systemImage: "trash") }
+                        .help("Delete the selected subjects")
                         .disabled(selected.isEmpty)
                 }
 
                 ToolbarItem {
                     MacReloadButton(isDisabled: model.isLoading) { Task { await model.load() } }
+                        .help("Reload subjects")
                 }
             }
             .sheet(isPresented: $showNew) {
@@ -129,15 +136,32 @@ struct MacSubjectsView: View {
     }
 
     private var table: some View {
-        Table(rows, selection: $selection) {
+        Table(rows, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Subject") { row in
-                Text(row.subject.name)
-                    .lineLimit(1)
-                    .zoomPadding(.leading, CGFloat(row.depth) * 16)
+                HStack(spacing: 6) {
+                    Text(row.subject.name).lineLimit(1)
+
+                    if let badge = SubjectKindLabel.badge(for: row.subject.kind) {
+                        Text(badge)
+                            .zoomFont(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(.quaternary, in: Capsule())
+                            .help("Kind: \(badge)")
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(SubjectKindLabel.badge(for: row.subject.kind).map { "\(row.subject.name), \($0)" } ?? row.subject.name)
+                .zoomPadding(.leading, CGFloat(row.depth) * 16)
             }
             TableColumn("Inside") { Text(model.name(of: $0.subject.parentId)).foregroundStyle(.secondary) }
-            TableColumn("Kind") { Text($0.subject.kind.capitalized) }
-            TableColumn("Courses") { Text("\(model.courseCount(of: $0.subject.id))") }
+            TableColumn("Cards", value: \.cardSortKey) { row in
+                Text(row.subject.cardCount.map(String.init) ?? "–")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 50, ideal: 60, max: 90)
         }
         .contextMenu(forSelectionType: String.self) { ids in
             let items = rows.map(\.subject).filter { ids.contains($0.id) }
@@ -168,7 +192,7 @@ struct MacSubjectsView: View {
             return "Delete \(subject.name) and its \(count) \(count == 1 ? "course" : "courses")?"
         }
 
-        return "Delete \(pendingDelete.count) subjects?"
+        return "Delete \(CountLabel.text(pendingDelete.count, "subject"))?"
     }
 
     private func confirmDelete() {
@@ -201,9 +225,10 @@ struct MacSubjectsView: View {
     private func flatten(parentId: String?, depth: Int, visited: Set<String>) -> [MacSubjectRow] {
         model.children(of: parentId)
             .filter { !visited.contains($0.id) }
-            .flatMap { subject in
-                [MacSubjectRow(subject: subject, depth: depth)]
-                    + flatten(parentId: subject.id, depth: depth + 1, visited: visited.union([subject.id]))
+            .map { MacSubjectRow(subject: $0, depth: depth) }
+            .sorted(using: sortOrder)
+            .flatMap { row in
+                [row] + flatten(parentId: row.subject.id, depth: depth + 1, visited: visited.union([row.subject.id]))
             }
     }
 }

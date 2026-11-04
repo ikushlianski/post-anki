@@ -27,7 +27,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let triage = FocusTriageModel(list: PendingReviewListModel())
+            let triage = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await triage.load()
 
@@ -58,12 +58,7 @@ extension SmokeTests {
 
             model.triage.subjectFilter = "sub1"
             await model.start()
-            model.openFinish()
-            _ = await model.finish(feedback: "")
-
-            #expect(model.triage.subjectFilter == nil)
-
-            model.closeResult()
+            _ = await model.finish()
 
             #expect(model.triage.subjectFilter == nil)
         }

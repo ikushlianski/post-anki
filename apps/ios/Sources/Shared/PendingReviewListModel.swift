@@ -17,15 +17,25 @@ final class PendingReviewListModel {
     var sourceMessages: [String: String] = [:]
     var pendingUndo: PendingReviewUndo?
     var keptUndo: PendingReviewKeptUndo?
-    var pendingFeedback: PendingRejectFeedback?
 
     let counts: PendingReviewCountStore
     var removedDuringLoad: Set<String> = []
     @ObservationIgnored var restoredDuringLoad: [PendingReviewRemovedBit] = []
     @ObservationIgnored var undoTask: Task<Void, Never>?
+    @ObservationIgnored var topUpTask: Task<Void, Never>?
+    @ObservationIgnored var windowGeneration = 0
+    @ObservationIgnored var windowExhausted = true
+    @ObservationIgnored var windowScope: String?
+    @ObservationIgnored var windowCursor: PendingReviewCursor?
+    var serverUnloaded: (subjectId: String?, count: Int)?
+    @ObservationIgnored let windowed: Bool
+    @ObservationIgnored var scopeSubjectId: String?
+    @ObservationIgnored var loadTask: Task<Void, Never>?
+    @ObservationIgnored var reloadRequested = false
 
-    init(counts: PendingReviewCountStore = .shared) {
+    init(counts: PendingReviewCountStore = .shared, windowed: Bool = false) {
         self.counts = counts
+        self.windowed = windowed
     }
 
     func readyCount(in source: PendingReviewSource) -> Int {
@@ -42,12 +52,11 @@ final class PendingReviewListModel {
 
         let snapshot = decision == .reject ? snapshot(of: bitId) : nil
         let outcome: PendingReviewDecisionOutcome
-        var feedbackId: String?
 
         do {
             switch decision {
             case .approve: try await APIClient.approveKnowledgeBit(id: bitId)
-            case .reject: feedbackId = try await APIClient.rejectKnowledgeBit(id: bitId)
+            case .reject: _ = try await APIClient.rejectKnowledgeBit(id: bitId)
             }
 
             outcome = .removed
@@ -63,10 +72,6 @@ final class PendingReviewListModel {
             if let snapshot {
                 withAnimation { pendingUndo = PendingReviewUndo(removed: snapshot) }
                 scheduleUndoExpiry(after: 8)
-
-                if let feedbackId {
-                    pendingFeedback = PendingRejectFeedback(feedbackId: feedbackId, bitBody: snapshot.bit.body)
-                }
             }
         case .removedElsewhere:
             withAnimation { remove(bitId: bitId) }
@@ -79,19 +84,60 @@ final class PendingReviewListModel {
         return outcome
     }
 
-    func load() async {
-        guard !isLoading else { return }
+    func load(limit requestedLimit: Int? = nil, subjectId requestedSubjectId: String? = nil) async {
+        if let loadTask {
+            reloadRequested = true
+            await loadTask.value
+
+            return
+        }
 
         isLoading = true
+
+        let task = Task { await loadCoalescingReloads(limit: requestedLimit, subjectId: requestedSubjectId) }
+        loadTask = task
+
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func loadCoalescingReloads(limit: Int?, subjectId: String?) async {
+        defer {
+            isLoading = false
+            loadTask = nil
+        }
+
+        repeat {
+            reloadRequested = false
+            await fetchWindow(limit: limit, subjectId: subjectId)
+        } while reloadRequested && !Task.isCancelled
+    }
+
+    private func fetchWindow(limit requestedLimit: Int?, subjectId requestedSubjectId: String?) async {
+        let limit = requestedLimit ?? (windowed ? PendingReviewWindow.target : nil)
+        let subjectId = requestedSubjectId ?? (windowed ? scopeSubjectId : nil)
+
         errorMessage = nil
         failureKind = nil
         removedDuringLoad = []
         restoredDuringLoad = []
-        defer { isLoading = false }
+        resetWindow(exhausted: true, scope: nil)
 
         do {
-            let fetched = try await APIClient.listPendingReviewWithAttention()
+            let page = try await APIClient.listPendingReviewPage(limit: limit, subjectId: subjectId, attention: true)
+            let fetched = page.sources
             let removed = removedDuringLoad
+
+            recordServerTotal(page.total, loaded: fetched, subjectId: subjectId)
+            windowCursor = PendingReviewWindow.cursor(after: nil, loaded: fetched)
+
+            if let limit {
+                windowExhausted = PendingReviewWindow.bitCount(fetched) < limit
+                windowScope = subjectId
+            }
 
             attentionNotices = fetched.filter { $0.attention != nil }
 
@@ -139,7 +185,8 @@ final class PendingReviewListModel {
                     sourceText: source.sourceText,
                     subjectName: source.subjectName,
                     index: index,
-                    bit: source.bits[index]
+                    bit: source.bits[index],
+                    rejectReasonCodes: source.rejectReasonCodes
                 )
             }
         }
@@ -160,7 +207,8 @@ final class PendingReviewListModel {
                 knowledgeSourceId: removed.sourceId,
                 sourceText: removed.sourceText,
                 subjectName: removed.subjectName,
-                bits: [removed.bit]
+                bits: [removed.bit],
+                rejectReasonCodes: removed.rejectReasonCodes
             )
 
             sources.insert(source, at: 0)

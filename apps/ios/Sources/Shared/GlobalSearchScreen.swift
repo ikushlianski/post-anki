@@ -37,6 +37,7 @@ struct GlobalSearchScreen: View {
                 results
             }
         }
+        .iosRefreshable { await model.runSearch() }
         .navigationTitle("Search")
         .inlineNavigationTitle()
         .iosSearchable(text: $model.query)

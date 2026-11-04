@@ -76,3 +76,22 @@ struct PendingReviewDecodingTests {
         }
     }
 }
+
+@Suite("Pending review sentence choice")
+struct PendingReviewAnswerChoiceTests {
+    private func bit(_ extra: String) throws -> PendingReviewBit {
+        let json = #"{"id":"kb","body":"b","background":null,"origin":"extracted","variants":[]\#(extra)}"#
+
+        return try JSONDecoder().decode(PendingReviewBit.self, from: Data(json.utf8))
+    }
+
+    @Test("should decode a bit without answerChoice as an ordinary card")
+    func missingFieldIsFalse() throws {
+        #expect(try bit("").answerChoice == false)
+    }
+
+    @Test("should decode answerChoice true so the app shows the sentence options")
+    func decodesFlag() throws {
+        #expect(try bit(#","answerChoice":true"#).answerChoice)
+    }
+}

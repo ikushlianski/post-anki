@@ -3,10 +3,7 @@ import SwiftUI
 
 enum FocusTriageFinishPhase {
     case idle
-    case confirming
-    case writing
     case saving
-    case result
 }
 
 @Observable
@@ -17,11 +14,10 @@ final class FocusTriageSessionModel {
     var resumed = false
     var phase = FocusTriageFinishPhase.idle
     var error: String?
-    var result: TriageSessionResponse?
     var busy = false
-    var stale = false
     var syncNotice: String?
     var serverFronts: [String: String] = [:]
+    var chatSends: [String: FocusTriageChatSend] = [:]
 
     @ObservationIgnored let store: FocusTriageSessionStore
     @ObservationIgnored var earlier: [TriageDecision] = []
@@ -74,10 +70,9 @@ final class FocusTriageSessionModel {
 
         busy = true
         error = nil
-        result = nil
         defer { busy = false }
 
-        let chosen = filter ??  FocusTriageSubject.single(triage.list.sources)
+        let chosen = filter ?? (triage.list.isWindowComplete ? FocusTriageSubject.single(triage.list.sources) : nil)
         let key = startKey.flatMap { $0.subject == chosen ? $0.key : nil } ?? UUID().uuidString
 
         startKey = (key, chosen)
@@ -104,65 +99,68 @@ final class FocusTriageSessionModel {
         }
     }
 
-    func openFinish() {
-        guard sessionId != nil, phase == .idle else { return }
+    func endSession() async -> Bool {
+        guard isOpen else { return true }
 
-        error = nil
-        phase = .confirming
+        return await finish()
     }
 
-    func confirmFinish() {
-        guard sessionId != nil, phase == .confirming else { return }
-
-        phase = .writing
-        Task { await loadServerFronts() }
-    }
-
-    func keepTriaging() {
-        guard phase == .confirming || phase == .writing else { return }
-
-        error = nil
-        phase = .idle
-    }
-
-    func finish(feedback: String) async -> Bool {
+    @discardableResult
+    func finish() async -> Bool {
         guard let sessionId, phase != .saving else { return false }
 
         phase = .saving
         error = nil
 
         await triage.settlePending()
+
+        guard triage.saveFailure == nil else {
+            phase = .idle
+            error = "A decision didn't save. Retry or skip it first."
+
+            return false
+        }
+
         await flushEdits()
 
         do {
             let response = try await APIClient.finishTriageSession(
                 id: sessionId,
-                feedbackText: FocusTriageFeedback.trimmed(feedback) ?? "",
+                feedbackText: "",
                 decisions: triage.log.cappedDecisions(earlier: earlier),
-                undecidedCount: triage.readyCount
+                undecidedCount: triage.remainingCount
             )
 
-            store.clear()
-            self.sessionId = nil
-            earlier = []
-            dirty = []
-            bitTails = [:]
-            syncNotice = nil
-            subjectId = nil
-            triage.subjectFilter = nil
-            resumed = false
-            result = response
-            phase = .result
+            resetSession()
+
+            if let note = response.notes.first?.text { triage.list.notice = "Style note learned: \(note)" }
 
             return true
         } catch {
-            if case APIError.badStatus(let status, _) = error, status == 404 || status == 409 { stale = true }
+            if case APIError.badStatus(let status, _) = error, status == 404 || status == 409 {
+                resetSession()
 
-            phase = .writing
-            self.error = "Couldn't save the feedback. Your text is kept; try again."
+                return true
+            }
+
+            phase = .idle
+            self.error = "Couldn't save this session. It is kept and sent next time you open triage."
 
             return false
         }
+    }
+
+    private func resetSession() {
+        store.clear()
+        sessionId = nil
+        earlier = []
+        dirty = []
+        bitTails = [:]
+        syncNotice = nil
+        subjectId = nil
+        triage.subjectFilter = nil
+        resumed = false
+        phase = .idle
     }
 
     func discard() async {
@@ -177,20 +175,13 @@ final class FocusTriageSessionModel {
         triage.subjectFilter = nil
         startKey = nil
         resumed = false
-        stale = false
         error = nil
         syncNotice = nil
         phase = .idle
 
         await triage.settlePending()
 
-        if let id { _ = try? await APIClient.discardTriageSession(id: id, undecidedCount: triage.readyCount) }
-    }
-
-    func closeResult() {
-        triage.subjectFilter = nil
-        result = nil
-        phase = .idle
+        if let id { _ = try? await APIClient.discardTriageSession(id: id, undecidedCount: triage.remainingCount) }
     }
 
     func persist() {

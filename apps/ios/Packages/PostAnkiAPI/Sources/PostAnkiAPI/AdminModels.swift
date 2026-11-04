@@ -5,6 +5,28 @@ public struct AdminSettings: Decodable, Sendable {
     public let modelTier: String
     public let knowledgeItemModelId: String?
     public let newCardsPerDay: Int?
+    public let maxReviewsPerDay: Int?
+    public let fusionEnabled: Bool
+    public let fusionModelIds: [String]
+    public let fusionEstimate: FusionEstimate?
+
+    enum CodingKeys: String, CodingKey {
+        case testToggle, modelTier, knowledgeItemModelId, newCardsPerDay, maxReviewsPerDay
+        case fusionEnabled, fusionModelIds, fusionEstimate
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        testToggle = try container.decode(Bool.self, forKey: .testToggle)
+        modelTier = try container.decode(String.self, forKey: .modelTier)
+        knowledgeItemModelId = try container.decodeIfPresent(String.self, forKey: .knowledgeItemModelId)
+        newCardsPerDay = try container.decodeIfPresent(Int.self, forKey: .newCardsPerDay)
+        maxReviewsPerDay = try? container.decodeIfPresent(Int.self, forKey: .maxReviewsPerDay)
+        fusionEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .fusionEnabled)) ?? false
+        fusionModelIds = (try? container.decodeIfPresent([String].self, forKey: .fusionModelIds)) ?? []
+        fusionEstimate = try? container.decodeIfPresent(FusionEstimate.self, forKey: .fusionEstimate)
+    }
 }
 
 public struct AdminStuckCourse: Decodable, Sendable, Hashable, Identifiable {

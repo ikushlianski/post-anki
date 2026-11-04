@@ -5,17 +5,26 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
     public var modelTier: String?
     public var knowledgeItemModelId: String?
     public var newCardsPerDay: Int?
+    public var maxReviewsPerDay: Int?
+    public var fusionEnabled: Bool?
+    public var fusionModelIds: [String]?
 
     public init(
         testToggle: Bool? = nil,
         modelTier: String? = nil,
         knowledgeItemModelId: String? = nil,
-        newCardsPerDay: Int? = nil
+        newCardsPerDay: Int? = nil,
+        maxReviewsPerDay: Int? = nil,
+        fusionEnabled: Bool? = nil,
+        fusionModelIds: [String]? = nil
     ) {
+        self.fusionEnabled = fusionEnabled
+        self.fusionModelIds = fusionModelIds
         self.testToggle = testToggle
         self.modelTier = modelTier
         self.knowledgeItemModelId = knowledgeItemModelId
         self.newCardsPerDay = newCardsPerDay
+        self.maxReviewsPerDay = maxReviewsPerDay
     }
 }
 
@@ -60,4 +69,6 @@ public struct AdminExtractionModel: Sendable, Hashable, Identifiable {
 public enum AdminSettingsLimits {
     public static let newCardsPerDay = 1...200
     public static let defaultNewCardsPerDay = 20
+    public static let maxReviewsPerDay = 0...9999
+    public static let defaultMaxReviewsPerDay = 200
 }

@@ -30,6 +30,7 @@ struct ContentInboxScreen: View {
                     Text(item.createdAt.prefix(10)).zoomFont(.caption).foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
+                .accessibilityAddTraits(.isButton)
                 .onTapGesture {
                     if expanded.contains(item.id) { expanded.remove(item.id) } else { expanded.insert(item.id) }
                 }

@@ -1,0 +1,5 @@
+{
+  "subjects": [{ "id": "sub_01", "label": "Distributed systems" }],
+  "curricula": [{ "id": "cur_01", "label": "Backend course" }],
+  "topics": [{ "id": "top_01", "label": "Sagas", "curriculumId": "cur_01" }]
+}

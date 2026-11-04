@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import PostAnkiAPI
 
@@ -107,6 +108,12 @@ struct SubjectDepthFractions: Equatable {
     let learning: Double
     let new: Double
 
+    init(mature: Double, learning: Double, new: Double) {
+        self.mature = mature
+        self.learning = learning
+        self.new = new
+    }
+
     init(entry: SubjectTreeEntry) {
         let total = Double(entry.count)
 
@@ -129,11 +136,13 @@ struct SubjectDepthFractions: Equatable {
 final class SubjectTreeScreenModel {
     private(set) var subjects: [Subject] = []
     private(set) var tree: [SubjectTreeNode] = []
+    private(set) var counts: [KnowledgeBrowserSubjectCount] = []
     var expanded: Set<String> = []
     private(set) var isLoading = false
     private(set) var hasLoaded = false
     private(set) var errorMessage: String?
     private(set) var failure: ProgressLoadError?
+    private(set) var countsNote: String?
 
     var rows: [SubjectTreeRow] { SubjectTree.visibleRows(tree, expanded: expanded) }
 
@@ -157,20 +166,32 @@ final class SubjectTreeScreenModel {
         failure = nil
         defer { isLoading = false }
 
+        async let countsTask = Self.loadCounts()
+
         do {
-            async let subjectsTask = APIClient.listSubjects()
-            async let countsTask = APIClient.knowledgeBrowserSubjectCounts()
-            let loadedSubjects = try await subjectsTask
-            let counts = try await countsTask
+            let loadedSubjects = try await APIClient.listSubjects()
+            let result = await countsTask
 
             subjects = loadedSubjects
-            tree = SubjectTree.build(subjects: loadedSubjects, counts: counts)
+            tree = SubjectTree.build(subjects: loadedSubjects, counts: result.counts)
+            counts = result.counts
+            countsNote = result.failure.map { "Couldn't load card counts (\($0))." }
             hasLoaded = true
         } catch is CancellationError {
             return
+        } catch let error as URLError where error.code == .cancelled {
+            return
         } catch {
-            errorMessage = "Couldn't load your subjects."
+            errorMessage = "Could not load subjects \(LoadFailureReason.bracketed(error))"
             failure = ProgressLoadError.from(error)
+        }
+    }
+
+    private static func loadCounts() async -> (counts: [KnowledgeBrowserSubjectCount], failure: String?) {
+        do {
+            return (try await APIClient.knowledgeBrowserSubjectCounts(), nil)
+        } catch {
+            return ([], LoadFailureReason.describe(error))
         }
     }
 }

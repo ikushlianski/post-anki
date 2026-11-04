@@ -19,6 +19,13 @@ struct SubjectExtrasSection: View {
             }
 
             NavigationLink {
+                StudyPlanScreen(subjectId: subject.id, title: "Study plan")
+            } label: {
+                Label("Study plan", systemImage: "calendar.badge.clock")
+            }
+            .accessibilityIdentifier("subject-study-plan-link")
+
+            NavigationLink {
                 SubjectCategoryDestination(subjectId: subject.id)
             } label: {
                 Label("Categories", systemImage: "folder")

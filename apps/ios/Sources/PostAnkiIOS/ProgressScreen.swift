@@ -4,6 +4,10 @@ import SwiftUI
 struct ProgressScreen: View {
     var embedded = false
     @State private var model = ProgressModel()
+    @State private var insights = ProgressInsightsModel()
+    @State private var daily = DailyReviewsModel()
+    @State private var forecast = DueForecastModel()
+    @State private var maturity = CardMaturityModel()
 
     var body: some View {
         if embedded {
@@ -16,7 +20,17 @@ struct ProgressScreen: View {
     private var screen: some View {
         content
             .navigationTitle("Progress")
-            .task { await model.load() }
+            .task {
+                async let insightsLoad: Void = insights.load()
+                async let dailyLoad: Void = daily.load()
+                async let forecastLoad: Void = forecast.load()
+                async let maturityLoad: Void = maturity.load()
+                await model.load()
+                await insightsLoad
+                await dailyLoad
+                await forecastLoad
+                await maturityLoad
+            }
     }
 
     @ViewBuilder
@@ -52,9 +66,27 @@ struct ProgressScreen: View {
                 Section("Retention (all time)") { retentionRows(retention) }
             }
 
+            CardMaturitySection(model: maturity)
+
+            DueForecastSection(model: forecast)
+
+            DailyReviewsSection(model: daily)
+
+            ProgressInsightsSections(model: insights)
+
             milestonesSection
         }
-        .refreshable { await model.load() }
+        .refreshable {
+            async let insightsLoad: Void = insights.load()
+            async let dailyLoad: Void = daily.load()
+            async let forecastLoad: Void = forecast.load()
+            async let maturityLoad: Void = maturity.load()
+            await model.load()
+            await insightsLoad
+            await dailyLoad
+            await forecastLoad
+            await maturityLoad
+        }
     }
 
     @ViewBuilder
@@ -64,7 +96,7 @@ struct ProgressScreen: View {
                 DigestTile(
                     title: "Retention",
                     value: digest.retention.flatMap { $0.count > 0 ? $0.percentText : nil },
-                    detail: digest.retention.flatMap { $0.count > 0 ? "\($0.count) items" : nil }
+                    detail: digest.retention.flatMap { $0.count > 0 ? CountLabel.text($0.count, "item") : nil }
                 )
                 DigestTile(
                     title: "To mastery",
@@ -74,7 +106,7 @@ struct ProgressScreen: View {
             }
 
             HStack(alignment: .top) {
-                DigestTile(title: "Streak", value: "\(digest.streak.currentStreak) days", detail: nil)
+                DigestTile(title: "Streak", value: CountLabel.text(digest.streak.currentStreak, "day"), detail: nil)
                 DigestTile(
                     title: "Coverage",
                     value: digest.averageCoverage.map { "\($0)%" },

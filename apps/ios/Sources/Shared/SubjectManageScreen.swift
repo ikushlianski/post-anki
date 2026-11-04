@@ -94,7 +94,31 @@ struct SubjectManageScreen: View {
                     NavigationLink {
                         SubjectCategoryScreen(subject: subject)
                     } label: {
-                        Text(subject.name)
+                        HStack {
+                            HStack(spacing: 6) {
+                                Text(subject.name)
+
+                                if let badge = SubjectKindLabel.badge(for: subject.kind) {
+                                    Text(badge)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 1)
+                                        .background(.quaternary, in: Capsule())
+                                }
+                            }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(SubjectKindLabel.badge(for: subject.kind).map { "\(subject.name), \($0)" } ?? subject.name)
+
+                            if let countText = SubjectCardCountFormat.text(subject.cardCount) {
+                                Spacer()
+                                Text(countText)
+                                    .font(.subheadline)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityLabel("\(subject.name), \(countText)")
+                            }
+                        }
                     }
                     .contextMenu {
                         Button("Rename") { renaming = subject }

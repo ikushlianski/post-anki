@@ -17,6 +17,7 @@
         "background": null,
         "origin": "extracted",
         "isAiGenerated": true,
+        "aiSuggestion": "An idempotency key lets a client retry a payment safely.",
         "sourceLinks": [],
         "feedback": null,
         "variants": [

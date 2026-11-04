@@ -7,10 +7,9 @@ enum MacCoreFeatures {
             id: "home",
             section: .study,
             order: 10,
-            title: "Home",
-            systemImage: "house",
+            title: "Today",
+            systemImage: "sun.max",
             shortcut: MacFeatureShortcut(key: "1"),
-            inSidebar: false,
             detail: { navigator in
                 AnyView(MacHomeView(
                     onStudyNow: { navigator.select("review") },
@@ -25,6 +24,7 @@ enum MacCoreFeatures {
             title: "Review",
             systemImage: "checkmark.seal",
             shortcut: MacFeatureShortcut(key: "3"),
+            ownsStack: true,
             detail: { _ in AnyView(MacReviewView()) }
         ),
         MacFeature(
@@ -36,6 +36,15 @@ enum MacCoreFeatures {
             shortcut: MacFeatureShortcut(key: "5"),
             inSidebar: false,
             detail: { _ in AnyView(MacProgressView()) }
+        ),
+        MacFeature(
+            id: "statistics",
+            section: .study,
+            order: 85,
+            title: "Statistics",
+            systemImage: "chart.xyaxis.line",
+            inSidebar: false,
+            detail: { _ in AnyView(OwnerStatsScreen()) }
         ),
         MacFeature(
             id: "courses",

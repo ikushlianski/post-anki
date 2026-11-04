@@ -49,6 +49,8 @@ public struct KnowledgeOverviewPage: Decodable, Sendable {
 
 public struct SuspendedKnowledgeItem: Decodable, Sendable, Identifiable, Hashable {
     public let knowledgeBitId: String
+    public let variantId: String?
+    public let cardKey: String?
     public let itemText: String
     public let question: String
     public let answer: String
@@ -59,7 +61,13 @@ public struct SuspendedKnowledgeItem: Decodable, Sendable, Identifiable, Hashabl
     public let buriedUntil: String?
     public let since: String?
 
-    public var id: String { knowledgeBitId }
+    public var cardLabel: String? { CardSlotLabel.title(cardKey: cardKey) }
+
+    public var id: String {
+        guard let variantId, !variantId.isEmpty else { return knowledgeBitId }
+
+        return "\(knowledgeBitId):\(variantId)"
+    }
 }
 
 public struct SuspendedKnowledgePage: Decodable, Sendable {
@@ -87,11 +95,65 @@ public struct ScheduleControlResult: Decodable, Sendable {
     public let suspended: Bool
     public let buriedUntil: String?
     public let leech: Bool
+    public let cardKey: String?
+}
+
+public enum CardSlotLabel {
+    public static func title(kind: String, order: Int) -> String {
+        switch kind {
+        case "cloze": return "Cloze c\(order)"
+        case "list_overview": return CardKind.label(kind)
+        default: return "\(CardKind.label(kind)) \(order)"
+        }
+    }
+
+    public static func title(cardKey: String?) -> String? {
+        guard let cardKey, !cardKey.isEmpty else { return nil }
+
+        let parts = cardKey.split(separator: ":")
+
+        guard parts.count == 2, let order = Int(parts[1]) else { return nil }
+
+        return title(kind: String(parts[0]), order: order)
+    }
+}
+
+public struct KnowledgeCardState: Decodable, Sendable, Identifiable, Hashable {
+    public let variantId: String
+    public let cardKey: String
+    public let kind: String
+    public let order: Int
+    public let state: String
+    public let dueAt: String?
+    public let lapses: Int
+    public let suspended: Bool
+    public let buried: Bool
+
+    public var id: String { variantId }
+
+    public var title: String { CardSlotLabel.title(kind: kind, order: order) }
+}
+
+public struct KnowledgeDetail: Decodable, Sendable {
+    public let knowledgeBitId: String
+    public let cards: [KnowledgeCardState]?
+
+    public var perCardStates: [KnowledgeCardState] { cards ?? [] }
+}
+
+public struct EditedVariantCard: Decodable, Sendable, Equatable {
+    public let id: String
+    public let context: String?
+    public let prompt: String
+    public let answer: String
 }
 
 public struct EditVariantResult: Decodable, Sendable {
     public let ok: Bool
     public let variantId: String
+    public let cards: [EditedVariantCard]?
+
+    public var editedCard: EditedVariantCard? { cards?.first { $0.id == variantId } }
 }
 
 public struct RejectKnowledgeBitResult: Decodable, Sendable {
@@ -123,14 +185,26 @@ public struct EditKnowledgeBitInput: Encodable, Sendable {
 }
 
 public struct EditVariantInput: Encodable, Sendable {
+    public let context: String?
     public let prompt: String
     public let answer: String
+
+    enum CodingKeys: String, CodingKey { case context, prompt, answer }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encodeIfPresent(context, forKey: .context)
+        try container.encode(prompt, forKey: .prompt)
+        try container.encode(answer, forKey: .answer)
+    }
 }
 
 public struct ScheduleControlInput: Encodable, Sendable {
     public let suspended: Bool?
     public let buried: Bool?
     public let tz: String
+    public let variantId: String?
 }
 
 public struct RejectFeedbackInput: Encodable, Sendable {
@@ -139,43 +213,108 @@ public struct RejectFeedbackInput: Encodable, Sendable {
 }
 
 public enum RejectReason: String, CaseIterable, Sendable, Identifiable {
+    case questionBentToAnswer = "question_bent_to_answer"
+    case restatesSourceNoValue = "restates_source_no_value"
+    case textRecallOnly = "text_recall_only"
+    case wrongAnswer = "wrong_or_unsupported_answer"
     case wrongLanguage = "wrong_language"
+    case duplicate = "duplicate_or_overlap"
+    case other = "other"
     case tooVague = "too_vague_or_no_context"
     case metaWording = "meta_wording"
     case notAFact = "not_a_fact_or_trivial"
-    case wrongAnswer = "wrong_or_unsupported_answer"
-    case duplicate = "duplicate_or_overlap"
     case badFormat = "bad_format"
-    case other = "other"
+    case frontUnclearTargetPhrase = "front_unclear_target_phrase"
+    case noCodeContext = "no_code_context"
+    case tooTrivial = "too_trivial"
+    case outdatedApi = "outdated_api"
 
     public var id: String { rawValue }
 
+    public static let selectable: [RejectReason] = [
+        .questionBentToAnswer, .restatesSourceNoValue, .textRecallOnly,
+        .wrongAnswer, .wrongLanguage, .duplicate, .other
+    ]
+
+    public static let legacy: [RejectReason] = [.tooVague, .metaWording, .notAFact, .badFormat]
+
+    public static let subjectSpecific: [RejectReason] = [.frontUnclearTargetPhrase, .noCodeContext, .tooTrivial, .outdatedApi]
+
+    public static let unknownLabel = "Other reason"
+
+    public var isSelectable: Bool { Self.selectable.contains(self) }
+
+    public static func label(forCode code: String?) -> String? {
+        guard let code else { return nil }
+
+        return RejectReason(rawValue: code)?.label ?? unknownLabel
+    }
+
     public var label: String {
         switch self {
+        case .questionBentToAnswer: return "Question doesn't make sense, bent to fit the answer"
+        case .restatesSourceNoValue: return "Just restates the text, no practical value"
+        case .textRecallOnly: return "Only checks the text's wording, not understanding"
+        case .wrongAnswer: return "Wrong or unsupported answer"
         case .wrongLanguage: return "Wrong language"
+        case .duplicate: return "Duplicate or overlapping"
+        case .other: return "Other"
         case .tooVague: return "Too vague or missing context"
         case .metaWording: return "Meta wording"
         case .notAFact: return "Not a fact, or trivial"
-        case .wrongAnswer: return "Wrong or unsupported answer"
-        case .duplicate: return "Duplicate or overlapping"
         case .badFormat: return "Bad format"
-        case .other: return "Other"
+        case .frontUnclearTargetPhrase: return "Front doesn't make clear which phrase the answer should be"
+        case .noCodeContext: return "No code context"
+        case .tooTrivial: return "Too trivial"
+        case .outdatedApi: return "Outdated API"
         }
+    }
+}
+
+public struct RejectReasonOption: Sendable, Identifiable, Hashable {
+    public let code: String
+    public let label: String
+
+    public var id: String { code }
+
+    public init(code: String) {
+        self.code = code
+        label = RejectReason(rawValue: code)?.label ?? Self.humanized(code)
+    }
+
+    static func humanized(_ code: String) -> String {
+        let words = code.replacingOccurrences(of: "_", with: " ").trimmingCharacters(in: .whitespaces)
+
+        guard let first = words.first else { return RejectReason.unknownLabel }
+
+        return first.uppercased() + words.dropFirst()
+    }
+
+    public static func options(forCodes codes: [String]?) -> [RejectReasonOption] {
+        let source = (codes?.isEmpty ?? true) ? RejectReason.selectable.map(\.rawValue) : codes ?? []
+        var seen = Set<String>()
+
+        return source.filter { seen.insert($0).inserted }.map(RejectReasonOption.init(code:))
     }
 }
 
 public struct PendingRejectFeedback: Identifiable, Sendable {
     public let feedbackId: String
     public let bitBody: String
+    public let reasonCodes: [String]?
 
     public var id: String { feedbackId }
 
+    public var options: [RejectReasonOption] { RejectReasonOption.options(forCodes: reasonCodes) }
+
     public init(
         feedbackId: String,
-        bitBody: String
+        bitBody: String,
+        reasonCodes: [String]? = nil
     ) {
         self.feedbackId = feedbackId
         self.bitBody = bitBody
+        self.reasonCodes = reasonCodes
     }
 }
 

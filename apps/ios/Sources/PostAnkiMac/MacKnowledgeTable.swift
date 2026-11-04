@@ -5,13 +5,15 @@ struct MacKnowledgeTableRow: Identifiable, Hashable {
     let item: KnowledgeOverviewItem
     let subjectName: String
 
+    static let noDueText = "-"
+
     var id: String { item.id }
     var question: String { item.question }
     var answer: String { item.answer }
     var stateLabel: String { item.stateLabel }
     var lapses: Int { item.lapses }
     var dueKey: String { item.dueAt ?? "" }
-    var dueText: String { item.dueAt.flatMap { DueReviewModel.nextDueText($0) } ?? "" }
+    var dueText: String { item.dueAt.flatMap { DueReviewModel.nextDueText($0) } ?? MacKnowledgeTableRow.noDueText }
 }
 
 struct MacKnowledgeTable: View {
@@ -47,13 +49,14 @@ struct MacKnowledgeTable: View {
         Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Question", value: \.question) { row in
                 Text(row.question)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .help(row.question)
                     .task { onAppearRow(row.item) }
             }
             .width(MacKnowledgeColumn.question.width(scale: zoomScale))
 
             TableColumn("Answer", value: \.answer) { row in
-                Text(row.answer).lineLimit(2).foregroundStyle(.secondary)
+                Text(row.answer).lineLimit(1).foregroundStyle(.secondary).help(row.answer)
             }
             .width(MacKnowledgeColumn.answer.width(scale: zoomScale))
 
@@ -83,7 +86,7 @@ struct MacKnowledgeTable: View {
                 onOpen(row.item)
             }
         }
-        .onKeyPress(.return) {
+        .onEnterKeyPress { _ in
             guard selection.count == 1, let row = rows.first(where: { selection.contains($0.id) }) else {
                 return .ignored
             }

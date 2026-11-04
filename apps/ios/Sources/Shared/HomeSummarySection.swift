@@ -68,7 +68,7 @@ struct HomeSummarySection: View {
                         Text(subject.subjectName)
                             .zoomFont(.subheadline)
 
-                        Text("\(subject.topicsTouchedLast30Days) topics this month")
+                        Text("\(CountLabel.text(subject.topicsTouchedLast30Days, "topic")) this month")
                             .zoomFont(.caption)
                             .foregroundStyle(.secondary)
                     }

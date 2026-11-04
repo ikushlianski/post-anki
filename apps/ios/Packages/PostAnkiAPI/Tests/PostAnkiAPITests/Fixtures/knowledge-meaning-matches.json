@@ -1,0 +1,9 @@
+{
+  "items": [
+    { "knowledgeBitId": "kb_30", "phrasings": [ { "id": "qv_1", "kind": "original", "prompt": "What is a saga?" } ], "answer": "A chain of local transactions with compensations.", "origin": "notion", "sourceId": null, "sourceLabel": null, "sourceUrl": null, "addedAt": "2026-10-20T08:00:00.000Z", "sourcePieceCount": 1, "similarity": 0.826 },
+    { "knowledgeBitId": "kb_31", "phrasings": [ { "id": "qv_2", "kind": "original", "prompt": "Define CAP." } ], "answer": "Pick two under partition.", "origin": "ai_web", "addedAt": "2026-10-21T08:00:00.000Z", "sourcePieceCount": 0, "similarity": 0.41 }
+  ],
+  "readyCount": 40,
+  "notReadyCount": 3,
+  "capped": false
+}

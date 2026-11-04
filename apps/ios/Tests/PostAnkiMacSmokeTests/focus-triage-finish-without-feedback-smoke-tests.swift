@@ -27,18 +27,18 @@ extension SmokeTests {
             ])
             defer { server.end() }
 
-            let triage = FocusTriageModel(list: PendingReviewListModel())
+            let triage = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await triage.load()
 
             let model = FocusTriageSessionModel(triage: triage, store: store)
 
             await model.start()
-            model.openFinish()
 
-            #expect(await model.finish(feedback: ""))
+            #expect(await model.finish())
             #expect(FakeServer.writes.last?.bodyObject?["feedbackText"] as? String == "")
-            #expect(model.phase == .result)
+            #expect(model.phase == .idle)
+            #expect(!model.isOpen)
             #expect(model.error == nil)
         }
     }

@@ -5,6 +5,27 @@ public struct Subject: Codable, Identifiable, Hashable, Sendable {
     public let name: String
     public let description: String?
     public let parentId: String?
+
+    private enum CodingKeys: String, CodingKey { case id, name, description, parentId }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let name = container.lenientOptionalString(.name)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        self.init(
+            id: try container.decode(String.self, forKey: .id),
+            name: name.flatMap { $0.isEmpty ? nil : $0 } ?? "Untitled subject",
+            description: container.lenientOptionalString(.description),
+            parentId: container.lenientOptionalString(.parentId)
+        )
+    }
+
+    public init(id: String, name: String, description: String?, parentId: String?) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.parentId = parentId
+    }
 }
 
 public struct Curriculum: Codable, Identifiable, Hashable, Sendable {
@@ -105,6 +126,7 @@ public struct ChatTranscriptEntry: Codable, Hashable, Sendable {
 public struct ChatWithKnowledgeBitInput: Encodable, Sendable {
     public let message: String
     public let transcript: [ChatTranscriptEntry]?
+    public let clientMessageId: String?
 }
 
 public struct ChatWithKnowledgeBitResult: Decodable, Sendable {

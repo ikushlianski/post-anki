@@ -13,6 +13,8 @@ final class DomainRecommendationModel {
     var notice: String?
     var createdCourse: Curriculum?
 
+    static let courseNotFoundNotice = "Subject created, but it couldn't be opened. Find it under Courses."
+
     init(subjectId: String) {
         self.subjectId = subjectId
     }
@@ -69,7 +71,13 @@ final class DomainRecommendationModel {
             notice = "Subject created."
 
             if let courseId = result.createdCurriculumId {
-                createdCourse = try? await APIClient.listCurricula().first { $0.id == courseId }
+                do {
+                    createdCourse = try await APIClient.listCurricula().first { $0.id == courseId }
+
+                    if createdCourse == nil { notice = Self.courseNotFoundNotice }
+                } catch {
+                    notice = Self.courseNotFoundNotice
+                }
             }
         } catch {
             notice = DomainMapError.message(for: error)

@@ -1,0 +1,8 @@
+{
+  "knowledgeBitId": "kb_11",
+  "body": "HTTP 418 is a teapot.",
+  "context": null,
+  "phrasings": [],
+  "tags": [],
+  "review": { "state": "review", "dueAt": null, "lapses": 0, "reviewCount": 4 }
+}

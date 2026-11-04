@@ -14,8 +14,11 @@ struct DueReviewTapSurface<Content: View>: View {
                     handleTap(side: ReviewTapSide.side(x: location.x, width: proxy.size.width))
                 }
         }
-        .accessibilityAction(named: "Good") { grade(.good) }
-        .accessibilityAction(named: "Bad") { grade(.again) }
+        .accessibilityActions {
+            ForEach(DueReviewGradeOptions.options(rehearsal: model.current?.isRehearsal == true), id: \.grade) { option in
+                Button(option.title) { grade(option.grade) }
+            }
+        }
     }
 
     private func handleTap(side: ReviewTapSide) {

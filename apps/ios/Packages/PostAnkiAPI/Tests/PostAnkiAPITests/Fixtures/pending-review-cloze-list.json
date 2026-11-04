@@ -1,0 +1,68 @@
+[
+  {
+    "knowledgeSourceId": "src_cl",
+    "sourceText": "Notes on TCP and HTTPS.",
+    "sourceUrl": null,
+    "summary": null,
+    "subjectName": "Networking",
+    "processedAt": "2026-10-27T18:00:00.000Z",
+    "groupTotal": 1,
+    "extractionRun": 1,
+    "extractionGrade": null,
+    "decidedCount": 0,
+    "bits": [
+      {
+        "id": "kb_c",
+        "body": "HTTPS runs over port 443 and TLS secures it.",
+        "background": null,
+        "origin": "extracted",
+        "isAiGenerated": true,
+        "sourceLinks": [],
+        "feedback": null,
+        "variants": [
+          {
+            "id": "var_c1",
+            "kind": "cloze",
+            "prompt": "____ runs over port 443 and ____ secures it.",
+            "answer": "HTTPS"
+          },
+          {
+            "id": "var_c2",
+            "kind": "cloze",
+            "prompt": "HTTPS runs over port 443 and ____ secures it.",
+            "answer": "TLS"
+          }
+        ]
+      },
+      {
+        "id": "kb_l",
+        "body": "TCP handshake: SYN; SYN-ACK; ACK",
+        "background": null,
+        "origin": "extracted",
+        "isAiGenerated": true,
+        "sourceLinks": [],
+        "feedback": null,
+        "variants": [
+          {
+            "id": "var_l1",
+            "kind": "list_step",
+            "prompt": "In TCP handshake, what is step 2?",
+            "answer": "SYN-ACK"
+          },
+          {
+            "id": "var_l2",
+            "kind": "list_next",
+            "prompt": "TCP handshake: after \"SYN\" the next step is ____",
+            "answer": "SYN-ACK"
+          },
+          {
+            "id": "var_l3",
+            "kind": "list_overview",
+            "prompt": "How many steps are in TCP handshake? Name them in order.",
+            "answer": "3 steps\n1. SYN\n2. SYN-ACK\n3. ACK"
+          }
+        ]
+      }
+    ]
+  }
+]

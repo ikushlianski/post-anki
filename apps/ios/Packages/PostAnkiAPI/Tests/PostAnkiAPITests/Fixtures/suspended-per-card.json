@@ -1,0 +1,45 @@
+{
+  "items": [
+    {
+      "knowledgeBitId": "kb_10",
+      "variantId": "var_c2",
+      "cardKey": "cloze:2",
+      "itemText": "Paris is the capital of France.",
+      "question": "Paris is the capital of ____.",
+      "answer": "France",
+      "subjectName": "Geography",
+      "reason": "suspended",
+      "lapses": 0,
+      "suspended": true,
+      "buriedUntil": null,
+      "since": "2026-10-27T10:00:00.000Z"
+    },
+    {
+      "knowledgeBitId": "kb_10",
+      "variantId": "var_c3",
+      "cardKey": "cloze:3",
+      "itemText": "Paris is the capital of France.",
+      "question": "____ is the capital of France.",
+      "answer": "Paris",
+      "subjectName": "Geography",
+      "reason": "buried",
+      "lapses": 1,
+      "suspended": false,
+      "buriedUntil": "2026-10-29T00:00:00.000Z",
+      "since": null
+    },
+    {
+      "knowledgeBitId": "kb_11",
+      "itemText": "HTTP 418",
+      "question": "What is HTTP 418?",
+      "answer": "I'm a teapot",
+      "subjectName": null,
+      "reason": "leech",
+      "lapses": 8,
+      "suspended": true,
+      "buriedUntil": null,
+      "since": null
+    }
+  ],
+  "hasMore": false
+}

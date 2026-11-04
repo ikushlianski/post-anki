@@ -2,7 +2,8 @@ import SwiftUI
 
 struct MacReviewView: View {
     var body: some View {
-        MacDueReviewView()
-            .navigationTitle("Review")
+        MacReviewSubjectsView { scope, aheadDays in
+            MacDueReviewView(scope: scope, aheadDays: aheadDays)
+        }
     }
 }

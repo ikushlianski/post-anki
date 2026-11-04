@@ -34,7 +34,7 @@ struct ChatComposerBar: View {
                     }
                 }
                 #if os(macOS)
-                .onKeyPress(keys: [.return]) { press in
+                .onEnterKeyPress { press in
                     if press.modifiers.contains(.shift) {
                         draft += "\n"
                     } else {

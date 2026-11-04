@@ -24,35 +24,81 @@ public struct ReviewCard: Codable, Identifiable, Hashable, Sendable {
     public let variantId: String
     public let knowledgeBitId: String
     public let kind: String
+    public let context: String?
     public let prompt: String
     public let answer: String
+    public let sentence: String?
     public let background: String?
     public let phase: String
     public let leech: Bool
     public let intervalPreview: IntervalPreview
+    public let cardKey: String?
+    public let aiSuggestion: String?
+    public let originalPhrase: String?
+    public var isRehearsal = false
+
+    private enum CodingKeys: String, CodingKey {
+        case variantId, knowledgeBitId, kind, context, prompt, answer, sentence, background, phase, leech
+        case intervalPreview, cardKey, aiSuggestion, originalPhrase
+    }
+
+    public var asRehearsal: ReviewCard {
+        var copy = self
+        copy.isRehearsal = true
+
+        return copy
+    }
 
     public var id: String { variantId }
+
+    public var face: CardFace {
+        CardFace.make(context: context, prompt: CardKind.displayPrompt(kind: kind, prompt: prompt))
+    }
+
+    public var isIndependentCard: Bool { !(cardKey ?? "").isEmpty }
+
+    public var noteKind: NoteEditKind? {
+        guard let sentence, !sentence.isEmpty else { return nil }
+
+        return NoteEditKind(cardKind: kind)
+    }
+
+    public var filledSentence: String? {
+        guard kind == "cloze", let sentence, !sentence.isEmpty else { return nil }
+
+        return CardKind.fillClozeNote(sentence)
+    }
 
     public init(
         variantId: String,
         knowledgeBitId: String,
         kind: String,
+        context: String? = nil,
         prompt: String,
         answer: String,
+        sentence: String? = nil,
         background: String?,
         phase: String,
         leech: Bool,
-        intervalPreview: IntervalPreview
+        intervalPreview: IntervalPreview,
+        cardKey: String? = nil,
+        aiSuggestion: String? = nil,
+        originalPhrase: String? = nil
     ) {
         self.variantId = variantId
         self.knowledgeBitId = knowledgeBitId
         self.kind = kind
+        self.context = context
         self.prompt = prompt
         self.answer = answer
+        self.sentence = sentence
         self.background = background
         self.phase = phase
         self.leech = leech
         self.intervalPreview = intervalPreview
+        self.cardKey = cardKey
+        self.aiSuggestion = aiSuggestion
+        self.originalPhrase = originalPhrase
     }
 }
 
@@ -61,6 +107,9 @@ public struct ReviewCardsResponse: Codable, Sendable {
     public let counts: ReviewCounts
     public let newRemainingToday: Int
     public let nextDueAt: String?
+    public let limitReached: Bool?
+    public let reviewedToday: Int?
+    public let limit: Int?
 }
 
 public struct RecordReviewInput: Encodable, Sendable {
@@ -68,17 +117,26 @@ public struct RecordReviewInput: Encodable, Sendable {
     public let grade: ReviewGrade
     public let durationMs: Int?
     public let requestId: String?
+    public let tz: String?
+    public let burySiblings: Bool?
+    public let rehearsal: Bool?
 
     public init(
         variantId: String,
         grade: ReviewGrade,
         durationMs: Int?,
-        requestId: String?
+        requestId: String?,
+        tz: String? = nil,
+        burySiblings: Bool? = nil,
+        rehearsal: Bool? = nil
     ) {
         self.variantId = variantId
         self.grade = grade
         self.durationMs = durationMs
         self.requestId = requestId
+        self.tz = tz
+        self.burySiblings = burySiblings
+        self.rehearsal = rehearsal
     }
 }
 
@@ -91,10 +149,16 @@ public struct RecordReviewResult: Codable, Sendable {
     public let lapses: Int
     public let leech: Bool
     public let suspended: Bool
+    public let cardKey: String?
+    public let buriedVariantIds: [String]?
+    public let followUp: ReviewCard?
 }
 
 public struct UndoReviewResult: Codable, Sendable {
     public let knowledgeBitId: String
+    public let variantId: String?
+    public let cardKey: String?
+    public let unburiedVariantIds: [String]?
 }
 
 extension IntervalPreview {

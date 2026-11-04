@@ -13,6 +13,7 @@ struct KnowledgeItemDetailScreen: View {
     @State private var message: String?
     @State private var actions: KnowledgeItemActionsModel
     @State private var variants: MoreVariantsModel
+    @State private var cards: KnowledgeItemCardsModel
     @State private var editing = false
     @State private var choosingSubject = false
     @State private var confirmingDelete = false
@@ -33,6 +34,7 @@ struct KnowledgeItemDetailScreen: View {
         _state = State(initialValue: item.state)
         _actions = State(initialValue: KnowledgeItemActionsModel(item: item))
         _variants = State(initialValue: MoreVariantsModel(bitId: item.id))
+        _cards = State(initialValue: KnowledgeItemCardsModel(bitId: item.id))
     }
 
     private var shownSubjectName: String? { actions.subjectName ?? subjectName }
@@ -47,29 +49,35 @@ struct KnowledgeItemDetailScreen: View {
     }
 
     var body: some View {
-        List {
-            Section("Question") { cardText(actions.question) }
-            Section("Answer") { cardText(actions.answer) }
+        GeometryReader { proxy in
+            List {
+                Section("Question") { cardText(CardKind.hideBlanks(actions.question)) }
+                Section("Answer") { cardText(actions.answer) }
 
-            SynonymsSection(bitId: item.id, question: actions.question)
+                SynonymsSection(bitId: item.id, question: actions.question)
 
-            Section {
-                LabeledContent("Status", value: KnowledgeOverviewItem.label(for: state))
+                Section {
+                    LabeledContent("Status", value: KnowledgeOverviewItem.label(for: state))
 
-                if let shownSubjectName { LabeledContent("Subject", value: shownSubjectName) }
+                    if let shownSubjectName { LabeledContent("Subject", value: shownSubjectName) }
 
-                if let due = item.dueAt.flatMap({ DueReviewModel.nextDueText($0) }) {
-                    LabeledContent("Due", value: due)
+                    if let due = item.dueAt.flatMap({ DueReviewModel.nextDueText($0) }) {
+                        LabeledContent("Due", value: due)
+                    }
+
+                    if item.lapses > 0 { LabeledContent("Lapses", value: String(item.lapses)) }
                 }
 
-                if item.lapses > 0 { LabeledContent("Lapses", value: String(item.lapses)) }
-            }
+                KnowledgeItemCardsSection(model: cards)
 
-            if let message = message ?? actions.message {
-                Section { Text(message).zoomFont(.caption).foregroundStyle(.red) }
-            }
+                if let message = message ?? actions.message {
+                    Section { Text(message).zoomFont(.caption).foregroundStyle(.red) }
+                }
 
-            MoreVariantsSection(model: variants)
+                MoreVariantsSection(model: variants)
+            }
+            .frame(width: KnowledgeItemDetailLayout.contentWidth(available: proxy.size.width))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("Item")
         #if os(iOS)
@@ -77,12 +85,26 @@ struct KnowledgeItemDetailScreen: View {
         #endif
         .toolbar { toolbar }
         .sheet(isPresented: $editing) {
-            QuestionVariantEditSheet(prompt: actions.question, answer: actions.answer) { prompt, answer in
-                await actions.edit(prompt: prompt, answer: answer)
+            if let source = actions.noteSource {
+                NoteEditSheet(
+                    kind: source.kind,
+                    text: source.text,
+                    onSave: { text in await actions.editNote(text) },
+                    onClose: { editing = false }
+                )
+            } else {
+                QuestionVariantEditSheet(context: actions.context, prompt: actions.question, answer: actions.answer) { context, prompt, answer in
+                    await actions.edit(context: context, prompt: prompt, answer: answer)
+                }
             }
         }
         .sheet(isPresented: $choosingSubject) {
-            KnowledgeMoveSheet(subjects: actions.subjects.filter { $0.id != actions.subjectId }) { subject in
+            KnowledgeMoveSheet(
+                subjects: actions.subjects,
+                excludedId: actions.subjectId,
+                loadFailureMessage: actions.subjectsNotice,
+                onRetry: { Task { await actions.loadSubjects() } }
+            ) { subject in
                 Task { if await actions.move(to: subject) { onMoved(subject.id) } }
             }
         }
@@ -91,13 +113,23 @@ struct KnowledgeItemDetailScreen: View {
             Button("Cancel", role: .cancel) {}
         }
         .task { await actions.loadSubjects() }
+        .task { await actions.loadContext() }
+        .task { await cards.load() }
+        .refreshable {
+            await actions.refreshFromServer()
+            await cards.load()
+        }
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Menu {
-                Button("Edit", systemImage: "pencil") { editing = true }
+                Button("Edit", systemImage: "pencil") {
+                    Task {
+                        if await actions.prepareEdit() { editing = true }
+                    }
+                }
                 Button("Move to subject", systemImage: "folder") { choosingSubject = true }
                 Button(actionTitle, systemImage: isSuspended ? "play.circle" : "pause.circle") {
                     Task { await toggle() }
@@ -157,6 +189,7 @@ struct KnowledgeItemDetailScreen: View {
             }
 
             onStateChange(state)
+            await cards.load()
         } catch {
             message = KnowledgeManageError.message(for: error, action: "update this item")
         }

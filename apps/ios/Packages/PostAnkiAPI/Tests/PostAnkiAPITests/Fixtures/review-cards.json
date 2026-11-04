@@ -8,6 +8,8 @@
       "answer": "It stops callers from piling on requests while the dependency is unhealthy.",
       "background": "Resilience patterns",
       "isAiGenerated": true,
+      "aiSuggestion": "circuit breaker",
+      "originalPhrase": "circut breker",
       "sourceLinks": ["https://martinfowler.com/bliki/CircuitBreaker.html"],
       "phase": "learning",
       "leech": false,

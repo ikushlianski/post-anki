@@ -14,19 +14,37 @@ final class FocusTriageModel {
     var isUndoing = false
     var isPolling = false
     var pollAttempts = 0
+    var extras: [FocusTriageExtraUndo] = []
+    var exampleBusy: Set<String> = []
+    var exampleGenerationsLeft: [String: Int] = [:]
+    var overwritePromptBitId: String?
+    var saveFailure: SaveFailure?
+    var chosen: [String: String] = [:]
 
     @ObservationIgnored var onDecisionsChanged: (() -> Void)?
     @ObservationIgnored var onDecided: ((FocusTriageDecisionEntry) -> Void)?
     @ObservationIgnored var beforeRestore: ((String) async -> Void)?
     @ObservationIgnored var onUndone: ((String) -> Void)?
+    @ObservationIgnored var movedSnapshots: [String: PendingReviewRemovedBit] = [:]
     @ObservationIgnored var shown: (bitId: String, at: Date)?
     @ObservationIgnored var pollTask: Task<Void, Never>?
-    @ObservationIgnored var pendingDecisions: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored var queuedIds: [String: String] = [:]
+    @ObservationIgnored var unsent: [String: UnsentTriageDecision] = [:]
+    @ObservationIgnored let decisionQueue: PendingDecisionQueue
+    @ObservationIgnored let drainer: DecisionDrainer
     @ObservationIgnored let pollInterval: Duration
 
-    init(list: PendingReviewListModel, pollInterval: Duration = FocusTriagePollPlan.interval) {
+    init(
+        list: PendingReviewListModel,
+        decisionQueue: PendingDecisionQueue = .shared,
+        pollInterval: Duration = FocusTriagePollPlan.interval
+    ) {
         self.list = list
+        self.decisionQueue = decisionQueue
         self.pollInterval = pollInterval
+        drainer = DecisionDrainer(queue: decisionQueue)
+        drainer.onSettled = { [weak self] in self?.applySettled($0) }
+        drainer.onFailure = { [weak self] in self?.handleFailure($0) }
     }
 
     var queue: FocusTriageQueue {
@@ -36,13 +54,16 @@ final class FocusTriageModel {
     var current: PendingReviewBit? { queue.current }
     var currentSource: PendingReviewSource? { queue.currentSource }
     var readyCount: Int { queue.readyCount }
+    var remainingCount: Int {
+        list.remainingTotal(ready: readyCount, loaded: readyCount + waitingCount, subjectId: subjectFilter)
+    }
     var waitingCount: Int { queue.waitingCount }
-    var canUndo: Bool { log.lastDecided != nil && !isUndoing }
+    var canUndo: Bool { (log.lastDecided != nil || !extras.isEmpty) && !isUndoing }
 
     var isBusy: Bool {
         guard let id = current?.id else { return false }
 
-        return list.inFlight.contains(id)
+        return list.inFlight.contains(id) || exampleBusy.contains(id)
     }
 
     var message: String? {
@@ -59,6 +80,8 @@ final class FocusTriageModel {
         } else if pinnedBitId == nil {
             shown = nil
         }
+
+        list.topUpIfNeeded(remaining: queue.readyCount + queue.waitingCount, subjectId: subjectFilter)
     }
 
     func dwellMs(for bitId: String) -> Int? {
@@ -68,7 +91,12 @@ final class FocusTriageModel {
     }
 
     func load() async {
-        await list.load()
+        for (bitId, id) in await decisionQueue.pendingIds() where queuedIds[bitId] == nil {
+            queuedIds[bitId] = id
+        }
+
+        drainer.start()
+        await list.load(limit: PendingReviewWindow.target, subjectId: subjectFilter)
         syncPin()
     }
 
@@ -77,16 +105,24 @@ final class FocusTriageModel {
     func reject() async { await decide(.reject) }
 
     func undo() async {
-        guard let entry = log.lastDecided, !isUndoing else { return }
+        guard !isUndoing else { return }
+
+        if let extra = extras.last, extra.isNext(lastDecidedBitId: log.lastDecided?.bitId, decidedBitIds: log.entries.map(\.bitId)) {
+            return await undoExtra(extra)
+        }
+
+        await undoDecision()
+    }
+
+    private func undoDecision() async {
+        guard let entry = log.lastDecided else { return }
 
         isUndoing = true
         defer { isUndoing = false }
 
-        if let pending = pendingDecisions[entry.bitId] {
-            await pending.value
+        if await undoQueued(entry) { return }
 
-            guard log.lastDecided?.bitId == entry.bitId else { return }
-        }
+        guard log.lastDecided?.bitId == entry.bitId else { return }
 
         await beforeRestore?(entry.bitId)
 
@@ -97,8 +133,15 @@ final class FocusTriageModel {
 
         let outcome: PendingReviewRestoreOutcome
 
+        let dropped = log.lastDecided?.dropped ?? []
+
         do {
-            try await APIClient.restoreKnowledgeBit(id: entry.bitId)
+            if dropped.isEmpty {
+                try await APIClient.restoreKnowledgeBit(id: entry.bitId)
+            } else {
+                try await APIClient.undoTriageKnowledgeBit(id: entry.bitId, restoreVariantIds: dropped)
+            }
+
             outcome = .restored
         } catch {
             outcome = Self.restoreOutcome(for: error)
@@ -162,7 +205,7 @@ extension FocusTriageModel {
 
             let messages = list.rowMessages
 
-            await list.load()
+            await list.load(limit: PendingReviewWindow.target, subjectId: subjectFilter)
 
             for (id, text) in messages where list.sources.contains(where: { $0.bits.contains { $0.id == id } }) {
                 list.rowMessages[id] = text

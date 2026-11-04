@@ -38,7 +38,7 @@ extension SmokeTests {
             #expect(model.rowMessages["kb_10"] == nil)
         }
 
-        @Test("should post the rejection, remove the item and offer undo and feedback")
+        @Test("should post the rejection, remove the item and offer undo without asking for a reason")
         func rejectSucceeds() async throws {
             let (model, session) = await loadedModel(extra: [
                 "POST /knowledge-bits/kb_10/reject": .json(200, #"{"ok":true,"feedbackId":"fb_01"}"#)
@@ -52,7 +52,6 @@ extension SmokeTests {
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/reject"])
             #expect(bitIds(model) == ["kb_11"])
             #expect(model.pendingUndo?.removed.bit.id == "kb_10")
-            #expect(model.pendingFeedback?.feedbackId == "fb_01")
             model.dismissUndo()
         }
 
@@ -123,7 +122,6 @@ extension SmokeTests {
             #expect(message == failure.message)
             #expect(bitIds(model) == ["kb_10", "kb_11"])
             #expect(model.pendingUndo == nil)
-            #expect(model.pendingFeedback == nil)
         }
 
         @Test("should send only the ready items of a source in one bulk approval and report the count")

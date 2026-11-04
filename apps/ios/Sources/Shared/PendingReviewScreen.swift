@@ -2,23 +2,36 @@ import PostAnkiAPI
 import SwiftUI
 
 struct PendingReviewScreen: View {
-    @State private var model: PendingReviewListModel
-    @State private var confirmingSourceId: String?
-    @State private var confirmingCount = 0
-    @State private var editingBit: PendingReviewBit?
-    @State private var layout = PendingReviewLayout.defaultLayout
-    @State private var triage: PendingReviewTriageModel
-    @State private var focus: FocusTriageModel
-    @State private var session: FocusTriageSessionModel
-    @State private var focusOpen = false
-    @State private var retries: AttentionRetryCoordinator
+    @State var model: PendingReviewListModel
+    @State var confirmingSourceId: String?
+    @State var confirmingCount = 0
+    @State var editingBit: PendingReviewBit?
+    @State var layout = PendingReviewLayout.defaultLayout
+    @State var triage: PendingReviewTriageModel
+    @State var focus: FocusTriageModel
+    @State var session: FocusTriageSessionModel
+    @State var focusOpen = false
+    @State var retries: AttentionRetryCoordinator
+    @State var notionIngestOpen = false
+    @State var subjects = TriageSubjectsModel()
+    @State var macTriageStarted = false
 
     private let onDone: (() -> Void)?
+    let onTriageFinished: (() -> Void)?
 
-    init(onDone: (() -> Void)? = nil) {
+    private static var windowsInbox: Bool {
+        #if os(macOS)
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    init(onDone: (() -> Void)? = nil, onTriageFinished: (() -> Void)? = nil) {
         self.onDone = onDone
+        self.onTriageFinished = onTriageFinished
 
-        let list = PendingReviewListModel()
+        let list = PendingReviewListModel(windowed: PendingReviewScreen.windowsInbox)
 
         _model = State(initialValue: list)
         _triage = State(initialValue: PendingReviewTriageModel(list: list))
@@ -33,8 +46,15 @@ struct PendingReviewScreen: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Pending items")
+                .navigationTitle(TriageNotionText.inboxTitle)
                 .toolbar {
+                    if !isEmptyState {
+                        ToolbarItem {
+                            TriageNotionIngestButton { notionIngestOpen = true }
+                                .accessibilityLabel(TriageNotionText.entry)
+                        }
+                    }
+
                     #if os(iOS)
                     if onDone == nil {
                         ToolbarItem(placement: .topBarLeading) {
@@ -42,10 +62,18 @@ struct PendingReviewScreen: View {
                                 KnowledgeListScreen(isPushed: true)
                             } label: {
                                 Label("All items", systemImage: "list.bullet.rectangle")
+                                    .labelStyle(.titleAndIcon)
                             }
                         }
                     }
                     #endif
+
+                    if let undo = model.pendingUndo, undo.canRetry, !isTriageCoverShown {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button("Undo") { Task { await model.undoReject() } }
+                                .disabled(undo.isRestoring)
+                        }
+                    }
 
                     #if os(macOS)
                     ToolbarItem {
@@ -75,18 +103,8 @@ struct PendingReviewScreen: View {
                     }
                 }
         }
-        .safeAreaInset(edge: .bottom) {
-            if let undo = model.pendingUndo, !isTriageCoverShown {
-                PendingReviewUndoBanner(
-                    undo: undo,
-                    onUndo: { Task { await model.undoReject() } },
-                    onDismiss: { model.dismissUndo() }
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
         .confirmationDialog(
-            "Approve \(confirmingCount) items?",
+            "Approve \(CountLabel.text(confirmingCount, "item"))?",
             isPresented: Binding(
                 get: { confirmingSourceId != nil },
                 set: { if !$0 { confirmingSourceId = nil } }
@@ -103,16 +121,30 @@ struct PendingReviewScreen: View {
             Button("Cancel", role: .cancel) { confirmingSourceId = nil }
         }
         .pendingReviewSheets(model: model, editingBit: $editingBit, isEnabled: !isTriageCoverShown)
+        .triageNotionIngestSheet(isPresented: $notionIngestOpen) {
+            await model.load()
+            await subjects.load()
+        }
         #if os(iOS)
         .fullScreenCover(
             isPresented: Binding(get: { focusOpen }, set: { focusOpen = $0 }),
-            onDismiss: { Task { await model.load() } }
+            onDismiss: {
+                if session.storedSession == nil { focus.subjectFilter = nil }
+
+                Task {
+                    await model.load()
+                    await subjects.load()
+                }
+            }
         ) {
             triageCover
         }
         #endif
         .task {
+            async let loadedSubjects: Void = subjects.load()
+
             await model.load()
+            await loadedSubjects
 
             #if os(iOS)
             if onDone != nil, !model.sources.isEmpty, let stored = session.storedSession {
@@ -121,43 +153,25 @@ struct PendingReviewScreen: View {
             }
             #endif
         }
+        .onChange(of: triage.current == nil) { wasEmpty, isEmpty in
+            guard isMac, macTriageStarted, !wasEmpty, isEmpty else { return }
+
+            leaveMacTriage()
+            onTriageFinished?()
+        }
+        .onChange(of: layout) { _, newLayout in
+            guard isMac, macTriageStarted else { return }
+
+            Task { await triage.layoutChanged(toTriage: newLayout == .triage) }
+        }
         .onAppear {
             if model.hasLoaded && !model.isLoading {
-                Task { await model.load() }
+                Task {
+                    await model.load()
+                    await subjects.load()
+                }
             }
         }
-    }
-
-    #if os(iOS)
-    private func startTriage() async {
-        if let stored = session.storedSession { focus.subjectFilter = stored.subjectId }
-
-        if await session.start() { focusOpen = true }
-    }
-    #endif
-
-    private var showsTriage: Bool {
-        #if os(iOS)
-        return focusOpen
-        #else
-        return layout == .triage && !model.sources.isEmpty
-        #endif
-    }
-
-    private var visibleSources: [PendingReviewSource] {
-        #if os(iOS)
-        return PendingReviewInboxScope.visibleSources(model.sources, subjectId: focus.subjectFilter, resumed: session.storedSession)
-        #else
-        return model.sources
-        #endif
-    }
-
-    private var isMac: Bool {
-        #if os(macOS)
-        return true
-        #else
-        return false
-        #endif
     }
 
     #if os(iOS)
@@ -167,7 +181,8 @@ struct PendingReviewScreen: View {
                 triage: focus,
                 session: session,
                 editingBit: $editingBit,
-                onClose: { focusOpen = false }
+                onClose: { focusOpen = false },
+                onFinished: { focusOpen = false; onTriageFinished?() }
             )
             .navigationTitle("Triage")
             .navigationBarTitleDisplayMode(.inline)
@@ -181,144 +196,11 @@ struct PendingReviewScreen: View {
     }
     #endif
 
-    private var isTriageCoverShown: Bool {
+    var isTriageCoverShown: Bool {
         #if os(iOS)
         return showsTriage
         #else
         return false
         #endif
-    }
-
-    @ViewBuilder
-    private var layoutToggle: some View {
-        #if os(macOS)
-        Picker("Layout", selection: $layout) {
-            ForEach(PendingReviewLayout.allCases) { Text($0.rawValue).tag($0) }
-        }
-        .pickerStyle(.segmented)
-        #else
-        Button(layout == .list ? "Triage" : "List") {
-            layout = layout == .list ? .triage : .list
-        }
-        #endif
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if !model.hasLoaded && model.errorMessage == nil {
-            ProgressView()
-        } else if !model.hasLoaded, let message = model.errorMessage {
-            #if os(macOS)
-            MacLoadStateView(failure: model.failureKind ?? .other) { Task { await model.load() } }
-            #else
-            ContentUnavailableView {
-                Label("Couldn't load", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try again") { Task { await model.load() } }
-            }
-            #endif
-        } else if model.hasLoaded && model.sources.isEmpty && model.attentionNotices.isEmpty {
-            #if os(macOS)
-            MacEmptyStateView(
-                title: "Nothing to review",
-                systemImage: "checkmark.seal",
-                message: "Add knowledge from Ingest and new items appear here."
-            )
-            #else
-            ContentUnavailableView("Nothing to review", systemImage: "checkmark.seal")
-            #endif
-        } else if showsTriage && isMac {
-            PendingReviewTriageView(model: triage, editingBit: $editingBit)
-        } else {
-            List {
-                if !model.attentionNotices.isEmpty {
-                    AttentionBlock(
-                        notices: model.attentionNotices,
-                        coordinator: retries,
-                        onDiscard: { await model.discardNote(sourceId: $0) }
-                    )
-                }
-
-                #if os(iOS)
-                if !model.sources.isEmpty {
-                    Section {
-                        PendingReviewInboxSummary(
-                            sources: model.sources,
-                            subjectId: $focus.subjectFilter,
-                            resumed: session.storedSession,
-                            isStarting: session.busy,
-                            startError: session.error
-                        )
-                    }
-                }
-                #endif
-
-                if let message = model.errorMessage {
-                    Text(message)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.red)
-                }
-
-                if let notice = model.notice {
-                    Text(notice)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if visibleSources.isEmpty && !model.sources.isEmpty {
-                    Section {
-                        ContentUnavailableView("No cards to triage in this subject", systemImage: "tray")
-                    }
-                }
-
-                ForEach(visibleSources) { source in
-                    Section {
-                        ForEach(source.bits) { bit in
-                            PendingReviewBitRow(
-                                bit: bit,
-                                subjectName: source.subjectName,
-                                isBusy: model.inFlight.contains(bit.id),
-                                message: model.rowMessages[bit.id],
-                                onDecide: { decision in
-                                    Task { _ = await model.decide(decision, bitId: bit.id) }
-                                },
-                                onEdit: { editingBit = bit }
-                            )
-                        }
-                        SourceRegenerationRow(sourceId: source.id, pendingCount: source.bits.count) { Task { await model.load() } }
-                    } header: {
-                        PendingReviewSourceHeader(source: source)
-                    } footer: {
-                        PendingReviewSourceFooter(
-                            readyCount: model.readyCount(in: source),
-                            isBulkBusy: model.bulkInFlight.contains(source.id),
-                            message: model.sourceMessages[source.id],
-                            onApproveAll: {
-                                confirmingCount = model.readyCount(in: source)
-                                confirmingSourceId = source.id
-                            }
-                        )
-                    }
-                }
-            }
-            .refreshable { await model.load() }
-            #if os(iOS)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !model.sources.isEmpty {
-                    PendingReviewInboxStartBar(
-                        sources: model.sources,
-                        subjectId: focus.subjectFilter,
-                        resumed: session.storedSession,
-                        isStarting: session.busy,
-                        hasError: session.error != nil
-                    ) {
-                        Task { await startTriage() }
-                    }
-                }
-            }
-            #endif
-        }
     }
 }

@@ -1,10 +1,13 @@
+import PostAnkiAPI
 import SwiftUI
 
 struct QuestionVariantEditSheet: View {
+    let initialContext: String
     let initialPrompt: String
     let initialAnswer: String
-    let onSave: (String, String) async -> String?
+    let onSave: (String?, String, String) async -> String?
 
+    @State private var context: String
     @State private var prompt: String
     @State private var answer: String
     @State private var isSaving = false
@@ -12,28 +15,33 @@ struct QuestionVariantEditSheet: View {
     @State private var confirmingDiscard = false
     @Environment(\.dismiss) private var dismiss
 
-    init(prompt: String, answer: String, onSave: @escaping (String, String) async -> String?) {
+    init(context: String?, prompt: String, answer: String, onSave: @escaping (String?, String, String) async -> String?) {
+        let shownContext = context?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        initialContext = shownContext
         initialPrompt = prompt
         initialAnswer = answer
         self.onSave = onSave
+        _context = State(initialValue: shownContext)
         _prompt = State(initialValue: prompt)
         _answer = State(initialValue: answer)
     }
 
+    private var trimmedContext: String { context.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedPrompt: String { prompt.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedAnswer: String { answer.trimmingCharacters(in: .whitespacesAndNewlines) }
 
-    private var hasChanges: Bool { trimmedPrompt != initialPrompt || trimmedAnswer != initialAnswer }
-
-    private var canSave: Bool {
-        !trimmedPrompt.isEmpty && !trimmedAnswer.isEmpty && !isSaving
-            && (trimmedPrompt != initialPrompt || trimmedAnswer != initialAnswer)
+    private var hasChanges: Bool {
+        trimmedContext != initialContext || trimmedPrompt != initialPrompt || trimmedAnswer != initialAnswer
     }
+
+    private var canSave: Bool { !trimmedPrompt.isEmpty && !trimmedAnswer.isEmpty && !isSaving && hasChanges }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    CardTextArea(label: "Context", text: $context, minHeight: 44)
                     CardTextArea(label: "Question", text: $prompt)
                     CardTextArea(label: "Answer", text: $answer)
                 }
@@ -72,7 +80,9 @@ struct QuestionVariantEditSheet: View {
         errorMessage = nil
         defer { isSaving = false }
 
-        if let failure = await onSave(trimmedPrompt, trimmedAnswer) {
+        let savedContext = trimmedContext == initialContext ? nil : trimmedContext
+
+        if let failure = await onSave(savedContext, trimmedPrompt, trimmedAnswer) {
             errorMessage = failure
         } else {
             dismiss()

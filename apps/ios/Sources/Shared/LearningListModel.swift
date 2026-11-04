@@ -11,6 +11,11 @@ final class LearningListModel {
     var errorMessage: String?
     var failureKind: ProgressLoadError?
     var actionMessage: String?
+    var subjectsFailed = false
+
+    var subjectsNotice: String? {
+        SubjectListNotice.learningListMessage(failed: subjectsFailed, subjectCount: subjects.count)
+    }
 
     var awaiting: [LearningListItem] { items.filter(\.isAwaitingDecision) }
     var parked: [LearningListItem] { items.filter { $0.status == "parked" } }
@@ -54,7 +59,12 @@ final class LearningListModel {
     func loadSubjects() async {
         guard subjects.isEmpty else { return }
 
-        subjects = (try? await APIClient.listSubjects()) ?? []
+        do {
+            subjects = try await APIClient.listSubjects()
+            subjectsFailed = false
+        } catch {
+            subjectsFailed = true
+        }
     }
 
     func replace(_ item: LearningListItem) {

@@ -12,7 +12,7 @@ enum MacLaunchIssue: Equatable {
 
     var message: String {
         switch self {
-        case .noToken: return "Add your access token to load your data."
+        case .noToken: return "Sign in from Settings to load your data."
         case .signedOut: return "The server rejected your access token. Check it in Settings."
         case .offline: return "You're offline."
         case .serverUnreachable: return "Can't reach the server."
@@ -57,11 +57,17 @@ final class MacLaunchCheck {
         let value = Bundle.main.object(forInfoDictionaryKey: "PostAnkiDevAPIURL") as? String
         APIClient.setFallbackBaseURL(value)
 
-        let token = (Bundle.main.object(forInfoDictionaryKey: "PostAnkiDevAPIToken") as? String) ?? ""
-
-        if !token.isEmpty, TokenStore.read() != token {
-            try? TokenStore.save(token)
+        if let seed = DevTokenSeed.seedToken(saved: TokenStore.read(), baked: Self.bakedDevToken) {
+            try? TokenStore.save(seed)
         }
+        #endif
+    }
+
+    private static var bakedDevToken: String {
+        #if DEBUG
+        (Bundle.main.object(forInfoDictionaryKey: "PostAnkiDevAPIToken") as? String) ?? ""
+        #else
+        ""
         #endif
     }
 
@@ -76,15 +82,31 @@ final class MacLaunchCheck {
         }
 
         task = Task {
-            do {
-                _ = try await APIClient.streak()
-                issue = nil
-            } catch {
-                guard let found = MacLaunchIssue.classify(error) else { return }
+            var retried = false
 
-                if found != issue { isDismissed = false }
+            while true {
+                do {
+                    _ = try await APIClient.streak()
+                    issue = nil
 
-                issue = found
+                    return
+                } catch {
+                    guard let found = MacLaunchIssue.classify(error) else { return }
+
+                    if found == .signedOut, !retried,
+                       let baked = DevTokenSeed.retryToken(rejected: TokenStore.read(), baked: Self.bakedDevToken),
+                       (try? TokenStore.save(baked)) != nil {
+                        retried = true
+
+                        continue
+                    }
+
+                    if found != issue { isDismissed = false }
+
+                    issue = found
+
+                    return
+                }
             }
         }
     }
@@ -92,6 +114,8 @@ final class MacLaunchCheck {
 
 struct MacLaunchBanner: View {
     let check: MacLaunchCheck
+
+    @Environment(\.macOpenSettings) private var openSettings
 
     var body: some View {
         if let issue = check.issue, !check.isDismissed {
@@ -112,7 +136,7 @@ struct MacLaunchBanner: View {
 
                 Spacer()
 
-                SettingsLink { Text("Settings") }
+                Button("Settings") { openSettings() }
 
                 Button {
                     check.isDismissed = true

@@ -39,7 +39,7 @@ struct MacSourcesView: View {
             .confirmationDialog(
                 pendingDelete.count == 1
                     ? "Delete this source from \(pendingDelete[0].curriculumName)?"
-                    : "Delete \(pendingDelete.count) sources?",
+                    : "Delete \(CountLabel.text(pendingDelete.count, "source"))?",
                 isPresented: Binding(get: { !pendingDelete.isEmpty }, set: { if !$0 { pendingDelete = [] } }),
                 titleVisibility: .visible
             ) {

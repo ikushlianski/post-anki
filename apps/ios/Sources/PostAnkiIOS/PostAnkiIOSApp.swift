@@ -10,8 +10,8 @@ struct PostAnkiIOSApp: App {
 
         let token = (Bundle.main.object(forInfoDictionaryKey: "PostAnkiLocalDevAPIToken") as? String) ?? ""
 
-        if !token.isEmpty, TokenStore.read() == nil {
-            try? TokenStore.save(token)
+        if let seed = DevTokenSeed.seedToken(saved: TokenStore.read(), baked: token) {
+            try? TokenStore.save(seed)
         }
         #endif
     }

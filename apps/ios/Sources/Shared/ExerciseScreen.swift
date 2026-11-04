@@ -217,7 +217,7 @@ struct ExerciseScreen: View {
                         TextField("Your answer", text: $model.userAnswer, axis: .vertical)
                             .focused($answerFocused)
                             #if os(macOS)
-                            .onKeyPress(keys: [.return]) { press in
+                            .onEnterKeyPress { press in
                                 if press.modifiers.contains(.shift) {
                                     model.userAnswer += "\n"
                                 } else if model.feedback == nil {

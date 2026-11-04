@@ -175,7 +175,7 @@ public enum ProgressLoadError: Sendable, Hashable {
             switch urlError.code {
             case .cancelled:
                 return nil
-            case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost:
+            case .notConnectedToInternet, .networkConnectionLost, .timedOut, .cannotConnectToHost, .dataNotAllowed:
                 return .offline
             default:
                 return .other

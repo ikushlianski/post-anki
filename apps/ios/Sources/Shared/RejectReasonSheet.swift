@@ -3,10 +3,10 @@ import SwiftUI
 
 struct RejectReasonSheet: View {
     let feedback: PendingRejectFeedback
-    let onSend: (RejectReason, String) async -> String?
+    let onSend: (String, String) async -> String?
     let onSkip: () -> Void
 
-    @State private var reason: RejectReason?
+    @State private var reason: String?
     @State private var note = ""
     @State private var isSending = false
     @State private var errorMessage: String?
@@ -21,16 +21,16 @@ struct RejectReasonSheet: View {
                 }
 
                 Section("Why was it rejected?") {
-                    ForEach(RejectReason.allCases) { option in
+                    ForEach(feedback.options) { option in
                         Button {
-                            reason = option
+                            reason = option.code
                         } label: {
                             HStack {
                                 Text(option.label).foregroundStyle(.primary)
 
                                 Spacer()
 
-                                if reason == option { Image(systemName: "checkmark") }
+                                if reason == option.code { Image(systemName: "checkmark") }
                             }
                         }
                     }

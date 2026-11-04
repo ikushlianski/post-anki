@@ -36,6 +36,7 @@ final class DueTodayModel {
                 tz: TimeZone.current.identifier
             )
             counts = response.counts
+            await DueBadge.updater.update(due: DueBadge.dueTotal(response.counts))
             state = .idle
         } catch is CancellationError {
             state = .idle

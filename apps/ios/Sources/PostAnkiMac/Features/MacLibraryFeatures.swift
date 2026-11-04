@@ -10,7 +10,7 @@ enum MacLibraryFeatures {
             title: "Knowledge Inbox",
             systemImage: "tray",
             badge: { PendingReviewCountStore.shared.count },
-            detail: { _ in AnyView(MacKnowledgeInboxView()) }
+            detail: { navigator in AnyView(MacKnowledgeInboxView(onTriageFinished: { navigator.select("review") })) }
         ),
         MacFeature(
             id: "sources",
@@ -67,6 +67,15 @@ enum MacLibraryFeatures {
             systemImage: "square.and.arrow.down",
             inSidebar: false,
             detail: { _ in AnyView(MacNotionImportView()) }
+        ),
+        MacFeature(
+            id: "notion-sources",
+            section: .library,
+            order: 110,
+            title: "Notion sources",
+            systemImage: "square.and.arrow.down.on.square",
+            inSidebar: false,
+            detail: { _ in AnyView(MacNotionSourcesView()) }
         )
     ]
 }

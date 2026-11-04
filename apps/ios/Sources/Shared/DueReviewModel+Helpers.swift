@@ -30,8 +30,6 @@ extension DueReviewModel {
     }
 
     nonisolated static func displayPrompt(_ card: ReviewCard) -> String {
-        guard card.kind == "fill_in_the_blank" else { return card.prompt }
-
-        return card.prompt.replacingOccurrences(of: "____", with: "[...]")
+        card.face.front
     }
 }

@@ -13,6 +13,7 @@ struct RecordedRequest: Sendable {
     let method: String
     let path: String
     let body: Data?
+    var query: String?
 
     var bodyObject: NSDictionary? {
         body.flatMap { try? JSONSerialization.jsonObject(with: $0) as? NSDictionary }
@@ -72,9 +73,11 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
 
         let reply = Self.lock.withLock { () -> FakeReply in
             Self.requestedPaths.append(url.path)
-            Self.recorded.append(RecordedRequest(method: method, path: url.path, body: body))
+            Self.recorded.append(RecordedRequest(method: method, path: url.path, body: body, query: url.query))
 
-            return Self.routes["\(method) \(url.path)"] ?? Self.routes[url.path] ?? .status(404)
+            let queried = url.query.flatMap { Self.routes["\(method) \(url.path)?\($0)"] }
+
+            return queried ?? Self.routes["\(method) \(url.path)"] ?? Self.routes[url.path] ?? .status(404)
         }
 
         switch reply {
@@ -179,5 +182,13 @@ struct FakeServerSession {
 
     func end() {
         FakeServer.stop(restoring: saved)
+    }
+}
+
+extension PendingDecisionQueue {
+    static func isolated(file: URL? = nil) -> PendingDecisionQueue {
+        let url = file ?? FileManager.default.temporaryDirectory.appendingPathComponent("decisions-\(UUID().uuidString).json")
+
+        return PendingDecisionQueue(fileURL: url, retryDelay: .zero)
     }
 }

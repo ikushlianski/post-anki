@@ -10,6 +10,7 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
     public let suggestedSubjectConfidence: String?
     public let bits: [PendingReviewBit]
     public let attention: KnowledgeSourceAttention?
+    public let rejectReasonCodes: [String]?
 
     public var id: String { knowledgeSourceId }
 
@@ -22,7 +23,8 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
         suggestedSubjectId: String? = nil,
         suggestedSubjectName: String? = nil,
         suggestedSubjectConfidence: String? = nil,
-        attention: KnowledgeSourceAttention? = nil
+        attention: KnowledgeSourceAttention? = nil,
+        rejectReasonCodes: [String]? = nil
     ) {
         self.knowledgeSourceId = knowledgeSourceId
         self.sourceText = sourceText
@@ -33,6 +35,7 @@ public struct PendingReviewSource: Decodable, Sendable, Identifiable, Hashable {
         self.suggestedSubjectConfidence = suggestedSubjectConfidence
         self.bits = bits
         self.attention = attention
+        self.rejectReasonCodes = rejectReasonCodes
     }
 }
 
@@ -40,32 +43,116 @@ public struct PendingReviewBit: Decodable, Sendable, Identifiable, Hashable {
     public let id: String
     public let body: String
     public let background: String?
+    public let exampleAiGeneratedAt: String?
     public let origin: String
     public let variants: [PendingReviewVariant]
+    public let answerChoice: Bool
+    public let createdAt: String?
+    public let modelIds: [String]
+    public let aiSuggestion: String?
+    public let duplicateOf: PendingReviewDuplicateOf?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, body, background, exampleAiGeneratedAt, origin, variants, answerChoice, createdAt, modelIds, aiSuggestion, duplicateOf
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(String.self, forKey: .id)
+        body = try container.decode(String.self, forKey: .body)
+        background = try container.decodeIfPresent(String.self, forKey: .background)
+        exampleAiGeneratedAt = try container.decodeIfPresent(String.self, forKey: .exampleAiGeneratedAt)
+        origin = try container.decode(String.self, forKey: .origin)
+        variants = try container.decode([PendingReviewVariant].self, forKey: .variants)
+        answerChoice = try container.decodeIfPresent(Bool.self, forKey: .answerChoice) ?? false
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        modelIds = try container.decodeIfPresent([String].self, forKey: .modelIds) ?? []
+        aiSuggestion = try container.decodeIfPresent(String.self, forKey: .aiSuggestion)
+        duplicateOf = try? container.decodeIfPresent(PendingReviewDuplicateOf.self, forKey: .duplicateOf)
+    }
+
+    public init(
+        id: String,
+        body: String,
+        background: String?,
+        origin: String,
+        variants: [PendingReviewVariant],
+        exampleAiGeneratedAt: String? = nil,
+        answerChoice: Bool = false,
+        createdAt: String? = nil,
+        modelIds: [String] = [],
+        aiSuggestion: String? = nil,
+        duplicateOf: PendingReviewDuplicateOf? = nil
+    ) {
+        self.id = id
+        self.body = body
+        self.background = background
+        self.exampleAiGeneratedAt = exampleAiGeneratedAt
+        self.origin = origin
+        self.variants = variants
+        self.answerChoice = answerChoice
+        self.createdAt = createdAt
+        self.modelIds = modelIds
+        self.aiSuggestion = aiSuggestion
+        self.duplicateOf = duplicateOf
+    }
+
+    public var offersSentenceChoice: Bool { answerChoice && variants.count > 1 }
+
+    public func withExample(_ background: String?, aiGeneratedAt: String?) -> PendingReviewBit {
+        PendingReviewBit(
+            id: id,
+            body: body,
+            background: background,
+            origin: origin,
+            variants: variants,
+            exampleAiGeneratedAt: aiGeneratedAt,
+            answerChoice: answerChoice,
+            createdAt: createdAt,
+            modelIds: modelIds,
+            aiSuggestion: aiSuggestion,
+            duplicateOf: duplicateOf
+        )
+    }
+
+    public var hasHumanExample: Bool {
+        let text = background?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        return !text.isEmpty && exampleAiGeneratedAt == nil
+    }
+
+    public var hasAiExample: Bool { exampleAiGeneratedAt != nil && !(background ?? "").isEmpty }
 }
 
 public struct PendingReviewVariant: Decodable, Sendable, Identifiable, Hashable {
     public let id: String
     public let kind: String
+    public let context: String?
     public let prompt: String
     public let answer: String
+    public let sentence: String?
 
-    public var kindLabel: String {
-        switch kind {
-        case "wh_question": return "Question"
-        case "fill_in_the_blank": return "Fill in the blank"
-        case "basic": return "Basic card"
-        default: return kind
-        }
+    public var noteKind: NoteEditKind? {
+        guard let sentence, !sentence.isEmpty else { return nil }
+
+        return NoteEditKind(cardKind: kind)
     }
+
+    public var kindLabel: String { CardKind.label(kind) }
+
+    public var displayPrompt: String { CardKind.displayPrompt(kind: kind, prompt: prompt) }
+
+    public var face: CardFace { CardFace.make(context: context, prompt: displayPrompt) }
 }
 
 public struct PendingReviewCountResponse: Decodable, Sendable {
     public let count: Int
     public let attentionCount: Int
+    public let inboxCount: Int
 
     private enum CodingKeys: String, CodingKey {
-        case count, attentionCount
+        case count, attentionCount, inboxCount
     }
 
     public init(from decoder: Decoder) throws {
@@ -73,6 +160,7 @@ public struct PendingReviewCountResponse: Decodable, Sendable {
 
         count = try container.decode(Int.self, forKey: .count)
         attentionCount = try container.decodeIfPresent(Int.self, forKey: .attentionCount) ?? 0
+        inboxCount = try container.decodeIfPresent(Int.self, forKey: .inboxCount) ?? 0
     }
 }
 
@@ -130,7 +218,7 @@ extension PendingReviewDecision {
 
 extension PendingReviewSource {
     public func withBits(_ bits: [PendingReviewBit]) -> PendingReviewSource {
-        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId, suggestedSubjectId: suggestedSubjectId, suggestedSubjectName: suggestedSubjectName, suggestedSubjectConfidence: suggestedSubjectConfidence, attention: attention)
+        PendingReviewSource(knowledgeSourceId: knowledgeSourceId, sourceText: sourceText, subjectName: subjectName, bits: bits, subjectId: subjectId, suggestedSubjectId: suggestedSubjectId, suggestedSubjectName: suggestedSubjectName, suggestedSubjectConfidence: suggestedSubjectConfidence, attention: attention, rejectReasonCodes: rejectReasonCodes)
     }
 
     public var subjectSuggestion: (id: String, name: String)? {
@@ -197,14 +285,17 @@ public struct PendingReviewRemovedBit: Sendable {
     public let subjectName: String?
     public let index: Int
     public let bit: PendingReviewBit
+    public let rejectReasonCodes: [String]?
 
     public init(
         sourceId: String,
         sourceText: String?,
         subjectName: String?,
         index: Int,
-        bit: PendingReviewBit
+        bit: PendingReviewBit,
+        rejectReasonCodes: [String]? = nil
     ) {
+        self.rejectReasonCodes = rejectReasonCodes
         self.sourceId = sourceId
         self.sourceText = sourceText
         self.subjectName = subjectName

@@ -1,0 +1,7 @@
+{
+  "intent": "long_term", "examDate": null, "daysLeft": null, "examPassed": false,
+  "desiredRetention": 0.9, "recentRetention": null, "maxIntervalDays": 180, "hasCards": false,
+  "newCards": {"perDay": 20, "paced": false, "pausedToday": false, "pauseThreshold": 0, "remaining": 0, "finishOn": null, "finishesBeforeExam": null},
+  "reviews": {"dueToday": 0, "averagePerDay": 0, "peakPerDay": 0, "peakOn": null, "horizonDays": 30},
+  "days": []
+}

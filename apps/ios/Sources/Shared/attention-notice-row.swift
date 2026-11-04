@@ -26,7 +26,7 @@ struct AttentionNoticeRow: View {
 
             Text(attention.wording)
                 .font(.subheadline)
-                .foregroundStyle(attention.isInformational ? Color.blue : Color.primary)
+                .foregroundStyle(attention.isNothingExtracted ? Color.secondary : (attention.isInformational ? Color.blue : Color.primary))
 
             if !fullText.isEmpty {
                 DisclosureGroup("Show note text") {
@@ -52,7 +52,14 @@ struct AttentionNoticeRow: View {
                 Text(discardError).font(.footnote).foregroundStyle(.red)
             }
 
-            if !attention.isInformational && !isRetrying {
+            if attention.isNothingExtracted && !isRetrying {
+                HStack(spacing: 8) {
+                    Button("Retry anyway", action: onRetry)
+                    Button("Dismiss", action: onDiscard)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            } else if !attention.isInformational && !isRetrying {
                 HStack(spacing: 8) {
                     Button("Retry", action: onRetry)
                     Button("Edit & retry", action: onEdit)

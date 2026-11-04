@@ -37,6 +37,15 @@ final class NotesSearchModel {
         }
     }
 
+    func refresh() async {
+        let text = trimmedQuery
+
+        guard !text.isEmpty else { return }
+
+        searchTask?.cancel()
+        await run(text)
+    }
+
     private func run(_ text: String) async {
         do {
             let found = try await APIClient.searchNotes(query: text)
@@ -82,6 +91,7 @@ struct NotesSearchScreen: View {
                 }
             }
         }
+        .iosRefreshable { await model.refresh() }
         .navigationTitle("Search notes")
         .searchable(text: $model.query)
         .onChange(of: model.query) { _, _ in model.queryChanged() }

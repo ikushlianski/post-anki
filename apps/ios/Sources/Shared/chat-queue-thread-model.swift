@@ -1,0 +1,365 @@
+import PostAnkiAPI
+import SwiftUI
+
+struct ChatQueueLine: Identifiable, Equatable {
+    let id: String
+    let isUser: Bool
+    let text: String
+    var seq: Int?
+}
+
+@Observable
+@MainActor
+final class ChatQueueThreadModel {
+    let item: ChatQueueItem
+    var lines: [ChatQueueLine] = []
+    var draft = "" {
+        didSet { if draft != oldValue { drafts.save(draft, cardId: item.id) } }
+    }
+    var turnsLeft: Int
+    var capReached = false
+    var isLoading = false
+    var isSending = false
+    var isResolving = false
+    var budgetPaused = false
+    var errorMessage: String?
+    var noticeMessage: String?
+    var isDeleting = false
+    var rejectFeedback: PendingRejectFeedback?
+    var isFinished = false
+    var wasSnoozed = false
+    var cardDraft: ChatQueueCardDraft?
+    var isSavingCard = false
+    var cardErrorMessage: String?
+    var savedCardSeqs: Set<Int> = []
+
+    @ObservationIgnored private var retryId: (text: String, id: String)?
+    @ObservationIgnored private let counts: ChatQueueCountStore
+    @ObservationIgnored private let drafts: ChatQueueDraftStoring
+
+    init(item: ChatQueueItem, counts: ChatQueueCountStore = .shared,
+         drafts: ChatQueueDraftStoring = UserDefaultsChatQueueDraftStore()) {
+        self.item = item
+        self.counts = counts
+        self.drafts = drafts
+        draft = drafts.load(cardId: item.id)
+        turnsLeft = item.turnsLeft
+    }
+
+    var limitReached: Bool { capReached || turnsLeft <= 0 }
+
+    var canSend: Bool {
+        !limitReached && !budgetPaused && !isSending && !isResolving && !isDeleting
+            && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var showsStarters: Bool { lines.isEmpty && !isLoading && !limitReached && !budgetPaused }
+
+    func load() async {
+        guard !isLoading else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let thread = try await APIClient.chatQueueThread(id: item.id)
+
+            lines = thread.messages.map {
+                ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq)
+            }
+            turnsLeft = thread.turnsLeft
+            capReached = thread.capReached
+        } catch is CancellationError {
+            return
+        } catch {
+            errorMessage = ChatQueueFailure.failure(for: error).message
+        }
+    }
+
+    func send(_ preset: String? = nil) async {
+        let text = (preset ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !text.isEmpty, !isSending, !isResolving, !isDeleting, !limitReached, !budgetPaused else { return }
+
+        isSending = true
+        defer { isSending = false }
+
+        await deliver(text, keepDraft: preset != nil)
+    }
+
+    var canRetryLast: Bool {
+        retryableQuestion != nil && !isSending && !isResolving && !isDeleting && !isLoading && !budgetPaused
+    }
+
+    func isRetryable(_ line: ChatQueueLine) -> Bool {
+        canRetryLast && lines.last?.id == line.id
+    }
+
+    private var retryableQuestion: String? {
+        guard lines.count >= 2, let last = lines.last, !last.isUser else { return nil }
+
+        let question = lines[lines.count - 2]
+
+        return question.isUser ? question.text : nil
+    }
+
+    func retryLast() async {
+        guard canRetryLast, let question = retryableQuestion else { return }
+
+        isSending = true
+        isDeleting = true
+        errorMessage = nil
+        noticeMessage = nil
+        defer { isSending = false }
+
+        do {
+            let result = try await APIClient.deleteLastChatQueueExchange(id: item.id)
+
+            lines.removeLast(2)
+
+            if let turns = result.turnsLeft { turnsLeft = turns }
+
+            capReached = result.capReached
+            retryId = nil
+            isDeleting = false
+        } catch {
+            isDeleting = false
+
+            let failure = ChatQueueFailure.failure(for: error)
+
+            switch failure {
+            case .inFlight:
+                noticeMessage = failure.deleteLastMessage
+            case .notInChat, .notFound:
+                handle(failure)
+            default:
+                errorMessage = failure.deleteLastMessage
+            }
+
+            return
+        }
+
+        await deliver(question, keepDraft: true, merges: true)
+    }
+
+    private func deliver(_ text: String, keepDraft: Bool, merges: Bool = false) async {
+        let clientId = retryId?.text == text ? retryId?.id ?? UUID().uuidString : UUID().uuidString
+        let line = ChatQueueLine(id: "u-\(clientId)", isUser: true, text: text)
+
+        retryId = (text, clientId)
+        lines.append(line)
+
+        if !keepDraft { draft = "" }
+
+        errorMessage = nil
+
+        do {
+            let result = try await APIClient.sendChatQueueMessage(
+                id: item.id,
+                clientMessageId: clientId,
+                message: text
+            )
+
+            lines.append(ChatQueueLine(id: "a-\(clientId)", isUser: false, text: result.reply))
+            turnsLeft = result.turnsLeft
+            capReached = result.capReached
+            retryId = nil
+            await assignReplySeq(lineId: "a-\(clientId)")
+        } catch {
+            lines.removeAll { $0.id == line.id }
+
+            if merges {
+                draft = ChatQueueRetryDraft.restoring(question: text, over: draft)
+            } else if !keepDraft {
+                draft = text
+            }
+
+            handle(ChatQueueFailure.failure(for: error))
+        }
+    }
+
+    private func assignReplySeq(lineId: String) async {
+        guard let thread = try? await APIClient.chatQueueThread(id: item.id),
+              let seq = thread.messages.last(where: { $0.role == .assistant })?.seq,
+              let index = lines.firstIndex(where: { $0.id == lineId })
+        else { return }
+
+        lines[index].seq = seq
+    }
+
+    func openCard(for line: ChatQueueLine) {
+        guard let seq = line.seq, !line.isUser, !isSavingCard else { return }
+
+        cardErrorMessage = nil
+        cardDraft = ChatQueueCardDraft(seq: seq, back: String(line.text.prefix(ChatQueueCardLimits.maxBackChars)))
+    }
+
+    func cancelCard() {
+        guard !isSavingCard else { return }
+
+        cardErrorMessage = nil
+        cardDraft = nil
+    }
+
+    func saveCard() async {
+        guard let draft = cardDraft, draft.isSavable, !isSavingCard, !isResolving else { return }
+
+        isSavingCard = true
+        cardErrorMessage = nil
+        defer { isSavingCard = false }
+
+        do {
+            try await APIClient.createCardFromChatQueueMessage(id: item.id, draft: draft)
+            savedCardSeqs.insert(draft.seq)
+            cardDraft = nil
+        } catch {
+            let failure = ChatQueueFailure.failure(for: error)
+
+            cardErrorMessage = failure == .other ? "Could not save the card. Try again." : failure.message
+
+            if failure == .notInChat || failure == .notFound { cardDraft = nil }
+        }
+    }
+
+    var canDeleteLast: Bool { !lines.isEmpty && !isSending && !isResolving && !isDeleting && !isLoading }
+
+    func deleteLastExchange() async {
+        guard canDeleteLast else { return }
+
+        isDeleting = true
+        errorMessage = nil
+        noticeMessage = nil
+        defer { isDeleting = false }
+
+        do {
+            let result = try await APIClient.deleteLastChatQueueExchange(id: item.id)
+
+            await load()
+
+            if let turns = result.turnsLeft { turnsLeft = turns }
+
+            capReached = result.capReached
+        } catch {
+            let failure = ChatQueueFailure.failure(for: error)
+
+            switch failure {
+            case .inFlight:
+                noticeMessage = failure.deleteLastMessage
+            case .notInChat, .notFound:
+                handle(failure)
+            default:
+                errorMessage = failure.deleteLastMessage
+            }
+        }
+    }
+
+    private func handle(_ failure: ChatQueueFailure) {
+        switch failure {
+        case .capReached:
+            capReached = true
+            turnsLeft = 0
+        case .budgetPaused:
+            budgetPaused = true
+        case .notInChat, .notFound:
+            finish(removing: true)
+        default:
+            break
+        }
+
+        errorMessage = failure.message
+    }
+
+    func accept() async {
+        await resolve {
+            try await APIClient.approveKnowledgeBit(id: item.id)
+            finish(removing: true)
+        }
+    }
+
+    func reject() async {
+        await resolve {
+            let feedbackId = try await APIClient.rejectKnowledgeBit(id: item.id)
+
+            if let feedbackId {
+                rejectFeedback = PendingRejectFeedback(feedbackId: feedbackId, bitBody: item.body, reasonCodes: item.rejectReasonCodes)
+                drafts.clear(cardId: item.id)
+                counts.adjust(by: -1)
+            } else {
+                finish(removing: true)
+            }
+        }
+    }
+
+    func sendRejectReason(_ reason: String, note: String) async -> String? {
+        guard let feedback = rejectFeedback else { return nil }
+
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        do {
+            try await APIClient.setRejectFeedback(
+                id: feedback.feedbackId,
+                reasonCode: reason,
+                note: trimmed.isEmpty ? nil : trimmed
+            )
+            rejectFeedback = nil
+            isFinished = true
+
+            return nil
+        } catch {
+            return "Couldn't save the reason. Try again or skip."
+        }
+    }
+
+    func skipRejectReason() {
+        rejectFeedback = nil
+        isFinished = true
+    }
+
+    func snooze(days: Int) async {
+        await resolve {
+            _ = try await APIClient.snoozeChatQueue(id: item.id, days: days)
+            wasSnoozed = true
+            finish(removing: false)
+            TriageFeedbackPlayer.announce(.snoozed(days: days))
+        }
+    }
+
+    func clearChat() async {
+        await resolve {
+            try await APIClient.returnFromChatQueue(id: item.id)
+            finish(removing: true)
+        }
+    }
+
+    func backToTriage() async {
+        await resolve {
+            try await APIClient.returnFromChatQueue(id: item.id)
+            finish(removing: true)
+            TriageFeedbackPlayer.announce(.movedToInbox)
+        }
+    }
+
+    private func resolve(_ action: () async throws -> Void) async {
+        guard !isResolving, !isSending else { return }
+
+        isResolving = true
+        errorMessage = nil
+        defer { isResolving = false }
+
+        do {
+            try await action()
+        } catch {
+            handle(ChatQueueFailure.failure(for: error))
+        }
+    }
+
+    private func finish(removing: Bool) {
+        if removing {
+            counts.adjust(by: -1)
+            drafts.clear(cardId: item.id)
+        }
+
+        isFinished = true
+    }
+}

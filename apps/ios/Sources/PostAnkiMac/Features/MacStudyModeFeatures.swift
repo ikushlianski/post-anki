@@ -4,6 +4,14 @@ import SwiftUI
 enum MacStudyModeFeatures {
     static let features: [MacFeature] = [
         MacFeature(
+            id: "study-plan",
+            section: .study,
+            order: 30,
+            title: "Study plan",
+            systemImage: "calendar",
+            detail: { _ in AnyView(StudyPlanSubjectPicker()) }
+        ),
+        MacFeature(
             id: "study-sessions",
             section: .study,
             order: 40,
@@ -12,6 +20,15 @@ enum MacStudyModeFeatures {
             ownsStack: true,
             inSidebar: false,
             detail: { _ in AnyView(MacStudySessionsView()) }
+        ),
+        MacFeature(
+            id: "triage-history",
+            section: .study,
+            order: 45,
+            title: "Triage history",
+            systemImage: "clock.arrow.circlepath",
+            inSidebar: false,
+            detail: { _ in AnyView(TriageHistoryScreen()) }
         ),
         MacFeature(
             id: "resurfacing-gaps",

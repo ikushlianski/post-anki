@@ -19,6 +19,13 @@ struct LearningListScreen: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let notice = model.subjectsNotice {
+                Section {
+                    Text(notice).foregroundStyle(.secondary)
+                    Button("Retry") { Task { await model.loadSubjects() } }
+                }
+            }
+
             group("Needs your decision", model.awaiting)
             group("Parked", model.parked)
             group("Working on it", model.working)
@@ -57,7 +64,7 @@ struct LearningListScreen: View {
             Section(title) {
                 ForEach(items) { item in
                     NavigationLink {
-                        LearningListItemScreen(item: item, subjects: model.subjects) { model.replace($0) }
+                        LearningListItemScreen(item: item, subjects: model.subjects, subjectsFailed: model.subjectsFailed) { model.replace($0) }
                     } label: {
                         LearningListRow(item: item)
                     }

@@ -23,6 +23,11 @@ struct CourseBuildCreateScreen: View {
                     }
                 }
 
+                if model.categoriesFailed {
+                    Text("Categories could not be loaded.").foregroundStyle(.orange)
+                    Button("Retry") { Task { await model.loadCategories() } }
+                }
+
                 TextField("Subject name", text: $model.name)
                 TextField("Description (optional)", text: $model.details)
             }

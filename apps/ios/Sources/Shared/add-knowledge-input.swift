@@ -2,6 +2,8 @@ import Foundation
 import PostAnkiAPI
 
 enum AddKnowledgeInput {
+    static let placeholder = "Paste or type what you want to remember"
+
     static func classify(_ raw: String) -> KnowledgeSourceContent? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 

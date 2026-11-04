@@ -72,7 +72,7 @@ struct MacQuickPracticeView: View {
             Section(current.prompt) {
                 TextField("Your answer", text: $model.userAnswer, axis: .vertical)
                     .focused($answerFocused)
-                    .onKeyPress(keys: [.return]) { press in
+                    .onEnterKeyPress { press in
                         if press.modifiers.contains(.shift) {
                             model.userAnswer += "\n"
                         } else if model.feedback == nil {

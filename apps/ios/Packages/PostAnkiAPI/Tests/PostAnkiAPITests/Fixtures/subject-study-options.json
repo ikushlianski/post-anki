@@ -1,0 +1,6 @@
+{
+  "own": {"newCardsPerDay": null, "learningStepsMinutes": null, "relearningStepsMinutes": null, "desiredRetention": null, "studyIntent": null, "examDate": null, "detailLevel": "deep", "hintingEnabled": false},
+  "intent": {"studyIntent": "exam", "examDate": "2027-01-15", "source": "sub_parent"},
+  "effective": {"newCardsPerDay": 20, "learningStepsMinutes": [1, 10], "relearningStepsMinutes": [10], "desiredRetention": 0.9},
+  "sources": {"newCardsPerDay": "app", "learningStepsMinutes": "app", "relearningStepsMinutes": "app", "desiredRetention": "sub_parent"}
+}

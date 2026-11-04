@@ -6,7 +6,8 @@ enum AdminSettingField: Hashable {
     case modelTier
     case knowledgeItemModel
     case newCardsPerDay
-    case testToggle
+    case maxReviewsPerDay
+    case fusion
 }
 
 @Observable
@@ -20,6 +21,7 @@ final class AdminSettingsModel {
     var errorMessage: String?
     var failedField: AdminSettingField?
     var savingField: AdminSettingField?
+    var refusalMessage: String?
 
     private let loader: Loader
     private let saver: Saver
@@ -35,7 +37,22 @@ final class AdminSettingsModel {
     var modelTier: String { settings?.modelTier ?? "balanced" }
     var knowledgeItemModelId: String { settings?.knowledgeItemModelId ?? AdminExtractionModel.defaultId }
     var newCardsPerDay: Int { settings?.newCardsPerDay ?? AdminSettingsLimits.defaultNewCardsPerDay }
-    var testToggle: Bool { settings?.testToggle ?? false }
+    var maxReviewsPerDay: Int { settings?.maxReviewsPerDay ?? AdminSettingsLimits.defaultMaxReviewsPerDay }
+
+    var fusionEnabled: Bool { settings?.fusionEnabled ?? false }
+    var fusionModelIds: [String] { settings?.fusionModelIds ?? [] }
+
+    func setFusionEnabled(_ value: Bool) async {
+        await save(.fusion, AdminSettingsUpdate(fusionEnabled: value))
+    }
+
+    func toggleFusionModel(_ id: String) async {
+        let ids = FusionSelection.toggled(fusionModelIds, id: id)
+
+        guard ids != fusionModelIds else { return }
+
+        await save(.fusion, AdminSettingsUpdate(fusionModelIds: ids))
+    }
 
     func load() async {
         guard !isLoading else { return }
@@ -67,14 +84,18 @@ final class AdminSettingsModel {
         await save(.newCardsPerDay, AdminSettingsUpdate(newCardsPerDay: clamped))
     }
 
-    func setTestToggle(_ value: Bool) async {
-        await save(.testToggle, AdminSettingsUpdate(testToggle: value))
+    func setMaxReviewsPerDay(_ value: Int) async {
+        let range = AdminSettingsLimits.maxReviewsPerDay
+        let clamped = min(range.upperBound, max(range.lowerBound, value))
+
+        await save(.maxReviewsPerDay, AdminSettingsUpdate(maxReviewsPerDay: clamped))
     }
 
     private func save(_ field: AdminSettingField, _ update: AdminSettingsUpdate) async {
         guard settings != nil else { return }
 
         failedField = nil
+        refusalMessage = nil
         savingField = field
         defer { savingField = nil }
 
@@ -82,6 +103,8 @@ final class AdminSettingsModel {
             settings = try await saver(update)
         } catch {
             if error is CancellationError { return }
+
+            refusalMessage = (error as? AdminSettingsRefusal)?.message
 
             failedField = field
         }

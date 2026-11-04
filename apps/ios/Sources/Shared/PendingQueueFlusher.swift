@@ -7,9 +7,11 @@ extension Notification.Name {
 enum PendingQueueFlusher {
     static func flushAll(
         grades: PendingGradeQueue = .shared,
+        decisions: PendingDecisionQueue = .shared,
         answers: PendingAnswerQueue = .shared
     ) async {
         await grades.flush()
+        await decisions.flush()
         await answers.flush()
 
         await MainActor.run {

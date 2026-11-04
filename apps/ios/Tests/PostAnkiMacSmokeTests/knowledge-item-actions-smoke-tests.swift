@@ -18,6 +18,8 @@ extension SmokeTests {
 
         private static let variants = #"{"variants":[{"id":"v_1","kind":"wh","prompt":"Other?","answer":"X"},{"id":"v_2","kind":"wh","prompt":"Q?","answer":"A"}]}"#
 
+        private static let contextVariants = #"{"variants":[{"id":"v_1","kind":"wh","prompt":"Other?","answer":"X"},{"id":"v_2","kind":"wh","context":"At standup","prompt":"Q?","answer":"A"}]}"#
+
         @Test("should edit the variant that matches the shown card and keep the new wording")
         func editSucceeds() async {
             let session = FakeServerSession([
@@ -27,12 +29,50 @@ extension SmokeTests {
             defer { session.end() }
             let model = KnowledgeItemActionsModel(item: Self.item)
 
-            let failure = await model.edit(prompt: "New Q?", answer: "New A")
+            let failure = await model.edit(context: "At standup", prompt: "New Q?", answer: "New A")
 
             #expect(failure == nil)
             #expect(model.question == "New Q?")
             #expect(model.answer == "New A")
+            #expect(FakeServer.writes.first?.bodyObject == ["context": "At standup", "prompt": "New Q?", "answer": "New A"] as NSDictionary)
+        }
+
+        @Test("should not send a context key when the edit does not touch the context so the server keeps it")
+        func editKeepsContext() async {
+            let session = FakeServerSession([
+                "/knowledge-bits/kb_1/variants": .json(200, Self.contextVariants),
+                "PATCH /knowledge-bits/question-variants/v_2": .json(200, #"{"ok":true,"variantId":"v_3"}"#)
+            ])
+            defer { session.end() }
+            let model = KnowledgeItemActionsModel(item: Self.item)
+
+            await model.loadContext()
+
+            #expect(model.context == "At standup")
+
+            let failure = await model.edit(context: nil, prompt: "New Q?", answer: "New A")
+
+            #expect(failure == nil)
+            #expect(model.context == "At standup")
             #expect(FakeServer.writes.first?.bodyObject == ["prompt": "New Q?", "answer": "New A"] as NSDictionary)
+        }
+
+        @Test("should send an empty context when the user clears it and then show no context")
+        func editClearsContext() async {
+            let session = FakeServerSession([
+                "/knowledge-bits/kb_1/variants": .json(200, Self.contextVariants),
+                "PATCH /knowledge-bits/question-variants/v_2": .json(200, #"{"ok":true,"variantId":"v_3"}"#)
+            ])
+            defer { session.end() }
+            let model = KnowledgeItemActionsModel(item: Self.item)
+
+            await model.loadContext()
+
+            let failure = await model.edit(context: "", prompt: "Q?", answer: "A")
+
+            #expect(failure == nil)
+            #expect(model.context == nil)
+            #expect(FakeServer.writes.first?.bodyObject == ["context": "", "prompt": "Q?", "answer": "A"] as NSDictionary)
         }
 
         @Test("should keep the old wording and return a message when the edit is rejected")
@@ -44,7 +84,7 @@ extension SmokeTests {
             defer { session.end() }
             let model = KnowledgeItemActionsModel(item: Self.item)
 
-            let failure = await model.edit(prompt: "New Q?", answer: "New A")
+            let failure = await model.edit(context: nil, prompt: "New Q?", answer: "New A")
 
             #expect(failure == "Couldn't save this item. Try again.")
             #expect(model.question == "Q?")

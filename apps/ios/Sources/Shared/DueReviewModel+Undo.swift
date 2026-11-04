@@ -53,9 +53,9 @@ extension DueReviewModel {
 
     func performServerUndo(_ last: GradedCard, reviewId: String, keepReviewIdOnFailure: Bool) async {
         do {
-            _ = try await APIClient.undoReview(reviewId: reviewId)
+            let result = try await APIClient.undoReview(reviewId: reviewId)
 
-            restore(last)
+            restore(last, legacyServer: result.unburiedVariantIds == nil)
         } catch is CancellationError {
             keepReviewId(last, reviewId: reviewId, keep: keepReviewIdOnFailure)
         } catch let error as URLError where error.code == .cancelled {
@@ -78,8 +78,11 @@ extension DueReviewModel {
         lastGraded = GradedCard(card: last.card, grade: last.grade, reviewId: reviewId, requestId: last.requestId)
     }
 
-    func restore(_ last: GradedCard) {
+    func restore(_ last: GradedCard, legacyServer: Bool = true) {
         lastGraded = nil
+        easyGradedVariantIds.remove(last.card.variantId)
+        settledVariantIds.remove(last.card.variantId)
+        settledBitIds.remove(last.card.knowledgeBitId)
         reviewedCount = max(0, reviewedCount - 1)
 
         if last.card.phase == "new" {
@@ -88,9 +91,16 @@ extension DueReviewModel {
             gradedOtherCount = max(0, gradedOtherCount - 1)
         }
 
-        queue.removeAll { $0.knowledgeBitId == last.card.knowledgeBitId }
+        let legacy = legacyServer || !last.card.isIndependentCard
 
-        if let shown = current, shown.knowledgeBitId != last.card.knowledgeBitId {
+        if legacy {
+            queue.removeAll { $0.knowledgeBitId == last.card.knowledgeBitId }
+        } else {
+            queue.removeAll { $0.variantId == last.card.variantId }
+        }
+
+        if let shown = current, shown.variantId != last.card.variantId,
+           !legacy || shown.knowledgeBitId != last.card.knowledgeBitId {
             queue.insert(shown, at: 0)
         }
 

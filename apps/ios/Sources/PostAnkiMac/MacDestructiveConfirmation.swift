@@ -4,13 +4,15 @@ struct MacDestructiveRequest: Identifiable {
     let id = UUID()
     let title: String
     let confirmLabel: String
+    let message: String?
     let action: @MainActor () -> Void
 
-    init(verb: String, count: Int, noun: String, action: @escaping @MainActor () -> Void) {
+    init(verb: String, count: Int, noun: String, message: String? = nil, action: @escaping @MainActor () -> Void) {
         let subject = count == 1 ? "this \(noun)" : "\(count) \(noun)s"
 
         title = "\(verb) \(subject)?"
         confirmLabel = verb
+        self.message = message
         self.action = action
     }
 }
@@ -28,6 +30,8 @@ extension View {
         ) { pending in
             Button(pending.confirmLabel, role: .destructive) { pending.action() }
             Button("Cancel", role: .cancel) {}
+        } message: { pending in
+            if let message = pending.message { Text(message) }
         }
     }
 }

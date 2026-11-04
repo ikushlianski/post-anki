@@ -64,3 +64,34 @@ struct ReviewDecodingTests {
         #expect(json.contains("\"grade\":\"good\""))
     }
 }
+
+@Suite("Daily review limit")
+struct DailyReviewLimitDecodingTests {
+    @Test("should decode the daily limit fields when the server reports the limit reached")
+    func decodesLimitFields() throws {
+        let json = #"{"cards":[],"counts":{"new":0,"learning":0,"review":5},"newRemainingToday":0,"nextDueAt":null,"limitReached":true,"reviewedToday":200,"limit":200}"#
+        let response = try JSONDecoder().decode(ReviewCardsResponse.self, from: Data(json.utf8))
+
+        #expect(response.limitReached == true)
+        #expect(response.reviewedToday == 200)
+        #expect(response.limit == 200)
+    }
+
+    @Test("should leave the daily limit fields empty for an older server")
+    func oldServerOmitsLimitFields() throws {
+        let response = try Fixture.decode(ReviewCardsResponse.self, "review-cards")
+
+        #expect(response.limitReached == nil)
+        #expect(response.reviewedToday == nil)
+        #expect(response.limit == nil)
+    }
+
+    @Test("should decode reviews per day from admin settings and tolerate its absence")
+    func decodesSetting() throws {
+        let with = #"{"testToggle":true,"modelTier":"cheap","maxReviewsPerDay":0}"#
+        let without = #"{"testToggle":true,"modelTier":"cheap"}"#
+
+        #expect(try JSONDecoder().decode(AdminSettings.self, from: Data(with.utf8)).maxReviewsPerDay == 0)
+        #expect(try JSONDecoder().decode(AdminSettings.self, from: Data(without.utf8)).maxReviewsPerDay == nil)
+    }
+}

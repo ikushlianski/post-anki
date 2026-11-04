@@ -181,11 +181,12 @@ extension SmokeTests {
                 "/knowledge-bits/reviews": .failure(.notConnectedToInternet)
             ])
 
-            let model = DueReviewModel(gradeQueue: grades)
+            let model = DueReviewModel(gradeQueue: grades, retryDelay: nil)
 
             await model.load()
             model.reveal()
             await model.grade(.good)
+            await model.sendTask?.value
             await answers.enqueue(variantId: "v1", userAnswer: "a")
             offline.end()
 

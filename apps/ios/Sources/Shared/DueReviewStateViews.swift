@@ -3,8 +3,11 @@ import SwiftUI
 
 struct DueReviewEmptyView: View {
     let model: DueReviewModel
+    @Environment(\.dismiss) private var dismiss
 
     private var message: String {
+        if model.dailyLimit != nil { return "Done for today." }
+
         if let iso = model.nextDueAt {
             if let relative = DueReviewModel.nextDueText(iso) {
                 return "Done for today. Next card due \(relative)."
@@ -30,6 +33,10 @@ struct DueReviewEmptyView: View {
                     .multilineTextAlignment(.center)
             }
 
+            if let limit = model.dailyLimit {
+                dailyLimitControls(limit)
+            }
+
             if let notice = model.notice {
                 Text(notice)
                     .zoomFont(.footnote)
@@ -48,21 +55,29 @@ struct DueReviewEmptyView: View {
                     .foregroundStyle(.secondary)
             }
 
-            DueReviewPendingCaption(count: model.pendingCount)
         }
         .zoomPadding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-}
 
-struct DueReviewPendingCaption: View {
-    let count: Int
-
-    var body: some View {
-        if count > 0 {
-            Text(count == 1 ? "1 grade waiting to send" : "\(count) grades waiting to send")
+    private func dailyLimitControls(_ limit: DailyReviewLimit) -> some View {
+        ZoomVStack(spacing: 8) {
+            Text(limit.message)
                 .zoomFont(.footnote)
                 .foregroundStyle(.secondary)
+
+            Text("Review ahead")
+                .zoomFont(.footnote)
+
+            HStack {
+                ForEach(DailyReviewLimit.aheadChoices, id: \.self) { days in
+                    Button(DailyReviewLimit.aheadTitle(days)) { Task { await model.reviewAhead(days: days) } }
+                        .buttonStyle(.bordered)
+                }
+            }
+
+            Button("Back to subjects") { dismiss() }
+                .buttonStyle(.borderedProminent)
         }
     }
 }

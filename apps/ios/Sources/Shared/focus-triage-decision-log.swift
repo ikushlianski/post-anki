@@ -4,16 +4,19 @@ struct FocusTriageDecisionEntry {
     let bitId: String
     let verdict: TriageVerdict
     let removed: PendingReviewRemovedBit?
-    let front: String?
+    let context: String?
+    let prompt: String?
     var note: String?
     var reasonCode: String?
     var dwellMs: Int?
+    var dropped: [String] = []
 
     init(
         bitId: String,
         verdict: TriageVerdict,
         removed: PendingReviewRemovedBit?,
-        front: String? = nil,
+        context: String? = nil,
+        prompt: String? = nil,
         note: String? = nil,
         reasonCode: String? = nil,
         dwellMs: Int? = nil
@@ -21,19 +24,34 @@ struct FocusTriageDecisionEntry {
         self.bitId = bitId
         self.verdict = verdict
         self.removed = removed
-        self.front = front
+        self.context = context
+        self.prompt = prompt
         self.note = note
         self.reasonCode = reasonCode
         self.dwellMs = dwellMs
     }
 
+    var front: String? {
+        guard let prompt else { return nil }
+        guard let context, !context.isEmpty else { return prompt }
+
+        return "\(context)\n\(prompt)"
+    }
+
+    static func parts(of bit: PendingReviewBit) -> (context: String?, prompt: String) {
+        let variant = PendingReviewTriageSelection.bestVariant(in: bit.variants)
+        let prompt = variant?.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let context = variant?.context?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let prompt, !prompt.isEmpty else { return (nil, bit.body) }
+
+        return (context?.isEmpty == false ? context : nil, prompt)
+    }
+
     static func frontText(of bit: PendingReviewBit) -> String {
-        let prompt = PendingReviewTriageSelection.bestVariant(in: bit.variants)?.prompt
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = parts(of: bit)
 
-        if let prompt, !prompt.isEmpty { return prompt }
-
-        return bit.body
+        return FocusTriageDecisionEntry(bitId: bit.id, verdict: .approved, removed: nil, context: parts.context, prompt: parts.prompt).front ?? parts.prompt
     }
 
     var decision: TriageDecision {
@@ -52,6 +70,12 @@ struct FocusTriageDecisionLog {
     mutating func record(_ entry: FocusTriageDecisionEntry) {
         entries.removeAll { $0.bitId == entry.bitId }
         entries.append(entry)
+    }
+
+    mutating func setDropped(bitId: String, ids: [String]) {
+        guard let index = entries.firstIndex(where: { $0.bitId == bitId }) else { return }
+
+        entries[index].dropped = ids
     }
 
     mutating func remove(bitId: String) {

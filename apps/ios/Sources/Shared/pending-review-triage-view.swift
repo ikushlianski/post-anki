@@ -4,6 +4,8 @@ import SwiftUI
 struct PendingReviewTriageView: View {
     @Bindable var model: PendingReviewTriageModel
     @Binding var editingBit: PendingReviewBit?
+    var onIngestFromNotion: (() -> Void)?
+    var onBackToSubjects: (() -> Void)?
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -30,17 +32,24 @@ struct PendingReviewTriageView: View {
             ScrollView {
                 ZoomVStack(alignment: .leading, spacing: 12) {
                     Text(bit.body)
-                        .zoomFont(.title2.weight(.semibold))
+                        .zoomFont(.title.weight(.semibold))
 
-                    if let background = bit.background, !background.isEmpty {
-                        Text(background)
-                            .zoomFont(.callout)
-                            .foregroundStyle(.secondary)
-                    }
+                    ModelBadges(modelIds: bit.modelIds)
 
                     cards(for: bit)
+
+                    if let background = bit.background?.trimmingCharacters(in: .whitespacesAndNewlines), !background.isEmpty {
+                        TriageExampleBlock(text: background, isAI: bit.exampleAiGeneratedAt != nil)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+                .zoomPadding(20)
+                .background(FocusTriageCardStyle.fill, in: RoundedRectangle(cornerRadius: FocusTriageCardStyle.cornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: FocusTriageCardStyle.cornerRadius, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                }
             }
 
             bottomBar(for: bit)
@@ -62,6 +71,13 @@ struct PendingReviewTriageView: View {
         let text = (source?.sourceText ?? "").split(whereSeparator: \.isWhitespace).joined(separator: " ")
 
         return ZoomVStack(alignment: .leading, spacing: 2) {
+            if let onBackToSubjects {
+                Button(action: onBackToSubjects) {
+                    Label("Subjects", systemImage: "chevron.left")
+                }
+                .buttonStyle(.borderless)
+            }
+
             Text(source?.subjectName ?? "No subject")
                 .zoomFont(.caption.weight(.semibold))
 
@@ -72,12 +88,22 @@ struct PendingReviewTriageView: View {
             }
         }
         .foregroundStyle(.secondary)
+        .textSelection(.enabled)
     }
 
     @ViewBuilder
     private func cards(for bit: PendingReviewBit) -> some View {
         let selection = model.selection
 
+        if selection.pickOne {
+            PendingReviewTriageOptions(selection: selection, phrase: bit.body, onSelect: { run(.toggle($0)) })
+        } else {
+            variantCards(for: bit, selection: selection)
+        }
+    }
+
+    @ViewBuilder
+    private func variantCards(for bit: PendingReviewBit, selection: PendingReviewTriageSelection) -> some View {
         if bit.variants.isEmpty {
             Text("No questions yet. Edit the piece to add some, or drop it.")
                 .zoomFont(.callout)
@@ -107,6 +133,7 @@ struct PendingReviewTriageView: View {
                 Text(text)
                     .zoomFont(.callout)
                     .foregroundStyle(model.message == nil ? Color.orange : .red)
+                    .textSelection(.enabled)
             }
 
             ZoomHStack(spacing: 12) {
@@ -134,7 +161,9 @@ struct PendingReviewTriageView: View {
             .disabled(model.isBusy)
 
             #if os(macOS)
-            Text("1-9 toggle, Return keeps, X drops, Z undoes the last keep or drop, S skips, E edits, arrows move")
+            Text(model.selection.pickOne
+                ? "Up/Down choose, Return approves, X rejects, Z undoes, S skips, E edits"
+                : "1-9 toggle, Return approves, X rejects, Z undoes the last keep or drop, S skips, E edits")
                 .zoomFont(.caption)
                 .foregroundStyle(.secondary)
             #endif
@@ -142,20 +171,43 @@ struct PendingReviewTriageView: View {
     }
 
     private var emptyState: some View {
-        Text("Nothing left to triage")
-            .zoomFont(.title3)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ZoomVStack(spacing: 12) {
+            Text("Nothing left to triage")
+                .zoomFont(.title3)
+                .foregroundStyle(.secondary)
+
+            if let onBackToSubjects {
+                Button("Back to subjects", action: onBackToSubjects)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+            }
+
+            if let onIngestFromNotion {
+                Button(TriageNotionText.entry, action: onIngestFromNotion)
+                    .controlSize(.large)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func handle(_ press: KeyPress) -> KeyPress.Result {
         guard let input = Self.input(from: press),
-              let action = PendingReviewTriageKeyMap.action(for: input, command: press.modifiers.contains(.command))
+              let action = PendingReviewTriageKeyMap.action(for: input, command: press.modifiers.contains(.command), returnAndXOnly: Self.returnAndXOnly)
         else { return .ignored }
+
+        if case .moveOption = action, !model.selection.pickOne { return .ignored }
 
         run(action)
 
         return .handled
+    }
+
+    private static var returnAndXOnly: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
     }
 
     private func run(_ action: PendingReviewTriageAction) {
@@ -175,7 +227,12 @@ struct PendingReviewTriageView: View {
         case .delete, .deleteForward: return .delete
         case .leftArrow: return .left
         case .rightArrow: return .right
-        default: return press.characters.first.map { .character($0) }
+        case .upArrow: return .up
+        case .downArrow: return .down
+        default:
+            if press.characters == "\u{3}" { return .returnKey }
+
+            return press.characters.first.map { .character($0) }
         }
     }
 }

@@ -24,6 +24,13 @@ extension SmokeTests {
             #expect(SignInGate.message(for: URLError(.notConnectedToInternet)) == "Couldn't connect to the server. Try again.")
         }
 
+        @Test("should label the device token by device so it can be recognised and revoked later")
+        func labelsDevices() {
+            #expect(SignInGate.deviceLabel(isMac: true, deviceName: "Ilya's MacBook") == "Mac")
+            #expect(SignInGate.deviceLabel(isMac: false, deviceName: "Ilya's iPhone") == "iPhone Ilya's iPhone")
+            #expect(SignInGate.deviceLabel(isMac: false, deviceName: "  ") == "iPhone")
+        }
+
         @Test("should not allow submitting until email and password are filled")
         func submitNeedsBothFields() {
             let model = SignInGateModel()

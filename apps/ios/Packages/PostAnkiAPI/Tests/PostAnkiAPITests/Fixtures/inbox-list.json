@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "id": "kb_in1",
+      "body": "A mutex guards a critical section.",
+      "background": "Two threads incrementing one counter.",
+      "exampleAiGeneratedAt": "2026-10-28T09:00:00.000Z",
+      "origin": "extracted",
+      "subjectName": "Concurrency",
+      "cardCount": 2,
+      "inboxAt": "2026-10-28T09:05:00.000Z",
+      "note": { "variantId": "kbqv_1", "mode": "cloze", "text": "A {{c1::mutex}} guards a critical section." }
+    },
+    {
+      "id": "kb in/2",
+      "body": "Ask me later.",
+      "background": null,
+      "exampleAiGeneratedAt": null,
+      "origin": "manual",
+      "subjectName": null,
+      "cardCount": 0,
+      "inboxAt": "2026-10-27T18:00:00.000Z"
+    }
+  ],
+  "count": 2
+}

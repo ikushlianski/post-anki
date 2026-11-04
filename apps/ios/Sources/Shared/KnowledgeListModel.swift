@@ -10,6 +10,15 @@ enum KnowledgeStatusFilter: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var states: [String] {
+        switch self {
+        case .all, .suspended: return []
+        case .new: return ["new"]
+        case .learning: return ["learning", "relearning"]
+        case .review: return ["review"]
+        }
+    }
+
     func matches(_ state: String) -> Bool {
         switch self {
         case .all, .suspended: return true
@@ -30,7 +39,9 @@ final class KnowledgeListModel {
     var subjectId: String?
     var query = ""
     var statusFilter: KnowledgeStatusFilter = .all
+    var originFilter: KnowledgeOriginFilter = .all
     var subjects: [Subject] = []
+    var subjectsFailed = false
     var selection: Set<String> = []
     var isLoading = false
     var isLoadingMore = false
@@ -44,12 +55,17 @@ final class KnowledgeListModel {
     @ObservationIgnored private var requestToken = 0
     @ObservationIgnored private var loadTask: Task<Void, Never>?
 
-    var visibleItems: [KnowledgeOverviewItem] {
-        items.filter { statusFilter.matches($0.state) }
+    var hasActiveFilter: Bool {
+        subjectId != nil || statusFilter != .all || originFilter != .all || !query.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    var hasActiveFilter: Bool {
-        subjectId != nil || statusFilter != .all || !query.trimmingCharacters(in: .whitespaces).isEmpty
+    func clearFilters() async {
+        query = ""
+        subjectId = nil
+        statusFilter = .all
+        originFilter = .all
+
+        await reload()
     }
 
     var selectionTooLarge: Bool { selection.count > Self.selectionLimit }
@@ -57,7 +73,7 @@ final class KnowledgeListModel {
     func subjectName(for id: String?) -> String? {
         guard let id else { return nil }
 
-        return subjects.first { $0.id == id }?.name
+        return SubjectTreePath.options(from: subjects).first { $0.id == id }?.label
     }
 
     func start() async {
@@ -67,9 +83,16 @@ final class KnowledgeListModel {
         await loaded
     }
 
+    var subjectsNotice: String? {
+        SubjectListNotice.moveSheetMessage(failed: subjectsFailed, subjectCount: subjects.count)
+    }
+
     func loadSubjects() async {
-        if let fetched = try? await APIClient.listSubjects() {
-            subjects = fetched
+        do {
+            subjects = try await APIClient.listSubjects()
+            subjectsFailed = false
+        } catch {
+            if !KnowledgeManageError.isCancellation(error) { subjectsFailed = true }
         }
     }
 
@@ -105,7 +128,13 @@ final class KnowledgeListModel {
         defer { if token == requestToken { isLoadingMore = false } }
 
         do {
-            let page = try await APIClient.knowledgeOverview(subjectId: subjectId, q: trimmedQuery, offset: pageOffset)
+            let page = try await APIClient.knowledgeOverview(
+                subjectId: subjectId,
+                q: trimmedQuery,
+                offset: pageOffset,
+                states: statusFilter.states,
+                origins: originFilter.origins
+            )
 
             guard token == requestToken else { return }
 
@@ -118,12 +147,18 @@ final class KnowledgeListModel {
         } catch {
             guard token == requestToken, !KnowledgeManageError.isCancellation(error) else { return }
 
-            failure = KnowledgeManageError.message(for: error, action: "load more items")
+            failure = ConnectionFailureMessage.message(for: error, fallback: KnowledgeManageError.message(for: error, action: "load more items"))
         }
     }
 
     func update(_ itemId: String, state: String) {
         guard let index = items.firstIndex(where: { $0.id == itemId }) else { return }
+
+        guard statusFilter.matches(state) else {
+            remove(itemId)
+
+            return
+        }
 
         items[index].state = state
     }
@@ -155,7 +190,13 @@ final class KnowledgeListModel {
         defer { if token == requestToken { isLoading = false } }
 
         do {
-            let page = try await APIClient.knowledgeOverview(subjectId: subjectId, q: trimmedQuery, offset: 0)
+            let page = try await APIClient.knowledgeOverview(
+                subjectId: subjectId,
+                q: trimmedQuery,
+                offset: 0,
+                states: statusFilter.states,
+                origins: originFilter.origins
+            )
 
             guard token == requestToken else { return }
 
@@ -167,7 +208,7 @@ final class KnowledgeListModel {
         } catch {
             guard token == requestToken, !KnowledgeManageError.isCancellation(error) else { return }
 
-            failure = KnowledgeManageError.message(for: error, action: "load items")
+            failure = ConnectionFailureMessage.message(for: error, fallback: KnowledgeManageError.message(for: error, action: "load items"))
             failureKind = ProgressLoadError.from(error) ?? .other
         }
     }

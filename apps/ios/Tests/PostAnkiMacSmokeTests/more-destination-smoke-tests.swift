@@ -8,10 +8,20 @@ extension SmokeTests {
             let titles = MoreDestination.allCases.map(\.title)
 
             #expect(titles == [
-                "Today", "Progress", "Learning list", "Study sessions", "Notes",
-                "Search", "Tags", "Duplicates", "Settings"
+                "Knowledge", "Subjects", "Notes", "Search", "Tags", "Duplicates", "Notion sources",
+                "Today", "Progress", "Statistics", "Learning list", "Study sessions", "Triage history", "Study plan",
+                "Settings", "Account", "About"
             ])
+            #expect(!titles.contains("More"))
             #expect(!titles.contains { $0.localizedCaseInsensitiveContains("course") })
+        }
+
+        @Test("should group every destination into exactly one section")
+        func groupsEveryDestinationOnce() {
+            let grouped = MoreSection.allCases.flatMap(\.destinations)
+
+            #expect(grouped == MoreDestination.allCases)
+            #expect(MoreSection.allCases.map(\.title) == ["Library", "Study", "Account"])
         }
 
         @Test("should give every destination an icon")

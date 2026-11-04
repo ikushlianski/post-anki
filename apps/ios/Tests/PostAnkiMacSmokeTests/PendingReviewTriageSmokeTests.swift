@@ -24,7 +24,7 @@ extension SmokeTests {
 
             await list.load()
 
-            return (PendingReviewTriageModel(list: list), session)
+            return (PendingReviewTriageModel(list: list, decisionQueue: .isolated()), session)
         }
 
         @Test("should preselect the basic card over fill-in and question when a piece has all three")
@@ -98,10 +98,42 @@ extension SmokeTests {
             #expect(Map.action(for: .character("z"), command: true) == .undo)
             #expect(Map.action(for: .character("S")) == .skip)
             #expect(Map.action(for: .character("e")) == .edit)
-            #expect(Map.action(for: .left) == .previous)
-            #expect(Map.action(for: .right) == .next)
+            #expect(Map.action(for: .left) == .moveOption(-1))
+            #expect(Map.action(for: .right) == .moveOption(1))
+            #expect(Map.action(for: .left, command: true) == nil)
             #expect(Map.action(for: .character("1"), command: true) == nil)
             #expect(Map.action(for: .character("q")) == nil)
+        }
+
+        @Test("should ignore arrows, Space and Delete on Mac triage so only Return approves and X rejects")
+        func macTriageIgnoresArrows() {
+            typealias Map = PendingReviewTriageKeyMap
+
+            #expect(Map.action(for: .left, returnAndXOnly: true) == nil)
+            #expect(Map.action(for: .right, returnAndXOnly: true) == nil)
+            #expect(Map.action(for: .space, returnAndXOnly: true) == nil)
+            #expect(Map.action(for: .returnKey, returnAndXOnly: true) == .keep)
+            #expect(Map.action(for: .character("x"), returnAndXOnly: true) == .drop)
+        }
+
+        @Test("should let a hardware keyboard pick a sentence, approve with Return, reject with X, undo with Z, and ignore other keys on iOS triage")
+        func routesHardwareKeysToFocusTriage() {
+            typealias Routing = FocusTriageKeyRouting
+
+            #expect(Routing.intent(forKeyboardInput: "1") == .choose(0))
+            #expect(Routing.intent(forKeyboardInput: "3") == .choose(2))
+            #expect(Routing.intent(forKeyboardInput: "\r") == .approve)
+            #expect(Routing.intent(forKeyboardInput: "x") == .reject)
+            #expect(Routing.intent(forKeyboardInput: "X") == .reject)
+            #expect(Routing.intent(forKeyboardInput: "z") == .undo)
+            #expect(Routing.intent(forKeyboardInput: "e") == .edit)
+            #expect(Routing.intent(forKeyboardInput: Routing.leftArrowInput) == .move(-1))
+            #expect(Routing.intent(forKeyboardInput: Routing.rightArrowInput) == .move(1))
+            #expect(Routing.intent(forKeyboardInput: "s") == nil)
+            #expect(Routing.intent(forKeyboardInput: "0") == nil)
+            #expect(Routing.intent(forKeyboardInput: "q") == nil)
+            #expect(Routing.intent(forKeyboardInput: "") == nil)
+            #expect(Routing.commandInputs.allSatisfy { Routing.intent(forKeyboardInput: $0) != nil })
         }
 
         @Test("should post the kept variants, advance to the next piece and remember the dropped ones for undo")
@@ -114,6 +146,7 @@ extension SmokeTests {
 
             await model.perform(.toggle(2))
             await model.perform(.keep)
+            await model.settlePending()
 
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/triage"])
             #expect(String(data: FakeServer.writes[0].body ?? Data(), encoding: .utf8)?.contains("var_11") == true)
@@ -132,6 +165,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.perform(.keep)
+            await model.settlePending()
 
             #expect(model.remaining == 1)
 
@@ -154,6 +188,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.perform(.keep)
+            await model.settlePending()
             await model.perform(.undo)
 
             #expect(model.remaining == 1)
@@ -170,6 +205,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.perform(.keep)
+            await model.settlePending()
             await model.perform(.undo)
 
             #expect(model.list.keptUndo != nil)
@@ -186,22 +222,76 @@ extension SmokeTests {
 
             await model.perform(.keep)
             await model.perform(.drop)
+            await model.settlePending()
 
             #expect(model.list.keptUndo == nil)
             #expect(model.list.pendingUndo?.removed.bit.id == "kb_11")
             model.list.dismissUndo()
         }
 
-        @Test("should stay on the piece with a message when the keep fails")
+        @Test("should come back to the piece with Retry and Skip when the server refuses the keep")
         func keepFailureStays() async throws {
             let (model, session) = await queue(extra: ["POST /knowledge-bits/kb_10/triage": .json(409, #"{"error":"variant_not_active"}"#)])
             defer { session.end() }
 
             await model.perform(.keep)
 
+            #expect(model.current?.id == "kb_11")
+
+            await model.settlePending()
+
             #expect(model.current?.id == "kb_10")
             #expect(model.remaining == 2)
-            #expect(model.message != nil)
+            #expect(model.saveFailure?.message.contains("changed") == true)
+
+            await model.skipFailedSave()
+
+            #expect(model.saveFailure == nil)
+            #expect(model.current?.id == "kb_10")
+            #expect(model.remaining == 2)
+        }
+
+        @Test("should show the next piece at once while the keep is still being saved")
+        func keepDoesNotWait() async throws {
+            let (model, session) = await queue(extra: ["POST /knowledge-bits/kb_10/triage": .held(200, #"{"ok":true,"droppedVariantIds":[]}"#)])
+            defer { session.end() }
+
+            await model.perform(.keep)
+
+            #expect(model.current?.id == "kb_11")
+            #expect(model.remaining == 1)
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            FakeServer.releaseHeld()
+            await model.settlePending()
+
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/triage"])
+        }
+
+        @Test("should take a drop back without calling the server when it is undone before it is sent")
+        func undoBeforeSend() async throws {
+            let (model, session) = await queue(extra: [
+                "POST /knowledge-bits/kb_10/reject": .held(200, #"{"ok":true,"feedbackId":"fb_01"}"#),
+                "POST /knowledge-bits/kb_11/reject": .json(200, #"{"ok":true,"feedbackId":"fb_02"}"#)
+            ])
+            defer { session.end() }
+
+            await model.perform(.drop)
+            await model.perform(.drop)
+
+            for _ in 0..<300 where FakeServer.heldCount < 1 { try await Task.sleep(for: .milliseconds(10)) }
+
+            await model.perform(.undo)
+
+            #expect(model.current?.id == "kb_11")
+            #expect(model.remaining == 1)
+
+            FakeServer.releaseHeld()
+            await model.settlePending()
+
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/kb_10/reject"])
+            model.list.dismissUndo()
         }
 
         @Test("should drop through the reject path, advance, and bring the piece back on undo")
@@ -213,6 +303,7 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.perform(.drop)
+            await model.settlePending()
 
             #expect(model.current?.id == "kb_11")
             #expect(model.list.pendingUndo?.removed.bit.id == "kb_10")

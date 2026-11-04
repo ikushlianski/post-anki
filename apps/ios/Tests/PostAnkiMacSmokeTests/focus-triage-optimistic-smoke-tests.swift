@@ -21,7 +21,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let model = FocusTriageModel(list: PendingReviewListModel())
+            let model = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await model.load()
 
@@ -53,7 +53,7 @@ extension SmokeTests {
             #expect(model.current?.id == "b")
         }
 
-        @Test("should send both decisions to the server when two cards are swiped before the first one answers")
+        @Test("should send both decisions to the server in order when two cards are swiped before the first one answers")
         func twoQuickDecisions() async throws {
             let (model, session) = await make(extra: [
                 "POST /knowledge-bits/a/approve": .held(200, "{}"),
@@ -66,20 +66,22 @@ extension SmokeTests {
 
             #expect(model.current?.id == "c")
 
-            try await waitForHeld(2)
+            try await waitForHeld(1)
 
-            #expect(FakeServer.heldCount == 2)
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve"])
 
+            FakeServer.releaseHeld()
+            try await waitForHeld(1)
             FakeServer.releaseHeld()
             await model.settlePending()
 
-            #expect(Set(FakeServer.writes.map(\.path)) == ["/knowledge-bits/a/approve", "/knowledge-bits/b/reject"])
+            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve", "/knowledge-bits/b/reject"])
             #expect(model.log.entries.map(\.bitId) == ["a", "b"])
         }
 
-        @Test("should bring a card back with its note and say so when the server could not save the decision")
+        @Test("should bring a card back with its note and offer Retry or Skip when the server could not save the decision")
         func failedDecisionRestoresCard() async throws {
-            let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .held(500, "{}")])
+            let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .json(500, "{}")])
             defer { session.end() }
 
             model.notes["a"] = "keep this"
@@ -88,13 +90,11 @@ extension SmokeTests {
             #expect(model.current?.id == "b")
             #expect(model.notes["a"] == nil)
 
-            try await waitForHeld(1)
-            FakeServer.releaseHeld()
             await model.settlePending()
 
             #expect(model.current?.id == "a")
             #expect(model.notes["a"] == "keep this")
-            #expect(model.notice == "Couldn't save that decision. The card is back in the queue.")
+            #expect(model.saveFailure?.bitId == "a")
             #expect(model.readyCount == 3)
             #expect(!model.canUndo)
         }
@@ -126,7 +126,7 @@ extension SmokeTests {
 
         @Test("should do nothing more on Undo when the pending save failed and already put the card back")
         func undoAfterFailedSaveDoesNothing() async throws {
-            let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .held(500, "{}")])
+            let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .held(400, "{}")])
             defer { session.end() }
 
             await model.approve()
@@ -164,7 +164,7 @@ extension SmokeTests {
             await triage.approve()
             try await waitForHeld(1)
 
-            let finishing = Task { await model.finish(feedback: "ok") }
+            let finishing = Task { await model.finish() }
 
             try await Task.sleep(for: .milliseconds(100))
 

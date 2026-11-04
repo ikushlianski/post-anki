@@ -13,6 +13,7 @@ final class PendingReviewCountStore {
 
     private(set) var count = 0
     private(set) var attentionCount = 0
+    private(set) var inboxCount = 0
 
     var badgeCount: Int { count + attentionCount }
 
@@ -51,10 +52,21 @@ final class PendingReviewCountStore {
             if before == mutations {
                 count = max(0, value.count)
                 attentionCount = max(0, value.attentionCount)
+                inboxCount = max(0, value.inboxCount)
 
                 return
             }
         }
+    }
+
+    func setInbox(_ value: Int) {
+        mutations += 1
+        inboxCount = max(0, value)
+    }
+
+    func adjustInbox(by delta: Int) {
+        mutations += 1
+        inboxCount = max(0, inboxCount + delta)
     }
 
     func adjust(by delta: Int) {

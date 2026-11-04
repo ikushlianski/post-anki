@@ -1,0 +1,51 @@
+{
+  "cards": [
+    {
+      "variantId": "var_c1",
+      "knowledgeBitId": "kb_c",
+      "kind": "cloze",
+      "prompt": "____ (hint: protocol) runs over port 443 and encrypts web traffic.",
+      "answer": "HTTPS",
+      "background": null,
+      "phase": "new",
+      "leech": false,
+      "intervalPreview": { "again": 60, "hard": 360, "good": 600, "easy": 345600 }
+    },
+    {
+      "variantId": "var_l1",
+      "knowledgeBitId": "kb_l",
+      "kind": "list_step",
+      "prompt": "In TCP handshake, what is step 2?",
+      "answer": "SYN-ACK",
+      "background": null,
+      "phase": "new",
+      "leech": false,
+      "intervalPreview": { "again": 60, "hard": 360, "good": 600, "easy": 345600 }
+    },
+    {
+      "variantId": "var_l2",
+      "knowledgeBitId": "kb_l",
+      "kind": "list_next",
+      "prompt": "TCP handshake: after \"SYN\" the next step is ____",
+      "answer": "SYN-ACK",
+      "background": null,
+      "phase": "new",
+      "leech": false,
+      "intervalPreview": { "again": 60, "hard": 360, "good": 600, "easy": 345600 }
+    },
+    {
+      "variantId": "var_l3",
+      "knowledgeBitId": "kb_l",
+      "kind": "list_overview",
+      "prompt": "How many steps are in TCP handshake? Name them in order.",
+      "answer": "3 steps\n1. SYN\n2. SYN-ACK\n3. ACK",
+      "background": null,
+      "phase": "new",
+      "leech": false,
+      "intervalPreview": { "again": 60, "hard": 360, "good": 600, "easy": 345600 }
+    }
+  ],
+  "counts": { "new": 4, "learning": 0, "review": 0 },
+  "newRemainingToday": 10,
+  "nextDueAt": null
+}

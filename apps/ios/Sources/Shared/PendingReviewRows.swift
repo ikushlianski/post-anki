@@ -123,8 +123,10 @@ struct PendingReviewVariantBlock: View {
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 6) {
+            CardContextLine(text: variant.face.context)
+
             QuestionAnswerRow(kind: .question) {
-                Text(variant.prompt)
+                Text(variant.face.front)
                     .zoomFont(.subheadline)
             }
             QuestionAnswerRow(kind: .answer) {

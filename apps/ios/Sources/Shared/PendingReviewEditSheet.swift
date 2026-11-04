@@ -14,8 +14,25 @@ struct PendingReviewEditSheet: View {
     @State private var confirmingDiscard = false
 
     struct VariantText: Equatable {
+        var context: String
         var prompt: String
         var answer: String
+
+        init(variant: PendingReviewVariant) {
+            context = variant.context?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            prompt = variant.displayPrompt
+            answer = variant.answer
+        }
+
+        var trimmed: VariantText {
+            var copy = self
+
+            copy.context = context.trimmingCharacters(in: .whitespacesAndNewlines)
+            copy.prompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            copy.answer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            return copy
+        }
     }
 
     init(
@@ -30,7 +47,7 @@ struct PendingReviewEditSheet: View {
         _background = State(initialValue: bit.background ?? "")
         _variantTexts = State(
             initialValue: Dictionary(
-                bit.variants.map { ($0.id, VariantText(prompt: $0.prompt, answer: $0.answer)) },
+                bit.variants.map { ($0.id, VariantText(variant: $0)) },
                 uniquingKeysWith: { first, _ in first }
             )
         )
@@ -45,12 +62,13 @@ struct PendingReviewEditSheet: View {
         bit.variants.compactMap { variant in
             guard let text = variantTexts[variant.id] else { return nil }
 
+            let context = text.context.trimmingCharacters(in: .whitespacesAndNewlines)
             let prompt = text.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
             let answer = text.answer.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            guard prompt != variant.prompt || answer != variant.answer, !prompt.isEmpty, !answer.isEmpty else { return nil }
+            guard text.trimmed != VariantText(variant: variant), !prompt.isEmpty, !answer.isEmpty else { return nil }
 
-            return PendingReviewVariantEdit(id: variant.id, prompt: prompt, answer: answer)
+            return PendingReviewVariantEdit(id: variant.id, context: context == VariantText(variant: variant).context ? nil : context, prompt: prompt, answer: answer)
         }
     }
 
@@ -58,7 +76,7 @@ struct PendingReviewEditSheet: View {
         bodyChanged || backgroundChanged || bit.variants.contains { variant in
             guard let text = variantTexts[variant.id] else { return false }
 
-            return text.prompt != variant.prompt || text.answer != variant.answer
+            return text != VariantText(variant: variant)
         }
     }
 
@@ -85,6 +103,7 @@ struct PendingReviewEditSheet: View {
 
                 ForEach(bit.variants) { variant in
                     Section {
+                        CardTextArea(label: "Context", text: binding(for: variant, \.context), minHeight: 44)
                         CardTextArea(label: "Question", text: binding(for: variant, \.prompt))
                         CardTextArea(label: "Answer", text: binding(for: variant, \.answer))
                     }

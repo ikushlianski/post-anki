@@ -63,7 +63,7 @@ struct CourseEditScreen: View {
         }
         .sheet(item: $target) { sheet(for: $0).macSheetMinSize(width: 420, height: 220) }
         .confirmationDialog(
-            "Delete \(deletingModule?.title ?? "") and its \(deletingModule?.topics.count ?? 0) topics?",
+            "Delete \(deletingModule?.title ?? "") and its \(CountLabel.text(deletingModule?.topics.count ?? 0, "topic"))?",
             isPresented: Binding(get: { deletingModule != nil }, set: { if !$0 { deletingModule = nil } }),
             titleVisibility: .visible
         ) {

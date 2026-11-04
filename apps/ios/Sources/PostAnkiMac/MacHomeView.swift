@@ -11,7 +11,7 @@ struct MacHomeView: View {
 
     var body: some View {
         content
-            .navigationTitle("Home")
+            .navigationTitle("Today")
             .toolbar {
                 ToolbarItem {
                     Button {
@@ -136,7 +136,7 @@ struct MacHomeView: View {
                             .zoomFont(.headline)
 
                         if model.detail != nil {
-                            Text("\(model.topics.count) topics")
+                            Text(CountLabel.text(model.topics.count, "topic"))
                                 .zoomFont(.subheadline)
                                 .foregroundStyle(.secondary)
                         }

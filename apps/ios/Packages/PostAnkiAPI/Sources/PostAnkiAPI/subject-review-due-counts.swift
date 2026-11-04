@@ -5,6 +5,15 @@ public struct SubjectReviewDueCount: Decodable, Sendable, Hashable {
     public let dueCount: Int
     public let newCount: Int
 
+    private enum CodingKeys: String, CodingKey { case subjectId, dueCount, newCount }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        subjectId = try container.decode(String.self, forKey: .subjectId)
+        dueCount = container.lenientInt(.dueCount)
+        newCount = container.lenientInt(.newCount)
+    }
+
     public init(subjectId: String, dueCount: Int, newCount: Int) {
         self.subjectId = subjectId
         self.dueCount = dueCount
@@ -17,6 +26,14 @@ public struct SubjectReviewDueCounts: Decodable, Sendable, Hashable {
         public let dueCount: Int
         public let newCount: Int
 
+        private enum CodingKeys: String, CodingKey { case dueCount, newCount }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            dueCount = container.lenientInt(.dueCount)
+            newCount = container.lenientInt(.newCount)
+        }
+
         public init(dueCount: Int, newCount: Int) {
             self.dueCount = dueCount
             self.newCount = newCount
@@ -26,6 +43,15 @@ public struct SubjectReviewDueCounts: Decodable, Sendable, Hashable {
     public let subjects: [SubjectReviewDueCount]
     public let unsorted: Bucket
     public let newRemainingToday: Int
+
+    private enum CodingKeys: String, CodingKey { case subjects, unsorted, newRemainingToday }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        subjects = (try? container.decodeIfPresent(LossyArray<SubjectReviewDueCount>.self, forKey: .subjects))?.elements ?? []
+        unsorted = (try? container.decodeIfPresent(Bucket.self, forKey: .unsorted)) ?? Bucket(dueCount: 0, newCount: 0)
+        newRemainingToday = container.lenientInt(.newRemainingToday)
+    }
 
     public init(subjects: [SubjectReviewDueCount], unsorted: Bucket, newRemainingToday: Int) {
         self.subjects = subjects

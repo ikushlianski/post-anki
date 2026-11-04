@@ -5,6 +5,8 @@ public enum KnowledgeSourceAttentionKind: String, Decodable, Sendable {
     case emptyResult = "empty_result"
     case stuck
     case rateLimited = "rate_limited"
+    case nothingExtracted = "nothing_extracted"
+    case capped
 }
 
 public struct KnowledgeSourceAttention: Decodable, Sendable, Hashable {
@@ -48,12 +50,15 @@ public struct KnowledgeSourceAttention: Decodable, Sendable, Hashable {
 
     public var wording: String { AttentionWording.text(kind: kind, reason: reason) }
 
-    public var isInformational: Bool { kind == .rateLimited }
+    public var isInformational: Bool { kind == .rateLimited || kind == .nothingExtracted || kind == .capped }
+
+    public var isNothingExtracted: Bool { kind == .nothingExtracted }
 }
 
 public enum AttentionWording {
     public static let generic = "Something went wrong while reading this note. Retry usually fixes it."
     public static let stuck = "Still working after more than 20 minutes."
+    public static let nothingExtracted = "Nothing here looked worth turning into a card."
     public static let emptyResult = "The AI finished but found nothing to turn into a card."
 
     static let failureByReason: [String: String] = [
@@ -65,14 +70,17 @@ public enum AttentionWording {
         "extraction_failed": generic,
         "workflow_executor_lost": generic,
         "knowledge_source_reclaimed": generic,
-        "provider_rate_limited": "The AI service is busy. This note will be tried again, or retry in a few minutes."
+        "provider_rate_limited": "The AI service is busy. This note will be tried again, or retry in a few minutes.",
+        "item_cap_reached": "Stopped at 40 cards. The rest of this note was not read. Add the rest as a second note.",
+        "llm_budget_paused": "Daily AI limit reached. This note will work again after midnight UTC."
     ]
 
     public static func text(kind: KnowledgeSourceAttentionKind, reason: String?) -> String {
         switch kind {
         case .stuck: return stuck
         case .emptyResult: return emptyResult
-        case .failed, .rateLimited:
+        case .nothingExtracted: return nothingExtracted
+        case .failed, .rateLimited, .capped:
             guard let reason, let known = failureByReason[reason] else { return generic }
 
             return known

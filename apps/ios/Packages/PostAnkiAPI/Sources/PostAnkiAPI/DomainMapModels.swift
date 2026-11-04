@@ -90,6 +90,10 @@ public struct CourseRefocusSuggestion: Decodable, Sendable, Hashable, Identifiab
 
 public enum DomainMapError: Sendable {
     public static func message(for error: Error) -> String {
+        if (error as? URLError)?.code == .timedOut {
+            return "The server took too long. It may have finished, so pull to refresh before trying again."
+        }
+
         if case APIError.badStatus(let status, let code) = error {
             switch (status, code) {
             case (409, _): return "Already handled."

@@ -72,7 +72,7 @@ struct LearningPathDetailScreen: View {
                     .zoomFont(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(status.progress.topicsMastered) of \(status.progress.topicsIncluded) topics mastered (\(status.progress.percent)%)")
+                Text("\(status.progress.topicsMastered) of \(CountLabel.text(status.progress.topicsIncluded, "topic")) mastered (\(status.progress.percent)%)")
                     .zoomFont(.caption)
                     .foregroundStyle(.secondary)
             }

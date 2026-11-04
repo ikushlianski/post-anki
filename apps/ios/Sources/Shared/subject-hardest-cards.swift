@@ -70,7 +70,7 @@ struct SubjectHardestSection: View {
                 ForEach(hardest) { item in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(item.question).lineLimit(3)
+                            Text(CardKind.hideBlanks(item.question)).lineLimit(3)
                             Text("\(item.lapses) lapses" + (model.requestedIds.contains(item.id) ? " - practice requested" : ""))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -82,6 +82,7 @@ struct SubjectHardestSection: View {
                             .foregroundStyle(item.id == selected ? Color.accentColor : .secondary)
                     }
                     .contentShape(Rectangle())
+                    .accessibilityAddTraits(item.id == selected ? [.isButton, .isSelected] : .isButton)
                     .onTapGesture { model.selectedId = item.id }
                 }
 

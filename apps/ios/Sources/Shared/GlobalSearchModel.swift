@@ -94,7 +94,17 @@ final class GlobalSearchModel {
     func openCurriculum(id: String) async {
         openMessage = nil
 
-        guard let curriculum = await curriculum(id: id) else {
+        let curricula: [Curriculum]
+
+        do {
+            curricula = try await fetchCurricula()
+        } catch {
+            openMessage = Self.loadFailedMessage
+
+            return
+        }
+
+        guard let curriculum = curricula.first(where: { $0.id == id }) else {
             openMessage = Self.missingMessage
 
             return
@@ -106,9 +116,23 @@ final class GlobalSearchModel {
     func openTopic(id: String, curriculumId: String?) async {
         openMessage = nil
 
-        guard let curriculumId, let detail = await detail(of: curriculumId),
-              let topic = detail.modules.flatMap(\.topics).first(where: { $0.id == id })
-        else {
+        guard let curriculumId else {
+            openMessage = Self.missingMessage
+
+            return
+        }
+
+        let detail: CurriculumDetail
+
+        do {
+            detail = try await fetchDetail(of: curriculumId)
+        } catch {
+            openMessage = Self.topicLoadFailedMessage
+
+            return
+        }
+
+        guard let topic = detail.modules.flatMap(\.topics).first(where: { $0.id == id }) else {
             openMessage = Self.missingMessage
 
             return
@@ -117,30 +141,28 @@ final class GlobalSearchModel {
         openedTopic = topic
     }
 
-    func courses(of subjectId: String) async -> [Curriculum] {
-        await loadCurricula().filter { $0.subjectId == subjectId }
+    func courses(of subjectId: String) async throws -> [Curriculum] {
+        try await fetchCurricula().filter { $0.subjectId == subjectId }
     }
 
     private static let missingMessage = "Couldn't open this. It may have been removed."
+    private static let topicLoadFailedMessage = "Couldn't load this topic. Check your connection and try again."
+    private static let loadFailedMessage = "Couldn't load your courses. Check your connection and try again."
 
-    private func loadCurricula() async -> [Curriculum] {
+    private func fetchCurricula() async throws -> [Curriculum] {
         if let curriculaCache { return curriculaCache }
 
-        let fetched = (try? await APIClient.listCurricula()) ?? []
+        let fetched = try await APIClient.listCurricula()
 
         if !fetched.isEmpty { curriculaCache = fetched }
 
         return fetched
     }
 
-    private func curriculum(id: String) async -> Curriculum? {
-        await loadCurricula().first { $0.id == id }
-    }
-
-    private func detail(of curriculumId: String) async -> CurriculumDetail? {
+    private func fetchDetail(of curriculumId: String) async throws -> CurriculumDetail {
         if let cached = detailCache[curriculumId] { return cached }
 
-        guard let fetched = try? await APIClient.getCurriculumDetail(curriculumId) else { return nil }
+        let fetched = try await APIClient.getCurriculumDetail(curriculumId)
 
         detailCache[curriculumId] = fetched
 

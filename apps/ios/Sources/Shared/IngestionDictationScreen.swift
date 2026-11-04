@@ -6,28 +6,52 @@ import SwiftUI
 final class IngestionDictationScreenModel {
     let topic: Topic?
     let subjectId: String?
-    var text = ""
+    var text = "" {
+        didSet { drafts.save(text, key: draftKey) }
+    }
     var isSubmitting = false
     var activeDetections = 0
     var isDetecting: Bool { activeDetections > 0 }
     var errorMessage: String?
     var hasSent = false
     var showReview = false
+    var summaryText: String?
+
+    private var summaryTask: Task<Void, Never>?
+    private var trackedSourceId: String?
+    private let summaryPollInterval: Duration = .seconds(3)
+    private let summaryMaxPolls = 40
 
     let subjectPicker = AddKnowledgeSubjectPickerModel()
     var canAddAnyway = false
+    var targetPhrases: [String] = [""]
     private var lastSent: KnowledgeSourceContent?
 
     var showsSubjectPicker: Bool { subjectId == nil }
     var effectiveSubjectId: String? { subjectId ?? subjectPicker.selectedId }
+    var showsTargetPhrases: Bool {
+        TargetPhrases.isEnglish(subjectId: effectiveSubjectId, subjects: subjectPicker.subjects)
+    }
+
+    func loadSubjects() async {
+        guard !showsSubjectPicker else { return }
+
+        await subjectPicker.load()
+    }
 
     var hasInput: Bool {
         isSubmitting || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    init(topic: Topic?, subjectId: String?) {
+    private let drafts: AddDraftStoring
+    private let draftKey: String
+
+    init(topic: Topic?, subjectId: String?, drafts: AddDraftStoring = UserDefaultsAddDraftStore()) {
         self.topic = topic
         self.subjectId = subjectId
+        self.drafts = drafts
+        draftKey = UnsentDraftStore.key("add", subjectId ?? topic?.id)
+        text = drafts.load(key: draftKey)
     }
 
     func submit() async {
@@ -55,8 +79,19 @@ final class IngestionDictationScreenModel {
         }
 
         do {
-            _ = try await APIClient.addKnowledgeSource(content: content, subjectId: effectiveSubjectId, force: force)
+            let phrases = showsTargetPhrases ? TargetPhrases.cleaned(targetPhrases) : []
+            let created = try await APIClient.addKnowledgeSource(
+                content: content,
+                subjectId: effectiveSubjectId,
+                force: force,
+                targetPhrases: phrases.isEmpty ? nil : phrases
+            )
+
+            summaryText = nil
+            watchSummary(sourceId: created.id)
             text = ""
+            targetPhrases = [""]
+            drafts.clear(key: draftKey)
             lastSent = nil
             hasSent = true
             isSubmitting = false
@@ -66,6 +101,44 @@ final class IngestionDictationScreenModel {
         } catch {
             isSubmitting = false
             present(error)
+        }
+    }
+
+    func stopWatching() {
+        summaryTask?.cancel()
+        summaryTask = nil
+        trackedSourceId = nil
+    }
+
+    private func watchSummary(sourceId: String?) {
+        stopWatching()
+
+        guard let sourceId else { return }
+
+        trackedSourceId = sourceId
+
+        summaryTask = Task { [weak self] in
+            guard let self else { return }
+
+            for _ in 0..<summaryMaxPolls {
+                try? await Task.sleep(for: summaryPollInterval)
+
+                guard !Task.isCancelled else { return }
+
+                let status = try? await APIClient.knowledgeSourceRegeneration(id: sourceId)
+
+                guard ExtractionSummaryGuard.shouldApply(
+                    trackedSourceId: trackedSourceId,
+                    resultSourceId: sourceId,
+                    isCancelled: Task.isCancelled
+                ) else { return }
+
+                if let status, status.isFinished {
+                    summaryText = status.summaryText
+
+                    return
+                }
+            }
         }
     }
 
@@ -82,15 +155,7 @@ final class IngestionDictationScreenModel {
             return
         }
 
-        #if os(macOS)
-        switch ProgressLoadError.from(error) {
-        case .offline: errorMessage = "Couldn't connect to the server. Your text is still here, send it again in a moment."
-        case .unauthorized: errorMessage = "Add your access token in Settings, then send again."
-        default: errorMessage = "Couldn't send that — try again."
-        }
-        #else
-        errorMessage = "Couldn't send that — try again."
-        #endif
+        errorMessage = AddSendFailure.message(for: error)
     }
 }
 
@@ -131,9 +196,32 @@ struct IngestionDictationScreen: View {
                 AddKnowledgeSubjectPicker(model: model.subjectPicker)
             }
 
+            if model.showsTargetPhrases {
+                TargetPhrasesSection(phrases: $model.targetPhrases)
+            }
+
             Section("Dictate what you're learning") {
                 TextEditor(text: $model.text)
                     .frame(minHeight: 200)
+                    .overlay(alignment: .topLeading) {
+                        if model.text.isEmpty {
+                            Text(AddKnowledgeInput.placeholder)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 8)
+                                .padding(.leading, 5)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
+
+                #if os(iOS)
+                PasteButton(payloadType: String.self) { strings in
+                    guard let pasted = strings.first else { return }
+
+                    Task { @MainActor in model.text = AddKnowledgeDraft.pasting(pasted, into: model.text) }
+                }
+                .accessibilityIdentifier("add-knowledge-paste")
+                #endif
             }
 
             if model.hasSent {
@@ -143,6 +231,11 @@ struct IngestionDictationScreen: View {
                         : "Added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.")
                         .zoomFont(.caption)
                         .foregroundStyle(.secondary)
+                    if let summaryText = model.summaryText {
+                        Text(summaryText)
+                            .zoomFont(.caption)
+                    }
+
                     Button("Review new items") { model.showReview = true }
                         .disabled(model.isDetecting)
                 }
@@ -164,6 +257,8 @@ struct IngestionDictationScreen: View {
         }
         .refreshable { if model.showsSubjectPicker { await model.subjectPicker.load() } }
         .keyboardDismissal()
+        .task { await model.loadSubjects() }
+        .onDisappear { model.stopWatching() }
         .navigationTitle("Add Knowledge")
         .mainActionControls([submitTile])
         .reportsUnsentInput("add-knowledge", model.hasInput)

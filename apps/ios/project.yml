@@ -120,6 +120,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac
         INFOPLIST_KEY_CFBundleDisplayName: PostAnki
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.education
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
@@ -127,6 +129,7 @@ targets:
         Debug:
           OTHER_LDFLAGS: "$(inherited) -Xlinker -interposable"
           CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMac.debug.entitlements
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
     scheme:
       testTargets:
         - PostAnkiMacSmokeTests

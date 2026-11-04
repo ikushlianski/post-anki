@@ -9,6 +9,9 @@ struct PendingGrade: Codable, Sendable, Equatable {
     let requestId: String
     let createdAt: Date
     let serverURL: String?
+    var tz: String? = nil
+    var burySiblings: Bool? = nil
+    var rehearsal: Bool? = nil
 }
 
 enum PendingRemoval: Sendable {
@@ -33,12 +36,18 @@ actor PendingGradeQueue {
     private var cancelledRequestIds: Set<String> = []
     private var unconfirmedRequestIds: Set<String> = []
     private var sentReviewIds: [String: String] = [:]
+    private var sentOrder: [String] = []
+    private var followUps: [String: ReviewCard] = [:]
+    private static let sentHistoryLimit = 50
     private var outcomeWaiters: [String: [CheckedContinuation<CancelledSendOutcome, Never>]] = [:]
+    private let retryDelay: Duration
+    private(set) var failure: SaveFailure?
 
     private let fileURLOverride: URL?
 
-    init(fileURL: URL? = nil) {
+    init(fileURL: URL? = nil, retryDelay: Duration = .seconds(1)) {
         fileURLOverride = fileURL
+        self.retryDelay = retryDelay
     }
 
     private var fileURL: URL? {
@@ -69,15 +78,51 @@ actor PendingGradeQueue {
                 durationMs: input.durationMs ?? 0,
                 requestId: requestId,
                 createdAt: Date(),
-                serverURL: ServerScope.current
+                serverURL: ServerScope.current,
+                tz: input.tz,
+                burySiblings: input.burySiblings,
+                rehearsal: input.rehearsal
             )
         )
 
         return save(grades)
     }
 
+    func clearAll() {
+        if let url = fileURL { try? FileManager.default.removeItem(at: url) }
+
+        unconfirmedRequestIds = []
+        sentReviewIds = [:]
+        sentOrder = []
+        followUps = [:]
+        failure = nil
+    }
+
+    func retryFailed() {
+        failure = nil
+    }
+
+    @discardableResult
+    func skipFailed() -> String? {
+        guard let failed = failure else { return nil }
+
+        drop(failed.id)
+
+        return failed.id
+    }
+
+    func takeFollowUps() -> [String: ReviewCard] {
+        defer { followUps = [:] }
+
+        return followUps
+    }
+
+    func pendingRequestIds() -> Set<String> {
+        Set(load().map(\.requestId))
+    }
+
     func flush() async {
-        guard !isFlushing else {
+        guard !isFlushing, failure == nil else {
             return
         }
 
@@ -99,18 +144,33 @@ actor PendingGradeQueue {
                         sentReviewIds[entry.requestId] = reviewId
                     }
 
-                    outcomeWaiters.removeValue(forKey: entry.requestId)?.forEach { $0.resume(returning: outcome) }
+                    if let waiters = outcomeWaiters.removeValue(forKey: entry.requestId) {
+                        sentReviewIds.removeValue(forKey: entry.requestId)
+                        waiters.forEach { $0.resume(returning: outcome) }
+                    }
                 }
             }
 
             do {
-                let result = try await APIClient.recordReview(Self.input(for: entry))
+                let result = try await BackgroundSaveOutcome.send(retryDelay: retryDelay) {
+                    try await APIClient.recordReview(Self.input(for: entry))
+                }
+
                 outcome = .sent(reviewId: result.reviewId)
                 markSent(entry.requestId, reviewId: result.reviewId)
+                followUps[entry.requestId] = result.followUp
             } catch {
-                guard Self.shouldKeep(error) else {
+                switch BackgroundSaveOutcome.classify(error) {
+                case .stale:
                     drop(entry.requestId)
+
                     continue
+                case .failed(let message):
+                    failure = SaveFailure(id: entry.requestId, bitId: entry.knowledgeBitId, title: nil, message: message)
+
+                    return
+                default:
+                    break
                 }
 
                 guard cancelledRequestIds.contains(entry.requestId) else {
@@ -156,6 +216,8 @@ actor PendingGradeQueue {
             return await resolveUnconfirmed(entry)
         }
 
+        if failure?.id == requestId { failure = nil }
+
         return save(grades.filter { $0.requestId != requestId }) ? .removed : .notFound
     }
 
@@ -179,6 +241,10 @@ actor PendingGradeQueue {
 
     func pendingKnowledgeBitIds() -> Set<String> {
         Set(load().filter { ServerScope.matches($0.serverURL) }.map(\.knowledgeBitId))
+    }
+
+    func pendingVariantIds() -> Set<String> {
+        Set(load().filter { ServerScope.matches($0.serverURL) }.map(\.variantId))
     }
 
     func count() -> Int {
@@ -205,8 +271,12 @@ actor PendingGradeQueue {
     }
 
     private func markSent(_ requestId: String, reviewId: String) {
-        if unconfirmedRequestIds.remove(requestId) != nil {
-            sentReviewIds[requestId] = reviewId
+        unconfirmedRequestIds.remove(requestId)
+        sentReviewIds[requestId] = reviewId
+        sentOrder.append(requestId)
+
+        if sentOrder.count > Self.sentHistoryLimit {
+            sentReviewIds.removeValue(forKey: sentOrder.removeFirst())
         }
 
         drop(requestId)
@@ -236,11 +306,16 @@ actor PendingGradeQueue {
             variantId: entry.variantId,
             grade: entry.grade,
             durationMs: entry.durationMs,
-            requestId: entry.requestId
+            requestId: entry.requestId,
+            tz: entry.tz,
+            burySiblings: entry.burySiblings,
+            rehearsal: entry.rehearsal
         )
     }
 
     private func drop(_ requestId: String) {
+        if failure?.id == requestId { failure = nil }
+
         save(load().filter { $0.requestId != requestId })
     }
 

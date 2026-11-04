@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import PostAnkiMac
 
@@ -27,18 +28,45 @@ struct MacFeatureRegistryTests {
         #expect(clashes.isEmpty)
     }
 
-    @Test func shouldListOnlyKnowledgeInboxReviewAndSubjectsInTheSidebar() {
+    @Test func shouldKeepNotionSourcesOutOfTheSidebarBecauseTheyLiveInSettings() {
+        let sidebar = MacFeatureRegistry.sidebarSections
+            .flatMap { MacFeatureRegistry.sidebarFeatures(in: $0) }
+            .map(\.id)
+
+        #expect(!sidebar.contains("notion-sources"))
+        #expect(MacFeatureRegistry.features.contains { $0.id == "notion-sources" })
+    }
+
+    @Test func shouldOfferNotionIngestionAsItsOwnSettingsPane() {
+        #expect(MacSettingsPane.allCases.map(\.title) == ["General", "Connection", "Notion sources", "Admin"])
+        #expect(Set(MacSettingsPane.allCases.map(\.systemImage)).count == MacSettingsPane.allCases.count)
+    }
+
+    @Test func shouldSelectTheSettingsSidebarPageWhenTheSettingsShortcutFires() throws {
+        let suite = "settings-route-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        MacSettingsRoute.select(navigator: MacNavigator(defaults: defaults))
+
+        let stored = try #require(defaults.string(forKey: MacNavigator.storageKey))
+
+        #expect(MacFeatureRegistry.feature(id: stored).title == "Settings")
+        #expect(MacFeatureRegistry.feature(id: stored).inSidebar)
+    }
+
+    @Test func shouldListTodayStudyPlanKnowledgeInboxReviewSubjectsSettingsAccountAndAboutInTheSidebar() {
         let ids = MacFeatureRegistry.sidebarSections
             .flatMap { MacFeatureRegistry.sidebarFeatures(in: $0) }
             .map(\.id)
 
-        #expect(ids == ["knowledge", "inbox", "review", "subjects"])
+        #expect(ids == ["home", "study-plan", "knowledge", "inbox", "review", "subjects", "settings", "account", "about"])
     }
 
     @Test func shouldKeepHiddenFeaturesRegisteredForMenusAndNavigation() {
         let ids = Set(MacFeatureRegistry.features.map(\.id))
 
-        #expect(Set(["home", "ingest", "courses", "progress", "search"]).isSubset(of: ids))
+        #expect(Set(["ingest", "courses", "progress", "search"]).isSubset(of: ids))
         #expect(MacFeatureRegistry.features.first { $0.id == "ingest" }?.shortcut != nil)
     }
 

@@ -1,0 +1,16 @@
+{
+  "intent": "exam", "examDate": "2027-01-15", "daysLeft": 81, "examPassed": false,
+  "desiredRetention": 0.9, "recentRetention": 0.874, "maxIntervalDays": 80, "hasCards": true,
+  "newCards": {"perDay": 0, "paced": true, "pausedToday": true, "pauseThreshold": 100, "remaining": 450, "finishOn": "2027-01-20", "finishesBeforeExam": false},
+  "reviews": {"dueToday": 120, "averagePerDay": 41.5, "peakPerDay": 130, "peakOn": "2026-10-27", "horizonDays": 81},
+  "days": [
+    {"date": "2026-10-26", "reviews": 120, "newCards": 0}, {"date": "2026-10-27", "reviews": 130, "newCards": 0},
+    {"date": "2026-10-28", "reviews": 90, "newCards": 10}, {"date": "2026-10-29", "reviews": 80, "newCards": 10},
+    {"date": "2026-10-30", "reviews": 70, "newCards": 10}, {"date": "2026-10-31", "reviews": 60, "newCards": 10},
+    {"date": "2026-11-01", "reviews": 50, "newCards": 10}, {"date": "2026-11-02", "reviews": 50, "newCards": 10},
+    {"date": "2026-11-03", "reviews": 40, "newCards": 10}, {"date": "2026-11-04", "reviews": 40, "newCards": 10},
+    {"date": "2026-11-05", "reviews": 30, "newCards": 10}, {"date": "2026-11-06", "reviews": 30, "newCards": 10},
+    {"date": "2026-11-07", "reviews": 20, "newCards": 10}, {"date": "2026-11-08", "reviews": 20, "newCards": 10},
+    {"date": "2026-11-09", "reviews": 20, "newCards": 10}
+  ]
+}

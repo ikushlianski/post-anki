@@ -1,0 +1,285 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-control: var(--control);
+  --color-hover: var(--hover);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-focus: var(--focus);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-note: var(--note);
+  --shadow-card: 0 1px 2px var(--shadow-color), 0 1px 1px var(--shadow-color);
+  --shadow-control: 0 1px 1px var(--shadow-color);
+}
+
+@theme {
+  --text-caption: 13px;
+  --text-caption--line-height: 18px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-heading: 17px;
+  --text-heading--line-height: 24px;
+  --text-title: 22px;
+  --text-title--line-height: 28px;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --container-page: 800px;
+}
+
+@layer base {
+  html {
+    line-height: normal;
+  }
+
+  p {
+    margin-block: 1em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 700;
+  }
+}
+
+@layer components {
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    max-width: var(--container-page);
+    margin-inline: auto;
+  }
+
+  .section-title {
+    margin: 0;
+    font-size: var(--text-heading);
+    line-height: var(--text-heading--line-height);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .group-label {
+    margin: 0 0 8px 4px;
+    font-size: var(--text-caption);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .list-group {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .list-group > * + * {
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    font: inherit;
+    font-size: var(--text-body);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--text);
+    background: var(--control);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-control);
+    cursor: pointer;
+    filter: none;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: var(--hover);
+    filter: none;
+  }
+
+  .btn:active:not(:disabled) {
+    filter: brightness(0.96);
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .btn-primary {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: transparent;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .btn-quiet {
+    color: var(--accent-text);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .btn-danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: var(--danger-soft);
+  }
+
+  .btn-icon {
+    width: 44px;
+    padding: 0;
+  }
+
+  .field {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: var(--text-body);
+    line-height: 22px;
+    color: var(--text);
+    background: var(--control);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-control);
+    box-shadow: var(--shadow-control);
+    user-select: text;
+  }
+
+  .field:focus {
+    border-color: var(--accent);
+    outline: 3px solid color-mix(in srgb, var(--focus) 30%, transparent);
+    outline-offset: 0;
+  }
+
+  .field:disabled {
+    opacity: 0.6;
+  }
+
+  .field-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: var(--text-caption);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    font-family: inherit;
+    font-size: var(--text-caption);
+    font-weight: 500;
+    line-height: 1;
+    color: var(--muted);
+    background: var(--note);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .btn-primary .kbd {
+    color: var(--on-accent);
+    background: color-mix(in srgb, var(--on-accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--on-accent) 30%, transparent);
+  }
+
+  .muted-text {
+    margin: 0;
+    font-size: var(--text-body);
+    color: var(--muted);
+  }
+
+  .notice {
+    margin: 0;
+    padding: 12px 16px;
+    font-size: var(--text-body);
+    color: var(--text);
+    background: var(--note);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+  }
+
+  .notice-error {
+    color: var(--danger);
+    background: var(--danger-soft);
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: var(--text-body);
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-card);
+  }
+
+  .empty-state-title {
+    margin: 0;
+    font-size: var(--text-heading);
+    font-weight: 600;
+    color: var(--text);
+  }
+}

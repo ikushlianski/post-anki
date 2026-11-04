@@ -6,6 +6,7 @@ public struct SubjectManageSubject: Decodable, Sendable, Hashable, Identifiable 
     public let kind: String
     public let parentId: String?
     public let sortOrder: Int?
+    public let cardCount: Int?
 }
 
 public struct SubjectManageCourse: Decodable, Sendable, Hashable, Identifiable {

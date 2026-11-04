@@ -27,6 +27,12 @@ enum VariantCache {
         try? data.write(to: url, options: .atomic)
     }
 
+    static func clearAll(in directory: URL? = nil) {
+        guard let base = directory ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+
+        try? FileManager.default.removeItem(at: base.appendingPathComponent("VariantCache", isDirectory: true))
+    }
+
     private static func fileURL(topicId: String, in directory: URL?) -> URL? {
         let safeName = topicId.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
 

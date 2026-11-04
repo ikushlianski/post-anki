@@ -1,0 +1,1 @@
+{"currency":"USD","estimated":true,"days":[{"date":"2026-10-31","cardsUsd":0.01,"chatUsd":0.02,"otherUsd":0},{"date":"2026-11-01","cardsUsd":"x","chatUsd":0.5,"otherUsd":0.25},"junk"],"totals":{"cardsUsd":0.01,"chatUsd":0.52,"otherUsd":0.25},"byModel":[],"unpriced":{"calls":4,"tokens":1200},"env":"development"}

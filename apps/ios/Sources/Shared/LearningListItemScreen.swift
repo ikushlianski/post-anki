@@ -3,13 +3,15 @@ import SwiftUI
 
 struct LearningListItemScreen: View {
     let subjects: [Subject]
+    let subjectsFailed: Bool
     let onChange: (LearningListItem) -> Void
 
     @State private var model: LearningListItemModel
     @State private var sortSubjectId = ""
 
-    init(item: LearningListItem, subjects: [Subject], onChange: @escaping (LearningListItem) -> Void) {
+    init(item: LearningListItem, subjects: [Subject], subjectsFailed: Bool = false, onChange: @escaping (LearningListItem) -> Void) {
         self.subjects = subjects
+        self.subjectsFailed = subjectsFailed
         self.onChange = onChange
         _model = State(initialValue: LearningListItemModel(item: item))
     }
@@ -88,6 +90,11 @@ struct LearningListItemScreen: View {
                     Task { await model.classify(subjectId: sortSubjectId) }
                 }
                 .disabled(sortSubjectId.isEmpty)
+            }
+
+            if item.status == "captured", item.url != nil,
+               let notice = SubjectListNotice.learningListMessage(failed: subjectsFailed, subjectCount: subjects.count) {
+                Text(notice).foregroundStyle(.secondary)
             }
 
             if model.openableCurriculumId != nil {

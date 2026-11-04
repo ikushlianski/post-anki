@@ -9,6 +9,7 @@ struct ReviewSubjectRow: Equatable, Identifiable {
     var id: String { row.id }
     var entry: SubjectTreeEntry { row.node.entry }
     var summary: String { ReviewSubjectSummary.text(due: dueCount, new: newCount) }
+    var maturity: CardMaturityBreakdown { CardMaturityBreakdown(entry: entry) }
 }
 
 enum ReviewSubjectSummary {
@@ -28,11 +29,15 @@ final class ReviewSubjectsModel {
     private(set) var dueBySubject: [String: SubjectReviewDueCount] = [:]
     private(set) var unsorted = SubjectReviewDueCounts.Bucket(dueCount: 0, newCount: 0)
     private(set) var dueError: String?
+    private(set) var dueFailureReason: String?
 
     var hasLoaded: Bool { tree.hasLoaded }
-    var errorMessage: String? { tree.errorMessage }
+    private(set) var stalled = false
+    var errorMessage: String? { tree.errorMessage ?? (stalled ? "Couldn't load subjects (request did not finish)" : nil) }
     var totalDue: Int { tree.tree.reduce(0) { $0 + due(for: $1.id) } + unsorted.dueCount }
     var totalNew: Int { tree.tree.reduce(0) { $0 + newCount(for: $1.id) } + unsorted.newCount }
+
+    var overallMaturity: CardMaturityBreakdown { CardMaturityBreakdown(counts: tree.counts) }
 
     var rows: [ReviewSubjectRow] {
         tree.rows.map { ReviewSubjectRow(row: $0, dueCount: due(for: $0.id), newCount: newCount(for: $0.id)) }
@@ -42,16 +47,36 @@ final class ReviewSubjectsModel {
     func toggle(_ id: String) { tree.toggle(id) }
 
     func load() async {
-        async let dueTask: SubjectReviewDueCounts? = try? await APIClient.subjectReviewDueCounts()
+        async let dueTask = Self.loadDueCounts()
 
         await tree.load()
 
-        if let counts = await dueTask {
+        if !tree.hasLoaded, tree.errorMessage == nil, !Task.isCancelled {
+            await tree.load()
+        }
+
+        stalled = !tree.hasLoaded && tree.errorMessage == nil && !Task.isCancelled
+
+        let dueResult = await dueTask
+
+        if let counts = dueResult.counts {
             dueBySubject = Dictionary(counts.subjects.map { ($0.subjectId, $0) }, uniquingKeysWith: { first, _ in first })
             unsorted = counts.unsorted
             dueError = nil
+            dueFailureReason = nil
+
+            if tree.hasLoaded { await DueBadge.updater.update(due: totalDue) }
         } else {
             dueError = "Couldn't load due counts."
+            dueFailureReason = dueResult.failure
+        }
+    }
+
+    private static func loadDueCounts() async -> (counts: SubjectReviewDueCounts?, failure: String?) {
+        do {
+            return (try await APIClient.subjectReviewDueCounts(), nil)
+        } catch {
+            return (nil, LoadFailureReason.describe(error))
         }
     }
 

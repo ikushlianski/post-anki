@@ -15,6 +15,10 @@ struct StudyMaterialsSection: View {
                 Text(message).foregroundStyle(.red)
             }
 
+            if model.timedOut {
+                Text("Still generating. Reopen this lecture later to check.").foregroundStyle(.secondary)
+            }
+
             if model.items.isEmpty {
                 Text("No examples yet.").foregroundStyle(.secondary)
             }

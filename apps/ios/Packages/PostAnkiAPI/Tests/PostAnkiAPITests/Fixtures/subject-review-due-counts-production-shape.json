@@ -1,0 +1,10 @@
+{
+  "subjects": [
+    { "subjectId": "s_root", "dueCount": 12, "newCount": 3.0 },
+    { "subjectId": "s_child", "dueCount": null, "newCount": 4000000 },
+    { "dueCount": 1, "newCount": 1 },
+    { "subjectId": "s_empty" }
+  ],
+  "unsorted": null,
+  "newRemainingToday": null
+}

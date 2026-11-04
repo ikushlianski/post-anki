@@ -1,9 +1,16 @@
 import PostAnkiAPI
 import SwiftUI
 
+enum FocusTriageRowKind: Equatable {
+    case rejected
+    case chat
+    case inbox
+    case approved
+}
+
 struct FocusTriageDecisionRow: Identifiable, Equatable {
     let bitId: String
-    let verdict: TriageVerdict
+    let kind: FocusTriageRowKind
     let title: String
     let note: String
     let reason: RejectReason?
@@ -15,19 +22,23 @@ struct FocusTriageDecisionEditing {
     let onNote: (String, String) -> Void
     let onReason: (String, RejectReason?) -> Void
     let onCommit: (String) -> Void
+    let chatSend: (String) -> FocusTriageChatSend?
+    let onSendToChat: (FocusTriageDecisionRow) -> Void
 }
 
 extension FocusTriageSessionModel {
     var decisionRows: [FocusTriageDecisionRow] {
-        decisions.map { decision in
+        let decided = decisions.map { decision in
             FocusTriageDecisionRow(
                 bitId: decision.bitId,
-                verdict: decision.verdict,
+                kind: decision.verdict == .approved ? .approved : .rejected,
                 title: triage.log.title(for: decision.bitId) ?? serverFronts[decision.bitId] ?? "Earlier card",
                 note: decision.note ?? "",
                 reason: decision.reasonCode.flatMap(RejectReason.init(rawValue:))
             )
         }
+
+        return decided + triage.movedRows
     }
 
     var editing: FocusTriageDecisionEditing {
@@ -38,6 +49,12 @@ extension FocusTriageSessionModel {
                 guard let self else { return }
 
                 Task { await self.commit(bitId) }
+            },
+            chatSend: { [weak self] bitId in self?.chatSends[bitId] },
+            onSendToChat: { [weak self] row in
+                guard let self else { return }
+
+                Task { await self.sendToChat(row) }
             }
         )
     }
@@ -115,7 +132,7 @@ extension FocusTriageSessionModel {
     }
 
     func commit(_ bitId: String) async {
-        await triage.pendingDecisions[bitId]?.value
+        await triage.settlePending()
 
         guard dirty.contains(bitId), let sid = sessionId else { return }
 

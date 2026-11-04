@@ -175,7 +175,9 @@ public enum APIClient {
     }
 
     public static func listSubjects() async throws -> [Subject] {
-        try await request("/subjects")
+        let rows: LossyArray<Subject> = try await request("/subjects")
+
+        return rows.elements
     }
 
     public static func listCurricula() async throws -> [Curriculum] {
@@ -227,14 +229,16 @@ public enum APIClient {
     public static func chatWithKnowledgeBit(
         id: String,
         message: String,
-        transcript: [ChatTranscriptEntry]
+        transcript: [ChatTranscriptEntry],
+        clientMessageId: String? = nil
     ) async throws -> ChatWithKnowledgeBitResult {
         try await request(
             "/knowledge-bits/\(encodedSegment(id))/chat",
             method: "POST",
             body: ChatWithKnowledgeBitInput(
                 message: message,
-                transcript: transcript.isEmpty ? nil : transcript
+                transcript: transcript.isEmpty ? nil : transcript,
+                clientMessageId: clientMessageId
             )
         )
     }

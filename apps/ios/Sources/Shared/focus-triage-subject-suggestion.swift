@@ -21,6 +21,7 @@ struct FocusTriageSubjectSuggestion: View {
                     .zoomFont(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .textSelection(.enabled)
 
                 Button("Accept") { move(to: suggestion.id, name: suggestion.name) }
                     .buttonStyle(.bordered)

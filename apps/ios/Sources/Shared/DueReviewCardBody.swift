@@ -2,9 +2,13 @@ import PostAnkiAPI
 import SwiftUI
 
 struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: View>: View {
+    @Environment(\.zoomScale) private var zoomScale
     let model: DueReviewModel
     let card: ReviewCard
     var showsGradeButtons = true
+    var showsReviewedCount = true
+    var showsKeyHints = false
+    var showsProgress = false
     @ViewBuilder let answerInput: () -> AnswerInput
     @ViewBuilder let revealedFooter: () -> RevealedFooter
     @ViewBuilder let unrevealed: () -> Unrevealed
@@ -17,25 +21,58 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
                     .foregroundStyle(.secondary)
             }
 
-            Text(DueReviewModel.displayPrompt(card))
-                .zoomFont(.title3)
+            ZoomVStack(alignment: .leading, spacing: 6) {
+                if card.isRehearsal {
+                    Text(DueReviewGradeOptions.rehearsalLabel)
+                        .zoomFont(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                if showsProgress, let header = progressHeader {
+                    Text(header)
+                        .zoomFont(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                CardContextLine(text: card.face.context)
+
+                Text(card.face.front)
+                    .zoomFont(.title3)
+                    .textSelection(.enabled)
+            }
 
             answerInput()
 
             if model.isRevealed {
                 Divider()
 
-                Text(card.answer)
-                    .zoomFont(.title3.weight(.semibold))
+                if let filled = card.filledSentence {
+                    Text(filled)
+                        .zoomFont(.title3.weight(.semibold))
+                        .textSelection(.enabled)
+                } else {
+                    Text(card.answer)
+                        .zoomFont(.title3.weight(.semibold))
+                        .textSelection(.enabled)
+                }
+
+                AiSuggestionBlock(suggestion: card.aiSuggestion, original: card.originalPhrase)
 
                 if let background = card.background {
                     Text(background)
                         .zoomFont(.subheadline)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
 
-                if showsGradeButtons {
-                    DueReviewGradeButtons(preview: card.intervalPreview, isDisabled: model.isGrading) { grade in
+                CopyAllButton(parts: CardCopyText.reviewParts(card))
+
+                if showsGradeButtons, card.isRehearsal {
+                    DueReviewRehearsalButtons(isDisabled: model.isGrading) { grade in
+                        Task { await model.grade(grade) }
+                    }
+                } else if showsGradeButtons {
+                    DueReviewGradeButtons(preview: card.intervalPreview, isDisabled: model.isGrading, showsKeyHints: showsKeyHints) { grade in
                         Task { await model.grade(grade) }
                     }
                 }
@@ -47,16 +84,29 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
 
             gradeErrorView
 
-            if model.reviewedCount > 0 {
+            if showsReviewedCount, model.reviewedCount > 0 {
                 Text("\(model.reviewedCount) reviewed this session")
                     .zoomFont(.footnote)
                     .foregroundStyle(.secondary)
             }
 
-            DueReviewPendingCaption(count: model.pendingCount)
         }
-        .zoomPadding()
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .textSelection(.enabled)
+        .zoomPadding(20)
+        .background(FocusTriageCardStyle.fill, in: RoundedRectangle(cornerRadius: FocusTriageCardStyle.cornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: FocusTriageCardStyle.cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+        }
+        .frame(maxWidth: 560 * CGFloat(zoomScale), alignment: .leading)
+        .zoomPadding(FocusTriageCardStyle.margin)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var progressHeader: String? {
+        let parts = [model.subjectName, model.progressLabel].compactMap { $0 }
+
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     @ViewBuilder

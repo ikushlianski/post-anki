@@ -47,7 +47,7 @@ struct CurriculumStatsSection: View {
             Text("Practise a topic to see stats here.")
                 .foregroundStyle(.secondary)
         } else {
-            Text("\(stats.attemptedTopicCount) topics practised")
+            Text("\(CountLabel.text(stats.attemptedTopicCount, "topic")) practised")
         }
 
         ForEach(stats.weakSpots.prefix(3)) { spot in

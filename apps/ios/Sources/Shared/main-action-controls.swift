@@ -12,7 +12,9 @@ struct MainActionTile {
     var isLoading = false
     var isDisabled = false
     var tint: Color?
+    var caption: String?
     var shortcut: KeyboardShortcut?
+    var identifier: String?
     let action: () -> Void
 }
 
@@ -21,6 +23,7 @@ struct MainActionControls: View {
 
     let tiles: [MainActionTile]
     var extendsIntoBottomSafeArea = false
+    var minHeight = Self.minHeight
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,7 +36,7 @@ struct MainActionControls: View {
                     MainActionTileView(tile: tile)
                 }
             }
-            .frame(minHeight: Self.minHeight)
+            .frame(minHeight: minHeight)
             .fixedSize(horizontal: false, vertical: true)
         }
         .background(.bar, ignoresSafeAreaEdges: extendsIntoBottomSafeArea ? .bottom : [])
@@ -44,6 +47,8 @@ private struct MainActionTileView: View {
     let tile: MainActionTile
 
     private var foreground: Color {
+        if tile.isDisabled, tile.style == .prominent { return .secondary }
+
         if let tint = tile.tint { return tint }
 
         switch tile.style {
@@ -54,6 +59,8 @@ private struct MainActionTileView: View {
     }
 
     private var background: Color {
+        if tile.isDisabled, tile.style == .prominent { return Color.secondary.opacity(0.15) }
+
         if let tint = tile.tint { return tint.opacity(0.15) }
 
         return tile.style == .prominent ? .accentColor : .clear
@@ -77,8 +84,9 @@ private struct MainActionTileView: View {
         .buttonStyle(.plain)
         .optionalShortcut(tile.shortcut)
         .disabled(tile.isDisabled || tile.isLoading)
-        .opacity(tile.isDisabled ? 0.4 : 1)
+        .opacity(tile.isDisabled && tile.style != .prominent ? 0.4 : 1)
         .accessibilityLabel(tile.title)
+        .accessibilityIdentifier(tile.identifier ?? "")
     }
 }
 

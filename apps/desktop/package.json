@@ -5,12 +5,33 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
+    "tauri:dev": "VITE_APP_CHANNEL=dev tauri dev",
     "tauri:build": "tauri build",
-    "test": "vitest run"
+    "tauri:build:dev": "VITE_APP_CHANNEL=dev tauri build --debug --bundles app --config src-tauri/tauri.dev.conf.json",
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "storybook": "storybook dev -p ${STORYBOOK_PORT:-6007} --no-open",
+    "build-storybook": "storybook build"
   },
   "devDependencies": {
+    "@storybook/addon-docs": "^10.6.5",
+    "@storybook/react-vite": "^10.6.5",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "storybook": "^10.6.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5",
     "vitest": "^4.1.5"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

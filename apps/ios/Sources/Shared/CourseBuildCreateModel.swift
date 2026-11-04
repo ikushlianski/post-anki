@@ -28,6 +28,7 @@ final class CourseBuildCreateModel {
     var material = ""
     var isWorking = false
     var errorMessage: String?
+    var categoriesFailed = false
     var created: CourseBuildCourse?
 
     var hasInput: Bool {
@@ -86,10 +87,16 @@ final class CourseBuildCreateModel {
         }
     }
 
-    private func loadCategories() async {
+    func loadCategories() async {
         guard let subjectId else { return }
 
-        categories = (try? await APIClient.subjectCategories(subjectId: subjectId)) ?? []
+        do {
+            categories = try await APIClient.subjectCategories(subjectId: subjectId)
+            categoriesFailed = false
+        } catch {
+            categories = []
+            categoriesFailed = true
+        }
     }
 
     private func trimmed(_ value: String) -> String {

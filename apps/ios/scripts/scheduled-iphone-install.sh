@@ -7,7 +7,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 {
   echo "=== $(date) ==="
-  "$HERE/install-iphone.sh"
+  VARIANT=prod "$HERE/install-iphone.sh"
+  PROD_STATUS=$?
+  VARIANT=dev "$HERE/install-iphone.sh"
+  DEV_STATUS=$?
+  [[ $PROD_STATUS -eq 0 && $DEV_STATUS -eq 0 ]]
 } >>"$LOG" 2>&1
 STATUS=$?
 

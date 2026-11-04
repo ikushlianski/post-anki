@@ -1,3 +1,4 @@
+import PostAnkiAPI
 import SwiftUI
 
 struct SourceRegenerationRow: View {
@@ -27,7 +28,7 @@ struct SourceRegenerationRow: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Its \(pendingCount) pending items are replaced with new ones.")
+            Text("\(pendingCount == 1 ? "Its 1 pending item is" : "Its \(pendingCount) pending items are") replaced with new ones.")
         }
         .onDisappear { model.stop() }
     }
@@ -40,7 +41,7 @@ struct SourceRegenerationRow: View {
         case .running(let replaced):
             HStack {
                 ProgressView()
-                Text(replaced.map { "Regenerating... replaced \($0) items" } ?? "Regenerating...")
+                Text(replaced.map { "Regenerating... replaced \(CountLabel.text($0, "item"))" } ?? "Regenerating...")
             }
         case .done:
             Text("New items are ready.").foregroundStyle(.green)

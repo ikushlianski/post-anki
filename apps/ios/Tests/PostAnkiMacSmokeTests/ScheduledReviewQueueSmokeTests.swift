@@ -22,6 +22,7 @@ extension SmokeTests {
             await model.load()
             model.reveal()
             await model.grade(.good)
+            await model.sendTask?.value
 
             return model
         }
@@ -65,7 +66,7 @@ extension SmokeTests {
 
             #expect(model.pendingCount == 1)
             #expect(model.current?.variantId == "var_02")
-            #expect(model.notice == "Saved offline, will send later")
+            #expect(model.notice == nil)
 
             let online = FakeServerSession(["/knowledge-bits/reviews": .fixture("record-review")])
             defer { online.end() }
@@ -116,6 +117,7 @@ extension SmokeTests {
             await model.load()
             model.reveal()
             await model.grade(.good)
+            await model.sendTask?.value
             await model.undo()
 
             #expect(FakeServer.requested.contains("/knowledge-bits/reviews/rev_01"))
@@ -136,8 +138,10 @@ extension SmokeTests {
             await queue.flush()
 
             #expect(await queue.count() == 1)
+            #expect(await queue.failure != nil)
 
             failing.end()
+            await queue.retryFailed()
 
             let rejecting = FakeServerSession(["/knowledge-bits/reviews": .status(404)])
             defer { rejecting.end() }

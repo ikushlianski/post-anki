@@ -53,7 +53,7 @@ final class TagsModel {
         do {
             let result = try await APIClient.mergeTag(keepId: target.id, sourceId: source.id)
 
-            notice = "Moved \(result.assignmentsMoved) tags"
+            notice = "Moved \(CountLabel.text(result.assignmentsMoved, "tag"))"
             await load()
 
             return true

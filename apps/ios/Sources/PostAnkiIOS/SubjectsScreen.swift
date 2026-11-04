@@ -5,23 +5,32 @@ struct SubjectsScreen: View {
     @State private var model = SubjectTreeScreenModel()
     @State private var showsProfile = false
 
+    var embedded = false
+
     var body: some View {
-        NavigationStack {
-            content
-                .navigationTitle("Subjects")
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { showsProfile = true } label: { Image(systemName: "person.crop.circle") }
-                    }
-                }
-                .sheet(isPresented: $showsProfile) {
-                    SettingsSheet()
-                }
-                .task { await model.load() }
-                .navigationDestination(for: Subject.self) { subject in
-                    SubjectDetailScreen(subject: subject, subjects: model.subjects)
-                }
+        if embedded {
+            screen
+        } else {
+            NavigationStack { screen }
         }
+    }
+
+    private var screen: some View {
+        content
+            .navigationTitle("Subjects")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showsProfile = true } label: { Image(systemName: "person.crop.circle") }
+                        .accessibilityLabel("Settings and account")
+                }
+            }
+            .sheet(isPresented: $showsProfile) {
+                SettingsSheet()
+            }
+            .task { await model.load() }
+            .navigationDestination(for: Subject.self) { subject in
+                SubjectDetailScreen(subject: subject, subjects: model.subjects)
+            }
     }
 
     @ViewBuilder
@@ -31,6 +40,7 @@ struct SubjectsScreen: View {
                 Label("Couldn't load", systemImage: "exclamationmark.triangle")
             } description: {
                 Text(message)
+                Text("Server: \(APIClient.baseURLString)")
             } actions: {
                 Button("Try again") { Task { await model.load() } }
             }
@@ -121,7 +131,7 @@ struct SubjectDetailScreen: View {
                     NavigationLink {
                         KnowledgeItemDetailScreen(item: item, subjectName: subject.name) { _ in }
                     } label: {
-                        Text(item.question).lineLimit(3)
+                        Text(CardKind.hideBlanks(item.question)).lineLimit(3)
                     }
                 }
             }

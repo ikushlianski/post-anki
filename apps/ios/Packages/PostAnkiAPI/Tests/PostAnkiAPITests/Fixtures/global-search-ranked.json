@@ -1,0 +1,5 @@
+[
+  { "id": "top_01", "kind": "topic", "title": "Sagas", "curriculumId": "cur_01", "curriculumName": "Backend course", "tags": [{ "id": "tag_1", "name": "patterns" }] },
+  { "id": "mod_01", "kind": "module", "title": "Messaging", "curriculumId": "cur_01", "curriculumName": "Backend course", "tags": [] },
+  { "id": "kb_20", "kind": "bit", "title": "What is a saga?", "curriculumId": null, "curriculumName": null, "tags": [] }
+]

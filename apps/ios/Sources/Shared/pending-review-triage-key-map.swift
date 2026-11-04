@@ -4,6 +4,7 @@ enum PendingReviewTriageAction: Equatable {
     case drop
     case undo
     case skip
+    case moveOption(Int)
     case previous
     case next
     case edit
@@ -16,15 +17,26 @@ enum PendingReviewTriageKeyInput: Equatable {
     case delete
     case left
     case right
+    case up
+    case down
 }
 
 enum PendingReviewTriageKeyMap {
-    static func action(for input: PendingReviewTriageKeyInput, command: Bool = false) -> PendingReviewTriageAction? {
+    static func action(for input: PendingReviewTriageKeyInput, command: Bool = false, returnAndXOnly: Bool = false) -> PendingReviewTriageAction? {
+        if returnAndXOnly {
+            switch input {
+            case .left, .right, .up, .down, .space, .delete: return nil
+            default: break
+            }
+        }
+
         switch input {
         case .returnKey, .space: return command ? nil : .keep
         case .delete: return command ? nil : .drop
-        case .left: return command ? nil : .previous
-        case .right: return command ? nil : .next
+        case .left: return command ? nil : .moveOption(-1)
+        case .right: return command ? nil : .moveOption(1)
+        case .up: return command ? nil : .moveOption(-1)
+        case .down: return command ? nil : .moveOption(1)
         case .character(let character):
             let lowered = Character(character.lowercased())
 

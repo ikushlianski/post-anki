@@ -4,6 +4,7 @@ import SwiftUI
 enum MacKnowledgeRoute: Hashable {
     case item(KnowledgeOverviewItem)
     case suspended
+    case chatQueue
 }
 
 struct MacKnowledgeView: View {
@@ -11,6 +12,7 @@ struct MacKnowledgeView: View {
     @State private var history = MacHistoryCenter.shared.stack(for: "knowledge", of: MacKnowledgeRoute.self)
     @State private var confirmingDelete = false
     @State private var choosingSubject = false
+    @State private var chatCounts = ChatQueueCountStore.shared
 
     var body: some View {
         @Bindable var model = model
@@ -33,10 +35,12 @@ struct MacKnowledgeView: View {
                         .id(item.id)
                     case .suspended:
                         SuspendedKnowledgeScreen()
+                    case .chatQueue:
+                        ChatQueueScreen()
                     }
                 }
                 .confirmationDialog(
-                    "Delete \(model.selection.count) items? This can't be undone.",
+                    "Delete \(CountLabel.text(model.selection.count, "item"))? This can't be undone.",
                     isPresented: $confirmingDelete,
                     titleVisibility: .visible
                 ) {
@@ -44,15 +48,22 @@ struct MacKnowledgeView: View {
                     Button("Cancel", role: .cancel) {}
                 }
                 .sheet(isPresented: $choosingSubject) {
-                    KnowledgeMoveSheet(subjects: model.subjects) { subject in
+                    KnowledgeMoveSheet(
+                        subjects: model.subjects,
+                        loadFailureMessage: model.subjectsNotice,
+                        onRetry: { Task { await model.loadSubjects() } }
+                    ) { subject in
                         Task { await model.moveSelected(to: subject) }
                     }
                     .macSheetMinSize()
                 }
                 .task { await model.start() }
+                .task { await chatCounts.refresh() }
                 .onChange(of: model.subjectId) { model.scheduleReload() }
-                .onChange(of: model.visibleItems.map(\.id)) {
-                    model.selection.formIntersection(model.visibleItems.map(\.id))
+                .onChange(of: model.statusFilter) { model.scheduleReload() }
+                .onChange(of: model.originFilter) { model.scheduleReload() }
+                .onChange(of: model.items.map(\.id)) {
+                    model.selection.formIntersection(model.items.map(\.id))
                 }
                 .onChange(of: model.query) { model.scheduleReload(debounce: .milliseconds(300)) }
         }
@@ -70,10 +81,11 @@ struct MacKnowledgeView: View {
             Picker("Subject", selection: $model.subjectId) {
                 Text("All subjects").tag(String?.none)
 
-                ForEach(model.subjects) { subject in
-                    Text(subject.name).tag(String?.some(subject.id))
+                ForEach(SubjectTreePath.options(from: model.subjects)) { option in
+                    Text(option.label).tag(String?.some(option.id))
                 }
             }
+            .help("Filter by subject")
         }
 
         ToolbarItem {
@@ -89,9 +101,18 @@ struct MacKnowledgeView: View {
                         }
                     }
                 }
+
+                Divider()
+
+                Picker("Origin", selection: $model.originFilter) {
+                    ForEach(KnowledgeOriginFilter.allCases) { origin in
+                        Text(origin.label).tag(origin)
+                    }
+                }
             } label: {
                 Label(model.statusFilter.rawValue, systemImage: "line.3.horizontal.decrease.circle")
             }
+            .help("Filter by status and origin")
         }
 
         ToolbarItem {
@@ -99,6 +120,7 @@ struct MacKnowledgeView: View {
                 Label("Move to Subject…", systemImage: "folder")
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
+            .help("Move the selected items to a subject")
             .disabled(bulkDisabled)
         }
 
@@ -106,13 +128,30 @@ struct MacKnowledgeView: View {
             Button { confirmingDelete = true } label: {
                 Label("Delete", systemImage: "trash")
             }
+            .help("Delete the selected items")
             .disabled(bulkDisabled)
+        }
+
+        ToolbarItem {
+            Button { history.open(.chatQueue) } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "bubble.left.and.bubble.right")
+
+                    if let badge = chatCounts.badgeText {
+                        Text(badge).monospacedDigit()
+                    }
+                }
+            }
+            .accessibilityLabel(chatCounts.badgeAccessibilityLabel)
+            .help("Chat queue")
+            .accessibilityIdentifier("chat-queue-link")
         }
 
         ToolbarItem {
             Button { MacNavigator.shared.select("ingest") } label: {
                 Label("Add knowledge", systemImage: "square.and.pencil")
             }
+            .help("Add knowledge")
         }
 
         ToolbarItem {
@@ -120,6 +159,7 @@ struct MacKnowledgeView: View {
                 Label("Reload", systemImage: "arrow.clockwise")
             }
             .keyboardShortcut("r", modifiers: .command)
+            .help("Reload the knowledge list")
             .disabled(model.isLoading)
         }
     }
@@ -136,7 +176,7 @@ struct MacKnowledgeView: View {
             VStack(spacing: 0) {
                 notices
                 MacKnowledgeTable(
-                    rows: model.visibleItems.map {
+                    rows: model.items.map {
                         MacKnowledgeTableRow(item: $0, subjectName: model.subjectName(for: $0.subjectId) ?? "")
                     },
                     selection: $model.selection,
@@ -148,18 +188,18 @@ struct MacKnowledgeView: View {
             }
             .onDeleteCommand { if !bulkDisabled { confirmingDelete = true } }
             .overlay {
-                if model.visibleItems.isEmpty && !model.isLoading && !model.hasMore {
+                if model.items.isEmpty && !model.isLoading && !model.hasMore {
                     if model.hasActiveFilter {
                         MacEmptyStateView(
                             title: "No matching items",
                             systemImage: "magnifyingglass",
-                            message: "Try a different search, subject or status."
+                            message: "Try a different search, subject, status or origin."
                         )
                     } else {
                         MacEmptyStateView(
                             title: "No approved items yet",
                             systemImage: "tray",
-                            message: "Add knowledge from Ingest, then approve the suggested items in Knowledge Inbox."
+                            message: TriageNotionText.knowledgeEmptyHint
                         )
                     }
                 }
@@ -204,10 +244,6 @@ struct MacKnowledgeView: View {
     private var footer: some View {
         if model.isLoadingMore || model.isLoading {
             ProgressView().frame(maxWidth: .infinity)
-        } else if model.hasMore && model.statusFilter != .all {
-            Text("Filtering loaded items")
-                .zoomFont(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 }

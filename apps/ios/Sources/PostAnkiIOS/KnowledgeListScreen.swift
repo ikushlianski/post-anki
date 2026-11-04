@@ -7,6 +7,7 @@ struct KnowledgeListScreen: View {
     @State private var confirmingDelete = false
     @State private var choosingSubject = false
     @State private var showSuspended = false
+    @State private var meaning = KnowledgeMeaningSearchModel()
     var isPushed = false
 
     var body: some View {
@@ -15,7 +16,10 @@ struct KnowledgeListScreen: View {
         content
             .navigationTitle("All items")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $model.query, prompt: "Search items")
+            .searchable(text: $model.query, prompt: meaning.isOn ? "Describe what you remember" : "Search items")
+            .onSubmit(of: .search) {
+                Task { await runMeaningSearch() }
+            }
             .environment(\.editMode, $editMode)
             .toolbar { toolbar }
             .safeAreaInset(edge: .bottom, spacing: 0) { selectionBar }
@@ -30,7 +34,7 @@ struct KnowledgeListScreen: View {
             }
             .navigationDestination(isPresented: $showSuspended) { SuspendedKnowledgeScreen() }
             .confirmationDialog(
-                "Delete \(model.selection.count) items? This can't be undone.",
+                "Delete \(CountLabel.text(model.selection.count, "item"))? This can't be undone.",
                 isPresented: $confirmingDelete,
                 titleVisibility: .visible
             ) {
@@ -38,13 +42,41 @@ struct KnowledgeListScreen: View {
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(isPresented: $choosingSubject) {
-                KnowledgeMoveSheet(subjects: model.subjects) { subject in
+                KnowledgeMoveSheet(
+                    subjects: model.subjects,
+                    loadFailureMessage: model.subjectsNotice,
+                    onRetry: { Task { await model.loadSubjects() } }
+                ) { subject in
                     Task { await model.moveSelected(to: subject) }
                 }
             }
             .task { await model.start() }
             .onChange(of: model.subjectId) { model.scheduleReload() }
-            .onChange(of: model.query) { model.scheduleReload(debounce: .milliseconds(300)) }
+            .onChange(of: model.statusFilter) { filtersChanged() }
+            .onChange(of: model.originFilter) { filtersChanged() }
+            .onChange(of: model.query) {
+                if meaning.isOn { meaning.clear() } else { model.scheduleReload(debounce: .milliseconds(300)) }
+            }
+            .onChange(of: meaning.isOn) {
+                meaning.clear()
+                editMode = .inactive
+                model.scheduleReload()
+            }
+    }
+
+    private func runMeaningSearch() async {
+        await meaning.search(
+            text: model.query,
+            subjectId: model.subjectId,
+            states: model.statusFilter.states,
+            origins: model.originFilter.origins
+        )
+    }
+
+    private func filtersChanged() {
+        model.scheduleReload()
+
+        if meaning.isOn { Task { await runMeaningSearch() } }
     }
 
     @ToolbarContentBuilder
@@ -56,8 +88,8 @@ struct KnowledgeListScreen: View {
                 Picker("Subject", selection: $model.subjectId) {
                     Text("All subjects").tag(String?.none)
 
-                    ForEach(model.subjects) { subject in
-                        Text(subject.name).tag(String?.some(subject.id))
+                    ForEach(SubjectTreePath.options(from: model.subjects)) { option in
+                        Text(option.label).tag(String?.some(option.id))
                     }
                 }
             } label: {
@@ -67,6 +99,10 @@ struct KnowledgeListScreen: View {
 
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                Toggle("Search by meaning", isOn: $meaning.isOn)
+
+                Divider()
+
                 ForEach(KnowledgeStatusFilter.allCases) { filter in
                     Button {
                         if filter == .suspended { showSuspended = true } else { model.statusFilter = filter }
@@ -78,12 +114,26 @@ struct KnowledgeListScreen: View {
                         }
                     }
                 }
+
+                Divider()
+
+                Picker("Origin", selection: $model.originFilter) {
+                    ForEach(KnowledgeOriginFilter.allCases) { origin in
+                        Text(origin.label).tag(origin)
+                    }
+                }
             } label: {
-                Label(model.statusFilter.rawValue, systemImage: "line.3.horizontal.decrease.circle")
+                Label(filterTitle, systemImage: "line.3.horizontal.decrease.circle")
             }
         }
 
-        ToolbarItem(placement: .topBarTrailing) { EditButton() }
+        if !meaning.isOn {
+            ToolbarItem(placement: .topBarTrailing) { EditButton() }
+        }
+    }
+
+    private var filterTitle: String {
+        model.originFilter == .all ? model.statusFilter.rawValue : "\(model.statusFilter.rawValue) · \(model.originFilter.label)"
     }
 
     @ViewBuilder
@@ -117,7 +167,12 @@ struct KnowledgeListScreen: View {
     private var content: some View {
         @Bindable var model = model
 
-        if !model.hasLoaded && model.failure == nil {
+        if meaning.isOn {
+            KnowledgeMeaningResults(
+                search: meaning,
+                queryIsEmpty: model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
+        } else if !model.hasLoaded && model.failure == nil {
             ProgressView()
         } else if !model.hasLoaded, let message = model.failure {
             ContentUnavailableView {
@@ -137,7 +192,7 @@ struct KnowledgeListScreen: View {
                     Text(notice).font(.caption).foregroundStyle(.secondary)
                 }
 
-                ForEach(model.visibleItems) { item in
+                ForEach(model.items) { item in
                     NavigationLink(value: item) {
                         KnowledgeListRow(item: item, subjectName: model.subjectName(for: item.subjectId))
                     }
@@ -147,11 +202,15 @@ struct KnowledgeListScreen: View {
                 footer
             }
             .overlay {
-                if model.visibleItems.isEmpty && !model.isLoading && !model.hasMore {
-                    ContentUnavailableView(
-                        model.hasActiveFilter ? "No matching items" : "No approved items yet",
-                        systemImage: "tray"
-                    )
+                if model.items.isEmpty && !model.isLoading && !model.hasMore {
+                    ContentUnavailableView {
+                        Label(model.hasActiveFilter ? "No matching items" : "No approved items yet", systemImage: "tray")
+                    } actions: {
+                        if model.hasActiveFilter {
+                            Button("Clear filters") { Task { await model.clearFilters() } }
+                                .accessibilityIdentifier("knowledge-clear-filters")
+                        }
+                    }
                 }
             }
             .refreshable { await model.reload() }
@@ -162,10 +221,6 @@ struct KnowledgeListScreen: View {
     private var footer: some View {
         if model.isLoadingMore || model.isLoading {
             ProgressView().frame(maxWidth: .infinity)
-        } else if model.hasMore && model.statusFilter != .all {
-            Text("Filtering loaded items")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 }
@@ -180,7 +235,7 @@ private struct KnowledgeListRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(item.question).lineLimit(2)
+            Text(CardKind.hideBlanks(item.question)).lineLimit(2)
             Text(item.answer).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
 
             HStack(spacing: 6) {

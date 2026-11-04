@@ -22,40 +22,50 @@ struct PendingReviewSheets: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(item: Binding(get: { isEnabled ? editingBit : nil }, set: { editingBit = $0 })) { bit in
-                PendingReviewEditSheet(
-                    bit: bit,
-                    onSave: { body, background, backgroundChanged, variants in
-                        await model.saveEdit(
-                            bitId: bit.id,
-                            body: body,
-                            background: background,
-                            backgroundChanged: backgroundChanged,
-                            currentBody: bit.body,
-                            variants: variants
-                        )
-                    },
-                    onClose: { outcome in
-                        editingBit = nil
+                if let variant = bit.variants.first(where: { $0.noteKind != nil }), let kind = variant.noteKind, let note = variant.sentence {
+                    NoteEditSheet(
+                        kind: kind,
+                        text: note,
+                        onSave: { text in
+                            let outcome = await model.saveNoteEdit(bitId: bit.id, variantId: variant.id, kind: kind, text: text)
 
-                        guard let outcome else { return }
+                            switch outcome {
+                            case .saved: return nil
+                            case .gone: return "This item was changed elsewhere."
+                            case .failed(let message): return message
+                            }
+                        },
+                        onClose: {
+                            editingBit = nil
+                            Task { await model.load() }
+                        }
+                    )
+                    .macSheetMinSize(width: 480, height: 460)
+                } else {
+                    PendingReviewEditSheet(
+                        bit: bit,
+                        onSave: { body, background, backgroundChanged, variants in
+                            await model.saveEdit(
+                                bitId: bit.id,
+                                body: body,
+                                background: background,
+                                backgroundChanged: backgroundChanged,
+                                currentBody: bit.body,
+                                variants: variants
+                            )
+                        },
+                        onClose: { outcome in
+                            editingBit = nil
 
-                        if case .gone = outcome { model.notice = "This item was changed elsewhere." }
+                            guard let outcome else { return }
 
-                        Task { await model.load() }
-                    }
-                )
-                .macSheetMinSize(width: 480, height: 460)
-            }
-            .sheet(item: Binding(
-                get: { isEnabled ? model.pendingFeedback : nil },
-                set: { if $0 == nil, isEnabled { model.skipFeedback() } }
-            )) { feedback in
-                RejectReasonSheet(
-                    feedback: feedback,
-                    onSend: { reason, note in await model.sendFeedback(feedback, reason: reason, note: note) },
-                    onSkip: { model.skipFeedback() }
-                )
-                .macSheetMinSize()
+                            if case .gone = outcome { model.notice = "This item was changed elsewhere." }
+
+                            Task { await model.load() }
+                        }
+                    )
+                    .macSheetMinSize(width: 480, height: 460)
+                }
             }
     }
 }

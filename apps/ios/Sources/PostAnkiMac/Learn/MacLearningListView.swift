@@ -28,7 +28,7 @@ struct MacLearningListView: View {
             .navigationTitle("Learning list")
             .toolbar { toolbar }
             .navigationDestination(for: LearningListItem.self) { item in
-                LearningListItemScreen(item: item, subjects: model.subjects) { model.replace($0) }
+                LearningListItemScreen(item: item, subjects: model.subjects, subjectsFailed: model.subjectsFailed) { model.replace($0) }
                     .id(item.id)
             }
             .sheet(isPresented: $showsCapture) {

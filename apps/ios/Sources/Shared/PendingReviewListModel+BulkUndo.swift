@@ -83,7 +83,6 @@ extension PendingReviewListModel {
         switch outcome {
         case .restored:
             applyRestore(removed)
-            pendingFeedback = nil
             dismissUndo()
         case .alreadyChanged:
             failUndo("Couldn't restore. It was already changed.")

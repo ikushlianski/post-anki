@@ -30,6 +30,10 @@ enum LastStudied {
         return defaults.string(forKey: curriculumNameKey)
     }
 
+    static func clear(defaults: UserDefaults = .standard) {
+        [curriculumIdKey, curriculumNameKey, serverKey].forEach { defaults.removeObject(forKey: $0) }
+    }
+
     static var curriculumId: String? { curriculumId() }
 
     static var curriculumName: String? { curriculumName() }

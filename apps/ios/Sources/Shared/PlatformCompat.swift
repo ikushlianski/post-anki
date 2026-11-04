@@ -19,6 +19,14 @@ extension ToolbarItemPlacement {
 }
 
 extension View {
+    func iosRefreshable(_ action: @escaping @Sendable () async -> Void) -> some View {
+        #if os(iOS)
+        refreshable(action: action)
+        #else
+        self
+        #endif
+    }
+
     func inlineNavigationTitle() -> some View {
         #if os(iOS)
         navigationBarTitleDisplayMode(.inline)

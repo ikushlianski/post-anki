@@ -40,6 +40,8 @@ struct AttentionDecodingTests {
         #expect(AttentionWording.text(kind: .stuck, reason: "no_valid_items") == AttentionWording.stuck)
         #expect(AttentionWording.text(kind: .emptyResult, reason: nil) == AttentionWording.emptyResult)
         #expect(AttentionWording.text(kind: .failed, reason: "source_empty") == "This note has no text.")
+        #expect(AttentionWording.text(kind: .failed, reason: "llm_budget_paused").contains("midnight UTC"))
+        #expect(AttentionWording.text(kind: .capped, reason: "item_cap_reached").contains("not read"))
         #expect(AttentionWording.text(kind: .failed, reason: "something_new") == AttentionWording.generic)
         #expect(AttentionWording.text(kind: .failed, reason: nil) == AttentionWording.generic)
     }

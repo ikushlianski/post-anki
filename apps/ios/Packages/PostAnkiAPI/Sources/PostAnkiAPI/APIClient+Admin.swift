@@ -8,7 +8,19 @@ extension APIClient {
     }
 
     public static func updateAdminSettings(_ update: AdminSettingsUpdate) async throws -> AdminSettings {
-        try await request("/admin/settings", method: "PATCH", body: update)
+        let req = try makeRequest("/admin/settings", method: "PATCH", body: update)
+        let (data, response) = try await session.data(for: req)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+        if status == 401 { throw APIError.unauthorized }
+
+        guard (200..<300).contains(status) else {
+            if status == 400, let refusal = AdminSettingsRefusal.decode(from: data) { throw refusal }
+
+            throw APIError.badStatus(status, try? JSONDecoder().decode(APIErrorBody.self, from: data).error)
+        }
+
+        return try JSONDecoder().decode(AdminSettings.self, from: data)
     }
 
     public static func adminObservability() async throws -> AdminObservability {

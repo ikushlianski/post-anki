@@ -9,29 +9,32 @@ public enum PasswordSignInError: Error, Equatable, Sendable {
 }
 
 public enum PasswordSignIn {
-    public static func signIn(email: String, password: String, baseURL: String? = nil) async throws {
-        let url = try endpoint("/api/auth/sign-in/email", baseURL: baseURL)
+    public static func signIn(email: String, password: String, label: String, baseURL: String? = nil) async throws {
+        let url = try endpoint("/auth/device-tokens", baseURL: baseURL)
         var request = URLRequest(url: url)
 
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.httpBody = try JSONEncoder().encode(Credentials(email: email, password: password))
+        request.httpBody = try JSONEncoder().encode(Credentials(email: email, password: password, label: label))
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-        let http = response as? HTTPURLResponse
-        let status = http?.statusCode ?? 0
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
+        try TokenStore.save(try deviceToken(status: status, body: data))
+    }
+
+    public static func deviceToken(status: Int, body: Data) throws -> String {
         if status == 429 { throw PasswordSignInError.rateLimited }
 
         if status == 401 || status == 400 { throw PasswordSignInError.wrongCredentials }
 
         guard (200..<300).contains(status) else { throw PasswordSignInError.server(status) }
 
-        guard let token = http?.value(forHTTPHeaderField: "set-auth-token"), !token.isEmpty else {
+        guard let token = (try? JSONDecoder().decode(DeviceTokenResponse.self, from: body))?.token, !token.isEmpty else {
             throw PasswordSignInError.noTokenReturned
         }
 
-        try TokenStore.save(token)
+        return token
     }
 
     public static func signOut(baseURL: String? = nil) async {
@@ -64,5 +67,10 @@ public enum PasswordSignIn {
     private struct Credentials: Encodable {
         let email: String
         let password: String
+        let label: String
+    }
+
+    private struct DeviceTokenResponse: Decodable {
+        let token: String
     }
 }

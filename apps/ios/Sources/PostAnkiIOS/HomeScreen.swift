@@ -25,7 +25,7 @@ struct HomeScreen: View {
 
                             if let topicCount = model.detail?.modules
                                 .flatMap({ $0.topics }).count {
-                                Text("\(topicCount) topics")
+                                Text(CountLabel.text(topicCount, "topic"))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }

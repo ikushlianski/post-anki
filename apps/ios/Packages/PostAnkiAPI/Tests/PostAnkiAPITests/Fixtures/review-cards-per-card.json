@@ -1,0 +1,32 @@
+{
+  "cards": [
+    {
+      "variantId": "var_c1",
+      "knowledgeBitId": "kb_10",
+      "kind": "cloze",
+      "cardKey": "cloze:1",
+      "prompt": "Paris is the capital of ____.",
+      "answer": "France",
+      "sentence": "{{c1::Paris}} is the capital of {{c2::France}}.",
+      "background": null,
+      "phase": "new",
+      "leech": false,
+      "intervalPreview": { "again": 60, "hard": 360, "good": 600, "easy": 345600 }
+    },
+    {
+      "variantId": "var_b1",
+      "knowledgeBitId": "kb_11",
+      "kind": "basic",
+      "cardKey": "",
+      "prompt": "What is HTTP 418?",
+      "answer": "I'm a teapot",
+      "background": null,
+      "phase": "review",
+      "leech": false,
+      "intervalPreview": { "again": 600, "hard": 172800, "good": 345600, "easy": 604800 }
+    }
+  ],
+  "counts": { "new": 1, "learning": 0, "review": 1 },
+  "newRemainingToday": 9,
+  "nextDueAt": null
+}

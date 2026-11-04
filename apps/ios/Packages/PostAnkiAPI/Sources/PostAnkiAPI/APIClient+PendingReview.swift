@@ -1,12 +1,24 @@
 import Foundation
 
 extension APIClient {
-    public static func listPendingReview() async throws -> [PendingReviewSource] {
-        try await request("/knowledge-bits/pending-review")
+    public static func listPendingReview(limit: Int? = nil, subjectId: String? = nil) async throws -> [PendingReviewSource] {
+        try await request(encodedPath("/knowledge-bits/pending-review", query: pendingReviewQuery(limit: limit, subjectId: subjectId)))
     }
 
-    public static func listPendingReviewWithAttention() async throws -> [PendingReviewSource] {
-        try await request("/knowledge-bits/pending-review?attention=1")
+    public static func listPendingReviewWithAttention(limit: Int? = nil, subjectId: String? = nil) async throws -> [PendingReviewSource] {
+        let query = [URLQueryItem(name: "attention", value: "1")] + pendingReviewQuery(limit: limit, subjectId: subjectId)
+
+        return try await request(encodedPath("/knowledge-bits/pending-review", query: query))
+    }
+
+    private static func pendingReviewQuery(limit: Int?, subjectId: String?) -> [URLQueryItem] {
+        var query: [URLQueryItem] = []
+
+        if let limit { query.append(URLQueryItem(name: "limit", value: String(limit))) }
+
+        if let subjectId { query.append(URLQueryItem(name: "subjectId", value: subjectId)) }
+
+        return query
     }
 
     public static func approveKnowledgeBit(id: String) async throws {

@@ -35,19 +35,3 @@ struct MacMenuBarContent: View {
         Button("Quit PostAnki") { NSApp.terminate(nil) }
     }
 }
-
-struct MacSettingsView: View {
-    @AppStorage(MacMenuBar.enabledKey) private var menuBarEnabled = true
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Toggle("Show review count in the menu bar", isOn: $menuBarEnabled)
-            }
-            .formStyle(.grouped)
-            .fixedSize(horizontal: false, vertical: true)
-
-            SettingsScreen()
-        }
-    }
-}

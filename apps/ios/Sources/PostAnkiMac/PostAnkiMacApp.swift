@@ -7,7 +7,31 @@ struct PostAnkiMacApp: App {
     init() {
         MacLaunchCheck.applyDevAddress()
         MacQueueFlushTrigger.shared.start()
+        #if DEBUG
+        Self.applyDevDockIcon()
+        Self.quitOtherDevCopies()
+        #endif
     }
+
+    #if DEBUG
+    private static func applyDevDockIcon() {
+        guard let url = Bundle.main.url(forResource: "AppIconDev", withExtension: "icns"),
+              let image = NSImage(contentsOf: url)
+        else { return }
+
+        NSApplication.shared.applicationIconImage = image
+    }
+
+    private static func quitOtherDevCopies() {
+        guard !MacMenuBar.isHostingTests, let id = Bundle.main.bundleIdentifier else { return }
+
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: id)
+        where app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+            && app.bundleURL?.path.contains("/Build/Products/Debug/") == true {
+            app.terminate()
+        }
+    }
+    #endif
 
     var body: some Scene {
         Window("PostAnki", id: "main") {
@@ -41,12 +65,6 @@ struct PostAnkiMacApp: App {
             MacMenuBarContent()
         } label: {
             MacMenuBarLabel()
-        }
-
-        Settings {
-            MacSettingsView()
-                .macZoomed()
-                .frame(minWidth: 480, idealWidth: 480, minHeight: 400)
         }
     }
 }

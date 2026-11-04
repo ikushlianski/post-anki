@@ -1,0 +1,13 @@
+{
+  "reviewId": "rev_10",
+  "knowledgeBitId": "kb_10",
+  "phase": "learning",
+  "dueAt": "2026-10-28T09:10:00.000Z",
+  "intervalDays": 0,
+  "lapses": 0,
+  "leech": false,
+  "suspended": false,
+  "points": { "total": 1 },
+  "cardKey": "cloze:1",
+  "buriedVariantIds": ["var_c2", "var_c3"]
+}

@@ -23,7 +23,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let model = FocusTriageModel(list: PendingReviewListModel(), pollInterval: interval)
+            let model = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated(), pollInterval: interval)
 
             await model.load()
 
@@ -79,11 +79,10 @@ extension SmokeTests {
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/reject"])
             #expect(model.current?.id == "b")
             #expect(model.list.pendingUndo == nil)
-            #expect(model.list.pendingFeedback == nil)
         }
 
-        @Test("should keep the card and say it is offline when the approval cannot reach the server")
-        func approveOfflineKeepsCard() async {
+        @Test("should move on to the next card and keep the approval queued quietly when the server cannot be reached")
+        func approveOfflineStaysQueued() async {
             let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .failure(.notConnectedToInternet)])
             defer { session.end() }
 
@@ -91,9 +90,10 @@ extension SmokeTests {
 
             await model.settlePending()
 
-            #expect(model.current?.id == "a")
-            #expect(model.message == "Couldn't connect to the server. Nothing was changed, try again in a moment.")
-            #expect(!model.canUndo)
+            #expect(model.current?.id == "b")
+            #expect(model.saveFailure == nil)
+            #expect(model.message == nil)
+            #expect(await model.decisionQueue.count() == 1)
         }
 
         @Test("should remove a card someone else already decided and tell the user")
@@ -233,9 +233,9 @@ extension SmokeTests {
             await model.approve()
             await model.settlePending()
 
-            #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/approve"])
+            #expect(FakeServer.writes.map(\.path) == Array(repeating: "/knowledge-bits/a/approve", count: 3))
             #expect(model.current?.id == "a")
-            #expect(model.message == "Couldn't approve this item. Try again.")
+            #expect(model.saveFailure?.bitId == "a")
         }
 
         @Test("should keep the decision and say the note was not saved when the note fails")
@@ -307,7 +307,7 @@ extension SmokeTests {
             #expect(model.pollAttempts == 40)
             #expect(model.waitingCount == 1)
 
-            let quiet = FocusTriageModel(list: PendingReviewListModel())
+            let quiet = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             quiet.startPolling()
 

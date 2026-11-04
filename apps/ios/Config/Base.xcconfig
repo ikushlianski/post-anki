@@ -1,7 +1,7 @@
 // Tracked; optionally pulls in the gitignored Local.xcconfig (see Local.xcconfig.example).
 // Debug-only dev server address; defaults to the local API; override in Local.xcconfig.
 POSTANKI_DEV_API_URL = http:/$()/localhost:5560
-// Debug-only dev API token saved to the keychain at launch when set; put it in Local.xcconfig.
+// Debug-only Mac dev API token; seeded when none is saved, and tried once if the saved token is rejected. Put it in Local.xcconfig.
 POSTANKI_DEV_API_TOKEN =
 // Debug-only token for the Post Anki Dev iPhone app against the local dev DB; seeded when none is saved.
 POSTANKI_LOCAL_DEV_API_TOKEN =

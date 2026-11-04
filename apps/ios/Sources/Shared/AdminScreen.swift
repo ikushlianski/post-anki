@@ -34,7 +34,6 @@ struct AdminOverviewSections: View {
                 Section("Settings") {
                     LabeledContent("AI tier", value: settings.modelTier)
                     LabeledContent("Item model", value: settings.knowledgeItemModelId ?? "Default")
-                    LabeledContent("Test toggle", value: settings.testToggle ? "On" : "Off")
                 }
             }
 

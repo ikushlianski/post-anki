@@ -8,6 +8,7 @@ final class DomainMappingModel {
     let subjectId: String
     var mappings: [CurriculumDomainMapping] = []
     var names: [String: String] = [:]
+    var namesFailed = false
     var isLoading = false
     var hasLoaded = false
     var isRunning = false
@@ -29,11 +30,16 @@ final class DomainMappingModel {
         do {
             mappings = try await APIClient.domainMappings(curriculumId: curriculumId)
 
-            if let tree = try? await APIClient.domainMap(subjectId: subjectId) {
+            do {
+                let tree = try await APIClient.domainMap(subjectId: subjectId)
+
                 names = Dictionary(
                     DomainMapModel.flatten(tree).map { ($0.id, $0.name) },
                     uniquingKeysWith: { first, _ in first }
                 )
+                namesFailed = false
+            } catch {
+                namesFailed = true
             }
 
             hasLoaded = true
@@ -42,6 +48,10 @@ final class DomainMappingModel {
         } catch {
             errorMessage = DomainMapError.message(for: error)
         }
+    }
+
+    func areaName(for mapping: CurriculumDomainMapping) -> String {
+        DomainMappingNames.label(name: names[mapping.domainNodeId], namesFailed: namesFailed)
     }
 
     func resolve(_ mapping: CurriculumDomainMapping, confirmed: Bool, depth: String?) async {
@@ -71,6 +81,14 @@ final class DomainMappingModel {
     }
 }
 
+enum DomainMappingNames {
+    static let loadFailedNotice = "Area names could not be loaded. Pull to refresh to try again."
+
+    static func label(name: String?, namesFailed: Bool) -> String {
+        name ?? (namesFailed ? "(name unavailable)" : "(removed)")
+    }
+}
+
 struct DomainMappingScreen: View {
     let courseName: String
 
@@ -87,6 +105,10 @@ struct DomainMappingScreen: View {
         List {
             if let notice = model.notice {
                 Text(notice).foregroundStyle(.secondary)
+            }
+
+            if model.namesFailed && model.errorMessage == nil {
+                Text(DomainMappingNames.loadFailedNotice).foregroundStyle(.orange)
             }
 
             if let errorMessage = model.errorMessage {
@@ -107,7 +129,7 @@ struct DomainMappingScreen: View {
 
             ForEach(model.mappings) { mapping in
                 ZoomVStack(alignment: .leading, spacing: 6) {
-                    Text(model.names[mapping.domainNodeId] ?? "(removed)").zoomFont(.headline)
+                    Text(model.areaName(for: mapping)).zoomFont(.headline)
 
                     Text("\(mapping.status.capitalized), \(DomainDepth.label(mapping.depth))")
                         .zoomFont(.caption)

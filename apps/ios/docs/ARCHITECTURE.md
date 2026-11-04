@@ -30,11 +30,11 @@ Package tests live in `Packages/PostAnkiAPI/Tests/PostAnkiAPITests` and decode s
 - `APIClient.makeRequest` adds `Authorization: Bearer ...` only when the address is `https`, `localhost` or `127.0.0.1`.
 - The server address is picked in this order: the address saved in Settings (defaults key `apiBaseURL`), then a Debug-only fallback, then the production address in `APIClient.productionBaseURLString`.
 - The Debug fallback comes from `POSTANKI_DEV_API_URL` in `Local.xcconfig`. The Mac `Info.plist` exposes it as `PostAnkiDevAPIURL`, and `MacLaunchCheck.applyDevAddress()` passes it to `APIClient.setFallbackBaseURL` in Debug builds only.
-- `Sources/Shared/ServerScope.swift` turns the current address into a normalised string. The offline queues and caches (`PendingGradeQueue.swift`, `PendingAnswerQueue.swift`, `VariantCache.swift`) store it with each entry so data saved for one server is not used for another.
+- `Sources/Shared/ServerScope.swift` turns the current address into a normalised string. The offline queues and caches (`PendingGradeQueue.swift`, `PendingDecisionQueue`, `PendingAnswerQueue.swift`, `VariantCache.swift`) store it with each entry so data saved for one server is not used for another.
 
 ## Shared screens
 
-`Sources/Shared` is compiled into both apps (`project.yml` lists it as a source of `PostAnkiIOS`, `PostAnkiMac` and `PostAnkiMacSmokeTests`). It holds the screens (`*Screen.swift`), their view models (`*Model.swift`), sheets, and the offline queues (`PendingGradeQueue.swift`, `PendingAnswerQueue.swift`, `PendingQueueFlusher.swift`).
+`Sources/Shared` is compiled into both apps (`project.yml` lists it as a source of `PostAnkiIOS`, `PostAnkiMac` and `PostAnkiMacSmokeTests`). It holds the screens (`*Screen.swift`), their view models (`*Model.swift`), sheets, and the offline queues (`PendingGradeQueue.swift`, `pending-decision-queue.swift`, `PendingAnswerQueue.swift`, `PendingQueueFlusher.swift`).
 
 Rules for this folder:
 
@@ -85,11 +85,18 @@ A scene-active event flushes `PendingAnswerQueue`.
 
 Focus triage files are in `Sources/Shared` (`focus-triage-*.swift`):
 
-- `FocusTriageModel` holds the queue of ready cards, decisions, undo, notes and bounded polling (8 s interval, stops when no cards wait or after 40 tries, restarts only when the cover opens). Approve and reject call the API directly, so no reject reason sheet appears.
+- `FocusTriageModel` holds the queue of ready cards, decisions, undo, notes and bounded polling (8 s interval, stops when no cards wait or after 40 tries, restarts only when the cover opens). Approve and reject go through the durable `PendingDecisionQueue` and the next card shows at once, so no reject reason sheet appears.
 - `FocusTriageSessionModel` starts or resumes a server triage session (`startTriageSession`), collects decisions and ends it with `finishTriageSession` (optional feedback, returns counts and style notes). If the session cannot start, triage still works and Finish closes to the list.
 - Decisions made before a relaunch can be resumed but not undone.
 
 ### Session store scoping
+
+Background saves (Review grades and triage decisions):
+
+- `PendingDecisionQueue` (`pending-triage-decisions.json`) is a file-backed FIFO like `PendingGradeQueue`: one decision in flight, order kept, entries tied to a server address, flushed on next launch and by `PendingQueueFlusher`. Mac keep/drop use the same queue (kinds `approve`, `reject`, `keep`). `DecisionDrainer` runs the flush for the models. Triage Edit stays synchronous.
+- `BackgroundSaveOutcome` classifies each failure: `stale` (404, 409 blocked, 403 not_approved) drops the entry and tells the user it was decided elsewhere; offline (URLError, 401) stays queued silently; 5xx, 408 and 429 retry up to three times; any other 4xx or a third strike is a `failure`.
+- On a `failure` the queue halts at that entry (later entries wait) and exposes it. `save-failure-prompt.swift` shows the card title, a plain message and Retry or Skip on Review (iOS and Mac), iOS Triage and Mac Triage. Retry resends the same request id (a grade counts once); Skip drops the entry. Triage restores and pins the failed card; Review un-counts a skipped grade. Finish is blocked while a triage failure is open.
+- Review keeps a local window of cards (`review-card-window.swift`, target 20, top-up below 8) that never re-adds a card whose grade is still queued. Sign-out clears every queue.
 
 `FocusTriageSessionStore` saves the open session id and its decisions in `UserDefaults` (key `focusTriage.openSession`) together with the normalised server address from `ServerScope.current`. `load()` returns nothing when the stored address differs from the current one, so a session opened on one server is never resumed on another. `clear()` removes it when the session finishes or is discarded.
 

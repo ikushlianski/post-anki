@@ -64,7 +64,7 @@ struct StudySessionsScreen: View {
                         .foregroundStyle(.secondary)
                 } else {
                     let percent = Int((consistency.rate * 100).rounded())
-                    Text("Last 30 days: \(consistency.completed) of \(consistency.planned) sessions done (\(percent)%)")
+                    Text("Last 30 days: \(consistency.completed) of \(consistency.planned) \(consistency.planned == 1 ? "session" : "sessions") done (\(percent)%)")
                 }
             }
         }

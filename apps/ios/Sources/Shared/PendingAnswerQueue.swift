@@ -46,6 +46,10 @@ actor PendingAnswerQueue {
         return save(answers)
     }
 
+    func clearAll() {
+        if let url = fileURL { try? FileManager.default.removeItem(at: url) }
+    }
+
     func flush() async {
         guard !isFlushing else {
             return

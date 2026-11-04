@@ -27,7 +27,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let triage = FocusTriageModel(list: PendingReviewListModel())
+            let triage = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await triage.load()
 
@@ -69,12 +69,10 @@ extension SmokeTests {
 
         @Test("should record nothing when the card's save failed and the card came back")
         func noRecordingOnFailedSave() async throws {
-            let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .held(500, "{}")])
+            let (model, session) = await make(extra: ["POST /knowledge-bits/a/approve": .json(500, "{}")])
             defer { session.end() }
 
             await model.triage.approve()
-            try await waitForHeld(1)
-            FakeServer.releaseHeld()
             await model.triage.settlePending()
             await model.settle()
 
@@ -109,6 +107,8 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.triage.approve()
+            await model.triage.settlePending()
+            await model.settle()
             await model.triage.undo()
             await model.settle()
 

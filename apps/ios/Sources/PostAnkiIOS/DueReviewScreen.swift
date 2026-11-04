@@ -7,8 +7,8 @@ struct DueReviewScreen: View {
     @State private var editRoute: DueReviewEditRoute?
     private let title: String
 
-    init(scope: DueReviewScope? = nil) {
-        _model = State(initialValue: DueReviewModel(scope: scope))
+    init(scope: DueReviewScope? = nil, aheadDays: Int = 0) {
+        _model = State(initialValue: DueReviewModel(scope: scope, aheadDays: aheadDays))
         title = scope?.title ?? "Due today"
     }
 
@@ -55,8 +55,21 @@ struct DueReviewScreen: View {
                     .padding(.top, 8)
             }
 
+            if showsCounts, let text = GoalStreak.footnote(goal: model.dailyGoal, streak: model.goalStreak) {
+                Text(text)
+                    .zoomFont(.footnote)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .padding(.top, 4)
+            }
+
             content
         }
+        .saveFailurePrompt(
+            model.saveFailure,
+            onRetry: { Task { await model.retryFailedSave() } },
+            onSkip: { Task { await model.skipFailedSave() } }
+        )
         .toolbar {
             if model.state == .card, !model.isGrading, let card = model.current {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -86,7 +99,8 @@ struct DueReviewScreen: View {
         .sheet(item: $editRoute) { route in
             DueReviewEditSheet(model: model, route: route) { editRoute = nil }
         }
-        .navigationTitle(title)
+        .dueReviewChatSheet(model: model)
+        .navigationTitle(model.aheadLabel ?? title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.loadIfNeeded() }
         .onChange(of: scenePhase) { _, phase in
@@ -108,6 +122,7 @@ private struct DueReviewCardView: View {
                         model: model,
                         card: card,
                         showsGradeButtons: false,
+                        showsReviewedCount: false,
                         answerInput: { EmptyView() },
                         revealedFooter: { EmptyView() },
                         unrevealed: { EmptyView() }

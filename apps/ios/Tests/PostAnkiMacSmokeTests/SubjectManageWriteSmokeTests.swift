@@ -17,6 +17,17 @@ extension SmokeTests {
             #"{"id":"s_a","name":"Alpha","kind":"architecture-mentor","parentId":null,"sortOrder":0}"#
         )
 
+        @Test("The optional card count decodes when sent and stays nil from an older server")
+        func decodesCardCount() {
+            let counted = Wire.decode(
+                SubjectManageSubject.self,
+                #"{"id":"s_a","name":"Alpha","kind":"architecture-mentor","parentId":null,"sortOrder":0,"cardCount":12}"#
+            )
+
+            #expect(counted.cardCount == 12)
+            #expect(Self.alpha.cardCount == nil)
+        }
+
         private static let coursesJSON = """
         [{"id":"c_1","subjectId":"s_b","name":"One","status":"active","categoryId":null},\
         {"id":"c_2","subjectId":"s_b","name":"Two","status":"active","categoryId":null}]

@@ -23,4 +23,17 @@ fi
 xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath build
 
-open "build/Build/Products/Debug/PostAnkiMac.app"
+APP="$PWD/build/Build/Products/Debug/PostAnkiMac.app"
+
+DEV_COPY_PATTERN="/Build/Products/Debug/PostAnkiMac.app/Contents/MacOS/PostAnkiMac"
+
+for PID in $(pgrep -f "$DEV_COPY_PATTERN" || true); do
+  kill "$PID" 2>/dev/null || true
+done
+
+for _ in $(seq 1 20); do
+  pgrep -f "$DEV_COPY_PATTERN" >/dev/null || break
+  sleep 0.25
+done
+
+open -n "$APP"

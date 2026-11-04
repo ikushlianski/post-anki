@@ -1,0 +1,7 @@
+{
+  "knowledgeBitId": "kb_1",
+  "example": "Two threads add 1 to the same counter without a lock and lose updates.",
+  "exampleAiGeneratedAt": "2026-10-28T09:00:00.000Z",
+  "previousExample": null,
+  "generationsLeft": 4
+}

@@ -3,16 +3,26 @@ import SwiftUI
 
 struct KnowledgeMoveSheet: View {
     let subjects: [Subject]
+    var excludedId: String?
+    var loadFailureMessage: String?
+    var onRetry: (() -> Void)?
     let onPick: (Subject) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    private var options: [SubjectPathOption] {
+        SubjectTreePath.options(from: subjects).filter { $0.id != excludedId }
+    }
+
     var body: some View {
         NavigationStack {
-            List(subjects) { subject in
-                Button(subject.name) {
-                    onPick(subject)
-                    dismiss()
+            List(options) { option in
+                Button(option.label) {
+                    if let subject = subjects.first(where: { $0.id == option.id }) {
+                        onPick(subject)
+                        dismiss()
+                    }
                 }
+                .disabled(option.isParent)
             }
             .navigationTitle("Move to subject")
             #if os(iOS)
@@ -22,7 +32,17 @@ struct KnowledgeMoveSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .overlay {
-                if subjects.isEmpty { ContentUnavailableView("No subjects", systemImage: "folder") }
+                if let loadFailureMessage, subjects.isEmpty {
+                    ContentUnavailableView {
+                        Label("Couldn't load subjects", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(loadFailureMessage)
+                    } actions: {
+                        if let onRetry { Button("Retry", action: onRetry) }
+                    }
+                } else if subjects.isEmpty {
+                    ContentUnavailableView("No subjects", systemImage: "folder")
+                }
             }
         }
         #if os(macOS)

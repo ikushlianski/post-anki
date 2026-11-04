@@ -9,15 +9,16 @@ struct FocusTriageView: View {
     @Bindable var session: FocusTriageSessionModel
     @Binding var editingBit: PendingReviewBit?
     let onClose: () -> Void
+    let onFinished: () -> Void
 
-    @State private var feedback = ""
-    @State private var departing: DepartingCard?
+    @State var departing: DepartingCard?
     @State private var generation = 0
+    @State private var hasLoaded = false
     @State private var scrollEdge = FocusTriageScrollEdge()
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private struct DepartingCard {
+    struct DepartingCard {
         let bit: PendingReviewBit
         let source: PendingReviewSource?
     }
@@ -30,9 +31,7 @@ struct FocusTriageView: View {
             content
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if session.phase == .confirming && !showsFinish {
-                confirmBar
-            } else if showsActionBar {
+            if !isQueueEmpty {
                 VStack(spacing: 0) {
                     if shown != nil { extraActionBar }
 
@@ -59,41 +58,32 @@ struct FocusTriageView: View {
             await triage.load()
             session.resume()
             triage.startPolling()
+            hasLoaded = true
         }
-        .onDisappear { triage.stopPolling() }
+        .onChange(of: isQueueEmpty) { wasEmpty, isEmpty in
+            guard hasLoaded, !wasEmpty, isEmpty, session.isOpen else { return }
+
+            Task { await leaveToReview() }
+        }
+        .onDisappear {
+            triage.stopPolling()
+
+            if isQueueEmpty, session.isOpen { Task { await session.finish() } }
+        }
+        .saveFailurePrompt(
+            triage.saveFailure,
+            onRetry: { Task { await triage.retryFailedSave() } },
+            onSkip: { Task { await triage.skipFailedSave() } }
+        )
         .keyboardDismissal()
+        #if os(iOS)
+        .background(TriageKeyCommands(isActive: keysActive, onIntent: handleKey).frame(width: 0, height: 0))
+        #endif
     }
 
     @ViewBuilder
     private var content: some View {
-        if session.phase == .result, let result = session.result {
-            FocusTriageResult(result: result) {
-                session.closeResult()
-                onClose()
-            }
-        } else if showsFinish {
-            FocusTriageDone(
-                remaining: triage.readyCount,
-                waitingCount: triage.waitingCount,
-                decidedCount: session.decisions.count,
-                sentToInboxCount: triage.sentToInboxCount,
-                feedback: $feedback,
-                isSaving: session.phase == .saving,
-                resumed: session.resumed,
-                error: session.error,
-                stale: session.stale,
-                rows: session.decisionRows,
-                editing: session.editing,
-                onFinish: { finish(feedback: feedback) },
-                onDiscard: {
-                    Task { await session.discard() }
-                    onClose()
-                }
-            )
-            .task { await session.loadServerFronts() }
-        } else if session.phase == .confirming {
-            FocusTriageConfirm(remaining: triage.readyCount, decidedCount: session.decisions.count)
-        } else if let shown {
+        if let shown {
             ZStack {
                 if triage.readyCount > 1 { FocusTriageCardStackHint() }
 
@@ -102,6 +92,8 @@ struct FocusTriageView: View {
                     .transition(.asymmetric(insertion: appearTransition, removal: .identity))
             }
             .animation(.easeOut(duration: 0.3), value: cardKey(shown.bit.id))
+        } else if hasLoaded {
+            ContentUnavailableView("Nothing left to triage", systemImage: "checkmark.seal")
         }
     }
 
@@ -124,6 +116,7 @@ struct FocusTriageView: View {
             isBusy: triage.isBusy || departing != nil,
             scrollEdge: scrollEdge,
             exampleLabel: triage.currentExampleLabel,
+            onExample: { _ = await triage.generateExample() },
             onDecide: { await decide(bit, source: source, approve: $0 == .approve) },
             onVertical: { await vertical($0, bit: bit, source: source) },
             onFlownOff: finishDeparture
@@ -137,110 +130,33 @@ struct FocusTriageView: View {
                 ),
                 message: triage.message,
                 isWritingExample: triage.isWritingExample(bit.id),
+                selectedIndex: triage.chosenIndex(of: bit),
+                onSelect: { triage.choose($0, in: bit) },
                 onScrollEdgeChange: { scrollEdge = $0 },
                 onEdit: { editingBit = bit },
-                onRefresh: { await triage.load() }
+                onRefresh: { await triage.load() },
+                onResolveDuplicate: { approve in
+                    guard departing == nil else { return false }
+
+                    guard await decide(bit, source: source, approve: approve) else { return false }
+
+                    finishDeparture()
+
+                    return true
+                }
             )
         }
     }
 
-    private var showsActionBar: Bool {
-        !showsFinish && !(session.phase == .result && session.result != nil)
+    var isQueueEmpty: Bool { shown == nil }
+
+    func leaveToReview() async {
+        guard await session.endSession() else { return }
+
+        onFinished()
     }
 
-    private var showsFinish: Bool {
-        session.phase == .writing || session.phase == .saving || shown == nil
-    }
-
-    private var header: some View {
-        ZoomHStack(spacing: 8) {
-            ZoomVStack(alignment: .leading, spacing: 2) {
-                if let label = counterLabel {
-                    Text(label)
-                        .zoomFont(.headline.monospacedDigit())
-                }
-
-                if triage.waitingCount > 0 {
-                    Text("Writing cards… \(triage.waitingCount) waiting")
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Spacer()
-        }
-        .zoomPadding()
-    }
-
-    private var counterLabel: String? {
-        if triage.readyCount == 0 { return "All done, 0 left" }
-
-        return FocusTriageCounter.label(readyCount: triage.readyCount)
-    }
-
-    private var confirmBar: some View {
-        MainActionControls(tiles: [
-            MainActionTile(title: "Keep triaging", action: { session.keepTriaging() }),
-            MainActionTile(title: "Finish triage", style: .prominent, action: { session.confirmFinish() })
-        ])
-    }
-
-    private var extraActionBar: some View {
-        MainActionControls(
-            tiles: [
-                MainActionTile(
-                    title: TriageActionName.inbox,
-                    isDisabled: triage.isBusy || departing != nil,
-                    identifier: TriageAccessibilityID.inboxButton,
-                    action: { Task { _ = await inbox() } }
-                ),
-                MainActionTile(
-                    title: triage.currentExampleLabel,
-                    isLoading: triage.current.map { triage.isWritingExample($0.id) } ?? false,
-                    isDisabled: triage.isBusy || departing != nil || triage.exampleLimitReached,
-                    identifier: TriageAccessibilityID.exampleButton,
-                    action: { Task { _ = await triage.generateExample() } }
-                )
-            ],
-            minHeight: 48
-        )
-    }
-
-    private var actionBar: some View {
-        MainActionControls(tiles: [
-            MainActionTile(
-                title: "Undo",
-                isDisabled: !triage.canUndo || triage.isBusy,
-                identifier: TriageAccessibilityID.undoButton,
-                action: { Task { await triage.undo() } }
-            ),
-            MainActionTile(
-                title: "Finish",
-                isDisabled: session.phase == .saving || session.phase == .result || triage.isBusy || session.busy,
-                action: openFinish
-            )
-        ])
-    }
-
-    @ViewBuilder
-    private var notices: some View {
-        let texts = [triage.undoMessage, triage.notice, triage.list.notice, session.syncNotice].compactMap { $0 }
-
-        if !texts.isEmpty {
-            ZoomVStack(alignment: .leading, spacing: 2) {
-                ForEach(texts, id: \.self) { text in
-                    Text(text)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .zoomPadding(.horizontal)
-            .zoomPadding(.bottom, 8)
-        }
-    }
-
-    private func decide(_ bit: PendingReviewBit, source: PendingReviewSource?, approve: Bool) async -> Bool {
+    func decide(_ bit: PendingReviewBit, source: PendingReviewSource?, approve: Bool) async -> Bool {
         departing = DepartingCard(bit: bit, source: source)
 
         if approve { await triage.approve() } else { await triage.reject() }
@@ -250,66 +166,42 @@ struct FocusTriageView: View {
             return false
         }
 
-        if approve { announce("Approved, \(triage.readyCount) left") }
+        TriageFeedbackPlayer.haptic(for: approve ? .accept : .reject)
+
+        if approve { announce("Approved, \(triage.remainingCount) left") }
 
         return true
     }
 
-    private func vertical(_ action: FocusTriageVerticalAction, bit: PendingReviewBit, source: PendingReviewSource?) async -> Bool {
-        switch action {
-        case .inbox:
-            departing = DepartingCard(bit: bit, source: source)
+    func vertical(_ action: FocusTriageVerticalAction, bit: PendingReviewBit, source: PendingReviewSource?) async -> Bool {
+        departing = DepartingCard(bit: bit, source: source)
 
-            guard await triage.sendToInbox() else {
-                departing = nil
+        let moved = action == .inbox ? await triage.sendToInbox() : await triage.sendToChat()
 
-                return false
-            }
+        guard moved else {
+            departing = nil
 
-            announce("Sent to Inbox, \(triage.readyCount) left")
-
-            return true
-        case .example:
-            let done = await triage.generateExample()
-
-            if done { announce("AI example added") }
-
-            return done
+            return false
         }
-    }
 
-    private func inbox() async -> Bool {
-        guard let bit = triage.current else { return false }
+        TriageFeedbackPlayer.haptic(for: action == .inbox ? .inbox : .chat)
 
-        guard await vertical(.inbox, bit: bit, source: triage.currentSource) else { return false }
+        let name = FocusTriageActionLabel.name(for: action)
 
-        finishDeparture()
+        announce("Sent to \(name), \(triage.remainingCount) left")
 
         return true
     }
 
-    private func finishDeparture() {
+    func finishDeparture() {
         generation += 1
         departing = nil
     }
 
-    private func openFinish() {
-        if session.isOpen {
-            session.openFinish()
-        } else {
-            closeWithoutSession()
-        }
-    }
-
-    private func finish(feedback: String) {
-        guard session.isOpen else { return closeWithoutSession() }
-
-        Task { _ = await session.finish(feedback: feedback) }
-    }
-
-    private func closeWithoutSession() {
+    func closeWithoutSession() {
         triage.list.notice = "Triage finished. This session wasn't saved, so no feedback was sent."
         onClose()
+        onFinished()
     }
 
     private func announce(_ text: String) {

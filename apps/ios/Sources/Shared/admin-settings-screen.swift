@@ -5,9 +5,13 @@ struct AdminSettingsScreen: View {
     @State private var model: AdminSettingsModel
     @State private var draftCards = AdminSettingsLimits.defaultNewCardsPerDay
     @State private var cardsTask: Task<Void, Never>?
+    @State private var draftReviews = AdminSettingsLimits.defaultMaxReviewsPerDay
+    @State private var reviewsTask: Task<Void, Never>?
+    private let showsNotionConnection: Bool
 
-    init(model: AdminSettingsModel = AdminSettingsModel()) {
+    init(model: AdminSettingsModel = AdminSettingsModel(), showsNotionConnection: Bool = true) {
         _model = State(initialValue: model)
+        self.showsNotionConnection = showsNotionConnection
     }
 
     var body: some View {
@@ -22,6 +26,10 @@ struct AdminSettingsScreen: View {
             } else {
                 settingsSections
             }
+
+            if showsNotionConnection {
+                NotionConnectionSection()
+            }
         }
         #if os(macOS)
         .formStyle(.grouped)
@@ -31,6 +39,7 @@ struct AdminSettingsScreen: View {
         .task {
             await model.load()
             draftCards = model.newCardsPerDay
+            draftReviews = model.maxReviewsPerDay
         }
     }
 
@@ -65,6 +74,8 @@ struct AdminSettingsScreen: View {
             )
         }
 
+        FusionSettingsSection(model: model)
+
         Section {
             Stepper(value: cardsBinding, in: AdminSettingsLimits.newCardsPerDay) {
                 LabeledContent("New cards per day", value: "\(draftCards)")
@@ -77,10 +88,14 @@ struct AdminSettingsScreen: View {
         }
 
         Section {
-            Toggle("Test toggle", isOn: toggleBinding)
-                .disabled(model.savingField != nil)
+            Stepper(value: reviewsBinding, in: AdminSettingsLimits.maxReviewsPerDay, step: 10) {
+                LabeledContent("Reviews per day", value: draftReviews == 0 ? "Unlimited" : "\(draftReviews)")
+            }
         } footer: {
-            footer("A placeholder switch for wiring up admin settings end to end.", field: .testToggle)
+            footer(
+                "Most reviews in a day before the session says you are done for today. 0 means unlimited. You can still review ahead.",
+                field: .maxReviewsPerDay
+            )
         }
     }
 
@@ -108,10 +123,21 @@ struct AdminSettingsScreen: View {
         )
     }
 
-    private var toggleBinding: Binding<Bool> {
+    private var reviewsBinding: Binding<Int> {
         Binding(
-            get: { model.testToggle },
-            set: { value in Task { await model.setTestToggle(value) } }
+            get: { draftReviews },
+            set: { value in
+                draftReviews = value
+                reviewsTask?.cancel()
+                reviewsTask = Task {
+                    try? await Task.sleep(for: .milliseconds(600))
+
+                    guard !Task.isCancelled else { return }
+
+                    await model.setMaxReviewsPerDay(value)
+                    draftReviews = model.maxReviewsPerDay
+                }
+            }
         )
     }
 

@@ -4,13 +4,21 @@ import SwiftUI
 @Observable
 @MainActor
 final class StudyMaterialsModel {
+    static let pollFailureLimit = 3
+
     let topicId: String
     var items: [StudyMaterial] = []
     var isRequesting = false
     var errorMessage: String?
+    var timedOut = false
 
-    init(topicId: String) {
+    private let pollInterval: Duration
+    private let pollLimit: Int
+
+    init(topicId: String, pollInterval: Duration = LectureModel.pollInterval, pollLimit: Int = LectureModel.pollLimit) {
         self.topicId = topicId
+        self.pollInterval = pollInterval
+        self.pollLimit = pollLimit
     }
 
     var hasGenerating: Bool {
@@ -46,17 +54,30 @@ final class StudyMaterialsModel {
 
     private func poll() async {
         var attempts = 0
+        var failures = 0
+        timedOut = false
 
-        while hasGenerating, attempts < LectureModel.pollLimit {
-            try? await Task.sleep(for: LectureModel.pollInterval)
+        while hasGenerating, attempts < pollLimit {
+            try? await Task.sleep(for: pollInterval)
 
             if Task.isCancelled { return }
 
             attempts += 1
 
-            if let fresh = try? await APIClient.studyMaterials(topicId: topicId) {
-                items = fresh
+            do {
+                items = try await APIClient.studyMaterials(topicId: topicId)
+                failures = 0
+            } catch {
+                failures += 1
+
+                if failures >= Self.pollFailureLimit {
+                    errorMessage = LectureError.message(for: error)
+
+                    return
+                }
             }
         }
+
+        timedOut = hasGenerating
     }
 }

@@ -130,7 +130,7 @@ final class DomainNodeModel {
         do {
             let result = try await APIClient.mergeDomainNodes(targetId: node.id, sourceId: source.id)
 
-            notice = "Moved \(result.curriculaMoved) subjects and \(result.childNodesMoved) sub-areas."
+            notice = "Moved \(CountLabel.text(result.curriculaMoved, "subject")) and \(CountLabel.text(result.childNodesMoved, "sub-area"))."
 
             return true
         } catch {

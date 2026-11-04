@@ -35,7 +35,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let triage = FocusTriageModel(list: PendingReviewListModel())
+            let triage = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await triage.load()
 
@@ -137,18 +137,16 @@ extension SmokeTests {
             #expect(!FakeServer.writes.contains { $0.path == "/triage-sessions" })
             #expect(store.load()?.decisions.map(\.bitId) == ["old", "a"])
 
-            model.openFinish()
 
-            #expect(await model.finish(feedback: "  ok  "))
+            #expect(await model.finish())
 
             let body = FakeServer.writes.last?.bodyObject
             let sent = body?["decisions"] as? [NSDictionary]
 
-            #expect(body?["feedbackText"] as? String == "ok")
+            #expect(body?["feedbackText"] as? String == "")
             #expect(sent?.count == 2)
-            #expect(model.result?.acceptedCount == 1)
-            #expect(model.result?.notes.first?.text == "Prefer short prompts")
-            #expect(model.phase == .result)
+            #expect(model.triage.list.notice?.contains("Prefer short prompts") == true)
+            #expect(model.phase == .idle)
             #expect(store.load() == nil)
         }
 
@@ -186,7 +184,7 @@ extension SmokeTests {
             #expect(model.decisions.map(\.bitId) == ["b"])
         }
 
-        @Test("should keep the typed feedback and offer a retry when saving fails for another reason")
+        @Test("should keep the session stored and report the problem when saving fails, so it is retried next launch")
         func finishFailureKeepsOpen() async {
             let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
             let (model, session) = await make(store: store, extra: [
@@ -196,42 +194,61 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.start()
-            model.openFinish()
-            model.confirmFinish()
 
-            #expect(!(await model.finish(feedback: "text")))
-            #expect(model.phase == .writing)
-            #expect(!model.stale)
-            #expect(model.error == "Couldn't save the feedback. Your text is kept; try again.")
+            #expect(!(await model.finish()))
+            #expect(model.phase == .idle)
+            #expect(model.isOpen)
+            #expect(model.error == "Couldn't save this session. It is kept and sent next time you open triage.")
             #expect(store.load()?.sessionId == "ts1")
         }
 
-        @Test("should ask for confirmation first, return to swiping on keep triaging and only open feedback after confirming")
-        func confirmingPhase() async {
+        @Test("should end the session, keep nothing stored and allow leaving for Review when finishing")
+        func endSessionLeavesForReview() async {
             let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
             let (model, session) = await make(store: store, extra: [
-                "POST /triage-sessions": .json(200, started)
+                "POST /triage-sessions": .json(200, started),
+                "POST /triage-sessions/ts1/finish": .json(200, finished)
             ])
             defer { session.end() }
 
             await model.start()
-            model.openFinish()
+            await model.triage.approve()
 
-            #expect(model.phase == .confirming)
-
-            model.keepTriaging()
-
-            #expect(model.phase == .idle)
-            #expect(model.isOpen)
-
-            model.openFinish()
-            model.confirmFinish()
-
-            #expect(model.phase == .writing)
+            #expect(await model.endSession())
+            #expect(!model.isOpen)
+            #expect(store.load() == nil)
+            #expect(FakeServer.writes.last?.path == "/triage-sessions/ts1/finish")
+            #expect((FakeServer.writes.last?.bodyObject?["decisions"] as? [NSDictionary])?.count == 1)
         }
 
-        @Test("should mark the session stale when the server no longer knows it and clear it on discard")
-        func staleThenDiscard() async {
+        @Test("should stay on triage with the session kept when it cannot be saved on finish")
+        func endSessionFailureStays() async {
+            let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
+            let (model, session) = await make(store: store, extra: [
+                "POST /triage-sessions": .json(200, started),
+                "POST /triage-sessions/ts1/finish": .json(500, "{}")
+            ])
+            defer { session.end() }
+
+            await model.start()
+
+            #expect(!(await model.endSession()))
+            #expect(model.isOpen)
+            #expect(store.load()?.sessionId == "ts1")
+        }
+
+        @Test("should leave for Review without a server call when no session is open")
+        func endSessionWithoutSession() async {
+            let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
+            let (model, session) = await make(store: store)
+            defer { session.end() }
+
+            #expect(await model.endSession())
+            #expect(FakeServer.writes.isEmpty)
+        }
+
+        @Test("should drop a session the server no longer knows instead of leaving it to block the next launch")
+        func staleSessionIsDropped() async {
             for status in [404, 409] {
                 let store = FocusTriageSessionStore(defaults: defaults(), scope: { "https://one" })
                 let (model, session) = await make(store: store, extra: [
@@ -240,15 +257,9 @@ extension SmokeTests {
                 ])
 
                 await model.start()
-                model.openFinish()
-                _ = await model.finish(feedback: "")
-
-                #expect(model.stale)
-
-                await model.discard()
+                _ = await model.finish()
                 session.end()
 
-                #expect(!model.stale)
                 #expect(!model.isOpen)
                 #expect(store.load() == nil)
                 #expect(model.phase == .idle)

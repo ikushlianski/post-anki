@@ -1,0 +1,60 @@
+@layer components {
+  .settings-view {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    max-width: var(--container-page);
+    margin: 0 auto;
+  }
+
+  .settings-group-title {
+    margin: 0 0 8px 16px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .settings-group-body {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .settings-group-body > .error {
+    padding: 0 16px 12px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 48px;
+    padding: 8px 16px;
+    font-size: 16px;
+  }
+
+  .settings-row + .settings-row {
+    border-top: 1px solid var(--border);
+  }
+
+  .settings-label {
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .settings-value {
+    color: var(--muted);
+    text-align: right;
+    min-width: 0;
+  }
+
+  .settings-value-wrap {
+    overflow-wrap: anywhere;
+  }
+}

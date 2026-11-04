@@ -40,7 +40,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let triage = FocusTriageModel(list: PendingReviewListModel())
+            let triage = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await triage.load()
 
@@ -177,11 +177,10 @@ extension SmokeTests {
             await model.triage.settlePending()
             await model.triage.reject()
             await model.triage.settlePending()
-            model.openFinish()
             model.setNote("b", "odd blank")
             model.setReason("b", .badFormat)
 
-            #expect(await model.finish(feedback: ""))
+            #expect(await model.finish())
 
             let puts = FakeServer.writes.filter { $0.method == "PUT" }
             let last = puts.last?.bodyObject
@@ -258,8 +257,7 @@ extension SmokeTests {
             await model.start()
             await model.triage.approve()
             await model.triage.settlePending()
-            model.openFinish()
-            _ = await model.finish(feedback: "")
+            _ = await model.finish()
 
             #expect(FakeServer.writes.map(\.method) == ["POST", "POST", "PUT", "POST"])
             #expect(model.syncNotice == nil)
@@ -308,9 +306,8 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.start()
-            model.openFinish()
 
-            #expect(await model.finish(feedback: ""))
+            #expect(await model.finish())
 
             let body = FakeServer.writes.last?.bodyObject
 

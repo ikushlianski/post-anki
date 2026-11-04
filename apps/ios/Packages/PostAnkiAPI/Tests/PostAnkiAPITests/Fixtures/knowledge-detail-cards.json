@@ -1,0 +1,13 @@
+{
+  "knowledgeBitId": "kb_10",
+  "body": "{{c1::Paris}} is the capital of {{c2::France}}.",
+  "context": null,
+  "phrasings": [],
+  "tags": [],
+  "review": { "state": "learning", "dueAt": "2026-10-28T09:10:00.000Z", "lapses": 1, "reviewCount": 3 },
+  "cards": [
+    { "variantId": "var_c1", "cardKey": "cloze:1", "kind": "cloze", "order": 1, "state": "learning", "dueAt": "2026-10-28T09:10:00.000Z", "lapses": 0, "suspended": false, "buried": false },
+    { "variantId": "var_c2", "cardKey": "cloze:2", "kind": "cloze", "order": 2, "state": "suspended", "dueAt": null, "lapses": 1, "suspended": true, "buried": false },
+    { "variantId": "var_c3", "cardKey": "cloze:3", "kind": "cloze", "order": 3, "state": "buried", "dueAt": "2026-10-29T00:00:00.000Z", "lapses": 0, "suspended": false, "buried": true }
+  ]
+}

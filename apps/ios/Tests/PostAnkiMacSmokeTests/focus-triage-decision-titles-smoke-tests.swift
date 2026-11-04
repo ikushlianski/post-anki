@@ -39,7 +39,7 @@ extension SmokeTests {
             routes.merge(extra) { _, new in new }
 
             let session = FakeServerSession(routes)
-            let triage = FocusTriageModel(list: PendingReviewListModel())
+            let triage = FocusTriageModel(list: PendingReviewListModel(), decisionQueue: .isolated())
 
             await triage.load()
 
@@ -59,7 +59,7 @@ extension SmokeTests {
             await model.settle()
 
             #expect(model.decisionRows.map(\.title) == ["Front A", "Front B"])
-            #expect(model.decisionRows.map(\.verdict) == [.approved, .rejected])
+            #expect(model.decisionRows.map(\.kind) == [.approved, .rejected])
         }
 
         @Test("should fall back to the card body only when the card has no question")
@@ -67,6 +67,27 @@ extension SmokeTests {
             let decoded = try? JSONDecoder().decode(PendingReviewBit.self, from: Data(bit("c", prompt: nil).utf8))
 
             #expect(decoded.map(FocusTriageDecisionEntry.frontText(of:)) == "joined body c")
+        }
+
+        @Test("should put the card context on the line above the question in the finish list")
+        func titleShowsContextAboveFront() {
+            let json = #"{"id":"c","body":"joined body","background":null,"origin":"extracted","variants":[{"id":"c_v","kind":"basic","context":"at standup","prompt":"Agree?","answer":"a"}]}"#
+            let decoded = try? JSONDecoder().decode(PendingReviewBit.self, from: Data(json.utf8))
+
+            #expect(decoded.map(FocusTriageDecisionEntry.frontText(of:)) == "at standup\nAgree?")
+        }
+
+        @Test("should keep context and prompt as separate fields while the display text stays joined")
+        func entryKeepsContextAndPromptSeparately() {
+            let json = #"{"id":"c","body":"joined body","background":null,"origin":"extracted","variants":[{"id":"c_v","kind":"basic","context":"at standup","prompt":"Agree?","answer":"a"}]}"#
+            let decoded = try? JSONDecoder().decode(PendingReviewBit.self, from: Data(json.utf8))
+            let parts = decoded.map(FocusTriageDecisionEntry.parts(of:))
+            let entry = FocusTriageDecisionEntry(bitId: "c", verdict: .approved, removed: nil, context: parts?.context, prompt: parts?.prompt)
+
+            #expect(entry.context == "at standup")
+            #expect(entry.prompt == "Agree?")
+            #expect(entry.front == "at standup\nAgree?")
+            #expect(FocusTriageDecisionEntry(bitId: "d", verdict: .approved, removed: nil).front == nil)
         }
 
         @Test("should show the stored fronts for cards decided in an earlier run of a resumed session")
@@ -83,7 +104,7 @@ extension SmokeTests {
             await model.loadServerFronts()
 
             #expect(model.decisionRows.map(\.title) == ["Old front 1", "Old front 2"])
-            #expect(model.decisionRows.map(\.verdict) == [.approved, .rejected])
+            #expect(model.decisionRows.map(\.kind) == [.approved, .rejected])
         }
     }
 }

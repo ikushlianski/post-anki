@@ -3,6 +3,7 @@ import AppKit
 
 struct MacRootView: View {
     @Environment(\.zoomScale) private var zoomScale
+    @Environment(\.openWindow) private var openWindow
 
     private var zoom: CGFloat { CGFloat(zoomScale) }
 
@@ -72,12 +73,6 @@ struct MacRootView: View {
                         Text(section.title).zoomFont(.subheadline)
                     }
                 }
-
-                Button { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) } label: {
-                    sidebarLabel("Settings", systemImage: "gearshape")
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("sidebar-settings")
             }
             .navigationSplitViewColumnWidth(min: 160 * zoom, ideal: 190 * zoom, max: 260 * zoom)
         } detail: {
@@ -87,7 +82,9 @@ struct MacRootView: View {
                     .id(settingsVersion)
                     .accessibilityIdentifier("detail-\(storedSelection)")
             }
+            .frame(minWidth: 0, maxWidth: .infinity)
         }
+        .environment(\.macOpenSettings) { MacSettingsRoute.show(openWindow: openWindow) }
         .sheet(isPresented: $showingPalette) { MacCommandPaletteView() }
         .onReceive(NotificationCenter.default.publisher(for: .macShowCommandPalette)) { _ in
             MacPaletteRequest.pending = false
