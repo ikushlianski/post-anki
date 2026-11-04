@@ -37,6 +37,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 process.env.LLM_DAILY_BUDGET_USD = "1";
+process.env.LLM_MODE = "real";
 
 vi.mock("../knowledge-source/knowledge-source-kick.js", () => ({ kickSourcesAfterAdd: vi.fn() }));
 

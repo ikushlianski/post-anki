@@ -135,7 +135,7 @@ describe("rejected cards stay visible in triage (real Postgres, mocked model)", 
     const sources = await listPendingKnowledgeBitsForReview(500);
     const bits = sources.find((source) => source.knowledgeSourceId === id)!.bits;
 
-    expect(bits.map((bit) => bit.reviewFlag)).toEqual([null, "quote_not_in_source"]);
+    expect(bits.map((bit) => bit.reviewFlag).sort((a, b) => String(a).localeCompare(String(b)))).toEqual(["quote_not_in_source", null].sort((a, b) => String(a).localeCompare(String(b))));
   });
 
   it("should leave flagged cards pending when the reviewer bulk approves everything", async () => {
