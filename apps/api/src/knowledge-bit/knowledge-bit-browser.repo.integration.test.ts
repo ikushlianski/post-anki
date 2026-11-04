@@ -92,11 +92,12 @@ async function seedVariant(
   prompt: string,
   answer = "ans",
   superseded = false,
+  context: string | null = null,
 ): Promise<void> {
   await client.query(
-    `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer, superseded_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [`kbqv_${randomUUID()}`, bitId, kind, order, prompt, answer, superseded ? new Date() : null],
+    `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer, superseded_at, context)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [`kbqv_${randomUUID()}`, bitId, kind, order, prompt, answer, superseded ? new Date() : null, context],
   );
 }
 
@@ -119,6 +120,18 @@ describe("listKnowledgeBitBrowser (real Postgres)", () => {
     expect(item?.sourceId).toBe(source);
     expect(item?.sourceLabel).toBe("text");
     expect(item?.addedAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("should return each phrasing's context so lists can show it above the question", async () => {
+    const source = await seedSource(null);
+    const bit = await seedBit(source, 0, "2026-01-01T00:00:00Z");
+
+    await seedVariant(bit, "basic", 0, "Front", "ans", false, "At a restaurant");
+
+    const page = await listKnowledgeBitBrowser({ limit: 50, offset: 0 });
+    const item = page.items.find((i) => i.knowledgeBitId === bit);
+
+    expect(item?.phrasings[0]?.context).toBe("At a restaurant");
   });
 
   it("should leave out pieces that are still pending or were rejected", async () => {
@@ -158,8 +171,9 @@ describe("listKnowledgeBitBrowser (real Postgres)", () => {
 
     const counts = await countKnowledgeBitBrowserSubjects();
 
-    expect(counts).toContainEqual({ subjectId: child, count: 1 });
-    expect(counts).toContainEqual({ subjectId: other, count: 1 });
+    expect(counts).toContainEqual(expect.objectContaining({ subjectId: parent, count: 1 }));
+    expect(counts).toContainEqual(expect.objectContaining({ subjectId: child, count: 1 }));
+    expect(counts).toContainEqual(expect.objectContaining({ subjectId: other, count: 1 }));
   });
 
   it("should list a piece filed directly on a parent subject alongside its sub-subjects' pieces", async () => {
@@ -183,8 +197,35 @@ describe("listKnowledgeBitBrowser (real Postgres)", () => {
 
     const counts = await countKnowledgeBitBrowserSubjects();
 
-    expect(counts).toContainEqual({ subjectId: parent, count: 1 });
-    expect(counts).toContainEqual({ subjectId: child, count: 1 });
+    expect(counts).toContainEqual(expect.objectContaining({ subjectId: parent, count: 2 }));
+    expect(counts).toContainEqual(expect.objectContaining({ subjectId: child, count: 1 }));
+  });
+
+  it("should count a parent subject's cards as its own plus its sub-subjects' and skip unapproved or replaced ones", async () => {
+    const parent = `subj_${randomUUID()}`;
+    const child = `subj_${randomUUID()}`;
+
+    await client.query(
+      `INSERT INTO subjects (id, name, parent_id) VALUES ($1, 'Roll Parent', NULL), ($2, 'Roll Child', $1)`,
+      [parent, child],
+    );
+
+    const onParent = await seedBit(await seedSource(parent), 0, "2026-05-01T00:00:00Z");
+    const onChild = await seedBit(await seedSource(child), 0, "2026-05-02T00:00:00Z");
+    const pending = await seedBit(await seedSource(child), 0, "2026-05-03T00:00:00Z", "pending");
+    const replaced = await seedBit(await seedSource(child), 0, "2026-05-04T00:00:00Z");
+
+    await seedVariant(onParent, "basic", 0, "p");
+    await seedVariant(onChild, "basic", 0, "c");
+    await seedVariant(pending, "basic", 0, "x");
+    await seedVariant(replaced, "basic", 0, "old", "a", true);
+
+    const counts = await countKnowledgeBitBrowserSubjects();
+
+    expect(counts).toContainEqual(
+      expect.objectContaining({ subjectId: parent, count: 2, newCount: 2, learningCount: 0, matureCount: 0 }),
+    );
+    expect(counts).toContainEqual(expect.objectContaining({ subjectId: child, count: 1 }));
   });
 
   it("should return the newest piece first and report when more remain", async () => {

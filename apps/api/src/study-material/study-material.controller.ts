@@ -5,7 +5,11 @@ import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { generateStudyMaterial } from "./study-material.orchestrator.js";
-import { insertGeneratingStudyMaterial, listStudyMaterialsForTopic } from "./study-material.repo.js";
+import {
+  failStaleGeneratingStudyMaterials,
+  insertGeneratingStudyMaterial,
+  listStudyMaterialsForTopic,
+} from "./study-material.repo.js";
 
 export async function handleRequestStudyMaterial(
   req: http.IncomingMessage,
@@ -47,6 +51,8 @@ export async function handleListStudyMaterials(
     sendError(res, 404, "not_found");
     return;
   }
+
+  await failStaleGeneratingStudyMaterials(topicId);
 
   sendJson(res, 200, await listStudyMaterialsForTopic(topicId));
 }

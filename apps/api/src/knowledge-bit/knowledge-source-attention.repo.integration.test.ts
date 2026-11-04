@@ -63,14 +63,15 @@ async function seedSource(options: {
   updatedAt?: Date;
   failureReason?: string | null;
   processedAt?: Date | null;
+  nothingExtractedAt?: Date | null;
   bitStates?: string[];
   rawText?: string;
 }): Promise<string> {
   const id = `ksrc_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_sources (id, kind, raw_text, status, failure_reason, updated_at, processed_at)
-     VALUES ($1, 'prose', $2, $3, $4, $5, $6)`,
+    `INSERT INTO knowledge_sources (id, kind, raw_text, status, failure_reason, updated_at, processed_at, nothing_extracted_at)
+     VALUES ($1, 'prose', $2, $3, $4, $5, $6, $7)`,
     [
       id,
       options.rawText ?? "A note about something",
@@ -78,6 +79,7 @@ async function seedSource(options: {
       options.failureReason ?? null,
       options.updatedAt ?? minutesAgo(1),
       options.processedAt ?? null,
+      options.nothingExtractedAt ?? null,
     ],
   );
 
@@ -139,6 +141,20 @@ describe("listSourcesNeedingAttention", () => {
     expect((await attentionById()).get(id)?.kind).toBe("rate_limited");
   });
 
+  it("should list a note cut at the card cap although it has live cards, until the user marks it done", async () => {
+    const id = await seedSource({ status: "bits_detected", failureReason: "item_cap_reached", bitStates: ["pending", "pending"] });
+    const done = await seedSource({
+      status: "bits_detected",
+      failureReason: "item_cap_reached",
+      bitStates: ["pending"],
+      processedAt: minutesAgo(1),
+    });
+    const found = await attentionById();
+
+    expect(found.get(id)).toMatchObject({ kind: "capped", reason: "item_cap_reached" });
+    expect(found.has(done)).toBe(false);
+  });
+
   it("should keep a note listed after a second failure with its new time and one entry only", async () => {
     const id = await seedSource({ status: "failed", failureReason: "no_valid_items", updatedAt: minutesAgo(30) });
 
@@ -156,5 +172,29 @@ describe("listSourcesNeedingAttention", () => {
     await seedSource({ status: "failed", failureReason: "source_too_long" });
 
     expect(await countSourcesNeedingAttention(NOW)).toBe(before + 1);
+  });
+
+  it("should list a finished note with the nothing-extracted marker and no cards as nothing extracted, not as failed or empty", async () => {
+    const id = await seedSource({ status: "bits_detected", nothingExtractedAt: minutesAgo(1) });
+    const entry = (await attentionById()).get(id);
+
+    expect(entry).toMatchObject({ kind: "nothing_extracted", reason: null });
+  });
+
+  it("should stop listing a nothing-extracted note once the user dismisses it or it gains cards", async () => {
+    const dismissed = await seedSource({ status: "bits_detected", nothingExtractedAt: minutesAgo(1), processedAt: minutesAgo(1) });
+    const withCard = await seedSource({ status: "bits_detected", nothingExtractedAt: minutesAgo(1), bitStates: ["pending"] });
+    const listed = await attentionById();
+
+    expect(listed.has(dismissed)).toBe(false);
+    expect(listed.has(withCard)).toBe(false);
+  });
+
+  it("should not count a nothing-extracted note in the attention badge", async () => {
+    const before = await countSourcesNeedingAttention(NOW);
+
+    await seedSource({ status: "bits_detected", nothingExtractedAt: minutesAgo(1) });
+
+    expect(await countSourcesNeedingAttention(NOW)).toBe(before);
   });
 });

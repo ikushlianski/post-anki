@@ -66,6 +66,29 @@ describe("handleRegenerateKnowledgeSource", () => {
     });
   });
 
+  it("should pass forceAtLeastOne to generation after the normal claim", async () => {
+    claimSourceForRegeneration.mockResolvedValue({ ok: true, source, supersededCount: 0 });
+
+    const res = fakeRes();
+
+    await handleRegenerateKnowledgeSource(fakeReq({ forceAtLeastOne: true }), res, "ks_1");
+
+    expect(claimSourceForRegeneration).toHaveBeenCalledTimes(1);
+    expect(generateItemsForSource).toHaveBeenCalledWith(source, { modelId: undefined, forceAtLeastOne: true });
+  });
+
+  it("should answer 409 and generate nothing when the force flag targets a note that did not come back empty", async () => {
+    claimSourceForRegeneration.mockResolvedValue({ ok: false, error: "not_nothing_extracted" });
+
+    const res = fakeRes();
+
+    await handleRegenerateKnowledgeSource(fakeReq({ forceAtLeastOne: true }), res, "ks_1");
+
+    expect(claimSourceForRegeneration).toHaveBeenCalledWith("ks_1", expect.objectContaining({ requireNothingExtracted: true }));
+    expect(res.status).toBe(409);
+    expect(generateItemsForSource).not.toHaveBeenCalled();
+  });
+
   it("should accept an empty body and use the default model", async () => {
     claimSourceForRegeneration.mockResolvedValue({ ok: true, source, supersededCount: 0 });
 

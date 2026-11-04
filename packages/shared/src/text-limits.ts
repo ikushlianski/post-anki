@@ -1,0 +1,10 @@
+export const TITLE_MAX_CHARS = 300;
+export const CARD_TEXT_MAX_CHARS = 20_000;
+export const NOTE_BODY_MAX_CHARS = 20_000;
+export const TYPED_ANSWER_MAX_CHARS = 20_000;
+export const SUBJECT_NAME_MAX_CHARS = 120;
+export const URL_MAX_CHARS = 2_000;
+export const DESCRIPTION_MAX_CHARS = 5_000;
+export const COMMENT_MAX_CHARS = 5_000;
+export const PASTED_MATERIAL_MAX_CHARS = 100_000;
+export const SOURCES_MAX_COUNT = 50;

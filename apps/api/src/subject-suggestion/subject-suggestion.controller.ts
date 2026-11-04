@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { resolveSubjectSuggestionInput, subjectSuggestionStatusSchema } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { runSubjectSuggestionScan } from "./subject-suggestion.orchestrator.js";
 import { listSubjectSuggestions, resolveSubjectSuggestion } from "./subject-suggestion.repo.js";
@@ -13,9 +13,7 @@ export async function handleTriggerSubjectSuggestionScan(res: http.ServerRespons
   } catch (err) {
     log.error({ err }, "subject_suggestion_scan_failed");
 
-    const message = err instanceof Error ? err.message : "subject suggestion scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 

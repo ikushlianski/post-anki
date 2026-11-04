@@ -1,7 +1,7 @@
 import { Readable } from "node:stream";
 import type http from "node:http";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { MAX_BODY_BYTES } from "../shared/http.js";
+import { BodyTooLargeError, MAX_BODY_BYTES } from "../shared/http.js";
 
 const transcribeAudio = vi.fn();
 
@@ -78,10 +78,7 @@ describe("handleCreateTranscription", () => {
     const req = fakeReq(huge);
     const res = fakeRes();
 
-    await handleCreateTranscription(req, res);
-
-    expect(res.status).toBe(400);
-    expect((res.body as { message: string }).message).toBe("request body too large");
+    await expect(handleCreateTranscription(req, res)).rejects.toBeInstanceOf(BodyTooLargeError);
     expect(transcribeAudio).not.toHaveBeenCalled();
   });
 });

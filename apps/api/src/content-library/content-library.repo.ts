@@ -21,7 +21,6 @@ export async function listLibrarySources(): Promise<LibrarySource[]> {
       kind: sources.kind,
       value: sources.value,
       title: sources.title,
-      fetchedText: sources.fetchedText,
       lastFetchedAt: sources.lastFetchedAt,
       lastFetchOutcome: sources.lastFetchOutcome,
       createdAt: sources.createdAt,
@@ -43,7 +42,6 @@ export async function listLibrarySources(): Promise<LibrarySource[]> {
       value: row.value,
       title: row.title,
       fetchState: resolveFetchState({
-        fetchedText: row.fetchedText,
         lastFetchedAt,
         lastFetchOutcome: row.lastFetchOutcome,
       }),

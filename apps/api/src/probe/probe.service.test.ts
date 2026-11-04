@@ -30,6 +30,18 @@ vi.mock("../gap/gap.repo.js", () => ({
   insertDiscoveredGaps: vi.fn(async () => []),
 }));
 
+vi.mock("./probe-attempt.repo.js", () => ({
+  recordProbeAttempt: async (input: { updatedGaps: Gap[] }) => {
+    persistGaps(input.updatedGaps);
+
+    return {
+      allGaps: input.updatedGaps,
+      progress: { status: "not_started", maturity: 0, attempts: 1, lastInteractedAt: null },
+      learningStatus: "probing",
+    };
+  },
+}));
+
 vi.mock("../curriculum/curriculum.repo.js", () => ({
   getCurriculumContextForTopic: vi.fn(async () => ({
     curriculumId: "c1",

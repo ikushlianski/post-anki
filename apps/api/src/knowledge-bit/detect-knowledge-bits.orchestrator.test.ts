@@ -67,6 +67,7 @@ function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): Generate
     getInsertState: vi.fn().mockResolvedValue({ nextOrdinal: 0, existingStatements: [] }),
     insertItems: vi.fn(async (input) => input.items.length),
     markDetected: vi.fn().mockResolvedValue(true),
+    markItemCapReached: vi.fn().mockResolvedValue(true),
     markFailed: vi.fn().mockResolvedValue(true),
     loadFeedbackBlock: vi.fn().mockResolvedValue(""),
     ...overrides,
@@ -74,6 +75,19 @@ function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): Generate
 }
 
 describe("generateItemsForSource", () => {
+  it("should tell the writer the source is a phrase so it gets the phrase card writer", async () => {
+    const loadSourceKind = vi.fn().mockResolvedValue("phrase");
+    const deps = buildGenerateDeps({ loadSourceKind });
+
+    await generateItemsForSource(source("ks_1", "Phrase: touch base"), {}, deps);
+
+    expect(loadSourceKind).toHaveBeenCalledWith("ks_1");
+    expect(deps.writeItems).toHaveBeenCalledWith(
+      "Phrase: touch base",
+      expect.objectContaining({ sourceKind: "phrase" }),
+    );
+  });
+
   it("should make exactly one model call for a short paste and store its items", async () => {
     const deps = buildGenerateDeps({
       writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
@@ -126,6 +140,18 @@ describe("generateItemsForSource", () => {
     );
   });
 
+  it("should still extract and store items when the source kind and target phrases cannot be loaded", async () => {
+    const deps = buildGenerateDeps({
+      writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
+      loadSourceKind: vi.fn().mockRejectedValue(new Error("db down")),
+      loadTargetPhrases: vi.fn().mockRejectedValue(new Error("db down")),
+    });
+
+    const result = await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT), {}, deps);
+
+    expect(result.status).toBe("detected");
+  });
+
   it("should pass the model chosen for this run to every chunk call", async () => {
     const deps = buildGenerateDeps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS) });
 
@@ -138,6 +164,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onNothingWorthKeeping: expect.any(Function),
       modelId: "openrouter/openai/gpt-6-luna",
     });
   });
@@ -154,6 +181,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onNothingWorthKeeping: expect.any(Function),
       modelId: "openrouter/openai/gpt-5-mini",
     });
   });
@@ -170,6 +198,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onNothingWorthKeeping: expect.any(Function),
       modelId: "openrouter/google/gemma-4-31b-it",
     });
   });
@@ -179,7 +208,11 @@ describe("generateItemsForSource", () => {
 
     await generateItemsForSource(source("ks_1", RU_SOURCE_TEXT, "openrouter/evil/model"), {}, deps);
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT, subjectKind: "other" });
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      learningIntent: DEFAULT_LEARNING_INTENT,
+      subjectKind: "other",
+      onNothingWorthKeeping: expect.any(Function),
+    });
   });
 
   it("should fall back to the admin default once a listed model has passed its retirement date", async () => {
@@ -195,7 +228,11 @@ describe("generateItemsForSource", () => {
 
     vi.useRealTimers();
 
-    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), { learningIntent: DEFAULT_LEARNING_INTENT, subjectKind: "other" });
+    expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
+      learningIntent: DEFAULT_LEARNING_INTENT,
+      subjectKind: "other",
+      onNothingWorthKeeping: expect.any(Function),
+    });
   });
 
   it("should start ordinals after the existing ones and give each chunk its own ordinal range", async () => {
@@ -334,6 +371,17 @@ describe("generateItemsForSource", () => {
     expect(result.inserted).toBe(MAX_ITEMS_PER_SOURCE);
     expect(writeItems.mock.calls.length).toBeLessThan(18);
     expect(result.status).toBe("detected");
+    expect(deps.markItemCapReached).toHaveBeenCalledTimes(1);
+    expect(deps.markDetected).not.toHaveBeenCalled();
+  });
+
+  it("should mark a small note as plainly detected, not cut at the cap", async () => {
+    const deps = buildGenerateDeps();
+
+    await generateItemsForSource(source("ks_1", paragraphs(1)), {}, deps);
+
+    expect(deps.markItemCapReached).not.toHaveBeenCalled();
+    expect(deps.markDetected).toHaveBeenCalledTimes(1);
   });
 
   it("should keep items already inserted but mark the source failed when a later chunk fails", async () => {

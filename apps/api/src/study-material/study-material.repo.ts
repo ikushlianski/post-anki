@@ -1,7 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import type { StudyMaterial, StudyMaterialCitation, StudyMaterialKind } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { studyMaterials } from "../db/schema.js";
+import { GENERATING_STALE_AFTER_MS } from "../shared/generating-staleness.js";
 import { newId } from "../shared/id.js";
 
 function rowToStudyMaterial(row: typeof studyMaterials.$inferSelect): StudyMaterial {
@@ -36,7 +37,7 @@ export async function setStudyMaterialReady(
 ): Promise<void> {
   await getDb()
     .update(studyMaterials)
-    .set({ status: "ready", body, citations })
+    .set({ status: "ready", body, citations, failureReason: null })
     .where(eq(studyMaterials.id, id));
 }
 
@@ -45,6 +46,25 @@ export async function setStudyMaterialFailed(id: string, failureReason: string):
     .update(studyMaterials)
     .set({ status: "failed", failureReason })
     .where(eq(studyMaterials.id, id));
+}
+
+export async function failStaleGeneratingStudyMaterials(
+  topicId: string,
+  olderThanMs: number = GENERATING_STALE_AFTER_MS,
+): Promise<number> {
+  const rows = await getDb()
+    .update(studyMaterials)
+    .set({ status: "failed", failureReason: "generation_timed_out" })
+    .where(
+      and(
+        eq(studyMaterials.topicId, topicId),
+        eq(studyMaterials.status, "generating"),
+        lt(studyMaterials.createdAt, new Date(Date.now() - olderThanMs)),
+      ),
+    )
+    .returning({ id: studyMaterials.id });
+
+  return rows.length;
 }
 
 export async function listStudyMaterialsForTopic(topicId: string): Promise<StudyMaterial[]> {

@@ -17,6 +17,13 @@ const PROMPT_TAG_NAMES = [
   "learning_intent",
   "lessons",
   "lesson",
+  "new",
+  "existing",
+  "suggestion",
+  "phrase",
+  "hint",
+  "target_phrases",
+  "target_phrase",
 ];
 
 const PROMPT_TAG_PATTERN = new RegExp(`<(\\s*/?\\s*(?:${PROMPT_TAG_NAMES.join("|")})(?![\\p{L}\\p{N}_]))`, "giu");

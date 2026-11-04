@@ -38,7 +38,7 @@ export type ResolveOpenQuestionInput = z.infer<typeof resolveOpenQuestionInput>;
 
 export const listOpenQuestionsQuerySchema = z.object({
   status: openQuestionStatusSchema.optional(),
-  limit: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(1000).optional(),
 });
 
 export type ListOpenQuestionsQuery = z.infer<typeof listOpenQuestionsQuerySchema>;

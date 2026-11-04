@@ -13,7 +13,7 @@ import {
   getKnowledgeSourceRegenerationStatus,
 } from "./knowledge-source-regeneration.repo.js";
 
-const ERROR_STATUS = { not_found: 404, already_running: 409, source_text_missing: 422 } as const;
+const ERROR_STATUS = { not_found: 404, already_running: 409, source_text_missing: 422, not_nothing_extracted: 409 } as const;
 
 // POST /knowledge-sources/:id/regeneration
 export async function handleRegenerateKnowledgeSource(
@@ -28,7 +28,10 @@ export async function handleRegenerateKnowledgeSource(
     return;
   }
 
-  const claim = await claimSourceForRegeneration(id, { replacementText: body.data.text });
+  const claim = await claimSourceForRegeneration(id, {
+    replacementText: body.data.text,
+    ...(body.data.forceAtLeastOne === true ? { requireNothingExtracted: true } : {}),
+  });
 
   if (!claim.ok) {
     sendError(res, ERROR_STATUS[claim.error], claim.error);
@@ -36,15 +39,19 @@ export async function handleRegenerateKnowledgeSource(
   }
 
   const generateInProcess = () =>
-    generateItemsForSource(claim.source, { modelId: body.data.modelId }).catch((err) =>
+    generateItemsForSource(claim.source, {
+      modelId: body.data.modelId,
+      ...(forceAtLeastOne ? { forceAtLeastOne } : {}),
+    }).catch((err) =>
       log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
     );
+  const forceAtLeastOne = body.data.forceAtLeastOne === true;
   const durable = isDurableExtractionEnabled();
 
   await dispatchBackground({
     durable,
     start: async () => {
-      if (!durable) {
+      if (!durable || forceAtLeastOne) {
         await generateInProcess();
 
         return;

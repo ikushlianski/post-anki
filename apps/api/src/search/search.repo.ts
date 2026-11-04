@@ -1,4 +1,4 @@
-import { and, eq, ilike, isNull, sql } from "drizzle-orm";
+import { and, eq, ilike, isNull, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { TopicModuleSearchResult } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { curricula, modules, subjects, topics } from "../db/schema.js";
@@ -27,12 +27,16 @@ export interface SearchTopicResult {
 // LIST_TAG_NODES_LIMIT in list-nodes-by-tag.repo.ts for the same shape.
 export const SEARCH_NAME_MATCH_LIMIT = 500;
 
+function matchRank(column: AnyColumn, query: string): SQL {
+  return sql`case when lower(${column}) = lower(${query}) then 0 when ${column} ilike ${`${escapeLikePattern(query)}%`} then 1 else 2 end`;
+}
+
 export async function searchSubjects(query: string): Promise<SearchSubjectResult[]> {
   return getDb()
     .select({ id: subjects.id, name: subjects.name })
     .from(subjects)
     .where(ilike(subjects.name, `%${escapeLikePattern(query)}%`))
-    .orderBy(subjects.name, subjects.id)
+    .orderBy(matchRank(subjects.name, query), subjects.name, subjects.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 
@@ -55,7 +59,7 @@ export async function searchCurricula(query: string): Promise<SearchCurriculumRe
         ilike(curricula.name, `%${escapeLikePattern(query)}%`),
       ),
     )
-    .orderBy(curricula.name, curricula.id)
+    .orderBy(matchRank(curricula.name, query), curricula.name, curricula.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 
@@ -64,7 +68,7 @@ export async function searchTopics(query: string): Promise<SearchTopicResult[]> 
     .select({ id: topics.id, title: topics.title, curriculumId: topics.curriculumId })
     .from(topics)
     .where(and(topicNotDeclined, ilike(topics.title, `%${escapeLikePattern(query)}%`)))
-    .orderBy(topics.title, topics.id)
+    .orderBy(matchRank(topics.title, query), topics.title, topics.id)
     .limit(SEARCH_NAME_MATCH_LIMIT);
 }
 

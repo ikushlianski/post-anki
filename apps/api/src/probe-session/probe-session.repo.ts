@@ -165,13 +165,13 @@ export async function createSessionWithQuestions(
   session: typeof probeSessions.$inferInsert,
   questions: ProbeSessionQuestionInsert[],
 ): Promise<ProbeSession | null> {
-  const db = getDb();
+  await getDb().transaction(async (tx) => {
+    await tx.insert(probeSessions).values(session);
 
-  await db.insert(probeSessions).values(session);
-
-  if (questions.length > 0) {
-    await db.insert(probeSessionQuestions).values(questions);
-  }
+    if (questions.length > 0) {
+      await tx.insert(probeSessionQuestions).values(questions);
+    }
+  });
 
   return loadSession(session.id);
 }

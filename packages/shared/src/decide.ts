@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { TYPED_ANSWER_MAX_CHARS } from "./text-limits";
 
 export const decideInput = z.object({
-  decision: z.string().trim().min(1),
-  opinion: z.string().trim().min(1),
+  decision: z.string().trim().min(1).max(TYPED_ANSWER_MAX_CHARS),
+  opinion: z.string().trim().min(1).max(TYPED_ANSWER_MAX_CHARS),
 });
 
 export type DecideInput = z.infer<typeof decideInput>;

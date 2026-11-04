@@ -7,16 +7,25 @@ import type {
 import { collectSubjectSubtreeIds } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { subjects } from "../db/schema.js";
+import { loadStudyOptionsResolver } from "../subject-study-options/subject-study-options-resolver.js";
+import { getLocalDayWindow } from "./knowledge-bit-review.repo.js";
+import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
+import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
+import { readDailyReviewLimit } from "./knowledge-bit-review-queue-daily-limit.repo.js";
 import { listLearnAheadRows } from "./knowledge-bit-review-queue-learning.repo.js";
 import { pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
 import {
   listPickedCards,
+  listPickedNewCards,
   listScopedCards,
   toCard,
 } from "./knowledge-bit-review-queue-cards.repo.js";
 import {
+  deriveUnscopedQueueCounts,
   readEligibleTotals,
-  readNewRemainingToday,
+  readFreshBySubject,
+  readNewCardAllowance,
+  summariseNewCardAllowance,
 } from "./knowledge-bit-review-queue-counts.repo.js";
 
 export type { Picked } from "./knowledge-bit-review-queue-picked.repo.js";
@@ -26,9 +35,14 @@ export interface KnowledgeBitReviewCardRow {
   knowledgeBitId: string;
   kind: KnowledgeBitQuestionVariantKind;
   prompt: string;
+  context?: string | null;
   answer: string;
+  sentence?: string;
+  cardKey?: string;
   background: string | null;
   isAiGenerated: boolean;
+  aiSuggestion?: string | null;
+  originalPhrase?: string;
   sourceLinks: string[];
   subjectId: string | null;
   phase: CardPhase;
@@ -48,12 +62,16 @@ export interface KnowledgeBitReviewQueue {
   counts: ReviewCounts;
   newRemainingToday: number;
   newLimitReached: boolean;
+  limitReached?: boolean;
+  reviewedToday?: number;
+  limit?: number;
   nextDueAt: string | null;
 }
 
 export interface KnowledgeBitReviewQueueClock {
   tz: string;
   now: Date;
+  aheadDays?: number;
 }
 
 // Unscoped: only due or never-reviewed bits, one card each, new cards capped per local day.
@@ -77,44 +95,65 @@ export async function getKnowledgeBitReviewQueue(
   const subjectIds = filter?.subjectId ? await resolveSubjectScopeIds(filter.subjectId, db) : undefined;
   const scope = scopeCondition(filter, db, subjectIds);
   const picked = pickedVariants(scope, now, db);
-  const { remaining, dayEndsAt } = await readNewRemainingToday(clock, db);
+  const [resolver, planClock] = await Promise.all([
+    loadStudyOptionsResolver(db),
+    readStudyPlanClock(now, db),
+  ]);
+  const stepsFor = (subjectId: string | null) =>
+    toScheduleOptions(resolver.resolvePlan(subjectId), planClock);
+  const [allowance, freshBySubject] = await Promise.all([
+    readNewCardAllowance(clock, db, resolver),
+    readFreshBySubject(picked, db),
+  ]);
+  const { remaining, newAvailable, capHidesNew } = summariseNewCardAllowance(allowance, freshBySubject);
+  const { dayEndsAt } = allowance;
+  const aheadDays = clock.aheadDays ?? 0;
+  const daily = await readDailyReviewLimit(clock, db);
+  const dailyFields = { limitReached: daily.reached, reviewedToday: daily.reviewedToday, limit: daily.limit };
+  const blockedByDailyLimit = daily.reached && aheadDays === 0;
+  const subjectOnlyScope = Boolean(filter?.subjectId && !filter.tagId && !filter.topicId && !filter.knowledgeBitId);
 
   if (scope && filter) {
+    const blocked = blockedByDailyLimit && subjectOnlyScope;
     const [cards, totals] = await Promise.all([
-      listScopedCards(limit, scope, filter, now, db),
+      blocked ? Promise.resolve([]) : listScopedCards(limit, scope, filter, now, db, stepsFor),
       readEligibleTotals(picked, now, db),
     ]);
 
     return {
+      ...(subjectOnlyScope ? dailyFields : {}),
       cards,
       counts: { new: totals.fresh, learning: totals.learning, review: totals.due },
       newRemainingToday: remaining,
       newLimitReached: false,
-      nextDueAt: totals.nextDue?.toISOString() ?? null,
+      nextDueAt: (blocked ? dayEndsAt : totals.nextDue)?.toISOString() ?? null,
     };
   }
 
+  const dueCutoff =
+    aheadDays > 0
+      ? (await getLocalDayWindow(clock.tz, new Date(now.getTime() + aheadDays * 86_400_000), db)).endsAt
+      : now;
   const [dueCards, newCards, totals] = await Promise.all([
-    listPickedCards(picked, "due", limit, now, db),
-    listPickedCards(picked, "new", Math.min(limit, remaining), now, db),
+    blockedByDailyLimit ? Promise.resolve([]) : listPickedCards(picked, "due", limit, now, db, stepsFor, dueCutoff),
+    blockedByDailyLimit
+      ? Promise.resolve([])
+      : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor),
     readEligibleTotals(picked, now, db),
   ]);
   const withNew = [...dueCards, ...newCards.slice(0, Math.max(0, limit - dueCards.length))];
-  const aheadRows = await listLearnAheadRows(picked, limit - withNew.length, now, db);
-  const cards = [...withNew, ...aheadRows.map((row) => toCard(row, now))];
-  const capHidesNew = remaining === 0 && totals.fresh > 0;
-  const nextDue =
-    capHidesNew && (!totals.nextDue || dayEndsAt < totals.nextDue) ? dayEndsAt : totals.nextDue;
+  const aheadRows = blockedByDailyLimit
+    ? []
+    : await listLearnAheadRows(picked, aheadDays > 0 ? 0 : limit - withNew.length, now, db);
+  const cards = [...withNew, ...aheadRows.map((row) => toCard(row, now, stepsFor))];
+  const derived = deriveUnscopedQueueCounts(totals, { newAvailable, capHidesNew }, dayEndsAt);
 
   return {
+    ...dailyFields,
     cards,
-    counts: {
-      new: Math.min(totals.fresh, remaining),
-      learning: totals.learning,
-      review: totals.due,
-    },
+    counts: derived.counts,
     newRemainingToday: remaining,
-    newLimitReached: capHidesNew,
-    nextDueAt: nextDue?.toISOString() ?? null,
+    newLimitReached: derived.newLimitReached,
+    nextDueAt: (blockedByDailyLimit ? dayEndsAt : derived.nextDue)?.toISOString() ?? null,
   };
 }

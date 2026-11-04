@@ -158,3 +158,20 @@ describe("handleCreateKnowledgeSource refusal reasons", () => {
     expect(res.body).toMatchObject({ id: "ks_1", truncated: false });
   });
 });
+
+describe("handleCreateKnowledgeSource oversized body", () => {
+  it("should answer 413 with the friendly too-long sentence and reason when the paste is huge", async () => {
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSource(fakeReq(JSON.stringify({ text: "a".repeat(1_100_000) })), res);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toEqual({
+      error: "invalid_input",
+      message: "This text is longer than 50,000 characters. Split it into smaller blocks.",
+      reason: "text_too_long",
+    });
+    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+  });
+});
+

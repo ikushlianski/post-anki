@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deriveGradeSchedule, previewGradeIntervals } from "./knowledge-bit-grade-schedule.js";
+import { DEFAULT_STEP_OPTIONS, toStepOptions } from "./knowledge-bit-learning-steps.js";
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -76,11 +77,11 @@ describe("deriveGradeSchedule", () => {
     expect(deriveGradeSchedule(review(2.95, 5), "easy", NOW).easeFactor).toBe(3.0);
   });
 
-  it("should never schedule a card more than 180 days out", () => {
-    const next = deriveGradeSchedule(review(3.0, 150), "easy", NOW);
+  it("should never schedule a card more than 365 days out", () => {
+    const next = deriveGradeSchedule(review(3.0, 300), "easy", NOW);
 
-    expect(next.intervalDays).toBe(180);
-    expect(next.dueAt.getTime()).toBe(NOW.getTime() + 180 * DAY_MS);
+    expect(next.intervalDays).toBe(365);
+    expect(next.dueAt.getTime()).toBe(NOW.getTime() + 365 * DAY_MS);
   });
 
   it("should keep reviewed cards in review after Hard, Good and Easy", () => {
@@ -104,7 +105,37 @@ describe("previewGradeIntervals", () => {
     });
   });
 
-  it("should clamp previews to the 180-day maximum like a real grade", () => {
-    expect(previewGradeIntervals(review(3.0, 150), NOW).easy).toBe(180 * 86_400);
+  it("should clamp previews to the 365-day maximum like a real grade", () => {
+    expect(previewGradeIntervals(review(3.0, 300), NOW).easy).toBe(365 * 86_400);
+  });
+});
+
+describe("grade schedule with study options", () => {
+  const grades = ["again", "hard", "good", "easy"] as const;
+  const defaults = toStepOptions({ learningStepsMinutes: [1, 10], relearningStepsMinutes: [10] });
+
+  it("should keep SM-2 intervals identical to today when all options are defaults", () => {
+    expect(defaults).toEqual(DEFAULT_STEP_OPTIONS);
+
+    for (const grade of grades) {
+      expect(deriveGradeSchedule(review(2.5, 10), grade, NOW, defaults)).toEqual(
+        deriveGradeSchedule(review(2.5, 10), grade, NOW),
+      );
+      expect(deriveGradeSchedule(null, grade, NOW, defaults)).toEqual(deriveGradeSchedule(null, grade, NOW));
+    }
+  });
+
+  it("should send a lapsed card back after the subject's first relearning step", () => {
+    const options = toStepOptions({ learningStepsMinutes: [1], relearningStepsMinutes: [45] });
+
+    expect(deriveGradeSchedule(review(2.5, 30), "again", NOW, options).dueAt.getTime() - NOW.getTime()).toBe(
+      45 * 60_000,
+    );
+  });
+
+  it("should preview a new card with the subject's learning steps", () => {
+    const options = toStepOptions({ learningStepsMinutes: [3, 20], relearningStepsMinutes: [10] });
+
+    expect(previewGradeIntervals(null, NOW, options)).toMatchObject({ again: 180, good: 1200 });
   });
 });

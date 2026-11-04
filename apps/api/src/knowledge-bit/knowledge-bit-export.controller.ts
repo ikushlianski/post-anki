@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { knowledgeBitExportQuerySchema } from "@post-anki/shared";
-import { sendJson } from "../shared/http.js";
+import { sendInvalidQuery } from "../shared/http.js";
 import { csvHeaderLine, csvLine } from "./knowledge-bit-export.csv.js";
 import { streamApprovedCards } from "./knowledge-bit-export.repo.js";
 
@@ -39,7 +39,7 @@ export async function handleExportKnowledgeBits(
   );
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 

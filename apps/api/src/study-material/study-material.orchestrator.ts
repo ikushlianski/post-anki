@@ -20,6 +20,14 @@ import { webSearch } from "../probe/probe-grounding.js";
 import { studyMaterialPlanSchema } from "./study-material-plan.schema.js";
 import { setStudyMaterialFailed, setStudyMaterialReady } from "./study-material.repo.js";
 
+async function markStudyMaterialFailed(materialId: string, reason: string): Promise<void> {
+  try {
+    await setStudyMaterialFailed(materialId, reason);
+  } catch (err) {
+    log.error({ err, materialId }, "study_material_failed_status_write_failed");
+  }
+}
+
 interface StudyMaterialGrounding {
   text: string;
   citations: string[];
@@ -115,7 +123,7 @@ export async function generateStudyMaterial(
 
     if (!hasUsableGroundingText(grounding.text)) {
       log.warn({ topicId, materialId, kind }, "study_material_no_usable_grounding");
-      await setStudyMaterialFailed(
+      await markStudyMaterialFailed(
         materialId,
         "no usable grounding material found for this topic across its stored sources, accumulated topic/gap knowledge, or the web",
       );
@@ -152,6 +160,6 @@ export async function generateStudyMaterial(
     log.info({ topicId, materialId, kind }, "study_material_generated");
   } catch (err) {
     log.error({ err, topicId, materialId, kind }, "study_material_generate_failed");
-    await setStudyMaterialFailed(materialId, "generation failed");
+    await markStudyMaterialFailed(materialId, "generation failed");
   }
 }

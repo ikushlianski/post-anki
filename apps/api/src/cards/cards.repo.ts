@@ -396,60 +396,60 @@ export async function replaceCardsContent(
   topicId: string,
   plan: CardsPlanContent,
 ): Promise<void> {
-  const db = getDb();
+  await getDb().transaction(async (db) => {
+    const existing = (
+      await db.select().from(topicCardSets).where(eq(topicCardSets.topicId, topicId))
+    )[0];
 
-  const existing = (
-    await db.select().from(topicCardSets).where(eq(topicCardSets.topicId, topicId))
-  )[0];
-
-  if (!existing) {
-    throw new Error("card set not found for topic");
-  }
-
-  const existingCardRows = await db
-    .select({ id: topicCards.id })
-    .from(topicCards)
-    .where(eq(topicCards.cardSetId, existing.id));
-
-  if (existingCardRows.length > 0) {
-    await db.delete(topicCardVariants).where(
-      inArray(topicCardVariants.cardId, existingCardRows.map((c) => c.id)),
-    );
-  }
-
-  await db.delete(topicCards).where(eq(topicCards.cardSetId, existing.id));
-
-  if (plan.cards.length > 0) {
-    const cardIds = plan.cards.map(() => newId("card"));
-
-    await db.insert(topicCards).values(
-      plan.cards.map((card, index) => ({
-        id: cardIds[index]!,
-        cardSetId: existing.id,
-        order: index + 1,
-        concept: card.concept,
-      })),
-    );
-
-    const variantRows = plan.cards.flatMap((card, cardIndex) =>
-      card.variants.map((variant, variantIndex) => ({
-        id: newId("cardvariant"),
-        cardId: cardIds[cardIndex]!,
-        order: variantIndex + 1,
-        prompt: variant.prompt,
-        answer: variant.answer,
-      })),
-    );
-
-    if (variantRows.length > 0) {
-      await db.insert(topicCardVariants).values(variantRows);
+    if (!existing) {
+      throw new Error("card set not found for topic");
     }
-  }
 
-  await db
-    .update(topicCardSets)
-    .set({ status: "ready", updatedAt: new Date() })
-    .where(eq(topicCardSets.id, existing.id));
+    const existingCardRows = await db
+      .select({ id: topicCards.id })
+      .from(topicCards)
+      .where(eq(topicCards.cardSetId, existing.id));
+
+    if (existingCardRows.length > 0) {
+      await db.delete(topicCardVariants).where(
+        inArray(topicCardVariants.cardId, existingCardRows.map((c) => c.id)),
+      );
+    }
+
+    await db.delete(topicCards).where(eq(topicCards.cardSetId, existing.id));
+
+    if (plan.cards.length > 0) {
+      const cardIds = plan.cards.map(() => newId("card"));
+
+      await db.insert(topicCards).values(
+        plan.cards.map((card, index) => ({
+          id: cardIds[index]!,
+          cardSetId: existing.id,
+          order: index + 1,
+          concept: card.concept,
+        })),
+      );
+
+      const variantRows = plan.cards.flatMap((card, cardIndex) =>
+        card.variants.map((variant, variantIndex) => ({
+          id: newId("cardvariant"),
+          cardId: cardIds[cardIndex]!,
+          order: variantIndex + 1,
+          prompt: variant.prompt,
+          answer: variant.answer,
+        })),
+      );
+
+      if (variantRows.length > 0) {
+        await db.insert(topicCardVariants).values(variantRows);
+      }
+    }
+
+    await db
+      .update(topicCardSets)
+      .set({ status: "ready", updatedAt: new Date() })
+      .where(eq(topicCardSets.id, existing.id));
+  });
 }
 
 export async function setCardsStatus(

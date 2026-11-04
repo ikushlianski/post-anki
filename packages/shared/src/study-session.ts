@@ -31,11 +31,13 @@ export const studySessionSchema = z.object({
 
 export type StudySession = z.infer<typeof studySessionSchema>;
 
+export const STUDY_SESSION_MAX_MINUTES = 1440;
+
 export const createStudySessionInput = z.object({
   targetType: studySessionTargetTypeSchema.nullable().optional(),
   targetId: z.string().nullable().optional(),
-  plannedDurationMinutes: z.number().int().positive(),
-  scheduledFor: z.string().nullable().optional(),
+  plannedDurationMinutes: z.number().int().positive().max(STUDY_SESSION_MAX_MINUTES),
+  scheduledFor: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 export type CreateStudySessionInput = z.infer<typeof createStudySessionInput>;

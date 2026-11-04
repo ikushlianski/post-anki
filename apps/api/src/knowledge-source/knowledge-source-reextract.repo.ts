@@ -2,6 +2,7 @@ import { and, count, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 import type { PendingKnowledgeSource } from "../knowledge-bit/knowledge-bit.repo.js";
+import { deleteChatQueueMessages } from "../knowledge-bit/knowledge-bit-chat-queue-messages.repo.js";
 
 export interface ReextractCandidate {
   id: string;
@@ -89,6 +90,11 @@ export async function claimSourceAndSupersedeAllBits(
       .set({ approvalState: "superseded" })
       .where(and(eq(knowledgeBits.knowledgeSourceId, id), ne(knowledgeBits.approvalState, "superseded")))
       .returning({ id: knowledgeBits.id });
+
+    await deleteChatQueueMessages(
+      tx,
+      superseded.map((row) => row.id),
+    );
 
     return {
       ok: true as const,

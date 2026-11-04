@@ -7,6 +7,16 @@ const optionalNonEmpty = z.preprocess(
   z.string().min(1).optional(),
 );
 
+const base64Key32 = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z
+    .string()
+    .refine((value) => /^[A-Za-z0-9+/]+={0,2}$/.test(value) && Buffer.from(value, "base64").length === 32, {
+      message: "must be base64 for exactly 32 bytes (openssl rand -base64 32)",
+    })
+    .optional(),
+);
+
 const envObject = z.object({
   DATABASE_URL: z.string().min(1),
   OPENROUTER_API_KEY: z.string().optional(),
@@ -67,6 +77,7 @@ const envObject = z.object({
   ),
   EXTENSION_ID: z.string().min(1).optional(),
   NOTION_TOKEN: z.string().min(1).optional(),
+  CONNECTOR_SECRET_KEY: base64Key32,
   // Durable extraction pilot. Plain strings on purpose: an empty or odd value must never stop the
   // API from booting; the pilot code parses them and falls back to its defaults (off, 10 s, 30 min).
   DURABLE_EXTRACTION: z.string().optional(),

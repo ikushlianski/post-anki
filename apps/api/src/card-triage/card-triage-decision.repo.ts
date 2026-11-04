@@ -5,7 +5,7 @@ import type {
   KnowledgeBitRejectReason,
   TriageDecisionResponse,
 } from "@post-anki/shared";
-import { KNOWLEDGE_BIT_REJECT_REASONS, type putTriageDecisionInput } from "@post-anki/shared";
+import { KNOWLEDGE_BIT_ALL_REJECT_REASONS, type putTriageDecisionInput } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { cardTriageDecisions, cardTriageSessions } from "../db/schema.js";
 import { updateKnowledgeBitFeedback } from "../knowledge-bit/knowledge-bit-feedback.repo.js";
@@ -22,7 +22,7 @@ export interface DecisionDetails {
 }
 
 function reasonOf(row: TriageDecisionRow): KnowledgeBitRejectReason | null {
-  return KNOWLEDGE_BIT_REJECT_REASONS.find((reason) => reason === row.reasonCode) ?? null;
+  return KNOWLEDGE_BIT_ALL_REJECT_REASONS.find((reason) => reason === row.reasonCode) ?? null;
 }
 
 export function toTriageDecisionResponse(row: TriageDecisionRow): TriageDecisionResponse {
@@ -44,7 +44,7 @@ export function toTriageDecisionResponse(row: TriageDecisionRow): TriageDecision
   };
 }
 
-function normalizedNote(note: string | null | undefined): string | null {
+export function normalizedNote(note: string | null | undefined): string | null {
   const trimmed = note?.trim();
 
   return trimmed ? trimmed : null;
@@ -131,6 +131,7 @@ export async function insertDecisionRow(
       variants: context?.variants ?? null,
       front: context?.front ?? null,
       back: context?.back ?? null,
+      fusionModelIds: context && context.fusionModelIds.length > 0 ? context.fusionModelIds : null,
       source: input.source,
       feedbackId: input.feedbackId,
     })
@@ -143,7 +144,7 @@ export async function insertDecisionRow(
   return row;
 }
 
-async function syncLegacyFeedback(tx: DbExecutor, row: TriageDecisionRow, details: DecisionDetails): Promise<void> {
+export async function syncLegacyFeedback(tx: DbExecutor, row: TriageDecisionRow, details: DecisionDetails): Promise<void> {
   if (row.verdict !== "rejected" || !row.feedbackId || !details.reasonCode) {
     return;
   }

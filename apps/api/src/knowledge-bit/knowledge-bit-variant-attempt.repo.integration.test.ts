@@ -112,9 +112,11 @@ describe("getQuestionVariantById (real Postgres)", () => {
     const row = await getQuestionVariantById(variantId);
 
     expect(row).toEqual({
+      order: expect.any(Number),
       id: variantId,
       knowledgeBitId: bitId,
       kind: "wh_question",
+      context: null,
       prompt: "Why does this matter?",
       answer: "Because of X.",
       approvalState: "approved",

@@ -1,7 +1,16 @@
 import { reviewGradeSchema, type ReviewGrade } from "@post-anki/shared";
 import { and, eq, gt, gte, isNull, ne, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { knowledgeBitReviews, type KnowledgeBitScheduleSnapshot } from "../db/schema.js";
+import {
+  curricula,
+  knowledgeBitReviews,
+  knowledgeBits,
+  knowledgeSources,
+  topics,
+  type KnowledgeBitBuriedSibling,
+  type KnowledgeBitScheduleSnapshot,
+} from "../db/schema.js";
+import { cardSubjectIdSql } from "./knowledge-bit-card-subject.js";
 import type { Tx } from "../shared/merge-lock.js";
 import { newId } from "../shared/id.js";
 
@@ -14,6 +23,8 @@ export interface KnowledgeBitReviewInsertRow {
   prevSchedule: KnowledgeBitScheduleSnapshot | null;
   reviewedAt: Date;
   requestId?: string;
+  cardKey: string;
+  buriedSiblings: KnowledgeBitBuriedSibling[] | null;
 }
 
 // Append-only: grading only ever inserts a history row, never edits or deletes one.
@@ -67,9 +78,38 @@ export async function countNewCardsReviewedToday(
   return row?.total ?? 0;
 }
 
+export async function countNewCardsReviewedTodayBySubject(
+  startsAt: Date,
+  db: DbExecutor = getDb(),
+): Promise<Map<string | null, number>> {
+  const rows = await db
+    .select({
+      subjectId: cardSubjectIdSql,
+      total: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(knowledgeBitReviews)
+    .leftJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitReviews.knowledgeBitId))
+    .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
+    .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
+    .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
+    .where(
+      and(
+        eq(knowledgeBitReviews.wasNew, true),
+        isNull(knowledgeBitReviews.undoneAt),
+        gte(knowledgeBitReviews.reviewedAt, startsAt),
+      ),
+    )
+    .groupBy(cardSubjectIdSql);
+
+  return new Map(rows.map((row) => [row.subjectId, row.total]));
+}
+
 export interface KnowledgeBitReviewRecord {
   id: string;
   knowledgeBitId: string;
+  variantId: string;
+  cardKey: string;
+  buriedSiblings: KnowledgeBitBuriedSibling[] | null;
   prevSchedule: KnowledgeBitScheduleSnapshot | null;
   reviewedAt: Date;
   undoneAt: Date | null;
@@ -83,6 +123,9 @@ export async function readKnowledgeBitReviewInTx(
     .select({
       id: knowledgeBitReviews.id,
       knowledgeBitId: knowledgeBitReviews.knowledgeBitId,
+      variantId: knowledgeBitReviews.variantId,
+      cardKey: knowledgeBitReviews.cardKey,
+      buriedSiblings: knowledgeBitReviews.buriedSiblings,
       prevSchedule: knowledgeBitReviews.prevSchedule,
       reviewedAt: knowledgeBitReviews.reviewedAt,
       undoneAt: knowledgeBitReviews.undoneAt,
@@ -97,6 +140,9 @@ export async function readKnowledgeBitReviewInTx(
 export interface KnowledgeBitReviewByRequestRecord {
   id: string;
   knowledgeBitId: string;
+  variantId: string;
+  cardKey: string;
+  buriedSiblings: KnowledgeBitBuriedSibling[] | null;
   grade: ReviewGrade;
   prevSchedule: KnowledgeBitScheduleSnapshot | null;
   reviewedAt: Date;
@@ -110,6 +156,9 @@ export async function readKnowledgeBitReviewByRequestIdInTx(
     .select({
       id: knowledgeBitReviews.id,
       knowledgeBitId: knowledgeBitReviews.knowledgeBitId,
+      variantId: knowledgeBitReviews.variantId,
+      cardKey: knowledgeBitReviews.cardKey,
+      buriedSiblings: knowledgeBitReviews.buriedSiblings,
       grade: knowledgeBitReviews.grade,
       prevSchedule: knowledgeBitReviews.prevSchedule,
       reviewedAt: knowledgeBitReviews.reviewedAt,
@@ -143,6 +192,7 @@ export async function readKnowledgeBitReviewBitId(
 export async function hasLaterLiveReviewInTx(
   tx: Tx,
   knowledgeBitId: string,
+  cardKey: string,
   reviewedAt: Date,
   id: string,
 ): Promise<boolean> {
@@ -152,6 +202,7 @@ export async function hasLaterLiveReviewInTx(
     .where(
       and(
         eq(knowledgeBitReviews.knowledgeBitId, knowledgeBitId),
+        eq(knowledgeBitReviews.cardKey, cardKey),
         isNull(knowledgeBitReviews.undoneAt),
         ne(knowledgeBitReviews.id, id),
         gt(knowledgeBitReviews.reviewedAt, reviewedAt),

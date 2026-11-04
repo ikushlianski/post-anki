@@ -39,6 +39,7 @@ import { gatherProbeGrounding } from "../probe/probe-grounding.js";
 import { recordAnswerActivity } from "../liveness/answer-activity.js";
 import { buildProbeQuestionForGap, isSocraticGatedByCalibration } from "../probe/probe.service.js";
 import {
+  claimTurnAnswer,
   completeSocraticSession,
   createSocraticSession,
   getActiveSocraticSessionRow,
@@ -49,6 +50,7 @@ import {
   markCheckpointShown,
   pendingTurn,
   recordTurnAnswer,
+  releaseTurnAnswer,
   type SocraticSessionRow,
   type SocraticTurnRow,
 } from "./socratic.repo.js";
@@ -63,6 +65,8 @@ export type SocraticError =
   | "not_found"
   | "not_confirmed"
   | "turn_not_found"
+  | "already_answered"
+  | "session_completed"
   | "calibration_required";
 
 // Soft checkpoint at 5+ exchanges (issue #27) — the literal number from the
@@ -162,41 +166,57 @@ export async function answerSocraticSession(
     return { error: "not_found" };
   }
 
+  if (session.status === "completed") {
+    return { error: "session_completed" };
+  }
+
+  if (turn.answeredAt) {
+    return { error: "already_answered" };
+  }
+
   if (isBlankAnswer(input.answer)) {
     return retryResult(topicRow, turn);
+  }
+
+  if (!(await claimTurnAnswer(turn.id, input.answer, now))) {
+    return { error: "already_answered" };
   }
 
   const depth = rowDepth(topicRow);
   const gaps = await listGapsForTopic(session.topicId);
   const gap = turn.gapId ? gaps.find((g) => g.id === turn.gapId) ?? null : null;
 
-  const grounding = (
-    await gatherProbeGrounding(
-      session.curriculumId,
+  let evaluation: Awaited<ReturnType<typeof evaluateSocratic>>;
+  let action: ReturnType<typeof deriveSocraticAction>;
+
+  try {
+    const grounding = (
+      await gatherProbeGrounding(session.curriculumId, topicRow.title, turn.conceptLabel)
+    ).text;
+
+    evaluation = await evaluateSocratic(
       topicRow.title,
       turn.conceptLabel,
-    )
-  ).text;
+      input.answer,
+      grounding,
+      session.curriculumId,
+    );
 
-  const evaluation = await evaluateSocratic(
-    topicRow.title,
-    turn.conceptLabel,
-    input.answer,
-    grounding,
-    session.curriculumId,
-  );
+    const priorTurns = await listTurnRows(session.id);
 
-  const priorTurns = await listTurnRows(session.id);
-  const priorWrong = countPriorWrong(priorTurns, turn.gapId);
-  const priorEverPartial = hasPriorPartial(priorTurns, turn.gapId);
-  const action = deriveSocraticAction({
-    degree: evaluation.degree,
-    priorWrongCount: priorWrong,
-    priorEverPartial,
-    depth,
-  });
+    action = deriveSocraticAction({
+      degree: evaluation.degree,
+      priorWrongCount: countPriorWrong(priorTurns, turn.gapId),
+      priorEverPartial: hasPriorPartial(priorTurns, turn.gapId),
+      depth,
+    });
 
-  await recordTurnAnswer(turn.id, input.answer, evaluation.degree, action, now);
+    await recordTurnAnswer(turn.id, input.answer, evaluation.degree, action, now);
+  } catch (err) {
+    await releaseTurnAnswer(turn.id);
+
+    throw err;
+  }
 
   const covered =
     action === "advance" || action === "give_answer" || action === "move_on";

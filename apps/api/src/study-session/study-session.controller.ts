@@ -14,7 +14,14 @@ import {
   recordStudySessionAnswer,
   startStudySession,
 } from "./study-session.repo.js";
-import { completeSession, getConsistency, getSessionPush, listSessionsForSchedule } from "./study-session.service.js";
+import {
+  completeSession,
+  getConsistency,
+  getSessionPush,
+  listSessionsForSchedule,
+} from "./study-session.service.js";
+
+const MAX_CONSISTENCY_WINDOW_DAYS = 365;
 
 export async function handleCreateStudySession(
   req: http.IncomingMessage,
@@ -38,10 +45,7 @@ export async function handleListStudySessions(res: http.ServerResponse): Promise
   sendJson(res, 200, sessions);
 }
 
-export async function handleGetStudySession(
-  res: http.ServerResponse,
-  id: string,
-): Promise<void> {
+export async function handleGetStudySession(res: http.ServerResponse, id: string): Promise<void> {
   const session = await getStudySession(id);
 
   if (!session) {
@@ -52,10 +56,7 @@ export async function handleGetStudySession(
   sendJson(res, 200, session);
 }
 
-export async function handleStartStudySession(
-  res: http.ServerResponse,
-  id: string,
-): Promise<void> {
+export async function handleStartStudySession(res: http.ServerResponse, id: string): Promise<void> {
   const session = await startStudySession(id, new Date());
 
   if (!session) {
@@ -82,6 +83,11 @@ export async function handleEndStudySession(
 
   if (!existing) {
     sendError(res, 404, "not_found");
+    return;
+  }
+
+  if (existing.status === "completed" || existing.status === "abandoned") {
+    sendError(res, 409, "session_already_ended");
     return;
   }
 
@@ -131,9 +137,7 @@ export async function handleGetStudySessionPush(
   excludeGapIdsParam: string | null,
   modeParam: string | null,
 ): Promise<void> {
-  const excludeGapIds = excludeGapIdsParam
-    ? excludeGapIdsParam.split(",").filter(Boolean)
-    : [];
+  const excludeGapIds = excludeGapIdsParam ? excludeGapIdsParam.split(",").filter(Boolean) : [];
   const parsedMode = questionKindSchema.safeParse(modeParam);
   const mode: QuestionKind = parsedMode.success ? parsedMode.data : "socratic";
 
@@ -151,8 +155,11 @@ export async function handleGetStudySessionConsistency(
   res: http.ServerResponse,
   windowDaysParam: string | null,
 ): Promise<void> {
-  const parsedWindowDays = windowDaysParam ? Number.parseInt(windowDaysParam, 10) : undefined;
-  const windowDays = parsedWindowDays && Number.isFinite(parsedWindowDays) ? parsedWindowDays : undefined;
+  const parsedWindowDays = windowDaysParam ? Number.parseInt(windowDaysParam, 10) : Number.NaN;
+  const windowDays =
+    Number.isFinite(parsedWindowDays) && parsedWindowDays >= 1
+      ? Math.min(parsedWindowDays, MAX_CONSISTENCY_WINDOW_DAYS)
+      : undefined;
 
   const consistency = await getConsistency(new Date().toISOString(), windowDays);
 

@@ -23,7 +23,7 @@ export const playerLevelSchema = z.object({
 
 export type PlayerLevel = z.infer<typeof playerLevelSchema>;
 
-export const badgeFamilySchema = z.enum(["streak", "mastered", "subject_depth", "total_reviews"]);
+export const badgeFamilySchema = z.enum(["streak", "mastered", "subject_depth", "total_reviews", "goal_days", "subject_solid"]);
 
 export type BadgeFamily = z.infer<typeof badgeFamilySchema>;
 

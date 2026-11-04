@@ -1,7 +1,7 @@
 import type http from "node:http";
 import { normalizeSearchQuery } from "@post-anki/core";
 import type { CardMatchResult, TriggerCardEmbeddingScanResult } from "@post-anki/shared";
-import { sendError, sendJson } from "../shared/http.js";
+import { sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { startCardsManually } from "./cards.orchestrator.js";
@@ -74,9 +74,7 @@ export async function handleTriggerCardEmbeddingScan(res: http.ServerResponse): 
   } catch (err) {
     log.error({ err }, "card_embedding_scan_failed");
 
-    const message = err instanceof Error ? err.message : "card embedding scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 

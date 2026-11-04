@@ -67,6 +67,18 @@ describe("handleEditKnowledgeBit", () => {
     expect(res.body).toEqual({ error: "not_found" });
   });
 
+  it("returns 400 wrong_shape when the bit is a note or list that needs its own editor", async () => {
+    editKnowledgeBit.mockResolvedValue({ error: "wrong_shape" });
+
+    const req = fakeReq({ body: "Revised body text." });
+    const res = fakeRes();
+
+    await handleEditKnowledgeBit(req, res, "kb_cloze");
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "wrong_shape" });
+  });
+
   it("rejects an empty body with a 400 and never calls the service", async () => {
     const req = fakeReq({ body: "" });
     const res = fakeRes();

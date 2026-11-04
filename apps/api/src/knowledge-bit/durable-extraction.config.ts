@@ -39,12 +39,39 @@ const KNOWN_REASONS = new Set([
   "source_too_long",
   "source_chunk_missing",
   "knowledge_source_reclaimed",
+  "llm_budget_paused",
 ]);
 
 export const GENERIC_FAILURE_REASON = "extraction_failed";
 
 // A reason that is safe to store in the engine tables: a known code, never free text from a provider error.
+export const BUDGET_PAUSED_REASON = "llm_budget_paused";
+
+const MAX_CAUSE_DEPTH = 5;
+
+function isBudgetExceeded(err: unknown): boolean {
+  let current: unknown = err;
+
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH; depth += 1) {
+    if (typeof current !== "object" || current === null) {
+      return false;
+    }
+
+    if ((current as { code?: unknown }).code === "LLM_BUDGET_EXCEEDED") {
+      return true;
+    }
+
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  return false;
+}
+
 export function safeFailureReason(err: unknown): string {
+  if (isBudgetExceeded(err)) {
+    return BUDGET_PAUSED_REASON;
+  }
+
   const message = err instanceof Error ? err.message : "";
 
   return KNOWN_REASONS.has(message) ? message : GENERIC_FAILURE_REASON;

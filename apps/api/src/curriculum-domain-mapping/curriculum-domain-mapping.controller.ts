@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { resolveCurriculumDomainMappingInput } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { listMappingsForCurriculum, resolveMapping } from "./curriculum-domain-mapping.repo.js";
 import { triggerCurriculumDomainMapping } from "./curriculum-domain-mapping.orchestrator.js";
@@ -30,9 +30,7 @@ export async function handleTriggerCurriculumDomainMapping(
   } catch (err) {
     log.error({ err, curriculumId }, "curriculum_domain_mapping_failed");
 
-    const message = err instanceof Error ? err.message : "curriculum domain mapping failed";
-
-    sendError(res, 502, "mapping_failed", message);
+    sendBadGateway(res, "mapping_failed");
   }
 }
 

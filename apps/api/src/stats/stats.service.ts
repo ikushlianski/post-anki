@@ -23,7 +23,9 @@ function weakSpotsOf(topics: TopicSummary[]): TopicSummary[] {
 }
 
 function strongPointsOf(topics: TopicSummary[]): TopicSummary[] {
-  return topics.filter((t) => t.attempts > 0 && t.maturity >= 80).sort((a, b) => b.maturity - a.maturity);
+  return topics
+    .filter((t) => t.attempts > 0 && t.maturity >= 80)
+    .sort((a, b) => b.maturity - a.maturity);
 }
 
 function mostRecentlyStudiedTopicId(
@@ -148,5 +150,8 @@ export async function generateRecommendations(
 
   const recommendations = outcomes.filter((r): r is NonNullable<typeof r> => r !== null);
 
-  return { recommendations, failed: weakSpots.length > 0 && recommendations.length === 0 };
+  return {
+    recommendations,
+    failed: weakSpots.length > 0 && recommendations.length === 0,
+  };
 }

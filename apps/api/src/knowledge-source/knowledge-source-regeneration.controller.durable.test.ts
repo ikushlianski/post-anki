@@ -80,6 +80,19 @@ describe("regeneration and the durable extraction flag", () => {
     expect(mockGenerate).not.toHaveBeenCalled();
   });
 
+  it("should generate in process with the force flag and skip the workflow even when the flag is on", async () => {
+    mockEnabled.mockReturnValue(true);
+
+    const res = fakeRes();
+
+    await handleRegenerateKnowledgeSource(fakeReq({ forceAtLeastOne: true }), res, "ks_1");
+    await flush();
+
+    expect(res.status).toBe(202);
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(mockGenerate).toHaveBeenCalledWith(SOURCE, { modelId: undefined, forceAtLeastOne: true });
+  });
+
   it("should fall back to in-process generation when the workflow could not start", async () => {
     mockEnabled.mockReturnValue(true);
     mockStart.mockResolvedValue({ started: [], fallbackIds: ["ks_1"] });

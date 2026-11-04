@@ -1,15 +1,7 @@
 import { z } from "zod";
+import { knowledgeBitBrowserOriginValues, lenientEnumListSchema } from "./knowledge-bit-filter-list";
 
 export const KNOWLEDGE_BIT_BULK_MAX_IDS = 200;
-
-export const knowledgeBitOverviewQuerySchema = z.object({
-  subjectId: z.string().min(1).optional(),
-  q: z.string().trim().max(200).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
-});
-
-export type KnowledgeBitOverviewQuery = z.infer<typeof knowledgeBitOverviewQuerySchema>;
 
 export const knowledgeBitOverviewStateSchema = z.enum([
   "new",
@@ -22,8 +14,20 @@ export const knowledgeBitOverviewStateSchema = z.enum([
 
 export type KnowledgeBitOverviewState = z.infer<typeof knowledgeBitOverviewStateSchema>;
 
+export const knowledgeBitOverviewQuerySchema = z.object({
+  subjectId: z.string().min(1).optional(),
+  q: z.string().trim().max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+  states: lenientEnumListSchema(knowledgeBitOverviewStateSchema.options),
+  origins: lenientEnumListSchema(knowledgeBitBrowserOriginValues),
+});
+
+export type KnowledgeBitOverviewQuery = z.infer<typeof knowledgeBitOverviewQuerySchema>;
+
 export const knowledgeBitOverviewItemSchema = z.object({
   knowledgeBitId: z.string(),
+  context: z.string().nullable().optional(),
   question: z.string(),
   answer: z.string(),
   subjectId: z.string().nullable(),

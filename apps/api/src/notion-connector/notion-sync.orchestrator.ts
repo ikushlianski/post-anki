@@ -1,3 +1,4 @@
+import type { Client } from "@notionhq/client";
 import type { NotionConnector, NotionItem, NotionSource } from "@post-anki/shared";
 import { filterByTag } from "@post-anki/core";
 import { log } from "../shared/log.js";
@@ -28,9 +29,11 @@ export interface ConnectorSyncResult {
   failed: number;
 }
 
-export async function removeNotionItem(source: NotionSource, itemId: string): Promise<void> {
-  const client = getNotionClient();
-
+export async function removeNotionItem(
+  source: NotionSource,
+  itemId: string,
+  client: Client = getNotionClient(),
+): Promise<void> {
   if (source.kind === "page") {
     await client.blocks.delete({ block_id: itemId });
     return;

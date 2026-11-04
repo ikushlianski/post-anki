@@ -5,7 +5,7 @@ import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { getTopicRow } from "../topic/topic-progress.repo.js";
 import { compileLecture, gatherLectureSources } from "./lecture.orchestrator.js";
-import { getLectureByTopic, startGeneratingLecture } from "./lecture.repo.js";
+import { failStaleGeneratingLectures, getLectureByTopic, startGeneratingLecture } from "./lecture.repo.js";
 import { hasCourseOwnSources } from "./course-source-grounding.js";
 import {
   listApprovedCandidatesForCompile,
@@ -103,6 +103,8 @@ export async function handleGetLecture(
   res: http.ServerResponse,
   topicId: string,
 ): Promise<void> {
+  await failStaleGeneratingLectures(topicId);
+
   const lecture = await getLectureByTopic(topicId);
 
   if (!lecture) {

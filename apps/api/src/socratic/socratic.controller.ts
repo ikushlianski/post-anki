@@ -13,6 +13,8 @@ const STATUS: Record<SocraticError, number> = {
   not_found: 404,
   not_confirmed: 409,
   turn_not_found: 404,
+  already_answered: 409,
+  session_completed: 409,
   calibration_required: 409,
 };
 

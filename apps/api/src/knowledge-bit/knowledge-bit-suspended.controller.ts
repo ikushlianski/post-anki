@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { suspendedCardsQuerySchema } from "@post-anki/shared";
-import { sendJson } from "../shared/http.js";
+import { sendJson, sendInvalidQuery } from "../shared/http.js";
 import { listSuspendedKnowledgeBits } from "./knowledge-bit-suspended.repo.js";
 
 // GET /knowledge-bits/suspended
@@ -13,7 +13,7 @@ export async function handleListSuspendedKnowledgeBits(
   );
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 

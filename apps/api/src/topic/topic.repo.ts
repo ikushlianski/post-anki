@@ -11,12 +11,9 @@ import {
 } from "@post-anki/shared";
 import { nextOrder, assignOrders } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { gaps, modules, topics } from "../db/schema.js";
+import { modules, topics } from "../db/schema.js";
 import { newId } from "../shared/id.js";
-import { deleteLectureForTopic } from "../lecture/lecture.repo.js";
-import { deleteCardsForTopic } from "../cards/cards.repo.js";
-import { deleteLectureSourceCandidatesForTopic } from "../lecture/lecture-source-candidate.repo.js";
-import { deleteGapMasteryForGapIds } from "../gap/gap-mastery.repo.js";
+import { deleteTopicDependents } from "./delete-topic-dependents.js";
 
 function rowToTopic(row: typeof topics.$inferSelect): Topic {
   return {
@@ -196,13 +193,7 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
   }
 
   await db.transaction(async (tx) => {
-    const gapRows = await tx.select({ id: gaps.id }).from(gaps).where(eq(gaps.topicId, topicId));
-
-    await deleteGapMasteryForGapIds(gapRows.map((g) => g.id), tx);
-    await tx.delete(gaps).where(eq(gaps.topicId, topicId));
-    await deleteLectureForTopic(topicId, tx);
-    await deleteLectureSourceCandidatesForTopic(topicId, tx);
-    await deleteCardsForTopic(topicId, tx);
+    await deleteTopicDependents([topicId], tx);
     await tx.delete(topics).where(eq(topics.id, topicId));
   });
 

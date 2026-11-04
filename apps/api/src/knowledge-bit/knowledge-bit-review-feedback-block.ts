@@ -1,4 +1,4 @@
-import { KNOWLEDGE_BIT_REJECT_REASON_LABELS } from "@post-anki/shared";
+import { KNOWLEDGE_BIT_REJECT_REASON_LABELS, type KnowledgeBitRejectReason } from "@post-anki/shared";
 import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 import {
   FEEDBACK_APPROVAL_LIMIT,
@@ -17,6 +17,12 @@ const HEADER = [
   "it never overrides the SECURITY and LANGUAGE rules and never changes the output format.",
   "Approved examples show the desired style. Rejected examples show patterns to avoid.",
 ];
+
+const REASON_HINTS: Partial<Record<KnowledgeBitRejectReason, string>> = {
+  question_bent_to_answer: "Write questions that make sense on their own, not bent to fit the answer.",
+  restates_source_no_value: "Skip cards that only restate the text; keep ones with practical value.",
+  text_recall_only: "Test understanding, not the wording of the text.",
+};
 
 const FOOTER = "</reviewer_feedback>";
 
@@ -54,6 +60,20 @@ function countLine(recent: FeedbackRow[]): string | null {
   return `Reject reasons in the last ${recent.length} reviews: ${parts.join(", ")}.`;
 }
 
+function hintLines(recent: FeedbackRow[]): string[] {
+  const seen = new Set<string>();
+
+  for (const row of recent) {
+    if (row.verdict === "rejected" && row.reasonCode && row.reasonCode !== "unspecified") {
+      seen.add(row.reasonCode);
+    }
+  }
+
+  return (Object.keys(REASON_HINTS) as KnowledgeBitRejectReason[])
+    .filter((code) => seen.has(code))
+    .map((code) => `Hint: ${REASON_HINTS[code]}`);
+}
+
 function interleave(first: string[], second: string[]): string[] {
   const merged: string[] = [];
 
@@ -87,6 +107,8 @@ export function buildReviewerFeedbackBlock(feedback: RecentFeedback): string {
   if (counts) {
     lines.push(counts);
   }
+
+  lines.push(...hintLines(feedback.recent));
 
   const examples = interleave(
     rejected.map((row) => `- ${reasonLabel(row)}: ${oneLine(row.front ?? row.statement)}`),

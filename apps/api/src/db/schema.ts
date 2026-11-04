@@ -16,6 +16,7 @@ import {
   numeric,
   vector,
   halfvec,
+  pgView,
 } from "drizzle-orm/pg-core";
 
 export const EMBEDDING_DIMENSIONS = 1536;
@@ -48,6 +49,16 @@ export const subjects = pgTable("subjects", {
   // Reserved for drag-to-reorder: nullable, no default; lists order by this, then name.
   sortOrder: integer("sort_order"),
   learningIntent: text("learning_intent"),
+  // Study options: null on each = inherit from the parent subject, then app_settings.
+  newCardsPerDay: integer("new_cards_per_day"),
+  learningStepsMinutes: jsonb("learning_steps_minutes").$type<number[]>(),
+  relearningStepsMinutes: jsonb("relearning_steps_minutes").$type<number[]>(),
+  desiredRetention: real("desired_retention"),
+  studyIntent: text("study_intent"),
+  examDate: text("exam_date"),
+  examPlannedAt: timestamp("exam_planned_at", { withTimezone: true }),
+  detailLevel: text("detail_level"),
+  hintingEnabled: boolean("hinting_enabled"),
 },
 (table) => [
   index("subjects_embedding_vec_hnsw_idx").using("hnsw", table.embeddingVec.op("vector_cosine_ops")),
@@ -567,6 +578,21 @@ export const appSettings = pgTable("app_settings", {
     .notNull()
     .default("openrouter/deepseek/deepseek-v4-flash"),
   newCardsPerDay: integer("new_cards_per_day").notNull().default(20),
+  maxReviewsPerDay: integer("max_reviews_per_day").notNull().default(200),
+  learningStepsMinutes: jsonb("learning_steps_minutes")
+    .$type<number[]>()
+    .notNull()
+    .default(sql`'[1,10]'::jsonb`),
+  relearningStepsMinutes: jsonb("relearning_steps_minutes")
+    .$type<number[]>()
+    .notNull()
+    .default(sql`'[10]'::jsonb`),
+  desiredRetention: real("desired_retention").notNull().default(0.9),
+  fusionEnabled: boolean("fusion_enabled").notNull().default(false),
+  fusionModelIds: jsonb("fusion_model_ids")
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -977,8 +1003,10 @@ export const llmCallEvents = pgTable("llm_call_events", {
   // Null for calls that do not pin a model (every agent except the
   // knowledge-item writers).
   modelId: text("model_id"),
+  purpose: text("purpose"),
+  knowledgeBitId: text("knowledge_bit_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("llm_call_events_created_at_idx").on(t.createdAt)]);
 
 export const llmDailySpend = pgTable("llm_daily_spend", {
   day: text("day").primaryKey(),
@@ -991,6 +1019,52 @@ export const userStreaks = pgTable("user_streaks", {
   currentStreak: integer("current_streak").notNull().default(0),
   longestStreak: integer("longest_streak").notNull().default(0),
   lastActiveDate: text("last_active_date"),
+  restDates: jsonb("rest_dates").$type<string[]>().notNull().default([]),
+  pausedUntil: text("paused_until"),
+  lastBrokenStreak: integer("last_broken_streak").notNull().default(0),
+});
+
+export const subjectPriorities = pgTable(
+  "subject_priorities",
+  {
+    id: text("id").primaryKey(),
+    subjectId: text("subject_id").notNull(),
+    periodKind: text("period_kind").notNull(),
+    periodKey: text("period_key").notNull(),
+    title: text("title").notNull(),
+    targetMetric: text("target_metric").notNull().default("none"),
+    targetValue: integer("target_value"),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("subject_priorities_period_idx").on(table.subjectId, table.periodKind, table.periodKey)],
+);
+
+export const studyGoals = pgTable("study_goals", {
+  id: text("id").primaryKey(),
+  dailyReviewTarget: integer("daily_review_target"),
+});
+
+export const motivationSettings = pgTable("motivation_settings", {
+  id: text("id").primaryKey(),
+  timeZone: text("time_zone"),
+  streakMinReviews: integer("streak_min_reviews").notNull().default(5),
+  restDaysPerMonth: integer("rest_days_per_month").notNull().default(2),
+});
+
+export const motivationGoalDays = pgTable("motivation_goal_days", {
+  day: text("day").primaryKey(),
+  reviews: integer("reviews").notNull(),
+  threshold: integer("threshold").notNull(),
+});
+
+export const addKnowledgeGoals = pgTable("add_knowledge_goals", {
+  id: text("id").primaryKey(),
+  subjectId: text("subject_id").notNull().unique(),
+  period: text("period").notNull(),
+  targetNotes: integer("target_notes").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const lectures = pgTable(
@@ -1001,6 +1075,7 @@ export const lectures = pgTable(
     title: text("title").notNull(),
     status: text("status").notNull().default("generating"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("lectures_topic_id_unique").on(table.topicId)],
 );
@@ -1115,6 +1190,8 @@ export const knowledgeSources = pgTable(
     // Set only for kind: "notion" rows: the source Notion page id, unique so
     // re-importing the same database is a no-op instead of duplicating rows.
     notionPageId: text("notion_page_id"),
+    // Set only for kind: "phrase" rows: normalized phrase key, unique so re-posting a phrase is a no-op.
+    importKey: text("import_key"),
     // Set only when bit-detection marks this source "failed", so it's
     // explainable instead of silently stuck.
     failureReason: text("failure_reason"),
@@ -1138,11 +1215,14 @@ export const knowledgeSources = pgTable(
     suggestedSubjectId: text("suggested_subject_id"),
     suggestedSubjectConfidence: text("suggested_subject_confidence"),
     subjectSuggestionCheckedAt: timestamp("subject_suggestion_checked_at", { withTimezone: true }),
+    nothingExtractedAt: timestamp("nothing_extracted_at", { withTimezone: true }),
+    targetPhrases: jsonb("target_phrases").$type<string[]>(),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(
       table.notionPageId,
     ),
+    importKeyUnique: uniqueIndex("knowledge_sources_import_key_unique").on(table.importKey),
   }),
 );
 
@@ -1222,7 +1302,20 @@ export const knowledgeBits = pgTable(
     whQuestionGenerationClaimToken: text("wh_question_generation_claim_token"),
     // Tracks whether this bit was created by AI extraction or added manually by the user.
     origin: text("origin").$type<"extracted" | "manual">().notNull().default("extracted"),
+    inboxAt: timestamp("inbox_at", { withTimezone: true }),
+    chatAt: timestamp("chat_at", { withTimezone: true }),
+    chatSnoozedUntil: timestamp("chat_snoozed_until", { withTimezone: true }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    exampleAiGeneratedAt: timestamp("example_ai_generated_at", { withTimezone: true }),
+    exampleAiCount: integer("example_ai_count").notNull().default(0),
     reviewFlag: text("review_flag"),
+    // AI-suggested better version of the bit's phrase; shown beside the original, never replaces it.
+    aiSuggestion: text("ai_suggestion"),
+    duplicateOfBitId: text("duplicate_of_bit_id"),
+    duplicateSimilarity: real("duplicate_similarity"),
+    duplicateCheckedAt: timestamp("duplicate_checked_at", { withTimezone: true }),
+    duplicateReason: text("duplicate_reason"),
+    similarBitIds: jsonb("similar_bit_ids").$type<string[]>(),
     // Same DB-generated tsvector/GIN column as modules.searchVector above (body).
     searchVector: tsvector("search_vector").generatedAlwaysAs(
       sql`to_tsvector('english', "body")`,
@@ -1233,6 +1326,18 @@ export const knowledgeBits = pgTable(
       table.knowledgeSourceId,
       table.ordinal,
     ),
+    inboxAtIdx: index("knowledge_bits_inbox_at_idx")
+      .on(table.inboxAt)
+      .where(sql`${table.approvalState} = 'inbox'`),
+    chatAtIdx: index("knowledge_bits_chat_at_idx")
+      .on(table.chatAt)
+      .where(sql`${table.approvalState} = 'chat'`),
+    approvedBrowserIdx: index("knowledge_bits_approved_browser_idx")
+      .on(table.createdAt.desc(), table.id)
+      .where(sql`${table.approvalState} = 'approved'`),
+    pendingCreatedAtIdIdx: index("knowledge_bits_pending_created_at_id_idx")
+      .on(table.createdAt, table.id)
+      .where(sql`${table.approvalState} = 'pending'`),
     searchVectorIdx: index("knowledge_bits_search_vector_idx").using("gin", table.searchVector),
     embeddingVecIdx: index("knowledge_bits_embedding_vec_hnsw_idx").using(
       "hnsw",
@@ -1253,6 +1358,8 @@ export const knowledgeBitQuestionVariants = pgTable(
     order: integer("order").notNull(),
     prompt: text("prompt").notNull(),
     answer: text("answer").notNull(),
+    // Optional framing line shown above the prompt (e.g. who is speaking to whom) — nullable.
+    context: text("context"),
     // fill-in-the-blank source sentence — nullable, no default; only present for kind="fill_in_the_blank".
     sentence: text("sentence"),
     embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
@@ -1294,19 +1401,46 @@ export const knowledgeBitVariantAttempts = pgTable("knowledge_bit_variant_attemp
 // answer grows the interval only a little, capped low; a failed answer resets the interval short.
 // This is what a due-today queue reads from, never knowledgeBitVariantAttempts directly (that
 // stays an append-only attempt log).
-export const knowledgeBitSchedules = pgTable("knowledge_bit_schedules", {
-  knowledgeBitId: text("knowledge_bit_id").primaryKey(),
-  easeFactor: real("ease_factor").notNull().default(2.5),
-  intervalDays: real("interval_days").notNull().default(0),
-  dueAt: timestamp("due_at", { withTimezone: true }).notNull().defaultNow(),
+export const knowledgeBitSchedules = pgTable(
+  "knowledge_bit_schedules",
+  {
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    cardKey: text("card_key").notNull().default(""),
+    easeFactor: real("ease_factor").notNull().default(2.5),
+    intervalDays: real("interval_days").notNull().default(0),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull().defaultNow(),
+    lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
+    reviewCount: integer("review_count").notNull().default(0),
+    phase: text("phase").notNull().default("review"),
+    learningStep: integer("learning_step").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    buriedUntil: timestamp("buried_until", { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.knowledgeBitId, table.cardKey] }),
+    index("knowledge_bit_schedules_bit_idx").on(table.knowledgeBitId),
+  ],
+);
+
+export const knowledgeBitCards = pgView("knowledge_bit_cards", {
+  knowledgeBitId: text("knowledge_bit_id").notNull(),
+  cardKey: text("card_key").notNull(),
+}).existing();
+
+export const knowledgeBitNoteSchedules = pgView("knowledge_bit_note_schedules", {
+  knowledgeBitId: text("knowledge_bit_id").notNull(),
+  easeFactor: real("ease_factor").notNull(),
+  intervalDays: real("interval_days").notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
   lastReviewedAt: timestamp("last_reviewed_at", { withTimezone: true }),
-  reviewCount: integer("review_count").notNull().default(0),
-  phase: text("phase").notNull().default("review"),
-  learningStep: integer("learning_step").notNull().default(0),
-  lapses: integer("lapses").notNull().default(0),
+  reviewCount: integer("review_count").notNull(),
+  phase: text("phase").notNull(),
+  learningStep: integer("learning_step").notNull(),
+  lapses: integer("lapses").notNull(),
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   buriedUntil: timestamp("buried_until", { withTimezone: true }),
-});
+}).existing();
 
 export interface KnowledgeBitScheduleSnapshot {
   easeFactor: number;
@@ -1319,6 +1453,13 @@ export interface KnowledgeBitScheduleSnapshot {
   lapses?: number;
   suspendedAt?: string | null;
   buriedUntil?: string | null;
+}
+
+export interface KnowledgeBitBuriedSibling {
+  cardKey: string;
+  prevBuriedUntil: string | null;
+  buriedUntil: string;
+  createdRow: boolean;
 }
 
 // One row per self-graded Anki review, append-only. prevSchedule is the schedule row as it was
@@ -1336,9 +1477,16 @@ export const knowledgeBitReviews = pgTable(
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
     undoneAt: timestamp("undone_at", { withTimezone: true }),
     requestId: text("request_id").unique(),
+    cardKey: text("card_key").notNull().default(""),
+    buriedSiblings: jsonb("buried_siblings").$type<KnowledgeBitBuriedSibling[]>(),
   },
   (table) => [
     index("knowledge_bit_reviews_bit_reviewed_at_idx").on(table.knowledgeBitId, table.reviewedAt),
+    index("knowledge_bit_reviews_bit_card_reviewed_idx").on(
+      table.knowledgeBitId,
+      table.cardKey,
+      table.reviewedAt,
+    ),
     index("knowledge_bit_reviews_variant_idx").on(table.variantId),
   ],
 );
@@ -1447,10 +1595,14 @@ export const cardTriageDecisions = pgTable(
     undoneAt: timestamp("undone_at", { withTimezone: true }),
     source: text("source").notNull().default("client"),
     feedbackId: text("feedback_id"),
+    fusionModelIds: jsonb("fusion_model_ids").$type<string[]>(),
   },
   (table) => [
     index("card_triage_decisions_session_order_idx").on(table.sessionId, table.orderIndex),
     index("card_triage_decisions_bit_idx").on(table.knowledgeBitId),
+    index("card_triage_decisions_rejected_latest_idx")
+      .on(table.knowledgeBitId, table.decidedAt.desc(), table.id.desc())
+      .where(sql`${table.verdict} = 'rejected' and ${table.undoneAt} is null`),
     uniqueIndex("card_triage_decisions_live_unique")
       .on(table.sessionId, table.knowledgeBitId)
       .where(sql`${table.undoneAt} is null`),
@@ -2308,12 +2460,91 @@ export const verifications = pgTable(
   (table) => [index("verifications_identifier_idx").on(table.identifier)],
 );
 
+export const knowledgeBitChatMessages = pgTable(
+  "knowledge_bit_chat_messages",
+  {
+    id: text("id").primaryKey(),
+    knowledgeBitId: text("knowledge_bit_id").notNull(),
+    seq: integer("seq").notNull(),
+    role: text("role").$type<"user" | "assistant">().notNull(),
+    text: text("text").notNull(),
+    clientMessageId: text("client_message_id"),
+    modelId: text("model_id"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    bitSeqUnique: uniqueIndex("knowledge_bit_chat_messages_bit_seq_unique").on(
+      table.knowledgeBitId,
+      table.seq,
+    ),
+    bitClientMessageUnique: uniqueIndex("knowledge_bit_chat_messages_bit_client_message_unique").on(
+      table.knowledgeBitId,
+      table.clientMessageId,
+    ),
+  }),
+);
+
+export const notionIngestionSources = pgTable("notion_ingestion_sources", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  pageId: text("page_id").notNull().unique(),
+  pageUrl: text("page_url").notNull(),
+  subjectId: text("subject_id")
+    .notNull()
+    .references(() => subjects.id),
+  pipeline: text("pipeline").notNull().default("meeting_phrases"),
+  itemsPerRun: integer("items_per_run").notNull(),
+  frequency: text("frequency").notNull(),
+  removeAfterImport: boolean("remove_after_import").notNull().default(false),
+  paused: boolean("paused").notNull().default(false),
+  nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const notionIngestionRuns = pgTable("notion_ingestion_runs", {
+  id: text("id").primaryKey(),
+  sourceId: text("source_id")
+    .notNull()
+    .references(() => notionIngestionSources.id, { onDelete: "cascade" }),
+  trigger: text("trigger").notNull(),
+  status: text("status").notNull(),
+  readCount: integer("read_count").notNull().default(0),
+  imported: integer("imported").notNull().default(0),
+  skippedExisting: integer("skipped_existing").notNull().default(0),
+  ignored: integer("ignored").notNull().default(0),
+  removed: integer("removed").notNull().default(0),
+  removeFailed: integer("remove_failed").notNull().default(0),
+  errorCode: text("error_code"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
+export const connectorSecrets = pgTable("connector_secrets", {
+  name: text("name").primaryKey(),
+  ciphertext: text("ciphertext").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const rateLimits = pgTable("rate_limits", {
   id: text("id").primaryKey(),
   key: text("key").notNull().unique(),
   count: integer("count").notNull(),
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
+
+export const knowledgeBitFusionModels = pgTable(
+  "knowledge_bit_fusion_models",
+  {
+    bitId: text("bit_id")
+      .notNull()
+      .references(() => knowledgeBits.id, { onDelete: "cascade" }),
+    modelId: text("model_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.bitId, table.modelId] })],
+);
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

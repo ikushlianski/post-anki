@@ -249,6 +249,29 @@ describe("insertSourceItemsForChunk (real Postgres)", () => {
   });
 });
 
+describe("insertSourceItemsForChunk context (real Postgres)", () => {
+  it("should store a card's context in its own column and leave the front untouched", async () => {
+    const source = await seedProcessingSource();
+    const [item] = itemsForChunk("ctx", 1);
+    const card = { ...item!.cards[0]!, question: "Formal moment", context: "senior dev talking to their manager" };
+
+    await insertSourceItemsForChunk({
+      sourceId: source.id,
+      claimedAt: source.claimedAt,
+      firstOrdinal: 0,
+      items: [{ ...item!, cards: [card] }],
+    });
+
+    const { rows } = await client.query(
+      `SELECT v.prompt, v.context FROM knowledge_bit_question_variants v
+         JOIN knowledge_bits b ON b.id = v.knowledge_bit_id WHERE b.knowledge_source_id = $1`,
+      [source.id],
+    );
+
+    expect(rows).toEqual([{ prompt: "Formal moment", context: "senior dev talking to their manager" }]);
+  });
+});
+
 describe("getSourceInsertState (real Postgres)", () => {
   it("should start a fresh source at ordinal 0 with no statements", async () => {
     const source = await seedProcessingSource();

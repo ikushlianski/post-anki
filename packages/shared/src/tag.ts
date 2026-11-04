@@ -36,10 +36,14 @@ export const tagChipSchema = tagSchema.extend({
 export type TagChip = z.infer<typeof tagChipSchema>;
 
 export const createTagInput = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(120),
 });
 
 export type CreateTagInput = z.infer<typeof createTagInput>;
+
+export const renameTagInput = createTagInput;
+
+export type RenameTagInput = z.infer<typeof renameTagInput>;
 
 export const assignTagInput = z.object({
   nodeType: tagNodeTypeSchema,

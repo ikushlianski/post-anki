@@ -69,9 +69,6 @@ const { listKnowledgeBitsForTaggingScan } = await import("../knowledge-bit/knowl
 const { listKnowledgeBitsForEmbeddingScan } = await import(
   "../knowledge-bit/knowledge-bit-embedding.repo.js"
 );
-const { listKnowledgeBitsForPlacementScan } = await import(
-  "../knowledge-bit/knowledge-bit-placement.repo.js"
-);
 const { listQuestionVariantsForEmbeddingScan } = await import(
   "../knowledge-bit/knowledge-bit-question-variant.repo.js"
 );
@@ -211,11 +208,80 @@ describe("claimSourceForRegeneration (real Postgres)", () => {
     await claimSourceForRegeneration(sourceId);
     await client.query(`UPDATE knowledge_sources SET status = 'failed', failure_reason = 'x' WHERE id = $1`, [sourceId]);
 
-    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({ status: "failed", failureReason: "x" });
+    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({
+      status: "failed",
+      failureReason: "x",
+      outcome: "failed",
+      cardCount: 0,
+    });
 
     await client.query(`UPDATE knowledge_sources SET status = 'bits_detected' WHERE id = $1`, [sourceId]);
 
-    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({ status: "done", failureReason: null });
+    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({
+      status: "done",
+      failureReason: null,
+      outcome: "nothing",
+      cardCount: 0,
+    });
+  });
+
+  it("should keep counting every created card after some were approved or rejected, but not superseded ones", async () => {
+    const sourceId = await seedSource("bits_detected");
+
+    await seedBit(sourceId, 0, "pending");
+    await seedBit(sourceId, 1, "approved");
+    await seedBit(sourceId, 2, "rejected");
+    await seedBit(sourceId, 3, "superseded");
+
+    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({
+      status: "done",
+      failureReason: null,
+      outcome: "cards",
+      cardCount: 3,
+    });
+  });
+
+  it("should report nothing_extracted when the run finished with the nothing-extracted marker", async () => {
+    const sourceId = await seedSource("bits_detected");
+
+    await client.query(`UPDATE knowledge_sources SET nothing_extracted_at = now() WHERE id = $1`, [sourceId]);
+
+    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({
+      status: "nothing_extracted",
+      failureReason: null,
+      outcome: "nothing",
+      cardCount: 0,
+    });
+  });
+});
+
+describe("claimSourceForRegeneration with requireNothingExtracted (real Postgres)", () => {
+  it("should refuse a note that has cards and leave its pending cards untouched", async () => {
+    const sourceId = await seedSource("bits_detected");
+    const bit = await seedBit(sourceId, 0, "pending");
+
+    expect(await claimSourceForRegeneration(sourceId, { requireNothingExtracted: true })).toEqual({
+      ok: false,
+      error: "not_nothing_extracted",
+    });
+    expect(await stateOf(bit)).toBe("pending");
+  });
+
+  it("should refuse a failed note", async () => {
+    const sourceId = await seedSource("failed");
+
+    expect(await claimSourceForRegeneration(sourceId, { requireNothingExtracted: true })).toEqual({
+      ok: false,
+      error: "not_nothing_extracted",
+    });
+  });
+
+  it("should claim a note carrying the nothing-extracted marker", async () => {
+    const sourceId = await seedSource("bits_detected");
+
+    await client.query(`UPDATE knowledge_sources SET nothing_extracted_at = now() WHERE id = $1`, [sourceId]);
+
+    expect(await claimSourceForRegeneration(sourceId, { requireNothingExtracted: true })).toMatchObject({ ok: true });
   });
 });
 
@@ -320,7 +386,6 @@ describe("superseded bits (real Postgres)", () => {
       listKnowledgeBitsForFillBlankGenerationScan(1000),
       listKnowledgeBitsForBasicCardGenerationScan(1000),
       listKnowledgeBitsForTaggingScan(1000),
-      listKnowledgeBitsForPlacementScan(1000),
     ]);
     const approved = await seedBit(sourceId, 2, "approved");
     const embeddingIds = (await listKnowledgeBitsForEmbeddingScan(1000)).map((row) => row.id);
@@ -427,6 +492,10 @@ describe("a second generation run after regeneration (real Postgres)", () => {
       "pending",
       "pending",
     ]);
-    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toEqual({ status: "done", failureReason: null });
+    expect(await getKnowledgeSourceRegenerationStatus(sourceId)).toMatchObject({
+      status: "done",
+      outcome: "cards",
+      cardCount: 3,
+    });
   });
 });

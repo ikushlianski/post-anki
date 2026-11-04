@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TYPED_ANSWER_MAX_CHARS } from "./text-limits";
 import { questionKindSchema } from "./question";
 import { topicProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
@@ -32,7 +33,7 @@ export const submitProbeInput = z.object({
   topicId: z.string(),
   gapId: z.string().nullable(),
   mode: questionKindSchema,
-  answer: z.string(),
+  answer: z.string().max(TYPED_ANSWER_MAX_CHARS),
   selfOutcome: z.enum(["pass", "fail"]).optional(),
 });
 

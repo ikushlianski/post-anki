@@ -1,6 +1,7 @@
 import { and, eq, isNull, notInArray } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeBitQuestionVariants } from "../db/schema.js";
+import { deleteOrphanScheduleRowsInTx } from "./knowledge-bit-orphan-schedule.repo.js";
 import { recordKnowledgeBitDecision } from "./knowledge-bit-feedback-decision.repo.js";
 
 export type TriageKnowledgeBitResult =
@@ -12,6 +13,28 @@ export type TriageKnowledgeBitResult =
 
 function isSameSet(left: string[], right: Set<string>): boolean {
   return left.length === right.size && left.every((id) => right.has(id));
+}
+
+export async function supersedeOtherVariantsIn(
+  tx: DbExecutor,
+  bitId: string,
+  keepVariantIds: string[],
+): Promise<string[]> {
+  const dropped = await tx
+    .update(knowledgeBitQuestionVariants)
+    .set({ supersededAt: new Date() })
+    .where(
+      and(
+        eq(knowledgeBitQuestionVariants.knowledgeBitId, bitId),
+        isNull(knowledgeBitQuestionVariants.supersededAt),
+        notInArray(knowledgeBitQuestionVariants.id, keepVariantIds),
+      ),
+    )
+    .returning({ id: knowledgeBitQuestionVariants.id });
+
+  await deleteOrphanScheduleRowsInTx(tx, bitId);
+
+  return dropped.map((row) => row.id);
 }
 
 export async function triageKnowledgeBit(
@@ -59,20 +82,10 @@ export async function triageKnowledgeBit(
       return "variant_not_active";
     }
 
-    const dropped = await tx
-      .update(knowledgeBitQuestionVariants)
-      .set({ supersededAt: new Date() })
-      .where(
-        and(
-          eq(knowledgeBitQuestionVariants.knowledgeBitId, id),
-          isNull(knowledgeBitQuestionVariants.supersededAt),
-          notInArray(knowledgeBitQuestionVariants.id, keepVariantIds),
-        ),
-      )
-      .returning({ id: knowledgeBitQuestionVariants.id });
-    await tx.update(knowledgeBits).set({ approvalState: "approved", reviewFlag: null }).where(eq(knowledgeBits.id, id));
+    const dropped = await supersedeOtherVariantsIn(tx, id, keepVariantIds);
+    await tx.update(knowledgeBits).set({ approvalState: "approved", reviewFlag: null, decidedAt: new Date() }).where(eq(knowledgeBits.id, id));
     await recordKnowledgeBitDecision(tx, { bitId: id, verdict: "approved" });
 
-    return { ok: true, droppedVariantIds: dropped.map((row) => row.id) };
+    return { ok: true, droppedVariantIds: dropped };
   });
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TITLE_MAX_CHARS } from "./text-limits";
 
 // subject-category-nesting — a category sits between a subject and its
 // curricula, purely for organizing which courses live where. Self-
@@ -16,7 +17,7 @@ export type SubjectCategory = z.infer<typeof subjectCategorySchema>;
 export const createSubjectCategoryInput = z.object({
   subjectId: z.string(),
   parentId: z.string().nullable().optional(),
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(TITLE_MAX_CHARS),
 });
 
 export type CreateSubjectCategoryInput = z.infer<typeof createSubjectCategoryInput>;
@@ -28,7 +29,7 @@ export const moveCategoryInput = z.object({
 export type MoveCategoryInput = z.infer<typeof moveCategoryInput>;
 
 export const renameCategoryInput = z.object({
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(TITLE_MAX_CHARS),
 });
 
 export type RenameCategoryInput = z.infer<typeof renameCategoryInput>;

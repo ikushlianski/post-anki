@@ -86,3 +86,33 @@ describe("handleListTagNodes", () => {
     expect(res.body).toEqual({ nodes: [], capped: false });
   });
 });
+
+describe("handleSearch", () => {
+  it("should label a nested subject hit with its parent path", async () => {
+    vi.resetModules();
+    vi.doMock("./search.repo.js", () => ({
+      searchSubjects: async () => [{ id: "sub_common", name: "Common" }],
+      searchCurricula: async () => [],
+      searchTopics: async () => [],
+      searchTopicsAndModulesRanked: async () => [],
+    }));
+    vi.doMock("./search-tag-and-bit.repo.js", () => ({
+      searchByTagNameAcrossNodes: async () => [],
+      searchKnowledgeBitsRanked: async () => [],
+    }));
+    vi.doMock("../subject/subject-path-labels.js", () => ({
+      loadSubjectPathLabels: async () => new Map([["sub_common", "Business › Sales › Common"]]),
+    }));
+
+    const { handleSearch } = await import("./search.controller.js");
+    const res = fakeRes();
+
+    await handleSearch(res, "common");
+
+    expect(res.body).toEqual({
+      subjects: [{ id: "sub_common", label: "Business › Sales › Common" }],
+      curricula: [],
+      topics: [],
+    });
+  });
+});

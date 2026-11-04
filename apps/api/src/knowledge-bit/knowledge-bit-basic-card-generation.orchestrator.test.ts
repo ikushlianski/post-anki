@@ -132,6 +132,21 @@ describe("generateKnowledgeBitBasicCards", () => {
 
     expect(result).toEqual({ scanned: 2, generated: 1, failed: 1, skipped: 0 });
   });
+
+  it("should keep the counts of finished bits and count a bit whose claim query fails as failed", async () => {
+    const second = { id: "kb_2", body: "Second fact." };
+
+    vi.mocked(listKnowledgeBitsForBasicCardGenerationScan).mockResolvedValue([bit, second]);
+    vi.mocked(claimKnowledgeBitForBasicCardGeneration)
+      .mockResolvedValueOnce(TOKEN)
+      .mockRejectedValueOnce(new Error("db blip"));
+    vi.mocked(runKnowledgeBitBasicCardGenerator).mockResolvedValue({ front: "What is it?", back: "A fact" });
+
+    const result = await generateKnowledgeBitBasicCards();
+
+    expect(result.scanned).toBe(2);
+    expect(result.failed).toBe(1);
+  });
 });
 
 describe("generateKnowledgeBitBasicCards language guard", () => {

@@ -34,4 +34,18 @@ describe("knowledgeBitOverviewQuerySchema", () => {
   it("should reject a page size above the cap", () => {
     expect(knowledgeBitOverviewQuerySchema.safeParse({ limit: "101" }).success).toBe(false);
   });
+
+  it("should read comma-separated states and origins and drop unknown values", () => {
+    const parsed = knowledgeBitOverviewQuerySchema.parse({ states: "review, bogus,new", origins: "notion,x,manual" });
+
+    expect(parsed.states).toEqual(["new", "review"]);
+    expect(parsed.origins).toEqual(["manual", "notion"]);
+  });
+
+  it("should treat empty or all-unknown lists as no filter", () => {
+    const parsed = knowledgeBitOverviewQuerySchema.parse({ states: "", origins: "bogus" });
+
+    expect(parsed.states).toBeUndefined();
+    expect(parsed.origins).toBeUndefined();
+  });
 });

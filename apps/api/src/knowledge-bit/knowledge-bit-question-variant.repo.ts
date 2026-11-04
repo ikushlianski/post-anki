@@ -106,6 +106,16 @@ export interface NextQuestionVariantsFilter {
   knowledgeBitId?: string;
 }
 
+const realAttemptOfVariant = and(
+  eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
+  ne(knowledgeBitVariantAttempts.feedback, "rehearsal"),
+);
+
+const noteLevelSchedule = and(
+  eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
+  eq(knowledgeBitSchedules.cardKey, ""),
+);
+
 /**
  * Answer queue. Scoped to a tag, topic or single bit it is a fair, cycling queue: variants with
  * fewer past attempts come first, ties broken by the variant's own createdAt, and the set cycles
@@ -139,14 +149,8 @@ export async function listNextQuestionVariantsToAnswer(
     .select(selection)
     .from(knowledgeBitQuestionVariants)
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
-    .leftJoin(
-      knowledgeBitVariantAttempts,
-      eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
-    )
-    .leftJoin(
-      knowledgeBitSchedules,
-      eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
-    )
+    .leftJoin(knowledgeBitVariantAttempts, realAttemptOfVariant)
+    .leftJoin(knowledgeBitSchedules, noteLevelSchedule)
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId));
 
   // A topic the learner deliberately dropped (learningStatus "skipping") must never serve
@@ -233,11 +237,8 @@ async function listUnscopedVariants(
     })
     .from(knowledgeBitQuestionVariants)
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
-    .leftJoin(
-      knowledgeBitVariantAttempts,
-      eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
-    )
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitVariantAttempts, realAttemptOfVariant)
+    .leftJoin(knowledgeBitSchedules, noteLevelSchedule)
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .where(
       and(
@@ -291,6 +292,7 @@ export async function updateQuestionVariantEmbedding(
 export interface KnowledgeBitVariantRow {
   id: string;
   kind: string;
+  context: string | null;
   prompt: string;
   answer: string;
 }
@@ -303,6 +305,7 @@ export async function listActiveVariantsForBit(
     .select({
       id: knowledgeBitQuestionVariants.id,
       kind: knowledgeBitQuestionVariants.kind,
+      context: knowledgeBitQuestionVariants.context,
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
     })

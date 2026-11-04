@@ -67,4 +67,52 @@ Max cards: {max_cards}
 SOURCE TEXT:
 {text}`;
 
-export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V3_SELF_FILTER;
+const CLOZE_RULE_V4 = `- Use a "cloze" card only when ONE sentence of the text holds 2 to 5 key terms
+  that can each be tested on their own (a definition with parts, a rule with
+  conditions). Write the whole sentence in "front", wrapping each key term as
+  {{c1::term}}, {{c2::term}} and so on, with an optional hint {{c1::term::hint}}.
+  Give each term its own number, never nest markers, keep each term under 120
+  characters, copy the sentence wording from the text, and leave "back" empty.
+  With only one key term use "basic" with a question. Otherwise use "basic".
+`;
+
+export const BUSINESS_CARDS_PROMPT_V4_MULTI_CLOZE = BUSINESS_CARDS_PROMPT_V3_SELF_FILTER.replace(
+  `- Use a "cloze" card only for an ordered list or a definition where one key
+  term is hidden in a single sentence; otherwise use "basic".
+`,
+  CLOZE_RULE_V4,
+);
+
+const ORDERED_LIST_RULE_V5 = `- Use an "ordered_list" card only when the text itself states a process or
+  checklist of 3 to 8 steps in a fixed order. Put the list title in "front"
+  and the steps in "steps", in the order the text gives them, each step under
+  120 characters and copied or tightly condensed from the text. Never invent,
+  merge or reorder steps, leave "back" empty and keep "steps" empty for every
+  other card type.
+`;
+
+export const BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST = BUSINESS_CARDS_PROMPT_V4_MULTI_CLOZE.replace(
+  `- Never add facts, numbers or examples that are not in the text.
+`,
+  `${ORDERED_LIST_RULE_V5}- Never add facts, numbers or examples that are not in the text.
+`,
+)
+  .replace('"type": "basic" | "cloze",', '"type": "basic" | "cloze" | "ordered_list",')
+  .replace('      "tags": ["topic", "framework-name"],\n', '      "tags": ["topic", "framework-name"],\n      "steps": [],\n');
+
+const EMPTY_RULE_V6 = `Fewer is better. A short note that states one such claim in a sentence or two
+still holds one idea: write one card for it and never return an empty list for
+a note that contains a claim, rule, mechanism, criterion or distinction.
+Return an empty "cards" list only when the text has nothing of practical value
+to apply: greetings, filler, small talk, pure narrative with no takeaway, or
+text with no claim at all. In that case explain in "dropped_ideas" in a few words.
+Never invent content to fill a card.`;
+
+export const BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY = BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST.replace(
+  `Fewer is better. A short note that states one such claim in a sentence or two
+still holds one idea: write one card for it and do not return an empty list.
+Never invent content to fill a card.`,
+  EMPTY_RULE_V6,
+);
+
+export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY;

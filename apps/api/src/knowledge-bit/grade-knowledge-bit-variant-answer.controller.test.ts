@@ -128,7 +128,7 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
     expect((res.body as { error: string }).error).toBe("kind_not_typed");
   });
 
-  it("returns 502 with an error message when grading throws, never a silent 200", async () => {
+  it("returns 502 with a generic message, not the raw error, when grading throws, never a silent 200", async () => {
     mockGradeKnowledgeBitVariantAnswer.mockRejectedValue(new Error("grader provider down"));
 
     const req = fakeReq({ userAnswer: "Something." });
@@ -138,6 +138,6 @@ describe("handleGradeKnowledgeBitVariantAnswer", () => {
 
     expect(res.status).toBe(502);
     expect((res.body as { error: string }).error).toBe("grading_failed");
-    expect((res.body as { message: string }).message).toBe("grader provider down");
+    expect((res.body as { message: string }).message).toBe("An upstream service failed. Try again shortly.");
   });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SUBJECT_NAME_MAX_CHARS } from "./text-limits";
 import { modelTierSchema } from "./model-tier";
 
 export const subjectSchema = z.object({
@@ -11,12 +12,13 @@ export const subjectSchema = z.object({
   parentId: z.string().nullable(),
   sortOrder: z.number().nullable().optional(),
   learningIntent: z.string().nullable().optional(),
+  cardCount: z.number().int().nonnegative().optional(),
 });
 
 export type Subject = z.infer<typeof subjectSchema>;
 
 export const createSubjectInput = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(SUBJECT_NAME_MAX_CHARS),
   description: z.string().optional(),
   requireSources: z.boolean().optional(),
   kind: z.enum(["architecture-mentor", "language-practice"]).default("architecture-mentor"),
@@ -26,7 +28,7 @@ export const createSubjectInput = z.object({
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>;
 
 export const updateSubjectInput = z.object({
-  name: z.string().trim().min(1).optional(),
+  name: z.string().trim().min(1).max(SUBJECT_NAME_MAX_CHARS).optional(),
   modelTier: modelTierSchema.nullable().optional(),
   parentId: z.string().nullable().optional(),
   learningIntent: z.string().trim().max(1000).nullable().optional(),

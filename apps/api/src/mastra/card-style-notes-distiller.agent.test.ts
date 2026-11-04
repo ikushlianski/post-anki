@@ -68,6 +68,16 @@ describe("buildCardStyleNotesDistillerPrompt card feedback", () => {
     );
   });
 
+  it("should show the reviewer-facing label of a new reject reason, not the code", () => {
+    const prompt = buildCardStyleNotesDistillerPrompt({
+      ...input,
+      cardFeedback: [{ verdict: "rejected", reason: "text_recall_only", note: null, front: "Q" }],
+    });
+
+    expect(cardBlock(prompt)).toContain("Only checks the text's wording, not understanding");
+    expect(cardBlock(prompt)).not.toContain("text_recall_only");
+  });
+
   it("should send at most 20 card lines of 160 characters", () => {
     const prompt = buildCardStyleNotesDistillerPrompt({
       ...input,

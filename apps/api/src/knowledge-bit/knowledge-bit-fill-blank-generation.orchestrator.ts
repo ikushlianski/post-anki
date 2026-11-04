@@ -125,7 +125,10 @@ export async function generateKnowledgeBitFillBlanks(
 
   for (const outcome of outcomes) {
     if (outcome.status === "rejected") {
-      throw outcome.reason;
+      log.warn({ err: outcome.reason }, "knowledge_bit_fill_blank_generation_claim_failed");
+      failed += 1;
+
+      continue;
     }
 
     if (outcome.value === "generated") {

@@ -7,6 +7,12 @@ const restoreRejectedKnowledgeBit = vi.fn();
 const aggregateFeedbackByModel = vi.fn();
 const gradeKnowledgeBit = vi.fn();
 
+const rejectSubjectTypeForFeedback = vi.fn();
+
+vi.mock("./reject-reason-subject-type.repo.js", () => ({
+  rejectSubjectTypeForFeedback: (...args: unknown[]) => rejectSubjectTypeForFeedback(...args),
+}));
+
 vi.mock("./knowledge-bit-grade.repo.js", () => ({
   gradeKnowledgeBit: (...args: unknown[]) => gradeKnowledgeBit(...args),
 }));
@@ -54,6 +60,37 @@ function fakeRes(): http.ServerResponse & { status: number | null; body: unknown
 describe("handleSetKnowledgeBitFeedbackReason", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    rejectSubjectTypeForFeedback.mockResolvedValue(null);
+  });
+
+  it("should refuse a programming-only reason on a language card with 400", async () => {
+    rejectSubjectTypeForFeedback.mockResolvedValue("language");
+
+    const res = fakeRes();
+
+    await handleSetKnowledgeBitFeedbackReason(fakeReq({ reasonCode: "no_code_context" }), res, "kbf_1");
+
+    expect(res.status).toBe(400);
+    expect(updateKnowledgeBitFeedback).not.toHaveBeenCalled();
+  });
+
+  it("should accept the language-only reason on a language card and an old code on any card", async () => {
+    updateKnowledgeBitFeedback.mockResolvedValue(true);
+    rejectSubjectTypeForFeedback.mockResolvedValue("language");
+
+    const res = fakeRes();
+
+    await handleSetKnowledgeBitFeedbackReason(fakeReq({ reasonCode: "front_unclear_target_phrase" }), res, "kbf_1");
+
+    expect(res.status).toBe(200);
+
+    rejectSubjectTypeForFeedback.mockResolvedValue("programming");
+
+    const legacy = fakeRes();
+
+    await handleSetKnowledgeBitFeedbackReason(fakeReq({ reasonCode: "wrong_language" }), legacy, "kbf_1");
+
+    expect(legacy.status).toBe(200);
   });
 
   it("should store a known reason with its note on the rejection", async () => {

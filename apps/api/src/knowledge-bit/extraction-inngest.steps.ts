@@ -1,10 +1,12 @@
 import {
+  countUnseenStatements,
   MAX_ITEMS_PER_CHUNK,
   MAX_ITEMS_PER_SOURCE,
   ORDINAL_STRIDE_PER_CHUNK,
 } from "./detect-knowledge-bits.orchestrator.js";
 import {
   chunkStep,
+  markDetectedFor,
   type DurableOutcome,
   type DurableSourceSnapshot,
   type DurableStepDeps,
@@ -15,6 +17,8 @@ import { normalizeStatement, selectNewItems } from "./knowledge-bit-source-item-
 export interface ChunkCounts {
   accepted: number;
   inserted: number;
+  deliberateEmpty?: boolean;
+  capped?: boolean;
 }
 
 export async function chunkInsertStep(
@@ -24,15 +28,22 @@ export async function chunkInsertStep(
   acceptedSoFar: number,
   deps: DurableStepDeps,
 ): Promise<ChunkCounts> {
-  const { valid, flagged: rejected } = await chunkStep(snapshot, index, deps);
+  const { valid, flagged: rejected, deliberateEmpty } = await chunkStep(snapshot, index, deps);
+
+  if (deliberateEmpty) {
+    return { accepted: 0, inserted: 0, deliberateEmpty: true };
+  }
+
   const insertState = await deps.getInsertState(snapshot.id);
   const seen = new Set(insertState.existingStatements.map(normalizeStatement));
   const room = Math.min(MAX_ITEMS_PER_CHUNK, MAX_ITEMS_PER_SOURCE - acceptedSoFar);
   const flagged = selectFlaggedLessons(rejected, seen);
+  const unseen = countUnseenStatements(valid, seen);
   const items = room > 0 ? selectNewItems(valid, seen, room) : [];
+  const capped = acceptedSoFar + items.length >= MAX_ITEMS_PER_SOURCE && unseen > items.length;
 
   if (items.length === 0 && flagged.length === 0) {
-    return { accepted: 0, inserted: 0 };
+    return { accepted: 0, inserted: 0, capped };
   }
 
   const inserted = await deps.insertItems({
@@ -43,7 +54,7 @@ export async function chunkInsertStep(
     flagged,
   });
 
-  return { accepted: items.length, inserted };
+  return { accepted: items.length, inserted, capped };
 }
 
 export async function finishCountsStep(
@@ -51,6 +62,8 @@ export async function finishCountsStep(
   inserted: number,
   failureReason: string | null,
   deps: DurableStepDeps,
+  nothingExtracted = false,
+  capped = false,
 ): Promise<DurableOutcome> {
   const claimedAt = new Date(snapshot.claimedAt);
 
@@ -60,7 +73,7 @@ export async function finishCountsStep(
     return { status: "failed", inserted, failureReason };
   }
 
-  if (!(await deps.markDetected(snapshot.id, claimedAt))) {
+  if (!(await markDetectedFor(snapshot, claimedAt, nothingExtracted && inserted === 0, deps, capped))) {
     throw new Error("knowledge_source_reclaimed");
   }
 

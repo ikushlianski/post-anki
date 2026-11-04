@@ -81,6 +81,14 @@ describe("planStep", () => {
 });
 
 describe("chunkStep", () => {
+  it("should tell the writer the source is a phrase on the durable path too", async () => {
+    const d = deps({ loadSourceKind: vi.fn().mockResolvedValue("phrase") });
+
+    await chunkStep(snapshot, 0, d);
+
+    expect(d.writeItems).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ sourceKind: "phrase" }));
+  });
+
   it("should read the chunk and the feedback block itself and return only validated drafts", async () => {
     const d = deps({
       loadFeedbackBlock: vi.fn().mockResolvedValue("FEEDBACK-BLOCK"),
@@ -197,5 +205,29 @@ describe("failStep", () => {
       failureReason: "insert exploded",
     });
     expect(d.markFailed).toHaveBeenCalledWith("ks_1", "insert exploded", CLAIMED_AT);
+  });
+});
+
+describe("finishStep at the per-source cap", () => {
+  const fullChunks = ["A", "B", "C", "D", "E"].map((prefix) => cardsForChunk(prefix, 8));
+
+  it("should mark the source as cut when a later chunk still had new cards", async () => {
+    const markItemCapReached = vi.fn().mockResolvedValue(true);
+    const d = deps({ markItemCapReached });
+
+    await finishStep(snapshot, 10, [...fullChunks, cardsForChunk("F", 2)], null, d);
+
+    expect(markItemCapReached).toHaveBeenCalledWith("ks_1", CLAIMED_AT);
+    expect(d.markDetected).not.toHaveBeenCalled();
+  });
+
+  it("should mark the source as plainly detected when the cards ended exactly at the cap", async () => {
+    const markItemCapReached = vi.fn().mockResolvedValue(true);
+    const d = deps({ markItemCapReached });
+
+    await finishStep(snapshot, 10, fullChunks, null, d);
+
+    expect(markItemCapReached).not.toHaveBeenCalled();
+    expect(d.markDetected).toHaveBeenCalled();
   });
 });

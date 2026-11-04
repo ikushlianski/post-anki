@@ -43,6 +43,7 @@ export const knowledgeBitBrowserItemSchema = z.object({
         id: z.string(),
         kind: knowledgeBitQuestionVariantKindSchema,
         prompt: z.string(),
+        context: z.string().nullable().optional(),
       }),
     )
     .min(1),

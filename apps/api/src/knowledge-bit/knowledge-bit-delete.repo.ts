@@ -9,6 +9,7 @@ import {
   knowledgeBitVariantAttempts,
   tagAssignments,
 } from "../db/schema.js";
+import { deleteChatQueueMessages } from "./knowledge-bit-chat-queue-messages.repo.js";
 
 // Permanent: approved bits only. Feedback rows are kept (they hold their own copies).
 export async function deleteKnowledgeBitsBulk(
@@ -72,5 +73,6 @@ async function deleteBitsAndDependents(bitIds: string[], db: DbExecutor): Promis
   await db
     .delete(knowledgeBitQuestionVariants)
     .where(inArray(knowledgeBitQuestionVariants.knowledgeBitId, bitIds));
+  await deleteChatQueueMessages(db, bitIds);
   await db.delete(knowledgeBits).where(inArray(knowledgeBits.id, bitIds));
 }

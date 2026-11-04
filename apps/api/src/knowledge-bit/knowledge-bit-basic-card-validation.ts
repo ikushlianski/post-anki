@@ -21,6 +21,7 @@ function normalize(text: string): string {
 export function validateBasicCard(
   raw: { front: string; back: string },
   sourceText: string,
+  allowMixedScript = false,
 ): BasicCardValidation {
   const front = raw.front.trim();
   const back = raw.back.trim();
@@ -44,7 +45,7 @@ export function validateBasicCard(
     return { ok: false, reason: "answer_on_front" };
   }
 
-  if (looksLikeDifferentScript(sourceText, front) || looksLikeDifferentScript(sourceText, back)) {
+  if (!allowMixedScript && (looksLikeDifferentScript(sourceText, front) || looksLikeDifferentScript(sourceText, back))) {
     return { ok: false, reason: "wrong_language" };
   }
 

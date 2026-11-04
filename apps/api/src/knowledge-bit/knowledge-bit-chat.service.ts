@@ -7,9 +7,12 @@ import { formatTranscript } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
+import { getDb } from "../db/client.js";
 import { log } from "../shared/log.js";
 import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
 import { getKnowledgeBitById } from "./knowledge-bit.repo.js";
+import { lockChatState } from "./knowledge-bit-chat-queue.repo.js";
+import { insertChatTurn } from "./knowledge-bit-chat-queue-messages.repo.js";
 import { createKnowledgeBitWebTools, WEB_TOOLS_MAX_STEPS } from "./knowledge-bit-web-tools.deps.js";
 
 export type KnowledgeBitChatError = "not_found" | "not_approved";
@@ -28,6 +31,43 @@ function buildPrompt(body: string, input: AskKnowledgeBitChatInput): string {
     .join("\n\n");
 }
 
+const UNIQUE_VIOLATION = "23505";
+
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) {
+    return false;
+  }
+
+  const { code, cause } = err as { code?: unknown; cause?: unknown };
+
+  return code === UNIQUE_VIOLATION || (cause !== undefined && isUniqueViolation(cause));
+}
+
+async function saveReviewChatTurn(
+  knowledgeBitId: string,
+  clientMessageId: string,
+  userText: string,
+  assistantText: string,
+): Promise<void> {
+  try {
+    await getDb().transaction(async (tx) => {
+      if ((await lockChatState(tx, knowledgeBitId)) !== "approved") {
+        return;
+      }
+
+      await insertChatTurn(
+        knowledgeBitId,
+        { clientMessageId, userText, assistantText, modelId: null, inputTokens: null, outputTokens: null },
+        tx,
+      );
+    });
+  } catch (err) {
+    if (!isUniqueViolation(err)) {
+      log.warn({ err, knowledgeBitId }, "knowledge_bit_review_chat_save_failed");
+    }
+  }
+}
+
 export async function askKnowledgeBitChat(
   knowledgeBitId: string,
   input: AskKnowledgeBitChatInput,
@@ -38,7 +78,7 @@ export async function askKnowledgeBitChat(
     return { error: "not_found" };
   }
 
-  if (bit.approvalState !== "approved") {
+  if (bit.approvalState !== "approved" && bit.approvalState !== "inbox") {
     return { error: "not_approved" };
   }
 
@@ -78,6 +118,10 @@ export async function askKnowledgeBitChat(
     const reply = result.text?.trim();
 
     if (reply) {
+      if (bit.approvalState === "approved" && input.clientMessageId) {
+        await saveReviewChatTurn(knowledgeBitId, input.clientMessageId, input.message, reply);
+      }
+
       return { reply };
     }
   } catch (err) {

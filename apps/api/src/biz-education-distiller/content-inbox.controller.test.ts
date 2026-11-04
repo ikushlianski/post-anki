@@ -74,7 +74,7 @@ describe("handleTriggerBizEducationDistill", () => {
     });
   });
 
-  it("returns 502 with an error message when the distill throws, never a silent 200", async () => {
+  it("returns 502 with a generic message, not the raw error, when the distill throws, never a silent 200", async () => {
     mockDistillBizEducation.mockRejectedValue(new Error("notion down"));
 
     const res = fakeRes();
@@ -82,16 +82,7 @@ describe("handleTriggerBizEducationDistill", () => {
 
     expect(res.status).toBe(502);
     expect((res.body as { error: string }).error).toBe("scan_failed");
-    expect((res.body as { message: string }).message).toBe("notion down");
+    expect((res.body as { message: string }).message).toBe("An upstream service failed. Try again shortly.");
   });
 
-  it("falls back to a generic message when the thrown value is not an Error instance", async () => {
-    mockDistillBizEducation.mockRejectedValue("boom");
-
-    const res = fakeRes();
-    await handleTriggerBizEducationDistill(res);
-
-    expect(res.status).toBe(502);
-    expect((res.body as { message: string }).message).toBe("biz education distill failed");
-  });
 });

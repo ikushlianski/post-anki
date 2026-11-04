@@ -48,6 +48,10 @@ describe("KNOWLEDGE_BIT_VARIANT_KIND_LABELS", () => {
       basic: "Basic",
       wh_question: "Why question",
       fill_in_the_blank: "Fill in the blank",
+      cloze: "Cloze",
+      list_step: "List step",
+      list_next: "Next step",
+      list_overview: "List overview",
     });
   });
 });

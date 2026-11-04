@@ -59,16 +59,16 @@ export async function saveRecommendation(
   citations: string[],
   generatedAt: string,
 ): Promise<TopicRecommendation> {
-  const db = getDb();
+  await getDb().transaction(async (tx) => {
+    await tx.delete(topicRecommendations).where(eq(topicRecommendations.topicId, topicId));
 
-  await db.delete(topicRecommendations).where(eq(topicRecommendations.topicId, topicId));
-
-  await db.insert(topicRecommendations).values({
-    id: newId("rec"),
-    topicId,
-    text,
-    citations,
-    generatedAt: new Date(generatedAt),
+    await tx.insert(topicRecommendations).values({
+      id: newId("rec"),
+      topicId,
+      text,
+      citations,
+      generatedAt: new Date(generatedAt),
+    });
   });
 
   return { topicId, text, citations, generatedAt };

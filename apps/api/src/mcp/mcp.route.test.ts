@@ -29,6 +29,10 @@ vi.mock("../db/client.js", () => {
   return { getDb: () => chain };
 });
 
+vi.mock("../subject/subject-card-count.repo.js", () => ({
+  countApprovedCardsBySubject: async () => new Map<string, number>(),
+}));
+
 vi.mock("../api-token/api-token.repo.js", async () => {
   const actual = await vi.importActual<typeof import("../api-token/api-token.repo.js")>(
     "../api-token/api-token.repo.js",

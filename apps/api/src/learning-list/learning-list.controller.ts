@@ -9,7 +9,7 @@ import {
   type LearningListItemStatus,
 } from "@post-anki/shared";
 import { z } from "zod";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { readLivenessStatuses } from "../liveness/liveness.repo.js";
 import { captureLearningListItem } from "./learning-list-classification.orchestrator.js";
@@ -62,9 +62,7 @@ export async function handleCaptureLearningListItem(
   } catch (err) {
     log.error({ err, url: body.data.url }, "learning_list_capture_failed");
 
-    const message = err instanceof Error ? err.message : "classification failed";
-
-    sendError(res, 502, "classification_failed", message);
+    sendBadGateway(res, "classification_failed");
   }
 }
 
@@ -264,9 +262,7 @@ export async function handleClassifyLearningListItem(
 
     log.error({ err, itemId, url: claimed.url }, "learning_list_reclassify_failed");
 
-    const message = err instanceof Error ? err.message : "classification failed";
-
-    sendError(res, 502, "classification_failed", message);
+    sendBadGateway(res, "classification_failed");
   }
 }
 

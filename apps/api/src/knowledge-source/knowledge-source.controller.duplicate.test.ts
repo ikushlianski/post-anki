@@ -182,4 +182,13 @@ describe("handleCreateKnowledgeSource duplicate warning", () => {
     expect(res.status).toBe(201);
     expect(mockInsertKnowledgeSources).toHaveBeenCalledTimes(1);
   });
+
+  it("should save a text pasted twice in one batch only once", async () => {
+    mockInsertKnowledgeSources.mockResolvedValue([{ id: "ks_new" }]);
+
+    const res = await post({ texts: ["same text", " same text ", "other"] });
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSources.mock.calls[0]?.[0]).toEqual(["same text", "other"]);
+  });
 });

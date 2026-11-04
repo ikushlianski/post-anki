@@ -27,9 +27,13 @@
     "migrate:english-practice-data": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate-english-practice-data.ts",
     "db:seed:domain-taxonomy": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-domain-taxonomy.ts",
     "eval:lessons": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/eval-lesson-extraction.ts",
+    "eval:nothing-extracted": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/eval-nothing-extracted.ts",
     "reextract:sources": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/reextract-knowledge-sources.ts",
+    "backfill:phrase-sentences": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/backfill-phrase-sentences.ts",
     "verify:e2e": "tsx scripts/verify-e2e.ts",
     "notion:sync": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/notion-sync.ts",
+    "notion-sources:run": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/notion-sources-run.ts",
+    "notion-sources:register": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/register-notion-source.ts",
     "biz-education:distill": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/biz-education-distill.ts"
   },
   "dependencies": {

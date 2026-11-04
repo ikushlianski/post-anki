@@ -44,6 +44,19 @@ describe("handleListKnowledgeBitOverview", () => {
     expect(res.status).toBe(200);
   });
 
+  it("should pass state and origin lists through and ignore unknown values", async () => {
+    listKnowledgeBitOverview.mockResolvedValue({ items: [], hasMore: false });
+
+    const res = fakeRes();
+
+    await handleListKnowledgeBitOverview(res, "?states=learning,relearning,nope&origins=ai_web");
+
+    expect(listKnowledgeBitOverview).toHaveBeenCalledWith(
+      { limit: 50, offset: 0, states: ["learning", "relearning"], origins: ["ai_web"] },
+      expect.any(Date),
+    );
+  });
+
   it("should reject an oversized page without touching the repo", async () => {
     const res = fakeRes();
 

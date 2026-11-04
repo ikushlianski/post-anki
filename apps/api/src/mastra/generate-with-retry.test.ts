@@ -197,6 +197,34 @@ describe("recordGenerateCall model recording", () => {
   });
 });
 
+describe("recordGenerateCall card id", () => {
+  beforeEach(() => {
+    recordLlmCallEventMock.mockReset();
+  });
+
+  it("should keep the card id on a successful call", async () => {
+    await recordGenerateCall("op", null, "agent", async () => ({ usage: {} }), { knowledgeBitId: "kb_1" });
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(expect.objectContaining({ success: true, knowledgeBitId: "kb_1" }));
+  });
+
+  it("should keep the card id on a failed call", async () => {
+    await expect(
+      recordGenerateCall(
+        "op",
+        null,
+        "agent",
+        async () => {
+          throw new Error("bad output");
+        },
+        { knowledgeBitId: "kb_1" },
+      ),
+    ).rejects.toThrow("bad output");
+
+    expect(recordLlmCallEventMock).toHaveBeenCalledWith(expect.objectContaining({ success: false, knowledgeBitId: "kb_1" }));
+  });
+});
+
 describe("generateWithRetry rate-limit handling", () => {
   beforeEach(() => {
     recordLlmCallEventMock.mockReset();

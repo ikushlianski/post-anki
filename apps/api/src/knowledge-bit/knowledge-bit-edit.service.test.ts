@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const updateKnowledgeBitBody = vi.fn();
+const bitHasNoteCards = vi.fn();
+
+vi.mock("./knowledge-bit-note-cards.repo.js", () => ({
+  bitHasNoteCards: (...args: unknown[]) => bitHasNoteCards(...args),
+}));
 
 vi.mock("./knowledge-bit.repo.js", () => ({
   updateKnowledgeBitBody: (...args: unknown[]) => updateKnowledgeBitBody(...args),
@@ -11,6 +16,7 @@ const { editKnowledgeBit } = await import("./knowledge-bit-edit.service.js");
 describe("editKnowledgeBit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    bitHasNoteCards.mockResolvedValue(false);
   });
 
   it("returns not_found when the repo reports no row was updated", async () => {
@@ -41,5 +47,14 @@ describe("editKnowledgeBit", () => {
       "Revised body.",
       "Revised background.",
     );
+  });
+
+  it("returns wrong_shape when a note or list bit gets a changed body", async () => {
+    updateKnowledgeBitBody.mockResolvedValue(false);
+    bitHasNoteCards.mockResolvedValue(true);
+
+    const result = await editKnowledgeBit("kb_cloze", { body: "Rewritten." });
+
+    expect(result).toEqual({ error: "wrong_shape" });
   });
 });

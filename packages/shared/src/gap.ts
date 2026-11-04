@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TITLE_MAX_CHARS } from "./text-limits";
 import { depthLevelSchema } from "./depth";
 import { concernSchema } from "./concern";
 
@@ -123,7 +124,7 @@ export type GapsDueForResurfaceResponse = z.infer<typeof gapsDueForResurfaceResp
 
 export const declareGapInput = z.object({
   topicId: z.string(),
-  label: z.string().min(1),
+  label: z.string().trim().min(1).max(TITLE_MAX_CHARS),
   depth: depthLevelSchema.optional(),
   wanted: z.boolean().optional(),
   concern: concernSchema.optional(),

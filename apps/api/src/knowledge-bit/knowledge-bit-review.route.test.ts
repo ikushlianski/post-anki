@@ -119,7 +119,7 @@ describe("GET /knowledge-bits/review-cards", () => {
     expect(vi.mocked(getKnowledgeBitReviewQueue)).toHaveBeenCalledWith(
       10,
       { tagId: undefined, topicId: undefined, knowledgeBitId: undefined },
-      { tz: "UTC", now: expect.any(Date) },
+      { tz: "UTC", now: expect.any(Date), aheadDays: 0 },
     );
   });
 
@@ -129,7 +129,7 @@ describe("GET /knowledge-bits/review-cards", () => {
     expect(vi.mocked(getKnowledgeBitReviewQueue)).toHaveBeenCalledWith(
       5,
       { tagId: "tag_1", topicId: undefined, knowledgeBitId: undefined },
-      { tz: "UTC", now: expect.any(Date) },
+      { tz: "UTC", now: expect.any(Date), aheadDays: 0 },
     );
   });
 
@@ -176,6 +176,8 @@ function savedReview(): RecordKnowledgeBitReviewOutcome {
     leech: false,
     suspended: false,
     points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
+    cardKey: "",
+    buriedVariantIds: [],
   };
 }
 
@@ -192,6 +194,8 @@ describe("POST /knowledge-bits/reviews", () => {
       leech: false,
       suspended: false,
       points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
+      cardKey: "",
+      buriedVariantIds: [],
     };
 
     const response = await postReview({ variantId: "kbqv_1", grade: "good", durationMs: 4200 });
@@ -208,6 +212,8 @@ describe("POST /knowledge-bits/reviews", () => {
       leech: false,
       suspended: false,
       points: { awarded: 1, reason: "awarded", totalPoints: 11, level: 1, leveledUp: false },
+      cardKey: "",
+      buriedVariantIds: [],
     });
   });
 
@@ -238,6 +244,14 @@ describe("POST /knowledge-bits/reviews", () => {
     finishStreak();
 
     expect((await pending).status).toBe(201);
+  });
+
+  it("should let the streak judge a graded card as review activity against the day's goal", async () => {
+    state.outcome = savedReview();
+
+    await postReview({ variantId: "kbqv_1", grade: "good" });
+
+    expect(vi.mocked(recordActivityToday)).toHaveBeenLastCalledWith(expect.any(String), "review");
   });
 
   it("should still confirm the grade when the streak write fails", async () => {
@@ -285,12 +299,23 @@ describe("DELETE /knowledge-bits/reviews/:id", () => {
     fetch(`${baseUrl}/knowledge-bits/reviews/kbreview_1`, { method: "DELETE", headers });
 
   it("should take a grade back and name the card it belonged to", async () => {
-    state.undo = { ok: true, knowledgeBitId: "kb_1" };
+    state.undo = {
+      ok: true,
+      knowledgeBitId: "kb_1",
+      variantId: "kbqv_1",
+      cardKey: "cloze:2",
+      unburiedVariantIds: ["kbqv_3"],
+    };
 
     const response = await undo();
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ knowledgeBitId: "kb_1" });
+    expect(await response.json()).toEqual({
+      knowledgeBitId: "kb_1",
+      variantId: "kbqv_1",
+      cardKey: "cloze:2",
+      unburiedVariantIds: ["kbqv_3"],
+    });
   });
 
   it("should refuse with 409 when the card was reviewed again since", async () => {
@@ -325,6 +350,7 @@ describe("PATCH /knowledge-bits/:id/schedule", () => {
       suspended: true,
       buriedUntil: null,
       leech: false,
+      cardKey: null,
     };
 
     const response = await patch({ suspended: true });
@@ -335,6 +361,7 @@ describe("PATCH /knowledge-bits/:id/schedule", () => {
       suspended: true,
       buriedUntil: null,
       leech: false,
+      cardKey: null,
     });
   });
 

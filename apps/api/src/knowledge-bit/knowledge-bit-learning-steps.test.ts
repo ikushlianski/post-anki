@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveLearningStep } from "./knowledge-bit-learning-steps.js";
+import { deriveLearningStep, toStepOptions } from "./knowledge-bit-learning-steps.js";
 
 const NOW = new Date("2026-10-10T12:00:00.000Z");
 const secondsFromNow = (date: Date): number => (date.getTime() - NOW.getTime()) / 1000;
@@ -70,5 +70,33 @@ describe("deriveLearningStep", () => {
 
     expect(deriveLearningStep(state, "good", NOW)).toMatchObject({ phase: "review", intervalDays: 1 });
     expect(deriveLearningStep(state, "easy", NOW)).toMatchObject({ phase: "review", intervalDays: 2 });
+  });
+});
+
+describe("deriveLearningStep with subject steps", () => {
+  const options = toStepOptions({ learningStepsMinutes: [2, 15, 60], relearningStepsMinutes: [30] });
+
+  it("should space learning repeats by the subject's steps for a new card", () => {
+    const state = { phase: "new", learningStep: 0, intervalDays: 0 } as const;
+
+    expect(secondsFromNow(deriveLearningStep(state, "again", NOW, options).dueAt)).toBe(120);
+
+    const good = deriveLearningStep(state, "good", NOW, options);
+
+    expect(good).toMatchObject({ phase: "learning", learningStep: 1 });
+    expect(secondsFromNow(good.dueAt)).toBe(900);
+  });
+
+  it("should clamp a stored step index when steps are shortened", () => {
+    const shortened = toStepOptions({ learningStepsMinutes: [5], relearningStepsMinutes: [10] });
+    const next = deriveLearningStep({ phase: "learning", learningStep: 2, intervalDays: 0 }, "good", NOW, shortened);
+
+    expect(next).toMatchObject({ phase: "review", intervalDays: 1 });
+  });
+
+  it("should use the subject's relearning steps after a lapse", () => {
+    const state = { phase: "relearning", learningStep: 0, intervalDays: 3 } as const;
+
+    expect(secondsFromNow(deriveLearningStep(state, "again", NOW, options).dueAt)).toBe(1800);
   });
 });

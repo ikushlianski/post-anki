@@ -10,6 +10,7 @@ vi.mock("../knowledge-source/knowledge-source-subject-check.orchestrator.js", ()
 vi.mock("../knowledge-source/knowledge-source-subject-check.candidates.repo.js", () => ({
   listSubjectCheckCandidateSet: vi.fn(),
 }));
+vi.mock("./subject-creation.orchestrator.js", () => ({ createSubjectForSource: vi.fn() }));
 vi.mock("../mastra/subject-assignment-escalation.agent.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../mastra/subject-assignment-escalation.agent.js")>()),
   runSubjectAssignmentEscalation: vi.fn(),
@@ -21,6 +22,7 @@ import {
   buildEscalationPrompt,
   runSubjectAssignmentEscalation,
 } from "../mastra/subject-assignment-escalation.agent.js";
+import { createSubjectForSource } from "./subject-creation.orchestrator.js";
 import { runSubjectAssignmentScan } from "./subject-assignment.orchestrator.js";
 import { listSourcesAwaitingSubject, recordSubjectSuggestion } from "./subject-assignment.repo.js";
 
@@ -39,6 +41,7 @@ beforeEach(() => {
     parents: [],
     hierarchy: [],
   });
+  vi.mocked(createSubjectForSource).mockResolvedValue(null);
   vi.mocked(runSubjectAssignmentEscalation).mockImplementation(async (notes, subjects) => ({
     output: { assignments: notes.map((_note, index) => ({ note: `N${index + 1}`, subject: "S1", confidence: "high" as const })) },
     prompt: buildEscalationPrompt(notes, subjects),
@@ -92,5 +95,106 @@ describe("runSubjectAssignmentScan", () => {
     expect(result).toEqual({ checked: 0, escalated: 0 });
     expect(runSubjectCheck).toHaveBeenCalledTimes(1);
     expect(recordSubjectSuggestion).not.toHaveBeenCalled();
+  });
+
+  describe("automatic subject creation", () => {
+    const newSubject = { name: "Graph Theory", parentSubjectId: null, parentLabel: null, kind: "general" as const, reason: "r" };
+    const unclearWithNewSubject: SubjectCheckResponse = { status: "ok", recommendations: [], newSubject };
+
+    function escalationFindsNothing() {
+      vi.mocked(runSubjectAssignmentEscalation).mockImplementation(async (notes, subjects) => ({
+        output: { assignments: notes.map((_note, index) => ({ note: `N${index + 1}`, subject: null, confidence: "low" as const })) },
+        prompt: buildEscalationPrompt(notes, subjects),
+      }));
+    }
+
+    it("should create a subject only after the stronger model found no fit and the cheap check proposed one", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue(unclearWithNewSubject);
+      escalationFindsNothing();
+      vi.mocked(createSubjectForSource).mockResolvedValue({ subjectId: "sub_new", confidence: "medium" });
+
+      await runSubjectAssignmentScan();
+
+      expect(createSubjectForSource).toHaveBeenCalledTimes(1);
+      expect(createSubjectForSource).toHaveBeenCalledWith(expect.objectContaining({ id: "a" }), newSubject);
+      expect(recordSubjectSuggestion).toHaveBeenCalledWith("a", { subjectId: "sub_new", confidence: "medium" });
+    });
+
+    it("should create nothing when the stronger model picks an existing subject", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue(unclearWithNewSubject);
+
+      await runSubjectAssignmentScan();
+
+      expect(createSubjectForSource).not.toHaveBeenCalled();
+      expect(recordSubjectSuggestion).toHaveBeenCalledWith("a", { subjectId: "sub_x", confidence: "high" });
+    });
+
+    it("should create nothing when the stronger model failed, since no-fit was never confirmed", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue(unclearWithNewSubject);
+      vi.mocked(runSubjectAssignmentEscalation).mockRejectedValue(new Error("boom"));
+
+      await runSubjectAssignmentScan();
+
+      expect(createSubjectForSource).not.toHaveBeenCalled();
+      expect(recordSubjectSuggestion).toHaveBeenCalledWith("a", null);
+    });
+
+    it("should create nothing when the cheap classifier is confident, even if it also proposed a new subject", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue({
+        status: "ok",
+        recommendations: [{ subjectId: "sub_a", subjectLabel: "A", confidence: "medium", reason: "r" }],
+        newSubject,
+      });
+
+      await runSubjectAssignmentScan();
+
+      expect(runSubjectAssignmentEscalation).not.toHaveBeenCalled();
+      expect(createSubjectForSource).not.toHaveBeenCalled();
+    });
+
+    it("should create nothing when the cheap check proposed no new subject", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue({ status: "none" });
+      escalationFindsNothing();
+
+      await runSubjectAssignmentScan();
+
+      expect(createSubjectForSource).not.toHaveBeenCalled();
+      expect(recordSubjectSuggestion).toHaveBeenCalledWith("a", null);
+    });
+
+    it("should create nothing when the check is unavailable or out of budget", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue({ status: "unavailable", reason: "budget" });
+
+      await runSubjectAssignmentScan();
+
+      expect(createSubjectForSource).not.toHaveBeenCalled();
+    });
+
+    it("should fall back to the normal outcome when creation declines", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue(unclearWithNewSubject);
+      escalationFindsNothing();
+
+      await runSubjectAssignmentScan();
+
+      expect(createSubjectForSource).toHaveBeenCalledTimes(1);
+      expect(recordSubjectSuggestion).toHaveBeenCalledWith("a", null);
+    });
+
+    it("should call the creation agent once per source and never batch sources", async () => {
+      vi.mocked(listSourcesAwaitingSubject).mockResolvedValue([source("a"), source("b")]);
+      vi.mocked(runSubjectCheck).mockResolvedValue(unclearWithNewSubject);
+      escalationFindsNothing();
+
+      await runSubjectAssignmentScan();
+
+      expect(vi.mocked(createSubjectForSource).mock.calls.map(([entry]) => entry.id)).toEqual(["a", "b"]);
+    });
   });
 });

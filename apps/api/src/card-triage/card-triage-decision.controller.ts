@@ -1,5 +1,6 @@
 import type http from "node:http";
-import { putTriageDecisionInput } from "@post-anki/shared";
+import { isRejectReasonAllowedForSubjectType, putTriageDecisionInput } from "@post-anki/shared";
+import { rejectSubjectTypeForBit } from "../knowledge-bit/reject-reason-subject-type.repo.js";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   getLiveTriageDecision,
@@ -22,6 +23,15 @@ export async function handlePutTriageDecision(
   if (!body.ok) {
     sendJson(res, 400, { error: "invalid_input", message: body.issues });
     return;
+  }
+
+  if (body.data.verdict === "rejected" && body.data.reasonCode) {
+    const subjectType = await rejectSubjectTypeForBit(bitId);
+
+    if (subjectType && !isRejectReasonAllowedForSubjectType(subjectType, body.data.reasonCode)) {
+      sendJson(res, 400, { error: "invalid_reason_for_subject_type", subjectType });
+      return;
+    }
   }
 
   const result = await putTriageDecision(sessionId, bitId, body.data);
@@ -90,5 +100,13 @@ export async function handleListTriageDecisions(
   const includeUndone = new URLSearchParams(search).get("includeUndone") === "1";
   const rows = await listTriageDecisions(sessionId, { includeUndone });
 
-  sendJson(res, 200, { decisions: rows.map(toTriageDecisionResponse) });
+  const bitIds = [...new Set(rows.map((row) => row.knowledgeBitId))];
+  const types = new Map(await Promise.all(bitIds.map(async (id) => [id, await rejectSubjectTypeForBit(id)] as const)));
+
+  sendJson(res, 200, {
+    decisions: rows.map((row) => ({
+      ...toTriageDecisionResponse(row),
+      subjectType: types.get(row.knowledgeBitId) ?? null,
+    })),
+  });
 }

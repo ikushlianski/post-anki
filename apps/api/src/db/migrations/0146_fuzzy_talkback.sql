@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" ADD COLUMN "max_reviews_per_day" integer DEFAULT 200 NOT NULL;

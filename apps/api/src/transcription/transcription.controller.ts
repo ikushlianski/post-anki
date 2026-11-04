@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { transcribeAudioInput } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { transcribeAudio } from "./transcription-client.js";
 
@@ -26,8 +26,6 @@ export async function handleCreateTranscription(
   } catch (err) {
     log.error({ err }, "transcription_failed");
 
-    const message = err instanceof Error ? err.message : "transcription failed";
-
-    sendError(res, 502, "transcription_failed", message);
+    sendBadGateway(res, "transcription_failed");
   }
 }

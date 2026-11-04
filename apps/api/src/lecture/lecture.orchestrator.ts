@@ -154,6 +154,14 @@ async function resolveApprovedCandidateSources(
   );
 }
 
+async function markLectureFailed(topicId: string): Promise<void> {
+  try {
+    await setLectureStatus(topicId, "failed");
+  } catch (err) {
+    log.error({ err, topicId }, "lecture_failed_status_write_failed");
+  }
+}
+
 export async function compileLecture(topicId: string): Promise<void> {
   try {
     const topic = await getTopicRow(topicId);
@@ -165,7 +173,7 @@ export async function compileLecture(topicId: string): Promise<void> {
 
     if (!hasUsableGroundingText(combinedSourceText)) {
       log.warn({ topicId }, "lecture_compile_no_usable_grounding");
-      await setLectureStatus(topicId, "failed");
+      await markLectureFailed(topicId);
       return;
     }
 
@@ -198,6 +206,6 @@ export async function compileLecture(topicId: string): Promise<void> {
     );
   } catch (err) {
     log.error({ err, topicId }, "lecture_compile_failed");
-    await setLectureStatus(topicId, "failed");
+    await markLectureFailed(topicId);
   }
 }

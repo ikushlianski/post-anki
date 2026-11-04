@@ -6,6 +6,8 @@ type SettingsRow = {
   testToggle: boolean;
   modelTier: string;
   knowledgeItemModelId: string;
+  fusionEnabled: boolean;
+  fusionModelIds: string[];
 };
 
 const state = vi.hoisted(() => ({
@@ -49,6 +51,8 @@ function makeRow(overrides: Partial<SettingsRow> = {}): SettingsRow {
     testToggle: false,
     modelTier: "cheap",
     knowledgeItemModelId: "openrouter/openai/gpt-4o-mini",
+    fusionEnabled: false,
+    fusionModelIds: [],
     ...overrides,
   };
 }

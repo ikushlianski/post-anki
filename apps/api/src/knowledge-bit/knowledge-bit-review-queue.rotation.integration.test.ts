@@ -32,6 +32,8 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 const { getKnowledgeBitReviewQueue } = await import("./knowledge-bit-review-queue.repo.js");
+const { pickAlternateVariant } = await import("./knowledge-bit-review-alt-variant.repo.js");
+const { getDb } = await import("../db/client.js");
 
 let client: pg.Client;
 
@@ -88,6 +90,13 @@ async function recordShown(bitId: string, variantId: string, secondsAgo: number)
   );
 }
 
+async function recordRehearsal(variantId: string, secondsAgo: number): Promise<void> {
+  await client.query(
+    `INSERT INTO knowledge_bit_variant_attempts (id, variant_id, user_answer, score, verdict, feedback, created_at) VALUES ($1, $2, '', 8, 'Ok', 'rehearsal', $3)`,
+    [`kbvattempt_${randomUUID()}`, variantId, new Date(NOW.getTime() - secondsAgo * 1000)],
+  );
+}
+
 async function nextVariantId(bitId: string): Promise<string | undefined> {
   const queue = await getKnowledgeBitReviewQueue(10, { knowledgeBitId: bitId }, CLOCK);
 
@@ -137,5 +146,27 @@ describe("review queue variation rotation (real Postgres)", () => {
     await recordShown(bitId, variantIds[0] as string, 5);
 
     expect(await nextVariantId(bitId)).toBe(variantIds[0]);
+  });
+
+  it("should not let a practice round change which wording the next real review shows", async () => {
+    const { bitId, variantIds } = await seedPiece(["basic", "fill_in_the_blank"]);
+
+    await recordShown(bitId, variantIds[0] as string, 100);
+    await recordShown(bitId, variantIds[1] as string, 50);
+    await recordRehearsal(variantIds[0] as string, 5);
+
+    expect(await nextVariantId(bitId)).toBe(variantIds[0]);
+  });
+
+  it("should offer the other wording as follow-up even after the shown wording was practised", async () => {
+    const { bitId, variantIds } = await seedPiece(["basic", "fill_in_the_blank"]);
+
+    await recordShown(bitId, variantIds[1] as string, 100);
+    await recordShown(bitId, variantIds[0] as string, 50);
+    await recordRehearsal(variantIds[1] as string, 5);
+
+    const alternate = await pickAlternateVariant(bitId, variantIds[0] as string, NOW, getDb());
+
+    expect(alternate?.variantId).toBe(variantIds[1]);
   });
 });

@@ -16,8 +16,8 @@ const kindRank = (kind: string): number => {
 };
 
 // Same preference as the review queue: basic over fill-in-the-blank over the rest.
-export function pickPreferredVariants(variants: PreferredVariant[]): Map<string, PreferredVariant> {
-  const picked = new Map<string, PreferredVariant>();
+export function pickPreferredVariants<T extends PreferredVariant>(variants: T[]): Map<string, T> {
+  const picked = new Map<string, T>();
 
   for (const variant of variants) {
     const current = picked.get(variant.knowledgeBitId);

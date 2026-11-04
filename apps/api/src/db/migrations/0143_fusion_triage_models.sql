@@ -1,0 +1,1 @@
+ALTER TABLE "card_triage_decisions" ADD COLUMN "fusion_model_ids" jsonb;

@@ -3,6 +3,7 @@ import type { TriageDecisionVariant } from "@post-anki/shared";
 import type { DbExecutor } from "../db/client.js";
 import {
   knowledgeBitFeedback,
+  knowledgeBitFusionModels,
   knowledgeBitQuestionVariants,
   knowledgeBits,
   knowledgeSources,
@@ -19,10 +20,15 @@ export interface DecisionContext {
   variants: TriageDecisionVariant[];
   front: string | null;
   back: string | null;
+  fusionModelIds: string[];
 }
 
 function clip(value: string | null | undefined): string | null {
   return value === null || value === undefined ? null : value.slice(0, FEEDBACK_SNAPSHOT_MAX_CHARS);
+}
+
+function withContext(context: string | null, prompt: string): string {
+  return context ? `${context}\n${prompt}` : prompt;
 }
 
 export async function loadDecisionContext(db: DbExecutor, bitId: string): Promise<DecisionContext | null> {
@@ -41,7 +47,7 @@ export async function loadDecisionContext(db: DbExecutor, bitId: string): Promis
     return null;
   }
 
-  const [[source], variants] = await Promise.all([
+  const [[source], variants, fusionModels] = await Promise.all([
     db
       .select({
         subjectId: knowledgeSources.subjectId,
@@ -55,6 +61,7 @@ export async function loadDecisionContext(db: DbExecutor, bitId: string): Promis
       .select({
         id: knowledgeBitQuestionVariants.id,
         kind: knowledgeBitQuestionVariants.kind,
+        context: knowledgeBitQuestionVariants.context,
         prompt: knowledgeBitQuestionVariants.prompt,
         answer: knowledgeBitQuestionVariants.answer,
         supersededAt: knowledgeBitQuestionVariants.supersededAt,
@@ -62,6 +69,11 @@ export async function loadDecisionContext(db: DbExecutor, bitId: string): Promis
       .from(knowledgeBitQuestionVariants)
       .where(eq(knowledgeBitQuestionVariants.knowledgeBitId, bitId))
       .orderBy(asc(knowledgeBitQuestionVariants.order), asc(knowledgeBitQuestionVariants.createdAt)),
+    db
+      .select({ modelId: knowledgeBitFusionModels.modelId })
+      .from(knowledgeBitFusionModels)
+      .where(eq(knowledgeBitFusionModels.bitId, bitId))
+      .orderBy(asc(knowledgeBitFusionModels.modelId)),
   ]);
 
   const primary = variants.find((variant) => variant.supersededAt === null);
@@ -74,8 +86,9 @@ export async function loadDecisionContext(db: DbExecutor, bitId: string): Promis
     extractionRun: source?.extractionRun ?? null,
     reviewFlag: bit.reviewFlag,
     variants: variants.map((variant) => ({ id: variant.id, kind: variant.kind, kept: variant.supersededAt === null })),
-    front: clip(primary?.prompt ?? bit.body),
+    front: clip(primary ? withContext(primary.context, primary.prompt) : bit.body),
     back: clip(primary?.answer),
+    fusionModelIds: fusionModels.map((row) => row.modelId),
   };
 }
 

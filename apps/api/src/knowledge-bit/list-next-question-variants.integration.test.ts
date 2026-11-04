@@ -137,6 +137,13 @@ async function recordAttempt(variantId: string) {
   });
 }
 
+async function recordRehearsal(variantId: string) {
+  await client.query(
+    `INSERT INTO knowledge_bit_variant_attempts (id, variant_id, user_answer, score, verdict, feedback) VALUES ($1, $2, '', 8, 'Ok', 'rehearsal')`,
+    [id("kbvattempt"), variantId],
+  );
+}
+
 async function seedSchedule(knowledgeBitId: string, dueAt: Date): Promise<void> {
   await client.query(
     `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, due_at) VALUES ($1, $2)`,
@@ -430,5 +437,29 @@ describe("listNextQuestionVariantsToAnswer (real Postgres)", () => {
     expect(unscoped).not.toContain(buriedVariant);
     expect(unscoped).toContain(expiredVariant);
     expect(scoped).toEqual([]);
+  });
+
+  it("should not count practice rounds when choosing the wording served for a bit", async () => {
+    const bitId = await seedKnowledgeBit("Rehearsed two-variant bit");
+    const practised = await seedVariant(bitId, "Practised variant?");
+
+    await insertQuestionVariant(bitId, "wh_question", 1, "Really answered variant?", "some answer");
+
+    const { rows } = await client.query(
+      `SELECT id FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1 AND id <> $2`,
+      [bitId, practised],
+    );
+
+    await recordAttempt(rows[0]!.id as string);
+    await recordRehearsal(practised);
+    await recordRehearsal(practised);
+
+    const unscoped = (await listNextQuestionVariantsToAnswer(500, undefined)).filter(
+      (row) => row.knowledgeBitId === bitId,
+    );
+    const scoped = await listNextQuestionVariantsToAnswer(10, { knowledgeBitId: bitId });
+
+    expect(unscoped.map((row) => row.variantId)).toEqual([practised]);
+    expect(scoped[0]?.variantId).toBe(practised);
   });
 });

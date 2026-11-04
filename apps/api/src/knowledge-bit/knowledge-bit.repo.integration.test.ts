@@ -85,8 +85,7 @@ async function seedFullyDerivedKnowledgeBit(
        (id, knowledge_source_id, ordinal, body,
         embedding_vec, embedding_hash, embedded_at,
         tagged_at, tag_failed_at,
-        topic_id, placement_suggestion, placement_checked_at, placement_failed_at,
-        placement_suggestion_resolved_at,
+        topic_id,
         wh_question_generated_at, wh_question_generation_failed_at,
         wh_question_generation_attempts, wh_question_generation_claimed_at,
         wh_question_generation_claim_token,
@@ -99,8 +98,7 @@ async function seedFullyDerivedKnowledgeBit(
      VALUES ($1, $2, $6, 'Original body.',
         $3, 'hash-1', $4,
         $4, $4,
-        $5, 'A placement suggestion', $4, $4,
-        $4,
+        $5,
         $4, $4,
         2, $4,
         'wh-claim-token',
@@ -204,6 +202,21 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     expect(rows[0]!.body).toBe("Original body.");
   });
 
+  it("should let an inbox bit take a background-only edit so an AI example can be undone", async () => {
+    const sourceId = await seedKnowledgeSource();
+    const id = await seedFullyDerivedKnowledgeBit(sourceId);
+
+    await client.query(`UPDATE knowledge_bits SET approval_state = 'inbox', background = 'AI example' WHERE id = $1`, [id]);
+
+    const updated = await updateKnowledgeBitBody(id, "Original body.", "Earlier example");
+
+    expect(updated).toBe(true);
+
+    const { rows } = await client.query(`SELECT background FROM knowledge_bits WHERE id = $1`, [id]);
+
+    expect(rows[0]!.background).toBe("Earlier example");
+  });
+
   it("should update the background in place when provided", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedFullyDerivedKnowledgeBit(sourceId);
@@ -272,9 +285,7 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     await updateKnowledgeBitBody(id, "Revised body.");
 
     const { rows } = await client.query(
-      `SELECT embedding_vec, embedding_hash, embedded_at, tagged_at, tag_failed_at,
-              placement_suggestion, placement_checked_at, placement_failed_at,
-              placement_suggestion_resolved_at
+      `SELECT embedding_vec, embedding_hash, embedded_at, tagged_at, tag_failed_at
        FROM knowledge_bits WHERE id = $1`,
       [id],
     );
@@ -285,13 +296,9 @@ describe("updateKnowledgeBitBody (real Postgres)", () => {
     expect(row.embedded_at).toBeNull();
     expect(row.tagged_at).toBeNull();
     expect(row.tag_failed_at).toBeNull();
-    expect(row.placement_suggestion).toBeNull();
-    expect(row.placement_checked_at).toBeNull();
-    expect(row.placement_failed_at).toBeNull();
-    expect(row.placement_suggestion_resolved_at).toBeNull();
   });
 
-  it("preserves topicId as the confirmed placement, not a scan artifact", async () => {
+  it("preserves topicId across a body edit", async () => {
     const sourceId = await seedKnowledgeSource();
     const id = await seedFullyDerivedKnowledgeBit(sourceId, "topic_1");
 

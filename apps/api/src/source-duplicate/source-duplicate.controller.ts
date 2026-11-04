@@ -3,7 +3,7 @@ import {
   resolveSourceDuplicateSuggestionInput,
   sourceDuplicateSuggestionStatusSchema,
 } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { triggerSourceDuplicateScan } from "./source-duplicate.orchestrator.js";
 import {
@@ -23,9 +23,7 @@ export async function handleTriggerSourceDuplicateScan(res: http.ServerResponse)
   } catch (err) {
     log.error({ err }, "source_duplicate_scan_failed");
 
-    const message = err instanceof Error ? err.message : "source duplicate scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 

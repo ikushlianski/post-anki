@@ -10,7 +10,9 @@ import {
   topics,
 } from "../db/schema.js";
 import { ANKI_VARIANT_KIND_PREFERENCE, ankiVariantKindRank } from "./knowledge-bit-variant-kind-rules.js";
+import { cardSubjectIdSql } from "./knowledge-bit-card-subject.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
+import { variantCardKeySql } from "./knowledge-bit-card-key.js";
 import { inReviewRotation } from "./knowledge-bit-schedule.repo.js";
 import type { KnowledgeBitReviewCardsFilter } from "./knowledge-bit-review-queue.repo.js";
 
@@ -60,29 +62,40 @@ export const eligibility = (scope: SQL | undefined, now: Date) =>
     bitApproved,
   );
 
-// One row per eligible bit: the active variant shown least recently, ties by kind preference.
-export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor) {
-  const kindRank = sql`case ${knowledgeBitQuestionVariants.kind} ${sql.join(
-    ANKI_VARIANT_KIND_PREFERENCE.map((kind) => sql`when ${kind} then ${ankiVariantKindRank(kind)}`),
-    sql` `,
-  )} else ${ANKI_VARIANT_KIND_PREFERENCE.length} end`;
+export const variantKindRankSql = sql`case ${knowledgeBitQuestionVariants.kind} ${sql.join(
+  ANKI_VARIANT_KIND_PREFERENCE.map((kind) => sql`when ${kind} then ${ankiVariantKindRank(kind)}`),
+  sql` `,
+)} else ${ANKI_VARIANT_KIND_PREFERENCE.length} end`;
 
-  const lastShownAt = sql`greatest(
+export const variantLastShownAtSql = sql`greatest(
     coalesce((select max(r.reviewed_at) from knowledge_bit_reviews r where r.variant_id = ${knowledgeBitQuestionVariants.id} and r.undone_at is null), '-infinity'::timestamptz),
-    coalesce((select max(a.created_at) from knowledge_bit_variant_attempts a where a.variant_id = ${knowledgeBitQuestionVariants.id}), '-infinity'::timestamptz)
+    coalesce((select max(a.created_at) from knowledge_bit_variant_attempts a where a.variant_id = ${knowledgeBitQuestionVariants.id} and a.feedback <> 'rehearsal'), '-infinity'::timestamptz)
   )`;
+
+// One row per eligible card: the active variant shown least recently, ties by kind preference.
+// A cloze gap or list step is its own card; every other kind shares the note-level card.
+export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor) {
+  const kindRank = variantKindRankSql;
+  const lastShownAt = variantLastShownAtSql;
 
   return db
     .select({
       variantId: sql<string>`${knowledgeBitQuestionVariants.id}`.as("variant_id"),
       knowledgeBitId: sql<string>`${knowledgeBits.id}`.as("bit_id"),
       kind: knowledgeBitQuestionVariants.kind,
+      cardKey: variantCardKeySql.as("card_key"),
       prompt: knowledgeBitQuestionVariants.prompt,
+      context: knowledgeBitQuestionVariants.context,
       answer: knowledgeBitQuestionVariants.answer,
+      sentence: knowledgeBitQuestionVariants.sentence,
       background: knowledgeBits.background,
+      body: knowledgeBits.body,
+      reviewCount: knowledgeBitSchedules.reviewCount,
       isAiGenerated: knowledgeBits.isAiGenerated,
+      aiSuggestion: knowledgeBits.aiSuggestion,
       sourceLinks: knowledgeBits.sourceLinks,
       subjectId: knowledgeSources.subjectId,
+      cardSubjectId: cardSubjectIdSql.as("card_subject_id"),
       bitCreatedAt: knowledgeBits.createdAt,
       scheduleBitId: sql<string | null>`case when ${knowledgeBitSchedules.reviewCount} > 0 then ${knowledgeBitSchedules.knowledgeBitId} end`.as("schedule_bit_id"),
       easeFactor: knowledgeBitSchedules.easeFactor,
@@ -91,13 +104,19 @@ export function pickedVariants(scope: SQL | undefined, now: Date, db: DbExecutor
       phase: knowledgeBitSchedules.phase,
       learningStep: knowledgeBitSchedules.learningStep,
       lapses: knowledgeBitSchedules.lapses,
-      pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id} order by ${lastShownAt}, ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
+      pickRank: sql<number>`row_number() over (partition by ${knowledgeBits.id}, ${variantCardKeySql} order by ${lastShownAt}, ${kindRank}, ${knowledgeBitQuestionVariants.createdAt}, ${knowledgeBitQuestionVariants.id})`
         .mapWith(Number)
         .as("pick_rank"),
     })
     .from(knowledgeBitQuestionVariants)
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(
+      knowledgeBitSchedules,
+      and(
+        eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
+        eq(knowledgeBitSchedules.cardKey, variantCardKeySql),
+      ),
+    )
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))

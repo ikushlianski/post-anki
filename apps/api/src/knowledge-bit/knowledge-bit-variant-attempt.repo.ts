@@ -12,6 +12,8 @@ export interface QuestionVariantForGrading {
   id: string;
   knowledgeBitId: string;
   kind: KnowledgeBitQuestionVariantKind;
+  order: number;
+  context?: string | null;
   prompt: string;
   answer: string;
   approvalState: "pending" | "approved" | "rejected";
@@ -26,6 +28,8 @@ export async function getQuestionVariantById(
       id: knowledgeBitQuestionVariants.id,
       knowledgeBitId: knowledgeBitQuestionVariants.knowledgeBitId,
       kind: knowledgeBitQuestionVariants.kind,
+      order: knowledgeBitQuestionVariants.order,
+      context: knowledgeBitQuestionVariants.context,
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
       approvalState: knowledgeBits.approvalState,

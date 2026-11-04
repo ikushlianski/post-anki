@@ -1,17 +1,35 @@
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
-import { cardPhaseSchema, type CardPhase, type Verdict } from "@post-anki/shared";
+import {
+  cardPhaseSchema,
+  LONG_TERM_MAX_INTERVAL_DAYS,
+  type CardPhase,
+  type Verdict,
+} from "@post-anki/shared";
 import { knowledgeBitSchedules } from "../db/schema.js";
 import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
+import { loadStudyOptionsResolver } from "../subject-study-options/subject-study-options-resolver.js";
+import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
+import { readCardSubjectId } from "./knowledge-bit-card-subject.js";
+import { applyRetention } from "./knowledge-bit-grade-schedule.js";
+import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
 
 const MIN_EASE_FACTOR = 1.3;
 const MAX_EASE_FACTOR = 3.0;
 const MIN_INTERVAL_DAYS = 1;
-const MAX_INTERVAL_DAYS = 180;
-// A shaky answer grows toward this much lower ceiling, not the full 180-day cap — otherwise a bit
+const MAX_INTERVAL_DAYS = LONG_TERM_MAX_INTERVAL_DAYS;
+// A shaky answer grows toward this much lower ceiling, not the full long-term cap — otherwise a bit
 // that's chronically "NeedsReview" would still drift out to nearly a full-mastery interval, which
 // is exactly the skim-past-it-before-it's-known failure mode this scheduler is meant to avoid.
 const MAX_NEEDS_REVIEW_INTERVAL_DAYS = 14;
 const RESET_INTERVAL_DAYS = 1;
+
+const SCHEDULE_KEY = [knowledgeBitSchedules.knowledgeBitId, knowledgeBitSchedules.cardKey];
+
+export const scheduleKeyIs = (knowledgeBitId: string, cardKey: string) =>
+  and(
+    eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId),
+    eq(knowledgeBitSchedules.cardKey, cardKey),
+  );
 
 export interface ScheduleState {
   easeFactor: number;
@@ -21,12 +39,28 @@ export interface ScheduleState {
 // Simplified SM-2: a good answer grows the interval by the current ease factor and nudges ease
 // up; a shaky answer grows it only a little and nudges ease down; a failed answer resets the
 // interval short so the bit comes back soon, without punishing ease as hard as a real lapse would.
-export function computeNextSchedule(current: ScheduleState, verdict: Verdict): ScheduleState {
+export interface TypedScheduleLimits {
+  maxIntervalDays?: number;
+  retentionMultiplier?: number;
+}
+
+export function computeNextSchedule(
+  current: ScheduleState,
+  verdict: Verdict,
+  limits: TypedScheduleLimits = {},
+): ScheduleState {
+  const maxInterval = Math.max(MIN_INTERVAL_DAYS, limits.maxIntervalDays ?? MAX_INTERVAL_DAYS);
+
   if (verdict === "Ok") {
-    const intervalDays = Math.min(
-      Math.max(current.intervalDays, MIN_INTERVAL_DAYS) * current.easeFactor,
-      MAX_INTERVAL_DAYS,
+    const base = Math.max(current.intervalDays, MIN_INTERVAL_DAYS);
+    const grown = applyRetention(
+      "good",
+      base * current.easeFactor,
+      base,
+      current.easeFactor,
+      limits.retentionMultiplier ?? 1,
     );
+    const intervalDays = Math.min(grown, maxInterval);
 
     return {
       easeFactor: Math.min(current.easeFactor + 0.1, MAX_EASE_FACTOR),
@@ -37,7 +71,7 @@ export function computeNextSchedule(current: ScheduleState, verdict: Verdict): S
   if (verdict === "NeedsReview") {
     const intervalDays = Math.min(
       Math.max(current.intervalDays, MIN_INTERVAL_DAYS) * 1.2,
-      MAX_NEEDS_REVIEW_INTERVAL_DAYS,
+      Math.min(MAX_NEEDS_REVIEW_INTERVAL_DAYS, maxInterval),
     );
 
     return {
@@ -67,18 +101,25 @@ export async function reviewKnowledgeBitSchedule(
         intervalDays: knowledgeBitSchedules.intervalDays,
       })
       .from(knowledgeBitSchedules)
-      .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
+      .where(scheduleKeyIs(knowledgeBitId, ""))
       .limit(1);
 
     const current: ScheduleState = existing[0] ?? { easeFactor: 2.5, intervalDays: 0 };
-    const next = computeNextSchedule(current, verdict);
     const now = new Date();
+    const [subjectId, resolver, clock] = await Promise.all([
+      readCardSubjectId(knowledgeBitId, tx),
+      loadStudyOptionsResolver(tx),
+      readStudyPlanClock(now, tx),
+    ]);
+    const limits = toScheduleOptions(resolver.resolvePlan(subjectId), clock);
+    const next = computeNextSchedule(current, verdict, limits);
     const dueAt = new Date(now.getTime() + next.intervalDays * 24 * 60 * 60 * 1000);
 
     await tx
       .insert(knowledgeBitSchedules)
       .values({
         knowledgeBitId,
+        cardKey: "",
         easeFactor: next.easeFactor,
         intervalDays: next.intervalDays,
         dueAt,
@@ -88,7 +129,7 @@ export async function reviewKnowledgeBitSchedule(
         learningStep: 0,
       })
       .onConflictDoUpdate({
-        target: knowledgeBitSchedules.knowledgeBitId,
+        target: SCHEDULE_KEY,
         set: {
           easeFactor: next.easeFactor,
           intervalDays: next.intervalDays,
@@ -126,6 +167,7 @@ export const inReviewRotation = (now: Date) =>
 export async function readKnowledgeBitScheduleInTx(
   tx: Tx,
   knowledgeBitId: string,
+  cardKey: string,
 ): Promise<KnowledgeBitScheduleRow | null> {
   const rows = await tx
     .select({
@@ -141,7 +183,7 @@ export async function readKnowledgeBitScheduleInTx(
       buriedUntil: knowledgeBitSchedules.buriedUntil,
     })
     .from(knowledgeBitSchedules)
-    .where(eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBitId))
+    .where(scheduleKeyIs(knowledgeBitId, cardKey))
     .limit(1);
 
   const row = rows[0];
@@ -158,6 +200,7 @@ export async function readKnowledgeBitScheduleInTx(
 export async function upsertKnowledgeBitScheduleInTx(
   tx: Tx,
   knowledgeBitId: string,
+  cardKey: string,
   next: ScheduleState & {
     dueAt: Date;
     phase: CardPhase;
@@ -171,6 +214,7 @@ export async function upsertKnowledgeBitScheduleInTx(
     .insert(knowledgeBitSchedules)
     .values({
       knowledgeBitId,
+      cardKey,
       easeFactor: next.easeFactor,
       intervalDays: next.intervalDays,
       dueAt: next.dueAt,
@@ -182,7 +226,7 @@ export async function upsertKnowledgeBitScheduleInTx(
       suspendedAt: next.suspendedAt ?? null,
     })
     .onConflictDoUpdate({
-      target: knowledgeBitSchedules.knowledgeBitId,
+      target: SCHEDULE_KEY,
       set: {
         easeFactor: next.easeFactor,
         intervalDays: next.intervalDays,
@@ -200,12 +244,13 @@ export async function upsertKnowledgeBitScheduleInTx(
 export async function replaceKnowledgeBitScheduleInTx(
   tx: Tx,
   knowledgeBitId: string,
+  cardKey: string,
   row: KnowledgeBitScheduleRow,
 ): Promise<void> {
   await tx
     .insert(knowledgeBitSchedules)
-    .values({ knowledgeBitId, ...row })
-    .onConflictDoUpdate({ target: knowledgeBitSchedules.knowledgeBitId, set: row });
+    .values({ knowledgeBitId, cardKey, ...row })
+    .onConflictDoUpdate({ target: SCHEDULE_KEY, set: row });
 }
 
 export interface KnowledgeBitScheduleControls {
@@ -217,10 +262,11 @@ export interface KnowledgeBitScheduleControls {
 export async function writeKnowledgeBitScheduleControlsInTx(
   tx: Tx,
   knowledgeBitId: string,
+  cardKey: string,
   controls: KnowledgeBitScheduleControls,
 ): Promise<void> {
   await tx
     .insert(knowledgeBitSchedules)
-    .values({ knowledgeBitId, reviewCount: 0, phase: "new", ...controls })
-    .onConflictDoUpdate({ target: knowledgeBitSchedules.knowledgeBitId, set: controls });
+    .values({ knowledgeBitId, cardKey, reviewCount: 0, phase: "new", ...controls })
+    .onConflictDoUpdate({ target: SCHEDULE_KEY, set: controls });
 }

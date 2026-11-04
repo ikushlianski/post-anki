@@ -1,14 +1,22 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import type { Concern, Note } from "@post-anki/shared";
+import { NOTE_SEARCH_DEFAULT_LIMIT, type Concern, type Note } from "@post-anki/shared";
 import { resolveNoteTaxonomySubtree } from "@post-anki/core";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { curriculumDomainNodeMappings, domainNodes, gaps, notes, sources, topics } from "../db/schema.js";
+import {
+  curriculumDomainNodeMappings,
+  domainNodes,
+  gaps,
+  notes,
+  sources,
+  topics,
+} from "../db/schema.js";
 import { rowToNote } from "./note.repo.js";
 
 export interface SearchNotesParams {
   query: string;
   concern?: Concern;
   domainNodeId?: string;
+  limit?: number;
 }
 
 export async function searchNotes(params: SearchNotesParams): Promise<Note[]> {
@@ -19,23 +27,22 @@ export async function searchNotes(params: SearchNotesParams): Promise<Note[]> {
     conditions.push(eq(notes.concern, params.concern));
   }
 
-  const rows = await db
+  const limit = params.limit ?? NOTE_SEARCH_DEFAULT_LIMIT;
+
+  const ranked = db
     .select()
     .from(notes)
     .where(and(...conditions))
     .orderBy(sql`ts_rank(${notes.searchVector}, plainto_tsquery('english', ${params.query})) DESC`);
 
-  const results = rows.map(rowToNote);
-
   if (!params.domainNodeId) {
-    return results;
+    return (await ranked.limit(limit)).map(rowToNote);
   }
 
-  const allowedIds = new Set(
-    await resolveNotesInTaxonomySubtree(results, params.domainNodeId, db),
-  );
+  const results = (await ranked).map(rowToNote);
+  const allowedIds = new Set(await resolveNotesInTaxonomySubtree(results, params.domainNodeId, db));
 
-  return results.filter((note) => allowedIds.has(note.id));
+  return results.filter((note) => allowedIds.has(note.id)).slice(0, limit);
 }
 
 async function resolveNotesInTaxonomySubtree(
@@ -61,7 +68,10 @@ async function resolveNotesInTaxonomySubtree(
       .from(domainNodes)
       .where(eq(domainNodes.subjectId, filterNodeRow.subjectId)),
     gapNoteIds.length
-      ? db.select({ id: gaps.id, topicId: gaps.topicId }).from(gaps).where(inArray(gaps.id, gapNoteIds))
+      ? db
+          .select({ id: gaps.id, topicId: gaps.topicId })
+          .from(gaps)
+          .where(inArray(gaps.id, gapNoteIds))
       : Promise.resolve([]),
     sourceNoteIds.length
       ? db
@@ -135,7 +145,10 @@ async function resolveNotesInTaxonomySubtree(
     domainNodeIds: domainNodeIdsByCurriculumId.get(curriculumIdForNote(note) ?? "") ?? [],
   }));
 
-  const nodeRefs = subjectNodeRows.map((row) => ({ id: row.id, parentId: row.parentId }));
+  const nodeRefs = subjectNodeRows.map((row) => ({
+    id: row.id,
+    parentId: row.parentId,
+  }));
 
   return resolveNoteTaxonomySubtree(filterNodeId, nodeRefs, candidates);
 }

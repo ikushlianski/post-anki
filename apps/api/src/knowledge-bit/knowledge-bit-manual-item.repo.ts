@@ -13,9 +13,9 @@ export type InsertDerivedKnowledgeItemResult =
   | { ok: true; item: PendingKnowledgeBitForReview }
   | { ok: false; error: "not_found" | "not_approved" };
 
-type Tx = Parameters<Parameters<DbExecutor["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<DbExecutor["transaction"]>[0]>[0];
 
-async function insertPendingManualItem(
+export async function insertPendingManualItem(
   tx: Tx,
   entryId: string,
   input: CreateManualKnowledgeItemInput,

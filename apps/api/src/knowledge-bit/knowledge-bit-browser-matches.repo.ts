@@ -6,7 +6,7 @@ import {
   type KnowledgeBitBrowserMatchesQuery,
 } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { curricula, knowledgeBits, knowledgeBitSchedules, knowledgeSources, topics } from "../db/schema.js";
+import { curricula, knowledgeBits, knowledgeBitNoteSchedules, knowledgeSources, topics } from "../db/schema.js";
 import { applyEfSearch } from "../db/vector-search.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { buildBrowserFilterCondition, sourceTypeSql } from "./knowledge-bit-browser-filters.js";
@@ -48,7 +48,7 @@ export async function countBrowserMatchesScope(
     })
     .from(knowledgeBits)
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
     .where(where);
@@ -80,7 +80,7 @@ export async function rankBrowserMatches(
     })
     .from(knowledgeBits)
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
     .where(

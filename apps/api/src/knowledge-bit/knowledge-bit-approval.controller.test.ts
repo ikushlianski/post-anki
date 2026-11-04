@@ -13,6 +13,17 @@ vi.mock("./knowledge-source-attention.repo.js", () => ({
 }));
 
 const embedApprovedKnowledgeBits = vi.fn();
+const editKnowledgeBitClozeNote = vi.fn();
+
+vi.mock("./knowledge-bit-note-edit.repo.js", () => ({
+  editKnowledgeBitClozeNote: (...args: unknown[]) => editKnowledgeBitClozeNote(...args),
+}));
+
+const editKnowledgeBitOrderedList = vi.fn();
+
+vi.mock("./knowledge-bit-list-edit.repo.js", () => ({
+  editKnowledgeBitOrderedList: (...args: unknown[]) => editKnowledgeBitOrderedList(...args),
+}));
 
 vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({
   embedApprovedKnowledgeBits: (...args: unknown[]) => embedApprovedKnowledgeBits(...args),
@@ -27,7 +38,20 @@ vi.mock("./knowledge-bit-approval.repo.js", () => ({
     listPendingKnowledgeBitsForReview(...args),
 }));
 
+const listPendingReviewSubjectCounts = vi.fn();
+
+vi.mock("./knowledge-bit-pending-subjects.repo.js", () => ({
+  listPendingReviewSubjectCounts: (...args: unknown[]) => listPendingReviewSubjectCounts(...args),
+}));
+
+const countPendingKnowledgeBitsForReview = vi.fn();
+
+vi.mock("./knowledge-bit-pending-total.repo.js", () => ({
+  countPendingKnowledgeBitsForReview: (...args: unknown[]) => countPendingKnowledgeBitsForReview(...args),
+}));
+
 const {
+  handleListPendingReviewSubjects,
   handleApproveKnowledgeBit,
   handleRejectKnowledgeBit,
   handleEditKnowledgeBitQuestionVariant,
@@ -171,9 +195,22 @@ describe("handleEditKnowledgeBitQuestionVariant", () => {
       "kbqv_1",
       "New prompt",
       "New answer",
+      undefined,
     );
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, variantId: "kbqv_new" });
+  });
+
+  it("should pass an edited context through so the learner can change who is speaking", async () => {
+    editKnowledgeBitQuestionVariant.mockResolvedValue({ ok: true, variantId: "kbqv_new", knowledgeBitId: "kb_1" });
+
+    await handleEditKnowledgeBitQuestionVariant(
+      fakeReq({ prompt: "New prompt", answer: "New answer", context: " To a manager " }),
+      fakeRes(),
+      "kbqv_1",
+    );
+
+    expect(editKnowledgeBitQuestionVariant).toHaveBeenCalledWith("kbqv_1", "New prompt", "New answer", "To a manager");
   });
 
   it("an edited card is re-embedded for its bit so search finds the new wording", async () => {
@@ -232,6 +269,72 @@ describe("handleEditKnowledgeBitQuestionVariant", () => {
     expect(res.body).toEqual({ error: "blocked" });
   });
 
+  it("should save a cloze note edit as a whole note and re-embed the bit", async () => {
+    editKnowledgeBitClozeNote.mockResolvedValue({
+      ok: true,
+      knowledgeBitId: "kb_1",
+      variantId: "kbqv_new",
+      cards: [{ id: "kbqv_new", order: 1, prompt: "p", answer: "a" }],
+    });
+
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(fakeReq({ note: "A {{c1::b}} and {{c2::c}}" }), res, "kbqv_1");
+
+    expect(editKnowledgeBitClozeNote).toHaveBeenCalledWith("kbqv_1", "A {{c1::b}} and {{c2::c}}");
+    expect(editKnowledgeBitQuestionVariant).not.toHaveBeenCalled();
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, variantId: "kbqv_new" });
+  });
+
+  it("should tell the learner why a cloze note was refused", async () => {
+    editKnowledgeBitClozeNote.mockResolvedValue({ error: "invalid_note", reason: "nested" });
+
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(fakeReq({ note: "{{c1::a {{c2::b}}}}" }), res, "kbqv_1");
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: "invalid_note", reason: "nested" });
+    expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
+  });
+
+  it("should save an ordered list edit as a whole list and re-embed the bit", async () => {
+    editKnowledgeBitOrderedList.mockResolvedValue({ ok: true, knowledgeBitId: "kb_1", variantId: "kbqv_new", cards: [] });
+
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(fakeReq({ list: "T\na\nb\nc" }), res, "kbqv_1");
+
+    expect(editKnowledgeBitOrderedList).toHaveBeenCalledWith("kbqv_1", "T\na\nb\nc");
+    expect(editKnowledgeBitQuestionVariant).not.toHaveBeenCalled();
+    expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_1"]);
+    expect(res.body).toMatchObject({ ok: true, variantId: "kbqv_new" });
+  });
+
+  it("should tell the learner why an ordered list was refused", async () => {
+    editKnowledgeBitOrderedList.mockResolvedValue({ error: "invalid_list", reason: "too_few_steps" });
+
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(fakeReq({ list: "T\na\nb" }), res, "kbqv_1");
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: "invalid_list", reason: "too_few_steps" });
+    expect(embedApprovedKnowledgeBits).not.toHaveBeenCalled();
+  });
+
+  it("should answer 400 when a plain edit targets a cloze card", async () => {
+    editKnowledgeBitQuestionVariant.mockResolvedValue({ error: "wrong_shape" });
+
+    const res = fakeRes();
+
+    await handleEditKnowledgeBitQuestionVariant(fakeReq({ prompt: "p", answer: "a" }), res, "kbqv_1");
+
+    expect(res.status).toBe(400);
+  });
+
   it("should reject an empty prompt with a 400 and never call the repo", async () => {
     const req = fakeReq({ prompt: "", answer: "New answer" });
     const res = fakeRes();
@@ -261,6 +364,47 @@ describe("handleListPendingKnowledgeBitsForReview", () => {
     expect(res.body).toEqual([{ knowledgeSourceId: "ksrc_1", sourceText: "Prose.", bits: [] }]);
   });
 
+  it("should limit the list to the subject the learner chose", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    await handleListPendingKnowledgeBitsForReview(fakeRes(), "?subjectId=sub_1");
+
+    expect(listPendingKnowledgeBitsForReview).toHaveBeenCalledWith(expect.any(Number), undefined, "sub_1", undefined);
+  });
+
+  it("should list every subject when no subject is chosen", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    await handleListPendingKnowledgeBitsForReview(fakeRes(), "");
+
+    expect(listPendingKnowledgeBitsForReview).toHaveBeenCalledWith(expect.any(Number), undefined, undefined, undefined);
+  });
+
+  it("should fetch only as many pending cards as the Triage window asks for", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    await handleListPendingKnowledgeBitsForReview(fakeRes(), "?limit=20&subjectId=sub_1");
+
+    expect(listPendingKnowledgeBitsForReview).toHaveBeenCalledWith(20, undefined, "sub_1", undefined);
+  });
+
+  it("should keep returning up to 200 pending cards when no limit is asked for", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    await handleListPendingKnowledgeBitsForReview(fakeRes(), "");
+
+    expect(listPendingKnowledgeBitsForReview).toHaveBeenCalledWith(200, undefined, undefined, undefined);
+  });
+
+  it.each(["0", "201", "abc", "1.5", ""])("should reject the pending-review limit %j instead of loading the list", async (limit) => {
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, `?limit=${limit}`);
+
+    expect(res.status).toBe(400);
+    expect(listPendingKnowledgeBitsForReview).not.toHaveBeenCalled();
+  });
+
   it("should not look for notes needing attention unless asked, so older clients see the same list", async () => {
     listPendingKnowledgeBitsForReview.mockResolvedValue([]);
 
@@ -270,6 +414,93 @@ describe("handleListPendingKnowledgeBitsForReview", () => {
 
     expect(res.body).toEqual([]);
     expect(listSourcesNeedingAttention).not.toHaveBeenCalled();
+  });
+
+  it("should continue after the last card the app already holds when a cursor is sent", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    await handleListPendingKnowledgeBitsForReview(
+      fakeRes(),
+      "?limit=50&afterCreatedAt=2026-01-01T00:00:00.123456Z&afterId=kb_9",
+    );
+
+    expect(listPendingKnowledgeBitsForReview).toHaveBeenCalledWith(50, undefined, undefined, {
+      afterCreatedAt: "2026-01-01T00:00:00.123456Z",
+      afterId: "kb_9",
+    });
+  });
+
+  it("should still report the whole pending total, not the rest after the cursor", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+    countPendingKnowledgeBitsForReview.mockResolvedValue(300);
+
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(
+      res,
+      "?includeTotal=1&subjectId=sub_1&afterCreatedAt=2026-01-01T00:00:00Z&afterId=kb_9",
+    );
+
+    expect(countPendingKnowledgeBitsForReview).toHaveBeenCalledWith("sub_1");
+    expect(res.body).toEqual({ items: [], total: 300 });
+  });
+
+  it.each([
+    "?afterId=kb_9",
+    "?afterCreatedAt=2026-01-01T00:00:00Z",
+    "?afterCreatedAt=yesterday&afterId=kb_9",
+    "?afterCreatedAt=2026-01-01T00:00:00Z&afterId=",
+  ])("should reject the incomplete or malformed cursor %j instead of loading the list", async (query) => {
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, query);
+
+    expect(res.status).toBe(400);
+    expect(listPendingKnowledgeBitsForReview).not.toHaveBeenCalled();
+  });
+
+  it("should return the exact pending total for the chosen subject next to the page when asked", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([{ knowledgeSourceId: "ksrc_1", bits: [] }]);
+    countPendingKnowledgeBitsForReview.mockResolvedValue(57);
+
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, "?limit=20&subjectId=sub_1&includeTotal=1");
+
+    expect(countPendingKnowledgeBitsForReview).toHaveBeenCalledWith("sub_1");
+    expect(res.body).toEqual({ items: [{ knowledgeSourceId: "ksrc_1", bits: [] }], total: 57 });
+  });
+
+  it("should keep the bare list and skip the count when no total is asked for, so other clients are unaffected", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, "?limit=20");
+
+    expect(res.body).toEqual([]);
+    expect(countPendingKnowledgeBitsForReview).not.toHaveBeenCalled();
+  });
+
+  it("should put attention notes inside the items when both the total and attention are asked for", async () => {
+    listPendingKnowledgeBitsForReview.mockResolvedValue([]);
+    countPendingKnowledgeBitsForReview.mockResolvedValue(3);
+    listSourcesNeedingAttention.mockResolvedValue([
+      {
+        knowledgeSourceId: "ksrc_f",
+        kind: "failed",
+        reason: "no_valid_items",
+        firstWords: "Prose",
+        sourceText: "Prose",
+        since: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+
+    const res = fakeRes();
+
+    await handleListPendingKnowledgeBitsForReview(res, "?attention=1&includeTotal=1");
+
+    expect(res.body).toEqual({ items: [expect.objectContaining({ knowledgeSourceId: "ksrc_f" })], total: 3 });
   });
 
   it("should add notes needing attention as card-less entries when asked", async () => {
@@ -296,5 +527,20 @@ describe("handleListPendingKnowledgeBitsForReview", () => {
         attention: expect.objectContaining({ kind: "failed", reason: "no_valid_items" }),
       }),
     ]);
+  });
+});
+
+describe("handleListPendingReviewSubjects", () => {
+  it("should return each subject with its pending count for the Triage entry screen", async () => {
+    const rows = [{ subjectId: "sub_1", name: "German", path: "Languages / German", pendingCount: 4 }];
+
+    listPendingReviewSubjectCounts.mockResolvedValue(rows);
+
+    const res = fakeRes();
+
+    await handleListPendingReviewSubjects(res);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(rows);
   });
 });

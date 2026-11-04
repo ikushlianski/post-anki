@@ -1,3 +1,4 @@
+import { deriveRetentionMultiplier } from "@post-anki/core";
 import { describe, expect, it } from "vitest";
 import { computeNextSchedule } from "./knowledge-bit-schedule.repo.js";
 
@@ -45,9 +46,29 @@ describe("computeNextSchedule", () => {
     expect(state.easeFactor).toBe(1.3);
   });
 
-  it("never grows the interval past the cap, avoiding an ever-more-distant due date", () => {
-    const next = computeNextSchedule({ easeFactor: 3.0, intervalDays: 170 }, "Ok");
+  it("should stop a typed answer's gap at the exam cap", () => {
+    const next = computeNextSchedule({ easeFactor: 2.5, intervalDays: 20 }, "Ok", { maxIntervalDays: 39 });
 
-    expect(next.intervalDays).toBe(180);
+    expect(next.intervalDays).toBe(39);
+  });
+
+  it("should halve a typed correct answer's gap at 95% retention like card grading", () => {
+    const next = computeNextSchedule({ easeFactor: 2.5, intervalDays: 20 }, "Ok", {
+      retentionMultiplier: deriveRetentionMultiplier(0.95),
+    });
+
+    expect(next.intervalDays).toBe(25);
+  });
+
+  it("should keep a shaky typed answer within a short exam cap", () => {
+    const next = computeNextSchedule({ easeFactor: 2.5, intervalDays: 10 }, "NeedsReview", { maxIntervalDays: 5 });
+
+    expect(next.intervalDays).toBe(5);
+  });
+
+  it("never grows the interval past the cap, avoiding an ever-more-distant due date", () => {
+    const next = computeNextSchedule({ easeFactor: 3.0, intervalDays: 350 }, "Ok");
+
+    expect(next.intervalDays).toBe(365);
   });
 });

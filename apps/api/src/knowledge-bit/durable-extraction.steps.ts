@@ -5,7 +5,9 @@ import {
   MAX_ITEMS_PER_CHUNK,
   MAX_ITEMS_PER_SOURCE,
   ORDINAL_STRIDE_PER_CHUNK,
+  allChunksDeliberatelyEmpty,
   chooseModelId,
+  countUnseenStatements,
   loadFeedbackBlockSafely,
   loadStyleNotesBlockSafely,
   rejectRawText,
@@ -21,6 +23,8 @@ import {
 } from "./knowledge-bit-source-item-validation.js";
 import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { loadLearningIntentSafely } from "./knowledge-bit-learning-intent.js";
+import { loadDetailLevelSafely } from "./knowledge-bit-detail-level.js";
+import { resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
 import { resolveSubjectKind } from "../subject/subject-kind.js";
 import type { PendingKnowledgeSource } from "./knowledge-bit.repo.js";
 
@@ -105,9 +109,23 @@ async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableSte
 
   const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(snapshot.subjectId);
 
+  const sourceKind = await deps.loadSourceKind?.(snapshot.id);
+
+  const targetPhrases = await deps.loadTargetPhrases?.(snapshot.id);
+
+  const detailLevel = await loadDetailLevelSafely(snapshot.subjectId, deps.loadDetailLevel);
+
+  const fusionModelIds = snapshot.extractionModelId
+    ? []
+    : await resolveFusionModelIds(deps.loadFusionModelIds, snapshot.id);
+
   return {
     learningIntent,
     subjectKind,
+    ...(sourceKind ? { sourceKind } : {}),
+    ...(targetPhrases && targetPhrases.length > 0 ? { targetPhrases } : {}),
+    ...(detailLevel ? { detailLevel } : {}),
+    ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),
     ...(modelId ? { modelId } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
@@ -128,6 +146,10 @@ export async function chunkStep(
   }
 
   const cards = await writeAndValidate(chunk, await writeOptionsFor(snapshot, deps), deps);
+
+  if (cards.deliberateEmpty) {
+    return cards;
+  }
 
   if (cards.valid.length === 0 && cards.flagged.length === 0) {
     throw new Error("no_valid_items");
@@ -158,11 +180,18 @@ export async function finishStep(
   const seen = new Set(insertState.existingStatements.map(normalizeStatement));
   let accepted = 0;
   let inserted = 0;
+  let capped = false;
 
   for (const [index, cards] of chunkResults.entries()) {
+    if (cards && accepted >= MAX_ITEMS_PER_SOURCE && countUnseenStatements(cards.valid, seen) > 0) {
+      capped = true;
+    }
+
     if (!cards || (accepted >= MAX_ITEMS_PER_SOURCE && cards.flagged.length === 0)) {
       continue;
     }
+
+    const unseen = countUnseenStatements(cards.valid, seen);
 
     const flagged = selectFlaggedLessons(cards.flagged, seen);
     const items = selectNewItems(
@@ -172,6 +201,10 @@ export async function finishStep(
     );
 
     accepted += items.length;
+
+    if (accepted >= MAX_ITEMS_PER_SOURCE && unseen > items.length) {
+      capped = true;
+    }
 
     if (items.length > 0 || flagged.length > 0) {
       inserted += await deps.insertItems({
@@ -190,13 +223,37 @@ export async function finishStep(
     return { status: "failed", inserted, failureReason };
   }
 
-  const stillOwned = await deps.markDetected(snapshot.id, claimedAt);
+  const stillOwned = await markDetectedFor(
+    snapshot,
+    claimedAt,
+    inserted === 0 && allChunksDeliberatelyEmpty(chunkResults),
+    deps,
+    capped,
+  );
 
   if (!stillOwned) {
     throw new Error("knowledge_source_reclaimed");
   }
 
   return { status: "detected", inserted, failureReason: null };
+}
+
+export function markDetectedFor(
+  snapshot: DurableSourceSnapshot,
+  claimedAt: Date,
+  nothingExtracted: boolean,
+  deps: GenerateItemsDeps,
+  capped = false,
+): Promise<boolean> {
+  if (nothingExtracted && deps.markNothingExtracted) {
+    return deps.markNothingExtracted(snapshot.id, claimedAt);
+  }
+
+  if (capped && deps.markItemCapReached) {
+    return deps.markItemCapReached(snapshot.id, claimedAt);
+  }
+
+  return deps.markDetected(snapshot.id, claimedAt);
 }
 
 export function reasonOf(err: unknown): string {

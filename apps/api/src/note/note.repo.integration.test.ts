@@ -39,9 +39,8 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { insertNote, listNotesForNode, listNotesForReviewPool, markNoteSurfaced } = await import(
-  "./note.repo.js"
-);
+const { insertNote, listNotesForNode, listNotesForReviewPool, markNoteSurfaced } =
+  await import("./note.repo.js");
 const { searchNotes } = await import("./note-search.repo.js");
 const { selectNoteForReview } = await import("@post-anki/core");
 
@@ -142,7 +141,12 @@ describe("capture — SCENARIO 1/2/3", () => {
     await insertModule(moduleId, curriculumId);
     await insertTopic(topicId, moduleId, curriculumId);
 
-    await insertNote({ nodeType: "topic", nodeId: topicId, body: "a topic note", isHighlight: false });
+    await insertNote({
+      nodeType: "topic",
+      nodeId: topicId,
+      body: "a topic note",
+      isHighlight: false,
+    });
 
     const notesForTopic = await listNotesForNode("topic", topicId);
 
@@ -164,8 +168,18 @@ describe("capture — SCENARIO 1/2/3", () => {
     await insertTopic(topicId, moduleId, curriculumId);
     await insertGap(gapId, topicId);
 
-    await insertNote({ nodeType: "gap", nodeId: gapId, body: "first note on gap", isHighlight: false });
-    await insertNote({ nodeType: "gap", nodeId: gapId, body: "second note on gap", isHighlight: false });
+    await insertNote({
+      nodeType: "gap",
+      nodeId: gapId,
+      body: "first note on gap",
+      isHighlight: false,
+    });
+    await insertNote({
+      nodeType: "gap",
+      nodeId: gapId,
+      body: "second note on gap",
+      isHighlight: false,
+    });
 
     const notesForGap = await listNotesForNode("gap", gapId);
 
@@ -228,6 +242,33 @@ describe("searchNotes — SCENARIO 5, full-text ranking + GIN index", () => {
     expect(results[0]?.body).toBe("idempotency matters a lot, idempotency is key");
   });
 
+  it("caps results at the requested limit and at the default limit when none is given", async () => {
+    const subjectId = id("sub");
+    const curriculumId = id("cur");
+    const moduleId = id("mod");
+    const topicId = id("top");
+
+    await insertSubject(subjectId);
+    await insertCurriculum(curriculumId, subjectId);
+    await insertModule(moduleId, curriculumId);
+    await insertTopic(topicId, moduleId, curriculumId);
+
+    for (let index = 0; index < 5; index += 1) {
+      await insertNote({
+        nodeType: "topic",
+        nodeId: topicId,
+        body: `bulkheading note ${index}`,
+        isHighlight: false,
+      });
+    }
+
+    const limited = await searchNotes({ query: "bulkheading", limit: 3 });
+    const unlimited = await searchNotes({ query: "bulkheading" });
+
+    expect(limited).toHaveLength(3);
+    expect(unlimited).toHaveLength(5);
+  });
+
   it("only returns notes whose body matches the search term", async () => {
     const subjectId = id("sub");
     const curriculumId = id("cur");
@@ -239,7 +280,12 @@ describe("searchNotes — SCENARIO 5, full-text ranking + GIN index", () => {
     await insertModule(moduleId, curriculumId);
     await insertTopic(topicId, moduleId, curriculumId);
 
-    await insertNote({ nodeType: "topic", nodeId: topicId, body: "about caching", isHighlight: false });
+    await insertNote({
+      nodeType: "topic",
+      nodeId: topicId,
+      body: "about caching",
+      isHighlight: false,
+    });
 
     const results = await searchNotes({ query: "unrelated-term-xyz" });
 
@@ -288,7 +334,10 @@ describe("searchNotes — SCENARIO 7, concern filter", () => {
       concern: "cost",
     });
 
-    const results = await searchNotes({ query: "sharding", concern: "security" });
+    const results = await searchNotes({
+      query: "sharding",
+      concern: "security",
+    });
 
     expect(results).toHaveLength(1);
     expect(results[0]?.concern).toBe("security");
@@ -296,6 +345,52 @@ describe("searchNotes — SCENARIO 7, concern filter", () => {
 });
 
 describe("searchNotes — SCENARIO 6/12, taxonomy subtree filter", () => {
+  it("keeps a lower-ranked in-area match when more than the limit of out-of-area notes rank higher", async () => {
+    const subjectId = id("sub");
+    const areaId = id("dnode");
+    const otherAreaId = id("dnode");
+
+    await insertSubject(subjectId);
+    await insertDomainNode(areaId, subjectId, null, "Scoped");
+    await insertDomainNode(otherAreaId, subjectId, null, "Other");
+
+    const inCurriculumId = id("cur");
+    const outCurriculumId = id("cur");
+    const inModuleId = id("mod");
+    const outModuleId = id("mod");
+    const inTopicId = id("top");
+    const outTopicId = id("top");
+
+    await insertCurriculum(inCurriculumId, subjectId);
+    await insertCurriculum(outCurriculumId, subjectId);
+    await insertModule(inModuleId, inCurriculumId);
+    await insertModule(outModuleId, outCurriculumId);
+    await insertTopic(inTopicId, inModuleId, inCurriculumId);
+    await insertTopic(outTopicId, outModuleId, outCurriculumId);
+    await insertConfirmedMapping(inCurriculumId, areaId);
+    await insertConfirmedMapping(outCurriculumId, otherAreaId);
+
+    for (let index = 0; index < 5; index += 1) {
+      await insertNote({
+        nodeType: "topic",
+        nodeId: outTopicId,
+        body: `quorum quorum quorum out ${index}`,
+        isHighlight: false,
+      });
+    }
+
+    await insertNote({
+      nodeType: "topic",
+      nodeId: inTopicId,
+      body: "quorum in area",
+      isHighlight: false,
+    });
+
+    const results = await searchNotes({ query: "quorum", domainNodeId: areaId, limit: 3 });
+
+    expect(results.map((note) => note.body)).toEqual(["quorum in area"]);
+  });
+
   it("includes a note under a descendant Area and excludes one under an unrelated Area", async () => {
     const subjectId = id("sub");
     const areaId = id("dnode");
@@ -337,7 +432,10 @@ describe("searchNotes — SCENARIO 6/12, taxonomy subtree filter", () => {
       isHighlight: false,
     });
 
-    const results = await searchNotes({ query: "taxonomy scoped", domainNodeId: areaId });
+    const results = await searchNotes({
+      query: "taxonomy scoped",
+      domainNodeId: areaId,
+    });
 
     expect(results).toHaveLength(1);
     expect(results[0]?.nodeId).toBe(inTopicId);
@@ -361,7 +459,10 @@ describe("searchNotes — SCENARIO 6/12, taxonomy subtree filter", () => {
       isHighlight: false,
     });
 
-    const results = await searchNotes({ query: "orphan taxonomy", domainNodeId: "missing-node" });
+    const results = await searchNotes({
+      query: "orphan taxonomy",
+      domainNodeId: "missing-node",
+    });
 
     expect(results).toHaveLength(0);
   });
@@ -379,13 +480,27 @@ describe("review pool — SCENARIO 9/11, pull-only, never-surfaced first, anti-r
     await insertModule(moduleId, curriculumId);
     await insertTopic(topicId, moduleId, curriculumId);
 
-    const first = await insertNote({ nodeType: "topic", nodeId: topicId, body: "first note", isHighlight: false });
-    const second = await insertNote({ nodeType: "topic", nodeId: topicId, body: "second note", isHighlight: false });
+    const first = await insertNote({
+      nodeType: "topic",
+      nodeId: topicId,
+      body: "first note",
+      isHighlight: false,
+    });
+    const second = await insertNote({
+      nodeType: "topic",
+      nodeId: topicId,
+      body: "second note",
+      isHighlight: false,
+    });
 
     let pool = await listNotesForReviewPool();
     let candidates = pool
       .filter((note) => note.id === first.id || note.id === second.id)
-      .map((note) => ({ id: note.id, lastSurfacedAt: note.lastSurfacedAt, createdAt: note.createdAt }));
+      .map((note) => ({
+        id: note.id,
+        lastSurfacedAt: note.lastSurfacedAt,
+        createdAt: note.createdAt,
+      }));
 
     const firstPickId = selectNoteForReview(candidates, new Date().toISOString());
 
@@ -396,7 +511,11 @@ describe("review pool — SCENARIO 9/11, pull-only, never-surfaced first, anti-r
     pool = await listNotesForReviewPool();
     candidates = pool
       .filter((note) => note.id === first.id || note.id === second.id)
-      .map((note) => ({ id: note.id, lastSurfacedAt: note.lastSurfacedAt, createdAt: note.createdAt }));
+      .map((note) => ({
+        id: note.id,
+        lastSurfacedAt: note.lastSurfacedAt,
+        createdAt: note.createdAt,
+      }));
 
     const secondPickId = selectNoteForReview(candidates, new Date().toISOString());
 

@@ -29,7 +29,7 @@ import {
   knowledgeBitCardsResultSchema,
   runKnowledgeBitSourceItems,
 } from "./knowledge-bit-source-items.agent.js";
-import { knowledgeBitLessonsResultSchema } from "./knowledge-bit-lessons.agent.js";
+import { knowledgeBitLessonsResultSchema, LESSONS_INSTRUCTIONS } from "./knowledge-bit-lessons.agent.js";
 
 const SOURCE = "Salt is added to icy roads because it lowers the freezing point of water. Crews spread it before dawn.";
 
@@ -159,6 +159,54 @@ describe("runKnowledgeBitSourceItems", () => {
 
     expect(drafts).toEqual([]);
     expect(generateMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("should treat an empty lessons list as a deliberate empty: one call, no cards call, no retry", async () => {
+    generateMock.mockClear();
+    generateMock.mockResolvedValueOnce({ object: { lessons: [], reason: "greeting only" }, usage: { inputTokens: 5, outputTokens: 2 } });
+
+    const onNothingWorthKeeping = vi.fn();
+    const onUsage = vi.fn();
+    const drafts = await runKnowledgeBitSourceItems("Hi all, thanks for coming, see you next week.", {
+      onNothingWorthKeeping,
+      onUsage,
+    });
+
+    expect(drafts).toEqual([]);
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    expect(onNothingWorthKeeping).toHaveBeenCalledTimes(1);
+    expect(onUsage).toHaveBeenCalledWith({ inputTokens: 5, outputTokens: 2 });
+  });
+
+  it("should add the at-least-one override to the lessons prompt only when forced", async () => {
+    generateMock.mockClear();
+    generateMock.mockResolvedValue({ object: { lessons: [] }, usage: { inputTokens: 1, outputTokens: 1 } });
+
+    await runKnowledgeBitSourceItems("Short note.", { forceAtLeastOne: true });
+    await runKnowledgeBitSourceItems("Short note.", {});
+
+    expect(generateMock.mock.calls[0]?.[0]).toContain("return at least one lesson");
+    expect(generateMock.mock.calls[1]?.[0]).not.toContain("return at least one lesson");
+  });
+
+  it("should not signal a deliberate empty when lessons came back but none survived validation", async () => {
+    generateMock.mockClear();
+    const made = { object: { lessons: [{ lesson: "Made up.", quote: "this sentence is not in the paste at all" }] } };
+
+    generateMock.mockResolvedValueOnce(made);
+    generateMock.mockResolvedValueOnce(made);
+
+    const onNothingWorthKeeping = vi.fn();
+
+    await runKnowledgeBitSourceItems(SOURCE, { onNothingWorthKeeping });
+
+    expect(onNothingWorthKeeping).not.toHaveBeenCalled();
+  });
+
+  it("should accept an empty lessons list in the lessons schema and still tell the model a short claim is a lesson", async () => {
+    expect(knowledgeBitLessonsResultSchema.safeParse({ lessons: [] }).success).toBe(true);
+    expect(LESSONS_INSTRUCTIONS).toContain("Never return");
+    expect(LESSONS_INSTRUCTIONS).toContain("an empty list for a note that contains a claim");
   });
 
   it("should ask for lessons once more when the first answer holds none, instead of failing the chunk", async () => {

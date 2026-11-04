@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { knowledgeBitQuestionVariantKindSchema } from "./knowledge-bit";
 import { reviewPointsSchema } from "./gamification";
+import { validTimeZoneSchema } from "./time-zone";
+import { cardKeySchema } from "./card-key";
 
 export const reviewGradeSchema = z.enum(["again", "hard", "good", "easy"]);
 
@@ -12,23 +14,14 @@ export type CardPhase = z.infer<typeof cardPhaseSchema>;
 
 const optionalScopeId = z.string().min(1).optional();
 
-const isValidTimeZone = (value: string): boolean => {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 export const reviewCardsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
-  tz: z.string().min(1).refine(isValidTimeZone, "invalid time zone").default("UTC"),
+  tz: validTimeZoneSchema.default("UTC"),
   tagId: optionalScopeId,
   topicId: optionalScopeId,
   knowledgeBitId: optionalScopeId,
   subjectId: optionalScopeId,
+  aheadDays: z.coerce.number().int().min(0).max(30).default(0),
 });
 
 export type ReviewCardsQuery = z.infer<typeof reviewCardsQuerySchema>;
@@ -55,9 +48,14 @@ export const reviewCardSchema = z.object({
   knowledgeBitId: z.string(),
   kind: knowledgeBitQuestionVariantKindSchema,
   prompt: z.string(),
+  context: z.string().nullable().optional(),
   answer: z.string(),
+  sentence: z.string().optional(),
+  cardKey: cardKeySchema.optional(),
   background: z.string().nullable(),
   isAiGenerated: z.boolean(),
+  aiSuggestion: z.string().nullable().optional(),
+  originalPhrase: z.string().optional(),
   sourceLinks: z.array(z.string()),
   subjectId: z.string().nullable().optional(),
   phase: cardPhaseSchema,
@@ -72,6 +70,9 @@ export const reviewCardsResponseSchema = z.object({
   counts: reviewCountsSchema,
   newRemainingToday: z.number().int().min(0),
   newLimitReached: z.boolean().optional(),
+  limitReached: z.boolean().optional(),
+  reviewedToday: z.number().int().min(0).optional(),
+  limit: z.number().int().min(0).optional(),
   nextDueAt: z.string().nullable(),
 });
 
@@ -82,9 +83,12 @@ export const recordReviewInputSchema = z.object({
   grade: reviewGradeSchema,
   durationMs: z.number().int().min(0).max(86_400_000).optional(),
   requestId: z.string().uuid().optional(),
+  tz: validTimeZoneSchema.optional(),
+  burySiblings: z.boolean().default(true),
+  rehearsal: z.boolean().optional(),
 });
 
-export type RecordReviewInput = z.infer<typeof recordReviewInputSchema>;
+export type RecordReviewInput = z.input<typeof recordReviewInputSchema>;
 
 export const recordReviewResultSchema = z.object({
   reviewId: z.string(),
@@ -96,11 +100,19 @@ export const recordReviewResultSchema = z.object({
   leech: z.boolean(),
   suspended: z.boolean(),
   points: reviewPointsSchema,
+  cardKey: cardKeySchema,
+  buriedVariantIds: z.array(z.string()),
+  followUp: reviewCardSchema.nullable().optional(),
 });
 
 export type RecordReviewResult = z.infer<typeof recordReviewResultSchema>;
 
-export const undoReviewResultSchema = z.object({ knowledgeBitId: z.string() });
+export const undoReviewResultSchema = z.object({
+  knowledgeBitId: z.string(),
+  variantId: z.string(),
+  cardKey: cardKeySchema,
+  unburiedVariantIds: z.array(z.string()),
+});
 
 export type UndoReviewResult = z.infer<typeof undoReviewResultSchema>;
 
@@ -108,7 +120,8 @@ export const scheduleControlInputSchema = z
   .object({
     suspended: z.boolean().optional(),
     buried: z.boolean().optional(),
-    tz: z.string().min(1).refine(isValidTimeZone, "invalid time zone").default("UTC"),
+    variantId: z.string().min(1).optional(),
+    tz: validTimeZoneSchema.default("UTC"),
   })
   .refine((value) => value.suspended !== undefined || value.buried !== undefined, {
     message: "suspended or buried is required",
@@ -121,6 +134,7 @@ export const scheduleControlResultSchema = z.object({
   suspended: z.boolean(),
   buriedUntil: z.string().nullable(),
   leech: z.boolean(),
+  cardKey: cardKeySchema.nullable(),
 });
 
 export type ScheduleControlResult = z.infer<typeof scheduleControlResultSchema>;

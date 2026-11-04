@@ -1,0 +1,2 @@
+ALTER TABLE "app_settings" ADD COLUMN "fusion_enabled" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "app_settings" ADD COLUMN "fusion_model_ids" jsonb DEFAULT '[]'::jsonb NOT NULL;

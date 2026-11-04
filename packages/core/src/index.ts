@@ -41,3 +41,7 @@ export * from "./biz-education-distiller/index";
 export * from "./subject-hierarchy/subject-hierarchy";
 export * from "./model-suggestion/index";
 export * from "./gamification/index";
+export * from "./subject-study-options-resolve";
+export * from "./motivation/index";
+export * from "./study-plan/index";
+export * from "./meeting-phrase/index";

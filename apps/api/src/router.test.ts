@@ -10,6 +10,9 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/knowledge-sources/notion")?.name).toBe(
         "createKnowledgeSourceFromNotion",
       );
+      expect(resolveRoute("POST", "/knowledge-sources/phrases")?.name).toBe(
+        "createKnowledgeSourcesFromPhrases",
+      );
       expect(resolveRoute("POST", "/knowledge-sources/detect-bits")?.name).toBe(
         "detectKnowledgeBits",
       );
@@ -25,6 +28,10 @@ describe("resolveRoute", () => {
         params: { id: "ks_1" },
       });
       expect(resolveRoute("POST", "/knowledge-bits/purges")?.name).toBe("purgeKnowledgeBits");
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/phrase-splits")).toEqual({
+        name: "createKnowledgeBitPhraseSplit",
+        params: { id: "kb_1" },
+      });
       expect(resolveRoute("POST", "/knowledge/purges")?.name).toBe("clearAllKnowledge");
       expect(resolveRoute("DELETE", "/knowledge-sources/ks_1")).toEqual({
         name: "deleteKnowledgeSource",
@@ -58,6 +65,7 @@ describe("resolveRoute", () => {
       expect(resolveRoute("PATCH", "/admin/settings")?.name).toBe(
         "updateAdminSettings",
       );
+      expect(resolveRoute("GET", "/admin/chat-usage")?.name).toBe("getChatUsage");
     });
 
     it("matches the entity-agnostic nudge-response route, so a nudged curriculum can be answered", () => {
@@ -106,14 +114,51 @@ describe("resolveRoute", () => {
       expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")?.name).toBe("editKnowledgeBit");
     });
 
+    it("resolves the chat queue list, transitions and thread endpoints", () => {
+      expect(resolveRoute("GET", "/knowledge-bits/chat-queue")?.name).toBe("listChatQueueKnowledgeBits");
+      expect(resolveRoute("GET", "/knowledge-bits/chat-queue/count")?.name).toBe("countChatQueueKnowledgeBits");
+      expect(resolveRoute("GET", "/knowledge-bits/chat-queue/stale")?.name).toBe("getStaleChatQueueSummary");
+      expect(resolveRoute("GET", "/knowledge-bits/chat-queue/export")?.name).toBe("exportChatQueueMarkdown");
+      expect(resolveRoute("GET", "/knowledge-bits/chat-queue/search")?.name).toBe("searchChatQueueMessages");
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-queue")).toEqual({
+        name: "moveKnowledgeBitToChatQueue",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("DELETE", "/knowledge-bits/kb_1/chat-queue")?.name).toBe("returnKnowledgeBitFromChatQueue");
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-queue/snooze")?.name).toBe("snoozeChatQueueKnowledgeBit");
+      expect(resolveRoute("DELETE", "/knowledge-bits/kb_1/chat-queue/snooze")?.name).toBe("unsnoozeChatQueueKnowledgeBit");
+      expect(resolveRoute("GET", "/knowledge-bits/kb_1/chat-messages")?.name).toBe("getChatQueueThread");
+      expect(resolveRoute("DELETE", "/knowledge-bits/kb_1/chat-queue/messages/last")?.name).toBe(
+        "deleteLastChatQueueExchange",
+      );
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages")?.name).toBe("sendChatQueueMessage");
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages/4/card")).toMatchObject({
+        name: "createCardFromChatMessage",
+        params: { id: "kb_1", seq: "4" },
+      });
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat")?.name).toBe("askKnowledgeBitChat");
+    });
+
+    it("resolves the inbox transitions and the AI example endpoint", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/inbox")).toEqual({
+        name: "moveKnowledgeBitToInbox",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("DELETE", "/knowledge-bits/kb_1/inbox")?.name).toBe("returnKnowledgeBitFromInbox");
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/inbox/discard")?.name).toBe("discardKnowledgeBitFromInbox");
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/example")?.name).toBe("generateKnowledgeBitExample");
+    });
+
     it("keeps the fixed GET /knowledge-bits routes ahead of the single-piece read", () => {
       const fixed: Array<[string, string]> = [
         ["overview", "listKnowledgeBitOverview"],
         ["browser", "listKnowledgeBitBrowser"],
         ["export", "exportKnowledgeBits"],
         ["suspended", "listSuspendedKnowledgeBits"],
+        ["rejected", "listRejectedKnowledgeBits"],
         ["pending-review", "listPendingKnowledgeBitsForReview"],
         ["review-cards", "listKnowledgeBitReviewCards"],
+        ["inbox", "listInboxKnowledgeBits"],
       ];
 
       for (const [path, name] of fixed) {
@@ -164,6 +209,9 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/pending-review/count")?.name).toBe(
         "countPendingKnowledgeBits",
       );
+      expect(resolveRoute("GET", "/knowledge-bits/pending-review/subjects")?.name).toBe(
+        "listPendingReviewSubjects",
+      );
     });
 
     it("resolves PATCH /knowledge-bits/:id to the knowledge-bit edit handler", () => {
@@ -184,6 +232,17 @@ describe("resolveRoute", () => {
     it("routes the triage undo to its own handler", () => {
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/triage/undo")).toEqual({
         name: "undoTriageKnowledgeBit",
+        params: { id: "kb_1" },
+      });
+    });
+
+    it("keeps the rejected-only restore apart from the general restore", () => {
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/restore-rejected")).toEqual({
+        name: "restoreRejectedOnlyKnowledgeBit",
+        params: { id: "kb_1" },
+      });
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/restore")).toEqual({
+        name: "restoreRejectedKnowledgeBit",
         params: { id: "kb_1" },
       });
     });
@@ -265,6 +324,17 @@ describe("resolveRoute", () => {
     it("distinguishes the tag-assignment create route from its delete counterpart", () => {
       expect(resolveRoute("POST", "/tags/tag1/assignments")).toEqual({
         name: "assignTag",
+        params: { id: "tag1" },
+      });
+    });
+
+    it("resolves tag rename and delete by id", () => {
+      expect(resolveRoute("PATCH", "/tags/tag1")).toEqual({
+        name: "renameTag",
+        params: { id: "tag1" },
+      });
+      expect(resolveRoute("DELETE", "/tags/tag1")).toEqual({
+        name: "deleteTag",
         params: { id: "tag1" },
       });
     });
@@ -401,6 +471,11 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/analytics/coverage")?.name).toBe("getCoverageReport");
       expect(resolveRoute("GET", "/analytics/retention")?.name).toBe("getRetentionReport");
       expect(resolveRoute("GET", "/analytics/digest")?.name).toBe("getWeeklyDigest");
+      expect(resolveRoute("GET", "/analytics/weekly-digest")?.name).toBe("getWeeklyDigestCard");
+      expect(resolveRoute("GET", "/analytics/review-statistics")?.name).toBe("getReviewStatistics");
+      expect(resolveRoute("GET", "/analytics/reject-reasons")?.name).toBe("getRejectReasonsStatistics");
+      expect(resolveRoute("GET", "/analytics/nothing-extracted")?.name).toBe("getNothingExtractedStatistics");
+      expect(resolveRoute("GET", "/analytics/chat-queue-outcomes")?.name).toBe("getChatQueueOutcomesStatistics");
     });
   });
 
@@ -446,16 +521,6 @@ describe("resolveRoute", () => {
       expect(resolveRoute("PATCH", "/source-duplicate-suggestions/sd1")).toEqual({
         name: "resolveSourceDuplicateSuggestion",
         params: { id: "sd1" },
-      });
-    });
-
-    it("matches the placement-suggestions list and resolve routes", () => {
-      expect(resolveRoute("GET", "/knowledge-bits/placement-suggestions")?.name).toBe(
-        "listPendingPlacementSuggestions",
-      );
-      expect(resolveRoute("PATCH", "/knowledge-bits/kb1/placement-suggestion")).toEqual({
-        name: "resolvePlacementSuggestion",
-        params: { id: "kb1" },
       });
     });
   });
@@ -533,13 +598,29 @@ describe("resolveRoute", () => {
       expect(resolveRoute("PATCH", "/knowledge-bits/kb_1/schedule")?.name).toBe(
         "updateKnowledgeBitScheduleControls",
       );
-      expect(resolveRoute("PATCH", "/knowledge-bits/kb_1/placement-suggestion")?.name).toBe(
-        "resolvePlacementSuggestion",
-      );
       expect(resolveRoute("PATCH", "/knowledge-bits/question-variants/v1")?.name).not.toBe(
         "editKnowledgeBit",
       );
       expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")?.name).toBe("editKnowledgeBit");
+    });
+
+    it("should resolve the notion source and connection routes", () => {
+      expect(resolveRoute("GET", "/notion-sources")?.name).toBe("listNotionSources");
+      expect(resolveRoute("POST", "/notion-sources")?.name).toBe("createNotionSource");
+      expect(resolveRoute("PATCH", "/notion-sources/nis_1")).toEqual({
+        name: "updateNotionSource",
+        params: { id: "nis_1" },
+      });
+      expect(resolveRoute("DELETE", "/notion-sources/nis_1")?.name).toBe("deleteNotionSource");
+      expect(resolveRoute("POST", "/notion-sources/nis_1/runs")).toEqual({
+        name: "runNotionSource",
+        params: { id: "nis_1" },
+      });
+      expect(resolveRoute("POST", "/notion-source-runs")?.name).toBe("runDueNotionSources");
+      expect(resolveRoute("GET", "/notion-connection")?.name).toBe("getNotionConnection");
+      expect(resolveRoute("PUT", "/notion-connection")?.name).toBe("saveNotionConnection");
+      expect(resolveRoute("DELETE", "/notion-connection")?.name).toBe("deleteNotionConnection");
+      expect(resolveRoute("POST", "/notion-connection/checks")?.name).toBe("checkNotionConnection");
     });
 
     it("should only edit a bit for a single-segment PATCH id, never for deeper unknown paths", () => {

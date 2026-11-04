@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, lt, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, lt, ne, or } from "drizzle-orm";
 import { EXTRACTION_STUCK_AFTER_MS, type KnowledgeSourceRegenerationStatus } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeSources } from "../db/schema.js";
@@ -6,10 +6,11 @@ import type { PendingKnowledgeSource } from "../knowledge-bit/knowledge-bit.repo
 
 export type ClaimSourceForRegenerationResult =
   | { ok: true; source: PendingKnowledgeSource; supersededCount: number }
-  | { ok: false; error: "not_found" | "already_running" | "source_text_missing" };
+  | { ok: false; error: "not_found" | "already_running" | "source_text_missing" | "not_nothing_extracted" };
 
 export interface ClaimSourceForRegenerationOptions {
   replacementText?: string;
+  requireNothingExtracted?: boolean;
   now?: Date;
 }
 
@@ -39,6 +40,9 @@ export async function claimSourceForRegeneration(
               and(eq(knowledgeSources.status, "processing"), lt(knowledgeSources.updatedAt, stuckBefore)),
             ),
             replacementText === undefined ? isNotNull(knowledgeSources.rawText) : undefined,
+            options.requireNothingExtracted
+              ? and(eq(knowledgeSources.status, "bits_detected"), isNotNull(knowledgeSources.nothingExtractedAt))
+              : undefined,
           ),
         )
         .returning({
@@ -52,13 +56,21 @@ export async function claimSourceForRegeneration(
     if (!claimed) {
       const existing = (
         await tx
-          .select({ rawText: knowledgeSources.rawText })
+          .select({ rawText: knowledgeSources.rawText, nothingExtractedAt: knowledgeSources.nothingExtractedAt, status: knowledgeSources.status })
           .from(knowledgeSources)
           .where(eq(knowledgeSources.id, id))
       )[0];
 
       if (!existing) {
         return { ok: false as const, error: "not_found" as const };
+      }
+
+      if (
+        options.requireNothingExtracted &&
+        (existing.status !== "bits_detected" || existing.nothingExtractedAt === null) &&
+        existing.status !== "processing"
+      ) {
+        return { ok: false as const, error: "not_nothing_extracted" as const };
       }
 
       return {
@@ -96,7 +108,11 @@ export async function getKnowledgeSourceRegenerationStatus(
 ): Promise<KnowledgeSourceRegenerationStatus | null> {
   const row = (
     await db
-      .select({ status: knowledgeSources.status, failureReason: knowledgeSources.failureReason })
+      .select({
+        status: knowledgeSources.status,
+        failureReason: knowledgeSources.failureReason,
+        nothingExtractedAt: knowledgeSources.nothingExtractedAt,
+      })
       .from(knowledgeSources)
       .where(eq(knowledgeSources.id, id))
   )[0];
@@ -105,13 +121,35 @@ export async function getKnowledgeSourceRegenerationStatus(
     return null;
   }
 
+  if (row.status === "bits_detected" && row.nothingExtractedAt) {
+    return { status: "nothing_extracted", failureReason: null, outcome: "nothing", cardCount: 0 };
+  }
+
   if (row.status === "bits_detected") {
-    return { status: "done", failureReason: null };
+    const cardCount = await countCardsCreatedBySource(id, db);
+
+    return {
+      status: "done",
+      failureReason: null,
+      outcome: cardCount > 0 ? "cards" : "nothing",
+      cardCount,
+    };
   }
 
   if (row.status === "failed") {
-    return { status: "failed", failureReason: row.failureReason };
+    return { status: "failed", failureReason: row.failureReason, outcome: "failed", cardCount: 0 };
   }
 
   return { status: "running", failureReason: null };
+}
+
+async function countCardsCreatedBySource(id: string, db: DbExecutor): Promise<number> {
+  const row = (
+    await db
+      .select({ total: count() })
+      .from(knowledgeBits)
+      .where(and(eq(knowledgeBits.knowledgeSourceId, id), ne(knowledgeBits.approvalState, "superseded")))
+  )[0];
+
+  return row?.total ?? 0;
 }

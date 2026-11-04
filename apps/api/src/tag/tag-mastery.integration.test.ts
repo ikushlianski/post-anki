@@ -38,12 +38,10 @@ process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
 const { getTagMasteryLevels, resolveOrCreateTag, assignTag } = await import("./tag.repo.js");
-const { insertQuestionVariant } = await import(
-  "../knowledge-bit/knowledge-bit-question-variant.repo.js"
-);
-const { insertVariantAttempt } = await import(
-  "../knowledge-bit/knowledge-bit-variant-attempt.repo.js"
-);
+const { insertQuestionVariant } =
+  await import("../knowledge-bit/knowledge-bit-question-variant.repo.js");
+const { insertVariantAttempt } =
+  await import("../knowledge-bit/knowledge-bit-variant-attempt.repo.js");
 
 let client: pg.Client;
 
@@ -169,6 +167,37 @@ describe("getTagMasteryLevels (real Postgres)", () => {
 
     expect(levels.get(tagA.id)?.status).toBe("mastered");
     expect(levels.get(tagB.id)?.status).toBe("struggling");
+  });
+
+  it("gives the same status as a stepwise fold for a tag with 500 attempts", async () => {
+    const { foldTagMastery } = await import("@post-anki/core");
+    const tag = await resolveOrCreateTag(`many-${randomUUID()}`);
+    const bit = await seedKnowledgeBit("Many bit");
+    const variant = await seedVariant(bit, "Why many?");
+
+    await assignTag(tag.id, "knowledgeBit", bit);
+
+    const verdicts = Array.from({ length: 500 }, (_, index) =>
+      index % 7 === 6 ? "NeedsReview" : "Ok",
+    );
+    const base = Date.now() - 1_000_000;
+
+    for (const [index, verdict] of verdicts.entries()) {
+      await client.query(
+        `INSERT INTO knowledge_bit_variant_attempts (id, variant_id, user_answer, score, verdict, feedback, created_at)
+         VALUES ($1, $2, 'a', 5, $3, 'fb', $4)`,
+        [
+          `kbva_many_${String(index).padStart(4, "0")}`,
+          variant,
+          verdict,
+          new Date(base + index * 1000),
+        ],
+      );
+    }
+
+    const levels = await getTagMasteryLevels([tag.id]);
+
+    expect(levels.get(tag.id)).toEqual(foldTagMastery(verdicts.map((verdict) => ({ verdict }))));
   });
 
   it("breaks a created_at tie deterministically by id, not by chance row order", async () => {

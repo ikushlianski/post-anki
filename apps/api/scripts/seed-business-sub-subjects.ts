@@ -1,15 +1,9 @@
 import process from "node:process";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import * as schema from "../src/db/schema.ts";
-import { newId } from "../src/shared/id.ts";
-import {
-  seedBusinessSubSubjects,
-  type SubjectSeedStore,
-} from "../src/subject/seed/business-sub-subjects.seed.ts";
-
-const { subjects } = schema;
+import { seedBusinessSubSubjects } from "../src/subject/seed/business-sub-subjects.seed.ts";
+import { createSubjectSeedStore } from "../src/subject/seed/subject-seed.store.ts";
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -21,50 +15,7 @@ async function main() {
   const pool = new pg.Pool({ connectionString: databaseUrl });
   const db = drizzle(pool, { schema });
 
-  const store: SubjectSeedStore = {
-    async findRootByName(name) {
-      const [row] = await db
-        .select({ id: subjects.id })
-        .from(subjects)
-        .where(and(eq(subjects.name, name), isNull(subjects.parentId)))
-        .orderBy(asc(subjects.createdAt), asc(subjects.id))
-        .limit(1);
-
-      return row?.id ?? null;
-    },
-    async findChildByName(parentId, name) {
-      const [row] = await db
-        .select({ id: subjects.id })
-        .from(subjects)
-        .where(
-          and(
-            eq(subjects.parentId, parentId),
-            sql`lower(trim(${subjects.name})) = lower(trim(${name}))`,
-          ),
-        )
-        .limit(1);
-
-      return row?.id ?? null;
-    },
-    async createChild(parentId, name) {
-      return db.transaction(async (tx) => {
-        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${parentId})::bigint)`);
-
-        const [parent] = await tx.select().from(subjects).where(eq(subjects.id, parentId)).limit(1);
-        const id = newId("sub");
-
-        await tx.insert(subjects).values({
-          id,
-          name,
-          kind: parent?.kind ?? "architecture-mentor",
-          requireSources: parent?.requireSources ?? false,
-          parentId,
-        });
-
-        return id;
-      });
-    },
-  };
+  const store = createSubjectSeedStore(db);
 
   try {
     const result = await seedBusinessSubSubjects(store);

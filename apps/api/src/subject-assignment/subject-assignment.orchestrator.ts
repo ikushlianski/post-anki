@@ -1,3 +1,4 @@
+import type { SubjectCheckNewSubject } from "@post-anki/shared";
 import { log } from "../shared/log.js";
 import {
   runSubjectAssignmentEscalation,
@@ -26,6 +27,7 @@ import {
   resolveFinalProposal,
   type SubjectProposal,
 } from "./subject-assignment.select.js";
+import { createSubjectForSource } from "./subject-creation.orchestrator.js";
 
 export interface SubjectAssignmentScanResult {
   checked: number;
@@ -35,6 +37,7 @@ export interface SubjectAssignmentScanResult {
 interface Unsettled {
   source: SourceAwaitingSubject;
   cheap: SubjectProposal | null;
+  newSubject: SubjectCheckNewSubject | null;
 }
 
 async function escalateBatch(unsettled: Unsettled[]): Promise<Map<string, SubjectProposal | null>> {
@@ -84,14 +87,19 @@ export async function runSubjectAssignmentScan(): Promise<SubjectAssignmentScanR
       continue;
     }
 
-    const outcome = classifyOutcome(await runSubjectCheck({ blocks }));
+    const response = await runSubjectCheck({ blocks });
+    const outcome = classifyOutcome(response);
 
     if (outcome.kind === "stop") {
       break;
     }
 
     if (needsEscalation(outcome)) {
-      unsettled.push({ source, cheap: outcome.kind === "proposal" ? outcome.proposal : null });
+      unsettled.push({
+        source,
+        cheap: outcome.kind === "proposal" ? outcome.proposal : null,
+        newSubject: response.status === "ok" ? response.newSubject : null,
+      });
       continue;
     }
 
@@ -102,8 +110,11 @@ export async function runSubjectAssignmentScan(): Promise<SubjectAssignmentScanR
   if (unsettled.length > 0) {
     const escalated = await escalateSafely(unsettled);
 
-    for (const { source, cheap } of unsettled) {
-      await recordSubjectSuggestion(source.id, resolveFinalProposal(cheap, escalated.get(source.id)));
+    for (const { source, cheap, newSubject } of unsettled) {
+      const confirmedNoFit = escalated.has(source.id) && escalated.get(source.id) === null;
+      const created = confirmedNoFit && newSubject ? await createSubjectForSource(source, newSubject) : null;
+
+      await recordSubjectSuggestion(source.id, created ?? resolveFinalProposal(cheap, escalated.get(source.id)));
       checked += 1;
     }
   }

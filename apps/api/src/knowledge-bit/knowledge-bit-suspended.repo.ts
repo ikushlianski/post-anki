@@ -1,5 +1,5 @@
-import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
-import type { SuspendedCard, SuspendedCardsPage, SuspendedCardsQuery } from "@post-anki/shared";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { cardKeyFor, type SuspendedCard, type SuspendedCardsPage, type SuspendedCardsQuery } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import {
   curricula,
@@ -11,11 +11,13 @@ import {
 } from "../db/schema.js";
 import { getSubjectNamesByIds } from "../subject/subject.repo.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
+import { scheduleIsActiveCard } from "./knowledge-bit-card-unit.js";
 import { isLeech } from "./knowledge-bit-grade-schedule-leech.js";
 import { ANKI_VARIANT_KIND_PREFERENCE } from "./knowledge-bit-variant-kind-rules.js";
 
 interface OutOfRotationRow {
   knowledgeBitId: string;
+  cardKey: string;
   itemText: string;
   suspendedAt: Date | null;
   buriedUntil: Date | null;
@@ -25,12 +27,16 @@ interface OutOfRotationRow {
 
 interface PreferredVariant {
   knowledgeBitId: string;
+  cardKey: string;
+  context: string | null;
   prompt: string;
   answer: string;
   kind: string;
   createdAt: Date;
   id: string;
 }
+
+const cardUnitKey = (knowledgeBitId: string, cardKey: string) => `${knowledgeBitId}\u0000${cardKey}`;
 
 const kindRank = (kind: string): number => {
   const index = (ANKI_VARIANT_KIND_PREFERENCE as readonly string[]).indexOf(kind);
@@ -43,10 +49,11 @@ function pickPreferredVariants(variants: PreferredVariant[]): Map<string, Prefer
   const picked = new Map<string, PreferredVariant>();
 
   for (const variant of variants) {
-    const current = picked.get(variant.knowledgeBitId);
+    const key = cardUnitKey(variant.knowledgeBitId, variant.cardKey);
+    const current = picked.get(key);
 
     if (!current || isPreferred(variant, current)) {
-      picked.set(variant.knowledgeBitId, variant);
+      picked.set(key, variant);
     }
   }
 
@@ -79,7 +86,10 @@ function toSuspendedCard(
 
   return {
     knowledgeBitId: row.knowledgeBitId,
+    variantId: variant.id,
+    cardKey: row.cardKey,
     itemText: row.itemText,
+    context: variant.context,
     question: variant.prompt,
     answer: variant.answer,
     subjectName,
@@ -98,19 +108,10 @@ export async function listSuspendedKnowledgeBits(
   now: Date,
   db: DbExecutor = getDb(),
 ): Promise<SuspendedCardsPage> {
-  const liveVariant = db
-    .select({ id: knowledgeBitQuestionVariants.id })
-    .from(knowledgeBitQuestionVariants)
-    .where(
-      and(
-        eq(knowledgeBitQuestionVariants.knowledgeBitId, knowledgeBits.id),
-        isNull(knowledgeBitQuestionVariants.supersededAt),
-      ),
-    );
-
   const rows: OutOfRotationRow[] = await db
     .select({
       knowledgeBitId: knowledgeBits.id,
+      cardKey: knowledgeBitSchedules.cardKey,
       itemText: knowledgeBits.body,
       suspendedAt: knowledgeBitSchedules.suspendedAt,
       buriedUntil: knowledgeBitSchedules.buriedUntil,
@@ -132,13 +133,14 @@ export async function listSuspendedKnowledgeBits(
           ),
         ),
         bitApproved,
-        exists(liveVariant),
+        scheduleIsActiveCard(db),
       ),
     )
     .orderBy(
       sql`${knowledgeBitSchedules.suspendedAt} desc nulls last`,
       sql`${knowledgeBitSchedules.buriedUntil} desc nulls last`,
       asc(knowledgeBits.id),
+      asc(knowledgeBitSchedules.cardKey),
     )
     .limit(limit + 1)
     .offset(offset);
@@ -159,6 +161,8 @@ export async function listSuspendedKnowledgeBits(
         id: knowledgeBitQuestionVariants.id,
         knowledgeBitId: knowledgeBitQuestionVariants.knowledgeBitId,
         kind: knowledgeBitQuestionVariants.kind,
+        order: knowledgeBitQuestionVariants.order,
+        context: knowledgeBitQuestionVariants.context,
         prompt: knowledgeBitQuestionVariants.prompt,
         answer: knowledgeBitQuestionVariants.answer,
         createdAt: knowledgeBitQuestionVariants.createdAt,
@@ -173,10 +177,12 @@ export async function listSuspendedKnowledgeBits(
     subjectIds.length > 0 ? getSubjectNamesByIds(subjectIds) : new Map<string, string>(),
   ]);
 
-  const variants = pickPreferredVariants(variantRows);
+  const variants = pickPreferredVariants(
+    variantRows.map(({ order, ...variant }) => ({ ...variant, cardKey: cardKeyFor({ kind: variant.kind, order }) })),
+  );
 
   const items = pageRows.flatMap((row) => {
-    const variant = variants.get(row.knowledgeBitId);
+    const variant = variants.get(cardUnitKey(row.knowledgeBitId, row.cardKey));
 
     if (!variant) {
       return [];

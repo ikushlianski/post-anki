@@ -3,10 +3,11 @@ import { z } from "zod";
 import { isSafeSourceUrl } from "@post-anki/core";
 import {
   describeKnowledgeSourceRefusal,
+  targetPhrasesSchema,
   KNOWLEDGE_SOURCE_MAX_CHARS,
   knowledgeItemModelIdSchema,
 } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { BodyTooLargeError, readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { kickSourcesAfterAdd } from "./knowledge-source-kick.js";
 import { summarizeSourceAfterAdd } from "./knowledge-source-summary.starter.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
@@ -36,6 +37,7 @@ const singleTextInput = z.object({
   subjectId: subjectIdInput,
   modelId: modelIdInput,
   force: z.boolean().optional(),
+  targetPhrases: targetPhrasesSchema.optional(),
   sourceUrl: z.string().max(MAX_PAGE_URL_CHARS).optional(),
   title: z.string().max(MAX_PAGE_TITLE_CHARS).optional(),
 });
@@ -44,6 +46,7 @@ const batchTextInput = z.object({
   subjectId: subjectIdInput,
   modelId: modelIdInput,
   force: z.boolean().optional(),
+  targetPhrases: targetPhrasesSchema.optional(),
 });
 const urlInput = z
   .object({
@@ -51,10 +54,25 @@ const urlInput = z
     subjectId: subjectIdInput,
     modelId: modelIdInput,
     force: z.boolean().optional(),
+    targetPhrases: targetPhrasesSchema.optional(),
   })
   .strict();
 
-// Null means "no subject"; a non-null id must name an existing subject.
+function addSource(
+  text: string,
+  subjectId: string | null,
+  modelId: string | null,
+  sourceUrl: string | null,
+  targetPhrases: string[] | undefined,
+  omitNullUrl = false,
+) {
+  if (targetPhrases) return insertKnowledgeSource(text, subjectId, modelId, sourceUrl, targetPhrases);
+
+  return omitNullUrl && sourceUrl === null
+    ? insertKnowledgeSource(text, subjectId, modelId)
+    : insertKnowledgeSource(text, subjectId, modelId, sourceUrl);
+}
+
 async function rejectSubject(res: http.ServerResponse, subjectId: string | null): Promise<boolean> {
   const error = subjectId === null ? null : await findSubjectAssignmentError(subjectId);
 
@@ -111,23 +129,33 @@ export async function handleCreateKnowledgeSource(
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ): Promise<void> {
-  const rawBody = await readJsonBody(req, z.unknown());
+  let rawBody: Awaited<ReturnType<typeof readJsonBody<unknown>>>;
+
+  try {
+    rawBody = await readJsonBody(req, z.unknown());
+  } catch (err) {
+    if (!(err instanceof BodyTooLargeError)) throw err;
+
+    sendJson(res, 413, {
+      error: "invalid_input",
+      message: describeKnowledgeSourceRefusal("text_too_long"),
+      reason: "text_too_long",
+    });
+
+    return;
+  }
+
   const isBatch = rawBody.ok && typeof rawBody.data === "object" && rawBody.data !== null && "texts" in rawBody.data;
   const isUrl = rawBody.ok && typeof rawBody.data === "object" && rawBody.data !== null && "url" in rawBody.data;
 
   if (isUrl) {
     const body = urlInput.safeParse(rawBody.ok ? rawBody.data : undefined);
 
-    if (!body.success) {
-      sendInvalidInputIssues(res, body.error);
-      return;
-    }
+    if (!body.success) return sendInvalidInputIssues(res, body.error);
 
     const subjectId = body.data.subjectId ?? null;
 
-    if (await rejectSubject(res, subjectId)) {
-      return;
-    }
+    if (await rejectSubject(res, subjectId)) return;
 
     let finalUrl = body.data.url;
     const html = await fetchWithTimeout(body.data.url, URL_FETCH_TIMEOUT_MS, (url) => {
@@ -157,7 +185,13 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    const urlSource = await insertKnowledgeSource(extractedText, subjectId, body.data.modelId ?? null, sourceUrl);
+    const urlSource = await addSource(
+      extractedText,
+      subjectId,
+      body.data.modelId ?? null,
+      sourceUrl,
+      body.data.targetPhrases,
+    );
     await kickSourcesAfterAdd([urlSource.id]);
     await summarizeSourceAfterAdd(urlSource.id, extractedText);
     sendJson(res, 201, { ...urlSource, truncated });
@@ -178,12 +212,10 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    const texts = body.data.texts.map((text) => text.trim()).filter((text) => text.length > 0);
+    const trimmed = body.data.texts.map((text) => text.trim()).filter((text) => text.length > 0);
+    const texts = body.data.force === true ? trimmed : [...new Set(trimmed)];
 
-    if (texts.length === 0) {
-      sendError(res, 400, "invalid_input", "texts: must not be empty");
-      return;
-    }
+    if (texts.length === 0) return sendError(res, 400, "invalid_input", "texts: must not be empty");
 
     if (texts.length > MAX_SOURCES_PER_BATCH_ADD) {
       sendError(
@@ -195,8 +227,9 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    const earlierByText =
-      body.data.force === true ? new Map<string, EarlierKnowledgeSource>() : await findEarlierSourcesByText(texts, subjectId);
+    const earlierByText = body.data.force === true
+      ? new Map<string, EarlierKnowledgeSource>()
+      : await findEarlierSourcesByText(texts, subjectId);
     const repeated = texts.flatMap((text, index) => {
       const source = earlierByText.get(text);
 
@@ -208,7 +241,12 @@ export async function handleCreateKnowledgeSource(
       return;
     }
 
-    const batchSources = await insertKnowledgeSources(texts, subjectId, body.data.modelId ?? null);
+    const batchSources = await insertKnowledgeSources(
+      texts,
+      subjectId,
+      body.data.modelId ?? null,
+      ...(body.data.targetPhrases ? [body.data.targetPhrases] : []),
+    );
     await kickSourcesAfterAdd(batchSources.map((s) => s.id));
     sendJson(res, 201, batchSources);
     return;
@@ -249,10 +287,14 @@ export async function handleCreateKnowledgeSource(
     return;
   }
 
-  const source =
-    pageUrl === null
-      ? await insertKnowledgeSource(storedText, subjectId, body.data.modelId ?? null)
-      : await insertKnowledgeSource(storedText, subjectId, body.data.modelId ?? null, pageUrl);
+  const source = await addSource(
+    storedText,
+    subjectId,
+    body.data.modelId ?? null,
+    pageUrl,
+    body.data.targetPhrases,
+    true,
+  );
   await kickSourcesAfterAdd([source.id]);
   sendJson(res, 201, source);
 }

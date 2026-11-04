@@ -57,6 +57,7 @@ export async function assembleBrowserItems(
       kind: knowledgeBitQuestionVariants.kind,
       order: knowledgeBitQuestionVariants.order,
       prompt: knowledgeBitQuestionVariants.prompt,
+      context: knowledgeBitQuestionVariants.context,
       answer: knowledgeBitQuestionVariants.answer,
       createdAt: knowledgeBitQuestionVariants.createdAt,
     })
@@ -86,6 +87,7 @@ export async function assembleBrowserItems(
         id: variant.id,
         kind: variant.kind as KnowledgeBitQuestionVariantKind,
         prompt: variant.prompt,
+        context: variant.context,
       }));
 
     if (answer === undefined || phrasings.length === 0) {

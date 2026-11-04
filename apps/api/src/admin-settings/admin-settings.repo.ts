@@ -1,16 +1,34 @@
 import { eq } from "drizzle-orm";
 import {
+  clampMaxReviewsPerDay,
   clampNewCardsPerDay,
+  DEFAULT_DESIRED_RETENTION,
+  DEFAULT_FUSION_ENABLED,
+  DEFAULT_FUSION_MODEL_IDS,
   DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
+  DEFAULT_LEARNING_STEPS_MINUTES,
+  DEFAULT_MAX_REVIEWS_PER_DAY,
   DEFAULT_NEW_CARDS_PER_DAY,
+  DEFAULT_RELEARNING_STEPS_MINUTES,
+  desiredRetentionSchema,
+  fusionModelIdsSchema,
+  fusionSettingsSchema,
   knowledgeItemModelIdSchema,
+  stepsMinutesSchema,
   type AdminSettings,
   type KnowledgeItemModelId,
   type ModelTier,
+  type StudyOptions,
   type UpdateAdminSettingsInput,
 } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { appSettings } from "../db/schema.js";
+
+export class InvalidFusionSettingsError extends Error {
+  constructor(readonly issues: unknown) {
+    super("invalid_fusion_settings");
+  }
+}
 
 const SETTINGS_ID = "app";
 const DEFAULT_MODEL_TIER: ModelTier = "cheap";
@@ -31,12 +49,37 @@ async function parseKnowledgeItemModelId(stored: string): Promise<KnowledgeItemM
   return DEFAULT_KNOWLEDGE_ITEM_MODEL_ID;
 }
 
+function toStudyDefaults(row: typeof appSettings.$inferSelect): StudyOptions {
+  return {
+    newCardsPerDay: clampNewCardsPerDay(row.newCardsPerDay),
+    learningStepsMinutes: stepsMinutesSchema.catch(DEFAULT_LEARNING_STEPS_MINUTES).parse(row.learningStepsMinutes),
+    relearningStepsMinutes: stepsMinutesSchema
+      .catch(DEFAULT_RELEARNING_STEPS_MINUTES)
+      .parse(row.relearningStepsMinutes),
+    desiredRetention: desiredRetentionSchema.catch(DEFAULT_DESIRED_RETENTION).parse(row.desiredRetention),
+  };
+}
+
+const FALLBACK_STUDY_DEFAULTS: StudyOptions = {
+  newCardsPerDay: DEFAULT_NEW_CARDS_PER_DAY,
+  learningStepsMinutes: DEFAULT_LEARNING_STEPS_MINUTES,
+  relearningStepsMinutes: DEFAULT_RELEARNING_STEPS_MINUTES,
+  desiredRetention: DEFAULT_DESIRED_RETENTION,
+};
+
+function toFusionModelIds(stored: unknown): KnowledgeItemModelId[] {
+  return fusionModelIdsSchema.catch(DEFAULT_FUSION_MODEL_IDS).parse(stored);
+}
+
 async function toAdminSettings(row: typeof appSettings.$inferSelect): Promise<AdminSettings> {
   return {
     testToggle: row.testToggle,
     modelTier: row.modelTier as ModelTier,
     knowledgeItemModelId: await parseKnowledgeItemModelId(row.knowledgeItemModelId),
-    newCardsPerDay: clampNewCardsPerDay(row.newCardsPerDay),
+    ...toStudyDefaults(row),
+    maxReviewsPerDay: clampMaxReviewsPerDay(row.maxReviewsPerDay),
+    fusionEnabled: row.fusionEnabled,
+    fusionModelIds: toFusionModelIds(row.fusionModelIds),
   };
 }
 
@@ -61,7 +104,10 @@ export async function getAdminSettings(): Promise<AdminSettings> {
     testToggle: false,
     modelTier: DEFAULT_MODEL_TIER,
     knowledgeItemModelId: DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
-    newCardsPerDay: DEFAULT_NEW_CARDS_PER_DAY,
+    ...FALLBACK_STUDY_DEFAULTS,
+    maxReviewsPerDay: DEFAULT_MAX_REVIEWS_PER_DAY,
+    fusionEnabled: DEFAULT_FUSION_ENABLED,
+    fusionModelIds: DEFAULT_FUSION_MODEL_IDS,
   };
 }
 
@@ -73,6 +119,20 @@ export async function updateAdminSettings(
   const modelTier = input.modelTier ?? current.modelTier;
   const knowledgeItemModelId = input.knowledgeItemModelId ?? current.knowledgeItemModelId;
   const newCardsPerDay = input.newCardsPerDay ?? current.newCardsPerDay;
+  const maxReviewsPerDay = input.maxReviewsPerDay ?? current.maxReviewsPerDay;
+  const learningStepsMinutes = input.learningStepsMinutes ?? current.learningStepsMinutes;
+  const relearningStepsMinutes = input.relearningStepsMinutes ?? current.relearningStepsMinutes;
+  const desiredRetention = input.desiredRetention ?? current.desiredRetention;
+  const fusion = fusionSettingsSchema.safeParse({
+    fusionEnabled: input.fusionEnabled ?? current.fusionEnabled,
+    fusionModelIds: input.fusionModelIds ?? current.fusionModelIds,
+  });
+
+  if (!fusion.success) {
+    throw new InvalidFusionSettingsError(fusion.error.issues);
+  }
+
+  const { fusionEnabled, fusionModelIds } = fusion.data;
 
   await getDb()
     .insert(appSettings)
@@ -82,14 +142,43 @@ export async function updateAdminSettings(
       modelTier,
       knowledgeItemModelId,
       newCardsPerDay,
+      maxReviewsPerDay,
+      learningStepsMinutes,
+      relearningStepsMinutes,
+      desiredRetention,
+      fusionEnabled,
+      fusionModelIds,
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: appSettings.id,
-      set: { testToggle, modelTier, knowledgeItemModelId, newCardsPerDay, updatedAt: new Date() },
+      set: {
+        testToggle,
+        modelTier,
+        knowledgeItemModelId,
+        newCardsPerDay,
+        maxReviewsPerDay,
+        learningStepsMinutes,
+        relearningStepsMinutes,
+        desiredRetention,
+        fusionEnabled,
+        fusionModelIds,
+        updatedAt: new Date(),
+      },
     });
 
-  return { testToggle, modelTier, knowledgeItemModelId, newCardsPerDay };
+  return {
+    testToggle,
+    modelTier,
+    knowledgeItemModelId,
+    newCardsPerDay,
+    maxReviewsPerDay,
+    learningStepsMinutes,
+    relearningStepsMinutes,
+    desiredRetention,
+    fusionEnabled,
+    fusionModelIds,
+  };
 }
 
 export async function getGlobalModelTier(): Promise<ModelTier> {
@@ -107,4 +196,19 @@ export async function getNewCardsPerDay(db: DbExecutor = getDb()): Promise<numbe
     .where(eq(appSettings.id, SETTINGS_ID));
 
   return row ? clampNewCardsPerDay(row.newCardsPerDay) : DEFAULT_NEW_CARDS_PER_DAY;
+}
+
+export async function getMaxReviewsPerDay(db: DbExecutor = getDb()): Promise<number> {
+  const [row] = await db
+    .select({ maxReviewsPerDay: appSettings.maxReviewsPerDay })
+    .from(appSettings)
+    .where(eq(appSettings.id, SETTINGS_ID));
+
+  return row ? clampMaxReviewsPerDay(row.maxReviewsPerDay) : DEFAULT_MAX_REVIEWS_PER_DAY;
+}
+
+export async function getStudyDefaults(db: DbExecutor = getDb()): Promise<StudyOptions> {
+  const [row] = await db.select().from(appSettings).where(eq(appSettings.id, SETTINGS_ID));
+
+  return row ? toStudyDefaults(row) : FALLBACK_STUDY_DEFAULTS;
 }

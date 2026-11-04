@@ -83,6 +83,27 @@ export async function insertTurn(turn: SocraticTurnInsert): Promise<void> {
   await getDb().insert(socraticTurns).values(turn);
 }
 
+export async function claimTurnAnswer(
+  turnId: string,
+  answer: string,
+  now: string,
+): Promise<boolean> {
+  const rows = await getDb()
+    .update(socraticTurns)
+    .set({ answer, answeredAt: new Date(now) })
+    .where(and(eq(socraticTurns.id, turnId), isNull(socraticTurns.answeredAt)))
+    .returning({ id: socraticTurns.id });
+
+  return rows.length > 0;
+}
+
+export async function releaseTurnAnswer(turnId: string): Promise<void> {
+  await getDb()
+    .update(socraticTurns)
+    .set({ answer: null, answeredAt: null })
+    .where(and(eq(socraticTurns.id, turnId), isNull(socraticTurns.degree)));
+}
+
 export async function recordTurnAnswer(
   turnId: string,
   answer: string,

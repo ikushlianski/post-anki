@@ -1,4 +1,4 @@
-import { and, count, eq, gte, isNotNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { MASTERY_THRESHOLD } from "@post-anki/core";
 import type { TopSubject } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
@@ -8,54 +8,33 @@ const RECENT_ACTIVITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function listTopSubjectsByActivity(limit = 5): Promise<TopSubject[]> {
   const db = getDb();
+  const windowStart = new Date(Date.now() - RECENT_ACTIVITY_WINDOW_MS);
+  const lastInteractedAt = sql<Date>`max(${topics.progressLastInteractedAt})`;
 
   const rows = await db
     .select({
       subjectId: curricula.subjectId,
       subjectName: subjects.name,
-      lastInteractedAt: topics.progressLastInteractedAt,
+      lastInteractedAt,
+      topicsTouchedLast30Days:
+        sql<number>`count(*) filter (where ${topics.progressLastInteractedAt} >= ${windowStart})`.mapWith(
+          Number,
+        ),
     })
     .from(topics)
     .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
     .innerJoin(subjects, eq(subjects.id, curricula.subjectId))
-    .where(isNotNull(topics.progressLastInteractedAt));
+    .where(isNotNull(topics.progressLastInteractedAt))
+    .groupBy(curricula.subjectId, subjects.name)
+    .orderBy(desc(lastInteractedAt))
+    .limit(limit);
 
-  const now = Date.now();
-  const bySubjectId = new Map<
-    string,
-    { subjectName: string; lastInteractedAt: Date; topicsTouchedLast30Days: number }
-  >();
-
-  for (const row of rows) {
-    const lastInteractedAt = row.lastInteractedAt!;
-    const withinWindow = now - lastInteractedAt.getTime() <= RECENT_ACTIVITY_WINDOW_MS ? 1 : 0;
-    const existing = bySubjectId.get(row.subjectId);
-
-    if (!existing) {
-      bySubjectId.set(row.subjectId, {
-        subjectName: row.subjectName,
-        lastInteractedAt,
-        topicsTouchedLast30Days: withinWindow,
-      });
-      continue;
-    }
-
-    existing.topicsTouchedLast30Days += withinWindow;
-
-    if (lastInteractedAt.getTime() > existing.lastInteractedAt.getTime()) {
-      existing.lastInteractedAt = lastInteractedAt;
-    }
-  }
-
-  return [...bySubjectId.entries()]
-    .map(([subjectId, value]) => ({
-      subjectId,
-      subjectName: value.subjectName,
-      lastInteractedAt: value.lastInteractedAt.toISOString(),
-      topicsTouchedLast30Days: value.topicsTouchedLast30Days,
-    }))
-    .sort((a, b) => b.lastInteractedAt.localeCompare(a.lastInteractedAt))
-    .slice(0, limit);
+  return rows.map((row) => ({
+    subjectId: row.subjectId,
+    subjectName: row.subjectName,
+    lastInteractedAt: new Date(row.lastInteractedAt).toISOString(),
+    topicsTouchedLast30Days: row.topicsTouchedLast30Days,
+  }));
 }
 
 export async function countTopicsMastered(): Promise<number> {

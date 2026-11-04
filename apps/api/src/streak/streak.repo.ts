@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import type { GoalStreakState } from "@post-anki/core";
 import type { Streak } from "@post-anki/shared";
 import { getDb } from "../db/client.js";
 import { userStreaks } from "../db/schema.js";
@@ -53,4 +54,36 @@ export async function writeStreak(streak: Streak): Promise<void> {
         lastActiveDate: streak.lastActiveDate,
       },
     });
+}
+
+function rowToState(row: typeof userStreaks.$inferSelect): GoalStreakState {
+  return {
+    currentStreak: row.currentStreak,
+    longestStreak: row.longestStreak,
+    lastActiveDate: row.lastActiveDate,
+    restDates: row.restDates,
+    pausedUntil: row.pausedUntil,
+    lastBrokenStreak: row.lastBrokenStreak,
+  };
+}
+
+export async function readGoalStreakState(): Promise<GoalStreakState> {
+  await readOrCreateStreak();
+
+  return rowToState((await readStreakRow())!);
+}
+
+export async function updateGoalStreakState(
+  change: (state: GoalStreakState) => GoalStreakState,
+): Promise<GoalStreakState> {
+  await readOrCreateStreak();
+
+  return getDb().transaction(async (tx) => {
+    const [row] = await tx.select().from(userStreaks).where(eq(userStreaks.id, SINGLETON_ID)).for("update");
+    const next = change(rowToState(row!));
+
+    await tx.update(userStreaks).set(next).where(eq(userStreaks.id, SINGLETON_ID));
+
+    return next;
+  });
 }

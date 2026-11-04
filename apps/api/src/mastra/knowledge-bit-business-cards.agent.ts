@@ -1,13 +1,25 @@
 import { Agent } from "@mastra/core/agent";
 import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
+import {
+  CLOZE_ANSWER_SEPARATOR,
+  detailLevelPromptLine,
+  type DetailLevel,
+  formatNumberedSteps,
+  formatOrderedListText,
+  orderedListStatement,
+  parseCloze,
+  renderClozeAnswer,
+  stripClozeMarkers,
+  validateOrderedList,
+} from "@post-anki/shared";
 import { loadEnv } from "../shared/env.js";
 import { dynamicKnowledgeItemModel } from "./model.js";
 import { readGenerateUsage, type ReportedUsage } from "./generate-usage.js";
 import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "./mastra.js";
-import { ACTIVE_BUSINESS_CARDS_PROMPT } from "./knowledge-bit-business-cards.prompt.js";
+import { ACTIVE_BUSINESS_CARDS_PROMPT, BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST } from "./knowledge-bit-business-cards.prompt.js";
 import { buildLanguageHeaderLines } from "./knowledge-bit-prompt-rules.js";
 import {
   isQuoteInSource,
@@ -35,12 +47,13 @@ export const businessCardsResultSchema = z.object({
   dropped_ideas: z.array(z.object({ idea: z.string(), reason: z.string().default("") })).default([]),
   cards: z.array(
     z.object({
-      type: z.enum(["basic", "cloze"]),
+      type: z.enum(["basic", "cloze", "ordered_list"]),
       front: z.string().min(1).max(FIELD_MAX_CHARS),
       back: z.string().max(FIELD_MAX_CHARS).default(""),
       context: z.string().max(FIELD_MAX_CHARS).default(""),
       example: z.string().max(FIELD_MAX_CHARS).default(""),
       tags: z.array(z.string()).default([]),
+      steps: z.array(z.string().max(FIELD_MAX_CHARS)).max(20).default([]),
       source_quote: z.string().max(FIELD_MAX_CHARS).default(""),
     }),
   ),
@@ -59,7 +72,7 @@ export function parseBusinessCardsJson(raw: string): unknown {
 
 export function buildBusinessCardsPrompt(
   chunk: string,
-  options: { strictLanguage?: boolean; feedbackBlock?: string; styleNotesBlock?: string; learningIntent?: string } = {},
+  options: { strictLanguage?: boolean; feedbackBlock?: string; styleNotesBlock?: string; learningIntent?: string; detailLevel?: DetailLevel; forceAtLeastOne?: boolean } = {},
 ): string {
   const intent = options.learningIntent?.trim().slice(0, LEARNING_INTENT_MAX_CHARS) ?? "";
   const values: Record<string, string> = {
@@ -68,11 +81,11 @@ export function buildBusinessCardsPrompt(
     max_cards: String(BUSINESS_CARDS_MAX_PER_CHUNK),
     text: `<source>\n${escapePromptTags(chunk)}\n</source>`,
   };
-  const template = ACTIVE_BUSINESS_CARDS_PROMPT.replace(
+  const template = (options.forceAtLeastOne ? BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST : ACTIVE_BUSINESS_CARDS_PROMPT).replace(
     /\{(output_language|metadata|max_cards|text)\}/g,
     (_match, key: string) => values[key] ?? "",
   );
-  const extras = [options.feedbackBlock, options.styleNotesBlock].filter((block): block is string => Boolean(block));
+  const extras = [options.feedbackBlock, options.styleNotesBlock, detailLevelPromptLine(options.detailLevel)].filter((block): block is string => Boolean(block));
 
   return [
     ...buildLanguageHeaderLines(buildSourceLanguageLine(chunk), options.strictLanguage ?? false),
@@ -81,16 +94,57 @@ export function buildBusinessCardsPrompt(
   ].join("\n");
 }
 
+function toMultiGapCloze(front: string, quote: string): SourceItemDraft | null {
+  const parsed = parseCloze(front);
+
+  if (!parsed.ok || parsed.note.numbers.length < 2) {
+    return null;
+  }
+
+  return {
+    kind: "cloze",
+    statement: stripClozeMarkers(parsed.note),
+    question: front,
+    answer: parsed.note.numbers.map((n) => renderClozeAnswer(parsed.note, n)).join(CLOZE_ANSWER_SEPARATOR),
+    quote,
+  };
+}
+
+function toOrderedList(card: BusinessCard, quote: string): SourceItemDraft | null {
+  const validated = validateOrderedList({ title: card.front, steps: card.steps });
+
+  if (!validated.ok) {
+    return null;
+  }
+
+  return {
+    kind: "ordered_list",
+    statement: orderedListStatement(validated.list),
+    question: formatOrderedListText(validated.list),
+    answer: formatNumberedSteps(validated.list.steps),
+    quote,
+  };
+}
+
 function toSourceItem(card: BusinessCard): SourceItemDraft | null {
   const quote = card.source_quote.trim();
   const front = card.front.trim();
   const back = card.back.trim();
+
+  if (card.type === "ordered_list") {
+    return toOrderedList(card, quote);
+  }
 
   if (card.type === "basic") {
     return back ? { kind: "basic", statement: back, question: front, answer: back, quote } : null;
   }
 
   const clozes = [...front.matchAll(CLOZE_PATTERN)];
+  const multiGap = toMultiGapCloze(front, quote);
+
+  if (multiGap) {
+    return multiGap;
+  }
 
   if (clozes.length === 1 && clozes[0]?.[1]) {
     const answer = clozes[0][1].trim();
@@ -138,6 +192,12 @@ export function pickBusinessLessons(raw: unknown, chunk: string): LessonDraft[] 
   return lessons.slice(0, BUSINESS_CARDS_MAX_PER_CHUNK);
 }
 
+export function isDeliberateEmptyCards(raw: unknown): boolean {
+  const parsed = businessCardsResultSchema.safeParse(raw);
+
+  return parsed.success && parsed.data.cards.length === 0;
+}
+
 export function createKnowledgeBitBusinessCardsAgent(): Agent {
   return new Agent({
     id: "knowledge-bit-business-cards",
@@ -153,9 +213,12 @@ export interface RunBusinessCardsOptions {
   feedbackBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
+  detailLevel?: DetailLevel;
   abortSignal?: AbortSignal;
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
+  onNothingWorthKeeping?: () => void;
+  forceAtLeastOne?: boolean;
 }
 
 function sumTokens(a: number | null, b: number | null): number | null {
@@ -195,7 +258,12 @@ export async function runBusinessKnowledgeBitCards(
     usage = sumUsage(usage, readGenerateUsage(result));
 
     try {
-      const lessons = pickBusinessLessons(parseBusinessCardsJson(result.text), chunk);
+      const raw = parseBusinessCardsJson(result.text);
+      const lessons = pickBusinessLessons(raw, chunk);
+
+      if (lessons.length === 0 && isDeliberateEmptyCards(raw)) {
+        options.onNothingWorthKeeping?.();
+      }
 
       options.onUsage?.(usage);
 

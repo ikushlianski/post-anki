@@ -38,4 +38,12 @@ describe("card triage routes", () => {
       params: { id: "cts_1" },
     });
   });
+
+  it("should route the recent-history list and the reason patch by decision id", () => {
+    expect(resolveRoute("GET", "/triage-decisions/recent")?.name).toBe("listRecentTriageDecisions");
+    expect(resolveRoute("PATCH", "/triage-decisions/ctd_1")).toEqual({
+      name: "patchTriageDecision",
+      params: { id: "ctd_1" },
+    });
+  });
 });

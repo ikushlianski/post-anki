@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { z } from "zod";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { gradeKnowledgeBitVariantAnswer } from "./grade-knowledge-bit-variant-answer.orchestrator.js";
 
@@ -36,8 +36,6 @@ export async function handleGradeKnowledgeBitVariantAnswer(
   } catch (err) {
     log.error({ err, variantId }, "knowledge_bit_variant_answer_grading_failed");
 
-    const message = err instanceof Error ? err.message : "knowledge bit variant answer grading failed";
-
-    sendError(res, 502, "grading_failed", message);
+    sendBadGateway(res, "grading_failed");
   }
 }

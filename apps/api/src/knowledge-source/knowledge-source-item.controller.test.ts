@@ -11,6 +11,14 @@ vi.mock("../knowledge-bit/knowledge-bit-manual-item.repo.js", () => ({
   insertManualKnowledgeItem: (...args: unknown[]) => insertManualKnowledgeItem(...args),
 }));
 
+const kickSourcesAfterAdd = vi.fn();
+
+vi.mock("../shared/log.js", () => ({ log: { error: vi.fn() } }));
+
+vi.mock("./knowledge-source-kick.js", () => ({
+  kickSourcesAfterAdd: (...args: unknown[]) => kickSourcesAfterAdd(...args),
+}));
+
 const { handleCreateKnowledgeSourceItem } = await import("./knowledge-source-item.controller.js");
 
 function fakeReq(body: unknown): http.IncomingMessage {
@@ -56,6 +64,34 @@ describe("handleCreateKnowledgeSourceItem", () => {
     expect(res.status).toBe(201);
     expect(res.body).toEqual(createdItem);
     expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { front: "Q", back: "A", example: "ex", aiGenerated: false });
+  });
+
+  it("should kick the pipeline for the source after a manual item is created", async () => {
+    insertManualKnowledgeItem.mockResolvedValue({ ok: true, item: createdItem });
+    kickSourcesAfterAdd.mockResolvedValue(undefined);
+
+    await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A" }), fakeRes(), "ks_1");
+
+    expect(kickSourcesAfterAdd).toHaveBeenCalledWith(["ks_1"]);
+  });
+
+  it("should still reply 201 when the pipeline kick fails", async () => {
+    insertManualKnowledgeItem.mockResolvedValue({ ok: true, item: createdItem });
+    kickSourcesAfterAdd.mockRejectedValue(new Error("kick down"));
+
+    const res = fakeRes();
+
+    await expect(handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A" }), res, "ks_1")).resolves.toBeUndefined();
+
+    expect(res.status).toBe(201);
+  });
+
+  it("should not kick when the item was not created", async () => {
+    insertManualKnowledgeItem.mockResolvedValue({ ok: false, error: "not_found" });
+
+    await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A" }), fakeRes(), "ks_1");
+
+    expect(kickSourcesAfterAdd).not.toHaveBeenCalled();
   });
 
   it("should accept example null and create the item without an example", async () => {

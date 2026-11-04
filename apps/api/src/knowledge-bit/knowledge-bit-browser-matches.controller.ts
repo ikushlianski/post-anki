@@ -1,6 +1,7 @@
 import type http from "node:http";
 import { isBrowserDateRangeReversed, knowledgeBitBrowserMatchesQuerySchema } from "@post-anki/shared";
-import { sendError, sendJson } from "../shared/http.js";
+import { sendBadGateway, sendError, sendJson, sendInvalidQuery } from "../shared/http.js";
+import { log } from "../shared/log.js";
 import { EmbeddingFailedError, SearchRateLimitedError } from "./knowledge-bit-browser-matches.errors.js";
 import { searchKnowledgeBitBrowserMatches } from "./knowledge-bit-browser-matches.orchestrator.js";
 
@@ -14,7 +15,7 @@ export async function handleKnowledgeBitBrowserMatches(
   );
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 
@@ -33,7 +34,8 @@ export async function handleKnowledgeBitBrowserMatches(
     }
 
     if (err instanceof EmbeddingFailedError) {
-      sendError(res, 502, "embedding_failed", err.message);
+      log.error({ err }, "knowledge_bit_browser_matches_embedding_failed");
+      sendBadGateway(res, "embedding_failed");
       return;
     }
 

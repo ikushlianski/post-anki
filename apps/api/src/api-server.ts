@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { loadEnv } from "./shared/env.js";
 import { resolveCorsDecision } from "./shared/cors.js";
 import { log } from "./shared/log.js";
-import { sendError, sendJson } from "./shared/http.js";
+import { BodyTooLargeError, sendError, sendJson } from "./shared/http.js";
 import { LlmBudgetCheckUnavailableError, LlmBudgetExceededError, secondsUntilUtcMidnight } from "./shared/spend-guard.js";
 import {
   handleCreateSubject,
@@ -21,6 +21,20 @@ import { handleDiscardKnowledgeSource } from "./knowledge-source/knowledge-sourc
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import { handleCreateKnowledgeSourceSubjectCheck } from "./knowledge-source/knowledge-source-subject-check.controller.js";
 import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
+import { handleCreateKnowledgeSourcesFromPhrases } from "./knowledge-source/phrase-knowledge-source.controller.js";
+import {
+  handleCreateNotionSource,
+  handleDeleteNotionSource,
+  handleListNotionSources,
+  handleUpdateNotionSource,
+} from "./notion-ingestion/notion-ingestion-source.controller.js";
+import {
+  handleCheckNotionConnection,
+  handleDeleteNotionConnection,
+  handleGetNotionConnection,
+  handleSaveNotionConnection,
+} from "./notion-ingestion/notion-connection.controller.js";
+import { handleRunDueNotionSources, handleRunNotionSource } from "./notion-ingestion/notion-source-run.controller.js";
 import {
   handleDetectKnowledgeBits,
   handleTriggerKnowledgeBitEmbeddingScan,
@@ -29,10 +43,14 @@ import {
   handleTriggerKnowledgeBitFillBlankGenerationScan,
   handleTriggerKnowledgeBitBasicCardGenerationScan,
   handleTriggerKnowledgeBitQuestionVariantEmbeddingScan,
-  handleTriggerKnowledgeBitPlacementScan,
-  handleListPendingPlacementSuggestions,
-  handleResolvePlacementSuggestion,
 } from "./knowledge-bit/detect-knowledge-bits.controller.js";
+import { handleGetReviewStatistics } from "./review-statistics/review-statistics.controller.js";
+import { handleGetWeeklyDigestCard } from "./weekly-digest-card/weekly-digest-card.controller.js";
+import { handleGetNothingExtractedStatistics } from "./nothing-extracted-statistics/nothing-extracted-statistics.controller.js";
+import { handleGetChatQueueOutcomesStatistics } from "./chat-queue-outcomes-statistics/chat-queue-outcomes-statistics.controller.js";
+import { handleGetRejectReasonsStatistics } from "./reject-reasons-statistics/reject-reasons-statistics.controller.js";
+import { handleGetOwnerStatsLearning } from "./owner-stats/learning.controller.js";
+import { handleGetAiSpend } from "./owner-stats/ai-spend.controller.js";
 import { handleListSubjectReviewDueCounts } from "./knowledge-bit/subject-review-due-counts.controller.js";
 import { handleGradeKnowledgeBitVariantAnswer } from "./knowledge-bit/grade-knowledge-bit-variant-answer.controller.js";
 import { handleListNextKnowledgeBitQuestionVariants } from "./knowledge-bit/list-next-knowledge-bit-question-variants.controller.js";
@@ -42,6 +60,7 @@ import {
   handleUndoKnowledgeBitReview,
   handleUpdateKnowledgeBitScheduleControls,
 } from "./knowledge-bit/knowledge-bit-review.controller.js";
+import { handleListRejectedKnowledgeBits, handleRestoreRejectedOnly } from "./knowledge-bit/knowledge-bit-rejected.controller.js";
 import { handleListSuspendedKnowledgeBits } from "./knowledge-bit/knowledge-bit-suspended.controller.js";
 import {
   handleCountKnowledgeBitBrowserSubjects,
@@ -62,6 +81,7 @@ import {
   handleGetTriageSession,
   handleStartTriageSession,
 } from "./card-triage/card-triage-session.controller.js";
+import { handleListRecentTriageDecisions, handlePatchTriageDecision } from "./card-triage/card-triage-history.controller.js";
 import { handleListCardStyleNotes, handleUpdateCardStyleNote } from "./card-triage/card-style-note.controller.js";
 import { handleListKnowledgeBitOverview } from "./knowledge-bit/knowledge-bit-overview.controller.js";
 import { handleExportKnowledgeBits } from "./knowledge-bit/knowledge-bit-export.controller.js";
@@ -71,6 +91,7 @@ import {
   handlePurgeKnowledgeBits,
 } from "./knowledge-bit/knowledge-cleanup.controller.js";
 import { handleBulkDeleteKnowledgeBits } from "./knowledge-bit/knowledge-bit-delete.controller.js";
+import { handleCreateKnowledgeBitPhraseSplit } from "./knowledge-source/phrase-split.controller.js";
 import { handleBulkMoveKnowledgeBits } from "./knowledge-bit/knowledge-bit-move.controller.js";
 import {
   handleBulkApproveKnowledgeBits,
@@ -80,6 +101,7 @@ import {
   handleApproveKnowledgeBit,
   handleEditKnowledgeBitQuestionVariant,
   handleListPendingKnowledgeBitsForReview,
+  handleListPendingReviewSubjects,
   handleRejectKnowledgeBit,
 } from "./knowledge-bit/knowledge-bit-approval.controller.js";
 import { handleTriageKnowledgeBit } from "./knowledge-bit/knowledge-bit-triage.controller.js";
@@ -175,12 +197,19 @@ import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
+import { handleGetAccount, handleUpdateAccount } from "./account/account.controller.js";
+import {
+  handleGetSubjectStudyOptions,
+  handleUpdateSubjectStudyOptions,
+} from "./subject-study-options/subject-study-options.controller.js";
+import { handleGetStudyForecast } from "./study-plan/study-forecast.controller.js";
 import {
   handleGetKnowledgeBitFeedbackByModel,
   handleGradeKnowledgeBit,
   handleRestoreRejectedKnowledgeBit,
   handleSetKnowledgeBitFeedbackReason,
 } from "./knowledge-bit/knowledge-bit-feedback.controller.js";
+import { handleGetChatUsage } from "./chat-usage/chat-usage.controller.js";
 import { handleGetAdminObservability } from "./admin-observability/admin-observability.controller.js";
 import {
   handleSubmitProbeQuestionFeedback,
@@ -197,6 +226,28 @@ import { handleAskQaChat } from "./qa-chat/qa-chat.controller.js";
 import { handleAskGlobalCardChat } from "./global-card-chat/global-card-chat.controller.js";
 import { handleAskSubjectChat } from "./subject-chat/subject-chat.controller.js";
 import { handleAskKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat.controller.js";
+import {
+  handleDiscardKnowledgeBitFromInbox,
+  handleListInboxKnowledgeBits,
+  handleMoveKnowledgeBitToInbox,
+  handleReturnKnowledgeBitFromInbox,
+} from "./knowledge-bit/knowledge-bit-inbox.controller.js";
+import { handleGenerateKnowledgeBitExample } from "./knowledge-bit/knowledge-bit-example.controller.js";
+import {
+  handleCreateCardFromChatMessage,
+  handleDeleteLastChatQueueExchange,
+  handleGetChatQueueThread,
+  handleListChatQueueKnowledgeBits,
+  handleCountChatQueueKnowledgeBits,
+  handleGetStaleChatQueueSummary,
+  handleExportChatQueueMarkdown,
+  handleSearchChatQueueMessages,
+  handleMoveKnowledgeBitToChatQueue,
+  handleReturnKnowledgeBitFromChatQueue,
+  handleSendChatQueueMessage,
+  handleSnoozeChatQueueKnowledgeBit,
+  handleUnsnoozeChatQueueKnowledgeBit,
+} from "./knowledge-bit/knowledge-bit-chat-queue.controller.js";
 import { handleDraftKnowledgeBitChat } from "./knowledge-bit/knowledge-bit-chat-draft.controller.js";
 import { handleCreateDerivedKnowledgeItem } from "./knowledge-bit/knowledge-bit-derived-item.controller.js";
 import { handleListKnowledgeBitVariants } from "./knowledge-bit/list-knowledge-bit-variants.controller.js";
@@ -207,8 +258,36 @@ import {
   handleGetCurriculumStats,
 } from "./stats/stats.controller.js";
 import { handleGetStreak } from "./streak/streak.controller.js";
+import {
+  handleGetGoalStreak,
+  handleGetMotivationProgress,
+  handleGetMotivationSettings,
+  handleGetMotivationToday,
+  handleGetSessionSummary,
+  handleGetWeeklySummary,
+  handlePauseStreak,
+  handlePutMotivationSettings,
+} from "./motivation/motivation.controller.js";
+import {
+  handleDeleteAddKnowledgeGoal,
+  handleListAddKnowledgeGoalProgress,
+  handleListAddKnowledgeGoals,
+  handlePutAddKnowledgeGoal,
+} from "./study-goal/add-knowledge-goal.controller.js";
+import {
+  handleGetDailyGoal,
+  handleGetDailyGoalProgress,
+  handlePutDailyGoal,
+} from "./study-goal/study-goal-daily.controller.js";
+import {
+  handleCreateSubjectPriority,
+  handleDeleteSubjectPriority,
+  handleListCurrentPriorities,
+  handleListSubjectPriorities,
+  handleUpdateSubjectPriority,
+} from "./study-goal/subject-priority.controller.js";
 import { handleGetGamificationProfile } from "./gamification/gamification.controller.js";
-import { handleGetHomeSummary } from "./home/home.controller.js";
+import { handleGetHomeSummary, handleGetStudyOverview } from "./home/home.controller.js";
 import { handleCreateTranscription } from "./transcription/transcription.controller.js";
 import { handleGetElectricShape } from "./electric/electric-proxy.controller.js";
 import {
@@ -216,7 +295,9 @@ import {
   handleCreateTag,
   handleGetTagMastery,
   handleListTags,
+  handleDeleteTag,
   handleMergeTags,
+  handleRenameTag,
   handleRemoveTagAssignment,
 } from "./tag/tag.controller.js";
 import {
@@ -337,8 +418,9 @@ import {
 import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
-import { classifyCredential, hasValidSessionToken, isNativeAuthRoute } from "./auth/api-credential.js";
+import { classifyCredential, hasValidSessionToken, isDeviceTokenRoute, isNativeAuthRoute } from "./auth/api-credential.js";
 import { CLIENT_IP_HEADER } from "./auth/auth.js";
+import { handleCreateDeviceToken } from "./auth/device-token.controller.js";
 import { handleAuthRequest, handleWebAuthCheck, isAuthPath } from "./auth/web-auth.controller.js";
 import { handleCreateSyncToken, handleListSyncKeys } from "./sync-auth/sync-auth.controller.js";
 import { handleMcpRequest, handleMcpMethodNotAllowed } from "./mcp/mcp.route.js";
@@ -443,6 +525,16 @@ export function createApiRequestListener(): http.RequestListener {
     const method = req.method ?? "GET";
     const url = new URL(req.url ?? "/", "http://localhost");
     const path = url.pathname;
+    const requestId = crypto.randomUUID();
+    const startedAt = Date.now();
+
+    res.setHeader("x-request-id", requestId);
+    res.on("finish", () => {
+      log.info(
+        { requestId, method, path, status: res.statusCode, ms: Date.now() - startedAt },
+        "request_done",
+      );
+    });
 
     const env = loadEnv();
     const extraOrigins = env.WEB_ORIGINS
@@ -496,7 +588,7 @@ export function createApiRequestListener(): http.RequestListener {
       return;
     }
 
-    void handleRequest(req, res, method, path, url);
+    void handleRequest(req, res, method, path, url, requestId);
   };
 }
 
@@ -510,6 +602,7 @@ async function handleRequest(
   method: string,
   path: string,
   url: URL,
+  requestId: string,
 ): Promise<void> {
   try {
     if (isNativeAuthRoute(method, path)) {
@@ -518,6 +611,15 @@ async function handleRequest(
       }
 
       await handleAuthRequest(req, res);
+      return;
+    }
+
+    if (isDeviceTokenRoute(method, path)) {
+      if (!hasSharedSecret(req)) {
+        req.headers[CLIENT_IP_HEADER] = req.socket.remoteAddress ?? "unknown";
+      }
+
+      await handleCreateDeviceToken(req, res);
       return;
     }
 
@@ -560,10 +662,18 @@ async function handleRequest(
       return;
     }
 
-    log.error({ err, method, path }, "request_failed");
+    if (err instanceof BodyTooLargeError) {
+      if (!res.headersSent) {
+        sendError(res, 413, "payload_too_large", err.message);
+      }
+
+      return;
+    }
+
+    log.error({ err, method, path, requestId }, "request_failed");
 
     if (!res.headersSent) {
-      sendError(res, 500, "internal_error");
+      sendJson(res, 500, { error: "internal_error", requestId });
     }
   }
 }
@@ -603,6 +713,28 @@ async function route(
       return handleCreateKnowledgeSource(req, res);
     case "createKnowledgeSourceFromNotion":
       return handleCreateKnowledgeSourceFromNotion(req, res);
+    case "createKnowledgeSourcesFromPhrases":
+      return handleCreateKnowledgeSourcesFromPhrases(req, res);
+    case "listNotionSources":
+      return handleListNotionSources(res);
+    case "createNotionSource":
+      return handleCreateNotionSource(req, res);
+    case "updateNotionSource":
+      return handleUpdateNotionSource(req, res, id);
+    case "deleteNotionSource":
+      return handleDeleteNotionSource(res, id);
+    case "runNotionSource":
+      return handleRunNotionSource(res, id);
+    case "runDueNotionSources":
+      return handleRunDueNotionSources(res);
+    case "getNotionConnection":
+      return handleGetNotionConnection(res);
+    case "saveNotionConnection":
+      return handleSaveNotionConnection(req, res);
+    case "deleteNotionConnection":
+      return handleDeleteNotionConnection(res);
+    case "checkNotionConnection":
+      return handleCheckNotionConnection(res);
     case "createKnowledgeSourceSubjectCheck":
       return handleCreateKnowledgeSourceSubjectCheck(req, res);
     case "detectKnowledgeBits":
@@ -619,12 +751,6 @@ async function route(
       return handleTriggerKnowledgeBitBasicCardGenerationScan(res);
     case "triggerKnowledgeBitQuestionVariantEmbeddingScan":
       return handleTriggerKnowledgeBitQuestionVariantEmbeddingScan(res);
-    case "triggerKnowledgeBitPlacementScan":
-      return handleTriggerKnowledgeBitPlacementScan(res);
-    case "listPendingPlacementSuggestions":
-      return handleListPendingPlacementSuggestions(res);
-    case "resolvePlacementSuggestion":
-      return handleResolvePlacementSuggestion(req, res, id);
     case "gradeKnowledgeBitVariantAnswer":
       return handleGradeKnowledgeBitVariantAnswer(req, res, id);
     case "listNextKnowledgeBitQuestionVariants":
@@ -633,6 +759,8 @@ async function route(
       return handleListKnowledgeBitReviewCards(res, url.search);
     case "listSuspendedKnowledgeBits":
       return handleListSuspendedKnowledgeBits(res, url.search);
+    case "listRejectedKnowledgeBits":
+      return handleListRejectedKnowledgeBits(res, url.search);
     case "listSubjectReviewDueCounts":
       return handleListSubjectReviewDueCounts(res, url.search);
     case "recordKnowledgeBitReview":
@@ -643,6 +771,8 @@ async function route(
       return handleUpdateKnowledgeBitScheduleControls(req, res, id);
     case "listPendingKnowledgeBitsForReview":
       return handleListPendingKnowledgeBitsForReview(res, url.search);
+    case "listPendingReviewSubjects":
+      return handleListPendingReviewSubjects(res);
     case "countPendingKnowledgeBits":
       return handleCountPendingKnowledgeBits(res);
     case "listKnowledgeBitOverview":
@@ -685,6 +815,10 @@ async function route(
       return handleFinishTriageSession(req, res, id);
     case "discardTriageSession":
       return handleDiscardTriageSession(req, res, id);
+    case "listRecentTriageDecisions":
+      return handleListRecentTriageDecisions(res, url.search);
+    case "patchTriageDecision":
+      return handlePatchTriageDecision(req, res, id);
     case "listTriageDecisions":
       return handleListTriageDecisions(res, id, url.search);
     case "getTriageDecision":
@@ -699,6 +833,8 @@ async function route(
       return handleListCardStyleNotes(res, url.search);
     case "updateCardStyleNote":
       return handleUpdateCardStyleNote(req, res, id);
+    case "restoreRejectedOnlyKnowledgeBit":
+      return handleRestoreRejectedOnly(res, id);
     case "restoreRejectedKnowledgeBit":
       return handleRestoreRejectedKnowledgeBit(res, id);
     case "gradeKnowledgeBit":
@@ -868,8 +1004,14 @@ async function route(
       return handleGetAdminSettings(res);
     case "updateAdminSettings":
       return handleUpdateAdminSettings(req, res);
+    case "getAccount":
+      return handleGetAccount(req, res);
+    case "updateAccount":
+      return handleUpdateAccount(req, res);
     case "getAdminObservability":
       return handleGetAdminObservability(res);
+    case "getChatUsage":
+      return handleGetChatUsage(res);
     case "submitProbeQuestionFeedback":
       return handleSubmitProbeQuestionFeedback(req, res, id);
     case "submitSocraticTurnFeedback":
@@ -896,6 +1038,44 @@ async function route(
       return handleAskSubjectChat(req, res);
     case "askKnowledgeBitChat":
       return handleAskKnowledgeBitChat(req, res, id);
+    case "createKnowledgeBitPhraseSplit":
+      return handleCreateKnowledgeBitPhraseSplit(res, id);
+    case "moveKnowledgeBitToInbox":
+      return handleMoveKnowledgeBitToInbox(res, id);
+    case "returnKnowledgeBitFromInbox":
+      return handleReturnKnowledgeBitFromInbox(res, id);
+    case "discardKnowledgeBitFromInbox":
+      return handleDiscardKnowledgeBitFromInbox(res, id);
+    case "listInboxKnowledgeBits":
+      return handleListInboxKnowledgeBits(res);
+    case "listChatQueueKnowledgeBits":
+      return handleListChatQueueKnowledgeBits(res);
+    case "countChatQueueKnowledgeBits":
+      return handleCountChatQueueKnowledgeBits(res);
+    case "getStaleChatQueueSummary":
+      return handleGetStaleChatQueueSummary(res);
+    case "searchChatQueueMessages":
+      return handleSearchChatQueueMessages(res, url.searchParams.get("q"));
+    case "exportChatQueueMarkdown":
+      return handleExportChatQueueMarkdown(res, url.searchParams.get("subjectId"));
+    case "moveKnowledgeBitToChatQueue":
+      return handleMoveKnowledgeBitToChatQueue(res, id);
+    case "returnKnowledgeBitFromChatQueue":
+      return handleReturnKnowledgeBitFromChatQueue(res, id);
+    case "snoozeChatQueueKnowledgeBit":
+      return handleSnoozeChatQueueKnowledgeBit(req, res, id);
+    case "unsnoozeChatQueueKnowledgeBit":
+      return handleUnsnoozeChatQueueKnowledgeBit(res, id);
+    case "deleteLastChatQueueExchange":
+      return handleDeleteLastChatQueueExchange(res, id);
+    case "getChatQueueThread":
+      return handleGetChatQueueThread(res, id);
+    case "sendChatQueueMessage":
+      return handleSendChatQueueMessage(req, res, id);
+    case "createCardFromChatMessage":
+      return handleCreateCardFromChatMessage(req, res, id, resolved.params.seq ?? "");
+    case "generateKnowledgeBitExample":
+      return handleGenerateKnowledgeBitExample(req, res, id);
     case "draftKnowledgeBitChat":
       return handleDraftKnowledgeBitChat(req, res, id);
     case "createDerivedKnowledgeItem":
@@ -912,12 +1092,30 @@ async function route(
       return handleGetCurriculumStats(res, id);
     case "generateRecommendations":
       return handleGenerateRecommendations(res, id);
+    case "getMotivationSettings":
+      return handleGetMotivationSettings(res);
+    case "putMotivationSettings":
+      return handlePutMotivationSettings(req, res);
+    case "getMotivationToday":
+      return handleGetMotivationToday(res);
+    case "getGoalStreak":
+      return handleGetGoalStreak(res);
+    case "pauseGoalStreak":
+      return handlePauseStreak(req, res);
+    case "getMotivationSessionSummary":
+      return handleGetSessionSummary(res);
+    case "getMotivationProgress":
+      return handleGetMotivationProgress(res, url.search);
+    case "getMotivationWeeklySummary":
+      return handleGetWeeklySummary(res);
     case "getStreak":
       return handleGetStreak(res);
     case "getGamificationProfile":
       return handleGetGamificationProfile(res);
     case "getHomeSummary":
       return handleGetHomeSummary(res);
+    case "getStudyOverview":
+      return handleGetStudyOverview(res, url.search);
     case "createTranscription":
       return handleCreateTranscription(req, res);
     case "getElectricShape":
@@ -936,6 +1134,10 @@ async function route(
       return handleRemoveTagAssignment(res, id, resolved.params.assignmentId ?? "");
     case "mergeTags":
       return handleMergeTags(req, res, id);
+    case "renameTag":
+      return handleRenameTag(req, res, id);
+    case "deleteTag":
+      return handleDeleteTag(res, id);
     case "gatherLectureSources":
       return handleGatherLectureSources(res, id);
     case "listLectureSourceCandidates":
@@ -950,6 +1152,36 @@ async function route(
       return handleCompileCards(res, id);
     case "getCards":
       return handleGetCards(res, id);
+    case "listCurrentPriorities":
+      return handleListCurrentPriorities(res, url.search);
+    case "listSubjectPriorities":
+      return handleListSubjectPriorities(res, id, url.search);
+    case "createSubjectPriority":
+      return handleCreateSubjectPriority(req, res, id, url.search);
+    case "updateSubjectPriority":
+      return handleUpdateSubjectPriority(req, res, id, url.search);
+    case "deleteSubjectPriority":
+      return handleDeleteSubjectPriority(res, id);
+    case "getDailyStudyGoal":
+      return handleGetDailyGoal(res);
+    case "putDailyStudyGoal":
+      return handlePutDailyGoal(req, res);
+    case "getDailyStudyGoalProgress":
+      return handleGetDailyGoalProgress(res, url.search);
+    case "listAddKnowledgeGoals":
+      return handleListAddKnowledgeGoals(res);
+    case "putAddKnowledgeGoal":
+      return handlePutAddKnowledgeGoal(req, res);
+    case "deleteAddKnowledgeGoal":
+      return handleDeleteAddKnowledgeGoal(res, id);
+    case "listAddKnowledgeGoalProgress":
+      return handleListAddKnowledgeGoalProgress(res, url.search);
+    case "getSubjectStudyOptions":
+      return handleGetSubjectStudyOptions(res, id);
+    case "updateSubjectStudyOptions":
+      return handleUpdateSubjectStudyOptions(req, res, id);
+    case "getSubjectStudyForecast":
+      return handleGetStudyForecast(res, id, url.search);
     case "getPracticeSettings":
       return handleGetPracticeSettings(res, id);
     case "updatePracticeSettings":
@@ -1063,6 +1295,20 @@ async function route(
       return handleGetRetentionReport(res);
     case "getWeeklyDigest":
       return handleGetWeeklyDigest(res);
+    case "getWeeklyDigestCard":
+      return handleGetWeeklyDigestCard(res);
+    case "getReviewStatistics":
+      return handleGetReviewStatistics(res, url.search);
+    case "getRejectReasonsStatistics":
+      return handleGetRejectReasonsStatistics(res);
+    case "getChatQueueOutcomesStatistics":
+      return handleGetChatQueueOutcomesStatistics(res);
+    case "getNothingExtractedStatistics":
+      return handleGetNothingExtractedStatistics(res);
+    case "getOwnerStatsLearning":
+      return handleGetOwnerStatsLearning(res, url.search);
+    case "getOwnerStatsAiSpend":
+      return handleGetAiSpend(res, url.search);
     case "createStudySession":
       return handleCreateStudySession(req, res);
     case "listStudySessions":

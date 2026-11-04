@@ -10,6 +10,7 @@ interface TokenRow {
   id: string;
   tokenHash: string;
   revokedAt: Date | null;
+  createdAt?: Date;
 }
 
 const state = vi.hoisted(() => ({
@@ -160,6 +161,19 @@ describe("POST /mcp auth", () => {
 
     expect(res.status).toBe(200);
     expect(state.touchedIds).toEqual(["tok_active"]);
+  });
+
+  it("keeps a device token working long after it was minted, since it has no expiry", async () => {
+    state.tokenRows = [{ id: "tok_old_device", tokenHash: "irrelevant", revokedAt: null, createdAt: new Date("2020-01-01T00:00:00Z") }];
+
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders("pat_device_minted_years_ago"),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.touchedIds).toEqual(["tok_old_device"]);
   });
 
   it("can no longer reach /mcp once that token is revoked", async () => {

@@ -50,6 +50,7 @@ type GenerateResultWithUsage = {
 type GenerateCallOptions = {
   // The model the run pinned, so the logged row names what actually ran.
   modelId?: string | null;
+  knowledgeBitId?: string | null;
   // false: a provider 429 is rethrown at once so a caller-side engine can wait and retry it.
   retryRateLimit?: boolean;
 };
@@ -123,6 +124,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
       op,
       agentKey,
       modelId: options.modelId ?? null,
+      knowledgeBitId: options.knowledgeBitId ?? null,
       durationMs: Date.now() - startedAt,
       success: false,
       errorMessage: err instanceof Error ? err.message : String(err),
@@ -142,6 +144,7 @@ export async function generateWithRetry<T extends GenerateResultWithUsage>(
     op,
     agentKey,
     modelId: options.modelId ?? null,
+    knowledgeBitId: options.knowledgeBitId ?? null,
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,
@@ -179,6 +182,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
       op,
       agentKey,
       modelId: options.modelId ?? null,
+      knowledgeBitId: options.knowledgeBitId ?? null,
       durationMs: Date.now() - startedAt,
       success: false,
       errorMessage: err instanceof Error ? err.message : String(err),
@@ -198,6 +202,7 @@ export async function recordGenerateCall<T extends GenerateResultWithUsage>(
     op,
     agentKey,
     modelId: options.modelId ?? null,
+    knowledgeBitId: options.knowledgeBitId ?? null,
     durationMs: Date.now() - startedAt,
     success: true,
     errorMessage: null,

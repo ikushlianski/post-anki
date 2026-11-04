@@ -133,3 +133,20 @@ describe("handleReorderSubjects", () => {
     expect(res.body).toEqual({ error: "invalid_id_set" });
   });
 });
+
+describe("handleDeleteSubject", () => {
+  it("should answer 409 with a clear code when the subject still has a Notion source", async () => {
+    const { deleteSubject } = await import("./subject.repo.js");
+    const { SubjectHasNotionSourcesError } = await import("./subject-notion-sources.error.js");
+    const { handleDeleteSubject } = await import("./subject.controller.js");
+
+    vi.mocked(deleteSubject).mockRejectedValue(new SubjectHasNotionSourcesError());
+
+    const res = fakeRes();
+
+    await handleDeleteSubject(res, "sub_1");
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toMatchObject({ error: "subject_has_notion_sources" });
+  });
+});

@@ -1,9 +1,10 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { CreateStudySessionInput, StudySession, StudySessionStatus } from "@post-anki/shared";
-import { recordSessionAnswer } from "@post-anki/core";
 import { getDb } from "../db/client.js";
 import { curriculumDomainNodeMappings, studySessions } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+
+const STUDY_SESSION_LIST_LIMIT = 200;
 
 type StudySessionRow = typeof studySessions.$inferSelect;
 
@@ -23,9 +24,7 @@ function toStudySession(row: StudySessionRow): StudySession {
   };
 }
 
-export async function insertStudySession(
-  input: CreateStudySessionInput,
-): Promise<StudySession> {
+export async function insertStudySession(input: CreateStudySessionInput): Promise<StudySession> {
   const row = (
     await getDb()
       .insert(studySessions)
@@ -44,23 +43,22 @@ export async function insertStudySession(
 }
 
 export async function getStudySession(id: string): Promise<StudySession | null> {
-  const row = (
-    await getDb().select().from(studySessions).where(eq(studySessions.id, id))
-  )[0];
+  const row = (await getDb().select().from(studySessions).where(eq(studySessions.id, id)))[0];
 
   return row ? toStudySession(row) : null;
 }
 
 export async function listStudySessions(): Promise<StudySession[]> {
-  const rows = await getDb().select().from(studySessions).orderBy(desc(studySessions.createdAt));
+  const rows = await getDb()
+    .select()
+    .from(studySessions)
+    .orderBy(desc(studySessions.createdAt))
+    .limit(STUDY_SESSION_LIST_LIMIT);
 
   return rows.map(toStudySession);
 }
 
-export async function startStudySession(
-  id: string,
-  now: Date,
-): Promise<StudySession | null> {
+export async function startStudySession(id: string, now: Date): Promise<StudySession | null> {
   const row = (
     await getDb()
       .update(studySessions)
@@ -72,60 +70,45 @@ export async function startStudySession(
   return row ? toStudySession(row) : null;
 }
 
-export async function endStudySession(
-  id: string,
-  now: Date,
-): Promise<StudySession | null> {
-  const existing = (
-    await getDb().select().from(studySessions).where(eq(studySessions.id, id))
+export async function endStudySession(id: string, now: Date): Promise<StudySession | null> {
+  const db = getDb();
+
+  const updated = (
+    await db
+      .update(studySessions)
+      .set({
+        status: sql`case when ${studySessions.questionsAnswered} > 0 then 'completed' else 'abandoned' end`,
+        completedAt: now,
+      })
+      .where(
+        and(eq(studySessions.id, id), notInArray(studySessions.status, ["completed", "abandoned"])),
+      )
+      .returning()
   )[0];
 
-  if (!existing) {
-    return null;
+  if (updated) {
+    return toStudySession(updated);
   }
 
-  const status: StudySessionStatus = existing.questionsAnswered > 0 ? "completed" : "abandoned";
-
-  const row = (
-    await getDb()
-      .update(studySessions)
-      .set({ status, completedAt: now })
-      .where(eq(studySessions.id, id))
-      .returning()
-  )[0]!;
-
-  return toStudySession(row);
+  return getStudySession(id);
 }
 
 export async function recordStudySessionAnswer(
   id: string,
   correct: boolean,
 ): Promise<StudySession | null> {
-  const existing = (
-    await getDb().select().from(studySessions).where(eq(studySessions.id, id))
-  )[0];
-
-  if (!existing) {
-    return null;
-  }
-
-  const next = recordSessionAnswer(
-    {
-      questionsAnswered: existing.questionsAnswered,
-      questionsCorrect: existing.questionsCorrect,
-    },
-    correct,
-  );
-
   const row = (
     await getDb()
       .update(studySessions)
-      .set(next)
+      .set({
+        questionsAnswered: sql`${studySessions.questionsAnswered} + 1`,
+        questionsCorrect: sql`${studySessions.questionsCorrect} + ${correct ? 1 : 0}`,
+      })
       .where(eq(studySessions.id, id))
       .returning()
-  )[0]!;
+  )[0];
 
-  return toStudySession(row);
+  return row ? toStudySession(row) : null;
 }
 
 export async function listSessionsForConsistency(): Promise<

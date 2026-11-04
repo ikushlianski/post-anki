@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TITLE_MAX_CHARS } from "./text-limits";
 import { topicSchema } from "./topic";
 import { moduleProgressSchema } from "./progress";
 import { learningStatusSchema } from "./learning-status";
@@ -26,7 +27,7 @@ export type Module = z.infer<typeof moduleSchema>;
 
 export const createModuleInput = z.object({
   curriculumId: z.string(),
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(TITLE_MAX_CHARS),
 });
 
 export type CreateModuleInput = z.infer<typeof createModuleInput>;
@@ -39,7 +40,7 @@ export type ReorderInput = z.infer<typeof reorderInput>;
 
 export const updateModuleInput = z.object({
   moduleId: z.string(),
-  title: z.string().min(1).optional(),
+  title: z.string().trim().min(1).max(TITLE_MAX_CHARS).optional(),
   order: z.number().int().optional(),
   priority: prioritySchema.optional(),
   learningStatus: learningStatusSchema.optional(),

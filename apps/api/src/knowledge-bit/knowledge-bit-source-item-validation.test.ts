@@ -282,3 +282,77 @@ describe("selectNewItems", () => {
     expect(selectNewItems([first, { ...first }], new Set(), 8)).toEqual([first]);
   });
 });
+
+describe("validateSourceItem for cloze notes", () => {
+  const source = "A deal needs budget, authority and need before a buyer can sign the contract.";
+  const cloze = (overrides: Partial<SourceItemDraft> = {}): SourceItemDraft => ({
+    kind: "cloze",
+    statement: "A deal needs budget, authority and need before a buyer can sign",
+    question: "A deal needs {{c1::budget}}, {{c2::authority}} and {{c3::need}} before a buyer can sign",
+    answer: "budget / authority / need",
+    quote: "budget, authority and need before a buyer can sign",
+    ...overrides,
+  });
+
+  it("should accept a note with several independent gaps taken from the source", () => {
+    expect(validateSourceItem(cloze(), source).ok).toBe(true);
+  });
+
+  it("should refuse a note with a single gap number", () => {
+    const single = cloze({ question: "A deal needs {{c1::budget}}, authority and need before a buyer can sign" });
+
+    expect(validateSourceItem(single, source)).toEqual({ ok: false, reason: "bad_blank" });
+  });
+
+  it("should refuse a note with more than five gap numbers", () => {
+    const many = cloze({
+      statement: "a b c d e f",
+      question: "{{c1::a}} {{c2::b}} {{c3::c}} {{c4::d}} {{c5::e}} {{c6::f}}",
+    });
+
+    expect(validateSourceItem(many, "a b c d e f and more text here").ok).toBe(false);
+  });
+
+  it("should refuse a note whose gap text is not in the source", () => {
+    const invented = cloze({
+      question: "A deal needs {{c1::budget}}, {{c2::timeline}} and need before a buyer can sign",
+      statement: "A deal needs budget, timeline and need before a buyer can sign",
+    });
+
+    expect(validateSourceItem(invented, source)).toEqual({ ok: false, reason: "bad_blank" });
+  });
+
+  it("should refuse a note whose plain text differs from the stated lesson", () => {
+    const drifted = cloze({ statement: "Something else entirely about contracts" });
+
+    expect(validateSourceItem(drifted, source)).toEqual({ ok: false, reason: "bad_blank" });
+  });
+});
+
+describe("validateSourceItem for ordered lists", () => {
+  const source = "To close a sale, first qualify the buyer, then pitch the offer, then negotiate terms, and finally close.";
+  const list = (overrides: Partial<SourceItemDraft> = {}): SourceItemDraft => ({
+    kind: "ordered_list",
+    statement: "Closing a sale: qualify the buyer; pitch the offer; negotiate terms",
+    question: "Closing a sale\nqualify the buyer\npitch the offer\nnegotiate terms",
+    answer: "1. qualify the buyer\n2. pitch the offer\n3. negotiate terms",
+    quote: "first qualify the buyer, then pitch the offer, then negotiate terms",
+    ...overrides,
+  });
+
+  it("should accept a list whose steps all appear in the source", () => {
+    expect(validateSourceItem(list(), source).ok).toBe(true);
+  });
+
+  it("should drop a list that contains a step the source never mentions", () => {
+    const invented = list({ question: "Closing a sale\nqualify the buyer\npitch the offer\nsend a gift basket" });
+
+    expect(validateSourceItem(invented, source).ok).toBe(false);
+  });
+
+  it("should drop a list with fewer than three steps", () => {
+    const short = list({ question: "Closing a sale\nqualify the buyer\npitch the offer" });
+
+    expect(validateSourceItem(short, source).ok).toBe(false);
+  });
+});

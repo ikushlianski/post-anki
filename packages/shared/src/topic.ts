@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TITLE_MAX_CHARS } from "./text-limits";
 import { questionSchema } from "./question";
 import { topicProgressSchema } from "./progress";
 import { depthLevelSchema } from "./depth";
@@ -56,7 +57,7 @@ export type Topic = z.infer<typeof topicSchema>;
 
 export const createTopicInput = z.object({
   moduleId: z.string(),
-  title: z.string().min(1),
+  title: z.string().trim().min(1).max(TITLE_MAX_CHARS),
   summary: z.string().optional(),
   suggestedDepth: depthLevelSchema.optional(),
 });
@@ -65,7 +66,7 @@ export type CreateTopicInput = z.infer<typeof createTopicInput>;
 
 export const updateTopicInput = z.object({
   topicId: z.string(),
-  title: z.string().min(1).optional(),
+  title: z.string().trim().min(1).max(TITLE_MAX_CHARS).optional(),
   summary: z.string().nullable().optional(),
   moduleId: z.string().optional(),
   order: z.number().int().optional(),

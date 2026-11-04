@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type {
   DepthLevel,
   LearningStatus,
@@ -25,8 +25,9 @@ export async function writeTopicProgress(
   topicId: string,
   progress: TopicProgress,
   learningStatus: LearningStatus,
+  db: DbExecutor = getDb(),
 ): Promise<void> {
-  await getDb()
+  await db
     .update(topics)
     .set({
       progressStatus: progress.status,
@@ -38,6 +39,16 @@ export async function writeTopicProgress(
       learningStatus,
     })
     .where(eq(topics.id, topicId));
+}
+
+export async function incrementTopicAttempts(topicId: string, db: DbExecutor): Promise<number> {
+  const rows = await db
+    .update(topics)
+    .set({ progressAttempts: sql`${topics.progressAttempts} + 1` })
+    .where(eq(topics.id, topicId))
+    .returning({ attempts: topics.progressAttempts });
+
+  return rows[0]?.attempts ?? 1;
 }
 
 export function rowToProgress(row: TopicRow): TopicProgress {

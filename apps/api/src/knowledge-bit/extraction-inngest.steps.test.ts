@@ -34,7 +34,7 @@ describe("chunkInsertStep", () => {
 
     const result = await chunkInsertStep(snapshot, 0, 10, 0, d);
 
-    expect(result).toEqual({ accepted: 2, inserted: 2 });
+    expect(result).toEqual({ accepted: 2, inserted: 2, capped: false });
     expect(d.insertItems).toHaveBeenCalledWith(expect.objectContaining({ sourceId: "ks_1", firstOrdinal: 10 }));
     expect(JSON.stringify(result)).not.toContain(RU_EXAMPLE_ITEMS[0]!.statement);
   });
@@ -53,8 +53,20 @@ describe("chunkInsertStep", () => {
   it("should insert nothing once the per-source cap is reached", async () => {
     const d = deps();
 
-    expect(await chunkInsertStep(snapshot, 0, 10, 10_000, d)).toEqual({ accepted: 0, inserted: 0 });
+    expect(await chunkInsertStep(snapshot, 0, 10, 10_000, d)).toEqual({ accepted: 0, inserted: 0, capped: true });
     expect(d.insertItems).not.toHaveBeenCalled();
+  });
+
+  it("should flag the cap when this chunk filled the source and had more new items left", async () => {
+    const d = deps();
+
+    expect(await chunkInsertStep(snapshot, 0, 10, 39, d)).toMatchObject({ accepted: 1, capped: true });
+  });
+
+  it("should not flag the cap when the chunk filled the source exactly", async () => {
+    const d = deps({ writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS.slice(0, 1)) });
+
+    expect(await chunkInsertStep(snapshot, 0, 10, 39, d)).toMatchObject({ accepted: 1, capped: false });
   });
 });
 
@@ -69,7 +81,7 @@ describe("chunkInsertStep with rejected cards", () => {
 
     const result = await chunkInsertStep(snapshot, 0, 10, 0, d);
 
-    expect(result).toEqual({ accepted: 0, inserted: 1 });
+    expect(result).toEqual({ accepted: 0, inserted: 1, capped: false });
     expect(vi.mocked(d.insertItems).mock.calls[0]?.[0].flagged?.[0]?.reason).toBe("quote_not_in_source");
   });
 
@@ -103,5 +115,18 @@ describe("finishCountsStep", () => {
     await expect(
       finishCountsStep(snapshot, 1, null, deps({ markDetected: vi.fn().mockResolvedValue(false) })),
     ).rejects.toThrow("knowledge_source_reclaimed");
+  });
+});
+
+describe("finishCountsStep with the cap reached", () => {
+  it("should mark the source as cut at the cap instead of plain detected", async () => {
+    const markItemCapReached = vi.fn().mockResolvedValue(true);
+    const d = deps({ markItemCapReached });
+
+    const outcome = await finishCountsStep(snapshot, 40, null, d, false, true);
+
+    expect(outcome).toEqual({ status: "detected", inserted: 40, failureReason: null });
+    expect(markItemCapReached).toHaveBeenCalledWith("ks_1", CLAIMED_AT);
+    expect(d.markDetected).not.toHaveBeenCalled();
   });
 });

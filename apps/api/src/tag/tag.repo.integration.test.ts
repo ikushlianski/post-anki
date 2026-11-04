@@ -37,7 +37,8 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY ??= "unused-in-integration-test";
 
-const { assignTag, resolveOrCreateTag } = await import("./tag.repo.js");
+const { assignTag, resolveOrCreateTag, renameTag, deleteTag, getTag } =
+  await import("./tag.repo.js");
 
 let client: pg.Client;
 
@@ -114,5 +115,71 @@ describe("tag_assignments 'source' column defaults (real Postgres)", () => {
     ]);
 
     expect(rows[0]!.source).toBe("manual");
+  });
+});
+
+describe("renameTag (real Postgres)", () => {
+  it("should store the trimmed name and its normalized form", async () => {
+    const tag = await resolveOrCreateTag(`before-${randomUUID()}`);
+    const suffix = randomUUID();
+
+    const result = await renameTag(tag.id, `  Renamed ${suffix}  `);
+
+    expect(result).toEqual({
+      id: tag.id,
+      name: `Renamed ${suffix}`,
+      normalizedName: `renamed ${suffix}`.toLowerCase(),
+    });
+  });
+
+  it("should allow changing only the letter case of the same tag", async () => {
+    const suffix = randomUUID();
+    const tag = await resolveOrCreateTag(`case-${suffix}`);
+
+    const result = await renameTag(tag.id, `CASE-${suffix}`);
+
+    expect(result).toMatchObject({ id: tag.id, name: `CASE-${suffix}` });
+  });
+
+  it("should refuse a name another tag already has, ignoring case", async () => {
+    const suffix = randomUUID();
+    const other = await resolveOrCreateTag(`taken-${suffix}`);
+    const tag = await resolveOrCreateTag(`mine-${suffix}`);
+
+    const result = await renameTag(tag.id, `TAKEN-${suffix}`);
+
+    expect(result).toEqual({ error: "name_taken" });
+    expect((await getTag(tag.id))?.name).toBe(`mine-${suffix}`);
+    expect((await getTag(other.id))?.name).toBe(`taken-${suffix}`);
+  });
+
+  it("should report not_found for an unknown tag", async () => {
+    expect(await renameTag("missing", "anything")).toEqual({ error: "not_found" });
+  });
+});
+
+describe("deleteTag (real Postgres)", () => {
+  it("should remove the tag and all of its assignments, leaving other tags alone", async () => {
+    const tag = await resolveOrCreateTag(`doomed-${randomUUID()}`);
+    const survivor = await resolveOrCreateTag(`survivor-${randomUUID()}`);
+
+    await assignTag(tag.id, "topic", id("topic"));
+    await assignTag(tag.id, "topic", id("topic"));
+    await assignTag(survivor.id, "topic", id("topic"));
+
+    expect(await deleteTag(tag.id)).toBe(true);
+
+    const gone = await client.query(`SELECT 1 FROM tag_assignments WHERE tag_id = $1`, [tag.id]);
+    const kept = await client.query(`SELECT 1 FROM tag_assignments WHERE tag_id = $1`, [
+      survivor.id,
+    ]);
+
+    expect(await getTag(tag.id)).toBeNull();
+    expect(gone.rows).toHaveLength(0);
+    expect(kept.rows).toHaveLength(1);
+  });
+
+  it("should return false for an unknown tag", async () => {
+    expect(await deleteTag("missing")).toBe(false);
   });
 });

@@ -11,6 +11,9 @@ const repo = vi.hoisted(() => ({
 }));
 const sessionRepo = vi.hoisted(() => ({ getTriageSessionRow: vi.fn() }));
 
+const bitType = vi.hoisted(() => ({ rejectSubjectTypeForBit: vi.fn() }));
+
+vi.mock("../knowledge-bit/reject-reason-subject-type.repo.js", () => bitType);
 vi.mock("./card-triage-decision.repo.js", () => repo);
 vi.mock("./card-triage-session.repo.js", () => sessionRepo);
 
@@ -43,6 +46,23 @@ describe("triage decision controller", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     repo.toTriageDecisionResponse.mockImplementation((value: unknown) => value);
+    bitType.rejectSubjectTypeForBit.mockResolvedValue(null);
+  });
+
+  it("should answer 400 when the reason belongs to another subject type", async () => {
+    bitType.rejectSubjectTypeForBit.mockResolvedValue("programming");
+
+    const res = fakeRes();
+
+    await handlePutTriageDecision(
+      fakeReq({ verdict: "rejected", reasonCode: "front_unclear_target_phrase" }),
+      res,
+      "cts_1",
+      "kb_1",
+    );
+
+    expect(res.status).toBe(400);
+    expect(repo.putTriageDecision).not.toHaveBeenCalled();
   });
 
   it("should store a rejected card with its reason and note and answer 200", async () => {
@@ -136,7 +156,19 @@ describe("triage decision controller", () => {
 
     expect(missing.status).toBe(404);
     expect(ok.status).toBe(200);
-    expect(ok.body).toEqual({ decisions: [decision] });
+    expect(ok.body).toEqual({ decisions: [{ ...decision, subjectType: null }] });
     expect(repo.listTriageDecisions).toHaveBeenCalledWith("cts_1", { includeUndone: true });
+  });
+
+  it("should tell each listed decision which subject type its card belongs to", async () => {
+    sessionRepo.getTriageSessionRow.mockResolvedValue({ id: "cts_1" });
+    repo.listTriageDecisions.mockResolvedValue([{ ...decision, knowledgeBitId: "kb_1" }]);
+    bitType.rejectSubjectTypeForBit.mockResolvedValue("language");
+
+    const res = fakeRes();
+
+    await handleListTriageDecisions(res, "cts_1");
+
+    expect(res.body).toEqual({ decisions: [{ ...decision, knowledgeBitId: "kb_1", subjectType: "language" }] });
   });
 });

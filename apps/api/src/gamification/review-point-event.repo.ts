@@ -10,6 +10,8 @@ import {
   subjects,
   topics,
 } from "../db/schema.js";
+import { localDateString } from "../motivation/motivation-time.js";
+import { readMotivationSettings } from "../motivation/motivation-settings.repo.js";
 import { newId } from "../shared/id.js";
 import type { Tx } from "../shared/merge-lock.js";
 
@@ -28,10 +30,6 @@ export interface ReviewPointEventRecord {
   awardedDay: string;
   points: number;
   reason: PointsReason;
-}
-
-function toDayKey(at: Date): string {
-  return at.toISOString().slice(0, 10);
 }
 
 function toRecord(row: typeof reviewPointEvents.$inferSelect): ReviewPointEventRecord {
@@ -87,7 +85,7 @@ export async function awardReviewPointInTx(
       reviewId: input.reviewId,
       knowledgeBitId: input.knowledgeBitId,
       subjectId: await resolveBitSubjectIdInTx(tx, input.knowledgeBitId),
-      awardedDay: toDayKey(input.reviewedAt),
+      awardedDay: localDateString(input.reviewedAt, (await readMotivationSettings(tx)).timeZone),
       points,
       reason,
       intervalDaysAfter: input.intervalDaysAfter,

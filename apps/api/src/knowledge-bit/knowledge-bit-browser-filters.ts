@@ -8,7 +8,7 @@ import {
   type KnowledgeBitOverviewState,
 } from "@post-anki/shared";
 import type { DbExecutor } from "../db/client.js";
-import { knowledgeBits, knowledgeBitSchedules, knowledgeSources } from "../db/schema.js";
+import { knowledgeBits, knowledgeBitNoteSchedules, knowledgeSources } from "../db/schema.js";
 import { effectiveSubjectIdSql } from "./knowledge-bit-subject.js";
 import { answerContains, containsPattern, questionContains } from "./knowledge-bit-text-match.js";
 
@@ -24,10 +24,10 @@ export const addedBySql = sql<KnowledgeBitBrowserAddedBy>`case when ${sourceType
 
 export function studyStateSql(now: Date) {
   return sql<KnowledgeBitOverviewState>`case
-    when ${knowledgeBitSchedules.knowledgeBitId} is null then 'new'
-    when ${knowledgeBitSchedules.suspendedAt} is not null then 'suspended'
-    when ${knowledgeBitSchedules.buriedUntil} > ${now.toISOString()}::timestamptz then 'buried'
-    when ${knowledgeBitSchedules.phase} in ('new', 'learning', 'review', 'relearning') then ${knowledgeBitSchedules.phase}
+    when ${knowledgeBitNoteSchedules.knowledgeBitId} is null then 'new'
+    when ${knowledgeBitNoteSchedules.suspendedAt} is not null then 'suspended'
+    when ${knowledgeBitNoteSchedules.buriedUntil} > ${now.toISOString()}::timestamptz then 'buried'
+    when ${knowledgeBitNoteSchedules.phase} in ('new', 'learning', 'review', 'relearning') then ${knowledgeBitNoteSchedules.phase}
     else 'review'
   end`;
 }

@@ -28,6 +28,11 @@ import { TYPED_VARIANT_KINDS } from "./knowledge-bit-variant-kind-rules.js";
 // dismissed a nudge for it) — same two checks gatherPushCandidates applies on the gap-based due
 // path (push.repo.ts). Callers must join `topics` and `curricula`, and pass the dormant
 // curriculum id set fetched via listDormantEntityIds("curriculum").
+const noteLevelSchedule = and(
+  eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id),
+  eq(knowledgeBitSchedules.cardKey, ""),
+);
+
 function dueCondition(db: DbExecutor, dormantCurriculumIds: Set<string>) {
   const hasQuestionVariant = exists(
     db
@@ -84,7 +89,7 @@ export async function listTopicsWithDueCounts(
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitSchedules, noteLevelSchedule)
     .where(dueCondition(db, dormantCurriculumIds))
     .groupBy(topics.id, topics.title)
     .orderBy(
@@ -114,7 +119,7 @@ export async function getDueCountsForTopics(
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitSchedules, noteLevelSchedule)
     .where(and(inArray(topics.id, topicIds), dueCondition(db, dormantCurriculumIds)))
     .groupBy(topics.id);
 
@@ -144,7 +149,12 @@ export async function getTopicBitMasteryLevels(
       knowledgeBitVariantAttempts,
       eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id),
     )
-    .where(inArray(knowledgeBits.topicId, topicIds))
+    .where(
+      and(
+        inArray(knowledgeBits.topicId, topicIds),
+        sql`coalesce(${knowledgeBitVariantAttempts.feedback}, '') <> 'rehearsal'`,
+      ),
+    )
     .orderBy(asc(knowledgeBitVariantAttempts.createdAt), asc(knowledgeBitVariantAttempts.id));
 
   const attemptsByTopic = new Map<string, { verdict: string }[]>();
@@ -189,7 +199,7 @@ export async function getDueCountsForModules(
     .from(knowledgeBits)
     .innerJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .innerJoin(curricula, eq(curricula.id, topics.curriculumId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitSchedules, noteLevelSchedule)
     .where(and(inArray(topics.moduleId, moduleIds), dueCondition(db, dormantCurriculumIds)))
     .groupBy(topics.moduleId);
 

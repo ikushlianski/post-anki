@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { isBrowserDateRangeReversed, knowledgeBitBrowserQuerySchema } from "@post-anki/shared";
-import { sendJson } from "../shared/http.js";
+import { sendJson, sendInvalidQuery } from "../shared/http.js";
 import {
   countKnowledgeBitBrowserSubjects,
   listKnowledgeBitBrowser,
@@ -16,7 +16,7 @@ export async function handleListKnowledgeBitBrowser(
   );
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 

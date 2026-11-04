@@ -49,6 +49,15 @@ describe("startCardsBackground", () => {
 
     expect(d.runInProcess).toHaveBeenCalledWith("t1");
   });
+
+  it("should not make the caller wait for the whole compile when queueing fails", async () => {
+    const d = deps(true);
+
+    d.sendEvents.mockRejectedValue(new Error("inngest down"));
+    d.runInProcess.mockReturnValue(new Promise(() => undefined));
+
+    await expect(startCardsBackground("t1", d)).resolves.toBeUndefined();
+  });
 });
 
 describe("startCardsForTopics", () => {

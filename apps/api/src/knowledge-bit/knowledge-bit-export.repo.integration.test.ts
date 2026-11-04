@@ -102,6 +102,21 @@ async function collect() {
 }
 
 describe("streamApprovedCards (real Postgres)", () => {
+  it("should export the question first and the context on the second line, like the text before the split", async () => {
+    const subject = await seedSubject("Export Context Subject");
+    const bit = await seedBit(subject);
+    const variantId = await seedVariant(bit, "How do you disagree politely?", "I see it differently.");
+
+    await client.query(`UPDATE knowledge_bit_question_variants SET context = $1 WHERE id = $2`, [
+      "talking to a manager",
+      variantId,
+    ]);
+
+    const cards = (await collect()).filter((card) => card.subject === "Export Context Subject");
+
+    expect(cards[0]?.question).toBe("How do you disagree politely?\ntalking to a manager");
+  });
+
   it("should export only approved cards with question, answer, example, subject, links, schedule and review history", async () => {
     const subject = await seedSubject("Export Subject");
     const approved = await seedBit(subject, "approved", "Fact");

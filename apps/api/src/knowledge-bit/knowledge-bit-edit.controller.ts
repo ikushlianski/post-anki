@@ -5,6 +5,7 @@ import { editKnowledgeBit, type EditKnowledgeBitError } from "./knowledge-bit-ed
 
 const STATUS: Record<EditKnowledgeBitError, number> = {
   not_found: 404,
+  wrong_shape: 400,
 };
 
 export async function handleEditKnowledgeBit(

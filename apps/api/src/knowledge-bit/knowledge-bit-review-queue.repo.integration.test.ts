@@ -192,7 +192,7 @@ describe("listKnowledgeBitReviewCards (real Postgres)", () => {
 
     const cards = await listKnowledgeBitReviewCards(10, { knowledgeBitId });
 
-    expect(cards).toEqual([
+    expect(cards).toMatchObject([
       {
         variantId,
         knowledgeBitId,

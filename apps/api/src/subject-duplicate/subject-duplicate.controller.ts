@@ -3,7 +3,7 @@ import {
   resolveSubjectDuplicateSuggestionInput,
   subjectDuplicateSuggestionStatusSchema,
 } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { triggerSubjectDuplicateScan } from "./subject-duplicate.orchestrator.js";
 import {
@@ -25,9 +25,7 @@ export async function handleTriggerSubjectDuplicateScan(
   } catch (err) {
     log.error({ err }, "subject_duplicate_scan_failed");
 
-    const message = err instanceof Error ? err.message : "subject duplicate scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 

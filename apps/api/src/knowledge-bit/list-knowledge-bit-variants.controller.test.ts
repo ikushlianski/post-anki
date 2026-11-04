@@ -43,7 +43,13 @@ describe("handleListKnowledgeBitVariants", () => {
       sourceLinks: [],
     });
     vi.mocked(listActiveVariantsForBit).mockResolvedValue([
-      { id: "kbqv_1", kind: "basic", prompt: "What does TTL stand for?", answer: "Time to live." },
+      {
+        id: "kbqv_1",
+        kind: "basic",
+        context: "reading a cache config",
+        prompt: "What does TTL stand for?",
+        answer: "Time to live.",
+      },
     ]);
 
     const res = fakeRes();
@@ -52,7 +58,15 @@ describe("handleListKnowledgeBitVariants", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      variants: [{ id: "kbqv_1", kind: "basic", prompt: "What does TTL stand for?", answer: "Time to live." }],
+      variants: [
+        {
+          id: "kbqv_1",
+          kind: "basic",
+          context: "reading a cache config",
+          prompt: "What does TTL stand for?",
+          answer: "Time to live.",
+        },
+      ],
     });
   });
 

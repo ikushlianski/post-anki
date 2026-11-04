@@ -18,6 +18,12 @@ export function classifyCredential(header: string | undefined, sharedSecret: str
   return header.startsWith(`${BEARER_PREFIX}${DEVICE_TOKEN_PREFIX}`) ? "device_token" : "session_token";
 }
 
+export const DEVICE_TOKEN_PATH = "/auth/device-tokens";
+
+export function isDeviceTokenRoute(method: string, path: string): boolean {
+  return method === "POST" && path === DEVICE_TOKEN_PATH;
+}
+
 export function isNativeAuthRoute(method: string, path: string): boolean {
   return NATIVE_AUTH_ROUTES.has(`${method} ${path}`);
 }

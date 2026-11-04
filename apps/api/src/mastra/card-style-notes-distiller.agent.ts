@@ -1,6 +1,11 @@
 import { Agent } from "@mastra/core/agent";
 import { z } from "zod";
-import { STYLE_NOTE_MAX_CHARS, STYLE_NOTES_MAX_COUNT, TRIAGE_CARD_FEEDBACK_MAX_ITEMS } from "@post-anki/shared";
+import {
+  KNOWLEDGE_BIT_ALL_REJECT_REASONS,
+  KNOWLEDGE_BIT_REJECT_REASON_LABELS,
+  STYLE_NOTE_MAX_CHARS,   STYLE_NOTES_MAX_COUNT,
+  TRIAGE_CARD_FEEDBACK_MAX_ITEMS,
+} from "@post-anki/shared";
 import { loadEnv } from "../shared/env.js";
 import { resolveAgentModel } from "./model.js";
 import { generateWithRetry } from "./generate-with-retry.js";
@@ -24,6 +29,9 @@ export const INSTRUCTIONS = [
   `You receive the feedback (it may be empty), the counts of accepted and rejected cards, up to 10 rejected`,
   `card examples, up to ${String(TRIAGE_CARD_FEEDBACK_MAX_ITEMS)} per-card reasons and notes written while deciding, and`,
   "the current active notes. Repeated themes in per-card lines are strong signals.",
+  "Reject reasons are given as plain labels. Quality hints: a question bent to fit its answer means write",
+  "questions that stand alone; just restating the text means ask for use, not restatement; only checking",
+  "wording means test understanding, not the text's phrasing.",
   `Return the full reconciled list of at most ${String(STYLE_NOTES_MAX_COUNT)} notes:`,
   "keep current notes that still hold, drop or rewrite those the new feedback contradicts (newer feedback",
   "wins), and add notes for new preferences. Merge near-duplicates.",
@@ -57,8 +65,14 @@ function oneLine(text: string, max: number): string {
   return escapePromptTags(text.replace(/\s+/g, " ").trim().slice(0, max));
 }
 
+function reasonText(reason: string | null): string | null {
+  const known = KNOWLEDGE_BIT_ALL_REJECT_REASONS.find((code) => code === reason);
+
+  return known ? KNOWLEDGE_BIT_REJECT_REASON_LABELS[known] : reason;
+}
+
 function cardFeedbackLine(item: CardFeedbackItem): string {
-  const parts = [item.verdict, item.reason, item.note, item.front].filter((part): part is string => !!part);
+  const parts = [item.verdict, reasonText(item.reason), item.note, item.front].filter((part): part is string => !!part);
 
   return `- ${oneLine(parts.join(" | "), CARD_FEEDBACK_LINE_MAX_CHARS)}`;
 }

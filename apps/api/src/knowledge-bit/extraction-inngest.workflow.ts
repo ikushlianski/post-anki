@@ -100,6 +100,8 @@ export const extractionInngestFunction = inngest.createFunction(
 
       let accepted = 0;
       let inserted = 0;
+      let deliberateEmptyChunks = 0;
+      let capped = false;
       let failureReason: string | null = null;
 
       for (let index = 0; index < plan.chunkCount; index += 1) {
@@ -114,6 +116,8 @@ export const extractionInngestFunction = inngest.createFunction(
 
           accepted += counts.accepted;
           inserted += counts.inserted;
+          deliberateEmptyChunks += counts.deliberateEmpty ? 1 : 0;
+          capped ||= counts.capped === true;
         } catch (err) {
           failureReason ??= safeFailureReason(err);
           log.error({ err, knowledgeSourceId: claimed.id }, "knowledge_bit_source_items_chunk_failed");
@@ -121,7 +125,14 @@ export const extractionInngestFunction = inngest.createFunction(
       }
 
       return await step.run("finish", () =>
-        finishCountsStep(claimed, inserted, failureReason, deps),
+        finishCountsStep(
+          claimed,
+          inserted,
+          failureReason,
+          deps,
+          plan.chunkCount > 0 && deliberateEmptyChunks === plan.chunkCount,
+          capped,
+        ),
       );
     } catch (err) {
       const reason = safeFailureReason(err);

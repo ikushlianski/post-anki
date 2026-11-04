@@ -1,6 +1,7 @@
 import type http from "node:http";
 import type { ListTagNodesResponse, SearchResponse, TopicModuleSearchResult } from "@post-anki/shared";
 import { normalizeSearchQuery } from "@post-anki/core";
+import { loadSubjectPathLabels } from "../subject/subject-path-labels.js";
 import { sendJson } from "../shared/http.js";
 import {
   searchCurricula,
@@ -24,14 +25,15 @@ export async function handleSearch(
     return;
   }
 
-  const [subjectRows, curriculumRows, topicRows] = await Promise.all([
+  const [subjectRows, pathLabels, curriculumRows, topicRows] = await Promise.all([
     searchSubjects(normalized),
+    loadSubjectPathLabels(),
     searchCurricula(normalized),
     searchTopics(normalized),
   ]);
 
   const body: SearchResponse = {
-    subjects: subjectRows.map((s) => ({ id: s.id, label: s.name })),
+    subjects: subjectRows.map((s) => ({ id: s.id, label: pathLabels.get(s.id) ?? s.name })),
     curricula: curriculumRows.map((c) => ({ id: c.id, label: c.name })),
     topics: topicRows.map((t) => ({ id: t.id, label: t.title, curriculumId: t.curriculumId })),
   };

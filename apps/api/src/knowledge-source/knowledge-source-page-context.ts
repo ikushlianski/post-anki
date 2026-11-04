@@ -1,6 +1,7 @@
 import { isSafeSourceUrl } from "@post-anki/core";
+import { KNOWLEDGE_SOURCE_MAX_CHARS } from "@post-anki/shared";
 
-export const MAX_SOURCE_TEXT_CHARS = 50_000;
+export const MAX_SOURCE_TEXT_CHARS = KNOWLEDGE_SOURCE_MAX_CHARS;
 export const MAX_PAGE_URL_CHARS = 2048;
 export const MAX_PAGE_TITLE_CHARS = 300;
 

@@ -11,7 +11,7 @@ import {
   curricula,
   knowledgeBitQuestionVariants,
   knowledgeBits,
-  knowledgeBitSchedules,
+  knowledgeBitNoteSchedules,
   knowledgeSources,
   subjects,
   topics,
@@ -20,6 +20,7 @@ import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { buildBrowserFilterCondition, sourceTypeSql } from "./knowledge-bit-browser-filters.js";
 import { assembleBrowserItems } from "./knowledge-bit-browser-items.js";
 import { effectiveSubjectIdSql } from "./knowledge-bit-subject.js";
+import { rollUpCardCounts } from "../subject/subject-card-count.repo.js";
 
 const MATURE_INTERVAL_DAYS = 21;
 
@@ -74,7 +75,7 @@ export async function listKnowledgeBitBrowser(
       })
       .from(knowledgeBits)
       .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-      .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+      .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
       .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
       .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
       .where(where)
@@ -85,7 +86,7 @@ export async function listKnowledgeBitBrowser(
       .select({ total: count() })
       .from(knowledgeBits)
       .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-      .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+      .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
       .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
       .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
       .where(where),
@@ -99,26 +100,56 @@ export async function listKnowledgeBitBrowser(
 export async function countKnowledgeBitBrowserSubjects(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitBrowserSubjectCounts> {
-  const rows = await db
-    .select({
-      subjectId: effectiveSubjectIdSql,
-      count: sql<number>`count(*)::int`,
-      newCount: sql<number>`count(*) filter (where ${knowledgeBitSchedules.phase} is null or ${knowledgeBitSchedules.phase} = 'new')::int`,
-      matureCount: sql<number>`count(*) filter (where ${knowledgeBitSchedules.phase} = 'review' and ${knowledgeBitSchedules.intervalDays} >= ${MATURE_INTERVAL_DAYS})::int`,
-    })
-    .from(knowledgeBits)
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
-    .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-    .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
-    .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
-    .where(and(bitApproved, hasActiveVariant(db)))
-    .groupBy(effectiveSubjectIdSql);
+  const [rows, nodes] = await Promise.all([
+    db
+      .select({
+        subjectId: effectiveSubjectIdSql,
+        count: sql<number>`count(*)::int`,
+        newCount: sql<number>`count(*) filter (where ${knowledgeBitNoteSchedules.phase} is null or ${knowledgeBitNoteSchedules.phase} = 'new')::int`,
+        matureCount: sql<number>`count(*) filter (where ${knowledgeBitNoteSchedules.phase} = 'review' and ${knowledgeBitNoteSchedules.intervalDays} >= ${MATURE_INTERVAL_DAYS})::int`,
+      })
+      .from(knowledgeBits)
+      .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
+      .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
+      .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
+      .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
+      .where(and(bitApproved, hasActiveVariant(db)))
+      .groupBy(effectiveSubjectIdSql),
+    db.select({ id: subjects.id, parentId: subjects.parentId }).from(subjects),
+  ]);
 
-  return rows.map((row) => ({
-    subjectId: row.subjectId,
-    count: row.count,
-    newCount: row.newCount,
-    learningCount: row.count - row.newCount - row.matureCount,
-    matureCount: row.matureCount,
-  }));
+  const own = (field: "count" | "newCount" | "matureCount") =>
+    new Map(rows.flatMap((row) => (row.subjectId === null ? [] : [[row.subjectId, row[field]] as const])));
+  const totals = rollUpCardCounts(nodes, own("count"));
+  const newTotals = rollUpCardCounts(nodes, own("newCount"));
+  const matureTotals = rollUpCardCounts(nodes, own("matureCount"));
+
+  const rolledUp = nodes.flatMap(({ id }) => {
+    const count = totals.get(id) ?? 0;
+
+    if (count === 0) {
+      return [];
+    }
+
+    const newCount = newTotals.get(id) ?? 0;
+    const matureCount = matureTotals.get(id) ?? 0;
+
+    return [{ subjectId: id, count, newCount, learningCount: count - newCount - matureCount, matureCount }];
+  });
+  const unsorted = rows.find((row) => row.subjectId === null);
+
+  return [
+    ...rolledUp,
+    ...(unsorted
+      ? [
+          {
+            subjectId: null,
+            count: unsorted.count,
+            newCount: unsorted.newCount,
+            learningCount: unsorted.count - unsorted.newCount - unsorted.matureCount,
+            matureCount: unsorted.matureCount,
+          },
+        ]
+      : []),
+  ];
 }

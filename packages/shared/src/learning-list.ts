@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DESCRIPTION_MAX_CHARS, URL_MAX_CHARS } from "./text-limits";
 import { concernSchema } from "./concern";
 import { depthLevelSchema } from "./depth";
 
@@ -139,9 +140,9 @@ export const learningListCaptureSchema = z.object({
 export type LearningListCapture = z.infer<typeof learningListCaptureSchema>;
 
 export const captureLearningListItemInput = z.object({
-  url: z.string().min(1),
+  url: z.string().min(1).max(URL_MAX_CHARS),
   kind: learningListItemKindSchema.default("article"),
-  pastedDescription: z.string().trim().min(1).nullable().default(null),
+  pastedDescription: z.string().trim().min(1).max(DESCRIPTION_MAX_CHARS).nullable().default(null),
   subjectId: z.string().min(1),
   subSubjectNodeId: z.string().min(1).nullable().default(null),
 });

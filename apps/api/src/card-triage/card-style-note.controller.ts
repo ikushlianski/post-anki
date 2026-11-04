@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { listCardStyleNotesQuery, updateCardStyleNoteInput } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendError, sendJson, sendInvalidQuery } from "../shared/http.js";
 import { listActiveStyleNotes, listAllActiveStyleNotes, updateCardStyleNote } from "./card-style-note.repo.js";
 
 // GET /card-style-notes?subjectId=
@@ -8,7 +8,7 @@ export async function handleListCardStyleNotes(res: http.ServerResponse, search:
   const parsed = listCardStyleNotesQuery.safeParse(Object.fromEntries(new URLSearchParams(search)));
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 

@@ -1,4 +1,10 @@
-import { cardPhaseSchema, type RecordReviewInput, type RecordReviewResult } from "@post-anki/shared";
+import {
+  cardKeyFor,
+  cardPhaseSchema,
+  type RecordReviewInput,
+  type RecordReviewResult,
+  type ReviewCard,
+} from "@post-anki/shared";
 import type { KnowledgeBitScheduleSnapshot } from "../db/schema.js";
 import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
 import { reviewPointsForEventInTx } from "../gamification/gamification.service.js";
@@ -6,9 +12,18 @@ import {
   awardReviewPointInTx,
   readPointEventByReviewIdInTx,
 } from "../gamification/review-point-event.repo.js";
-import { deriveGradeSchedule, type GradeScheduleState } from "./knowledge-bit-grade-schedule.js";
+import { loadStudyOptionsResolver } from "../subject-study-options/subject-study-options-resolver.js";
+import { readCardSubjectId } from "./knowledge-bit-card-subject.js";
+import { readStudyPlanClock, type StudyPlanClock } from "../study-plan/study-plan-today.js";
+import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
+import {
+  deriveGradeSchedule,
+  type GradeScheduleState,
+  type ScheduleOptions,
+} from "./knowledge-bit-grade-schedule.js";
 import { deriveLeechOutcome } from "./knowledge-bit-grade-schedule-leech.js";
 import {
+  getLocalDayWindow,
   insertKnowledgeBitReview,
   readKnowledgeBitReviewByRequestIdInTx,
   type KnowledgeBitReviewByRequestRecord,
@@ -17,11 +32,32 @@ import {
   readKnowledgeBitScheduleInTx,
   upsertKnowledgeBitScheduleInTx,
 } from "./knowledge-bit-schedule.repo.js";
+import {
+  buryCardSiblingsInTx,
+  listActiveCardVariantsInTx,
+  variantIdsForKeys,
+} from "./knowledge-bit-sibling-burial.repo.js";
 import { getQuestionVariantById } from "./knowledge-bit-variant-attempt.repo.js";
+import { pickAlternateVariant } from "./knowledge-bit-review-alt-variant.repo.js";
+import { recordRehearsalInTx } from "./knowledge-bit-review-rehearsal.orchestrator.js";
 
 export type RecordKnowledgeBitReviewOutcome =
   | ({ ok: true } & RecordReviewResult)
   | { ok: false; error: "variant_not_found" | "not_approved" };
+
+async function readStepOptionsInTx(
+  tx: Tx,
+  knowledgeBitId: string,
+  now: Date,
+): Promise<{ options: ScheduleOptions; clock: StudyPlanClock }> {
+  const [subjectId, resolver, clock] = await Promise.all([
+    readCardSubjectId(knowledgeBitId, tx),
+    loadStudyOptionsResolver(tx),
+    readStudyPlanClock(now, tx),
+  ]);
+
+  return { options: toScheduleOptions(resolver.resolvePlan(subjectId), clock), clock };
+}
 
 function toGradeState(snapshot: KnowledgeBitScheduleSnapshot): GradeScheduleState {
   return {
@@ -33,6 +69,22 @@ function toGradeState(snapshot: KnowledgeBitScheduleSnapshot): GradeScheduleStat
   };
 }
 
+async function followUpFor(
+  tx: Tx,
+  knowledgeBitId: string,
+  variantId: string,
+  cardKey: string,
+  grade: RecordReviewInput["grade"],
+  options: ScheduleOptions,
+  now: Date,
+): Promise<ReviewCard | null> {
+  if (cardKey !== "" || grade === "again") {
+    return null;
+  }
+
+  return pickAlternateVariant(knowledgeBitId, variantId, now, tx, () => options);
+}
+
 // A retry carrying an already-stored requestId gets the result re-derived from the stored
 // pre-grade snapshot, so the schedule is not changed a second time.
 async function replayStoredReview(
@@ -40,9 +92,12 @@ async function replayStoredReview(
   stored: KnowledgeBitReviewByRequestRecord,
 ): Promise<RecordReviewResult> {
   const previous = stored.prevSchedule ? toGradeState(stored.prevSchedule) : null;
-  const next = deriveGradeSchedule(previous, stored.grade, stored.reviewedAt);
+  const { options } = await readStepOptionsInTx(tx, stored.knowledgeBitId, stored.reviewedAt);
+  const next = deriveGradeSchedule(previous, stored.grade, stored.reviewedAt, options);
   const leech = deriveLeechOutcome(previous?.lapses ?? 0, next.lapses);
   const points = await reviewPointsForEventInTx(tx, await readPointEventByReviewIdInTx(tx, stored.id));
+  const variants = await listActiveCardVariantsInTx(tx, stored.knowledgeBitId);
+  const buriedKeys = (stored.buriedSiblings ?? []).map((sibling) => sibling.cardKey);
 
   return {
     reviewId: stored.id,
@@ -54,6 +109,17 @@ async function replayStoredReview(
     leech: leech.leech,
     suspended: leech.autoSuspend || stored.prevSchedule?.suspendedAt != null,
     points,
+    cardKey: stored.cardKey,
+    buriedVariantIds: variantIdsForKeys(variants, buriedKeys),
+    followUp: await followUpFor(
+      tx,
+      stored.knowledgeBitId,
+      stored.variantId,
+      stored.cardKey,
+      stored.grade,
+      options,
+      stored.reviewedAt,
+    ),
   };
 }
 
@@ -82,19 +148,41 @@ export async function recordKnowledgeBitReview(
       }
     }
 
-    const stored = await readKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId);
+    const cardKey = cardKeyFor(variant);
+
+    if (input.rehearsal) {
+      return { ok: true as const, ...(await recordRehearsalInTx(tx, variant, cardKey, input, now)) };
+    }
+
+    const stored = await readKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId, cardKey);
     const previous = stored && stored.reviewCount > 0 ? stored : null;
-    const next = deriveGradeSchedule(previous, input.grade, now);
+    const { options, clock } = await readStepOptionsInTx(tx, variant.knowledgeBitId, now);
+    const next = deriveGradeSchedule(previous, input.grade, now, options);
     const leech = deriveLeechOutcome(previous?.lapses ?? 0, next.lapses);
 
     await upsertKnowledgeBitScheduleInTx(
       tx,
       variant.knowledgeBitId,
+      cardKey,
       { ...next, suspendedAt: leech.autoSuspend ? now : undefined },
       now,
     );
 
+    const activeVariants = await listActiveCardVariantsInTx(tx, variant.knowledgeBitId);
+    const buried =
+      cardKey !== "" && input.burySiblings !== false
+        ? await buryCardSiblingsInTx(
+            tx,
+            variant.knowledgeBitId,
+            cardKey,
+            [...new Set(activeVariants.map((active) => active.cardKey))],
+            (await getLocalDayWindow(input.tz ?? clock.timeZone, now, tx)).endsAt,
+          )
+        : [];
+
     const reviewId = await insertKnowledgeBitReview(tx, {
+      cardKey,
+      buriedSiblings: buried.length > 0 ? buried : null,
       knowledgeBitId: variant.knowledgeBitId,
       variantId: variant.id,
       grade: input.grade,
@@ -137,6 +225,20 @@ export async function recordKnowledgeBitReview(
       leech: leech.leech,
       suspended: leech.autoSuspend || stored?.suspendedAt != null,
       points,
+      cardKey,
+      buriedVariantIds: variantIdsForKeys(
+        activeVariants,
+        buried.map((sibling) => sibling.cardKey),
+      ),
+      followUp: await followUpFor(
+        tx,
+        variant.knowledgeBitId,
+        variant.id,
+        cardKey,
+        input.grade,
+        options,
+        now,
+      ),
     };
   });
 }

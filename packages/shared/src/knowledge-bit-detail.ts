@@ -5,11 +5,16 @@ import {
 } from "./knowledge-bit-browser-filters";
 import { knowledgeBitQuestionVariantKindSchema } from "./knowledge-bit";
 import { knowledgeBitOverviewStateSchema } from "./knowledge-bit-overview";
+import { cardKeySchema } from "./card-key";
 
 export const KNOWLEDGE_BIT_VARIANT_KIND_LABELS = {
   basic: "Basic",
   wh_question: "Why question",
   fill_in_the_blank: "Fill in the blank",
+  cloze: "Cloze",
+  list_step: "List step",
+  list_next: "Next step",
+  list_overview: "List overview",
 } as const satisfies Record<z.infer<typeof knowledgeBitQuestionVariantKindSchema>, string>;
 
 export const knowledgeBitDetailPhrasingSchema = z.object({
@@ -17,6 +22,7 @@ export const knowledgeBitDetailPhrasingSchema = z.object({
   kind: knowledgeBitQuestionVariantKindSchema,
   kindLabel: z.string(),
   prompt: z.string(),
+  context: z.string().nullable().optional(),
   answer: z.string(),
   sentence: z.string().nullable(),
 });
@@ -32,6 +38,20 @@ export const knowledgeBitDetailReviewSchema = z.object({
 
 export type KnowledgeBitDetailReview = z.infer<typeof knowledgeBitDetailReviewSchema>;
 
+export const knowledgeBitDetailCardSchema = z.object({
+  variantId: z.string(),
+  cardKey: cardKeySchema,
+  kind: knowledgeBitQuestionVariantKindSchema,
+  order: z.number().int().min(0),
+  state: knowledgeBitOverviewStateSchema,
+  dueAt: z.string().nullable(),
+  lapses: z.number().int().min(0),
+  suspended: z.boolean(),
+  buried: z.boolean(),
+});
+
+export type KnowledgeBitDetailCard = z.infer<typeof knowledgeBitDetailCardSchema>;
+
 export const knowledgeBitDetailSchema = z.object({
   knowledgeBitId: z.string(),
   body: z.string(),
@@ -42,10 +62,12 @@ export const knowledgeBitDetailSchema = z.object({
   origin: z.enum(knowledgeBitBrowserOriginValues),
   addedBy: z.enum(knowledgeBitBrowserAddedByValues),
   sourceId: z.string().nullable(),
+  isPhrase: z.boolean().optional(),
   sourceLabel: z.string().nullable(),
   sourceUrl: z.string().nullable(),
   addedAt: z.string(),
   review: knowledgeBitDetailReviewSchema,
+  cards: z.array(knowledgeBitDetailCardSchema).optional(),
 });
 
 export type KnowledgeBitDetail = z.infer<typeof knowledgeBitDetailSchema>;

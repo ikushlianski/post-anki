@@ -30,7 +30,13 @@ import {
   pickBusinessLessons,
   runBusinessKnowledgeBitCards,
 } from "./knowledge-bit-business-cards.agent.js";
-import { ACTIVE_BUSINESS_CARDS_PROMPT, BUSINESS_CARDS_PROMPT_V3_SELF_FILTER } from "./knowledge-bit-business-cards.prompt.js";
+import {
+  ACTIVE_BUSINESS_CARDS_PROMPT,
+  BUSINESS_CARDS_PROMPT_V3_SELF_FILTER,
+  BUSINESS_CARDS_PROMPT_V4_MULTI_CLOZE,
+  BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST,
+  BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY,
+} from "./knowledge-bit-business-cards.prompt.js";
 import { runKnowledgeBitSourceItems } from "./knowledge-bit-source-items.agent.js";
 import { generateWithRetry } from "./generate-with-retry.js";
 import { validateSourceItems } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
@@ -63,9 +69,23 @@ function reply(payload: unknown, fenced = false): { text: string } {
 }
 
 describe("business card writer", () => {
-  it("should use the v3 self-filter prompt as the active business prompt", () => {
-    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V3_SELF_FILTER);
+  it("should add one detail line for concise or deep subjects and none for standard", () => {
+    const standard = buildBusinessCardsPrompt(SOURCE, { detailLevel: "standard" });
+
+    expect(standard).toBe(buildBusinessCardsPrompt(SOURCE));
+    expect(buildBusinessCardsPrompt(SOURCE, { detailLevel: "concise" })).toContain("Detail level: concise");
+    expect(buildBusinessCardsPrompt(SOURCE, { detailLevel: "deep" })).toContain("Detail level: deep");
+  });
+
+  it("should use the may-be-empty prompt as the active business prompt and keep v3 and v4 for comparison", () => {
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY);
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).not.toBe(BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST);
+    expect(BUSINESS_CARDS_PROMPT_V4_MULTI_CLOZE).not.toContain("ordered_list");
+    expect(buildBusinessCardsPrompt(SOURCE)).toContain('"ordered_list"');
+    expect(buildBusinessCardsPrompt(SOURCE)).toContain('"steps": []');
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).not.toBe(BUSINESS_CARDS_PROMPT_V3_SELF_FILTER);
     expect(buildBusinessCardsPrompt(SOURCE)).toContain("Pass 1: choose the ideas");
+    expect(buildBusinessCardsPrompt(SOURCE)).toContain("{{c1::term}}");
   });
 
   it("should ask for one non-yes-no question, a direct short answer and a card for a short note", () => {
@@ -73,7 +93,14 @@ describe("business card writer", () => {
 
     expect(prompt).toContain("never a copy of the source");
     expect(prompt).toContain("never a yes/no question");
-    expect(prompt).toContain("do not return an empty list");
+    expect(prompt).toContain("never return an empty list for");
+    expect(prompt).not.toContain("do not return an empty list");
+  });
+
+  it("should allow an empty card list only for text with nothing of practical value", () => {
+    const prompt = buildBusinessCardsPrompt(SOURCE);
+
+    expect(prompt).toContain('Return an empty "cards" list only when the text has nothing of practical value');
   });
 
   it("should not tell the model to name the author, which the source-reference guard rejects", () => {
@@ -135,8 +162,45 @@ describe("business card writer", () => {
     });
   });
 
-  it("should drop a cloze card that has no single blank", () => {
+  it("should turn a multi-gap cloze card into one cloze item that keeps every gap", () => {
     const cloze = { ...BASIC, type: "cloze", front: "A {{c1::price}} floor protects {{c2::margin}}.", back: "" };
+    const [lesson] = pickBusinessLessons({ cards: [cloze] }, SOURCE);
+
+    expect(lesson?.cards).toEqual([
+      {
+        kind: "cloze",
+        statement: "A price floor protects margin.",
+        question: "A {{c1::price}} floor protects {{c2::margin}}.",
+        answer: "price / margin",
+        quote: BASIC.source_quote,
+      },
+    ]);
+  });
+
+  it("should turn an ordered list with 3 to 8 steps into one ordered-list item", () => {
+    const list = { ...BASIC, type: "ordered_list", front: "Closing a sale", back: "", steps: ["Qualify", "Pitch", "Close"] };
+    const [lesson] = pickBusinessLessons({ cards: [list] }, SOURCE);
+
+    expect(lesson?.cards).toEqual([
+      {
+        kind: "ordered_list",
+        statement: "Closing a sale: Qualify; Pitch; Close",
+        question: "Closing a sale\nQualify\nPitch\nClose",
+        answer: "1. Qualify\n2. Pitch\n3. Close",
+        quote: BASIC.source_quote,
+      },
+    ]);
+  });
+
+  it("should drop an ordered list with too few or duplicate steps", () => {
+    const short = { ...BASIC, type: "ordered_list", front: "Closing a sale", steps: ["Qualify", "Pitch"] };
+    const duplicate = { ...BASIC, type: "ordered_list", front: "Closing a sale", steps: ["Qualify", "Pitch", "pitch"] };
+
+    expect(pickBusinessLessons({ cards: [short, duplicate] }, SOURCE)).toEqual([]);
+  });
+
+  it("should drop a cloze card whose markers are malformed", () => {
+    const cloze = { ...BASIC, type: "cloze", front: "A {{c1::price floor protects margin.", back: "" };
 
     expect(pickBusinessLessons({ cards: [cloze] }, SOURCE)).toEqual([]);
   });
@@ -161,6 +225,41 @@ describe("business card writer", () => {
 
   it("should return nothing for an empty card list", () => {
     expect(pickBusinessLessons({ cards: [] }, SOURCE)).toEqual([]);
+  });
+
+  it("should use the pre-V6 prompt that forbids an empty list when forcing at least one card", () => {
+    expect(buildBusinessCardsPrompt(SOURCE, { forceAtLeastOne: true })).toContain("do not return an empty list");
+    expect(buildBusinessCardsPrompt(SOURCE, { forceAtLeastOne: true })).not.toContain(
+      "Return an empty \"cards\" list only when",
+    );
+    expect(buildBusinessCardsPrompt(SOURCE)).toContain("Return an empty \"cards\" list only when");
+  });
+
+  it("should signal a deliberate empty without retrying when the model returns no cards", async () => {
+    const onNothingWorthKeeping = vi.fn();
+
+    generateMock.mockReset();
+    generateMock.mockResolvedValue(reply({ dropped_ideas: [{ idea: "greeting", reason: "no takeaway" }], cards: [] }));
+
+    const drafts = await runBusinessKnowledgeBitCards(SOURCE, { onNothingWorthKeeping });
+
+    expect(drafts).toEqual([]);
+    expect(onNothingWorthKeeping).toHaveBeenCalledTimes(1);
+    expect(generateMock).toHaveBeenCalledTimes(1);
+    generateMock.mockReset();
+  });
+
+  it("should not signal a deliberate empty when cards were written but all dropped as invalid", async () => {
+    const onNothingWorthKeeping = vi.fn();
+
+    generateMock.mockReset();
+    generateMock.mockResolvedValue(reply({ cards: [{ ...BASIC, source_quote: "text that is not in the source" }] }));
+
+    const drafts = await runBusinessKnowledgeBitCards(SOURCE, { onNothingWorthKeeping });
+
+    expect(drafts).toEqual([]);
+    expect(onNothingWorthKeeping).not.toHaveBeenCalled();
+    generateMock.mockReset();
   });
 
   it("should accept a quote that differs only by case, spacing and curly quotes", () => {

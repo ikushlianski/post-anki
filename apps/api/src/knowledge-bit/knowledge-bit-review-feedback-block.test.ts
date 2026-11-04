@@ -39,6 +39,17 @@ describe("buildReviewerFeedbackBlock", () => {
     expect(block).toContain("Reject reasons in the last 3 reviews");
   });
 
+  it("should add a quality hint only for new reasons the reviewer actually used", () => {
+    const block = buildReviewerFeedbackBlock(feedback([rejected("Q1", "text_recall_only"), rejected("Q2", "wrong_language")]));
+
+    expect(block).toContain("Test understanding, not the wording of the text.");
+    expect(block).not.toContain("bent to fit the answer.");
+  });
+
+  it("should still label old rejections that used a legacy reason", () => {
+    expect(buildReviewerFeedbackBlock(feedback([rejected("Q1", "meta_wording")]))).toContain("rejected: Meta wording");
+  });
+
   it("should include approved examples as the desired style", () => {
     const block = buildReviewerFeedbackBlock(feedback([rejected("Bad one")], [approved("Good Q", "Good A")]));
 

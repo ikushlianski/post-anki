@@ -15,6 +15,7 @@ import {
   tagAssignments,
   topicCardVariants,
 } from "../db/schema.js";
+import { deleteChatQueueMessages } from "./knowledge-bit-chat-queue-messages.repo.js";
 
 function emptyCounts(): KnowledgeDeletionCounts {
   return {
@@ -92,6 +93,7 @@ export async function clearAllKnowledge(db: DbExecutor = getDb()): Promise<Knowl
       await tx.delete(tagAssignments).where(eq(tagAssignments.nodeType, "knowledgeBit")),
     );
     counts.questionVariants = rows(await tx.delete(knowledgeBitQuestionVariants));
+    await deleteChatQueueMessages(tx);
     counts.knowledgeBits = rows(await tx.delete(knowledgeBits));
     counts.extractionGrades = rows(await tx.delete(knowledgeSourceExtractionGrade));
     counts.knowledgeSources = rows(await tx.delete(knowledgeSources));
@@ -150,6 +152,7 @@ async function purgeBitsIn(bitIds: string[], db: DbExecutor): Promise<KnowledgeD
       .delete(knowledgeBitQuestionVariants)
       .where(inArray(knowledgeBitQuestionVariants.knowledgeBitId, bitIds)),
   );
+  await deleteChatQueueMessages(db, bitIds);
   counts.knowledgeBits = rows(
     await db.delete(knowledgeBits).where(
       inArray(

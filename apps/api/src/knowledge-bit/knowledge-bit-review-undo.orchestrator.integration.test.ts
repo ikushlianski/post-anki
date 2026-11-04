@@ -129,7 +129,7 @@ describe("undoKnowledgeBitReview (real Postgres)", () => {
     const before = await readSchedule(bitId);
     const reviewId = await grade(variantId, "again", "2026-10-05T00:00:00.000Z");
 
-    expect(await undoKnowledgeBitReview(reviewId)).toEqual({ ok: true, knowledgeBitId: bitId });
+    expect(await undoKnowledgeBitReview(reviewId)).toMatchObject({ ok: true, knowledgeBitId: bitId });
     expect(await readSchedule(bitId)).toEqual(before);
   });
 

@@ -1,0 +1,1 @@
+export const GENERATING_STALE_AFTER_MS = 15 * 60 * 1000;

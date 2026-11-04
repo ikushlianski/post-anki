@@ -19,6 +19,8 @@ const KNOWN_CODES = [
   "knowledge_source_reclaimed",
   "extraction_failed",
   "provider_rate_limited",
+  "llm_budget_paused",
+  "item_cap_reached",
   "workflow_executor_lost",
 ];
 
@@ -38,6 +40,10 @@ describe("extractionFailureWording", () => {
     expect(extractionFailureWording("provider_rate_limited")).toContain("busy");
   });
 
+  it("should tell the user the daily AI limit resets after midnight UTC", () => {
+    expect(extractionFailureWording("llm_budget_paused")).toContain("midnight UTC");
+  });
+
   it.each([null, undefined, "", "durable:abc", "Error: socket hang up at foo", "toString", "__proto__"])(
     "should fall back to the generic wording for %s",
     (reason) => {
@@ -47,6 +53,14 @@ describe("extractionFailureWording", () => {
 });
 
 describe("cardFlagWording", () => {
+  it("should tell the reviewer a phrase may be misheard and that an AI-suggested version is shown", () => {
+    expect(cardFlagWording("non_native_phrase")).toContain("AI-suggested version");
+  });
+
+  it("should not promise an AI-suggested version when the card has none", () => {
+    expect(cardFlagWording("non_native_phrase", false)).not.toContain("AI-suggested");
+  });
+
   it("should explain an unmatched quote in plain words", () => {
     expect(cardFlagWording("quote_not_in_source")).toBe("The supporting quote could not be matched to your note");
     expect(cardFlagWording("quote_length")).toBe(cardFlagWording("quote_not_in_source"));
@@ -99,6 +113,17 @@ describe("deriveAttentionKind", () => {
     expect(deriveAttentionKind({ ...base, status: "failed", failureReason: "weird free text" })).toBe("failed");
   });
 
+  it("should flag a note cut at the card cap even though it has live cards, until it is marked done", () => {
+    const capped = { ...base, status: "bits_detected", failureReason: "item_cap_reached", liveCardCount: 40 };
+
+    expect(deriveAttentionKind(capped)).toBe("capped");
+    expect(deriveAttentionKind({ ...capped, processed: true })).toBeNull();
+  });
+
+  it("should tell the user the rest of a capped note was not read", () => {
+    expect(attentionWording("capped", "item_cap_reached")).toContain("not read");
+  });
+
   it("should flag a finished note with no live cards that was not marked done", () => {
     expect(deriveAttentionKind({ ...base, status: "bits_detected" })).toBe("empty_result");
   });
@@ -125,5 +150,19 @@ describe("deriveAttentionKind", () => {
 
   it("should ignore notes not started yet", () => {
     expect(deriveAttentionKind({ ...base, status: "pending" })).toBeNull();
+  });
+});
+
+describe("nothing extracted outcome", () => {
+  it("should report nothing_extracted only when the marker is set and no card survived", () => {
+    const base = { status: "bits_detected", failureReason: null, updatedAt: new Date(), processed: false };
+
+    expect(deriveAttentionKind({ ...base, liveCardCount: 0, nothingExtractedAt: new Date() })).toBe("nothing_extracted");
+    expect(deriveAttentionKind({ ...base, liveCardCount: 2, nothingExtractedAt: new Date() })).toBeNull();
+    expect(deriveAttentionKind({ ...base, liveCardCount: 0 })).toBe("empty_result");
+  });
+
+  it("should word nothing_extracted as a calm message, not an error", () => {
+    expect(attentionWording("nothing_extracted", null)).toBe("Nothing here looked worth turning into a card.");
   });
 });

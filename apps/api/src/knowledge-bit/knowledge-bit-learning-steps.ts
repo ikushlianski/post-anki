@@ -6,6 +6,26 @@ export const GRADUATING_INTERVAL_DAYS = 1;
 export const EASY_INTERVAL_DAYS = 4;
 export const LEARN_AHEAD_SECONDS = 1200;
 
+export interface StepOptions {
+  learningSteps: number[];
+  relearningSteps: number[];
+}
+
+export const DEFAULT_STEP_OPTIONS: StepOptions = {
+  learningSteps: LEARNING_STEPS_SECONDS,
+  relearningSteps: RELEARNING_STEPS_SECONDS,
+};
+
+export function toStepOptions(minutes: {
+  learningStepsMinutes: number[];
+  relearningStepsMinutes: number[];
+}): StepOptions {
+  return {
+    learningSteps: minutes.learningStepsMinutes.map((step) => step * 60),
+    relearningSteps: minutes.relearningStepsMinutes.map((step) => step * 60),
+  };
+}
+
 const DAY_SECONDS = 24 * 60 * 60;
 
 export type StepPhase = "new" | "learning" | "relearning";
@@ -41,10 +61,11 @@ export function deriveLearningStep(
   state: LearningStepState,
   grade: ReviewGrade,
   now: Date,
+  options: StepOptions = DEFAULT_STEP_OPTIONS,
 ): LearningStepResult {
   const relearning = state.phase === "relearning";
   const phase = relearning ? "relearning" : "learning";
-  const steps = relearning ? RELEARNING_STEPS_SECONDS : LEARNING_STEPS_SECONDS;
+  const steps = relearning ? options.relearningSteps : options.learningSteps;
   const last = steps.length - 1;
   const step = state.phase === "new" ? 0 : Math.min(Math.max(state.learningStep, 0), last);
   const keepInterval = relearning ? state.intervalDays : 0;

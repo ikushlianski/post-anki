@@ -1,13 +1,18 @@
 import { z } from "zod";
+import {
+  knowledgeBitBrowserOriginValues,
+  pickFromAllowed,
+  type KnowledgeBitBrowserOriginValue,
+} from "./knowledge-bit-filter-list";
 import { knowledgeBitOverviewStateSchema, type KnowledgeBitOverviewState } from "./knowledge-bit-overview";
+
+export { knowledgeBitBrowserOriginValues, type KnowledgeBitBrowserOriginValue };
 
 export const KNOWLEDGE_BIT_BROWSER_TEXT_MAX = 200;
 
-export const knowledgeBitBrowserOriginValues = ["manual", "ai_web", "pasted", "notion", "article"] as const;
 export const knowledgeBitBrowserAddedByValues = ["you", "ai"] as const;
 export const knowledgeBitBrowserLinkValues = ["has", "none"] as const;
 
-export type KnowledgeBitBrowserOriginValue = (typeof knowledgeBitBrowserOriginValues)[number];
 export type KnowledgeBitBrowserAddedBy = (typeof knowledgeBitBrowserAddedByValues)[number];
 export type KnowledgeBitBrowserLink = (typeof knowledgeBitBrowserLinkValues)[number];
 
@@ -69,18 +74,6 @@ export function isBrowserDateRangeReversed(filters: Pick<KnowledgeBitBrowserFilt
     browserDateBoundInstant(filters.from, "start").getTime() >
     browserDateBoundInstant(filters.to, "end").getTime()
   );
-}
-
-function listOf(raw: unknown): string[] {
-  const parts = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [];
-
-  return parts.filter((part): part is string => typeof part === "string").map((part) => part.trim());
-}
-
-function pickFromAllowed<T extends string>(raw: unknown, allowed: readonly T[]): T[] | undefined {
-  const picked = allowed.filter((value) => listOf(raw).includes(value));
-
-  return picked.length > 0 ? picked : undefined;
 }
 
 function text(raw: unknown): string | undefined {

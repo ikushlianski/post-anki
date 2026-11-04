@@ -11,14 +11,25 @@ export const BUSINESS_SUB_SUBJECTS: SubjectSeedNode[] = [
     name: "Sales",
     children: [{ name: "Cold sales" }, { name: "Sales process" }, { name: "Objection handling" }],
   },
+  { name: "Negotiation" },
+  { name: "Loyalty" },
   { name: "SMM" },
   { name: "Hiring" },
   { name: "Director" },
   { name: "Communication" },
+  { name: "Networking" },
   {
     name: "Management",
     children: [{ name: "Delegation" }, { name: "People management" }],
   },
+  { name: "Leadership" },
+  { name: "Customer Success" },
+  { name: "Entrepreneurship" },
+  { name: "Finance" },
+  { name: "Operations" },
+  { name: "Product" },
+  { name: "Strategy" },
+  { name: "Common" },
 ];
 
 export interface SubjectSeedStore {
@@ -57,19 +68,27 @@ async function seedChildren(
   }
 }
 
-export async function seedBusinessSubSubjects(
+export async function seedSubSubjects(
   store: SubjectSeedStore,
-  nodes: SubjectSeedNode[] = BUSINESS_SUB_SUBJECTS,
+  rootName: string,
+  nodes: SubjectSeedNode[],
 ): Promise<SubjectSeedResult> {
-  const rootId = await store.findRootByName(BUSINESS_SUBJECT_NAME);
+  const rootId = await store.findRootByName(rootName);
 
   if (!rootId) {
-    throw new Error(`Subject "${BUSINESS_SUBJECT_NAME}" not found; run db:seed:subjects first`);
+    throw new Error(`Subject "${rootName}" not found; run db:seed:subjects first`);
   }
 
   const result: SubjectSeedResult = { created: [], skipped: [] };
 
-  await seedChildren(store, rootId, BUSINESS_SUBJECT_NAME, nodes, result);
+  await seedChildren(store, rootId, rootName, nodes, result);
 
   return result;
+}
+
+export function seedBusinessSubSubjects(
+  store: SubjectSeedStore,
+  nodes: SubjectSeedNode[] = BUSINESS_SUB_SUBJECTS,
+): Promise<SubjectSeedResult> {
+  return seedSubSubjects(store, BUSINESS_SUBJECT_NAME, nodes);
 }

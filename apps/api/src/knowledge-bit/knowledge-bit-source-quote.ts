@@ -2,6 +2,14 @@ export const SOURCE_ITEM_QUOTE_MIN_CHARS = 12;
 export const SOURCE_ITEM_QUOTE_MAX_CHARS = 300;
 export const SOURCE_ITEM_STATEMENT_MAX_CHARS = 600;
 
+export function isQuoteLengthValid(quote: string, sourceText: string): boolean {
+  if (quote.length > SOURCE_ITEM_QUOTE_MAX_CHARS) {
+    return false;
+  }
+
+  return quote.length >= SOURCE_ITEM_QUOTE_MIN_CHARS || quote === sourceText.trim();
+}
+
 const QUOTE_MARKS = /["'`«»„“”‟‘’‚‛‹›]/gu;
 
 export function normalizeForQuoteMatch(text: string): string {

@@ -103,3 +103,23 @@ describe("subject assignment repo", () => {
     expect(await listSourcesAwaitingSubject(10)).toEqual([]);
   });
 });
+
+describe("subject assignment scan for sources added with an explicit subject", () => {
+  it("should skip a freshly added source that already has a subject while still listing an unfiled one", async () => {
+    await client.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, status, subject_id) VALUES
+        ('src_named_new', 'prose', 'named at add time', 'bits_detected', 'sub_owner'),
+        ('src_unnamed_new', 'prose', 'left unfiled at add time', 'bits_detected', NULL)`,
+    );
+    await client.query(
+      `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body) VALUES
+        ('bit_named_new', 'src_named_new', 0, 'Named card'),
+        ('bit_unnamed_new', 'src_unnamed_new', 0, 'Unnamed card')`,
+    );
+
+    const ids = (await listSourcesAwaitingSubject(10)).map((source) => source.id);
+
+    expect(ids).toContain("src_unnamed_new");
+    expect(ids).not.toContain("src_named_new");
+  });
+});

@@ -6,7 +6,13 @@ import type {
   StudySessionPushResponse,
   StudySessionTargetType,
 } from "@post-anki/shared";
-import { collectDescendantNodeIds, isSessionMissed, scopeSessionCandidates, selectDailyPush, sessionConsistency } from "@post-anki/core";
+import {
+  collectDescendantNodeIds,
+  isSessionMissed,
+  scopeSessionCandidates,
+  selectDailyPush,
+  sessionConsistency,
+} from "@post-anki/core";
 import { buildProbeQuestionForGap } from "../probe/probe.service.js";
 import { gatherPushCandidates } from "../push/push.repo.js";
 import { recordActivityToday } from "../streak/streak.service.js";
@@ -56,9 +62,7 @@ export async function resolveScopedCurriculumIds(
 
   const { nodes } = await gatherPathProgressInputs(record.steps.map((step) => step.domainNodeId));
   const subtreeIds = [
-    ...new Set(
-      record.steps.flatMap((step) => collectDescendantNodeIds(step.domainNodeId, nodes)),
-    ),
+    ...new Set(record.steps.flatMap((step) => collectDescendantNodeIds(step.domainNodeId, nodes))),
   ];
 
   return resolveCurriculumIdsForDomainNodeIds(subtreeIds);
@@ -93,7 +97,7 @@ export async function getSessionPush(
 export async function completeSession(id: string, now: Date): Promise<StudySession | null> {
   const session = await endStudySession(id, now);
 
-  if (session && session.status === "completed") {
+  if (session && session.status === "completed" && session.completedAt === now.toISOString()) {
     await recordActivityToday(now.toISOString());
   }
 

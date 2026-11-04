@@ -158,6 +158,7 @@ async function loadBatch(afterId: string, now: Date, db: DbExecutor) {
       kind: knowledgeBitQuestionVariants.kind,
       order: knowledgeBitQuestionVariants.order,
       prompt: knowledgeBitQuestionVariants.prompt,
+      context: knowledgeBitQuestionVariants.context,
       answer: knowledgeBitQuestionVariants.answer,
       createdAt: knowledgeBitQuestionVariants.createdAt,
     })
@@ -181,7 +182,7 @@ async function loadBatch(afterId: string, now: Date, db: DbExecutor) {
 
     othersByBit.set(row.knowledgeBitId, [
       ...(othersByBit.get(row.knowledgeBitId) ?? []),
-      { question: row.prompt, answer: row.answer },
+      { question: exportFront(row), answer: row.answer },
     ]);
   }
 
@@ -197,7 +198,7 @@ async function loadBatch(afterId: string, now: Date, db: DbExecutor) {
     return [
       {
         id: bit.id,
-        question: variant.prompt,
+        question: exportFront(variant),
         answer: variant.answer,
         otherQuestions: othersByBit.get(bit.id) ?? [],
         topic: bit.topic,
@@ -224,6 +225,10 @@ async function loadBatch(afterId: string, now: Date, db: DbExecutor) {
   });
 
   return { lastId: ids[ids.length - 1] ?? afterId, cards, done: bits.length < EXPORT_BATCH_SIZE };
+}
+
+function exportFront(variant: { prompt: string; context: string | null }): string {
+  return variant.context ? `${variant.prompt}\n${variant.context}` : variant.prompt;
 }
 
 // Approved cards in id order, one bounded batch at a time, so memory stays flat.

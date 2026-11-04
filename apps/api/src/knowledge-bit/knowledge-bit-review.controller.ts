@@ -4,7 +4,7 @@ import {
   reviewCardsQuerySchema,
   scheduleControlInputSchema,
 } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendError, sendJson, sendInvalidQuery } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { recordActivityToday } from "../streak/streak.service.js";
 import { getKnowledgeBitReviewQueue } from "./knowledge-bit-review-queue.repo.js";
@@ -19,15 +19,15 @@ export async function handleListKnowledgeBitReviewCards(
   const parsed = reviewCardsQuerySchema.safeParse(Object.fromEntries(new URLSearchParams(search)));
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 
-  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId } = parsed.data;
+  const { limit, tz, tagId, topicId, knowledgeBitId, subjectId, aheadDays } = parsed.data;
   const queue = await getKnowledgeBitReviewQueue(
     limit,
     { tagId, topicId, knowledgeBitId, subjectId },
-    { tz, now: new Date() },
+    { tz, now: new Date(), aheadDays },
   );
 
   sendJson(res, 200, queue);
@@ -55,7 +55,7 @@ export async function handleRecordKnowledgeBitReview(
   const { ok: _ok, ...result } = outcome;
 
   try {
-    await recordActivityToday(new Date().toISOString());
+    await recordActivityToday(new Date().toISOString(), "review");
   } catch (error) {
     log.warn({ error }, "record_activity_after_review_failed");
   }
@@ -74,7 +74,9 @@ export async function handleUndoKnowledgeBitReview(
     return;
   }
 
-  sendJson(res, 200, { knowledgeBitId: outcome.knowledgeBitId });
+  const { ok: _ok, ...result } = outcome;
+
+  sendJson(res, 200, result);
 }
 
 export async function handleUpdateKnowledgeBitScheduleControls(

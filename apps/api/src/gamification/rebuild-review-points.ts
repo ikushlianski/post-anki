@@ -3,6 +3,8 @@ import { getDb } from "../db/client.js";
 import { knowledgeBitReviews, knowledgeBitSchedules } from "../db/schema.js";
 import { awardReviewPointInTx } from "./review-point-event.repo.js";
 
+const cardId = (knowledgeBitId: string, cardKey: string) => `${knowledgeBitId}\u0000${cardKey}`;
+
 export async function rebuildReviewPoints(): Promise<{ reviewed: number }> {
   const db = getDb();
   const [reviews, schedules] = await Promise.all([
@@ -13,13 +15,13 @@ export async function rebuildReviewPoints(): Promise<{ reviewed: number }> {
       .orderBy(asc(knowledgeBitReviews.reviewedAt)),
     db.select().from(knowledgeBitSchedules),
   ]);
-  const currentInterval = new Map(schedules.map((row) => [row.knowledgeBitId, row.intervalDays]));
+  const currentInterval = new Map(schedules.map((row) => [cardId(row.knowledgeBitId, row.cardKey), row.intervalDays]));
   const nextPrevInterval = new Map<string, number>();
 
   for (let i = reviews.length - 1; i >= 0; i -= 1) {
     const review = reviews[i]!;
-    const intervalDaysAfter =
-      nextPrevInterval.get(review.knowledgeBitId) ?? currentInterval.get(review.knowledgeBitId) ?? 0;
+    const id = cardId(review.knowledgeBitId, review.cardKey);
+    const intervalDaysAfter = nextPrevInterval.get(id) ?? currentInterval.get(id) ?? 0;
 
     await db.transaction((tx) =>
       awardReviewPointInTx(tx, {
@@ -30,7 +32,7 @@ export async function rebuildReviewPoints(): Promise<{ reviewed: number }> {
       }),
     );
 
-    nextPrevInterval.set(review.knowledgeBitId, review.prevSchedule?.intervalDays ?? 0);
+    nextPrevInterval.set(id, review.prevSchedule?.intervalDays ?? 0);
   }
 
   return { reviewed: reviews.length };

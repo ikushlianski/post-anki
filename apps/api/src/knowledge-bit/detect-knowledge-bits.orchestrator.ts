@@ -1,4 +1,4 @@
-import { resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
+import { KNOWLEDGE_SOURCE_MAX_CHARS, resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
 import { log } from "../shared/log.js";
 import { loadRecentFeedbackForExtraction } from "./knowledge-bit-feedback.repo.js";
 import { loadStyleNotesBlock } from "../card-triage/style-notes-loader.js";
@@ -12,59 +12,45 @@ import {
   resetStaleProcessingKnowledgeSources,
   type PendingKnowledgeSource,
 } from "./knowledge-bit.repo.js";
-import {
-  loadLearningIntentSafely,
-  resolveKnowledgeBitLearningIntent,
-  type LearningIntentLoader,
-} from "./knowledge-bit-learning-intent.js";
-import { resolveSubjectKind, type SubjectKind } from "../subject/subject-kind.js";
-import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
+import { markKnowledgeSourceItemCapReached } from "./knowledge-source-item-cap.repo.js";
+import { markKnowledgeSourceNothingExtracted } from "./knowledge-source-nothing-extracted.repo.js";
+import { loadLearningIntentSafely, resolveKnowledgeBitLearningIntent } from "./knowledge-bit-learning-intent.js";
+import { resolveSubjectKind } from "../subject/subject-kind.js";
+import { loadFusionModelIds, resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
+import { loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
+import { resolveDetailLevel } from "../subject/subject-learning-settings.js";
+import { loadDetailLevelSafely } from "./knowledge-bit-detail-level.js";
 import { chunkSourceText, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
-import {
-  normalizeStatement,
-  selectNewItems,
-  validateSourceItems,
-  type FlaggedLesson,
-  type LessonDraft,
-  type SourceItemBatchValidation,
-} from "./knowledge-bit-source-item-validation.js";
-import {
-  getSourceInsertState,
-  insertSourceItemsForChunk,
-  type InsertSourceItemsInput,
-  type SourceInsertState,
-} from "./knowledge-bit-source-items.repo.js";
+import { normalizeStatement } from "./knowledge-bit-source-item-validation.js";
+import { getSourceInsertState, insertSourceItemsForChunk } from "./knowledge-bit-source-items.repo.js";
+import { processChunk } from "./detect-knowledge-bits-chunk.js";
+import type {
+  GenerateItemsDeps,
+  GenerateItemsResult,
+  RunState,
+  WriteOptions,
+} from "./detect-knowledge-bits.types.js";
+
+export {
+  allChunksDeliberatelyEmpty,
+  countUnseenStatements,
+  writeAndValidate,
+  MAX_ITEMS_PER_CHUNK,
+  MAX_ITEMS_PER_SOURCE,
+  ORDINAL_STRIDE_PER_CHUNK,
+  type ChunkCards,
+} from "./detect-knowledge-bits-chunk.js";
+export type {
+  GenerateItemsDeps,
+  GenerateItemsResult,
+  WriteOptions,
+} from "./detect-knowledge-bits.types.js";
 
 export const DETECT_BITS_BATCH_CAP = 20;
-export const MAX_SOURCE_CHARS = 50_000;
+export const MAX_SOURCE_CHARS = KNOWLEDGE_SOURCE_MAX_CHARS;
 export const STALE_PROCESSING_THRESHOLD_MS = 15 * 60 * 1000;
 export const CHUNK_MAX_CHARS = SOURCE_CHUNK_MAX_CHARS;
-export const MAX_ITEMS_PER_CHUNK = 8;
-export const MAX_ITEMS_PER_SOURCE = 40;
 export const CHUNK_CONCURRENCY = 3;
-export const ORDINAL_STRIDE_PER_CHUNK = 1000;
-
-export interface WriteOptions {
-  modelId?: string;
-  strictLanguage?: boolean;
-  feedbackBlock?: string;
-  styleNotesBlock?: string;
-  learningIntent?: string;
-  subjectKind?: SubjectKind;
-  abortSignal?: AbortSignal;
-}
-
-export interface GenerateItemsDeps {
-  writeItems: (chunk: string, options: WriteOptions) => Promise<LessonDraft[]>;
-  getInsertState: (sourceId: string) => Promise<SourceInsertState>;
-  insertItems: (input: InsertSourceItemsInput) => Promise<number>;
-  markDetected: (id: string, claimedAt: Date) => Promise<boolean>;
-  markFailed: (id: string, reason: string, claimedAt: Date) => Promise<boolean>;
-  loadFeedbackBlock: (subjectId: string | null) => Promise<string>;
-  loadStyleNotesBlock?: (subjectId: string | null) => Promise<string>;
-  loadLearningIntent?: LearningIntentLoader;
-  loadSubjectKind?: (subjectId: string | null) => Promise<SubjectKind>;
-}
 
 export function defaultGenerateItemsDeps(): GenerateItemsDeps {
   return {
@@ -72,26 +58,27 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     getInsertState: getSourceInsertState,
     insertItems: insertSourceItemsForChunk,
     markDetected: markKnowledgeSourceBitsDetected,
+    markNothingExtracted: markKnowledgeSourceNothingExtracted,
+    markItemCapReached: markKnowledgeSourceItemCapReached,
     markFailed: markKnowledgeSourceFailed,
     loadFeedbackBlock: async (subjectId) =>
       buildReviewerFeedbackBlock(await loadRecentFeedbackForExtraction(subjectId)),
     loadStyleNotesBlock,
     loadLearningIntent: resolveKnowledgeBitLearningIntent,
     loadSubjectKind: resolveSubjectKind,
+    loadSourceKind: loadKnowledgeSourceKind,
+    loadTargetPhrases,
+    loadDetailLevel: resolveDetailLevel,
+    loadFusionModelIds,
   };
 }
 
-export interface GenerateItemsResult {
-  status: "detected" | "failed";
-  inserted: number;
-  failureReason: string | null;
-}
+function pickMarkDone(nothingExtracted: boolean, capped: boolean, deps: GenerateItemsDeps) {
+  if (nothingExtracted && deps.markNothingExtracted) {
+    return deps.markNothingExtracted;
+  }
 
-interface RunState {
-  seenStatements: Set<string>;
-  accepted: number;
-  inserted: number;
-  reclaimed: Error | null;
+  return capped && deps.markItemCapReached ? deps.markItemCapReached : deps.markDetected;
 }
 
 export function truncateReason(err: unknown): string {
@@ -106,117 +93,6 @@ export function rejectRawText(rawText: string | null): string | null {
   }
 
   return rawText.length > MAX_SOURCE_CHARS ? "source_too_long" : null;
-}
-
-function allDroppedForLanguage(result: { valid: unknown[]; dropped: string[] }): boolean {
-  return result.valid.length === 0 && result.dropped.length > 0 && result.dropped.every((reason) => reason === "wrong_language");
-}
-
-export interface ChunkCards {
-  valid: LessonDraft[];
-  flagged: FlaggedLesson[];
-}
-
-function toChunkCards(result: SourceItemBatchValidation): ChunkCards {
-  return { valid: result.valid, flagged: result.rejected };
-}
-
-function hasCards(cards: ChunkCards): boolean {
-  return cards.valid.length > 0 || cards.flagged.length > 0;
-}
-
-function betterOf(first: ChunkCards, second: ChunkCards): ChunkCards {
-  if (second.valid.length !== first.valid.length) {
-    return second.valid.length > first.valid.length ? second : first;
-  }
-
-  return first.valid.length === 0 && second.flagged.length > first.flagged.length ? second : first;
-}
-
-export async function writeAndValidate(
-  chunk: string,
-  options: WriteOptions,
-  deps: GenerateItemsDeps,
-): Promise<ChunkCards> {
-  const first = await deps.writeItems(chunk, options);
-  const firstResult = validateSourceItems(first, chunk);
-  const needsRetry =
-    firstResult.valid.length === 0 || firstResult.dropped.length * 2 >= first.length;
-
-  if (!needsRetry) {
-    return toChunkCards(firstResult);
-  }
-
-  log.warn({ dropped: firstResult.dropped, returned: first.length }, "knowledge_bit_source_items_retry");
-
-  const languageOnly = allDroppedForLanguage(firstResult);
-
-  try {
-    const second = await deps.writeItems(chunk, languageOnly ? { ...options, strictLanguage: true } : options);
-
-    return betterOf(toChunkCards(firstResult), toChunkCards(validateSourceItems(second, chunk)));
-  } catch (err) {
-    if (!hasCards(toChunkCards(firstResult))) {
-      throw err;
-    }
-
-    return toChunkCards(firstResult);
-  }
-}
-
-async function processChunk(
-  chunk: string,
-  index: number,
-  context: {
-    source: PendingKnowledgeSource;
-    options: WriteOptions;
-    firstOrdinal: number;
-    state: RunState;
-    deps: GenerateItemsDeps;
-  },
-): Promise<void> {
-  const { source, options, firstOrdinal, state, deps } = context;
-
-  if (state.reclaimed || state.accepted >= MAX_ITEMS_PER_SOURCE) {
-    return;
-  }
-
-  const { valid, flagged } = await writeAndValidate(chunk, options, deps);
-
-  if (!hasCards({ valid, flagged })) {
-    throw new Error("no_valid_items");
-  }
-
-  const flaggedItems = selectFlaggedLessons(flagged, state.seenStatements);
-  const items = selectNewItems(
-    valid,
-    state.seenStatements,
-    Math.min(MAX_ITEMS_PER_CHUNK, MAX_ITEMS_PER_SOURCE - state.accepted),
-  );
-
-  state.accepted += items.length;
-
-  if (items.length === 0 && flaggedItems.length === 0) {
-    return;
-  }
-
-  try {
-    const insertedCount = await deps.insertItems({
-      sourceId: source.id,
-      claimedAt: source.claimedAt,
-      firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
-      items,
-      flagged: flaggedItems,
-    });
-
-    state.inserted += insertedCount;
-  } catch (err) {
-    if (err instanceof Error && err.message === "knowledge_source_reclaimed") {
-      state.reclaimed = err;
-    }
-
-    throw err;
-  }
 }
 
 export function chooseModelId(requested: string | null | undefined, sourceId: string): string | undefined {
@@ -259,9 +135,23 @@ export async function loadStyleNotesBlockSafely(
   }
 }
 
+async function loadOptionalSafely<T>(
+  sourceId: string,
+  event: string,
+  load: ((sourceId: string) => Promise<T>) | undefined,
+): Promise<T | undefined> {
+  try {
+    return await load?.(sourceId);
+  } catch (err) {
+    log.warn({ err, knowledgeSourceId: sourceId }, event);
+
+    return undefined;
+  }
+}
+
 export async function generateItemsForSource(
   source: PendingKnowledgeSource,
-  requestedOptions: { modelId?: string } = {},
+  requestedOptions: { modelId?: string; forceAtLeastOne?: boolean } = {},
   deps: GenerateItemsDeps = defaultGenerateItemsDeps(),
 ): Promise<GenerateItemsResult> {
   const modelId = chooseModelId(requestedOptions.modelId ?? source.extractionModelId, source.id);
@@ -269,10 +159,26 @@ export async function generateItemsForSource(
   const styleNotesBlock = await loadStyleNotesBlockSafely(source, deps);
   const learningIntent = await loadLearningIntentSafely(source.subjectId, source.id, deps.loadLearningIntent);
   const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(source.subjectId);
+  const sourceKind = await loadOptionalSafely(source.id, "knowledge_source_kind_load_failed", deps.loadSourceKind);
+  const targetPhrases = await loadOptionalSafely(
+    source.id,
+    "knowledge_target_phrases_load_failed",
+    deps.loadTargetPhrases,
+  );
+  const detailLevel = await loadDetailLevelSafely(source.subjectId, deps.loadDetailLevel);
+  const fusionModelIds =
+    requestedOptions.modelId || source.extractionModelId
+      ? []
+      : await resolveFusionModelIds(deps.loadFusionModelIds, source.id);
   const options: WriteOptions = {
     learningIntent,
     subjectKind,
+    ...(sourceKind ? { sourceKind } : {}),
+    ...(targetPhrases && targetPhrases.length > 0 ? { targetPhrases } : {}),
+    ...(detailLevel ? { detailLevel } : {}),
+    ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),
     ...(modelId ? { modelId } : {}),
+    ...(requestedOptions.forceAtLeastOne ? { forceAtLeastOne: true } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
   };
@@ -294,6 +200,8 @@ export async function generateItemsForSource(
     accepted: 0,
     inserted: 0,
     reclaimed: null,
+    deliberateEmptyChunks: 0,
+    capped: false,
   };
   const chunks = chunkSourceText(rawText, CHUNK_MAX_CHARS).map((chunk, index) => ({ chunk, index }));
 
@@ -326,7 +234,10 @@ export async function generateItemsForSource(
     return { status: "failed", inserted: state.inserted, failureReason: reason };
   }
 
-  const stillOwned = await deps.markDetected(source.id, source.claimedAt);
+  const nothingExtracted =
+    state.inserted === 0 && chunks.length > 0 && state.deliberateEmptyChunks === chunks.length;
+  const markDone = pickMarkDone(nothingExtracted, state.capped, deps);
+  const stillOwned = await markDone(source.id, source.claimedAt);
 
   if (!stillOwned) {
     throw new Error("knowledge_source_reclaimed");

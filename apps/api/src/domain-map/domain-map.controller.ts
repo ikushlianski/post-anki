@@ -9,7 +9,7 @@ import {
   updateDomainTopicSuggestionInput,
 } from "@post-anki/shared";
 import { isDomainPriorityReviewDue } from "@post-anki/core";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { readJsonBody, sendBadGateway, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import {
   getDomainMapForSubject,
@@ -112,9 +112,7 @@ export async function handleTriggerDomainPriorityReview(
   } catch (err) {
     log.error({ err, subjectId }, "domain_priority_review_failed");
 
-    const message = err instanceof Error ? err.message : "domain priority review failed";
-
-    sendError(res, 502, "review_failed", message);
+    sendBadGateway(res, "review_failed");
   }
 }
 

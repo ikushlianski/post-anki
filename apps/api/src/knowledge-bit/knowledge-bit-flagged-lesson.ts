@@ -33,6 +33,8 @@ export function keepableCards(cards: readonly SourceItemDraft[], sourceText: str
     }))
     .filter(
       (card) =>
+        card.kind !== "cloze" &&
+        card.kind !== "ordered_list" &&
         card.question &&
         card.answer &&
         !hasInjectedMarkup([card.statement, card.question, card.answer], sourceText),

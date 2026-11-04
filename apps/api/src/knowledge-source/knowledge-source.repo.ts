@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { normalizeTargetPhrases } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -13,6 +14,7 @@ export interface KnowledgeSource {
   extractionModelId: string | null;
   sourceUrl?: string | null;
   summary?: string | null;
+  importKey?: string | null;
 }
 
 export async function insertKnowledgeSource(
@@ -20,7 +22,9 @@ export async function insertKnowledgeSource(
   subjectId: string | null = null,
   extractionModelId: string | null = null,
   sourceUrl: string | null = null,
+  targetPhrases?: string[],
 ): Promise<KnowledgeSource> {
+  const accent = normalizeTargetPhrases(targetPhrases);
   const row = {
     id: newId("ks"),
     kind: "prose",
@@ -29,6 +33,7 @@ export async function insertKnowledgeSource(
     subjectId,
     extractionModelId,
     ...(sourceUrl === null ? {} : { sourceUrl }),
+    ...(accent === null ? {} : { targetPhrases: accent }),
   };
 
   await getDb().insert(knowledgeSources).values(row);
@@ -51,10 +56,13 @@ export async function insertKnowledgeSources(
   rawTexts: string[],
   subjectId: string | null = null,
   extractionModelId: string | null = null,
+  targetPhrases?: string[],
 ): Promise<KnowledgeSource[]> {
   if (rawTexts.length === 0) {
     return [];
   }
+
+  const accent = normalizeTargetPhrases(targetPhrases);
 
   const rows = rawTexts.slice(0, MAX_SOURCES_PER_BATCH_ADD).map((rawText) => ({
     id: newId("ks"),
@@ -63,6 +71,7 @@ export async function insertKnowledgeSources(
     status: "pending",
     subjectId,
     extractionModelId,
+    ...(accent === null ? {} : { targetPhrases: accent }),
   }));
 
   await getDb().insert(knowledgeSources).values(rows);

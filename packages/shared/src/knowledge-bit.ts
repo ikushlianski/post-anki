@@ -1,32 +1,22 @@
 import { z } from "zod";
+import { CARD_TEXT_MAX_CHARS } from "./text-limits";
+import { editClozeNoteInput } from "./cloze";
+import { editOrderedListInput } from "./ordered-list";
 import { knowledgeItemModelIdSchema } from "./knowledge-item-model";
 import type { KnowledgeSourceAttention } from "./extraction-failure";
 import { KNOWLEDGE_SOURCE_MAX_CHARS } from "./knowledge-source-refusal";
 import { subjectCheckConfidenceSchema, type SubjectCheckConfidence } from "./knowledge-source-subject-check";
-
-export interface PendingPlacementSuggestion {
-  id: string;
-  body: string;
-  placementSuggestion: string;
-}
-
-// PATCH /knowledge-bits/:id/placement-suggestion
-export const resolvePlacementSuggestionInput = z.discriminatedUnion("status", [
-  z.object({
-    status: z.literal("accepted"),
-    moduleId: z.string().min(1),
-    title: z.string().min(1),
-  }),
-  z.object({ status: z.literal("rejected") }),
-]);
-
-export type ResolvePlacementSuggestionInput = z.infer<typeof resolvePlacementSuggestionInput>;
+import type { KnowledgeBitRejectReason } from "./knowledge-bit-review-feedback";
 
 // knowledge_bit_question_variants.kind
 export const knowledgeBitQuestionVariantKindSchema = z.enum([
   "wh_question",
   "fill_in_the_blank",
   "basic",
+  "cloze",
+  "list_step",
+  "list_next",
+  "list_overview",
 ]);
 
 export type KnowledgeBitQuestionVariantKind = z.infer<typeof knowledgeBitQuestionVariantKindSchema>;
@@ -37,6 +27,8 @@ export const knowledgeBitApprovalStateSchema = z.enum([
   "approved",
   "rejected",
   "superseded",
+  "inbox",
+  "chat",
 ]);
 
 export type KnowledgeBitApprovalState = z.infer<typeof knowledgeBitApprovalStateSchema>;
@@ -45,6 +37,7 @@ export type KnowledgeBitApprovalState = z.infer<typeof knowledgeBitApprovalState
 export const regenerateKnowledgeSourceInput = z.object({
   modelId: knowledgeItemModelIdSchema.optional(),
   text: z.string().trim().min(1).max(KNOWLEDGE_SOURCE_MAX_CHARS).optional(),
+  forceAtLeastOne: z.boolean().optional(),
 });
 
 export type RegenerateKnowledgeSourceInput = z.input<typeof regenerateKnowledgeSourceInput>;
@@ -56,15 +49,22 @@ export interface RegenerateKnowledgeSourceResult {
 
 // GET /knowledge-sources/:id/regeneration
 export interface KnowledgeSourceRegenerationStatus {
-  status: "running" | "done" | "failed";
+  status: "running" | "done" | "nothing_extracted" | "failed";
   failureReason: string | null;
+  outcome?: "cards" | "nothing" | "failed";
+  cardCount?: number;
 }
 
 // PATCH /knowledge-bits/question-variants/:id
-export const editKnowledgeBitQuestionVariantInput = z.object({
-  prompt: z.string().trim().min(1),
-  answer: z.string().trim().min(1),
-});
+export const editKnowledgeBitQuestionVariantInput = z.union([
+  z.object({
+    prompt: z.string().trim().min(1).max(CARD_TEXT_MAX_CHARS),
+    context: z.string().trim().max(CARD_TEXT_MAX_CHARS).nullable().optional(),
+    answer: z.string().trim().min(1).max(CARD_TEXT_MAX_CHARS),
+  }),
+  editClozeNoteInput,
+  editOrderedListInput,
+]);
 
 export type EditKnowledgeBitQuestionVariantInput = z.input<
   typeof editKnowledgeBitQuestionVariantInput
@@ -105,7 +105,9 @@ export interface PendingKnowledgeBitQuestionVariant {
   id: string;
   kind: KnowledgeBitQuestionVariantKind;
   prompt: string;
+  context?: string | null;
   answer: string;
+  sentence?: string | null;
 }
 
 export interface PendingKnowledgeBitFeedback {
@@ -115,16 +117,33 @@ export interface PendingKnowledgeBitFeedback {
   wordingRating: number | null;
 }
 
+export const pendingKnowledgeBitDuplicateOfSchema = z.object({
+  bitId: z.string().min(1),
+  front: z.string(),
+  back: z.string().nullable(),
+  similarity: z.number().min(0).max(1),
+  reason: z.string().nullable(),
+  similarBitIds: z.array(z.string().min(1)),
+});
+
+export type PendingKnowledgeBitDuplicateOf = z.infer<typeof pendingKnowledgeBitDuplicateOfSchema>;
+
 export interface PendingKnowledgeBitForReview {
   id: string;
+  createdAt?: string;
   body: string;
   background: string | null;
   variants: PendingKnowledgeBitQuestionVariant[];
+  exampleAiGeneratedAt?: string | null;
   origin: "extracted" | "manual";
   isAiGenerated: boolean;
   sourceLinks: string[];
   reviewFlag?: string | null;
+  aiSuggestion?: string | null;
+  answerChoice?: boolean;
   feedback?: PendingKnowledgeBitFeedback | null;
+  duplicateOf?: PendingKnowledgeBitDuplicateOf | null;
+  modelIds?: string[];
 }
 
 export interface PendingKnowledgeSourceExtractionGrade {
@@ -149,6 +168,7 @@ export interface PendingKnowledgeSourceForReview {
   suggestedSubjectId?: string | null;
   suggestedSubjectName?: string | null;
   suggestedSubjectConfidence?: SubjectCheckConfidence | null;
+  rejectReasonCodes?: KnowledgeBitRejectReason[];
   bits: PendingKnowledgeBitForReview[];
   processedAt?: Date | string | null;
   groupTotal?: number;
@@ -187,6 +207,7 @@ export type BulkApproveKnowledgeBitsResponse = z.infer<typeof bulkApproveKnowled
 export const pendingKnowledgeBitReviewCountResponse = z.object({
   count: z.number().int().min(0),
   attentionCount: z.number().int().min(0).default(0),
+  inboxCount: z.number().int().min(0).default(0),
 });
 
 export type PendingKnowledgeBitReviewCountResponse = z.infer<

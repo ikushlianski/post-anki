@@ -1,5 +1,6 @@
 import { and, desc, eq, exists, isNull, notExists, notInArray, or } from "drizzle-orm";
 import {
+  ITEM_CAP_REACHED_REASON,
   attentionFirstWords,
   deriveAttentionKind,
   type KnowledgeSourceAttention,
@@ -33,6 +34,7 @@ export async function listSourcesNeedingAttention(
       updatedAt: knowledgeSources.updatedAt,
       rawText: knowledgeSources.rawText,
       processedAt: knowledgeSources.processedAt,
+      nothingExtractedAt: knowledgeSources.nothingExtractedAt,
       hasLiveCard: exists(liveBitOfSource(db)),
     })
     .from(knowledgeSources)
@@ -44,6 +46,11 @@ export async function listSourcesNeedingAttention(
           eq(knowledgeSources.status, "bits_detected"),
           isNull(knowledgeSources.processedAt),
           notExists(liveBitOfSource(db)),
+        ),
+        and(
+          eq(knowledgeSources.status, "bits_detected"),
+          isNull(knowledgeSources.processedAt),
+          eq(knowledgeSources.failureReason, ITEM_CAP_REACHED_REASON),
         ),
       ),
     )
@@ -59,6 +66,7 @@ export async function listSourcesNeedingAttention(
       updatedAt: row.updatedAt,
       liveCardCount: row.hasLiveCard ? 1 : 0,
       processed: row.processedAt !== null,
+      nothingExtractedAt: row.nothingExtractedAt,
       now,
     });
 
@@ -83,5 +91,7 @@ export async function countSourcesNeedingAttention(
   now: Date = new Date(),
   db: DbExecutor = getDb(),
 ): Promise<number> {
-  return (await listSourcesNeedingAttention(ATTENTION_LIST_LIMIT, now, db)).length;
+  const entries = await listSourcesNeedingAttention(ATTENTION_LIST_LIMIT, now, db);
+
+  return entries.filter((entry) => entry.kind !== "nothing_extracted").length;
 }

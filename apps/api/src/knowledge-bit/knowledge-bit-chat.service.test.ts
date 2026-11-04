@@ -63,6 +63,19 @@ describe("askKnowledgeBitChat", () => {
     });
   });
 
+  it("should answer for an inbox item", async () => {
+    getKnowledgeBitById.mockResolvedValue({ id: "kb_1", body: "Fact", approvalState: "inbox" });
+
+    expect(await askKnowledgeBitChat("kb_1", { message: "Why?" })).toEqual({ reply: "It uses SYN, SYN-ACK, ACK." });
+  });
+
+  it.each(["pending", "chat", "rejected", "superseded"])("should refuse a %s item with not_approved", async (approvalState) => {
+    getKnowledgeBitById.mockResolvedValue({ id: "kb_1", body: "Fact", approvalState });
+
+    expect(await askKnowledgeBitChat("kb_1", { message: "Why?" })).toEqual({ error: "not_approved" });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
   it("grounds the reply on the knowledge item's own body", async () => {
     const result = await askKnowledgeBitChat("kb_1", { message: "How does TCP connect?" });
 

@@ -1,13 +1,15 @@
 import type http from "node:http";
-import { assignTagInput, createTagInput, mergeTagsInput } from "@post-anki/shared";
+import { assignTagInput, createTagInput, mergeTagsInput, renameTagInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
   addTagAssignment,
   createOrGetTag,
+  deleteExistingTag,
   deleteTagAssignment,
   getAllTagMasteryStatuses,
   getAllTags,
   mergeTagsService,
+  renameExistingTag,
 } from "./tag.service.js";
 
 export async function handleListTags(res: http.ServerResponse): Promise<void> {
@@ -100,4 +102,37 @@ export async function handleMergeTags(
   }
 
   sendJson(res, 200, result);
+}
+
+export async function handleRenameTag(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  tagId: string,
+): Promise<void> {
+  const body = await readJsonBody(req, renameTagInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await renameExistingTag(tagId, body.data.name);
+
+  if ("error" in result) {
+    sendError(res, result.error === "not_found" ? 404 : 409, result.error);
+    return;
+  }
+
+  sendJson(res, 200, result);
+}
+
+export async function handleDeleteTag(res: http.ServerResponse, tagId: string): Promise<void> {
+  const deleted = await deleteExistingTag(tagId);
+
+  if (!deleted) {
+    sendError(res, 404, "not_found");
+    return;
+  }
+
+  sendJson(res, 200, { ok: true });
 }

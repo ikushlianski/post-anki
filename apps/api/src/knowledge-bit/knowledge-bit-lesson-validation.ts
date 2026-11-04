@@ -5,10 +5,9 @@ import {
   looksLikeSourceMetaReference,
 } from "./knowledge-bit-language-guard.js";
 import {
-  SOURCE_ITEM_QUOTE_MAX_CHARS,
-  SOURCE_ITEM_QUOTE_MIN_CHARS,
   SOURCE_ITEM_STATEMENT_MAX_CHARS,
   isQuoteInSource,
+  isQuoteLengthValid,
 } from "./knowledge-bit-source-quote.js";
 
 export const LESSON_EXAMPLE_MAX_CHARS = 200;
@@ -42,7 +41,7 @@ export function validateLesson(raw: LessonCore, sourceText: string): LessonValid
     return { ok: false, reason: "too_long" };
   }
 
-  if (lesson.quote.length < SOURCE_ITEM_QUOTE_MIN_CHARS || lesson.quote.length > SOURCE_ITEM_QUOTE_MAX_CHARS) {
+  if (!isQuoteLengthValid(lesson.quote, sourceText)) {
     return { ok: false, reason: "quote_length" };
   }
 

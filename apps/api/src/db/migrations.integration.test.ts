@@ -307,6 +307,18 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       }),
       expect.objectContaining({ column_name: "source_url", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "summary", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "suggested_subject_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "suggested_subject_confidence", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({
+        column_name: "subject_suggestion_checked_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "nothing_extracted_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
     ]);
   });
 
@@ -503,6 +515,76 @@ describe("migrations — knowledge_sources.updated_at (prose-knowledge-fisher--s
   });
 });
 
+describe("migrations — triage chat queue and nothing-extracted marker", () => {
+  it("adds knowledge_bits.chat_at as a nullable timestamptz with a partial index on state chat", async () => {
+    const { rows } = await client.query(
+      `SELECT data_type, is_nullable FROM information_schema.columns
+        WHERE table_name = 'knowledge_bits' AND column_name = 'chat_at'`,
+    );
+
+    expect(rows).toEqual([{ data_type: "timestamp with time zone", is_nullable: "YES" }]);
+
+    const index = await client.query(
+      `SELECT indexdef FROM pg_indexes WHERE indexname = 'knowledge_bits_chat_at_idx'`,
+    );
+
+    expect(index.rows[0].indexdef).toMatch(/'chat'/);
+  });
+
+  it("adds knowledge_sources.nothing_extracted_at as a nullable timestamptz", async () => {
+    const { rows } = await client.query(
+      `SELECT data_type, is_nullable FROM information_schema.columns
+        WHERE table_name = 'knowledge_sources' AND column_name = 'nothing_extracted_at'`,
+    );
+
+    expect(rows).toEqual([{ data_type: "timestamp with time zone", is_nullable: "YES" }]);
+  });
+
+  it("adds nullable subjects.detail_level text and hinting_enabled boolean so unset inherits the default", async () => {
+    const { rows } = await client.query(
+      `SELECT column_name, data_type, is_nullable FROM information_schema.columns
+        WHERE table_name = 'subjects' AND column_name IN ('detail_level', 'hinting_enabled')
+        ORDER BY column_name`,
+    );
+
+    expect(rows).toEqual([
+      { column_name: "detail_level", data_type: "text", is_nullable: "YES" },
+      { column_name: "hinting_enabled", data_type: "boolean", is_nullable: "YES" },
+    ]);
+  });
+
+  it("creates knowledge_bit_chat_messages with no foreign keys", async () => {
+    const columns = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'knowledge_bit_chat_messages'`,
+    );
+    const fks = await client.query(
+      `SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'knowledge_bit_chat_messages' AND constraint_type = 'FOREIGN KEY'`,
+    );
+
+    expect(columns.rows.map((row) => row.column_name).sort()).toEqual(
+      ["client_message_id", "created_at", "id", "input_tokens", "knowledge_bit_id", "model_id", "output_tokens", "role", "seq", "text"],
+    );
+    expect(fks.rows).toHaveLength(0);
+  });
+
+  it("refuses a repeated client message id for the same card so retries cannot double-write", async () => {
+    const bitId = `kb_migtest_${randomUUID()}`;
+    const insert = (id: string, seq: number) =>
+      client.query(
+        `INSERT INTO knowledge_bit_chat_messages (id, knowledge_bit_id, seq, role, text, client_message_id)
+         VALUES ($1, $2, $3, 'user', 'hi', 'cm-1')`,
+        [id, bitId, seq],
+      );
+
+    await insert(randomUUID(), 1);
+
+    await expect(insert(randomUUID(), 2)).rejects.toMatchObject({ code: "23505" });
+
+    await client.query(`DELETE FROM knowledge_bit_chat_messages WHERE knowledge_bit_id = $1`, [bitId]);
+  });
+});
+
 describe("migrations — embedding columns", () => {
   it("should have no jsonb embedding column on the six embedded tables", async () => {
     const { rows } = await client.query(
@@ -683,6 +765,46 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
       expect.objectContaining({ column_name: "source_links", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "embedding_vec", udt_name: "halfvec", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "review_flag", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "duplicate_of_bit_id", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "duplicate_similarity", data_type: "real", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "duplicate_reason", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "similar_bit_ids", data_type: "jsonb", is_nullable: "YES" }),
+      expect.objectContaining({
+        column_name: "duplicate_checked_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "inbox_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "example_ai_generated_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "example_ai_count",
+        data_type: "integer",
+        is_nullable: "NO",
+        column_default: "0",
+      }),
+      expect.objectContaining({
+        column_name: "chat_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "chat_snoozed_until",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
+      expect.objectContaining({
+        column_name: "decided_at",
+        data_type: "timestamp with time zone",
+        is_nullable: "YES",
+      }),
     ]);
   });
 

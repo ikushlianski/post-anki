@@ -1,14 +1,16 @@
 import { z } from "zod";
+import { KNOWLEDGE_SOURCE_MAX_CHARS } from "./knowledge-source-refusal";
 import { chatTranscriptSchema, MAX_CHAT_MESSAGE_CHARS, MAX_CHAT_TRANSCRIPT_MESSAGES } from "./study-chat";
 
-// Durable content like detect-knowledge-bits.orchestrator.ts's MAX_SOURCE_CHARS, not a chat turn.
-export const MAX_KNOWLEDGE_BIT_BODY_CHARS = 50_000;
+// Durable content sized like a source, not a chat turn.
+export const MAX_KNOWLEDGE_BIT_BODY_CHARS = KNOWLEDGE_SOURCE_MAX_CHARS;
 
 export const askKnowledgeBitChatInput = z.object({
   message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
   transcript: chatTranscriptSchema.optional(),
   allowGeneralKnowledge: z.boolean().optional().default(false),
   allowWebSearch: z.boolean().optional().default(false),
+  clientMessageId: z.string().min(1).max(100).optional(),
 });
 
 export type AskKnowledgeBitChatInput = z.input<typeof askKnowledgeBitChatInput>;

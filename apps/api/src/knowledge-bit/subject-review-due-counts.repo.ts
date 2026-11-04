@@ -2,8 +2,11 @@ import { eq, sql } from "drizzle-orm";
 import { collectSubjectSubtreeIds } from "@post-anki/core";
 import type { SubjectReviewDueCounts } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { curricula, knowledgeBits, knowledgeSources, subjects, topics } from "../db/schema.js";
-import { readNewRemainingToday } from "./knowledge-bit-review-queue-counts.repo.js";
+import { subjects } from "../db/schema.js";
+import {
+  readNewCardAllowance,
+  summariseNewCardAllowance,
+} from "./knowledge-bit-review-queue-counts.repo.js";
 import { pickedVariants } from "./knowledge-bit-review-queue-picked.repo.js";
 
 interface SubjectCountBucket {
@@ -16,7 +19,7 @@ interface SubjectCountBucket {
 // belongs to its curriculum's subject; an unplaced bit to its source's subject, matching
 // scopeCondition. Bits with no subject, or a subject id that no longer exists, go to "unsorted".
 // Each subject's count rolls up its whole subtree. New cards are capped by today's remaining
-// new-card allowance per subject, which is the same cap the queue applies globally.
+// new-card allowance per subject, which is the same cap the queue applies.
 export async function getSubjectReviewDueCounts(
   clock: { tz: string; now: Date },
   db: DbExecutor = getDb(),
@@ -24,9 +27,9 @@ export async function getSubjectReviewDueCounts(
   const { now } = clock;
   const nowSql = sql`${now.toISOString()}::timestamptz`;
   const picked = pickedVariants(undefined, now, db);
-  const subjectOfBit = sql<string | null>`case when ${knowledgeBits.topicId} is null then ${knowledgeSources.subjectId} else ${curricula.subjectId} end`;
+  const subjectOfBit = picked.cardSubjectId;
 
-  const [bitRows, subjectRows, { remaining }] = await Promise.all([
+  const [bitRows, subjectRows, allowance] = await Promise.all([
     db
       .select({
         subjectId: subjectOfBit,
@@ -34,14 +37,10 @@ export async function getSubjectReviewDueCounts(
         newCount: sql<number>`count(*) filter (where ${picked.scheduleBitId} is null)`.mapWith(Number),
       })
       .from(picked)
-      .innerJoin(knowledgeBits, eq(knowledgeBits.id, picked.knowledgeBitId))
-      .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
-      .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
-      .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
       .where(eq(picked.pickRank, 1))
       .groupBy(subjectOfBit),
     db.select({ id: subjects.id, name: subjects.name, parentId: subjects.parentId }).from(subjects),
-    readNewRemainingToday(clock, db),
+    readNewCardAllowance(clock, db),
   ]);
 
   const knownSubjectIds = new Set(subjectRows.map((subject) => subject.id));
@@ -50,16 +49,17 @@ export async function getSubjectReviewDueCounts(
 
   for (const row of bitRows) {
     const subjectId = row.subjectId;
+    const newCount = Math.min(row.newCount, allowance.remainingFor(subjectId));
 
     if (subjectId === null || !knownSubjectIds.has(subjectId)) {
       unsorted.dueCount += row.dueCount;
-      unsorted.newCount += row.newCount;
+      unsorted.newCount += newCount;
       continue;
     }
 
     directBySubject.set(subjectId, {
       dueCount: row.dueCount,
-      newCount: row.newCount,
+      newCount,
     });
   }
 
@@ -79,13 +79,18 @@ export async function getSubjectReviewDueCounts(
     return {
       subjectId: subject.id,
       dueCount: total.dueCount,
-      newCount: Math.min(total.newCount, remaining),
+      newCount: total.newCount,
     };
   });
 
+  const { remaining } = summariseNewCardAllowance(
+    allowance,
+    bitRows.map((row) => ({ subjectId: row.subjectId, fresh: row.newCount })),
+  );
+
   return {
     subjects: subjectCounts,
-    unsorted: { dueCount: unsorted.dueCount, newCount: Math.min(unsorted.newCount, remaining) },
+    unsorted,
     newRemainingToday: remaining,
   };
 }

@@ -168,4 +168,26 @@ describe("rejected cards stay visible in triage (real Postgres, mocked model)", 
     expect(claim.ok).toBe(true);
     expect((await bitsOf(id)).find((bit) => bit.id === flagged!.id)?.approval_state).toBe("superseded");
   });
+
+  it("should keep the AI-suggested phrase with its flag, show it in triage and keep it after approval", async () => {
+    const phrase = { ...GOOD_LESSON, aiSuggestion: "touch base", reviewFlag: "non_native_phrase" as const };
+    const { id } = await extract([phrase]);
+    const [bit] = await bitsOf(id);
+
+    expect(bit!.review_flag).toBe("non_native_phrase");
+
+    const sources = await listPendingKnowledgeBitsForReview(500);
+    const listed = sources.find((source) => source.knowledgeSourceId === id)!.bits[0]!;
+
+    expect(listed.aiSuggestion).toBe("touch base");
+
+    await approveKnowledgeBit(bit!.id);
+
+    const { rows } = await client.query(
+      `SELECT review_flag, ai_suggestion FROM knowledge_bits WHERE id = $1`,
+      [bit!.id],
+    );
+
+    expect(rows[0]).toEqual({ review_flag: null, ai_suggestion: "touch base" });
+  });
 });

@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { TYPED_ANSWER_MAX_CHARS } from "./text-limits";
 import { questionKindSchema } from "./question";
 
 export const recordAttemptInput = z.object({
   topicId: z.string(),
   questionId: z.string(),
   mode: questionKindSchema,
-  answer: z.string(),
+  answer: z.string().max(TYPED_ANSWER_MAX_CHARS),
   selfOutcome: z.enum(["pass", "fail"]).optional(),
 });
 

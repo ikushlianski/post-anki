@@ -1,6 +1,7 @@
 import { and, eq, max, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
-import { knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
+import { knowledgeBitFusionModels, knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
+import { buildClozeCards, buildOrderedListCards, parseCloze, parseOrderedListText } from "@post-anki/shared";
 import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
@@ -11,6 +12,42 @@ const VARIANT_KIND_BY_ITEM_KIND = {
   fill_blank: "fill_in_the_blank",
   basic: "basic",
 } as const satisfies Record<SourceItemKind, string>;
+
+function clozeVariantRows(knowledgeBitId: string, note: string) {
+  const parsed = parseCloze(note);
+
+  if (!parsed.ok) {
+    return [];
+  }
+
+  return buildClozeCards(parsed.note).map((card) => ({
+    id: newId("kbqv"),
+    knowledgeBitId,
+    kind: "cloze" as string,
+    order: card.n,
+    prompt: card.prompt,
+    answer: card.answer,
+    sentence: note as string | null,
+  }));
+}
+
+function orderedListVariantRows(knowledgeBitId: string, listText: string) {
+  const parsed = parseOrderedListText(listText);
+
+  if (!parsed.ok) {
+    return [];
+  }
+
+  return buildOrderedListCards(parsed.list).map((card) => ({
+    id: newId("kbqv"),
+    knowledgeBitId,
+    kind: card.kind as string,
+    order: card.order,
+    prompt: card.prompt,
+    answer: card.answer,
+    sentence: listText as string | null,
+  }));
+}
 
 export interface SourceInsertState {
   nextOrdinal: number;
@@ -103,7 +140,8 @@ export async function insertSourceItemsForChunk(
       background: item.example,
       sourceLinks,
       approvalState: "pending",
-      reviewFlag: flagByOrdinal.get(ordinal) ?? null,
+      reviewFlag: flagByOrdinal.get(ordinal) ?? item.reviewFlag ?? null,
+      aiSuggestion: item.aiSuggestion ?? null,
       whQuestionGeneratedAt: stampedAt,
       fillBlankGeneratedAt: stampedAt,
       basicCardGeneratedAt: stampedAt,
@@ -122,18 +160,40 @@ export async function insertSourceItemsForChunk(
         return [];
       }
 
-      return item.cards.map((card, order) => ({
-        id: newId("kbqv"),
-        knowledgeBitId: bit.id,
-        kind: VARIANT_KIND_BY_ITEM_KIND[card.kind],
-        order,
-        prompt: card.question,
-        answer: card.answer,
-      }));
+      return item.cards.flatMap((card, order) => {
+        if (card.kind === "cloze") {
+          return clozeVariantRows(bit.id, card.question);
+        }
+
+        if (card.kind === "ordered_list") {
+          return orderedListVariantRows(bit.id, card.question);
+        }
+
+        return [
+          {
+            id: newId("kbqv"),
+            knowledgeBitId: bit.id,
+            kind: VARIANT_KIND_BY_ITEM_KIND[card.kind] as string,
+            order,
+            prompt: card.question,
+            context: (card.context ?? null) as string | null,
+            answer: card.answer,
+            sentence: null as string | null,
+          },
+        ];
+      });
     });
 
     if (variantRows.length > 0) {
       await tx.insert(knowledgeBitQuestionVariants).values(variantRows);
+    }
+
+    const fusionRows = inserted.flatMap((bit) =>
+      (itemsByOrdinal.get(bit.ordinal)?.modelIds ?? []).map((modelId) => ({ bitId: bit.id, modelId })),
+    );
+
+    if (fusionRows.length > 0) {
+      await tx.insert(knowledgeBitFusionModels).values(fusionRows);
     }
 
     return inserted.length;

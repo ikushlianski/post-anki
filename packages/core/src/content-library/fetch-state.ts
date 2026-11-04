@@ -1,7 +1,7 @@
 export type FetchState = "fetched" | "stale_failed" | "never_fetched";
 
 export interface FetchStateInput {
-  fetchedText: string | null;
+  fetchedText?: string | null;
   lastFetchedAt: string | null;
   lastFetchOutcome: string | null;
 }

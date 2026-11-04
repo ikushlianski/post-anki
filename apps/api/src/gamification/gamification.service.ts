@@ -1,5 +1,8 @@
 import { evaluateBadges, playerLevel } from "@post-anki/core";
 import type { GamificationProfile, ReviewPoints } from "@post-anki/shared";
+import { localDateString } from "../motivation/motivation-time.js";
+import { readMotivationSettings } from "../motivation/motivation-settings.repo.js";
+import { readOutcomeBadgeInputs } from "../motivation/motivation-badge-inputs.js";
 import { getStreak } from "../streak/streak.service.js";
 import type { Tx } from "../shared/merge-lock.js";
 import {
@@ -34,14 +37,17 @@ export async function reviewPointsForEventInTx(
 }
 
 export async function getGamificationProfile(now: Date = new Date()): Promise<GamificationProfile> {
+  const { timeZone } = await readMotivationSettings();
   const [totalPoints, todayPoints, masteredCards, totalReviews, subjectReviews, streak] = await Promise.all([
     sumPoints(),
-    sumPointsForDay(now.toISOString().slice(0, 10)),
+    sumPointsForDay(localDateString(now, timeZone)),
     countMasteredCards(),
     countReviews(),
     countReviewsBySubject(),
     getStreak(),
   ]);
+
+  const achievements = await readOutcomeBadgeInputs();
 
   return {
     player: playerLevel(totalPoints),
@@ -53,6 +59,7 @@ export async function getGamificationProfile(now: Date = new Date()): Promise<Ga
       masteredCards,
       totalReviews,
       subjectReviews,
+      ...achievements,
     }),
   };
 }

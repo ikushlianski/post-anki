@@ -139,6 +139,16 @@ describe("searchSubjects", () => {
     expect(results.map((r) => r.id)).toContain("sub_match_2");
   });
 
+  it("lists an exact name match first, then prefix matches, then other matches", async () => {
+    await insertSubject({ id: "sub_rank_c", name: "Algorithms in Rankgo" });
+    await insertSubject({ id: "sub_rank_b", name: "Rankgo Advanced" });
+    await insertSubject({ id: "sub_rank_a", name: "Rankgo" });
+
+    const results = await searchSubjects("rankgo");
+
+    expect(results.map((r) => r.id)).toEqual(["sub_rank_a", "sub_rank_b", "sub_rank_c"]);
+  });
+
   it("caps the result at SEARCH_NAME_MATCH_LIMIT instead of pulling every matching row", async () => {
     await client.query(
       `INSERT INTO subjects (id, name)

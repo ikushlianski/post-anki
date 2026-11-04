@@ -1,0 +1,1 @@
+CREATE INDEX "knowledge_bits_pending_created_at_id_idx" ON "knowledge_bits" USING btree ("created_at","id") WHERE "knowledge_bits"."approval_state" = 'pending';

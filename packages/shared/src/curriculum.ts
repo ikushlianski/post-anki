@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  DESCRIPTION_MAX_CHARS,
+  PASTED_MATERIAL_MAX_CHARS,
+  SOURCES_MAX_COUNT,
+  TITLE_MAX_CHARS,
+} from "./text-limits";
 import { sourceSchema, sourceDraftSchema } from "./source";
 import { moduleSchema } from "./module";
 import { curriculumProgressSchema } from "./progress";
@@ -70,12 +76,12 @@ export type Curriculum = z.infer<typeof curriculumSchema>;
 
 export const createCurriculumInput = z.object({
   subjectId: z.string(),
-  name: z.string().min(1),
-  description: z.string().optional(),
-  sources: z.array(sourceDraftSchema).default([]),
-  researchTopic: z.string().min(1).nullable().optional(),
+  name: z.string().trim().min(1).max(TITLE_MAX_CHARS),
+  description: z.string().max(DESCRIPTION_MAX_CHARS).optional(),
+  sources: z.array(sourceDraftSchema).max(SOURCES_MAX_COUNT).default([]),
+  researchTopic: z.string().min(1).max(TITLE_MAX_CHARS).nullable().optional(),
   docUrl: docUrlSchema.nullable().optional(),
-  pastedMaterial: z.string().min(1).nullable().optional(),
+  pastedMaterial: z.string().min(1).max(PASTED_MATERIAL_MAX_CHARS).nullable().optional(),
   preferredLevel: levelSchema.nullable().optional(),
   // Explicit domain-tree placement (the tree UI's "add course here"). When
   // absent, resolveDomainPlacement() decides via a normalized-name match or
@@ -93,7 +99,7 @@ export type CreateCurriculumInput = z.infer<typeof createCurriculumInput>;
 
 export const addSourcesInput = z.object({
   curriculumId: z.string(),
-  sources: z.array(sourceDraftSchema).min(1),
+  sources: z.array(sourceDraftSchema).min(1).max(SOURCES_MAX_COUNT),
 });
 
 export type AddSourcesInput = z.infer<typeof addSourcesInput>;

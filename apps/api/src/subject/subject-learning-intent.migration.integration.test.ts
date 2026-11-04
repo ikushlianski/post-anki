@@ -20,6 +20,7 @@ url.pathname = `/${dbName}`;
 
 const adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
 const fullFolder = new URL("../db/migrations", import.meta.url).pathname;
+const SEEDED_IDS = ["biz", "sales", "ai"];
 const MIGRATION_TAG = "0112_add-subject-learning-intent";
 const workDir = mkdtempSync(join(tmpdir(), "subj-intent-"));
 const priorFolder = join(workDir, "prior");
@@ -75,7 +76,8 @@ describe("subject learning intent migration", () => {
     await migrateFolder(fullFolder);
 
     const { rows } = await client.query<{ id: string; learning_intent: string | null }>(
-      `SELECT id, learning_intent FROM subjects ORDER BY id`,
+      `SELECT id, learning_intent FROM subjects WHERE id = ANY($1) ORDER BY id`,
+      [SEEDED_IDS],
     );
 
     await client.end();

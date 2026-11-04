@@ -1,0 +1,1 @@
+ALTER TABLE "llm_call_events" ADD COLUMN "knowledge_bit_id" text;

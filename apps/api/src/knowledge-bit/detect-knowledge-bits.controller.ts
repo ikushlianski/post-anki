@@ -1,20 +1,13 @@
 import type http from "node:http";
-import { resolvePlacementSuggestionInput } from "@post-anki/shared";
-import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { sendBadGateway, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
 import { detectKnowledgeBits } from "./detect-knowledge-bits.orchestrator.js";
 import { embedKnowledgeBits } from "./knowledge-bit-embedding.orchestrator.js";
 import { tagKnowledgeBits } from "./knowledge-bit-tagging.orchestrator.js";
-import { placeKnowledgeBits } from "./knowledge-bit-placement.orchestrator.js";
 import { generateKnowledgeBitQuestions } from "./knowledge-bit-question-generation.orchestrator.js";
 import { generateKnowledgeBitFillBlanks } from "./knowledge-bit-fill-blank-generation.orchestrator.js";
 import { generateKnowledgeBitBasicCards } from "./knowledge-bit-basic-card-generation.orchestrator.js";
 import { embedKnowledgeBitQuestionVariants } from "./knowledge-bit-question-variant-embedding.orchestrator.js";
-import {
-  listPendingPlacementSuggestions,
-  resolvePlacementSuggestion,
-  type ResolvePlacementSuggestionResult,
-} from "./knowledge-bit-placement.repo.js";
 
 // A failure here is a real 502 — never a silent "nothing needed detecting".
 export async function handleDetectKnowledgeBits(res: http.ServerResponse): Promise<void> {
@@ -25,9 +18,7 @@ export async function handleDetectKnowledgeBits(res: http.ServerResponse): Promi
   } catch (err) {
     log.error({ err }, "knowledge_bit_detection_scan_failed");
 
-    const message = err instanceof Error ? err.message : "knowledge bit detection scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 
@@ -42,9 +33,7 @@ export async function handleTriggerKnowledgeBitEmbeddingScan(
   } catch (err) {
     log.error({ err }, "knowledge_bit_embedding_scan_failed");
 
-    const message = err instanceof Error ? err.message : "knowledge bit embedding scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 
@@ -59,26 +48,7 @@ export async function handleTriggerKnowledgeBitTaggingScan(
   } catch (err) {
     log.error({ err }, "knowledge_bit_tagging_scan_failed");
 
-    const message = err instanceof Error ? err.message : "knowledge bit tagging scan failed";
-
-    sendError(res, 502, "scan_failed", message);
-  }
-}
-
-// A failure here is a real 502 — never a silent "nothing needed placing".
-export async function handleTriggerKnowledgeBitPlacementScan(
-  res: http.ServerResponse,
-): Promise<void> {
-  try {
-    const result = await placeKnowledgeBits();
-
-    sendJson(res, 200, result);
-  } catch (err) {
-    log.error({ err }, "knowledge_bit_placement_scan_failed");
-
-    const message = err instanceof Error ? err.message : "knowledge bit placement scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 
@@ -93,10 +63,7 @@ export async function handleTriggerKnowledgeBitQuestionGenerationScan(
   } catch (err) {
     log.error({ err }, "knowledge_bit_question_generation_scan_failed");
 
-    const message =
-      err instanceof Error ? err.message : "knowledge bit question generation scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 
@@ -111,10 +78,7 @@ export async function handleTriggerKnowledgeBitFillBlankGenerationScan(
   } catch (err) {
     log.error({ err }, "knowledge_bit_fill_blank_generation_scan_failed");
 
-    const message =
-      err instanceof Error ? err.message : "knowledge bit fill blank generation scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 
@@ -129,10 +93,7 @@ export async function handleTriggerKnowledgeBitBasicCardGenerationScan(
   } catch (err) {
     log.error({ err }, "knowledge_bit_basic_card_generation_scan_failed");
 
-    const message =
-      err instanceof Error ? err.message : "knowledge bit basic card generation scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
 }
 
@@ -147,65 +108,6 @@ export async function handleTriggerKnowledgeBitQuestionVariantEmbeddingScan(
   } catch (err) {
     log.error({ err }, "knowledge_bit_question_variant_embedding_scan_failed");
 
-    const message =
-      err instanceof Error ? err.message : "knowledge bit question variant embedding scan failed";
-
-    sendError(res, 502, "scan_failed", message);
+    sendBadGateway(res, "scan_failed");
   }
-}
-
-// GET /knowledge-bits/placement-suggestions
-export async function handleListPendingPlacementSuggestions(
-  res: http.ServerResponse,
-): Promise<void> {
-  const suggestions = await listPendingPlacementSuggestions(200);
-
-  sendJson(res, 200, suggestions);
-}
-
-// A suggestion that is no longer pending is a 409, not a 404 — mirrors
-// handleResolveDomainTopicSuggestion's "already handled" distinction.
-function sendResolvePlacementSuggestionError(
-  res: http.ServerResponse,
-  error: Extract<ResolvePlacementSuggestionResult, { error: string }>["error"],
-): void {
-  if (error === "invalid_input") {
-    sendError(res, 400, error);
-    return;
-  }
-
-  if (error === "not_found" || error === "module_not_found") {
-    sendError(res, 404, error);
-    return;
-  }
-
-  sendError(res, 409, "already_resolved");
-}
-
-// PATCH /knowledge-bits/:id/placement-suggestion
-export async function handleResolvePlacementSuggestion(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  bitId: string,
-): Promise<void> {
-  const body = await readJsonBody(req, resolvePlacementSuggestionInput);
-
-  if (!body.ok) {
-    sendJson(res, 400, { error: "invalid_input", message: body.issues });
-    return;
-  }
-
-  const result = await resolvePlacementSuggestion(
-    bitId,
-    body.data.status,
-    body.data.status === "accepted" ? body.data.moduleId : undefined,
-    body.data.status === "accepted" ? body.data.title : undefined,
-  );
-
-  if ("error" in result) {
-    sendResolvePlacementSuggestionError(res, result.error);
-    return;
-  }
-
-  sendJson(res, 200, result);
 }

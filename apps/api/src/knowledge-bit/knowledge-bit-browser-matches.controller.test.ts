@@ -2,6 +2,7 @@ import type http from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LlmBudgetExceededError } from "../shared/spend-guard.js";
 
+vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 vi.mock("./knowledge-bit-browser-matches.orchestrator.js", () => ({ searchKnowledgeBitBrowserMatches: vi.fn() }));
 
 const { searchKnowledgeBitBrowserMatches } = await import("./knowledge-bit-browser-matches.orchestrator.js");

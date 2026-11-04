@@ -16,6 +16,7 @@ import { createGlobalCardChatAgent } from "./global-card-chat.agent.js";
 import { createSubjectChatAgent } from "./subject-chat.agent.js";
 import { createKnowledgeBitChatAgent } from "./knowledge-bit-chat.agent.js";
 import { createKnowledgeBitChatDraftAgent } from "./knowledge-bit-chat-draft.agent.js";
+import { createKnowledgeBitChatQueueAgent } from "./knowledge-bit-chat-queue.agent.js";
 import { createStructureEditorAgent } from "./structure-editor.agent.js";
 import { createLanguageChatAgent } from "./language-chat.agent.js";
 import { createLectureSourceSelector } from "./lecture-source-selector.agent.js";
@@ -36,18 +37,21 @@ import { createKnowledgeBitLessonsAgent } from "./knowledge-bit-lessons.agent.js
 import { createKnowledgeBitSourceItemsAgent } from "./knowledge-bit-source-items.agent.js";
 import { createKnowledgeBitSourceItemsLegacyAgent } from "./knowledge-bit-source-items.legacy.agent.js";
 import { createKnowledgeBitBusinessCardsAgent } from "./knowledge-bit-business-cards.agent.js";
+import { createKnowledgeBitMeetingPhraseAgent } from "./knowledge-bit-meeting-phrase.agent.js";
 import { createArticleSummaryAgent } from "./article-summary.agent.js";
 import { createKnowledgeBitTaggerAgent } from "./knowledge-bit-tagger.agent.js";
-import { createKnowledgeBitPlacerAgent } from "./knowledge-bit-placer.agent.js";
 import { createSubjectSuggestionGraderAgent } from "./subject-suggestion-grader.agent.js";
 import { createKnowledgeBitQuestionGeneratorAgent } from "./knowledge-bit-question-generator.agent.js";
 import { createKnowledgeBitFillBlankGeneratorAgent } from "./knowledge-bit-fill-blank-generator.agent.js";
 import { createKnowledgeBitBasicCardGeneratorAgent } from "./knowledge-bit-basic-card-generator.agent.js";
+import { createKnowledgeBitExampleGeneratorAgent } from "./knowledge-bit-example-generator.agent.js";
 import { createKnowledgeBitAnswerGraderAgent } from "./knowledge-bit-answer-grader.agent.js";
 import { createKnowledgeBitFollowupGeneratorAgent } from "./knowledge-bit-followup-generator.agent.js";
 import { createCardStyleNotesDistillerAgent } from "./card-style-notes-distiller.agent.js";
 import { createSubjectCheckerAgent } from "./knowledge-source-subject-checker.agent.js";
 import { createSubjectAssignmentEscalationAgent } from "./subject-assignment-escalation.agent.js";
+import { createCardDedupEscalationAgent } from "./card-dedup-escalation.agent.js";
+import { createSubjectCreationAgent } from "./subject-creation.agent.js";
 
 export const AGENT_KEYS = {
   curriculumArchitect: "curriculumArchitect",
@@ -63,6 +67,7 @@ export const AGENT_KEYS = {
   subjectChat: "subjectChat",
   knowledgeBitChat: "knowledgeBitChat",
   knowledgeBitChatDraft: "knowledgeBitChatDraft",
+  knowledgeBitChatQueue: "knowledgeBitChatQueue",
   structureEditor: "structureEditor",
   languageChat: "languageChat",
   lectureSourceSelector: "lectureSourceSelector",
@@ -84,18 +89,21 @@ export const AGENT_KEYS = {
   knowledgeBitSourceItems: "knowledgeBitSourceItems",
   knowledgeBitSourceItemsLegacy: "knowledgeBitSourceItemsLegacy",
   knowledgeBitBusinessCards: "knowledgeBitBusinessCards",
+  knowledgeBitMeetingPhrase: "knowledgeBitMeetingPhrase",
   articleSummary: "articleSummary",
   knowledgeBitTagger: "knowledgeBitTagger",
-  knowledgeBitPlacer: "knowledgeBitPlacer",
   subjectSuggestionGrader: "subjectSuggestionGrader",
   knowledgeBitQuestionGenerator: "knowledgeBitQuestionGenerator",
   knowledgeBitFillBlankGenerator: "knowledgeBitFillBlankGenerator",
   knowledgeBitBasicCardGenerator: "knowledgeBitBasicCardGenerator",
+  knowledgeBitExampleGenerator: "knowledgeBitExampleGenerator",
   knowledgeBitAnswerGrader: "knowledgeBitAnswerGrader",
   knowledgeBitFollowupGenerator: "knowledgeBitFollowupGenerator",
   cardStyleNotesDistiller: "cardStyleNotesDistiller",
   knowledgeSourceSubjectChecker: "knowledgeSourceSubjectChecker",
   subjectAssignmentEscalation: "subjectAssignmentEscalation",
+  cardDedupEscalation: "cardDedupEscalation",
+  subjectCreation: "subjectCreation",
 } as const;
 
 function buildObservability(env: Env): Observability | undefined {
@@ -157,6 +165,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.subjectChat]: createSubjectChatAgent(),
         [AGENT_KEYS.knowledgeBitChat]: createKnowledgeBitChatAgent(),
         [AGENT_KEYS.knowledgeBitChatDraft]: createKnowledgeBitChatDraftAgent(),
+        [AGENT_KEYS.knowledgeBitChatQueue]: createKnowledgeBitChatQueueAgent(),
         [AGENT_KEYS.structureEditor]: createStructureEditorAgent(),
         [AGENT_KEYS.languageChat]: createLanguageChatAgent(),
         [AGENT_KEYS.lectureSourceSelector]: createLectureSourceSelector(),
@@ -178,18 +187,21 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.knowledgeBitSourceItems]: createKnowledgeBitSourceItemsAgent(),
         [AGENT_KEYS.knowledgeBitSourceItemsLegacy]: createKnowledgeBitSourceItemsLegacyAgent(),
         [AGENT_KEYS.knowledgeBitBusinessCards]: createKnowledgeBitBusinessCardsAgent(),
+        [AGENT_KEYS.knowledgeBitMeetingPhrase]: createKnowledgeBitMeetingPhraseAgent(),
         [AGENT_KEYS.articleSummary]: createArticleSummaryAgent(),
         [AGENT_KEYS.knowledgeBitTagger]: createKnowledgeBitTaggerAgent(),
-        [AGENT_KEYS.knowledgeBitPlacer]: createKnowledgeBitPlacerAgent(),
         [AGENT_KEYS.subjectSuggestionGrader]: createSubjectSuggestionGraderAgent(),
         [AGENT_KEYS.knowledgeBitQuestionGenerator]: createKnowledgeBitQuestionGeneratorAgent(),
         [AGENT_KEYS.knowledgeBitFillBlankGenerator]: createKnowledgeBitFillBlankGeneratorAgent(),
         [AGENT_KEYS.knowledgeBitBasicCardGenerator]: createKnowledgeBitBasicCardGeneratorAgent(),
+        [AGENT_KEYS.knowledgeBitExampleGenerator]: createKnowledgeBitExampleGeneratorAgent(),
         [AGENT_KEYS.knowledgeBitAnswerGrader]: createKnowledgeBitAnswerGraderAgent(),
         [AGENT_KEYS.knowledgeBitFollowupGenerator]: createKnowledgeBitFollowupGeneratorAgent(),
         [AGENT_KEYS.cardStyleNotesDistiller]: createCardStyleNotesDistillerAgent(),
         [AGENT_KEYS.knowledgeSourceSubjectChecker]: createSubjectCheckerAgent(),
         [AGENT_KEYS.subjectAssignmentEscalation]: createSubjectAssignmentEscalationAgent(),
+        [AGENT_KEYS.cardDedupEscalation]: createCardDedupEscalationAgent(),
+        [AGENT_KEYS.subjectCreation]: createSubjectCreationAgent(),
       },
       ...(observability ? { observability } : {}),
     });

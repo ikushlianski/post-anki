@@ -1,5 +1,10 @@
 import type http from "node:http";
-import { gradeKnowledgeBitInput, updateKnowledgeBitFeedbackInput } from "@post-anki/shared";
+import {
+  gradeKnowledgeBitInput,
+  isRejectReasonAllowedForSubjectType,
+  updateKnowledgeBitFeedbackInput,
+} from "@post-anki/shared";
+import { rejectSubjectTypeForFeedback } from "./reject-reason-subject-type.repo.js";
 import { gradeKnowledgeBit } from "./knowledge-bit-grade.repo.js";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import {
@@ -19,6 +24,15 @@ export async function handleSetKnowledgeBitFeedbackReason(
   if (!body.ok) {
     sendJson(res, 400, { error: "invalid_input", message: body.issues });
     return;
+  }
+
+  if (body.data.reasonCode !== undefined) {
+    const subjectType = await rejectSubjectTypeForFeedback(id);
+
+    if (subjectType && !isRejectReasonAllowedForSubjectType(subjectType, body.data.reasonCode)) {
+      sendJson(res, 400, { error: "invalid_reason_for_subject_type", subjectType });
+      return;
+    }
   }
 
   const updated = await updateKnowledgeBitFeedback(id, body.data);

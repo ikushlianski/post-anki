@@ -1,0 +1,2 @@
+CREATE INDEX "card_triage_decisions_rejected_latest_idx" ON "card_triage_decisions" USING btree ("knowledge_bit_id","decided_at" DESC NULLS LAST,"id" DESC NULLS LAST) WHERE "card_triage_decisions"."verdict" = 'rejected' and "card_triage_decisions"."undone_at" is null;--> statement-breakpoint
+CREATE INDEX "knowledge_bits_approved_browser_idx" ON "knowledge_bits" USING btree ("created_at" DESC NULLS LAST,"id") WHERE "knowledge_bits"."approval_state" = 'approved';

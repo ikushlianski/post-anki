@@ -104,9 +104,7 @@ export async function listGapsForTopics(topicIds: string[]): Promise<Map<string,
   return byTopic;
 }
 
-export async function persistGaps(updated: Gap[]): Promise<void> {
-  const db = getDb();
-
+export async function persistGaps(updated: Gap[], db: DbExecutor = getDb()): Promise<void> {
   for (const gap of updated) {
     await db
       .update(gaps)

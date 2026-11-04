@@ -8,7 +8,6 @@ vi.mock("../admin-settings/admin-settings.repo.js", () => ({ getKnowledgeItemMod
 import { buildKnowledgeBitAnswerGraderPrompt } from "./knowledge-bit-answer-grader.agent.js";
 import { buildKnowledgeBitBasicCardGeneratorPrompt } from "./knowledge-bit-basic-card-generator.agent.js";
 import { buildKnowledgeBitFillBlankGeneratorPrompt } from "./knowledge-bit-fill-blank-generator.agent.js";
-import { buildKnowledgeBitPlacerPrompt } from "./knowledge-bit-placer.agent.js";
 import { buildKnowledgeBitQuestionGeneratorPrompt } from "./knowledge-bit-question-generator.agent.js";
 import { buildKnowledgeBitLessonsPrompt } from "./knowledge-bit-lessons.agent.js";
 import { buildKnowledgeBitCardsPrompt } from "./knowledge-bit-source-items.agent.js";
@@ -44,7 +43,6 @@ describe("prompt builders that embed untrusted text", () => {
       buildKnowledgeBitBasicCardGeneratorPrompt(ATTACK),
       buildKnowledgeBitFillBlankGeneratorPrompt(ATTACK),
       buildKnowledgeBitTaggerPrompt(ATTACK, [ATTACK]),
-      buildKnowledgeBitPlacerPrompt(ATTACK, []),
     ];
 
     for (const prompt of prompts) {

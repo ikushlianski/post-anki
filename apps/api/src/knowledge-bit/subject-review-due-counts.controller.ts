@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { reviewCardsQuerySchema } from "@post-anki/shared";
-import { sendJson } from "../shared/http.js";
+import { sendJson, sendInvalidQuery } from "../shared/http.js";
 import { getSubjectReviewDueCounts } from "./subject-review-due-counts.repo.js";
 
 const subjectDueCountsQuerySchema = reviewCardsQuerySchema.pick({ tz: true });
@@ -12,7 +12,7 @@ export async function handleListSubjectReviewDueCounts(
   const parsed = subjectDueCountsQuerySchema.safeParse(Object.fromEntries(new URLSearchParams(search)));
 
   if (!parsed.success) {
-    sendJson(res, 400, { error: "invalid_input", message: parsed.error.issues });
+    sendInvalidQuery(res, parsed.error);
     return;
   }
 

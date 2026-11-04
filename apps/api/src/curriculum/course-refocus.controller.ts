@@ -1,5 +1,6 @@
 import type http from "node:http";
 import { sendJson, sendError } from "../shared/http.js";
+import { log } from "../shared/log.js";
 import { dismissCourseRefocusSuggestion, listCourseRefocusSuggestions } from "./course-refocus.repo.js";
 
 export async function handleListCourseRefocusSuggestions(res: http.ServerResponse): Promise<void> {
@@ -7,7 +8,7 @@ export async function handleListCourseRefocusSuggestions(res: http.ServerRespons
     const suggestions = await listCourseRefocusSuggestions();
     sendJson(res, 200, suggestions);
   } catch (error) {
-    console.error("Error listing course refocus suggestions:", error);
+    log.error({ err: error }, "course_refocus_list_failed");
     sendError(res, 500, "internal_error");
   }
 }
@@ -26,7 +27,7 @@ export async function handleDismissCourseRefocusSuggestion(
     await dismissCourseRefocusSuggestion(curriculumId, reason);
     sendJson(res, 200, { success: true });
   } catch (error) {
-    console.error("Error dismissing course refocus suggestion:", error);
+    log.error({ err: error }, "course_refocus_dismiss_failed");
     sendError(res, 500, "internal_error");
   }
 }

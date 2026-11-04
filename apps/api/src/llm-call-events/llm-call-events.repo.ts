@@ -3,25 +3,34 @@ import { getDb } from "../db/client.js";
 import { llmCallEvents } from "../db/schema.js";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
+import { purposeForAgent } from "./agent-purpose.js";
 
 // How long a call event is worth keeping around for the admin observability
 // view — old rows carry no ongoing value once nobody could plausibly still
 // be debugging them.
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = 400;
 
 // Run the retention delete opportunistically instead of on every insert or
 // via a dedicated cron process — cheap, bounded, and avoids adding any new
 // infrastructure just to keep one table from growing unbounded. 1-in-50
-// inserts is frequent enough that the table never grows far past 30 days of
+// inserts is frequent enough that the table never grows far past 400 days of
 // data, and rare enough that a DELETE never rides along with the common
 // case.
 const CLEANUP_CHANCE = 1 / 50;
+
+export const LLM_ERROR_MESSAGE_MAX_CHARS = 500;
+
+export function capErrorMessage(message: string | null): string | null {
+  return message === null ? null : message.slice(0, LLM_ERROR_MESSAGE_MAX_CHARS);
+}
 
 export interface LlmCallEventInput {
   curriculumId: string | null;
   op: string;
   agentKey: string;
   modelId?: string | null;
+  purpose?: "cards" | "chat" | "other";
+  knowledgeBitId?: string | null;
   durationMs: number;
   success: boolean;
   errorMessage: string | null;
@@ -47,9 +56,11 @@ export async function recordLlmCallEvent(input: LlmCallEventInput): Promise<void
         op: input.op,
         agentKey: input.agentKey,
         modelId: input.modelId ?? null,
+        purpose: input.purpose ?? purposeForAgent(input.agentKey),
+        knowledgeBitId: input.knowledgeBitId ?? null,
         durationMs: input.durationMs,
         success: input.success,
-        errorMessage: input.errorMessage,
+        errorMessage: capErrorMessage(input.errorMessage),
         promptTokens: input.promptTokens,
         completionTokens: input.completionTokens,
         totalTokens: input.totalTokens,

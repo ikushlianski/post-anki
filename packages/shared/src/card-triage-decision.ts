@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rejectSubjectTypeSchema } from "./reject-reasons-by-subject-type";
 import { knowledgeBitFeedbackVerdictSchema, knowledgeBitRejectReasonSchema } from "./knowledge-bit-review-feedback";
 
 export const TRIAGE_DECISION_NOTE_MAX_CHARS = 500;
@@ -56,6 +57,7 @@ export const triageDecisionResponse = z.object({
   variants: z.array(triageDecisionVariantSchema),
   undoneAt: z.string().nullable(),
   source: triageDecisionSourceSchema,
+  subjectType: rejectSubjectTypeSchema.nullable().optional(),
 });
 
 export type TriageDecisionResponse = z.infer<typeof triageDecisionResponse>;

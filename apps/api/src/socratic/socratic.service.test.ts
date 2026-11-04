@@ -96,6 +96,26 @@ const recordTurnAnswer = vi.fn(
     }
   },
 );
+const claimTurnAnswer = vi.fn(async (turnId: string, answer: string, now: string) => {
+  const t = turnsStore.find((x) => x.id === turnId);
+
+  if (!t || t.answeredAt) {
+    return false;
+  }
+
+  t.answer = answer;
+  t.answeredAt = new Date(now);
+
+  return true;
+});
+const releaseTurnAnswer = vi.fn(async (turnId: string) => {
+  const t = turnsStore.find((x) => x.id === turnId);
+
+  if (t && t.degree === null) {
+    t.answer = null;
+    t.answeredAt = null;
+  }
+});
 const completeSocraticSession = vi.fn(async (id: string, now: string) => {
   if (sessionRow.id === id && sessionRow.status === "active") {
     sessionRow = { ...sessionRow, status: "completed", completedAt: new Date(now) };
@@ -128,6 +148,9 @@ vi.mock("./socratic.repo.js", () => ({
     action: string,
     now: string,
   ) => recordTurnAnswer(turnId, answer, degree, action, now),
+  claimTurnAnswer: (turnId: string, answer: string, now: string) =>
+    claimTurnAnswer(turnId, answer, now),
+  releaseTurnAnswer: (turnId: string) => releaseTurnAnswer(turnId),
   completeSocraticSession: (id: string, now: string) => completeSocraticSession(id, now),
   markCheckpointShown: (id: string, now: string) => markCheckpointShown(id, now),
   createSocraticSession: (session: SocraticSessionRow) => createSocraticSession(session),
@@ -177,8 +200,13 @@ vi.mock("../gap/gap.repo.js", () => ({
   persistGaps: (gaps: unknown) => persistGaps(gaps),
 }));
 
+const gatherProbeGrounding = vi.fn(async (..._args: unknown[]) => ({
+  text: "",
+  citations: [] as string[],
+}));
+
 vi.mock("../probe/probe-grounding.js", () => ({
-  gatherProbeGrounding: vi.fn(async () => ({ text: "", citations: [] })),
+  gatherProbeGrounding: (...args: unknown[]) => gatherProbeGrounding(...args),
 }));
 
 vi.mock("../curriculum/curriculum.repo.js", () => ({
@@ -523,5 +551,107 @@ describe("LRU archetype rotation (issue #36) — session-id threading and turn s
     const insertedTurn = insertTurn.mock.calls[0]![0] as { archetype: string | null };
 
     expect(insertedTurn.archetype).toBeNull();
+  });
+});
+
+describe("answerSocraticSession — one answer per turn, none into a finished session", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetFakeSocraticRepo();
+    seedTurn();
+    getTopicRow.mockResolvedValue(TOPIC_ROW);
+    listGapsForTopic.mockResolvedValue([GAP]);
+    generate.mockResolvedValue({
+      object: {
+        degree: "correct",
+        whatWasRight: "",
+        pointOut: "",
+        explanation: "",
+        correctAnswer: "",
+      },
+    });
+  });
+
+  it("should refuse a second submit for the same turn without calling the model again", async () => {
+    const first = await answerSocraticSession(
+      { sessionId: "ss1", turnId: "turn-1", answer: "yes" },
+      "2026-08-14T08:01:00.000Z",
+    );
+    const callsAfterFirst = generate.mock.calls.length;
+    const second = await answerSocraticSession(
+      { sessionId: "ss1", turnId: "turn-1", answer: "changed my mind" },
+      "2026-08-14T08:02:00.000Z",
+    );
+
+    expect("error" in first).toBe(false);
+    expect(second).toEqual({ error: "already_answered" });
+    expect(generate.mock.calls.length).toBe(callsAfterFirst);
+    expect(turnsStore.find((t) => t.id === "turn-1")!.answer).toBe("yes");
+  });
+
+  it("should let only one of two simultaneous submits reach the model", async () => {
+    const results = await Promise.all([
+      answerSocraticSession(
+        { sessionId: "ss1", turnId: "turn-1", answer: "a" },
+        "2026-08-14T08:01:00.000Z",
+      ),
+      answerSocraticSession(
+        { sessionId: "ss1", turnId: "turn-1", answer: "b" },
+        "2026-08-14T08:01:00.000Z",
+      ),
+    ]);
+    const refused = results.filter((r) => "error" in r);
+
+    expect(refused).toEqual([{ error: "already_answered" }]);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("should refuse an answer into a completed session without calling the model", async () => {
+    resetFakeSocraticRepo({ status: "completed", completedAt: new Date("2026-08-14T08:00:30.000Z") });
+    seedTurn();
+
+    const result = await answerSocraticSession(
+      { sessionId: "ss1", turnId: "turn-1", answer: "yes" },
+      "2026-08-14T08:01:00.000Z",
+    );
+
+    expect(result).toEqual({ error: "session_completed" });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("should free the turn for a retry when grounding or evaluation fails", async () => {
+    gatherProbeGrounding.mockRejectedValueOnce(new Error("provider down"));
+
+    await expect(
+      answerSocraticSession(
+        { sessionId: "ss1", turnId: "turn-1", answer: "yes" },
+        "2026-08-14T08:01:00.000Z",
+      ),
+    ).rejects.toThrow("provider down");
+
+    const retry = await answerSocraticSession(
+      { sessionId: "ss1", turnId: "turn-1", answer: "yes" },
+      "2026-08-14T08:02:00.000Z",
+    );
+
+    expect("error" in retry).toBe(false);
+  });
+
+  it("should free the turn for a retry when saving the evaluated answer fails", async () => {
+    recordTurnAnswer.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(
+      answerSocraticSession(
+        { sessionId: "ss1", turnId: "turn-1", answer: "yes" },
+        "2026-08-14T08:01:00.000Z",
+      ),
+    ).rejects.toThrow("db down");
+
+    const retry = await answerSocraticSession(
+      { sessionId: "ss1", turnId: "turn-1", answer: "yes" },
+      "2026-08-14T08:02:00.000Z",
+    );
+
+    expect("error" in retry).toBe(false);
   });
 });

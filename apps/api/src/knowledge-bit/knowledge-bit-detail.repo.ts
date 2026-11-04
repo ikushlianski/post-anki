@@ -9,7 +9,7 @@ import {
   curricula,
   knowledgeBitQuestionVariants,
   knowledgeBits,
-  knowledgeBitSchedules,
+  knowledgeBitNoteSchedules,
   knowledgeSources,
   subjects,
   tagAssignments,
@@ -18,6 +18,7 @@ import {
 } from "../db/schema.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
 import { addedBySql, sourceTypeSql } from "./knowledge-bit-browser-filters.js";
+import { readKnowledgeBitDetailCards } from "./knowledge-bit-detail-cards.repo.js";
 import { deriveBrowserSourceLabel } from "./knowledge-bit-browser-source-label.js";
 import { deriveSubjectPath } from "./knowledge-bit-detail-subject-path.js";
 import { deriveOverviewState } from "./knowledge-bit-overview-state.js";
@@ -38,6 +39,7 @@ async function readVariants(id: string, db: DbExecutor) {
       kind: knowledgeBitQuestionVariants.kind,
       order: knowledgeBitQuestionVariants.order,
       prompt: knowledgeBitQuestionVariants.prompt,
+      context: knowledgeBitQuestionVariants.context,
       answer: knowledgeBitQuestionVariants.answer,
       sentence: knowledgeBitQuestionVariants.sentence,
       createdAt: knowledgeBitQuestionVariants.createdAt,
@@ -78,19 +80,20 @@ export async function getKnowledgeBitDetail(
       addedBy: addedBySql,
       subjectId: effectiveSubjectIdSql,
       sourceId: knowledgeSources.id,
+      sourceKind: knowledgeSources.kind,
       sourceUrl: knowledgeSources.sourceUrl,
       sourceText: sql<string | null>`left(${knowledgeSources.rawText}, 200)`,
-      phase: knowledgeBitSchedules.phase,
-      dueAt: knowledgeBitSchedules.dueAt,
-      lapses: knowledgeBitSchedules.lapses,
-      reviewCount: knowledgeBitSchedules.reviewCount,
-      suspendedAt: knowledgeBitSchedules.suspendedAt,
-      buriedUntil: knowledgeBitSchedules.buriedUntil,
-      scheduleId: knowledgeBitSchedules.knowledgeBitId,
+      phase: knowledgeBitNoteSchedules.phase,
+      dueAt: knowledgeBitNoteSchedules.dueAt,
+      lapses: knowledgeBitNoteSchedules.lapses,
+      reviewCount: knowledgeBitNoteSchedules.reviewCount,
+      suspendedAt: knowledgeBitNoteSchedules.suspendedAt,
+      buriedUntil: knowledgeBitNoteSchedules.buriedUntil,
+      scheduleId: knowledgeBitNoteSchedules.knowledgeBitId,
     })
     .from(knowledgeBits)
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
     .where(and(eq(knowledgeBits.id, id), bitApproved));
@@ -105,11 +108,12 @@ export async function getKnowledgeBitDetail(
     return null;
   }
 
-  const [tagNames, subjectRows] = await Promise.all([
+  const [tagNames, subjectRows, cards] = await Promise.all([
     readTagNames(id, db),
     row.subjectId
       ? db.select({ id: subjects.id, name: subjects.name, parentId: subjects.parentId }).from(subjects)
       : Promise.resolve([]),
+    readKnowledgeBitDetailCards(id, now, db),
   ]);
 
   const state = deriveOverviewState(
@@ -129,6 +133,7 @@ export async function getKnowledgeBitDetail(
       kind: variant.kind as KnowledgeBitQuestionVariantKind,
       kindLabel: KNOWLEDGE_BIT_VARIANT_KIND_LABELS[variant.kind as KnowledgeBitQuestionVariantKind],
       prompt: variant.prompt,
+      context: variant.context,
       answer: variant.answer,
       sentence: variant.sentence,
     })),
@@ -137,6 +142,7 @@ export async function getKnowledgeBitDetail(
     origin: row.origin,
     addedBy: row.addedBy,
     sourceId: row.sourceId,
+    isPhrase: row.sourceKind === "phrase",
     sourceLabel: deriveBrowserSourceLabel({ sourceUrl: row.sourceUrl, rawText: row.sourceText }),
     sourceUrl: row.sourceUrl,
     addedAt: row.createdAt.toISOString(),
@@ -146,5 +152,6 @@ export async function getKnowledgeBitDetail(
       lapses: row.lapses ?? 0,
       reviewCount: row.reviewCount ?? 0,
     },
+    ...(cards.length > 0 ? { cards } : {}),
   };
 }

@@ -33,6 +33,8 @@ function makeRow(newCardsPerDay: number) {
     modelTier: "cheap",
     knowledgeItemModelId: "openrouter/anthropic/claude-haiku-5.5",
     newCardsPerDay,
+    fusionEnabled: false,
+    fusionModelIds: [],
   };
 }
 

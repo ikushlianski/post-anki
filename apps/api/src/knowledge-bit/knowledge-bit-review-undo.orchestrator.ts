@@ -7,6 +7,11 @@ import {
   readKnowledgeBitReviewBitId,
   readKnowledgeBitReviewInTx,
 } from "./knowledge-bit-review.repo.js";
+import {
+  listActiveCardVariantsInTx,
+  releaseCardSiblingsInTx,
+  variantIdsForKeys,
+} from "./knowledge-bit-sibling-burial.repo.js";
 import { deriveReviewUndo } from "./knowledge-bit-review-undo.js";
 import {
   readKnowledgeBitScheduleInTx,
@@ -36,8 +41,8 @@ export async function undoKnowledgeBitReview(
     }
 
     const [current, laterLiveReviewExists] = await Promise.all([
-      readKnowledgeBitScheduleInTx(tx, knowledgeBitId),
-      hasLaterLiveReviewInTx(tx, knowledgeBitId, review.reviewedAt, reviewId),
+      readKnowledgeBitScheduleInTx(tx, knowledgeBitId, review.cardKey),
+      hasLaterLiveReviewInTx(tx, knowledgeBitId, review.cardKey, review.reviewedAt, reviewId),
     ]);
     const outcome = deriveReviewUndo({
       review,
@@ -51,10 +56,24 @@ export async function undoKnowledgeBitReview(
       return outcome;
     }
 
-    await replaceKnowledgeBitScheduleInTx(tx, knowledgeBitId, outcome.row);
+    await replaceKnowledgeBitScheduleInTx(tx, knowledgeBitId, review.cardKey, outcome.row);
     await markKnowledgeBitReviewUndoneInTx(tx, reviewId, now);
     await voidPointEventByReviewIdInTx(tx, reviewId, now);
 
-    return { ok: true as const, knowledgeBitId };
+    const releasedKeys = await releaseCardSiblingsInTx(
+      tx,
+      knowledgeBitId,
+      review.reviewedAt,
+      review.buriedSiblings ?? [],
+    );
+    const variants = await listActiveCardVariantsInTx(tx, knowledgeBitId);
+
+    return {
+      ok: true as const,
+      knowledgeBitId,
+      variantId: review.variantId,
+      cardKey: review.cardKey,
+      unburiedVariantIds: variantIdsForKeys(variants, releasedKeys),
+    };
   });
 }

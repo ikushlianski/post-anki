@@ -1,3 +1,4 @@
+import type { DetailLevel } from "@post-anki/shared";
 import { Agent } from "@mastra/core/agent";
 import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
@@ -19,10 +20,13 @@ import {
   buildKnowledgeBitLessonsPrompt,
   knowledgeBitLessonsResultSchema,
   LESSON_EXAMPLE_MAX_CHARS,
+  type KnowledgeBitLessonsResult,
 } from "./knowledge-bit-lessons.agent.js";
 import type { SubjectKind } from "../subject/subject-kind.js";
 import { runLegacyKnowledgeBitSourceItems } from "./knowledge-bit-source-items.legacy.agent.js";
 import { runBusinessKnowledgeBitCards } from "./knowledge-bit-business-cards.agent.js";
+import { runMeetingPhraseCard } from "./knowledge-bit-meeting-phrase.agent.js";
+import { FORCE_AT_LEAST_ONE_LESSON_SUFFIX } from "./force-at-least-one.js";
 import { buildLanguageHeaderLines, LANGUAGE_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
 
 export const CARDS_MAX_PER_LESSON = 3;
@@ -155,10 +159,15 @@ export interface RunKnowledgeBitSourceItemsOptions {
   feedbackBlock?: string;
   styleNotesBlock?: string;
   learningIntent?: string;
+  detailLevel?: DetailLevel;
   subjectKind?: SubjectKind;
+  sourceKind?: string;
+  targetPhrases?: string[];
   abortSignal?: AbortSignal;
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
+  onNothingWorthKeeping?: () => void;
+  forceAtLeastOne?: boolean;
 }
 
 function sumTokens(a: number | null, b: number | null): number | null {
@@ -179,7 +188,14 @@ function pickValidLessons(result: { object?: unknown }, chunk: string) {
     throw new Error(`knowledge_bit_lessons_invalid_output: ${parsed.error.message}`);
   }
 
-  return parsed.data.lessons
+  return {
+    deliberateEmpty: parsed.data.lessons.length === 0,
+    lessons: toValidLessons(parsed.data.lessons, chunk),
+  };
+}
+
+function toValidLessons(rawLessons: KnowledgeBitLessonsResult["lessons"], chunk: string) {
+  return rawLessons
     .map((raw) => ({
       statement: raw.lesson,
       quote: raw.quote,
@@ -192,6 +208,10 @@ export async function runKnowledgeBitSourceItems(
   chunk: string,
   options: RunKnowledgeBitSourceItemsOptions = {},
 ): Promise<LessonDraft[]> {
+  if (options.sourceKind === "phrase") {
+    return runMeetingPhraseCard(chunk, options);
+  }
+
   if (options.subjectKind === "language") {
     return runLegacyKnowledgeBitSourceItems(chunk, options);
   }
@@ -211,21 +231,41 @@ export async function runKnowledgeBitSourceItems(
   const mastra = getMastra();
 
   const lessonsAgent = mastra.getAgent(AGENT_KEYS.knowledgeBitLessons);
-  const lessonsPrompt = buildKnowledgeBitLessonsPrompt(
-    chunk,
-    options.learningIntent ?? "",
-    options.strictLanguage,
-    options.feedbackBlock,
-  );
+  const lessonsPrompt = [
+    buildKnowledgeBitLessonsPrompt(
+      chunk,
+      options.learningIntent ?? "",
+      options.strictLanguage,
+      options.feedbackBlock,
+      options.detailLevel,
+    ),
+    ...(options.forceAtLeastOne ? [FORCE_AT_LEAST_ONE_LESSON_SUFFIX] : []),
+  ].join("\n");
   let lessonsResult = await generateLessons();
-  let lessons = pickValidLessons(lessonsResult, chunk);
+  let picked = pickValidLessons(lessonsResult, chunk);
 
-  if (lessons.length === 0) {
+  if (picked.deliberateEmpty) {
+    options.onNothingWorthKeeping?.();
+    options.onUsage?.(readGenerateUsage(lessonsResult));
+
+    return [];
+  }
+
+  if (picked.lessons.length === 0) {
     const retried = await generateLessons();
 
-    lessons = pickValidLessons(retried, chunk);
+    picked = pickValidLessons(retried, chunk);
     lessonsResult = retried;
+
+    if (picked.deliberateEmpty) {
+      options.onNothingWorthKeeping?.();
+      options.onUsage?.(readGenerateUsage(lessonsResult));
+
+      return [];
+    }
   }
+
+  const lessons = picked.lessons;
 
   async function generateLessons() {
     return generateWithRetry(

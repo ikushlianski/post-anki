@@ -467,3 +467,56 @@ describe("extractVisibleText", () => {
     expect(text).toBe("Redis stores data in memory.");
   });
 });
+
+describe("handleCreateKnowledgeSource target phrases", () => {
+  const created = { id: "ks_1", kind: "prose", rawText: "t", status: "pending", createdAt: new Date() };
+
+  beforeEach(() => {
+    mockInsertKnowledgeSource.mockResolvedValue(created);
+    mockInsertKnowledgeSources.mockResolvedValue([created]);
+    mockFetchWithTimeout.mockResolvedValue("<html><body><p>Some readable article text here.</p></body></html>");
+  });
+
+  it("should store the target phrases of a single pasted text", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: "hello", targetPhrases: ["break a leg"] }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledWith("hello", null, null, null, ["break a leg"]);
+  });
+
+  it("should apply the target phrases to every text of a batch", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ texts: ["a", "b"], targetPhrases: ["piece of cake"] }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSources).toHaveBeenCalledWith(["a", "b"], null, null, ["piece of cake"]);
+  });
+
+  it("should store the target phrases of a URL source", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(
+      fakeReq({ url: "https://example.com/post", targetPhrases: ["on the fence"] }),
+      res,
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockInsertKnowledgeSource.mock.calls[0]?.[4]).toEqual(["on the fence"]);
+  });
+
+  it("should refuse more than five target phrases", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: "hello", targetPhrases: ["a", "b", "c", "d", "e", "f"] }), res);
+
+    expect(res.status).toBe(400);
+    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+  });
+
+  it("should refuse an target phrase longer than 200 characters", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ texts: ["a"], targetPhrases: ["x".repeat(201)] }), res);
+
+    expect(res.status).toBe(400);
+    expect(mockInsertKnowledgeSources).not.toHaveBeenCalled();
+  });
+});

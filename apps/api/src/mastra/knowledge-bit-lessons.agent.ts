@@ -1,3 +1,4 @@
+import { detailLevelPromptLine, type DetailLevel } from "@post-anki/shared";
 import { Agent } from "@mastra/core/agent";
 import { z } from "zod";
 import { loadEnv } from "../shared/env.js";
@@ -10,6 +11,7 @@ import { buildLanguageHeaderLines, LANGUAGE_RULES, SECURITY_RULES } from "./know
 export const LESSON_FIELD_MAX_CHARS = 2000;
 export const LESSON_EXAMPLE_MAX_CHARS = 200;
 export const LEARNING_INTENT_MAX_CHARS = 1000;
+export const LESSON_REASON_MAX_CHARS = 300;
 
 export const LESSONS_INSTRUCTIONS = [
   "You read a piece of source text and pull out the few lessons a learner should be able to apply later,",
@@ -22,7 +24,11 @@ export const LESSONS_INSTRUCTIONS = [
   LANGUAGE_RULES,
   "",
   "LESSONS. Ask: what should a learner with this learning intent be able to apply later? Return that.",
-  `- Between 1 and ${LESSONS_MAX_PER_CHUNK} lessons. Fewer is better than padding: one strong lesson beats three weak ones.`,
+  `- Between 0 and ${LESSONS_MAX_PER_CHUNK} lessons. Fewer is better than padding: one strong lesson beats three weak ones.`,
+  "- A short note that states even one transferable claim still holds one lesson: write it. Never return",
+  "  an empty list for a note that contains a claim, rule, mechanism, criterion or distinction.",
+  "- Return an empty lessons list (and a short reason) only when the source has nothing of practical",
+  "  value to apply: greetings, filler, small talk, pure narrative with no takeaway, or text with no claim at all.",
   "- A lesson is a transferable principle, rule, mechanism or distinction, stated as 1 or 2 complete",
   "  sentences that make sense alone, months later, with no source in front of the learner.",
   "- Never write a lesson in the first person. Replace \"we\", \"our\", \"I\" and \"my\" with the real subject",
@@ -54,12 +60,16 @@ export function buildKnowledgeBitLessonsPrompt(
   learningIntent: string,
   strictLanguage = false,
   feedbackBlock = "",
+  detailLevel?: DetailLevel,
 ): string {
   const feedbackLines = feedbackBlock ? [feedbackBlock] : [];
+  const detailLine = detailLevelPromptLine(detailLevel);
+  const detailLines = detailLine ? [detailLine] : [];
 
   return [
     ...buildLanguageHeaderLines(buildSourceLanguageLine(chunk), strictLanguage),
     ...feedbackLines,
+    ...detailLines,
     "<learning_intent>",
     escapePromptTags(learningIntent.trim().slice(0, LEARNING_INTENT_MAX_CHARS)),
     "</learning_intent>",
@@ -78,8 +88,8 @@ export const knowledgeBitLessonsResultSchema = z.object({
         example: z.string().max(LESSON_FIELD_MAX_CHARS).optional(),
       }),
     )
-    .min(1)
     .max(LESSONS_MAX_PER_CHUNK),
+  reason: z.string().max(LESSON_REASON_MAX_CHARS).optional(),
 });
 
 export type KnowledgeBitLessonsResult = z.infer<typeof knowledgeBitLessonsResultSchema>;

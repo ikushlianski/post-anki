@@ -6,12 +6,13 @@ import {
   curricula,
   knowledgeBitQuestionVariants,
   knowledgeBits,
-  knowledgeBitSchedules,
+  knowledgeBitNoteSchedules,
   knowledgeSources,
   subjects,
   topics,
 } from "../db/schema.js";
 import { bitApproved } from "./knowledge-bit-approval.repo.js";
+import { sourceTypeSql, studyStateSql } from "./knowledge-bit-browser-filters.js";
 import { deriveOverviewState } from "./knowledge-bit-overview-state.js";
 import { pickPreferredVariants } from "./knowledge-bit-preferred-variant.js";
 import { effectiveSubjectIdSql } from "./knowledge-bit-subject.js";
@@ -27,7 +28,7 @@ async function resolveSubjectScopeIds(subjectId: string, db: DbExecutor): Promis
 
 // Approved bits with a live question, newest first. Subject filter includes descendants.
 export async function listKnowledgeBitOverview(
-  { subjectId, q, limit, offset }: KnowledgeBitOverviewQuery,
+  { subjectId, q, limit, offset, states, origins }: KnowledgeBitOverviewQuery,
   now: Date,
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitOverviewPage> {
@@ -38,16 +39,16 @@ export async function listKnowledgeBitOverview(
     .select({
       id: knowledgeBits.id,
       subjectId: effectiveSubjectIdSql,
-      phase: knowledgeBitSchedules.phase,
-      scheduled: knowledgeBitSchedules.knowledgeBitId,
-      dueAt: knowledgeBitSchedules.dueAt,
-      suspendedAt: knowledgeBitSchedules.suspendedAt,
-      buriedUntil: knowledgeBitSchedules.buriedUntil,
-      lapses: knowledgeBitSchedules.lapses,
+      phase: knowledgeBitNoteSchedules.phase,
+      scheduled: knowledgeBitNoteSchedules.knowledgeBitId,
+      dueAt: knowledgeBitNoteSchedules.dueAt,
+      suspendedAt: knowledgeBitNoteSchedules.suspendedAt,
+      buriedUntil: knowledgeBitNoteSchedules.buriedUntil,
+      lapses: knowledgeBitNoteSchedules.lapses,
       sourceLinks: knowledgeBits.sourceLinks,
     })
     .from(knowledgeBits)
-    .leftJoin(knowledgeBitSchedules, eq(knowledgeBitSchedules.knowledgeBitId, knowledgeBits.id))
+    .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
     .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))
     .leftJoin(topics, eq(topics.id, knowledgeBits.topicId))
     .leftJoin(curricula, eq(curricula.id, topics.curriculumId))
@@ -67,6 +68,8 @@ export async function listKnowledgeBitOverview(
         ),
         scopeIds ? inArray(effectiveSubjectIdSql, scopeIds) : undefined,
         pattern ? questionOrAnswerContains(pattern, db) : undefined,
+        states?.length ? inArray(studyStateSql(now), states) : undefined,
+        origins?.length ? inArray(sourceTypeSql, origins) : undefined,
       ),
     )
     .orderBy(desc(knowledgeBits.createdAt), asc(knowledgeBits.id))
@@ -84,6 +87,7 @@ export async function listKnowledgeBitOverview(
       id: knowledgeBitQuestionVariants.id,
       knowledgeBitId: knowledgeBitQuestionVariants.knowledgeBitId,
       kind: knowledgeBitQuestionVariants.kind,
+      context: knowledgeBitQuestionVariants.context,
       prompt: knowledgeBitQuestionVariants.prompt,
       answer: knowledgeBitQuestionVariants.answer,
       createdAt: knowledgeBitQuestionVariants.createdAt,
@@ -113,6 +117,7 @@ export async function listKnowledgeBitOverview(
     return [
       {
         knowledgeBitId: row.id,
+        context: variant.context,
         question: variant.prompt,
         answer: variant.answer,
         subjectId: row.subjectId,

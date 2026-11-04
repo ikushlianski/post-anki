@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TYPED_ANSWER_MAX_CHARS } from "./text-limits";
 import { depthLevelSchema } from "./depth";
 
 export const socraticDegreeSchema = z.enum([
@@ -57,7 +58,7 @@ export type StartSocraticSessionInput = z.infer<typeof startSocraticSessionInput
 export const answerSocraticInput = z.object({
   sessionId: z.string(),
   turnId: z.string(),
-  answer: z.string(),
+  answer: z.string().max(TYPED_ANSWER_MAX_CHARS),
 });
 
 export type AnswerSocraticInput = z.infer<typeof answerSocraticInput>;

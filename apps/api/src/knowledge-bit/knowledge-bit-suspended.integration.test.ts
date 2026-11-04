@@ -142,8 +142,11 @@ describe("listSuspendedKnowledgeBits (real Postgres)", () => {
 
     expect(page.hasMore).toBe(false);
     expect(page.items).toContainEqual({
+      variantId: expect.any(String),
+      cardKey: "",
       knowledgeBitId: bitId,
       itemText: "Handshake",
+      context: null,
       question: "Why a handshake?",
       answer: "To agree on sequence numbers.",
       subjectName: "Networking",

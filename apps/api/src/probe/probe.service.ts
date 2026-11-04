@@ -16,8 +16,6 @@ import {
   isCalibrationStale,
   nextGapToProbe,
   normalizeApplicableArchetypes,
-  openGaps,
-  progressFromGaps,
   reactivateOnFail,
   selectArchetype,
   selectRecentFeedback,
@@ -30,14 +28,9 @@ import { log } from "../shared/log.js";
 import {
   getTopicRow,
   rowDepth,
-  writeTopicProgress,
   type TopicRow,
 } from "../topic/topic-progress.repo.js";
-import {
-  insertDiscoveredGaps,
-  listGapsForTopic,
-  persistGaps,
-} from "../gap/gap.repo.js";
+import { listGapsForTopic } from "../gap/gap.repo.js";
 import {
   getGapArchetypeState,
   recordArchetypeClassification,
@@ -53,6 +46,7 @@ import {
   getMostRecentTurnArchetype,
   getRecentSessionExchangesForGap,
 } from "../socratic/socratic.repo.js";
+import { recordProbeAttempt } from "./probe-attempt.repo.js";
 import { gatherProbeGrounding } from "./probe-grounding.js";
 import { gatherPageGroundedQuestionContext } from "../topic/generate-page-questions.js";
 import { generatedQuestionSchema, type GeneratedQuestion } from "./probe-question.js";
@@ -235,17 +229,14 @@ export async function submitProbe(
     )
     .map((g) => g.label);
 
-  await persistGaps(updated);
+  const { progress, learningStatus } = await recordProbeAttempt({
+    topicId: input.topicId,
+    depth: rowDepth(topic),
+    updatedGaps: updated,
+    newGaps: evaluation.newGaps,
+    now,
+  });
 
-  const discovered = await insertDiscoveredGaps(input.topicId, evaluation.newGaps, now);
-  const allGaps = [...updated, ...discovered];
-
-  const attempts = topic.progressAttempts + 1;
-  const progress = progressFromGaps(allGaps, rowDepth(topic), attempts, now);
-  const remaining = openGaps(allGaps, rowDepth(topic));
-  const learningStatus = remaining.length === 0 ? "reviewing" : "probing";
-
-  await writeTopicProgress(input.topicId, progress, learningStatus);
   await recordAnswerActivity(ctx.curriculumId, now);
 
   const outcome = probed ? (probedFailed ? "fail" : "pass") : "pass";

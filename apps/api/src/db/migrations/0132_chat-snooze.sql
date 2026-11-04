@@ -1,0 +1,1 @@
+ALTER TABLE "knowledge_bits" ADD COLUMN "chat_snoozed_until" timestamp with time zone;

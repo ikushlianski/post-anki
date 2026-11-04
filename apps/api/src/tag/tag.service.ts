@@ -4,7 +4,10 @@ import {
   getTag,
   getTagMasteryStatuses,
   listTags,
+  deleteTag,
   removeTagAssignment,
+  renameTag,
+  type RenameTagError,
   resolveOrCreateTag,
   type TagMasteryStatusRow,
 } from "./tag.repo.js";
@@ -20,6 +23,17 @@ export async function getAllTagMasteryStatuses(): Promise<TagMasteryStatusRow[]>
 
 export async function createOrGetTag(name: string): Promise<Tag> {
   return resolveOrCreateTag(name);
+}
+
+export async function renameExistingTag(
+  tagId: string,
+  name: string,
+): Promise<Tag | { error: RenameTagError }> {
+  return renameTag(tagId, name);
+}
+
+export async function deleteExistingTag(tagId: string): Promise<boolean> {
+  return deleteTag(tagId);
 }
 
 export type AssignTagError = "tag_not_found";
@@ -38,10 +52,7 @@ export async function addTagAssignment(
   return assignTag(tagId, nodeType, nodeId);
 }
 
-export async function deleteTagAssignment(
-  tagId: string,
-  assignmentId: string,
-): Promise<boolean> {
+export async function deleteTagAssignment(tagId: string, assignmentId: string): Promise<boolean> {
   return removeTagAssignment(tagId, assignmentId);
 }
 

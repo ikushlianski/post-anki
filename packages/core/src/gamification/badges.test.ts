@@ -11,7 +11,7 @@ describe("evaluateBadges", () => {
   it("should lock everything for a brand new learner and show no subject badges", () => {
     const badges = evaluateBadges(empty);
 
-    expect(badges).toHaveLength(11);
+    expect(badges).toHaveLength(15);
     expect(badges.every((badge) => !badge.unlocked && badge.progress === 0)).toBe(true);
   });
 
@@ -54,5 +54,27 @@ describe("evaluateBadges", () => {
     });
     expect(badges["subject-s1-100"]).toMatchObject({ unlocked: false, progress: 30 });
     expect(badges["subject-s2-25"]).toMatchObject({ unlocked: false, progress: 3 });
+  });
+
+  it("should unlock goal-day badges by the number of days the daily goal was met", () => {
+    const badges = byKey({ ...empty, goalDays: 20 });
+
+    expect(badges["goal-days-7"]?.unlocked).toBe(true);
+    expect(badges["goal-days-20"]).toMatchObject({ family: "goal_days", unlocked: true });
+    expect(badges["goal-days-60"]).toMatchObject({ unlocked: false, progress: 20 });
+  });
+
+  it("should award solid-subject badges by share of cards solid, ignoring tiny subjects", () => {
+    const badges = byKey({
+      ...empty,
+      subjectSolid: [
+        { subjectId: "s1", subjectName: "Biology", totalCards: 40, percent: 55 },
+        { subjectId: "s2", subjectName: "Law", totalCards: 2, percent: 100 },
+      ],
+    });
+
+    expect(badges["subject-solid-s1-50"]).toMatchObject({ family: "subject_solid", name: "Biology: 50% solid", unlocked: true });
+    expect(badges["subject-solid-s1-100"]).toMatchObject({ unlocked: false, progress: 55 });
+    expect(badges["subject-solid-s2-50"]).toBeUndefined();
   });
 });
