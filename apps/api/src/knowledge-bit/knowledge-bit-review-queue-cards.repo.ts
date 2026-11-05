@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, lte, not, sql, type SQL } from "drizzle-orm";
 import type { KnowledgeBitQuestionVariantKind } from "@post-anki/shared";
 import { cardPhaseSchema, isOrderedListKind } from "@post-anki/shared";
 import type { DbExecutor } from "../db/client.js";
@@ -115,6 +115,7 @@ export async function listScopedCards(
   now: Date,
   db: DbExecutor,
   stepsFor: StepsFor = defaultStepsFor,
+  only?: "new" | "seen",
 ): Promise<KnowledgeBitReviewCardRow[]> {
   const reviewCount = count(knowledgeBitReviews.id);
   const dueRank = sql<number>`min(case when ${knowledgeBitSchedules.knowledgeBitId} is null or ${knowledgeBitSchedules.dueAt} <= now() then 0 else 1 end)`;
@@ -123,6 +124,9 @@ export async function listScopedCards(
     .select({ variantId: picked.variantId })
     .from(picked)
     .where(eq(picked.pickRank, 1));
+
+  const isNewCard = sql<boolean>`bool_and(${knowledgeBitSchedules.reviewCount} is null or ${knowledgeBitSchedules.reviewCount} = 0)`;
+  const onlyFilter = only === "new" ? isNewCard : only === "seen" ? not(isNewCard) : undefined;
 
   const rows = await db
     .select({
@@ -147,7 +151,7 @@ export async function listScopedCards(
       phase: knowledgeBitSchedules.phase,
       learningStep: knowledgeBitSchedules.learningStep,
       lapses: knowledgeBitSchedules.lapses,
-      isNew: sql<boolean>`bool_and(${knowledgeBitSchedules.reviewCount} is null or ${knowledgeBitSchedules.reviewCount} = 0)`,
+      isNew: isNewCard,
     })
     .from(knowledgeBitQuestionVariants)
     .innerJoin(knowledgeBits, eq(knowledgeBits.id, knowledgeBitQuestionVariants.knowledgeBitId))
@@ -193,8 +197,9 @@ export async function listScopedCards(
       knowledgeBitSchedules.learningStep,
       knowledgeBitSchedules.lapses,
     )
+    .having(onlyFilter)
     .orderBy(
-      ...(filter.topicId ? [asc(dueRank)] : []),
+      ...(filter.topicId || only === "seen" ? [asc(dueRank)] : []),
       asc(reviewCount),
       asc(knowledgeBitQuestionVariants.createdAt),
     )

@@ -5,6 +5,7 @@ import { buildAdminPatch, draftFromAdminSettings } from "@/settings-admin-patch"
 const SAVED: AdminSettings = {
   modelTier: "cheap",
   newCardsPerDay: 20,
+  mixNewWithDue: true,
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,
@@ -19,6 +20,19 @@ describe("buildAdminPatch", () => {
     const draft = { ...draftFromAdminSettings(SAVED), modelTier: "premium" as const };
 
     expect(buildAdminPatch(draft, SAVED)).toEqual({ ok: true, value: { modelTier: "premium" } });
+  });
+
+  it("should send the mix setting only when the learner switched it", () => {
+    const draft = { ...draftFromAdminSettings(SAVED), mixNewWithDue: false };
+
+    expect(buildAdminPatch(draft, SAVED)).toEqual({ ok: true, value: { mixNewWithDue: false } });
+  });
+
+  it("should treat a missing mix setting as on and leave it out of the patch", () => {
+    const old: AdminSettings = { ...SAVED, mixNewWithDue: null };
+
+    expect(draftFromAdminSettings(old).mixNewWithDue).toBe(true);
+    expect(buildAdminPatch(draftFromAdminSettings(old), old)).toEqual({ ok: true, value: {} });
   });
 
   it("should leave out any field the API did not return for this account", () => {

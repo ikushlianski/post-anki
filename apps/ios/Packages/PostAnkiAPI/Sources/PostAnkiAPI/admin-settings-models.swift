@@ -6,6 +6,7 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
     public var knowledgeItemModelId: String?
     public var newCardsPerDay: Int?
     public var maxReviewsPerDay: Int?
+    public var mixNewWithDue: Bool?
     public var fusionEnabled: Bool?
     public var fusionModelIds: [String]?
 
@@ -15,6 +16,7 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
         knowledgeItemModelId: String? = nil,
         newCardsPerDay: Int? = nil,
         maxReviewsPerDay: Int? = nil,
+        mixNewWithDue: Bool? = nil,
         fusionEnabled: Bool? = nil,
         fusionModelIds: [String]? = nil
     ) {
@@ -25,6 +27,7 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
         self.knowledgeItemModelId = knowledgeItemModelId
         self.newCardsPerDay = newCardsPerDay
         self.maxReviewsPerDay = maxReviewsPerDay
+        self.mixNewWithDue = mixNewWithDue
     }
 }
 

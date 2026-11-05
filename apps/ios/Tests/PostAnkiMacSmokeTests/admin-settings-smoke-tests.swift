@@ -29,6 +29,18 @@ extension SmokeTests {
             #expect(object == ["maxReviewsPerDay": 150])
         }
 
+        @Test("should default mixing new cards to on when the server omits it and send a change")
+        func mixNewWithDue() throws {
+            let missing = try JSONDecoder().decode(AdminSettings.self, from: Data(#"{"testToggle":true,"modelTier":"cheap"}"#.utf8))
+            let off = try JSONDecoder().decode(AdminSettings.self, from: Data(#"{"testToggle":true,"modelTier":"cheap","mixNewWithDue":false}"#.utf8))
+            let data = try JSONEncoder().encode(AdminSettingsUpdate(mixNewWithDue: false))
+            let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Bool])
+
+            #expect(missing.mixNewWithDue == nil)
+            #expect(off.mixNewWithDue == false)
+            #expect(object == ["mixNewWithDue": false])
+        }
+
         @Test("should keep fusion off and empty when the server omits fusion settings")
         func fusionDefaultsOff() throws {
             let json = #"{"testToggle":false,"modelTier":"cheap"}"#

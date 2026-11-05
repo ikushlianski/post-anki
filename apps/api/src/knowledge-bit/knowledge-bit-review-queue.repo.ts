@@ -5,12 +5,16 @@ import type {
   ReviewCounts,
 } from "@post-anki/shared";
 import { collectSubjectSubtreeIds } from "@post-anki/core";
+import type { SQL } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { subjects } from "../db/schema.js";
+import { getMixNewWithDue } from "../admin-settings/admin-settings.repo.js";
 import { loadStudyOptionsResolver } from "../subject-study-options/subject-study-options-resolver.js";
 import { getLocalDayWindow } from "./knowledge-bit-review.repo.js";
 import { readStudyPlanClock } from "../study-plan/study-plan-today.js";
 import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
+import type { ScheduleOptions } from "./knowledge-bit-grade-schedule.js";
+import { interleaveNewWithSeen } from "./knowledge-bit-review-queue-mix.js";
 import { readDailyReviewLimit } from "./knowledge-bit-review-queue-daily-limit.repo.js";
 import { listLearnAheadRows } from "./knowledge-bit-review-queue-learning.repo.js";
 import { pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
@@ -85,6 +89,27 @@ async function resolveSubjectScopeIds(subjectId: string, db: DbExecutor): Promis
   return collectSubjectSubtreeIds(subjectId, rows);
 }
 
+async function listScopedBatch(
+  limit: number,
+  scope: SQL,
+  filter: KnowledgeBitReviewCardsFilter,
+  now: Date,
+  db: DbExecutor,
+  stepsFor: (subjectId: string | null) => ScheduleOptions,
+  mixNewWithDue: boolean,
+): Promise<KnowledgeBitReviewCardRow[]> {
+  if (!mixNewWithDue) {
+    return listScopedCards(limit, scope, filter, now, db, stepsFor);
+  }
+
+  const [seen, fresh] = await Promise.all([
+    listScopedCards(limit, scope, filter, now, db, stepsFor, "seen"),
+    listScopedCards(limit, scope, filter, now, db, stepsFor, "new"),
+  ]);
+
+  return interleaveNewWithSeen(seen, fresh, limit);
+}
+
 export async function getKnowledgeBitReviewQueue(
   limit: number,
   filter: KnowledgeBitReviewCardsFilter | undefined,
@@ -108,7 +133,7 @@ export async function getKnowledgeBitReviewQueue(
   const { remaining, newAvailable, capHidesNew } = summariseNewCardAllowance(allowance, freshBySubject);
   const { dayEndsAt } = allowance;
   const aheadDays = clock.aheadDays ?? 0;
-  const daily = await readDailyReviewLimit(clock, db);
+  const [daily, mixNewWithDue] = await Promise.all([readDailyReviewLimit(clock, db), getMixNewWithDue(db)]);
   const dailyFields = { limitReached: daily.reached, reviewedToday: daily.reviewedToday, limit: daily.limit };
   const blockedByDailyLimit = daily.reached && aheadDays === 0;
   const subjectOnlyScope = Boolean(filter?.subjectId && !filter.tagId && !filter.topicId && !filter.knowledgeBitId);
@@ -116,7 +141,9 @@ export async function getKnowledgeBitReviewQueue(
   if (scope && filter) {
     const blocked = blockedByDailyLimit && subjectOnlyScope;
     const [cards, totals] = await Promise.all([
-      blocked ? Promise.resolve([]) : listScopedCards(limit, scope, filter, now, db, stepsFor),
+      blocked
+        ? Promise.resolve([])
+        : listScopedBatch(limit, scope, filter, now, db, stepsFor, mixNewWithDue),
       readEligibleTotals(picked, now, db),
     ]);
 
@@ -141,7 +168,9 @@ export async function getKnowledgeBitReviewQueue(
       : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor),
     readEligibleTotals(picked, now, db),
   ]);
-  const withNew = [...dueCards, ...newCards.slice(0, Math.max(0, limit - dueCards.length))];
+  const withNew = mixNewWithDue
+    ? interleaveNewWithSeen(dueCards, newCards, limit)
+    : [...dueCards, ...newCards.slice(0, Math.max(0, limit - dueCards.length))];
   const aheadRows = blockedByDailyLimit
     ? []
     : await listLearnAheadRows(picked, aheadDays > 0 ? 0 : limit - withNew.length, now, db);

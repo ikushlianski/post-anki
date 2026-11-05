@@ -12,6 +12,7 @@ import {
 export type AdminDraft = {
   modelTier: ModelTier;
   newCards: string;
+  mixNewWithDue: boolean;
   learningSteps: string;
   relearningSteps: string;
   retention: string;
@@ -21,6 +22,7 @@ export function draftFromAdminSettings(settings: AdminSettings): AdminDraft {
   return {
     modelTier: settings.modelTier ?? "cheap",
     newCards: String(settings.newCardsPerDay ?? NEW_CARDS_RANGE.min),
+    mixNewWithDue: settings.mixNewWithDue ?? true,
     learningSteps: formatSteps(settings.learningStepsMinutes ?? []),
     relearningSteps: formatSteps(settings.relearningStepsMinutes ?? []),
     retention: retentionToPercent(settings.desiredRetention ?? 0.9),
@@ -51,6 +53,10 @@ export function buildAdminPatch(
     if (newCards.value !== saved.newCardsPerDay) {
       patch.newCardsPerDay = newCards.value;
     }
+  }
+
+  if (saved.mixNewWithDue !== null && draft.mixNewWithDue !== saved.mixNewWithDue) {
+    patch.mixNewWithDue = draft.mixNewWithDue;
   }
 
   if (saved.learningStepsMinutes !== null) {

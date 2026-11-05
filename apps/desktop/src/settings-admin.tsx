@@ -7,7 +7,7 @@ import {
   type ModelTier,
 } from "@/api/settings-commands";
 import { buildAdminPatch, draftFromAdminSettings, type AdminDraft } from "@/settings-admin-patch";
-import { SaveBar, SettingsField, SettingsSection, type SaveState } from "@/settings-form-controls";
+import { SaveBar, SettingsField, SettingsSection, SettingsSwitch, type SaveState } from "@/settings-form-controls";
 import { fieldClass, loadErrorClass, narrowFieldClass, selectClass, statusClass } from "@/settings-classes";
 import { errorMessage } from "@/shared/error-message";
 
@@ -128,6 +128,20 @@ function AdminEditor({ initial }: { initial: AdminSettings }) {
             disabled={busy}
             className={narrowFieldClass}
             onChange={(event) => edit("newCards", event.target.value)}
+          />
+        </SettingsField>
+      ) : null}
+      {saved.mixNewWithDue !== null ? (
+        <SettingsField
+          label="Mix new cards with cards I've already seen"
+          htmlFor="admin-mix-new"
+          hint="On: new cards are shown in between cards you have already seen. Off: new cards come in a separate block."
+        >
+          <SettingsSwitch
+            id="admin-mix-new"
+            checked={draft.mixNewWithDue}
+            disabled={busy}
+            onChange={(checked) => edit("mixNewWithDue", checked)}
           />
         </SettingsField>
       ) : null}

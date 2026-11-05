@@ -42,6 +42,7 @@ export type SubjectStudyOptionsPatch = Partial<{
 export type AdminSettings = {
   modelTier: ModelTier | null;
   newCardsPerDay: number | null;
+  mixNewWithDue: boolean | null;
   learningStepsMinutes: number[] | null;
   relearningStepsMinutes: number[] | null;
   desiredRetention: number | null;
@@ -50,6 +51,7 @@ export type AdminSettings = {
 export type AdminSettingsPatch = Partial<{
   modelTier: ModelTier;
   newCardsPerDay: number;
+  mixNewWithDue: boolean;
   learningStepsMinutes: number[];
   relearningStepsMinutes: number[];
   desiredRetention: number;

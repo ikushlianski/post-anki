@@ -35,6 +35,7 @@ type SettingField =
   | 'knowledgeItemModel'
   | 'newCardsPerDay'
   | 'maxReviewsPerDay'
+  | 'mixNewWithDue'
   | 'learningSteps'
   | 'relearningSteps'
   | 'desiredRetention'
@@ -72,6 +73,7 @@ function AdminSettingsPage() {
     save('knowledgeItemModel', { knowledgeItemModelId })
   const setNewCardsPerDay = (newCardsPerDay: number) => save('newCardsPerDay', { newCardsPerDay })
   const setMaxReviewsPerDay = (maxReviewsPerDay: number) => save('maxReviewsPerDay', { maxReviewsPerDay })
+  const setMixNewWithDue = (mixNewWithDue: boolean) => save('mixNewWithDue', { mixNewWithDue })
   const setLearningSteps = (learningStepsMinutes: number[]) =>
     save('learningSteps', { learningStepsMinutes })
   const setRelearningSteps = (relearningStepsMinutes: number[]) =>
@@ -158,6 +160,14 @@ function AdminSettingsPage() {
           testId="admin-settings-max-reviews-per-day"
         />
         {saveError('maxReviewsPerDay')}
+        <AdminSettingsToggle
+          label="Mix new cards with cards I've already seen"
+          description="On: new cards are shown in between the cards you have already seen. Off: new cards come in a separate block."
+          value={settings.mixNewWithDue}
+          onChange={setMixNewWithDue}
+          disabled={busy}
+        />
+        {saveError('mixNewWithDue')}
         <StepsField
           label="Learning steps (minutes)"
           description="App default for how soon a new card repeats, for example 1, 10. Subjects can override it."

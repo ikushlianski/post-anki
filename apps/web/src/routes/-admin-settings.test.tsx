@@ -35,6 +35,7 @@ function setLoaderData() {
       knowledgeItemModelId: 'x',
       newCardsPerDay: 20,
       maxReviewsPerDay: 200,
+      mixNewWithDue: true,
       learningStepsMinutes: [1, 10],
       relearningStepsMinutes: [10],
       desiredRetention: 0.9,
@@ -107,5 +108,19 @@ describe('AdminSettingsPage', () => {
     expect(screen.queryByTestId('admin-settings-save-error-newCardsPerDay')).toBeNull()
     expect(screen.getByTestId('admin-settings-refresh-error')).toBeTruthy()
     expect(input.value).toBe('60')
+  })
+
+  it('should save the mix setting when the learner turns it off', async () => {
+    setLoaderData()
+    mockedUpdate.mockResolvedValue(undefined as never)
+    invalidate.mockResolvedValue(undefined)
+    render(<Page />)
+
+    const toggle = screen.getByRole('switch', { name: "Mix new cards with cards I've already seen" })
+
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(mockedUpdate).toHaveBeenCalledWith({ data: { mixNewWithDue: false } }))
   })
 })

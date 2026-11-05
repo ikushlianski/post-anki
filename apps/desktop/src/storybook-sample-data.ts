@@ -201,6 +201,7 @@ export const DAILY_GOAL: DailyGoal = { dailyReviewTarget: 40 };
 export const ADMIN_SETTINGS: AdminSettings = {
   modelTier: "balanced",
   newCardsPerDay: 20,
+  mixNewWithDue: true,
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,

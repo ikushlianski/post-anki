@@ -8,6 +8,7 @@ import {
   DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
   DEFAULT_LEARNING_STEPS_MINUTES,
   DEFAULT_MAX_REVIEWS_PER_DAY,
+  DEFAULT_MIX_NEW_WITH_DUE,
   DEFAULT_NEW_CARDS_PER_DAY,
   DEFAULT_RELEARNING_STEPS_MINUTES,
   desiredRetentionSchema,
@@ -78,6 +79,7 @@ async function toAdminSettings(row: typeof appSettings.$inferSelect): Promise<Ad
     knowledgeItemModelId: await parseKnowledgeItemModelId(row.knowledgeItemModelId),
     ...toStudyDefaults(row),
     maxReviewsPerDay: clampMaxReviewsPerDay(row.maxReviewsPerDay),
+    mixNewWithDue: row.mixNewWithDue,
     fusionEnabled: row.fusionEnabled,
     fusionModelIds: toFusionModelIds(row.fusionModelIds),
   };
@@ -106,6 +108,7 @@ export async function getAdminSettings(): Promise<AdminSettings> {
     knowledgeItemModelId: DEFAULT_KNOWLEDGE_ITEM_MODEL_ID,
     ...FALLBACK_STUDY_DEFAULTS,
     maxReviewsPerDay: DEFAULT_MAX_REVIEWS_PER_DAY,
+    mixNewWithDue: DEFAULT_MIX_NEW_WITH_DUE,
     fusionEnabled: DEFAULT_FUSION_ENABLED,
     fusionModelIds: DEFAULT_FUSION_MODEL_IDS,
   };
@@ -120,6 +123,7 @@ export async function updateAdminSettings(
   const knowledgeItemModelId = input.knowledgeItemModelId ?? current.knowledgeItemModelId;
   const newCardsPerDay = input.newCardsPerDay ?? current.newCardsPerDay;
   const maxReviewsPerDay = input.maxReviewsPerDay ?? current.maxReviewsPerDay;
+  const mixNewWithDue = input.mixNewWithDue ?? current.mixNewWithDue;
   const learningStepsMinutes = input.learningStepsMinutes ?? current.learningStepsMinutes;
   const relearningStepsMinutes = input.relearningStepsMinutes ?? current.relearningStepsMinutes;
   const desiredRetention = input.desiredRetention ?? current.desiredRetention;
@@ -143,6 +147,7 @@ export async function updateAdminSettings(
       knowledgeItemModelId,
       newCardsPerDay,
       maxReviewsPerDay,
+      mixNewWithDue,
       learningStepsMinutes,
       relearningStepsMinutes,
       desiredRetention,
@@ -158,6 +163,7 @@ export async function updateAdminSettings(
         knowledgeItemModelId,
         newCardsPerDay,
         maxReviewsPerDay,
+        mixNewWithDue,
         learningStepsMinutes,
         relearningStepsMinutes,
         desiredRetention,
@@ -173,6 +179,7 @@ export async function updateAdminSettings(
     knowledgeItemModelId,
     newCardsPerDay,
     maxReviewsPerDay,
+    mixNewWithDue,
     learningStepsMinutes,
     relearningStepsMinutes,
     desiredRetention,
@@ -205,6 +212,15 @@ export async function getMaxReviewsPerDay(db: DbExecutor = getDb()): Promise<num
     .where(eq(appSettings.id, SETTINGS_ID));
 
   return row ? clampMaxReviewsPerDay(row.maxReviewsPerDay) : DEFAULT_MAX_REVIEWS_PER_DAY;
+}
+
+export async function getMixNewWithDue(db: DbExecutor = getDb()): Promise<boolean> {
+  const [row] = await db
+    .select({ mixNewWithDue: appSettings.mixNewWithDue })
+    .from(appSettings)
+    .where(eq(appSettings.id, SETTINGS_ID));
+
+  return row ? row.mixNewWithDue : DEFAULT_MIX_NEW_WITH_DUE;
 }
 
 export async function getStudyDefaults(db: DbExecutor = getDb()): Promise<StudyOptions> {

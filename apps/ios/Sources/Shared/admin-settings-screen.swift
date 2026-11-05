@@ -97,6 +97,16 @@ struct AdminSettingsScreen: View {
                 field: .maxReviewsPerDay
             )
         }
+
+        Section {
+            Toggle("Mix new cards with cards I've already seen", isOn: mixBinding)
+                .disabled(model.savingField != nil)
+        } footer: {
+            footer(
+                "On: new cards are shown in between the cards you have already seen. Off: new cards come in a separate block.",
+                field: .mixNewWithDue
+            )
+        }
     }
 
     private func footer(_ text: String, field: AdminSettingField) -> some View {
@@ -120,6 +130,13 @@ struct AdminSettingsScreen: View {
         Binding(
             get: { model.knowledgeItemModelId },
             set: { value in Task { await model.setKnowledgeItemModel(value) } }
+        )
+    }
+
+    private var mixBinding: Binding<Bool> {
+        Binding(
+            get: { model.mixNewWithDue },
+            set: { value in Task { await model.setMixNewWithDue(value) } }
         )
     }
 

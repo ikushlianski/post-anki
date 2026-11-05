@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" ADD COLUMN "mix_new_with_due" boolean DEFAULT true NOT NULL;

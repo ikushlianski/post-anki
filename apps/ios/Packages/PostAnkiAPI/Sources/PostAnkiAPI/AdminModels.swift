@@ -6,12 +6,13 @@ public struct AdminSettings: Decodable, Sendable {
     public let knowledgeItemModelId: String?
     public let newCardsPerDay: Int?
     public let maxReviewsPerDay: Int?
+    public let mixNewWithDue: Bool?
     public let fusionEnabled: Bool
     public let fusionModelIds: [String]
     public let fusionEstimate: FusionEstimate?
 
     enum CodingKeys: String, CodingKey {
-        case testToggle, modelTier, knowledgeItemModelId, newCardsPerDay, maxReviewsPerDay
+        case testToggle, modelTier, knowledgeItemModelId, newCardsPerDay, maxReviewsPerDay, mixNewWithDue
         case fusionEnabled, fusionModelIds, fusionEstimate
     }
 
@@ -23,6 +24,7 @@ public struct AdminSettings: Decodable, Sendable {
         knowledgeItemModelId = try container.decodeIfPresent(String.self, forKey: .knowledgeItemModelId)
         newCardsPerDay = try container.decodeIfPresent(Int.self, forKey: .newCardsPerDay)
         maxReviewsPerDay = try? container.decodeIfPresent(Int.self, forKey: .maxReviewsPerDay)
+        mixNewWithDue = try? container.decodeIfPresent(Bool.self, forKey: .mixNewWithDue)
         fusionEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .fusionEnabled)) ?? false
         fusionModelIds = (try? container.decodeIfPresent([String].self, forKey: .fusionModelIds)) ?? []
         fusionEstimate = try? container.decodeIfPresent(FusionEstimate.self, forKey: .fusionEstimate)

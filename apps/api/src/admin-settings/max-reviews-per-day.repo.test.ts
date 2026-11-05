@@ -74,3 +74,32 @@ describe("daily review limit setting", () => {
     expect(updated.maxReviewsPerDay).toBe(75);
   });
 });
+
+describe("mix new cards with seen cards setting", () => {
+  beforeEach(() => {
+    state.rows = [];
+    state.inserted = undefined;
+  });
+
+  it("should mix new cards with seen cards when the learner never saved the setting", async () => {
+    expect((await getAdminSettings()).mixNewWithDue).toBe(true);
+  });
+
+  it("should save the setting off and keep the other settings", async () => {
+    state.rows = [{ ...makeRow(200), mixNewWithDue: true }];
+
+    const updated = await updateAdminSettings({ mixNewWithDue: false });
+
+    expect(state.inserted).toMatchObject({ mixNewWithDue: false, maxReviewsPerDay: 200 });
+    expect(updated.mixNewWithDue).toBe(false);
+  });
+
+  it("should keep the stored setting when only another setting changes", async () => {
+    state.rows = [{ ...makeRow(200), mixNewWithDue: false }];
+
+    const updated = await updateAdminSettings({ testToggle: true });
+
+    expect(state.inserted).toMatchObject({ mixNewWithDue: false });
+    expect(updated.mixNewWithDue).toBe(false);
+  });
+});

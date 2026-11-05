@@ -7,6 +7,7 @@ enum AdminSettingField: Hashable {
     case knowledgeItemModel
     case newCardsPerDay
     case maxReviewsPerDay
+    case mixNewWithDue
     case fusion
 }
 
@@ -38,6 +39,7 @@ final class AdminSettingsModel {
     var knowledgeItemModelId: String { settings?.knowledgeItemModelId ?? AdminExtractionModel.defaultId }
     var newCardsPerDay: Int { settings?.newCardsPerDay ?? AdminSettingsLimits.defaultNewCardsPerDay }
     var maxReviewsPerDay: Int { settings?.maxReviewsPerDay ?? AdminSettingsLimits.defaultMaxReviewsPerDay }
+    var mixNewWithDue: Bool { settings?.mixNewWithDue ?? true }
 
     var fusionEnabled: Bool { settings?.fusionEnabled ?? false }
     var fusionModelIds: [String] { settings?.fusionModelIds ?? [] }
@@ -89,6 +91,10 @@ final class AdminSettingsModel {
         let clamped = min(range.upperBound, max(range.lowerBound, value))
 
         await save(.maxReviewsPerDay, AdminSettingsUpdate(maxReviewsPerDay: clamped))
+    }
+
+    func setMixNewWithDue(_ value: Bool) async {
+        await save(.mixNewWithDue, AdminSettingsUpdate(mixNewWithDue: value))
     }
 
     private func save(_ field: AdminSettingField, _ update: AdminSettingsUpdate) async {

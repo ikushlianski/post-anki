@@ -579,6 +579,7 @@ export const appSettings = pgTable("app_settings", {
     .default("openrouter/deepseek/deepseek-v4-flash"),
   newCardsPerDay: integer("new_cards_per_day").notNull().default(20),
   maxReviewsPerDay: integer("max_reviews_per_day").notNull().default(200),
+  mixNewWithDue: boolean("mix_new_with_due").notNull().default(true),
   learningStepsMinutes: jsonb("learning_steps_minutes")
     .$type<number[]>()
     .notNull()
