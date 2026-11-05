@@ -1,6 +1,8 @@
 import type http from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({ embedApprovedKnowledgeBits: vi.fn() }));
+vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 vi.mock("./knowledge-bit-chat-card.repo.js", () => ({}));
 vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
   countChatQueueKnowledgeBits: vi.fn(),
@@ -10,10 +12,12 @@ vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
 vi.mock("./knowledge-bit-chat-queue.service.js", () => ({}));
 vi.mock("./knowledge-bit-chat-queue-search.repo.js", () => ({ searchChatQueueMessages: vi.fn() }));
 vi.mock("./knowledge-bit-chat-queue-messages.repo.js", () => ({}));
+vi.mock("./ask-ai-chat-retry.js", () => ({ retryHeldAskAiRepliesInBackground: vi.fn() }));
 vi.mock("./knowledge-bit-chat-thread-retention.js", () => ({ sweepDecidedChatThreadsHourly: vi.fn() }));
 
 const { countAllChatQueueKnowledgeBits, countChatQueueKnowledgeBits, listChatQueueKnowledgeBits } = await import("./knowledge-bit-chat-queue.repo.js");
 const { searchChatQueueMessages } = await import("./knowledge-bit-chat-queue-search.repo.js");
+const { retryHeldAskAiRepliesInBackground } = await import("./ask-ai-chat-retry.js");
 const { handleCountChatQueueKnowledgeBits, handleListChatQueueKnowledgeBits, handleSearchChatQueueMessages } = await import(
   "./knowledge-bit-chat-queue.controller.js"
 );
@@ -66,6 +70,16 @@ describe("handleListChatQueueKnowledgeBits", () => {
     await handleListChatQueueKnowledgeBits(res);
 
     expect(res.body).toEqual({ items: [], count: 0, total: 3, hasMore: true });
+  });
+
+  it("should give held ask-AI chats their first reply when the Inbox is listed", async () => {
+    vi.mocked(listChatQueueKnowledgeBits).mockResolvedValue([]);
+    vi.mocked(countChatQueueKnowledgeBits).mockResolvedValue(0);
+    vi.mocked(countAllChatQueueKnowledgeBits).mockResolvedValue(0);
+
+    await handleListChatQueueKnowledgeBits(fakeRes());
+
+    expect(retryHeldAskAiRepliesInBackground).toHaveBeenCalledTimes(1);
   });
 
   it("should not flag a list that holds every card", async () => {

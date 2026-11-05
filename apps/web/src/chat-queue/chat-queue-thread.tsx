@@ -19,7 +19,9 @@ import { ChatQueueMakeCard } from "./chat-queue-make-card";
 import { ChatQueueRejectReasons } from "./chat-queue-reject-reasons";
 import { ChatQueueSnooze } from "./chat-queue-snooze";
 import { ChatQueueTurnsMeter } from "./chat-queue-turns-meter";
+import { ChatQueueProposals } from "./chat-queue-proposals";
 import { useChatCard } from "./use-chat-card";
+import { useChatProposals } from "./use-chat-proposals";
 import { useChatThread } from "./use-chat-thread";
 import { chatWaitingDays, formatChatWaiting } from "./chat-queue-waiting";
 
@@ -52,6 +54,7 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
   const thread = useChatThread(item, handleResolved);
   const locked = thread.resolving || thread.sending;
   const card = useChatCard(item.id, thread.resolving);
+  const proposals = useChatProposals(item.id);
   const sourceLink = item.sourceUrl ? toSafeLink(item.sourceUrl) : null;
 
   return (
@@ -149,6 +152,20 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
                     Make a card
                   </button>
                 )
+              ) : null}
+              {!line.isUser &&
+              index === thread.lines.length - 1 &&
+              !thread.rejecting &&
+              line.proposals?.length ? (
+                <ChatQueueProposals
+                  lineId={line.id}
+                  seq={line.seq}
+                  proposals={line.proposals}
+                  statusOf={proposals.statusOf}
+                  onApprove={(lineId, lineSeq, proposalIndex, proposal) =>
+                    void proposals.approve(lineId, lineSeq, proposalIndex, proposal)
+                  }
+                />
               ) : null}
             </li>
           );

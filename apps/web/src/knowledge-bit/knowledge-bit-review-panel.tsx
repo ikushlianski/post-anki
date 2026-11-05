@@ -23,6 +23,7 @@ import {
 } from "./knowledge-bit-review-announcer";
 import { useReviewQuestionRefresh } from "./use-review-question-refresh";
 import { usePendingUndecidedCount } from "./pending-undecided-count";
+import { useLeavingCard } from "./use-leaving-card";
 import { useReviewDecisions } from "./use-review-decisions";
 import { useReviewBitEdits } from "./use-review-bit-edits";
 import { useTriageExtras } from "./use-triage-extras";
@@ -117,6 +118,7 @@ export function KnowledgeBitReviewPanel({
   const undoError = Object.keys(rowErrors).find(
     (id) => rowErrors[id] && decisions[id],
   );
+  const leavingCard = useLeavingCard<NonNullable<typeof queue.current>>();
   const [doneFeedback, setDoneFeedback] = useState("");
   const [choice, setChoice] = useState({ bitId: "", index: 0 });
   const inFocus = triageSession.isOpen && triageSession.phase === "idle";
@@ -157,7 +159,12 @@ export function KnowledgeBitReviewPanel({
   async function decide(action: "approve" | "reject") {
     const bitId = queue.current?.bit.id;
 
-    if (!bitId || editingBitIds.current.has(bitId) || isBitResolving(bitId)) {
+    if (
+      !bitId ||
+      leavingCard.isLeaving() ||
+      editingBitIds.current.has(bitId) ||
+      isBitResolving(bitId)
+    ) {
       return;
     }
 
@@ -188,7 +195,10 @@ export function KnowledgeBitReviewPanel({
   function currentBitIfFree() {
     const bit = queue.current?.bit;
 
-    return bit && !editingBitIds.current.has(bit.id) && !isBitResolving(bit.id)
+    return bit &&
+      !leavingCard.isLeaving() &&
+      !editingBitIds.current.has(bit.id) &&
+      !isBitResolving(bit.id)
       ? bit
       : undefined;
   }
@@ -201,7 +211,14 @@ export function KnowledgeBitReviewPanel({
     }
   }
 
-  const chatAboutCurrent = () => withFreeBit((bit, left) => void extras.sendToChat(bit.id, left));
+  const chatAboutCurrent = () =>
+    withFreeBit((bit, left) => {
+      if (queue.current) {
+        leavingCard.start("chat", queue.current);
+      }
+
+      void extras.sendToChat(bit.id, left);
+    });
   const inboxCurrent = () => withFreeBit((bit, left) => void extras.sendToInbox(bit.id, left));
   const exampleForCurrent = () => withFreeBit((bit) => void extras.generateExample(bit));
 
@@ -215,6 +232,10 @@ export function KnowledgeBitReviewPanel({
   }
 
   function handleAction(action: FocusKeyAction) {
+    if (leavingCard.isLeaving()) {
+      return;
+    }
+
     if (action === "option-prev" || action === "option-next") {
       moveOption(action === "option-next" ? 1 : -1);
     } else if (action === "undo") {
@@ -240,6 +261,7 @@ export function KnowledgeBitReviewPanel({
     return (
       <KnowledgeBitReviewFocusView
         queue={queue}
+        leaving={leavingCard.leaving}
         triageSession={triageSession}
         pendingCount={undecidedCount}
         extras={extras}

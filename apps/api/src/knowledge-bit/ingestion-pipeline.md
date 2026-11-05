@@ -94,6 +94,14 @@ Stored failure codes are mapped to plain wording in `packages/shared/src/extract
 
 After a note is added, the Add knowledge screen names Knowledge triage as the place problems show and refreshes the sidebar count. It then polls `GET /knowledge-sources/:id/regeneration` every 3 seconds (up to 200 polls) and shows queued, working, ready with N cards (and how many need a manual check), or needs attention with the plain reason and a link to Knowledge triage.
 
+## Long pastes
+
+- Trigger: the single-text branch of `POST /knowledge-sources` (not `texts`, not `url`) when the trimmed text is at least 8,000 characters and `LONG_PASTE_SPLIT_ENABLED` is not off. It runs after the exact-text duplicate check.
+- One cheap-tier call returns 2 to 12 `{ title, startQuote }` sections (output capped at 800 tokens, 20 s timeout, no retry). The model never returns text: code finds each quote in order with `indexOf` and slices the original, so parts are verbatim and join back to the paste; text before the first quote joins part 1, a part under 1,000 characters merges into the previous one, and fewer than 2 parts means no split. Pasted text is untrusted data inside `<source>`; titles are stripped of markup.
+- Parts become ordinary `prose` sources (same subject, model, target phrases, URL; title via `withPageTitle`) with `import_key` `split:<16 hex of sha256(subject, text)>:<n>`, one kick for all ids, and a 201 with the first source plus `partIds`. Extraction is unchanged.
+- Guards: 20 splits per hour (counted from `llm_call_events` op `long_paste_split`, in-flight included) and the daily budget guard. Any failure (disabled, cap, budget, timeout, invalid output, unusable quotes) is logged and the paste is saved as one source with today's response.
+- Re-pasting the same text answers 409 `already_added` through the key base; `force: true` splits again and writes no keys.
+
 ## Meeting phrases
 
 - Trigger: `POST /knowledge-sources/phrases` with `lines` (1 to 100 strings, each up to 500 characters). The caller splits the page text; nothing is read from or written to Notion by the API.
@@ -103,6 +111,12 @@ After a note is added, the Add knowledge screen names Knowledge triage as the pl
 - Choice rule: a pending bit of a phrase source with 2+ active variants is listed with `answerChoice: true`. Triage keeps the chosen sentence through `POST /knowledge-bits/:id/triage` (`keepVariantIds`) and drops the others; plain approve of such a bit keeps only the first sentence, and bulk approve skips phrase bits as `needs_manual_review`.
 - Backfill: `npm run backfill:phrase-sentences` lists phrase sources whose live bits are all pending and whose variants share one front (a single card or three cards under the same front) and the expected model calls (dry run by default; `--apply`, `--allow-remote`, `--limit N`). Apply regenerates only those pending cards; approved cards are untouched and pending edits are lost.
 - A phrase the model finds non-native, or one marked `???`, gets `review_flag = non_native_phrase` and the better version in `knowledge_bits.ai_suggestion`. Flagged cards are skipped by bulk approve; approving one clears the flag and keeps the suggestion. Triage and review show the original beside the suggestion with the AI badge. An unsure phrase appears in the prompt with a note that the learner doubts it; the model verifies the phrase spelling and the hint translation and returns the corrected phrase as the suggestion. Phrases without a marker get no note.
+
+## Highlights
+
+- A single-text add may carry up to 20 `highlights` (`{start,end}`, UTF-16 offsets into the submitted trimmed text, half-open), merged and sorted (`mergeHighlights`); out-of-range or malformed ranges are 400 `invalid_input`, and batch or url adds reject the field. Marks are stored in `knowledge_sources.highlights`, shifted by the `Page: <title>\n` prefix so they index the stored text. They are not part of duplicate identity.
+- A marked source is never split. `chunkSourceTextWithOffsets` keeps each chunk's source offsets; chunks without marks are skipped (original chunk index and ordinals kept), marked chunks get a `<focus>` block of escaped `<excerpt>` entries after `<source>`. The lessons rules treat focus as untrusted data, and a lesson is kept only when its quote overlaps a marked span. If the marks hold no usable text the source ends as nothing extracted.
+- Replacing the source text on regenerate clears the marks; a plain regenerate reuses them.
 
 ## Target phrases
 
@@ -117,3 +131,10 @@ After a note is added, the Add knowledge screen names Knowledge triage as the pl
 - `POST /notion-sources/:id/runs` (Ingest Now) runs inline and answers 409 `already_running` while a run started in the last 10 minutes has not finished. Deleting a source leaves Notion and the imported cards alone.
 - `POST /notion-source-runs` is the scheduler tick (Cloud Scheduler, every 15 minutes). It takes unpaused, non-manual sources whose `next_run_at` has passed, claims each with a compare-and-set on `next_run_at` (so two ticks never run the same source), leases the source for 20 minutes (`next_run_at` = now + 20 min) while it runs, so a run lost to a crash becomes due again; when the run ends, whatever the outcome, `next_run_at` moves to the next slot (daily: +24 h; nightly: 01:00 UTC), so a failing source does not repeat. A source that is already running, or a tick that hits `skipped_budget` (which also ends the tick), gets its old due time back. A tick starts no new source after about 240 seconds, and a database error on one source marks only that source failed. `npm run notion-sources:run` runs the same tick locally; `npm run notion-sources:register -- <page url> --english-phrases` adds the English phrases page.
 - The Notion token is read from the encrypted `connector_secrets` row (key `CONNECTOR_SECRET_KEY`), else from `NOTION_TOKEN`. No response or log line carries it.
+
+## Ask-AI cue
+
+- The lessons result carries optional `needsClarification` and `gapText` (max 300 chars). The model sets them when the learner's text says they lack understanding or want to ask AI; the text stays untrusted and the flag only restricts extraction and opens a chat.
+- Chunk results carry the first `gapText`; the finish step takes the earliest flagged chunk and opens at most one chat per source (`ask-ai-chat.orchestrator.ts`). The chat bit has the fixed id `kbask_<sourceId>`, so retries and regeneration never duplicate it.
+- The bit is created in `chat` state before the source is marked done; the first reply (cheap tier, 2 searches, 1 page fetch) is generated after. At most 3 auto-chats per hour get a reply; further ones still appear in the Inbox without messages and wait. Each Inbox list request starts a background sweep that answers up to 2 such waiting chats (ids `kbask_*`, no messages) once the hourly count is back under the cap, so a held first reply is generated later even though the source is already done. Replies also count toward `CHAT_QUEUE_HOURLY_CAP`.
+- A source with a opened chat and no lessons is not marked "nothing extracted".

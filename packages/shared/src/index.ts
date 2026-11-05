@@ -117,3 +117,4 @@ export * from "./text-limits";
 export * from "./meeting-phrase";
 export * from "./notion-ingestion-source";
 export * from "./target-phrases";
+export * from "./knowledge-source-highlights";

@@ -251,4 +251,93 @@ describe('KnowledgeBitChatPanel highlight actions and card tray', () => {
       (screen.getByTestId('knowledge-bit-chat-tray-back') as HTMLTextAreaElement).value,
     ).toBe(REPLY)
   })
+  async function openWithSuggestions(
+    suggestions: Array<{ front: string; back: string; origin: 'web' | 'own'; sources: string[] }>,
+  ) {
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    mockedAsk.mockResolvedValue({ reply: REPLY, suggestions })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <KnowledgeBitChatPanel knowledgeBitId="bit-1" />
+      </QueryClientProvider>,
+    )
+    await user.click(screen.getByTestId('knowledge-bit-chat-open'))
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'what is a semaphore')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await user.click(await screen.findByTestId('knowledge-bit-chat-suggestion-0'))
+
+    return user
+  }
+
+  it('should save a web-based suggestion with the AI label and its links', async () => {
+    mockedCreate.mockResolvedValue(createdItem)
+
+    const user = await openWithSuggestions([
+      { front: 'Mutex?', back: 'One owner.', origin: 'web', sources: ['https://example.com/m'] },
+    ])
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-tray-create'))
+    await screen.findByText('Saved, waiting in review')
+
+    expect(mockedCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        front: 'Mutex?',
+        aiGenerated: true,
+        sourceLinks: ['https://example.com/m'],
+      }),
+    })
+  })
+
+  it('should save a suggestion from the learner material without AI label or links', async () => {
+    mockedCreate.mockResolvedValue(createdItem)
+
+    const user = await openWithSuggestions([
+      { front: 'Mutex?', back: 'One owner.', origin: 'own', sources: [] },
+    ])
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-tray-create'))
+    await screen.findByText('Saved, waiting in review')
+
+    expect(mockedCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ aiGenerated: false, sourceLinks: [] }),
+    })
+  })
+
+  it('should drop the web label when the learner clears the tray', async () => {
+    mockedCreate.mockResolvedValue(createdItem)
+
+    const user = await openWithSuggestions([
+      { front: 'Mutex?', back: 'One owner.', origin: 'web', sources: ['https://example.com/m'] },
+    ])
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-tray-clear'))
+    await user.type(screen.getByTestId('knowledge-bit-chat-tray-front'), 'F')
+    await user.type(screen.getByTestId('knowledge-bit-chat-tray-back'), 'B')
+    await user.click(screen.getByTestId('knowledge-bit-chat-tray-create'))
+    await screen.findByText('Saved, waiting in review')
+
+    expect(mockedCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ aiGenerated: false, sourceLinks: [] }),
+    })
+  })
+  it('should reset provenance after a successful create so the next card is not AI labelled', async () => {
+    mockedCreate.mockResolvedValue(createdItem)
+
+    const user = await openWithSuggestions([
+      { front: 'Mutex?', back: 'One owner.', origin: 'web', sources: ['https://example.com/m'] },
+    ])
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-tray-create'))
+    await screen.findByText('Saved, waiting in review')
+    await user.type(screen.getByTestId('knowledge-bit-chat-tray-front'), 'F2')
+    await user.type(screen.getByTestId('knowledge-bit-chat-tray-back'), 'B2')
+    await user.click(screen.getByTestId('knowledge-bit-chat-tray-create'))
+    await vi.waitFor(() => expect(mockedCreate).toHaveBeenCalledTimes(2))
+
+    expect(mockedCreate).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ front: 'F2', aiGenerated: false, sourceLinks: [] }),
+    })
+  })
 })

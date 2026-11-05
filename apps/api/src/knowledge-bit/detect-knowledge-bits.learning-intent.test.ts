@@ -83,6 +83,7 @@ describe("learning intent in the extraction pipeline", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(expect.any(String), {
       learningIntent: "Learn sales principles.",
       subjectKind: "business",
+      onClarification: expect.any(Function),
       onNothingWorthKeeping: expect.any(Function),
       feedbackBlock: "<reviewer_feedback>x</reviewer_feedback>",
       styleNotesBlock: "<style_notes>y</style_notes>",

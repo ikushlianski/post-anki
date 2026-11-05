@@ -164,6 +164,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onClarification: expect.any(Function),
       onNothingWorthKeeping: expect.any(Function),
       modelId: "openrouter/openai/gpt-6-luna",
     });
@@ -181,6 +182,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onClarification: expect.any(Function),
       onNothingWorthKeeping: expect.any(Function),
       modelId: "openrouter/openai/gpt-5-mini",
     });
@@ -198,6 +200,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onClarification: expect.any(Function),
       onNothingWorthKeeping: expect.any(Function),
       modelId: "openrouter/google/gemma-4-31b-it",
     });
@@ -211,6 +214,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onClarification: expect.any(Function),
       onNothingWorthKeeping: expect.any(Function),
     });
   });
@@ -231,6 +235,7 @@ describe("generateItemsForSource", () => {
     expect(deps.writeItems).toHaveBeenCalledWith(RU_SOURCE_TEXT.trim(), {
       learningIntent: DEFAULT_LEARNING_INTENT,
       subjectKind: "other",
+      onClarification: expect.any(Function),
       onNothingWorthKeeping: expect.any(Function),
     });
   });

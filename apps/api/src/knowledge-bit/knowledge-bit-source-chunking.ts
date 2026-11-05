@@ -1,63 +1,124 @@
 export const SOURCE_CHUNK_MAX_CHARS = 3000;
 
-const PARAGRAPH_BREAK = /\n[^\S\n]*\n\s*/;
-const SENTENCE_END = /(?<=[.!?…。！？])\s+/u;
+const PARAGRAPH_BREAK = /\n[^\S\n]*\n\s*/g;
+const SENTENCE_END = /(?<=[.!?…。！？])\s+/gu;
 
-function hardSplit(text: string, maxChars: number): string[] {
-  const pieces: string[] = [];
+export interface ChunkSegment {
+  chunkOffset: number;
+  sourceStart: number;
+  length: number;
+}
 
-  for (let start = 0; start < text.length; start += maxChars) {
-    pieces.push(text.slice(start, start + maxChars));
+export interface SourceChunk {
+  text: string;
+  segments: ChunkSegment[];
+}
+
+interface Piece {
+  text: string;
+  start: number;
+}
+
+function splitWithOffsets(text: string, base: number, separator: RegExp): Piece[] {
+  const pieces: Piece[] = [];
+  let cursor = 0;
+
+  for (const match of text.matchAll(separator)) {
+    pieces.push({ text: text.slice(cursor, match.index), start: base + cursor });
+    cursor = match.index + match[0].length;
+  }
+
+  pieces.push({ text: text.slice(cursor), start: base + cursor });
+
+  return pieces;
+}
+
+function trimPiece(piece: Piece): Piece {
+  const leading = piece.text.length - piece.text.trimStart().length;
+
+  return { text: piece.text.trim(), start: piece.start + leading };
+}
+
+function toUnit(piece: Piece): SourceChunk {
+  return {
+    text: piece.text,
+    segments: [{ chunkOffset: 0, sourceStart: piece.start, length: piece.text.length }],
+  };
+}
+
+function hardSplit(piece: Piece, maxChars: number): Piece[] {
+  const pieces: Piece[] = [];
+
+  for (let offset = 0; offset < piece.text.length; offset += maxChars) {
+    pieces.push({ text: piece.text.slice(offset, offset + maxChars), start: piece.start + offset });
   }
 
   return pieces;
 }
 
-function pack(parts: readonly string[], separator: string, maxChars: number): string[] {
-  const chunks: string[] = [];
-  let current = "";
+function append(current: SourceChunk, unit: SourceChunk, separator: string): SourceChunk {
+  const shift = current.text.length + separator.length;
+
+  return {
+    text: `${current.text}${separator}${unit.text}`,
+    segments: [
+      ...current.segments,
+      ...unit.segments.map((segment) => ({ ...segment, chunkOffset: segment.chunkOffset + shift })),
+    ],
+  };
+}
+
+function pack(parts: readonly SourceChunk[], separator: string, maxChars: number): SourceChunk[] {
+  const chunks: SourceChunk[] = [];
+  let current: SourceChunk | null = null;
 
   for (const part of parts) {
-    const candidate = current.length === 0 ? part : `${current}${separator}${part}`;
+    const candidate: SourceChunk = current === null ? part : append(current, part, separator);
 
-    if (candidate.length <= maxChars) {
+    if (candidate.text.length <= maxChars) {
       current = candidate;
 
       continue;
     }
 
-    if (current.length > 0) {
+    if (current !== null) {
       chunks.push(current);
     }
 
     current = part;
   }
 
-  if (current.length > 0) {
+  if (current !== null && current.text.length > 0) {
     chunks.push(current);
   }
 
   return chunks;
 }
 
-function splitOversizeParagraph(paragraph: string, maxChars: number): string[] {
-  const sentences = paragraph
-    .split(SENTENCE_END)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length > 0)
-    .flatMap((sentence) => (sentence.length > maxChars ? hardSplit(sentence, maxChars) : [sentence]));
+function splitOversizeParagraph(paragraph: Piece, maxChars: number): SourceChunk[] {
+  const sentences = splitWithOffsets(paragraph.text, paragraph.start, SENTENCE_END)
+    .map(trimPiece)
+    .filter((sentence) => sentence.text.length > 0)
+    .flatMap((sentence) => (sentence.text.length > maxChars ? hardSplit(sentence, maxChars) : [sentence]))
+    .map(toUnit);
 
   return pack(sentences, " ", maxChars);
 }
 
-export function chunkSourceText(text: string, maxChars: number = SOURCE_CHUNK_MAX_CHARS): string[] {
-  const paragraphs = text
-    .split(PARAGRAPH_BREAK)
-    .map((paragraph) => paragraph.trim())
-    .filter((paragraph) => paragraph.length > 0);
+export function chunkSourceTextWithOffsets(
+  text: string,
+  maxChars: number = SOURCE_CHUNK_MAX_CHARS,
+): SourceChunk[] {
+  const paragraphs = splitWithOffsets(text, 0, PARAGRAPH_BREAK)
+    .map(trimPiece)
+    .filter((paragraph) => paragraph.text.length > 0);
   const units = paragraphs.flatMap((paragraph) =>
-    paragraph.length > maxChars ? splitOversizeParagraph(paragraph, maxChars) : [paragraph],
+    paragraph.text.length > maxChars ? splitOversizeParagraph(paragraph, maxChars) : [toUnit(paragraph)],
   );
 
   return pack(units, "\n\n", maxChars);
+}
+
+export function chunkSourceText(text: string, maxChars: number = SOURCE_CHUNK_MAX_CHARS): string[] {
+  return chunkSourceTextWithOffsets(text, maxChars).map((chunk) => chunk.text);
 }

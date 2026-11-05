@@ -1,3 +1,5 @@
+import type { RelatedCardSuggestion } from '@post-anki/shared'
+
 import { chatQueueFailureFromThrown, type ChatQueueOutcome } from './chat-queue-failure'
 
 export interface ChatLine {
@@ -5,6 +7,7 @@ export interface ChatLine {
   isUser: boolean
   text: string
   seq?: number
+  proposals?: RelatedCardSuggestion[]
 }
 
 export interface ThreadMessage {

@@ -5,6 +5,7 @@ import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 export interface KnowledgeBitRow {
   id: string;
   body: string;
+  knowledgeSourceId: string | null;
   approvalState: "pending" | "approved" | "rejected" | "superseded" | "inbox";
   isAiGenerated: boolean;
   sourceLinks: string[];
@@ -18,6 +19,7 @@ export async function getKnowledgeBitById(
     .select({
       id: knowledgeBits.id,
       body: knowledgeBits.body,
+      knowledgeSourceId: knowledgeBits.knowledgeSourceId,
       approvalState: knowledgeBits.approvalState,
       isAiGenerated: knowledgeBits.isAiGenerated,
       sourceLinks: knowledgeBits.sourceLinks,

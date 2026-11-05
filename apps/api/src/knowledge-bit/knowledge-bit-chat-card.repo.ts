@@ -42,7 +42,34 @@ export async function insertCardFromChatMessage(
       return { ok: false as const, error: "not_assistant_message" as const };
     }
 
-    const item = await insertPendingManualItem(tx, bit.sourceId, { ...input, aiGenerated: true });
+    const { approve, ...card } = input;
+
+    if (approve) {
+      const [existing] = await tx
+        .select({ id: knowledgeBits.id })
+        .from(knowledgeBits)
+        .where(
+          and(
+            eq(knowledgeBits.knowledgeSourceId, bit.sourceId),
+            eq(knowledgeBits.approvalState, "approved"),
+            eq(knowledgeBits.body, `${card.front}\n${card.back}`),
+          ),
+        )
+        .limit(1);
+
+      if (existing) {
+        return { ok: true as const, id: existing.id };
+      }
+    }
+
+    const item = await insertPendingManualItem(tx, bit.sourceId, { ...card, aiGenerated: true });
+
+    if (approve) {
+      await tx
+        .update(knowledgeBits)
+        .set({ approvalState: "approved", decidedAt: new Date() })
+        .where(eq(knowledgeBits.id, item.id));
+    }
 
     return { ok: true as const, id: item.id };
   });

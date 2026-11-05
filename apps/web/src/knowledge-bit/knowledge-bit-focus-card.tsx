@@ -16,12 +16,14 @@ import { KnowledgeBitFocusExtraActions } from "./knowledge-bit-focus-extra-actio
 import type { NoteMode } from "./knowledge-bit-review-note-edit";
 import { KnowledgeBitFocusSourceBlock } from "./knowledge-bit-focus-source-block";
 import { KnowledgeBitFocusVariants } from "./knowledge-bit-focus-variants";
+import type { LeavingDestination } from "./use-leaving-card";
 
 interface KnowledgeBitFocusCardProps {
   bit: PendingKnowledgeBitForReview;
   subjectName: string | null;
   sourceText: string | null;
   isResolving: boolean;
+  leaving?: LeavingDestination;
   pollingGaveUp?: boolean;
   errorMessage?: string | null;
   note?: string;
@@ -76,6 +78,7 @@ function FocusCardBody({
   onSaveVariant,
   onSaveBit,
   onSaveNote,
+  leaving,
 }: KnowledgeBitFocusCardProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [pressed, setPressed] = useState<FocusPressedAction | null>(null);
@@ -172,7 +175,10 @@ function FocusCardBody({
   return (
     <article
       data-testid={`knowledge-bit-focus-card-${bit.id}`}
-      className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col"
+      data-leaving={leaving}
+      className={`mx-auto flex h-full min-h-0 w-full max-w-2xl origin-bottom flex-col transition-[transform,opacity] duration-[350ms] ease-in motion-reduce:transition-none ${
+        leaving ? "pointer-events-none translate-y-[60%] scale-[0.3] opacity-0" : ""
+      }`}
     >
       <div
         data-testid="knowledge-bit-focus-scroll"

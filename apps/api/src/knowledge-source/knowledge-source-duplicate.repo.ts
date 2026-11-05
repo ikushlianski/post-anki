@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, like } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { hostOf, normalizeSourceUrl } from "./knowledge-source-duplicate.js";
@@ -42,6 +42,17 @@ export async function findEarlierSourceByUrl(
   const match = rows.find((row) => row.sourceUrl !== null && normalizeSourceUrl(row.sourceUrl) === wanted);
 
   return match ? { id: match.id, addedAt: match.createdAt.toISOString() } : null;
+}
+
+export async function findEarlierSplitSource(importKeyBase: string): Promise<EarlierKnowledgeSource | null> {
+  const [row] = await getDb()
+    .select({ id: knowledgeSources.id, createdAt: knowledgeSources.createdAt })
+    .from(knowledgeSources)
+    .where(like(knowledgeSources.importKey, `${importKeyBase}:%`))
+    .orderBy(asc(knowledgeSources.createdAt), asc(knowledgeSources.id))
+    .limit(1);
+
+  return row ? { id: row.id, addedAt: row.createdAt.toISOString() } : null;
 }
 
 export async function findEarlierSourcesByText(

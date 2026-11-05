@@ -1,13 +1,21 @@
 import {
+  CHAT_QUEUE_MAX_PROPOSALS,
   CHAT_QUEUE_REPLY_MAX_TOKENS,
   type ChatQueueErrorCode,
   type ChatQueueThread,
+  type RelatedCardSuggestion,
   type SendChatQueueMessageInput,
   type SendChatQueueMessageResult,
 } from "@post-anki/shared";
+import { RequestContext } from "@mastra/core/request-context";
 import { getDb } from "../db/client.js";
 import { countRecentLlmCallEventsByOp } from "../llm-call-events/llm-call-events.repo.js";
 import { AGENT_KEYS, getMastra, startTracingSpan } from "../mastra/mastra.js";
+import {
+  CHAT_QUEUE_FALLBACK_CONTEXT_KEY,
+  CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY,
+} from "../mastra/knowledge-bit-chat-queue.agent.js";
+import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
 import { generateWithRetry, isRateLimitError } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
 import {
@@ -22,6 +30,7 @@ import {
   type ChatQueueTraceMetadata,
   type ChatQueueTraceOutcome,
 } from "./knowledge-bit-chat-queue.trace.js";
+import { extractRelatedCards } from "./knowledge-bit-chat-suggestions.js";
 import { buildChatQueuePrompt } from "./knowledge-bit-chat-queue.prompt.js";
 import { loadChatCardContext, lockChatState } from "./knowledge-bit-chat-queue.repo.js";
 import {
@@ -37,6 +46,11 @@ import {
 export const CHAT_QUEUE_REPLY_OP = "knowledge_bit_chat_queue_reply";
 export const CHAT_QUEUE_HOURLY_CAP = 60;
 const HOUR_MS = 60 * 60 * 1000;
+const WEB_REPLY_MAX_STEPS = 4;
+
+export interface SendChatQueueMessageOptions {
+  webTools?: KnowledgeBitChatToolsDeps;
+}
 
 export type ChatQueueFailure = ChatQueueErrorCode | "not_found" | "no_messages" | "model_failed";
 
@@ -127,6 +141,7 @@ async function persistTurn(
 export async function sendChatQueueMessage(
   bitId: string,
   input: SendChatQueueMessageInput,
+  options: SendChatQueueMessageOptions = {},
 ): Promise<ChatQueueResult<SendChatQueueMessageResult>> {
   const card = await loadChatCardContext(bitId);
 
@@ -163,9 +178,17 @@ export async function sendChatQueueMessage(
   let outcome = chatQueueOutcomeFor("model_failed");
 
   try {
-    const result = await generateReply(bitId, input, card, messages, traceMetadata, (value) => {
-      outcome = value;
-    });
+    const result = await generateReply(
+      bitId,
+      input,
+      card,
+      messages,
+      traceMetadata,
+      (value) => {
+        outcome = value;
+      },
+      options.webTools,
+    );
 
     if (result.ok) {
       outcome = "ok";
@@ -185,6 +208,7 @@ async function generateReply(
   messages: StoredChatMessage[],
   traceMetadata: ChatQueueTraceMetadata,
   setOutcome: (outcome: ChatQueueTraceOutcome) => void,
+  webTools?: KnowledgeBitChatToolsDeps,
 ): Promise<ChatQueueResult<SendChatQueueMessageResult>> {
   const blocked = await budgetGate();
 
@@ -204,19 +228,45 @@ async function generateReply(
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitChatQueue);
 
   let reply: string;
+  let suggestions: RelatedCardSuggestion[] | undefined;
   let usage: { inputTokens: number | null; outputTokens: number | null };
 
   try {
-    const result = await generateWithRetry(CHAT_QUEUE_REPLY_OP, null, AGENT_KEYS.knowledgeBitChatQueue, () =>
-      agent.generate(prompt, {
-        maxSteps: 1,
-        modelSettings: { maxOutputTokens: CHAT_QUEUE_REPLY_MAX_TOKENS },
-        tracingOptions: buildChatQueueTracingOptions(traceMetadata),
-      }),
-      { knowledgeBitId: bitId },
-    );
+    const run = (fallback: boolean) =>
+      generateWithRetry(
+        CHAT_QUEUE_REPLY_OP,
+        null,
+        AGENT_KEYS.knowledgeBitChatQueue,
+        () =>
+          agent.generate(prompt, {
+            maxSteps: webTools ? WEB_REPLY_MAX_STEPS : 1,
+            modelSettings: { maxOutputTokens: CHAT_QUEUE_REPLY_MAX_TOKENS },
+            tracingOptions: buildChatQueueTracingOptions(traceMetadata),
+            ...(fallback || webTools
+              ? {
+                  requestContext: new RequestContext<unknown>([
+                    ...(fallback ? ([[CHAT_QUEUE_FALLBACK_CONTEXT_KEY, true]] as [string, unknown][]) : []),
+                    ...(webTools ? ([[CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY, webTools]] as [string, unknown][]) : []),
+                  ]),
+                }
+              : {}),
+          }),
+        { knowledgeBitId: bitId },
+      );
+    const result = await run(false).catch((err: unknown) => {
+      if (err instanceof LlmBudgetExceededError || err instanceof LlmBudgetCheckUnavailableError) {
+        throw err;
+      }
 
-    reply = result.text?.trim() ?? "";
+      log.warn({ err, bitId }, "chat_queue_primary_model_failed");
+
+      return run(true);
+    });
+
+    const extracted = extractRelatedCards(result.text?.trim() ?? "", [], 0);
+
+    reply = extracted.reply;
+    suggestions = extracted.suggestions?.slice(0, CHAT_QUEUE_MAX_PROPOSALS);
     usage = {
       inputTokens: result.totalUsage?.inputTokens ?? result.usage?.inputTokens ?? null,
       outputTokens: result.totalUsage?.outputTokens ?? result.usage?.outputTokens ?? null,
@@ -248,9 +298,11 @@ async function generateReply(
 
   const turnsLeft = Math.max(0, turnsLeftFor(messages) - 1);
 
-  return { ok: true, value: { reply, turnsLeft, capReached: turnsLeft === 0 } };
+  return {
+    ok: true,
+    value: { reply, ...(suggestions?.length ? { suggestions } : {}), turnsLeft, capReached: turnsLeft === 0 },
+  };
 }
-
 
 export async function deleteLastChatQueueExchange(
   bitId: string,

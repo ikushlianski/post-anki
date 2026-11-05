@@ -46,6 +46,7 @@ describe("handleGenerateKnowledgeBitVariants", () => {
     vi.mocked(getKnowledgeBitById).mockResolvedValue({
       id: "kb_1",
       body: "TTL means time to live.",
+      knowledgeSourceId: "src_1",
       approvalState: "approved",
       isAiGenerated: false,
       sourceLinks: [],

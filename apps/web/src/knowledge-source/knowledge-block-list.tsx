@@ -1,6 +1,8 @@
 import { Tabs } from '../ui/tabs'
 import { LINK_ERROR_MESSAGE, isHttpUrl } from './knowledge-form-blocks'
 import type { Block, BlockType } from './knowledge-form-blocks'
+import { HighlightedTextField } from './highlighted-text-field'
+import type { KnowledgeHighlight } from './knowledge-highlights'
 import { TargetPhrasesField } from './target-phrases-field'
 import { DuplicateSourceWarning } from './duplicate-source-warning'
 import { ShortTextHint } from './short-text-hint'
@@ -15,6 +17,7 @@ interface KnowledgeBlockListProps {
   onValueChange: (index: number, value: string) => void
   onTypeChange: (index: number, type: BlockType) => void
   onTargetPhrasesChange: (index: number, phrases: string[]) => void
+  onHighlightsChange: (index: number, highlights: KnowledgeHighlight[]) => void
   onRemove: (index: number) => void
   onAddAgain: (index: number) => void
   onSubmitShortcut: () => void
@@ -29,6 +32,7 @@ export function KnowledgeBlockList({
   onValueChange,
   onTypeChange,
   onTargetPhrasesChange,
+  onHighlightsChange,
   onRemove,
   onAddAgain,
   onSubmitShortcut,
@@ -48,21 +52,15 @@ export function KnowledgeBlockList({
             onChange={(type) => onTypeChange(index, type)}
           >
             {block.type === 'text' ? (
-              <textarea
-                aria-label={`Text to learn from, block ${index + 1}`}
+              <HighlightedTextField
+                index={index}
                 value={block.value}
+                highlights={block.highlights ?? []}
                 disabled={busy}
-                onChange={(event) => onValueChange(index, event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                    event.preventDefault()
-                    onSubmitShortcut()
-                  }
-                }}
-                placeholder="Paste a block of prose to learn from…"
-                rows={6}
-                data-testid={`knowledge-block-input-${index}`}
-                className="w-full resize-none rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-500 disabled:opacity-50"
+                highlightUnavailable={blocks.length > 1}
+                onValueChange={(value) => onValueChange(index, value)}
+                onHighlightsChange={(highlights) => onHighlightsChange(index, highlights)}
+                onSubmitShortcut={onSubmitShortcut}
               />
             ) : (
               <input

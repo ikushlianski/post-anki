@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   askKnowledgeBitChatInput,
+  askKnowledgeBitChatResultSchema,
+  relatedCardSuggestionSchema,
   cardProposalSchema,
   draftKnowledgeBitChatInput,
   editKnowledgeBitInput,
@@ -130,5 +132,24 @@ describe("draftKnowledgeBitChatInput", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("related card suggestions", () => {
+  const valid = { front: "Q", back: "A", origin: "web", sources: ["https://example.com/a"] };
+
+  it("should accept a reply without suggestions", () => {
+    expect(askKnowledgeBitChatResultSchema.parse({ reply: "hi" })).toEqual({ reply: "hi" });
+  });
+
+  it("should accept at most three suggestions on a reply", () => {
+    expect(askKnowledgeBitChatResultSchema.safeParse({ reply: "hi", suggestions: [valid, valid, valid] }).success).toBe(true);
+    expect(askKnowledgeBitChatResultSchema.safeParse({ reply: "hi", suggestions: [valid, valid, valid, valid] }).success).toBe(false);
+  });
+
+  it("should reject non-http sources, unknown origins and oversized fronts", () => {
+    expect(relatedCardSuggestionSchema.safeParse({ ...valid, sources: ["ftp://x.com/a"] }).success).toBe(false);
+    expect(relatedCardSuggestionSchema.safeParse({ ...valid, origin: "ai" }).success).toBe(false);
+    expect(relatedCardSuggestionSchema.safeParse({ ...valid, front: "x".repeat(301) }).success).toBe(false);
   });
 });

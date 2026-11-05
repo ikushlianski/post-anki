@@ -89,3 +89,20 @@ Expect both column names. Electric sync is part of the dev stack; if the overvie
 - Gap: `apps/api/.env` DATABASE_URL points at a remote database rather than the shared lane; every api command must export DATABASE_URL first (included above). Not changed here.
 - Gap: whether a manually derived pending card gets a study variant immediately after approval (step 18) was not confirmed in code; if ITEM B never appears in study, that is a finding, not a fixture problem.
 - Gap: no AI-labelled row exists today, so there are no example ids to quote; after step 15 the latest one is `select id, is_ai_generated, source_links, created_at from knowledge_bits where is_ai_generated order by created_at desc limit 1`.
+
+## Item chat: enrich and suggest related cards (web)
+
+1. Open an approved card that came from your own source material, open its chat, and confirm "Use web search to clarify" is ticked by default.
+2. Ask about a piece you do not understand. Expect a reply that starts with "From your material:" quoting the relevant passage, then examples or facts tagged [Web] or [Your material].
+3. Expect one to three suggested cards under the reply, each badged Web or Your material. Tap "Add to tray" on one: the tray opens filled with its front and back.
+4. Create the card from the tray. A Web-badged one lands in pending review with the AI label and source links; a Your-material one has no AI label.
+5. Untick web search and ask again: no search happens, no source quote is added, and the reply matches the old grounded-only behaviour.
+6. Ask a question needing several searches: the reply never uses more than 2 searches and 1 page read.
+7. Not tested live: real web search needs a funded OPENROUTER_API_KEY and internet.
+
+## Triage chat, long paste, parent review mix (2026-11-06)
+
+1. Send a card to chat in review (button, C key, swipe down): the card shrinks and fades toward the Inbox, then the next card shows. With reduced motion on, no animation.
+2. Open Inbox chat, ask a "why" question: reply is more thoughtful and offers 1-2 proposed cards. Tap Approve: card shows "Added to approved cards" and appears in approved cards; keep chatting instead: nothing is created.
+3. Add knowledge: paste 8,000+ characters of prose with several topics: it becomes several sources with titles, extraction runs on each. Paste short text: one source as before. Paste the same long text again: "already added".
+4. Review a parent subject with 2+ sub-subjects (e.g. Business): the queue mixes new and learning cards from several children, leaning slightly to the one studied most recently; grade a full page and the next page shows other cards, not the graded ones.

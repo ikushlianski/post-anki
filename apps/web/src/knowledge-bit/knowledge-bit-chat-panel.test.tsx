@@ -57,6 +57,7 @@ describe('KnowledgeBitChatPanel', () => {
         message: 'What does this mean?',
         transcript: [],
         allowGeneralKnowledge: false,
+        allowWebSearch: true,
         clientMessageId: expect.any(String),
       },
     })
@@ -105,6 +106,7 @@ describe('KnowledgeBitChatPanel', () => {
         message: 'Tell me more',
         transcript: [],
         allowGeneralKnowledge: true,
+        allowWebSearch: true,
         clientMessageId: expect.any(String),
       },
     })
@@ -224,5 +226,46 @@ describe('KnowledgeBitChatPanel', () => {
         sourceLinks: [],
       }),
     })
+  })
+
+  it('should send allowWebSearch false once the learner turns the web toggle off', async () => {
+    mockedAsk.mockResolvedValue({ reply: 'ok' })
+
+    const user = userEvent.setup()
+
+    renderHarness('bit-1')
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-open'))
+    await user.click(screen.getByTestId('knowledge-bit-chat-web-search'))
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'q')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await screen.findByText('ok')
+
+    expect(mockedAsk).toHaveBeenCalledWith({
+      data: expect.objectContaining({ allowWebSearch: false }),
+    })
+  })
+
+  it('should fill the tray when the learner taps a suggested card', async () => {
+    mockedAsk.mockResolvedValue({
+      reply: 'A closure keeps its scope.',
+      suggestions: [
+        { front: 'What is a closure?', back: 'A function plus scope.', origin: 'web', sources: ['https://example.com/c'] },
+      ],
+    })
+
+    const user = userEvent.setup()
+
+    renderHarness('bit-1')
+
+    await user.click(screen.getByTestId('knowledge-bit-chat-open'))
+    await user.type(screen.getByTestId('knowledge-bit-chat-input'), 'closure?')
+    await user.click(screen.getByTestId('knowledge-bit-chat-send'))
+    await user.click(await screen.findByTestId('knowledge-bit-chat-suggestion-0'))
+
+    expect(screen.getByText('Web')).toBeTruthy()
+    expect((screen.getByTestId('knowledge-bit-chat-tray-front') as HTMLTextAreaElement).value).toBe(
+      'What is a closure?',
+    )
   })
 })

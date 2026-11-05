@@ -93,6 +93,66 @@ describe("sendChatQueueMessage", () => {
     );
   });
 
+  it("should give the model room for its web tools only when the caller supplies them", async () => {
+    const webTools = { searchWeb: vi.fn(), isCitedUrl: vi.fn(), fetchPage: vi.fn() };
+
+    await sendChatQueueMessage("kb1", input, { webTools });
+    await sendChatQueueMessage("kb1", { ...input, clientMessageId: "new-2" });
+
+    expect(generate.mock.calls[0]?.[1]).toMatchObject({ maxSteps: 4 });
+    expect(generate.mock.calls[0]?.[1].requestContext.get("chatQueueWebTools")).toBe(webTools);
+    expect(generate.mock.calls[1]?.[1]).toMatchObject({ maxSteps: 1 });
+    expect(generate.mock.calls[1]?.[1].requestContext).toBeUndefined();
+  });
+
+  it("should strip the card block from the stored reply and return at most two proposals", async () => {
+    const card = (n: number) => ({ front: `F${n}`, back: `B${n}`, origin: "own", sources: [] });
+
+    generate.mockResolvedValue({
+      text: `Here you go.\n<related-cards>${JSON.stringify([card(1), card(2), card(3)])}</related-cards>`,
+    });
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result.ok && result.value.reply).toBe("Here you go.");
+    expect(result.ok && result.value.suggestions).toEqual([card(1), card(2)]);
+    expect(insertChatTurn).toHaveBeenCalledWith(
+      "kb1",
+      expect.objectContaining({ assistantText: "Here you go." }),
+      expect.anything(),
+    );
+  });
+
+  it("should return only the reply when the card block is not valid JSON", async () => {
+    generate.mockResolvedValue({ text: "Plain answer.\n<related-cards>[{oops</related-cards>" });
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result).toEqual({
+      ok: true,
+      value: { reply: "Plain answer.", turnsLeft: CHAT_QUEUE_MAX_USER_TURNS - 1, capReached: false },
+    });
+  });
+
+  it("should not spend a turn when the model returns only a card block and no reply text", async () => {
+    generate.mockResolvedValue({
+      text: '<related-cards>[{"front":"F","back":"B","origin":"own","sources":[]}]</related-cards>',
+    });
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result).toEqual({ ok: false, error: "model_failed" });
+    expect(insertChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("should not replay proposals when a repeated client message id returns the stored reply", async () => {
+    listChatQueueMessages.mockResolvedValue(turns(2));
+
+    const result = await sendChatQueueMessage("kb1", { clientMessageId: "c1", message: "q1" });
+
+    expect(result.ok && result.value).not.toHaveProperty("suggestions");
+  });
+
   it("should cap the reply length and run a single step with no tools", async () => {
     await sendChatQueueMessage("kb1", input);
 
@@ -150,6 +210,35 @@ describe("sendChatQueueMessage", () => {
 
     expect(result).toEqual({ ok: false, error: "model_failed" });
     expect(insertChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("should retry once on the cheap model when the primary model fails and still answer", async () => {
+    generate.mockRejectedValueOnce(new Error("model retired"));
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result.ok && result.value.reply).toBe("Because it matters.");
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate.mock.calls[0]?.[1].requestContext).toBeUndefined();
+    expect(generate.mock.calls[1]?.[1].requestContext.get("chatQueueFallback")).toBe(true);
+  });
+
+  it("should stop after the single cheap-model retry when that fails too", async () => {
+    generate.mockRejectedValue(new Error("boom"));
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result).toEqual({ ok: false, error: "model_failed" });
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("should not retry on the cheap model when the spend guard blocks the call", async () => {
+    generate.mockRejectedValue(new LlmBudgetExceededError(1, 1));
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result).toEqual({ ok: false, error: "budget_paused" });
+    expect(generate).toHaveBeenCalledTimes(1);
   });
 
   it("should not spend a turn when the model returns nothing", async () => {

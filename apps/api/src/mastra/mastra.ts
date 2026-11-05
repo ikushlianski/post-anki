@@ -49,6 +49,7 @@ import { createKnowledgeBitAnswerGraderAgent } from "./knowledge-bit-answer-grad
 import { createKnowledgeBitFollowupGeneratorAgent } from "./knowledge-bit-followup-generator.agent.js";
 import { createCardStyleNotesDistillerAgent } from "./card-style-notes-distiller.agent.js";
 import { createSubjectCheckerAgent } from "./knowledge-source-subject-checker.agent.js";
+import { createLongPasteSplitterAgent } from "./long-paste-splitter.agent.js";
 import { createSubjectAssignmentEscalationAgent } from "./subject-assignment-escalation.agent.js";
 import { createCardDedupEscalationAgent } from "./card-dedup-escalation.agent.js";
 import { createSubjectCreationAgent } from "./subject-creation.agent.js";
@@ -101,6 +102,7 @@ export const AGENT_KEYS = {
   knowledgeBitFollowupGenerator: "knowledgeBitFollowupGenerator",
   cardStyleNotesDistiller: "cardStyleNotesDistiller",
   knowledgeSourceSubjectChecker: "knowledgeSourceSubjectChecker",
+  longPasteSplitter: "longPasteSplitter",
   subjectAssignmentEscalation: "subjectAssignmentEscalation",
   cardDedupEscalation: "cardDedupEscalation",
   subjectCreation: "subjectCreation",
@@ -199,6 +201,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.knowledgeBitFollowupGenerator]: createKnowledgeBitFollowupGeneratorAgent(),
         [AGENT_KEYS.cardStyleNotesDistiller]: createCardStyleNotesDistillerAgent(),
         [AGENT_KEYS.knowledgeSourceSubjectChecker]: createSubjectCheckerAgent(),
+        [AGENT_KEYS.longPasteSplitter]: createLongPasteSplitterAgent(),
         [AGENT_KEYS.subjectAssignmentEscalation]: createSubjectAssignmentEscalationAgent(),
         [AGENT_KEYS.cardDedupEscalation]: createCardDedupEscalationAgent(),
         [AGENT_KEYS.subjectCreation]: createSubjectCreationAgent(),

@@ -1,4 +1,4 @@
-import type { DetailLevel } from "@post-anki/shared";
+import type { DetailLevel, KnowledgeHighlight } from "@post-anki/shared";
 import { Agent } from "@mastra/core/agent";
 import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
@@ -13,6 +13,7 @@ import {
   SOURCE_ITEM_KINDS,
   type LessonDraft,
 } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
+import { focusExcerpts, quoteOverlapsFocus } from "../knowledge-bit/knowledge-bit-focus.js";
 import { validateLesson } from "../knowledge-bit/knowledge-bit-lesson-validation.js";
 import { buildSourceLanguageLine } from "../knowledge-bit/knowledge-bit-source-language.js";
 import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
@@ -163,10 +164,12 @@ export interface RunKnowledgeBitSourceItemsOptions {
   subjectKind?: SubjectKind;
   sourceKind?: string;
   targetPhrases?: string[];
+  focus?: KnowledgeHighlight[];
   abortSignal?: AbortSignal;
   retryRateLimit?: boolean;
   onUsage?: (usage: ReportedUsage) => void;
   onNothingWorthKeeping?: () => void;
+  onClarification?: (gapText: string) => void;
   forceAtLeastOne?: boolean;
 }
 
@@ -181,27 +184,40 @@ function sumUsage(a: ReportedUsage, b: ReportedUsage): ReportedUsage {
   };
 }
 
-function pickValidLessons(result: { object?: unknown }, chunk: string) {
+function pickValidLessons(result: { object?: unknown }, chunk: string, focus: readonly KnowledgeHighlight[]) {
   const parsed = knowledgeBitLessonsResultSchema.safeParse(result.object);
 
   if (!parsed.success) {
     throw new Error(`knowledge_bit_lessons_invalid_output: ${parsed.error.message}`);
   }
 
+  const gapText = parsed.data.needsClarification ? parsed.data.gapText?.trim() : undefined;
+
   return {
     deliberateEmpty: parsed.data.lessons.length === 0,
-    lessons: toValidLessons(parsed.data.lessons, chunk),
+    lessons: toValidLessons(parsed.data.lessons, chunk, focus),
+    gapText: gapText || undefined,
   };
 }
 
-function toValidLessons(rawLessons: KnowledgeBitLessonsResult["lessons"], chunk: string) {
+function reportClarification(gapText: string | undefined, options: RunKnowledgeBitSourceItemsOptions): void {
+  if (gapText) {
+    options.onClarification?.(gapText);
+  }
+}
+
+function toValidLessons(
+  rawLessons: KnowledgeBitLessonsResult["lessons"],
+  chunk: string,
+  focus: readonly KnowledgeHighlight[],
+) {
   return rawLessons
     .map((raw) => ({
       statement: raw.lesson,
       quote: raw.quote,
       example: raw.example?.trim() ? raw.example.trim().slice(0, LESSON_EXAMPLE_MAX_CHARS) : null,
     }))
-    .filter((lesson) => validateLesson(lesson, chunk).ok);
+    .filter((lesson) => validateLesson(lesson, chunk).ok && quoteOverlapsFocus(lesson.quote, chunk, focus));
 }
 
 export async function runKnowledgeBitSourceItems(
@@ -230,6 +246,7 @@ export async function runKnowledgeBitSourceItems(
   const retryOptions = { modelId, retryRateLimit: options.retryRateLimit };
   const mastra = getMastra();
 
+  const focus = options.focus ?? [];
   const lessonsAgent = mastra.getAgent(AGENT_KEYS.knowledgeBitLessons);
   const lessonsPrompt = [
     buildKnowledgeBitLessonsPrompt(
@@ -238,11 +255,14 @@ export async function runKnowledgeBitSourceItems(
       options.strictLanguage,
       options.feedbackBlock,
       options.detailLevel,
+      focusExcerpts(chunk, focus),
     ),
     ...(options.forceAtLeastOne ? [FORCE_AT_LEAST_ONE_LESSON_SUFFIX] : []),
   ].join("\n");
   let lessonsResult = await generateLessons();
-  let picked = pickValidLessons(lessonsResult, chunk);
+  let picked = pickValidLessons(lessonsResult, chunk, focus);
+
+  reportClarification(picked.gapText, options);
 
   if (picked.deliberateEmpty) {
     options.onNothingWorthKeeping?.();
@@ -254,8 +274,10 @@ export async function runKnowledgeBitSourceItems(
   if (picked.lessons.length === 0) {
     const retried = await generateLessons();
 
-    picked = pickValidLessons(retried, chunk);
+    picked = pickValidLessons(retried, chunk, focus);
     lessonsResult = retried;
+
+    reportClarification(picked.gapText, options);
 
     if (picked.deliberateEmpty) {
       options.onNothingWorthKeeping?.();

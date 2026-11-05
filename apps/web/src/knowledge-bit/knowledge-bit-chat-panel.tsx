@@ -15,6 +15,7 @@ import { askKnowledgeBitChat } from './knowledge-bit-chat.api'
 import { KnowledgeBitChatSheet } from './knowledge-bit-chat-sheet'
 import { KnowledgeBitChatHighlightBar } from './knowledge-bit-chat-highlight-bar'
 import { KnowledgeBitChatReplacement } from './knowledge-bit-chat-replacement'
+import { KnowledgeBitChatSuggestions } from './knowledge-bit-chat-suggestions'
 import { KnowledgeBitChatCardTray } from './knowledge-bit-chat-card-tray'
 import { useCardTray } from './use-card-tray'
 import { useChatSelection } from './use-chat-selection'
@@ -51,6 +52,7 @@ export function KnowledgeBitChatPanel({
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
   const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
+  const [webSearch, setWebSearch] = useState(true)
   const [cardWebSearch, setCardWebSearch] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const tray = useCardTray(knowledgeBitId)
@@ -61,6 +63,7 @@ export function KnowledgeBitChatPanel({
       message: string
       transcript: ChatMessage[]
       allowGeneralKnowledge: boolean
+      allowWebSearch: boolean
     }) =>
       askKnowledgeBitChat({
         data: {
@@ -68,6 +71,7 @@ export function KnowledgeBitChatPanel({
           message: vars.message,
           transcript: vars.transcript,
           allowGeneralKnowledge: vars.allowGeneralKnowledge,
+          allowWebSearch: vars.allowWebSearch,
           clientMessageId: crypto.randomUUID(),
         },
       }),
@@ -134,7 +138,7 @@ export function KnowledgeBitChatPanel({
     }
 
     mutation.mutate(
-      { message: text, transcript, allowGeneralKnowledge },
+      { message: text, transcript, allowGeneralKnowledge, allowWebSearch: webSearch },
       {
         onSuccess: (result) => {
           setMessages((prev) => [
@@ -144,6 +148,7 @@ export function KnowledgeBitChatPanel({
               id: `assistant-${Date.now()}`,
               role: 'assistant',
               text: result?.reply ?? FALLBACK_REPLY,
+              suggestions: result?.suggestions,
             },
           ])
         },
@@ -229,6 +234,16 @@ export function KnowledgeBitChatPanel({
         </span>
       </label>
 
+      <label className="flex min-h-11 shrink-0 items-center gap-2 border-b border-neutral-200 px-3 py-2 text-xs sm:min-h-0 text-neutral-500">
+        <input
+          type="checkbox"
+          data-testid="knowledge-bit-chat-web-search"
+          checked={webSearch}
+          onChange={(event) => setWebSearch(event.target.checked)}
+        />
+        <span>Use web search to clarify (cheap, max 2 searches per reply)</span>
+      </label>
+
       <div
         ref={scrollRef}
         className="min-h-[8rem] flex-1 space-y-2 overflow-y-auto overscroll-contain p-3 sm:max-h-96 sm:flex-none"
@@ -268,6 +283,9 @@ export function KnowledgeBitChatPanel({
             >
               {message.text}
             </div>
+            {message.suggestions && message.suggestions.length > 0 ? (
+              <KnowledgeBitChatSuggestions suggestions={message.suggestions} tray={tray} />
+            ) : null}
           </div>
           ),
         )}

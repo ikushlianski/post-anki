@@ -789,10 +789,11 @@ export async function createKnowledgeSource(
   modelId?: string,
   force?: boolean,
   targetPhrases?: string[],
+  highlights?: { start: number; end: number }[],
 ): Promise<KnowledgeSource> {
   return request<KnowledgeSource>('/knowledge-sources', {
     method: 'POST',
-    body: { text, subjectId, modelId, force, targetPhrases },
+    body: { text, subjectId, modelId, force, targetPhrases, highlights },
   })
 }
 

@@ -48,7 +48,7 @@ function load(items = [item("a", 1), item("b", 2), item("c", 3)]) {
 beforeEach(() => {
   vi.mocked(snoozeChatQueueCard).mockResolvedValue({
     ok: true,
-    data: { snoozedUntil: "2026-11-05T10:00:00.000Z" },
+    data: { snoozedUntil: "2099-01-01T10:00:00.000Z" },
   } as never);
   vi.mocked(returnFromChatQueue).mockResolvedValue({ ok: true } as never);
 });
@@ -102,7 +102,7 @@ describe("ChatQueueScreen s shortcut", () => {
   });
 
   it("should do nothing on an already snoozed card", async () => {
-    load([item("a", 1, "2026-11-05T10:00:00.000Z"), item("b", 2)]);
+    load([item("a", 1, "2099-01-01T10:00:00.000Z"), item("b", 2)]);
     render(<ChatQueueScreen />);
     await screen.findByTestId("chat-queue-row-a");
     await userEvent.keyboard("js");

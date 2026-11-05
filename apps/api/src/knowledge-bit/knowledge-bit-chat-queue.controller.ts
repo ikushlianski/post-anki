@@ -7,6 +7,8 @@ import {
   sendChatQueueMessageInput,
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { log } from "../shared/log.js";
+import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.orchestrator.js";
 import { insertCardFromChatMessage } from "./knowledge-bit-chat-card.repo.js";
 import {
   countAllChatQueueKnowledgeBits,
@@ -19,6 +21,7 @@ import {
 import { buildChatExportMarkdown, slugifySubjectName } from "./knowledge-bit-chat-queue-export.markdown.js";
 import { searchChatQueueMessages } from "./knowledge-bit-chat-queue-search.repo.js";
 import { loadChatExportData } from "./knowledge-bit-chat-queue-export.repo.js";
+import { retryHeldAskAiRepliesInBackground } from "./ask-ai-chat-retry.js";
 import { sweepDecidedChatThreadsHourly } from "./knowledge-bit-chat-thread-retention.js";
 import { getStaleChatQueueSummary } from "./knowledge-bit-chat-queue-stale.repo.js";
 import {
@@ -101,6 +104,8 @@ export async function handleUnsnoozeChatQueueKnowledgeBit(res: http.ServerRespon
 
 // GET /knowledge-bits/chat-queue
 export async function handleListChatQueueKnowledgeBits(res: http.ServerResponse): Promise<void> {
+  retryHeldAskAiRepliesInBackground();
+
   const [items, count, total] = await Promise.all([
     listChatQueueKnowledgeBits(CHAT_QUEUE_LIST_LIMIT),
     countChatQueueKnowledgeBits(),
@@ -191,6 +196,14 @@ export async function handleCreateCardFromChatMessage(
   if (!result.ok) {
     sendError(res, CARD_ERROR_STATUS[result.error], result.error);
     return;
+  }
+
+  if (body.data.approve) {
+    try {
+      await embedApprovedKnowledgeBits([result.id]);
+    } catch (err) {
+      log.warn({ err, id: result.id }, "chat_card_approve_embed_failed");
+    }
   }
 
   sendJson(res, 201, { ok: true, id: result.id });

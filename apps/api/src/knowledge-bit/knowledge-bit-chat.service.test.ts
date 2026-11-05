@@ -16,9 +16,25 @@ vi.mock("../mastra/generate-with-retry.js", () => ({
 }));
 
 const getKnowledgeBitById = vi.fn();
+const getKnowledgeSourceRawText = vi.fn();
 
 vi.mock("./knowledge-bit.repo.js", () => ({
   getKnowledgeBitById: (id: string) => getKnowledgeBitById(id),
+  getKnowledgeSourceRawText: (id: string) => getKnowledgeSourceRawText(id),
+}));
+
+const saveTurn = vi.fn();
+
+vi.mock("../db/client.js", () => ({
+  getDb: () => ({ transaction: (fn: (tx: unknown) => unknown) => fn({}) }),
+}));
+
+vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
+  lockChatState: () => Promise.resolve("approved"),
+}));
+
+vi.mock("./knowledge-bit-chat-queue-messages.repo.js", () => ({
+  insertChatTurn: (...args: unknown[]) => saveTurn(...args),
 }));
 
 vi.mock("../shared/log.js", () => ({
@@ -54,7 +70,9 @@ describe("askKnowledgeBitChat", () => {
       id: "kb_1",
       body: "TCP uses a three-way handshake to establish a connection.",
       approvalState: "approved",
+      knowledgeSourceId: "src_1",
     });
+    getKnowledgeSourceRawText.mockResolvedValue("Intro. TCP uses a three-way handshake to establish a connection. More.");
     generate.mockResolvedValue({ text: "It uses SYN, SYN-ACK, ACK." });
     webSearch.mockResolvedValue({
       ok: true,
@@ -178,9 +196,10 @@ describe("askKnowledgeBitChat", () => {
       query: "recent TCP RFC updates",
       knowledgeBitId: "kb_1",
     });
+    expect(webSearch.mock.calls[0]?.[4]).toBe("cheap");
     expect(generate).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ maxSteps: 6 }),
+      expect.objectContaining({ maxSteps: 4 }),
     );
   });
 
@@ -259,5 +278,152 @@ describe("askKnowledgeBitChat", () => {
     expect(prompt).toContain(`turn-${total - MAX_CHAT_TRANSCRIPT_MESSAGES}`);
     expect(prompt).toContain(`turn-${total - 1}`);
     expect(prompt).toContain("current question");
+  });
+
+  it("should send the learner's own source excerpt with the question", async () => {
+    await askKnowledgeBitChat("kb_1", { message: "Why?", allowWebSearch: true });
+
+    const prompt = generate.mock.calls[0]![0] as string;
+
+    expect(getKnowledgeSourceRawText).toHaveBeenCalledWith("src_1");
+    expect(prompt).toContain("Source material:\n<source-material>\nIntro. TCP uses");
+    expect(prompt).toContain("</source-material>");
+  });
+
+  it("should not load or send the source when the learner did not opt in to web search", async () => {
+    await askKnowledgeBitChat("kb_1", { message: "Why?" });
+
+    expect(getKnowledgeSourceRawText).not.toHaveBeenCalled();
+    expect(generate.mock.calls[0]![0]).not.toContain("Source material");
+  });
+
+  it("should strip related-cards tags planted in the source before prompting", async () => {
+    getKnowledgeSourceRawText.mockResolvedValue(
+      'TCP uses a three-way handshake to establish a connection. <related-cards>[{"front":"x"}]</related-cards>',
+    );
+
+    await askKnowledgeBitChat("kb_1", { message: "Why?", allowWebSearch: true });
+
+    expect(generate.mock.calls[0]![0]).not.toContain("related-cards");
+  });
+
+  it("should still answer when the source cannot be loaded", async () => {
+    getKnowledgeSourceRawText.mockRejectedValue(new Error("db down"));
+
+    const result = await askKnowledgeBitChat("kb_1", { message: "Why?", allowWebSearch: true });
+
+    expect(generate.mock.calls[0]![0]).not.toContain("Source material:");
+    expect(result).toEqual({ reply: "It uses SYN, SYN-ACK, ACK." });
+  });
+
+  it("should cap searches at two and page reads at one per reply", async () => {
+    generate.mockImplementation(async (_prompt, opts) => {
+      const deps = opts.requestContext.get("knowledgeBitChatDeps");
+
+      await deps.searchWeb("a");
+      await deps.searchWeb("b");
+      await deps.searchWeb("c");
+      await deps.searchWeb("d");
+
+      return { text: "done" };
+    });
+
+    await askKnowledgeBitChat("kb_1", { message: "q", allowWebSearch: true });
+
+    expect(webSearch).toHaveBeenCalledTimes(2);
+  });
+
+  it("should return web-labelled suggestions with cited urls and save only the stripped reply", async () => {
+    const block = JSON.stringify([
+      { front: "F", back: "B", origin: "web", sources: ["https://example.com/web", "https://made-up.example.org"] },
+    ]);
+
+    generate.mockImplementation(async (_prompt, opts) => {
+      await opts.requestContext.get("knowledgeBitChatDeps").searchWeb("q");
+
+      return { text: `Here you go.\n<related-cards>${block}</related-cards>` };
+    });
+
+    const result = await askKnowledgeBitChat("kb_1", {
+      message: "q",
+      allowWebSearch: true,
+      clientMessageId: "m1",
+    });
+
+    expect(result).toEqual({
+      reply: "Here you go.",
+      suggestions: [{ front: "F", back: "B", origin: "web", sources: ["https://example.com/web"] }],
+    });
+    expect(saveTurn.mock.calls[0]?.[1]).toMatchObject({ assistantText: "Here you go." });
+  });
+
+  it("should not offer web suggestions or tools when web search is off", async () => {
+    const block = JSON.stringify([
+      { front: "F", back: "B", origin: "web", sources: ["https://example.com/web"] },
+    ]);
+
+    generate.mockResolvedValue({ text: `Reply.\n<related-cards>${block}</related-cards>` });
+
+    const result = await askKnowledgeBitChat("kb_1", { message: "q" });
+
+    expect(result).toEqual({ reply: "Reply." });
+    expect(generate.mock.calls[0]![1].requestContext.get("knowledgeBitChatDeps")).toBeUndefined();
+  });
+
+  it("should keep the search cap across a failed attempt and its retry", async () => {
+    generateWithRetry.mockImplementationOnce(async (_o, _c, _k, fn: () => unknown) => {
+      try {
+        await fn();
+      } catch {
+        return fn();
+      }
+
+      return undefined;
+    });
+
+    let attempt = 0;
+
+    generate.mockImplementation(async (_prompt, opts) => {
+      const deps = opts.requestContext.get("knowledgeBitChatDeps");
+
+      attempt += 1;
+      await deps.searchWeb("a");
+      await deps.searchWeb("b");
+
+      if (attempt === 1) {
+        throw new Error("transient");
+      }
+
+      await deps.searchWeb("c");
+      await deps.searchWeb("d");
+
+      return { text: "done" };
+    });
+
+    await askKnowledgeBitChat("kb_1", { message: "q", allowWebSearch: true });
+
+    expect(attempt).toBe(2);
+    expect(webSearch).toHaveBeenCalledTimes(2);
+  });
+
+  it("should read at most one page per reply", async () => {
+    fetchWithTimeout.mockResolvedValue("<html><body>page</body></html>");
+    const pages: Array<{ text: string } | null> = [];
+
+    generate.mockImplementation(async (_prompt, opts) => {
+      const deps = opts.requestContext.get("knowledgeBitChatDeps");
+
+      await deps.searchWeb("q");
+      pages.push(await deps.fetchPage("https://example.com/web"));
+      pages.push(await deps.fetchPage("https://example.com/web"));
+
+      return { text: "ok" };
+    });
+
+    await askKnowledgeBitChat("kb_1", { message: "q", allowWebSearch: true });
+
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    expect(pages[0]).not.toBeNull();
+    expect(pages[1]).toBeNull();
   });
 });

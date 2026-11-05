@@ -70,7 +70,7 @@ describe("ChatQueueScreen s shortcut failure", () => {
     await renderQueue();
     vi.mocked(snoozeChatQueueCard).mockResolvedValue({
       ok: true,
-      data: { snoozedUntil: "2026-11-05T10:00:00.000Z" },
+      data: { snoozedUntil: "2099-01-01T10:00:00.000Z" },
     } as never);
     await userEvent.keyboard("js");
 
@@ -105,7 +105,7 @@ describe("ChatQueueScreen s shortcut failure", () => {
     vi.mocked(snoozeChatQueueCard).mockRejectedValueOnce(new Error("boom"));
     vi.mocked(snoozeChatQueueCard).mockResolvedValue({
       ok: true,
-      data: { snoozedUntil: "2026-11-05T10:00:00.000Z" },
+      data: { snoozedUntil: "2099-01-01T10:00:00.000Z" },
     } as never);
     await userEvent.keyboard("js");
     await screen.findByRole("alert");

@@ -11,6 +11,7 @@ import {
   type DurableSourceSnapshot,
   type DurableStepDeps,
 } from "./durable-extraction.steps.js";
+import { openAskAiChatSafely, replyAskAiChatSafely } from "./ask-ai-extraction.js";
 import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { normalizeStatement, selectNewItems } from "./knowledge-bit-source-item-validation.js";
 
@@ -19,6 +20,7 @@ export interface ChunkCounts {
   inserted: number;
   deliberateEmpty?: boolean;
   capped?: boolean;
+  gapText?: string;
 }
 
 export async function chunkInsertStep(
@@ -28,10 +30,11 @@ export async function chunkInsertStep(
   acceptedSoFar: number,
   deps: DurableStepDeps,
 ): Promise<ChunkCounts> {
-  const { valid, flagged: rejected, deliberateEmpty } = await chunkStep(snapshot, index, deps);
+  const { valid, flagged: rejected, deliberateEmpty, gapText } = await chunkStep(snapshot, index, deps);
+  const gap = gapText ? { gapText } : {};
 
   if (deliberateEmpty) {
-    return { accepted: 0, inserted: 0, deliberateEmpty: true };
+    return { accepted: 0, inserted: 0, deliberateEmpty: true, ...gap };
   }
 
   const insertState = await deps.getInsertState(snapshot.id);
@@ -43,7 +46,7 @@ export async function chunkInsertStep(
   const capped = acceptedSoFar + items.length >= MAX_ITEMS_PER_SOURCE && unseen > items.length;
 
   if (items.length === 0 && flagged.length === 0) {
-    return { accepted: 0, inserted: 0, capped };
+    return { accepted: 0, inserted: 0, capped, ...gap };
   }
 
   const inserted = await deps.insertItems({
@@ -54,7 +57,7 @@ export async function chunkInsertStep(
     flagged,
   });
 
-  return { accepted: items.length, inserted, capped };
+  return { accepted: items.length, inserted, capped, ...gap };
 }
 
 export async function finishCountsStep(
@@ -64,6 +67,7 @@ export async function finishCountsStep(
   deps: DurableStepDeps,
   nothingExtracted = false,
   capped = false,
+  gapText?: string,
 ): Promise<DurableOutcome> {
   const claimedAt = new Date(snapshot.claimedAt);
 
@@ -73,9 +77,13 @@ export async function finishCountsStep(
     return { status: "failed", inserted, failureReason };
   }
 
-  if (!(await markDetectedFor(snapshot, claimedAt, nothingExtracted && inserted === 0, deps, capped))) {
+  const askAiChat = await openAskAiChatSafely(snapshot.id, gapText, deps);
+
+  if (!(await markDetectedFor(snapshot, claimedAt, nothingExtracted && inserted === 0 && !askAiChat, deps, capped))) {
     throw new Error("knowledge_source_reclaimed");
   }
+
+  await replyAskAiChatSafely(askAiChat);
 
   return { status: "detected", inserted, failureReason: null };
 }

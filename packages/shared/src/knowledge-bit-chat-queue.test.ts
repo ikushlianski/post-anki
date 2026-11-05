@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   CHAT_QUEUE_MAX_MESSAGE_CHARS,
+  CHAT_QUEUE_REPLY_MAX_TOKENS,
   chatQueueCountSchema,
+  createCardFromChatMessageInput,
+  sendChatQueueMessageResultSchema,
   chatQueueSearchQuerySchema,
   chatQueueSearchResponseSchema,
   sendChatQueueMessageInput,
@@ -76,5 +79,41 @@ describe("chatQueueSearchResponseSchema", () => {
     expect(chatQueueSearchResponseSchema.safeParse({ results: [] }).success).toBe(true);
     expect(chatQueueSearchResponseSchema.safeParse({ results: [], hasMore: true }).success).toBe(true);
     expect(chatQueueSearchResponseSchema.safeParse({ results: [], hasMore: "yes" }).success).toBe(false);
+  });
+});
+
+describe("sendChatQueueMessageResultSchema", () => {
+  const suggestion = { front: "F", back: "B", origin: "own", sources: [] };
+  const base = { reply: "Hi", turnsLeft: 3, capReached: false };
+
+  it("should accept a reply with no, one or two proposed cards", () => {
+    expect(sendChatQueueMessageResultSchema.safeParse(base).success).toBe(true);
+    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [suggestion] }).success).toBe(true);
+    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [suggestion, suggestion] }).success).toBe(true);
+  });
+
+  it("should refuse three proposed cards and a proposal with an empty front", () => {
+    expect(
+      sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [suggestion, suggestion, suggestion] }).success,
+    ).toBe(false);
+    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [{ ...suggestion, front: "" }] }).success).toBe(
+      false,
+    );
+  });
+
+  it("should leave room in the reply budget for the card block", () => {
+    expect(CHAT_QUEUE_REPLY_MAX_TOKENS).toBe(700);
+  });
+});
+
+describe("createCardFromChatMessageInput", () => {
+  it("should accept an approving card with an example and a plain pending card", () => {
+    expect(createCardFromChatMessageInput.safeParse({ front: "F", back: "B", example: "E", approve: true }).success).toBe(true);
+    expect(createCardFromChatMessageInput.safeParse({ front: "F", back: "B" }).success).toBe(true);
+  });
+
+  it("should refuse an approve flag that is not a boolean and a blank front", () => {
+    expect(createCardFromChatMessageInput.safeParse({ front: "F", back: "B", approve: "yes" }).success).toBe(false);
+    expect(createCardFromChatMessageInput.safeParse({ front: "  ", back: "B" }).success).toBe(false);
   });
 });

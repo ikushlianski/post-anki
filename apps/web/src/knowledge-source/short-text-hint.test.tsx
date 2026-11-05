@@ -18,6 +18,7 @@ function renderList(block: Block) {
       onValueChange={vi.fn()}
       onTypeChange={vi.fn()}
       onTargetPhrasesChange={vi.fn()}
+      onHighlightsChange={vi.fn()}
       onRemove={vi.fn()}
       onAddAgain={vi.fn()}
       onSubmitShortcut={vi.fn()}

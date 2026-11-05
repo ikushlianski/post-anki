@@ -18,6 +18,8 @@ import { SubjectCheckPanel, UnfiledNotice } from './subject-check-panel'
 import { useSubjectCheck } from './use-subject-check'
 import { useKnowledgeDraft } from './use-knowledge-draft'
 import { clearKnowledgeDraft } from './knowledge-draft-storage'
+import { shiftHighlightsOnEdit, trimHighlights } from './knowledge-highlights'
+import type { KnowledgeHighlight } from './knowledge-highlights'
 import { submitKnowledgeBlocks } from './submit-knowledge-blocks'
 import { readLastSubjectId, writeLastSubjectId } from './last-subject-storage'
 import { addedKnowledgeMessage } from './added-knowledge-message'
@@ -55,6 +57,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
       value: block.value.trim(),
       force: block.force,
       targetPhrases: block.targetPhrases,
+      highlights: block.type === 'text' ? trimHighlights(block.value, block.highlights) : [],
     }))
     .filter((block) => block.value.length > 0)
 
@@ -69,7 +72,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const canSubmit = nonEmptyBlocks.length > 0 && !hasInvalidLink(nonEmptyBlocks) && !busy && !checking && !panelOpen
 
   function updateBlockValue(index: number, value: string) {
-    setBlocks((current) => current.map((block, i) => (i === index ? { ...block, value, force: undefined } : block)))
+    setBlocks((current) => current.map((block, i) => (i === index ? { ...block, value, force: undefined, highlights: shiftHighlightsOnEdit(block.value, value, block.highlights ?? []) } : block)))
     setDuplicates((current) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index)))
   }
 
@@ -79,6 +82,10 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
 
   function updateBlockTargetPhrases(index: number, targetPhrases: string[]) {
     setBlocks((current) => current.map((block, i) => (i === index ? { ...block, targetPhrases } : block)))
+  }
+
+  function updateBlockHighlights(index: number, highlights: KnowledgeHighlight[]) {
+    setBlocks((current) => current.map((block, i) => (i === index ? { ...block, highlights } : block)))
   }
 
   function addBlock() {
@@ -250,6 +257,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
         onValueChange={updateBlockValue}
         onTypeChange={updateBlockType}
         onTargetPhrasesChange={updateBlockTargetPhrases}
+        onHighlightsChange={updateBlockHighlights}
         onRemove={removeBlock}
         onAddAgain={addAgain}
         onSubmitShortcut={submitFromKeyboard}

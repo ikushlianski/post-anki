@@ -7,7 +7,12 @@ const mockFetchWithTimeout = vi.fn();
 
 vi.mock("./knowledge-source-duplicate.repo.js", () => ({
   findEarlierSourceByUrl: vi.fn().mockResolvedValue(null),
+  findEarlierSplitSource: vi.fn().mockResolvedValue(null),
   findEarlierSourcesByText: vi.fn().mockResolvedValue(new Map()),
+}));
+
+vi.mock("./long-paste-split.orchestrator.js", () => ({
+  splitLongPaste: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("./knowledge-source.repo.js", () => ({

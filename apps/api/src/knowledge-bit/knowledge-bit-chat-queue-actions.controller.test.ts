@@ -2,6 +2,8 @@ import type http from "node:http";
 import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
+vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({ embedApprovedKnowledgeBits: vi.fn() }));
 vi.mock("./knowledge-bit-chat-card.repo.js", () => ({}));
 vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
   moveKnowledgeBitToChatQueue: vi.fn(),

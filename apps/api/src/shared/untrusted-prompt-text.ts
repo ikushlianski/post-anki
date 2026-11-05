@@ -24,6 +24,8 @@ const PROMPT_TAG_NAMES = [
   "hint",
   "target_phrases",
   "target_phrase",
+  "focus",
+  "excerpt",
 ];
 
 const PROMPT_TAG_PATTERN = new RegExp(`<(\\s*/?\\s*(?:${PROMPT_TAG_NAMES.join("|")})(?![\\p{L}\\p{N}_]))`, "giu");

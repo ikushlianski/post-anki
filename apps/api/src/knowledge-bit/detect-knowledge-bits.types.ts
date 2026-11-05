@@ -1,7 +1,8 @@
-import type { DetailLevel } from "@post-anki/shared";
+import type { DetailLevel, KnowledgeHighlight } from "@post-anki/shared";
 import type { SubjectKind } from "../subject/subject-kind.js";
 import type { LearningIntentLoader } from "./knowledge-bit-learning-intent.js";
 import type { LessonDraft } from "./knowledge-bit-source-item-validation.js";
+import type { AskAiChatHandle } from "./ask-ai-extraction.js";
 import type { InsertSourceItemsInput, SourceInsertState } from "./knowledge-bit-source-items.repo.js";
 
 export interface WriteOptions {
@@ -14,8 +15,10 @@ export interface WriteOptions {
   subjectKind?: SubjectKind;
   sourceKind?: string;
   targetPhrases?: string[];
+  focus?: KnowledgeHighlight[];
   abortSignal?: AbortSignal;
   onNothingWorthKeeping?: () => void;
+  onClarification?: (gapText: string) => void;
   forceAtLeastOne?: boolean;
   fusionModelIds?: string[];
 }
@@ -34,8 +37,10 @@ export interface GenerateItemsDeps {
   loadSubjectKind?: (subjectId: string | null) => Promise<SubjectKind>;
   loadSourceKind?: (sourceId: string) => Promise<string>;
   loadTargetPhrases?: (sourceId: string) => Promise<string[]>;
+  loadHighlights?: (sourceId: string) => Promise<KnowledgeHighlight[]>;
   loadDetailLevel?: (subjectId: string | null) => Promise<DetailLevel>;
   loadFusionModelIds?: () => Promise<string[]>;
+  openAskAiChat?: (sourceId: string, gapText: string) => Promise<AskAiChatHandle | null>;
 }
 
 export interface GenerateItemsResult {
@@ -51,5 +56,6 @@ export interface RunState {
   reclaimed: Error | null;
   deliberateEmptyChunks: number;
   capped: boolean;
+  gapByChunk: Map<number, string>;
 }
 

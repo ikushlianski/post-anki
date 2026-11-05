@@ -1218,6 +1218,7 @@ export const knowledgeSources = pgTable(
     subjectSuggestionCheckedAt: timestamp("subject_suggestion_checked_at", { withTimezone: true }),
     nothingExtractedAt: timestamp("nothing_extracted_at", { withTimezone: true }),
     targetPhrases: jsonb("target_phrases").$type<string[]>(),
+    highlights: jsonb("highlights").$type<{ start: number; end: number }[]>(),
   },
   (table) => ({
     notionPageIdUnique: uniqueIndex("knowledge_sources_notion_page_id_unique").on(

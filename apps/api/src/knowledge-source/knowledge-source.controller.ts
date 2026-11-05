@@ -4,6 +4,10 @@ import { isSafeSourceUrl } from "@post-anki/core";
 import {
   describeKnowledgeSourceRefusal,
   targetPhrasesSchema,
+  highlightsFitText,
+  knowledgeHighlightsSchema,
+  mergeHighlights,
+  type KnowledgeHighlight,
   KNOWLEDGE_SOURCE_MAX_CHARS,
   knowledgeItemModelIdSchema,
 } from "@post-anki/shared";
@@ -15,6 +19,7 @@ import { extractArticleText } from "./article-text.js";
 import {
   MAX_PAGE_TITLE_CHARS,
   MAX_PAGE_URL_CHARS,
+  highlightsForStoredText,
   safePageUrl,
   withPageTitle,
 } from "./knowledge-source-page-context.js";
@@ -23,6 +28,7 @@ import {
   findEarlierSourcesByText,
   type EarlierKnowledgeSource,
 } from "./knowledge-source-duplicate.repo.js";
+import { addSplitSources, findEarlierSplitImport } from "./knowledge-source-split-add.js";
 import { findSubjectAssignmentError } from "../subject/subject-leaf.js";
 import {
   insertKnowledgeSource,
@@ -38,6 +44,7 @@ const singleTextInput = z.object({
   modelId: modelIdInput,
   force: z.boolean().optional(),
   targetPhrases: targetPhrasesSchema.optional(),
+  highlights: knowledgeHighlightsSchema.optional(),
   sourceUrl: z.string().max(MAX_PAGE_URL_CHARS).optional(),
   title: z.string().max(MAX_PAGE_TITLE_CHARS).optional(),
 });
@@ -65,7 +72,12 @@ function addSource(
   sourceUrl: string | null,
   targetPhrases: string[] | undefined,
   omitNullUrl = false,
+  highlights?: KnowledgeHighlight[],
 ) {
+  if (highlights && highlights.length > 0) {
+    return insertKnowledgeSource(text, subjectId, modelId, sourceUrl, targetPhrases, highlights);
+  }
+
   if (targetPhrases) return insertKnowledgeSource(text, subjectId, modelId, sourceUrl, targetPhrases);
 
   return omitNullUrl && sourceUrl === null
@@ -199,6 +211,12 @@ export async function handleCreateKnowledgeSource(
   }
 
   if (isBatch) {
+    const batchRaw = rawBody.ok ? rawBody.data : undefined;
+
+    if (typeof batchRaw === "object" && batchRaw !== null && "highlights" in batchRaw) {
+      return sendError(res, 400, "invalid_input", "highlights: not supported for batch adds");
+    }
+
     const body = batchTextInput.safeParse(rawBody.ok ? rawBody.data : undefined);
 
     if (!body.success) {
@@ -264,7 +282,9 @@ export async function handleCreateKnowledgeSource(
     return;
   }
 
-  const text = body.data.text.trim();
+  const rawText = body.data.text;
+  const text = rawText.trim();
+  const leadingWhitespace = rawText.length - rawText.trimStart().length;
 
   if (text.length === 0) {
     sendError(res, 400, "invalid_input", "text: must not be empty");
@@ -277,13 +297,55 @@ export async function handleCreateKnowledgeSource(
     return;
   }
 
+  if (body.data.highlights !== undefined && !highlightsFitText(body.data.highlights, rawText.length)) {
+    sendError(res, 400, "invalid_input", "highlights: range exceeds text length");
+    return;
+  }
+
   const pageUrl = safePageUrl(body.data.sourceUrl);
   const storedText = withPageTitle(text, body.data.title);
+  const mergedHighlights = mergeHighlights(
+    (body.data.highlights ?? [])
+      .map((range) => ({
+        start: Math.max(0, range.start - leadingWhitespace),
+        end: Math.min(text.length, range.end - leadingWhitespace),
+      }))
+      .filter((range) => range.end > range.start),
+  );
+  const storedHighlights = highlightsForStoredText(mergedHighlights, body.data.title, storedText.length);
   const earlierSingle =
     body.data.force === true ? undefined : (await findEarlierSourcesByText([storedText], subjectId)).get(storedText);
 
   if (earlierSingle !== undefined) {
     sendAlreadyAdded(res, [{ source: earlierSingle }]);
+    return;
+  }
+
+  if (storedHighlights.length > 0) {
+    const earlierSplit = await findEarlierSplitImport({ text, subjectId, force: body.data.force === true });
+
+    if (earlierSplit !== null) return sendAlreadyAdded(res, [{ source: earlierSplit }]);
+  }
+
+  const split =
+    storedHighlights.length > 0
+      ? null
+      : await addSplitSources({
+          text,
+          title: body.data.title,
+          subjectId,
+          modelId: body.data.modelId ?? null,
+          sourceUrl: pageUrl,
+          targetPhrases: body.data.targetPhrases,
+          force: body.data.force === true,
+        });
+
+  if (split?.kind === "duplicate") return sendAlreadyAdded(res, [{ source: split.earlier }]);
+
+  if (split?.kind === "created") {
+    const partIds = split.sources.map((part) => part.id);
+    await kickSourcesAfterAdd(partIds);
+    sendJson(res, 201, { ...split.sources[0], partIds });
     return;
   }
 
@@ -294,6 +356,7 @@ export async function handleCreateKnowledgeSource(
     pageUrl,
     body.data.targetPhrases,
     true,
+    storedHighlights,
   );
   await kickSourcesAfterAdd([source.id]);
   sendJson(res, 201, source);

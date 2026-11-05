@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { normalizeTargetPhrases } from "@post-anki/shared";
+import { TransactionRollbackError, eq } from "drizzle-orm";
+import { normalizeTargetPhrases, type KnowledgeHighlight } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -23,6 +23,7 @@ export async function insertKnowledgeSource(
   extractionModelId: string | null = null,
   sourceUrl: string | null = null,
   targetPhrases?: string[],
+  highlights?: KnowledgeHighlight[],
 ): Promise<KnowledgeSource> {
   const accent = normalizeTargetPhrases(targetPhrases);
   const row = {
@@ -34,6 +35,7 @@ export async function insertKnowledgeSource(
     extractionModelId,
     ...(sourceUrl === null ? {} : { sourceUrl }),
     ...(accent === null ? {} : { targetPhrases: accent }),
+    ...(highlights && highlights.length > 0 ? { highlights } : {}),
   };
 
   await getDb().insert(knowledgeSources).values(row);
@@ -77,6 +79,57 @@ export async function insertKnowledgeSources(
   await getDb().insert(knowledgeSources).values(rows);
 
   return rows.map((row) => ({ ...row, createdAt: new Date() }));
+}
+
+export interface SplitKnowledgeSourceOptions {
+  subjectId: string | null;
+  modelId: string | null;
+  sourceUrl: string | null;
+  targetPhrases?: string[];
+  importKeyBase: string | null;
+}
+
+export async function insertSplitKnowledgeSources(
+  parts: string[],
+  options: SplitKnowledgeSourceOptions,
+): Promise<KnowledgeSource[]> {
+  if (parts.length === 0) {
+    return [];
+  }
+
+  const accent = normalizeTargetPhrases(options.targetPhrases);
+  const rows = parts.map((rawText, index) => ({
+    id: newId("ks"),
+    kind: "prose",
+    rawText,
+    status: "pending",
+    subjectId: options.subjectId,
+    extractionModelId: options.modelId,
+    importKey: options.importKeyBase === null ? null : `${options.importKeyBase}:${index}`,
+    ...(options.sourceUrl === null ? {} : { sourceUrl: options.sourceUrl }),
+    ...(accent === null ? {} : { targetPhrases: accent }),
+  }));
+  const inserted = await getDb().transaction(async (tx) => {
+    const written = await tx
+      .insert(knowledgeSources)
+      .values(rows)
+      .onConflictDoNothing({ target: knowledgeSources.importKey })
+      .returning();
+
+    if (written.length < rows.length) {
+      tx.rollback();
+    }
+
+    return written;
+  }).catch((err: unknown) => {
+    if (err instanceof TransactionRollbackError) {
+      return [];
+    }
+
+    throw err;
+  });
+
+  return inserted.map((row) => ({ ...row, createdAt: row.createdAt ?? new Date() }));
 }
 
 // Backstop cap — the controller already stops reading from Notion at this

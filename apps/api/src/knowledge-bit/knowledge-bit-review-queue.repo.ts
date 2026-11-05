@@ -4,7 +4,7 @@ import type {
   KnowledgeBitQuestionVariantKind,
   ReviewCounts,
 } from "@post-anki/shared";
-import { collectSubjectSubtreeIds } from "@post-anki/core";
+import { collectSubjectSubtreeIds, type SubjectHierarchyRow } from "@post-anki/core";
 import type { SQL } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { subjects } from "../db/schema.js";
@@ -16,6 +16,7 @@ import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
 import type { ScheduleOptions } from "./knowledge-bit-grade-schedule.js";
 import { interleaveNewWithSeen } from "./knowledge-bit-review-queue-mix.js";
 import { readDailyReviewLimit } from "./knowledge-bit-review-queue-daily-limit.repo.js";
+import { listParentMixCards } from "./knowledge-bit-review-queue-parent-mix.repo.js";
 import { listLearnAheadRows } from "./knowledge-bit-review-queue-learning.repo.js";
 import { pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
 import {
@@ -81,12 +82,15 @@ export interface KnowledgeBitReviewQueueClock {
 // Unscoped: only due or never-reviewed bits, one card each, new cards capped per local day.
 // Scoped (tag/topic/bit): today's behaviour, no due filter and no cap.
 // The scoped subject plus every descendant; an unknown id matches nothing beyond itself.
-async function resolveSubjectScopeIds(subjectId: string, db: DbExecutor): Promise<string[]> {
+async function resolveSubjectScope(
+  subjectId: string,
+  db: DbExecutor,
+): Promise<{ ids: string[]; rows: SubjectHierarchyRow[] }> {
   const rows = await db
     .select({ id: subjects.id, name: subjects.name, parentId: subjects.parentId })
     .from(subjects);
 
-  return collectSubjectSubtreeIds(subjectId, rows);
+  return { ids: collectSubjectSubtreeIds(subjectId, rows), rows };
 }
 
 async function listScopedBatch(
@@ -117,8 +121,8 @@ export async function getKnowledgeBitReviewQueue(
   db: DbExecutor = getDb(),
 ): Promise<KnowledgeBitReviewQueue> {
   const { now } = clock;
-  const subjectIds = filter?.subjectId ? await resolveSubjectScopeIds(filter.subjectId, db) : undefined;
-  const scope = scopeCondition(filter, db, subjectIds);
+  const subjectScope = filter?.subjectId ? await resolveSubjectScope(filter.subjectId, db) : undefined;
+  const scope = scopeCondition(filter, db, subjectScope?.ids);
   const picked = pickedVariants(scope, now, db);
   const [resolver, planClock] = await Promise.all([
     loadStudyOptionsResolver(db),
@@ -140,12 +144,27 @@ export async function getKnowledgeBitReviewQueue(
 
   if (scope && filter) {
     const blocked = blockedByDailyLimit && subjectOnlyScope;
-    const [cards, totals] = await Promise.all([
-      blocked
-        ? Promise.resolve([])
-        : listScopedBatch(limit, scope, filter, now, db, stepsFor, mixNewWithDue),
-      readEligibleTotals(picked, now, db),
-    ]);
+    const readCards = async (): Promise<KnowledgeBitReviewCardRow[]> => {
+      if (blocked) {
+        return [];
+      }
+
+      const mixed =
+        subjectOnlyScope && subjectScope && filter.subjectId
+          ? await listParentMixCards({
+              rootId: filter.subjectId,
+              subjectRows: subjectScope.rows,
+              limit,
+              clock,
+              filter,
+              db,
+              stepsFor,
+            })
+          : null;
+
+      return mixed ?? listScopedBatch(limit, scope, filter, now, db, stepsFor, mixNewWithDue);
+    };
+    const [cards, totals] = await Promise.all([readCards(), readEligibleTotals(picked, now, db)]);
 
     return {
       ...(subjectOnlyScope ? dailyFields : {}),

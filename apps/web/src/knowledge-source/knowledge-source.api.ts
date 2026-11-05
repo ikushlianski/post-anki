@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
   targetPhrasesSchema,
+  knowledgeHighlightsSchema,
   encodeKnowledgeSourceRefusal,
   knowledgeItemModelIdSchema,
   subjectCheckRequestSchema,
@@ -13,6 +14,7 @@ import * as api from '../curriculum/api-client'
 const subjectIdInput = z.string().min(1).nullable().optional()
 const modelIdInput = knowledgeItemModelIdSchema.optional()
 const forceInput = z.boolean().optional()
+const highlightsInput = knowledgeHighlightsSchema.optional()
 const targetPhrasesInput = targetPhrasesSchema.optional()
 
 function rethrowRefusal(error: unknown): never {
@@ -21,6 +23,7 @@ function rethrowRefusal(error: unknown): never {
 
 export interface SubjectScopedText {
   text: string
+  highlights?: { start: number; end: number }[]
   subjectId?: string | null
   modelId?: string
   force?: boolean
@@ -45,10 +48,10 @@ export interface SubjectScopedUrl {
 
 export const createKnowledgeSource = createServerFn({ method: 'POST' })
   .inputValidator((data: SubjectScopedText) =>
-    z.object({ text: z.string().min(1), subjectId: subjectIdInput, modelId: modelIdInput, force: forceInput, targetPhrases: targetPhrasesInput }).parse(data),
+    z.object({ text: z.string().min(1), subjectId: subjectIdInput, modelId: modelIdInput, force: forceInput, targetPhrases: targetPhrasesInput, highlights: highlightsInput }).parse(data),
   )
   .handler(({ data }) =>
-    api.createKnowledgeSource(data.text, data.subjectId ?? undefined, data.modelId, data.force, data.targetPhrases).catch(rethrowRefusal),
+    api.createKnowledgeSource(data.text, data.subjectId ?? undefined, data.modelId, data.force, data.targetPhrases, data.highlights).catch(rethrowRefusal),
   )
 
 export const createKnowledgeSources = createServerFn({ method: 'POST' })

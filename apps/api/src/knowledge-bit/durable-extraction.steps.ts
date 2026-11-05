@@ -1,5 +1,6 @@
 import { DURABLE_CHUNK_DEADLINE_MS } from "./durable-extraction.config.js";
-import { chunkSourceText } from "./knowledge-bit-source-chunking.js";
+import { chunkSourceText, chunkSourceTextWithOffsets } from "./knowledge-bit-source-chunking.js";
+import { planFocusedChunks } from "./knowledge-bit-focus.js";
 import {
   CHUNK_MAX_CHARS,
   MAX_ITEMS_PER_CHUNK,
@@ -21,6 +22,7 @@ import {
   normalizeStatement,
   selectNewItems,
 } from "./knowledge-bit-source-item-validation.js";
+import { firstGapText, openAskAiChatSafely, replyAskAiChatSafely } from "./ask-ai-extraction.js";
 import { selectFlaggedLessons } from "./knowledge-bit-flagged-lesson.js";
 import { loadLearningIntentSafely } from "./knowledge-bit-learning-intent.js";
 import { loadDetailLevelSafely } from "./knowledge-bit-detail-level.js";
@@ -139,19 +141,34 @@ export async function chunkStep(
   deps: DurableStepDeps,
 ): Promise<ChunkCards> {
   const rawText = await deps.loadRawText(snapshot.id);
-  const chunk = rawText ? chunkSourceText(rawText, CHUNK_MAX_CHARS)[index] : undefined;
+  const highlights = await deps.loadHighlights?.(snapshot.id);
+  const planned = rawText
+    ? planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights)
+    : [];
+  const entry = planned.find((candidate) => candidate.index === index);
 
-  if (chunk === undefined) {
+  if (entry === undefined) {
+    const total = rawText ? chunkSourceText(rawText, CHUNK_MAX_CHARS).length : 0;
+
+    if (index < total && highlights && highlights.length > 0) {
+      return { valid: [], flagged: [], deliberateEmpty: true };
+    }
+
     throw new Error("source_chunk_missing");
   }
 
-  const cards = await writeAndValidate(chunk, await writeOptionsFor(snapshot, deps), deps);
+  const options = await writeOptionsFor(snapshot, deps);
+  const cards = await writeAndValidate(
+    entry.chunk,
+    entry.focus.length > 0 ? { ...options, focus: entry.focus } : options,
+    deps,
+  );
 
   if (cards.deliberateEmpty) {
     return cards;
   }
 
-  if (cards.valid.length === 0 && cards.flagged.length === 0) {
+  if (cards.valid.length === 0 && cards.flagged.length === 0 && !cards.gapText) {
     throw new Error("no_valid_items");
   }
 
@@ -223,10 +240,15 @@ export async function finishStep(
     return { status: "failed", inserted, failureReason };
   }
 
+  const askAiChat = await openAskAiChatSafely(
+    snapshot.id,
+    firstGapText(chunkResults.map((cards) => cards?.gapText)),
+    deps,
+  );
   const stillOwned = await markDetectedFor(
     snapshot,
     claimedAt,
-    inserted === 0 && allChunksDeliberatelyEmpty(chunkResults),
+    inserted === 0 && !askAiChat && allChunksDeliberatelyEmpty(chunkResults),
     deps,
     capped,
   );
@@ -234,6 +256,8 @@ export async function finishStep(
   if (!stillOwned) {
     throw new Error("knowledge_source_reclaimed");
   }
+
+  await replyAskAiChatSafely(askAiChat);
 
   return { status: "detected", inserted, failureReason: null };
 }

@@ -4,6 +4,7 @@ import {
   MANUAL_ITEM_BACK_MAX_CHARS,
   MANUAL_ITEM_EXAMPLE_MAX_CHARS,
   MANUAL_ITEM_FRONT_MAX_CHARS,
+  type RelatedCardSuggestion,
 } from '@post-anki/shared'
 
 import { createKnowledgeItemFromChat, draftKnowledgeBitChat } from './knowledge-bit-chat.api'
@@ -25,6 +26,13 @@ export const TRAY_LIMITS: Record<TrayField, number> = {
 
 const EMPTY_FIELDS: TrayFields = { front: '', back: '', example: '' }
 
+interface TrayProvenance {
+  aiGenerated: boolean
+  sourceLinks: string[]
+}
+
+const NO_PROVENANCE: TrayProvenance = { aiGenerated: false, sourceLinks: [] }
+
 export function makeFactInstruction(selection: string): string {
   return `Write one short question for a flashcard front. The question must be answered exactly by this text, which is the card back:\n"""\n${selection}\n"""`
 }
@@ -33,18 +41,19 @@ export function useCardTray(knowledgeBitId: string) {
   const [fields, setFields] = useState<TrayFields>(EMPTY_FIELDS)
   const [open, setOpen] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [provenance, setProvenance] = useState<TrayProvenance>(NO_PROVENANCE)
   const factRequestId = useRef(0)
 
   const saveMutation = useMutation({
-    mutationFn: (values: TrayFields) =>
+    mutationFn: (values: TrayFields & TrayProvenance) =>
       createKnowledgeItemFromChat({
         data: {
           knowledgeBitId,
           front: values.front.trim(),
           back: values.back.trim(),
           example: values.example.trim() === '' ? undefined : values.example.trim(),
-          aiGenerated: false,
-          sourceLinks: [],
+          aiGenerated: values.aiGenerated,
+          sourceLinks: values.sourceLinks,
         },
       }),
   })
@@ -98,22 +107,43 @@ export function useCardTray(knowledgeBitId: string) {
     })
   }
 
+  function loadProposal(suggestion: RelatedCardSuggestion) {
+    factRequestId.current += 1
+    setFields({
+      front: suggestion.front.slice(0, TRAY_LIMITS.front),
+      back: suggestion.back.slice(0, TRAY_LIMITS.back),
+      example: (suggestion.example ?? '').slice(0, TRAY_LIMITS.example),
+    })
+    setProvenance(
+      suggestion.origin === 'web'
+        ? { aiGenerated: true, sourceLinks: suggestion.sources }
+        : NO_PROVENANCE,
+    )
+    setSaved(false)
+    setOpen(true)
+  }
+
   function clear() {
     factRequestId.current += 1
     setFields(EMPTY_FIELDS)
+    setProvenance(NO_PROVENANCE)
     setSaved(false)
     saveMutation.reset()
     factMutation.reset()
   }
 
   function create() {
-    saveMutation.mutate(fields, {
-      onSuccess: () => {
-        setFields(EMPTY_FIELDS)
-        setSaved(true)
-        notifyPendingReviewChanged()
+    saveMutation.mutate(
+      { ...fields, ...provenance },
+      {
+        onSuccess: () => {
+          setFields(EMPTY_FIELDS)
+          setProvenance(NO_PROVENANCE)
+          setSaved(true)
+          notifyPendingReviewChanged()
+        },
       },
-    })
+    )
   }
 
   return {
@@ -130,6 +160,7 @@ export function useCardTray(knowledgeBitId: string) {
     setField,
     useSelectionAs,
     makeFact,
+    loadProposal,
     clear,
     create,
   }

@@ -52,7 +52,7 @@ export function createKnowledgeBitChatTools(deps: KnowledgeBitChatToolsDeps) {
   const searchWeb = createTool({
     id: "searchWeb",
     description:
-      "Search the web for current, authoritative information to answer the learner's question. This is a paid call — use it only when the question genuinely needs up-to-date external facts that the knowledge item's own content cannot supply, never as a routine first step.",
+      "Search the web for examples or surrounding facts, only after the source material does not clarify the learner's question. This is a paid call, capped per reply, never a routine first step.",
     inputSchema: z.object({ query: z.string().min(1) }),
     execute: (input) => searchWebFor(input, deps),
   });
@@ -60,7 +60,7 @@ export function createKnowledgeBitChatTools(deps: KnowledgeBitChatToolsDeps) {
   const fetchPage = createTool({
     id: "fetchPage",
     description:
-      "Read the plain text of one page that a searchWeb result cited. Paid and slow — use it only when a cited page's details are needed, and only with a url copied verbatim from searchWeb citations.",
+      "Read the plain text of one page that a searchWeb result cited. Paid and slow, capped per reply — use it only after the source material and search results do not clarify, when a cited page's details are needed, and only with a url copied verbatim from searchWeb citations.",
     inputSchema: z.object({ url: z.string().min(1) }),
     execute: (input) => fetchPageFor(input, deps),
   });

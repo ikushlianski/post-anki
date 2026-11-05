@@ -7,6 +7,7 @@ import {
 
 import { attentionFirstWords, normalizeTargetPhrases } from '@post-anki/shared'
 
+import type { KnowledgeHighlight } from './knowledge-highlights'
 import {
   createKnowledgeSource,
   createKnowledgeSourceFromUrl,
@@ -19,6 +20,7 @@ export interface SubmittedBlock {
   value: string
   force?: boolean
   targetPhrases?: string[]
+  highlights?: KnowledgeHighlight[]
 }
 
 export interface EarlierSource {
@@ -59,19 +61,22 @@ function buildJobs(blocks: SubmittedBlock[], options: { subjectId?: string; mode
   const withPhrases = blocks.map((block) => ({
     block,
     targetPhrases: normalizeTargetPhrases(block.targetPhrases ?? []) ?? undefined,
+    highlights: blocks.length === 1 && block.type === 'text' && block.highlights?.length ? block.highlights : undefined,
   }))
   const singleTextBlocks = withPhrases.filter(
-    ({ block, targetPhrases }) => block.type === 'text' && (block.force === true || targetPhrases !== undefined),
+    ({ block, targetPhrases, highlights }) => block.type === 'text' && (block.force === true || targetPhrases !== undefined || highlights !== undefined),
   )
   const batchedTextBlocks = withPhrases
-    .filter(({ block, targetPhrases }) => block.type === 'text' && block.force !== true && targetPhrases === undefined)
+    .filter(({ block, targetPhrases, highlights }) =>
+        block.type === 'text' && block.force !== true && targetPhrases === undefined && highlights === undefined,
+    )
     .map(({ block }) => block)
   const urlBlocks = withPhrases.filter(({ block }) => block.type === 'url')
-  const jobs: Job[] = singleTextBlocks.map(({ block, targetPhrases }) => ({
+  const jobs: Job[] = singleTextBlocks.map(({ block, targetPhrases, highlights }) => ({
     indices: [block.index],
     run: async () => {
       const created = await createKnowledgeSource({
-        data: { text: block.value, subjectId, modelId, force: block.force === true ? true : undefined, targetPhrases },
+        data: { text: block.value, subjectId, modelId, force: block.force === true ? true : undefined, targetPhrases, highlights },
       })
 
       return { created: 1, truncated: false, added: addedFrom(created, block.value) }

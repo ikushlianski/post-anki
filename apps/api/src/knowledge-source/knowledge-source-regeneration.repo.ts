@@ -30,7 +30,7 @@ export async function claimSourceForRegeneration(
           status: "processing",
           updatedAt: claimedAt,
           failureReason: null,
-          ...(replacementText === undefined ? {} : { rawText: replacementText }),
+          ...(replacementText === undefined ? {} : { rawText: replacementText, highlights: null }),
         })
         .where(
           and(

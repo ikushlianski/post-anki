@@ -7,6 +7,7 @@ import { KnowledgeBitFocusDone } from './knowledge-bit-focus-done'
 import { KnowledgeBitReviewAnnouncer } from './knowledge-bit-review-announcer'
 import { KnowledgeBitInboxToast } from './knowledge-bit-inbox-toast'
 import type { useTriageExtras } from './use-triage-extras'
+import type { LeavingCard } from './use-leaving-card'
 import type { useTriageSession } from '../card-triage/use-triage-session'
 
 type CardProps = ComponentProps<typeof KnowledgeBitFocusCard>
@@ -26,6 +27,7 @@ type CardHandlers = Pick<
 
 export function KnowledgeBitReviewFocusView({
   queue,
+  leaving = null,
   triageSession,
   pendingCount,
   extras,
@@ -45,6 +47,7 @@ export function KnowledgeBitReviewFocusView({
   handlers,
 }: {
   queue: ReturnType<typeof buildFocusQueue>
+  leaving?: LeavingCard<NonNullable<ReturnType<typeof buildFocusQueue>['current']>> | null
   triageSession: ReturnType<typeof useTriageSession>
   pendingCount: number
   extras: ReturnType<typeof useTriageExtras>
@@ -63,6 +66,8 @@ export function KnowledgeBitReviewFocusView({
   setDoneFeedback: (value: string) => void
   handlers: CardHandlers
 }) {
+  const shown = leaving?.snapshot ?? queue.current
+
   return (
     <div data-testid="knowledge-bit-review-panel">
       <KnowledgeBitFocusShell
@@ -75,24 +80,25 @@ export function KnowledgeBitReviewFocusView({
         onFinish={triageSession.openFinish}
       >
         {inFocus ? (
-          queue.current ? (
+          shown ? (
             <KnowledgeBitFocusCard
-              bit={queue.current.bit}
-              subjectName={queue.current.source.subjectName ?? null}
-              sourceText={queue.current.source.sourceText ?? null}
-              isResolving={isBitResolving(queue.current.bit.id)}
+              bit={shown.bit}
+              subjectName={shown.source.subjectName ?? null}
+              sourceText={shown.source.sourceText ?? null}
+              leaving={leaving?.destination}
+              isResolving={isBitResolving(shown.bit.id)}
               pollingGaveUp={pollingGaveUp}
               errorMessage={
-                rowErrors[queue.current.bit.id] ||
-                extras.inboxErrors[queue.current.bit.id] ||
+                rowErrors[shown.bit.id] ||
+                extras.inboxErrors[shown.bit.id] ||
                 (undoError ? rowErrors[undoError] : null) ||
                 null
               }
-              example={extras.exampleStates[queue.current.bit.id]}
-              note={note.bitId === queue.current.bit.id ? note.text : ''}
-              onNoteChange={(text) => setNote({ bitId: queue.current?.bit.id ?? '', text })}
+              example={extras.exampleStates[shown.bit.id]}
+              note={note.bitId === shown.bit.id ? note.text : ''}
+              onNoteChange={(text) => setNote({ bitId: shown?.bit.id ?? '', text })}
               selectedIndex={selectedIndex}
-              onSelect={(index) => setChoice({ bitId: queue.current?.bit.id ?? '', index })}
+              onSelect={(index) => setChoice({ bitId: shown?.bit.id ?? '', index })}
               {...handlers}
             />
           ) : (

@@ -76,6 +76,40 @@ describe('useChatThread', () => {
     expect(result.current.draft).toBe('')
   })
 
+  it('should attach proposed cards to the tutor reply and stay usable for another message', async () => {
+    const suggestion = { front: 'F', back: 'B', origin: 'own', sources: [] }
+
+    vi.mocked(sendChatQueueMessage).mockResolvedValueOnce({
+      ok: true,
+      data: { reply: 'Because.', suggestions: [suggestion], turnsLeft: 5, capReached: false },
+    } as never)
+
+    const { result } = await mount()
+
+    act(() => result.current.changeDraft('Why?'))
+    await act(async () => {
+      await result.current.send()
+    })
+
+    expect(result.current.lines.at(-1)?.proposals).toEqual([suggestion])
+    expect(result.current.lines[0]?.proposals).toBeUndefined()
+
+    vi.mocked(sendChatQueueMessage).mockResolvedValueOnce({
+      ok: true,
+      data: { reply: 'More.', turnsLeft: 4, capReached: false },
+    } as never)
+    act(() => result.current.changeDraft('Refine it'))
+
+    expect(result.current.canSend).toBe(true)
+
+    await act(async () => {
+      await result.current.send()
+    })
+
+    expect(result.current.lines.at(-1)?.proposals).toBeUndefined()
+    expect(result.current.turnsLeft).toBe(4)
+  })
+
   it('should take the question back into the draft and show the failure when the tutor cannot answer', async () => {
     vi.mocked(sendChatQueueMessage).mockResolvedValue({ ok: false, failure: 'model_failed' } as never)
 

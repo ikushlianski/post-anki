@@ -129,4 +129,56 @@ describe("insertCardFromChatMessage (real Postgres)", () => {
       error: "not_found",
     });
   });
+
+  it("should add an approved card with a variant and no style-feedback decision when approve is true", async () => {
+    const { sourceId, bitId } = await seedChatBit("chat");
+
+    const result = await insertCardFromChatMessage(bitId, 2, { front: "F", back: "B", example: "Ex", approve: true });
+
+    expect(result.ok).toBe(true);
+
+    const id = result.ok ? result.id : "";
+    const { rows } = await client.query(
+      `SELECT b.knowledge_source_id, b.approval_state, b.background, b.decided_at, v.prompt, v.answer
+       FROM knowledge_bits b JOIN knowledge_bit_question_variants v ON v.knowledge_bit_id = b.id WHERE b.id = $1`,
+      [id],
+    );
+    const decisions = await client.query(`SELECT 1 FROM card_triage_decisions WHERE knowledge_bit_id = $1`, [id]);
+    const feedback = await client.query(`SELECT 1 FROM knowledge_bit_feedback WHERE knowledge_bit_id = $1`, [id]);
+
+    expect(rows[0]).toMatchObject({
+      knowledge_source_id: sourceId,
+      approval_state: "approved",
+      background: "Ex",
+      prompt: "F",
+      answer: "B",
+    });
+    expect(rows[0].decided_at).not.toBeNull();
+    expect(decisions.rowCount).toBe(0);
+    expect(feedback.rowCount).toBe(0);
+  });
+
+  it("should still refuse an approving request for a card that left chat", async () => {
+    const decided = await seedChatBit("rejected");
+
+    expect(await insertCardFromChatMessage(decided.bitId, 2, { front: "F", back: "B", approve: true })).toEqual({
+      ok: false,
+      error: "not_in_chat",
+    });
+  });
+
+  it("should return the already approved card instead of creating a duplicate when the same approval is sent twice", async () => {
+    const { sourceId, bitId } = await seedChatBit("chat");
+    const first = await insertCardFromChatMessage(bitId, 2, { front: "Dup F", back: "Dup B", approve: true });
+    const second = await insertCardFromChatMessage(bitId, 2, { front: "Dup F", back: "Dup B", approve: true });
+
+    expect(first.ok && second.ok && second.id === first.id).toBe(true);
+
+    const { rows } = await client.query(
+      `SELECT 1 FROM knowledge_bits WHERE knowledge_source_id = $1 AND body = $2`,
+      [sourceId, "Dup F\nDup B"],
+    );
+
+    expect(rows).toHaveLength(1);
+  });
 });

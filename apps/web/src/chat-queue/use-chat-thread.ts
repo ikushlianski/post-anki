@@ -126,7 +126,12 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
       if (outcome.ok) {
         setLines((prev) => [
           ...prev,
-          { id: `a-${clientId}`, isUser: false, text: outcome.data.reply },
+          {
+            id: `a-${clientId}`,
+            isUser: false,
+            text: outcome.data.reply,
+            proposals: outcome.data.suggestions,
+          },
         ])
         setTurnsLeft(outcome.data.turnsLeft)
         setCapReached(outcome.data.capReached)

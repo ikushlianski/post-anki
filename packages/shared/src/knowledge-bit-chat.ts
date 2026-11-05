@@ -15,12 +15,6 @@ export const askKnowledgeBitChatInput = z.object({
 
 export type AskKnowledgeBitChatInput = z.input<typeof askKnowledgeBitChatInput>;
 
-export const askKnowledgeBitChatResultSchema = z.object({
-  reply: z.string(),
-});
-
-export type AskKnowledgeBitChatResult = z.infer<typeof askKnowledgeBitChatResultSchema>;
-
 export const MAX_CARD_FRONT_CHARS = 300;
 export const MAX_CARD_BACK_CHARS = 600;
 export const MAX_CARD_EXAMPLE_CHARS = 300;
@@ -32,6 +26,25 @@ const httpUrlSchema = z
   .string()
   .url()
   .refine((value) => /^https?:\/\//i.test(value), "must be an http or https url");
+
+export const MAX_RELATED_SUGGESTIONS = 3;
+
+export const relatedCardSuggestionSchema = z.object({
+  front: z.string().min(1).max(MAX_CARD_FRONT_CHARS),
+  back: z.string().min(1).max(MAX_CARD_BACK_CHARS),
+  example: z.string().min(1).max(MAX_CARD_EXAMPLE_CHARS).optional(),
+  origin: z.enum(["web", "own"]),
+  sources: z.array(httpUrlSchema).max(MAX_CARD_SOURCES),
+});
+
+export type RelatedCardSuggestion = z.infer<typeof relatedCardSuggestionSchema>;
+
+export const askKnowledgeBitChatResultSchema = z.object({
+  reply: z.string(),
+  suggestions: z.array(relatedCardSuggestionSchema).max(MAX_RELATED_SUGGESTIONS).optional(),
+});
+
+export type AskKnowledgeBitChatResult = z.infer<typeof askKnowledgeBitChatResultSchema>;
 
 export const cardProposalSchema = z.object({
   front: z.string().min(1).max(MAX_CARD_FRONT_CHARS),

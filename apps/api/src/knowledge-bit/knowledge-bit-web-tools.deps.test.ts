@@ -76,6 +76,41 @@ describe("knowledge bit web tools deps", () => {
     expect(getSources()).toEqual(["https://example.com/a"]);
   });
 
+  it("should stop paying for searches after the cap and tell the model so", async () => {
+    const { deps, getUsage } = createKnowledgeBitWebTools({ ...options, maxSearches: 2 });
+
+    await deps.searchWeb("a");
+    await deps.searchWeb("b");
+
+    const third = await deps.searchWeb("c");
+
+    expect(webSearch).toHaveBeenCalledTimes(2);
+    expect(third).toEqual({
+      text: "Search limit reached for this reply; answer with what you have.",
+      citations: [],
+    });
+    expect(getUsage()).toEqual({ searches: 2, fetches: 0 });
+  });
+
+  it("should refuse a second page read without fetching", async () => {
+    fetchWithTimeout.mockResolvedValue("<html><body>page</body></html>");
+    const { deps, getUsage } = createKnowledgeBitWebTools({ ...options, maxPageFetches: 1 });
+
+    await deps.fetchPage("https://example.com/a");
+
+    expect(await deps.fetchPage("https://example.com/b")).toBeNull();
+    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    expect(getUsage().fetches).toBe(1);
+  });
+
+  it("should run searches on the forced tier", async () => {
+    const { deps } = createKnowledgeBitWebTools({ ...options, forceTier: "cheap" });
+
+    await deps.searchWeb("q");
+
+    expect(webSearch.mock.calls[0]?.[4]).toBe("cheap");
+  });
+
   it("should normalize host case, trailing slash and fragment", () => {
     expect(normalizeUrlForComparison("https://A.com/x/#f")).toBe("https://a.com/x");
   });

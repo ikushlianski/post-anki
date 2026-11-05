@@ -50,3 +50,20 @@ describe('knowledge draft storage', () => {
     expect(() => writeKnowledgeDraft([{ type: 'text', value: 'a' }])).not.toThrow()
   })
 })
+
+describe('knowledge draft highlights', () => {
+  it('should restore highlights saved with the text', () => {
+    writeKnowledgeDraft([{ type: 'text', value: 'notes here', highlights: [{ start: 0, end: 5 }] }])
+
+    expect(readKnowledgeDraft()).toEqual([{ type: 'text', value: 'notes here', highlights: [{ start: 0, end: 5 }] }])
+  })
+
+  it('should ignore saved highlights that no longer fit the text', () => {
+    window.localStorage.setItem(
+      KNOWLEDGE_DRAFT_STORAGE_KEY,
+      JSON.stringify([{ type: 'text', value: 'abc', highlights: [{ start: 0, end: 50 }] }]),
+    )
+
+    expect(readKnowledgeDraft()).toEqual([{ type: 'text', value: 'abc' }])
+  })
+})

@@ -102,6 +102,7 @@ export const extractionInngestFunction = inngest.createFunction(
       let inserted = 0;
       let deliberateEmptyChunks = 0;
       let capped = false;
+      let gapText: string | undefined;
       let failureReason: string | null = null;
 
       for (let index = 0; index < plan.chunkCount; index += 1) {
@@ -118,6 +119,7 @@ export const extractionInngestFunction = inngest.createFunction(
           inserted += counts.inserted;
           deliberateEmptyChunks += counts.deliberateEmpty ? 1 : 0;
           capped ||= counts.capped === true;
+          gapText ??= counts.gapText;
         } catch (err) {
           failureReason ??= safeFailureReason(err);
           log.error({ err, knowledgeSourceId: claimed.id }, "knowledge_bit_source_items_chunk_failed");
@@ -132,6 +134,7 @@ export const extractionInngestFunction = inngest.createFunction(
           deps,
           plan.chunkCount > 0 && deliberateEmptyChunks === plan.chunkCount,
           capped,
+          gapText,
         ),
       );
     } catch (err) {

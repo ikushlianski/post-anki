@@ -1,12 +1,18 @@
 import { z } from "zod";
 import { knowledgeBitRejectReasonSchema } from "./knowledge-bit-review-feedback";
-import { MANUAL_ITEM_BACK_MAX_CHARS, MANUAL_ITEM_FRONT_MAX_CHARS } from "./knowledge-bit";
+import {
+  MANUAL_ITEM_BACK_MAX_CHARS,
+  MANUAL_ITEM_EXAMPLE_MAX_CHARS,
+  MANUAL_ITEM_FRONT_MAX_CHARS,
+} from "./knowledge-bit";
+import { relatedCardSuggestionSchema } from "./knowledge-bit-chat";
 
 export const CHAT_QUEUE_MAX_USER_TURNS = 8;
 export const CHAT_QUEUE_MAX_MESSAGE_CHARS = 1_000;
 export const CHAT_QUEUE_REPLAY_MESSAGES = 12;
 export const CHAT_QUEUE_CONTEXT_MAX_CHARS = 3_000;
-export const CHAT_QUEUE_REPLY_MAX_TOKENS = 400;
+export const CHAT_QUEUE_REPLY_MAX_TOKENS = 700;
+export const CHAT_QUEUE_MAX_PROPOSALS = 2;
 
 export const chatQueueErrorCodeSchema = z.enum(["cap_reached", "budget_paused", "in_flight", "not_in_chat"]);
 
@@ -110,6 +116,7 @@ export type SendChatQueueMessageInput = z.input<typeof sendChatQueueMessageInput
 
 export const sendChatQueueMessageResultSchema = z.object({
   reply: z.string(),
+  suggestions: z.array(relatedCardSuggestionSchema).max(CHAT_QUEUE_MAX_PROPOSALS).optional(),
   turnsLeft: z.number().int().min(0).max(CHAT_QUEUE_MAX_USER_TURNS),
   capReached: z.boolean(),
 });
@@ -126,6 +133,8 @@ export const CHAT_QUEUE_STARTER_PROMPTS = [
 export const createCardFromChatMessageInput = z.object({
   front: z.string().trim().min(1).max(MANUAL_ITEM_FRONT_MAX_CHARS),
   back: z.string().trim().min(1).max(MANUAL_ITEM_BACK_MAX_CHARS),
+  example: z.string().trim().min(1).max(MANUAL_ITEM_EXAMPLE_MAX_CHARS).optional(),
+  approve: z.boolean().optional(),
 });
 
 export type CreateCardFromChatMessageInput = z.input<typeof createCardFromChatMessageInput>;

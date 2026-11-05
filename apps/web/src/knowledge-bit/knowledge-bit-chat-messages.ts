@@ -1,4 +1,4 @@
-import type { CardProposal } from '@post-anki/shared'
+import type { CardProposal, RelatedCardSuggestion } from '@post-anki/shared'
 
 export type CardProposalStatus = 'proposed' | 'saved' | 'rejected'
 
@@ -7,6 +7,7 @@ export interface TextChatMessage {
   id: string
   role: 'user' | 'assistant'
   text: string
+  suggestions?: RelatedCardSuggestion[]
 }
 
 export interface CardProposalChatMessage {

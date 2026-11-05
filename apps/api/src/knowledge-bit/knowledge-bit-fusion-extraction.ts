@@ -46,7 +46,14 @@ export function groupFusionCards(results: readonly ModelChunkCards[]): ChunkCard
   const deliberateEmpty =
     valid.length === 0 && flagged.length === 0 && results.every((r) => r.cards.deliberateEmpty === true);
 
-  return { valid, flagged, ...(deliberateEmpty ? { deliberateEmpty: true } : {}) };
+  const gapText = results.find((r) => r.cards.gapText)?.cards.gapText;
+
+  return {
+    valid,
+    flagged,
+    ...(deliberateEmpty ? { deliberateEmpty: true } : {}),
+    ...(gapText ? { gapText } : {}),
+  };
 }
 
 export async function runFusion(

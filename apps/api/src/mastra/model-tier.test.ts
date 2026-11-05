@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveModelTier, tierToModelId } from "./model-tier.js";
+import { CHAT_QUEUE_MODEL_ID, resolveModelTier, tierToModelId } from "./model-tier.js";
 
 describe("tierToModelId", () => {
   it("maps the cheap tier to the cheapest live DeepSeek OpenRouter model", () => {
@@ -12,6 +12,13 @@ describe("tierToModelId", () => {
 
   it("maps the premium tier to the stronger DeepSeek model on the same provider", () => {
     expect(tierToModelId("premium")).toBe("openrouter/deepseek/deepseek-v4-pro");
+  });
+});
+
+describe("CHAT_QUEUE_MODEL_ID", () => {
+  it("should point triage chat at a Gemini Flash model on OpenRouter, not a card-generation tier", () => {
+    expect(CHAT_QUEUE_MODEL_ID).toBe("openrouter/google/gemini-3-flash-preview");
+    expect(Object.values(["cheap", "balanced", "premium"] as const).map(tierToModelId)).not.toContain(CHAT_QUEUE_MODEL_ID);
   });
 });
 

@@ -1,3 +1,5 @@
+import type { KnowledgeHighlight } from './knowledge-highlights'
+
 export type BlockType = 'text' | 'url'
 
 export interface Block {
@@ -5,6 +7,7 @@ export interface Block {
   value: string
   force?: boolean
   targetPhrases?: string[]
+  highlights?: KnowledgeHighlight[]
 }
 
 export function emptyBlock(): Block {

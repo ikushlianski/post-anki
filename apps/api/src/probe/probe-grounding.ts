@@ -1,4 +1,5 @@
 import { AbortError } from "p-retry";
+import type { ModelTier } from "@post-anki/shared";
 import { isSafeSourceUrl } from "@post-anki/core";
 import { loadEnv } from "../shared/env.js";
 import { log } from "../shared/log.js";
@@ -59,8 +60,11 @@ class WebSearchHttpError extends Error {
 
 // cost-tier-model-selection — same shared cascade as tech-research-
 // grounding.ts's restModel(), not a duplicated one.
-async function restModel(scope: ResolveEffectiveModelTierScope): Promise<string> {
-  const tier = await resolveEffectiveModelTier(scope);
+async function restModel(
+  scope: ResolveEffectiveModelTierScope,
+  forceTier?: ModelTier,
+): Promise<string> {
+  const tier = forceTier ?? (await resolveEffectiveModelTier(scope));
 
   return tierToModelId(tier).replace(/^openrouter\//, "");
 }
@@ -120,9 +124,10 @@ export async function webSearch(
   spanName: string,
   spanAttrs: Record<string, unknown> = {},
   scope: ResolveEffectiveModelTierScope = {},
+  forceTier?: ModelTier,
 ): Promise<WebSearchOutcome> {
   const env = loadEnv();
-  const model = await restModel(scope);
+  const model = await restModel(scope, forceTier);
   const endpoint = `${env.OPENROUTER_BASE_URL ?? DEFAULT_BASE_URL}/chat/completions`;
   const span = startTracingSpan(spanName, { ...spanAttrs, model });
   const curriculumId = scope.curriculumId ?? null;

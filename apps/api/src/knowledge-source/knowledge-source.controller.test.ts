@@ -6,15 +6,29 @@ const mockInsertKnowledgeSource = vi.fn();
 const mockInsertKnowledgeSources = vi.fn();
 const mockFetchWithTimeout = vi.fn();
 const mockFindAssignmentError = vi.fn();
+const mockSplitLongPaste = vi.fn();
+const mockInsertSplit = vi.fn();
+const mockFindEarlierSplit = vi.fn();
+const mockKick = vi.fn();
 
 vi.mock("./knowledge-source-duplicate.repo.js", () => ({
   findEarlierSourceByUrl: vi.fn().mockResolvedValue(null),
   findEarlierSourcesByText: vi.fn().mockResolvedValue(new Map()),
+  findEarlierSplitSource: (...args: unknown[]) => mockFindEarlierSplit(...args),
+}));
+
+vi.mock("./long-paste-split.orchestrator.js", () => ({
+  splitLongPaste: (...args: unknown[]) => mockSplitLongPaste(...args),
+}));
+
+vi.mock("./knowledge-source-kick.js", () => ({
+  kickSourcesAfterAdd: (...args: unknown[]) => mockKick(...args),
 }));
 
 vi.mock("./knowledge-source.repo.js", () => ({
   insertKnowledgeSource: (...args: unknown[]) => mockInsertKnowledgeSource(...args),
   insertKnowledgeSources: (...args: unknown[]) => mockInsertKnowledgeSources(...args),
+  insertSplitKnowledgeSources: (...args: unknown[]) => mockInsertSplit(...args),
   MAX_SOURCES_PER_BATCH_ADD: 100,
   updateKnowledgeSourceSummary: vi.fn().mockResolvedValue(undefined),
 }));
@@ -76,6 +90,9 @@ function fakeRes(): http.ServerResponse & { status: number | null; body: unknown
 beforeEach(() => {
   vi.clearAllMocks();
   mockFindAssignmentError.mockResolvedValue(null);
+  mockSplitLongPaste.mockResolvedValue(null);
+  mockFindEarlierSplit.mockResolvedValue(null);
+  mockKick.mockResolvedValue(undefined);
 });
 
 describe("handleCreateKnowledgeSource", () => {
@@ -518,5 +535,80 @@ describe("handleCreateKnowledgeSource target phrases", () => {
 
     expect(res.status).toBe(400);
     expect(mockInsertKnowledgeSources).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleCreateKnowledgeSource long paste", () => {
+  const longText = `${"Caches evict old entries. ".repeat(400)}${"Queues hold pending work. ".repeat(400)}`;
+  const parts = [
+    { title: "Caches", text: "Caches evict old entries. ".repeat(400) },
+    { title: "Queues", text: "Queues hold pending work. ".repeat(400) },
+  ];
+  const row = (id: string, rawText: string) => ({
+    id,
+    kind: "prose",
+    rawText,
+    status: "pending",
+    createdAt: new Date("2026-11-06T00:00:00.000Z"),
+  });
+
+  beforeEach(() => {
+    mockInsertKnowledgeSource.mockResolvedValue(row("ks_single", longText));
+    mockInsertSplit.mockResolvedValue([row("ks_a", "a"), row("ks_b", "b")]);
+  });
+
+  it("should save a long paste as several sources and kick extraction once for all of them", async () => {
+    mockSplitLongPaste.mockResolvedValue(parts);
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: longText }), res);
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ id: "ks_a", partIds: ["ks_a", "ks_b"] });
+    expect(mockInsertSplit.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(mockKick).toHaveBeenCalledTimes(1);
+    expect(mockKick).toHaveBeenCalledWith(["ks_a", "ks_b"]);
+    expect(mockInsertKnowledgeSource).not.toHaveBeenCalled();
+  });
+
+  it("should save exactly one source with the usual response when the split fails", async () => {
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: longText }), res);
+
+    expect(res.status).toBe(201);
+    expect(res.body).not.toHaveProperty("partIds");
+    expect(mockInsertKnowledgeSource).toHaveBeenCalledTimes(1);
+    expect(mockInsertSplit).not.toHaveBeenCalled();
+    expect(mockKick).toHaveBeenCalledWith(["ks_single"]);
+  });
+
+  it("should answer already_added when the same long paste was split before", async () => {
+    mockFindEarlierSplit.mockResolvedValue({ id: "ks_old", addedAt: "2026-11-01T00:00:00.000Z" });
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: longText }), res);
+
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: "already_added", existingId: "ks_old" });
+    expect(mockSplitLongPaste).not.toHaveBeenCalled();
+    expect(mockInsertSplit).not.toHaveBeenCalled();
+  });
+
+  it("should split again without import keys when the owner forces the add", async () => {
+    mockFindEarlierSplit.mockResolvedValue({ id: "ks_old", addedAt: "2026-11-01T00:00:00.000Z" });
+    mockSplitLongPaste.mockResolvedValue(parts);
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: longText, force: true }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockFindEarlierSplit).not.toHaveBeenCalled();
+    expect(mockInsertSplit.mock.calls[0]?.[1]).toMatchObject({ importKeyBase: null });
+  });
+
+  it("should never call the splitter for a short paste", async () => {
+    mockInsertKnowledgeSource.mockResolvedValue(row("ks_short", "short"));
+    const res = fakeRes();
+    await handleCreateKnowledgeSource(fakeReq({ text: "short paste" }), res);
+
+    expect(res.status).toBe(201);
+    expect(mockSplitLongPaste).not.toHaveBeenCalled();
   });
 });

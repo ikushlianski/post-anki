@@ -17,13 +17,15 @@ import { markKnowledgeSourceNothingExtracted } from "./knowledge-source-nothing-
 import { loadLearningIntentSafely, resolveKnowledgeBitLearningIntent } from "./knowledge-bit-learning-intent.js";
 import { resolveSubjectKind } from "../subject/subject-kind.js";
 import { loadFusionModelIds, resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
-import { loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
+import { loadHighlights, loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
 import { resolveDetailLevel } from "../subject/subject-learning-settings.js";
 import { loadDetailLevelSafely } from "./knowledge-bit-detail-level.js";
-import { chunkSourceText, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
+import { chunkSourceTextWithOffsets, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
+import { planFocusedChunks } from "./knowledge-bit-focus.js";
 import { normalizeStatement } from "./knowledge-bit-source-item-validation.js";
 import { getSourceInsertState, insertSourceItemsForChunk } from "./knowledge-bit-source-items.repo.js";
 import { processChunk } from "./detect-knowledge-bits-chunk.js";
+import { firstGapByChunk, openAskAiChatSafely, replyAskAiChatSafely } from "./ask-ai-extraction.js";
 import type {
   GenerateItemsDeps,
   GenerateItemsResult,
@@ -68,8 +70,11 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     loadSubjectKind: resolveSubjectKind,
     loadSourceKind: loadKnowledgeSourceKind,
     loadTargetPhrases,
+    loadHighlights,
     loadDetailLevel: resolveDetailLevel,
     loadFusionModelIds,
+    openAskAiChat: async (sourceId, gapText) =>
+      (await import("./ask-ai-chat.orchestrator.js")).openAskAiChat(sourceId, gapText),
   };
 }
 
@@ -165,6 +170,7 @@ export async function generateItemsForSource(
     "knowledge_target_phrases_load_failed",
     deps.loadTargetPhrases,
   );
+  const highlights = await loadOptionalSafely(source.id, "knowledge_highlights_load_failed", deps.loadHighlights);
   const detailLevel = await loadDetailLevelSafely(source.subjectId, deps.loadDetailLevel);
   const fusionModelIds =
     requestedOptions.modelId || source.extractionModelId
@@ -202,13 +208,15 @@ export async function generateItemsForSource(
     reclaimed: null,
     deliberateEmptyChunks: 0,
     capped: false,
+    gapByChunk: new Map(),
   };
-  const chunks = chunkSourceText(rawText, CHUNK_MAX_CHARS).map((chunk, index) => ({ chunk, index }));
+  const chunks = planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights);
+  const hasHighlights = (highlights?.length ?? 0) > 0;
 
-  const outcomes = await mapWithConcurrency(chunks, CHUNK_CONCURRENCY, ({ chunk, index }) =>
+  const outcomes = await mapWithConcurrency(chunks, CHUNK_CONCURRENCY, ({ chunk, index, focus }) =>
     processChunk(chunk, index, {
       source,
-      options,
+      options: focus.length > 0 ? { ...options, focus } : options,
       firstOrdinal: insertState.nextOrdinal,
       state,
       deps,
@@ -234,14 +242,19 @@ export async function generateItemsForSource(
     return { status: "failed", inserted: state.inserted, failureReason: reason };
   }
 
+  const askAiChat = await openAskAiChatSafely(source.id, firstGapByChunk(state.gapByChunk), deps);
   const nothingExtracted =
-    state.inserted === 0 && chunks.length > 0 && state.deliberateEmptyChunks === chunks.length;
+    state.inserted === 0 &&
+    !askAiChat &&
+    (chunks.length === 0 ? hasHighlights : state.deliberateEmptyChunks === chunks.length);
   const markDone = pickMarkDone(nothingExtracted, state.capped, deps);
   const stillOwned = await markDone(source.id, source.claimedAt);
 
   if (!stillOwned) {
     throw new Error("knowledge_source_reclaimed");
   }
+
+  await replyAskAiChatSafely(askAiChat);
 
   return { status: "detected", inserted: state.inserted, failureReason: null };
 }

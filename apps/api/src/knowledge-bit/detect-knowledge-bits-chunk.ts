@@ -29,6 +29,7 @@ export interface ChunkCards {
   valid: LessonDraft[];
   flagged: FlaggedLesson[];
   deliberateEmpty?: boolean;
+  gapText?: string;
 }
 
 const DELIBERATE_EMPTY: ChunkCards = { valid: [], flagged: [], deliberateEmpty: true };
@@ -37,16 +38,24 @@ export function allChunksDeliberatelyEmpty(chunkResults: readonly (ChunkCards | 
   return chunkResults.length > 0 && chunkResults.every((cards) => cards?.deliberateEmpty === true);
 }
 
+interface ClarificationHolder {
+  gapText?: string;
+}
+
 async function writeOnce(
   chunk: string,
   options: WriteOptions,
   deps: GenerateItemsDeps,
+  clarification: ClarificationHolder,
 ): Promise<{ drafts: LessonDraft[]; deliberateEmpty: boolean }> {
   let deliberateEmpty = false;
   const drafts = await deps.writeItems(chunk, {
     ...options,
     onNothingWorthKeeping: () => {
       deliberateEmpty = true;
+    },
+    onClarification: (gapText) => {
+      clarification.gapText ??= gapText;
     },
   });
 
@@ -88,7 +97,19 @@ async function writeAndValidateOne(
   options: WriteOptions,
   deps: GenerateItemsDeps,
 ): Promise<ChunkCards> {
-  const { drafts: first, deliberateEmpty: firstEmpty } = await writeOnce(chunk, options, deps);
+  const clarification: ClarificationHolder = {};
+  const cards = await writeAndValidateWith(chunk, options, deps, clarification);
+
+  return clarification.gapText ? { ...cards, gapText: clarification.gapText } : cards;
+}
+
+async function writeAndValidateWith(
+  chunk: string,
+  options: WriteOptions,
+  deps: GenerateItemsDeps,
+  clarification: ClarificationHolder,
+): Promise<ChunkCards> {
+  const { drafts: first, deliberateEmpty: firstEmpty } = await writeOnce(chunk, options, deps, clarification);
 
   if (firstEmpty) {
     return DELIBERATE_EMPTY;
@@ -108,7 +129,12 @@ async function writeAndValidateOne(
   const languageOnly = allDroppedForLanguage(firstResult);
 
   try {
-    const retried = await writeOnce(chunk, languageOnly ? { ...options, strictLanguage: true } : options, deps);
+    const retried = await writeOnce(
+      chunk,
+      languageOnly ? { ...options, strictLanguage: true } : options,
+      deps,
+      clarification,
+    );
 
     if (retried.deliberateEmpty && !hasCards(toChunkCards(firstResult))) {
       return DELIBERATE_EMPTY;
@@ -150,7 +176,11 @@ export async function processChunk(
     return;
   }
 
-  const { valid, flagged, deliberateEmpty } = await writeAndValidate(chunk, options, deps);
+  const { valid, flagged, deliberateEmpty, gapText } = await writeAndValidate(chunk, options, deps);
+
+  if (gapText) {
+    state.gapByChunk.set(index, gapText);
+  }
 
   if (deliberateEmpty) {
     state.deliberateEmptyChunks += 1;
@@ -159,6 +189,10 @@ export async function processChunk(
   }
 
   if (!hasCards({ valid, flagged })) {
+    if (gapText) {
+      return;
+    }
+
     throw new Error("no_valid_items");
   }
 
