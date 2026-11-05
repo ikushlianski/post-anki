@@ -59,7 +59,7 @@ async function seedCard(subjectId: string, seen: boolean, label: string): Promis
   if (seen) {
     await client.query(
       `INSERT INTO knowledge_bit_schedules (knowledge_bit_id, ease_factor, interval_days, due_at, review_count) VALUES ($1, 2.5, 10, $2, 1)`,
-      [bitId, new Date("2090-03-01T00:00:00.000Z")],
+      [bitId, new Date(Date.parse("2090-03-01T00:00:00.000Z") + Number(label.slice(-1)) * 60_000)],
     );
     await client.query(
       `INSERT INTO knowledge_bit_reviews (id, knowledge_bit_id, variant_id, grade, was_new, reviewed_at) VALUES ($1, $2, $3, 'good', false, $4)`,

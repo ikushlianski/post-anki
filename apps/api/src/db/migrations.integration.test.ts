@@ -321,6 +321,7 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       }),
       expect.objectContaining({ column_name: "import_key", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "target_phrases", data_type: "jsonb", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "highlights", data_type: "jsonb", is_nullable: "YES" }),
     ]);
   });
 
