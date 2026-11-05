@@ -56,8 +56,10 @@ function signInWithKey(body: unknown, headers: Record<string, string> = {}): Pro
 
 beforeAll(async () => {
   adminPool = new pg.Pool({ connectionString: BASE_DATABASE_URL });
+  adminPool.on("error", () => undefined);
   await adminPool.query(`CREATE DATABASE ${TEST_DB_NAME}`);
   pool = new pg.Pool({ connectionString: url.toString() });
+  pool.on("error", () => undefined);
   db = drizzle(pool, { schema });
   await migrate(drizzle(pool), {
     migrationsFolder: new URL("../db/migrations", import.meta.url).pathname,
