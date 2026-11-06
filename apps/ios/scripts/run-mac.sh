@@ -20,9 +20,15 @@ if [[ "${1:-}" == "--test" ]]; then
   exit 0
 fi
 
+API_SETTINGS=()
+
+if [[ "${LOCAL:-}" == "1" ]]; then
+  API_SETTINGS+=("POSTANKI_DEV_API_URL=http://localhost:${LOCAL_API_PORT:-5560}")
+fi
+
 xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath build \
-  POSTANKI_BAND_LABEL="${BAND_LABEL:-DEV}"
+  POSTANKI_BAND_LABEL="${BAND_LABEL:-DEV}" ${API_SETTINGS[@]+"${API_SETTINGS[@]}"}
 
 APP="$PWD/build/Build/Products/Debug/PostAnkiMac.app"
 

@@ -14,7 +14,7 @@ if [[ "$VARIANT" == "dev" ]]; then
   CONFIGURATION="${CONFIGURATION:-Debug}"
   LAN_IP="$(ipconfig getifaddr en0 || true)"
 
-  if [[ -n "$LAN_IP" ]]; then
+  if [[ "${LOCAL:-}" == "1" && -n "$LAN_IP" ]]; then
     EXTRA_SETTINGS+=("POSTANKI_DEV_API_URL=http://${LAN_IP}:${LOCAL_API_PORT}")
   fi
 else

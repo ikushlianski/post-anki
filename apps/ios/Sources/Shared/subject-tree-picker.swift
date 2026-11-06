@@ -61,6 +61,9 @@ struct SubjectTreePicker: View {
                     }
                 }
             }
+            #if os(macOS)
+            .frame(minWidth: 380, minHeight: 460)
+            #endif
             .presentationDetents([.medium, .large])
         }
     }
