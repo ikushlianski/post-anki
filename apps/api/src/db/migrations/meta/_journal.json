@@ -1051,6 +1051,13 @@
       "when": 1793978092349,
       "tag": "0149_restore_skipped_app_settings_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 150,
+      "version": "7",
+      "when": 1793978093349,
+      "tag": "0150_split_webdev_courses_into_subsubjects",
+      "breakpoints": true
     }
   ]
 }
