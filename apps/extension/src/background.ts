@@ -77,8 +77,25 @@ async function rebuildMenu(): Promise<void> {
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => void rebuildMenu());
-chrome.runtime.onStartup.addListener(() => void rebuildMenu());
+const MENU_REFRESH_ALARM = "refresh-subject-menu";
+
+function scheduleMenuRefresh(): void {
+  chrome.alarms.create(MENU_REFRESH_ALARM, { periodInMinutes: 5 });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  scheduleMenuRefresh();
+  void rebuildMenu();
+});
+chrome.runtime.onStartup.addListener(() => {
+  scheduleMenuRefresh();
+  void rebuildMenu();
+});
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === MENU_REFRESH_ALARM) {
+    void rebuildMenu();
+  }
+});
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes["settings"]) {
     void rebuildMenu();
