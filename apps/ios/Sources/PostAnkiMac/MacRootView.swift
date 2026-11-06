@@ -77,6 +77,7 @@ struct MacRootView: View {
             .navigationSplitViewColumnWidth(min: 160 * zoom, ideal: 190 * zoom, max: 260 * zoom)
         } detail: {
             VStack(spacing: 0) {
+                MacDevBand()
                 MacLaunchBanner(check: launchCheck)
                 MacFeatureDetailView(feature: MacFeatureRegistry.feature(id: storedSelection))
                     .id(settingsVersion)

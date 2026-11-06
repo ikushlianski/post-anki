@@ -21,7 +21,8 @@ if [[ "${1:-}" == "--test" ]]; then
 fi
 
 xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
-  -destination 'platform=macOS' -derivedDataPath build
+  -destination 'platform=macOS' -derivedDataPath build \
+  POSTANKI_BAND_LABEL="${BAND_LABEL:-DEV}"
 
 APP="$PWD/build/Build/Products/Debug/PostAnkiMac.app"
 
