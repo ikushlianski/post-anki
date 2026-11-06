@@ -14,6 +14,16 @@ enum SubjectTreePath {
         return nil
     }
 
+    static func ids(to id: String, in nodes: [SubjectTreeNode]) -> [String]? {
+        for node in nodes {
+            if node.id == id { return [node.id] }
+
+            if let rest = ids(to: id, in: node.children) { return [node.id] + rest }
+        }
+
+        return nil
+    }
+
     static func label(for id: String?, in nodes: [SubjectTreeNode]) -> String? {
         id.flatMap { names(to: $0, in: nodes) }?.joined(separator: separator)
     }
@@ -34,6 +44,14 @@ struct SubjectTreePicker: View {
     @State private var isPresented = false
 
     var body: some View {
+        #if os(macOS)
+        SubjectTreeOutline(nodes: nodes, selection: $selection)
+        #else
+        drillDownButton
+        #endif
+    }
+
+    private var drillDownButton: some View {
         Button {
             isPresented = true
         } label: {
