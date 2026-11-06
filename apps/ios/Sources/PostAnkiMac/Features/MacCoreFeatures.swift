@@ -13,7 +13,8 @@ enum MacCoreFeatures {
             detail: { navigator in
                 AnyView(MacHomeView(
                     onStudyNow: { navigator.select("review") },
-                    onOpenCourses: { navigator.select("courses") }
+                    onOpenCourses: { navigator.select("courses") },
+                    onAddKnowledge: { navigator.select("ingest") }
                 ))
             }
         ),
@@ -72,9 +73,8 @@ enum MacCoreFeatures {
             section: .library,
             order: 90,
             title: "Add knowledge",
-            systemImage: "square.and.pencil",
+            systemImage: "plus.circle",
             shortcut: MacFeatureShortcut(key: "6"),
-            inSidebar: false,
             detail: { _ in AnyView(IngestionDictationScreen()) }
         )
     ]

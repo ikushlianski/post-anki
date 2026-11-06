@@ -4,6 +4,7 @@ import SwiftUI
 struct MacHomeView: View {
     let onStudyNow: () -> Void
     let onOpenCourses: () -> Void
+    let onAddKnowledge: () -> Void
 
     @State private var model = HomeScreenModel()
     @State private var dueModel = DueTodayModel()
@@ -13,6 +14,14 @@ struct MacHomeView: View {
         content
             .navigationTitle("Today")
             .toolbar {
+                ToolbarItem {
+                    Button(action: onAddKnowledge) {
+                        Label("Add knowledge", systemImage: "plus")
+                    }
+                    .help("Add knowledge")
+                    .accessibilityIdentifier("home-add-knowledge")
+                }
+
                 ToolbarItem {
                     Button {
                         Task { await reload() }
@@ -32,6 +41,12 @@ struct MacHomeView: View {
             MacLoadStateView(failure: failure) { Task { await reload() } }
         } else {
             List {
+                Button(action: onAddKnowledge) {
+                    Label("Add knowledge", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("home-add-knowledge-button")
+
                 HomeSummarySection(model: summaryModel)
 
                 dueSection
