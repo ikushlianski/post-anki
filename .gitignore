@@ -22,7 +22,6 @@ docker-compose.override.yml
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
 tmp/
-apps/desktop/src-tauri/target/
 
 # Storybook
 storybook-static/

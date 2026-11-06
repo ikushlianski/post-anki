@@ -1,6 +1,0 @@
-{
-  "identifier": "default",
-  "description": "Main window capability for the bundled React UI. Grants only the core defaults needed to invoke this app's own commands.",
-  "windows": ["main"],
-  "permissions": ["core:default"]
-}

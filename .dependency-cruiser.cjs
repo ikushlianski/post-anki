@@ -96,8 +96,7 @@ module.exports = {
         // resolver doesn't understand — not a broken import. Excluded here rather than at
         // each call site, since this is a class of false positive, not a one-off.
         // `@aws-sdk/*` is provided by the Lambda runtime and kept external by build-lambda.
-        // `@/` is apps/desktop's tsconfig alias; tsc already fails on a broken one.
-        pathNot: "\\?(url|raw|worker|inline)$|^@aws-sdk/|^@/",
+        pathNot: "\\?(url|raw|worker|inline)$|^@aws-sdk/",
       },
     },
   ],

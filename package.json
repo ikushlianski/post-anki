@@ -13,7 +13,6 @@
     "apps/web",
     "apps/bot",
     "apps/mobile",
-    "apps/desktop",
     "apps/extension"
   ],
   "scripts": {
@@ -27,8 +26,6 @@
     "dev:bot": "npm run dev -w @post-anki/bot",
     "dev:mac": "bash apps/ios/scripts/run-mac-local.sh",
     "dev:mobile": "npm run start -w @post-anki/mobile",
-    "dev:desktop": "npm run tauri:dev -w @post-anki/desktop",
-    "build:desktop": "npm run tauri:build -w @post-anki/desktop",
     "dev:pw": "bash e2e/scripts/run.sh",
     "db:dev:up": "docker compose up -d",
     "db:dev:down": "docker compose down",
