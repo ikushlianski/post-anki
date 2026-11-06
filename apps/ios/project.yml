@@ -106,7 +106,8 @@ targets:
     info:
       path: Config/PostAnkiMac-Info.plist
       properties:
-        CFBundleDisplayName: post-anki
+        CFBundleDisplayName: $(INFOPLIST_KEY_CFBundleDisplayName)
+        CFBundleName: $(INFOPLIST_KEY_CFBundleDisplayName)
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
         PostAnkiDevAPIToken: $(POSTANKI_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
@@ -119,7 +120,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac
-        INFOPLIST_KEY_CFBundleDisplayName: PostAnki
+        INFOPLIST_KEY_CFBundleDisplayName: Post Anki
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.education
@@ -130,6 +131,7 @@ targets:
           OTHER_LDFLAGS: "$(inherited) -Xlinker -interposable"
           CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMac.debug.entitlements
           ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
+          INFOPLIST_KEY_CFBundleDisplayName: Post Anki Dev
     scheme:
       testTargets:
         - PostAnkiMacSmokeTests
