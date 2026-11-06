@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import PostAnkiAPI
 
 struct MacRootView: View {
     @Environment(\.zoomScale) private var zoomScale
@@ -15,6 +16,7 @@ struct MacRootView: View {
     @State private var showingPalette = false
     @State private var resignedAt: Date?
     @State private var lastScope = ServerScope.current
+    @State private var hasToken = !SignInGate.needsSignIn(token: TokenStore.read())
 
     init() {
         MacFeatureRegistry.assertValid()
@@ -97,7 +99,15 @@ struct MacRootView: View {
                 showingPalette = true
             }
         }
-        .onAppear { launchCheck.run() }
+        .onAppear {
+            hasToken = !SignInGate.needsSignIn(token: TokenStore.read())
+            launchCheck.run()
+        }
+        .overlay {
+            if !hasToken || launchCheck.issue == .signedOut {
+                MacSignInGateView()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .postAnkiSettingsDidSave)) { _ in
             let scope = ServerScope.current
 
@@ -107,6 +117,7 @@ struct MacRootView: View {
             }
 
             PracticeModelStore.shared.reset()
+            hasToken = !SignInGate.needsSignIn(token: TokenStore.read())
             settingsVersion += 1
             launchCheck.run()
             Task { await PendingReviewCountStore.shared.refresh() }
