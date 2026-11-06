@@ -1,0 +1,2 @@
+ALTER TABLE "app_settings" ADD COLUMN IF NOT EXISTS "max_reviews_per_day" integer DEFAULT 200 NOT NULL;--> statement-breakpoint
+ALTER TABLE "app_settings" ADD COLUMN IF NOT EXISTS "mix_new_with_due" boolean DEFAULT true NOT NULL;

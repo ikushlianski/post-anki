@@ -1044,6 +1044,13 @@
       "when": 1793918072914,
       "tag": "0148_fresh_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793978092349,
+      "tag": "0149_restore_skipped_app_settings_columns",
+      "breakpoints": true
     }
   ]
 }
