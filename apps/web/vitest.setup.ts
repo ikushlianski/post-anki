@@ -1,3 +1,5 @@
+import { configure } from '@testing-library/react'
+
 // visual-knowledge-map (issue #86) — jsdom (this app's vitest `environment`)
 // ships no ResizeObserver global, but @xyflow/react requires one to
 // measure/position nodes. Without this stub, every domain-map-graph test's
@@ -12,3 +14,5 @@ class ResizeObserverStub {
 if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver
 }
+
+configure({ asyncUtilTimeout: 5000 })

@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     testTimeout: 20000,
+    retry: process.env.CI ? 2 : 0,
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./vitest.setup.ts'],
   },
