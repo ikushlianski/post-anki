@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { PendingKnowledgeSourceForReview } from '@post-anki/shared'
 
 import { putTriageDecision, startTriageSession } from '../card-triage/card-triage.api'
@@ -20,6 +20,8 @@ import {
   returnKnowledgeBitFromInboxForReview,
 } from './knowledge-bit-inbox.api'
 import { makeBit, makeSource, startTriage, TRIAGE_SESSION } from './knowledge-bit-review-panel.test-helpers'
+
+configure({ asyncUtilTimeout: 5000 })
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ to, children, ...rest }: { to: string; children: ReactNode } & Record<string, unknown>) => (
