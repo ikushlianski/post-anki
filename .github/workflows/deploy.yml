@@ -18,14 +18,56 @@ permissions:
   id-token: write
 
 jobs:
-  test:
-    name: Test
+  # Test is split into parallel jobs; the `test` job below only gates on all of them so the
+  # downstream `needs: test` lines stay as they are.
+  checks:
+    name: Typecheck and bundle check
     runs-on: ubuntu-latest
-    # The apps/api integration tests run against a real Postgres, never a mock —
-    # they exist to prove locking and transaction behavior that only a real
-    # connection can demonstrate. Credentials and port mirror e2e/docker-compose.yml
-    # so the same command works locally and here. Each test creates its own
-    # throwaway database off this one and migrates into it, so no seed step is needed.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+
+      # Runs the real apps/web browser build and fails if any Node built-in gets externalized
+      # into it. It needs an actual build, not a static scan, and a browser bundle that crashes
+      # at runtime must never reach a deploy.
+      - name: Check for Node built-ins in the web bundle
+        run: node scripts/check-web-node-builtins.mjs
+
+  unit:
+    name: Unit (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            workspaces: -w @post-anki/web
+          - name: api
+            workspaces: -w @post-anki/api
+          - name: other
+            workspaces: -w @post-anki/core -w @post-anki/bot -w @post-anki/extension -w @post-anki/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test ${{ matrix.workspaces }}
+
+  # The apps/api integration tests run against a real Postgres, never a mock —
+  # they exist to prove locking and transaction behavior that only a real
+  # connection can demonstrate. Credentials and port mirror e2e/docker-compose.yml
+  # so the same command works locally and here. Each test creates its own
+  # throwaway database off this one and migrates into it, so no seed step is needed.
+  integration:
+    name: Integration (real Postgres)
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -47,25 +89,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-
-      # Separate from `npm test` because these need the Postgres service above.
-      # Without this step the concurrency tests only ever ran at build time —
-      # nothing re-ran them, so a change reintroducing one of the races they
-      # were written to catch would have gone unnoticed.
       - name: Integration tests (real Postgres)
         env:
           DATABASE_URL: postgres://postanki:postanki@localhost:5578/postanki_e2e
           LLM_MODE: mock
         run: npm run test:integration -w @post-anki/api
 
-      # Runs the real apps/web browser build and fails if any Node built-in gets externalized
-      # into it. Lives here rather than in review-factory-gate (where the other fitness functions
-      # sit) because it needs an actual build, not a static scan, and because `test` is what gates
-      # `infra` as well — a browser bundle that crashes at runtime must never reach a deploy.
-      - name: Check for Node built-ins in the web bundle
-        run: node scripts/check-web-node-builtins.mjs
+  test:
+    name: Test
+    needs: [checks, unit, integration]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "all test jobs passed"
 
   review-factory-gate:
     name: Review Factory Gate
