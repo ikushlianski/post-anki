@@ -128,3 +128,62 @@ struct ChatQueueBulkConfirmTests {
         #expect(model.picked == ["2"])
     }
 }
+
+@MainActor
+@Suite("Chat queue bulk snooze")
+struct ChatQueueBulkSnoozeTests {
+    private func loaded(count: Int, failing: Set<String> = []) async -> (ChatQueueModel, SnoozeLog) {
+        let log = SnoozeLog()
+        let model = ChatQueueModel(actions: ChatQueueActions(
+            list: {
+                let items = (1...count).map {
+                    ChatQueueItem(id: "\($0)", body: "\($0)", chatAt: "2020-01-01T12:00:00.000Z", turnsLeft: 8)
+                }
+
+                return ChatQueueList(items: items, count: count)
+            },
+            returnToInbox: { _ in },
+            snooze: { id, days in
+                if failing.contains(id) { throw APIError.badStatus(500, "boom") }
+
+                log.calls.append((id, days))
+            },
+            unsnooze: { _ in },
+            setCount: { _ in }
+        ))
+
+        await model.load()
+
+        return (model, log)
+    }
+
+    @MainActor final class SnoozeLog { var calls: [(String, Int)] = [] }
+
+    @Test("snoozing a large selection applies the chosen option to every picked card without asking to confirm")
+    func appliesChosenOptionToAll() async {
+        let (model, log) = await loaded(count: 8)
+
+        model.picked = Set((1...7).map(String.init))
+
+        let count = await model.requestBulk(.snooze(days: 3))
+
+        #expect(count == 7)
+        #expect(!model.isConfirmingBulk)
+        #expect(log.calls.count == 7)
+        #expect(log.calls.allSatisfy { $0.1 == 3 })
+    }
+
+    @Test("cards that fail to snooze stay selected and the notice says they were not snoozed")
+    func partialFailureKeepsSelected() async {
+        let (model, log) = await loaded(count: 3, failing: ["2"])
+
+        model.picked = ["1", "2", "3"]
+
+        let count = await model.runBulk(.snooze(days: 7))
+
+        #expect(count == 2)
+        #expect(log.calls.count == 2)
+        #expect(model.picked == ["2"])
+        #expect(model.bulkNotice == "1 card could not be snoozed")
+    }
+}

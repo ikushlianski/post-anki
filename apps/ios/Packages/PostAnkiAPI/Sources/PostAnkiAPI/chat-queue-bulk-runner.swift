@@ -18,10 +18,10 @@ public enum ChatQueueBulkRunner {
         count > confirmThreshold
     }
 
-    public static func notice(failed: Int) -> String? {
+    public static func notice(failed: Int, verb: String = "moved") -> String? {
         guard failed > 0 else { return nil }
 
-        return "\(failed) \(failed == 1 ? "card" : "cards") could not be moved"
+        return "\(failed) \(failed == 1 ? "card" : "cards") could not be \(verb)"
     }
 
     @MainActor

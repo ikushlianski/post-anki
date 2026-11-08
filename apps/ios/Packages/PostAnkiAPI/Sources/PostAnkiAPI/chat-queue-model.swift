@@ -104,6 +104,10 @@ public final class ChatQueueModel {
         try await actions.returnToInbox(id)
     }
 
+    func snoozeAction(_ id: String, days: Int) async throws {
+        try await actions.snooze(id, days)
+    }
+
     public func load() async {
         guard !isLoading else { return }
 

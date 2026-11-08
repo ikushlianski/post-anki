@@ -39,12 +39,31 @@ struct ChatQueueBulkControls: ViewModifier {
 
                 Spacer()
 
+                snoozeMenu
+
                 moveButton
             }
         }
         #else
-        ToolbarItem(placement: .primaryAction) { moveButton }
+        ToolbarItemGroup(placement: .primaryAction) {
+            snoozeMenu
+            moveButton
+        }
         #endif
+    }
+
+    private var snoozeMenu: some View {
+        Menu {
+            ForEach(ChatQueueSnoozeOptions.days, id: \.self) { days in
+                Button(ChatQueueSnoozeOptions.label(days: days)) {
+                    Task { await ChatQueueBulkAnnouncer.snooze(model, days: days) }
+                }
+            }
+        } label: {
+            Label("Snooze", systemImage: "moon.zzz").zoomFont(.body)
+        }
+        .disabled(model.isBulkRunning || !model.hasPicked)
+        .accessibilityIdentifier("chat-queue-bulk-snooze")
     }
 
     private var moveButton: some View {
@@ -71,6 +90,16 @@ enum ChatQueueBulkAnnouncer {
         announce(moved)
     }
 
+    static func snooze(_ model: ChatQueueModel, days: Int, on id: String? = nil) async {
+        let count = if let id {
+            await model.requestBulk(.snooze(days: days), on: id)
+        } else {
+            await model.requestBulk(.snooze(days: days))
+        }
+
+        if count > 0 { TriageFeedbackPlayer.announce(.snoozed(days: days)) }
+    }
+
     static func run(_ model: ChatQueueModel) async {
         announce(await model.runBulk(.moveToInbox))
     }
@@ -91,6 +120,18 @@ struct ChatQueueBulkMenu: View {
             }
             .disabled(model.isBulkRunning)
             .accessibilityIdentifier("chat-queue-bulk-menu-\(item.id)")
+        }
+
+        if model.picked.count > 1, model.picked.contains(item.id), !item.reviewChat {
+            Menu("Snooze selected", systemImage: "moon.zzz") {
+                ForEach(ChatQueueSnoozeOptions.days, id: \.self) { days in
+                    Button(ChatQueueSnoozeOptions.label(days: days)) {
+                        Task { await ChatQueueBulkAnnouncer.snooze(model, days: days, on: item.id) }
+                    }
+                }
+            }
+            .disabled(model.isBulkRunning)
+            .accessibilityIdentifier("chat-queue-bulk-snooze-menu-\(item.id)")
         }
     }
 }
