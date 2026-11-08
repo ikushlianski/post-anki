@@ -50,6 +50,7 @@ const { getTopicCards } = await import("./get-topic-cards.tool.js");
 const { listCourseCards } = await import("./list-course-cards.tool.js");
 const { getDeckItems } = await import("./get-deck-items.tool.js");
 const { searchKnowledgeItems } = await import("./search-knowledge-items.tool.js");
+const { checkDuplicates } = await import("./check-duplicates.tool.js");
 const { listKnowledgeSources } = await import("./list-knowledge-sources.tool.js");
 const { getSourceKnowledgeBits } = await import("./get-source-knowledge-bits.tool.js");
 const { getKnowledgeBit } = await import("./get-knowledge-bit.tool.js");
@@ -197,6 +198,9 @@ describe("MCP tools, read-only guarantee", () => {
 
     const search = await searchKnowledgeItems({ query: "closure" });
     expect(search.cards.length + search.courses.length + search.topics.length).toBeGreaterThan(0);
+
+    const dupes = await checkDuplicates({ drafts: [{ text: "text" }, { text: "bit body" }, { text: "Closure basics" }] });
+    expect(dupes.items.map((i) => i.exists)).toEqual([true, true, true]);
 
     const sources = await listKnowledgeSources({});
     expect(sources.items.map((s) => s.id)).toContain(sourceId);

@@ -98,6 +98,7 @@ describe("POST /mcp tools", () => {
       "list_course_cards",
       "get_deck_items",
       "search_knowledge_items",
+      "check_duplicates",
       "list_knowledge_sources",
       "get_source_knowledge_bits",
       "get_knowledge_bit",
