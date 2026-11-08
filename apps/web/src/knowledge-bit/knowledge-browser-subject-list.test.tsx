@@ -54,7 +54,17 @@ vi.mock('./use-knowledge-browser-data', () => ({
   useKnowledgeBrowserSubjectCounts: () => counts.value,
 }))
 
-import { KnowledgeBrowserSubjectList, buildBrowserSubjectEntries } from './knowledge-browser-subject-list'
+const todayCounts = vi.hoisted(() => ({
+  value: { status: 'ready', byId: new Map<string, number>() } as
+    | { status: 'ready'; byId: ReadonlyMap<string, number> }
+    | { status: 'unavailable' },
+}))
+
+vi.mock('./use-subject-today-counts', () => ({
+  useSubjectTodayCounts: () => todayCounts.value,
+}))
+
+import { KnowledgeBrowserSubjectList, NO_SUBJECT_PARAM, buildBrowserSubjectEntries } from './knowledge-browser-subject-list'
 
 afterEach(cleanup)
 
@@ -203,5 +213,40 @@ describe('KnowledgeBrowserSubjectList', () => {
     render(<KnowledgeBrowserSubjectList />)
 
     expect(screen.getByTestId('knowledge-browser-retry')).toBeTruthy()
+  })
+
+  it('should show mature, learning, new and the Today count from the due counts for each subject', () => {
+    counts.value = {
+      counts: [
+        { subjectId: 'lang', count: 9, newCount: 3, learningCount: 2, matureCount: 4 },
+        { subjectId: null, count: 2, newCount: 2, learningCount: 0, matureCount: 0 },
+      ],
+      isPending: false,
+      isError: false,
+      retry: vi.fn(),
+    }
+    todayCounts.value = { status: 'ready', byId: new Map([['lang', 7], ['none', 1]]) }
+    render(<KnowledgeBrowserSubjectList />)
+
+    expect(screen.getByTestId('knowledge-browser-subject-mature-lang').textContent).toBe('4')
+    expect(screen.getByTestId('knowledge-browser-subject-learning-lang').textContent).toBe('2')
+    expect(screen.getByTestId('knowledge-browser-subject-new-lang').textContent).toBe('3')
+    expect(screen.getByTestId('knowledge-browser-subject-today-lang').textContent).toBe('7')
+    expect(screen.getByTestId('knowledge-browser-subject-columns-lang').textContent).toContain('Today')
+    expect(screen.getByTestId(`knowledge-browser-subject-today-${NO_SUBJECT_PARAM}`).textContent).toBe('1')
+  })
+
+  it('should show an en dash for Today only when the due counts are unavailable', () => {
+    counts.value = {
+      counts: [{ subjectId: 'lang', count: 9, newCount: 3, learningCount: 2, matureCount: 4 }],
+      isPending: false,
+      isError: false,
+      retry: vi.fn(),
+    }
+    todayCounts.value = { status: 'unavailable' }
+    render(<KnowledgeBrowserSubjectList />)
+
+    expect(screen.getByTestId('knowledge-browser-subject-today-lang').textContent).toBe('–')
+    expect(screen.getByTestId('knowledge-browser-subject-mature-lang').textContent).toBe('4')
   })
 })

@@ -556,6 +556,15 @@ describe("migrations — triage chat queue and nothing-extracted marker", () => 
     ]);
   });
 
+  it("adds nullable subjects.max_reviews_per_day integer so unset inherits the app-wide cap", async () => {
+    const { rows } = await client.query(
+      `SELECT data_type, is_nullable FROM information_schema.columns
+        WHERE table_name = 'subjects' AND column_name = 'max_reviews_per_day'`,
+    );
+
+    expect(rows).toEqual([{ data_type: "integer", is_nullable: "YES" }]);
+  });
+
   it("creates knowledge_bit_chat_messages with no foreign keys", async () => {
     const columns = await client.query(
       `SELECT column_name FROM information_schema.columns WHERE table_name = 'knowledge_bit_chat_messages'`,

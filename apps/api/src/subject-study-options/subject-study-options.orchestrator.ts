@@ -26,6 +26,7 @@ export async function readSubjectStudyOptions(subjectId: string): Promise<Subjec
   return {
     own: {
       newCardsPerDay: row.options.newCardsPerDay ?? null,
+      maxReviewsPerDay: row.options.maxReviewsPerDay ?? null,
       learningStepsMinutes: row.options.learningStepsMinutes ?? null,
       relearningStepsMinutes: row.options.relearningStepsMinutes ?? null,
       desiredRetention: row.options.desiredRetention ?? null,

@@ -4,6 +4,7 @@ import { collectSubjectAncestorIds, resolveStudyOptions } from "./subject-study-
 
 const APP: StudyOptions = {
   newCardsPerDay: 20,
+  maxReviewsPerDay: 200,
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,
@@ -34,16 +35,58 @@ describe("resolveStudyOptions", () => {
 
     expect(result.effective).toEqual({
       newCardsPerDay: 7,
+      maxReviewsPerDay: 200,
       learningStepsMinutes: [5],
       relearningStepsMinutes: [10],
       desiredRetention: 0.85,
     });
     expect(result.sources).toEqual({
       newCardsPerDay: "parent",
+      maxReviewsPerDay: "app",
       learningStepsMinutes: "child",
       relearningStepsMinutes: "app",
       desiredRetention: "parent",
     });
+  });
+
+  it("should use the subject's own review cap before an ancestor's or the app-wide one", () => {
+    const result = resolveStudyOptions(
+      [
+        { subjectId: "child", options: { maxReviewsPerDay: 30 } },
+        { subjectId: "parent", options: { maxReviewsPerDay: 80 } },
+      ],
+      APP,
+    );
+
+    expect(result.effective.maxReviewsPerDay).toBe(30);
+    expect(result.sources.maxReviewsPerDay).toBe("child");
+  });
+
+  it("should inherit the nearest ancestor's review cap when the child has none", () => {
+    const result = resolveStudyOptions(
+      [
+        { subjectId: "child", options: {} },
+        { subjectId: "parent", options: { maxReviewsPerDay: 80 } },
+      ],
+      APP,
+    );
+
+    expect(result.effective.maxReviewsPerDay).toBe(80);
+    expect(result.sources.maxReviewsPerDay).toBe("parent");
+  });
+
+  it("should fall back to the app-wide review cap when nobody in the chain sets one", () => {
+    const result = resolveStudyOptions([{ subjectId: "child", options: {} }], APP);
+
+    expect(result.effective.maxReviewsPerDay).toBe(200);
+    expect(result.sources.maxReviewsPerDay).toBe("app");
+  });
+
+  it("should treat a zero review cap as an explicit override meaning unlimited", () => {
+    const result = resolveStudyOptions([{ subjectId: "child", options: { maxReviewsPerDay: 0 } }], APP);
+
+    expect(result.effective.maxReviewsPerDay).toBe(0);
+    expect(result.sources.maxReviewsPerDay).toBe("child");
   });
 
   it("should fall back to app defaults when no subject in the chain sets a value", () => {

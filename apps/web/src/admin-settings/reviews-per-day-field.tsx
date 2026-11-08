@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { clampMaxReviewsPerDay, MAX_MAX_REVIEWS_PER_DAY } from '@post-anki/shared'
 
 export function ReviewsPerDayField({
@@ -8,6 +8,7 @@ export function ReviewsPerDayField({
   onChange,
   disabled,
   testId,
+  hint,
 }: {
   label: string
   description: string
@@ -15,6 +16,7 @@ export function ReviewsPerDayField({
   onChange: (next: number) => void | Promise<boolean>
   disabled?: boolean
   testId?: string
+  hint?: ReactNode
 }) {
   const [draft, setDraft] = useState(String(value))
   const inputId = useId()
@@ -44,6 +46,7 @@ export function ReviewsPerDayField({
           {label}
         </label>
         <p className="mt-0.5 text-xs text-neutral-400">{description}</p>
+        {hint}
       </div>
       <input
         id={inputId}

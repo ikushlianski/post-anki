@@ -8,6 +8,7 @@ import type {
 import { NewCardsPerDayField } from '../admin-settings/new-cards-per-day-field'
 import { isExamDateMessage } from '../study-plan/exam-date-messages'
 import { ExamDateField } from './exam-date-field'
+import { ReviewsPerDayField } from '../admin-settings/reviews-per-day-field'
 import { LearningSettingsField } from './learning-settings-field'
 import { InheritedHint } from './inherited-hint'
 import { RetentionField } from './retention-field'
@@ -135,6 +136,15 @@ export function SubjectStudyOptionsForm({
           disabled={busy}
           testId="study-options-new-cards"
           hint={hint('newCardsPerDay')}
+        />
+        <ReviewsPerDayField
+          label="Reviews per day"
+          description="Most due reviews from this subject shown in a day. 0 means no subject limit. The app-wide daily limit still applies."
+          value={effective.maxReviewsPerDay}
+          onChange={(maxReviewsPerDay) => save({ maxReviewsPerDay })}
+          disabled={busy}
+          testId="study-options-max-reviews"
+          hint={hint('maxReviewsPerDay')}
         />
         <LearningSettingsField
           detailLevel={options.own.detailLevel}

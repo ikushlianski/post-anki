@@ -114,6 +114,30 @@ struct StudyPlanScreen: View {
         }
 
         Section {
+            Toggle("Use inherited value", isOn: inheritsReviews)
+                .accessibilityIdentifier("study-plan-reviews-inherit")
+
+            if let perDay = draft.wrappedValue.maxReviewsPerDay {
+                Stepper(
+                    value: Binding(
+                        get: { perDay },
+                        set: { draft.wrappedValue.maxReviewsPerDay = $0 }
+                    ),
+                    in: StudyPlanDraft.reviewsRange,
+                    step: 10
+                ) {
+                    LabeledContent("Reviews per day", value: perDay == 0 ? "Unlimited" : "\(perDay)")
+                }
+                .accessibilityIdentifier("study-plan-reviews-per-day")
+            } else if let effective = options.effective.maxReviewsPerDay {
+                Text("Reviews per day: \(effective == 0 ? "Unlimited" : "\(effective)")")
+                    .accessibilityIdentifier("study-plan-reviews-value")
+            }
+        } footer: {
+            Text(reviewsFooter(options)).accessibilityIdentifier("study-plan-reviews-source")
+        }
+
+        Section {
             Picker("Card detail", selection: draft.detailLevel) {
                 Text("Default (Standard)").tag(DetailLevel?.none)
                 ForEach(DetailLevel.allCases) { Text($0.title).tag(DetailLevel?.some($0)) }
@@ -183,6 +207,17 @@ struct StudyPlanScreen: View {
         )
     }
 
+    private var inheritsReviews: Binding<Bool> {
+        Binding(
+            get: { draft.wrappedValue.maxReviewsPerDay == nil },
+            set: { inherit in
+                draft.wrappedValue.maxReviewsPerDay = inherit
+                    ? nil
+                    : model.options?.effective.maxReviewsPerDay ?? StudyPlanDraft.defaultMaxReviewsPerDay
+            }
+        )
+    }
+
     private var hintsShown: Binding<Bool> {
         Binding(
             get: { draft.wrappedValue.hintingEnabled ?? true },
@@ -204,6 +239,12 @@ struct StudyPlanScreen: View {
         let when = info.examDate.map { " on \(StudyPlanDate.display($0))" } ?? ""
 
         return "Currently \(kind)\(when). \(source(info.source))"
+    }
+
+    private func reviewsFooter(_ options: SubjectStudyOptions) -> String {
+        let base = options.sources.maxReviewsPerDay.map(source) ?? "Using the app default."
+
+        return "\(base) 0 means no limit for this subject. The app-wide daily limit still applies."
     }
 
     private func newCardsFooter(_ options: SubjectStudyOptions) -> String {

@@ -4,6 +4,7 @@ import { resolveStudyPlan, type StudyPlanChainLink } from "./study-plan-resolve"
 
 const APP: StudyOptions = {
   newCardsPerDay: 20,
+  maxReviewsPerDay: 200,
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,

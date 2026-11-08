@@ -80,6 +80,34 @@ extension SmokeTests {
             #expect(!model.hasChanges)
         }
 
+        @Test("should send the review cap, inherit it back with null, and load a stored value")
+        func reviewCapRoundTrip() async {
+            let stored = options
+                .replacingOccurrences(of: #""own":{"newCardsPerDay":null"#, with: #""own":{"newCardsPerDay":null,"maxReviewsPerDay":50"#)
+            let session = FakeServerSession(routes(patch: .json(200, stored)))
+            defer { session.end() }
+
+            let model = StudyPlanModel(subjectId: "s1")
+
+            await model.load()
+
+            #expect(model.draft?.maxReviewsPerDay == nil)
+
+            model.draft?.maxReviewsPerDay = 50
+            await model.save(today: "2026-10-26")
+
+            let body = FakeServer.writes.first { $0.method == "PATCH" }?.bodyObject
+
+            #expect(body?["maxReviewsPerDay"] as? Int == 50)
+            #expect(model.options?.own.maxReviewsPerDay == 50)
+            #expect(model.draft?.maxReviewsPerDay == 50)
+            #expect(!model.hasChanges)
+
+            model.draft?.maxReviewsPerDay = nil
+
+            #expect(model.hasChanges)
+        }
+
         @Test("should not call the server when Exam has no date and should say why")
         func needsDate() async {
             let session = FakeServerSession(routes(patch: .status(200)))

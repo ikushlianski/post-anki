@@ -1,0 +1,1 @@
+ALTER TABLE "subjects" ADD COLUMN "max_reviews_per_day" integer;

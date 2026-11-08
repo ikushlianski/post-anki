@@ -5,8 +5,10 @@ struct MacReviewSubjectsHeader: View {
         HStack {
             Text("Subject")
             Spacer()
+            Text("Mature").frame(width: MacReviewCountColumns.width, alignment: .trailing)
+            Text("Learning").frame(width: MacReviewCountColumns.width, alignment: .trailing)
             Text("New").frame(width: MacReviewCountColumns.width, alignment: .trailing)
-            Text("Repeat").frame(width: MacReviewCountColumns.width, alignment: .trailing)
+            Text("Today").fontWeight(.semibold).frame(width: MacReviewCountColumns.width, alignment: .trailing)
         }
         .accessibilityHidden(true)
     }
@@ -15,13 +17,17 @@ struct MacReviewSubjectsHeader: View {
 struct MacReviewCountColumns: View {
     static let width: CGFloat = 64
 
+    let mature: Int
+    let learning: Int
     let new: Int
-    let repeatCount: Int
+    let today: Int
 
     var body: some View {
         HStack {
+            Text("\(mature)").frame(width: Self.width, alignment: .trailing)
+            Text("\(learning)").frame(width: Self.width, alignment: .trailing)
             Text("\(new)").frame(width: Self.width, alignment: .trailing)
-            Text("\(repeatCount)").frame(width: Self.width, alignment: .trailing)
+            Text("\(today)").fontWeight(.semibold).frame(width: Self.width, alignment: .trailing)
         }
         .monospacedDigit()
         .accessibilityHidden(true)
@@ -53,7 +59,12 @@ struct MacReviewSubjectRowView: View {
                 HStack {
                     Text(item.entry.name).lineLimit(2)
                     Spacer()
-                    MacReviewCountColumns(new: item.newCount, repeatCount: item.repeatCount)
+                    MacReviewCountColumns(
+                        mature: item.maturity.mature,
+                        learning: item.maturity.learning,
+                        new: item.maturity.new,
+                        today: item.todayCount
+                    )
                 }
                 .contentShape(Rectangle())
             }

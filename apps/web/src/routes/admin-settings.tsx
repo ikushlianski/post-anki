@@ -153,7 +153,7 @@ function AdminSettingsPage() {
         {saveError('newCardsPerDay')}
         <ReviewsPerDayField
           label="Reviews per day"
-          description="The most reviews in a day before the session ends with a done-for-today message, from 0 to 9999. 0 means no limit. You can still review ahead."
+          description="The most reviews in a day before the session ends with a done-for-today message, from 0 to 9999. 0 means no limit. You can still review ahead. A subject can set its own number, but a value above this one is still stopped by this limit."
           value={settings.maxReviewsPerDay}
           onChange={setMaxReviewsPerDay}
           disabled={busy}

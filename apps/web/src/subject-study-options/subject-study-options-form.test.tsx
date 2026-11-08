@@ -10,6 +10,7 @@ afterEach(cleanup)
 const inherited: SubjectStudyOptions = {
   own: {
     newCardsPerDay: null,
+    maxReviewsPerDay: null,
     learningStepsMinutes: null,
     relearningStepsMinutes: null,
     desiredRetention: null,
@@ -21,12 +22,14 @@ const inherited: SubjectStudyOptions = {
   intent: { studyIntent: 'long_term', examDate: null, source: 'app' },
   effective: {
     newCardsPerDay: 7,
+    maxReviewsPerDay: 200,
     learningStepsMinutes: [1, 10],
     relearningStepsMinutes: [10],
     desiredRetention: 0.9,
   },
   sources: {
     newCardsPerDay: 'parent',
+    maxReviewsPerDay: 'app',
     learningStepsMinutes: 'app',
     relearningStepsMinutes: 'app',
     desiredRetention: 'app',
@@ -206,6 +209,39 @@ describe('SubjectStudyOptionsForm', () => {
 
     expect(screen.getByTestId('study-options-intent-source').textContent).toBe(
       'Exam on 2026-12-20, from Networking.',
+    )
+  })
+
+  it('should save a reviews per day override for this subject', async () => {
+    const onSave = vi.fn().mockResolvedValue(inherited)
+
+    setup(inherited, onSave)
+    fireEvent.change(screen.getByTestId('study-options-max-reviews-input'), { target: { value: '40' } })
+    fireEvent.blur(screen.getByTestId('study-options-max-reviews-input'))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ maxReviewsPerDay: 40 }))
+  })
+
+  it('should say where the reviews per day value comes from and clear the override back to inherited', async () => {
+    const own: SubjectStudyOptions = {
+      ...inherited,
+      own: { ...inherited.own, maxReviewsPerDay: 40 },
+      effective: { ...inherited.effective, maxReviewsPerDay: 40 },
+      sources: { ...inherited.sources, maxReviewsPerDay: 'child' },
+    }
+    const onSave = vi.fn().mockResolvedValue(inherited)
+
+    setup(inherited)
+    expect(screen.getByTestId('study-options-maxReviewsPerDay-source').textContent).toBe('Using the app default.')
+    cleanup()
+
+    setup(own, onSave)
+    expect(screen.getByTestId('study-options-maxReviewsPerDay-source').textContent).toContain('Set on this subject.')
+    fireEvent.click(screen.getByTestId('study-options-maxReviewsPerDay-source-reset'))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ maxReviewsPerDay: null }))
+    await waitFor(() =>
+      expect(screen.getByTestId('study-options-maxReviewsPerDay-source').textContent).toBe('Using the app default.'),
     )
   })
 })

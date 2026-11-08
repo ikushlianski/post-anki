@@ -51,6 +51,7 @@ export const subjects = pgTable("subjects", {
   learningIntent: text("learning_intent"),
   // Study options: null on each = inherit from the parent subject, then app_settings.
   newCardsPerDay: integer("new_cards_per_day"),
+  maxReviewsPerDay: integer("max_reviews_per_day"),
   learningStepsMinutes: jsonb("learning_steps_minutes").$type<number[]>(),
   relearningStepsMinutes: jsonb("relearning_steps_minutes").$type<number[]>(),
   desiredRetention: real("desired_retention"),

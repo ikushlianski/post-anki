@@ -172,8 +172,8 @@ describe("getSubjectReviewDueCounts", () => {
     const counts = await getSubjectReviewDueCounts(CLOCK);
     const byId = Object.fromEntries(counts.subjects.map((row) => [row.subjectId, row]));
 
-    expect(byId.sdc_own_parent).toEqual({ subjectId: "sdc_own_parent", dueCount: 1, newCount: 2 });
-    expect(byId.sdc_own_child).toEqual({ subjectId: "sdc_own_child", dueCount: 0, newCount: 1 });
+    expect(byId.sdc_own_parent).toMatchObject({ subjectId: "sdc_own_parent", dueCount: 1, newCount: 2 });
+    expect(byId.sdc_own_child).toMatchObject({ subjectId: "sdc_own_child", dueCount: 0, newCount: 1 });
   });
 
   it("should count an unplaced bit through its source's subject, without a curriculum placement", async () => {
@@ -184,7 +184,7 @@ describe("getSubjectReviewDueCounts", () => {
     const counts = await getSubjectReviewDueCounts(CLOCK);
     const row = counts.subjects.find((subject) => subject.subjectId === "sdc_unplaced");
 
-    expect(row).toEqual({ subjectId: "sdc_unplaced", dueCount: 0, newCount: 1 });
+    expect(row).toMatchObject({ subjectId: "sdc_unplaced", dueCount: 0, newCount: 1 });
   });
 
   it("should exclude suspended and currently buried bits from the due count", async () => {
@@ -213,7 +213,7 @@ describe("getSubjectReviewDueCounts", () => {
 
     const counts = await getSubjectReviewDueCounts(CLOCK);
 
-    expect(counts.unsorted).toEqual({ dueCount: 1, newCount: 0 });
+    expect(counts.unsorted).toMatchObject({ dueCount: 1, newCount: 0 });
     expect(counts.subjects.find((row) => row.subjectId === "sdc_leaf")?.dueCount).toBe(1);
   });
 });

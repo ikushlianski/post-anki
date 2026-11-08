@@ -97,6 +97,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     sortOrder: null,
     learningIntent: null,
     newCardsPerDay: null,
+    maxReviewsPerDay: null,
     learningStepsMinutes: null,
     relearningStepsMinutes: null,
     desiredRetention: null,

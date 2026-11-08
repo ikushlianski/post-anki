@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { newCardsPerDaySchema } from "./admin-settings";
+import { maxReviewsPerDaySchema, newCardsPerDaySchema } from "./admin-settings";
 import {
   desiredRetentionSchema,
   stepsMinutesSchema,
@@ -9,6 +9,7 @@ import { detailLevelSchema, hintingEnabledSchema } from "./subject-learning-sett
 
 export const studyOptionsSchema = z.object({
   newCardsPerDay: newCardsPerDaySchema,
+  maxReviewsPerDay: maxReviewsPerDaySchema,
   learningStepsMinutes: stepsMinutesSchema,
   relearningStepsMinutes: stepsMinutesSchema,
   desiredRetention: desiredRetentionSchema,
@@ -20,6 +21,7 @@ export type StudyOptionKey = keyof StudyOptions;
 
 export const STUDY_OPTION_KEYS: StudyOptionKey[] = [
   "newCardsPerDay",
+  "maxReviewsPerDay",
   "learningStepsMinutes",
   "relearningStepsMinutes",
   "desiredRetention",
@@ -27,6 +29,7 @@ export const STUDY_OPTION_KEYS: StudyOptionKey[] = [
 
 export const studyOptionsOverrideSchema = z.object({
   newCardsPerDay: newCardsPerDaySchema.nullable().optional(),
+  maxReviewsPerDay: maxReviewsPerDaySchema.nullable().optional(),
   learningStepsMinutes: stepsMinutesSchema.nullable().optional(),
   relearningStepsMinutes: stepsMinutesSchema.nullable().optional(),
   desiredRetention: desiredRetentionSchema.nullable().optional(),
@@ -57,6 +60,7 @@ export const studyOptionSourceSchema = z.string();
 export const subjectStudyOptionsSchema = z.object({
   own: z.object({
     newCardsPerDay: newCardsPerDaySchema.nullable(),
+    maxReviewsPerDay: maxReviewsPerDaySchema.nullable(),
     learningStepsMinutes: stepsMinutesSchema.nullable(),
     relearningStepsMinutes: stepsMinutesSchema.nullable(),
     desiredRetention: desiredRetentionSchema.nullable(),
@@ -73,6 +77,7 @@ export const subjectStudyOptionsSchema = z.object({
   effective: studyOptionsSchema,
   sources: z.object({
     newCardsPerDay: studyOptionSourceSchema,
+    maxReviewsPerDay: studyOptionSourceSchema,
     learningStepsMinutes: studyOptionSourceSchema,
     relearningStepsMinutes: studyOptionSourceSchema,
     desiredRetention: studyOptionSourceSchema,

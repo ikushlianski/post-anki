@@ -20,11 +20,13 @@ import { listParentMixCards } from "./knowledge-bit-review-queue-parent-mix.repo
 import { listLearnAheadRows } from "./knowledge-bit-review-queue-learning.repo.js";
 import { pickedVariants, scopeCondition } from "./knowledge-bit-review-queue-picked.repo.js";
 import {
-  listPickedCards,
   listPickedNewCards,
   listScopedCards,
   toCard,
 } from "./knowledge-bit-review-queue-cards.repo.js";
+import { listCappedDueCards } from "./knowledge-bit-review-queue-due-cards.repo.js";
+import { readDueReviewsBySubject, readReviewAllowance } from "./knowledge-bit-review-allowance.repo.js";
+import { applyReviewCapToQueue, summariseReviewCap } from "./subject-today-rollup.js";
 import {
   deriveUnscopedQueueCounts,
   readEligibleTotals,
@@ -180,8 +182,15 @@ export async function getKnowledgeBitReviewQueue(
     aheadDays > 0
       ? (await getLocalDayWindow(clock.tz, new Date(now.getTime() + aheadDays * 86_400_000), db)).endsAt
       : now;
+  const [reviewAllowance, dueForList, dueNow] = await Promise.all([
+    readReviewAllowance(clock, db, resolver),
+    readDueReviewsBySubject(picked, dueCutoff, db),
+    aheadDays > 0 ? readDueReviewsBySubject(picked, now, db) : Promise.resolve(null),
+  ]);
   const [dueCards, newCards, totals] = await Promise.all([
-    blockedByDailyLimit ? Promise.resolve([]) : listPickedCards(picked, "due", limit, now, db, stepsFor, dueCutoff),
+    blockedByDailyLimit
+      ? Promise.resolve([])
+      : listCappedDueCards(picked, dueForList, reviewAllowance.remainingFor, limit, now, db, stepsFor, dueCutoff),
     blockedByDailyLimit
       ? Promise.resolve([])
       : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor),
@@ -195,13 +204,18 @@ export async function getKnowledgeBitReviewQueue(
     : await listLearnAheadRows(picked, aheadDays > 0 ? 0 : limit - withNew.length, now, db);
   const cards = [...withNew, ...aheadRows.map((row) => toCard(row, now, stepsFor))];
   const derived = deriveUnscopedQueueCounts(totals, { newAvailable, capHidesNew }, dayEndsAt);
+  const reviewCap = applyReviewCapToQueue(
+    derived,
+    summariseReviewCap(dueNow ?? dueForList, reviewAllowance.remainingFor),
+    dayEndsAt,
+  );
 
   return {
     ...dailyFields,
     cards,
-    counts: derived.counts,
+    counts: { ...derived.counts, review: reviewCap.review },
     newRemainingToday: remaining,
     newLimitReached: derived.newLimitReached,
-    nextDueAt: (blockedByDailyLimit ? dayEndsAt : derived.nextDue)?.toISOString() ?? null,
+    nextDueAt: (blockedByDailyLimit ? dayEndsAt : reviewCap.nextDue)?.toISOString() ?? null,
   };
 }

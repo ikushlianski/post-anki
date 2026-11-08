@@ -182,6 +182,7 @@ describe("subject study options storage (real Postgres)", () => {
 
     expect(result?.effective).toEqual({
       newCardsPerDay: 7,
+      maxReviewsPerDay: 200,
       learningStepsMinutes: [5, 30],
       relearningStepsMinutes: [10],
       desiredRetention: 0.85,
@@ -197,6 +198,45 @@ describe("subject study options storage (real Postgres)", () => {
 
     expect(result?.effective.newCardsPerDay).toBe(33);
     expect(result?.sources.newCardsPerDay).toBe("app");
+  });
+
+  it("should inherit the review cap own, then ancestor, then app-wide, and re-inherit when cleared", async () => {
+    const parent = await seedSubject();
+    const child = await seedSubject(parent);
+
+    expect((await readSubjectStudyOptions(child))?.sources.maxReviewsPerDay).toBe("app");
+    expect((await readSubjectStudyOptions(child))?.effective.maxReviewsPerDay).toBe(200);
+
+    await updateSubjectStudyOptions(parent, { maxReviewsPerDay: 80 });
+
+    const inherited = await readSubjectStudyOptions(child);
+
+    expect(inherited?.effective.maxReviewsPerDay).toBe(80);
+    expect(inherited?.sources.maxReviewsPerDay).toBe(parent);
+    expect(inherited?.own.maxReviewsPerDay).toBeNull();
+
+    await updateSubjectStudyOptions(child, { maxReviewsPerDay: 0 });
+
+    const own = await readSubjectStudyOptions(child);
+
+    expect(own?.effective.maxReviewsPerDay).toBe(0);
+    expect(own?.own.maxReviewsPerDay).toBe(0);
+    expect(own?.sources.maxReviewsPerDay).toBe(child);
+
+    await updateSubjectStudyOptions(child, { maxReviewsPerDay: null });
+
+    expect((await readSubjectStudyOptions(child))?.effective.maxReviewsPerDay).toBe(80);
+  });
+
+  it("should follow the app-wide review cap when no subject sets one", async () => {
+    const subject = await seedSubject();
+
+    await updateAdminSettings({ maxReviewsPerDay: 45 });
+
+    const result = await readSubjectStudyOptions(subject);
+
+    expect(result?.effective.maxReviewsPerDay).toBe(45);
+    expect(result?.sources.maxReviewsPerDay).toBe("app");
   });
 
   it("should re-inherit when an override is cleared with null", async () => {

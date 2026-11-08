@@ -21,6 +21,28 @@ struct ReviewSubjectsProductionShapeTests {
         #expect(counts.newRemainingToday == 0)
     }
 
+    @Test func olderDueCountsDefaultTodayFieldsToZeroAndNil() throws {
+        let counts = try Fixture.decode(SubjectReviewDueCounts.self, "subject-review-due-counts-production-shape")
+
+        #expect(counts.subjects.allSatisfy { $0.todayCount == 0 && $0.reviewTodayCount == 0 && $0.learningDueCount == 0 && $0.limits == nil })
+        #expect(counts.reviewsRemainingToday == nil)
+        #expect(counts.unsorted.todayCount == 0)
+    }
+
+    @Test func newDueCountFieldsDecodeAndTolerateBadValues() throws {
+        let json = #"{"subjects":[{"subjectId":"a","dueCount":5,"newCount":2,"reviewTodayCount":3,"learningDueCount":1,"todayCount":6,"limits":{"newCardsPerDay":20,"maxReviewsPerDay":100}},{"subjectId":"b","dueCount":0,"newCount":0,"todayCount":"4.4","limits":"oops"}],"unsorted":{"dueCount":1,"newCount":0,"todayCount":1,"reviewTodayCount":1,"learningDueCount":0},"newRemainingToday":3,"reviewsRemainingToday":42}"#
+        let counts = try JSONDecoder().decode(SubjectReviewDueCounts.self, from: Data(json.utf8))
+
+        #expect(counts.subjects[0].todayCount == 6)
+        #expect(counts.subjects[0].reviewTodayCount == 3)
+        #expect(counts.subjects[0].learningDueCount == 1)
+        #expect(counts.subjects[0].limits == SubjectReviewLimits(newCardsPerDay: 20, maxReviewsPerDay: 100))
+        #expect(counts.subjects[1].todayCount == 4)
+        #expect(counts.subjects[1].limits == nil)
+        #expect(counts.unsorted.todayCount == 1)
+        #expect(counts.reviewsRemainingToday == 42)
+    }
+
     @Test func browserCountsDeriveLearningWhenMissingAndSkipBrokenRows() throws {
         let rows = try Fixture.decode(LossyArray<KnowledgeBrowserSubjectCount>.self, "knowledge-browser-subjects-production-shape").elements
 

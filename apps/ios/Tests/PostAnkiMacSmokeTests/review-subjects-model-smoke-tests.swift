@@ -106,5 +106,53 @@ extension SmokeTests {
             #expect(!model.hasLoaded)
             #expect(model.errorMessage != nil)
         }
+
+        @Test("should show Today per row from the due counts, dim rows with none, and total roots plus unsorted")
+        func showsTodayAndTotals() async {
+            var withToday = routes
+
+            withToday["/knowledge-bits/browser/subjects"] = .json(200, "[{\"subjectId\":\"a\",\"count\":10,\"newCount\":2,\"learningCount\":3,\"matureCount\":5},{\"subjectId\":\"b\",\"count\":4,\"newCount\":4,\"learningCount\":0,\"matureCount\":0}]")
+            withToday["/subjects/review-due-counts"] = .json(200, "{\"subjects\":[{\"subjectId\":\"a\",\"dueCount\":9,\"newCount\":2,\"todayCount\":7,\"reviewTodayCount\":4,\"learningDueCount\":1},{\"subjectId\":\"b\",\"dueCount\":0,\"newCount\":0,\"todayCount\":0}],\"unsorted\":{\"dueCount\":1,\"newCount\":0,\"todayCount\":1},\"newRemainingToday\":2,\"reviewsRemainingToday\":null}")
+
+            let session = FakeServerSession(withToday)
+            defer { session.end() }
+            let model = ReviewSubjectsModel()
+
+            await model.load()
+
+            #expect(model.rows.map(\.todayCount) == [7, 0])
+            #expect(model.rows.map(\.hasNothingDue) == [false, true])
+            #expect(model.rows.first?.maturity.new == 2)
+            #expect(model.rows.first?.accessibilityText == "Algebra, 5 mature, 3 learning, 2 new, 7 today")
+            #expect(model.totalToday == 8)
+            #expect(model.overallMaturity.new == 6)
+        }
+
+        @Test("should bound the total Today by what the app-wide daily limit still allows")
+        func totalBoundedByRemaining() async {
+            var bounded = routes
+
+            bounded["/subjects/review-due-counts"] = .json(200, "{\"subjects\":[{\"subjectId\":\"a\",\"dueCount\":9,\"newCount\":0,\"todayCount\":9},{\"subjectId\":\"b\",\"dueCount\":5,\"newCount\":0,\"todayCount\":5}],\"unsorted\":{\"dueCount\":0,\"newCount\":0},\"newRemainingToday\":0,\"reviewsRemainingToday\":6}")
+
+            let session = FakeServerSession(bounded)
+            defer { session.end() }
+            let model = ReviewSubjectsModel()
+
+            await model.load()
+
+            #expect(model.totalToday == 6)
+        }
+
+        @Test("should treat an older server response without Today fields as zero Today")
+        func oldPayloadHasNoToday() async {
+            let session = FakeServerSession(routes)
+            defer { session.end() }
+            let model = ReviewSubjectsModel()
+
+            await model.load()
+
+            #expect(model.rows.map(\.todayCount) == [0, 0])
+            #expect(model.totalToday == 0)
+        }
     }
 }

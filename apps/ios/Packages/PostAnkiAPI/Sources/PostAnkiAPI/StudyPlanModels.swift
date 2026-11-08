@@ -8,6 +8,7 @@ public enum StudyIntent: String, Codable, Sendable, CaseIterable {
 public struct SubjectStudyOptions: Decodable, Sendable, Equatable {
     public struct Own: Decodable, Sendable, Equatable {
         public let newCardsPerDay: Int?
+        public let maxReviewsPerDay: Int?
         public let learningStepsMinutes: [Int]?
         public let relearningStepsMinutes: [Int]?
         public let desiredRetention: Double?
@@ -25,6 +26,7 @@ public struct SubjectStudyOptions: Decodable, Sendable, Equatable {
 
     public struct Effective: Decodable, Sendable, Equatable {
         public let newCardsPerDay: Int
+        public let maxReviewsPerDay: Int?
         public let learningStepsMinutes: [Int]
         public let relearningStepsMinutes: [Int]
         public let desiredRetention: Double
@@ -32,6 +34,7 @@ public struct SubjectStudyOptions: Decodable, Sendable, Equatable {
 
     public struct Sources: Decodable, Sendable, Equatable {
         public let newCardsPerDay: String
+        public let maxReviewsPerDay: String?
         public let learningStepsMinutes: String
         public let relearningStepsMinutes: String
         public let desiredRetention: String
@@ -99,6 +102,7 @@ public struct SubjectStudyOptionsUpdate: Encodable, Sendable, Equatable {
     public var studyIntent: StudyOptionChange<StudyIntent> = .unchanged
     public var examDate: StudyOptionChange<String> = .unchanged
     public var newCardsPerDay: StudyOptionChange<Int> = .unchanged
+    public var maxReviewsPerDay: StudyOptionChange<Int> = .unchanged
     public var desiredRetention: StudyOptionChange<Double> = .unchanged
     public var detailLevel: StudyOptionChange<DetailLevel> = .unchanged
     public var hintingEnabled: StudyOptionChange<Bool> = .unchanged
@@ -107,12 +111,12 @@ public struct SubjectStudyOptionsUpdate: Encodable, Sendable, Equatable {
 
     public var isEmpty: Bool {
         studyIntent == .unchanged && examDate == .unchanged
-            && newCardsPerDay == .unchanged && desiredRetention == .unchanged
+            && newCardsPerDay == .unchanged && maxReviewsPerDay == .unchanged && desiredRetention == .unchanged
             && detailLevel == .unchanged && hintingEnabled == .unchanged
     }
 
     enum CodingKeys: String, CodingKey {
-        case studyIntent, examDate, newCardsPerDay, desiredRetention, detailLevel, hintingEnabled
+        case studyIntent, examDate, newCardsPerDay, maxReviewsPerDay, desiredRetention, detailLevel, hintingEnabled
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -121,6 +125,7 @@ public struct SubjectStudyOptionsUpdate: Encodable, Sendable, Equatable {
         try Self.write(studyIntent, .studyIntent, to: &container)
         try Self.write(examDate, .examDate, to: &container)
         try Self.write(newCardsPerDay, .newCardsPerDay, to: &container)
+        try Self.write(maxReviewsPerDay, .maxReviewsPerDay, to: &container)
         try Self.write(desiredRetention, .desiredRetention, to: &container)
         try Self.write(detailLevel, .detailLevel, to: &container)
         try Self.write(hintingEnabled, .hintingEnabled, to: &container)

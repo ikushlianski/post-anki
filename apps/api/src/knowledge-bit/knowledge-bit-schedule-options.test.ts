@@ -4,6 +4,7 @@ import { toScheduleOptions } from "./knowledge-bit-schedule-options.js";
 
 const APP = {
   newCardsPerDay: 20,
+  maxReviewsPerDay: 200,
   learningStepsMinutes: [1, 10],
   relearningStepsMinutes: [10],
   desiredRetention: 0.9,

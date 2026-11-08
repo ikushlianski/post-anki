@@ -96,13 +96,24 @@ struct MacReviewSubjectsView<Session: View>: View {
             HStack {
                 Text("All subjects").font(.headline)
                 Spacer()
-                MacReviewCountColumns(new: model.totalNew, repeatCount: model.totalDue)
+                MacReviewCountColumns(
+                    mature: model.overallMaturity.mature,
+                    learning: model.overallMaturity.learning,
+                    new: model.overallMaturity.new,
+                    today: model.totalToday
+                )
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .opacity(ReviewSubjectCountsText.isEmpty(new: model.totalNew, repeatCount: model.totalDue) ? 0.5 : 1)
-        .accessibilityLabel(ReviewSubjectCountsText.accessibilityLabel(name: "All subjects", new: model.totalNew, repeatCount: model.totalDue))
+        .opacity(ReviewSubjectCountsText.isEmpty(today: model.totalToday) ? 0.5 : 1)
+        .accessibilityLabel(ReviewSubjectCountsText.accessibilityLabel(
+            name: "All subjects",
+            mature: model.overallMaturity.mature,
+            learning: model.overallMaturity.learning,
+            new: model.overallMaturity.new,
+            today: model.totalToday
+        ))
     }
 
     private func review(_ item: ReviewSubjectRow) {

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import {
   desiredRetentionSchema,
+  maxReviewsPerDaySchema,
   newCardsPerDaySchema,
   stepsMinutesSchema,
   detailLevelSchema,
@@ -34,6 +35,7 @@ const optionColumns = {
   id: subjects.id,
   parentId: subjects.parentId,
   newCardsPerDay: subjects.newCardsPerDay,
+  maxReviewsPerDay: subjects.maxReviewsPerDay,
   learningStepsMinutes: subjects.learningStepsMinutes,
   relearningStepsMinutes: subjects.relearningStepsMinutes,
   desiredRetention: subjects.desiredRetention,
@@ -48,6 +50,7 @@ function toRow(row: {
   id: string;
   parentId: string | null;
   newCardsPerDay: number | null;
+  maxReviewsPerDay: number | null;
   learningStepsMinutes: number[] | null;
   relearningStepsMinutes: number[] | null;
   desiredRetention: number | null;
@@ -62,6 +65,7 @@ function toRow(row: {
     parentId: row.parentId,
     options: {
       newCardsPerDay: newCardsPerDaySchema.nullable().catch(null).parse(row.newCardsPerDay),
+      maxReviewsPerDay: maxReviewsPerDaySchema.nullable().catch(null).parse(row.maxReviewsPerDay),
       learningStepsMinutes: stepsMinutesSchema.nullable().catch(null).parse(row.learningStepsMinutes),
       relearningStepsMinutes: stepsMinutesSchema
         .nullable()
@@ -91,6 +95,7 @@ export async function writeSubjectStudyOptions(
 ): Promise<boolean> {
   const values = {
     ...(input.newCardsPerDay !== undefined && { newCardsPerDay: input.newCardsPerDay }),
+    ...(input.maxReviewsPerDay !== undefined && { maxReviewsPerDay: input.maxReviewsPerDay }),
     ...(input.learningStepsMinutes !== undefined && {
       learningStepsMinutes: input.learningStepsMinutes,
     }),

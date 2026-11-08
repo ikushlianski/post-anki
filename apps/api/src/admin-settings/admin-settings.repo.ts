@@ -53,6 +53,7 @@ async function parseKnowledgeItemModelId(stored: string): Promise<KnowledgeItemM
 function toStudyDefaults(row: typeof appSettings.$inferSelect): StudyOptions {
   return {
     newCardsPerDay: clampNewCardsPerDay(row.newCardsPerDay),
+    maxReviewsPerDay: clampMaxReviewsPerDay(row.maxReviewsPerDay),
     learningStepsMinutes: stepsMinutesSchema.catch(DEFAULT_LEARNING_STEPS_MINUTES).parse(row.learningStepsMinutes),
     relearningStepsMinutes: stepsMinutesSchema
       .catch(DEFAULT_RELEARNING_STEPS_MINUTES)
@@ -63,6 +64,7 @@ function toStudyDefaults(row: typeof appSettings.$inferSelect): StudyOptions {
 
 const FALLBACK_STUDY_DEFAULTS: StudyOptions = {
   newCardsPerDay: DEFAULT_NEW_CARDS_PER_DAY,
+  maxReviewsPerDay: DEFAULT_MAX_REVIEWS_PER_DAY,
   learningStepsMinutes: DEFAULT_LEARNING_STEPS_MINUTES,
   relearningStepsMinutes: DEFAULT_RELEARNING_STEPS_MINUTES,
   desiredRetention: DEFAULT_DESIRED_RETENTION,

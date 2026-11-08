@@ -72,6 +72,37 @@ struct StudyPlanDecodingTests {
         #expect(SubjectStudyOptionsUpdate().isEmpty)
     }
 
+    @Test("should decode an old study options payload without the review cap")
+    func decodesOldPayloadWithoutReviewCap() throws {
+        let value = try options()
+
+        #expect(value.own.maxReviewsPerDay == nil)
+        #expect(value.effective.maxReviewsPerDay == nil)
+        #expect(value.sources.maxReviewsPerDay == nil)
+        #expect(StudyPlanDraft(value).maxReviewsPerDay == nil)
+    }
+
+    @Test("should decode the review cap and send it, inherit it as null, or leave it out")
+    func reviewCapRoundTrip() throws {
+        let payload = #"{"own":{"newCardsPerDay":null,"maxReviewsPerDay":50,"learningStepsMinutes":null,"relearningStepsMinutes":null,"desiredRetention":null,"studyIntent":null,"examDate":null},"intent":{"studyIntent":"long_term","examDate":null,"source":"app"},"effective":{"newCardsPerDay":20,"maxReviewsPerDay":50,"learningStepsMinutes":[1,10],"relearningStepsMinutes":[10],"desiredRetention":0.9},"sources":{"newCardsPerDay":"app","maxReviewsPerDay":"s1","learningStepsMinutes":"app","relearningStepsMinutes":"app","desiredRetention":"app"}}"#
+        let value = try JSONDecoder().decode(SubjectStudyOptions.self, from: Data(payload.utf8))
+
+        #expect(value.own.maxReviewsPerDay == 50)
+        #expect(value.effective.maxReviewsPerDay == 50)
+        #expect(value.sources.maxReviewsPerDay == "s1")
+
+        var draft = StudyPlanDraft(value)
+
+        #expect(draft.update(from: value).isEmpty)
+
+        draft.maxReviewsPerDay = 0
+        #expect(try json(draft.update(from: value))["maxReviewsPerDay"] as? Int == 0)
+
+        draft.maxReviewsPerDay = nil
+        #expect(try json(draft.update(from: value))["maxReviewsPerDay"] is NSNull)
+        #expect(try json(SubjectStudyOptionsUpdate())["maxReviewsPerDay"] == nil)
+    }
+
     @Test("should send Exam together with its date in one change")
     func examSendsDate() throws {
         var draft = StudyPlanDraft(try options())
@@ -127,7 +158,7 @@ struct StudyPlanDecodingTests {
         var changed = saved.own
 
         changed = SubjectStudyOptions.Own(
-            newCardsPerDay: nil, learningStepsMinutes: nil, relearningStepsMinutes: nil,
+            newCardsPerDay: nil, maxReviewsPerDay: nil, learningStepsMinutes: nil, relearningStepsMinutes: nil,
             desiredRetention: nil, studyIntent: .exam, examDate: "2027-02-01"
         )
 
