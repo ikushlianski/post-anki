@@ -38,8 +38,10 @@ final class ChatQueueThreadModel {
     var proposalErrors: [ChatQueueProposalKey: String] = [:]
     var awaitsRejectExplanation = false
     var composerFocusRequests = 0
+    var followUps = ChatQueueFollowUpQueue()
 
     @ObservationIgnored private var retryId: (text: String, id: String)?
+    @ObservationIgnored var inFlightRetryDelay: Duration = .seconds(1)
     @ObservationIgnored private let counts: ChatQueueCountStore
     @ObservationIgnored private let drafts: ChatQueueDraftStoring
 
@@ -55,7 +57,7 @@ final class ChatQueueThreadModel {
     var limitReached: Bool { capReached || turnsLeft <= 0 }
 
     var canSend: Bool {
-        !limitReached && !budgetPaused && !isSending && !isResolving && !isDeleting
+        !limitReached && !budgetPaused && !isResolving && !isDeleting && (!isSending || !followUps.isFull)
             && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -86,12 +88,22 @@ final class ChatQueueThreadModel {
     func send(_ preset: String? = nil) async {
         let text = (preset ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !text.isEmpty, !isSending, !isResolving, !isDeleting, !limitReached, !budgetPaused else { return }
+        guard !text.isEmpty, !isResolving, !isDeleting, !limitReached, !budgetPaused else { return }
+
+        if isSending {
+            guard preset == nil, followUps.enqueue(text) != nil else { return }
+
+            draft = ""
+
+            return
+        }
 
         isSending = true
         defer { isSending = false }
 
-        await deliver(text, keepDraft: preset != nil)
+        let failure = await deliver(text, keepDraft: preset != nil)
+
+        if failure != nil { appendFollowUpsToDraft() } else { await drainFollowUps() }
     }
 
     var canRetryLast: Bool {
@@ -146,11 +158,14 @@ final class ChatQueueThreadModel {
             return
         }
 
-        await deliver(question, keepDraft: true, merges: true)
+        let failure = await deliver(question, keepDraft: true, merges: true)
+
+        if failure != nil { appendFollowUpsToDraft() } else { await drainFollowUps() }
     }
 
-    private func deliver(_ text: String, keepDraft: Bool, merges: Bool = false) async {
-        let clientId = retryId?.text == text ? retryId?.id ?? UUID().uuidString : UUID().uuidString
+    @discardableResult
+    func deliver(_ text: String, keepDraft: Bool, merges: Bool = false, clientId queuedId: String? = nil) async -> ChatQueueFailure? {
+        let clientId = queuedId ?? (retryId?.text == text ? retryId?.id ?? UUID().uuidString : UUID().uuidString)
         let line = ChatQueueLine(id: "u-\(clientId)", isUser: true, text: text)
 
         retryId = (text, clientId)
@@ -161,11 +176,7 @@ final class ChatQueueThreadModel {
         errorMessage = nil
 
         do {
-            let result = try await APIClient.sendChatQueueMessage(
-                id: item.id,
-                clientMessageId: clientId,
-                message: text
-            )
+            let result = try await sendIdempotently(text, clientId: clientId)
 
             awaitsRejectExplanation = false
             lines.append(ChatQueueLine(
@@ -178,6 +189,8 @@ final class ChatQueueThreadModel {
             turnsLeft = result.turnsLeft
             capReached = result.capReached
             retryId = nil
+
+            return nil
         } catch {
             lines.removeAll { $0.id == line.id }
 
@@ -187,7 +200,23 @@ final class ChatQueueThreadModel {
                 draft = text
             }
 
-            handle(ChatQueueFailure.failure(for: error))
+            let failure = ChatQueueFailure.failure(for: error)
+
+            handle(failure)
+
+            return failure
+        }
+    }
+
+    private func sendIdempotently(_ text: String, clientId: String) async throws -> ChatQueueReply {
+        do {
+            return try await APIClient.sendChatQueueMessage(id: item.id, clientMessageId: clientId, message: text)
+        } catch {
+            guard ChatQueueFailure.failure(for: error) == .inFlight else { throw error }
+
+            try await Task.sleep(for: inFlightRetryDelay)
+
+            return try await APIClient.sendChatQueueMessage(id: item.id, clientMessageId: clientId, message: text)
         }
     }
 

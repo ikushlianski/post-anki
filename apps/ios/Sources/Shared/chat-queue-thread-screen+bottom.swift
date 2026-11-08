@@ -35,7 +35,7 @@ extension ChatQueueThreadScreen {
         } else {
             ChatQueueComposer(
                 draft: $model.draft,
-                placeholder: model.awaitsRejectExplanation ? "What is wrong with it?" : "Ask about this card",
+                placeholder: model.sendPlaceholder,
                 canSend: model.canSend,
                 turnsLeft: model.turnsLeft,
                 focused: $composerFocused,

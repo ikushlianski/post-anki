@@ -41,6 +41,14 @@ struct ChatQueueThreadScreen: View {
                         .accessibilityElement(children: .combine)
                     }
 
+                    ForEach(model.queuedFollowUps) { followUp in
+                        ChatQueueFollowUpBubble(
+                            followUp: followUp,
+                            onCancel: { Task { await model.cancelFollowUp(followUp.id) } },
+                            onRetry: { Task { await model.retryFollowUp(followUp.id) } }
+                        )
+                    }
+
                     if let notice = model.noticeMessage {
                         Text(notice)
                             .zoomFont(.caption)
