@@ -1,3 +1,4 @@
+import PostAnkiAPI
 import SwiftUI
 
 @main
@@ -6,6 +7,7 @@ struct PostAnkiMacApp: App {
 
     init() {
         MacLaunchCheck.applyDevAddress()
+        APIClient.publishSharedBaseURL()
         MacQueueFlushTrigger.shared.start()
         #if DEBUG
         Self.applyDevDockIcon()

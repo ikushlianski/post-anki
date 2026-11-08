@@ -9,7 +9,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the package, shared screens
 
 - Triage: pending items. The tab badge shows the number of pending items. Pending items show a summary ("N cards are waiting for your decision", with writing progress while cards are still being made) and a Start triage button that opens focus triage.
 - Review: subject list, then one-card-at-a-time review with grade buttons, undo and offline queuing. Grades made offline are queued and sent later.
-- Add: add knowledge by typing, dictating or pasting text, or by pasting a single link. Pick a subject (or "No subject"); inside a course the course's subject is used and the picker is hidden. A refused input shows a plain sentence (page could not be opened, no readable text, subject missing, already added, text over 50,000 characters). "Already added" offers Add anyway, which resends the same input with force. After extraction finishes, "Review new items" opens focus triage when cards are pending.
+- Add: add knowledge by typing, dictating or pasting text, or by pasting a single link. For typed or pasted text, select words and tap Highlight selection to tell the AI which parts to focus on when writing questions (up to 20; Clear highlights removes them; not sent for links). Pick a subject (or "No subject"); inside a course the course's subject is used and the picker is hidden. A refused input shows a plain sentence (page could not be opened, no readable text, subject missing, already added, text over 50,000 characters). "Already added" offers Add anyway, which resends the same input with force. After extraction finishes, "Review new items" opens focus triage when cards are pending.
 - Chat: the queue of items parked from triage for a chat. The tab badge shows the queue count.
 - More: the remaining screens, grouped in sections.
 
@@ -134,6 +134,12 @@ Debug builds of `PostAnkiMac` (the dev copy) use `AppIconDev`, the iOS PA icon w
 ```sh
 swift scripts/generate-mac-dev-icon.swift "$PWD"
 ```
+
+### Share extension (Mac)
+
+Selecting text in any app and choosing Share > Post Anki opens a small panel with a subject picker (default Auto, which sends no subject so the server sorts it), Save, and plain success or error messages. It lives in target `PostAnkiMacShare` (bundle id `com.ikushlianski.postankimac.share`, embedded in the Mac app).
+
+The extension is a separate process, so it reads the sign-in token from a shared keychain group and the server address from App Group defaults. Sharing is off by default (the app and extension then behave as before, and the extension reports it is signed out). To turn it on, once the App ID, App Group and profiles exist, uncomment the three `POSTANKI_*` sharing lines from `Local.xcconfig.example` in `Local.xcconfig` and regenerate. The app copies an existing login into the shared group the first time it reads it, so nobody has to sign in again. Then enable the extension once in System Settings > Extensions > Sharing.
 
 ### Settings
 

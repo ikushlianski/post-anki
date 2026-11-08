@@ -103,9 +103,13 @@ targets:
     dependencies:
       - package: PostAnkiAPI
       - package: PowerSync
+      - target: PostAnkiMacShare
+        embed: true
     info:
       path: Config/PostAnkiMac-Info.plist
       properties:
+        PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
+        PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
         CFBundleDisplayName: $(INFOPLIST_KEY_CFBundleDisplayName)
         CFBundleName: Post Anki
         PostAnkiBandLabel: $(POSTANKI_BAND_LABEL)
@@ -113,11 +117,6 @@ targets:
         PostAnkiDevAPIToken: $(POSTANKI_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
-    entitlements:
-      path: Config/PostAnkiMac.entitlements
-      properties:
-        com.apple.security.app-sandbox: true
-        com.apple.security.network.client: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac
@@ -129,9 +128,11 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMac$(POSTANKI_SHARING_SUFFIX).entitlements
         Debug:
           OTHER_LDFLAGS: "$(inherited) -Xlinker -interposable"
-          CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMac.debug.entitlements
+          CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMac.debug$(POSTANKI_SHARING_SUFFIX).entitlements
           ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDev
           INFOPLIST_KEY_CFBundleDisplayName: Post Anki Dev
           POSTANKI_BAND_LABEL: DEV
@@ -139,6 +140,36 @@ targets:
       testTargets:
         - PostAnkiMacSmokeTests
         - PostAnkiMacRegistryTests
+
+  PostAnkiMacShare:
+    type: app-extension
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/PostAnkiMacShare
+    dependencies:
+      - package: PostAnkiAPI
+    info:
+      path: Config/PostAnkiMacShare-Info.plist
+      properties:
+        CFBundleDisplayName: Post Anki
+        CFBundleName: Post Anki
+        PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
+        PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac.share
+        PRODUCT_NAME: PostAnkiShare
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMacShare$(POSTANKI_SHARING_SUFFIX).entitlements
+        SKIP_INSTALL: YES
 
   PostAnkiMacSmokeTests:
     type: bundle.unit-test

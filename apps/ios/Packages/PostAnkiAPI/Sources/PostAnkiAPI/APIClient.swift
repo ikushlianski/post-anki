@@ -29,7 +29,11 @@ public enum APIClient {
 
     public static var baseURLString: String {
         get {
-            resolveBaseURL(
+            if SharedAccess.current.isExtension {
+                return resolveBaseURL(saved: SharedAccess.publishedBaseURL(from: SharedAccess.current.defaults), fallback: nil)
+            }
+
+            return resolveBaseURL(
                 launchArgument: launchArgumentValue,
                 saved: savedValue,
                 fallback: fallback.value
@@ -37,7 +41,14 @@ public enum APIClient {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: savedKey)
+            publishSharedBaseURL()
         }
+    }
+
+    public static func publishSharedBaseURL() {
+        guard !SharedAccess.current.isExtension else { return }
+
+        SharedAccess.publish(baseURL: baseURLString, to: SharedAccess.current.defaults)
     }
 
     public static var hasSavedBaseURL: Bool {
@@ -62,6 +73,7 @@ public enum APIClient {
 
     public static func clearSavedBaseURL() {
         UserDefaults.standard.removeObject(forKey: savedKey)
+        publishSharedBaseURL()
     }
 
     static func resolveBaseURL(launchArgument: String? = nil, saved: String?, fallback: String?) -> String {

@@ -23,3 +23,8 @@ POSTANKI_POWERSYNC_TOKEN =
 
 # Optional Debug dev token (saved to the keychain at launch):
 # POSTANKI_DEV_API_TOKEN =
+
+// Mac Share extension sharing (needs the App Group and profiles from the README). Uncomment all three.
+// POSTANKI_SHARING_SUFFIX = .shared
+// POSTANKI_KEYCHAIN_GROUP = HXJTYD6A7J.com.ikushlianski.postanki.shared
+// POSTANKI_APP_GROUP = HXJTYD6A7J.com.ikushlianski.postanki

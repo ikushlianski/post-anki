@@ -9,4 +9,9 @@ POSTANKI_LOCAL_DEV_API_TOKEN =
 POSTANKI_POWERSYNC_URL =
 POSTANKI_POWERSYNC_TOKEN =
 
+// Mac Share extension: leave empty until the App Group, keychain group and provisioning profiles exist (see README). Local.xcconfig turns sharing on.
+POSTANKI_SHARING_SUFFIX =
+POSTANKI_KEYCHAIN_GROUP =
+POSTANKI_APP_GROUP =
+
 #include? "../Local.xcconfig"

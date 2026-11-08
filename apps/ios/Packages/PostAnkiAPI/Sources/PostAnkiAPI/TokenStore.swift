@@ -24,7 +24,34 @@ public enum TokenStore {
         cache.read(load: readKeychain)
     }
 
+    private static var sharedIdentity: [String: Any]? {
+        #if os(macOS)
+        guard let group = SharedAccess.current.keychainGroup else { return nil }
+
+        var query = identity
+        query[kSecAttrAccessGroup as String] = group
+        query[kSecUseDataProtectionKeychain as String] = kCFBooleanTrue
+
+        return query
+        #else
+        return nil
+        #endif
+    }
+
     private static func readKeychain() -> String? {
+        let access = SharedAccess.current
+        let shared = sharedIdentity.flatMap(readItem)
+        let legacy = access.isExtension ? nil : readItem(identity)
+        let outcome = TokenResolution.resolve(shared: shared, legacy: legacy, sharedAvailable: sharedIdentity != nil)
+
+        if outcome.copyToShared, let token = outcome.token, let target = sharedIdentity {
+            try? writeItem(target, token: token)
+        }
+
+        return outcome.token
+    }
+
+    private static func readItem(_ identity: [String: Any]) -> String? {
         var query = identity
         query[kSecReturnData as String] = kCFBooleanTrue
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -51,17 +78,23 @@ public enum TokenStore {
             throw TokenStoreError(status: errSecParam)
         }
 
-        let data = Data(trimmed.utf8)
+        try writeItem(identity, token: trimmed)
+
+        if let target = sharedIdentity {
+            try? writeItem(target, token: trimmed)
+        }
+
+        cache.set(trimmed)
+    }
+
+    private static func writeItem(_ identity: [String: Any], token: String) throws {
+        let data = Data(token.utf8)
         let updateStatus = SecItemUpdate(
             identity as CFDictionary,
             [kSecValueData as String: data] as CFDictionary
         )
 
-        if updateStatus == errSecSuccess {
-            cache.set(trimmed)
-
-            return
-        }
+        if updateStatus == errSecSuccess { return }
 
         guard updateStatus == errSecItemNotFound else {
             throw TokenStoreError(status: updateStatus)
@@ -78,11 +111,13 @@ public enum TokenStore {
         guard addStatus == errSecSuccess else {
             throw TokenStoreError(status: addStatus)
         }
-
-        cache.set(trimmed)
     }
 
     public static func clear() throws {
+        if let target = sharedIdentity {
+            _ = SecItemDelete(target as CFDictionary)
+        }
+
         let status = SecItemDelete(identity as CFDictionary)
 
         guard status == errSecSuccess || status == errSecItemNotFound else {
