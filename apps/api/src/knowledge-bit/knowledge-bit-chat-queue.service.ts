@@ -1,20 +1,14 @@
 import {
-  CHAT_QUEUE_MAX_PROPOSALS,
   CHAT_QUEUE_REPLY_MAX_TOKENS,
   type ChatQueueErrorCode,
   type ChatQueueThread,
-  type RelatedCardSuggestion,
+  type ChatQueueProposal,
   type SendChatQueueMessageInput,
   type SendChatQueueMessageResult,
 } from "@post-anki/shared";
-import { RequestContext } from "@mastra/core/request-context";
 import { getDb } from "../db/client.js";
 import { countRecentLlmCallEventsByOp } from "../llm-call-events/llm-call-events.repo.js";
 import { AGENT_KEYS, getMastra, startTracingSpan } from "../mastra/mastra.js";
-import {
-  CHAT_QUEUE_FALLBACK_CONTEXT_KEY,
-  CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY,
-} from "../mastra/knowledge-bit-chat-queue.agent.js";
 import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
 import { generateWithRetry, isRateLimitError } from "../mastra/generate-with-retry.js";
 import { log } from "../shared/log.js";
@@ -30,7 +24,8 @@ import {
   type ChatQueueTraceMetadata,
   type ChatQueueTraceOutcome,
 } from "./knowledge-bit-chat-queue.trace.js";
-import { extractRelatedCards } from "./knowledge-bit-chat-suggestions.js";
+import { createChatQueueProposalSink, type ChatQueueProposalSink } from "./knowledge-bit-chat-queue-proposal-sink.js";
+import { buildChatQueueRunOptions } from "./knowledge-bit-chat-queue-run-options.js";
 import { buildChatQueuePrompt } from "./knowledge-bit-chat-queue.prompt.js";
 import { loadChatCardContext, lockChatState } from "./knowledge-bit-chat-queue.repo.js";
 import {
@@ -44,12 +39,15 @@ import {
 } from "./knowledge-bit-chat-queue-messages.repo.js";
 
 export const CHAT_QUEUE_REPLY_OP = "knowledge_bit_chat_queue_reply";
-export const CHAT_QUEUE_HOURLY_CAP = 60;
+export const CHAT_QUEUE_HOURLY_CAP = 30;
 const HOUR_MS = 60 * 60 * 1000;
-const WEB_REPLY_MAX_STEPS = 4;
+const PROPOSAL_ONLY_REPLY = "I put together a card proposal for you below.";
 
 export interface SendChatQueueMessageOptions {
   webTools?: KnowledgeBitChatToolsDeps;
+  getWebUsage?: () => { searches: number; fetches: number };
+  proposalTools?: boolean;
+  lightModel?: boolean;
 }
 
 export type ChatQueueFailure = ChatQueueErrorCode | "not_found" | "no_messages" | "model_failed";
@@ -78,7 +76,13 @@ function replayOf(messages: StoredChatMessage[], clientMessageId: string): SendC
 
   const { turnsLeft, capReached } = threadOf(messages);
 
-  return { reply: reply.text, turnsLeft, capReached };
+  return {
+    reply: reply.text,
+    replySeq: reply.seq,
+    ...(reply.proposals?.length ? { proposals: reply.proposals } : {}),
+    turnsLeft,
+    capReached,
+  };
 }
 
 export async function getChatQueueThread(bitId: string): Promise<ChatQueueResult<ChatQueueThread>> {
@@ -116,25 +120,33 @@ async function persistTurn(
   input: SendChatQueueMessageInput,
   reply: string,
   usage: { inputTokens: number | null; outputTokens: number | null },
-): Promise<ChatQueueFailure | null> {
+  proposals: ChatQueueProposal[],
+): Promise<{ error: ChatQueueFailure } | { replySeq: number }> {
   try {
     return await getDb().transaction(async (tx) => {
       if (!isChatThreadState(await lockChatState(tx, bitId))) {
-        return "not_in_chat" as const;
+        return { error: "not_in_chat" as const };
       }
 
-      await insertChatTurn(
+      const replySeq = await insertChatTurn(
         bitId,
-        { clientMessageId: input.clientMessageId, userText: input.message, assistantText: reply, modelId: null, ...usage },
+        {
+          clientMessageId: input.clientMessageId,
+          userText: input.message,
+          assistantText: reply,
+          modelId: null,
+          ...usage,
+          proposals,
+        },
         tx,
       );
 
-      return null;
+      return { replySeq };
     });
   } catch (err) {
     log.warn({ err, bitId }, "chat_queue_persist_failed");
 
-    return "in_flight";
+    return { error: "in_flight" };
   }
 }
 
@@ -187,7 +199,7 @@ export async function sendChatQueueMessage(
       (value) => {
         outcome = value;
       },
-      options.webTools,
+      options,
     );
 
     if (result.ok) {
@@ -197,7 +209,7 @@ export async function sendChatQueueMessage(
     return result;
   } finally {
     inFlight.delete(bitId);
-    span?.end({ output: { ...traceMetadata, outcome } });
+    span?.end({ output: { ...traceMetadata, outcome, ...options.getWebUsage?.() } });
   }
 }
 
@@ -208,7 +220,7 @@ async function generateReply(
   messages: StoredChatMessage[],
   traceMetadata: ChatQueueTraceMetadata,
   setOutcome: (outcome: ChatQueueTraceOutcome) => void,
-  webTools?: KnowledgeBitChatToolsDeps,
+  options: SendChatQueueMessageOptions,
 ): Promise<ChatQueueResult<SendChatQueueMessageResult>> {
   const blocked = await budgetGate();
 
@@ -222,35 +234,39 @@ async function generateReply(
     body: card.body,
     background: card.background,
     sourceText: card.sourceText,
+    sourceAuthor: card.sourceAuthor,
+    sourceUrl: card.sourceUrl,
     history: toPublicMessages(messages),
     message: input.message,
   });
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitChatQueue);
 
   let reply: string;
-  let suggestions: RelatedCardSuggestion[] | undefined;
+  let sink: ChatQueueProposalSink = createChatQueueProposalSink();
   let usage: { inputTokens: number | null; outputTokens: number | null };
 
   try {
+    const earlier = messages.flatMap((entry) => entry.proposals ?? []);
     const run = (fallback: boolean) =>
       generateWithRetry(
         CHAT_QUEUE_REPLY_OP,
         null,
         AGENT_KEYS.knowledgeBitChatQueue,
-        () =>
-          agent.generate(prompt, {
-            maxSteps: webTools ? WEB_REPLY_MAX_STEPS : 1,
+        () => {
+          sink = createChatQueueProposalSink(earlier);
+
+          return agent.generate(prompt, {
             modelSettings: { maxOutputTokens: CHAT_QUEUE_REPLY_MAX_TOKENS },
             tracingOptions: buildChatQueueTracingOptions(traceMetadata),
-            ...(fallback || webTools
-              ? {
-                  requestContext: new RequestContext<unknown>([
-                    ...(fallback ? ([[CHAT_QUEUE_FALLBACK_CONTEXT_KEY, true]] as [string, unknown][]) : []),
-                    ...(webTools ? ([[CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY, webTools]] as [string, unknown][]) : []),
-                  ]),
-                }
-              : {}),
-          }),
+            ...buildChatQueueRunOptions({
+              fallback,
+              webTools: options.webTools,
+              lightModel: options.lightModel,
+              sink: options.proposalTools !== false ? sink : undefined,
+              allowUpdate: card.approvalState === "chat",
+            }),
+          });
+        },
         { knowledgeBitId: bitId },
       );
     const result = await run(false).catch((err: unknown) => {
@@ -263,10 +279,7 @@ async function generateReply(
       return run(true);
     });
 
-    const extracted = extractRelatedCards(result.text?.trim() ?? "", [], 0);
-
-    reply = extracted.reply;
-    suggestions = extracted.suggestions?.slice(0, CHAT_QUEUE_MAX_PROPOSALS);
+    reply = result.text?.trim() ?? "";
     usage = {
       inputTokens: result.totalUsage?.inputTokens ?? result.usage?.inputTokens ?? null,
       outputTokens: result.totalUsage?.outputTokens ?? result.usage?.outputTokens ?? null,
@@ -284,23 +297,35 @@ async function generateReply(
     return { ok: false, error: "model_failed" };
   }
 
+  const proposals = sink.list();
+
+  if (!reply && proposals.length) {
+    reply = PROPOSAL_ONLY_REPLY;
+  }
+
   if (!reply) {
     return { ok: false, error: "model_failed" };
   }
 
-  const persistError = await persistTurn(bitId, input, reply, usage);
+  const persisted = await persistTurn(bitId, input, reply, usage, proposals);
 
-  if (persistError) {
+  if ("error" in persisted) {
     const replay = replayOf(await listChatQueueMessages(bitId), input.clientMessageId);
 
-    return replay ? { ok: true, value: replay } : { ok: false, error: persistError };
+    return replay ? { ok: true, value: replay } : { ok: false, error: persisted.error };
   }
 
   const turnsLeft = Math.max(0, turnsLeftFor(messages) - 1);
 
   return {
     ok: true,
-    value: { reply, ...(suggestions?.length ? { suggestions } : {}), turnsLeft, capReached: turnsLeft === 0 },
+    value: {
+      reply,
+      replySeq: persisted.replySeq,
+      ...(proposals.length ? { proposals } : {}),
+      turnsLeft,
+      capReached: turnsLeft === 0,
+    },
   };
 }
 

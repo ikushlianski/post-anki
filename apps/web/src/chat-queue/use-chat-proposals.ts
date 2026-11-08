@@ -1,14 +1,15 @@
 import { useCallback, useRef, useState } from 'react'
-import type { RelatedCardSuggestion } from '@post-anki/shared'
+import type { ChatQueueProposal } from '@post-anki/shared'
 
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
 import { chatQueueFailureFromThrown, chatQueueFailureMessage } from './chat-queue-failure'
-import { createCardFromChatMessage } from './chat-queue.api'
+import { acceptChatQueueProposal, rejectChatQueueProposal } from './chat-queue.api'
+
+export type ProposalDecision = 'accept' | 'reject'
 
 export type ProposalStatus =
   | { state: 'idle' }
   | { state: 'saving' }
-  | { state: 'approved' }
   | { state: 'error'; message: string }
 
 const IDLE: ProposalStatus = { state: 'idle' }
@@ -17,7 +18,16 @@ function keyOf(lineId: string, index: number): string {
   return `${lineId}:${index}`
 }
 
-export function useChatProposals(bitId: string) {
+interface Options {
+  onDecided: (
+    lineId: string,
+    index: number,
+    decision: Pick<ChatQueueProposal, 'status' | 'savedCardId'>,
+  ) => void
+  onRejected: () => void
+}
+
+export function useChatProposals(bitId: string, { onDecided, onRejected }: Options) {
   const [statuses, setStatuses] = useState<Record<string, ProposalStatus>>({})
   const inFlight = useRef(new Set<string>())
 
@@ -26,12 +36,16 @@ export function useChatProposals(bitId: string) {
     [statuses],
   )
 
-  const approve = useCallback(
-    async (lineId: string, seq: number, index: number, proposal: RelatedCardSuggestion) => {
-      const key = keyOf(lineId, index)
-      const current = statuses[key]?.state
+  const decide = useCallback(
+    async (
+      lineId: string,
+      seq: number,
+      proposal: ChatQueueProposal,
+      decision: ProposalDecision,
+    ) => {
+      const key = keyOf(lineId, proposal.index)
 
-      if (inFlight.current.has(key) || current === 'saving' || current === 'approved') {
+      if (proposal.status !== 'pending' || inFlight.current.has(key)) {
         return
       }
 
@@ -42,22 +56,21 @@ export function useChatProposals(bitId: string) {
       set({ state: 'saving' })
 
       try {
-        const outcome = await createCardFromChatMessage({
-          data: {
-            bitId,
-            seq,
-            card: {
-              front: proposal.front,
-              back: proposal.back,
-              ...(proposal.example ? { example: proposal.example } : {}),
-              approve: true,
-            },
-          },
-        })
+        const call = decision === 'accept' ? acceptChatQueueProposal : rejectChatQueueProposal
+        const outcome = await call({ data: { bitId, seq, index: proposal.index } })
 
         if (outcome.ok) {
-          set({ state: 'approved' })
-          notifyPendingReviewChanged()
+          set(IDLE)
+          onDecided(lineId, proposal.index, {
+            status: outcome.data.status,
+            ...(outcome.data.savedCardId ? { savedCardId: outcome.data.savedCardId } : {}),
+          })
+
+          if (decision === 'accept') {
+            notifyPendingReviewChanged()
+          } else {
+            onRejected()
+          }
         } else {
           set({ state: 'error', message: chatQueueFailureMessage(outcome.failure) })
         }
@@ -67,8 +80,8 @@ export function useChatProposals(bitId: string) {
         inFlight.current.delete(key)
       }
     },
-    [bitId, statuses],
+    [bitId, onDecided, onRejected],
   )
 
-  return { statusOf, approve }
+  return { statusOf, decide }
 }

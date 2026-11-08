@@ -1058,6 +1058,20 @@
       "when": 1793978093349,
       "tag": "0150_split_webdev_courses_into_subsubjects",
       "breakpoints": true
+    },
+    {
+      "idx": 151,
+      "version": "7",
+      "when": 1794087042100,
+      "tag": "0151_panoramic_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1794087493911,
+      "tag": "0152_smooth_leech",
+      "breakpoints": true
     }
   ]
 }

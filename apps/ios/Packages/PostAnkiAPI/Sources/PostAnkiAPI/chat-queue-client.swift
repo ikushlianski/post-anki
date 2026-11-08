@@ -57,14 +57,15 @@ extension APIClient {
 }
 
 extension APIClient {
-    @discardableResult
-    public static func createCardFromChatQueueMessage(id: String, draft: ChatQueueCardDraft) async throws -> String {
-        let result: CreateChatQueueCardResult = try await request(
-            "/knowledge-bits/\(encodedSegment(id))/chat-messages/\(draft.seq)/card",
-            method: "POST",
-            body: CreateChatQueueCardInput(front: draft.trimmedFront, back: draft.trimmedBack)
+    public static func decideChatQueueProposal(
+        id: String,
+        seq: Int,
+        index: Int,
+        decision: ChatQueueProposalDecision
+    ) async throws -> ChatQueueProposalDecisionResult {
+        try await request(
+            "/knowledge-bits/\(encodedSegment(id))/chat-messages/\(seq)/proposals/\(index)/\(decision.pathComponent)",
+            method: "POST"
         )
-
-        return result.id
     }
 }

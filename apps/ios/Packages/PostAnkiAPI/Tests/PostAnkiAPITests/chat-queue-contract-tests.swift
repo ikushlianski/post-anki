@@ -168,6 +168,8 @@ extension NetworkContracts {
             #expect(request.body?["message"] as? String == "Why?")
             #expect(reply.capReached == true)
             #expect(reply.turnsLeft == 0)
+            #expect(reply.replySeq == 2)
+            #expect(reply.proposals.isEmpty)
         }
 
         @Test("should read an unknown message role as an assistant message instead of failing the thread")
@@ -242,46 +244,6 @@ extension NetworkContracts {
             #expect(failure == .offline)
             #expect(failure.canRetry)
             #expect(ChatQueueFailure.capReached.canRetry == false)
-        }
-
-        @Test("should save a chat reply as a card with trimmed front and back and return its id")
-        func savesCard() async throws {
-            RecordingStub.install(status: 201, body: Data(#"{"ok":true,"id":"kb_9"}"#.utf8))
-
-            let id = try await APIClient.createCardFromChatQueueMessage(
-                id: "kb_1",
-                draft: ChatQueueCardDraft(seq: 4, front: "  Q?  ", back: " A \n")
-            )
-            let request = try #require(RecordingStub.last)
-
-            #expect(id == "kb_9")
-            #expect(request.method == "POST")
-            #expect(request.path == "/knowledge-bits/kb_1/chat-messages/4/card")
-            #expect(request.body?["front"] as? String == "Q?")
-            #expect(request.body?["back"] as? String == "A")
-        }
-
-        @Test("should allow saving only when both sides are filled and within the web caps")
-        func cardDraftRules() {
-            #expect(ChatQueueCardDraft(seq: 1, front: "Q", back: "A").isSavable)
-            #expect(ChatQueueCardDraft(seq: 1, front: "  ", back: "A").isSavable == false)
-            #expect(ChatQueueCardDraft(seq: 1, front: "Q", back: "\n").isSavable == false)
-            #expect(ChatQueueCardDraft(seq: 1, front: String(repeating: "f", count: 301), back: "A").isSavable == false)
-            #expect(ChatQueueCardDraft(seq: 1, front: "Q", back: String(repeating: "b", count: 601)).isSavable == false)
-        }
-
-        @Test("should map card save errors to a failure the thread can show")
-        func mapsCardSaveFailures() async throws {
-            for (status, code, expected) in [(409, "not_in_chat", ChatQueueFailure.notInChat), (404, "not_found", .notFound), (422, "not_assistant_message", .other)] {
-                RecordingStub.install(status: status, body: Data(#"{"error":"\#(code)"}"#.utf8))
-
-                do {
-                    _ = try await APIClient.createCardFromChatQueueMessage(id: "kb_1", draft: ChatQueueCardDraft(seq: 1, front: "Q", back: "A"))
-                    Issue.record("expected a failure")
-                } catch {
-                    #expect(ChatQueueFailure.failure(for: error) == expected)
-                }
-            }
         }
     }
 }

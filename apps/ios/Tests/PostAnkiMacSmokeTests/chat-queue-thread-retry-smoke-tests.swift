@@ -10,7 +10,7 @@ extension SmokeTests {
         private let deletePath = "/knowledge-bits/k1/chat-queue/messages/last"
         private let thread = #"{"messages":[{"seq":1,"role":"user","text":"Why?","createdAt":"t"},{"seq":2,"role":"assistant","text":"Because.","createdAt":"t"}],"turnsLeft":6,"capReached":false}"#
         private let deleted = #"{"turnsLeft":7,"capReached":false}"#
-        private let reply = #"{"reply":"Better answer","turnsLeft":6,"capReached":false}"#
+        private let reply = #"{"reply":"Better answer","replySeq":4,"turnsLeft":6,"capReached":false}"#
 
         private func make(
             delete: FakeReply,

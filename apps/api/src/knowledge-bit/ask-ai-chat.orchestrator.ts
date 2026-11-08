@@ -70,7 +70,7 @@ async function answerAskAiBit(
   const result = await deps.sendMessage(
     bitId,
     { clientMessageId: `ask-ai-${sourceId}`.slice(0, 100), message: gapText },
-    { webTools: webTools.deps },
+    { webTools: webTools.deps, getWebUsage: webTools.getUsage, proposalTools: false, lightModel: true },
   );
 
   if (!result.ok) {

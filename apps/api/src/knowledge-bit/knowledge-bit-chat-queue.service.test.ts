@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CHAT_QUEUE_MAX_USER_TURNS, CHAT_QUEUE_REPLY_MAX_TOKENS } from "@post-anki/shared";
 
+function stepLimit(stopWhen: Array<(state: { steps: unknown[] }) => boolean>): number {
+  let count = 1;
+
+  while (!stopWhen.some((check) => check({ steps: new Array(count).fill({ usage: {} }) }))) {
+    count += 1;
+  }
+
+  return count;
+}
+
 const generate = vi.fn();
 const generateWithRetry = vi.fn((_op: string, _c: unknown, _k: string, fn: () => unknown) => fn());
 const loadChatCardContext = vi.fn();
@@ -76,6 +86,7 @@ describe("sendChatQueueMessage", () => {
     listChatQueueMessages.mockResolvedValue([]);
     lockChatState.mockResolvedValue("chat");
     countRecent.mockResolvedValue(0);
+    insertChatTurn.mockResolvedValue(2);
     generate.mockResolvedValue({ text: " Because it matters. ", usage: { inputTokens: 10, outputTokens: 5 } });
   });
 
@@ -84,7 +95,7 @@ describe("sendChatQueueMessage", () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { reply: "Because it matters.", turnsLeft: CHAT_QUEUE_MAX_USER_TURNS - 1, capReached: false },
+      value: { reply: "Because it matters.", replySeq: 2, turnsLeft: CHAT_QUEUE_MAX_USER_TURNS - 1, capReached: false },
     });
     expect(insertChatTurn).toHaveBeenCalledWith(
       "kb1",
@@ -99,65 +110,146 @@ describe("sendChatQueueMessage", () => {
     await sendChatQueueMessage("kb1", input, { webTools });
     await sendChatQueueMessage("kb1", { ...input, clientMessageId: "new-2" });
 
-    expect(generate.mock.calls[0]?.[1]).toMatchObject({ maxSteps: 4 });
+    expect(generate.mock.calls[0]?.[1]).toMatchObject({ stopWhen: expect.any(Array) });
+    expect(stepLimit(generate.mock.calls[0]?.[1].stopWhen)).toBe(7);
     expect(generate.mock.calls[0]?.[1].requestContext.get("chatQueueWebTools")).toBe(webTools);
-    expect(generate.mock.calls[1]?.[1]).toMatchObject({ maxSteps: 1 });
-    expect(generate.mock.calls[1]?.[1].requestContext).toBeUndefined();
+    expect(generate.mock.calls[1]?.[1].requestContext.get("chatQueueWebTools")).toBeUndefined();
   });
 
-  it("should strip the card block from the stored reply and return at most two proposals", async () => {
-    const card = (n: number) => ({ front: `F${n}`, back: `B${n}`, origin: "own", sources: [] });
+  function proposeVia(cards: { kind: "create" | "update"; front: string; back: string }[]) {
+    generate.mockImplementation(async (_prompt: string, opts: { requestContext: { get: (k: string) => unknown } }) => {
+      const deps = opts.requestContext.get("chatQueueProposalTools") as {
+        sink: { add: (c: unknown) => unknown };
+      };
 
-    generate.mockResolvedValue({
-      text: `Here you go.\n<related-cards>${JSON.stringify([card(1), card(2), card(3)])}</related-cards>`,
+      for (const card of cards) {
+        deps.sink.add(card);
+      }
+
+      return { text: "Here you go." };
     });
+  }
+
+  it("should store and return the proposals the tools recorded, without saving any card", async () => {
+    proposeVia([
+      { kind: "create", front: "F1", back: "B1" },
+      { kind: "update", front: "F2", back: "B2" },
+      { kind: "create", front: "F3", back: "B3" },
+    ]);
 
     const result = await sendChatQueueMessage("kb1", input);
+    const expected = [
+      { index: 0, kind: "create", front: "F1", back: "B1", status: "pending" },
+      { index: 1, kind: "update", front: "F2", back: "B2", status: "pending" },
+    ];
 
-    expect(result.ok && result.value.reply).toBe("Here you go.");
-    expect(result.ok && result.value.suggestions).toEqual([card(1), card(2)]);
+    expect(result.ok && result.value.proposals).toEqual(expected);
     expect(insertChatTurn).toHaveBeenCalledWith(
       "kb1",
-      expect.objectContaining({ assistantText: "Here you go." }),
+      expect.objectContaining({ assistantText: "Here you go.", proposals: expected }),
       expect.anything(),
     );
+    expect(lockChatState).toHaveBeenCalledTimes(1);
   });
 
-  it("should return only the reply when the card block is not valid JSON", async () => {
-    generate.mockResolvedValue({ text: "Plain answer.\n<related-cards>[{oops</related-cards>" });
+  it("should offer the update tool only while the card is in chat state", async () => {
+    await sendChatQueueMessage("kb1", input);
+    loadChatCardContext.mockResolvedValue({ body: "Card", background: null, approvalState: "approved", sourceText: null });
+    await sendChatQueueMessage("kb1", { ...input, clientMessageId: "new-2" });
+
+    const allow = (call: number) =>
+      generate.mock.calls[call]?.[1].requestContext.get("chatQueueProposalTools").allowUpdate;
+
+    expect(allow(0)).toBe(true);
+    expect(allow(1)).toBe(false);
+  });
+
+  it("should not hand out proposal tools when the caller turns them off", async () => {
+    await sendChatQueueMessage("kb1", input, { proposalTools: false });
+
+    expect(generate.mock.calls[0]?.[1]).toMatchObject({ stopWhen: expect.any(Array) });
+    expect(stepLimit(generate.mock.calls[0]?.[1].stopWhen)).toBe(1);
+    expect(generate.mock.calls[0]?.[1].requestContext).toBeUndefined();
+  });
+
+  it("should not double count proposals when the fallback model answers after the primary failed", async () => {
+    let call = 0;
+
+    generate.mockImplementation(async (_prompt: string, opts: { requestContext: { get: (k: string) => unknown } }) => {
+      const deps = opts.requestContext.get("chatQueueProposalTools") as { sink: { add: (c: unknown) => unknown } };
+
+      deps.sink.add({ kind: "create", front: "F1", back: "B1" });
+      call += 1;
+
+      if (call === 1) {
+        throw new Error("primary died");
+      }
+
+      deps.sink.add({ kind: "create", front: "F2", back: "B2" });
+
+      return { text: "Fallback reply." };
+    });
 
     const result = await sendChatQueueMessage("kb1", input);
 
-    expect(result).toEqual({
-      ok: true,
-      value: { reply: "Plain answer.", turnsLeft: CHAT_QUEUE_MAX_USER_TURNS - 1, capReached: false },
-    });
+    expect(result.ok && result.value.proposals?.map((entry) => entry.front)).toEqual(["F1", "F2"]);
   });
 
-  it("should not spend a turn when the model returns only a card block and no reply text", async () => {
-    generate.mockResolvedValue({
-      text: '<related-cards>[{"front":"F","back":"B","origin":"own","sources":[]}]</related-cards>',
+  it("should refuse a card that is already pending earlier in the thread", async () => {
+    listChatQueueMessages.mockResolvedValue([
+      ...turns(1).slice(0, 1),
+      {
+        seq: 2,
+        role: "assistant",
+        text: "a0",
+        createdAt: "t",
+        clientMessageId: null,
+        proposals: [{ index: 0, kind: "create", front: "F1", back: "B1", status: "pending" }],
+      },
+    ]);
+    proposeVia([{ kind: "create", front: "F1", back: "B1" }]);
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result.ok && result.value.proposals).toBeUndefined();
+  });
+
+  it("should answer with a placeholder when the model only proposes a card and writes no text", async () => {
+    generate.mockImplementation(async (_prompt: string, opts: { requestContext: { get: (k: string) => unknown } }) => {
+      (opts.requestContext.get("chatQueueProposalTools") as { sink: { add: (c: unknown) => unknown } }).sink.add({
+        kind: "create",
+        front: "F",
+        back: "B",
+      });
+
+      return { text: "" };
     });
 
     const result = await sendChatQueueMessage("kb1", input);
 
-    expect(result).toEqual({ ok: false, error: "model_failed" });
-    expect(insertChatTurn).not.toHaveBeenCalled();
+    expect(result.ok && result.value.proposals).toHaveLength(1);
+    expect(result.ok && result.value.reply).not.toBe("");
   });
 
-  it("should not replay proposals when a repeated client message id returns the stored reply", async () => {
-    listChatQueueMessages.mockResolvedValue(turns(2));
+  it("should replay the stored proposals when a repeated client message id returns the stored reply", async () => {
+    const proposals = [{ index: 0, kind: "create", front: "F", back: "B", status: "pending" }];
+    const stored: unknown[] = turns(2);
+
+    stored[3] = { ...(stored[3] as object), proposals };
+    listChatQueueMessages.mockResolvedValue(stored);
 
     const result = await sendChatQueueMessage("kb1", { clientMessageId: "c1", message: "q1" });
 
-    expect(result.ok && result.value).not.toHaveProperty("suggestions");
+    expect(result.ok && result.value).toMatchObject({ replySeq: 4, proposals });
+    expect(generate).not.toHaveBeenCalled();
   });
 
-  it("should cap the reply length and run a single step with no tools", async () => {
+  it("should cap the reply length and allow only a few steps with proposal tools", async () => {
     await sendChatQueueMessage("kb1", input);
 
-    expect(generate.mock.calls[0]?.[1]).toEqual({
-      maxSteps: 1,
+    expect(stepLimit(generate.mock.calls[0]?.[1].stopWhen)).toBe(3);
+    expect(generate.mock.calls[0]?.[1]).toMatchObject({
+      stopWhen: expect.any(Array),
       modelSettings: { maxOutputTokens: CHAT_QUEUE_REPLY_MAX_TOKENS },
       tracingOptions: expect.objectContaining({ tags: ["chat-queue"] }),
     });
@@ -179,7 +271,7 @@ describe("sendChatQueueMessage", () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { reply: "a1", turnsLeft: CHAT_QUEUE_MAX_USER_TURNS - 2, capReached: false },
+      value: { reply: "a1", replySeq: 4, turnsLeft: CHAT_QUEUE_MAX_USER_TURNS - 2, capReached: false },
     });
     expect(generate).not.toHaveBeenCalled();
     expect(insertChatTurn).not.toHaveBeenCalled();
@@ -219,7 +311,7 @@ describe("sendChatQueueMessage", () => {
 
     expect(result.ok && result.value.reply).toBe("Because it matters.");
     expect(generate).toHaveBeenCalledTimes(2);
-    expect(generate.mock.calls[0]?.[1].requestContext).toBeUndefined();
+    expect(generate.mock.calls[0]?.[1].requestContext.get("chatQueueFallback")).toBeUndefined();
     expect(generate.mock.calls[1]?.[1].requestContext.get("chatQueueFallback")).toBe(true);
   });
 

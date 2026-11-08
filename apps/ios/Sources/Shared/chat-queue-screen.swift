@@ -165,7 +165,8 @@ extension ChatQueueScreen {
         ChatQueueThreadScreen(
             item: item,
             onResolved: { model.resolved(item.id) },
-            onSnoozed: { Task { await model.load() } }
+            onSnoozed: { Task { await model.load() } },
+            onCardUpdated: { Task { await model.load() } }
         )
     }
 

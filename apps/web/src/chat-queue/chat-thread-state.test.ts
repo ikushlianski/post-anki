@@ -5,7 +5,7 @@ import {
   restoreDraft,
   settle,
   toChatLines,
-  withReplySeq,
+  withProposalDecision,
   type ChatLine,
 } from './chat-thread-state'
 
@@ -39,21 +39,23 @@ describe('chat thread state', () => {
     ])
   })
 
-  it('should attach the latest assistant sequence number to the fresh reply line', () => {
-    const fresh: ChatLine[] = [{ id: 'a-x', isUser: false, text: 'a' }]
+  it('should show stored proposals with their saved state when a thread is reloaded', () => {
+    const proposal = { index: 0, kind: 'create' as const, front: 'F', back: 'B', status: 'accepted' as const, savedCardId: 'c1' }
 
-    expect(
-      withReplySeq(fresh, 'a-x', [
-        { seq: 1, role: 'user', text: 'q' },
-        { seq: 2, role: 'assistant', text: 'a' },
-      ]),
-    ).toEqual([{ id: 'a-x', isUser: false, text: 'a', seq: 2 }])
+    expect(toChatLines([{ seq: 2, role: 'assistant', text: 'a', proposals: [proposal] }])[0]?.proposals).toEqual([proposal])
   })
 
-  it('should keep lines as they are when the server has no assistant reply', () => {
-    const fresh: ChatLine[] = [{ id: 'a-x', isUser: false, text: 'a' }]
+  it('should change only the decided proposal on the chosen reply', () => {
+    const base = { kind: 'create' as const, front: 'F', back: 'B', status: 'pending' as const }
+    const before: ChatLine[] = [
+      { id: 'a', isUser: false, text: 'x', proposals: [{ ...base, index: 0 }, { ...base, index: 1 }] },
+      { id: 'b', isUser: false, text: 'y', proposals: [{ ...base, index: 0 }] },
+    ]
 
-    expect(withReplySeq(fresh, 'a-x', [{ seq: 1, role: 'user', text: 'q' }])).toBe(fresh)
+    const after = withProposalDecision(before, 'a', 1, { status: 'rejected' })
+
+    expect(after[0]?.proposals?.map((p) => p.status)).toEqual(['pending', 'rejected'])
+    expect(after[1]).toBe(before[1])
   })
 
   it('should put a failed question back in the box without losing what was typed since', () => {

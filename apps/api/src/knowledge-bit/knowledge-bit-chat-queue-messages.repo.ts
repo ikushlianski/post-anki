@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import { CHAT_QUEUE_MAX_USER_TURNS, type ChatQueueMessage } from "@post-anki/shared";
+import { CHAT_QUEUE_MAX_USER_TURNS, type ChatQueueMessage, type ChatQueueProposal } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitChatMessages, knowledgeBits } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -15,6 +15,7 @@ export interface NewChatTurn {
   modelId: string | null;
   inputTokens: number | null;
   outputTokens: number | null;
+  proposals?: ChatQueueProposal[];
 }
 
 export async function deleteChatQueueMessages(db: DbExecutor, bitIds?: string[]): Promise<void> {
@@ -75,11 +76,18 @@ export async function listChatQueueMessages(
     text: row.text,
     createdAt: row.createdAt.toISOString(),
     clientMessageId: row.clientMessageId,
+    ...(row.proposals?.length ? { proposals: row.proposals } : {}),
   }));
 }
 
 export function toPublicMessages(messages: StoredChatMessage[]): ChatQueueMessage[] {
-  return messages.map(({ seq, role, text, createdAt }) => ({ seq, role, text, createdAt }));
+  return messages.map(({ seq, role, text, createdAt, proposals }) => ({
+    seq,
+    role,
+    text,
+    createdAt,
+    ...(proposals?.length ? { proposals } : {}),
+  }));
 }
 
 export function turnsUsed(messages: ChatQueueMessage[]): number {
@@ -122,7 +130,7 @@ export async function lastSeqOf(bitId: string, db: DbExecutor): Promise<number> 
   return row?.seq ?? 0;
 }
 
-export async function insertChatTurn(bitId: string, turn: NewChatTurn, db: DbExecutor): Promise<void> {
+export async function insertChatTurn(bitId: string, turn: NewChatTurn, db: DbExecutor): Promise<number> {
   const seq = await lastSeqOf(bitId, db);
 
   await db.insert(knowledgeBitChatMessages).values([
@@ -143,8 +151,36 @@ export async function insertChatTurn(bitId: string, turn: NewChatTurn, db: DbExe
       modelId: turn.modelId,
       inputTokens: turn.inputTokens,
       outputTokens: turn.outputTokens,
+      proposals: turn.proposals?.length ? turn.proposals : null,
     },
   ]);
+
+  return seq + 2;
+}
+
+export async function getAssistantProposals(
+  bitId: string,
+  seq: number,
+  db: DbExecutor,
+): Promise<ChatQueueProposal[] | null> {
+  const [row] = await db
+    .select({ role: knowledgeBitChatMessages.role, proposals: knowledgeBitChatMessages.proposals })
+    .from(knowledgeBitChatMessages)
+    .where(and(eq(knowledgeBitChatMessages.knowledgeBitId, bitId), eq(knowledgeBitChatMessages.seq, seq)));
+
+  return row?.role === "assistant" ? (row.proposals ?? []) : null;
+}
+
+export async function saveAssistantProposals(
+  bitId: string,
+  seq: number,
+  proposals: ChatQueueProposal[],
+  db: DbExecutor,
+): Promise<void> {
+  await db
+    .update(knowledgeBitChatMessages)
+    .set({ proposals })
+    .where(and(eq(knowledgeBitChatMessages.knowledgeBitId, bitId), eq(knowledgeBitChatMessages.seq, seq)));
 }
 
 export async function deleteLastChatExchange(bitId: string, db: DbExecutor): Promise<StoredChatMessage[] | null> {

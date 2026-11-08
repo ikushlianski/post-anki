@@ -12,7 +12,8 @@ vi.mock('./chat-queue.api', () => ({
   approveFromChatQueue: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
-  createCardFromChatMessage: vi.fn(),
+  acceptChatQueueProposal: vi.fn(),
+  rejectChatQueueProposal: vi.fn(),
   snoozeChatQueueCard: vi.fn(),
   unsnoozeChatQueueCard: vi.fn(),
   exportChatQueueMarkdown: vi.fn(),
@@ -20,11 +21,12 @@ vi.mock('./chat-queue.api', () => ({
 }))
 
 import {
+  acceptChatQueueProposal,
   approveFromChatQueue,
-  createCardFromChatMessage,
   exportChatQueueMarkdown,
   getChatQueue,
   getChatQueueThread,
+  rejectChatQueueProposal,
   rejectFromChatQueue,
   returnFromChatQueue,
   saveChatQueueRejectReason,
@@ -54,6 +56,23 @@ function ok<T>(data: T) {
 
 function fail(failure: 'cap_reached' | 'budget_paused' | 'model_failed' | 'offline') {
   return { ok: false as const, failure }
+}
+
+function withProposal(status: 'pending' | 'accepted' | 'rejected') {
+  return ok({
+    messages: [
+      { seq: 1, role: 'user' as const, text: 'Why?', createdAt: '2026-10-28T10:00:00.000Z' },
+      {
+        seq: 2,
+        role: 'assistant' as const,
+        text: 'Because of X',
+        createdAt: '2026-10-28T10:00:01.000Z',
+        proposals: [{ index: 0, kind: 'create' as const, front: 'What is X?', back: 'X is Y.', status }],
+      },
+    ],
+    turnsLeft: 7,
+    capReached: false,
+  })
 }
 
 async function openThread(id = 'a') {
@@ -165,7 +184,7 @@ describe('ChatQueueScreen', () => {
 
   it('should show starter prompts that send a plain-text question', async () => {
     vi.mocked(sendChatQueueMessage).mockResolvedValue(
-      ok({ reply: '<b>Because</b>', turnsLeft: 7, capReached: false }),
+      ok({ reply: '<b>Because</b>', replySeq: 2, turnsLeft: 7, capReached: false }),
     )
     await openThread()
 
@@ -254,53 +273,51 @@ describe('ChatQueueScreen', () => {
     expect(saveChatQueueRejectReason).not.toHaveBeenCalled()
   })
 
-  it('should turn a tutor reply into a card after the user edits the front and back', async () => {
-    vi.mocked(getChatQueueThread).mockResolvedValue(
-      ok({
-        messages: [
-          { seq: 1, role: 'user', text: 'Why?', createdAt: '2026-10-28T10:00:00.000Z' },
-          { seq: 2, role: 'assistant', text: 'Because of X', createdAt: '2026-10-28T10:00:01.000Z' },
-        ],
-        turnsLeft: 7,
-        capReached: false,
-      }),
-    )
-    vi.mocked(createCardFromChatMessage).mockResolvedValue(ok({ ok: true, id: 'kb_new' }))
+  it('should reload a pending proposal and save it only after the learner accepts', async () => {
+    vi.mocked(getChatQueueThread).mockResolvedValue(withProposal('pending'))
+    vi.mocked(acceptChatQueueProposal).mockResolvedValue(ok({ ok: true, status: 'accepted', savedCardId: 'kb_new' }))
     await openThread()
 
-    expect(screen.queryByTestId('chat-queue-make-card-1')).toBeNull()
-    await userEvent.click(await screen.findByTestId('chat-queue-make-card-2'))
-    await userEvent.type(screen.getByLabelText('Card front'), 'What is X?')
-    await userEvent.click(screen.getByTestId('chat-queue-make-card-save'))
+    expect(await screen.findByText('What is X?')).not.toBeNull()
+    expect(acceptChatQueueProposal).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByTestId('chat-queue-proposal-accept-0'))
 
-    await waitFor(() =>
-      expect(createCardFromChatMessage).toHaveBeenCalledWith({
-        data: { bitId: 'a', seq: 2, card: { front: 'What is X?', back: 'Because of X' } },
-      }),
-    )
-    expect(await screen.findByTestId('chat-queue-card-saved-2')).not.toBeNull()
+    expect(acceptChatQueueProposal).toHaveBeenCalledTimes(1)
+    expect(acceptChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'a', seq: 2, index: 0 } })
+    expect(await screen.findByTestId('chat-queue-proposal-accepted-0')).not.toBeNull()
+    expect(screen.queryByTestId('chat-queue-proposal-accept-0')).toBeNull()
   })
 
-  it('should keep the form open with a plain message when saving the card fails', async () => {
-    vi.mocked(getChatQueueThread).mockResolvedValue(
-      ok({
-        messages: [
-          { seq: 1, role: 'user', text: 'Why?', createdAt: '2026-10-28T10:00:00.000Z' },
-          { seq: 2, role: 'assistant', text: 'Because of X', createdAt: '2026-10-28T10:00:01.000Z' },
-        ],
-        turnsLeft: 7,
-        capReached: false,
-      }),
+  it('should keep the thread open after a rejected proposal and ask what is wrong', async () => {
+    vi.mocked(getChatQueueThread).mockResolvedValue(withProposal('pending'))
+    vi.mocked(rejectChatQueueProposal).mockResolvedValue(ok({ ok: true, status: 'rejected' }))
+    vi.mocked(sendChatQueueMessage).mockResolvedValue(
+      ok({ reply: 'Revised', replySeq: 4, turnsLeft: 6, capReached: false }),
     )
-    vi.mocked(createCardFromChatMessage).mockResolvedValue(fail('offline'))
     await openThread()
 
-    await userEvent.click(await screen.findByTestId('chat-queue-make-card-2'))
-    await userEvent.type(screen.getByLabelText('Card front'), 'What is X?')
-    await userEvent.click(screen.getByTestId('chat-queue-make-card-save'))
+    await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
 
-    expect((await screen.findByTestId('chat-queue-make-card-error')).textContent).toContain('offline')
-    expect(screen.getByTestId('chat-queue-make-card-form')).not.toBeNull()
+    expect(rejectChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'a', seq: 2, index: 0 } })
+    expect(await screen.findByTestId('chat-queue-reject-hint')).not.toBeNull()
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Ask about this card')))
+
+    await userEvent.type(screen.getByLabelText('Ask about this card'), 'Too vague')
+    await userEvent.click(screen.getByTestId('chat-queue-send'))
+
+    expect(await screen.findByText('Revised')).not.toBeNull()
+    expect(screen.getByTestId('chat-queue-proposal-rejected-0')).not.toBeNull()
+  })
+
+  it('should show a plain message and allow another try when deciding a proposal fails', async () => {
+    vi.mocked(getChatQueueThread).mockResolvedValue(withProposal('pending'))
+    vi.mocked(acceptChatQueueProposal).mockResolvedValue(fail('offline'))
+    await openThread()
+
+    await userEvent.click(await screen.findByTestId('chat-queue-proposal-accept-0'))
+
+    expect((await screen.findByTestId('chat-queue-proposal-error-0')).textContent).toContain('offline')
+    expect((screen.getByTestId('chat-queue-proposal-accept-0') as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('should filter cards by search and subject and let the user clear the filters', async () => {

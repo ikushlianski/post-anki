@@ -5,10 +5,13 @@ struct ChatQueueThreadScreen: View {
     @State private var model: ChatQueueThreadModel
     @Environment(\.dismiss) private var dismiss
     @State private var confirmsDelete = false
+    @FocusState private var composerFocused: Bool
     let onResolved: () -> Void
     let onSnoozed: () -> Void
+    let onCardUpdated: () -> Void
 
-    init(item: ChatQueueItem, onResolved: @escaping () -> Void, onSnoozed: @escaping () -> Void) {
+    init(item: ChatQueueItem, onResolved: @escaping () -> Void, onSnoozed: @escaping () -> Void, onCardUpdated: @escaping () -> Void = {}) {
+        self.onCardUpdated = onCardUpdated
         _model = State(initialValue: ChatQueueThreadModel(item: item))
         self.onResolved = onResolved
         self.onSnoozed = onSnoozed
@@ -58,7 +61,7 @@ struct ChatQueueThreadScreen: View {
                     ForEach(model.lines) { line in
                         ChatQueueBubble(line: line).id(line.id)
 
-                        if !line.isUser, let seq = line.seq { cardRow(line: line, seq: seq) }
+                        if !line.isUser, let seq = line.seq { proposalRows(line: line, seq: seq) }
 
                         if !line.isUser, line.id == model.lines.last?.id { retryRow }
                     }
@@ -101,6 +104,8 @@ struct ChatQueueThreadScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await model.load() }
+        .onChange(of: model.composerFocusRequests) { composerFocused = true }
+        .onChange(of: model.item.body) { onCardUpdated() }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Delete last exchange", systemImage: "trash") { confirmsDelete = true }
@@ -131,20 +136,18 @@ struct ChatQueueThreadScreen: View {
     }
 
     @ViewBuilder
-    private func cardRow(line: ChatQueueLine, seq: Int) -> some View {
-        if model.savedCardSeqs.contains(seq) {
-            Text("Card added to review")
-                .zoomFont(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("chat-queue-card-saved-\(seq)")
-        } else if model.cardDraft?.seq == seq {
-            ChatQueueCardForm(model: model)
-        } else {
-            Button("Make a card") { model.openCard(for: line) }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(model.isSending || model.isResolving || model.isSavingCard)
-                .accessibilityIdentifier("chat-queue-make-card-\(seq)")
+    private func proposalRows(line: ChatQueueLine, seq: Int) -> some View {
+        ForEach(line.proposals) { proposal in
+            ChatQueueProposalCard(
+                proposal: proposal,
+                isBusy: model.isDeciding(line, proposal) || model.isResolving,
+                errorMessage: model.proposalError(line, proposal),
+                canTellTutor: !model.limitReached && !model.budgetPaused,
+                onDecide: { decision in
+                    Task { await model.decide(seq: seq, index: proposal.index, decision: decision) }
+                }
+            )
+            .listRowSeparator(.hidden)
         }
     }
 
@@ -189,8 +192,9 @@ struct ChatQueueThreadScreen: View {
         } else {
             ZoomVStack(alignment: .trailing, spacing: 0) {
                 HStack {
-                    TextField("Ask about this card", text: $model.draft, axis: .vertical)
+                    TextField(model.awaitsRejectExplanation ? "What is wrong with it?" : "Ask about this card", text: $model.draft, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
+                        .focused($composerFocused)
                         .onChange(of: model.draft) { _, value in
                             if value.count > ChatQueueLimits.maxMessageChars {
                                 model.draft = String(value.prefix(ChatQueueLimits.maxMessageChars))
@@ -276,56 +280,5 @@ private struct ChatQueueBubble: View {
             }
         }
         .accessibilityElement(children: .combine)
-    }
-}
-
-private struct ChatQueueCardForm: View {
-    @Bindable var model: ChatQueueThreadModel
-
-    var body: some View {
-        if let draft = model.cardDraft {
-            ZoomVStack(alignment: .leading, spacing: 8) {
-                TextField("Front (question)", text: front, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("chat-queue-make-card-front")
-
-                TextField("Back (answer)", text: back, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("chat-queue-make-card-back")
-
-                if let message = model.cardErrorMessage {
-                    Text(message)
-                        .zoomFont(.caption)
-                        .foregroundStyle(.red)
-                        .accessibilityIdentifier("chat-queue-make-card-error")
-                }
-
-                HStack {
-                    Button(model.isSavingCard ? "Saving..." : "Save card") { Task { await model.saveCard() } }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!draft.isSavable || model.isSavingCard || model.isResolving)
-                        .accessibilityIdentifier("chat-queue-make-card-save")
-
-                    Button("Cancel") { model.cancelCard() }
-                        .buttonStyle(.bordered)
-                        .disabled(model.isSavingCard)
-                }
-                .controlSize(.small)
-            }
-        }
-    }
-
-    private var front: Binding<String> {
-        Binding(
-            get: { model.cardDraft?.front ?? "" },
-            set: { model.cardDraft?.front = String($0.prefix(ChatQueueCardLimits.maxFrontChars)) }
-        )
-    }
-
-    private var back: Binding<String> {
-        Binding(
-            get: { model.cardDraft?.back ?? "" },
-            set: { model.cardDraft?.back = String($0.prefix(ChatQueueCardLimits.maxBackChars)) }
-        )
     }
 }

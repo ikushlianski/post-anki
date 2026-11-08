@@ -1,0 +1,1 @@
+ALTER TABLE "knowledge_bit_chat_messages" ADD COLUMN "proposals" jsonb;

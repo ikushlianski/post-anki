@@ -11,6 +11,7 @@ export { normalizeUrlForComparison };
 
 const PAGE_FETCH_TIMEOUT_MS = 10_000;
 const MAX_PAGE_CHARS = 8_000;
+const MAX_SEARCH_CHARS = 4_000;
 
 export const WEB_TOOLS_MAX_STEPS = 6;
 
@@ -21,9 +22,17 @@ export interface KnowledgeBitWebToolsOptions {
   maxSearches?: number;
   maxPageFetches?: number;
   forceTier?: ModelTier;
+  maxPageChars?: number;
+  maxSearchChars?: number;
+  seedCitedUrls?: string[];
 }
 
 const SEARCH_LIMIT_NOTICE = "Search limit reached for this reply; answer with what you have.";
+const REPEAT_QUERY_NOTICE = "You already searched for this; use the earlier result instead of repeating it.";
+
+function normalizeQuery(query: string): string {
+  return query.trim().replace(/\s+/g, " ").toLowerCase();
+}
 
 export interface KnowledgeBitWebTools {
   deps: KnowledgeBitChatToolsDeps;
@@ -35,8 +44,15 @@ export function createKnowledgeBitWebTools(options: KnowledgeBitWebToolsOptions)
   const citedByKey = new Map<string, string>();
   const maxSearches = options.maxSearches ?? Number.POSITIVE_INFINITY;
   const maxPageFetches = options.maxPageFetches ?? Number.POSITIVE_INFINITY;
+  const maxPageChars = options.maxPageChars ?? MAX_PAGE_CHARS;
+  const maxSearchChars = options.maxSearchChars ?? MAX_SEARCH_CHARS;
+  const seenQueries = new Set<string>();
   let searches = 0;
   let fetches = 0;
+
+  for (const url of options.seedCitedUrls ?? []) {
+    citedByKey.set(normalizeUrlForComparison(url), url);
+  }
 
   const deps: KnowledgeBitChatToolsDeps = {
     isCitedUrl: (url) => citedByKey.has(normalizeUrlForComparison(url)),
@@ -54,7 +70,7 @@ export function createKnowledgeBitWebTools(options: KnowledgeBitWebToolsOptions)
           return null;
         }
 
-        return { text: truncateText(extractVisibleText(html), MAX_PAGE_CHARS) };
+        return { text: truncateText(extractVisibleText(html), maxPageChars) };
       } catch (err) {
         log.warn({ err, knowledgeBitId: options.knowledgeBitId }, "knowledge_bit_fetch_page_failed");
 
@@ -66,6 +82,13 @@ export function createKnowledgeBitWebTools(options: KnowledgeBitWebToolsOptions)
         return { text: SEARCH_LIMIT_NOTICE, citations: [] };
       }
 
+      const queryKey = normalizeQuery(query);
+
+      if (seenQueries.has(queryKey)) {
+        return { text: REPEAT_QUERY_NOTICE, citations: [] };
+      }
+
+      seenQueries.add(queryKey);
       searches += 1;
 
       const outcome = await webSearch(
@@ -88,7 +111,7 @@ export function createKnowledgeBitWebTools(options: KnowledgeBitWebToolsOptions)
         }
       });
 
-      return { text: outcome.text, citations: outcome.citations };
+      return { text: truncateText(outcome.text, maxSearchChars), citations: outcome.citations };
     },
   };
 

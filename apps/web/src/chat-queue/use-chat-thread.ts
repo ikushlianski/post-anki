@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CHAT_QUEUE_MAX_MESSAGE_CHARS, type ChatQueueKnowledgeBit } from '@post-anki/shared'
+import {
+  CHAT_QUEUE_MAX_MESSAGE_CHARS,
+  type ChatQueueKnowledgeBit,
+  type ChatQueueProposal,
+} from '@post-anki/shared'
 
 import {
   chatQueueFailureMessage,
@@ -19,7 +23,7 @@ import {
   restoreDraft,
   settle,
   toChatLines,
-  withReplySeq,
+  withProposalDecision,
   type ChatLine,
 } from './chat-thread-state'
 import { useChatDeleteLast } from './use-chat-delete-last'
@@ -89,17 +93,10 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
     }
   }, [item.id, handle])
 
-  const assignReplySeq = useCallback(
-    async (lineId: string) => {
-      const outcome = await settle(() => getChatQueueThread({ data: { bitId: item.id } }))
-
-      if (!outcome.ok) {
-        return
-      }
-
-      setLines((prev) => withReplySeq(prev, lineId, outcome.data.messages))
-    },
-    [item.id],
+  const applyDecision = useCallback(
+    (lineId: string, index: number, decision: Pick<ChatQueueProposal, 'status' | 'savedCardId'>) =>
+      setLines((prev) => withProposalDecision(prev, lineId, index, decision)),
+    [],
   )
 
   const deliver = useCallback(
@@ -130,7 +127,8 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
             id: `a-${clientId}`,
             isUser: false,
             text: outcome.data.reply,
-            proposals: outcome.data.suggestions,
+            seq: outcome.data.replySeq,
+            ...(outcome.data.proposals?.length ? { proposals: outcome.data.proposals } : {}),
           },
         ])
         setTurnsLeft(outcome.data.turnsLeft)
@@ -139,8 +137,6 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
         if (!keepDraft) {
           clearChatDraft(item.id)
         }
-
-        void assignReplySeq(`a-${clientId}`)
       } else {
         setLines((prev) => prev.filter((line) => line.id !== userLine.id))
         setDraft((prev) => restoreDraft(prev, text, keepDraft))
@@ -150,7 +146,7 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
       setSending(false)
       busy.current = false
     },
-    [assignReplySeq, handle, item.id],
+    [handle, item.id],
   )
 
   const send = useCallback(
@@ -255,6 +251,7 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
 
   return {
     lines,
+    applyDecision,
     draft,
     changeDraft,
     turnsLeft,

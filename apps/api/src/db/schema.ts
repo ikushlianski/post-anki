@@ -1,4 +1,5 @@
 import { relations, sql } from "drizzle-orm";
+import type { ChatQueueProposal } from "@post-anki/shared";
 import {
   pgTable,
   text,
@@ -1210,6 +1211,8 @@ export const knowledgeSources = pgTable(
     processedAt: timestamp("processed_at", { withTimezone: true }),
     // Article link for sources imported from a URL; copied onto extracted bits as a source link.
     sourceUrl: text("source_url"),
+    // Author named by the page's own metadata at URL import; null when absent.
+    sourceAuthor: text("source_author"),
     // Short background-generated summary of an imported article.
     summary: text("summary"),
     // Automatic subject proposal, never an owner choice; only written while subject_id is null.
@@ -2474,6 +2477,7 @@ export const knowledgeBitChatMessages = pgTable(
     modelId: text("model_id"),
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
+    proposals: jsonb("proposals").$type<ChatQueueProposal[]>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({

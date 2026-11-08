@@ -12,6 +12,7 @@ import {
   knowledgeItemModelIdSchema,
 } from "@post-anki/shared";
 import { BodyTooLargeError, readJsonBody, sendError, sendJson } from "../shared/http.js";
+import { extractAuthorFromHtml } from "./knowledge-source-author.js";
 import { kickSourcesAfterAdd } from "./knowledge-source-kick.js";
 import { summarizeSourceAfterAdd } from "./knowledge-source-summary.starter.js";
 import { fetchWithTimeout, truncateText } from "../shared/outbound-fetch.js";
@@ -73,7 +74,12 @@ function addSource(
   targetPhrases: string[] | undefined,
   omitNullUrl = false,
   highlights?: KnowledgeHighlight[],
+  sourceAuthor: string | null = null,
 ) {
+  if (sourceAuthor !== null) {
+    return insertKnowledgeSource(text, subjectId, modelId, sourceUrl, targetPhrases, highlights, sourceAuthor);
+  }
+
   if (highlights && highlights.length > 0) {
     return insertKnowledgeSource(text, subjectId, modelId, sourceUrl, targetPhrases, highlights);
   }
@@ -203,6 +209,9 @@ export async function handleCreateKnowledgeSource(
       body.data.modelId ?? null,
       sourceUrl,
       body.data.targetPhrases,
+      false,
+      undefined,
+      extractAuthorFromHtml(html),
     );
     await kickSourcesAfterAdd([urlSource.id]);
     await summarizeSourceAfterAdd(urlSource.id, extractedText);

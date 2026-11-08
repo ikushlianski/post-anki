@@ -61,7 +61,7 @@ describe('useChatThread', () => {
   it('should add the question and the tutor reply, use up a turn and clear the draft', async () => {
     vi.mocked(sendChatQueueMessage).mockResolvedValue({
       ok: true,
-      data: { reply: 'Because.', turnsLeft: 5, capReached: false },
+      data: { reply: 'Because.', replySeq: 2, turnsLeft: 5, capReached: false },
     } as never)
 
     const { result } = await mount()
@@ -77,11 +77,11 @@ describe('useChatThread', () => {
   })
 
   it('should attach proposed cards to the tutor reply and stay usable for another message', async () => {
-    const suggestion = { front: 'F', back: 'B', origin: 'own', sources: [] }
+    const proposal = { index: 0, kind: 'create', front: 'F', back: 'B', status: 'pending' }
 
     vi.mocked(sendChatQueueMessage).mockResolvedValueOnce({
       ok: true,
-      data: { reply: 'Because.', suggestions: [suggestion], turnsLeft: 5, capReached: false },
+      data: { reply: 'Because.', replySeq: 2, proposals: [proposal], turnsLeft: 5, capReached: false },
     } as never)
 
     const { result } = await mount()
@@ -91,12 +91,12 @@ describe('useChatThread', () => {
       await result.current.send()
     })
 
-    expect(result.current.lines.at(-1)?.proposals).toEqual([suggestion])
+    expect(result.current.lines.at(-1)?.proposals).toEqual([proposal])
     expect(result.current.lines[0]?.proposals).toBeUndefined()
 
     vi.mocked(sendChatQueueMessage).mockResolvedValueOnce({
       ok: true,
-      data: { reply: 'More.', turnsLeft: 4, capReached: false },
+      data: { reply: 'More.', replySeq: 4, turnsLeft: 4, capReached: false },
     } as never)
     act(() => result.current.changeDraft('Refine it'))
 
@@ -107,6 +107,7 @@ describe('useChatThread', () => {
     })
 
     expect(result.current.lines.at(-1)?.proposals).toBeUndefined()
+    expect(result.current.lines.at(-1)?.seq).toBe(4)
     expect(result.current.turnsLeft).toBe(4)
   })
 

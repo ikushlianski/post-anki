@@ -6,12 +6,18 @@ struct ChatQueueLine: Identifiable, Equatable {
     let isUser: Bool
     let text: String
     var seq: Int?
+    var proposals: [ChatQueueProposal] = []
+}
+
+struct ChatQueueProposalKey: Hashable {
+    let seq: Int
+    let index: Int
 }
 
 @Observable
 @MainActor
 final class ChatQueueThreadModel {
-    let item: ChatQueueItem
+    var item: ChatQueueItem
     var lines: [ChatQueueLine] = []
     var draft = "" {
         didSet { if draft != oldValue { drafts.save(draft, cardId: item.id) } }
@@ -28,10 +34,10 @@ final class ChatQueueThreadModel {
     var rejectFeedback: PendingRejectFeedback?
     var isFinished = false
     var wasSnoozed = false
-    var cardDraft: ChatQueueCardDraft?
-    var isSavingCard = false
-    var cardErrorMessage: String?
-    var savedCardSeqs: Set<Int> = []
+    var decidingProposals: Set<ChatQueueProposalKey> = []
+    var proposalErrors: [ChatQueueProposalKey: String] = [:]
+    var awaitsRejectExplanation = false
+    var composerFocusRequests = 0
 
     @ObservationIgnored private var retryId: (text: String, id: String)?
     @ObservationIgnored private let counts: ChatQueueCountStore
@@ -66,7 +72,7 @@ final class ChatQueueThreadModel {
             let thread = try await APIClient.chatQueueThread(id: item.id)
 
             lines = thread.messages.map {
-                ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq)
+                ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq, proposals: $0.proposals)
             }
             turnsLeft = thread.turnsLeft
             capReached = thread.capReached
@@ -161,11 +167,17 @@ final class ChatQueueThreadModel {
                 message: text
             )
 
-            lines.append(ChatQueueLine(id: "a-\(clientId)", isUser: false, text: result.reply))
+            awaitsRejectExplanation = false
+            lines.append(ChatQueueLine(
+                id: "a-\(clientId)",
+                isUser: false,
+                text: result.reply,
+                seq: result.replySeq,
+                proposals: result.proposals
+            ))
             turnsLeft = result.turnsLeft
             capReached = result.capReached
             retryId = nil
-            await assignReplySeq(lineId: "a-\(clientId)")
         } catch {
             lines.removeAll { $0.id == line.id }
 
@@ -176,49 +188,6 @@ final class ChatQueueThreadModel {
             }
 
             handle(ChatQueueFailure.failure(for: error))
-        }
-    }
-
-    private func assignReplySeq(lineId: String) async {
-        guard let thread = try? await APIClient.chatQueueThread(id: item.id),
-              let seq = thread.messages.last(where: { $0.role == .assistant })?.seq,
-              let index = lines.firstIndex(where: { $0.id == lineId })
-        else { return }
-
-        lines[index].seq = seq
-    }
-
-    func openCard(for line: ChatQueueLine) {
-        guard let seq = line.seq, !line.isUser, !isSavingCard else { return }
-
-        cardErrorMessage = nil
-        cardDraft = ChatQueueCardDraft(seq: seq, back: String(line.text.prefix(ChatQueueCardLimits.maxBackChars)))
-    }
-
-    func cancelCard() {
-        guard !isSavingCard else { return }
-
-        cardErrorMessage = nil
-        cardDraft = nil
-    }
-
-    func saveCard() async {
-        guard let draft = cardDraft, draft.isSavable, !isSavingCard, !isResolving else { return }
-
-        isSavingCard = true
-        cardErrorMessage = nil
-        defer { isSavingCard = false }
-
-        do {
-            try await APIClient.createCardFromChatQueueMessage(id: item.id, draft: draft)
-            savedCardSeqs.insert(draft.seq)
-            cardDraft = nil
-        } catch {
-            let failure = ChatQueueFailure.failure(for: error)
-
-            cardErrorMessage = failure == .other ? "Could not save the card. Try again." : failure.message
-
-            if failure == .notInChat || failure == .notFound { cardDraft = nil }
         }
     }
 
@@ -235,6 +204,7 @@ final class ChatQueueThreadModel {
         do {
             let result = try await APIClient.deleteLastChatQueueExchange(id: item.id)
 
+            awaitsRejectExplanation = false
             await load()
 
             if let turns = result.turnsLeft { turnsLeft = turns }
@@ -254,7 +224,7 @@ final class ChatQueueThreadModel {
         }
     }
 
-    private func handle(_ failure: ChatQueueFailure) {
+    func handle(_ failure: ChatQueueFailure) {
         switch failure {
         case .capReached:
             capReached = true

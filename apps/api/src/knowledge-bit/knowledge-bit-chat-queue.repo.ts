@@ -192,6 +192,8 @@ export interface ChatCardContext {
   background: string | null;
   approvalState: string;
   sourceText: string | null;
+  sourceAuthor: string | null;
+  sourceUrl: string | null;
 }
 
 export async function loadChatCardContext(id: string, db: DbExecutor = getDb()): Promise<ChatCardContext | null> {
@@ -202,6 +204,8 @@ export async function loadChatCardContext(id: string, db: DbExecutor = getDb()):
         background: knowledgeBits.background,
         approvalState: knowledgeBits.approvalState,
         sourceText: knowledgeSources.rawText,
+        sourceAuthor: knowledgeSources.sourceAuthor,
+        sourceUrl: knowledgeSources.sourceUrl,
       })
       .from(knowledgeBits)
       .leftJoin(knowledgeSources, eq(knowledgeSources.id, knowledgeBits.knowledgeSourceId))

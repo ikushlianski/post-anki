@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   CHAT_QUEUE_MAX_MESSAGE_CHARS,
   CHAT_QUEUE_REPLY_MAX_TOKENS,
+  CHAT_QUEUE_MAX_PROPOSALS,
   chatQueueCountSchema,
-  createCardFromChatMessageInput,
+  chatQueueErrorCodeSchema,
+  chatQueueMessageSchema,
+  chatQueueProposalSchema,
   sendChatQueueMessageResultSchema,
   chatQueueSearchQuerySchema,
   chatQueueSearchResponseSchema,
@@ -83,20 +86,22 @@ describe("chatQueueSearchResponseSchema", () => {
 });
 
 describe("sendChatQueueMessageResultSchema", () => {
-  const suggestion = { front: "F", back: "B", origin: "own", sources: [] };
-  const base = { reply: "Hi", turnsLeft: 3, capReached: false };
+  const proposal = { index: 0, kind: "create", front: "F", back: "B", status: "pending" };
+  const base = { reply: "Hi", replySeq: 2, turnsLeft: 3, capReached: false };
 
   it("should accept a reply with no, one or two proposed cards", () => {
     expect(sendChatQueueMessageResultSchema.safeParse(base).success).toBe(true);
-    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [suggestion] }).success).toBe(true);
-    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [suggestion, suggestion] }).success).toBe(true);
+    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, proposals: [proposal] }).success).toBe(true);
+    expect(
+      sendChatQueueMessageResultSchema.safeParse({ ...base, proposals: [proposal, { ...proposal, index: 1 }] }).success,
+    ).toBe(true);
   });
 
   it("should refuse three proposed cards and a proposal with an empty front", () => {
     expect(
-      sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [suggestion, suggestion, suggestion] }).success,
+      sendChatQueueMessageResultSchema.safeParse({ ...base, proposals: [proposal, proposal, proposal] }).success,
     ).toBe(false);
-    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, suggestions: [{ ...suggestion, front: "" }] }).success).toBe(
+    expect(sendChatQueueMessageResultSchema.safeParse({ ...base, proposals: [{ ...proposal, front: "" }] }).success).toBe(
       false,
     );
   });
@@ -106,14 +111,43 @@ describe("sendChatQueueMessageResultSchema", () => {
   });
 });
 
-describe("createCardFromChatMessageInput", () => {
-  it("should accept an approving card with an example and a plain pending card", () => {
-    expect(createCardFromChatMessageInput.safeParse({ front: "F", back: "B", example: "E", approve: true }).success).toBe(true);
-    expect(createCardFromChatMessageInput.safeParse({ front: "F", back: "B" }).success).toBe(true);
+describe("chatQueueProposalSchema", () => {
+  const base = { index: 0, kind: "create", front: "F", back: "B", status: "pending" };
+
+  it("should accept a minimal pending proposal and one with example, reason and saved id", () => {
+    expect(chatQueueProposalSchema.safeParse(base).success).toBe(true);
+    expect(
+      chatQueueProposalSchema.safeParse({ ...base, example: "E", reason: "clearer", status: "accepted", savedCardId: "kb1" })
+        .success,
+    ).toBe(true);
   });
 
-  it("should refuse an approve flag that is not a boolean and a blank front", () => {
-    expect(createCardFromChatMessageInput.safeParse({ front: "F", back: "B", approve: "yes" }).success).toBe(false);
-    expect(createCardFromChatMessageInput.safeParse({ front: "  ", back: "B" }).success).toBe(false);
+  it("should refuse fields longer than the manual card limits and a reason over 200 characters", () => {
+    expect(chatQueueProposalSchema.safeParse({ ...base, front: "x".repeat(301) }).success).toBe(false);
+    expect(chatQueueProposalSchema.safeParse({ ...base, back: "x".repeat(601) }).success).toBe(false);
+    expect(chatQueueProposalSchema.safeParse({ ...base, example: "x".repeat(301) }).success).toBe(false);
+    expect(chatQueueProposalSchema.safeParse({ ...base, reason: "x".repeat(201) }).success).toBe(false);
+  });
+
+  it("should refuse an unknown kind or status and an index beyond the per-reply limit", () => {
+    expect(chatQueueProposalSchema.safeParse({ ...base, kind: "delete" }).success).toBe(false);
+    expect(chatQueueProposalSchema.safeParse({ ...base, status: "saved" }).success).toBe(false);
+    expect(chatQueueProposalSchema.safeParse({ ...base, index: CHAT_QUEUE_MAX_PROPOSALS }).success).toBe(false);
+  });
+
+  it("should cap a message at two proposals and include the new error code", () => {
+    const message = { seq: 2, role: "assistant", text: "t", createdAt: "c" };
+    const three = [0, 1, 1].map((index) => ({ ...base, index }));
+
+    expect(chatQueueMessageSchema.safeParse({ ...message, proposals: three }).success).toBe(false);
+    expect(chatQueueMessageSchema.safeParse({ ...message, proposals: three.slice(0, 2) }).success).toBe(true);
+    expect(chatQueueErrorCodeSchema.safeParse("proposal_not_pending").success).toBe(true);
+  });
+
+  it("should require the reply sequence number in a send result", () => {
+    const result = { reply: "r", turnsLeft: 3, capReached: false };
+
+    expect(sendChatQueueMessageResultSchema.safeParse(result).success).toBe(false);
+    expect(sendChatQueueMessageResultSchema.safeParse({ ...result, replySeq: 4, proposals: [base] }).success).toBe(true);
   });
 });

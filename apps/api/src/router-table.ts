@@ -512,9 +512,15 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "POST",
-    pattern: /^\/knowledge-bits\/([^/]+)\/chat-messages\/(\d+)\/card$/,
-    name: "createCardFromChatMessage",
-    params: ["id", "seq"],
+    pattern: /^\/knowledge-bits\/([^/]+)\/chat-messages\/(\d+)\/proposals\/(\d+)\/accept$/,
+    name: "acceptChatQueueProposal",
+    params: ["id", "seq", "index"],
+  },
+  {
+    method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/chat-messages\/(\d+)\/proposals\/(\d+)\/reject$/,
+    name: "rejectChatQueueProposal",
+    params: ["id", "seq", "index"],
   },
   {
     method: "POST",

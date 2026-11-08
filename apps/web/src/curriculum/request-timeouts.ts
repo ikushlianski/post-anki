@@ -8,7 +8,6 @@ const LLM_BACKED_CALLS: ReadonlyArray<readonly [method: string, path: RegExp]> =
   ['POST', new RegExp(`^/knowledge-sources/${ID}/regeneration$`)],
   ['POST', new RegExp(`^/knowledge-bits/question-variants/${ID}/answers$`)],
   ['POST', new RegExp(`^/knowledge-bits/${ID}/(chat|chat/draft|chat-messages|example|variants|derived-items)$`)],
-  ['POST', new RegExp(`^/knowledge-bits/${ID}/chat-messages/\\d+/card$`)],
   ['POST', /^\/knowledge-bits\/[a-z-]+-scan$/],
   ['POST', /^\/curricula$/],
   ['POST', new RegExp(`^/curricula/${ID}/(sources|reparse|retry-research|retry-structure-draft|approve-sources|structure-turns|resolve-research-candidates|confirm-structure|domain-mappings|stats/recommendations)$`)],

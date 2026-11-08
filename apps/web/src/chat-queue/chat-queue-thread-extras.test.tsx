@@ -12,7 +12,6 @@ vi.mock('./chat-queue.api', () => ({
   approveFromChatQueue: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
-  createCardFromChatMessage: vi.fn(),
   snoozeChatQueueCard: vi.fn(),
   unsnoozeChatQueueCard: vi.fn(),
   exportChatQueueMarkdown: vi.fn(),
@@ -118,7 +117,7 @@ describe('unsent message draft', () => {
     window.localStorage.setItem(KEY, 'question 2')
     vi.mocked(sendChatQueueMessage).mockResolvedValue({
       ok: true,
-      data: { reply: 'r', turnsLeft: 7, capReached: false },
+      data: { reply: 'r', replySeq: 2, turnsLeft: 7, capReached: false },
     } as never)
     renderThread()
 

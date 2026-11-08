@@ -138,18 +138,20 @@ public struct ChatQueueMessage: Decodable, Sendable, Identifiable, Hashable {
     public let role: ChatQueueRole
     public let text: String
     public let createdAt: String
+    public let proposals: [ChatQueueProposal]
 
     public var id: Int { seq }
 
-    public init(seq: Int, role: ChatQueueRole, text: String, createdAt: String) {
+    public init(seq: Int, role: ChatQueueRole, text: String, createdAt: String, proposals: [ChatQueueProposal] = []) {
         self.seq = seq
         self.role = role
         self.text = text
         self.createdAt = createdAt
+        self.proposals = proposals
     }
 
     private enum CodingKeys: String, CodingKey {
-        case seq, role, text, createdAt
+        case seq, role, text, createdAt, proposals
     }
 
     public init(from decoder: Decoder) throws {
@@ -159,6 +161,7 @@ public struct ChatQueueMessage: Decodable, Sendable, Identifiable, Hashable {
         role = (try? container.decode(ChatQueueRole.self, forKey: .role)) ?? .assistant
         text = try container.decode(String.self, forKey: .text)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        proposals = ChatQueueProposalDecoding.lossyList(from: container, key: CodingKeys.proposals)
     }
 }
 
@@ -176,13 +179,33 @@ public struct ChatQueueThread: Decodable, Sendable, Hashable {
 
 public struct ChatQueueReply: Decodable, Sendable, Hashable {
     public let reply: String
+    public let replySeq: Int
+    public let proposals: [ChatQueueProposal]
     public let turnsLeft: Int
     public let capReached: Bool
 
-    public init(reply: String, turnsLeft: Int, capReached: Bool) {
+    public init(reply: String, replySeq: Int, proposals: [ChatQueueProposal] = [], turnsLeft: Int, capReached: Bool) {
         self.reply = reply
+        self.replySeq = replySeq
+        self.proposals = proposals
         self.turnsLeft = turnsLeft
         self.capReached = capReached
+    }
+}
+
+extension ChatQueueReply {
+    private enum CodingKeys: String, CodingKey {
+        case reply, replySeq, proposals, turnsLeft, capReached
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        reply = try container.decode(String.self, forKey: .reply)
+        replySeq = try container.decode(Int.self, forKey: .replySeq)
+        proposals = ChatQueueProposalDecoding.lossyList(from: container, key: CodingKeys.proposals)
+        turnsLeft = try container.decode(Int.self, forKey: .turnsLeft)
+        capReached = try container.decode(Bool.self, forKey: .capReached)
     }
 }
 

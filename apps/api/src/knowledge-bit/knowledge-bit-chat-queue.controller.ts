@@ -2,18 +2,16 @@ import type http from "node:http";
 import {
   CHAT_QUEUE_REMINDER_AFTER_DAYS,
   chatQueueSearchQuerySchema,
-  createCardFromChatMessageInput,
   snoozeChatQueueInput,
   sendChatQueueMessageInput,
 } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
-import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.orchestrator.js";
-import { insertCardFromChatMessage } from "./knowledge-bit-chat-card.repo.js";
 import {
   countAllChatQueueKnowledgeBits,
   countChatQueueKnowledgeBits,
   listChatQueueKnowledgeBits,
+  loadChatCardContext,
   moveKnowledgeBitToChatQueue,
   returnKnowledgeBitFromChatQueue,
   snoozeChatQueueKnowledgeBit,
@@ -30,8 +28,13 @@ import {
   sendChatQueueMessage,
   type ChatQueueFailure,
 } from "./knowledge-bit-chat-queue.service.js";
+import { createKnowledgeBitWebTools } from "./knowledge-bit-web-tools.deps.js";
 
 const CHAT_QUEUE_LIST_LIMIT = 200;
+export const CHAT_QUEUE_SEARCH_OP = "chat_queue.web_search";
+export const CHAT_QUEUE_MAX_SEARCHES = 2;
+export const CHAT_QUEUE_MAX_PAGE_FETCHES = 1;
+const CHAT_QUEUE_MAX_PAGE_CHARS = 6_000;
 
 const STATUS: Record<ChatQueueFailure, number> = {
   not_found: 404,
@@ -40,6 +43,7 @@ const STATUS: Record<ChatQueueFailure, number> = {
   in_flight: 409,
   cap_reached: 429,
   budget_paused: 423,
+  proposal_not_pending: 409,
   model_failed: 502,
 };
 
@@ -158,7 +162,21 @@ export async function handleSendChatQueueMessage(
     return;
   }
 
-  const result = await sendChatQueueMessage(id, body.data);
+  const card = await loadChatCardContext(id);
+  const webTools = createKnowledgeBitWebTools({
+    knowledgeBitId: id,
+    seedCitedUrls: card?.sourceUrl ? [card.sourceUrl] : [],
+    searchOp: CHAT_QUEUE_SEARCH_OP,
+    searchPurpose: "Search the web for authoritative information that helps a learner judge or improve one flashcard",
+    maxSearches: CHAT_QUEUE_MAX_SEARCHES,
+    maxPageFetches: CHAT_QUEUE_MAX_PAGE_FETCHES,
+    maxPageChars: CHAT_QUEUE_MAX_PAGE_CHARS,
+    forceTier: "cheap",
+  });
+  const result = await sendChatQueueMessage(id, body.data, {
+    webTools: webTools.deps,
+    getWebUsage: webTools.getUsage,
+  });
 
   if (!result.ok) {
     sendError(res, STATUS[result.error], result.error);
@@ -166,47 +184,6 @@ export async function handleSendChatQueueMessage(
   }
 
   sendJson(res, 200, result.value);
-}
-
-const CARD_ERROR_STATUS = { not_found: 404, not_in_chat: 409, not_assistant_message: 422 } as const;
-
-// POST /knowledge-bits/:id/chat-messages/:seq/card
-export async function handleCreateCardFromChatMessage(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  id: string,
-  seq: string,
-): Promise<void> {
-  const body = await readJsonBody(req, createCardFromChatMessageInput);
-
-  if (!body.ok) {
-    sendJson(res, 400, { error: "invalid_input", message: body.issues });
-    return;
-  }
-
-  const seqNumber = Number(seq);
-
-  if (!Number.isSafeInteger(seqNumber) || seqNumber < 1) {
-    sendError(res, 404, "not_found");
-    return;
-  }
-
-  const result = await insertCardFromChatMessage(id, seqNumber, body.data);
-
-  if (!result.ok) {
-    sendError(res, CARD_ERROR_STATUS[result.error], result.error);
-    return;
-  }
-
-  if (body.data.approve) {
-    try {
-      await embedApprovedKnowledgeBits([result.id]);
-    } catch (err) {
-      log.warn({ err, id: result.id }, "chat_card_approve_embed_failed");
-    }
-  }
-
-  sendJson(res, 201, { ok: true, id: result.id });
 }
 
 // GET /knowledge-bits/chat-queue/stale
