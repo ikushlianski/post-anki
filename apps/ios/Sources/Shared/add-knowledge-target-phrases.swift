@@ -40,28 +40,35 @@ enum TargetPhrases {
 
 struct TargetPhrasesSection: View {
     @Binding var phrases: [String]
+    @Binding var isExpanded: Bool
 
     var body: some View {
-        Section("Target phrases") {
-            ForEach(phrases.indices, id: \.self) { index in
-                HStack {
-                    TextField("Phrase to practise", text: binding(at: index))
+        DisclosureGroup("Practise phrases", isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(phrases.indices, id: \.self) { index in
+                    HStack {
+                        TextField("Phrase to practise", text: binding(at: index))
+                            .textFieldStyle(.roundedBorder)
 
-                    Button {
-                        remove(at: index)
-                    } label: {
-                        Image(systemName: "minus.circle")
+                        Button {
+                            remove(at: index)
+                        } label: {
+                            Image(systemName: "minus.circle")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Remove target phrase")
                     }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Remove target phrase")
+                }
+
+                if phrases.count < TargetPhrases.maxCount {
+                    Button("Add target phrase") { phrases.append("") }
+                        .buttonStyle(.borderless)
                 }
             }
-
-            if phrases.count < TargetPhrases.maxCount {
-                Button("Add target phrase") { phrases.append("") }
-                    .buttonStyle(.borderless)
-            }
+            .padding(.top, 8)
         }
+        .padding(14)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func binding(at index: Int) -> Binding<String> {

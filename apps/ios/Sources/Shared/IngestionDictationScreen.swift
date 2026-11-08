@@ -7,8 +7,12 @@ final class IngestionDictationScreenModel {
     let topic: Topic?
     let subjectId: String?
     var text = "" {
-        didSet { drafts.save(text, key: draftKey) }
+        didSet {
+            drafts.save(text, key: draftKey)
+            highlights = KnowledgeHighlights.shifted(from: oldValue, to: text, highlights)
+        }
     }
+    var highlights: [KnowledgeHighlight] = []
     var isSubmitting = false
     var activeDetections = 0
     var isDetecting: Bool { activeDetections > 0 }
@@ -22,10 +26,12 @@ final class IngestionDictationScreenModel {
     private let summaryPollInterval: Duration = .seconds(3)
     private let summaryMaxPolls = 40
 
-    let subjectPicker = AddKnowledgeSubjectPickerModel()
+    let subjectPicker: AddKnowledgeSubjectPickerModel
+    var isPhrasesExpanded = false
     var canAddAnyway = false
     var targetPhrases: [String] = [""]
     private var lastSent: KnowledgeSourceContent?
+    private var lastSentHighlights: [KnowledgeHighlight] = []
 
     var showsSubjectPicker: Bool { subjectId == nil }
     var effectiveSubjectId: String? { subjectId ?? subjectPicker.selectedId }
@@ -46,7 +52,13 @@ final class IngestionDictationScreenModel {
     private let drafts: AddDraftStoring
     private let draftKey: String
 
-    init(topic: Topic?, subjectId: String?, drafts: AddDraftStoring = UserDefaultsAddDraftStore()) {
+    init(
+        topic: Topic?,
+        subjectId: String?,
+        drafts: AddDraftStoring = UserDefaultsAddDraftStore(),
+        subjectPicker: AddKnowledgeSubjectPickerModel = AddKnowledgeSubjectPickerModel()
+    ) {
+        self.subjectPicker = subjectPicker
         self.topic = topic
         self.subjectId = subjectId
         self.drafts = drafts
@@ -57,22 +69,23 @@ final class IngestionDictationScreenModel {
     func submit() async {
         guard let content = AddKnowledgeInput.classify(text) else { return }
 
-        await send(content, force: false)
+        await send(content, highlights: highlightsToSend(for: content), force: false)
     }
 
     func addAnyway() async {
         guard let content = lastSent else { return }
 
-        await send(content, force: true)
+        await send(content, highlights: lastSentHighlights, force: true)
     }
 
-    private func send(_ content: KnowledgeSourceContent, force: Bool) async {
+    private func send(_ content: KnowledgeSourceContent, highlights sentHighlights: [KnowledgeHighlight], force: Bool) async {
         guard !isSubmitting else { return }
 
         isSubmitting = true
         errorMessage = nil
         canAddAnyway = false
         lastSent = content
+        lastSentHighlights = sentHighlights
 
         if activeDetections == 0 {
             hasSent = false
@@ -84,15 +97,18 @@ final class IngestionDictationScreenModel {
                 content: content,
                 subjectId: effectiveSubjectId,
                 force: force,
-                targetPhrases: phrases.isEmpty ? nil : phrases
+                targetPhrases: phrases.isEmpty ? nil : phrases,
+                highlights: sentHighlights.isEmpty ? nil : sentHighlights
             )
 
             summaryText = nil
             watchSummary(sourceId: created.id)
             text = ""
+            highlights = []
             targetPhrases = [""]
             drafts.clear(key: draftKey)
             lastSent = nil
+            lastSentHighlights = []
             hasSent = true
             isSubmitting = false
             activeDetections += 1
@@ -102,6 +118,12 @@ final class IngestionDictationScreenModel {
             isSubmitting = false
             present(error)
         }
+    }
+
+    private func highlightsToSend(for content: KnowledgeSourceContent) -> [KnowledgeHighlight] {
+        guard case .text = content else { return [] }
+
+        return KnowledgeHighlights.trimmed(highlights, for: text)
     }
 
     func stopWatching() {
@@ -156,119 +178,5 @@ final class IngestionDictationScreenModel {
         }
 
         errorMessage = AddSendFailure.message(for: error)
-    }
-}
-
-struct IngestionDictationScreen: View {
-    @State private var model: IngestionDictationScreenModel
-
-    init(topic: Topic? = nil, subjectId: String? = nil) {
-        _model = State(initialValue: IngestionDictationScreenModel(topic: topic, subjectId: subjectId))
-    }
-
-    private var submitTile: MainActionTile {
-        #if os(macOS)
-        let shortcut: KeyboardShortcut? = KeyboardShortcut(.return, modifiers: .command)
-        #else
-        let shortcut: KeyboardShortcut? = nil
-        #endif
-
-        return MainActionTile(
-            title: "Submit",
-            style: .prominent,
-            isLoading: model.isSubmitting,
-            isDisabled: model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            shortcut: shortcut
-        ) { Task { await model.submit() } }
-    }
-
-    var body: some View {
-        Form {
-            if let topic = model.topic {
-                Section {
-                    Text("Topic: \(topic.title)")
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if model.showsSubjectPicker {
-                AddKnowledgeSubjectPicker(model: model.subjectPicker)
-            }
-
-            if model.showsTargetPhrases {
-                TargetPhrasesSection(phrases: $model.targetPhrases)
-            }
-
-            Section("Dictate what you're learning") {
-                TextEditor(text: $model.text)
-                    .frame(minHeight: 200)
-                    .overlay(alignment: .topLeading) {
-                        if model.text.isEmpty {
-                            Text(AddKnowledgeInput.placeholder)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 8)
-                                .padding(.leading, 5)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-
-                #if os(iOS)
-                PasteButton(payloadType: String.self) { strings in
-                    guard let pasted = strings.first else { return }
-
-                    Task { @MainActor in model.text = AddKnowledgeDraft.pasting(pasted, into: model.text) }
-                }
-                .accessibilityIdentifier("add-knowledge-paste")
-                #endif
-            }
-
-            if model.hasSent {
-                Section {
-                    Text(model.isDetecting
-                        ? "Sent. Extracting items..."
-                        : "Added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.")
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                    if let summaryText = model.summaryText {
-                        Text(summaryText)
-                            .zoomFont(.caption)
-                    }
-
-                    Button("Review new items") { model.showReview = true }
-                        .disabled(model.isDetecting)
-                }
-            }
-
-            if let errorMessage = model.errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-
-                    if model.canAddAnyway {
-                        Button("Add anyway") {
-                            Task { await model.addAnyway() }
-                        }
-                        .disabled(model.isSubmitting)
-                    }
-                }
-            }
-        }
-        .refreshable { if model.showsSubjectPicker { await model.subjectPicker.load() } }
-        .keyboardDismissal()
-        .task { await model.loadSubjects() }
-        .onDisappear { model.stopWatching() }
-        .navigationTitle("Add Knowledge")
-        .mainActionControls([submitTile])
-        .reportsUnsentInput("add-knowledge", model.hasInput)
-        .sheet(isPresented: $model.showReview) {
-            PendingReviewScreen(onDone: { model.showReview = false })
-                #if os(iOS)
-                .presentationDragIndicator(.visible)
-                #else
-                .frame(minWidth: 480, minHeight: 520)
-                #endif
-        }
     }
 }

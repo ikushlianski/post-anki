@@ -55,6 +55,21 @@ extension NetworkContracts {
             #expect(RecordingStub.last?.body?["targetPhrases"] == nil)
         }
 
+        @Test("should send highlight ranges as start and end offsets and omit the field otherwise")
+        func sendsHighlights() async throws {
+            RecordingStub.install(body: Data(#"{"id":"src_6"}"#.utf8))
+            _ = try await APIClient.addKnowledgeSource(content: .text("Hello world"), highlights: [KnowledgeHighlight(start: 6, end: 11)])
+
+            let sent = RecordingStub.last?.body?["highlights"] as? [[String: Int]]
+
+            #expect(sent == [["start": 6, "end": 11]])
+
+            RecordingStub.install(body: Data(#"{"id":"src_7"}"#.utf8))
+            _ = try await APIClient.addKnowledgeSource(content: .text("Hello world"))
+
+            #expect(RecordingStub.last?.body?["highlights"] == nil)
+        }
+
         @Test("should map a 409 already_added reply from the server to its refusal")
         func mapsServerRefusal() async throws {
             RecordingStub.install(status: 409, body: Data(#"{"error":"already_added"}"#.utf8))

@@ -65,6 +65,46 @@ extension SmokeTests {
             #expect(body?["text"] == nil)
         }
 
+        @Test("should send highlights relative to the trimmed text the server receives")
+        func sendsHighlightsTrimmed() async {
+            let session = FakeServerSession(["POST /knowledge-sources": .json(200, created), "POST /knowledge-sources/detect-bits": .status(200)])
+            defer { session.end() }
+
+            let model = IngestionDictationScreenModel(topic: nil, subjectId: nil)
+            model.text = "  Hello world "
+            model.highlights = [KnowledgeHighlight(start: 8, end: 13)]
+
+            await model.submit()
+
+            let sent = sentBody()?["highlights"] as? [[String: Int]]
+            #expect(sent == [["start": 6, "end": 11]])
+            #expect(model.highlights.isEmpty)
+        }
+
+        @Test("should not send highlights for a link")
+        func linkHasNoHighlights() async {
+            let session = FakeServerSession(["POST /knowledge-sources": .json(200, created), "POST /knowledge-sources/detect-bits": .status(200)])
+            defer { session.end() }
+
+            let model = IngestionDictationScreenModel(topic: nil, subjectId: nil)
+            model.text = "https://example.com/post"
+            model.highlights = [KnowledgeHighlight(start: 0, end: 5)]
+
+            await model.submit()
+
+            #expect(sentBody()?["highlights"] == nil)
+        }
+
+        @Test("should move a highlight with the words it marks when the user types before it")
+        func highlightFollowsEdits() {
+            let model = IngestionDictationScreenModel(topic: nil, subjectId: nil, drafts: InMemoryAddDraftStore())
+            model.text = "Hello world"
+            model.highlights = [KnowledgeHighlight(start: 6, end: 11)]
+            model.text = "Oh Hello world"
+
+            #expect(model.highlights == [KnowledgeHighlight(start: 9, end: 14)])
+        }
+
         @Test("should keep a course subject over the picker")
         func courseSubjectWins() async {
             let session = FakeServerSession(["POST /knowledge-sources": .json(200, created), "POST /knowledge-sources/detect-bits": .status(200)])

@@ -11,6 +11,7 @@ struct AddKnowledgeSourceInput: Encodable, Sendable {
     let subjectId: String?
     let force: Bool?
     let targetPhrases: [String]?
+    let highlights: [KnowledgeHighlight]?
 }
 
 extension APIClient {
@@ -18,7 +19,8 @@ extension APIClient {
         content: KnowledgeSourceContent,
         subjectId: String? = nil,
         force: Bool = false,
-        targetPhrases: [String]? = nil
+        targetPhrases: [String]? = nil,
+        highlights: [KnowledgeHighlight]? = nil
     ) async throws -> CreateKnowledgeSourceResult {
         var text: String?
         var url: String?
@@ -31,7 +33,7 @@ extension APIClient {
         return try await request(
             "/knowledge-sources",
             method: "POST",
-            body: AddKnowledgeSourceInput(text: text, url: url, subjectId: subjectId, force: force ? true : nil, targetPhrases: targetPhrases)
+            body: AddKnowledgeSourceInput(text: text, url: url, subjectId: subjectId, force: force ? true : nil, targetPhrases: targetPhrases, highlights: highlights)
         )
     }
 }
