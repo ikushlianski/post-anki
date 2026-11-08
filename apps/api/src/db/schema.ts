@@ -734,6 +734,7 @@ export const apiTokens = pgTable("api_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  scopes: text("scopes").array().notNull().default(sql`'{}'::text[]`),
 });
 
 export const probeSessions = pgTable("probe_sessions", {

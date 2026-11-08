@@ -90,6 +90,9 @@ The lists are the codes in the controllers and `src/api-server.ts`; a route may 
 If `API_SHARED_SECRET` is set, every route except `/_healthz` requires
 `Authorization: Bearer <secret>`. Unset = open (local dev).
 
+The repo's `.mcp.json` reads the client-side env var `POST_ANKI_MCP_TOKEN` (a `pat_...` API token with the
+`knowledge:write` scope) for the `post-anki-prod` server. Steps: `.planning/business-anki-import-mcp/runbook.md`.
+
 ## Config (env)
 
 Local: `DATABASE_URL` (local docker Postgres on :5562 in `.env.local`; Neon only in deployed environments), `OPENROUTER_API_KEY`, `CURRICULUM_MODEL`

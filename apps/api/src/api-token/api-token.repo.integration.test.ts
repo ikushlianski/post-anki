@@ -99,7 +99,18 @@ describe("insertApiToken", () => {
     const result = await insertApiToken({ label: "legacy", tokenHash: hash }, db);
 
     expect(result.userId).toBeNull();
-    expect(await findActiveTokenByHash(hash, db)).toEqual({ id: result.id, revokedAt: null });
+    expect(await findActiveTokenByHash(hash, db)).toEqual({ id: result.id, revokedAt: null, scopes: [] });
+  });
+
+  it("should store the scopes a token is minted with and hand them back on lookup", async () => {
+    const hash = hashApiToken("pat_import");
+    const result = await insertApiToken({ label: "anki import", tokenHash: hash, scopes: ["knowledge:write"] }, db);
+
+    expect(await findActiveTokenByHash(hash, db)).toEqual({
+      id: result.id,
+      revokedAt: null,
+      scopes: ["knowledge:write"],
+    });
   });
 
   it("should keep the token usable after its user is deleted", async () => {

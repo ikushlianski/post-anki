@@ -2,23 +2,37 @@ import process from "node:process";
 import { randomBytes } from "node:crypto";
 import { hashApiToken } from "../src/api-token/api-token.hash.js";
 import { insertApiToken, UnknownTokenOwnerError } from "../src/api-token/api-token.repo.js";
+import { parseScopeList, type ApiTokenScope } from "../src/api-token/api-token.scopes.js";
 import { closeDb } from "../src/db/client.js";
 
-function parseArgs(argv: string[]): { label?: string; email?: string } {
+interface Args {
+  label?: string;
+  email?: string;
+  scopes: ApiTokenScope[];
+}
+
+function parseArgs(argv: string[]): Args {
   const positional: string[] = [];
   let email: string | undefined;
+  let scopes: ApiTokenScope[] = [];
 
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--email") {
+    const arg = argv[i]!;
+
+    if (arg === "--email") {
       email = argv[++i];
-    } else if (argv[i]?.startsWith("--email=")) {
-      email = argv[i]!.slice("--email=".length);
+    } else if (arg.startsWith("--email=")) {
+      email = arg.slice("--email=".length);
+    } else if (arg === "--scopes") {
+      scopes = parseScopeList(argv[++i] ?? "");
+    } else if (arg.startsWith("--scopes=")) {
+      scopes = parseScopeList(arg.slice("--scopes=".length));
     } else {
-      positional.push(argv[i]!);
+      positional.push(arg);
     }
   }
 
-  return { label: positional[0], email };
+  return { label: positional[0], email, scopes };
 }
 
 async function main() {
@@ -28,7 +42,7 @@ async function main() {
     throw new Error("DATABASE_URL is required to mint an api token");
   }
 
-  const { label, email } = parseArgs(process.argv.slice(2));
+  const { label, email, scopes } = parseArgs(process.argv.slice(2));
 
   if (email !== undefined && !email.includes("@")) {
     throw new Error("--email needs an address, e.g. --email me@example.com");
@@ -36,7 +50,7 @@ async function main() {
 
   if (!label) {
     throw new Error(
-      "usage: tsx scripts/create-api-token.ts <label> [--email <address>], e.g. \"Ilya's phone\"",
+      'usage: tsx scripts/create-api-token.ts <label> [--email <address>] [--scopes knowledge:write], e.g. "Ilya\'s phone"',
     );
   }
 
@@ -44,12 +58,14 @@ async function main() {
   const tokenHash = hashApiToken(rawToken);
 
   try {
-    await insertApiToken({ label, tokenHash, ownerEmail: email });
+    await insertApiToken({ label, tokenHash, ownerEmail: email, scopes });
   } finally {
     await closeDb();
   }
 
-  console.log(`Token minted for "${label}". Save it now — it will not be shown again:\n`);
+  const scopeNote = scopes.length > 0 ? ` with scopes ${scopes.join(", ")}` : " with no scopes (read access only)";
+
+  console.log(`Token minted for "${label}"${scopeNote}. Save it now — it will not be shown again:\n`);
   console.log(rawToken);
 }
 

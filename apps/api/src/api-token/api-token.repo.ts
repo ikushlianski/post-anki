@@ -12,7 +12,7 @@ export class UnknownTokenOwnerError extends Error {
 }
 
 export async function insertApiToken(
-  input: { label: string; tokenHash: string; ownerEmail?: string },
+  input: { label: string; tokenHash: string; ownerEmail?: string; scopes?: string[] },
   db: DbExecutor = getDb(),
 ): Promise<{ id: string; userId: string | null }> {
   let userId: string | null = null;
@@ -30,7 +30,13 @@ export async function insertApiToken(
 
   const id = newId("apitoken");
 
-  await db.insert(apiTokens).values({ id, label: input.label, tokenHash: input.tokenHash, userId });
+  await db.insert(apiTokens).values({
+    id,
+    label: input.label,
+    tokenHash: input.tokenHash,
+    userId,
+    scopes: input.scopes ?? [],
+  });
 
   return { id, userId };
 }
@@ -49,7 +55,7 @@ export function isTokenActive(
 export async function findActiveTokenByHash(
   tokenHash: string,
   db: DbExecutor = getDb(),
-): Promise<{ id: string; revokedAt: string | null } | null> {
+): Promise<{ id: string; revokedAt: string | null; scopes: string[] } | null> {
   const rows = await db
     .select()
     .from(apiTokens)
@@ -68,7 +74,7 @@ export async function findActiveTokenByHash(
     return null;
   }
 
-  return { id: row.id, revokedAt };
+  return { id: row.id, revokedAt, scopes: row.scopes ?? [] };
 }
 
 export async function touchLastUsed(id: string): Promise<void> {

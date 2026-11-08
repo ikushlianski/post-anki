@@ -2,9 +2,13 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
+
+vi.mock("../knowledge-source/knowledge-source-kick.js", () => ({
+  kickSourcesAfterAdd: vi.fn(async () => {}),
+}));
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -49,6 +53,7 @@ const { searchKnowledgeItems } = await import("./search-knowledge-items.tool.js"
 const { listKnowledgeSources } = await import("./list-knowledge-sources.tool.js");
 const { getSourceKnowledgeBits } = await import("./get-source-knowledge-bits.tool.js");
 const { getKnowledgeBit } = await import("./get-knowledge-bit.tool.js");
+const { submitKnowledge } = await import("./submit-knowledge.tool.js");
 
 let client: pg.Client;
 
@@ -73,7 +78,12 @@ function id(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }
 
-async function tableSnapshot(): Promise<string> {
+async function tableSnapshot(options: { includeKnowledgeSources?: boolean } = {}): Promise<string> {
+  const { includeKnowledgeSources = true } = options;
+  const knowledgeSourcesPart = includeKnowledgeSources
+    ? `(SELECT coalesce(string_agg(ks::text, '|' ORDER BY ks::text), '') FROM knowledge_sources ks) ||`
+    : "";
+
   const { rows } = await client.query<{ digest: string }>(`
     SELECT md5(
       (SELECT coalesce(string_agg(s::text, '|' ORDER BY s::text), '') FROM subjects s) ||
@@ -85,7 +95,7 @@ async function tableSnapshot(): Promise<string> {
       (SELECT coalesce(string_agg(v::text, '|' ORDER BY v::text), '') FROM topic_card_variants v) ||
       (SELECT coalesce(string_agg(pbe::text, '|' ORDER BY pbe::text), '') FROM phrase_bank_entries pbe) ||
       (SELECT coalesce(string_agg(p::text, '|' ORDER BY p::text), '') FROM phrases p) ||
-      (SELECT coalesce(string_agg(ks::text, '|' ORDER BY ks::text), '') FROM knowledge_sources ks) ||
+      ${knowledgeSourcesPart}
       (SELECT coalesce(string_agg(kb::text, '|' ORDER BY kb::text), '') FROM knowledge_bits kb) ||
       (SELECT coalesce(string_agg(kv::text, '|' ORDER BY kv::text), '') FROM knowledge_bit_question_variants kv)
     ) AS digest
@@ -200,5 +210,34 @@ describe("MCP tools, read-only guarantee", () => {
     const after = await tableSnapshot();
 
     expect(after).toBe(before);
+  });
+
+  it("should leave every table unchanged for a scopeless submit and change only knowledge_sources for a scoped one", async () => {
+    const root = id("sub");
+
+    await client.query(`INSERT INTO subjects (id, name, kind) VALUES ($1, 'Business', 'architecture-mentor')`, [root]);
+    await client.query(`INSERT INTO subjects (id, name, kind, parent_id) VALUES ($1, 'Sales', 'architecture-mentor', $2)`, [
+      id("sub"),
+      root,
+    ]);
+
+    const input = { deck: "Продажи", notes: [{ key: "anki:guard0001", text: "Guarded note" }] };
+    const full = await tableSnapshot();
+    const withoutSources = await tableSnapshot({ includeKnowledgeSources: false });
+    const countBefore = await client.query<{ n: string }>(`SELECT count(*) AS n FROM knowledge_sources`);
+
+    const denied = await submitKnowledge(input, { scopes: [] });
+
+    expect(denied).toEqual({ error: "missing_scope" });
+    expect(await tableSnapshot()).toBe(full);
+
+    const allowed = await submitKnowledge(input, { scopes: ["knowledge:write"] });
+
+    expect(allowed).toMatchObject({ created: 1 });
+    expect(await tableSnapshot({ includeKnowledgeSources: false })).toBe(withoutSources);
+
+    const countAfter = await client.query<{ n: string }>(`SELECT count(*) AS n FROM knowledge_sources`);
+
+    expect(Number(countAfter.rows[0]!.n)).toBe(Number(countBefore.rows[0]!.n) + input.notes.length);
   });
 });

@@ -1,5 +1,6 @@
 import type http from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { getRequestAuthContext } from "../auth/request-auth-context.js";
 import { log } from "../shared/log.js";
 import { createMcpServer } from "./mcp.server-factory.js";
 
@@ -9,7 +10,7 @@ export async function handleMcpRequest(
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ): Promise<void> {
-  const server = createMcpServer();
+  const server = createMcpServer(getRequestAuthContext(req));
 
   try {
     const transport = new StreamableHTTPServerTransport({

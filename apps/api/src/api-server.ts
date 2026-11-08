@@ -419,6 +419,7 @@ import { resolveRoute } from "./router.js";
 import { hashApiToken } from "./api-token/api-token.hash.js";
 import { findActiveTokenByHash, touchLastUsed } from "./api-token/api-token.repo.js";
 import { classifyCredential, hasValidSessionToken, isDeviceTokenRoute, isNativeAuthRoute } from "./auth/api-credential.js";
+import { fullAccessContext, setRequestAuthContext } from "./auth/request-auth-context.js";
 import { CLIENT_IP_HEADER } from "./auth/auth.js";
 import { handleCreateDeviceToken } from "./auth/device-token.controller.js";
 import { handleAuthRequest, handleWebAuthCheck, isAuthPath } from "./auth/web-auth.controller.js";
@@ -462,6 +463,8 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
   const env = loadEnv();
 
   if (!env.API_SHARED_SECRET) {
+    setRequestAuthContext(req, fullAccessContext("shared_secret"));
+
     return true;
   }
 
@@ -469,6 +472,8 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
   const expected = `Bearer ${env.API_SHARED_SECRET}`;
 
   if (header !== undefined && timingSafeEqualStrings(header, expected)) {
+    setRequestAuthContext(req, fullAccessContext("shared_secret"));
+
     return true;
   }
 
@@ -481,11 +486,18 @@ async function authorized(req: http.IncomingMessage): Promise<boolean> {
 
   if (token) {
     await touchLastUsed(token.id).catch((err: unknown) => log.error({ err }, "api_token_touch_last_used_failed"));
+    setRequestAuthContext(req, { kind: "device_token", scopes: token.scopes });
 
     return true;
   }
 
-  return classifyCredential(header, env.API_SHARED_SECRET) === "session_token" && (await hasValidSessionToken(header));
+  if (classifyCredential(header, env.API_SHARED_SECRET) !== "session_token" || !(await hasValidSessionToken(header))) {
+    return false;
+  }
+
+  setRequestAuthContext(req, fullAccessContext("session_token"));
+
+  return true;
 }
 
 function requiresSharedSecretOnly(path: string): boolean {

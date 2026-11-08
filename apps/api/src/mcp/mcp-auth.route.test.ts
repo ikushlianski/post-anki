@@ -11,16 +11,36 @@ interface TokenRow {
   tokenHash: string;
   revokedAt: Date | null;
   createdAt?: Date;
+  scopes?: string[];
 }
 
 const state = vi.hoisted(() => ({
   tokenRows: [] as TokenRow[],
   touchedIds: [] as string[],
+  dbCalls: 0,
+  authContexts: [] as import("../auth/request-auth-context.js").RequestAuthContext[],
 }));
+
+vi.mock("./mcp.server-factory.js", async () => {
+  const actual = await vi.importActual<typeof import("./mcp.server-factory.js")>("./mcp.server-factory.js");
+
+  return {
+    ...actual,
+    createMcpServer: vi.fn((auth: import("../auth/request-auth-context.js").RequestAuthContext) => {
+      state.authContexts.push(auth);
+
+      return actual.createMcpServer(auth);
+    }),
+  };
+});
 
 vi.mock("../db/client.js", () => {
   const chain = {
-    select: () => chain,
+    select: () => {
+      state.dbCalls += 1;
+
+      return chain;
+    },
     from: () => chain,
     orderBy: () => [],
     where: () => chain,
@@ -69,6 +89,8 @@ afterAll(async () => {
 afterEach(() => {
   state.tokenRows = [];
   state.touchedIds = [];
+  state.dbCalls = 0;
+  state.authContexts = [];
   vi.clearAllMocks();
 });
 
@@ -174,6 +196,71 @@ describe("POST /mcp auth", () => {
 
     expect(res.status).toBe(200);
     expect(state.touchedIds).toEqual(["tok_old_device"]);
+  });
+
+  it("hands the MCP server the scopes of the api token behind the request", async () => {
+    state.tokenRows = [{ id: "tok_import", tokenHash: "irrelevant", revokedAt: null, scopes: ["knowledge:write"] }];
+
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders("pat_import_token"),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.authContexts).toEqual([{ kind: "device_token", scopes: ["knowledge:write"] }]);
+  });
+
+  it("gives a token minted without scopes an empty scope list, so it keeps read access only", async () => {
+    state.tokenRows = [{ id: "tok_plain", tokenHash: "irrelevant", revokedAt: null }];
+
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders("pat_plain_token"),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.authContexts).toEqual([{ kind: "device_token", scopes: [] }]);
+  });
+
+  it("answers a scopeless token calling submit_knowledge with an error result, not a 401, and runs no extra query", async () => {
+    state.tokenRows = [{ id: "tok_plain", tokenHash: "irrelevant", revokedAt: null }];
+
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders("pat_plain_token"),
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "submit_knowledge",
+          arguments: { deck: "Продажи", notes: [{ key: "anki:scopeless1", text: "A note" }] },
+        },
+      }),
+    });
+
+    expect(res.status).toBe(200);
+
+    const body = await res.text();
+    const payload = body.match(/data: (.*)/)?.[1] ?? body;
+    const parsed = JSON.parse(payload) as { result: { isError: boolean; content: { text: string }[] } };
+
+    expect(parsed.result.isError).toBe(true);
+    expect(parsed.result.content[0]!.text).toBe("Missing scope knowledge:write");
+    expect(state.dbCalls).toBe(1);
+  });
+
+  it("gives the shared secret every scope", async () => {
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders(SHARED_SECRET),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(200);
+    expect(state.authContexts).toEqual([{ kind: "shared_secret", scopes: ["*"] }]);
   });
 
   it("can no longer reach /mcp once that token is revoked", async () => {

@@ -111,6 +111,10 @@ describe("POST /mcp tools", () => {
       expect(tool?.annotations?.readOnlyHint).toBe(true);
     }
 
+    const writers = tools.filter((tool) => tool.annotations?.readOnlyHint !== true);
+
+    expect(writers.map((tool) => tool.name)).toEqual(["submit_knowledge"]);
+
     await client.close();
   });
 
