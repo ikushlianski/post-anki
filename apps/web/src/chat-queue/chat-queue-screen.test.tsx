@@ -288,7 +288,7 @@ describe('ChatQueueScreen', () => {
     expect(screen.queryByTestId('chat-queue-proposal-accept-0')).toBeNull()
   })
 
-  it('should keep the thread open after a rejected proposal and ask what is wrong', async () => {
+  it('should keep the thread open after a rejected proposal and tell the agent which card was rejected', async () => {
     vi.mocked(getChatQueueThread).mockResolvedValue(withProposal('pending'))
     vi.mocked(rejectChatQueueProposal).mockResolvedValue(ok({ ok: true, status: 'rejected' }))
     vi.mocked(sendChatQueueMessage).mockResolvedValue(
@@ -299,13 +299,8 @@ describe('ChatQueueScreen', () => {
     await userEvent.click(await screen.findByTestId('chat-queue-proposal-reject-0'))
 
     expect(rejectChatQueueProposal).toHaveBeenCalledWith({ data: { bitId: 'a', seq: 2, index: 0 } })
-    expect(await screen.findByTestId('chat-queue-reject-hint')).not.toBeNull()
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Ask about this card')))
-
-    await userEvent.type(screen.getByLabelText('Ask about this card'), 'Too vague')
-    await userEvent.click(screen.getByTestId('chat-queue-send'))
-
     expect(await screen.findByText('Revised')).not.toBeNull()
+    expect(screen.queryByTestId('chat-queue-reject-hint')).toBeNull()
     expect(screen.getByTestId('chat-queue-proposal-rejected-0')).not.toBeNull()
   })
 

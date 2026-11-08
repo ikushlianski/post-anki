@@ -100,9 +100,9 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
   )
 
   const deliver = useCallback(
-    async (text: string, keepDraft = false) => {
+    async (text: string, keepDraft = false, providedId?: string) => {
       const clientId =
-        retry.current?.text === text ? retry.current.id : crypto.randomUUID()
+        providedId ?? (retry.current?.text === text ? retry.current.id : crypto.randomUUID())
       const userLine: ChatLine = { id: `u-${clientId}`, isUser: true, text }
 
       retry.current = { text, id: clientId }
@@ -161,6 +161,20 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
       await deliver(text)
     },
     [budgetPaused, deliver, draft, limitReached],
+  )
+
+  const sendWithId = useCallback(
+    async (text: string, clientMessageId: string): Promise<boolean> => {
+      if (busy.current || limitReached || budgetPaused) {
+        return false
+      }
+
+      busy.current = true
+      await deliver(text, true, clientMessageId)
+
+      return true
+    },
+    [budgetPaused, deliver, limitReached],
   )
 
   const retryLast = useCallback(async () => {
@@ -266,6 +280,7 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
     canSend:
       !limitReached && !budgetPaused && !sending && !resolving && draft.trim().length > 0,
     send,
+    sendWithId,
     retryLast,
     accept,
     reject,

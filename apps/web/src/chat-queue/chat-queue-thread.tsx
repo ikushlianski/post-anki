@@ -19,7 +19,8 @@ import { ChatQueueRejectReasons } from "./chat-queue-reject-reasons";
 import { ChatQueueSnooze } from "./chat-queue-snooze";
 import { ChatQueueTurnsMeter } from "./chat-queue-turns-meter";
 import { ChatQueueProposals } from "./chat-queue-proposals";
-import { useChatProposals } from "./use-chat-proposals";
+import { useChatProposals, type RejectedProposal } from "./use-chat-proposals";
+import { rejectedProposalMessage, rejectedProposalMessageId } from "./chat-queue-reject-message";
 import { useChatThread } from "./use-chat-thread";
 import { chatWaitingDays, formatChatWaiting } from "./chat-queue-waiting";
 
@@ -54,10 +55,21 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
   const composer = useRef<HTMLTextAreaElement>(null);
   const lineCount = useRef(0);
   const [rejectedAt, setRejectedAt] = useState<number | null>(null);
-  const handleProposalRejected = useCallback(() => {
-    setRejectedAt(lineCount.current);
-    composer.current?.focus();
-  }, []);
+  const { sendWithId } = thread;
+  const handleProposalRejected = useCallback(
+    async (rejected: RejectedProposal) => {
+      const sent = await sendWithId(
+        rejectedProposalMessage(rejected.front),
+        rejectedProposalMessageId(item.id, rejected),
+      );
+
+      if (!sent) {
+        setRejectedAt(lineCount.current);
+        composer.current?.focus();
+      }
+    },
+    [item.id, sendWithId],
+  );
   const proposals = useChatProposals(item.id, {
     onDecided: thread.applyDecision,
     onRejected: handleProposalRejected,

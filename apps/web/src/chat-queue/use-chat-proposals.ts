@@ -24,7 +24,13 @@ interface Options {
     index: number,
     decision: Pick<ChatQueueProposal, 'status' | 'savedCardId'>,
   ) => void
-  onRejected: () => void
+  onRejected: (rejected: RejectedProposal) => void
+}
+
+export interface RejectedProposal {
+  seq: number
+  index: number
+  front: string
 }
 
 export function useChatProposals(bitId: string, { onDecided, onRejected }: Options) {
@@ -69,7 +75,7 @@ export function useChatProposals(bitId: string, { onDecided, onRejected }: Optio
           if (decision === 'accept') {
             notifyPendingReviewChanged()
           } else {
-            onRejected()
+            onRejected({ seq, index: proposal.index, front: proposal.front })
           }
         } else {
           set({ state: 'error', message: chatQueueFailureMessage(outcome.failure) })
