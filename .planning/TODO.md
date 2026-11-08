@@ -7,6 +7,26 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## chat-queue-card-crafting
+
+### Scope
+- The chat a card is sent to becomes a short-lived workbench for fixing weak cards: it answers from a smarter model that can search and fetch the web, prefers the model's own knowledge, and pulls author context when the source author is known.
+- The chat has real card tools that create proper PostAnki cards with front, back and optional examples, replacing the button that turns the model's last answer into a front.
+- Both the iOS and desktop apps carry the improved chat, since this is where cards get ironed out before they go back to review.
+- Out of scope: A persistent general-purpose chat or chat history; backfilling existing cards.
+- A proposed card is never saved silently: the user accepts or rejects it in the chat, and a rejection continues the discussion.
+
+### Coding tasks
+- [ ] Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
+- [ ] The iOS and Mac apps show the improved chat with the same card tools as the web app.
+- [ ] When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
+- [ ] Chat answers come from a smarter model tier with web search and fetch available, with the model's own knowledge preferred and web context used to fill terse one-sentence sources.
+- [ ] The chat model gets create-card and update-card tools that take a front, a back and optional examples, so a card born in the chat is a proper card and not a copied answer.
+
+### Notes
+- Worked in its own Orca worktree chat-queue-card-crafting, started 2026-11-08 from this session's brief.
+
+
 ## duplicate-detection-and-variations
 
 ### Scope
@@ -519,6 +539,9 @@ updated: 2026-09-04
 - Two new triage choices on web and iPhone: Chat about this, and Add an AI example
 
 ### Coding tasks
+- [x] Each triage chat reply proposes one or two cards to approve or keep refining.
+- [x] Animate a card shrinking toward the Inbox when sent to chat, so the move is visible.
+- [x] Use a stronger general model, such as Gemini Flash, for chat on cards sent from triage.
 - [x] Let learners edit cloze and list notes from Inbox rows on web and iPhone.
 - [x] Web triage: swipe up asks AI to write an example for the card.
 - [x] iPhone triage: swipe down sends to the Inbox, swipe up asks AI for an example.
@@ -844,6 +867,9 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [ ] [blocked: user] Register Apple App ID and App Group for the Mac share extension.
+- [x] Add a macOS share extension to the PostAnki Mac app, so right-clicking selected text in any app (for example the Claude desktop app) shows PostAnki in the Share menu. The panel has a subject picker with an "Auto" default that leaves the subject empty so the API's triage assigns one, and it saves the text as raw knowledge using the Mac app's existing login.
+- [x] Let the user highlight phrases in a knowledge source in the Mac and iPhone apps to tell the AI which parts to pay attention to when shaping questions, as the web app already does. The apps send the highlight start and end positions with the source, and the question-shaping code reads them as today.
 - [x] Filter the Knowledge overview by state and origin on the server, then use it on iPhone.
 - [x] Bring the iOS app close to web parity: cards table, subjects tree with depth bar, triage, search.
 - [x] A kept piece in pending review can be undone, restoring its dropped variants and pending state.
@@ -966,6 +992,12 @@ updated: 2026-09-04
 - Create extra cards from web search and web fetch, each marked with an AI label
 
 ### Coding tasks
+- [x] Tapping a suggested related card in item chat opens a ready card proposal.
+- [x] Item chat adds a few examples and nearby facts, each labelled web or own material.
+- [x] Item chat uses a cheap web search by default to clarify a card, capped per reply.
+- [x] Item chat checks the learner's own source material first, quoting the relevant part.
+- [x] Add tests for source-first grounding, the search cap, web labels and related-card suggestions in item chat.
+- [x] Item chat ends a clarifying answer with one to three suggested related cards the learner could add.
 - [x] Decide whether the card example field is filled by web search always, only on demand, or never
 - [x] Stop a late Make fact reply refilling the tray after Clear
 - [x] Let the learner open item chat from any item in the knowledge overview
@@ -996,6 +1028,7 @@ updated: 2026-09-04
 - Out of scope: Domain-map tree changes; it stays a separate structure
 
 ### Coding tasks
+- [x] Reviewing a parent subject mixes balanced new and learning cards from sub-subjects, favouring recently studied ones.
 - [ ] [blocked: user] Run the Business sub-subject seed on production for the deeper Sales and Management levels.
 - [x] Sales gets deeper sub-subjects such as cold sales; management gets delegation and people management.
 - [x] Business gets its past sub-subjects: marketing, sales, SMM, hiring, director, communication, management and similar.
@@ -1245,6 +1278,9 @@ updated: 2026-09-04
 - Embed submitted knowledge bits and AI-generated Q&A into the existing vector pipeline, traceable back to their source bit
 
 ### Coding tasks
+- [x] Text saying "ask AI" extracts only evident facts and opens a web chat.
+- [x] Add knowledge input lets the learner highlight several passages, overlaps allowed, to focus extraction.
+- [x] Split long pasted text into sources with a cheap model, then extract knowledge normally.
 - [x] The database tests for approving, processing and regenerating knowledge items pass under the current approval rules.
 - [x] Typed-answer mode lets the learner skip a question and submit with Ctrl+Enter.
 - [x] Keep the typed answer and offer a retry when grading or loading fails
@@ -1322,16 +1358,15 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
-- [ ] [blocked: user] Sources work is built and reviewed but unticked: ticking auto-commits unrelated sessions work too.
+- [ ] [blocked: user] Register the English phrases Notion page as a production source for English for IT.
 - [ ] [blocked: user] Pull the two seed Notion pages read-only and inspect their shape, needs a Notion token.
-- [ ] Store ingestion sources with page URL, target subject, items per run, frequency and a keep-or-remove-after-import setting.
-- [ ] Add an Ingest Now action for each source that imports it immediately.
-- [ ] Add the same sources screen and remove-after-import toggle to the iOS app.
-- [ ] Add the same sources screen and remove-after-import toggle to the native Mac app.
-- [ ] Let the user configure the Notion MCP connection in settings, with credentials kept out of the page.
-- [ ] Register the English phrases Notion page as the first source, mapped to English for IT.
-- [ ] Run each source on its own schedule, removing imported Notion items only if its toggle is on.
-- [ ] Let the user pause, edit or delete a source in the web app.
+- [x] Store ingestion sources with page URL, target subject, items per run, frequency and a keep-or-remove-after-import setting.
+- [x] Add an Ingest Now action for each source that imports it immediately.
+- [x] Add the same sources screen and remove-after-import toggle to the iOS app.
+- [x] Add the same sources screen and remove-after-import toggle to the native Mac app.
+- [x] Let the user configure the Notion MCP connection in settings, with credentials kept out of the page.
+- [x] Run each source on its own schedule, removing imported Notion items only if its toggle is on.
+- [x] Let the user pause, edit or delete a source in the web app.
 
 ### Notes
 - Completed items archived to .planning/LOG.md.
@@ -1803,11 +1838,27 @@ Each root item below is one separate autonomous session, worked sequentially —
 - [x] Each phrase gets three situation variants paired with its sentences, so Triage shows front and back variations.
 - [x] Phrase cards offer three sentence options in Triage, picked with arrows, Enter or X.
 - [ ] [blocked: user] Run the first real phrase import from Notion, needs the MCP connection.
-- [ ] [blocked: user] Phrase import is built and reviewed but unticked: ticking auto-commits other sessions' work too.
 - [x] Ingest the phrases as raw knowledge and skip any already imported, so a re-run adds nothing twice.
 - [x] Flag misheard or non-native phrases and show an AI-suggested version beside the original, with an AI badge.
 - [x] Turn each phrase into a card with a situation front and the natural phrase on the back.
 - [x] Create the English subject and English for IT sub-subject if missing, and send cards to Triage.
 
 ### Notes
+
+## cloze-cards
+
+### Scope
+- Support Anki-style cloze cards, where one sentence hides one or more words and the learner recalls them, as a card format PostAnki can create with AI and by hand and review like any other card.
+- Accept cloze notes from Anki exports so a migration keeps them as clozes instead of flattening them to plain question and answer.
+- Out of scope: Backfilling existing cards that already use blanks like ____ in their text; those stay as they are.
+
+### Coding tasks
+- [x] A long imported Anki cloze note becomes one cloze card with no stray extra cards.
+- [x] An imported cloze note's example is shortened at a word or sentence end, never mid-word.
+- [x] Add a cloze card kind with a stored sentence and the hidden spans, so the review screens can show the sentence with blanks and reveal the words.
+- [x] Let the manual card form and the AI card generation produce cloze cards when a fact is best learned as a sentence with hidden words.
+- [x] Parse Anki cloze markup (the cloze spans in HTML exports and the double-brace c1 syntax) into the cloze card kind during imports, so Business.txt-style exports migrate without losing the format.
+
+### Notes
+- EXHAUSTED-AT-SCOPE (round 1, 2026-11-08)
 
