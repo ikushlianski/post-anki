@@ -1155,3 +1155,22 @@ describe("migrations — claimedAt ownership token (prose-knowledge-fisher--stal
     expect(succeeded).toBe(true);
   });
 });
+
+describe("migrations — anki_import_notes (business-anki-import-mcp)", () => {
+  it("rejects a second row for the same import and note key", async () => {
+    const insert = (id: string) =>
+      client.query(
+        `INSERT INTO anki_import_notes (id, import_id, note_key, deck, raw_text, position)
+         VALUES ($1, 'imp-mig', 'anki:0000000000000001', 'Продажи', 'text', 0)`,
+        [id],
+      );
+
+    await insert(`aimp_${randomUUID()}`);
+
+    await expect(insert(`aimp_${randomUUID()}`)).rejects.toMatchObject({ code: "23505" });
+
+    const { rows } = await client.query(`SELECT status FROM anki_import_notes WHERE import_id = 'imp-mig'`);
+
+    expect(rows).toEqual([{ status: "staged" }]);
+  });
+});

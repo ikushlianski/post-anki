@@ -31,3 +31,6 @@ A failed source is final, and a stalled LLM call can cause it. Wh-question and f
 
 ## Cost
 A run is bounded like one scheduler tick: 20 sources per scan, chunks of 3000 characters with at most 3 running at once, 8 items per chunk and 40 per source, at most 3 attempts per LLM call. An empty run makes no LLM calls.
+
+## Anki import job
+A bulk import of an Anki export runs as the Inngest function `import-anki-notes` (event `anki-import/requested`, data `{ importId }` only). A local script (`npm run db:stage-anki-import -w @post-anki/api`) parses the file, refuses it on an unmapped deck, and stages the notes in `anki_import_notes`. The job then takes 20 staged notes per step, inserts them as keyed knowledge sources, starts durable extraction for the ones still pending and marks the notes imported. It refuses to start when durable extraction is off, the deck's sub-subject is missing, or more than 2000 notes are staged. Sending the same event again continues from the notes not yet imported; a singleton on the import id skips a second start while one runs.

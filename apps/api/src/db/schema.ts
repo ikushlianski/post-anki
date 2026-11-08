@@ -2568,3 +2568,30 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const ankiImportNotes = pgTable(
+  "anki_import_notes",
+  {
+    id: text("id").primaryKey(),
+    importId: text("import_id").notNull(),
+    noteKey: text("note_key").notNull(),
+    deck: text("deck").notNull(),
+    rawText: text("raw_text").notNull(),
+    position: integer("position").notNull(),
+    status: text("status").notNull().default("staged"),
+    sourceId: text("source_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    importNoteUnique: uniqueIndex("anki_import_notes_import_note_unique").on(
+      table.importId,
+      table.noteKey,
+    ),
+    importStatusPositionIdx: index("anki_import_notes_import_status_position_idx").on(
+      table.importId,
+      table.status,
+      table.position,
+    ),
+  }),
+);

@@ -1,3 +1,4 @@
+import { inArray } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -33,4 +34,26 @@ export async function insertKeyedKnowledgeSources(
     .returning();
 
   return inserted.map((row) => ({ ...row, createdAt: row.createdAt ?? new Date() }));
+}
+
+export interface KeyedSourceRef {
+  id: string;
+  importKey: string;
+  status: string;
+}
+
+export async function findSourcesByImportKeys(
+  keys: readonly string[],
+  db: DbExecutor = getDb(),
+): Promise<KeyedSourceRef[]> {
+  if (keys.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({ id: knowledgeSources.id, importKey: knowledgeSources.importKey, status: knowledgeSources.status })
+    .from(knowledgeSources)
+    .where(inArray(knowledgeSources.importKey, [...keys]));
+
+  return rows.flatMap((row) => (row.importKey ? [{ id: row.id, importKey: row.importKey, status: row.status }] : []));
 }

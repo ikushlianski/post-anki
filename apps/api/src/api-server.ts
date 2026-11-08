@@ -447,6 +447,7 @@ import {
   curriculumParseFunction,
   curriculumParseTimeoutHandler,
 } from "./curriculum/curriculum-parse-inngest.workflow.js";
+import { ankiImportFunction } from "./anki-import/anki-import-inngest.workflow.js";
 import {
   pipelineKickFollowUpFunction,
   pipelineKickInngestFunction,
@@ -530,6 +531,7 @@ const inngestServeHandler = createInngestServeHandler([
   curriculumDraftTimeoutHandler,
   curriculumParseFunction,
   curriculumParseTimeoutHandler,
+  ankiImportFunction,
 ]);
 
 export function createApiRequestListener(): http.RequestListener {

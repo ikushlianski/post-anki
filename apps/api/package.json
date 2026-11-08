@@ -21,6 +21,7 @@
     "db:create-web-key": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/create-web-api-key.ts",
     "db:rebuild-review-points": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/rebuild-review-points.ts",
     "db:seed:subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subjects.ts",
+    "db:stage-anki-import": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/stage-anki-import.ts",
     "db:seed:business-sub-subjects": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-business-sub-subjects.ts",
     "db:seed:knowledge-browser-demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-knowledge-browser-demo.ts",
     "db:seed:subject-categories": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed-subject-categories.ts",
