@@ -253,7 +253,7 @@ async function generateReply(
         null,
         AGENT_KEYS.knowledgeBitChatQueue,
         () => {
-          sink = createChatQueueProposalSink(earlier);
+          sink = createChatQueueProposalSink(earlier, [card.body, card.background, card.sourceText].filter(Boolean).join("\n"));
 
           return agent.generate(prompt, {
             modelSettings: { maxOutputTokens: CHAT_QUEUE_REPLY_MAX_TOKENS },

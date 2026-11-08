@@ -105,7 +105,7 @@ describe("runKnowledgeBitBasicCardGenerator model pinning", () => {
 describe("INSTRUCTIONS language rule", () => {
   it("should tell the model to write every field in the same language as the source text", () => {
     expect(INSTRUCTIONS).toContain(
-      "Write every field in the same language as the source text. Never translate, and never switch language.",
+      "Write in the same language as the source text. Never translate, and never switch language.",
     );
   });
 });
@@ -113,7 +113,10 @@ describe("INSTRUCTIONS language rule", () => {
 describe("INSTRUCTIONS meta-reference rule", () => {
   it("should forbid referring to the bit, source or passage as if the learner had seen it", () => {
     expect(INSTRUCTIONS).toContain(
-      "Write the question and answer as plain study material about the claim itself. Never mention 'the bit', 'this item', 'the text', 'the source', 'the author' or 'the passage'. The question must make sense to someone who has never seen the source.",
+      "Never mention 'the bit', 'this item', 'the text', 'the source', 'the author' or 'the passage'.",
+    );
+    expect(INSTRUCTIONS).toContain(
+      "The card must make sense to someone who has never seen the source.",
     );
   });
 });

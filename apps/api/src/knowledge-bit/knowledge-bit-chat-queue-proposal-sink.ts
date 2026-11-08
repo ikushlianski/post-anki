@@ -1,3 +1,4 @@
+import { validateChatQueueProposal } from "./knowledge-bit-chat-queue-proposal-validation.js";
 import { CHAT_QUEUE_MAX_PROPOSALS, type ChatQueueProposal } from "@post-anki/shared";
 
 export type NewChatQueueProposal = Pick<ChatQueueProposal, "kind" | "front" | "back" | "example" | "reason">;
@@ -13,7 +14,10 @@ function normalized(front: string, back: string): string {
   return `${front}\n${back}`.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-export function createChatQueueProposalSink(existing: ChatQueueProposal[] = []): ChatQueueProposalSink {
+export function createChatQueueProposalSink(
+  existing: ChatQueueProposal[] = [],
+  sourceText = "",
+): ChatQueueProposalSink {
   const proposals: ChatQueueProposal[] = [];
   const known = new Set(
     existing.filter((entry) => entry.status !== "rejected").map((entry) => normalized(entry.front, entry.back)),
@@ -26,6 +30,12 @@ export function createChatQueueProposalSink(existing: ChatQueueProposal[] = []):
           ok: false,
           error: `Limit of ${CHAT_QUEUE_MAX_PROPOSALS} proposals reached for this reply. Describe any further changes in text.`,
         };
+      }
+
+      const invalid = validateChatQueueProposal(input, sourceText);
+
+      if (invalid) {
+        return { ok: false, error: invalid };
       }
 
       const key = normalized(input.front, input.back);

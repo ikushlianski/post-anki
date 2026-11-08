@@ -6,6 +6,7 @@ import {
   MANUAL_ITEM_EXAMPLE_MAX_CHARS,
   MANUAL_ITEM_FRONT_MAX_CHARS,
 } from "@post-anki/shared";
+import { CARD_PRINCIPLES_TEXT } from "../knowledge-bit/knowledge-bit-card-principles.js";
 import type { ChatQueueProposalSink } from "../knowledge-bit/knowledge-bit-chat-queue-proposal-sink.js";
 
 export interface ChatQueueProposalToolsDeps {
@@ -35,7 +36,7 @@ export function createChatQueueProposalTools(deps: ChatQueueProposalToolsDeps) {
   const proposeNewCard = createTool({
     id: "proposeNewCard",
     description:
-      "Propose one additional flashcard for the learner to accept or reject. It is only shown, never saved. Max 2 proposals per reply. front is a short question, back a concise answer, example optional, reason (one short sentence) optional.",
+      "Propose one additional flashcard for the learner to accept or reject. It is only shown, never saved. Max 2 proposals per reply. front is a short question, back a concise answer, example optional, reason (one short sentence) optional.\n" + CARD_PRINCIPLES_TEXT,
     inputSchema: proposalToolInputSchema,
     execute: async (input) => propose("create")(input),
   });
@@ -47,7 +48,7 @@ export function createChatQueueProposalTools(deps: ChatQueueProposalToolsDeps) {
   const proposeCardUpdate = createTool({
     id: "proposeCardUpdate",
     description:
-      "Propose a rewrite of THIS conversation's card (new front, back, optional example) for the learner to accept or reject. It is only shown, never saved. Counts toward the 2 proposals per reply.",
+      "Propose a rewrite of THIS conversation's card (new front, back, optional example) for the learner to accept or reject. It is only shown, never saved. Counts toward the 2 proposals per reply.\n" + CARD_PRINCIPLES_TEXT,
     inputSchema: proposalToolInputSchema,
     execute: async (input) => propose("update")(input),
   });

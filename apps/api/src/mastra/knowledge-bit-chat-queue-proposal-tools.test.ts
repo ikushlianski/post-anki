@@ -53,4 +53,13 @@ describe("createChatQueueProposalTools", () => {
     expect(proposalToolInputSchema.safeParse({ front: "Q", back: "A", save: true }).success).toBe(false);
     expect(proposalToolInputSchema.safeParse({ front: "Q", back: "A" }).success).toBe(true);
   });
+
+  it("should return ok:false with fix guidance when a proposed card is invalid", async () => {
+    const sink = createChatQueueProposalSink([], "Source text here.");
+    const tools = createChatQueueProposalTools({ sink, allowUpdate: false });
+
+    const out = await run(tools.proposeNewCard, { front: "Is this good?", back: "Yes" });
+
+    expect(out).toMatchObject({ ok: false, error: expect.stringContaining("yes/no") });
+  });
 });
