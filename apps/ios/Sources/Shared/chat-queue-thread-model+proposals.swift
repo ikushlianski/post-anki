@@ -36,9 +36,9 @@ extension ChatQueueThreadModel {
 
             applyDecision(result, key: key)
 
-            if decision == .reject {
-                awaitsRejectExplanation = true
-                composerFocusRequests += 1
+            if decision == .reject,
+               let front = lines.first(where: { $0.seq == seq })?.proposals.first(where: { $0.index == index })?.front {
+                rejectAnnouncement = Task { await announceRejection(seq: seq, index: index, front: front) }
             }
 
             return true

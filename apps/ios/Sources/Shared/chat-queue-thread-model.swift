@@ -40,6 +40,8 @@ final class ChatQueueThreadModel {
     var composerFocusRequests = 0
     var followUps = ChatQueueFollowUpQueue()
 
+    @ObservationIgnored var rejectAnnouncement: Task<Void, Never>?
+    @ObservationIgnored var rejectMessageIds: Set<String> = []
     @ObservationIgnored private var retryId: (text: String, id: String)?
     @ObservationIgnored var inFlightRetryDelay: Duration = .seconds(1)
     @ObservationIgnored private let counts: ChatQueueCountStore

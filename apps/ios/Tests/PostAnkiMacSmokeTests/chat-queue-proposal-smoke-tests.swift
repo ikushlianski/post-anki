@@ -50,7 +50,7 @@ extension SmokeTests {
             #expect(model.lines.last?.proposals.first?.savedCardId == "c1")
         }
 
-        @Test("should keep the thread open on reject, ask what is wrong and let the next message continue it")
+        @Test("should keep the thread open on reject and answer the rejection with the agent's reply")
         func rejectKeepsThread() async {
             let (model, session) = await make([
                 "POST \(decidePath)/reject": .json(200, #"{"ok":true,"status":"rejected"}"#),
@@ -59,18 +59,12 @@ extension SmokeTests {
             defer { session.end() }
 
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.rejectAnnouncement?.value
 
-            #expect(model.lines.last?.proposals.first?.status == .rejected)
-            #expect(model.awaitsRejectExplanation)
-            #expect(model.composerFocusRequests == 1)
-            #expect(!model.isFinished)
-            #expect(model.canSendAfter("Too vague"))
-
-            await model.send("Too vague")
-
+            #expect(model.lines.last?.proposals.first?.status == .pending)
             #expect(model.lines.last?.seq == 4)
-            #expect(model.lines.last?.proposals.first?.front == "Q2")
             #expect(!model.awaitsRejectExplanation)
+            #expect(!model.isFinished)
             #expect(FakeServer.writes.map(\.path) == ["\(decidePath)/reject", threadPath])
         }
 
@@ -147,7 +141,9 @@ extension SmokeTests {
             ])
             defer { session.end() }
 
+            model.capReached = true
             await model.decide(seq: 2, index: 0, decision: .reject)
+            await model.rejectAnnouncement?.value
             #expect(model.awaitsRejectExplanation)
 
             await model.deleteLastExchange()
