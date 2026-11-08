@@ -7,9 +7,10 @@ import {
   undoTriageKnowledgeBitInput,
   type TriageKnowledgeBitResponse,
   type GradeKnowledgeBitResponse,
-  createManualKnowledgeItemInput,
+  createKnowledgeItemInput,
   type KnowledgeBitFeedbackByModelResponse,
   type RejectKnowledgeBitResponse,
+  type CreateKnowledgeItemInput,
   type PendingKnowledgeBitForReview,
   regenerateKnowledgeSourceInput,
   type KnowledgeSourceRegenerationStatus,
@@ -278,7 +279,14 @@ export const getKnowledgeBitModelSuggestionForAdmin = createServerFn({
 
 const createManualKnowledgeItemForReviewInput = z
   .object({ sourceId: z.string().min(1) })
-  .and(createManualKnowledgeItemInput);
+  .and(createKnowledgeItemInput);
+
+function withoutSourceId({
+  sourceId: _sourceId,
+  ...input
+}: z.output<typeof createManualKnowledgeItemForReviewInput>): CreateKnowledgeItemInput {
+  return input;
+}
 
 export const createManualKnowledgeItemForReview = createServerFn({
   method: "POST",
@@ -288,9 +296,5 @@ export const createManualKnowledgeItemForReview = createServerFn({
   )
   .handler(
     ({ data }): Promise<PendingKnowledgeBitForReview> =>
-      createManualKnowledgeItem(data.sourceId, {
-        front: data.front,
-        back: data.back,
-        example: data.example,
-      }),
+      createManualKnowledgeItem(data.sourceId, withoutSourceId(data)),
   );

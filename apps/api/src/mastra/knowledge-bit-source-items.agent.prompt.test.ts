@@ -35,6 +35,10 @@ describe("INSTRUCTIONS (cards)", () => {
     "kind why when a reason is given": "why - when the lesson gives a reason",
     "fill_blank with exactly one blank": "exactly one blank written as ____",
     "fill_blank on the load-bearing term": "load-bearing term",
+    "cloze for several independent terms": "cloze - only when one sentence holds 2 to 5 independently testable terms",
+    "cloze marker shape": "{{c1::term}}, {{c2::term}}",
+    "cloze never nested": "Never nest markers",
+    "cloze answer joined": "joined by \" / \"",
     "basic otherwise": "basic - everything else",
     "basic is never yes/no": "never a yes/no question",
     "several cards by default": "Write 2 to 3 cards per lesson",
@@ -97,7 +101,18 @@ describe("knowledgeBitCardsResultSchema", () => {
     expect(knowledgeBitCardsResultSchema.safeParse({ cards: Array(LESSONS_MAX_PER_CHUNK * LIST_CARDS_MAX_PER_LESSON + 1).fill(CARD) }).success).toBe(false);
   });
 
+  it("should parse a cloze card", () => {
+    const cloze = {
+      ...CARD,
+      question: "{{c1::Salt}} lowers the {{c2::freezing point}} of water.",
+      answer: "Salt / freezing point",
+      kind: "cloze" as const,
+    };
+
+    expect(knowledgeBitCardsResultSchema.safeParse({ cards: [cloze] }).success).toBe(true);
+  });
+
   it("should reject an unknown kind", () => {
-    expect(knowledgeBitCardsResultSchema.safeParse({ cards: [{ ...CARD, kind: "cloze" }] }).success).toBe(false);
+    expect(knowledgeBitCardsResultSchema.safeParse({ cards: [{ ...CARD, kind: "riddle" }] }).success).toBe(false);
   });
 });

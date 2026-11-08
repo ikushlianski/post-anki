@@ -136,6 +136,29 @@ describe("handleCreateKnowledgeSourceItem", () => {
     expect(res.body).toEqual({ error });
   });
 
+  it("should answer 400 with a readable message when the cloze note has an unclosed gap", async () => {
+    insertManualKnowledgeItem.mockResolvedValue({ ok: false, error: "invalid_cloze", reason: "unclosed" });
+
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSourceItem(fakeReq({ note: "A {{c1::gap" }), res, "ks_1");
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "invalid_cloze", message: "A gap is missing its closing }}." });
+    expect(kickSourcesAfterAdd).not.toHaveBeenCalled();
+  });
+
+  it("should pass a valid cloze note to the repo and reply 201", async () => {
+    insertManualKnowledgeItem.mockResolvedValue({ ok: true, item: createdItem });
+
+    const res = fakeRes();
+
+    await handleCreateKnowledgeSourceItem(fakeReq({ note: " A {{c1::gap}} ", example: "ex" }), res, "ks_1");
+
+    expect(res.status).toBe(201);
+    expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { note: "A {{c1::gap}}", example: "ex", aiGenerated: false });
+  });
+
   it("should keep the manual caps equal to the extraction caps for the same fields", () => {
     expect(MANUAL_ITEM_FRONT_MAX_CHARS).toBe(BASIC_CARD_FRONT_MAX_CHARS);
     expect(MANUAL_ITEM_BACK_MAX_CHARS).toBe(BASIC_CARD_BACK_MAX_CHARS);

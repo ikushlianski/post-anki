@@ -64,6 +64,24 @@ describe("insertManualKnowledgeItem AI label and source links", () => {
     expect(result.ok && result.item.sourceLinks).toEqual(["https://example.com/ok"]);
   });
 
+  it("should store a cloze note as plain body with one variant per gap number", async () => {
+    const { db, inserted } = fakeDb();
+
+    const result = await insertManualKnowledgeItem("ksrc_1", { note: "{{c1::A}} and {{c2::B}}" }, db);
+
+    expect(inserted[0]).toMatchObject({ body: "A and B", origin: "manual" });
+    expect(result.ok && result.item.variants.map((variant) => variant.answer)).toEqual(["A", "B"]);
+  });
+
+  it("should refuse an unclosed cloze note before writing anything", async () => {
+    const { db, inserted } = fakeDb();
+
+    const result = await insertManualKnowledgeItem("ksrc_1", { note: "{{c1::A" }, db);
+
+    expect(result).toEqual({ ok: false, error: "invalid_cloze", reason: "unclosed" });
+    expect(inserted).toEqual([]);
+  });
+
   it("should default to not AI generated with no links when neither is given", async () => {
     const { db, inserted } = fakeDb();
 

@@ -7,7 +7,7 @@ import {
   type SetStateAction,
 } from 'react'
 import type {
-  CreateManualKnowledgeItemInput,
+  CreateKnowledgeItemInput,
   PendingKnowledgeSourceForReview,
 } from '@post-anki/shared'
 
@@ -68,7 +68,7 @@ export function useManualDrafts({
 
   async function create(
     draft: ManualDraft,
-    input: CreateManualKnowledgeItemInput,
+    input: CreateKnowledgeItemInput,
   ): Promise<boolean> {
     setErrors((prev) => ({ ...prev, [draft.id]: '' }))
 

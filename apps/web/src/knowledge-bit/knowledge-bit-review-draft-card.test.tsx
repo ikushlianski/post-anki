@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
-import type { PendingKnowledgeBitForReview } from '@post-anki/shared'
+import type { CreateKnowledgeItemInput, PendingKnowledgeBitForReview } from '@post-anki/shared'
 
 import { KnowledgeBitReviewDraftCard } from './knowledge-bit-review-draft-card'
 import type { ManualDraft } from './knowledge-bit-review-manual-drafts'
@@ -17,10 +17,21 @@ const CREATED_BIT: PendingKnowledgeBitForReview = {
   variants: [{ id: 'var-new', kind: 'basic', prompt: 'Front text', answer: 'Back text' }],
 }
 
-const onCreate = vi.fn<(input: { front: string; back: string; example?: string }) => Promise<boolean>>()
+const onCreate = vi.fn<(input: CreateKnowledgeItemInput) => Promise<boolean>>()
 const onCancel = vi.fn()
 const onSaveVariant = vi.fn<(bitId: string, variantId: string, prompt: string, answer: string) => Promise<boolean>>()
 const onSaveBit = vi.fn<(bitId: string, body: string, background: string | null) => Promise<boolean>>()
+const onSaveNote = vi.fn<(variantId: string, text: string) => Promise<boolean>>()
+
+const CLOZE_BIT: PendingKnowledgeBitForReview = {
+  id: 'bit-cloze',
+  body: 'Paris is in France',
+  background: null,
+  origin: 'manual', isAiGenerated: false, sourceLinks: [],
+  variants: [
+    { id: 'var-c1', kind: 'cloze', prompt: '[...] is in France', answer: 'Paris', sentence: '{{c1::Paris}} is in France' },
+  ],
+}
 
 function card(bit?: PendingKnowledgeBitForReview) {
   return (
@@ -37,6 +48,7 @@ function card(bit?: PendingKnowledgeBitForReview) {
         onReject={vi.fn()}
         onSaveVariant={onSaveVariant}
         onSaveBit={onSaveBit}
+        onSaveNote={onSaveNote}
       />
     </ul>
   )
@@ -64,6 +76,8 @@ describe('KnowledgeBitReviewDraftCard', () => {
     onSaveVariant.mockResolvedValue(true)
     onSaveBit.mockReset()
     onSaveBit.mockResolvedValue(true)
+    onSaveNote.mockReset()
+    onSaveNote.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -171,5 +185,74 @@ describe('KnowledgeBitReviewDraftCard', () => {
     expect(screen.getByTestId('knowledge-bit-review-reject-bit-new')).toBeDefined()
     expect(view.container.querySelector('[data-testid*="grade"]')).toBeNull()
     expect(screen.queryByTestId('knowledge-bit-review-draft-cancel-draft-1')).toBeNull()
+  })
+
+  describe('cloze mode', () => {
+    function typeNote(value: string) {
+      fireEvent.change(screen.getByTestId('knowledge-bit-review-draft-note-draft-1'), {
+        target: { value },
+      })
+    }
+
+    function pickCloze() {
+      fireEvent.click(screen.getByTestId('knowledge-bit-review-draft-mode-cloze-draft-1'))
+    }
+
+    it('should show one card preview per gap while the reviewer types a valid note', () => {
+      render(card())
+      pickCloze()
+      typeNote('{{c1::Paris}} is the capital of {{c2::France}}')
+
+      const preview = screen.getByTestId('knowledge-bit-review-draft-preview-draft-1')
+
+      expect(preview.querySelectorAll('li')).toHaveLength(2)
+      expect(screen.queryByTestId('knowledge-bit-review-draft-problem-draft-1')).toBeNull()
+    })
+
+    it('should show an inline error and never create while the note is broken', async () => {
+      render(card())
+      pickCloze()
+      typeNote('{{c1::Paris is the capital')
+
+      await idle(5000)
+
+      expect(screen.getByTestId('knowledge-bit-review-draft-problem-draft-1').textContent).not.toBe('')
+      expect(screen.queryByTestId('knowledge-bit-review-draft-preview-draft-1')).toBeNull()
+      expect(onCreate).not.toHaveBeenCalled()
+    })
+
+    it('should send the trimmed note and example once the note is valid', async () => {
+      render(card())
+      pickCloze()
+      typeNote('  {{c1::Paris}} is in France ')
+      type('example', ' Europe ')
+
+      await idle(5000)
+
+      expect(onCreate).toHaveBeenCalledTimes(1)
+      expect(onCreate).toHaveBeenCalledWith({ note: '{{c1::Paris}} is in France', example: 'Europe' })
+    })
+
+    it('should save a note edit after creation through the note edit save, not the variant save', async () => {
+      const view = render(card())
+
+      pickCloze()
+      typeNote('{{c1::Paris}} is in France')
+      await idle()
+      view.rerender(card(CLOZE_BIT))
+      typeNote('{{c1::Paris}} is in {{c2::France}}')
+      await idle()
+
+      expect(onSaveNote).toHaveBeenCalledWith('var-c1', '{{c1::Paris}} is in {{c2::France}}')
+      expect(onSaveVariant).not.toHaveBeenCalled()
+      expect(onCreate).toHaveBeenCalledTimes(1)
+    })
+
+    it('should keep Front and Back as the default mode', () => {
+      render(card())
+
+      expect(screen.getByTestId('knowledge-bit-review-draft-front-draft-1')).toBeDefined()
+      expect(screen.queryByTestId('knowledge-bit-review-draft-note-draft-1')).toBeNull()
+    })
   })
 })

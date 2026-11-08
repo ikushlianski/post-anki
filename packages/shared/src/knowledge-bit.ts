@@ -243,3 +243,21 @@ export const createManualKnowledgeItemInput = z.object({
 });
 
 export type CreateManualKnowledgeItemInput = z.input<typeof createManualKnowledgeItemInput>;
+
+export const createClozeKnowledgeItemInput = z.object({
+  note: editClozeNoteInput.shape.note.refine((value) => /\{\{c\d+::/i.test(value), {
+    message: "A cloze note needs at least one {{c1::...}} gap",
+  }),
+  example: createManualKnowledgeItemInput.shape.example,
+  aiGenerated: createManualKnowledgeItemInput.shape.aiGenerated,
+  sourceLinks: createManualKnowledgeItemInput.shape.sourceLinks,
+});
+
+export type CreateClozeKnowledgeItemInput = z.input<typeof createClozeKnowledgeItemInput>;
+
+export const createKnowledgeItemInput = z.union([
+  createClozeKnowledgeItemInput,
+  createManualKnowledgeItemInput,
+]);
+
+export type CreateKnowledgeItemInput = z.input<typeof createKnowledgeItemInput>;

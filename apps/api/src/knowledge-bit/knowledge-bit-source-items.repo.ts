@@ -1,7 +1,8 @@
 import { and, eq, max, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitFusionModels, knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
-import { buildClozeCards, buildOrderedListCards, parseCloze, parseOrderedListText } from "@post-anki/shared";
+import { buildOrderedListCards, parseOrderedListText } from "@post-anki/shared";
+import { clozeVariantRows } from "./knowledge-bit-cloze-rows.js";
 import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
@@ -12,24 +13,6 @@ const VARIANT_KIND_BY_ITEM_KIND = {
   fill_blank: "fill_in_the_blank",
   basic: "basic",
 } as const satisfies Record<SourceItemKind, string>;
-
-function clozeVariantRows(knowledgeBitId: string, note: string) {
-  const parsed = parseCloze(note);
-
-  if (!parsed.ok) {
-    return [];
-  }
-
-  return buildClozeCards(parsed.note).map((card) => ({
-    id: newId("kbqv"),
-    knowledgeBitId,
-    kind: "cloze" as string,
-    order: card.n,
-    prompt: card.prompt,
-    answer: card.answer,
-    sentence: note as string | null,
-  }));
-}
 
 function orderedListVariantRows(knowledgeBitId: string, listText: string) {
   const parsed = parseOrderedListText(listText);

@@ -10,6 +10,7 @@ import {
   type LessonDraft,
   type SourceItemBatchValidation,
 } from "./knowledge-bit-source-item-validation.js";
+import { detectImportedCloze } from "./knowledge-bit-cloze-import.js";
 import { runFusion } from "./knowledge-bit-fusion-extraction.js";
 import type { GenerateItemsDeps, RunState, WriteOptions } from "./detect-knowledge-bits.types.js";
 
@@ -83,7 +84,12 @@ export async function writeAndValidate(
   options: WriteOptions,
   deps: GenerateItemsDeps,
 ): Promise<ChunkCards> {
-  const { fusionModelIds, ...single } = options;
+  const { fusionModelIds, ankiImport, ...single } = options;
+  const importedCloze = ankiImport ? detectImportedCloze(chunk) : null;
+
+  if (importedCloze) {
+    return { valid: [importedCloze], flagged: [] };
+  }
 
   if (fusionModelIds && fusionModelIds.length >= FUSION_MIN_MODELS) {
     return runFusion(fusionModelIds, (modelId) => writeAndValidateOne(chunk, { ...single, modelId }, deps));

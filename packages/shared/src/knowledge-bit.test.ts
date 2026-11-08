@@ -4,6 +4,7 @@ import {
   MANUAL_ITEM_EXAMPLE_MAX_CHARS,
   MANUAL_ITEM_FRONT_MAX_CHARS,
   TRIAGE_KEEP_VARIANTS_MAX,
+  createKnowledgeItemInput,
   createManualKnowledgeItemInput,
   triageKnowledgeBitInput,
   undoTriageKnowledgeBitInput,
@@ -102,5 +103,37 @@ describe("undoTriageKnowledgeBitInput", () => {
     expect(undoTriageKnowledgeBitInput.safeParse({ restoreVariantIds: ["a", "a"] }).success).toBe(false);
     expect(undoTriageKnowledgeBitInput.safeParse({ restoreVariantIds: [""] }).success).toBe(false);
     expect(undoTriageKnowledgeBitInput.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("createKnowledgeItemInput", () => {
+  it("should accept a cloze note with a gap and trim it", () => {
+    expect(createKnowledgeItemInput.parse({ note: "  {{c1::Paris}} is in France \n", example: " e " })).toEqual({
+      note: "{{c1::Paris}} is in France",
+      example: "e",
+      aiGenerated: false,
+    });
+  });
+
+  it("should reject a note with no gaps", () => {
+    expect(createKnowledgeItemInput.safeParse({ note: "Paris is in France" }).success).toBe(false);
+    expect(createKnowledgeItemInput.safeParse({ note: "   " }).success).toBe(false);
+  });
+
+  it("should accept an uppercase C gap marker like the cloze parser does", () => {
+    expect(createKnowledgeItemInput.safeParse({ note: "{{C1::Paris}} is in France" }).success).toBe(true);
+  });
+
+  it("should keep accepting the front/back shape", () => {
+    expect(createKnowledgeItemInput.parse({ front: " Q ", back: "A" })).toEqual({
+      front: "Q",
+      back: "A",
+      example: undefined,
+      aiGenerated: false,
+    });
+  });
+
+  it("should let an unclosed gap through so the API can explain the error", () => {
+    expect(createKnowledgeItemInput.safeParse({ note: "{{c1::Paris is in France" }).success).toBe(true);
   });
 });

@@ -612,7 +612,7 @@ export type RegenerateKnowledgeSourceOutcome =
 
 export async function createManualKnowledgeItem(
   sourceId: string,
-  input: be.CreateManualKnowledgeItemInput,
+  input: be.CreateKnowledgeItemInput,
 ): Promise<be.PendingKnowledgeBitForReview> {
   return request<be.PendingKnowledgeBitForReview>(`/knowledge-sources/${sourceId}/items`, {
     method: 'POST',

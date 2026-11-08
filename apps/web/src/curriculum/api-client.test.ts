@@ -273,6 +273,19 @@ describe('manual and derived knowledge item creation', () => {
     expect(result).toEqual(item)
   })
 
+  it('should post a cloze note body to the source items route', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, item))
+
+    const input = { note: '{{c1::Paris}} is in France', example: 'Europe' }
+
+    await createManualKnowledgeItem('ks-1', input)
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+
+    expect(url).toBe('https://api.test/knowledge-sources/ks-1/items')
+    expect(JSON.parse(init.body as string)).toEqual(input)
+  })
+
   it('should post the card to the derived-items route of the studied item', async () => {
     fetchMock.mockResolvedValue(jsonResponse(201, item))
 

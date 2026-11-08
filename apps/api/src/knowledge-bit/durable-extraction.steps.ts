@@ -1,4 +1,5 @@
 import { DURABLE_CHUNK_DEADLINE_MS } from "./durable-extraction.config.js";
+import { isImportedClozeSource } from "./knowledge-bit-cloze-import.js";
 import { chunkSourceText, chunkSourceTextWithOffsets } from "./knowledge-bit-source-chunking.js";
 import { planFocusedChunks } from "./knowledge-bit-focus.js";
 import {
@@ -95,9 +96,12 @@ export async function planStep(snapshot: DurableSourceSnapshot, deps: DurableSte
 
   const insertState = await deps.getInsertState(snapshot.id);
 
+  const ankiImport = await deps.loadIsAnkiImport?.(snapshot.id);
+  const chunkCount = chunkSourceText(rawText, CHUNK_MAX_CHARS).length;
+
   return {
     status: "ready",
-    chunkCount: chunkSourceText(rawText, CHUNK_MAX_CHARS).length,
+    chunkCount: ankiImport && isImportedClozeSource(rawText) ? 1 : chunkCount,
     firstOrdinal: insertState.nextOrdinal,
   };
 }
@@ -113,6 +117,8 @@ async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableSte
 
   const sourceKind = await deps.loadSourceKind?.(snapshot.id);
 
+  const ankiImport = await deps.loadIsAnkiImport?.(snapshot.id);
+
   const targetPhrases = await deps.loadTargetPhrases?.(snapshot.id);
 
   const detailLevel = await loadDetailLevelSafely(snapshot.subjectId, deps.loadDetailLevel);
@@ -125,6 +131,7 @@ async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableSte
     learningIntent,
     subjectKind,
     ...(sourceKind ? { sourceKind } : {}),
+    ...(ankiImport ? { ankiImport } : {}),
     ...(targetPhrases && targetPhrases.length > 0 ? { targetPhrases } : {}),
     ...(detailLevel ? { detailLevel } : {}),
     ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),

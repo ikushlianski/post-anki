@@ -1,4 +1,5 @@
 import { KNOWLEDGE_SOURCE_MAX_CHARS, resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
+import { isImportedClozeSource } from "./knowledge-bit-cloze-import.js";
 import { log } from "../shared/log.js";
 import { loadRecentFeedbackForExtraction } from "./knowledge-bit-feedback.repo.js";
 import { loadStyleNotesBlock } from "../card-triage/style-notes-loader.js";
@@ -17,7 +18,7 @@ import { markKnowledgeSourceNothingExtracted } from "./knowledge-source-nothing-
 import { loadLearningIntentSafely, resolveKnowledgeBitLearningIntent } from "./knowledge-bit-learning-intent.js";
 import { resolveSubjectKind } from "../subject/subject-kind.js";
 import { loadFusionModelIds, resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
-import { loadHighlights, loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
+import { loadHighlights, loadIsAnkiImport, loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
 import { resolveDetailLevel } from "../subject/subject-learning-settings.js";
 import { loadDetailLevelSafely } from "./knowledge-bit-detail-level.js";
 import { chunkSourceTextWithOffsets, SOURCE_CHUNK_MAX_CHARS } from "./knowledge-bit-source-chunking.js";
@@ -69,6 +70,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     loadLearningIntent: resolveKnowledgeBitLearningIntent,
     loadSubjectKind: resolveSubjectKind,
     loadSourceKind: loadKnowledgeSourceKind,
+    loadIsAnkiImport,
     loadTargetPhrases,
     loadHighlights,
     loadDetailLevel: resolveDetailLevel,
@@ -165,6 +167,7 @@ export async function generateItemsForSource(
   const learningIntent = await loadLearningIntentSafely(source.subjectId, source.id, deps.loadLearningIntent);
   const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(source.subjectId);
   const sourceKind = await loadOptionalSafely(source.id, "knowledge_source_kind_load_failed", deps.loadSourceKind);
+  const ankiImport = await loadOptionalSafely(source.id, "knowledge_source_anki_import_load_failed", deps.loadIsAnkiImport);
   const targetPhrases = await loadOptionalSafely(
     source.id,
     "knowledge_target_phrases_load_failed",
@@ -180,6 +183,7 @@ export async function generateItemsForSource(
     learningIntent,
     subjectKind,
     ...(sourceKind ? { sourceKind } : {}),
+    ...(ankiImport ? { ankiImport } : {}),
     ...(targetPhrases && targetPhrases.length > 0 ? { targetPhrases } : {}),
     ...(detailLevel ? { detailLevel } : {}),
     ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),
@@ -210,7 +214,8 @@ export async function generateItemsForSource(
     capped: false,
     gapByChunk: new Map(),
   };
-  const chunks = planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights);
+  const planned = planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights);
+  const chunks = ankiImport && isImportedClozeSource(rawText) ? planned.filter(({ index }) => index === 0) : planned;
   const hasHighlights = (highlights?.length ?? 0) > 0;
 
   const outcomes = await mapWithConcurrency(chunks, CHUNK_CONCURRENCY, ({ chunk, index, focus }) =>

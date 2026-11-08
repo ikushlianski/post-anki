@@ -75,7 +75,11 @@ export const INSTRUCTIONS = [
   "     text. Exactly one ____, never two, and never glued to other letters.",
   "     Correct (any language): \"<statement with the key word replaced by ____>\", answer: the key word.",
   "     Incorrect: a yes/no question such as \"<Does the statement hold?>\" with no blank in the statement.",
-  "  3. basic - everything else: a plain definition, contrast or fact, asked as a direct question",
+  "  3. cloze - only when one sentence holds 2 to 5 independently testable terms. The question is the",
+  "     statement with each term wrapped as {{c1::term}}, {{c2::term}} and so on, optionally",
+  "     {{c1::term::hint}}. Never nest markers, and each term is at most 120 characters. The answer is",
+  "     the terms in order joined by \" / \". Use fill_blank instead when only one term matters.",
+  "  4. basic - everything else: a plain definition, contrast or fact, asked as a direct question",
   "     (what, which, how many), never a yes/no question.",
   "",
   `QUANTITY. Write 2 to ${CARDS_MAX_PER_LESSON} cards per lesson, each testing the same principle from a different angle`,
@@ -121,7 +125,7 @@ export const knowledgeBitCardsResultSchema = z.object({
         statement: z.string().min(1).max(CARD_FIELD_MAX_CHARS),
         question: z.string().min(1).max(CARD_FIELD_MAX_CHARS),
         answer: z.string().min(1).max(CARD_FIELD_MAX_CHARS),
-        kind: z.enum(SOURCE_ITEM_KINDS),
+        kind: z.enum([...SOURCE_ITEM_KINDS, "cloze"]),
       }),
     )
     .min(1)

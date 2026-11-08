@@ -74,6 +74,27 @@ function buildGenerateDeps(overrides: Partial<GenerateItemsDeps> = {}): Generate
   };
 }
 
+const LONG_CLOZE_SOURCE = `Deal needs {{c1::budget}}.\n\n${"extra ".repeat(450)}\n\n${"more ".repeat(450)}\n\n${"tail ".repeat(450)}`;
+
+describe("generateItemsForSource with long cloze notes", () => {
+  it("should make exactly one cloze card and never call the model for a long Anki cloze source", async () => {
+    const deps = buildGenerateDeps({ loadIsAnkiImport: vi.fn().mockResolvedValue(true) });
+    const result = await generateItemsForSource(source("ks_c", LONG_CLOZE_SOURCE), {}, deps);
+
+    expect(deps.writeItems).not.toHaveBeenCalled();
+    expect(result.inserted).toBe(1);
+    expect(vi.mocked(deps.insertItems).mock.calls[0]?.[0].items[0]?.cards[0]?.kind).toBe("cloze");
+  });
+
+  it("should still call the model for every chunk of a long non-Anki source", async () => {
+    const deps = buildGenerateDeps();
+
+    await generateItemsForSource(source("ks_p", LONG_CLOZE_SOURCE), {}, deps);
+
+    expect(vi.mocked(deps.writeItems).mock.calls.length).toBeGreaterThan(1);
+  });
+});
+
 describe("generateItemsForSource", () => {
   it("should tell the writer the source is a phrase so it gets the phrase card writer", async () => {
     const loadSourceKind = vi.fn().mockResolvedValue("phrase");

@@ -21,6 +21,7 @@ export interface WriteOptions {
   onClarification?: (gapText: string) => void;
   forceAtLeastOne?: boolean;
   fusionModelIds?: string[];
+  ankiImport?: boolean;
 }
 
 export interface GenerateItemsDeps {
@@ -36,6 +37,7 @@ export interface GenerateItemsDeps {
   loadLearningIntent?: LearningIntentLoader;
   loadSubjectKind?: (subjectId: string | null) => Promise<SubjectKind>;
   loadSourceKind?: (sourceId: string) => Promise<string>;
+  loadIsAnkiImport?: (sourceId: string) => Promise<boolean>;
   loadTargetPhrases?: (sourceId: string) => Promise<string[]>;
   loadHighlights?: (sourceId: string) => Promise<KnowledgeHighlight[]>;
   loadDetailLevel?: (subjectId: string | null) => Promise<DetailLevel>;

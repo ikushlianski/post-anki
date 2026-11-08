@@ -163,6 +163,47 @@ describe("insertManualKnowledgeItem (real Postgres)", () => {
     expect(result.item.background).toBe("const f = () => x;");
   });
 
+  it("should create one pending bit with a variant per gap number and the note in sentence", async () => {
+    const entryId = await seedEntry();
+    const note = "A deal needs {{c1::budget}}, {{c2::authority::who}} and {{c1::need}}.";
+    const result = await insertManualKnowledgeItem(entryId, { note, example: "Sales" });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(await bitRow(result.item.id)).toMatchObject({
+      body: "A deal needs budget, authority and need.",
+      background: "Sales",
+      approval_state: "pending",
+      origin: "manual",
+    });
+
+    const variants = await client.query(
+      `SELECT kind, "order", prompt, answer, sentence FROM knowledge_bit_question_variants
+       WHERE knowledge_bit_id = $1 ORDER BY "order"`,
+      [result.item.id],
+    );
+
+    expect(variants.rows.map((row) => [row.kind, row.order, row.answer])).toEqual([
+      ["cloze", 1, "budget / need"],
+      ["cloze", 2, "authority"],
+    ]);
+    expect(variants.rows.every((row) => row.sentence === note)).toBe(true);
+    expect(result.item.variants).toHaveLength(2);
+    expect(result.item.variants.every((variant) => variant.sentence === note)).toBe(true);
+  });
+
+  it("should refuse a malformed cloze note and write no rows", async () => {
+    const entryId = await seedEntry();
+    const result = await insertManualKnowledgeItem(entryId, { note: "A {{c1::gap" });
+
+    expect(result).toEqual({ ok: false, error: "invalid_cloze", reason: "unclosed" });
+    expect(await bitsOf(entryId)).toEqual([]);
+  });
+
   it("should return a null background and feedback when no example is given", async () => {
     const entryId = await seedEntry();
     const result = await insertManualKnowledgeItem(entryId, { front: "Q", back: "A", example: undefined });

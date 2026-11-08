@@ -30,7 +30,7 @@ Concurrent kicks coalesce: if a kick arrives while a run is already in progress,
 
 ## Passes
 
-**detect** claims `pending` knowledge sources (up to `DETECT_BITS_BATCH_CAP = 20` per scan), sends each source's text to the Mastra extraction agent in chunks, validates the returned items, and marks the source `bits_detected`. Sources left in `processing` for more than `STALE_PROCESSING_THRESHOLD_MS = 15 min` are reset to `pending` before each scan.
+**detect** claims `pending` knowledge sources (up to `DETECT_BITS_BATCH_CAP = 20` per scan), sends each source's text to the Mastra extraction agent in chunks, validates the returned items, and marks the source `bits_detected`. A chunk whose text holds `{{cN::answer}}` or `{{cN::answer::hint}}` markers is turned into one cloze bit by code (`detectImportedCloze`) with no model call: the text up to the end of the line holding the last marker is the note, parsed with `parseCloze` and at most `CLOZE_NOTE_MAX_CHARS`, and the rest of the chunk (cut at 200 chars) is the bit background. A chunk with no marker or a malformed one (nested, unclosed, empty gap, too long) goes to the model as usual. Sources left in `processing` for more than `STALE_PROCESSING_THRESHOLD_MS = 15 min` are reset to `pending` before each scan.
 
 **wh_question** claims approved knowledge bits that have no WH question yet (up to `QUESTION_GENERATION_CAP = 50` per scan), calls the question-generator agent (concurrency 4), and stores each accepted variant.
 
