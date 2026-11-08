@@ -5,12 +5,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT="${1:-build/mac-shot.png}"
-APP="build/Build/Products/Debug/PostAnkiMac.app"
+source scripts/dev-build-dir.sh
+
+OUT="${1:-$BUILD_DIR/mac-shot.png}"
+APP="$BUILD_DIR/Build/Products/Debug/PostAnkiMac.app"
 
 xcodegen generate
 xcodebuild build -project PostAnkiIOS.xcodeproj -scheme PostAnkiMac -configuration Debug \
-  -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO >/dev/null
+  -destination 'platform=macOS' -derivedDataPath "$BUILD_DIR" CODE_SIGNING_ALLOWED=NO >/dev/null
 
 pkill -x PostAnkiMac 2>/dev/null || true
 sleep 2

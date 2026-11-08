@@ -23,7 +23,9 @@ else
   CONFIGURATION="${CONFIGURATION:-Release}"
 fi
 
-APP="build/Build/Products/${CONFIGURATION}-iphoneos/${SCHEME}.app"
+source scripts/dev-build-dir.sh
+
+APP="$BUILD_DIR/Build/Products/${CONFIGURATION}-iphoneos/${SCHEME}.app"
 DEVICE="${1:-}"
 
 if ! command -v xcodegen >/dev/null 2>&1; then
@@ -61,7 +63,7 @@ fi
 xcodegen generate
 
 xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIGURATION" \
-  -destination "id=$DEVICE" -derivedDataPath build -allowProvisioningUpdates ${EXTRA_SETTINGS[@]+"${EXTRA_SETTINGS[@]}"}
+  -destination "id=$DEVICE" -derivedDataPath "$BUILD_DIR" -allowProvisioningUpdates ${EXTRA_SETTINGS[@]+"${EXTRA_SETTINGS[@]}"}
 
 xcrun devicectl device install app --device "$DEVICE" "$APP"
 xcrun devicectl device process launch --device "$DEVICE" "$BUNDLE_ID"

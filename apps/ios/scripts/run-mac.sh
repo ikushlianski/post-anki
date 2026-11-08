@@ -6,6 +6,8 @@ cd "$(dirname "$0")/.."
 PROJECT="PostAnkiIOS.xcodeproj"
 SCHEME="PostAnkiMac"
 
+source scripts/dev-build-dir.sh
+
 if ! command -v xcodegen >/dev/null 2>&1; then
   echo "xcodegen not found; install it with: brew install xcodegen" >&2
   exit 1
@@ -27,10 +29,10 @@ if [[ "${LOCAL:-}" == "1" ]]; then
 fi
 
 xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
-  -destination 'platform=macOS' -derivedDataPath build \
+  -destination 'platform=macOS' -derivedDataPath "$BUILD_DIR" \
   POSTANKI_BAND_LABEL="${BAND_LABEL:-DEV}" ${API_SETTINGS[@]+"${API_SETTINGS[@]}"}
 
-APP="$PWD/build/Build/Products/Debug/PostAnkiMac.app"
+APP="$BUILD_DIR/Build/Products/Debug/PostAnkiMac.app"
 
 DEV_COPY_PATTERN="/Build/Products/Debug/PostAnkiMac.app/Contents/MacOS/PostAnkiMac"
 
