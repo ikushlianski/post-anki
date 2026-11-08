@@ -166,101 +166,21 @@ struct IngestionDictationScreen: View {
         _model = State(initialValue: IngestionDictationScreenModel(topic: topic, subjectId: subjectId))
     }
 
-    private var submitTile: MainActionTile {
-        #if os(macOS)
-        let shortcut: KeyboardShortcut? = KeyboardShortcut(.return, modifiers: .command)
-        #else
-        let shortcut: KeyboardShortcut? = nil
-        #endif
-
-        return MainActionTile(
-            title: "Submit",
-            style: .prominent,
-            isLoading: model.isSubmitting,
-            isDisabled: model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            shortcut: shortcut
-        ) { Task { await model.submit() } }
-    }
-
     var body: some View {
-        Form {
-            if let topic = model.topic {
-                Section {
-                    Text("Topic: \(topic.title)")
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                }
+        ScrollView {
+            ZoomVStack(alignment: .leading, spacing: 24) {
+                AddKnowledgeInputCard(model: model) { Task { await model.submit() } }
+                AddKnowledgeResultsSection(model: model)
             }
-
-            if model.showsSubjectPicker {
-                AddKnowledgeSubjectPicker(model: model.subjectPicker)
-            }
-
-            if model.showsTargetPhrases {
-                TargetPhrasesSection(phrases: $model.targetPhrases)
-            }
-
-            Section("Dictate what you're learning") {
-                TextEditor(text: $model.text)
-                    .frame(minHeight: 200)
-                    .overlay(alignment: .topLeading) {
-                        if model.text.isEmpty {
-                            Text(AddKnowledgeInput.placeholder)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 8)
-                                .padding(.leading, 5)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-
-                #if os(iOS)
-                PasteButton(payloadType: String.self) { strings in
-                    guard let pasted = strings.first else { return }
-
-                    Task { @MainActor in model.text = AddKnowledgeDraft.pasting(pasted, into: model.text) }
-                }
-                .accessibilityIdentifier("add-knowledge-paste")
-                #endif
-            }
-
-            if model.hasSent {
-                Section {
-                    Text(model.isDetecting
-                        ? "Sent. Extracting items..."
-                        : "Added. Questions take a minute or two to appear. Approve them on the next screen to add them to your review queue.")
-                        .zoomFont(.caption)
-                        .foregroundStyle(.secondary)
-                    if let summaryText = model.summaryText {
-                        Text(summaryText)
-                            .zoomFont(.caption)
-                    }
-
-                    Button("Review new items") { model.showReview = true }
-                        .disabled(model.isDetecting)
-                }
-            }
-
-            if let errorMessage = model.errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-
-                    if model.canAddAnyway {
-                        Button("Add anyway") {
-                            Task { await model.addAnyway() }
-                        }
-                        .disabled(model.isSubmitting)
-                    }
-                }
-            }
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
+            .zoomPadding(16)
         }
         .refreshable { if model.showsSubjectPicker { await model.subjectPicker.load() } }
         .keyboardDismissal()
         .task { await model.loadSubjects() }
         .onDisappear { model.stopWatching() }
         .navigationTitle("Add Knowledge")
-        .mainActionControls([submitTile])
         .reportsUnsentInput("add-knowledge", model.hasInput)
         .sheet(isPresented: $model.showReview) {
             PendingReviewScreen(onDone: { model.showReview = false })

@@ -43,6 +43,16 @@ struct TargetPhrasesSection: View {
 
     var body: some View {
         Section("Target phrases") {
+            TargetPhrasesFields(phrases: $phrases)
+        }
+    }
+}
+
+struct TargetPhrasesFields: View {
+    @Binding var phrases: [String]
+
+    var body: some View {
+        Group {
             ForEach(phrases.indices, id: \.self) { index in
                 HStack {
                     TextField("Phrase to practise", text: binding(at: index))

@@ -30,6 +30,16 @@ struct AddKnowledgeSubjectPicker: View {
 
     var body: some View {
         Section {
+            AddKnowledgeSubjectFields(model: model)
+        }
+    }
+}
+
+struct AddKnowledgeSubjectFields: View {
+    @Bindable var model: AddKnowledgeSubjectPickerModel
+
+    var body: some View {
+        Group {
             if SubjectTreePath.hasChildren(model.tree) {
                 SubjectTreePicker(title: "Subject", nodes: model.tree, selection: $model.selectedId)
             } else {
