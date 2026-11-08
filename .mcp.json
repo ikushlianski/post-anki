@@ -9,6 +9,22 @@
       ],
       "env": {}
     },
+    "anki-batch": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "tsx",
+        "apps/anki-batch-mcp/src/anki-batch-mcp.server.ts",
+        "subjects/Business.txt"
+      ]
+    },
+    "post-anki-prod": {
+      "type": "http",
+      "url": "https://post-anki-api-pl6jw2mdla-ew.a.run.app/mcp",
+      "headers": {
+        "Authorization": "Bearer ${POST_ANKI_MCP_TOKEN}"
+      }
+    },
     "notion": {
       "type": "http",
       "url": "https://mcp.notion.com/mcp"

@@ -1,0 +1,31 @@
+#separator:tab
+#html:true
+"<div class=""subdeck-label"">Business::Основы</div>
+
+Что такое выручка"	
+"<div class=""subdeck-label"">Business::Продажи</div>
+
+Что такое лид"	"<div class=""subdeck-label"">Продажи</div>
+
+Человек, проявивший интерес"
+"<div class=""subdeck-label"">Business::Финансы и планирование</div>
+
+Что значит ""маржа""<br>в бизнесе"	"<div class=""subdeck-label"">Финансы и планирование</div>
+
+Первая строка
+Вторая ""строка"""
+"<div class=""subdeck-label"">Business::Лояльность</div>
+
+Клиент возвращается, если <span class=""cloze"" data-cloze=""получил&#x20;ценность"" data-ordinal=""1"">[...]</span>"	"<div class=""subdeck-label"">Лояльность</div>
+
+Клиент возвращается, если получил ценность"
+"<div class=""subdeck-label"">Business::Персонал и зарплаты</div>
+
+Нанимать нужно <span class=""cloze"" data-cloze=""медленно"" data-ordinal=""1"">[подсказка]</span>"	"<div class=""subdeck-label"">Персонал и зарплаты</div>
+
+Нанимать нужно медленно<br>Увольнять быстро"
+"<div class=""subdeck-label"">Business::Основы</div>
+
+A&#x20;&amp;&nbsp;B &lt;tag&gt;"	
+"<div style=""display: none"">
+<div>Маркетинг воронка</div></div><div id=""image-occlusion-container""><img src=""x.png""></div>"	""
