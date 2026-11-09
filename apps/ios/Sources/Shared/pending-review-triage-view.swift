@@ -31,9 +31,6 @@ struct PendingReviewTriageView: View {
 
             ScrollView {
                 ZoomVStack(alignment: .leading, spacing: 12) {
-                    Text(bit.body)
-                        .zoomFont(.title.weight(.semibold))
-
                     ModelBadges(modelIds: bit.modelIds)
 
                     cards(for: bit)
