@@ -190,7 +190,16 @@ export async function getKnowledgeBitReviewQueue(
   const [dueCards, newCards, totals] = await Promise.all([
     blockedByDailyLimit
       ? Promise.resolve([])
-      : listCappedDueCards(picked, dueForList, reviewAllowance.remainingFor, limit, now, db, stepsFor, dueCutoff),
+      : listCappedDueCards(
+          picked,
+          dueForList,
+          aheadDays > 0 ? () => limit : reviewAllowance.remainingFor,
+          limit,
+          now,
+          db,
+          stepsFor,
+          dueCutoff,
+        ),
     blockedByDailyLimit
       ? Promise.resolve([])
       : listPickedNewCards(picked, freshBySubject, allowance, limit, now, db, stepsFor),
