@@ -28,6 +28,7 @@ import { createChatQueueProposalSink, type ChatQueueProposalSink } from "./knowl
 import { buildChatQueueRunOptions } from "./knowledge-bit-chat-queue-run-options.js";
 import { buildChatQueuePrompt } from "./knowledge-bit-chat-queue.prompt.js";
 import { loadChatCardContext, lockChatState } from "./knowledge-bit-chat-queue.repo.js";
+import { isChatThreadState } from "./knowledge-bit-chat-thread-state.js";
 import {
   deleteLastChatExchange,
   insertChatTurn,
@@ -55,10 +56,6 @@ export type ChatQueueFailure = ChatQueueErrorCode | "not_found" | "no_messages" 
 export type ChatQueueResult<T> = { ok: true; value: T } | { ok: false; error: ChatQueueFailure };
 
 const inFlight = new Set<string>();
-
-function isChatThreadState(state: string | null): boolean {
-  return state === "chat" || state === "approved";
-}
 
 function threadOf(messages: StoredChatMessage[]): ChatQueueThread {
   const turnsLeft = turnsLeftFor(messages);

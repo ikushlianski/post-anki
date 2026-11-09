@@ -5,6 +5,7 @@ import { embedApprovedKnowledgeBits } from "./knowledge-bit-approval-embedding.o
 import { applyChatCardRevision, getChatCardSourceId, insertApprovedChatCard } from "./knowledge-bit-chat-card.repo.js";
 import { getAssistantProposals, saveAssistantProposals } from "./knowledge-bit-chat-queue-messages.repo.js";
 import { lockChatState } from "./knowledge-bit-chat-queue.repo.js";
+import { isChatThreadState } from "./knowledge-bit-chat-thread-state.js";
 
 export type ProposalDecision = "accept" | "reject";
 
@@ -48,7 +49,7 @@ export async function decideChatQueueProposal(
       return { ok: false, error: "not_found" };
     }
 
-    if (state !== "chat" && state !== "approved") {
+    if (!isChatThreadState(state)) {
       return { ok: false, error: "not_in_chat" };
     }
 

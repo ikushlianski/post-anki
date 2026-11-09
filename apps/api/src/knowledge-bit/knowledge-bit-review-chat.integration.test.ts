@@ -160,13 +160,21 @@ describe("review chat on approved cards (real Postgres)", () => {
     expect(await countAllChatQueueKnowledgeBits()).toBe((await listChatQueueKnowledgeBits(10_000)).length);
   });
 
-  it("should keep refusing queue threads for cards that are neither in chat nor approved", async () => {
-    const id = await seedBit("pending");
+  it("should keep refusing queue threads for cards that are rejected", async () => {
+    const id = await seedBit("rejected");
 
     expect(await getChatQueueThread(id)).toEqual({ ok: false, error: "not_in_chat" });
     expect(await sendChatQueueMessage(id, { clientMessageId: "c1", message: "hi" })).toEqual({
       ok: false,
       error: "not_in_chat",
     });
+  });
+
+  it.each(["pending", "inbox"])("should open a queue thread on a %s card without listing it in Chat", async (state) => {
+    const id = await seedBit(state);
+
+    expect(await sendChatQueueMessage(id, { clientMessageId: "c1", message: "hi" })).toMatchObject({ ok: true });
+    expect(await stateOf(id)).toBe(state);
+    expect((await listChatQueueKnowledgeBits(10_000)).some((entry) => entry.id === id)).toBe(false);
   });
 });

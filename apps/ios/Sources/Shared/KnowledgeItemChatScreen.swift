@@ -1,90 +1,10 @@
 import PostAnkiAPI
 import SwiftUI
 
-@Observable
-@MainActor
-final class KnowledgeItemChatModel {
-    let knowledgeBitId: String
-    let bitBody: String
-    var transcript: [ChatTranscriptEntry] = []
-    var draft = ""
-    var isSending = false
-    var errorMessage: String?
-    var isRefining = false
-    var refineConfirmed = false
-    var addedAsKnowledge = false
-
-    init(knowledgeBitId: String, bitBody: String) {
-        self.knowledgeBitId = knowledgeBitId
-        self.bitBody = bitBody
-    }
-
-    func send() async {
-        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isSending else { return }
-
-        let priorTranscript = transcript.recentTurns
-        transcript.append(ChatTranscriptEntry(role: "user", text: trimmed))
-        draft = ""
-        isSending = true
-        errorMessage = nil
-
-        do {
-            let result = try await APIClient.chatWithKnowledgeBit(
-                id: knowledgeBitId,
-                message: trimmed,
-                transcript: priorTranscript,
-                clientMessageId: UUID().uuidString
-            )
-            transcript.append(ChatTranscriptEntry(role: "assistant", text: result.reply))
-        } catch {
-            errorMessage = StudyToolsError.message(for: error, notFound: "This item no longer exists.")
-            draft = trimmed
-            transcript.removeLast()
-        }
-
-        isSending = false
-    }
-
-    private func flattenedTranscript() -> String {
-        var lines = ["Knowledge item: \(bitBody)"]
-        lines.append(contentsOf: transcript.map { "\($0.role == "user" ? "Learner" : "Tutor"): \($0.text)" })
-        return lines.joined(separator: "\n")
-    }
-
-    func refineIntoKnowledgeItems() async {
-        guard !isRefining else { return }
-        isRefining = true
-        errorMessage = nil
-
-        do {
-            _ = try await APIClient.createKnowledgeSource(text: flattenedTranscript())
-            refineConfirmed = true
-            try? await APIClient.detectKnowledgeBits()
-        } catch {
-            errorMessage = "Couldn't send that for review — try again."
-        }
-
-        isRefining = false
-    }
-
-    func addAsKnowledge(_ excerpt: String) async {
-        let trimmed = excerpt.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        do {
-            _ = try await APIClient.createKnowledgeSource(text: trimmed)
-            addedAsKnowledge = true
-            try? await APIClient.detectKnowledgeBits()
-        } catch {
-            errorMessage = "Couldn't add that as new knowledge — try again."
-        }
-    }
-}
-
 struct KnowledgeItemChatScreen: View {
     @State private var model: KnowledgeItemChatModel
     @State private var replacement: CardReplacementModel
+    @FocusState private var composerFocused: Bool
     private let onReplacementSaved: (() async -> Void)?
 
     init(knowledgeBitId: String, bitBody: String, onReplacementSaved: (() async -> Void)? = nil) {
@@ -94,6 +14,8 @@ struct KnowledgeItemChatScreen: View {
     }
 
     var body: some View {
+        @Bindable var thread = model.thread
+
         VStack(spacing: 0) {
             List {
                 Section("Knowledge bit") {
@@ -102,18 +24,29 @@ struct KnowledgeItemChatScreen: View {
                         .foregroundStyle(.secondary)
                 }
 
-                ForEach(Array(model.transcript.enumerated()), id: \.offset) { _, entry in
-                    ChatMessageRow(entry: entry, assistantLabel: "Tutor")
+                ForEach(thread.lines) { line in
+                    ChatQueueMessageBubble(line: line)
+                        .listRowSeparator(.hidden)
                         .contextMenu {
-                            if entry.role == "assistant" {
+                            if !line.isUser {
                                 Button("Add as new knowledge") {
-                                    Task { await model.addAsKnowledge(entry.text) }
+                                    Task { await model.addAsKnowledge(line.text) }
                                 }
                             }
                         }
+
+                    if !line.isUser { ChatQueueProposalRows(model: thread, line: line).listRowSeparator(.hidden) }
                 }
 
-                if let errorMessage = model.errorMessage {
+                if thread.isSending {
+                    HStack {
+                        ProgressView().controlSize(.small)
+                        Text("Thinking...").foregroundStyle(.secondary)
+                    }
+                    .zoomFont(.caption)
+                }
+
+                if let errorMessage = thread.errorMessage {
                     Text(errorMessage)
                         .foregroundStyle(.red)
                 }
@@ -125,15 +58,19 @@ struct KnowledgeItemChatScreen: View {
                 CardReplacementBar(model: replacement, transcript: model.transcript, onSaved: onReplacementSaved)
             }
 
-            ChatComposerBar(
-                draft: $model.draft,
-                placeholder: "Ask about this…",
-                isSending: model.isSending
-            ) {
-                Task { await model.send() }
+            if !thread.limitReached && !thread.budgetPaused {
+                HStack {
+                    ChatQueueMakeCardButton(model: thread)
+                    Spacer()
+                }
+                .zoomPadding(.horizontal)
+                .zoomPadding(.vertical, 4)
             }
+
+            composer(thread: $thread)
         }
         .navigationTitle("Discuss")
+        .task { await model.load() }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Refine into knowledge items") {
@@ -149,6 +86,30 @@ struct KnowledgeItemChatScreen: View {
         }
         .alert("Added as new knowledge", isPresented: $model.addedAsKnowledge) {
             Button("OK", role: .cancel) {}
+        }
+    }
+
+    @ViewBuilder
+    private func composer(thread: Bindable<ChatQueueThreadModel>) -> some View {
+        if thread.wrappedValue.limitReached {
+            Text("Chat limit reached")
+                .zoomFont(.footnote)
+                .foregroundStyle(.secondary)
+                .zoomPadding(.vertical, 8)
+        } else if thread.wrappedValue.budgetPaused {
+            Text("Chat is paused for today")
+                .zoomFont(.footnote)
+                .foregroundStyle(.secondary)
+                .zoomPadding(.vertical, 8)
+        } else {
+            ChatQueueComposer(
+                draft: thread.draft,
+                placeholder: "Ask about this…",
+                canSend: thread.wrappedValue.canSend,
+                turnsLeft: thread.wrappedValue.turnsLeft,
+                focused: $composerFocused,
+                onSend: { Task { await model.send() } }
+            )
         }
     }
 }

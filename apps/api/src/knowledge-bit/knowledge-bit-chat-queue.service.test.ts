@@ -360,8 +360,18 @@ describe("sendChatQueueMessage", () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it("should refuse cards that are not in the chat queue", async () => {
+  it("should answer and offer card proposals on an inbox card that is still pending", async () => {
     loadChatCardContext.mockResolvedValue({ body: "Card", background: null, approvalState: "pending", sourceText: null });
+    lockChatState.mockResolvedValue("pending");
+
+    const result = await sendChatQueueMessage("kb1", input);
+
+    expect(result.ok).toBe(true);
+    expect(generate).toHaveBeenCalled();
+  });
+
+  it("should refuse cards that are not in the chat queue", async () => {
+    loadChatCardContext.mockResolvedValue({ body: "Card", background: null, approvalState: "rejected", sourceText: null });
 
     expect(await sendChatQueueMessage("kb1", input)).toEqual({ ok: false, error: "not_in_chat" });
     expect(generate).not.toHaveBeenCalled();

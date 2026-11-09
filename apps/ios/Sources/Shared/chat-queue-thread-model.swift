@@ -47,10 +47,12 @@ final class ChatQueueThreadModel {
     @ObservationIgnored var inFlightRetryDelay: Duration = .seconds(1)
     @ObservationIgnored private let counts: ChatQueueCountStore
     @ObservationIgnored private let drafts: ChatQueueDraftStoring
+    @ObservationIgnored private let tracksQueue: Bool
 
     init(item: ChatQueueItem, counts: ChatQueueCountStore = .shared,
-         drafts: ChatQueueDraftStoring = UserDefaultsChatQueueDraftStore()) {
+         drafts: ChatQueueDraftStoring = UserDefaultsChatQueueDraftStore(), tracksQueue: Bool = true) {
         self.item = item
+        self.tracksQueue = tracksQueue
         self.counts = counts
         self.drafts = drafts
         draft = drafts.load(cardId: item.id)
@@ -361,7 +363,7 @@ final class ChatQueueThreadModel {
     }
 
     private func finish(removing: Bool) {
-        if removing {
+        if removing, tracksQueue {
             counts.adjust(by: -1)
             drafts.clear(cardId: item.id)
         }

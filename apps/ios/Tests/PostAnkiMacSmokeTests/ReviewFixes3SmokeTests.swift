@@ -79,16 +79,16 @@ extension SmokeTests {
 
         @Test("should tell a signed-out learner to check Settings in the knowledge-item chat")
         func knowledgeItemChatSignedOut() async {
-            let session = FakeServerSession(["/knowledge-bits/kb_1/chat": .status(401)])
+            let session = FakeServerSession(["/knowledge-bits/kb_1/chat-messages": .status(401)])
             defer { session.end() }
 
             let model = KnowledgeItemChatModel(knowledgeBitId: "kb_1", bitBody: "body")
 
-            model.draft = "hello"
+            model.thread.draft = "hello"
             await model.send()
 
-            #expect(model.errorMessage?.contains("Settings") == true)
-            #expect(model.draft == "hello")
+            #expect(model.thread.errorMessage?.contains("Settings") == true)
+            #expect(model.thread.draft == "hello")
             #expect(model.transcript.isEmpty)
         }
 

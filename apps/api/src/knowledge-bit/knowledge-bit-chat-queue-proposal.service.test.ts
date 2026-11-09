@@ -65,6 +65,25 @@ describe("decideChatQueueProposal", () => {
     expect(embedApprovedKnowledgeBits).toHaveBeenCalledWith(["kb_new"]);
   });
 
+  it("should save an accepted new card from a chat opened on a still-pending inbox card", async () => {
+    lockChatState.mockResolvedValue("pending");
+
+    const result = await decideChatQueueProposal("kb1", 2, 0, "accept");
+
+    expect(result).toEqual({ ok: true, value: { ok: true, status: "accepted", savedCardId: "kb_new" } });
+    expect(insertApprovedChatCard).toHaveBeenCalledTimes(1);
+  });
+
+  it("should refuse an update on a still-pending inbox card", async () => {
+    lockChatState.mockResolvedValue("pending");
+    getAssistantProposals.mockResolvedValue([proposal({ kind: "update" })]);
+
+    const result = await decideChatQueueProposal("kb1", 2, 0, "accept");
+
+    expect(result).toEqual({ ok: false, error: "not_in_chat" });
+    expect(applyChatCardRevision).not.toHaveBeenCalled();
+  });
+
   it("should not save a second card when the same accept is sent again", async () => {
     getAssistantProposals.mockResolvedValue([proposal({ status: "accepted", savedCardId: "kb_new" })]);
 

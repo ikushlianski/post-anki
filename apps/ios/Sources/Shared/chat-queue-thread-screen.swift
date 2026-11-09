@@ -27,7 +27,7 @@ struct ChatQueueThreadScreen: View {
                     ForEach(model.lines) { line in
                         ChatQueueMessageBubble(line: line).id(line.id)
 
-                        if !line.isUser, let seq = line.seq { proposalRows(line: line, seq: seq) }
+                        if !line.isUser { ChatQueueProposalRows(model: model, line: line) }
 
                         if !line.isUser, line.id == model.lines.last?.id { retryRow }
                     }
@@ -132,25 +132,6 @@ struct ChatQueueThreadScreen: View {
                 feedback: feedback,
                 onSend: { reason, note in await model.sendRejectReason(reason, note: note) },
                 onSkip: { model.skipRejectReason() }
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func proposalRows(line: ChatQueueLine, seq: Int) -> some View {
-        ForEach(line.proposals) { proposal in
-            ChatQueueProposalCard(
-                proposal: proposal,
-                isBusy: model.isDeciding(line, proposal) || model.isResolving,
-                errorMessage: model.proposalError(line, proposal),
-                canTellTutor: !model.limitReached && !model.budgetPaused,
-                isRewording: model.isRewording(line, proposal),
-                onReword: {
-                    Task { await model.reword(seq: seq, index: proposal.index) }
-                },
-                onDecide: { decision in
-                    Task { await model.decide(seq: seq, index: proposal.index, decision: decision) }
-                }
             )
         }
     }

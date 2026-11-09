@@ -6,6 +6,7 @@ import { LlmBudgetCheckUnavailableError, LlmBudgetExceededError } from "../share
 import { getAssistantProposals, saveAssistantProposals } from "./knowledge-bit-chat-queue-messages.repo.js";
 import { validateChatQueueProposal } from "./knowledge-bit-chat-queue-proposal-validation.js";
 import { lockChatState } from "./knowledge-bit-chat-queue.repo.js";
+import { isChatThreadState } from "./knowledge-bit-chat-thread-state.js";
 
 export type ProposalRewordFailure =
   | "not_found"
@@ -28,7 +29,7 @@ async function readPending(bitId: string, seq: number, index: number): Promise<R
       return { ok: false, error: "not_found" };
     }
 
-    if (state !== "chat" && state !== "approved") {
+    if (!isChatThreadState(state)) {
       return { ok: false, error: "not_in_chat" };
     }
 

@@ -171,7 +171,7 @@ describe("delete last chat exchange (real Postgres)", () => {
   });
 
   it("should answer not_found for an unknown card and not_in_chat for a card outside Chat", async () => {
-    const outside = await seedChatBit("pending");
+    const outside = await seedChatBit("rejected");
 
     expect(await deleteLastChatQueueExchange(`kb_${randomUUID()}`)).toEqual({ ok: false, error: "not_found" });
     expect(await deleteLastChatQueueExchange(outside)).toEqual({ ok: false, error: "not_in_chat" });

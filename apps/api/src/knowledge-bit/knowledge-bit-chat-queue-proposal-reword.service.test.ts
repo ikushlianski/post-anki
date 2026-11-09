@@ -95,7 +95,7 @@ describe("rewordChatQueueProposal", () => {
   it("should report not found for an unknown proposal and a card outside the chat", async () => {
     expect(await rewordChatQueueProposal("kb1", 2, 5)).toEqual({ ok: false, error: "not_found" });
 
-    lockChatState.mockResolvedValue("inbox");
+    lockChatState.mockResolvedValue("rejected");
 
     expect(await rewordChatQueueProposal("kb1", 2, 0)).toEqual({ ok: false, error: "not_in_chat" });
   });
