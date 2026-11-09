@@ -21,6 +21,7 @@ import { handleDiscardKnowledgeSource } from "./knowledge-source/knowledge-sourc
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import { handleCreateKnowledgeSourceSubjectCheck } from "./knowledge-source/knowledge-source-subject-check.controller.js";
 import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
+import { handleCreateTxtImport, handleGetTxtImportStatus } from "./txt-import/txt-import.controller.js";
 import { handleCreateKnowledgeSourcesFromPhrases } from "./knowledge-source/phrase-knowledge-source.controller.js";
 import {
   handleCreateNotionSource,
@@ -730,6 +731,10 @@ async function route(
       return handleCreateKnowledgeSourceFromNotion(req, res);
     case "createKnowledgeSourcesFromPhrases":
       return handleCreateKnowledgeSourcesFromPhrases(req, res);
+    case "createTxtImport":
+      return handleCreateTxtImport(req, res);
+    case "getTxtImportStatus":
+      return handleGetTxtImportStatus(res, id);
     case "listNotionSources":
       return handleListNotionSources(res);
     case "createNotionSource":

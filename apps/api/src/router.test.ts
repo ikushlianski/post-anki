@@ -13,6 +13,11 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/knowledge-sources/phrases")?.name).toBe(
         "createKnowledgeSourcesFromPhrases",
       );
+      expect(resolveRoute("POST", "/text-file-imports")?.name).toBe("createTxtImport");
+      expect(resolveRoute("GET", "/text-file-imports/txt-abc")).toEqual({
+        name: "getTxtImportStatus",
+        params: { id: "txt-abc" },
+      });
       expect(resolveRoute("POST", "/knowledge-sources/detect-bits")?.name).toBe(
         "detectKnowledgeBits",
       );

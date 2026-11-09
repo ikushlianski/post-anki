@@ -20,6 +20,8 @@ export const ROUTES: RouteDef[] = [
   { method: "POST", pattern: "/knowledge-sources", name: "createKnowledgeSource" },
   { method: "POST", pattern: "/knowledge-sources/notion", name: "createKnowledgeSourceFromNotion" },
   { method: "POST", pattern: "/knowledge-sources/phrases", name: "createKnowledgeSourcesFromPhrases" },
+  { method: "POST", pattern: "/text-file-imports", name: "createTxtImport" },
+  { method: "GET", pattern: /^\/text-file-imports\/([^/]+)$/, name: "getTxtImportStatus", param: "id" },
   { method: "GET", pattern: "/notion-sources", name: "listNotionSources" },
   { method: "POST", pattern: "/notion-sources", name: "createNotionSource" },
   { method: "PATCH", pattern: /^\/notion-sources\/([^/]+)$/, name: "updateNotionSource", param: "id" },

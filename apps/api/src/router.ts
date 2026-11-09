@@ -13,6 +13,8 @@ export type RouteName =
   | "createKnowledgeSource"
   | "createKnowledgeSourceFromNotion"
   | "createKnowledgeSourcesFromPhrases"
+  | "createTxtImport"
+  | "getTxtImportStatus"
   | "listNotionSources"
   | "createNotionSource"
   | "updateNotionSource"

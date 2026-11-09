@@ -24,6 +24,7 @@ import { submitKnowledgeBlocks } from './submit-knowledge-blocks'
 import { readLastSubjectId, writeLastSubjectId } from './last-subject-storage'
 import { addedKnowledgeMessage } from './added-knowledge-message'
 import { AddKnowledgeSuccess } from './add-knowledge-success'
+import { TxtFileImport } from './txt-file-import'
 import { AddedNoteProgressList } from './added-note-progress-list'
 import { useAddedNoteProgress } from './use-added-note-progress'
 import type { EarlierSource, SubmittedBlock } from './submit-knowledge-blocks'
@@ -293,6 +294,8 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
           {busy ? 'Saving…' : checking ? 'Checking…' : 'Add knowledge'}
         </button>
       </div>
+
+      <TxtFileImport subjectId={selectedSubjectId} />
 
       {successMessage && (
         <AddKnowledgeSuccess message={successMessage} backLabel={preselectedLabel} backSubjectId={initialSubjectId} />
