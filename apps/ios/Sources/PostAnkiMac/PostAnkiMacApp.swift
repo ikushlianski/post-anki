@@ -6,9 +6,11 @@ struct PostAnkiMacApp: App {
     @AppStorage(MacMenuBar.enabledKey) private var menuBarEnabled = true
 
     init() {
+        if !MacMenuBar.isHostingTests { MacSandboxMigration.runIfNeeded() }
         MacLaunchCheck.applyDevAddress()
         APIClient.publishSharedBaseURL()
         MacQueueFlushTrigger.shared.start()
+        MacUpdateChecker.shared.start()
         #if DEBUG
         Self.applyDevDockIcon()
         Self.quitOtherDevCopies()

@@ -81,6 +81,7 @@ struct MacRootView: View {
             VStack(spacing: 0) {
                 MacDevBand()
                 MacLaunchBanner(check: launchCheck)
+                MacUpdateBanner(checker: MacUpdateChecker.shared)
                 MacFeatureDetailView(feature: MacFeatureRegistry.feature(id: storedSelection))
                     .id(settingsVersion)
                     .accessibilityIdentifier("detail-\(storedSelection)")

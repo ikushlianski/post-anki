@@ -9,17 +9,35 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: release
-  cancel-in-progress: false
-
 jobs:
   release:
     runs-on: ubuntu-latest
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
+      run: ${{ github.run_number }}
+      ios_changed: ${{ steps.changes.outputs.ios_changed }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect iOS and Mac changes
+        id: changes
+        run: |
+          before="${{ github.event.before }}"
+          if [ -z "${before//0/}" ] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            echo "ios_changed=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$(git diff --name-only "$before" "${{ github.sha }}" -- apps/ios)" ]; then
+            echo "ios_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios_changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish release
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -28,3 +46,53 @@ jobs:
             --target "${{ github.sha }}" \
             --title "$tag" \
             --generate-notes
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  mac-app:
+    needs: release
+    if: needs.release.outputs.ios_changed == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+    concurrency:
+      group: release-mac
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      N: ${{ needs.release.outputs.run }}
+      TAG: ${{ needs.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+
+      - name: Build Mac app
+        working-directory: apps/ios
+        run: |
+          xcodegen generate
+          xcodebuild build \
+            -project PostAnkiIOS.xcodeproj \
+            -scheme PostAnkiMac \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            MARKETING_VERSION="0.1.$N" CURRENT_PROJECT_VERSION="$N"
+
+      - name: Check the built app
+        working-directory: apps/ios
+        run: |
+          app=build/Build/Products/Release/PostAnkiMac.app
+          plist="$app/Contents/Info.plist"
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
+          id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")
+          echo "version=$version id=$id"
+          [ "$version" = "0.1.$N" ]
+          codesign -dv "$app"
+          codesign --verify --deep --strict "$app"
+
+      - name: Upload to release
+        working-directory: apps/ios
+        run: |
+          ditto -c -k --keepParent build/Build/Products/Release/PostAnkiMac.app "PostAnkiMac-$N.zip"
+          gh release upload "$TAG" "PostAnkiMac-$N.zip"

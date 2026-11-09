@@ -31,6 +31,13 @@ struct MacCommands: Commands {
                 .disabled(zoom <= MacZoom.steps[0])
         }
 
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") {
+                MacSettingsRoute.show(openWindow: openWindow)
+                Task { await MacUpdateChecker.shared.check(manual: true) }
+            }
+        }
+
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { MacSettingsRoute.show(openWindow: openWindow) }
                 .keyboardShortcut(",")

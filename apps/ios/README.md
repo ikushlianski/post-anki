@@ -74,7 +74,11 @@ Xcode previews for the Review, Triage (swipe card and inbox list), Add and Knowl
 
 ## Develop the Mac app
 
-Scheme `PostAnkiMac` (macOS 14+, bundle id `com.ikushlianski.postankimac`) shares `Sources/Shared` with the iOS app. It is sandboxed with outgoing network access only.
+Scheme `PostAnkiMac` (macOS 14+, bundle id `com.ikushlianski.postankimac`) shares `Sources/Shared` with the iOS app. It is not sandboxed, so it can replace its own bundle when updating.
+
+### Updates
+
+Release builds check GitHub Releases hourly and offer "Install and restart" (banner, Settings, App menu). CI (`release.yml`) builds an ad-hoc signed `PostAnkiMac-N.zip` onto tag `v0.1.N` when `apps/ios` changed. The updater is off in Debug, under tests and for builds run from `/Build/Products/`.
 
 ### Prerequisites
 

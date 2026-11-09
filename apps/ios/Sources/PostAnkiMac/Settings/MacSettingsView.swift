@@ -128,6 +128,8 @@ struct MacGeneralSettingsPane: View {
             Button("Reset highlight shortcut") { storedShortcut = HighlightShortcut.defaultShortcut.rawValue }
                 .disabled(HighlightShortcut.resolved(from: storedShortcut) == .defaultShortcut)
                 .accessibilityIdentifier("settings-highlight-shortcut-reset")
+
+            MacUpdateSettingsSection()
         }
         .formStyle(.grouped)
     }
