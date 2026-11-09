@@ -201,3 +201,10 @@ export const chatQueueSearchResponseSchema = z.object({
 });
 
 export type ChatQueueSearchResponse = z.infer<typeof chatQueueSearchResponseSchema>;
+
+export const chatQueueProposalRewordResultSchema = z.object({
+  ok: z.literal(true),
+  proposal: chatQueueProposalSchema,
+});
+
+export type ChatQueueProposalRewordResult = z.infer<typeof chatQueueProposalRewordResultSchema>;

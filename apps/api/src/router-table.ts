@@ -527,6 +527,12 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "POST",
+    pattern: /^\/knowledge-bits\/([^/]+)\/chat-messages\/(\d+)\/proposals\/(\d+)\/reword$/,
+    name: "rewordChatQueueProposal",
+    params: ["id", "seq", "index"],
+  },
+  {
+    method: "POST",
     pattern: /^\/knowledge-bits\/([^/]+)\/example$/,
     name: "generateKnowledgeBitExample",
     param: "id",

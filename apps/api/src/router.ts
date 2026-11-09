@@ -190,6 +190,7 @@ export type RouteName =
   | "deleteLastChatQueueExchange"
   | "acceptChatQueueProposal"
   | "rejectChatQueueProposal"
+  | "rewordChatQueueProposal"
   | "draftKnowledgeBitChat"
   | "createDerivedKnowledgeItem"
   | "listKnowledgeBitVariants"

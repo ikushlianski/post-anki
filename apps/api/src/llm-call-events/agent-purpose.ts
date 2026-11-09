@@ -7,6 +7,7 @@ const PURPOSE_BY_AGENT: Record<string, LlmPurpose> = {
   subjectChat: "chat",
   knowledgeBitChat: "chat",
   knowledgeBitChatDraft: "chat",
+  knowledgeBitChatReword: "chat",
   knowledgeBitChatQueue: "chat",
   languageChat: "chat",
   cardsCompiler: "cards",

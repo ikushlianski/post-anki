@@ -145,6 +145,10 @@ describe("resolveRoute", () => {
         name: "rejectChatQueueProposal",
         params: { id: "kb_1", seq: "4", index: "0" },
       });
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages/4/proposals/0/reword")).toMatchObject({
+        name: "rewordChatQueueProposal",
+        params: { id: "kb_1", seq: "4", index: "0" },
+      });
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat")?.name).toBe("askKnowledgeBitChat");
     });
 

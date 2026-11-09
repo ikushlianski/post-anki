@@ -6,6 +6,8 @@ struct ChatQueueProposalCard: View {
     let isBusy: Bool
     let errorMessage: String?
     var canTellTutor = true
+    var isRewording = false
+    var onReword: (() -> Void)?
     let onDecide: (ChatQueueProposalDecision) -> Void
 
     @State private var offset: CGFloat = 0
@@ -57,7 +59,7 @@ struct ChatQueueProposalCard: View {
         .onChange(of: errorMessage) { _, message in
             if let message { TriageFeedbackPlayer.announce(message: message) }
         }
-        .modifier(ProposalAccessibilityActions(proposal: proposal, isEnabled: proposal.status == .pending && !isBusy, onDecide: onDecide))
+        .modifier(ProposalAccessibilityActions(proposal: proposal, isEnabled: proposal.status == .pending && !isBusy && !isRewording, onDecide: onDecide, onReword: onReword))
         .accessibilityIdentifier("chat-queue-proposal-\(proposal.index)")
     }
 
@@ -82,10 +84,16 @@ struct ChatQueueProposalCard: View {
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("chat-queue-proposal-reject-\(proposal.index)")
 
-                if isBusy { ProgressView().controlSize(.small) }
+                if let onReword {
+                    Button("Reword question", action: onReword)
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("chat-queue-proposal-reword-\(proposal.index)")
+                }
+
+                if isBusy || isRewording { ProgressView().controlSize(.small) }
             }
             .controlSize(.small)
-            .disabled(isBusy)
+            .disabled(isBusy || isRewording)
 
             Text("Swipe right to accept, left to reject")
                 .zoomFont(.caption2)
@@ -130,12 +138,14 @@ private struct ProposalAccessibilityActions: ViewModifier {
     let proposal: ChatQueueProposal
     let isEnabled: Bool
     let onDecide: (ChatQueueProposalDecision) -> Void
+    let onReword: (() -> Void)?
 
     func body(content: Content) -> some View {
         if isEnabled {
             content
                 .accessibilityAction(named: ChatQueueProposalAccessibility.actionName("Accept", proposal)) { onDecide(.accept) }
                 .accessibilityAction(named: ChatQueueProposalAccessibility.actionName("Reject", proposal)) { onDecide(.reject) }
+                .accessibilityAction(named: ChatQueueProposalAccessibility.actionName("Reword question of", proposal)) { onReword?() }
         } else {
             content
         }

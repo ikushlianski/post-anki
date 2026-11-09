@@ -8,6 +8,54 @@ extension ChatQueueThreadModel {
         return decidingProposals.contains(ChatQueueProposalKey(seq: seq, index: proposal.index))
     }
 
+    func isRewording(_ line: ChatQueueLine, _ proposal: ChatQueueProposal) -> Bool {
+        guard let seq = line.seq else { return false }
+
+        return rewordingProposals.contains(ChatQueueProposalKey(seq: seq, index: proposal.index))
+    }
+
+    @discardableResult
+    func reword(seq: Int, index: Int) async -> Bool {
+        let key = ChatQueueProposalKey(seq: seq, index: index)
+
+        guard !isResolving, !rewordingProposals.contains(key), !decidingProposals.contains(key),
+              let lineIndex = lines.firstIndex(where: { $0.seq == seq }),
+              lines[lineIndex].proposals.first(where: { $0.index == index })?.status == .pending
+        else { return false }
+
+        rewordingProposals.insert(key)
+        proposalErrors[key] = nil
+        defer { rewordingProposals.remove(key) }
+
+        do {
+            let reworded = try await APIClient.rewordChatQueueProposal(id: item.id, seq: seq, index: index)
+
+            guard let current = lines.firstIndex(where: { $0.seq == seq }),
+                  let position = lines[current].proposals.firstIndex(where: { $0.index == index })
+            else { return false }
+
+            lines[current].proposals[position] = reworded
+
+            return true
+        } catch is CancellationError {
+            return false
+        } catch {
+            let failure = ChatQueueFailure.failure(for: error)
+
+            switch failure {
+            case .notInChat, .notFound:
+                handle(failure)
+            case .proposalNotPending:
+                proposalErrors[key] = failure.message
+                await load()
+            default:
+                proposalErrors[key] = "Could not reword the question. Try again."
+            }
+
+            return false
+        }
+    }
+
     func proposalError(_ line: ChatQueueLine, _ proposal: ChatQueueProposal) -> String? {
         guard let seq = line.seq else { return nil }
 

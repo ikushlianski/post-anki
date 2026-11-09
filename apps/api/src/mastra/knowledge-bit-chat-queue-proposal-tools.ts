@@ -36,7 +36,7 @@ export function createChatQueueProposalTools(deps: ChatQueueProposalToolsDeps) {
   const proposeNewCard = createTool({
     id: "proposeNewCard",
     description:
-      "Propose one additional flashcard for the learner to accept or reject. It is only shown, never saved. Max 2 proposals per reply. front is a short question, back a concise answer, example optional, reason (one short sentence) optional.\n" + CARD_PRINCIPLES_TEXT,
+      "Propose one additional flashcard for the learner to accept or reject. ALWAYS call this when the learner asks you to make, create or add a card, even in casual wording. It is only shown, never saved. Max 2 proposals per reply. front is a short question, back a concise answer, example optional, reason (one short sentence) optional.\n" + CARD_PRINCIPLES_TEXT,
     inputSchema: proposalToolInputSchema,
     execute: async (input) => propose("create")(input),
   });

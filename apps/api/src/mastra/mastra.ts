@@ -15,6 +15,7 @@ import { createQaChatAgent } from "./qa-chat.agent.js";
 import { createGlobalCardChatAgent } from "./global-card-chat.agent.js";
 import { createSubjectChatAgent } from "./subject-chat.agent.js";
 import { createKnowledgeBitChatAgent } from "./knowledge-bit-chat.agent.js";
+import { createKnowledgeBitChatRewordAgent } from "./knowledge-bit-chat-reword.agent.js";
 import { createKnowledgeBitChatDraftAgent } from "./knowledge-bit-chat-draft.agent.js";
 import { createKnowledgeBitChatQueueAgent } from "./knowledge-bit-chat-queue.agent.js";
 import { createStructureEditorAgent } from "./structure-editor.agent.js";
@@ -68,6 +69,7 @@ export const AGENT_KEYS = {
   subjectChat: "subjectChat",
   knowledgeBitChat: "knowledgeBitChat",
   knowledgeBitChatDraft: "knowledgeBitChatDraft",
+  knowledgeBitChatReword: "knowledgeBitChatReword",
   knowledgeBitChatQueue: "knowledgeBitChatQueue",
   structureEditor: "structureEditor",
   languageChat: "languageChat",
@@ -167,6 +169,7 @@ export function getMastra(): Mastra {
         [AGENT_KEYS.subjectChat]: createSubjectChatAgent(),
         [AGENT_KEYS.knowledgeBitChat]: createKnowledgeBitChatAgent(),
         [AGENT_KEYS.knowledgeBitChatDraft]: createKnowledgeBitChatDraftAgent(),
+        [AGENT_KEYS.knowledgeBitChatReword]: createKnowledgeBitChatRewordAgent(),
         [AGENT_KEYS.knowledgeBitChatQueue]: createKnowledgeBitChatQueueAgent(),
         [AGENT_KEYS.structureEditor]: createStructureEditorAgent(),
         [AGENT_KEYS.languageChat]: createLanguageChatAgent(),

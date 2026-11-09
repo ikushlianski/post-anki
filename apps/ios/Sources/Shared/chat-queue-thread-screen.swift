@@ -94,6 +94,7 @@ struct ChatQueueThreadScreen: View {
 
                 if model.showsStarters { starters }
 
+                makeCardRow
                 footer
                 actions
             }
@@ -143,6 +144,10 @@ struct ChatQueueThreadScreen: View {
                 isBusy: model.isDeciding(line, proposal) || model.isResolving,
                 errorMessage: model.proposalError(line, proposal),
                 canTellTutor: !model.limitReached && !model.budgetPaused,
+                isRewording: model.isRewording(line, proposal),
+                onReword: {
+                    Task { await model.reword(seq: seq, index: proposal.index) }
+                },
                 onDecide: { decision in
                     Task { await model.decide(seq: seq, index: proposal.index, decision: decision) }
                 }

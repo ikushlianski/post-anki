@@ -67,6 +67,10 @@ public struct ChatQueueProposalDecisionResult: Decodable, Sendable, Hashable {
     }
 }
 
+struct ChatQueueProposalRewordResult: Decodable, Sendable {
+    let proposal: ChatQueueProposal
+}
+
 enum ChatQueueProposalDecoding {
     static func lossyList<Key: CodingKey>(from container: KeyedDecodingContainer<Key>, key: Key) -> [ChatQueueProposal] {
         guard var list = try? container.nestedUnkeyedContainer(forKey: key) else { return [] }

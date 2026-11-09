@@ -237,6 +237,7 @@ import {
 import {
   handleAcceptChatQueueProposal,
   handleRejectChatQueueProposal,
+  handleRewordChatQueueProposal,
 } from "./knowledge-bit/knowledge-bit-chat-queue-proposal.controller.js";
 import { handleGenerateKnowledgeBitExample } from "./knowledge-bit/knowledge-bit-example.controller.js";
 import {
@@ -1101,6 +1102,8 @@ async function route(
       return handleAcceptChatQueueProposal(res, id, resolved.params.seq ?? "", resolved.params.index ?? "");
     case "rejectChatQueueProposal":
       return handleRejectChatQueueProposal(res, id, resolved.params.seq ?? "", resolved.params.index ?? "");
+    case "rewordChatQueueProposal":
+      return handleRewordChatQueueProposal(res, id, resolved.params.seq ?? "", resolved.params.index ?? "");
     case "generateKnowledgeBitExample":
       return handleGenerateKnowledgeBitExample(req, res, id);
     case "draftKnowledgeBitChat":

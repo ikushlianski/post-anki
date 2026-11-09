@@ -35,6 +35,7 @@ final class ChatQueueThreadModel {
     var isFinished = false
     var wasSnoozed = false
     var decidingProposals: Set<ChatQueueProposalKey> = []
+    var rewordingProposals: Set<ChatQueueProposalKey> = []
     var proposalErrors: [ChatQueueProposalKey: String] = [:]
     var awaitsRejectExplanation = false
     var composerFocusRequests = 0
@@ -86,6 +87,10 @@ final class ChatQueueThreadModel {
             errorMessage = ChatQueueFailure.failure(for: error).message
         }
     }
+
+    static let makeCardRequest = "Make a card from this chat"
+
+    func makeCard() async { await send(Self.makeCardRequest) }
 
     func send(_ preset: String? = nil) async {
         let text = (preset ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)

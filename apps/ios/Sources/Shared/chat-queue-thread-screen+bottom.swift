@@ -19,6 +19,23 @@ extension ChatQueueThreadScreen {
     }
 
     @ViewBuilder
+    var makeCardRow: some View {
+        if !model.limitReached && !model.budgetPaused {
+            HStack {
+                Button("Make a card", systemImage: "plus.rectangle.on.rectangle") { Task { await model.makeCard() } }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(model.isSending || model.isResolving)
+                    .accessibilityIdentifier("chat-queue-make-card")
+
+                Spacer()
+            }
+            .zoomPadding(.horizontal)
+            .zoomPadding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
     var footer: some View {
         if model.limitReached {
             Text("Chat limit reached, decide now")

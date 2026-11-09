@@ -68,4 +68,13 @@ extension APIClient {
             method: "POST"
         )
     }
+
+    public static func rewordChatQueueProposal(id: String, seq: Int, index: Int) async throws -> ChatQueueProposal {
+        let result: ChatQueueProposalRewordResult = try await request(
+            "/knowledge-bits/\(encodedSegment(id))/chat-messages/\(seq)/proposals/\(index)/reword",
+            method: "POST"
+        )
+
+        return result.proposal
+    }
 }
