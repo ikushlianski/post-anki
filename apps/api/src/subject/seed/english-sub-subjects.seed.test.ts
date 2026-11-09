@@ -24,6 +24,18 @@ function createMemoryStore(rows: Row[]): RootCapableSeedStore {
 
       return `new_${next}`;
     },
+    async ensureRoot(name) {
+      const existing = rows.find((r) => r.parentId === null && r.name.toLowerCase() === name.toLowerCase());
+
+      if (existing) {
+        return { id: existing.id, created: false };
+      }
+
+      next += 1;
+      rows.push({ id: `new_${next}`, name, parentId: null });
+
+      return { id: `new_${next}`, created: true };
+    },
     async createChild(parentId, name) {
       next += 1;
       rows.push({ id: `new_${next}`, name, parentId });

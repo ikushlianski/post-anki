@@ -283,6 +283,9 @@ jobs:
         # ELECTRIC_AUTH_MODE is deliberately never set here: apps/api's env schema
         # defaults it to "iam", which is what production needs (Cloud Run
         # service-to-service ID tokens). Only local dev overrides it to "none".
+        env:
+          INNGEST_EVENT_KEY: ${{ secrets.PROD_INNGEST_EVENT_KEY }}
+          INNGEST_SIGNING_KEY: ${{ secrets.PROD_INNGEST_SIGNING_KEY }}
         run: |
           ELECTRIC_ARGS=()
           if [ -n "${ELECTRIC_URL:-}" ]; then
@@ -296,6 +299,12 @@ jobs:
           WEB_ORIGIN_ARGS=()
           if [ -n "$WEB_ORIGIN" ]; then
             WEB_ORIGIN_ARGS+=(--set-env-vars "WEB_ORIGIN=$WEB_ORIGIN")
+          fi
+          INNGEST_ARGS=()
+          if [ -n "$INNGEST_EVENT_KEY" ] && [ -n "$INNGEST_SIGNING_KEY" ]; then
+            INNGEST_ARGS+=(--set-env-vars "INNGEST_EVENT_KEY=$INNGEST_EVENT_KEY")
+            INNGEST_ARGS+=(--set-env-vars "INNGEST_SIGNING_KEY=$INNGEST_SIGNING_KEY")
+            INNGEST_ARGS+=(--set-env-vars "DURABLE_EXTRACTION=1")
           fi
           gcloud run deploy post-anki-api \
             --image "$API_IMAGE" \
@@ -330,6 +339,7 @@ jobs:
             --set-env-vars "EXTENSION_ID=phmjgadfbbagfjlfgcdloehdcoapiohf" \
             "${ELECTRIC_ARGS[@]}" \
             "${WEB_ORIGIN_ARGS[@]}" \
+            "${INNGEST_ARGS[@]}" \
             --quiet
 
       - name: Verify API health

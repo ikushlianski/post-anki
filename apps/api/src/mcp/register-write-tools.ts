@@ -1,18 +1,24 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestAuthContext } from "../auth/request-auth-context.js";
+import { SUBJECT_PATH_RULES } from "../subject/subject-path.js";
 import { BUSINESS_DECK_TO_SUBJECT } from "./business-deck-mapping.js";
 import {
   submitKnowledge,
   submitKnowledgeInputSchema,
   submitKnowledgeResultSchema,
 } from "./submit-knowledge.tool.js";
+import {
+  submitKnowledgeToSubject,
+  submitKnowledgeToSubjectInputSchema,
+  submitKnowledgeToSubjectResultSchema,
+} from "./submit-knowledge-to-subject.tool.js";
 import { withToolErrorHandling } from "./tool-error-handling.js";
 
 function errorResult(text: string) {
   return { isError: true, content: [{ type: "text" as const, text }] };
 }
 
-// The only writing tool: files raw notes as pending knowledge sources.
+// Writing tools: file raw notes as pending knowledge sources.
 export function registerWriteTools(server: McpServer, auth: RequestAuthContext): void {
   server.registerTool(
     "submit_knowledge",
@@ -44,6 +50,36 @@ export function registerWriteTools(server: McpServer, auth: RequestAuthContext):
 
         return errorResult(
           `Business sub-subject "${result.subjectName}" does not exist. Run the db:seed:business-sub-subjects script.`,
+        );
+      }
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
+        structuredContent: { ...result },
+      };
+    }),
+  );
+
+  server.registerTool(
+    "submit_knowledge_to_subject",
+    {
+      title: "Submit knowledge to subject",
+      description:
+        "File up to 100 keyed raw text notes as pending knowledge sources under a subject path (max 2 levels, e.g. \"Work/AIPeak\"), creating missing subjects. Raw text only, no cards. Notes whose key already exists are skipped, so retrying a batch adds nothing. Needs the knowledge:write scope.",
+      inputSchema: submitKnowledgeToSubjectInputSchema.shape,
+      outputSchema: submitKnowledgeToSubjectResultSchema.shape,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    withToolErrorHandling("submit_knowledge_to_subject", async ({ subjectPath, notes }) => {
+      const result = await submitKnowledgeToSubject({ subjectPath, notes }, auth);
+
+      if ("error" in result) {
+        return errorResult(
+          result.error === "missing_scope" ? "Missing scope knowledge:write" : SUBJECT_PATH_RULES,
         );
       }
 
