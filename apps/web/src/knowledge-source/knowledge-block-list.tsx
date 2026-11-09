@@ -71,7 +71,7 @@ export function KnowledgeBlockList({
                 onChange={(event) => onValueChange(index, event.target.value)}
                 placeholder="https://example.com/article"
                 data-testid={`knowledge-block-input-${index}`}
-                className="min-h-[44px] w-full rounded-md border border-neutral-400 bg-white px-3 py-1.5 text-sm text-neutral-900 shadow-sm outline-none placeholder:text-neutral-500 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 disabled:bg-neutral-100 disabled:opacity-70 sm:min-h-0"
+                className="min-h-[44px] w-full rounded-md border border-neutral-500 bg-white px-3 py-1.5 text-sm text-neutral-900 shadow-sm outline-none placeholder:text-neutral-500 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 disabled:bg-neutral-100 disabled:opacity-70 sm:min-h-0"
               />
             )}
           </Tabs>
