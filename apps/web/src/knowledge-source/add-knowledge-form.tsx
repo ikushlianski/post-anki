@@ -289,10 +289,16 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
           disabled={!canSubmit}
           data-testid="knowledge-submit-button"
           title="Ctrl or Cmd+Enter in a text box also adds"
-          className="inline-flex min-h-[44px] items-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 sm:min-h-0"
+          className="inline-flex min-h-[44px] items-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-neutral-700 disabled:cursor-not-allowed disabled:border disabled:border-neutral-400 disabled:bg-neutral-200 disabled:text-neutral-600 disabled:shadow-none sm:min-h-0"
         >
           {busy ? 'Saving…' : checking ? 'Checking…' : 'Add knowledge'}
         </button>
+
+        {nonEmptyBlocks.length === 0 && !busy && (
+          <span data-testid="knowledge-submit-hint" className="text-sm text-neutral-600">
+            Paste text or a link to enable.
+          </span>
+        )}
       </div>
 
       <TxtFileImport subjectId={selectedSubjectId} />

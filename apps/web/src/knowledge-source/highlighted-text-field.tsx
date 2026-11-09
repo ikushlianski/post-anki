@@ -67,7 +67,7 @@ export function HighlightedTextField({
 
   return (
     <div className="space-y-2">
-      <div className="relative bg-white">
+      <div className="relative rounded-md bg-white shadow-sm">
         <div
           ref={layerRef}
           aria-hidden="true"
@@ -97,7 +97,7 @@ export function HighlightedTextField({
           placeholder="Paste a block of prose to learn from…"
           rows={6}
           data-testid={`knowledge-block-input-${index}`}
-          className={`${sharedBox} relative resize-none border-neutral-300 bg-transparent outline-none focus:border-neutral-500 disabled:opacity-50`}
+          className={`${sharedBox} relative resize-none border-neutral-400 bg-transparent text-neutral-900 outline-none placeholder:text-neutral-500 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/20 disabled:opacity-70`}
         />
       </div>
 
