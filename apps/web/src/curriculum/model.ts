@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import {
+  extractionExamplesSchema,
   modelTierSchema,
   type CourseRefocusSuggestion as SharedCourseRefocusSuggestion,
   type DailyPushNudge,
@@ -16,6 +17,8 @@ export const subjectSchema = z.object({
   parentId: z.string().nullable(),
   sortOrder: z.number().nullable().optional(),
   learningIntent: z.string().nullable().optional(),
+  extractionInstructions: z.string().nullable().optional(),
+  extractionExamples: extractionExamplesSchema.nullable().optional(),
   cardCount: z.number().int().nonnegative().optional(),
 })
 

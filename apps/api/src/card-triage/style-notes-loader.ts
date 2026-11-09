@@ -4,10 +4,18 @@ import { getDb } from "../db/client.js";
 import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 import { log } from "../shared/log.js";
 import { listActiveStyleNotes, listEnabledActiveStyleNotesByScope } from "./card-style-note.repo.js";
+import { joinPromptBlocks, loadSubjectGuidanceBlock } from "../subject/subject-guidance-loader.js";
 import { buildStyleNotesBlock } from "./style-notes-block.js";
 
 export async function loadStyleNotesBlock(subjectId: string | null): Promise<string> {
-  return buildStyleNotesBlock(await listActiveStyleNotes(subjectId, { enabledOnly: true }));
+  const notes = buildStyleNotesBlock(await listActiveStyleNotes(subjectId, { enabledOnly: true }));
+  const guidance = await loadSubjectGuidanceBlock(subjectId).catch((err: unknown) => {
+    log.warn({ err }, "subject_guidance_load_failed");
+
+    return "";
+  });
+
+  return joinPromptBlocks(notes, guidance);
 }
 
 export async function loadStyleNotesBlockSafely(subjectId: string | null): Promise<string> {
@@ -44,11 +52,6 @@ export async function loadStyleNotesBlocksForBits(bitIds: string[]): Promise<Map
 
   try {
     const notes = await listEnabledActiveStyleNotesByScope();
-
-    if (notes.length === 0) {
-      return blocks;
-    }
-
     const subjects = await subjectIdsForBits(bitIds);
     const perSubject = new Map<string | null, string>();
 
@@ -56,7 +59,9 @@ export async function loadStyleNotesBlocksForBits(bitIds: string[]): Promise<Map
       const subjectId = subjects.get(bitId) ?? null;
 
       if (!perSubject.has(subjectId)) {
-        perSubject.set(subjectId, blockForSubject(notes, subjectId));
+        const guidance = await loadSubjectGuidanceBlock(subjectId);
+
+        perSubject.set(subjectId, joinPromptBlocks(blockForSubject(notes, subjectId), guidance));
       }
 
       blocks.set(bitId, perSubject.get(subjectId) ?? "");

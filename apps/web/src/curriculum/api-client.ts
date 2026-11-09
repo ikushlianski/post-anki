@@ -847,6 +847,16 @@ export async function updateSubjectLearningIntent(
   })
 }
 
+export async function updateSubjectExtractionGuidance(
+  subjectId: string,
+  guidance: { extractionInstructions: string | null; extractionExamples: be.ExtractionExample[] | null },
+): Promise<Subject> {
+  return request<be.Subject>(`/subjects/${subjectId}`, {
+    method: 'PATCH',
+    body: guidance,
+  })
+}
+
 export async function updateSubjectParent(
   subjectId: string,
   parentId: string | null,

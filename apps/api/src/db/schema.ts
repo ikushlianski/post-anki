@@ -1,4 +1,5 @@
 import { relations, sql } from "drizzle-orm";
+import type { ExtractionExample } from "@post-anki/shared";
 import {
   pgTable,
   text,
@@ -49,6 +50,8 @@ export const subjects = pgTable("subjects", {
   // Reserved for drag-to-reorder: nullable, no default; lists order by this, then name.
   sortOrder: integer("sort_order"),
   learningIntent: text("learning_intent"),
+  extractionInstructions: text("extraction_instructions"),
+  extractionExamples: jsonb("extraction_examples").$type<ExtractionExample[]>(),
   // Study options: null on each = inherit from the parent subject, then app_settings.
   newCardsPerDay: integer("new_cards_per_day"),
   maxReviewsPerDay: integer("max_reviews_per_day"),

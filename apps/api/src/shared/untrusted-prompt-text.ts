@@ -10,6 +10,8 @@ const PROMPT_TAG_NAMES = [
   "verdict",
   "reviewer_feedback",
   "style_notes",
+  "subject_instructions",
+  "subject_examples",
   "session_feedback",
   "rejected_examples",
   "card_feedback",

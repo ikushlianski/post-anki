@@ -38,6 +38,14 @@ export async function updateSubject(
     patch.learningIntent = input.learningIntent?.trim() ? input.learningIntent.trim() : null;
   }
 
+  if (input.extractionInstructions !== undefined) {
+    patch.extractionInstructions = input.extractionInstructions?.trim() ? input.extractionInstructions.trim() : null;
+  }
+
+  if (input.extractionExamples !== undefined) {
+    patch.extractionExamples = input.extractionExamples?.length ? input.extractionExamples : null;
+  }
+
   if (input.parentId !== undefined) {
     const parentError = await findParentAssignmentError(subjectId, input.parentId);
 
@@ -96,6 +104,8 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     modelTier: null,
     sortOrder: null,
     learningIntent: null,
+    extractionInstructions: null,
+    extractionExamples: null,
     newCardsPerDay: null,
     maxReviewsPerDay: null,
     learningStepsMinutes: null,

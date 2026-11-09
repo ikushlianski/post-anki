@@ -7,6 +7,7 @@ export type SubjectMenuView =
   | 'actions'
   | 'rename'
   | 'learning-intent'
+  | 'extraction-guidance'
   | 'add-child'
   | 'move'
   | 'confirm-delete'

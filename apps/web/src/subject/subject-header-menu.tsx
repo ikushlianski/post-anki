@@ -7,12 +7,15 @@ import { inheritedLearningIntent } from '@post-anki/shared'
 import {
   createSubject,
   deleteSubject,
+  updateSubjectExtractionGuidance,
   updateSubjectLearningIntent,
   updateSubjectName,
   updateSubjectParent,
 } from './subject.api'
 import { SubjectDeleteConfirm } from './subject-delete-confirm'
 import { SubjectLearningIntentForm } from './subject-learning-intent-form'
+import { SubjectExtractionGuidanceForm } from './subject-extraction-guidance-form'
+import type { ExtractionGuidanceDraft } from './subject-extraction-guidance-form'
 import { SubjectMovePicker } from './subject-move-picker'
 import { SubjectNameForm } from './subject-name-form'
 import { buildMoveOptions, countDirectSubSubjects } from './subject-menu-model'
@@ -67,6 +70,17 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
           updateSubjectLearningIntent({ data: { subjectId: subject.id, learningIntent } }),
         ),
       'Saving the learning intent failed — try again.',
+    )
+
+    if (ok) {
+      close(true)
+    }
+  }
+
+  async function handleExtractionGuidance(guidance: ExtractionGuidanceDraft) {
+    const ok = await attempt(
+      () => refreshAfter(() => updateSubjectExtractionGuidance({ data: { subjectId: subject.id, ...guidance } })),
+      'Saving the extraction guidance failed — try again.',
     )
 
     if (ok) {
@@ -183,6 +197,15 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
           <button
             type="button"
             role="menuitem"
+            data-testid={`subject-guidance-${subject.id}-button`}
+            onClick={() => showView('extraction-guidance')}
+            className={OVERFLOW_MENU_ITEM_CLASS}
+          >
+            Extraction instructions
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             data-testid="delete-subject-button"
             onClick={() => showView('confirm-delete')}
             className={`${OVERFLOW_MENU_ITEM_CLASS} text-red-600`}
@@ -218,6 +241,18 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
           busy={busy}
           error={error}
           onSubmit={handleLearningIntent}
+          onCancel={() => showView('actions')}
+        />
+      ) : null}
+
+      {view === 'extraction-guidance' ? (
+        <SubjectExtractionGuidanceForm
+          subjectId={subject.id}
+          initialInstructions={subject.extractionInstructions ?? ''}
+          initialExamples={subject.extractionExamples ?? []}
+          busy={busy}
+          error={error}
+          onSubmit={handleExtractionGuidance}
           onCancel={() => showView('actions')}
         />
       ) : null}

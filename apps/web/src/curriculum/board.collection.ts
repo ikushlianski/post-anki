@@ -1,4 +1,5 @@
 import { createCollection } from '@tanstack/react-db'
+import { extractionExamplesSchema } from '@post-anki/shared'
 import { electricCollectionOptions } from '@tanstack/electric-db-collection'
 
 import type {
@@ -25,6 +26,8 @@ interface SubjectRow {
   parent_id?: string | null
   sort_order?: number | null
   learning_intent?: string | null
+  extraction_instructions?: string | null
+  extraction_examples?: unknown
 }
 
 interface CurriculumRow {
@@ -96,6 +99,20 @@ const DEPTH_FROM_DB: Record<string, Depth> = {
 // curriculum has, so the read-path swap has to replicate that rule client-side.
 const RESEARCH_ORIGIN_KINDS = new Set(['web_research', 'llms_txt'])
 
+function parseExtractionExamples(value: unknown) {
+  const parsed = extractionExamplesSchema.safeParse(typeof value === 'string' ? safeJson(value) : value)
+
+  return parsed.success && parsed.data.length > 0 ? parsed.data : null
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
 export function mapSubjectRow(row: SubjectRow): Subject {
   return {
     id: row.id,
@@ -107,6 +124,8 @@ export function mapSubjectRow(row: SubjectRow): Subject {
     parentId: row.parent_id ?? null,
     sortOrder: row.sort_order ?? undefined,
     learningIntent: row.learning_intent ?? null,
+    extractionInstructions: row.extraction_instructions ?? null,
+    extractionExamples: parseExtractionExamples(row.extraction_examples),
   }
 }
 

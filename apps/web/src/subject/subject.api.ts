@@ -1,7 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
-import { modelTierSchema, reorderSubjectsInput, subjectSearchQueryInput } from '@post-anki/shared'
+import {
+  EXTRACTION_INSTRUCTIONS_MAX_CHARS,
+  extractionExamplesSchema,
+  modelTierSchema,
+  reorderSubjectsInput,
+  subjectSearchQueryInput,
+} from '@post-anki/shared'
 import { createSubjectInput, mergeSubjectsInput } from '../curriculum/model'
 import type { CreateSubjectInput, MergeSubjectsInput } from '../curriculum/model'
 import * as api from '../curriculum/api-client'
@@ -27,6 +33,21 @@ const updateSubjectLearningIntentInput = z.object({
 export const updateSubjectLearningIntent = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => updateSubjectLearningIntentInput.parse(data))
   .handler(({ data }) => api.updateSubjectLearningIntent(data.subjectId, data.learningIntent))
+
+const updateSubjectExtractionGuidanceInput = z.object({
+  subjectId: z.string(),
+  extractionInstructions: z.string().trim().max(EXTRACTION_INSTRUCTIONS_MAX_CHARS).nullable(),
+  extractionExamples: extractionExamplesSchema.nullable(),
+})
+
+export const updateSubjectExtractionGuidance = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => updateSubjectExtractionGuidanceInput.parse(data))
+  .handler(({ data }) =>
+    api.updateSubjectExtractionGuidance(data.subjectId, {
+      extractionInstructions: data.extractionInstructions,
+      extractionExamples: data.extractionExamples,
+    }),
+  )
 
 const updateSubjectParentInput = z.object({
   subjectId: z.string(),

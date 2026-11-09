@@ -67,6 +67,7 @@ describe('SubjectHeaderMenu', () => {
       'Move under…',
       'Rename',
       'Learning intent',
+      'Extraction instructions',
       'Delete subject',
     ])
   })
