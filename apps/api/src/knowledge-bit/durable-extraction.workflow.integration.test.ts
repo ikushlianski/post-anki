@@ -160,7 +160,7 @@ describe("durable extraction workflow (real Postgres, real DBOS, fake model)", (
 
     const result = await startDurableExtraction([sourceId], { regeneration: false });
 
-    expect(result).toEqual({ started: [workflowId], fallbackIds: [], unknownIds: [] });
+    expect(result).toEqual({ started: [workflowId], deferredIds: [], unknownIds: [] });
 
     await waitForStatus(sourceId, "bits_detected");
 

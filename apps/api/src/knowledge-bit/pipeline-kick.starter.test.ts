@@ -35,14 +35,14 @@ describe("startKnowledgeBitPipelineKick", () => {
     expect(d.kickInProcess).not.toHaveBeenCalled();
   });
 
-  it("should fall back to the in-process kick when the event cannot be sent so approved sources are not stranded", async () => {
+  it("should swallow a failed send without running the passes in the API process", async () => {
     const d = deps(true);
 
     d.sendEvent.mockRejectedValue(new Error("inngest down"));
 
-    await startKnowledgeBitPipelineKick(d);
+    await expect(startKnowledgeBitPipelineKick(d)).resolves.toBeUndefined();
 
-    expect(d.kickInProcess).toHaveBeenCalledTimes(1);
+    expect(d.kickInProcess).not.toHaveBeenCalled();
   });
 
   it("should surface an in-process kick failure to the caller", async () => {

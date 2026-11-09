@@ -18,9 +18,14 @@ import type { DurableExtractionInput } from "./durable-extraction.steps.js";
 
 export { DEFAULT_DURABLE_TIMEOUT_MS, durableTimeoutMs };
 
+export interface ExtractionExtras {
+  forceAtLeastOne?: boolean;
+  modelId?: string;
+}
+
 export interface WorkflowAdapter {
   launchDurableExtraction(): Promise<void>;
-  startExtractionWorkflow(input: DurableExtractionInput, run: number): Promise<string>;
+  startExtractionWorkflow(input: DurableExtractionInput, run: number, extras?: ExtractionExtras): Promise<string>;
   reconcileEndedWorkflows(): Promise<string[]>;
   shutdownDurableExtraction(): Promise<void>;
 }
@@ -48,7 +53,7 @@ export async function withTimeout<T>(work: Promise<T>, ms: number, label: string
 
 export interface StartResult {
   started: string[];
-  fallbackIds: string[];
+  deferredIds: string[];
   unknownIds: string[];
 }
 
@@ -62,13 +67,23 @@ export function loadInngestWorkflow(): WorkflowAdapter {
   return {
     launchDurableExtraction: async () => undefined,
     shutdownDurableExtraction: async () => undefined,
-    startExtractionWorkflow: async (input: DurableExtractionInput, run: number): Promise<string> => {
+    startExtractionWorkflow: async (
+      input: DurableExtractionInput,
+      run: number,
+      extras?: ExtractionExtras,
+    ): Promise<string> => {
       const id = `${input.sourceId}:${run}`;
 
       await inngest.send({
         name: "knowledge-source/extraction.requested",
         id,
-        data: { sourceId: input.sourceId, run, regeneration: input.regeneration },
+        data: {
+          sourceId: input.sourceId,
+          run,
+          regeneration: input.regeneration,
+          ...(extras?.forceAtLeastOne === undefined ? {} : { forceAtLeastOne: extras.forceAtLeastOne }),
+          ...(extras?.modelId === undefined ? {} : { modelId: extras.modelId }),
+        },
       });
 
       return id;
@@ -139,11 +154,12 @@ function defaultDeps(): StarterDeps {
   };
 }
 
-// "Unknown" outcomes (existence check or marker release failed) get no fallback: running the old
-// pipeline next to a workflow that may exist would extract twice. The scheduled reconcile settles them.
+// "Unknown" outcomes (existence check or marker release failed) are not deferred: the event may
+// exist already. The scheduled reconcile settles them.
 async function settleFailedStart(
   sourceId: string,
   workflowId: string,
+  regeneration: boolean,
   err: unknown,
   deps: StarterDeps,
   result: StartResult,
@@ -166,26 +182,28 @@ async function settleFailedStart(
     return;
   }
 
-  try {
-    await deps.releaseOwner(sourceId, workflowId);
-  } catch (releaseErr) {
-    log.error({ err, releaseErr, workflowId }, "durable_extraction_owner_release_failed_left_to_reconcile");
-    result.unknownIds.push(sourceId);
+  if (regeneration) {
+    try {
+      await deps.releaseOwner(sourceId, workflowId);
+    } catch (releaseErr) {
+      log.error({ err, releaseErr, workflowId }, "durable_extraction_owner_release_failed_left_to_reconcile");
+      result.unknownIds.push(sourceId);
 
-    return;
+      return;
+    }
   }
 
-  log.error({ err, sourceId }, "durable_extraction_start_failed_falling_back");
-  result.fallbackIds.push(sourceId);
+  log.error({ err, sourceId }, "extraction_enqueue_failed_left_for_sweep");
+  result.deferredIds.push(sourceId);
 }
 
 export async function startDurableExtraction(
   sourceIds: readonly string[],
-  options: { regeneration: boolean; timeoutMs?: number },
+  options: { regeneration: boolean; timeoutMs?: number; extras?: ExtractionExtras },
   deps: StarterDeps = defaultDeps(),
 ): Promise<StartResult> {
   const timeoutMs = options.timeoutMs ?? durableTimeoutMs();
-  const result: StartResult = { started: [], fallbackIds: [], unknownIds: [] };
+  const result: StartResult = { started: [], deferredIds: [], unknownIds: [] };
   let workflow: WorkflowAdapter;
 
   try {
@@ -193,9 +211,9 @@ export async function startDurableExtraction(
     await withTimeout(workflow.launchDurableExtraction(), timeoutMs, "durable_extraction_launch");
     await withTimeout(workflow.reconcileEndedWorkflows(), timeoutMs, "durable_extraction_reconcile");
   } catch (err) {
-    log.error({ err }, "durable_extraction_launch_failed_falling_back");
+    log.error({ err }, "durable_extraction_launch_failed_left_for_sweep");
 
-    return { started: [], fallbackIds: [...sourceIds], unknownIds: [] };
+    return { started: [], deferredIds: [...sourceIds], unknownIds: [] };
   }
 
   for (const sourceId of sourceIds) {
@@ -204,8 +222,8 @@ export async function startDurableExtraction(
     try {
       token = await deps.getClaim(sourceId);
     } catch (err) {
-      log.error({ err, sourceId }, "durable_extraction_run_lookup_failed_falling_back");
-      result.fallbackIds.push(sourceId);
+      log.error({ err, sourceId }, "durable_extraction_run_lookup_failed_left_for_sweep");
+      result.deferredIds.push(sourceId);
 
       continue;
     }
@@ -217,15 +235,14 @@ export async function startDurableExtraction(
         throw new Error("durable_owner_not_set");
       }
 
-      result.started.push(
-        await withTimeout(
-          workflow.startExtractionWorkflow({ sourceId, regeneration: options.regeneration }, token.run),
-          timeoutMs,
-          "durable_extraction_start",
-        ),
-      );
+      const input = { sourceId, regeneration: options.regeneration };
+      const started = options.extras
+        ? workflow.startExtractionWorkflow(input, token.run, options.extras)
+        : workflow.startExtractionWorkflow(input, token.run);
+
+      result.started.push(await withTimeout(started, timeoutMs, "durable_extraction_start"));
     } catch (err) {
-      await settleFailedStart(sourceId, workflowId, err, deps, result);
+      await settleFailedStart(sourceId, workflowId, options.regeneration, err, deps, result);
     }
   }
 

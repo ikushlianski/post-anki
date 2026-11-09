@@ -1,3 +1,4 @@
+import { log } from "../shared/log.js";
 import { createInngestClient } from "../shared/inngest-client.js";
 import { isDurableExtractionEnabled } from "./durable-extraction.flag.js";
 import { kickKnowledgeBitPipeline } from "./knowledge-bit-pipeline-kick.orchestrator.js";
@@ -30,7 +31,7 @@ export async function startKnowledgeBitPipelineKick(
 
   try {
     await deps.sendEvent();
-  } catch {
-    await deps.kickInProcess();
+  } catch (err) {
+    log.error({ err }, "pipeline_kick_send_failed");
   }
 }

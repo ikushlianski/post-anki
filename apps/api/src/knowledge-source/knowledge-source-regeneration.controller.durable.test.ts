@@ -71,7 +71,7 @@ describe("regeneration and the durable extraction flag", () => {
 
   it("should hand the claimed source to a workflow and not generate in process when the flag is on", async () => {
     mockEnabled.mockReturnValue(true);
-    mockStart.mockResolvedValue({ started: ["ks_1:2"], fallbackIds: [] });
+    mockStart.mockResolvedValue({ started: ["ks_1:2"], deferredIds: [] });
 
     await handleRegenerateKnowledgeSource(fakeReq({ modelId: "openrouter/openai/gpt-oss-120b" }), fakeRes(), "ks_1");
     await flush();
@@ -95,7 +95,7 @@ describe("regeneration and the durable extraction flag", () => {
 
   it("should fall back to in-process generation when the workflow could not start", async () => {
     mockEnabled.mockReturnValue(true);
-    mockStart.mockResolvedValue({ started: [], fallbackIds: ["ks_1"] });
+    mockStart.mockResolvedValue({ started: [], deferredIds: ["ks_1"] });
 
     await handleRegenerateKnowledgeSource(fakeReq({ modelId: "openrouter/openai/gpt-oss-120b" }), fakeRes(), "ks_1");
     await flush();

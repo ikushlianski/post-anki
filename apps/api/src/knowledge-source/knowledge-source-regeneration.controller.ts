@@ -60,7 +60,7 @@ export async function handleRegenerateKnowledgeSource(
       try {
         const result = await startDurableExtraction([id], { regeneration: true });
 
-        if (result.fallbackIds.length === 0) {
+        if (result.deferredIds.length === 0) {
           return;
         }
       } catch (err) {

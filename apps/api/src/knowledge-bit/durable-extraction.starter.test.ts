@@ -64,7 +64,7 @@ describe("startDurableExtraction", () => {
       workflowExists: vi.fn().mockResolvedValue(false), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toMatchObject({ started: ["ks_1:1", "ks_2:3"], fallbackIds: [] });
+    expect(result).toMatchObject({ started: ["ks_1:1", "ks_2:3"], deferredIds: [] });
     expect(start).toHaveBeenCalledWith({ sourceId: "ks_1", regeneration: false }, 1);
     expect(start).toHaveBeenCalledWith({ sourceId: "ks_2", regeneration: false }, 3);
   });
@@ -80,7 +80,7 @@ describe("startDurableExtraction", () => {
     expect(first.started).toEqual(["ks_1:2"]);
   });
 
-  it("should send every source back to the old pipeline when the engine fails to launch", async () => {
+  it("should send every source for the sweep when the engine fails to launch", async () => {
     const { workflow, start } = fakeWorkflow({ launch: vi.fn().mockRejectedValue(new Error("no database")) });
 
     const result = await startDurableExtraction(["ks_1", "ks_2"], { regeneration: false }, {
@@ -89,11 +89,11 @@ describe("startDurableExtraction", () => {
       workflowExists: vi.fn().mockResolvedValue(false), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toMatchObject({ started: [], fallbackIds: ["ks_1", "ks_2"] });
+    expect(result).toMatchObject({ started: [], deferredIds: ["ks_1", "ks_2"] });
     expect(start).not.toHaveBeenCalled();
   });
 
-  it("should send every source back to the old pipeline when the engine module cannot load", async () => {
+  it("should send every source for the sweep when the engine module cannot load", async () => {
     const result = await startDurableExtraction(["ks_1"], { regeneration: false }, {
       loadWorkflow: async () => {
         throw new Error("module missing");
@@ -102,10 +102,10 @@ describe("startDurableExtraction", () => {
       workflowExists: vi.fn().mockResolvedValue(false), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result.fallbackIds).toEqual(["ks_1"]);
+    expect(result.deferredIds).toEqual(["ks_1"]);
   });
 
-  it("should send only the source whose start failed back to the old pipeline", async () => {
+  it("should send only the source whose start failed for the sweep", async () => {
     const start = vi.fn(async (input: { sourceId: string }, run: number) => {
       if (input.sourceId === "ks_2") {
         throw new Error("start failed");
@@ -121,12 +121,12 @@ describe("startDurableExtraction", () => {
       workflowExists: vi.fn().mockResolvedValue(false), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toMatchObject({ started: ["ks_1:1"], fallbackIds: ["ks_2"] });
+    expect(result).toMatchObject({ started: ["ks_1:1"], deferredIds: ["ks_2"] });
   });
 });
 
 describe("timeouts", () => {
-  it("should send every source back to the old pipeline when the engine launch never finishes", async () => {
+  it("should send every source for the sweep when the engine launch never finishes", async () => {
     const { workflow, start } = fakeWorkflow({ launch: vi.fn(() => new Promise<void>(() => undefined)) });
 
     const result = await startDurableExtraction(["ks_1", "ks_2"], { regeneration: false, timeoutMs: 30 }, {
@@ -135,11 +135,11 @@ describe("timeouts", () => {
       workflowExists: vi.fn().mockResolvedValue(false), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toMatchObject({ started: [], fallbackIds: ["ks_1", "ks_2"] });
+    expect(result).toMatchObject({ started: [], deferredIds: ["ks_1", "ks_2"] });
     expect(start).not.toHaveBeenCalled();
   });
 
-  it("should send only the source whose workflow start never finishes back to the old pipeline", async () => {
+  it("should send only the source whose workflow start never finishes for the sweep", async () => {
     const start = vi.fn((input: { sourceId: string }, run: number) =>
       input.sourceId === "ks_2" ? new Promise<string>(() => undefined) : Promise.resolve(`${input.sourceId}:${run}`),
     );
@@ -151,7 +151,7 @@ describe("timeouts", () => {
       workflowExists: vi.fn().mockResolvedValue(false), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toMatchObject({ started: ["ks_1:1"], fallbackIds: ["ks_2"] });
+    expect(result).toMatchObject({ started: ["ks_1:1"], deferredIds: ["ks_2"] });
   });
 
   it("should reject a promise that outlives its limit and clear its timer when it finishes in time", async () => {
@@ -182,11 +182,11 @@ describe("a start that times out", () => {
       releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toEqual({ started: ["ks_1:2"], fallbackIds: [], unknownIds: [] });
+    expect(result).toEqual({ started: ["ks_1:2"], deferredIds: [], unknownIds: [] });
     expect(workflowExists).toHaveBeenCalledWith("ks_1:2");
   });
 
-  it("should fall back when the workflow does not exist and leave the source to the reconcile when the existence check itself fails", async () => {
+  it("should defer when the workflow does not exist and leave the source to the reconcile when the existence check itself fails", async () => {
     const start = vi.fn(() => new Promise<string>(() => undefined));
     const { workflow } = fakeWorkflow({ start });
 
@@ -196,13 +196,13 @@ describe("a start that times out", () => {
       workflowExists: vi.fn().mockResolvedValueOnce(false).mockRejectedValueOnce(new Error("no table")), markOwner: vi.fn().mockResolvedValue(true), releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result.fallbackIds).toEqual(["ks_1"]);
+    expect(result.deferredIds).toEqual(["ks_1"]);
     expect(result.unknownIds).toEqual(["ks_2"]);
   });
 });
 
 describe("run lookup and owner marker", () => {
-  it("should send the source to the legacy path when the run number cannot be read, without guessing run 1", async () => {
+  it("should send the source to the sweep when the run number cannot be read, without guessing run 1", async () => {
     const { workflow, start } = fakeWorkflow();
     const workflowExists = vi.fn().mockResolvedValue(true);
 
@@ -214,7 +214,7 @@ describe("run lookup and owner marker", () => {
       releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result).toEqual({ started: [], fallbackIds: ["ks_1"], unknownIds: [] });
+    expect(result).toEqual({ started: [], deferredIds: ["ks_1"], unknownIds: [] });
     expect(start).not.toHaveBeenCalled();
     expect(workflowExists).not.toHaveBeenCalled();
   });
@@ -234,7 +234,7 @@ describe("run lookup and owner marker", () => {
     expect(markOwner).toHaveBeenCalledWith("ks_1", "ks_1:4", expect.objectContaining({ run: 4 }));
   });
 
-  it("should fall back without starting when the regeneration owner marker cannot be written", async () => {
+  it("should defer without starting when the regeneration owner marker cannot be written", async () => {
     const { workflow, start } = fakeWorkflow();
 
     const result = await startDurableExtraction(["ks_1"], { regeneration: true }, {
@@ -245,11 +245,11 @@ describe("run lookup and owner marker", () => {
       releaseOwner: vi.fn().mockResolvedValue(undefined),
     });
 
-    expect(result.fallbackIds).toEqual(["ks_1"]);
+    expect(result.deferredIds).toEqual(["ks_1"]);
     expect(start).not.toHaveBeenCalled();
   });
 
-  it("should drop the owner marker before the in-process fallback so a late start cannot run next to it", async () => {
+  it("should drop the owner marker before deferring the regeneration so a late start cannot run next to it", async () => {
     const { workflow } = fakeWorkflow({ start: vi.fn(() => new Promise<string>(() => undefined)) });
     const releaseOwner = vi.fn().mockResolvedValue(undefined);
 
@@ -265,6 +265,53 @@ describe("run lookup and owner marker", () => {
   });
 });
 
+describe("a rejected send", () => {
+  const rejectingWorkflow = () =>
+    fakeWorkflow({ start: vi.fn().mockRejectedValue(new Error("inngest 500")) }).workflow;
+
+  it("should leave a source pending for the sweep when Inngest rejects the send", async () => {
+    const releaseOwner = vi.fn().mockResolvedValue(undefined);
+
+    const result = await startDurableExtraction(["ks_1"], { regeneration: false }, {
+      loadWorkflow: async () => rejectingWorkflow(),
+      getClaim: vi.fn().mockResolvedValue({ run: 1, claimedAt: new Date(0) }),
+      workflowExists: vi.fn().mockResolvedValue(false),
+      markOwner: vi.fn().mockResolvedValue(true),
+      releaseOwner,
+    });
+
+    expect(result).toEqual({ started: [], deferredIds: ["ks_1"], unknownIds: [] });
+    expect(releaseOwner).not.toHaveBeenCalled();
+  });
+
+  it("should release a regeneration's owner mark and defer it when the send fails", async () => {
+    const releaseOwner = vi.fn().mockResolvedValue(undefined);
+
+    const result = await startDurableExtraction(["ks_1"], { regeneration: true }, {
+      loadWorkflow: async () => rejectingWorkflow(),
+      getClaim: vi.fn().mockResolvedValue({ run: 3, claimedAt: new Date(0) }),
+      workflowExists: vi.fn().mockResolvedValue(false),
+      markOwner: vi.fn().mockResolvedValue(true),
+      releaseOwner,
+    });
+
+    expect(releaseOwner).toHaveBeenCalledWith("ks_1", "ks_1:3");
+    expect(result.deferredIds).toEqual(["ks_1"]);
+  });
+
+  it("should not report a source as deferred when the resend with the same id succeeds", async () => {
+    const result = await startDurableExtraction(["ks_1"], { regeneration: false }, {
+      loadWorkflow: async () => rejectingWorkflow(),
+      getClaim: vi.fn().mockResolvedValue({ run: 1, claimedAt: new Date(0) }),
+      workflowExists: vi.fn().mockResolvedValue(true),
+      markOwner: vi.fn().mockResolvedValue(true),
+      releaseOwner: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result).toEqual({ started: ["ks_1:1"], deferredIds: [], unknownIds: [] });
+  });
+});
+
 describe("unknown start outcomes", () => {
   it("should not fall back when the owner marker cannot be released, so the old pipeline never runs next to a possible workflow", async () => {
     const { workflow } = fakeWorkflow({ start: vi.fn(() => new Promise<string>(() => undefined)) });
@@ -277,7 +324,31 @@ describe("unknown start outcomes", () => {
       releaseOwner: vi.fn().mockRejectedValue(new Error("db down")),
     });
 
-    expect(result).toEqual({ started: [], fallbackIds: [], unknownIds: ["ks_1"] });
+    expect(result).toEqual({ started: [], deferredIds: [], unknownIds: ["ks_1"] });
+  });
+});
+
+describe("extraction event extras", () => {
+  it("should pass forceAtLeastOne and modelId in the event", async () => {
+    mockSend.mockClear();
+
+    const result = await startDurableExtraction(["ks_1"], {
+      regeneration: true,
+      extras: { forceAtLeastOne: true, modelId: "openrouter/m" },
+    }, {
+      loadWorkflow: async () => loadInngestWorkflow(),
+      getClaim: vi.fn().mockResolvedValue({ run: 2, claimedAt: new Date(0) }),
+      workflowExists: vi.fn().mockResolvedValue(false),
+      markOwner: vi.fn().mockResolvedValue(true),
+      releaseOwner: vi.fn().mockResolvedValue(undefined),
+    });
+
+    expect(result.started).toEqual(["ks_1:2"]);
+    expect(mockSend).toHaveBeenCalledWith({
+      name: "knowledge-source/extraction.requested",
+      id: "ks_1:2",
+      data: { sourceId: "ks_1", run: 2, regeneration: true, forceAtLeastOne: true, modelId: "openrouter/m" },
+    });
   });
 });
 

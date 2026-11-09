@@ -74,7 +74,7 @@ describe("knowledge source creation and the durable extraction flag", () => {
 
   it("should start one workflow for the new source and skip the old pipeline when the flag is on", async () => {
     mockEnabled.mockReturnValue(true);
-    mockStart.mockResolvedValue({ started: ["ks_1:1"], fallbackIds: [] });
+    mockStart.mockResolvedValue({ started: ["ks_1:1"], deferredIds: [] });
 
     await handleCreateKnowledgeSource(fakeReq({ text: "some text" }), fakeRes());
     await flush();
@@ -85,7 +85,7 @@ describe("knowledge source creation and the durable extraction flag", () => {
 
   it("should start a workflow for every source of a batch", async () => {
     mockEnabled.mockReturnValue(true);
-    mockStart.mockResolvedValue({ started: ["ks_1:1", "ks_2:1"], fallbackIds: [] });
+    mockStart.mockResolvedValue({ started: ["ks_1:1", "ks_2:1"], deferredIds: [] });
 
     await handleCreateKnowledgeSource(fakeReq({ texts: ["one", "two"] }), fakeRes());
     await flush();
@@ -94,23 +94,23 @@ describe("knowledge source creation and the durable extraction flag", () => {
     expect(mockKick).not.toHaveBeenCalled();
   });
 
-  it("should fall back to the old pipeline when a source could not be started durably", async () => {
+  it("should leave the source pending and not run the pipeline in process when it could not be queued", async () => {
     mockEnabled.mockReturnValue(true);
-    mockStart.mockResolvedValue({ started: [], fallbackIds: ["ks_1"] });
+    mockStart.mockResolvedValue({ started: [], deferredIds: ["ks_1"] });
 
     await handleCreateKnowledgeSource(fakeReq({ text: "some text" }), fakeRes());
     await flush();
 
-    expect(mockKick).toHaveBeenCalledTimes(1);
+    expect(mockKick).not.toHaveBeenCalled();
   });
 
-  it("should fall back to the old pipeline when starting throws, so no source is lost", async () => {
+  it("should not run the pipeline in process when queuing throws", async () => {
     mockEnabled.mockReturnValue(true);
     mockStart.mockRejectedValue(new Error("engine down"));
 
     await handleCreateKnowledgeSource(fakeReq({ text: "some text" }), fakeRes());
     await flush();
 
-    expect(mockKick).toHaveBeenCalledTimes(1);
+    expect(mockKick).not.toHaveBeenCalled();
   });
 });

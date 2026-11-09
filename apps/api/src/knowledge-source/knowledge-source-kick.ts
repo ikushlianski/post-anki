@@ -6,18 +6,16 @@ import {
   startDurableExtraction,
 } from "../knowledge-bit/durable-extraction.starter.js";
 
-async function startDurableOrKick(sourceIds: string[]): Promise<void> {
+async function startDurable(sourceIds: string[]): Promise<void> {
   try {
     const result = await startDurableExtraction(sourceIds, { regeneration: false });
 
-    if (result.fallbackIds.length === 0) {
-      return;
+    if (result.deferredIds.length > 0) {
+      log.warn({ deferredIds: result.deferredIds }, "extraction_enqueue_deferred_to_sweep");
     }
   } catch (err) {
     log.error({ err }, "durable_extraction_start_failed");
   }
-
-  await startKnowledgeBitPipelineKick();
 }
 
 export function kickSourcesAfterAdd(sourceIds: string[]): Promise<void> {
@@ -25,7 +23,7 @@ export function kickSourcesAfterAdd(sourceIds: string[]): Promise<void> {
 
   return dispatchBackground({
     durable,
-    start: () => (durable ? startDurableOrKick(sourceIds) : startKnowledgeBitPipelineKick()),
+    start: () => (durable ? startDurable(sourceIds) : startKnowledgeBitPipelineKick()),
     onError: (err) => log.error({ err }, "knowledge_bit_pipeline_kick_failed"),
   });
 }

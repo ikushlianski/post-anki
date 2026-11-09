@@ -3,7 +3,7 @@ import { CLOZE_ERROR_MESSAGES, createKnowledgeItemInput } from "@post-anki/share
 import { insertManualKnowledgeItem } from "../knowledge-bit/knowledge-bit-manual-item.repo.js";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { log } from "../shared/log.js";
-import { kickSourcesAfterAdd } from "./knowledge-source-kick.js";
+import { startKnowledgeBitPipelineKick } from "../knowledge-bit/pipeline-kick.starter.js";
 
 const ERROR_STATUS = { not_found: 404, already_running: 409, entry_processed: 409 } as const;
 
@@ -34,7 +34,7 @@ export async function handleCreateKnowledgeSourceItem(
   sendJson(res, 201, result.item);
 
   try {
-    await kickSourcesAfterAdd([id]);
+    await startKnowledgeBitPipelineKick();
   } catch (err) {
     log.error({ err }, "knowledge_bit_pipeline_kick_failed");
   }

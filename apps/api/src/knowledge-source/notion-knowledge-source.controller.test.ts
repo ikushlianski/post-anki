@@ -35,6 +35,14 @@ vi.mock("./knowledge-source.repo.js", () => ({
   MAX_ROWS_PER_IMPORT: 500,
 }));
 
+const mockKick = vi.fn();
+
+vi.mock("./knowledge-source-kick.js", () => ({
+  kickSourcesAfterAdd: (...args: unknown[]) => mockKick(...args),
+}));
+
+vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+
 const { handleCreateKnowledgeSourceFromNotion } = await import(
   "./notion-knowledge-source.controller.js"
 );
@@ -106,6 +114,29 @@ beforeEach(() => {
 });
 
 describe("handleCreateKnowledgeSourceFromNotion", () => {
+  it("should queue extraction for the sources created from a Notion database", async () => {
+    mockQuery.mockResolvedValue(queryPage([row("r-1", "Idea one"), row("r-2", "Idea two")]));
+    mockInsertKnowledgeSourcesFromNotion.mockResolvedValue(insertedRowsFor(2));
+    mockKick.mockResolvedValue(undefined);
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: DATA_SOURCE_ID }), res);
+
+    expect(mockKick).toHaveBeenCalledWith(["ks_0", "ks_1"]);
+    expect(res.status).toBe(200);
+  });
+
+  it("should still answer 200 when queuing the created sources fails", async () => {
+    mockQuery.mockResolvedValue(queryPage([row("r-1", "Idea one")]));
+    mockInsertKnowledgeSourcesFromNotion.mockResolvedValue(insertedRowsFor(1));
+    mockKick.mockRejectedValue(new Error("down"));
+
+    const res = fakeRes();
+    await handleCreateKnowledgeSourceFromNotion(fakeReq({ dataSourceId: DATA_SOURCE_ID }), res);
+
+    expect(res.status).toBe(200);
+  });
+
   it("imports every row from the given Notion data source, returning the created count", async () => {
     mockQuery.mockResolvedValue(
       queryPage([row("r-1", "Idea one"), row("r-2", "Idea two"), row("r-3", "Idea three")]),

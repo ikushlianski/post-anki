@@ -27,7 +27,7 @@ describe("kickSourcesAfterAdd", () => {
       await Promise.resolve();
       handed = true;
 
-      return { started: ["s1:1"], fallbackIds: [], unknownIds: [] };
+      return { started: ["s1:1"], deferredIds: [], unknownIds: [] };
     });
 
     await kickSourcesAfterAdd(["s1"]);
@@ -36,33 +36,18 @@ describe("kickSourcesAfterAdd", () => {
     expect(startKick).not.toHaveBeenCalled();
   });
 
-  it("should fall back to the pipeline kick when durable extraction could not start a source", async () => {
+  it("should never process a new source in the API process when durable is on and the send fails", async () => {
     isDurable.mockReturnValue(true);
-    startDurable.mockResolvedValue({ started: [], fallbackIds: ["s1"], unknownIds: [] });
-
-    await kickSourcesAfterAdd(["s1"]);
-
-    expect(startKick).toHaveBeenCalledOnce();
-  });
-
-  it("should fall back to the pipeline kick when durable extraction throws", async () => {
-    isDurable.mockReturnValue(true);
-    startDurable.mockRejectedValue(new Error("down"));
-
-    await kickSourcesAfterAdd(["s1"]);
-
-    expect(startKick).toHaveBeenCalledOnce();
-  });
-
-  it("should not fail the upload when the pipeline kick fails", async () => {
-    isDurable.mockReturnValue(true);
-    startDurable.mockRejectedValue(new Error("down"));
-    startKick.mockRejectedValue(new Error("kick down"));
+    startDurable.mockResolvedValueOnce({ started: [], deferredIds: ["s1"], unknownIds: [] });
+    startDurable.mockRejectedValueOnce(new Error("down"));
 
     await expect(kickSourcesAfterAdd(["s1"])).resolves.toBeUndefined();
+    await expect(kickSourcesAfterAdd(["s1"])).resolves.toBeUndefined();
+
+    expect(startKick).not.toHaveBeenCalled();
   });
 
-  it("should only run the pipeline kick when durable extraction is off", async () => {
+  it("should still use the in-process kick when durable is off", async () => {
     isDurable.mockReturnValue(false);
 
     await kickSourcesAfterAdd(["s1"]);

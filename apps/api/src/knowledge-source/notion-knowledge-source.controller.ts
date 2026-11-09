@@ -7,6 +7,8 @@ import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { getNotionClient } from "../notion-connector/notion.client.js";
 import { describeKnowledgeSourceRefusal } from "@post-anki/shared";
 import { findSubjectAssignmentError } from "../subject/subject-leaf.js";
+import { log } from "../shared/log.js";
+import { kickSourcesAfterAdd } from "./knowledge-source-kick.js";
 import { insertKnowledgeSourcesFromNotion, MAX_ROWS_PER_IMPORT } from "./knowledge-source.repo.js";
 
 // Notion ids are UUIDs, with or without dashes.
@@ -127,6 +129,12 @@ export async function handleCreateKnowledgeSourceFromNotion(
     dataSourceId,
     subjectId,
   );
+
+  try {
+    await kickSourcesAfterAdd(created.map((source) => source.id));
+  } catch (err) {
+    log.error({ err }, "knowledge_bit_pipeline_kick_failed");
+  }
 
   sendJson(res, 200, {
     created: created.length,

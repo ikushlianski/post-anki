@@ -11,12 +11,12 @@ vi.mock("../knowledge-bit/knowledge-bit-manual-item.repo.js", () => ({
   insertManualKnowledgeItem: (...args: unknown[]) => insertManualKnowledgeItem(...args),
 }));
 
-const kickSourcesAfterAdd = vi.fn();
+const startKnowledgeBitPipelineKick = vi.fn();
 
 vi.mock("../shared/log.js", () => ({ log: { error: vi.fn() } }));
 
-vi.mock("./knowledge-source-kick.js", () => ({
-  kickSourcesAfterAdd: (...args: unknown[]) => kickSourcesAfterAdd(...args),
+vi.mock("../knowledge-bit/pipeline-kick.starter.js", () => ({
+  startKnowledgeBitPipelineKick: (...args: unknown[]) => startKnowledgeBitPipelineKick(...args),
 }));
 
 const { handleCreateKnowledgeSourceItem } = await import("./knowledge-source-item.controller.js");
@@ -66,18 +66,18 @@ describe("handleCreateKnowledgeSourceItem", () => {
     expect(insertManualKnowledgeItem).toHaveBeenCalledWith("ks_1", { front: "Q", back: "A", example: "ex", aiGenerated: false });
   });
 
-  it("should kick the pipeline for the source after a manual item is created", async () => {
+  it("should only request the follow-up passes after a manual item, not a new extraction", async () => {
     insertManualKnowledgeItem.mockResolvedValue({ ok: true, item: createdItem });
-    kickSourcesAfterAdd.mockResolvedValue(undefined);
+    startKnowledgeBitPipelineKick.mockResolvedValue(undefined);
 
     await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A" }), fakeRes(), "ks_1");
 
-    expect(kickSourcesAfterAdd).toHaveBeenCalledWith(["ks_1"]);
+    expect(startKnowledgeBitPipelineKick).toHaveBeenCalledOnce();
   });
 
   it("should still reply 201 when the pipeline kick fails", async () => {
     insertManualKnowledgeItem.mockResolvedValue({ ok: true, item: createdItem });
-    kickSourcesAfterAdd.mockRejectedValue(new Error("kick down"));
+    startKnowledgeBitPipelineKick.mockRejectedValue(new Error("kick down"));
 
     const res = fakeRes();
 
@@ -91,7 +91,7 @@ describe("handleCreateKnowledgeSourceItem", () => {
 
     await handleCreateKnowledgeSourceItem(fakeReq({ front: "Q", back: "A" }), fakeRes(), "ks_1");
 
-    expect(kickSourcesAfterAdd).not.toHaveBeenCalled();
+    expect(startKnowledgeBitPipelineKick).not.toHaveBeenCalled();
   });
 
   it("should accept example null and create the item without an example", async () => {
@@ -145,7 +145,7 @@ describe("handleCreateKnowledgeSourceItem", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: "invalid_cloze", message: "A gap is missing its closing }}." });
-    expect(kickSourcesAfterAdd).not.toHaveBeenCalled();
+    expect(startKnowledgeBitPipelineKick).not.toHaveBeenCalled();
   });
 
   it("should pass a valid cloze note to the repo and reply 201", async () => {

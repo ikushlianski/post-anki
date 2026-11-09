@@ -7,6 +7,8 @@ export const extractionRequestedEvent = eventType(
       sourceId: string;
       run: number;
       regeneration: boolean;
+      forceAtLeastOne?: boolean;
+      modelId?: string;
     }>(),
   },
 );
