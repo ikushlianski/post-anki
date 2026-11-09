@@ -234,9 +234,12 @@ import {
   handleMoveKnowledgeBitToInbox,
   handleReturnKnowledgeBitFromInbox,
 } from "./knowledge-bit/knowledge-bit-inbox.controller.js";
+import {
+  handleAcceptChatQueueProposal,
+  handleRejectChatQueueProposal,
+} from "./knowledge-bit/knowledge-bit-chat-queue-proposal.controller.js";
 import { handleGenerateKnowledgeBitExample } from "./knowledge-bit/knowledge-bit-example.controller.js";
 import {
-  handleCreateCardFromChatMessage,
   handleDeleteLastChatQueueExchange,
   handleGetChatQueueThread,
   handleListChatQueueKnowledgeBits,
@@ -1094,8 +1097,10 @@ async function route(
       return handleGetChatQueueThread(res, id);
     case "sendChatQueueMessage":
       return handleSendChatQueueMessage(req, res, id);
-    case "createCardFromChatMessage":
-      return handleCreateCardFromChatMessage(req, res, id, resolved.params.seq ?? "");
+    case "acceptChatQueueProposal":
+      return handleAcceptChatQueueProposal(res, id, resolved.params.seq ?? "", resolved.params.index ?? "");
+    case "rejectChatQueueProposal":
+      return handleRejectChatQueueProposal(res, id, resolved.params.seq ?? "", resolved.params.index ?? "");
     case "generateKnowledgeBitExample":
       return handleGenerateKnowledgeBitExample(req, res, id);
     case "draftKnowledgeBitChat":

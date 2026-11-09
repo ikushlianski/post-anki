@@ -7,7 +7,7 @@ enum MacPaletteRequest {
 struct MacCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @AppStorage(MacNavigator.storageKey) private var storedSelection = MacFeatureRegistry.fallbackID
-    @AppStorage(MacZoom.storageKey) private var zoom = MacZoom.actualSize
+    @AppStorage(MacZoom.storageKey) private var zoom = MacZoom.defaultScale
 
     var body: some Commands {
         SidebarCommands()

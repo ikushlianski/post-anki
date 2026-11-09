@@ -6,6 +6,7 @@ struct ChatQueueScreen: View {
     @State private var exporter = ChatQueueExportModel()
     @State private var search = ChatQueueSearchModel()
     @State private var confirmMoveAll = false
+    @State private var openItem: ChatQueueItem?
     @State private var foregroundThrottle = RefreshThrottle()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -69,7 +70,7 @@ struct ChatQueueScreen: View {
                 if model.errorMessage != nil { Button("Try again") { Task { await model.load() } } }
             }
         } else {
-            List {
+            List(selection: $model.picked) {
                 if let summary = ChatQueueSummary.label(model.items) {
                     Text(summary)
                         .zoomFont(.caption)
@@ -122,6 +123,13 @@ struct ChatQueueScreen: View {
                         .foregroundStyle(.red)
                 }
 
+                if let notice = model.bulkNotice {
+                    Text(notice)
+                        .zoomFont(.caption)
+                        .foregroundStyle(.red)
+                        .accessibilityIdentifier("chat-queue-bulk-notice")
+                }
+
                 if let truncation = model.truncation {
                     Text(truncation.message)
                         .zoomFont(.caption)
@@ -130,20 +138,23 @@ struct ChatQueueScreen: View {
                 }
 
                 ForEach(model.sortedItems) { item in
-                    NavigationLink {
-                        thread(for: item)
-                    } label: {
-                        ChatQueueRow(item: item)
-                    }
+                    row(for: item)
                     .accessibilityIdentifier("chat-queue-row-\(item.id)")
                     .swipeActions(edge: .trailing) {
                         inboxAction(for: item)
                         snoozeActions(for: item)
                     }
-                    .contextMenu { snoozeActions(for: item) }
+                    .contextMenu {
+                        ChatQueueBulkMenu(model: model, item: item)
+                        snoozeActions(for: item)
+                    }
                 }
             }
             .accessibilityIdentifier("chat-queue-list")
+            .modifier(ChatQueueBulkControls(model: model))
+            #if os(macOS)
+            .navigationDestination(item: $openItem) { thread(for: $0) }
+            #endif
             .confirmationDialog(
                 "Move \(model.movableVisibleItems.count) \(model.movableVisibleItems.count == 1 ? "card" : "cards") to Inbox?",
                 isPresented: $confirmMoveAll,
@@ -161,11 +172,27 @@ struct ChatQueueScreen: View {
 }
 
 extension ChatQueueScreen {
+    @ViewBuilder
+    fileprivate func row(for item: ChatQueueItem) -> some View {
+        #if os(macOS)
+        ChatQueueRow(item: item)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { openItem = item }
+        #else
+        NavigationLink {
+            thread(for: item)
+        } label: {
+            ChatQueueRow(item: item)
+        }
+        #endif
+    }
+
     fileprivate func thread(for item: ChatQueueItem) -> some View {
         ChatQueueThreadScreen(
             item: item,
             onResolved: { model.resolved(item.id) },
-            onSnoozed: { Task { await model.load() } }
+            onSnoozed: { Task { await model.load() } },
+            onCardUpdated: { Task { await model.load() } }
         )
     }
 

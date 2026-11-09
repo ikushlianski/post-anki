@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHAT_QUEUE_MODEL_ID, resolveModelTier, tierToModelId } from "./model-tier.js";
+import { CHAT_QUEUE_LIGHT_MODEL_ID, CHAT_QUEUE_MODEL_ID, resolveModelTier, tierToModelId } from "./model-tier.js";
 
 describe("tierToModelId", () => {
   it("maps the cheap tier to the cheapest live DeepSeek OpenRouter model", () => {
@@ -16,9 +16,13 @@ describe("tierToModelId", () => {
 });
 
 describe("CHAT_QUEUE_MODEL_ID", () => {
-  it("should point triage chat at a Gemini Flash model on OpenRouter, not a card-generation tier", () => {
-    expect(CHAT_QUEUE_MODEL_ID).toBe("openrouter/google/gemini-3-flash-preview");
-    expect(Object.values(["cheap", "balanced", "premium"] as const).map(tierToModelId)).not.toContain(CHAT_QUEUE_MODEL_ID);
+  it("should answer learner chats with the premium tier model so card fixes get stronger reasoning", () => {
+    expect(CHAT_QUEUE_MODEL_ID).toBe(tierToModelId("premium"));
+  });
+
+  it("should keep the Gemini Flash model as the light option for unattended replies", () => {
+    expect(CHAT_QUEUE_LIGHT_MODEL_ID).toBe("openrouter/google/gemini-3-flash-preview");
+    expect(CHAT_QUEUE_LIGHT_MODEL_ID).not.toBe(CHAT_QUEUE_MODEL_ID);
   });
 });
 

@@ -3,6 +3,8 @@ export type ChatQueueFailureKind =
   | 'budget_paused'
   | 'in_flight'
   | 'not_in_chat'
+  | 'proposal_not_pending'
+  | 'wrong_shape'
   | 'not_found'
   | 'no_messages'
   | 'model_failed'
@@ -18,6 +20,8 @@ const MESSAGES: Record<ChatQueueFailureKind, string> = {
   budget_paused: 'AI is paused for now to protect the budget. Try again later.',
   in_flight: 'The AI is still answering your last message. Wait a moment.',
   not_in_chat: 'This card is no longer waiting in Chat.',
+  proposal_not_pending: 'This proposal was already decided.',
+  wrong_shape: 'This card type cannot be rewritten from chat.',
   not_found: 'This card no longer exists.',
   no_messages: 'There is nothing to delete yet.',
   model_failed: 'The AI could not answer. Try again, no question was used.',
@@ -38,6 +42,8 @@ export function chatQueueFailureFromApi(
     case 'budget_paused':
     case 'in_flight':
     case 'not_in_chat':
+    case 'proposal_not_pending':
+    case 'wrong_shape':
     case 'no_messages':
     case 'model_failed':
       return code

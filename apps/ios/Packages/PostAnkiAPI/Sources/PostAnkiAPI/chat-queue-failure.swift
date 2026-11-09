@@ -6,6 +6,8 @@ public enum ChatQueueFailure: Sendable, Equatable, Error {
     case inFlight
     case notInChat
     case notFound
+    case proposalNotPending
+    case wrongShape
     case noMessages
     case modelFailed
     case offline
@@ -32,6 +34,8 @@ public enum ChatQueueFailure: Sendable, Equatable, Error {
         case .badStatus(_, "budget_paused"): return .budgetPaused
         case .badStatus(_, "in_flight"): return .inFlight
         case .badStatus(_, "not_in_chat"): return .notInChat
+        case .badStatus(_, "proposal_not_pending"): return .proposalNotPending
+        case .badStatus(_, "wrong_shape"): return .wrongShape
         case .badStatus(_, "model_failed"): return .modelFailed
         case .badStatus(404, "no_messages"): return .noMessages
         case .badStatus(404, _): return .notFound
@@ -49,6 +53,8 @@ public enum ChatQueueFailure: Sendable, Equatable, Error {
         case .inFlight: return "The AI is still answering your last message. Wait a moment."
         case .notInChat: return "This card is no longer waiting in Chat."
         case .notFound: return "This card no longer exists."
+        case .proposalNotPending: return "This suggestion was already decided."
+        case .wrongShape: return "This kind of card cannot be changed here. Edit it on the web."
         case .noMessages: return "There is nothing to delete."
         case .modelFailed: return "The AI could not answer. Try again, no question was used."
         case .offline: return "You are offline. Nothing was changed, try again when you are online."

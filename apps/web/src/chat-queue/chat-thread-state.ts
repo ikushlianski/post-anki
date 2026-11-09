@@ -1,4 +1,4 @@
-import type { RelatedCardSuggestion } from '@post-anki/shared'
+import type { ChatQueueProposal } from '@post-anki/shared'
 
 import { chatQueueFailureFromThrown, type ChatQueueOutcome } from './chat-queue-failure'
 
@@ -7,13 +7,14 @@ export interface ChatLine {
   isUser: boolean
   text: string
   seq?: number
-  proposals?: RelatedCardSuggestion[]
+  proposals?: ChatQueueProposal[]
 }
 
 export interface ThreadMessage {
   seq: number
   role: string
   text: string
+  proposals?: ChatQueueProposal[]
 }
 
 export function dropLastExchange(lines: ChatLine[]): ChatLine[] {
@@ -28,21 +29,26 @@ export function toChatLines(messages: ThreadMessage[]): ChatLine[] {
     seq: message.seq,
     isUser: message.role === 'user',
     text: message.text,
+    ...(message.proposals?.length ? { proposals: message.proposals } : {}),
   }))
 }
 
-export function withReplySeq(
+export function withProposalDecision(
   lines: ChatLine[],
   lineId: string,
-  messages: ThreadMessage[],
+  index: number,
+  decision: Pick<ChatQueueProposal, 'status' | 'savedCardId'>,
 ): ChatLine[] {
-  const lastReply = messages.filter((message) => message.role === 'assistant').at(-1)
-
-  if (!lastReply) {
-    return lines
-  }
-
-  return lines.map((line) => (line.id === lineId ? { ...line, seq: lastReply.seq } : line))
+  return lines.map((line) =>
+    line.id === lineId
+      ? {
+          ...line,
+          proposals: line.proposals?.map((proposal) =>
+            proposal.index === index ? { ...proposal, ...decision } : proposal,
+          ),
+        }
+      : line,
+  )
 }
 
 export function restoreDraft(previous: string, text: string, keepDraft: boolean): string {

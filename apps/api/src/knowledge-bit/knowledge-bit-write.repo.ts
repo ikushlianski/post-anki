@@ -1,5 +1,6 @@
 import { and, eq, exists, inArray, isNull, not, sql } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
+import type { Tx } from "./knowledge-bit-manual-item.repo.js";
 import {
   knowledgeBits,
   knowledgeBitQuestionVariants,
@@ -31,7 +32,9 @@ export async function insertKnowledgeBits(
   await db
     .insert(knowledgeBits)
     .values(rows)
-    .onConflictDoNothing({ target: [knowledgeBits.knowledgeSourceId, knowledgeBits.ordinal] });
+    .onConflictDoNothing({
+      target: [knowledgeBits.knowledgeSourceId, knowledgeBits.ordinal],
+    });
 }
 
 export async function insertKnowledgeBitsAndMarkDetected(
@@ -50,6 +53,29 @@ export async function insertKnowledgeBitsAndMarkDetected(
     await insertKnowledgeBits(sourceId, bits, tx);
   });
 }
+
+export const BODY_EDIT_RESET = {
+  embeddingVec: null,
+  embeddingHash: null,
+  embeddedAt: null,
+  taggedAt: null,
+  tagFailedAt: null,
+  whQuestionGeneratedAt: null,
+  whQuestionGenerationFailedAt: null,
+  whQuestionGenerationAttempts: 0,
+  whQuestionGenerationClaimedAt: null,
+  whQuestionGenerationClaimToken: null,
+  fillBlankGeneratedAt: null,
+  fillBlankGenerationFailedAt: null,
+  fillBlankGenerationAttempts: 0,
+  fillBlankGenerationClaimedAt: null,
+  fillBlankGenerationClaimToken: null,
+  basicCardGeneratedAt: null,
+  basicCardGenerationFailedAt: null,
+  basicCardGenerationAttempts: 0,
+  basicCardGenerationClaimedAt: null,
+  basicCardGenerationClaimToken: null,
+} as const;
 
 export async function updateKnowledgeBitBody(
   id: string,
@@ -83,7 +109,10 @@ export async function updateKnowledgeBitBody(
       if (background !== undefined) {
         await tx
           .update(knowledgeBits)
-          .set({ background, ...(background === current.background ? {} : { exampleAiGeneratedAt: null }) })
+          .set({
+            background,
+            ...(background === current.background ? {} : { exampleAiGeneratedAt: null }),
+          })
           .where(eq(knowledgeBits.id, id));
       }
 
@@ -112,26 +141,7 @@ export async function updateKnowledgeBitBody(
         body,
         ...(background !== undefined ? { background } : {}),
         ...(background !== undefined && background !== current.background ? { exampleAiGeneratedAt: null } : {}),
-        embeddingVec: null,
-        embeddingHash: null,
-        embeddedAt: null,
-        taggedAt: null,
-        tagFailedAt: null,
-        whQuestionGeneratedAt: null,
-        whQuestionGenerationFailedAt: null,
-        whQuestionGenerationAttempts: 0,
-        whQuestionGenerationClaimedAt: null,
-        whQuestionGenerationClaimToken: null,
-        fillBlankGeneratedAt: null,
-        fillBlankGenerationFailedAt: null,
-        fillBlankGenerationAttempts: 0,
-        fillBlankGenerationClaimedAt: null,
-        fillBlankGenerationClaimToken: null,
-        basicCardGeneratedAt: null,
-        basicCardGenerationFailedAt: null,
-        basicCardGenerationAttempts: 0,
-        basicCardGenerationClaimedAt: null,
-        basicCardGenerationClaimToken: null,
+        ...BODY_EDIT_RESET,
       })
       .where(eq(knowledgeBits.id, id))
       .returning({ id: knowledgeBits.id });
@@ -140,45 +150,49 @@ export async function updateKnowledgeBitBody(
       return false;
     }
 
-    const hasAttempt = exists(
-      tx
-        .select({ one: sql`1` })
-        .from(knowledgeBitVariantAttempts)
-        .where(eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id)),
-    );
-
-    // A variant with real learner attempts attached can't be deleted outright — attempts have no
-    // FK to this table, so deleting the row would orphan that history permanently. Detach it
-    // instead (supersededAt), which also frees its (bit, kind, order) slot for regeneration, since
-    // the unique index only covers non-superseded rows. The isNull guard keeps the original
-    // supersededAt if this bit's body is edited again before regeneration catches up.
-    await tx
-      .update(knowledgeBitQuestionVariants)
-      .set({ supersededAt: new Date() })
-      .where(
-        and(
-          eq(knowledgeBitQuestionVariants.knowledgeBitId, id),
-          isNull(knowledgeBitQuestionVariants.supersededAt),
-          hasAttempt,
-        ),
-      );
-
-    await tx
-      .delete(knowledgeBitQuestionVariants)
-      .where(and(eq(knowledgeBitQuestionVariants.knowledgeBitId, id), not(hasAttempt)));
-
-    await deleteOrphanScheduleRowsInTx(tx, id);
-
-    await tx
-      .delete(tagAssignments)
-      .where(
-        and(
-          eq(tagAssignments.nodeType, "knowledgeBit"),
-          eq(tagAssignments.nodeId, id),
-          eq(tagAssignments.source, "auto"),
-        ),
-      );
+    await detachDerivedBitData(tx, id);
 
     return true;
   });
+}
+
+export async function detachDerivedBitData(tx: Tx, id: string): Promise<void> {
+  const hasAttempt = exists(
+    tx
+      .select({ one: sql`1` })
+      .from(knowledgeBitVariantAttempts)
+      .where(eq(knowledgeBitVariantAttempts.variantId, knowledgeBitQuestionVariants.id)),
+  );
+
+  // A variant with real learner attempts attached can't be deleted outright — attempts have no
+  // FK to this table, so deleting the row would orphan that history permanently. Detach it
+  // instead (supersededAt), which also frees its (bit, kind, order) slot for regeneration, since
+  // the unique index only covers non-superseded rows. The isNull guard keeps the original
+  // supersededAt if this bit's body is edited again before regeneration catches up.
+  await tx
+    .update(knowledgeBitQuestionVariants)
+    .set({ supersededAt: new Date() })
+    .where(
+      and(
+        eq(knowledgeBitQuestionVariants.knowledgeBitId, id),
+        isNull(knowledgeBitQuestionVariants.supersededAt),
+        hasAttempt,
+      ),
+    );
+
+  await tx
+    .delete(knowledgeBitQuestionVariants)
+    .where(and(eq(knowledgeBitQuestionVariants.knowledgeBitId, id), not(hasAttempt)));
+
+  await deleteOrphanScheduleRowsInTx(tx, id);
+
+  await tx
+    .delete(tagAssignments)
+    .where(
+      and(
+        eq(tagAssignments.nodeType, "knowledgeBit"),
+        eq(tagAssignments.nodeId, id),
+        eq(tagAssignments.source, "auto"),
+      ),
+    );
 }

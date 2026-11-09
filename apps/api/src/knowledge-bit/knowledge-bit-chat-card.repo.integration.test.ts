@@ -37,7 +37,7 @@ await migratePool.end();
 process.env.DATABASE_URL = DATABASE_URL;
 process.env.OPENROUTER_API_KEY = "e2e-dummy-key";
 
-const { insertCardFromChatMessage } = await import("./knowledge-bit-chat-card.repo.js");
+const { applyChatCardRevision } = await import("./knowledge-bit-chat-card.repo.js");
 const { insertChatTurn } = await import("./knowledge-bit-chat-queue-messages.repo.js");
 const { getDb } = await import("../db/client.js");
 
@@ -73,112 +73,93 @@ async function seedChatBit(state: string): Promise<{ sourceId: string; bitId: st
   );
   await insertChatTurn(
     bitId,
-    { clientMessageId: `c_${randomUUID()}`, userText: "q", assistantText: "a", modelId: null, inputTokens: 1, outputTokens: 1 },
+    {
+      clientMessageId: `c_${randomUUID()}`,
+      userText: "q",
+      assistantText: "a",
+      modelId: null,
+      inputTokens: 1,
+      outputTokens: 1,
+    },
     getDb(),
   );
 
   return { sourceId, bitId };
 }
 
-describe("insertCardFromChatMessage (real Postgres)", () => {
-  it("should add a pending card on the same source from a tutor reply and leave the chat card in chat", async () => {
-    const { sourceId, bitId } = await seedChatBit("chat");
+describe("applyChatCardRevision (real Postgres)", () => {
+  async function seedApprovedBit(): Promise<string> {
+    const { bitId } = await seedChatBit("approved");
 
-    const result = await insertCardFromChatMessage(bitId, 2, { front: "Front", back: "Back" });
-
-    expect(result.ok).toBe(true);
-
-    const { rows } = await client.query(
-      `SELECT b.knowledge_source_id, b.approval_state, b.origin, b.is_ai_generated, v.prompt, v.answer
-       FROM knowledge_bits b JOIN knowledge_bit_question_variants v ON v.knowledge_bit_id = b.id WHERE b.id = $1`,
-      [result.ok ? result.id : ""],
+    await client.query(
+      `UPDATE knowledge_bits SET background = 'Old example', embedded_at = now(), tagged_at = now(),
+       wh_question_generated_at = now(), wh_question_generation_attempts = 3 WHERE id = $1`,
+      [bitId],
+    );
+    await client.query(
+      `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer)
+       VALUES ($1, $2, 'basic', 0, 'Old Q', 'Old A'), ($3, $2, 'wh_question', 0, 'Stale wh', 'Stale wh a')`,
+      [`kbqv_${randomUUID()}`, bitId, `kbqv_${randomUUID()}`],
     );
 
-    expect(rows[0]).toMatchObject({
-      knowledge_source_id: sourceId,
-      approval_state: "pending",
-      origin: "manual",
-      is_ai_generated: true,
-      prompt: "Front",
-      answer: "Back",
-    });
+    return bitId;
+  }
 
-    const original = await client.query(`SELECT approval_state FROM knowledge_bits WHERE id = $1`, [bitId]);
+  it("should drop stale variants, embedding and tag stamps and keep the example when the revision has none", async () => {
+    const bitId = await seedApprovedBit();
+    const db = getDb();
+    const result = await db.transaction((tx) => applyChatCardRevision(tx, bitId, { front: "New Q", back: "New A" }));
 
-    expect(original.rows[0].approval_state).toBe("chat");
-  });
+    expect(result).toEqual({ ok: true });
 
-  it("should refuse the user's own message, a missing message and a card that left chat", async () => {
-    const inChat = await seedChatBit("chat");
-    const decided = await seedChatBit("rejected");
-
-    expect(await insertCardFromChatMessage(inChat.bitId, 1, { front: "F", back: "B" })).toEqual({
-      ok: false,
-      error: "not_assistant_message",
-    });
-    expect(await insertCardFromChatMessage(inChat.bitId, 9, { front: "F", back: "B" })).toEqual({
-      ok: false,
-      error: "not_found",
-    });
-    expect(await insertCardFromChatMessage(decided.bitId, 2, { front: "F", back: "B" })).toEqual({
-      ok: false,
-      error: "not_in_chat",
-    });
-    expect(await insertCardFromChatMessage("kb_missing", 2, { front: "F", back: "B" })).toEqual({
-      ok: false,
-      error: "not_found",
-    });
-  });
-
-  it("should add an approved card with a variant and no style-feedback decision when approve is true", async () => {
-    const { sourceId, bitId } = await seedChatBit("chat");
-
-    const result = await insertCardFromChatMessage(bitId, 2, { front: "F", back: "B", example: "Ex", approve: true });
-
-    expect(result.ok).toBe(true);
-
-    const id = result.ok ? result.id : "";
-    const { rows } = await client.query(
-      `SELECT b.knowledge_source_id, b.approval_state, b.background, b.decided_at, v.prompt, v.answer
-       FROM knowledge_bits b JOIN knowledge_bit_question_variants v ON v.knowledge_bit_id = b.id WHERE b.id = $1`,
-      [id],
+    const bit = await client.query(
+      `SELECT body, background, embedded_at, tagged_at, wh_question_generated_at, wh_question_generation_attempts
+       FROM knowledge_bits WHERE id = $1`,
+      [bitId],
     );
-    const decisions = await client.query(`SELECT 1 FROM card_triage_decisions WHERE knowledge_bit_id = $1`, [id]);
-    const feedback = await client.query(`SELECT 1 FROM knowledge_bit_feedback WHERE knowledge_bit_id = $1`, [id]);
-
-    expect(rows[0]).toMatchObject({
-      knowledge_source_id: sourceId,
-      approval_state: "approved",
-      background: "Ex",
-      prompt: "F",
-      answer: "B",
-    });
-    expect(rows[0].decided_at).not.toBeNull();
-    expect(decisions.rowCount).toBe(0);
-    expect(feedback.rowCount).toBe(0);
-  });
-
-  it("should still refuse an approving request for a card that left chat", async () => {
-    const decided = await seedChatBit("rejected");
-
-    expect(await insertCardFromChatMessage(decided.bitId, 2, { front: "F", back: "B", approve: true })).toEqual({
-      ok: false,
-      error: "not_in_chat",
-    });
-  });
-
-  it("should return the already approved card instead of creating a duplicate when the same approval is sent twice", async () => {
-    const { sourceId, bitId } = await seedChatBit("chat");
-    const first = await insertCardFromChatMessage(bitId, 2, { front: "Dup F", back: "Dup B", approve: true });
-    const second = await insertCardFromChatMessage(bitId, 2, { front: "Dup F", back: "Dup B", approve: true });
-
-    expect(first.ok && second.ok && second.id === first.id).toBe(true);
-
-    const { rows } = await client.query(
-      `SELECT 1 FROM knowledge_bits WHERE knowledge_source_id = $1 AND body = $2`,
-      [sourceId, "Dup F\nDup B"],
+    const variants = await client.query(
+      `SELECT kind, prompt FROM knowledge_bit_question_variants WHERE knowledge_bit_id = $1 AND superseded_at IS NULL`,
+      [bitId],
     );
 
-    expect(rows).toHaveLength(1);
+    expect(bit.rows[0]).toMatchObject({
+      body: "New Q\nNew A",
+      background: "Old example",
+      embedded_at: null,
+      tagged_at: null,
+      wh_question_generation_attempts: 0,
+    });
+    expect(bit.rows[0].wh_question_generated_at).not.toBeNull();
+    expect(variants.rows).toEqual([{ kind: "basic", prompt: "New Q" }]);
+  });
+
+  it("should overwrite the example only when the revision supplies one", async () => {
+    const bitId = await seedApprovedBit();
+
+    await getDb().transaction((tx) =>
+      applyChatCardRevision(tx, bitId, {
+        front: "Q",
+        back: "A",
+        example: "New example",
+      }),
+    );
+
+    const { rows } = await client.query(`SELECT background FROM knowledge_bits WHERE id = $1`, [bitId]);
+
+    expect(rows[0].background).toBe("New example");
+  });
+
+  it("should not touch a card that has cloze variants", async () => {
+    const bitId = await seedApprovedBit();
+
+    await client.query(
+      `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer)
+       VALUES ($1, $2, 'cloze', 0, 'c', 'c')`,
+      [`kbqv_${randomUUID()}`, bitId],
+    );
+
+    const result = await getDb().transaction((tx) => applyChatCardRevision(tx, bitId, { front: "Q", back: "A" }));
+
+    expect(result).toEqual({ ok: false, error: "wrong_shape" });
   });
 });

@@ -111,6 +111,47 @@ describe("knowledge bit web tools deps", () => {
     expect(webSearch.mock.calls[0]?.[4]).toBe("cheap");
   });
 
+  it("should not pay again for an identical repeated query and not count it as a search", async () => {
+    const { deps, getUsage } = createKnowledgeBitWebTools(options);
+
+    await deps.searchWeb("Rust  lifetimes");
+
+    const repeat = await deps.searchWeb("rust lifetimes ");
+
+    expect(webSearch).toHaveBeenCalledTimes(1);
+    expect(repeat.citations).toEqual([]);
+    expect(getUsage().searches).toBe(1);
+  });
+
+  it("should cap the search text and the fetched page text at the configured sizes", async () => {
+    webSearch.mockResolvedValue({ ok: true, text: "s".repeat(5000), citations: ["https://example.com/a"] });
+    fetchWithTimeout.mockResolvedValue(`<html><body>${"p".repeat(9000)}</body></html>`);
+    const { deps } = createKnowledgeBitWebTools({ ...options, maxPageChars: 6000 });
+
+    const search = await deps.searchWeb("q");
+    const page = await deps.fetchPage("https://example.com/a");
+
+    expect(search.text).toHaveLength(4000);
+    expect(page?.text.length).toBeLessThanOrEqual(6000);
+  });
+
+  it("should let the model fetch a seeded source url without a search citing it", async () => {
+    fetchWithTimeout.mockResolvedValue("<html><body>source page</body></html>");
+    const { deps } = createKnowledgeBitWebTools({ ...options, seedCitedUrls: ["https://blog.example.com/post"] });
+
+    await expect(fetchPageFor({ url: "https://blog.example.com/post/" }, deps)).resolves.toMatchObject({ ok: true });
+  });
+
+  it("should still refuse a seeded url that is not safe to fetch", async () => {
+    const { deps } = createKnowledgeBitWebTools({ ...options, seedCitedUrls: ["http://127.0.0.1/admin"] });
+
+    await expect(fetchPageFor({ url: "http://127.0.0.1/admin" }, deps)).resolves.toEqual({
+      ok: false,
+      refusal: "unsafe_url",
+    });
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+  });
+
   it("should normalize host case, trailing slash and fragment", () => {
     expect(normalizeUrlForComparison("https://A.com/x/#f")).toBe("https://a.com/x");
   });

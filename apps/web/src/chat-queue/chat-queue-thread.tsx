@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   CHAT_QUEUE_MAX_MESSAGE_CHARS,
   CHAT_QUEUE_STARTER_PROMPTS,
@@ -15,13 +15,12 @@ import {
 import { ChatQueueDeleteLast } from "./chat-queue-delete-last";
 import { ChatQueueCopyButton } from "./chat-queue-copy-button";
 import { clearChatDraft } from "./chat-queue-draft-storage";
-import { ChatQueueMakeCard } from "./chat-queue-make-card";
 import { ChatQueueRejectReasons } from "./chat-queue-reject-reasons";
 import { ChatQueueSnooze } from "./chat-queue-snooze";
 import { ChatQueueTurnsMeter } from "./chat-queue-turns-meter";
 import { ChatQueueProposals } from "./chat-queue-proposals";
-import { useChatCard } from "./use-chat-card";
-import { useChatProposals } from "./use-chat-proposals";
+import { useChatProposals, type RejectedProposal } from "./use-chat-proposals";
+import { rejectedProposalMessage, rejectedProposalMessageId } from "./chat-queue-reject-message";
 import { useChatThread } from "./use-chat-thread";
 import { chatWaitingDays, formatChatWaiting } from "./chat-queue-waiting";
 
@@ -53,8 +52,38 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
   );
   const thread = useChatThread(item, handleResolved);
   const locked = thread.resolving || thread.sending;
-  const card = useChatCard(item.id, thread.resolving);
-  const proposals = useChatProposals(item.id);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const lineCount = useRef(0);
+  const [rejectedAt, setRejectedAt] = useState<number | null>(null);
+  const { sendWithId } = thread;
+  const handleProposalRejected = useCallback(
+    async (rejected: RejectedProposal) => {
+      const sent = await sendWithId(
+        rejectedProposalMessage(rejected.front),
+        rejectedProposalMessageId(item.id, rejected),
+      );
+
+      if (!sent) {
+        setRejectedAt(lineCount.current);
+        composer.current?.focus();
+      }
+    },
+    [item.id, sendWithId],
+  );
+  const proposals = useChatProposals(item.id, {
+    onDecided: thread.applyDecision,
+    onRejected: handleProposalRejected,
+  });
+  const lastProposals = thread.lines[thread.lines.length - 1]?.proposals ?? []
+  const lastLineId = thread.lines[thread.lines.length - 1]?.id ?? ''
+  const proposalSaving = lastProposals.some(
+    (proposal) => proposals.statusOf(lastLineId, proposal.index).state === 'saving',
+  )
+  const proposalAccepted = lastProposals.some((proposal) => proposal.status === 'accepted')
+  const exchangeLocked = locked || proposalSaving || proposalAccepted
+  const showRejectHint =
+    rejectedAt === thread.lines.length && thread.draft.length === 0 && !thread.sending;
+  lineCount.current = thread.lines.length;
   const sourceLink = item.sourceUrl ? toSafeLink(item.sourceUrl) : null;
 
   return (
@@ -102,8 +131,6 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
 
       <ul className="space-y-3" data-testid="chat-queue-lines">
         {thread.lines.map((line, index) => {
-          const seq = line.isUser ? undefined : line.seq;
-
           return (
             <li key={line.id}>
               <p className="text-xs text-neutral-500">
@@ -117,53 +144,21 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
                 <button
                   type="button"
                   data-testid="chat-queue-retry"
-                  disabled={locked || thread.removal.deleting || thread.budgetPaused}
+                  disabled={exchangeLocked || thread.removal.deleting || thread.budgetPaused}
                   onClick={() => void thread.retryLast()}
                   className={TEXT_BUTTON_CLASS}
                 >
                   Retry
                 </button>
               ) : null}
-              {seq !== undefined ? (
-                card.savedSeqs.includes(seq) ? (
-                  <p
-                    data-testid={`chat-queue-card-saved-${seq}`}
-                    className="text-xs text-neutral-500"
-                  >
-                    Card added to review
-                  </p>
-                ) : card.draft?.seq === seq ? (
-                  <ChatQueueMakeCard
-                    draft={card.draft}
-                    saving={card.saving}
-                    error={card.error}
-                    onEdit={card.edit}
-                    onSave={() => void card.save()}
-                    onCancel={card.cancel}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    data-testid={`chat-queue-make-card-${seq}`}
-                    disabled={locked}
-                    onClick={() => card.open(seq, line.text)}
-                    className={TEXT_BUTTON_CLASS}
-                  >
-                    Make a card
-                  </button>
-                )
-              ) : null}
-              {!line.isUser &&
-              index === thread.lines.length - 1 &&
-              !thread.rejecting &&
-              line.proposals?.length ? (
+              {!line.isUser && line.proposals?.length ? (
                 <ChatQueueProposals
                   lineId={line.id}
                   seq={line.seq}
                   proposals={line.proposals}
                   statusOf={proposals.statusOf}
-                  onApprove={(lineId, lineSeq, proposalIndex, proposal) =>
-                    void proposals.approve(lineId, lineSeq, proposalIndex, proposal)
+                  onDecide={(lineId, lineSeq, proposal, decision) =>
+                    void proposals.decide(lineId, lineSeq, proposal, decision)
                   }
                 />
               ) : null}
@@ -173,7 +168,7 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
       </ul>
 
       {thread.lines.length > 0 && !thread.rejecting ? (
-        <ChatQueueDeleteLast removal={thread.removal} disabled={locked} />
+        <ChatQueueDeleteLast removal={thread.removal} disabled={exchangeLocked} />
       ) : null}
 
       {thread.sending ? (
@@ -243,6 +238,7 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
             >
               <div className="flex gap-2">
                 <textarea
+                  ref={composer}
                   aria-label="Ask about this card"
                   placeholder="Ask about this card"
                   rows={2}
@@ -260,6 +256,11 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
                   Send
                 </button>
               </div>
+              {showRejectHint ? (
+                <p data-testid="chat-queue-reject-hint" className="text-xs text-neutral-500">
+                  What is wrong with it?
+                </p>
+              ) : null}
             </form>
           )}
 

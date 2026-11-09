@@ -23,7 +23,7 @@ function buildDeps(overrides: Partial<AskAiChatDeps> = {}): AskAiChatDeps {
 }
 
 describe("openAskAiChat", () => {
-  it("should seed the chat with the learner's question and answer it with capped cheap web tools", async () => {
+  it("should seed the chat with the learner's question and answer it with capped cheap web tools, the light model and no card proposals", async () => {
     const deps = buildDeps();
     const handle = await openAskAiChat("ks_1", "Why does the lock expire early?", deps);
 
@@ -36,7 +36,7 @@ describe("openAskAiChat", () => {
     expect(deps.sendMessage).toHaveBeenCalledWith(
       "kbask_ks_1",
       { clientMessageId: "ask-ai-ks_1", message: "Why does the lock expire early?" },
-      { webTools: WEB_DEPS },
+      { webTools: WEB_DEPS, getWebUsage: expect.any(Function), proposalTools: false, lightModel: true },
     );
   });
 
@@ -103,7 +103,7 @@ describe("retryHeldAskAiReplies", () => {
     expect(deps.sendMessage).toHaveBeenCalledWith(
       "kbask_ks_1",
       { clientMessageId: "ask-ai-ks_1", message: "Why one?" },
-      { webTools: WEB_DEPS },
+      { webTools: WEB_DEPS, getWebUsage: expect.any(Function), proposalTools: false, lightModel: true },
     );
   });
 

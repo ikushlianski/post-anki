@@ -137,9 +137,13 @@ describe("resolveRoute", () => {
         "deleteLastChatQueueExchange",
       );
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages")?.name).toBe("sendChatQueueMessage");
-      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages/4/card")).toMatchObject({
-        name: "createCardFromChatMessage",
-        params: { id: "kb_1", seq: "4" },
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages/4/proposals/1/accept")).toMatchObject({
+        name: "acceptChatQueueProposal",
+        params: { id: "kb_1", seq: "4", index: "1" },
+      });
+      expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages/4/proposals/0/reject")).toMatchObject({
+        name: "rejectChatQueueProposal",
+        params: { id: "kb_1", seq: "4", index: "0" },
       });
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat")?.name).toBe("askKnowledgeBitChat");
     });

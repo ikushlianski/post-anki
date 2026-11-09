@@ -1,7 +1,6 @@
 import type {
   DeleteLastChatExchangeResult,
-  CreateCardFromChatMessageInput,
-  CreateCardFromChatMessageResult,
+  ChatQueueProposalDecisionResult,
   ChatQueueCount,
   ChatQueueKnowledgeBitList,
   ChatQueueSearchResponse,
@@ -107,17 +106,26 @@ export function saveChatQueueRejectReason(
   )
 }
 
-export function createCardFromChatMessage(
+function decideProposal(
   bitId: string,
   seq: number,
-  input: CreateCardFromChatMessageInput,
-): Promise<ChatQueueOutcome<CreateCardFromChatMessageResult>> {
+  index: number,
+  decision: 'accept' | 'reject',
+): Promise<ChatQueueOutcome<ChatQueueProposalDecisionResult>> {
   return attempt(() =>
-    request<CreateCardFromChatMessageResult>(`/knowledge-bits/${bitId}/chat-messages/${seq}/card`, {
-      method: 'POST',
-      body: input,
-    }),
+    request<ChatQueueProposalDecisionResult>(
+      `/knowledge-bits/${bitId}/chat-messages/${seq}/proposals/${index}/${decision}`,
+      { method: 'POST' },
+    ),
   )
+}
+
+export function acceptChatQueueProposal(bitId: string, seq: number, index: number) {
+  return decideProposal(bitId, seq, index, 'accept')
+}
+
+export function rejectChatQueueProposal(bitId: string, seq: number, index: number) {
+  return decideProposal(bitId, seq, index, 'reject')
 }
 
 export function snoozeChatQueueCard(

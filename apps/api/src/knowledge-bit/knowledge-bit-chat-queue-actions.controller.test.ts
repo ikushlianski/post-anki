@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 vi.mock("./knowledge-bit-approval-embedding.orchestrator.js", () => ({ embedApprovedKnowledgeBits: vi.fn() }));
 vi.mock("./knowledge-bit-chat-card.repo.js", () => ({}));
+vi.mock("./knowledge-bit-web-tools.deps.js", () => ({
+  createKnowledgeBitWebTools: vi.fn(() => ({ deps: { tag: "web-deps" }, getUsage: () => ({ searches: 0, fetches: 0 }) })),
+}));
 vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
+  loadChatCardContext: vi.fn(),
   moveKnowledgeBitToChatQueue: vi.fn(),
   snoozeChatQueueKnowledgeBit: vi.fn(),
 }));
@@ -19,7 +23,10 @@ vi.mock("./knowledge-bit-chat-queue-stale.repo.js", () => ({}));
 vi.mock("./knowledge-bit-chat-queue-export.repo.js", () => ({ loadChatExportData: vi.fn() }));
 vi.mock("./knowledge-bit-chat-thread-retention.js", () => ({ sweepDecidedChatThreadsHourly: vi.fn() }));
 
-const { moveKnowledgeBitToChatQueue, snoozeChatQueueKnowledgeBit } = await import("./knowledge-bit-chat-queue.repo.js");
+const { loadChatCardContext, moveKnowledgeBitToChatQueue, snoozeChatQueueKnowledgeBit } = await import(
+  "./knowledge-bit-chat-queue.repo.js"
+);
+const { createKnowledgeBitWebTools } = await import("./knowledge-bit-web-tools.deps.js");
 const { deleteLastChatQueueExchange, sendChatQueueMessage } = await import("./knowledge-bit-chat-queue.service.js");
 const { loadChatExportData } = await import("./knowledge-bit-chat-queue-export.repo.js");
 const {
@@ -203,9 +210,40 @@ describe("handleSendChatQueueMessage", () => {
 
     await handleSendChatQueueMessage(fakeReq({ clientMessageId: "m1", message: "why?" }), res, "kb_1");
 
-    expect(sendChatQueueMessage).toHaveBeenCalledWith("kb_1", { clientMessageId: "m1", message: "why?" });
+    expect(sendChatQueueMessage).toHaveBeenCalledWith(
+      "kb_1",
+      { clientMessageId: "m1", message: "why?" },
+      expect.objectContaining({ webTools: { tag: "web-deps" } }),
+    );
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ reply: "Because." });
+  });
+
+  it("should give the learner chat two capped cheap searches and one page read, seeded with the card's source page", async () => {
+    vi.mocked(loadChatCardContext).mockResolvedValue({ sourceUrl: "https://blog.example.com/post" } as never);
+    vi.mocked(sendChatQueueMessage).mockResolvedValue({ ok: true, value: { reply: "x" } as never });
+
+    await handleSendChatQueueMessage(fakeReq({ clientMessageId: "m1", message: "who wrote this?" }), fakeRes(), "kb_1");
+
+    expect(createKnowledgeBitWebTools).toHaveBeenCalledWith(
+      expect.objectContaining({
+        knowledgeBitId: "kb_1",
+        maxSearches: 2,
+        maxPageFetches: 1,
+        maxPageChars: 6000,
+        forceTier: "cheap",
+        seedCitedUrls: ["https://blog.example.com/post"],
+      }),
+    );
+  });
+
+  it("should seed nothing when the card has no source page", async () => {
+    vi.mocked(loadChatCardContext).mockResolvedValue({ sourceUrl: null } as never);
+    vi.mocked(sendChatQueueMessage).mockResolvedValue({ ok: true, value: { reply: "x" } as never });
+
+    await handleSendChatQueueMessage(fakeReq({ clientMessageId: "m1", message: "why?" }), fakeRes(), "kb_1");
+
+    expect(createKnowledgeBitWebTools).toHaveBeenCalledWith(expect.objectContaining({ seedCitedUrls: [] }));
   });
 
   it.each([

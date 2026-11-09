@@ -1,7 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
-  createCardFromChatMessageInput,
   chatQueueSearchQuerySchema,
   knowledgeBitRejectReasonSchema,
   sendChatQueueMessageInput,
@@ -13,9 +12,9 @@ import * as api from './chat-queue.api-client'
 
 const bitIdInput = z.object({ bitId: z.string().min(1) })
 const sendInput = bitIdInput.extend({ message: sendChatQueueMessageInput })
-const cardInput = bitIdInput.extend({
+const proposalInput = bitIdInput.extend({
   seq: z.number().int().min(1),
-  card: createCardFromChatMessageInput,
+  index: z.number().int().min(0),
 })
 const subjectInput = z.object({ subjectId: z.string().min(1) })
 const snoozeInput = bitIdInput.merge(snoozeChatQueueInput)
@@ -65,9 +64,13 @@ export const saveChatQueueRejectReason = createServerFn({ method: 'POST' })
     api.saveChatQueueRejectReason(data.feedbackId, data.reasonCode, data.note),
   )
 
-export const createCardFromChatMessage = createServerFn({ method: 'POST' })
-  .inputValidator((data: unknown) => cardInput.parse(data))
-  .handler(({ data }) => api.createCardFromChatMessage(data.bitId, data.seq, data.card))
+export const acceptChatQueueProposal = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => proposalInput.parse(data))
+  .handler(({ data }) => api.acceptChatQueueProposal(data.bitId, data.seq, data.index))
+
+export const rejectChatQueueProposal = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => proposalInput.parse(data))
+  .handler(({ data }) => api.rejectChatQueueProposal(data.bitId, data.seq, data.index))
 
 export const snoozeChatQueueCard = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => snoozeInput.parse(data))

@@ -12,7 +12,6 @@ vi.mock('./chat-queue.api', () => ({
   approveFromChatQueue: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
-  createCardFromChatMessage: vi.fn(),
   snoozeChatQueueCard: vi.fn(),
   unsnoozeChatQueueCard: vi.fn(),
 }))

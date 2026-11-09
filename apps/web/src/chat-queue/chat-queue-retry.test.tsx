@@ -12,7 +12,6 @@ vi.mock('./chat-queue.api', () => ({
   approveFromChatQueue: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
-  createCardFromChatMessage: vi.fn(),
   snoozeChatQueueCard: vi.fn(),
   unsnoozeChatQueueCard: vi.fn(),
 }))
@@ -74,7 +73,7 @@ describe('retry last answer', () => {
     } as never)
     vi.mocked(sendChatQueueMessage).mockResolvedValue({
       ok: true,
-      data: { reply: 'better answer', turnsLeft: 5, capReached: false },
+      data: { reply: 'better answer', replySeq: 4, turnsLeft: 5, capReached: false },
     } as never)
     renderThread()
 
@@ -126,7 +125,7 @@ describe('retry last answer', () => {
     } as never)
     vi.mocked(sendChatQueueMessage).mockResolvedValue({
       ok: true,
-      data: { reply: 'better answer', turnsLeft: 5, capReached: false },
+      data: { reply: 'better answer', replySeq: 4, turnsLeft: 5, capReached: false },
     } as never)
     renderThread()
 

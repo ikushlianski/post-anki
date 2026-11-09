@@ -27,7 +27,10 @@ public struct ChatQueueActions {
 @MainActor
 public final class ChatQueueModel {
     public var items: [ChatQueueItem] = [] {
-        didSet { reconcileSubject() }
+        didSet {
+            reconcileSubject()
+            pruneBulkSelection()
+        }
     }
     public var isLoading = false
     public var hasLoaded = false
@@ -46,6 +49,10 @@ public final class ChatQueueModel {
         didSet { reconcileSubject() }
     }
     public var isMovingAll = false
+    public var picked: Set<String> = []
+    public var isBulkRunning = false
+    public var bulkNotice: String?
+    public var isConfirmingBulk = false
     private var truncationTracker = TruncationTracker()
 
     public var truncation: ListTruncation? { truncationTracker.truncation(shown: items.count) }
@@ -91,6 +98,14 @@ public final class ChatQueueModel {
         self.actions = actions
         self.orderStore = orderStore
         self.sortOrder = orderStore.load()
+    }
+
+    func returnAction(_ id: String) async throws {
+        try await actions.returnToInbox(id)
+    }
+
+    func snoozeAction(_ id: String, days: Int) async throws {
+        try await actions.snooze(id, days)
     }
 
     public func load() async {

@@ -40,12 +40,32 @@ export function pickSourceExcerpt(sourceText: string | null, cardText: string, m
   return sourceText.slice(bestStart, bestStart + maxChars);
 }
 
+function historyLine(entry: ChatQueueMessage): string {
+  const lines = [`${entry.role === "user" ? "Learner" : "Assistant"}: ${escapeUntrusted(entry.text)}`];
+
+  for (const proposal of entry.proposals ?? []) {
+    lines.push(`[proposed card: ${escapeUntrusted(proposal.front)} -> ${proposal.status}]`);
+  }
+
+  return lines.join("\n");
+}
+
 export interface ChatQueuePromptInput {
   body: string;
   background: string | null;
   sourceText: string | null;
+  sourceAuthor?: string | null;
+  sourceUrl?: string | null;
   history: ChatQueueMessage[];
   message: string;
+}
+
+function sourceInfoBlock(author: string | null | undefined, url: string | null | undefined): string | null {
+  const lines = [author ? `author: ${escapeUntrusted(author)}` : null, url ? `url: ${escapeUntrusted(url)}` : null].filter(
+    (line): line is string => line !== null,
+  );
+
+  return lines.length ? `<source_info>\n${lines.join("\n")}\n</source_info>` : null;
 }
 
 export function buildChatQueuePrompt(input: ChatQueuePromptInput): string {
@@ -53,11 +73,12 @@ export function buildChatQueuePrompt(input: ChatQueuePromptInput): string {
   const excerpt = pickSourceExcerpt(input.sourceText, cardText, CHAT_QUEUE_CONTEXT_MAX_CHARS - cardText.length);
   const history = input.history
     .slice(-CHAT_QUEUE_REPLAY_MESSAGES)
-    .map((entry) => `${entry.role === "user" ? "Learner" : "Assistant"}: ${escapeUntrusted(entry.text)}`)
+    .map(historyLine)
     .join("\n");
 
   return [
     `<card>\n${escapeUntrusted(cardText)}\n</card>`,
+    sourceInfoBlock(input.sourceAuthor, input.sourceUrl),
     excerpt ? `<source_excerpt>\n${escapeUntrusted(excerpt)}\n</source_excerpt>` : null,
     history ? `<history>\n${history}\n</history>` : null,
     `<learner_message>\n${escapeUntrusted(input.message)}\n</learner_message>`,

@@ -6,7 +6,8 @@ const TIER_TO_MODEL_ID: Record<ModelTier, string> = {
   premium: "openrouter/deepseek/deepseek-v4-pro",
 };
 
-export const CHAT_QUEUE_MODEL_ID = "openrouter/google/gemini-3-flash-preview";
+export const CHAT_QUEUE_LIGHT_MODEL_ID = "openrouter/google/gemini-3-flash-preview";
+export const CHAT_QUEUE_MODEL_ID = TIER_TO_MODEL_ID.premium;
 
 export function tierToModelId(tier: ModelTier): string {
   return TIER_TO_MODEL_ID[tier];

@@ -5,16 +5,23 @@ import {
   MANUAL_ITEM_EXAMPLE_MAX_CHARS,
   MANUAL_ITEM_FRONT_MAX_CHARS,
 } from "./knowledge-bit";
-import { relatedCardSuggestionSchema } from "./knowledge-bit-chat";
 
 export const CHAT_QUEUE_MAX_USER_TURNS = 8;
 export const CHAT_QUEUE_MAX_MESSAGE_CHARS = 1_000;
 export const CHAT_QUEUE_REPLAY_MESSAGES = 12;
 export const CHAT_QUEUE_CONTEXT_MAX_CHARS = 3_000;
-export const CHAT_QUEUE_REPLY_MAX_TOKENS = 700;
+export const CHAT_QUEUE_REPLY_MAX_TOKENS = 900;
 export const CHAT_QUEUE_MAX_PROPOSALS = 2;
 
-export const chatQueueErrorCodeSchema = z.enum(["cap_reached", "budget_paused", "in_flight", "not_in_chat"]);
+export const CHAT_QUEUE_PROPOSAL_REASON_MAX_CHARS = 200;
+
+export const chatQueueErrorCodeSchema = z.enum([
+  "cap_reached",
+  "budget_paused",
+  "in_flight",
+  "not_in_chat",
+  "proposal_not_pending",
+]);
 
 export type ChatQueueErrorCode = z.infer<typeof chatQueueErrorCodeSchema>;
 
@@ -90,11 +97,33 @@ export const staleChatQueueSummarySchema = z.object({
 
 export type StaleChatQueueSummary = z.infer<typeof staleChatQueueSummarySchema>;
 
+export const chatQueueProposalKindSchema = z.enum(["create", "update"]);
+
+export const chatQueueProposalStatusSchema = z.enum(["pending", "accepted", "rejected"]);
+
+export type ChatQueueProposalStatus = z.infer<typeof chatQueueProposalStatusSchema>;
+
+export const chatQueueProposalSchema = z.object({
+  index: z.number().int().min(0).max(CHAT_QUEUE_MAX_PROPOSALS - 1),
+  kind: chatQueueProposalKindSchema,
+  front: z.string().trim().min(1).max(MANUAL_ITEM_FRONT_MAX_CHARS),
+  back: z.string().trim().min(1).max(MANUAL_ITEM_BACK_MAX_CHARS),
+  example: z.string().trim().min(1).max(MANUAL_ITEM_EXAMPLE_MAX_CHARS).optional(),
+  reason: z.string().trim().min(1).max(CHAT_QUEUE_PROPOSAL_REASON_MAX_CHARS).optional(),
+  status: chatQueueProposalStatusSchema,
+  savedCardId: z.string().min(1).optional(),
+});
+
+export type ChatQueueProposal = z.infer<typeof chatQueueProposalSchema>;
+
+export const chatQueueProposalListSchema = z.array(chatQueueProposalSchema).max(CHAT_QUEUE_MAX_PROPOSALS);
+
 export const chatQueueMessageSchema = z.object({
   seq: z.number().int().min(1),
   role: chatQueueMessageRoleSchema,
   text: z.string(),
   createdAt: z.string(),
+  proposals: chatQueueProposalListSchema.optional(),
 });
 
 export type ChatQueueMessage = z.infer<typeof chatQueueMessageSchema>;
@@ -116,12 +145,21 @@ export type SendChatQueueMessageInput = z.input<typeof sendChatQueueMessageInput
 
 export const sendChatQueueMessageResultSchema = z.object({
   reply: z.string(),
-  suggestions: z.array(relatedCardSuggestionSchema).max(CHAT_QUEUE_MAX_PROPOSALS).optional(),
+  replySeq: z.number().int().min(1),
+  proposals: chatQueueProposalListSchema.optional(),
   turnsLeft: z.number().int().min(0).max(CHAT_QUEUE_MAX_USER_TURNS),
   capReached: z.boolean(),
 });
 
 export type SendChatQueueMessageResult = z.infer<typeof sendChatQueueMessageResultSchema>;
+
+export const chatQueueProposalDecisionResultSchema = z.object({
+  ok: z.literal(true),
+  status: z.enum(["accepted", "rejected"]),
+  savedCardId: z.string().min(1).optional(),
+});
+
+export type ChatQueueProposalDecisionResult = z.infer<typeof chatQueueProposalDecisionResultSchema>;
 
 export const CHAT_QUEUE_STARTER_PROMPTS = [
   "Why is this card worth keeping?",
@@ -129,22 +167,6 @@ export const CHAT_QUEUE_STARTER_PROMPTS = [
   "Is the answer fully supported by the source?",
   "How could this question be clearer?",
 ] as const;
-
-export const createCardFromChatMessageInput = z.object({
-  front: z.string().trim().min(1).max(MANUAL_ITEM_FRONT_MAX_CHARS),
-  back: z.string().trim().min(1).max(MANUAL_ITEM_BACK_MAX_CHARS),
-  example: z.string().trim().min(1).max(MANUAL_ITEM_EXAMPLE_MAX_CHARS).optional(),
-  approve: z.boolean().optional(),
-});
-
-export type CreateCardFromChatMessageInput = z.input<typeof createCardFromChatMessageInput>;
-
-export const createCardFromChatMessageResultSchema = z.object({
-  ok: z.literal(true),
-  id: z.string().min(1),
-});
-
-export type CreateCardFromChatMessageResult = z.infer<typeof createCardFromChatMessageResultSchema>;
 
 export const deleteLastChatExchangeResultSchema = z.object({
   ok: z.literal(true),

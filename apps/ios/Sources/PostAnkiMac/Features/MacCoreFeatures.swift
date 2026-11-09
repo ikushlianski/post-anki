@@ -29,6 +29,15 @@ enum MacCoreFeatures {
             detail: { _ in AnyView(MacReviewView()) }
         ),
         MacFeature(
+            id: "chat",
+            section: .library,
+            order: 36,
+            title: "Chat",
+            systemImage: "bubble.left.and.bubble.right",
+            ownsStack: true,
+            detail: { _ in AnyView(MacChatQueueView()) }
+        ),
+        MacFeature(
             id: "progress",
             section: .study,
             order: 80,

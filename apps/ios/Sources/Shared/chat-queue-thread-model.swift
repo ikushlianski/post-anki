@@ -6,12 +6,18 @@ struct ChatQueueLine: Identifiable, Equatable {
     let isUser: Bool
     let text: String
     var seq: Int?
+    var proposals: [ChatQueueProposal] = []
+}
+
+struct ChatQueueProposalKey: Hashable {
+    let seq: Int
+    let index: Int
 }
 
 @Observable
 @MainActor
 final class ChatQueueThreadModel {
-    let item: ChatQueueItem
+    var item: ChatQueueItem
     var lines: [ChatQueueLine] = []
     var draft = "" {
         didSet { if draft != oldValue { drafts.save(draft, cardId: item.id) } }
@@ -28,12 +34,16 @@ final class ChatQueueThreadModel {
     var rejectFeedback: PendingRejectFeedback?
     var isFinished = false
     var wasSnoozed = false
-    var cardDraft: ChatQueueCardDraft?
-    var isSavingCard = false
-    var cardErrorMessage: String?
-    var savedCardSeqs: Set<Int> = []
+    var decidingProposals: Set<ChatQueueProposalKey> = []
+    var proposalErrors: [ChatQueueProposalKey: String] = [:]
+    var awaitsRejectExplanation = false
+    var composerFocusRequests = 0
+    var followUps = ChatQueueFollowUpQueue()
 
+    @ObservationIgnored var rejectAnnouncement: Task<Void, Never>?
+    @ObservationIgnored var rejectMessageIds: Set<String> = []
     @ObservationIgnored private var retryId: (text: String, id: String)?
+    @ObservationIgnored var inFlightRetryDelay: Duration = .seconds(1)
     @ObservationIgnored private let counts: ChatQueueCountStore
     @ObservationIgnored private let drafts: ChatQueueDraftStoring
 
@@ -49,7 +59,7 @@ final class ChatQueueThreadModel {
     var limitReached: Bool { capReached || turnsLeft <= 0 }
 
     var canSend: Bool {
-        !limitReached && !budgetPaused && !isSending && !isResolving && !isDeleting
+        !limitReached && !budgetPaused && !isResolving && !isDeleting && (!isSending || !followUps.isFull)
             && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -66,7 +76,7 @@ final class ChatQueueThreadModel {
             let thread = try await APIClient.chatQueueThread(id: item.id)
 
             lines = thread.messages.map {
-                ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq)
+                ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq, proposals: $0.proposals)
             }
             turnsLeft = thread.turnsLeft
             capReached = thread.capReached
@@ -80,12 +90,22 @@ final class ChatQueueThreadModel {
     func send(_ preset: String? = nil) async {
         let text = (preset ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !text.isEmpty, !isSending, !isResolving, !isDeleting, !limitReached, !budgetPaused else { return }
+        guard !text.isEmpty, !isResolving, !isDeleting, !limitReached, !budgetPaused else { return }
+
+        if isSending {
+            guard preset == nil, followUps.enqueue(text) != nil else { return }
+
+            draft = ""
+
+            return
+        }
 
         isSending = true
         defer { isSending = false }
 
-        await deliver(text, keepDraft: preset != nil)
+        let failure = await deliver(text, keepDraft: preset != nil)
+
+        if failure != nil { appendFollowUpsToDraft() } else { await drainFollowUps() }
     }
 
     var canRetryLast: Bool {
@@ -140,11 +160,14 @@ final class ChatQueueThreadModel {
             return
         }
 
-        await deliver(question, keepDraft: true, merges: true)
+        let failure = await deliver(question, keepDraft: true, merges: true)
+
+        if failure != nil { appendFollowUpsToDraft() } else { await drainFollowUps() }
     }
 
-    private func deliver(_ text: String, keepDraft: Bool, merges: Bool = false) async {
-        let clientId = retryId?.text == text ? retryId?.id ?? UUID().uuidString : UUID().uuidString
+    @discardableResult
+    func deliver(_ text: String, keepDraft: Bool, merges: Bool = false, clientId queuedId: String? = nil) async -> ChatQueueFailure? {
+        let clientId = queuedId ?? (retryId?.text == text ? retryId?.id ?? UUID().uuidString : UUID().uuidString)
         let line = ChatQueueLine(id: "u-\(clientId)", isUser: true, text: text)
 
         retryId = (text, clientId)
@@ -155,17 +178,21 @@ final class ChatQueueThreadModel {
         errorMessage = nil
 
         do {
-            let result = try await APIClient.sendChatQueueMessage(
-                id: item.id,
-                clientMessageId: clientId,
-                message: text
-            )
+            let result = try await sendIdempotently(text, clientId: clientId)
 
-            lines.append(ChatQueueLine(id: "a-\(clientId)", isUser: false, text: result.reply))
+            awaitsRejectExplanation = false
+            lines.append(ChatQueueLine(
+                id: "a-\(clientId)",
+                isUser: false,
+                text: result.reply,
+                seq: result.replySeq,
+                proposals: result.proposals
+            ))
             turnsLeft = result.turnsLeft
             capReached = result.capReached
             retryId = nil
-            await assignReplySeq(lineId: "a-\(clientId)")
+
+            return nil
         } catch {
             lines.removeAll { $0.id == line.id }
 
@@ -175,50 +202,23 @@ final class ChatQueueThreadModel {
                 draft = text
             }
 
-            handle(ChatQueueFailure.failure(for: error))
+            let failure = ChatQueueFailure.failure(for: error)
+
+            handle(failure)
+
+            return failure
         }
     }
 
-    private func assignReplySeq(lineId: String) async {
-        guard let thread = try? await APIClient.chatQueueThread(id: item.id),
-              let seq = thread.messages.last(where: { $0.role == .assistant })?.seq,
-              let index = lines.firstIndex(where: { $0.id == lineId })
-        else { return }
-
-        lines[index].seq = seq
-    }
-
-    func openCard(for line: ChatQueueLine) {
-        guard let seq = line.seq, !line.isUser, !isSavingCard else { return }
-
-        cardErrorMessage = nil
-        cardDraft = ChatQueueCardDraft(seq: seq, back: String(line.text.prefix(ChatQueueCardLimits.maxBackChars)))
-    }
-
-    func cancelCard() {
-        guard !isSavingCard else { return }
-
-        cardErrorMessage = nil
-        cardDraft = nil
-    }
-
-    func saveCard() async {
-        guard let draft = cardDraft, draft.isSavable, !isSavingCard, !isResolving else { return }
-
-        isSavingCard = true
-        cardErrorMessage = nil
-        defer { isSavingCard = false }
-
+    private func sendIdempotently(_ text: String, clientId: String) async throws -> ChatQueueReply {
         do {
-            try await APIClient.createCardFromChatQueueMessage(id: item.id, draft: draft)
-            savedCardSeqs.insert(draft.seq)
-            cardDraft = nil
+            return try await APIClient.sendChatQueueMessage(id: item.id, clientMessageId: clientId, message: text)
         } catch {
-            let failure = ChatQueueFailure.failure(for: error)
+            guard ChatQueueFailure.failure(for: error) == .inFlight else { throw error }
 
-            cardErrorMessage = failure == .other ? "Could not save the card. Try again." : failure.message
+            try await Task.sleep(for: inFlightRetryDelay)
 
-            if failure == .notInChat || failure == .notFound { cardDraft = nil }
+            return try await APIClient.sendChatQueueMessage(id: item.id, clientMessageId: clientId, message: text)
         }
     }
 
@@ -235,6 +235,7 @@ final class ChatQueueThreadModel {
         do {
             let result = try await APIClient.deleteLastChatQueueExchange(id: item.id)
 
+            awaitsRejectExplanation = false
             await load()
 
             if let turns = result.turnsLeft { turnsLeft = turns }
@@ -254,7 +255,7 @@ final class ChatQueueThreadModel {
         }
     }
 
-    private func handle(_ failure: ChatQueueFailure) {
+    func handle(_ failure: ChatQueueFailure) {
         switch failure {
         case .capReached:
             capReached = true

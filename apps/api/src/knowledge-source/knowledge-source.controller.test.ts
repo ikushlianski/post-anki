@@ -241,6 +241,17 @@ describe("handleCreateKnowledgeSource", () => {
     expect(res.status).toBe(201);
   });
 
+  it("stores the author named by the imported page so the chat can use it later", async () => {
+    mockFetchWithTimeout.mockResolvedValue(
+      '<html><head><meta name="author" content="Jane Doe"></head><body><h1>Title</h1><p>Hello world.</p></body></html>',
+    );
+    mockInsertKnowledgeSource.mockResolvedValue({ id: "ks_1", kind: "prose", rawText: "t", status: "pending", createdAt: new Date() });
+
+    await handleCreateKnowledgeSource(fakeReq({ url: "https://example.com/article" }), fakeRes());
+
+    expect(mockInsertKnowledgeSource.mock.calls[0]?.[6]).toBe("Jane Doe");
+  });
+
   it("400s with fetch_failed when the url can't be fetched, without inserting anything", async () => {
     mockFetchWithTimeout.mockResolvedValue(null);
 

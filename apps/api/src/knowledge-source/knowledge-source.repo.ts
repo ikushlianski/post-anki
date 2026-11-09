@@ -24,6 +24,7 @@ export async function insertKnowledgeSource(
   sourceUrl: string | null = null,
   targetPhrases?: string[],
   highlights?: KnowledgeHighlight[],
+  sourceAuthor: string | null = null,
 ): Promise<KnowledgeSource> {
   const accent = normalizeTargetPhrases(targetPhrases);
   const row = {
@@ -34,6 +35,7 @@ export async function insertKnowledgeSource(
     subjectId,
     extractionModelId,
     ...(sourceUrl === null ? {} : { sourceUrl }),
+    ...(sourceAuthor === null ? {} : { sourceAuthor }),
     ...(accent === null ? {} : { targetPhrases: accent }),
     ...(highlights && highlights.length > 0 ? { highlights } : {}),
   };

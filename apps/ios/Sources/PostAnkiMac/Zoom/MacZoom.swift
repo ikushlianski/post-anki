@@ -4,6 +4,7 @@ enum MacZoom {
     static let storageKey = "mac.zoomScale"
     static let steps: [Double] = [0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
     static let actualSize = 1.0
+    static let defaultScale = 1.25
 
     static func zoomedIn(from scale: Double) -> Double {
         steps.first { $0 > scale + 0.001 } ?? steps[steps.count - 1]
@@ -23,7 +24,7 @@ enum MacZoom {
 }
 
 struct MacZoomModifier: ViewModifier {
-    @AppStorage(MacZoom.storageKey) private var stored = MacZoom.actualSize
+    @AppStorage(MacZoom.storageKey) private var stored = MacZoom.defaultScale
 
     func body(content: Content) -> some View {
         content
