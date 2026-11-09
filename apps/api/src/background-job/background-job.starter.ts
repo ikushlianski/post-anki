@@ -2,7 +2,10 @@ import { log } from "../shared/log.js";
 import { createInngestClient } from "../shared/inngest-client.js";
 import { dispatchBackground } from "../shared/background-dispatch.js";
 import { isDurableBackgroundJobsEnabled } from "../shared/durable-flags.js";
-import { backgroundJobRequestedEvent, type BackgroundJob } from "./background-job.events.js";
+import {
+  backgroundJobRequestedEvent,
+  type BackgroundJob,
+} from "./background-job.events.js";
 
 export interface BackgroundJobDeps {
   isDurable: () => boolean;
@@ -13,10 +16,18 @@ function defaultDeps(): BackgroundJobDeps {
   return {
     isDurable: () => isDurableBackgroundJobsEnabled(),
     send: async (job) => {
-      await createInngestClient().send({ name: backgroundJobRequestedEvent.name, data: job });
+      await createInngestClient().send({
+        name: backgroundJobRequestedEvent.name,
+        data: job,
+      });
     },
   };
 }
+
+const NO_FALLBACK_KINDS: ReadonlySet<BackgroundJob["kind"]> = new Set([
+  "article-summary",
+  "knowledge-bit-variants",
+]);
 
 async function startJob(
   job: BackgroundJob,
@@ -33,6 +44,11 @@ async function startJob(
     await deps.send(job);
   } catch (err) {
     log.error({ err, kind: job.kind }, "background_job_event_send_failed");
+
+    if (NO_FALLBACK_KINDS.has(job.kind)) {
+      return;
+    }
+
     await inProcess();
   }
 }
