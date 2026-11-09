@@ -86,11 +86,15 @@ export async function listCappedDueCards(
         .limit(take);
     });
   const [learning, ...reviewBatches] = await Promise.all([learningPromise, ...reviewPromises]);
-  const rank = (row: { phase: string | null; dueAt: Date | null }) => ({
-    notYetDue: row.dueAt && row.dueAt > now ? 1 : 0,
-    step: row.phase === "learning" || row.phase === "relearning" ? 0 : 1,
-    due: row.dueAt?.getTime() ?? 0,
-  });
+  const rank = (row: { phase: string | null; dueAt: Date | string | null }) => {
+    const due = row.dueAt ? new Date(row.dueAt).getTime() : 0;
+
+    return {
+      notYetDue: row.dueAt && due > now.getTime() ? 1 : 0,
+      step: row.phase === "learning" || row.phase === "relearning" ? 0 : 1,
+      due,
+    };
+  };
 
   return [...(learning ?? []), ...reviewBatches.flat()]
     .sort((a, b) => {
