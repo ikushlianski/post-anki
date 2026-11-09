@@ -86,6 +86,8 @@ async function insertSubject(id: string, options: { parentId?: string; cap?: num
   );
 }
 
+let nextOrdinal = 0;
+
 async function insertCard(
   subjectId: string,
   phase: "review" | "learning" | "new",
@@ -94,8 +96,8 @@ async function insertCard(
   const bitId = `kb_${randomUUID()}`;
 
   await client.query(
-    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state) VALUES ($1, $2, 0, 'body', $3, 'approved')`,
-    [bitId, `src_${subjectId}`, options.topicId ?? null],
+    `INSERT INTO knowledge_bits (id, knowledge_source_id, ordinal, body, topic_id, approval_state) VALUES ($1, $2, $3, 'body', $4, 'approved')`,
+    [bitId, `src_${subjectId}`, nextOrdinal++, options.topicId ?? null],
   );
   await client.query(
     `INSERT INTO knowledge_bit_question_variants (id, knowledge_bit_id, kind, "order", prompt, answer) VALUES ($1, $2, 'wh_question', 0, 'Q?', 'A.')`,
