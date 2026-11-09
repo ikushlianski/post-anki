@@ -3,9 +3,10 @@ import type { BulkMoveKnowledgeBitsResponse } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 import { findSubjectAssignmentError, type SubjectAssignmentError } from "../subject/subject-leaf.js";
+import { isMovableApprovalState } from "./knowledge-bit-move-rules.js";
 
-// Moves standalone bits (topicId IS NULL) to the target subject by updating their
-// source's subjectId. Curriculum-attached bits (topicId IS NOT NULL) are skipped
+// Moves standalone bits (topicId IS NULL) that are still live (pending, approved, inbox,
+// chat) to the target subject by updating their source's subjectId. Curriculum-attached bits (topicId IS NOT NULL) are skipped
 // because their effective subject is owned by their curriculum.
 export type MoveKnowledgeBitsError = SubjectAssignmentError;
 
@@ -62,7 +63,7 @@ async function moveKnowledgeBitsBulkIn(
       continue;
     }
 
-    if (row.approvalState !== "approved") {
+    if (!isMovableApprovalState(row.approvalState)) {
       skipped.push({ id, reason: "not_approved" });
       continue;
     }

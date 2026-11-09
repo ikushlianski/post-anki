@@ -17,6 +17,10 @@ extension APIClient {
         )
     }
 
+    public static func createSubject(name: String, parentId: String?) async throws -> Subject {
+        try await request("/subjects", method: "POST", body: SubjectManageCreateInput(name: name, parentId: parentId))
+    }
+
     public static func renameSubject(id: String, name: String) async throws {
         let _: EmptyResponse = try await request(
             "/subjects/\(encodedSegment(id))",

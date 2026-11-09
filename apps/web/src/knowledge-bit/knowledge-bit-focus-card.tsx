@@ -14,6 +14,7 @@ import {
 } from "./knowledge-bit-focus-decision-buttons";
 import { KnowledgeBitFocusExtraActions } from "./knowledge-bit-focus-extra-actions";
 import type { NoteMode } from "./knowledge-bit-review-note-edit";
+import { KnowledgeBitFocusSubjectPicker } from "./knowledge-bit-focus-subject-picker";
 import { KnowledgeBitFocusSourceBlock } from "./knowledge-bit-focus-source-block";
 import { KnowledgeBitFocusVariants } from "./knowledge-bit-focus-variants";
 import type { LeavingDestination } from "./use-leaving-card";
@@ -59,7 +60,7 @@ interface KnowledgeBitFocusCardProps {
 
 function FocusCardBody({
   bit,
-  subjectName,
+  subjectName: initialSubjectName,
   sourceText,
   isResolving,
   pollingGaveUp = false,
@@ -81,6 +82,8 @@ function FocusCardBody({
   leaving,
 }: KnowledgeBitFocusCardProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [changedSubjectName, setChangedSubjectName] = useState<string | null>(null);
+  const subjectName = changedSubjectName ?? initialSubjectName;
   const [pressed, setPressed] = useState<FocusPressedAction | null>(null);
   const [addingExample, setAddingExample] = useState(false);
   const [focusExample, setFocusExample] = useState(false);
@@ -185,12 +188,11 @@ function FocusCardBody({
         {...drag}
         className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4"
       >
-        <p
-          data-testid="knowledge-bit-focus-subject"
-          className="text-xs font-medium uppercase tracking-wide text-neutral-500"
-        >
-          {subjectName ?? "No subject"}
-        </p>
+        <KnowledgeBitFocusSubjectPicker
+          bitId={bit.id}
+          subjectName={subjectName}
+          onChanged={setChangedSubjectName}
+        />
 
         <KnowledgeBitModelBadges bitId={bit.id} modelIds={bit.modelIds} />
 

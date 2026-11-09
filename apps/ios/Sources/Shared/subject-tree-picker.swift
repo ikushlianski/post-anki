@@ -92,13 +92,14 @@ struct SubjectTreePickerLevel: View {
     let parent: SubjectTreeNode?
     let nodes: [SubjectTreeNode]
     let selection: String?
+    var allowsNone = true
     let onPick: (String?) -> Void
 
     var body: some View {
         List {
             if let parent {
                 row("Use \(parent.entry.name)", isSelected: selection == parent.id) { onPick(parent.id) }
-            } else {
+            } else if allowsNone {
                 row("No subject", isSelected: selection == nil) { onPick(nil) }
             }
 
@@ -112,6 +113,7 @@ struct SubjectTreePickerLevel: View {
                             parent: node,
                             nodes: node.children,
                             selection: selection,
+                            allowsNone: allowsNone,
                             onPick: onPick
                         )
                     } label: {

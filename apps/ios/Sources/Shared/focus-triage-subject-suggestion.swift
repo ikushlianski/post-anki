@@ -5,7 +5,8 @@ struct FocusTriageSubjectSuggestion: View {
     let bit: PendingReviewBit
     let source: PendingReviewSource?
 
-    @State private var subjects: [Subject] = []
+    @State private var changeModel: FocusTriageSubjectChangeModel?
+    @State private var isPickerPresented = false
     @State private var movedTo: String?
     @State private var isMoving = false
     @State private var failed = false
@@ -14,9 +15,7 @@ struct FocusTriageSubjectSuggestion: View {
 
     var body: some View {
         if let movedTo {
-            Label("Moved to \(movedTo)", systemImage: "checkmark.circle")
-                .zoomFont(.caption)
-                .foregroundStyle(.secondary)
+            row(label: "Subject: \(movedTo)", primary: nil, menuTitle: "Change", excluding: nil)
         } else if confirmed {
             Label("Subject confirmed", systemImage: "checkmark.circle")
                 .zoomFont(.caption)
@@ -44,13 +43,13 @@ struct FocusTriageSubjectSuggestion: View {
                     .controlSize(.mini)
             }
 
-            Menu(menuTitle) {
-                ForEach(subjects.filter { $0.id != excluding }) { subject in
-                    Button(subject.name) { move(to: subject.id, name: subject.name) }
-                }
+            Button(menuTitle) {
+                changeModel = changeModel ?? FocusTriageSubjectChangeModel(bitId: bit.id)
+                isPickerPresented = true
             }
+            .buttonStyle(.bordered)
             .controlSize(.mini)
-            .disabled(subjects.isEmpty)
+            .accessibilityIdentifier("triage-change-subject")
 
             if failed {
                 Text("Couldn't save")
@@ -59,13 +58,14 @@ struct FocusTriageSubjectSuggestion: View {
             }
         }
         .disabled(isMoving)
-        .task { await loadSubjects() }
-    }
-
-    private func loadSubjects() async {
-        guard subjects.isEmpty else { return }
-
-        subjects = (try? await APIClient.listSubjects()) ?? []
+        .sheet(isPresented: $isPickerPresented) {
+            if let changeModel {
+                FocusTriageSubjectSheet(model: changeModel, currentId: excluding) { label in
+                    movedTo = label
+                    failed = false
+                }
+            }
+        }
     }
 
     private func move(to subjectId: String, name: String) {
@@ -74,8 +74,13 @@ struct FocusTriageSubjectSuggestion: View {
 
         Task {
             do {
-                _ = try await APIClient.moveKnowledgeBits(ids: [bit.id], subjectId: subjectId)
-                movedTo = name
+                let result = try await APIClient.moveKnowledgeBits(ids: [bit.id], subjectId: subjectId)
+
+                if result.moved.contains(bit.id) {
+                    movedTo = name
+                } else {
+                    failed = true
+                }
             } catch {
                 failed = true
             }
