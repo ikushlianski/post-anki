@@ -27,6 +27,7 @@ final class IngestionDictationScreenModel {
     private let summaryMaxPolls = 40
 
     let subjectPicker: AddKnowledgeSubjectPickerModel
+    let fileImport = TextFileImportModel()
     var isPhrasesExpanded = false
     var canAddAnyway = false
     var targetPhrases: [String] = [""]
@@ -127,6 +128,7 @@ final class IngestionDictationScreenModel {
     }
 
     func stopWatching() {
+        fileImport.stopWatching()
         summaryTask?.cancel()
         summaryTask = nil
         trackedSourceId = nil

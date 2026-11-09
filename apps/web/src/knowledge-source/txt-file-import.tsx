@@ -15,7 +15,7 @@ export function TxtFileImport({ subjectId }: { subjectId: string }) {
   const [message, setMessage] = useState<string | null>(null)
   const [importId, setImportId] = useState<string | null>(null)
   const [status, setStatus] = useState<TxtImportStatus | null>(null)
-  const finished = status !== null && status.staged === 0 && status.imported > 0 && status.extracted >= status.imported
+  const finished = status !== null && status.staged === 0 && status.imported > 0 && status.finished >= status.imported
 
   useEffect(() => {
     if (!importId || finished) return

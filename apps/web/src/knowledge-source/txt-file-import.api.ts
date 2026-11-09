@@ -8,6 +8,7 @@ export interface TxtImportStatus {
   staged: number
   imported: number
   extracted: number
+  finished: number
 }
 
 export type TxtImportResult =

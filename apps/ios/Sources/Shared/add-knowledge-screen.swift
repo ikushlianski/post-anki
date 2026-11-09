@@ -32,6 +32,8 @@ struct IngestionDictationScreen: View {
                     AddKnowledgeSubjectPicker(model: model.subjectPicker)
                 }
 
+                AddKnowledgeFileImport(model: model.fileImport, subjectId: model.effectiveSubjectId)
+
                 if model.showsTargetPhrases {
                     TargetPhrasesSection(phrases: $model.targetPhrases, isExpanded: $model.isPhrasesExpanded)
                 }

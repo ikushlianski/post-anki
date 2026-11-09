@@ -6,6 +6,16 @@ import { countImportNotesByStatus, type ImportStatusCounts } from "../anki-impor
 export interface TxtImportStatus extends ImportStatusCounts {
   importId: string;
   extracted: number;
+  finished: number;
+}
+
+const TERMINAL_SOURCE_STATUSES = ["bits_detected", "failed", "discarded"];
+
+export function summarizeSourceStatuses(rows: { status: string; total: number | string }[]): { extracted: number; finished: number } {
+  const sum = (statuses: string[]) =>
+    rows.filter((row) => statuses.includes(row.status)).reduce((total, row) => total + Number(row.total), 0);
+
+  return { extracted: sum(["bits_detected"]), finished: sum(TERMINAL_SOURCE_STATUSES) };
 }
 
 export async function getTxtImportStatus(importId: string, db: DbExecutor = getDb()): Promise<TxtImportStatus> {
@@ -16,7 +26,6 @@ export async function getTxtImportStatus(importId: string, db: DbExecutor = getD
     .innerJoin(knowledgeSources, eq(knowledgeSources.id, ankiImportNotes.sourceId))
     .where(eq(ankiImportNotes.importId, importId))
     .groupBy(knowledgeSources.status);
-  const extracted = rows.filter((row) => row.status === "bits_detected").reduce((sum, row) => sum + Number(row.total), 0);
 
-  return { importId, ...counts, extracted };
+  return { importId, ...counts, ...summarizeSourceStatuses(rows) };
 }

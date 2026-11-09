@@ -22,13 +22,24 @@ afterEach(() => {
 describe('TxtFileImport', () => {
   it('should upload an Anki export and show how far the import has got', async () => {
     mockedUpload.mockResolvedValue({ kind: 'anki', importId: 'txt-abc', parsed: 3, skippedEmpty: 0, newlyStaged: 3 })
-    mockedStatus.mockResolvedValue({ importId: 'txt-abc', staged: 1, imported: 2, extracted: 0 })
+    mockedStatus.mockResolvedValue({ importId: 'txt-abc', staged: 1, imported: 2, extracted: 0, finished: 0 })
     render(<TxtFileImport subjectId="sub_1" />)
 
     pick(new File(['#separator:tab\n'], 'Business.txt', { type: 'text/plain' }))
 
     await waitFor(() => expect(screen.getByTestId('txt-import-status').textContent).toContain('2 imported'))
     expect(mockedUpload).toHaveBeenCalledWith({ data: { text: '#separator:tab\n', subjectId: 'sub_1' } })
+  })
+
+  it('should stop polling once failed and discarded sources are finished too', async () => {
+    mockedUpload.mockResolvedValue({ kind: 'anki', importId: 'txt-abc', parsed: 3, skippedEmpty: 0, newlyStaged: 3 })
+    mockedStatus.mockResolvedValue({ importId: 'txt-abc', staged: 0, imported: 3, extracted: 1, finished: 3 })
+    render(<TxtFileImport subjectId="sub_1" />)
+
+    pick(new File(['#separator:tab\n'], 'Business.txt', { type: 'text/plain' }))
+
+    await waitFor(() => expect(screen.getByTestId('txt-import-status').textContent).toContain('done'))
+    expect(mockedStatus).toHaveBeenCalledTimes(1)
   })
 
   it('should refuse a non-text file without calling the server', async () => {
