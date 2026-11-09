@@ -159,10 +159,11 @@ playwright stacks do this; they have no Inngest). Tests use fakes and
 
 Install once: `npm i -g inngest-cli` (the binary is `inngest-cli`; `inngest` also works). Sign in with
 `inngest-cli login` (browser approval; add `--no-browser` to print the URL), then check with
-`inngest-cli auth status`. There is no list-recent-runs command; use the Cloud dashboard
-(Runs / Traces) for that, or look runs up by id.
+`inngest-cli auth status`. List recent runs with `get-function-runs` (filter with
+`--function-id`, `--from`), or look runs up by id.
 
 ```
+inngest-cli api --prod --env production get-function-runs
 inngest-cli api --prod --env production get-event-runs <sourceId>:<run>
 inngest-cli api --prod --env production get-function-run <runId>
 inngest-cli api --prod --env production get-function-trace <runId> --include output
