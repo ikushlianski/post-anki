@@ -76,12 +76,16 @@ describe("regeneration and the durable extraction flag", () => {
     await handleRegenerateKnowledgeSource(fakeReq({ modelId: "openrouter/openai/gpt-oss-120b" }), fakeRes(), "ks_1");
     await flush();
 
-    expect(mockStart).toHaveBeenCalledWith(["ks_1"], { regeneration: true });
+    expect(mockStart).toHaveBeenCalledWith(["ks_1"], {
+      regeneration: true,
+      extras: { modelId: "openrouter/openai/gpt-oss-120b" },
+    });
     expect(mockGenerate).not.toHaveBeenCalled();
   });
 
-  it("should generate in process with the force flag and skip the workflow even when the flag is on", async () => {
+  it("should extract a force-at-least-one regeneration through Inngest in prod", async () => {
     mockEnabled.mockReturnValue(true);
+    mockStart.mockResolvedValue({ started: ["ks_1:2"], deferredIds: [], unknownIds: [] });
 
     const res = fakeRes();
 
@@ -89,27 +93,39 @@ describe("regeneration and the durable extraction flag", () => {
     await flush();
 
     expect(res.status).toBe(202);
-    expect(mockStart).not.toHaveBeenCalled();
-    expect(mockGenerate).toHaveBeenCalledWith(SOURCE, { modelId: undefined, forceAtLeastOne: true });
+    expect(mockStart).toHaveBeenCalledWith(["ks_1"], { regeneration: true, extras: { forceAtLeastOne: true } });
+    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
-  it("should fall back to in-process generation when the workflow could not start", async () => {
+  it("should answer 202 and leave the source pending when the send fails", async () => {
     mockEnabled.mockReturnValue(true);
-    mockStart.mockResolvedValue({ started: [], deferredIds: ["ks_1"] });
+    mockStart.mockResolvedValue({ started: [], deferredIds: ["ks_1"], unknownIds: [] });
 
-    await handleRegenerateKnowledgeSource(fakeReq({ modelId: "openrouter/openai/gpt-oss-120b" }), fakeRes(), "ks_1");
-    await flush();
+    const deferred = fakeRes();
 
-    expect(mockGenerate).toHaveBeenCalledTimes(1);
-  });
+    await handleRegenerateKnowledgeSource(fakeReq({}), deferred, "ks_1");
 
-  it("should fall back to in-process generation when starting throws", async () => {
-    mockEnabled.mockReturnValue(true);
     mockStart.mockRejectedValue(new Error("engine down"));
 
-    await handleRegenerateKnowledgeSource(fakeReq({ modelId: "openrouter/openai/gpt-oss-120b" }), fakeRes(), "ks_1");
+    const thrown = fakeRes();
+
+    await handleRegenerateKnowledgeSource(fakeReq({}), thrown, "ks_1");
     await flush();
 
-    expect(mockGenerate).toHaveBeenCalledTimes(1);
+    expect(deferred.status).toBe(202);
+    expect(thrown.status).toBe(202);
+    expect(mockGenerate).not.toHaveBeenCalled();
+  });
+
+  it("should still answer 409 for a second regeneration while one runs", async () => {
+    mockEnabled.mockReturnValue(true);
+    mockClaim.mockResolvedValue({ ok: false, error: "already_running" });
+
+    const res = fakeRes();
+
+    await handleRegenerateKnowledgeSource(fakeReq({}), res, "ks_1");
+
+    expect(res.status).toBe(409);
+    expect(mockStart).not.toHaveBeenCalled();
   });
 });

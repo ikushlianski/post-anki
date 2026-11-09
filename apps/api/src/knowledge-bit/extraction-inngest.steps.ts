@@ -6,6 +6,7 @@ import {
 } from "./detect-knowledge-bits.orchestrator.js";
 import {
   chunkStep,
+  type ChunkExtras,
   markDetectedFor,
   type DurableOutcome,
   type DurableSourceSnapshot,
@@ -29,8 +30,9 @@ export async function chunkInsertStep(
   firstOrdinal: number,
   acceptedSoFar: number,
   deps: DurableStepDeps,
+  extras?: ChunkExtras,
 ): Promise<ChunkCounts> {
-  const { valid, flagged: rejected, deliberateEmpty, gapText } = await chunkStep(snapshot, index, deps);
+  const { valid, flagged: rejected, deliberateEmpty, gapText } = await chunkStep(snapshot, index, deps, extras);
   const gap = gapText ? { gapText } : {};
 
   if (deliberateEmpty) {

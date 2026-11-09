@@ -38,36 +38,37 @@ export async function handleRegenerateKnowledgeSource(
     return;
   }
 
+  const forceAtLeastOne = body.data.forceAtLeastOne === true;
+  const durable = isDurableExtractionEnabled();
+  const modelId = body.data.modelId;
   const generateInProcess = () =>
     generateItemsForSource(claim.source, {
-      modelId: body.data.modelId,
+      modelId,
       ...(forceAtLeastOne ? { forceAtLeastOne } : {}),
     }).catch((err) =>
       log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
     );
-  const forceAtLeastOne = body.data.forceAtLeastOne === true;
-  const durable = isDurableExtractionEnabled();
 
   await dispatchBackground({
     durable,
     start: async () => {
-      if (!durable || forceAtLeastOne) {
+      if (!durable) {
         await generateInProcess();
 
         return;
       }
 
       try {
-        const result = await startDurableExtraction([id], { regeneration: true });
-
-        if (result.deferredIds.length === 0) {
-          return;
-        }
+        await startDurableExtraction([id], {
+          regeneration: true,
+          extras: {
+            ...(forceAtLeastOne ? { forceAtLeastOne } : {}),
+            ...(modelId ? { modelId } : {}),
+          },
+        });
       } catch (err) {
         log.error({ err, knowledgeSourceId: id }, "durable_extraction_start_failed");
       }
-
-      await generateInProcess();
     },
     onError: (err) => log.error({ err, knowledgeSourceId: id }, "knowledge_source_regeneration_failed"),
   });

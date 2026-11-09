@@ -29,6 +29,7 @@ import {
   EXTRACTION_START_TIMEOUT,
   EXTRACTION_THROTTLE,
 } from "./extraction-inngest.limits.js";
+import { pipelineKickRequestedEvent } from "./pipeline-kick-inngest.events.js";
 import { chunkInsertStep, finishCountsStep } from "./extraction-inngest.steps.js";
 
 const FUNCTION_CANCELLED_EVENT = "inngest/function.cancelled";
@@ -77,7 +78,11 @@ export const extractionInngestFunction = inngest.createFunction(
     },
   },
   async ({ event, step, runId }) => {
-    const { sourceId, run, regeneration } = event.data;
+    const { sourceId, run, regeneration, forceAtLeastOne, modelId } = event.data;
+    const extras = {
+      ...(forceAtLeastOne ? { forceAtLeastOne } : {}),
+      ...(modelId ? { modelId } : {}),
+    };
     const workflowId = `${sourceId}:${run}`;
     const deps = stepDeps(runId);
     let snapshot: DurableSourceSnapshot | null = null;
@@ -109,7 +114,7 @@ export const extractionInngestFunction = inngest.createFunction(
         try {
           const counts = await step.run(`chunk-${index}`, async () => {
             try {
-              return await chunkInsertStep(claimed, index, plan.firstOrdinal, accepted, deps);
+              return await chunkInsertStep(claimed, index, plan.firstOrdinal, accepted, deps, extras);
             } catch (err) {
               throw toChunkError(err);
             }
@@ -126,7 +131,7 @@ export const extractionInngestFunction = inngest.createFunction(
         }
       }
 
-      return await step.run("finish", () =>
+      const outcome = await step.run("finish", () =>
         finishCountsStep(
           claimed,
           inserted,
@@ -137,6 +142,12 @@ export const extractionInngestFunction = inngest.createFunction(
           gapText,
         ),
       );
+
+      if (outcome.status === "detected" && outcome.inserted > 0) {
+        await step.sendEvent("kick", pipelineKickRequestedEvent.create({ requestedAt: Date.now() }));
+      }
+
+      return outcome;
     } catch (err) {
       const reason = safeFailureReason(err);
 

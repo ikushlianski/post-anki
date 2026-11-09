@@ -106,8 +106,17 @@ export async function planStep(snapshot: DurableSourceSnapshot, deps: DurableSte
   };
 }
 
-async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableStepDeps): Promise<WriteOptions> {
-  const modelId = chooseModelId(snapshot.extractionModelId, snapshot.id);
+export interface ChunkExtras {
+  forceAtLeastOne?: boolean;
+  modelId?: string;
+}
+
+async function writeOptionsFor(
+  snapshot: DurableSourceSnapshot,
+  deps: DurableStepDeps,
+  extras: ChunkExtras = {},
+): Promise<WriteOptions> {
+  const modelId = chooseModelId(extras.modelId ?? snapshot.extractionModelId, snapshot.id);
   const feedbackBlock = await loadFeedbackBlockSafely(asPending(snapshot), deps);
   const styleNotesBlock = await loadStyleNotesBlockSafely(asPending(snapshot), deps);
 
@@ -136,6 +145,7 @@ async function writeOptionsFor(snapshot: DurableSourceSnapshot, deps: DurableSte
     ...(detailLevel ? { detailLevel } : {}),
     ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),
     ...(modelId ? { modelId } : {}),
+    ...(extras.forceAtLeastOne ? { forceAtLeastOne: true } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
     abortSignal: AbortSignal.timeout(DURABLE_CHUNK_DEADLINE_MS),
@@ -146,6 +156,7 @@ export async function chunkStep(
   snapshot: DurableSourceSnapshot,
   index: number,
   deps: DurableStepDeps,
+  extras?: ChunkExtras,
 ): Promise<ChunkCards> {
   const rawText = await deps.loadRawText(snapshot.id);
   const highlights = await deps.loadHighlights?.(snapshot.id);
@@ -164,7 +175,7 @@ export async function chunkStep(
     throw new Error("source_chunk_missing");
   }
 
-  const options = await writeOptionsFor(snapshot, deps);
+  const options = await writeOptionsFor(snapshot, deps, extras);
   const cards = await writeAndValidate(
     entry.chunk,
     entry.focus.length > 0 ? { ...options, focus: entry.focus } : options,

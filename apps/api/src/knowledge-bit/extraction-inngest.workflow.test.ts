@@ -99,10 +99,69 @@ describe("extractionInngestFunction", () => {
         { id: "plan", handler: () => ({ status: "ready", chunkCount: 1, firstOrdinal: 0 }) },
         { id: "chunk-0", handler: () => ({ accepted: 2, inserted: 2 }) },
         { id: "finish", handler: () => detectedOutcome },
+        { id: "kick", handler: () => undefined },
       ],
     });
 
     expect(result).toEqual(detectedOutcome);
+  });
+});
+
+describe("extractionInngestFunction follow-up passes", () => {
+  const runWith = async (outcome: unknown, data: Record<string, unknown> = {}) => {
+    const kick = vi.fn().mockReturnValue(undefined);
+    const t = new InngestTestEngine({ function: extractionInngestFunction });
+
+    await t.execute({
+      events: [{ name: EXTRACTION_EVENT_NAME, data: { sourceId: "ks_1", run: 1, regeneration: false, ...data } }],
+      steps: [
+        { id: "claim", handler: () => SNAPSHOT },
+        { id: "plan", handler: () => ({ status: "ready", chunkCount: 1, firstOrdinal: 0 }) },
+        { id: "chunk-0", handler: () => ({ accepted: 2, inserted: 2 }) },
+        { id: "finish", handler: () => outcome },
+        { id: "kick", handler: kick },
+      ],
+    });
+
+    return kick;
+  };
+
+  it("should queue the follow-up passes once after items were stored", async () => {
+    const kick = await runWith({ status: "detected", inserted: 2, failureReason: null });
+
+    expect(kick).toHaveBeenCalledTimes(1);
+  });
+
+  it("should not queue them when nothing was extracted", async () => {
+    const empty = await runWith({ status: "detected", inserted: 0, failureReason: null });
+    const failed = await runWith({ status: "failed", inserted: 0, failureReason: "x" });
+
+    expect(empty).not.toHaveBeenCalled();
+    expect(failed).not.toHaveBeenCalled();
+  });
+
+  it("should force at least one item when the regeneration asked for it", async () => {
+    const { chunkStep } = await import("./durable-extraction.steps.js");
+
+    vi.mocked(chunkStep).mockResolvedValueOnce({ valid: [], flagged: [], deliberateEmpty: true });
+
+    const t = new InngestTestEngine({ function: extractionInngestFunction });
+
+    await t.execute({
+      events: [
+        {
+          name: EXTRACTION_EVENT_NAME,
+          data: { sourceId: "ks_1", run: 1, regeneration: true, forceAtLeastOne: true, modelId: "m1" },
+        },
+      ],
+      steps: [
+        { id: "claim", handler: () => SNAPSHOT },
+        { id: "plan", handler: () => ({ status: "ready", chunkCount: 1, firstOrdinal: 0 }) },
+        { id: "finish", handler: () => ({ status: "detected", inserted: 0, failureReason: null }) },
+      ],
+    });
+
+    expect(chunkStep).toHaveBeenCalledWith(SNAPSHOT, 0, expect.anything(), { forceAtLeastOne: true, modelId: "m1" });
   });
 });
 
