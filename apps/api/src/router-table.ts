@@ -50,6 +50,7 @@ export const ROUTES: RouteDef[] = [
     name: "getKnowledgeSourceRegeneration",
     param: "id",
   },
+  { method: "POST", pattern: "/knowledge-pipeline-sweeps", name: "sweepKnowledgePipeline" },
   {
     method: "POST",
     pattern: "/knowledge-bits/embedding-scan",

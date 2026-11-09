@@ -44,6 +44,7 @@ import {
   handleTriggerKnowledgeBitBasicCardGenerationScan,
   handleTriggerKnowledgeBitQuestionVariantEmbeddingScan,
 } from "./knowledge-bit/detect-knowledge-bits.controller.js";
+import { handleSweepKnowledgePipeline } from "./knowledge-bit/pipeline-sweep.controller.js";
 import { handleGetReviewStatistics } from "./review-statistics/review-statistics.controller.js";
 import { handleGetWeeklyDigestCard } from "./weekly-digest-card/weekly-digest-card.controller.js";
 import { handleGetNothingExtractedStatistics } from "./nothing-extracted-statistics/nothing-extracted-statistics.controller.js";
@@ -753,6 +754,8 @@ async function route(
       return handleCreateKnowledgeSourceSubjectCheck(req, res);
     case "detectKnowledgeBits":
       return handleDetectKnowledgeBits(res);
+    case "sweepKnowledgePipeline":
+      return handleSweepKnowledgePipeline(res);
     case "triggerKnowledgeBitEmbeddingScan":
       return handleTriggerKnowledgeBitEmbeddingScan(res);
     case "triggerKnowledgeBitTaggingScan":

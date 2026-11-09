@@ -28,6 +28,7 @@ export type RouteName =
   | "regenerateKnowledgeSource"
   | "discardKnowledgeSource"
   | "getKnowledgeSourceRegeneration"
+  | "sweepKnowledgePipeline"
   | "triggerKnowledgeBitEmbeddingScan"
   | "triggerKnowledgeBitTaggingScan"
   | "triggerKnowledgeBitQuestionGenerationScan"

@@ -194,6 +194,11 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/knowledge-bits/kb_1/derived-items")).toBeNull();
     });
 
+    it("resolves POST /knowledge-pipeline-sweeps to the sweep handler and rejects other methods", () => {
+      expect(resolveRoute("POST", "/knowledge-pipeline-sweeps")?.name).toBe("sweepKnowledgePipeline");
+      expect(resolveRoute("GET", "/knowledge-pipeline-sweeps")).toBeNull();
+    });
+
     it("resolves POST /knowledge-bits/basic-card-generation-scan to the basic card scan", () => {
       expect(resolveRoute("POST", "/knowledge-bits/basic-card-generation-scan")?.name).toBe(
         "triggerKnowledgeBitBasicCardGenerationScan",
