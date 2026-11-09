@@ -1,10 +1,10 @@
 import { log } from "../shared/log.js";
 import { createInngestClient } from "../shared/inngest-client.js";
-import { KNOWLEDGE_BIT_PIPELINE_PASSES } from "./knowledge-bit-pipeline-kick.orchestrator.js";
+import { DURABLE_PIPELINE_PASSES } from "./knowledge-bit-pipeline-kick.orchestrator.js";
 import { pipelineKickRequestedEvent } from "./pipeline-kick-inngest.events.js";
 
 export const PIPELINE_KICK_RETRIES = 1;
-export const PIPELINE_KICK_DEBOUNCE = { period: "5s", timeout: "30s" } as const;
+export const PIPELINE_KICK_DEBOUNCE = { period: "30s", timeout: "2m" } as const;
 export const PIPELINE_KICK_START_TIMEOUT = "30m";
 export const PIPELINE_KICK_FINISH_TIMEOUT = "30m";
 
@@ -39,7 +39,7 @@ export const pipelineKickInngestFunction = inngest.createFunction(
   async ({ step }) => {
     const results: Record<string, "done" | "failed"> = {};
 
-    for (const pass of KNOWLEDGE_BIT_PIPELINE_PASSES) {
+    for (const pass of DURABLE_PIPELINE_PASSES) {
       results[pass.name] = await step.run(`pass-${pass.name}`, async () => {
         try {
           await pass.run();

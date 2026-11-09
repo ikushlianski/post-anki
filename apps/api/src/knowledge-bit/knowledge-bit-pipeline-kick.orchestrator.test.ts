@@ -20,8 +20,24 @@ vi.mock("../subject-suggestion/subject-suggestion.orchestrator.js", () => ({
   runSubjectSuggestionScan: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock("./knowledge-bit-basic-card-generation.orchestrator.js", () => ({
+  generateKnowledgeBitBasicCards: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("./knowledge-bit-embedding.orchestrator.js", () => ({
+  embedKnowledgeBits: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("./knowledge-bit-question-variant-embedding.orchestrator.js", () => ({
+  embedKnowledgeBitQuestionVariants: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("./knowledge-bit-tagging.orchestrator.js", () => ({
+  tagKnowledgeBits: vi.fn().mockResolvedValue({}),
+}));
+
 import { runSubjectSuggestionScan } from "../subject-suggestion/subject-suggestion.orchestrator.js";
-import { createKnowledgeBitPipelineKick, KNOWLEDGE_BIT_PIPELINE_PASSES } from "./knowledge-bit-pipeline-kick.orchestrator.js";
+import { createKnowledgeBitPipelineKick, DURABLE_PIPELINE_PASSES, KNOWLEDGE_BIT_PIPELINE_PASSES } from "./knowledge-bit-pipeline-kick.orchestrator.js";
 
 function makePass(name: string, impl?: () => Promise<unknown>) {
   return { name, run: impl ?? vi.fn().mockResolvedValue({ processed: 1 }) };
@@ -187,5 +203,27 @@ describe("KNOWLEDGE_BIT_PIPELINE_PASSES", () => {
 
     expect(last?.name).toBe("subject_suggestions");
     expect(runSubjectSuggestionScan).toHaveBeenCalledWith({ ignoreDailyCap: false });
+  });
+});
+
+describe("DURABLE_PIPELINE_PASSES", () => {
+  it("should not extract sources inside the follow-up job", () => {
+    const names = DURABLE_PIPELINE_PASSES.map((pass) => pass.name);
+
+    expect(names).not.toContain("detect");
+    expect(names).toEqual(expect.arrayContaining(["embed", "tag", "basic_card", "variant_embed"]));
+    expect(KNOWLEDGE_BIT_PIPELINE_PASSES.map((pass) => pass.name)).toContain("detect");
+  });
+
+  it("should still run the later passes when one pass fails", async () => {
+    const later = vi.fn().mockResolvedValue({});
+    const kick = createKnowledgeBitPipelineKick([
+      { name: "a", run: async () => { throw new Error("boom"); } },
+      { name: "b", run: later },
+    ]);
+
+    await kick();
+
+    expect(later).toHaveBeenCalledTimes(1);
   });
 });

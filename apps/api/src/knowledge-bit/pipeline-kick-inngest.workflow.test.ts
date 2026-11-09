@@ -10,8 +10,8 @@ const whQuestion = vi.fn();
 const fillBlank = vi.fn();
 
 vi.mock("./knowledge-bit-pipeline-kick.orchestrator.js", () => ({
-  KNOWLEDGE_BIT_PIPELINE_PASSES: [
-    { name: "detect", run: () => detect() },
+  DURABLE_PIPELINE_PASSES: [
+    { name: "embed", run: () => detect() },
     { name: "wh_question", run: () => whQuestion() },
     { name: "fill_blank", run: () => fillBlank() },
   ],
@@ -35,12 +35,12 @@ describe("pipelineKickInngestFunction", () => {
     fillBlank.mockReset().mockResolvedValue(undefined);
   });
 
-  it("should run detect, question and fill-blank passes in order as separate steps", async () => {
+  it("should run one step per durable pass in order", async () => {
     const t = new InngestTestEngine({ function: pipelineKickInngestFunction });
 
     const { result } = await t.execute({ events: [EVENT] });
 
-    expect(result).toEqual({ detect: "done", wh_question: "done", fill_blank: "done" });
+    expect(result).toEqual({ embed: "done", wh_question: "done", fill_blank: "done" });
     expect(detect).toHaveBeenCalledTimes(1);
     expect(whQuestion).toHaveBeenCalledTimes(1);
     expect(fillBlank).toHaveBeenCalledTimes(1);
@@ -52,7 +52,7 @@ describe("pipelineKickInngestFunction", () => {
 
     const { result } = await t.execute({ events: [EVENT] });
 
-    expect(result).toEqual({ detect: "done", wh_question: "failed", fill_blank: "done" });
+    expect(result).toEqual({ embed: "done", wh_question: "failed", fill_blank: "done" });
     expect(fillBlank).toHaveBeenCalledTimes(1);
   });
 
@@ -101,7 +101,7 @@ describe("pipelineKickInngestFunction", () => {
 });
 
 describe("pipelineKickFollowUpFunction", () => {
-  it("should send one follow-up kick when the engine cancels a timed-out kick run", async () => {
+  it("should run a follow-up kick after a cancelled run", async () => {
     const sendEvent = vi.fn().mockResolvedValue(undefined);
     const t = new InngestTestEngine({
       function: pipelineKickFollowUpFunction,

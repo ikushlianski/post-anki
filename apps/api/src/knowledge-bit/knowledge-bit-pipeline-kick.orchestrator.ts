@@ -2,6 +2,10 @@ import { log } from "../shared/log.js";
 import { detectKnowledgeBits } from "./detect-knowledge-bits.orchestrator.js";
 import { generateKnowledgeBitQuestions } from "./knowledge-bit-question-generation.orchestrator.js";
 import { generateKnowledgeBitFillBlanks } from "./knowledge-bit-fill-blank-generation.orchestrator.js";
+import { generateKnowledgeBitBasicCards } from "./knowledge-bit-basic-card-generation.orchestrator.js";
+import { embedKnowledgeBits } from "./knowledge-bit-embedding.orchestrator.js";
+import { embedKnowledgeBitQuestionVariants } from "./knowledge-bit-question-variant-embedding.orchestrator.js";
+import { tagKnowledgeBits } from "./knowledge-bit-tagging.orchestrator.js";
 import { runCardDedupScan } from "../card-dedup/card-dedup.orchestrator.js";
 import { runSubjectAssignmentScan } from "../subject-assignment/subject-assignment.orchestrator.js";
 import { runSubjectSuggestionScan } from "../subject-suggestion/subject-suggestion.orchestrator.js";
@@ -15,10 +19,17 @@ export const KNOWLEDGE_BIT_PIPELINE_PASSES: readonly KnowledgeBitPipelinePass[] 
   { name: "detect", run: detectKnowledgeBits },
   { name: "wh_question", run: generateKnowledgeBitQuestions },
   { name: "fill_blank", run: generateKnowledgeBitFillBlanks },
+  { name: "basic_card", run: () => generateKnowledgeBitBasicCards() },
+  { name: "embed", run: embedKnowledgeBits },
+  { name: "variant_embed", run: embedKnowledgeBitQuestionVariants },
+  { name: "tag", run: tagKnowledgeBits },
   { name: "card_dedup", run: runCardDedupScan },
   { name: "subject_assignment", run: runSubjectAssignmentScan },
   { name: "subject_suggestions", run: () => runSubjectSuggestionScan({ ignoreDailyCap: false }) },
 ];
+
+export const DURABLE_PIPELINE_PASSES: readonly KnowledgeBitPipelinePass[] =
+  KNOWLEDGE_BIT_PIPELINE_PASSES.filter((pass) => pass.name !== "detect");
 
 export function createKnowledgeBitPipelineKick(
   passes: readonly KnowledgeBitPipelinePass[],
