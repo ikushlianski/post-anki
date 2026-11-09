@@ -8,6 +8,7 @@ import { formatTranscript, MIN_MATCH_SIMILARITY } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
+import { escapePromptTags } from "../shared/untrusted-prompt-text.js";
 import { log } from "../shared/log.js";
 import { findTopMatchingCards } from "../cards/cards-retrieval.orchestrator.js";
 
@@ -29,10 +30,12 @@ function cardsBlock(cards: CardMatchResult[], lookupFailed: boolean): string {
   }
 
   const lines = cards.map((c) =>
-    c.kind === "fact" ? `- Fact: ${c.prompt}` : `- Q: ${c.prompt}\n  A: ${c.answer}`,
+    c.kind === "fact"
+      ? `- Fact: ${escapePromptTags(c.prompt)}`
+      : `- Q: ${escapePromptTags(c.prompt)}\n  A: ${escapePromptTags(c.answer)}`,
   );
 
-  return ["Cards and facts from the learner's own notes:", ...lines].join("\n");
+  return ["Cards and facts from the learner's own notes:", "<cards>", ...lines, "</cards>"].join("\n");
 }
 
 function buildPrompt(input: AskGlobalCardChatInput, cards: CardMatchResult[], lookupFailed: boolean): string {

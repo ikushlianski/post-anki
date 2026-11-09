@@ -27,7 +27,10 @@ final class TextFileImportModel {
         let data: Data
 
         do {
-            data = try Data(contentsOf: url)
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+
+            data = try handle.read(upToCount: TextFileImportRules.maxBytes + 1) ?? Data()
         } catch {
             errorMessage = "That file could not be read."
 

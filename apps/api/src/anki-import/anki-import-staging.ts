@@ -6,6 +6,7 @@ export interface ParsedNoteLike {
   hash: string;
   deck: string | null;
   rawText: string;
+  oversized?: true;
 }
 
 export interface StagedNoteRow {
@@ -38,6 +39,12 @@ export function buildStagedNotes(notes: readonly ParsedNoteLike[]): StagingOutco
   const invalid: string[] = [];
 
   notes.forEach((note, position) => {
+    if (note.oversized) {
+      invalid.push(note.hash);
+
+      return;
+    }
+
     if (note.rawText.trim() === "") {
       skippedEmptyHashes.push(note.hash);
 

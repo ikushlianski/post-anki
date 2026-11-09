@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { htmlToClozeText, htmlToText } from "./anki-html-text.js";
+import { htmlToClozeText, htmlToText, MAX_RAW_FIELD_CHARS, unwrapClozeGaps } from "./anki-html-text.js";
 import { readAnkiRecords } from "./anki-record-reader.js";
 
 export type ParsedNote = {
@@ -10,6 +10,7 @@ export type ParsedNote = {
   rawText: string;
   isCloze: boolean;
   source: string;
+  oversized?: true;
 };
 
 export type ParsedExport = {
@@ -17,13 +18,36 @@ export type ParsedExport = {
   notes: ParsedNote[];
 };
 
-const LABEL_DECK = /class="subdeck-label"[^>]*>\s*(?:[^<:]+::)?([^<]+?)\s*</;
+const LABEL_MARKER = 'class="subdeck-label"';
 const CLOZE_MARKUP = /\{\{c\d+::/;
-const CLOZE_GAP = /\{\{c\d+::([\s\S]*?)(?:::[\s\S]*?)?\}\}/g;
 const HIDDEN_DECK = /display:\s*none"?>\s*<div>([^<]+)<\/div>/;
 
+function readLabelDeck(field: string): string | null {
+  let from = 0;
+
+  for (;;) {
+    const marker = field.indexOf(LABEL_MARKER, from);
+
+    if (marker === -1) return null;
+
+    const tagEnd = field.indexOf(">", marker);
+
+    if (tagEnd === -1) return null;
+
+    const textEnd = field.indexOf("<", tagEnd);
+    const inner = field.slice(tagEnd + 1, textEnd === -1 ? field.length : textEnd).trim();
+    const separator = inner.indexOf("::");
+    const hasPath = separator > 0 && !inner.slice(0, separator).includes(":");
+    const name = (hasPath ? inner.slice(separator + 2) : inner).trim();
+
+    if (name) return name;
+
+    from = tagEnd;
+  }
+}
+
 function extractDeck(field: string): string | null {
-  const label = LABEL_DECK.exec(field)?.[1];
+  const label = readLabelDeck(field);
 
   if (label) return label;
 
@@ -53,6 +77,11 @@ function hashFields(field1: string, field2: string): string {
 
 function buildNote(source: string, field1: string, field2: string): ParsedNote {
   const hash = hashFields(field1, field2);
+
+  if (field1.length > MAX_RAW_FIELD_CHARS || field2.length > MAX_RAW_FIELD_CHARS) {
+    return { hash, deck: null, front: "", back: "", rawText: "", isCloze: false, source, oversized: true };
+  }
+
   const deck = extractDeck(field1) ?? extractDeck(field2);
 
   if (
@@ -63,7 +92,7 @@ function buildNote(source: string, field1: string, field2: string): ParsedNote {
   }
 
   const isCloze = field1.includes("data-cloze") || CLOZE_MARKUP.test(field1);
-  const front = isCloze ? htmlToText(field1).replace(CLOZE_GAP, "$1") : htmlToText(field1);
+  const front = isCloze ? unwrapClozeGaps(htmlToText(field1)) : htmlToText(field1);
   const rawBack = htmlToText(field2);
   const back = isCloze ? reconcileClozeBack(front, rawBack) : rawBack;
   const lead = isCloze ? htmlToClozeText(field1) : front;

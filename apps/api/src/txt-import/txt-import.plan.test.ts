@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MAX_TXT_FILE_CHARS, planTxtImport } from "./txt-import.plan.js";
+import { parseAnkiExport } from "../../../anki-batch-mcp/src/anki-export-parser.js";
+import { MAX_TXT_FILE_CHARS, MAX_TXT_LINE_CHARS, planTxtImport } from "./txt-import.plan.js";
 
 const ankiExport = readFileSync(
   new URL("../../../anki-batch-mcp/src/test-fixtures/small-export.txt", import.meta.url),
@@ -49,5 +50,32 @@ describe("planTxtImport", () => {
     const text = '#separator:tab\n"<div class=""subdeck-label"">Cooking::Pasta</div>\n\nBoil"\t"back"\n';
 
     expect(planTxtImport(text)).toMatchObject({ kind: "refused", reason: "unmapped_deck" });
+  });
+
+  it.each([
+    ["NUL bytes", "notes\u0000more"],
+    ["terminal escape characters", "notes \u001b[31m red"],
+    ["a decoding replacement character from bad UTF-8", "caf\uFFFD notes"],
+    ["a lone surrogate", "notes \ud800 more"],
+    ["one endless line", "a".repeat(MAX_TXT_LINE_CHARS + 1)],
+  ])("should refuse a file with %s as not plain text", (_label, text) => {
+    expect(planTxtImport(text)).toEqual({ kind: "refused", reason: "not_text" });
+  });
+
+  it("should accept tabs, Windows line endings and non-Latin text", () => {
+    expect(planTxtImport("col\tone\r\nПривет 你好\r\n")).toMatchObject({ kind: "single" });
+  });
+
+  it("should keep markup in a plain text file as inert text for the render layer to escape", () => {
+    const plan = planTxtImport("<script>alert(1)</script> note");
+
+    expect(plan).toMatchObject({ kind: "single", text: "<script>alert(1)</script> note" });
+  });
+
+  it("should store an HTML Anki note as plain text with scripts and tags removed", () => {
+    const text = '#separator:tab\n#html:true\n"<script>alert(1)</script><b onclick=x>front</b>"\t"back &lt;i&gt;"\n';
+    const [note] = parseAnkiExport(text).notes;
+
+    expect(note?.rawText).toBe("front\n\nback <i>");
   });
 });

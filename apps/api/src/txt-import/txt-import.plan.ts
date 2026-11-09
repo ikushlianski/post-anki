@@ -4,6 +4,10 @@ import { parseAnkiExport } from "../../../anki-batch-mcp/src/anki-export-parser.
 import { buildStagedNotes, type StagedNoteRow } from "../anki-import/anki-import-staging.js";
 
 export const MAX_TXT_FILE_CHARS = 900_000;
+export const MAX_TXT_LINE_CHARS = 100_000;
+
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+const FORBIDDEN_CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\uFFFE\uFFFF]/;
 
 const ANKI_HEADER = /^#(separator|html|columns|deck|notetype|guid column|tags column|notetype column|deck column)\b/;
 
@@ -41,12 +45,18 @@ export function isAnkiExportText(text: string): boolean {
   return ANKI_HEADER.test(text.replace(/^﻿/, ""));
 }
 
+export function looksLikeText(text: string): boolean {
+  if (LONE_SURROGATE.test(text) || text.includes("\uFFFD") || FORBIDDEN_CONTROL_CHARS.test(text)) return false;
+
+  return text.split(/\r\n|\r|\n/).every((line) => line.length <= MAX_TXT_LINE_CHARS);
+}
+
 export function planTxtImport(rawText: string): TxtImportPlan {
   const text = rawText.replace(/^﻿/, "");
 
-  if (text.includes("\u0000")) return { kind: "refused", reason: "not_text" };
-
   if (text.length > MAX_TXT_FILE_CHARS) return { kind: "refused", reason: "file_too_large" };
+
+  if (!looksLikeText(text)) return { kind: "refused", reason: "not_text" };
 
   if (text.trim() === "") return { kind: "refused", reason: "empty_file" };
 

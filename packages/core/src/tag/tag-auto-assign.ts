@@ -4,6 +4,10 @@ export function isUnderTaxonomyCap(tagCount: number, cap: number = TAG_TAXONOMY_
   return tagCount < cap;
 }
 
+function escapeUntrusted(text: string): string {
+  return text.replace(/</g, "&lt;");
+}
+
 export function buildTagMatchPrompt(
   candidateName: string,
   context: string | undefined,
@@ -11,8 +15,8 @@ export function buildTagMatchPrompt(
   forceMatch: boolean,
 ): string {
   const lines = [
-    `<candidate>${candidateName}</candidate>`,
-    context ? `<context>${context}</context>` : null,
+    `<candidate>${escapeUntrusted(candidateName)}</candidate>`,
+    context ? `<context>${escapeUntrusted(context)}</context>` : null,
     "",
     "Existing tags:",
     existingTagNames.length > 0

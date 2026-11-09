@@ -49,4 +49,12 @@ describe("buildStagedNotes", () => {
 
     expect(buildStagedNotes(notes)).toEqual({ ok: false, error: "too_many_notes", count: MAX_IMPORT_NOTES + 1 });
   });
+
+  it("should refuse a note flagged oversized by the parser even when its text looks fine", () => {
+    expect(buildStagedNotes([{ ...note("aaaaaaaaaaaaaaaa"), oversized: true as const }])).toEqual({
+      ok: false,
+      error: "invalid_notes",
+      hashes: ["aaaaaaaaaaaaaaaa"],
+    });
+  });
 });

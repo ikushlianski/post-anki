@@ -81,3 +81,21 @@ describe("parseAnkiExport", () => {
     expect(rebuilt).toBe(text);
   });
 });
+
+describe("parseAnkiExport on hostile notes", () => {
+  it("should flag a note whose raw field is over the cap without converting it", () => {
+    const start = performance.now();
+    const hostile = parseAnkiExport(`#separator:tab\n"${"{{c1::".repeat(40_000)}"\t"back"\n`);
+
+    expect(hostile.notes[0]).toMatchObject({ oversized: true, rawText: "" });
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it("should parse a note just under the cap with repeated cloze openers quickly", () => {
+    const start = performance.now();
+    const hostile = parseAnkiExport(`#separator:tab\n"${"{{c1::".repeat(16_000)}"\t"back"\n`);
+
+    expect(hostile.notes[0]?.oversized).toBeUndefined();
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+});

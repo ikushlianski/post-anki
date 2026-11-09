@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeEntities, htmlToClozeText, htmlToText } from "./anki-html-text.js";
+import { decodeEntities, htmlToClozeText, htmlToText, unwrapClozeGaps } from "./anki-html-text.js";
 
 describe("htmlToText", () => {
   it("should decode hex, nbsp and angle-bracket entities exactly once", () => {
@@ -61,5 +61,44 @@ describe("htmlToClozeText", () => {
 
   it("should leave text without gaps equal to htmlToText", () => {
     expect(htmlToClozeText("one<br>{{c1::two}}")).toBe("one\n{{c1::two}}");
+  });
+});
+
+describe("decodeEntities safety", () => {
+  it("should drop impossible, control and surrogate code points instead of throwing", () => {
+    expect(decodeEntities("a&#99999999999;b&#0;c&#x1b;d&#xD800;e&#x110000;f")).toBe("abcdef");
+  });
+
+  it("should keep tabs, newlines and ordinary characters", () => {
+    expect(decodeEntities("a&#9;b&#10;c&#233;")).toBe("a\tb\ncé");
+  });
+});
+
+describe("hostile input stays fast", () => {
+  const SIZE = 200_000;
+  const timed = (run: () => unknown) => {
+    const start = performance.now();
+
+    run();
+
+    return performance.now() - start;
+  };
+
+  it.each([
+    ["repeated cloze openers with no closer", "{{c1::".repeat(SIZE / 6)],
+    ["a run of angle brackets", "<".repeat(SIZE)],
+    ["a run of escaped angle brackets", "&lt;".repeat(SIZE / 4)],
+    ["repeated unclosed script tags", "<script>".repeat(SIZE / 8)],
+    ["repeated unclosed cloze spans", '<span data-cloze="a">'.repeat(SIZE / 22)],
+    ["repeated unclosed deck labels", '<div class="subdeck-label">'.repeat(SIZE / 27)],
+    ["repeated image openers", "<img ".repeat(SIZE / 5)],
+  ])("should convert %s in well under half a second", (_label, input) => {
+    expect(timed(() => htmlToText(input))).toBeLessThan(500);
+    expect(timed(() => htmlToClozeText(input))).toBeLessThan(500);
+    expect(timed(() => unwrapClozeGaps(input))).toBeLessThan(500);
+  });
+
+  it("should still unwrap a closed cloze gap and drop its hint", () => {
+    expect(unwrapClozeGaps("a {{c1::b::hint}} c {{c2::d}} {{c3::open")).toBe("a b c d {{c3::open");
   });
 });
