@@ -84,8 +84,6 @@ const envObject = z.object({
   DURABLE_CARDS: z.string().optional(),
   DURABLE_COURSE_JOBS: z.string().optional(),
   DURABLE_BACKGROUND_JOBS: z.string().optional(),
-  DBOS_APPLICATION_VERSION: z.string().optional(),
-  DBOS_EXECUTOR_ID: z.string().optional(),
   DURABLE_EXTRACTION_TIMEOUT_MS: z.string().optional(),
   DURABLE_EXTRACTION_STALE_MS: z.string().optional(),
   INNGEST_DEV: z.string().optional(),
@@ -93,7 +91,6 @@ const envObject = z.object({
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY_FALLBACK: z.string().optional(),
-  DURABLE_EXTRACTION_ENGINE: z.string().optional().default("inngest"),
 });
 
 const envSchema = envObject.superRefine((env, ctx) => {

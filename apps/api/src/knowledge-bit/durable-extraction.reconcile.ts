@@ -6,7 +6,7 @@ import { failProcessingSourcesWithEndedWorkflows } from "./knowledge-bit.repo.js
 // even when no new extraction starts. Never throws: a failing query is logged and retried next call.
 export async function reconcileDurableSources(): Promise<string[]> {
   try {
-    const failed = await failProcessingSourcesWithEndedWorkflows(null);
+    const failed = await failProcessingSourcesWithEndedWorkflows();
 
     if (failed.length > 0) {
       log.warn({ failed }, "durable_extraction_scheduled_reconcile_marked_failed");

@@ -84,17 +84,3 @@ export async function getKnowledgeSourceClaimToken(
 
   return { run: row.updatedAt.getTime(), claimedAt: row.updatedAt };
 }
-
-// Checks whether a durable workflow id is present in the DBOS workflow_status
-// table. Used only with the DBOS engine; the Inngest path uses
-// makeInngestWorkflowExists in the starter instead.
-export async function durableWorkflowExists(
-  workflowId: string,
-  db: DbExecutor = getDb(),
-): Promise<boolean> {
-  const result = await db.execute(
-    sql`SELECT 1 FROM dbos.workflow_status WHERE workflow_uuid = ${workflowId} LIMIT 1`,
-  );
-
-  return result.rows.length > 0;
-}

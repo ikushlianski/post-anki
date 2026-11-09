@@ -1,12 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@dbos-inc/dbos-sdk", () => {
-  throw new Error("DBOS must not be imported while the flag is off");
-});
 vi.mock("../shared/log.js", () => ({ log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock("./knowledge-bit.repo.js", () => ({
   getKnowledgeSourceClaimToken: vi.fn(),
-  durableWorkflowExists: vi.fn(),
   markSourceOwnedByDurable: vi.fn(),
   releaseDurableOwner: vi.fn(),
   failProcessingSourcesWithEndedWorkflows: vi.fn().mockResolvedValue([]),
@@ -20,7 +16,7 @@ vi.mock("../shared/inngest-client.js", () => ({
 
 const { DEFAULT_DURABLE_TIMEOUT_MS, durableTimeoutMs, isDurableExtractionEnabled, startDurableExtraction, withTimeout, loadWorkflow, loadInngestWorkflow } = await import("./durable-extraction.starter.js");
 
-type Workflow = typeof import("./durable-extraction.workflow.js");
+type Workflow = import("./durable-extraction.starter.js").WorkflowAdapter;
 
 function fakeWorkflow(overrides: Partial<Record<"launch" | "start", ReturnType<typeof vi.fn>>> = {}) {
   const launch = overrides.launch ?? vi.fn().mockResolvedValue(undefined);
@@ -33,7 +29,6 @@ function fakeWorkflow(overrides: Partial<Record<"launch" | "start", ReturnType<t
       launchDurableExtraction: launch,
       startExtractionWorkflow: start,
       reconcileEndedWorkflows: vi.fn().mockResolvedValue([]),
-      shutdownDurableExtraction: vi.fn(),
     } as unknown as Workflow,
   };
 }
@@ -47,10 +42,6 @@ describe("isDurableExtractionEnabled", () => {
     expect(isDurableExtractionEnabled("yes")).toBe(false);
     expect(isDurableExtractionEnabled("1")).toBe(true);
     expect(isDurableExtractionEnabled("true")).toBe(true);
-  });
-
-  it("should not load the DBOS package while the flag is off", () => {
-    expect(() => isDurableExtractionEnabled(undefined)).not.toThrow();
   });
 });
 
@@ -353,25 +344,12 @@ describe("extraction event extras", () => {
 });
 
 describe("inngest engine", () => {
-  it("should return an inngest adapter when DURABLE_EXTRACTION_ENGINE is inngest", async () => {
-    const originalEngine = process.env["DURABLE_EXTRACTION_ENGINE"];
+  it("should use Inngest as the only engine", async () => {
+    const adapter = await loadWorkflow();
 
-    process.env["DURABLE_EXTRACTION_ENGINE"] = "inngest";
-
-    try {
-      const adapter = loadInngestWorkflow();
-
-      expect(typeof adapter.launchDurableExtraction).toBe("function");
-      expect(typeof adapter.startExtractionWorkflow).toBe("function");
-      expect(typeof adapter.reconcileEndedWorkflows).toBe("function");
-      expect(typeof adapter.shutdownDurableExtraction).toBe("function");
-    } finally {
-      if (originalEngine === undefined) {
-        delete process.env["DURABLE_EXTRACTION_ENGINE"];
-      } else {
-        process.env["DURABLE_EXTRACTION_ENGINE"] = originalEngine;
-      }
-    }
+    expect(adapter).toBe(await loadWorkflow());
+    expect(typeof adapter.startExtractionWorkflow).toBe("function");
+    expect(typeof adapter.reconcileEndedWorkflows).toBe("function");
   });
 
   it("should call inngest.send with the right event name and id when starting a workflow", async () => {
@@ -403,10 +381,9 @@ describe("inngest engine", () => {
     );
   });
 
-  it("should be a no-op for launchDurableExtraction and shutdownDurableExtraction", async () => {
+  it("should be a no-op for launchDurableExtraction", async () => {
     const adapter = loadInngestWorkflow();
 
     await expect(adapter.launchDurableExtraction()).resolves.toBeUndefined();
-    await expect(adapter.shutdownDurableExtraction()).resolves.toBeUndefined();
   });
 });

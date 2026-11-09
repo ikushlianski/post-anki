@@ -9,8 +9,6 @@ beforeEach(() => {
   delete process.env.DURABLE_EXTRACTION;
   delete process.env.DURABLE_EXTRACTION_TIMEOUT_MS;
   delete process.env.DURABLE_EXTRACTION_STALE_MS;
-  delete process.env.DBOS_APPLICATION_VERSION;
-  delete process.env.DBOS_EXECUTOR_ID;
   delete process.env.INNGEST_DEV;
   delete process.env.DURABLE_CARDS;
   delete process.env.DURABLE_COURSE_JOBS;
@@ -56,8 +54,6 @@ describe("durable extraction environment", () => {
     async (value) => {
       process.env.DURABLE_EXTRACTION_TIMEOUT_MS = value;
       process.env.DURABLE_EXTRACTION_STALE_MS = value;
-      process.env.DBOS_APPLICATION_VERSION = value;
-      process.env.DBOS_EXECUTOR_ID = value;
       const config = await import("../knowledge-bit/durable-extraction.config.js");
       const env = await boot();
 
@@ -182,15 +178,11 @@ describe("background jobs flag and event key", () => {
   });
 });
 
-describe("durable extraction engine default", () => {
-  it("should use inngest when DURABLE_EXTRACTION_ENGINE is unset", async () => {
-    expect((await boot()).DURABLE_EXTRACTION_ENGINE).toBe("inngest");
-  });
-
-  it("should keep an explicit dbos choice", async () => {
+describe("durable extraction engine", () => {
+  it("should ignore a leftover DURABLE_EXTRACTION_ENGINE value", async () => {
     process.env.DURABLE_EXTRACTION_ENGINE = "dbos";
 
-    expect((await boot()).DURABLE_EXTRACTION_ENGINE).toBe("dbos");
+    expect(await boot()).not.toHaveProperty("DURABLE_EXTRACTION_ENGINE");
   });
 });
 

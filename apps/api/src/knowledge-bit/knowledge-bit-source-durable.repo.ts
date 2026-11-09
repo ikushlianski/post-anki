@@ -54,72 +54,24 @@ export async function releaseDurableOwner(
     );
 }
 
-// Fails knowledge sources that are stuck in 'processing' because their durable workflow ended.
-// When executorId is null (Inngest engine): purely app-DB stale-age check.
-// When executorId is a string (DBOS engine): joins dbos.workflow_status to classify ended runs.
+// Fails knowledge sources stuck in 'processing' under a durable owner marker once their last update
+// is older than the stale cutoff.
 export async function failProcessingSourcesWithEndedWorkflows(
-  executorId: string | null,
-  _options?: unknown,
   staleMs: number = durableStaleMs(),
   db: DbExecutor = getDb(),
 ): Promise<string[]> {
   const cutoff = new Date(Date.now() - staleMs);
-
-  if (executorId === null) {
-    const rows = await db
-      .update(knowledgeSources)
-      .set({ status: "failed", failureReason: "workflow_executor_lost", updatedAt: new Date() })
-      .where(
-        and(
-          eq(knowledgeSources.status, "processing"),
-          sql`${knowledgeSources.failureReason} LIKE ${"durable:%"}`,
-          lt(knowledgeSources.updatedAt, cutoff),
-        ),
-      )
-      .returning({ id: knowledgeSources.id });
-
-    return rows.map((r) => r.id);
-  }
-
-  const staleEpochMs = Date.now() - staleMs;
-  const prefixLen = DURABLE_OWNER_PREFIX.length;
-
-  const result = await db.execute(sql`
-    WITH ended AS (
-      SELECT
-        ks.id,
-        ws.status AS wf_status,
-        GREATEST(
-          ws.updated_at,
-          COALESCE((
-            SELECT MAX(o.completed_at_epoch_ms)
-            FROM dbos.operation_outputs o
-            WHERE o.workflow_uuid = ws.workflow_uuid
-          ), 0)
-        ) AS last_activity_ms
-      FROM knowledge_sources ks
-      JOIN dbos.workflow_status ws
-        ON ws.workflow_uuid = SUBSTRING(ks.failure_reason FROM ${prefixLen + 1}::int)
-      WHERE ks.status = 'processing'
-        AND ks.failure_reason LIKE ${"durable:%"}
-    ),
-    to_fail AS (
-      SELECT id,
-        CASE wf_status
-          WHEN 'CANCELLED' THEN 'workflow_cancelled'
-          WHEN 'MAX_RECOVERY_ATTEMPTS_EXCEEDED' THEN 'workflow_max_recovery_attempts_exceeded'
-          ELSE 'workflow_executor_lost'
-        END AS reason
-      FROM ended
-      WHERE wf_status IN ('CANCELLED', 'MAX_RECOVERY_ATTEMPTS_EXCEEDED')
-         OR last_activity_ms < ${staleEpochMs}
+  const rows = await db
+    .update(knowledgeSources)
+    .set({ status: "failed", failureReason: "workflow_executor_lost", updatedAt: new Date() })
+    .where(
+      and(
+        eq(knowledgeSources.status, "processing"),
+        sql`${knowledgeSources.failureReason} LIKE ${"durable:%"}`,
+        lt(knowledgeSources.updatedAt, cutoff),
+      ),
     )
-    UPDATE knowledge_sources
-    SET status = 'failed', failure_reason = to_fail.reason, updated_at = NOW()
-    FROM to_fail
-    WHERE knowledge_sources.id = to_fail.id
-    RETURNING knowledge_sources.id
-  `);
+    .returning({ id: knowledgeSources.id });
 
-  return (result.rows as Array<{ id: string }>).map((r) => r.id);
+  return rows.map((r) => r.id);
 }

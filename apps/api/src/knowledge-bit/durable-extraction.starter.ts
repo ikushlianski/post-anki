@@ -1,5 +1,4 @@
 import { log } from "../shared/log.js";
-import { loadEnv } from "../shared/env.js";
 import { createInngestClient } from "../shared/inngest-client.js";
 import { isDurableExtractionEnabled } from "./durable-extraction.flag.js";
 import {
@@ -7,7 +6,6 @@ import {
   durableTimeoutMs,
 } from "./durable-extraction.config.js";
 import {
-  durableWorkflowExists,
   failProcessingSourcesWithEndedWorkflows,
   getKnowledgeSourceClaimToken,
   type KnowledgeSourceClaimToken,
@@ -27,7 +25,6 @@ export interface WorkflowAdapter {
   launchDurableExtraction(): Promise<void>;
   startExtractionWorkflow(input: DurableExtractionInput, run: number, extras?: ExtractionExtras): Promise<string>;
   reconcileEndedWorkflows(): Promise<string[]>;
-  shutdownDurableExtraction(): Promise<void>;
 }
 
 export interface StarterDeps {
@@ -66,7 +63,6 @@ export function loadInngestWorkflow(): WorkflowAdapter {
 
   return {
     launchDurableExtraction: async () => undefined,
-    shutdownDurableExtraction: async () => undefined,
     startExtractionWorkflow: async (
       input: DurableExtractionInput,
       run: number,
@@ -90,7 +86,7 @@ export function loadInngestWorkflow(): WorkflowAdapter {
     },
     reconcileEndedWorkflows: async (): Promise<string[]> => {
       try {
-        const failed = await failProcessingSourcesWithEndedWorkflows(null);
+        const failed = await failProcessingSourcesWithEndedWorkflows();
 
         if (failed.length > 0) {
           log.warn({ failed }, "durable_extraction_ended_workflows_marked_failed");
@@ -107,15 +103,7 @@ export function loadInngestWorkflow(): WorkflowAdapter {
 }
 
 export async function loadWorkflow(): Promise<WorkflowAdapter> {
-  const engine = loadEnv().DURABLE_EXTRACTION_ENGINE;
-
-  if (engine === "inngest") {
-    loadedWorkflow ??= loadInngestWorkflow();
-
-    return loadedWorkflow;
-  }
-
-  loadedWorkflow ??= await import("./durable-extraction.workflow.js");
+  loadedWorkflow ??= loadInngestWorkflow();
 
   return loadedWorkflow;
 }
@@ -141,14 +129,10 @@ function makeInngestWorkflowExists(inngest: ReturnType<typeof createInngestClien
 }
 
 function defaultDeps(): StarterDeps {
-  const engine = loadEnv().DURABLE_EXTRACTION_ENGINE;
-
   return {
     loadWorkflow,
     getClaim: getKnowledgeSourceClaimToken,
-    workflowExists: engine === "inngest"
-      ? makeInngestWorkflowExists(createInngestClient())
-      : durableWorkflowExists,
+    workflowExists: makeInngestWorkflowExists(createInngestClient()),
     markOwner: markSourceOwnedByDurable,
     releaseOwner: releaseDurableOwner,
   };
@@ -247,8 +231,4 @@ export async function startDurableExtraction(
   }
 
   return result;
-}
-
-export async function shutdownDurableExtraction(): Promise<void> {
-  await loadedWorkflow?.shutdownDurableExtraction();
 }
