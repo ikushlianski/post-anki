@@ -155,6 +155,22 @@ With a flag unset, that kind of work runs in the API process (the e2e and
 playwright stacks do this; they have no Inngest). Tests use fakes and
 `@inngest/test`, never the dev server.
 
+## Inngest Cloud from the terminal
+
+Install once: `npm i -g inngest-cli` (the binary is `inngest-cli`; `inngest` also works). Sign in with
+`inngest-cli login` (browser approval; add `--no-browser` to print the URL), then check with
+`inngest-cli auth status`. There is no list-recent-runs command; use the Cloud dashboard
+(Runs / Traces) for that, or look runs up by id.
+
+```
+inngest-cli api --prod --env production get-event-runs <sourceId>:<run>
+inngest-cli api --prod --env production get-function-run <runId>
+inngest-cli api --prod --env production get-function-trace <runId> --include output
+```
+
+Event ids here are `<sourceId>:<run>`, so `get-event-runs` works from a known source; the
+run ids it returns feed the other two commands. Run `inngest-cli api --help` for the rest.
+
 ## Migrations
 
 `npm run db:generate -w @post-anki/api` then `npm run db:migrate -w @post-anki/api`.
