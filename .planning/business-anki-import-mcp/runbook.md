@@ -1,5 +1,20 @@
 # Runbook: Business Anki import to prod
 
+Superseded by the Inngest job `import-anki-notes` (plan: `04-inngest-import-job/plan.md`). The MCP batch loop below is kept only until the import is confirmed.
+
+## Run steps (job) [user]
+1. Prod Inngest: create the app, set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` on the API service and `DURABLE_EXTRACTION=1`, sync `https://api.postanki.ilya.online/api/inngest`.
+2. Deploy with `release-postanki` (applies the migration and the function).
+3. Seed sub-subjects: `DATABASE_URL='<neon>' npm run db:seed:business-sub-subjects -w @post-anki/api`.
+4. From `apps/api`, with the prod `DATABASE_URL` (and `INNGEST_EVENT_KEY` for `--send`): `npm run db:stage-anki-import -- <path>/Business.txt --import-id business-1 --limit 40 --send`. Check `/knowledge-bit-review`, then rerun without `--limit` (same import id, no duplicates).
+5. Progress: Inngest run page, or `npm run db:stage-anki-import -- --import-id business-1 --status`.
+6. After a failure: fix the cause (seed, keys, flag), then run the script with `--send` again.
+7. Confirm the finished import, then retire the MCP server and revoke the old MCP token if unused.
+
+---
+
+# Old runbook (MCP batch loop)
+
 Yulia Trus' notes in `subjects/Business.txt` move to prod in batches of 20. Claude calls the local `anki-batch`
 server and the prod `post-anki-prod` server. Prod writes are run by the user only.
 

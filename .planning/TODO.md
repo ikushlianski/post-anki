@@ -1227,6 +1227,9 @@ updated: 2026-09-04
 - Out of scope: Building a new UI for this — MCP clients are the interface
 
 ### Coding tasks
+- [x] check_duplicates also flags near-duplicate drafts that differ only in case, spacing or punctuation.
+- [x] Import the Business deck as one resumable Inngest job that submits notes in batches.
+- [x] Add a check_duplicates MCP tool returning existing sources and cards that match given draft texts.
 - [x] Let MCP clients open one knowledge bit found by search, with its source and questions
 - [x] Let MCP clients read a source's approved knowledge bits with their study questions
 - [x] Let MCP clients list added knowledge sources with title, link, status and approved bit count
