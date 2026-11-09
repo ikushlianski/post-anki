@@ -105,10 +105,29 @@ private struct MacSettingsSection<Content: View>: View {
 
 struct MacGeneralSettingsPane: View {
     @AppStorage(MacMenuBar.enabledKey) private var menuBarEnabled = true
+    @AppStorage(HighlightShortcutStore.key) private var storedShortcut = HighlightShortcut.defaultShortcut.rawValue
+
+    private var shortcut: Binding<HighlightShortcut> {
+        Binding(
+            get: { HighlightShortcut.resolved(from: storedShortcut) },
+            set: { storedShortcut = $0.rawValue }
+        )
+    }
 
     var body: some View {
         Form {
             Toggle("Show review count in the menu bar", isOn: $menuBarEnabled)
+
+            Picker("Highlight shortcut", selection: shortcut) {
+                ForEach(HighlightShortcut.choices) { choice in
+                    Text(choice.label).tag(choice)
+                }
+            }
+            .accessibilityIdentifier("settings-highlight-shortcut")
+
+            Button("Reset highlight shortcut") { storedShortcut = HighlightShortcut.defaultShortcut.rawValue }
+                .disabled(HighlightShortcut.resolved(from: storedShortcut) == .defaultShortcut)
+                .accessibilityIdentifier("settings-highlight-shortcut-reset")
         }
         .formStyle(.grouped)
     }

@@ -5,7 +5,11 @@ struct IngestionDictationScreen: View {
     @State private var model: IngestionDictationScreenModel
 
     init(topic: Topic? = nil, subjectId: String? = nil) {
-        _model = State(initialValue: IngestionDictationScreenModel(topic: topic, subjectId: subjectId))
+        _model = State(initialValue: IngestionDictationScreenModel(
+            topic: topic,
+            subjectId: subjectId,
+            subjectPicker: AddKnowledgeSubjectPickerModel(lastSubject: UserDefaultsLastSubjectStore())
+        ))
     }
 
     init(model: IngestionDictationScreenModel) {
@@ -21,22 +25,19 @@ struct IngestionDictationScreen: View {
                         .foregroundStyle(.secondary)
                 }
 
-                AddKnowledgeComposer(
-                    text: $model.text,
-                    highlights: $model.highlights,
-                    isSubmitting: model.isSubmitting,
-                    onSubmit: { Task { await model.submit() } }
-                )
+                AddKnowledgePiecesSection(model: model)
 
                 if model.showsSubjectPicker {
                     AddKnowledgeSubjectPicker(model: model.subjectPicker)
                 }
 
-                AddKnowledgeFileImport(model: model.fileImport, subjectId: model.effectiveSubjectId)
+                AddKnowledgeSubmitButton(
+                    isSubmitting: model.isSubmitting,
+                    canSubmit: model.canSubmit,
+                    onSubmit: { Task { await model.submit() } }
+                )
 
-                if model.showsTargetPhrases {
-                    TargetPhrasesSection(phrases: $model.targetPhrases, isExpanded: $model.isPhrasesExpanded)
-                }
+                AddKnowledgeFileImport(model: model.fileImport, subjectId: model.effectiveSubjectId)
 
                 AddKnowledgeStatusBanner(
                     model: model,

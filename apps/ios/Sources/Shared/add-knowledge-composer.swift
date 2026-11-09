@@ -18,8 +18,11 @@ enum AddKnowledgeComposerSummary {
 struct AddKnowledgeComposer: View {
     @Binding var text: String
     @Binding var highlights: [KnowledgeHighlight]
-    var isSubmitting = false
-    var onSubmit: () -> Void = {}
+    var title: String?
+    var failure: String?
+    var canAddAnyway = false
+    var onAddAnyway: () -> Void = {}
+    var onRemove: (() -> Void)?
     @FocusState private var isFocused: Bool
     @State private var selection = NSRange(location: 0, length: 0)
 
@@ -27,18 +30,41 @@ struct AddKnowledgeComposer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("What do you want to remember?")
-                .font(.headline)
+            HStack {
+                Text(title ?? "What do you want to remember?")
+                    .font(.headline)
+
+                Spacer()
+
+                if let onRemove {
+                    Button("Remove", systemImage: "trash", action: onRemove)
+                        .labelStyle(.titleAndIcon)
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("add-knowledge-remove-piece")
+                }
+            }
 
             editor
 
             if kind == "Text" {
-                AddKnowledgeHighlightsBar(text: text, selection: selection, highlights: $highlights)
+                AddKnowledgeHighlightsBar(text: text, selection: selection, highlights: $highlights, isShortcutActive: isFocused)
             }
 
             AddKnowledgeComposerFooter(text: $text)
 
-            submitButton
+            if let failure {
+                Label(failure, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("add-knowledge-piece-failure")
+
+                if canAddAnyway {
+                    Button("Add anyway", action: onAddAnyway)
+                        .font(.caption)
+                }
+            }
         }
         .padding(14)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -66,32 +92,5 @@ struct AddKnowledgeComposer: View {
                 }
             }
             .animation(.easeOut(duration: 0.15), value: isFocused)
-    }
-
-    private var submitButton: some View {
-        Button(action: onSubmit) {
-            ZStack {
-                Text("Submit").font(.headline).opacity(isSubmitting ? 0 : 1)
-
-                if isSubmitting { ProgressView().controlSize(.small) }
-            }
-            .frame(maxWidth: .infinity, minHeight: 32)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .disabled(isSubmitting || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        .optionalSubmitShortcut()
-        .accessibilityIdentifier("add-knowledge-submit")
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func optionalSubmitShortcut() -> some View {
-        #if os(macOS)
-        keyboardShortcut(.return, modifiers: .command)
-        #else
-        self
-        #endif
     }
 }

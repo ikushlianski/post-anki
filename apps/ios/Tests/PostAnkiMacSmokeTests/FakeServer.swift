@@ -7,6 +7,7 @@ enum FakeReply: Sendable {
     case failure(URLError.Code)
     case json(Int, String)
     case held(Int, String)
+    indirect case sequence([FakeReply])
 }
 
 struct RecordedRequest: Sendable {
@@ -28,6 +29,7 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) private static var requestedPaths: [String] = []
     nonisolated(unsafe) private static var recorded: [RecordedRequest] = []
     nonisolated(unsafe) private static var heldRequests: [FakeServer] = []
+    nonisolated(unsafe) private static var sequenceCounts: [String: Int] = [:]
 
     static func start(_ routes: [String: FakeReply]) {
         lock.withLock {
@@ -35,6 +37,7 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
             requestedPaths = []
             recorded = []
             heldRequests = []
+            sequenceCounts = [:]
         }
 
         URLProtocol.registerClass(FakeServer.self)
@@ -77,7 +80,16 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
 
             let queried = url.query.flatMap { Self.routes["\(method) \(url.path)?\($0)"] }
 
-            return queried ?? Self.routes["\(method) \(url.path)"] ?? Self.routes[url.path] ?? .status(404)
+            let picked = queried ?? Self.routes["\(method) \(url.path)"] ?? Self.routes[url.path] ?? .status(404)
+
+            guard case .sequence(let replies) = picked, !replies.isEmpty else { return picked }
+
+            let key = "\(method) \(url.path)"
+            let position = Self.sequenceCounts[key, default: 0]
+
+            Self.sequenceCounts[key] = position + 1
+
+            return replies[min(position, replies.count - 1)]
         }
 
         switch reply {
@@ -91,6 +103,8 @@ final class FakeServer: URLProtocol, @unchecked Sendable {
             heldStatus = status
             heldBody = Data(text.utf8)
             Self.lock.withLock { Self.heldRequests.append(self) }
+        case .sequence:
+            respond(url: url, status: 500, body: Data("{}".utf8))
         case .fixture(let name):
             respond(url: url, status: 200, body: (try? SmokeFixture.data(name)) ?? Data("{}".utf8))
         }

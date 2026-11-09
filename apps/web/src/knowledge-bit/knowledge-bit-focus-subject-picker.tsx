@@ -2,7 +2,8 @@ import { useState } from 'react'
 
 import { createSubject } from '../subject/subject.api'
 import { SearchableSelect } from '../ui/searchable-select'
-import { SECONDARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from './knowledge-bit-review-classes'
+import { NewSubjectForm } from '../subject/new-subject-form'
+import { SECONDARY_BUTTON_CLASS } from './knowledge-bit-review-classes'
 import { moveKnowledgeBitToSubjectForReview } from './knowledge-bit-subject-move.api'
 import { useKnowledgeOverviewSubjects } from './use-knowledge-overview-subjects'
 
@@ -62,11 +63,8 @@ function SubjectPickerPanel({
 }) {
   const { options, labelFor } = useKnowledgeOverviewSubjects()
   const [creating, setCreating] = useState(false)
-  const [name, setName] = useState('')
-  const [parentId, setParentId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const trimmed = name.trim()
 
   async function assign(subjectId: string, label: string) {
     const result = await moveKnowledgeBitToSubjectForReview({ data: { bitId, subjectId } })
@@ -95,59 +93,28 @@ function SubjectPickerPanel({
     void run(() => assign(subjectId, labelFor(subjectId)))
   }
 
-  function create() {
+  function create({ name, parentId }: { name: string; parentId: string | null }) {
     void run(async () => {
       const created = await createSubject({
-        data: { name: trimmed, kind: 'architecture-mentor', parentId: parentId || null },
+        data: { name, kind: 'architecture-mentor', parentId },
       })
       const parentLabel = parentId ? labelFor(parentId) : ''
 
-      await assign(created.id, parentLabel ? `${parentLabel}${PATH_SEPARATOR}${trimmed}` : trimmed)
+      await assign(created.id, parentLabel ? `${parentLabel}${PATH_SEPARATOR}${name}` : name)
     })
   }
 
   return (
     <div data-testid="knowledge-bit-focus-subject-panel" className="space-y-2">
       {creating ? (
-        <>
-          <input
-            aria-label="New subject name"
-            data-testid="knowledge-bit-focus-subject-new-name"
-            value={name}
-            maxLength={60}
-            disabled={busy}
-            onChange={(event) => setName(event.target.value)}
-            className={TEXT_FIELD_CLASS}
-          />
-          <SearchableSelect
-            ariaLabel="Parent subject"
-            testId="knowledge-bit-focus-subject-parent"
-            options={options}
-            value={parentId}
-            onChange={setParentId}
-            placeholder="Top level (no parent)"
-            clearable
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              data-testid="knowledge-bit-focus-subject-create"
-              disabled={busy || trimmed.length === 0}
-              onClick={create}
-              className={SECONDARY_BUTTON_CLASS}
-            >
-              {busy ? 'Saving…' : 'Create and assign'}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setCreating(false)}
-              className={SECONDARY_BUTTON_CLASS}
-            >
-              Back
-            </button>
-          </div>
-        </>
+        <NewSubjectForm
+          testIdPrefix="knowledge-bit-focus-subject"
+          options={options}
+          busy={busy}
+          confirmLabel="Create and assign"
+          onSubmit={create}
+          onBack={() => setCreating(false)}
+        />
       ) : (
         <>
           <SearchableSelect

@@ -5,6 +5,10 @@ struct AddKnowledgeHighlightsBar: View {
     let text: String
     let selection: NSRange
     @Binding var highlights: [KnowledgeHighlight]
+    var isShortcutActive = false
+    @AppStorage(HighlightShortcutStore.key) private var storedShortcut = HighlightShortcut.defaultShortcut.rawValue
+
+    private var shortcut: HighlightShortcut { HighlightShortcut.resolved(from: storedShortcut) }
 
     private var canHighlight: Bool {
         selection.length > 0
@@ -16,6 +20,9 @@ struct AddKnowledgeHighlightsBar: View {
                 Button("Highlight selection", systemImage: "highlighter") { highlightSelection() }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .keyboardShortcut(isShortcutActive ? shortcut.keyboardShortcut : nil)
+                    .help("Highlight the selected text (\(shortcut.label))")
+                    .accessibilityHint("Shortcut \(shortcut.label)")
                     .disabled(!canHighlight)
                     .accessibilityIdentifier("add-knowledge-highlight")
 

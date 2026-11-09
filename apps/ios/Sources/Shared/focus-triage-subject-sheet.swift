@@ -72,46 +72,14 @@ struct FocusTriageNewSubjectForm: View {
     let model: FocusTriageSubjectChangeModel
     let onDone: (String?) -> Void
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var parentId: String?
-
-    private var trimmed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
-
     var body: some View {
-        NavigationStack {
-            Form {
-                TextField("Name", text: $name)
-
-                Picker("Inside", selection: $parentId) {
-                    Text("Top level").tag(String?.none)
-
-                    ForEach(model.parentChoices, id: \.id) { choice in
-                        Text(choice.label).tag(String?.some(choice.id))
-                    }
-                }
-
-                if let message = model.message {
-                    Text(message).foregroundStyle(.red)
-                }
-            }
-            .navigationTitle("New subject")
-            .inlineNavigationTitle()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Create and assign") {
-                        Task { onDone(await model.createAndAssign(name: trimmed, parentId: parentId)) }
-                    }
-                    .disabled(trimmed.isEmpty || model.isBusy)
-                }
-            }
+        NewSubjectForm(
+            parentChoices: model.parentChoices,
+            message: model.message,
+            isBusy: model.isBusy,
+            confirmTitle: "Create and assign"
+        ) { name, parentId in
+            Task { onDone(await model.createAndAssign(name: name, parentId: parentId)) }
         }
-        #if os(macOS)
-        .frame(minWidth: 380, minHeight: 300)
-        #endif
     }
 }

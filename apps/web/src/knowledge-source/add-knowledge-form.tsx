@@ -6,6 +6,7 @@ import { isEnglishSubject } from '@post-anki/shared'
 import type { KnowledgeItemModelId, SubjectCheckNewSubject } from '@post-anki/shared'
 
 import { mapSubjectRow, subjectsCollection } from '../curriculum/board.collection'
+import type { Subject } from '../curriculum/model'
 import { ExtractionModelSelect } from '../knowledge-bit/extraction-model-select'
 import { SearchableSelect } from '../ui/searchable-select'
 import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-review-events'
@@ -13,6 +14,7 @@ import { notifyPendingReviewChanged } from '../knowledge-bit/knowledge-bit-revie
 import { emptyBlock, failedBlocksMessage, hasInvalidLink, remapByPosition } from './knowledge-form-blocks'
 import type { Block, BlockType } from './knowledge-form-blocks'
 import { KnowledgeBlockList } from './knowledge-block-list'
+import { AddKnowledgeNewSubject } from './add-knowledge-new-subject'
 import { createProposedSubject } from './create-proposed-subject'
 import { SubjectCheckPanel, UnfiledNotice } from './subject-check-panel'
 import { useSubjectCheck } from './use-subject-check'
@@ -21,6 +23,9 @@ import { clearKnowledgeDraft } from './knowledge-draft-storage'
 import { shiftHighlightsOnEdit, trimHighlights } from './knowledge-highlights'
 import type { KnowledgeHighlight } from './knowledge-highlights'
 import { submitKnowledgeBlocks } from './submit-knowledge-blocks'
+import { HighlightShortcutSetting } from './highlight-shortcut-setting'
+import { readHighlightShortcut, writeHighlightShortcut } from './highlight-shortcut'
+import type { HighlightShortcut } from './highlight-shortcut'
 import { readLastSubjectId, writeLastSubjectId } from './last-subject-storage'
 import { addedKnowledgeMessage } from './added-knowledge-message'
 import { AddKnowledgeSuccess } from './add-knowledge-success'
@@ -33,6 +38,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const [blocks, setBlocks] = useState<Block[]>([emptyBlock()])
   useKnowledgeDraft(blocks, setBlocks)
   const [busy, setBusy] = useState(false)
+  const [highlightShortcut, setHighlightShortcut] = useState(readHighlightShortcut)
   const [error, setError] = useState<string | null>(null)
   const [blockReasons, setBlockReasons] = useState<Record<number, string>>({})
   const [duplicates, setDuplicates] = useState<Record<number, EarlierSource>>({})
@@ -40,10 +46,12 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const [unfiledNotice, setUnfiledNotice] = useState(false)
   const progress = useAddedNoteProgress()
   const subjectFieldRef = useRef<HTMLDivElement>(null)
-  const [subjectId, setSubjectId] = useState(() => initialSubjectId ?? readLastSubjectId())
+  const [subjectId, setSubjectIdState] = useState(() => initialSubjectId ?? readLastSubjectId())
+  const [createdSubjects, setCreatedSubjects] = useState<Subject[]>([])
   const [modelId, setModelId] = useState<KnowledgeItemModelId | ''>('')
   const subjectsQuery = useLiveQuery((q) => q.from({ subject: subjectsCollection }), [])
-  const subjects = (subjectsQuery.data ?? []).map(mapSubjectRow)
+  const syncedSubjects = (subjectsQuery.data ?? []).map(mapSubjectRow)
+  const subjects = [...syncedSubjects, ...createdSubjects.filter((created) => !syncedSubjects.some((subject) => subject.id === created.id))]
   const subjectOptions = subjects
     .map((subject) => ({ id: subject.id, label: buildSubjectPathLabel(subject.id, subjects) }))
     .sort((a, b) => a.label.localeCompare(b.label))
@@ -72,6 +80,16 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
   const panelOpen = subjectCheck.state.status === 'advice' && subjectCheck.state.response.status === 'ok'
   const canSubmit = nonEmptyBlocks.length > 0 && !hasInvalidLink(nonEmptyBlocks) && !busy && !checking && !panelOpen
 
+  function setSubjectId(id: string) {
+    setSubjectIdState(id)
+    writeLastSubjectId(id)
+  }
+
+  function onSubjectCreated(created: Subject) {
+    setCreatedSubjects((current) => [...current, created])
+    setSubjectId(created.id)
+  }
+
   function updateBlockValue(index: number, value: string) {
     setBlocks((current) => current.map((block, i) => (i === index ? { ...block, value, force: undefined, highlights: shiftHighlightsOnEdit(block.value, value, block.highlights ?? []) } : block)))
     setDuplicates((current) => Object.fromEntries(Object.entries(current).filter(([key]) => Number(key) !== index)))
@@ -87,6 +105,11 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
 
   function updateBlockHighlights(index: number, highlights: KnowledgeHighlight[]) {
     setBlocks((current) => current.map((block, i) => (i === index ? { ...block, highlights } : block)))
+  }
+
+  function changeHighlightShortcut(shortcut: HighlightShortcut) {
+    setHighlightShortcut(shortcut)
+    writeHighlightShortcut(shortcut)
   }
 
   function addBlock() {
@@ -237,6 +260,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
             testId="knowledge-subject-select"
             placeholder="Subject — none, type to search"
           />
+          <AddKnowledgeNewSubject options={subjectOptions} disabled={busy} onCreated={onSubjectCreated} />
         </div>
 
         <ExtractionModelSelect
@@ -255,6 +279,7 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
         busy={busy}
         duplicates={duplicates}
         blockReasons={blockReasons}
+        highlightShortcut={highlightShortcut}
         onValueChange={updateBlockValue}
         onTypeChange={updateBlockType}
         onTargetPhrasesChange={updateBlockTargetPhrases}
@@ -263,6 +288,8 @@ export function AddKnowledgeForm({ initialSubjectId }: { initialSubjectId?: stri
         onAddAgain={addAgain}
         onSubmitShortcut={submitFromKeyboard}
       />
+
+      <HighlightShortcutSetting shortcut={highlightShortcut} disabled={busy} onChange={changeHighlightShortcut} />
 
       <SubjectCheckPanel
         state={subjectCheck.state}

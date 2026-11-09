@@ -15,22 +15,7 @@ final class FocusTriageSubjectChangeModel {
 
     var tree: [SubjectTreeNode] { SubjectTreePath.tree(from: subjects) }
 
-    var parentChoices: [(id: String, label: String)] {
-        var result: [(id: String, label: String)] = []
-
-        func walk(_ nodes: [SubjectTreeNode], prefix: [String]) {
-            for node in nodes {
-                let path = prefix + [node.entry.name]
-
-                result.append((node.id, path.joined(separator: " › ")))
-                walk(node.children, prefix: path)
-            }
-        }
-
-        walk(tree, prefix: [])
-
-        return result
-    }
+    var parentChoices: [(id: String, label: String)] { SubjectParentChoices.list(from: tree) }
 
     func label(for id: String) -> String {
         SubjectTreePath.names(to: id, in: tree)?.joined(separator: " › ") ?? ""

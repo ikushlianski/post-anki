@@ -3,6 +3,7 @@ import { LINK_ERROR_MESSAGE, isHttpUrl } from './knowledge-form-blocks'
 import type { Block, BlockType } from './knowledge-form-blocks'
 import { HighlightedTextField } from './highlighted-text-field'
 import type { KnowledgeHighlight } from './knowledge-highlights'
+import type { HighlightShortcut } from './highlight-shortcut'
 import { TargetPhrasesField } from './target-phrases-field'
 import { DuplicateSourceWarning } from './duplicate-source-warning'
 import { ShortTextHint } from './short-text-hint'
@@ -14,6 +15,7 @@ interface KnowledgeBlockListProps {
   busy: boolean
   duplicates: Record<number, EarlierSource>
   blockReasons: Record<number, string>
+  highlightShortcut?: HighlightShortcut
   onValueChange: (index: number, value: string) => void
   onTypeChange: (index: number, type: BlockType) => void
   onTargetPhrasesChange: (index: number, phrases: string[]) => void
@@ -29,6 +31,7 @@ export function KnowledgeBlockList({
   busy,
   duplicates,
   blockReasons,
+  highlightShortcut,
   onValueChange,
   onTypeChange,
   onTargetPhrasesChange,
@@ -58,6 +61,7 @@ export function KnowledgeBlockList({
                 highlights={block.highlights ?? []}
                 disabled={busy}
                 highlightUnavailable={blocks.length > 1}
+                highlightShortcut={highlightShortcut}
                 onValueChange={(value) => onValueChange(index, value)}
                 onHighlightsChange={(highlights) => onHighlightsChange(index, highlights)}
                 onSubmitShortcut={onSubmitShortcut}

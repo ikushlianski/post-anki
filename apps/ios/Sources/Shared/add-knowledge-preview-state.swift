@@ -11,6 +11,7 @@ final class InMemoryAddDraftStore: AddDraftStoring {
 
 struct AddKnowledgeScreenState {
     var text = ""
+    var extraPieces: [String] = []
     var isSubmitting = false
     var activeDetections = 0
     var hasSent = false
@@ -39,6 +40,7 @@ extension IngestionDictationScreenModel {
             )
         )
         text = state.text
+        pieces += state.extraPieces.map { AddKnowledgePiece(text: $0) }
         isSubmitting = state.isSubmitting
         activeDetections = state.activeDetections
         hasSent = state.hasSent

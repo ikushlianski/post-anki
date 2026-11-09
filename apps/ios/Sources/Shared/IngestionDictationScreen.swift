@@ -6,13 +6,7 @@ import SwiftUI
 final class IngestionDictationScreenModel {
     let topic: Topic?
     let subjectId: String?
-    var text = "" {
-        didSet {
-            drafts.save(text, key: draftKey)
-            highlights = KnowledgeHighlights.shifted(from: oldValue, to: text, highlights)
-        }
-    }
-    var highlights: [KnowledgeHighlight] = []
+    var pieces: [AddKnowledgePiece] = [AddKnowledgePiece()]
     var isSubmitting = false
     var activeDetections = 0
     var isDetecting: Bool { activeDetections > 0 }
@@ -30,9 +24,6 @@ final class IngestionDictationScreenModel {
     let fileImport = TextFileImportModel()
     var isPhrasesExpanded = false
     var canAddAnyway = false
-    var targetPhrases: [String] = [""]
-    private var lastSent: KnowledgeSourceContent?
-    private var lastSentHighlights: [KnowledgeHighlight] = []
 
     var showsSubjectPicker: Bool { subjectId == nil }
     var effectiveSubjectId: String? { subjectId ?? subjectPicker.selectedId }
@@ -46,8 +37,55 @@ final class IngestionDictationScreenModel {
         await subjectPicker.load()
     }
 
+    var text: String {
+        get { pieces[0].text }
+        set { setText(newValue, for: pieces[0].id) }
+    }
+
+    var highlights: [KnowledgeHighlight] {
+        get { pieces[0].highlights }
+        set { pieces[0].highlights = newValue }
+    }
+
+    var targetPhrases: [String] {
+        get { pieces[0].targetPhrases }
+        set { pieces[0].targetPhrases = newValue }
+    }
+
     var hasInput: Bool {
-        isSubmitting || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        isSubmitting || pieces.contains { !$0.isEmpty }
+    }
+
+    var canSubmit: Bool {
+        !isSubmitting && pieces.contains { !$0.isEmpty }
+    }
+
+    func setText(_ newText: String, for id: UUID) {
+        guard let index = pieces.firstIndex(where: { $0.id == id }) else { return }
+
+        let old = pieces[index].text
+
+        pieces[index].text = newText
+        pieces[index].highlights = KnowledgeHighlights.shifted(from: old, to: newText, pieces[index].highlights)
+        pieces[index].failure = nil
+        pieces[index].canAddAnyway = false
+        saveDraft()
+    }
+
+    func addPiece() {
+        pieces.append(AddKnowledgePiece())
+    }
+
+    func removePiece(_ id: UUID) {
+        pieces.removeAll { $0.id == id }
+
+        if pieces.isEmpty { pieces = [AddKnowledgePiece()] }
+
+        saveDraft()
+    }
+
+    private func saveDraft() {
+        drafts.save(AddKnowledgePieceDraft.encode(pieces.map(\.text)), key: draftKey)
     }
 
     private let drafts: AddDraftStoring
@@ -64,67 +102,112 @@ final class IngestionDictationScreenModel {
         self.subjectId = subjectId
         self.drafts = drafts
         draftKey = UnsentDraftStore.key("add", subjectId ?? topic?.id)
-        text = drafts.load(key: draftKey)
+        let restored = AddKnowledgePieceDraft.decode(drafts.load(key: draftKey))
+
+        pieces = restored.map { AddKnowledgePiece(text: $0) }
     }
 
     func submit() async {
-        guard let content = AddKnowledgeInput.classify(text) else { return }
-
-        await send(content, highlights: highlightsToSend(for: content), force: false)
+        await send(pieces.filter { !$0.isEmpty }.map(\.id), force: false)
     }
 
-    func addAnyway() async {
-        guard let content = lastSent else { return }
+    func addAnyway(pieceId: UUID? = nil) async {
+        let ids = pieces.filter { $0.canAddAnyway && (pieceId == nil || $0.id == pieceId) }.map(\.id)
 
-        await send(content, highlights: lastSentHighlights, force: true)
+        await send(ids, force: true)
     }
 
-    private func send(_ content: KnowledgeSourceContent, highlights sentHighlights: [KnowledgeHighlight], force: Bool) async {
-        guard !isSubmitting else { return }
+    private func send(_ ids: [UUID], force: Bool) async {
+        guard !isSubmitting, !ids.isEmpty else { return }
 
         isSubmitting = true
         errorMessage = nil
         canAddAnyway = false
-        lastSent = content
-        lastSentHighlights = sentHighlights
+
+        for id in ids {
+            guard let index = pieces.firstIndex(where: { $0.id == id }) else { continue }
+
+            pieces[index].failure = nil
+            pieces[index].canAddAnyway = false
+        }
 
         if activeDetections == 0 {
             hasSent = false
         }
 
-        do {
-            let phrases = showsTargetPhrases ? TargetPhrases.cleaned(targetPhrases) : []
-            let created = try await APIClient.addKnowledgeSource(
-                content: content,
-                subjectId: effectiveSubjectId,
-                force: force,
-                targetPhrases: phrases.isEmpty ? nil : phrases,
-                highlights: sentHighlights.isEmpty ? nil : sentHighlights
-            )
+        let sentSubjectId = effectiveSubjectId
+        let sendsPhrases = showsTargetPhrases
+        var lastCreatedId: String?
+        var sentTexts: [UUID: String] = [:]
 
-            summaryText = nil
-            watchSummary(sourceId: created.id)
-            text = ""
-            highlights = []
-            targetPhrases = [""]
-            drafts.clear(key: draftKey)
-            lastSent = nil
-            lastSentHighlights = []
-            hasSent = true
+        for id in ids {
+            guard let piece = pieces.first(where: { $0.id == id }), let content = AddKnowledgeInput.classify(piece.text) else { continue }
+
+            do {
+                let phrases = sendsPhrases ? TargetPhrases.cleaned(piece.targetPhrases) : []
+                let sentHighlights = highlightsToSend(for: content, piece: piece)
+                let created = try await APIClient.addKnowledgeSource(
+                    content: content,
+                    subjectId: sentSubjectId,
+                    force: force,
+                    targetPhrases: phrases.isEmpty ? nil : phrases,
+                    highlights: sentHighlights.isEmpty ? nil : sentHighlights
+                )
+
+                lastCreatedId = created.id
+                sentTexts[id] = piece.text
+            } catch {
+                markFailed(id, error)
+            }
+        }
+
+        pieces.removeAll { sentTexts[$0.id] == $0.text }
+
+        if pieces.isEmpty { pieces = [AddKnowledgePiece()] }
+
+        saveDraft()
+        reportFailures(ids: ids)
+
+        guard let lastCreatedId else {
             isSubmitting = false
-            activeDetections += 1
-            defer { activeDetections -= 1 }
-            try? await APIClient.detectKnowledgeBits()
-        } catch {
-            isSubmitting = false
-            present(error)
+
+            return
+        }
+
+        summaryText = nil
+        watchSummary(sourceId: lastCreatedId)
+        hasSent = true
+        isSubmitting = false
+        activeDetections += 1
+        defer { activeDetections -= 1 }
+        try? await APIClient.detectKnowledgeBits()
+    }
+
+    private func reportFailures(ids: [UUID]) {
+        let failedPositions = pieces.enumerated().filter { $0.element.failure != nil }.map(\.offset)
+
+        if ids.count == 1, let failed = pieces.first(where: { $0.failure != nil }) {
+            errorMessage = failed.failure
+            canAddAnyway = failed.canAddAnyway
+        } else if !failedPositions.isEmpty {
+            errorMessage = AddKnowledgePieceDraft.failedMessage(positions: failedPositions)
+            canAddAnyway = pieces.contains { $0.canAddAnyway }
         }
     }
 
-    private func highlightsToSend(for content: KnowledgeSourceContent) -> [KnowledgeHighlight] {
+    private func highlightsToSend(for content: KnowledgeSourceContent, piece: AddKnowledgePiece) -> [KnowledgeHighlight] {
         guard case .text = content else { return [] }
 
-        return KnowledgeHighlights.trimmed(highlights, for: text)
+        return KnowledgeHighlights.trimmed(piece.highlights, for: piece.text)
+    }
+
+    private func markFailed(_ id: UUID, _ error: Error) {
+        guard let index = pieces.firstIndex(where: { $0.id == id }) else { return }
+
+        let reason = failure(for: error)
+
+        pieces[index].failure = reason.message
+        pieces[index].canAddAnyway = reason.canForce
     }
 
     func stopWatching() {
@@ -166,19 +249,15 @@ final class IngestionDictationScreenModel {
         }
     }
 
-    private func present(_ error: Error) {
+    private func failure(for error: Error) -> (message: String, canForce: Bool) {
         if let refusal = KnowledgeSourceRefusal.from(error) {
             if refusal == .subjectNotFound, subjectId != nil {
-                errorMessage = "That subject no longer exists. Go back and pick another."
-            } else {
-                errorMessage = refusal.message
+                return ("That subject no longer exists. Go back and pick another.", refusal.canForce)
             }
 
-            canAddAnyway = refusal.canForce
-
-            return
+            return (refusal.message, refusal.canForce)
         }
 
-        errorMessage = AddSendFailure.message(for: error)
+        return (AddSendFailure.message(for: error), false)
     }
 }

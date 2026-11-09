@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 
 import { AddKnowledgeForm } from './add-knowledge-form'
 import { createKnowledgeSource, createKnowledgeSources } from './knowledge-source.api'
+import { HIGHLIGHT_SHORTCUT_STORAGE_KEY } from './highlight-shortcut'
 import { KNOWLEDGE_DRAFT_STORAGE_KEY } from './knowledge-draft-storage'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -84,9 +85,39 @@ describe('AddKnowledgeForm highlights', () => {
     render(<AddKnowledgeForm />)
     type('alpha beta')
     input().setSelectionRange(0, 5)
+    fireEvent.keyDown(input(), { key: 'd', ctrlKey: true })
+
+    expect(screen.getByTestId('knowledge-highlight-chip-0-0').textContent).toContain('alpha')
+  })
+
+  it('should highlight with the shortcut the user picked and stop using the default', () => {
+    render(<AddKnowledgeForm />)
+    type('alpha beta')
+    input().setSelectionRange(0, 5)
+    fireEvent.change(screen.getByTestId('knowledge-highlight-shortcut-select'), { target: { value: 'shift+h' } })
+    fireEvent.keyDown(input(), { key: 'd', ctrlKey: true })
+
+    expect(screen.queryByTestId('knowledge-highlight-chip-0-0')).toBeNull()
+
     fireEvent.keyDown(input(), { key: 'H', shiftKey: true, ctrlKey: true })
 
     expect(screen.getByTestId('knowledge-highlight-chip-0-0').textContent).toContain('alpha')
+    expect(screen.getByTestId('knowledge-highlight-button-0').getAttribute('title')).toContain('Ctrl+Shift+H')
+  })
+
+  it('should remember the picked shortcut next time and go back to the default on reset', () => {
+    const first = render(<AddKnowledgeForm />)
+
+    fireEvent.change(screen.getByTestId('knowledge-highlight-shortcut-select'), { target: { value: 'shift+h' } })
+    first.unmount()
+    render(<AddKnowledgeForm />)
+
+    expect((screen.getByTestId('knowledge-highlight-shortcut-select') as HTMLSelectElement).value).toBe('shift+h')
+
+    fireEvent.click(screen.getByTestId('knowledge-highlight-shortcut-reset'))
+
+    expect((screen.getByTestId('knowledge-highlight-shortcut-select') as HTMLSelectElement).value).toBe('d')
+    expect(window.localStorage.getItem(HIGHLIGHT_SHORTCUT_STORAGE_KEY)).toBeNull()
   })
 
   it('should keep a highlight when a letter inside it is changed', () => {

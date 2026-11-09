@@ -3,6 +3,8 @@ import type { KeyboardEvent } from 'react'
 
 import { KNOWLEDGE_HIGHLIGHTS_MAX, addHighlight, highlightExcerpt, highlightSegments } from './knowledge-highlights'
 import type { KnowledgeHighlight } from './knowledge-highlights'
+import { DEFAULT_HIGHLIGHT_SHORTCUT, describeHighlightShortcut, matchesHighlightShortcut } from './highlight-shortcut'
+import type { HighlightShortcut } from './highlight-shortcut'
 
 interface HighlightedTextFieldProps {
   index: number
@@ -10,6 +12,7 @@ interface HighlightedTextFieldProps {
   highlights: KnowledgeHighlight[]
   disabled: boolean
   highlightUnavailable?: boolean
+  highlightShortcut?: HighlightShortcut
   onValueChange: (value: string) => void
   onHighlightsChange: (highlights: KnowledgeHighlight[]) => void
   onSubmitShortcut: () => void
@@ -23,12 +26,14 @@ export function HighlightedTextField({
   highlights,
   disabled,
   highlightUnavailable = false,
+  highlightShortcut = DEFAULT_HIGHLIGHT_SHORTCUT,
   onValueChange,
   onHighlightsChange,
   onSubmitShortcut,
 }: HighlightedTextFieldProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
+  const shortcutLabel = describeHighlightShortcut(highlightShortcut)
   const full = highlights.length >= KNOWLEDGE_HIGHLIGHTS_MAX
 
   function highlightSelection() {
@@ -53,7 +58,7 @@ export function HighlightedTextField({
       return
     }
 
-    if (event.key.toLowerCase() === 'h' && event.shiftKey && (event.metaKey || event.ctrlKey)) {
+    if (matchesHighlightShortcut(event, highlightShortcut)) {
       event.preventDefault()
       highlightSelection()
     }
@@ -106,8 +111,8 @@ export function HighlightedTextField({
           type="button"
           disabled={disabled || full || highlightUnavailable}
           onClick={highlightSelection}
-          title="Ctrl or Cmd+Shift+H also highlights the selection"
-          aria-keyshortcuts="Control+Shift+H Meta+Shift+H"
+          title={`${shortcutLabel} also highlights the selection`}
+          aria-keyshortcuts={shortcutLabel.replace('Cmd', 'Meta').replace('Ctrl', 'Control')}
           data-testid={`knowledge-highlight-button-${index}`}
           className="inline-flex min-h-[44px] items-center rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 sm:min-h-0"
         >
