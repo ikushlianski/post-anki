@@ -42,7 +42,7 @@ function blockForSubject(notes: CardStyleNote[], subjectId: string | null): stri
   return buildStyleNotesBlock(notes.filter((note) => note.subjectId === null || note.subjectId === subjectId));
 }
 
-// One notes query and one bit-subject query per scan; a bit without notes maps to "".
+// One notes query and one bit-subject query per scan; a bit with no notes or guidance gets no entry.
 export async function loadStyleNotesBlocksForBits(bitIds: string[]): Promise<Map<string, string>> {
   const blocks = new Map<string, string>();
 
@@ -64,7 +64,11 @@ export async function loadStyleNotesBlocksForBits(bitIds: string[]): Promise<Map
         perSubject.set(subjectId, joinPromptBlocks(blockForSubject(notes, subjectId), guidance));
       }
 
-      blocks.set(bitId, perSubject.get(subjectId) ?? "");
+      const block = perSubject.get(subjectId) ?? "";
+
+      if (block) {
+        blocks.set(bitId, block);
+      }
     }
   } catch (err) {
     log.warn({ err }, "card_style_notes_load_failed");

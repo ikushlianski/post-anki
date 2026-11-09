@@ -107,7 +107,7 @@ describe("sendChatQueueMessageResultSchema", () => {
   });
 
   it("should leave room in the reply budget for the card block", () => {
-    expect(CHAT_QUEUE_REPLY_MAX_TOKENS).toBe(700);
+    expect(CHAT_QUEUE_REPLY_MAX_TOKENS).toBe(900);
   });
 });
 

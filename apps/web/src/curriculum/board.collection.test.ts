@@ -48,6 +48,8 @@ describe('mapSubjectRow', () => {
       modelTier: null,
       parentId: null,
       learningIntent: null,
+      extractionInstructions: null,
+      extractionExamples: null,
     })
   })
 

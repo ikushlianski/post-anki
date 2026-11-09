@@ -150,7 +150,7 @@ describe("review chat on approved cards (real Postgres)", () => {
 
     const sent = await sendChatQueueMessage(id, { clientMessageId: "c2", message: "more" });
 
-    expect(sent).toEqual({ ok: true, value: { reply: "tutor reply", turnsLeft: 6, capReached: false } });
+    expect(sent).toEqual({ ok: true, value: { reply: "tutor reply", replySeq: 4, turnsLeft: 6, capReached: false } });
 
     const thread = await getChatQueueThread(id);
 

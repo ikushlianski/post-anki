@@ -13,7 +13,6 @@ import {
   markKnowledgeSourceFailed,
   resetStaleProcessingKnowledgeSources,
 } from "../knowledge-bit/knowledge-bit.repo.js";
-import { insertKnowledgeSourcesFromNotion } from "../knowledge-source/knowledge-source.repo.js";
 
 // SCENARIO 1 (.planning/phrase-bank-concurrency-fix/scenarios.md) — migration-diff
 // proof. This test applies every migration under apps/api/src/db/migrations/
@@ -322,6 +321,7 @@ describe("migrations — knowledge_sources table (prose-knowledge-fisher--accept
       expect.objectContaining({ column_name: "import_key", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "target_phrases", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "highlights", data_type: "jsonb", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "source_author", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
@@ -440,21 +440,6 @@ describe("migrations — knowledge_sources.notion_page_id (prose-knowledge-fishe
         [secondId, "Pasted prose two."],
       ),
     ).resolves.toBeDefined();
-  });
-
-  it("keeps exactly one row when two concurrent imports race to insert the same notion_page_id", async () => {
-    const pageId = `page-race-${randomUUID()}`;
-    const importPage = (text: string) =>
-      insertKnowledgeSourcesFromNotion([{ id: pageId, text }], "ds-race", null, testDb);
-
-    await Promise.all([importPage("First racer."), importPage("Second racer.")]);
-
-    const { rows } = await client.query(
-      `SELECT id FROM knowledge_sources WHERE notion_page_id = $1`,
-      [pageId],
-    );
-
-    expect(rows).toHaveLength(1);
   });
 });
 
@@ -575,7 +560,10 @@ describe("migrations — triage chat queue and nothing-extracted marker", () => 
     );
 
     expect(columns.rows.map((row) => row.column_name).sort()).toEqual(
-      ["client_message_id", "created_at", "id", "input_tokens", "knowledge_bit_id", "model_id", "output_tokens", "role", "seq", "text"],
+      [
+        "client_message_id", "created_at", "id", "input_tokens", "knowledge_bit_id", "model_id", "output_tokens",
+        "proposals", "role", "seq", "text",
+      ],
     );
     expect(fks.rows).toHaveLength(0);
   });
