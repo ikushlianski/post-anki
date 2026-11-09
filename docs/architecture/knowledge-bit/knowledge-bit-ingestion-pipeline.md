@@ -6,7 +6,7 @@ How pasted text becomes knowledge bits with questions. One model call per chunk 
 - After paste (text, multi-text, URL, extension, MCP, Telegram, imports): the source is saved `pending`, then one Inngest job `extract-knowledge-source` is queued. Rejected input or a failed save never queues.
 - Failed send: the source stays `pending`; the 5-minute sweep (`POST /knowledge-pipeline-sweeps`) re-queues it. See `durable-extraction.md`.
 - After extraction inserts items, the follow-up passes run as one debounced Inngest job (`knowledge-bit-pipeline-kick`, 30 s debounce, 2 min max).
-- For the bit pipeline, Cloud Scheduler calls only the sweep. The per-bit scan routes are manual operator routes. Other jobs (card embedding scan, biz-education distill, Notion source tick) keep their own schedules.
+- For the bit pipeline, Cloud Scheduler calls only the sweep. The per-bit scan routes are manual operator routes. Other jobs (card embedding scan, biz-education distill) keep their own schedules.
 
 ## Passes
 The kick runs the ordered list `KNOWLEDGE_BIT_PIPELINE_STAGES` in `apps/api/src/knowledge-bit/knowledge-bit-pipeline-kick.orchestrator.ts`. It has one stage, `source_items`, which runs `detectKnowledgeBits()`: the whole-source writer reads each source in chunks and inserts the items with their question variant in one transaction. A new pass is added by appending one entry.

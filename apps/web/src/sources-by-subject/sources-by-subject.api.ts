@@ -1,15 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 import type { SubjectHierarchyRow } from '@post-anki/core'
-import type { LibrarySource, NotionIngestionSource } from '@post-anki/shared'
+import type { LibrarySource } from '@post-anki/shared'
 
 import { listLibrarySources as fetchLibrarySources } from '../content-library/content-library.api-client'
 import { request } from '../curriculum/api-client'
 
 export type SourcesBySubjectData = {
-  notionSources: NotionIngestionSource[]
   librarySources: LibrarySource[]
   subjects: SubjectHierarchyRow[]
-  notionFailed: boolean
   libraryFailed: boolean
   subjectsFailed: boolean
 }
@@ -24,8 +22,7 @@ async function settle<T>(call: () => Promise<T>, fallback: T): Promise<{ value: 
 
 export const loadSourcesBySubject = createServerFn({ method: 'GET' }).handler(
   async (): Promise<SourcesBySubjectData> => {
-    const [notion, library, subjects] = await Promise.all([
-      settle(async () => (await request<{ sources: NotionIngestionSource[] }>('/notion-sources')).sources, []),
+    const [library, subjects] = await Promise.all([
       settle(() => fetchLibrarySources(), []),
       settle(
         async () =>
@@ -35,10 +32,8 @@ export const loadSourcesBySubject = createServerFn({ method: 'GET' }).handler(
     ])
 
     return {
-      notionSources: notion.value,
       librarySources: library.value,
       subjects: subjects.value,
-      notionFailed: notion.failed,
       libraryFailed: library.failed,
       subjectsFailed: subjects.failed,
     }

@@ -4,13 +4,12 @@ import type { SubjectSourceGroup } from './subject-source-group'
 
 export type SourcesBySubjectViewProps = {
   groups: SubjectSourceGroup[]
-  notionFailed: boolean
   libraryFailed: boolean
   subjectsFailed?: boolean
   onRetry?: () => void
 }
 
-const ORIGIN_LABEL = { notion: 'Notion', library: 'Library' } as const
+const ORIGIN_LABEL = { library: 'Library' } as const
 
 function RetryButton({ onRetry }: { onRetry?: () => void }) {
   if (!onRetry) return null
@@ -29,14 +28,11 @@ function RetryButton({ onRetry }: { onRetry?: () => void }) {
 
 export function SourcesBySubjectView({
   groups,
-  notionFailed,
   libraryFailed,
   subjectsFailed = false,
   onRetry,
 }: SourcesBySubjectViewProps) {
-  const failed = notionFailed || libraryFailed
-
-  if (groups.length === 0 && notionFailed && libraryFailed) {
+  if (groups.length === 0 && libraryFailed) {
     return (
       <p role="alert" data-testid="sources-error" className="text-sm text-red-700">
         Could not load your sources.
@@ -47,9 +43,9 @@ export function SourcesBySubjectView({
 
   return (
     <div>
-      {failed ? (
+      {libraryFailed ? (
         <p role="alert" data-testid="sources-partial-error" className="mb-4 text-sm text-amber-800">
-          {notionFailed ? 'Notion sources' : 'Library sources'} could not be loaded, so this list is incomplete.
+          Library sources could not be loaded, so this list is incomplete.
           <RetryButton onRetry={onRetry} />
         </p>
       ) : null}
@@ -60,10 +56,9 @@ export function SourcesBySubjectView({
         </p>
       ) : null}
 
-      {groups.length === 0 && !failed ? (
+      {groups.length === 0 && !libraryFailed ? (
         <p data-testid="sources-empty" className="text-sm text-neutral-500">
-          No sources yet. Add a <Link to="/notion-sources" className="underline">Notion page</Link> or{' '}
-          <Link to="/add-knowledge" className="underline">capture a link</Link> and it will show up here under its subject.
+          No sources yet. <Link to="/add-knowledge" className="underline">Capture a link</Link> and it will show up here under its subject.
         </p>
       ) : null}
 

@@ -4,7 +4,6 @@ import SwiftUI
 struct PendingReviewTriageView: View {
     @Bindable var model: PendingReviewTriageModel
     @Binding var editingBit: PendingReviewBit?
-    var onIngestFromNotion: (() -> Void)?
     var onBackToSubjects: (() -> Void)?
     @FocusState private var isFocused: Bool
 
@@ -176,11 +175,6 @@ struct PendingReviewTriageView: View {
             if let onBackToSubjects {
                 Button("Back to subjects", action: onBackToSubjects)
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-            }
-
-            if let onIngestFromNotion {
-                Button(TriageNotionText.entry, action: onIngestFromNotion)
                     .controlSize(.large)
             }
         }

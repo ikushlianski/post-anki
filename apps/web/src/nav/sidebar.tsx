@@ -13,7 +13,6 @@ import {
   ChatQueueIcon,
   InboxDeckIcon,
   KnowledgeBrowserIcon,
-  NotionSourcesIcon,
   OverviewIcon,
   ReviewIcon,
   SourcesIcon,
@@ -202,10 +201,6 @@ export function Sidebar() {
       <Link to="/statistics" className={navLinkClass} data-testid="nav-statistics">
         <StatisticsIcon />
         Statistics
-      </Link>
-      <Link to="/notion-sources" className={navLinkClass} data-testid="nav-notion-sources">
-        <NotionSourcesIcon />
-        Notion sources
       </Link>
       <Link to="/sources" className={navLinkClass} data-testid="nav-sources">
         <SourcesIcon />

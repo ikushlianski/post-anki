@@ -100,21 +100,14 @@ extension PendingReviewScreen {
             ContentUnavailableView {
                 Label("Nothing to review", systemImage: "checkmark.seal")
             } description: {
-                Text(TriageNotionText.emptyHint)
-            } actions: {
-                Button(TriageNotionText.entry) { notionIngestOpen = true }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                Text(TriageText.emptyHint)
             }
             #else
             ContentUnavailableView {
                 Label("Nothing to review", systemImage: "checkmark.seal")
             } description: {
-                Text(TriageNotionText.emptyHint)
+                Text(TriageText.emptyHint)
             } actions: {
-                Button(TriageNotionText.entry) { notionIngestOpen = true }
-                    .buttonStyle(.borderedProminent)
-
                 ChatQueueLink()
 
                 if model.counts.inboxCount > 0 { TriageInboxLink(count: model.counts.inboxCount) }
@@ -133,7 +126,6 @@ extension PendingReviewScreen {
             PendingReviewTriageView(
                 model: triage,
                 editingBit: $editingBit,
-                onIngestFromNotion: { notionIngestOpen = true },
                 onBackToSubjects: {
                     leaveMacTriage()
                     onTriageFinished?()

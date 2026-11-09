@@ -3,7 +3,6 @@ import SwiftUI
 enum MacSettingsPane: String, CaseIterable, Identifiable {
     case general
     case connection
-    case notion
     case admin
 
     var id: String { rawValue }
@@ -12,7 +11,6 @@ enum MacSettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: "General"
         case .connection: "Connection"
-        case .notion: "Notion sources"
         case .admin: "Admin"
         }
     }
@@ -21,7 +19,6 @@ enum MacSettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: "How the app behaves on this Mac."
         case .connection: "Server address, sign-in, and review preferences."
-        case .notion: "Notion pages that feed new knowledge into your library."
         case .admin: "Account-wide AI model and daily card limits."
         }
     }
@@ -30,7 +27,6 @@ enum MacSettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape"
         case .connection: "network"
-        case .notion: "square.and.arrow.down.on.square"
         case .admin: "person.badge.key"
         }
     }
@@ -78,8 +74,7 @@ struct MacSettingsView: View {
         switch pane {
         case .general: MacGeneralSettingsPane()
         case .connection: SettingsScreen(showsAdminLink: false)
-        case .notion: MacNotionSourcesView(embedded: true)
-        case .admin: AdminSettingsScreen(showsNotionConnection: false)
+        case .admin: AdminSettingsScreen()
         }
     }
 }

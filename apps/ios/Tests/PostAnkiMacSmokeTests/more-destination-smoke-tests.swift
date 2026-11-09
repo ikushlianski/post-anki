@@ -8,7 +8,7 @@ extension SmokeTests {
             let titles = MoreDestination.allCases.map(\.title)
 
             #expect(titles == [
-                "Knowledge", "Subjects", "Notes", "Search", "Tags", "Duplicates", "Notion sources",
+                "Knowledge", "Subjects", "Notes", "Search", "Tags", "Duplicates",
                 "Today", "Progress", "Statistics", "Learning list", "Study sessions", "Triage history", "Study plan",
                 "Settings", "Account", "About"
             ])

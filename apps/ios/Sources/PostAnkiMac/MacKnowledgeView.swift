@@ -199,7 +199,7 @@ struct MacKnowledgeView: View {
                         MacEmptyStateView(
                             title: "No approved items yet",
                             systemImage: "tray",
-                            message: TriageNotionText.knowledgeEmptyHint
+                            message: TriageText.knowledgeEmptyHint
                         )
                     }
                 }

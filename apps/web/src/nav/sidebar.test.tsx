@@ -72,7 +72,6 @@ describe('Sidebar', () => {
       '/knowledge/chat',
       '/knowledge/review',
       '/statistics',
-      '/notion-sources',
       '/sources',
       '/admin-settings',
     ])
@@ -86,7 +85,6 @@ describe('Sidebar', () => {
       'Chat',
       'Review',
       'Statistics',
-      'Notion sources',
       'Sources',
       'Admin settings',
     ])
@@ -103,15 +101,6 @@ describe('Sidebar', () => {
 
     expect(screen.queryByTestId('nav-stats')).toBeNull()
     expect(screen.getByTestId('nav-statistics').getAttribute('data-to')).toBe('/statistics')
-  })
-
-  it('should give Notion sources an icon different from Admin settings', () => {
-    render(<Sidebar />)
-
-    const icon = (id: string) => screen.getByTestId(id).querySelector('svg')?.getAttribute('class')
-
-    expect(icon('nav-notion-sources')).not.toBe(icon('nav-admin-settings'))
-    expect(screen.getByTestId('nav-notion-sources').innerHTML).not.toBe(screen.getByTestId('nav-admin-settings').innerHTML)
   })
 
   it('should pin Admin settings as the last link', () => {
@@ -133,7 +122,6 @@ describe('Sidebar', () => {
       'nav-knowledge-inbox',
       'nav-knowledge-review',
       'nav-statistics',
-      'nav-notion-sources',
       'nav-sources',
       'nav-admin-settings',
     ]

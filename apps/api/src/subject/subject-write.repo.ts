@@ -3,7 +3,6 @@ import type { CreateSubjectInput, Subject, UpdateSubjectInput } from "@post-anki
 import { getDb } from "../db/client.js";
 import { deleteSubjectGoals } from "../study-goal/add-knowledge-goal.repo.js";
 import { curricula, notionIngestionSources, subjectDuplicateSuggestions, subjects } from "../db/schema.js";
-import { SubjectHasNotionSourcesError } from "./subject-notion-sources.error.js";
 import { newId } from "../shared/id.js";
 import { deleteCurriculum } from "../curriculum/curriculum.repo.js";
 import { withSubjectLock, type Tx } from "../shared/merge-lock.js";
@@ -193,15 +192,7 @@ export async function deleteSubject(subjectId: string): Promise<boolean> {
       return false;
     }
 
-    const [notionSource] = await tx
-      .select({ id: notionIngestionSources.id })
-      .from(notionIngestionSources)
-      .where(eq(notionIngestionSources.subjectId, subjectId))
-      .limit(1);
-
-    if (notionSource) {
-      throw new SubjectHasNotionSourcesError();
-    }
+    await tx.delete(notionIngestionSources).where(eq(notionIngestionSources.subjectId, subjectId));
 
     const owned = await tx
       .select()

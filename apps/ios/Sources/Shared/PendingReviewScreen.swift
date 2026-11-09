@@ -12,7 +12,6 @@ struct PendingReviewScreen: View {
     @State var session: FocusTriageSessionModel
     @State var focusOpen = false
     @State var retries: AttentionRetryCoordinator
-    @State var notionIngestOpen = false
     @State var subjects = TriageSubjectsModel()
     @State var macTriageStarted = false
 
@@ -46,15 +45,8 @@ struct PendingReviewScreen: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(TriageNotionText.inboxTitle)
+                .navigationTitle(TriageText.inboxTitle)
                 .toolbar {
-                    if !isEmptyState {
-                        ToolbarItem {
-                            TriageNotionIngestButton { notionIngestOpen = true }
-                                .accessibilityLabel(TriageNotionText.entry)
-                        }
-                    }
-
                     #if os(iOS)
                     if onDone == nil {
                         ToolbarItem(placement: .topBarLeading) {
@@ -121,10 +113,6 @@ struct PendingReviewScreen: View {
             Button("Cancel", role: .cancel) { confirmingSourceId = nil }
         }
         .pendingReviewSheets(model: model, editingBit: $editingBit, isEnabled: !isTriageCoverShown)
-        .triageNotionIngestSheet(isPresented: $notionIngestOpen) {
-            await model.load()
-            await subjects.load()
-        }
         #if os(iOS)
         .fullScreenCover(
             isPresented: Binding(get: { focusOpen }, set: { focusOpen = $0 }),

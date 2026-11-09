@@ -58,24 +58,6 @@ enum MacLibraryFeatures {
             systemImage: "note.text",
             inSidebar: false,
             detail: { _ in AnyView(NotesSearchScreen()) }
-        ),
-        MacFeature(
-            id: "notion-import",
-            section: .library,
-            order: 100,
-            title: "Notion import",
-            systemImage: "square.and.arrow.down",
-            inSidebar: false,
-            detail: { _ in AnyView(MacNotionImportView()) }
-        ),
-        MacFeature(
-            id: "notion-sources",
-            section: .library,
-            order: 110,
-            title: "Notion sources",
-            systemImage: "square.and.arrow.down.on.square",
-            inSidebar: false,
-            detail: { _ in AnyView(MacNotionSourcesView()) }
         )
     ]
 }

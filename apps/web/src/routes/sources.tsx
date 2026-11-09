@@ -23,8 +23,7 @@ function SourcesPage() {
       </header>
 
       <SourcesBySubjectView
-        groups={groupSourcesBySubject(data.notionSources, data.librarySources, data.subjects)}
-        notionFailed={data.notionFailed}
+        groups={groupSourcesBySubject(data.librarySources, data.subjects)}
         libraryFailed={data.libraryFailed}
         subjectsFailed={data.subjectsFailed}
         onRetry={() => void router.invalidate()}

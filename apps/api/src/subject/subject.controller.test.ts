@@ -135,18 +135,16 @@ describe("handleReorderSubjects", () => {
 });
 
 describe("handleDeleteSubject", () => {
-  it("should answer 409 with a clear code when the subject still has a Notion source", async () => {
+  it("should answer 404 when the subject to delete does not exist", async () => {
     const { deleteSubject } = await import("./subject.repo.js");
-    const { SubjectHasNotionSourcesError } = await import("./subject-notion-sources.error.js");
     const { handleDeleteSubject } = await import("./subject.controller.js");
 
-    vi.mocked(deleteSubject).mockRejectedValue(new SubjectHasNotionSourcesError());
+    vi.mocked(deleteSubject).mockResolvedValue(false);
 
     const res = fakeRes();
 
-    await handleDeleteSubject(res, "sub_1");
+    await handleDeleteSubject(res, "sub_missing");
 
-    expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ error: "subject_has_notion_sources" });
+    expect(res.statusCode).toBe(404);
   });
 });

@@ -8,7 +8,6 @@ import {
   Library,
   LayoutDashboard,
   MessageSquare,
-  RefreshCw,
   Settings,
 } from 'lucide-react'
 
@@ -48,10 +47,6 @@ export function AdminSettingsIcon() {
 
 export function ChatQueueIcon() {
   return <MessagesSquare aria-hidden="true" className={ICON_CLASS} data-nav-icon="" />
-}
-
-export function NotionSourcesIcon() {
-  return <RefreshCw aria-hidden="true" className={ICON_CLASS} data-nav-icon="" />
 }
 
 export function SourcesIcon() {

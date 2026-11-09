@@ -1,7 +1,5 @@
 import { buildSubjectPathLabel, type SubjectHierarchyRow } from '@post-anki/core'
-import type { LibrarySource, NotionIngestionSource } from '@post-anki/shared'
-
-import { lastRunText } from '../notion-source/notion-run-result-text'
+import type { LibrarySource } from '@post-anki/shared'
 
 const PATH_SEPARATOR = ' › '
 
@@ -9,7 +7,7 @@ export type SubjectSourceItem = {
   id: string
   title: string
   detail: string
-  origin: 'notion' | 'library'
+  origin: 'library'
   href: string | null
 }
 
@@ -26,16 +24,6 @@ function safeHttpUrl(value: string): string | null {
     return protocol === 'http:' || protocol === 'https:' ? value : null
   } catch {
     return null
-  }
-}
-
-function notionItem(source: NotionIngestionSource): SubjectSourceItem {
-  return {
-    id: `notion-${source.id}`,
-    title: source.name,
-    detail: source.paused ? `Paused. ${lastRunText(source.lastRun)}` : lastRunText(source.lastRun),
-    origin: 'notion',
-    href: safeHttpUrl(source.pageUrl),
   }
 }
 
@@ -83,7 +71,6 @@ function compareLabels(a: string, b: string): number {
 }
 
 export function groupSourcesBySubject(
-  notionSources: NotionIngestionSource[],
   librarySources: LibrarySource[],
   subjects: SubjectHierarchyRow[] = [],
 ): SubjectSourceGroup[] {
@@ -98,10 +85,6 @@ export function groupSourcesBySubject(
 
     group.items.push(item)
     groups.set(subjectId, group)
-  }
-
-  for (const source of notionSources) {
-    add(source.subjectId, source.subjectPath.join(PATH_SEPARATOR) || source.subjectId, notionItem(source))
   }
 
   for (const source of librarySources) {

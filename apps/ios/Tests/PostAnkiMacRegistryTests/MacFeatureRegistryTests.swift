@@ -28,17 +28,8 @@ struct MacFeatureRegistryTests {
         #expect(clashes.isEmpty)
     }
 
-    @Test func shouldKeepNotionSourcesOutOfTheSidebarBecauseTheyLiveInSettings() {
-        let sidebar = MacFeatureRegistry.sidebarSections
-            .flatMap { MacFeatureRegistry.sidebarFeatures(in: $0) }
-            .map(\.id)
-
-        #expect(!sidebar.contains("notion-sources"))
-        #expect(MacFeatureRegistry.features.contains { $0.id == "notion-sources" })
-    }
-
-    @Test func shouldOfferNotionIngestionAsItsOwnSettingsPane() {
-        #expect(MacSettingsPane.allCases.map(\.title) == ["General", "Connection", "Notion sources", "Admin"])
+    @Test func shouldOfferGeneralConnectionAndAdminAsTheSettingsPanes() {
+        #expect(MacSettingsPane.allCases.map(\.title) == ["General", "Connection", "Admin"])
         #expect(Set(MacSettingsPane.allCases.map(\.systemImage)).count == MacSettingsPane.allCases.count)
     }
 

@@ -4,7 +4,7 @@ export const LLM_REQUEST_TIMEOUT_MS = 120_000
 const ID = '[^/]+'
 
 const LLM_BACKED_CALLS: ReadonlyArray<readonly [method: string, path: RegExp]> = [
-  ['POST', /^\/knowledge-sources(\/notion|\/detect-bits|\/subject-checks)?$/],
+  ['POST', /^\/knowledge-sources(\/detect-bits|\/subject-checks)?$/],
   ['POST', new RegExp(`^/knowledge-sources/${ID}/regeneration$`)],
   ['POST', new RegExp(`^/knowledge-bits/question-variants/${ID}/answers$`)],
   ['POST', new RegExp(`^/knowledge-bits/${ID}/(chat|chat/draft|chat-messages|example|variants|derived-items)$`)],

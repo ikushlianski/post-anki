@@ -17,7 +17,6 @@ import {
   searchSubjectsByText,
   updateSubject,
 } from "./subject.repo.js";
-import { SubjectHasNotionSourcesError } from "./subject-notion-sources.error.js";
 
 // GET /subjects serves both the full list and, when ?query= is present, a ranked search.
 export async function handleListSubjects(
@@ -110,18 +109,7 @@ export async function handleDeleteSubject(
   res: http.ServerResponse,
   subjectId: string,
 ): Promise<void> {
-  let ok: boolean;
-
-  try {
-    ok = await deleteSubject(subjectId);
-  } catch (err) {
-    if (err instanceof SubjectHasNotionSourcesError) {
-      sendError(res, 409, "subject_has_notion_sources", err.message);
-      return;
-    }
-
-    throw err;
-  }
+  const ok = await deleteSubject(subjectId);
 
   if (!ok) {
     sendError(res, 404, "not_found");

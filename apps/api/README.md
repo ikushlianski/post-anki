@@ -99,7 +99,7 @@ Local: `DATABASE_URL` (local docker Postgres on :5562 in `.env.local`; Neon only
 (default `openrouter/google/gemini-2.5-flash`), `API_SHARED_SECRET` (optional),
 `PORT` (5560), `LOG_LEVEL`.
 
-Production (set by the `deploy-api` job in `.github/workflows/deploy.yml`): `DATABASE_URL`, `OPENROUTER_API_KEY`, `CURRICULUM_MODEL`, `API_SHARED_SECRET`, `RESEND_API_KEY`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_ORIGINS`, `WEB_ORIGIN` (when the web service exists), `AUTH_EMAIL_FROM`, `OWNER_EMAIL`, `LOG_LEVEL`, `NODE_ENV`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `CONNECTOR_SECRET_KEY`, `NOTION_TOKEN`, `EXTENSION_ID`, and `ELECTRIC_SERVICE_URL` (only when `PROD_ELECTRIC_ENABLED` is `true`).
+Production (set by the `deploy-api` job in `.github/workflows/deploy.yml`): `DATABASE_URL`, `OPENROUTER_API_KEY`, `CURRICULUM_MODEL`, `API_SHARED_SECRET`, `RESEND_API_KEY`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `WEB_ORIGINS`, `WEB_ORIGIN` (when the web service exists), `AUTH_EMAIL_FROM`, `OWNER_EMAIL`, `LOG_LEVEL`, `NODE_ENV`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`, `NOTION_TOKEN`, `EXTENSION_ID`, and `ELECTRIC_SERVICE_URL` (only when `PROD_ELECTRIC_ENABLED` is `true`).
 
 ## Local development — zero-cost mock LLM
 

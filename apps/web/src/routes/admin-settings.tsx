@@ -14,7 +14,6 @@ import { ClearAllKnowledgeZone } from '../admin-settings/clear-all-knowledge-zon
 import { FusionModeSection } from '../admin-settings/fusion-mode-section'
 import { KnowledgeItemModelSelect } from '../admin-settings/knowledge-item-model-select'
 import { ModelTierSelect } from '../admin-settings/model-tier-select'
-import { NotionConnectionPanel } from '../admin-settings/notion-connection-panel'
 import { NewCardsPerDayField } from '../admin-settings/new-cards-per-day-field'
 import { ReviewsPerDayField } from '../admin-settings/reviews-per-day-field'
 import { RetentionField } from '../subject-study-options/retention-field'
@@ -222,7 +221,6 @@ function AdminSettingsPage() {
         </Link>
       </section>
 
-      <NotionConnectionPanel />
 
       <ChatUsagePanel />
 

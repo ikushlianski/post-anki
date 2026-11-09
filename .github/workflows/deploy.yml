@@ -338,7 +338,6 @@ jobs:
             --set-env-vars "LANGFUSE_PUBLIC_KEY=${{ secrets.PROD_LANGFUSE_PUBLIC_KEY }}" \
             --set-env-vars "LANGFUSE_SECRET_KEY=${{ secrets.PROD_LANGFUSE_SECRET_KEY }}" \
             --set-env-vars "LANGFUSE_HOST=${{ vars.PROD_LANGFUSE_HOST || 'https://cloud.langfuse.com' }}" \
-            --set-env-vars "CONNECTOR_SECRET_KEY=${{ secrets.PROD_CONNECTOR_SECRET_KEY }}" \
             --set-env-vars "NOTION_TOKEN=${{ secrets.PROD_NOTION_TOKEN }}" \
             --set-env-vars "EXTENSION_ID=phmjgadfbbagfjlfgcdloehdcoapiohf" \
             "${ELECTRIC_ARGS[@]}" \

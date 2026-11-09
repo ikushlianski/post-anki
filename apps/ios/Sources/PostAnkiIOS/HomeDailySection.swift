@@ -31,12 +31,6 @@ struct HomeDailySection: View {
             } label: {
                 Label("Content inbox", systemImage: "tray")
             }
-
-            NavigationLink {
-                NotionImportScreen()
-            } label: {
-                Label("Import from Notion", systemImage: "square.and.arrow.down.on.square")
-            }
         }
     }
 

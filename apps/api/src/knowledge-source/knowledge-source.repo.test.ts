@@ -6,7 +6,7 @@ const state = vi.hoisted(() => ({
 }));
 
 // insertKnowledgeSource/insertKnowledgeSources await `.values(rowOrRows)` directly (no further
-// chaining); insertKnowledgeSourcesFromNotion chains `.values(rows).onConflictDoNothing().returning()`.
+// chaining).
 // The array branch records rows immediately so both the plain-await and chained callers see them.
 vi.mock("../db/client.js", () => ({
   getDb: () => ({
@@ -39,7 +39,7 @@ vi.mock("../db/client.js", () => ({
   }),
 }));
 
-const { insertKnowledgeSource, insertKnowledgeSources, insertKnowledgeSourcesFromNotion } =
+const { insertKnowledgeSource, insertKnowledgeSources } =
   await import("./knowledge-source.repo.js");
 
 describe("insertKnowledgeSource", () => {
@@ -125,90 +125,5 @@ describe("insertKnowledgeSources", () => {
 
     expect(state.insertedRows).toHaveLength(100);
     expect(created).toHaveLength(100);
-  });
-});
-
-describe("insertKnowledgeSourcesFromNotion", () => {
-  beforeEach(() => {
-    state.insertedRows = [];
-    state.existingNotionPageIds = new Set();
-  });
-
-  it("inserts one pending notion knowledge source row per item, tagged with the data source id and page id", async () => {
-    const created = await insertKnowledgeSourcesFromNotion(
-      [
-        { id: "r-1", text: "Idea one" },
-        { id: "r-2", text: "Idea two" },
-        { id: "r-3", text: "Idea three" },
-      ],
-      "ds-1",
-    );
-
-    expect(state.insertedRows).toEqual([
-      {
-        id: expect.stringMatching(/^ks_/),
-        kind: "notion",
-        rawText: "Idea one",
-        status: "pending",
-        notionDatabaseId: "ds-1",
-        notionPageId: "r-1",
-      },
-      {
-        id: expect.stringMatching(/^ks_/),
-        kind: "notion",
-        rawText: "Idea two",
-        status: "pending",
-        notionDatabaseId: "ds-1",
-        notionPageId: "r-2",
-      },
-      {
-        id: expect.stringMatching(/^ks_/),
-        kind: "notion",
-        rawText: "Idea three",
-        status: "pending",
-        notionDatabaseId: "ds-1",
-        notionPageId: "r-3",
-      },
-    ]);
-    expect(created).toHaveLength(3);
-    expect(created.every((row) => row.createdAt instanceof Date)).toBe(true);
-  });
-
-  it("files every imported row under the given subject", async () => {
-    await insertKnowledgeSourcesFromNotion([{ id: "r-1", text: "Idea one" }], "ds-1", "sub_web");
-
-    expect(state.insertedRows[0]).toMatchObject({ notionPageId: "r-1", subjectId: "sub_web" });
-  });
-
-  it("inserts nothing and returns an empty array for a database with no rows", async () => {
-    const created = await insertKnowledgeSourcesFromNotion([], "ds-empty");
-
-    expect(state.insertedRows).toEqual([]);
-    expect(created).toEqual([]);
-  });
-
-  it("skips a page already imported in an earlier call instead of duplicating it", async () => {
-    state.existingNotionPageIds.add("r-1");
-
-    const created = await insertKnowledgeSourcesFromNotion(
-      [
-        { id: "r-1", text: "Already imported" },
-        { id: "r-2", text: "New page" },
-      ],
-      "ds-1",
-    );
-
-    expect(state.insertedRows).toHaveLength(1);
-    expect(state.insertedRows[0]).toMatchObject({ notionPageId: "r-2" });
-    expect(created).toHaveLength(1);
-  });
-
-  it("caps a single import at 500 rows so one call can't queue an unbounded batch", async () => {
-    const items = Array.from({ length: 600 }, (_, i) => ({ id: `r-${i}`, text: `Idea ${i}` }));
-
-    const created = await insertKnowledgeSourcesFromNotion(items, "ds-big");
-
-    expect(state.insertedRows).toHaveLength(500);
-    expect(created).toHaveLength(500);
   });
 });

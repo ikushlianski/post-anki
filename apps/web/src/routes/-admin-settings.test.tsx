@@ -16,9 +16,6 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('../admin-settings/admin-settings.api')
-vi.mock('../notion-source/notion-source.api', () => ({
-  getNotionConnection: () => new Promise(() => {}),
-}))
 vi.mock('../chat-usage/chat-usage.api', () => ({ getChatUsage: () => new Promise(() => {}) }))
 
 import { updateAdminSettings } from '../admin-settings/admin-settings.api'

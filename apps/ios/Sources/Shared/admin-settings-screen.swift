@@ -7,11 +7,9 @@ struct AdminSettingsScreen: View {
     @State private var cardsTask: Task<Void, Never>?
     @State private var draftReviews = AdminSettingsLimits.defaultMaxReviewsPerDay
     @State private var reviewsTask: Task<Void, Never>?
-    private let showsNotionConnection: Bool
 
-    init(model: AdminSettingsModel = AdminSettingsModel(), showsNotionConnection: Bool = true) {
+    init(model: AdminSettingsModel = AdminSettingsModel()) {
         _model = State(initialValue: model)
-        self.showsNotionConnection = showsNotionConnection
     }
 
     var body: some View {
@@ -25,10 +23,6 @@ struct AdminSettingsScreen: View {
                 ProgressView()
             } else {
                 settingsSections
-            }
-
-            if showsNotionConnection {
-                NotionConnectionSection()
             }
         }
         #if os(macOS)

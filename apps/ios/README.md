@@ -143,12 +143,12 @@ The extension is a separate process, so it reads the sign-in token from a shared
 
 ### Settings
 
-Cmd-comma opens a tabbed Settings window: General (menu bar), Connection (server address, sign in, token), Notion (connection and ingestion sources) and Admin. Notion sources are not in the sidebar; they remain in the command palette and Go menu.
+Cmd-comma opens a tabbed Settings window: General (menu bar), Connection (server address, sign in, token) and Admin.
 
 ### Sidebar
 
 - Study: Home, Review, Quick practice, Study sessions, Gaps coming back, Daily push, Language practice, Progress
-- Library: Courses, Knowledge, Knowledge Inbox (pending items), Sources, Content inbox, Tags, Search, Notes, Add knowledge, Notion import
+- Library: Courses, Knowledge, Knowledge Inbox (pending items), Sources, Content inbox, Tags, Search, Notes, Add knowledge
 - Learn: Learning list, Learning paths, Challenge my thinking, Ask your cards, Open questions
 - Manage: Subjects, Knowledge maps, Course builds, Refocus suggestions, Duplicates
 - Admin: Admin scans

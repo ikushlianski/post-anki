@@ -17,7 +17,6 @@ import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OpenQuestionsRouteImport } from './routes/open-questions'
-import { Route as NotionSourcesRouteImport } from './routes/notion-sources'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as MilestonesRouteImport } from './routes/milestones'
 import { Route as LoginRouteImport } from './routes/login'
@@ -107,11 +106,6 @@ const ProfileRoute = ProfileRouteImport.update({
 const OpenQuestionsRoute = OpenQuestionsRouteImport.update({
   id: '/open-questions',
   path: '/open-questions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotionSourcesRoute = NotionSourcesRouteImport.update({
-  id: '/notion-sources',
-  path: '/notion-sources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -391,7 +385,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
-  '/notion-sources': typeof NotionSourcesRoute
   '/open-questions': typeof OpenQuestionsRoute
   '/profile': typeof ProfileRoute
   '/sources': typeof SourcesRoute
@@ -452,7 +445,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
-  '/notion-sources': typeof NotionSourcesRoute
   '/open-questions': typeof OpenQuestionsRoute
   '/profile': typeof ProfileRoute
   '/sources': typeof SourcesRoute
@@ -514,7 +506,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/milestones': typeof MilestonesRoute
   '/notes': typeof NotesRoute
-  '/notion-sources': typeof NotionSourcesRoute
   '/open-questions': typeof OpenQuestionsRoute
   '/profile': typeof ProfileRoute
   '/sources': typeof SourcesRoute
@@ -577,7 +568,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/milestones'
     | '/notes'
-    | '/notion-sources'
     | '/open-questions'
     | '/profile'
     | '/sources'
@@ -638,7 +628,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/milestones'
     | '/notes'
-    | '/notion-sources'
     | '/open-questions'
     | '/profile'
     | '/sources'
@@ -699,7 +688,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/milestones'
     | '/notes'
-    | '/notion-sources'
     | '/open-questions'
     | '/profile'
     | '/sources'
@@ -761,7 +749,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MilestonesRoute: typeof MilestonesRoute
   NotesRoute: typeof NotesRoute
-  NotionSourcesRoute: typeof NotionSourcesRoute
   OpenQuestionsRoute: typeof OpenQuestionsRoute
   ProfileRoute: typeof ProfileRoute
   SourcesRoute: typeof SourcesRoute
@@ -861,13 +848,6 @@ declare module '@tanstack/react-router' {
       path: '/open-questions'
       fullPath: '/open-questions'
       preLoaderRoute: typeof OpenQuestionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notion-sources': {
-      id: '/notion-sources'
-      path: '/notion-sources'
-      fullPath: '/notion-sources'
-      preLoaderRoute: typeof NotionSourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -1241,7 +1221,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MilestonesRoute: MilestonesRoute,
   NotesRoute: NotesRoute,
-  NotionSourcesRoute: NotionSourcesRoute,
   OpenQuestionsRoute: OpenQuestionsRoute,
   ProfileRoute: ProfileRoute,
   SourcesRoute: SourcesRoute,

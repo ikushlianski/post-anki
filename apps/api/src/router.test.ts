@@ -7,9 +7,6 @@ describe("resolveRoute", () => {
       expect(resolveRoute("GET", "/subjects")?.name).toBe("listSubjects");
       expect(resolveRoute("POST", "/subjects")?.name).toBe("createSubject");
       expect(resolveRoute("POST", "/knowledge-sources")?.name).toBe("createKnowledgeSource");
-      expect(resolveRoute("POST", "/knowledge-sources/notion")?.name).toBe(
-        "createKnowledgeSourceFromNotion",
-      );
       expect(resolveRoute("POST", "/knowledge-sources/phrases")?.name).toBe(
         "createKnowledgeSourcesFromPhrases",
       );
@@ -620,25 +617,6 @@ describe("resolveRoute", () => {
         "editKnowledgeBit",
       );
       expect(resolveRoute("PATCH", "/knowledge-bits/kb_1")?.name).toBe("editKnowledgeBit");
-    });
-
-    it("should resolve the notion source and connection routes", () => {
-      expect(resolveRoute("GET", "/notion-sources")?.name).toBe("listNotionSources");
-      expect(resolveRoute("POST", "/notion-sources")?.name).toBe("createNotionSource");
-      expect(resolveRoute("PATCH", "/notion-sources/nis_1")).toEqual({
-        name: "updateNotionSource",
-        params: { id: "nis_1" },
-      });
-      expect(resolveRoute("DELETE", "/notion-sources/nis_1")?.name).toBe("deleteNotionSource");
-      expect(resolveRoute("POST", "/notion-sources/nis_1/runs")).toEqual({
-        name: "runNotionSource",
-        params: { id: "nis_1" },
-      });
-      expect(resolveRoute("POST", "/notion-source-runs")?.name).toBe("runDueNotionSources");
-      expect(resolveRoute("GET", "/notion-connection")?.name).toBe("getNotionConnection");
-      expect(resolveRoute("PUT", "/notion-connection")?.name).toBe("saveNotionConnection");
-      expect(resolveRoute("DELETE", "/notion-connection")?.name).toBe("deleteNotionConnection");
-      expect(resolveRoute("POST", "/notion-connection/checks")?.name).toBe("checkNotionConnection");
     });
 
     it("should only edit a bit for a single-segment PATCH id, never for deeper unknown paths", () => {

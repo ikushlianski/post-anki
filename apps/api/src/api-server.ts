@@ -20,22 +20,8 @@ import {
 import { handleDiscardKnowledgeSource } from "./knowledge-source/knowledge-source-discard.controller.js";
 import { handleCreateKnowledgeSource } from "./knowledge-source/knowledge-source.controller.js";
 import { handleCreateKnowledgeSourceSubjectCheck } from "./knowledge-source/knowledge-source-subject-check.controller.js";
-import { handleCreateKnowledgeSourceFromNotion } from "./knowledge-source/notion-knowledge-source.controller.js";
 import { handleCreateTxtImport, handleGetTxtImportStatus } from "./txt-import/txt-import.controller.js";
 import { handleCreateKnowledgeSourcesFromPhrases } from "./knowledge-source/phrase-knowledge-source.controller.js";
-import {
-  handleCreateNotionSource,
-  handleDeleteNotionSource,
-  handleListNotionSources,
-  handleUpdateNotionSource,
-} from "./notion-ingestion/notion-ingestion-source.controller.js";
-import {
-  handleCheckNotionConnection,
-  handleDeleteNotionConnection,
-  handleGetNotionConnection,
-  handleSaveNotionConnection,
-} from "./notion-ingestion/notion-connection.controller.js";
-import { handleRunDueNotionSources, handleRunNotionSource } from "./notion-ingestion/notion-source-run.controller.js";
 import {
   handleDetectKnowledgeBits,
   handleTriggerKnowledgeBitEmbeddingScan,
@@ -731,34 +717,12 @@ async function route(
       return handleCreateSubject(req, res);
     case "createKnowledgeSource":
       return handleCreateKnowledgeSource(req, res);
-    case "createKnowledgeSourceFromNotion":
-      return handleCreateKnowledgeSourceFromNotion(req, res);
     case "createKnowledgeSourcesFromPhrases":
       return handleCreateKnowledgeSourcesFromPhrases(req, res);
     case "createTxtImport":
       return handleCreateTxtImport(req, res);
     case "getTxtImportStatus":
       return handleGetTxtImportStatus(res, id);
-    case "listNotionSources":
-      return handleListNotionSources(res);
-    case "createNotionSource":
-      return handleCreateNotionSource(req, res);
-    case "updateNotionSource":
-      return handleUpdateNotionSource(req, res, id);
-    case "deleteNotionSource":
-      return handleDeleteNotionSource(res, id);
-    case "runNotionSource":
-      return handleRunNotionSource(res, id);
-    case "runDueNotionSources":
-      return handleRunDueNotionSources(res);
-    case "getNotionConnection":
-      return handleGetNotionConnection(res);
-    case "saveNotionConnection":
-      return handleSaveNotionConnection(req, res);
-    case "deleteNotionConnection":
-      return handleDeleteNotionConnection(res);
-    case "checkNotionConnection":
-      return handleCheckNotionConnection(res);
     case "createKnowledgeSourceSubjectCheck":
       return handleCreateKnowledgeSourceSubjectCheck(req, res);
     case "detectKnowledgeBits":

@@ -25,7 +25,6 @@ enum MoreDestination: String, CaseIterable, Identifiable {
     case search
     case tags
     case duplicates
-    case notionSources
     case today
     case progress
     case statistics
@@ -41,7 +40,7 @@ enum MoreDestination: String, CaseIterable, Identifiable {
 
     var section: MoreSection {
         switch self {
-        case .knowledge, .subjects, .notes, .search, .tags, .duplicates, .notionSources: .library
+        case .knowledge, .subjects, .notes, .search, .tags, .duplicates: .library
         case .today, .progress, .statistics, .learningList, .studySessions, .triageHistory, .studyPlan: .study
         case .settings, .account, .about: .account
         }
@@ -62,7 +61,6 @@ enum MoreDestination: String, CaseIterable, Identifiable {
         case .search: "Search"
         case .tags: "Tags"
         case .duplicates: "Duplicates"
-        case .notionSources: "Notion sources"
         case .settings: "Settings"
         case .account: "Account"
         case .about: "About"
@@ -84,7 +82,6 @@ enum MoreDestination: String, CaseIterable, Identifiable {
         case .search: "magnifyingglass"
         case .tags: "tag"
         case .duplicates: "square.on.square"
-        case .notionSources: "square.and.arrow.down.on.square"
         case .settings: "gearshape"
         case .account: "person.crop.circle"
         case .about: "info.circle"

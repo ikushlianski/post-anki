@@ -41,7 +41,6 @@ struct MoreScreen: View {
         case .search: GlobalSearchScreen()
         case .tags: TagsScreen()
         case .duplicates: DuplicateReviewScreen()
-        case .notionSources: NotionSourcesScreen()
         case .settings: SettingsScreen()
         case .account: AccountScreen()
         case .about: AboutScreen()
