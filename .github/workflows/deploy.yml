@@ -300,12 +300,16 @@ jobs:
           if [ -n "$WEB_ORIGIN" ]; then
             WEB_ORIGIN_ARGS+=(--set-env-vars "WEB_ORIGIN=$WEB_ORIGIN")
           fi
-          INNGEST_ARGS=()
-          if [ -n "$INNGEST_EVENT_KEY" ] && [ -n "$INNGEST_SIGNING_KEY" ]; then
-            INNGEST_ARGS+=(--set-env-vars "INNGEST_EVENT_KEY=$INNGEST_EVENT_KEY")
-            INNGEST_ARGS+=(--set-env-vars "INNGEST_SIGNING_KEY=$INNGEST_SIGNING_KEY")
-            INNGEST_ARGS+=(--set-env-vars "DURABLE_EXTRACTION=1")
+          if [ -z "$INNGEST_EVENT_KEY" ] || [ -z "$INNGEST_SIGNING_KEY" ]; then
+            echo "::error::PROD_INNGEST_EVENT_KEY and PROD_INNGEST_SIGNING_KEY must both be set; prod ingestion runs on Inngest."
+            exit 1
           fi
+          INNGEST_ARGS=(
+            --set-env-vars "INNGEST_EVENT_KEY=$INNGEST_EVENT_KEY"
+            --set-env-vars "INNGEST_SIGNING_KEY=$INNGEST_SIGNING_KEY"
+            --set-env-vars "INNGEST_SERVE_ORIGIN=${{ vars.PROD_API_PUBLIC_URL || 'https://post-anki-api-pl6jw2mdla-ew.a.run.app' }}"
+            --set-env-vars "DURABLE_EXTRACTION=1"
+          )
           gcloud run deploy post-anki-api \
             --image "$API_IMAGE" \
             --project ${{ vars.PROD_PROJECT_ID }} \

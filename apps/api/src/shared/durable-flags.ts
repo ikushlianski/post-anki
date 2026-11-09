@@ -12,8 +12,9 @@ export function isDurableCourseJobsEnabled(
 
 export function isDurableBackgroundJobsEnabled(
   raw: string | undefined = process.env.DURABLE_BACKGROUND_JOBS,
+  nodeEnv: string | undefined = process.env.NODE_ENV,
 ): boolean {
-  return parseDurableFlag(raw);
+  return nodeEnv === "production" || parseDurableFlag(raw);
 }
 
 const DURABLE_FLAG_NAMES = [

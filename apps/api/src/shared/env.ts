@@ -103,7 +103,8 @@ const envSchema = envObject.superRefine((env, ctx) => {
     env.DURABLE_COURSE_JOBS,
     env.DURABLE_BACKGROUND_JOBS,
   ].some((flag) => flag === "1" || flag === "true");
-  const localDev = env.INNGEST_DEV === "1";
+  const production = env.NODE_ENV === "production";
+  const localDev = env.INNGEST_DEV === "1" && !production;
 
   if (env.LLM_MODE !== "mock" && !env.OPENROUTER_API_KEY?.trim()) {
     ctx.addIssue({
@@ -137,7 +138,7 @@ const envSchema = envObject.superRefine((env, ctx) => {
     }
   }
 
-  if (durableOn && !localDev && !env.INNGEST_SIGNING_KEY?.trim()) {
+  if ((durableOn || production) && !localDev && !env.INNGEST_SIGNING_KEY?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["INNGEST_SIGNING_KEY"],
@@ -146,12 +147,20 @@ const envSchema = envObject.superRefine((env, ctx) => {
     });
   }
 
-  if (durableOn && !localDev && !env.INNGEST_EVENT_KEY?.trim()) {
+  if ((durableOn || production) && !localDev && !env.INNGEST_EVENT_KEY?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["INNGEST_EVENT_KEY"],
       message:
         "required when DURABLE_EXTRACTION, DURABLE_CARDS, DURABLE_COURSE_JOBS or DURABLE_BACKGROUND_JOBS is on and INNGEST_DEV is not 1",
+    });
+  }
+
+  if (production && env.INNGEST_DEV === "1") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["INNGEST_DEV"],
+      message: "must not be 1 in production",
     });
   }
 }).transform((env) => ({

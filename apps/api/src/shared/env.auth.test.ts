@@ -9,6 +9,9 @@ beforeEach(() => {
   for (const key of ["RESEND_API_KEY", "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "AUTH_EMAIL_FROM", "OWNER_EMAIL", "NODE_ENV"]) {
     delete process.env[key];
   }
+
+  process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+  process.env.INNGEST_EVENT_KEY = "event-test-abc123";
 });
 
 afterEach(() => {

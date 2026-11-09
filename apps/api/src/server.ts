@@ -11,7 +11,10 @@ assertDevDbIsLocal(process.env);
 
 const env = loadEnv();
 const server = createApiServer();
-const disabledDurableFlags = listDisabledDurableFlags();
+const FORCED_DURABLE_FLAGS = ["DURABLE_EXTRACTION", "DURABLE_BACKGROUND_JOBS"];
+const disabledDurableFlags = listDisabledDurableFlags().filter(
+  (name) => !FORCED_DURABLE_FLAGS.includes(name),
+);
 
 if (process.env.NODE_ENV === "production" && disabledDurableFlags.length > 0) {
   log.warn({ flags: disabledDurableFlags }, "durable_jobs_disabled_in_production");

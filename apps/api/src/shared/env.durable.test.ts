@@ -193,3 +193,45 @@ describe("durable extraction engine default", () => {
     expect((await boot()).DURABLE_EXTRACTION_ENGINE).toBe("dbos");
   });
 });
+
+describe("production forces durable ingestion", () => {
+  beforeEach(() => {
+    process.env.NODE_ENV = "production";
+    process.env.BETTER_AUTH_SECRET = "x".repeat(40);
+  });
+
+  it("should refuse to boot in production without the Inngest signing key", async () => {
+    process.env.INNGEST_EVENT_KEY = "event-test-abc123";
+
+    await expect(boot()).rejects.toThrow(/INNGEST_SIGNING_KEY/);
+  });
+
+  it("should refuse to boot in production without the Inngest event key", async () => {
+    process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+
+    await expect(boot()).rejects.toThrow(/INNGEST_EVENT_KEY/);
+  });
+
+  it("should refuse INNGEST_DEV in production", async () => {
+    process.env.INNGEST_DEV = "1";
+    process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+    process.env.INNGEST_EVENT_KEY = "event-test-abc123";
+
+    await expect(boot()).rejects.toThrow(/INNGEST_DEV/);
+  });
+
+  it("should boot in production with both keys and no flags", async () => {
+    process.env.INNGEST_SIGNING_KEY = "signkey-test-abc123";
+    process.env.INNGEST_EVENT_KEY = "event-test-abc123";
+
+    await expect(boot()).resolves.toBeDefined();
+  });
+
+  it("should boot locally with INNGEST_DEV=1 and no keys", async () => {
+    process.env.NODE_ENV = "development";
+    process.env.INNGEST_DEV = "1";
+    process.env.DURABLE_EXTRACTION = "1";
+
+    await expect(boot()).resolves.toBeDefined();
+  });
+});
