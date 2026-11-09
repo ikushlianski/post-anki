@@ -18,6 +18,8 @@ import { defineConfig } from "vitest/config";
 // and make a checkout without `npm run e2e:db:up` fail confusingly.
 export default defineConfig({
   test: {
+    // A test DB is dropped WITH (FORCE) while a straggler client may still be idle; ignore only that admin shutdown.
+    setupFiles: ["./src/test-support/tolerate-dropped-connections.setup.ts"],
     include: [
       "src/**/*.integration.test.ts",
       // ai-duplicate-detection (issue #63) — same named-exception shape as
