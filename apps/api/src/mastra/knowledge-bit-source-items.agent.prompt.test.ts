@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { CLOZE_AI_STATEMENT_MAX_CHARS } from "@post-anki/shared";
 
 vi.mock("./mastra.js", () => ({ getMastra: vi.fn(), AGENT_KEYS: {} }));
 vi.mock("../shared/env.js", () => ({ loadEnv: vi.fn().mockReturnValue({}) }));
@@ -39,7 +40,10 @@ describe("INSTRUCTIONS (cards)", () => {
     "cloze marker shape": "{{c1::term}}, {{c2::term}}",
     "cloze never nested": "Never nest markers",
     "cloze answer joined": "joined by \" / \"",
-    "basic otherwise": "basic - everything else",
+    "cloze capped by statement length": `only when the statement is at most ${CLOZE_AI_STATEMENT_MAX_CHARS} characters`,
+    "no cloze for a longer statement": "Never cloze a statement longer than the character limit above",
+    "direct question is the default": "Default to a direct question",
+    "basic is the default kind": "basic - the default",
     "basic is never yes/no": "never a yes/no question",
     "several cards by default": "Write 2 to 3 cards per lesson",
     "at most three cards": "Never more than 3 per lesson",
@@ -57,6 +61,13 @@ describe("INSTRUCTIONS (cards)", () => {
 
   it.each(Object.entries(rules))("should state the rule: %s", (_rule, text) => {
     expect(INSTRUCTIONS).toContain(text);
+  });
+
+  it("should list the kinds in the order why, basic, fill_blank, cloze", () => {
+    const positions = ["1. why", "2. basic", "3. fill_blank", "4. cloze"].map((marker) => INSTRUCTIONS.indexOf(marker));
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 });
 

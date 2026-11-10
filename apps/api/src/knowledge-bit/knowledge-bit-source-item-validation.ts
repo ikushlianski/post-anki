@@ -41,6 +41,7 @@ export interface LessonDraft {
   aiSuggestion?: string | null;
   reviewFlag?: "non_native_phrase";
   modelIds?: string[];
+  webSources?: string[];
 }
 
 function carriedFields(draft: LessonDraft): Pick<LessonDraft, "aiSuggestion" | "reviewFlag"> {

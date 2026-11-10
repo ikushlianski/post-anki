@@ -64,4 +64,21 @@ describe("insertSourceItemsForChunk source links", () => {
 
     expect(bitRows[0]).toMatchObject({ sourceLinks: null });
   });
+
+  it("should mark a web-enriched item as AI-generated and link it to the pages it used", async () => {
+    const { db, bitRows } = fakeDb("https://example.com/article");
+    const webSources = ["https://example.com/deal-qualification"];
+
+    await insertSourceItemsForChunk({ ...input, items: [{ ...input.items[0]!, webSources }] }, db);
+
+    expect(bitRows[0]).toMatchObject({ isAiGenerated: true, sourceLinks: webSources });
+  });
+
+  it("should keep the article link and mark the item human-made when no web source was used", async () => {
+    const { db, bitRows } = fakeDb("https://example.com/article");
+
+    await insertSourceItemsForChunk(input, db);
+
+    expect(bitRows[0]).toMatchObject({ isAiGenerated: false, sourceLinks: ["https://example.com/article"] });
+  });
 });

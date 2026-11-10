@@ -22,10 +22,12 @@ export interface WriteOptions {
   forceAtLeastOne?: boolean;
   fusionModelIds?: string[];
   ankiImport?: boolean;
+  webSearchBudget?: number;
 }
 
 export interface GenerateItemsDeps {
   writeItems: (chunk: string, options: WriteOptions) => Promise<LessonDraft[]>;
+  enrichItems?: (items: readonly LessonDraft[], budget: number) => Promise<LessonDraft[]>;
   getInsertState: (sourceId: string) => Promise<SourceInsertState>;
   insertItems: (input: InsertSourceItemsInput) => Promise<number>;
   markDetected: (id: string, claimedAt: Date) => Promise<boolean>;

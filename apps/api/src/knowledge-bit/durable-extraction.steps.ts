@@ -1,5 +1,6 @@
 import { DURABLE_CHUNK_DEADLINE_MS } from "./durable-extraction.config.js";
-import { isImportedClozeSource } from "./knowledge-bit-cloze-import.js";
+import { importEnrichBudget } from "./knowledge-bit-import-enrichment.js";
+import { importedFactText } from "./knowledge-bit-import-facts.js";
 import { chunkSourceText, chunkSourceTextWithOffsets } from "./knowledge-bit-source-chunking.js";
 import { planFocusedChunks } from "./knowledge-bit-focus.js";
 import {
@@ -86,8 +87,14 @@ export async function claimStep(
   return source ? toSnapshot(source) : null;
 }
 
+async function loadSourceText(sourceId: string, deps: DurableStepDeps): Promise<string | null> {
+  const rawText = await deps.loadRawText(sourceId);
+
+  return rawText && (await deps.loadIsAnkiImport?.(sourceId)) ? importedFactText(rawText) : rawText;
+}
+
 export async function planStep(snapshot: DurableSourceSnapshot, deps: DurableStepDeps): Promise<DurablePlan> {
-  const rawText = await deps.loadRawText(snapshot.id);
+  const rawText = await loadSourceText(snapshot.id, deps);
   const rejection = rejectRawText(rawText);
 
   if (rejection || !rawText) {
@@ -96,12 +103,9 @@ export async function planStep(snapshot: DurableSourceSnapshot, deps: DurableSte
 
   const insertState = await deps.getInsertState(snapshot.id);
 
-  const ankiImport = await deps.loadIsAnkiImport?.(snapshot.id);
-  const chunkCount = chunkSourceText(rawText, CHUNK_MAX_CHARS).length;
-
   return {
     status: "ready",
-    chunkCount: ankiImport && isImportedClozeSource(rawText) ? 1 : chunkCount,
+    chunkCount: chunkSourceText(rawText, CHUNK_MAX_CHARS).length,
     firstOrdinal: insertState.nextOrdinal,
   };
 }
@@ -114,6 +118,7 @@ export interface ChunkExtras {
 async function writeOptionsFor(
   snapshot: DurableSourceSnapshot,
   deps: DurableStepDeps,
+  index: number,
   extras: ChunkExtras = {},
 ): Promise<WriteOptions> {
   const modelId = chooseModelId(extras.modelId ?? snapshot.extractionModelId, snapshot.id);
@@ -148,6 +153,7 @@ async function writeOptionsFor(
     ...(extras.forceAtLeastOne ? { forceAtLeastOne: true } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
+    webSearchBudget: importEnrichBudget(ankiImport, index),
     abortSignal: AbortSignal.timeout(DURABLE_CHUNK_DEADLINE_MS),
   };
 }
@@ -158,7 +164,7 @@ export async function chunkStep(
   deps: DurableStepDeps,
   extras?: ChunkExtras,
 ): Promise<ChunkCards> {
-  const rawText = await deps.loadRawText(snapshot.id);
+  const rawText = await loadSourceText(snapshot.id, deps);
   const highlights = await deps.loadHighlights?.(snapshot.id);
   const planned = rawText
     ? planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights)
@@ -175,7 +181,7 @@ export async function chunkStep(
     throw new Error("source_chunk_missing");
   }
 
-  const options = await writeOptionsFor(snapshot, deps, extras);
+  const options = await writeOptionsFor(snapshot, deps, index, extras);
   const cards = await writeAndValidate(
     entry.chunk,
     entry.focus.length > 0 ? { ...options, focus: entry.focus } : options,

@@ -10,7 +10,6 @@ import {
   type LessonDraft,
   type SourceItemBatchValidation,
 } from "./knowledge-bit-source-item-validation.js";
-import { detectImportedCloze } from "./knowledge-bit-cloze-import.js";
 import { runFusion } from "./knowledge-bit-fusion-extraction.js";
 import type { GenerateItemsDeps, RunState, WriteOptions } from "./detect-knowledge-bits.types.js";
 
@@ -84,13 +83,23 @@ export async function writeAndValidate(
   options: WriteOptions,
   deps: GenerateItemsDeps,
 ): Promise<ChunkCards> {
-  const { fusionModelIds, ankiImport, ...single } = options;
-  const importedCloze = ankiImport ? detectImportedCloze(chunk) : null;
+  const { fusionModelIds, ankiImport: _ankiImport, webSearchBudget, ...single } = options;
+  const cards = await writeCards(chunk, fusionModelIds, single, deps);
+  const budget = webSearchBudget ?? 0;
 
-  if (importedCloze) {
-    return { valid: [importedCloze], flagged: [] };
+  if (budget > 0 && deps.enrichItems && cards.valid.length > 0) {
+    return { ...cards, valid: await deps.enrichItems(cards.valid, budget) };
   }
 
+  return cards;
+}
+
+function writeCards(
+  chunk: string,
+  fusionModelIds: string[] | undefined,
+  single: Omit<WriteOptions, "fusionModelIds" | "webSearchBudget" | "ankiImport">,
+  deps: GenerateItemsDeps,
+): Promise<ChunkCards> {
   if (fusionModelIds && fusionModelIds.length >= FUSION_MIN_MODELS) {
     return runFusion(fusionModelIds, (modelId) => writeAndValidateOne(chunk, { ...single, modelId }, deps));
   }

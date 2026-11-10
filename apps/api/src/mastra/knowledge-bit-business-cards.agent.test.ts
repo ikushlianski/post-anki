@@ -36,6 +36,7 @@ import {
   BUSINESS_CARDS_PROMPT_V4_MULTI_CLOZE,
   BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST,
   BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY,
+  BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS,
 } from "./knowledge-bit-business-cards.prompt.js";
 import { runKnowledgeBitSourceItems } from "./knowledge-bit-source-items.agent.js";
 import { generateWithRetry } from "./generate-with-retry.js";
@@ -78,7 +79,10 @@ describe("business card writer", () => {
   });
 
   it("should use the may-be-empty prompt as the active business prompt and keep v3 and v4 for comparison", () => {
-    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY);
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS);
+    expect(BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY).not.toContain("at most 200 characters");
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toContain("at most 200 characters");
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toContain("Default to a \"basic\" card with a direct what, why or how question");
     expect(ACTIVE_BUSINESS_CARDS_PROMPT).not.toBe(BUSINESS_CARDS_PROMPT_V5_ORDERED_LIST);
     expect(BUSINESS_CARDS_PROMPT_V4_MULTI_CLOZE).not.toContain("ordered_list");
     expect(buildBusinessCardsPrompt(SOURCE)).toContain('"ordered_list"');

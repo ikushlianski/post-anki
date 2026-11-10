@@ -1,4 +1,9 @@
-import { CLOZE_AI_MAX_NUMBERS, parseCloze, stripClozeMarkers } from "@post-anki/shared";
+import {
+  CLOZE_AI_MAX_NUMBERS,
+  CLOZE_AI_STATEMENT_MAX_CHARS,
+  parseCloze,
+  stripClozeMarkers,
+} from "@post-anki/shared";
 import { normalizeForQuoteMatch } from "./knowledge-bit-source-quote.js";
 
 const CLOZE_AI_MIN_NUMBERS = 2;
@@ -8,6 +13,10 @@ function lettersOnly(text: string): string {
 }
 
 export function isValidAiCloze(note: string, statement: string, sourceText: string): boolean {
+  if (statement.length > CLOZE_AI_STATEMENT_MAX_CHARS) {
+    return false;
+  }
+
   const parsed = parseCloze(note);
 
   if (!parsed.ok) {

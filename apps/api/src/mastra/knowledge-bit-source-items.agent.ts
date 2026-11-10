@@ -1,4 +1,4 @@
-import type { DetailLevel, KnowledgeHighlight } from "@post-anki/shared";
+import { CLOZE_AI_STATEMENT_MAX_CHARS, type DetailLevel, type KnowledgeHighlight } from "@post-anki/shared";
 import { Agent } from "@mastra/core/agent";
 import { RequestContext } from "@mastra/core/request-context";
 import { z } from "zod";
@@ -64,23 +64,25 @@ export const INSTRUCTIONS = [
   "  the principle to a situation over questions that ask for a remembered phrase.",
   "- answer: short and grounded: one sentence or phrase, at most about 25 words, using only what the",
   "  lesson says. Never add facts, examples or advice that are not in the lesson.",
-  "- kind: chosen by rule, in this order:",
+  "- kind: chosen by rule, in this order. Default to a direct question. fill_blank and cloze are rare:",
+  `  only when the statement is at most ${CLOZE_AI_STATEMENT_MAX_CHARS} characters; a longer statement is always why or basic.`,
   "  1. why - when the lesson gives a reason or cause (\"because\", \"so that\", a stated mechanism).",
   "     The question starts by asking why or how, and the answer is that reason. Prefer why whenever",
   "     it fits.",
-  "  2. fill_blank - only for a claim whose point is one load-bearing term. For fill_blank the",
+  "  2. basic - the default: a plain definition, contrast or fact, asked as a direct question",
+  "     (what, which, how many), never a yes/no question.",
+  "  3. fill_blank - only for a claim whose point is one load-bearing term. For fill_blank the",
   "     question must be the full statement with exactly one ____ replacing the key word, never a",
   "     yes/no question and never ending in a question mark. It is the statement copied word for word with exactly one blank written as ____",
   "     (four underscores) replacing that single term or short phrase, and the answer is the removed",
   "     text. Exactly one ____, never two, and never glued to other letters.",
   "     Correct (any language): \"<statement with the key word replaced by ____>\", answer: the key word.",
   "     Incorrect: a yes/no question such as \"<Does the statement hold?>\" with no blank in the statement.",
-  "  3. cloze - only when one sentence holds 2 to 5 independently testable terms. The question is the",
+  "  4. cloze - only when one sentence holds 2 to 5 independently testable terms. The question is the",
   "     statement with each term wrapped as {{c1::term}}, {{c2::term}} and so on, optionally",
   "     {{c1::term::hint}}. Never nest markers, and each term is at most 120 characters. The answer is",
   "     the terms in order joined by \" / \". Use fill_blank instead when only one term matters.",
-  "  4. basic - everything else: a plain definition, contrast or fact, asked as a direct question",
-  "     (what, which, how many), never a yes/no question.",
+  "     Never cloze a statement longer than the character limit above.",
   "",
   `QUANTITY. Write 2 to ${CARDS_MAX_PER_LESSON} cards per lesson, each testing the same principle from a different angle`,
   "and each of a different kind where the lesson allows (a why, a fill_blank, a basic). Write only 1 when the",

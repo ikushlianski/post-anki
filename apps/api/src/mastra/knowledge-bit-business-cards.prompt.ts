@@ -115,4 +115,18 @@ Never invent content to fill a card.`,
   EMPTY_RULE_V6,
 );
 
-export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY;
+const CLOZE_RULE_V7 = `- Default to a "basic" card with a direct what, why or how question. Use a
+  "cloze" card only when ONE short sentence (at most 200 characters) of the text
+  holds 2 to 5 key terms that can each be tested on their own. Wrap each term as
+  {{c1::term}}, {{c2::term}} and so on, with an optional hint {{c1::term::hint}}.
+  Give each term its own number, never nest markers, keep each term under 120
+  characters, copy the sentence wording from the text, and leave "back" empty.
+  Never use "cloze" for a long or multi-sentence passage; otherwise use "basic".
+`;
+
+export const BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS = BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY.replace(
+  CLOZE_RULE_V4,
+  CLOZE_RULE_V7,
+);
+
+export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS;

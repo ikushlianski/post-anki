@@ -1,5 +1,6 @@
 import { KNOWLEDGE_SOURCE_MAX_CHARS, resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
-import { isImportedClozeSource } from "./knowledge-bit-cloze-import.js";
+import { enrichImportedItems, importEnrichBudget } from "./knowledge-bit-import-enrichment.js";
+import { importedFactText } from "./knowledge-bit-import-facts.js";
 import { log } from "../shared/log.js";
 import { loadRecentFeedbackForExtraction } from "./knowledge-bit-feedback.repo.js";
 import { loadStyleNotesBlock } from "../card-triage/style-notes-loader.js";
@@ -58,6 +59,7 @@ export const CHUNK_CONCURRENCY = 3;
 export function defaultGenerateItemsDeps(): GenerateItemsDeps {
   return {
     writeItems: runKnowledgeBitSourceItems,
+    enrichItems: enrichImportedItems,
     getInsertState: getSourceInsertState,
     insertItems: insertSourceItemsForChunk,
     markDetected: markKnowledgeSourceBitsDetected,
@@ -192,7 +194,7 @@ export async function generateItemsForSource(
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
   };
-  const rawText = source.rawText;
+  const rawText = ankiImport && source.rawText ? importedFactText(source.rawText) : source.rawText;
 
   const rejection = rejectRawText(rawText);
 
@@ -214,14 +216,12 @@ export async function generateItemsForSource(
     capped: false,
     gapByChunk: new Map(),
   };
-  const planned = planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights);
-  const chunks = ankiImport && isImportedClozeSource(rawText) ? planned.filter(({ index }) => index === 0) : planned;
-  const hasHighlights = (highlights?.length ?? 0) > 0;
+  const chunks = planFocusedChunks(chunkSourceTextWithOffsets(rawText, CHUNK_MAX_CHARS), highlights);
 
   const outcomes = await mapWithConcurrency(chunks, CHUNK_CONCURRENCY, ({ chunk, index, focus }) =>
     processChunk(chunk, index, {
       source,
-      options: focus.length > 0 ? { ...options, focus } : options,
+      options: { ...options, ...(focus.length > 0 ? { focus } : {}), webSearchBudget: importEnrichBudget(ankiImport, index) },
       firstOrdinal: insertState.nextOrdinal,
       state,
       deps,
@@ -251,7 +251,7 @@ export async function generateItemsForSource(
   const nothingExtracted =
     state.inserted === 0 &&
     !askAiChat &&
-    (chunks.length === 0 ? hasHighlights : state.deliberateEmptyChunks === chunks.length);
+    (chunks.length === 0 ? (highlights?.length ?? 0) > 0 : state.deliberateEmptyChunks === chunks.length);
   const markDone = pickMarkDone(nothingExtracted, state.capped, deps);
   const stillOwned = await markDone(source.id, source.claimedAt);
 

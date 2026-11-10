@@ -83,12 +83,19 @@ describe("planStep", () => {
 describe("planStep for long Anki cloze notes", () => {
   const longCloze = `Deal needs {{c1::budget}}.\n\n${"extra ".repeat(450)}\n\n${"more ".repeat(450)}\n\n${"tail ".repeat(450)}`;
 
-  it("should plan a single chunk so the Back Extra chunks never reach the model", async () => {
-    const d = deps({ loadIsAnkiImport: vi.fn().mockResolvedValue(true), loadRawText: vi.fn().mockResolvedValue(longCloze) });
+  it("should plan the chunks of the stripped fact text for an Anki note", async () => {
+    const d = deps({ loadIsAnkiImport: vi.fn().mockResolvedValue(true), loadRawText: vi.fn().mockResolvedValue("A deal needs {{c1::budget}}.") });
     const plan = await planStep(snapshot, d);
 
     expect(plan).toMatchObject({ status: "ready", chunkCount: 1 });
     expect(d.writeItems).not.toHaveBeenCalled();
+  });
+
+  it("should count the chunks of the same fact text the chunk step reads", async () => {
+    const d = deps({ loadIsAnkiImport: vi.fn().mockResolvedValue(true), loadRawText: vi.fn().mockResolvedValue(longCloze) });
+    const plan = await planStep(snapshot, d);
+
+    expect(plan.status === "ready" && plan.chunkCount).toBeGreaterThan(1);
   });
 
   it("should plan every chunk of a long non-Anki source", async () => {
@@ -100,15 +107,28 @@ describe("planStep for long Anki cloze notes", () => {
 });
 
 describe("chunkStep", () => {
-  it("should build an imported cloze card without the model when the source is an Anki import", async () => {
+  it("should hand an Anki note to the model as plain fact text with no markers", async () => {
     const d = deps({
       loadIsAnkiImport: vi.fn().mockResolvedValue(true),
-      loadRawText: vi.fn().mockResolvedValue("A deal needs {{c1::budget}}."),
+      loadRawText: vi.fn().mockResolvedValue("A deal needs {{c1::budget}}.\n\nBack Extra: BANT."),
     });
-    const cards = await chunkStep(snapshot, 0, d);
 
-    expect(d.writeItems).not.toHaveBeenCalled();
-    expect(cards.valid[0]?.cards[0]?.kind).toBe("cloze");
+    await chunkStep(snapshot, 0, d);
+
+    expect(d.writeItems).toHaveBeenCalledWith("A deal needs budget.\n\nBANT.", expect.anything());
+  });
+
+  it("should give the first chunk of an Anki import a web search budget", async () => {
+    const enrichItems = vi.fn(async (items) => items);
+    const d = deps({
+      enrichItems,
+      loadIsAnkiImport: vi.fn().mockResolvedValue(true),
+      loadRawText: vi.fn().mockResolvedValue("A marker sentence 0 is the claim."),
+    });
+
+    await chunkStep(snapshot, 0, d);
+
+    expect(enrichItems).toHaveBeenCalledWith(expect.any(Array), 2);
   });
 
   it("should send a cloze-looking note to the model when the source is not an Anki import", async () => {
@@ -116,7 +136,7 @@ describe("chunkStep", () => {
 
     await chunkStep(snapshot, 0, d).catch(() => undefined);
 
-    expect(d.writeItems).toHaveBeenCalled();
+    expect(d.writeItems).toHaveBeenCalledWith("A deal needs {{c1::budget}}.", expect.anything());
   });
 
   it("should tell the writer the source is a phrase on the durable path too", async () => {

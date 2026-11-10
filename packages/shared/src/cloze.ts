@@ -3,6 +3,7 @@ import { z } from "zod";
 export const CLOZE_BLANK = "____";
 export const CLOZE_MAX_NUMBERS = 10;
 export const CLOZE_AI_MAX_NUMBERS = 5;
+export const CLOZE_AI_STATEMENT_MAX_CHARS = 200;
 export const CLOZE_GAP_MAX_CHARS = 120;
 export const CLOZE_NOTE_MAX_CHARS = 2000;
 export const CLOZE_ANSWER_SEPARATOR = " / ";
