@@ -857,6 +857,16 @@ export async function updateSubjectExtractionGuidance(
   })
 }
 
+export async function updateSubjectChatInstructions(
+  subjectId: string,
+  chatInstructions: string | null,
+): Promise<Subject> {
+  return request<be.Subject>(`/subjects/${subjectId}`, {
+    method: 'PATCH',
+    body: { chatInstructions },
+  })
+}
+
 export async function updateSubjectParent(
   subjectId: string,
   parentId: string | null,

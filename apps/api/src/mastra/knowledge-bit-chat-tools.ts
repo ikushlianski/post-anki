@@ -48,19 +48,26 @@ export async function searchWebFor(
   return { ok: true, text: outcome.text, citations };
 }
 
-export function createKnowledgeBitChatTools(deps: KnowledgeBitChatToolsDeps) {
+const RESEARCH_FIRST_SEARCH_DESCRIPTION =
+  "Search the web for current, sourced facts about the card's topic. Run it first on every reply that needs facts. Paid, capped per reply: at most 2 calls, never repeat a query.";
+const RESEARCH_FIRST_FETCH_DESCRIPTION =
+  "Read the plain text of one page that a searchWeb result cited, when its details are needed to answer. Capped per reply: at most 1 call, only with a url copied verbatim from searchWeb citations.";
+
+export function createKnowledgeBitChatTools(deps: KnowledgeBitChatToolsDeps, options: { researchFirst?: boolean } = {}) {
   const searchWeb = createTool({
     id: "searchWeb",
-    description:
-      "Search the web for examples or surrounding facts, only after the source material does not clarify the learner's question. This is a paid call, capped per reply, never a routine first step.",
+    description: options.researchFirst
+      ? RESEARCH_FIRST_SEARCH_DESCRIPTION
+      : "Search the web for examples or surrounding facts, only after the source material does not clarify the learner's question. This is a paid call, capped per reply, never a routine first step.",
     inputSchema: z.object({ query: z.string().min(1) }),
     execute: (input) => searchWebFor(input, deps),
   });
 
   const fetchPage = createTool({
     id: "fetchPage",
-    description:
-      "Read the plain text of one page that a searchWeb result cited. Paid and slow, capped per reply — use it only after the source material and search results do not clarify, when a cited page's details are needed, and only with a url copied verbatim from searchWeb citations.",
+    description: options.researchFirst
+      ? RESEARCH_FIRST_FETCH_DESCRIPTION
+      : "Read the plain text of one page that a searchWeb result cited. Paid and slow, capped per reply — use it only after the source material and search results do not clarify, when a cited page's details are needed, and only with a url copied verbatim from searchWeb citations.",
     inputSchema: z.object({ url: z.string().min(1) }),
     execute: (input) => fetchPageFor(input, deps),
   });

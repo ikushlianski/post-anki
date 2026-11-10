@@ -11,6 +11,12 @@ describe("input length limits", () => {
     expect(updateSubjectInput.safeParse({ name: "a".repeat(120) }).success).toBe(true);
   });
 
+  it("should trim a subject chat instruction and reject one over the limit", () => {
+    expect(updateSubjectInput.parse({ chatInstructions: "  hi  " }).chatInstructions).toBe("hi");
+    expect(updateSubjectInput.safeParse({ chatInstructions: "a".repeat(1_501) }).success).toBe(false);
+    expect(updateSubjectInput.safeParse({ chatInstructions: null }).success).toBe(true);
+  });
+
   it("should reject a runaway node comment", () => {
     expect(addNodeCommentInput.safeParse({ nodeId: "n", comment: "a".repeat(5_001) }).success).toBe(false);
     expect(addNodeCommentInput.safeParse({ nodeId: "n", comment: "fine" }).success).toBe(true);

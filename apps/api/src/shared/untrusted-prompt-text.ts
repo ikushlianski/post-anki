@@ -11,6 +11,7 @@ const PROMPT_TAG_NAMES = [
   "reviewer_feedback",
   "style_notes",
   "subject_instructions",
+  "subject_chat_instructions",
   "subject_examples",
   "session_feedback",
   "rejected_examples",

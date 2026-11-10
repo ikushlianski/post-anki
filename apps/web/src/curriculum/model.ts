@@ -19,6 +19,7 @@ export const subjectSchema = z.object({
   learningIntent: z.string().nullable().optional(),
   extractionInstructions: z.string().nullable().optional(),
   extractionExamples: extractionExamplesSchema.nullable().optional(),
+  chatInstructions: z.string().nullable().optional(),
   cardCount: z.number().int().nonnegative().optional(),
 })
 

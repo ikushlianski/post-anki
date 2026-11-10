@@ -41,6 +41,10 @@ export async function updateSubject(
     patch.extractionInstructions = input.extractionInstructions?.trim() ? input.extractionInstructions.trim() : null;
   }
 
+  if (input.chatInstructions !== undefined) {
+    patch.chatInstructions = input.chatInstructions?.trim() ? input.chatInstructions.trim() : null;
+  }
+
   if (input.extractionExamples !== undefined) {
     patch.extractionExamples = input.extractionExamples?.length ? input.extractionExamples : null;
   }
@@ -105,6 +109,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     learningIntent: null,
     extractionInstructions: null,
     extractionExamples: null,
+    chatInstructions: null,
     newCardsPerDay: null,
     maxReviewsPerDay: null,
     learningStepsMinutes: null,

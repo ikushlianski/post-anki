@@ -9,7 +9,7 @@ export const BUSINESS_SUB_SUBJECTS: SubjectSeedNode[] = [
   { name: "Marketing" },
   {
     name: "Sales",
-    children: [{ name: "Cold sales" }, { name: "Sales process" }, { name: "Objection handling" }],
+    children: [{ name: "Cold sales" }, { name: "Sales process" }, { name: "Objection handling" }, { name: "B2B sales" }],
   },
   { name: "Negotiation" },
   { name: "Loyalty" },

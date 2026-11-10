@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import {
   EXTRACTION_INSTRUCTIONS_MAX_CHARS,
+  CHAT_INSTRUCTIONS_MAX_CHARS,
   extractionExamplesSchema,
   modelTierSchema,
   reorderSubjectsInput,
@@ -48,6 +49,15 @@ export const updateSubjectExtractionGuidance = createServerFn({ method: 'POST' }
       extractionExamples: data.extractionExamples,
     }),
   )
+
+const updateSubjectChatInstructionsInput = z.object({
+  subjectId: z.string(),
+  chatInstructions: z.string().trim().max(CHAT_INSTRUCTIONS_MAX_CHARS).nullable(),
+})
+
+export const updateSubjectChatInstructions = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => updateSubjectChatInstructionsInput.parse(data))
+  .handler(({ data }) => api.updateSubjectChatInstructions(data.subjectId, data.chatInstructions))
 
 const updateSubjectParentInput = z.object({
   subjectId: z.string(),

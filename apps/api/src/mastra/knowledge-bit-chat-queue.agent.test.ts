@@ -27,8 +27,10 @@ describe("chat queue agent instructions", () => {
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).not.toMatch(/related-cards/);
   });
 
-  it("should make the model rely on its own knowledge first, cap web use and use the author only within the same caps", () => {
-    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/Answer from your own knowledge and the card first/);
+  it("should make the model research first on every reply, keep the caps and use the author only within them", () => {
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/research first: for every reply, call searchWeb first/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).not.toMatch(/own knowledge and the card first/);
+    expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/naming the site or publication in words/);
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/at most 2 searchWeb calls and 1 fetchPage call/);
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/never repeat a query/);
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/<source_info> names an author/);
@@ -38,6 +40,28 @@ describe("chat queue agent instructions", () => {
   it("should allow general knowledge only when it says so", () => {
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/general knowledge/);
     expect(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS).toMatch(/say so plainly/);
+  });
+});
+
+describe("chat queue agent subject instructions", () => {
+  const key = "chatQueueSubjectInstructions";
+
+  it("should place the subject block after the base rules so the rules always come first", async () => {
+    const agent = createKnowledgeBitChatQueueAgent();
+    const text = await agent.getInstructions({
+      requestContext: new RequestContext<unknown>([[key, "<subject_chat_instructions>persona</subject_chat_instructions>"]]),
+    });
+
+    expect(String(text).startsWith(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS)).toBe(true);
+    expect(String(text).indexOf("persona")).toBeGreaterThan(KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS.length);
+  });
+
+  it("should add nothing to the base rules when the subject has no instruction", async () => {
+    const agent = createKnowledgeBitChatQueueAgent();
+
+    expect(await agent.getInstructions({ requestContext: new RequestContext() })).toBe(
+      KNOWLEDGE_BIT_CHAT_QUEUE_INSTRUCTIONS,
+    );
   });
 });
 

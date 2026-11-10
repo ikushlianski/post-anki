@@ -3,6 +3,7 @@ import {
   CHAT_QUEUE_FALLBACK_CONTEXT_KEY,
   CHAT_QUEUE_LIGHT_MODEL_CONTEXT_KEY,
   CHAT_QUEUE_PROPOSAL_TOOLS_CONTEXT_KEY,
+  CHAT_QUEUE_SUBJECT_INSTRUCTIONS_CONTEXT_KEY,
   CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY,
 } from "../mastra/knowledge-bit-chat-queue.agent.js";
 import type { KnowledgeBitChatToolsDeps } from "../mastra/knowledge-bit-chat-tools.js";
@@ -18,6 +19,7 @@ export interface ChatQueueRunInput {
   lightModel?: boolean;
   sink?: ChatQueueProposalSink;
   allowUpdate: boolean;
+  subjectInstructions?: string;
 }
 
 type StepsWithUsage = {
@@ -48,6 +50,10 @@ export function buildChatQueueRunOptions(input: ChatQueueRunInput) {
 
   if (web) {
     context.push([CHAT_QUEUE_WEB_TOOLS_CONTEXT_KEY, web]);
+  }
+
+  if (input.subjectInstructions) {
+    context.push([CHAT_QUEUE_SUBJECT_INSTRUCTIONS_CONTEXT_KEY, input.subjectInstructions]);
   }
 
   if (input.sink) {

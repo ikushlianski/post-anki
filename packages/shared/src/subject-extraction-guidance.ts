@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const EXTRACTION_INSTRUCTIONS_MAX_CHARS = 1500;
+export const CHAT_INSTRUCTIONS_MAX_CHARS = 1500;
 export const EXTRACTION_EXAMPLES_MAX_COUNT = 5;
 export const EXTRACTION_EXAMPLE_FIELD_MAX_CHARS = 400;
 

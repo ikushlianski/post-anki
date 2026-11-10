@@ -8,6 +8,7 @@ export type SubjectMenuView =
   | 'rename'
   | 'learning-intent'
   | 'extraction-guidance'
+  | 'chat-instructions'
   | 'add-child'
   | 'move'
   | 'confirm-delete'

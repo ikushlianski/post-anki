@@ -32,6 +32,11 @@ vi.mock("../mastra/generate-with-retry.js", async (importActual) => ({
 vi.mock("../db/client.js", () => ({
   getDb: () => ({ transaction: (fn: (tx: unknown) => unknown) => fn({}) }),
 }));
+const loadSubjectChatInstructionsBlock = vi.fn();
+
+vi.mock("../subject/subject-chat-instructions.js", () => ({
+  loadSubjectChatInstructionsBlock: (...args: unknown[]) => loadSubjectChatInstructionsBlock(...args),
+}));
 vi.mock("../shared/log.js", () => ({ log: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() } }));
 vi.mock("../llm-call-events/llm-call-events.repo.js", () => ({
   countRecentLlmCallEventsByOp: (...args: unknown[]) => countRecent(...args),
@@ -116,6 +121,26 @@ describe("sendChatQueueMessage", () => {
     expect(stepLimit(generate.mock.calls[0]?.[1].stopWhen)).toBe(7);
     expect(generate.mock.calls[0]?.[1].requestContext.get("chatQueueWebTools")).toBe(webTools);
     expect(generate.mock.calls[1]?.[1].requestContext.get("chatQueueWebTools")).toBeUndefined();
+  });
+
+  it("should hand the card's subject instructions to the model run without changing the web caps", async () => {
+    const webTools = { searchWeb: vi.fn(), isCitedUrl: vi.fn(), fetchPage: vi.fn() };
+
+    loadSubjectChatInstructionsBlock.mockResolvedValue("<subject_chat_instructions>x</subject_chat_instructions>");
+
+    await sendChatQueueMessage("kb1", input, { webTools });
+
+    expect(loadSubjectChatInstructionsBlock).toHaveBeenCalledWith("kb1");
+    expect(generate.mock.calls[0]?.[1].requestContext.get("chatQueueSubjectInstructions")).toContain("x");
+    expect(stepLimit(generate.mock.calls[0]?.[1].stopWhen)).toBe(7);
+  });
+
+  it("should send no subject instructions when the subject has none", async () => {
+    loadSubjectChatInstructionsBlock.mockResolvedValue(undefined);
+
+    await sendChatQueueMessage("kb1", input);
+
+    expect(generate.mock.calls[0]?.[1].requestContext?.get("chatQueueSubjectInstructions")).toBeUndefined();
   });
 
   function proposeVia(cards: { kind: "create" | "update"; front: string; back: string }[]) {

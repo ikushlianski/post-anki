@@ -7,6 +7,7 @@ import { inheritedLearningIntent } from '@post-anki/shared'
 import {
   createSubject,
   deleteSubject,
+  updateSubjectChatInstructions,
   updateSubjectExtractionGuidance,
   updateSubjectLearningIntent,
   updateSubjectName,
@@ -14,6 +15,7 @@ import {
 } from './subject.api'
 import { SubjectDeleteConfirm } from './subject-delete-confirm'
 import { SubjectLearningIntentForm } from './subject-learning-intent-form'
+import { SubjectChatInstructionsForm } from './subject-chat-instructions-form'
 import { SubjectExtractionGuidanceForm } from './subject-extraction-guidance-form'
 import type { ExtractionGuidanceDraft } from './subject-extraction-guidance-form'
 import { SubjectMovePicker } from './subject-move-picker'
@@ -81,6 +83,17 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
     const ok = await attempt(
       () => refreshAfter(() => updateSubjectExtractionGuidance({ data: { subjectId: subject.id, ...guidance } })),
       'Saving the extraction guidance failed — try again.',
+    )
+
+    if (ok) {
+      close(true)
+    }
+  }
+
+  async function handleChatInstructions(chatInstructions: string | null) {
+    const ok = await attempt(
+      () => refreshAfter(() => updateSubjectChatInstructions({ data: { subjectId: subject.id, chatInstructions } })),
+      'Saving the chat instructions failed — try again.',
     )
 
     if (ok) {
@@ -206,6 +219,15 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
           <button
             type="button"
             role="menuitem"
+            data-testid={`subject-chat-${subject.id}-button`}
+            onClick={() => showView('chat-instructions')}
+            className={OVERFLOW_MENU_ITEM_CLASS}
+          >
+            Chat instructions
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             data-testid="delete-subject-button"
             onClick={() => showView('confirm-delete')}
             className={`${OVERFLOW_MENU_ITEM_CLASS} text-red-600`}
@@ -253,6 +275,17 @@ export function SubjectHeaderMenu({ subject }: { subject: Subject }) {
           busy={busy}
           error={error}
           onSubmit={handleExtractionGuidance}
+          onCancel={() => showView('actions')}
+        />
+      ) : null}
+
+      {view === 'chat-instructions' ? (
+        <SubjectChatInstructionsForm
+          subjectId={subject.id}
+          initialValue={subject.chatInstructions ?? ''}
+          busy={busy}
+          error={error}
+          onSubmit={handleChatInstructions}
           onCancel={() => showView('actions')}
         />
       ) : null}

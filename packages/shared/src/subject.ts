@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SUBJECT_NAME_MAX_CHARS } from "./text-limits";
 import { modelTierSchema } from "./model-tier";
 import {
+  CHAT_INSTRUCTIONS_MAX_CHARS,
   EXTRACTION_INSTRUCTIONS_MAX_CHARS,
   extractionExamplesSchema,
 } from "./subject-extraction-guidance";
@@ -18,6 +19,7 @@ export const subjectSchema = z.object({
   learningIntent: z.string().nullable().optional(),
   extractionInstructions: z.string().nullable().optional(),
   extractionExamples: extractionExamplesSchema.nullable().optional(),
+  chatInstructions: z.string().nullable().optional(),
   cardCount: z.number().int().nonnegative().optional(),
 });
 
@@ -40,6 +42,7 @@ export const updateSubjectInput = z.object({
   learningIntent: z.string().trim().max(1000).nullable().optional(),
   extractionInstructions: z.string().trim().max(EXTRACTION_INSTRUCTIONS_MAX_CHARS).nullable().optional(),
   extractionExamples: extractionExamplesSchema.nullable().optional(),
+  chatInstructions: z.string().trim().max(CHAT_INSTRUCTIONS_MAX_CHARS).nullable().optional(),
 });
 
 export type UpdateSubjectInput = z.infer<typeof updateSubjectInput>;

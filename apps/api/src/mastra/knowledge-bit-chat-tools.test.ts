@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchPageFor, searchWebFor, type KnowledgeBitChatToolsDeps } from "./knowledge-bit-chat-tools.js";
+import { createKnowledgeBitChatTools, fetchPageFor, searchWebFor, type KnowledgeBitChatToolsDeps } from "./knowledge-bit-chat-tools.js";
 
 function makeDeps(overrides: Partial<KnowledgeBitChatToolsDeps> = {}): KnowledgeBitChatToolsDeps {
   return {
@@ -66,5 +66,17 @@ describe("fetchPageFor", () => {
     const result = await fetchPageFor({ url: "https://example.com/real-source" }, deps);
 
     expect(result).toMatchObject({ ok: true, untrustedExternalContent: "page text" });
+  });
+});
+
+describe("createKnowledgeBitChatTools", () => {
+  it("should describe the web tools as a routine first step only for research-first chats", () => {
+    const standard = createKnowledgeBitChatTools(makeDeps());
+    const research = createKnowledgeBitChatTools(makeDeps(), { researchFirst: true });
+
+    expect(standard.searchWeb.description).toMatch(/never a routine first step/);
+    expect(research.searchWeb.description).toMatch(/Run it first on every reply/);
+    expect(research.searchWeb.description).not.toMatch(/never a routine first step/);
+    expect(Object.keys(research)).toEqual(Object.keys(standard));
   });
 });

@@ -17,6 +17,7 @@ export function toSubject(r: typeof subjects.$inferSelect): Subject {
     learningIntent: r.learningIntent ?? null,
     extractionInstructions: r.extractionInstructions ?? null,
     extractionExamples: r.extractionExamples ?? null,
+    chatInstructions: r.chatInstructions ?? null,
   };
 }
 

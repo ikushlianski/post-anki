@@ -25,6 +25,7 @@ import {
   type ChatQueueTraceOutcome,
 } from "./knowledge-bit-chat-queue.trace.js";
 import { createChatQueueProposalSink, type ChatQueueProposalSink } from "./knowledge-bit-chat-queue-proposal-sink.js";
+import { loadSubjectChatInstructionsBlock } from "../subject/subject-chat-instructions.js";
 import { buildChatQueueRunOptions } from "./knowledge-bit-chat-queue-run-options.js";
 import { buildChatQueuePrompt } from "./knowledge-bit-chat-queue.prompt.js";
 import { clearChatFirstPrompt, loadChatCardContext, lockChatFirstPrompt, lockChatState } from "./knowledge-bit-chat-queue.repo.js";
@@ -252,6 +253,7 @@ async function generateReply(
     message: input.message,
   });
   const agent = getMastra().getAgent(AGENT_KEYS.knowledgeBitChatQueue);
+  const subjectInstructions = await loadSubjectChatInstructionsBlock(bitId);
 
   let reply: string;
   let sink: ChatQueueProposalSink = createChatQueueProposalSink();
@@ -276,6 +278,7 @@ async function generateReply(
               lightModel: options.lightModel,
               sink: options.proposalTools !== false ? sink : undefined,
               allowUpdate: card.approvalState === "chat",
+              subjectInstructions,
             }),
           });
         },

@@ -28,6 +28,7 @@ interface SubjectRow {
   learning_intent?: string | null
   extraction_instructions?: string | null
   extraction_examples?: unknown
+  chat_instructions?: string | null
 }
 
 interface CurriculumRow {
@@ -126,6 +127,7 @@ export function mapSubjectRow(row: SubjectRow): Subject {
     learningIntent: row.learning_intent ?? null,
     extractionInstructions: row.extraction_instructions ?? null,
     extractionExamples: parseExtractionExamples(row.extraction_examples),
+    chatInstructions: row.chat_instructions ?? null,
   }
 }
 

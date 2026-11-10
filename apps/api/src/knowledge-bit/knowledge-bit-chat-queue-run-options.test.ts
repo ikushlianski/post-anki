@@ -72,6 +72,17 @@ describe("buildChatQueueRunOptions", () => {
     expect(options.requestContext?.get("chatQueueProposalTools")).toBeUndefined();
   });
 
+  it("should carry the subject instructions to the agent, on the fallback too, and omit them when absent", () => {
+    const withBlock = buildChatQueueRunOptions({ fallback: true, allowUpdate: false, subjectInstructions: "BLOCK" });
+
+    expect(withBlock.requestContext?.get("chatQueueSubjectInstructions")).toBe("BLOCK");
+    expect(
+      buildChatQueueRunOptions({ fallback: false, allowUpdate: false, webTools }).requestContext?.get(
+        "chatQueueSubjectInstructions",
+      ),
+    ).toBeUndefined();
+  });
+
   it("should add no request context when nothing is switched on", () => {
     expect(buildChatQueueRunOptions({ fallback: false, allowUpdate: false }).requestContext).toBeUndefined();
   });
