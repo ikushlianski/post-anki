@@ -7,6 +7,8 @@ description: Ship the current post-anki work to production - API and web via the
 
 Invoking this skill is the user's go-ahead to commit, merge into main and push main. It does nothing else irreversible.
 
+Model: run this flow, and every alias of it, only through Haiku (a subagent dispatched with `model: "haiku"`); never on a larger model.
+
 1. Gates, once, one at a time (never in parallel; keep the fans quiet): `npm run typecheck`, then `cd apps/web && npx vitest run --maxWorkers=2 --minWorkers=1`, then `cd apps/api && OPENROUTER_API_KEY=test-key LLM_MODE=mock npx vitest run --maxWorkers=2 --minWorkers=1`. Do not run the full integration suite locally; the deploy workflow runs it and blocks the deploy on failure. Locally, run only the integration files for API code changed since `origin/main`, one worker: `cd apps/api && DATABASE_URL=postgres://pet_projects:pet_projects@127.0.0.1:5999/pet_projects OPENROUTER_API_KEY=test-key LLM_MODE=mock npx vitest run --config vitest.integration.config.ts --maxWorkers=1 --minWorkers=1 <files>`; that needs Docker; start it if it is not running, but never quit it afterwards: other projects rely on it. Any failure stops the release; report it.
 2. Commit leftover work with plain conventional messages (no AI attribution, no staging of `.planning/.runs` handoff reports). Never commit secrets.
 3. Get the work onto main and push main: from a feature branch, push the branch tip straight to main with `git push origin HEAD:main` (local `main` is stale; it must fast-forward). The `deploy` workflow (`.github/workflows/deploy.yml`) then tests, runs migrations and Pulumi, and deploys API and web; `release.yml` tags a release.
