@@ -17,6 +17,8 @@ updated: 2026-09-04
 - A proposed card is never saved silently: the user accepts or rejects it in the chat, and a rejection continues the discussion.
 
 ### Coding tasks
+- [x] Let every item chat on iPhone and Mac propose cards, not only the queue chat.
+- [x] iPhone chat proposes a card on request for accept or reject, with an on-demand reword-question button.
 - [ ] Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
 - [ ] The iOS and Mac apps show the improved chat with the same card tools as the web app.
 - [ ] When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
@@ -56,6 +58,10 @@ updated: 2026-09-04
 - Out of scope: Rewrites of working features, new paid infrastructure, anything touching money or privacy without a human call
 
 ### Coding tasks
+- [x] Triage on every device: change an item's subject, or create a subject or subsubject on the spot.
+- [x] Add knowledge text field and send button stand out clearly from the page background.
+- [x] Treat imported text files as hostile: reject malformed content, strip browser-runnable markup, fence text from prompt instructions.
+- [x] Add knowledge accepts a dropped or picked text file and runs the batch import flow on it.
 - [ ] [blocked: user] Decide on tighter rows in the Mac knowledge list, which needs a custom list.
 - [ ] [blocked: user] Decide whether Copy all stays on cards or the older no-selection item wins.
 - [ ] [blocked: user] Choose the single card word and whether the overview merges into the browser.
@@ -592,6 +598,7 @@ updated: 2026-09-04
 - Out of scope: Changing how lessons are judged for business subjects.
 
 ### Coding tasks
+- [x] Subjects hold optional custom extraction instructions and example cards that feed the extraction prompt.
 - [x] Cloze review backs show the filled sentence, and review edits work on cloze and list notes.
 - [x] Each cloze gap and list step gets its own review schedule, with sibling cards buried until tomorrow.
 - [x] iPhone edit sheets edit a whole cloze or ordered-list note instead of failing with an error.
@@ -867,6 +874,11 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [x] Mac app updates itself: CI attaches it to each GitHub release, the app checks hourly.
+- [x] Native Add knowledge: add several raw pieces at once under one subject, like the web.
+- [x] Highlight selected text with a configurable keyboard shortcut, default Command+D, on Mac and web.
+- [x] Mac and iPhone apps ingest a picked or dropped text file through the web file import.
+- [x] Mac triage hides the statement line above the question and answer cards.
 - [ ] [blocked: user] Register Apple App ID and App Group for the Mac share extension.
 - [x] Add a macOS share extension to the PostAnki Mac app, so right-clicking selected text in any app (for example the Claude desktop app) shows PostAnki in the Share menu. The panel has a subject picker with an "Auto" default that leaves the subject empty so the API's triage assigns one, and it saves the text as raw knowledge using the Mac app's existing login.
 - [x] Let the user highlight phrases in a knowledge source in the Mac and iPhone apps to tell the AI which parts to pay attention to when shaping questions, as the web app already does. The apps send the highlight start and end positions with the source, and the question-shaping code reads them as today.
@@ -912,6 +924,7 @@ updated: 2026-09-04
 - Out of scope: Inngest Cloud, paid plans, and moving to another workflow engine.
 
 ### Coding tasks
+- [x] Install the Inngest CLI and document how to look up production runs with it.
 - [x] The durable extraction database tests pass again, with the new run-id lookup covered against Postgres.
 - [x] Bursts of pasted material queue up instead of failing against the model provider's rate limit.
 - [x] A source can never have two extraction runs active at once, so tokens are never spent twice.
@@ -930,6 +943,7 @@ updated: 2026-09-04
 - [x] Courses started from a domain recommendation research on the durable engine like other new courses.
 - [x] A late failure from an old course job never fails a newer one on that course.
 - [x] A failed draft retry send never starts a second paid draft beside a live one.
+- [ ] [blocked: user] Approve the Inngest CLI sign-in in the browser
 
 ### Notes
 - Live extraction progress and model-call tracing can come later; research is in the inngest-features report.
@@ -1361,6 +1375,7 @@ updated: 2026-09-04
 - Out of scope: Automated multi-module course generation from an arbitrary link — stays frozen; non-Notion connectors for now
 
 ### Coding tasks
+- [x] Remove Notion ingestion from API, web and apps, keeping cards already made from Notion.
 - [ ] [blocked: user] Register the English phrases Notion page as a production source for English for IT.
 - [ ] [blocked: user] Pull the two seed Notion pages read-only and inspect their shape, needs a Notion token.
 - [x] Store ingestion sources with page URL, target subject, items per run, frequency and a keep-or-remove-after-import setting.
