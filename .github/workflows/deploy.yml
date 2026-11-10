@@ -286,7 +286,9 @@ jobs:
         env:
           INNGEST_EVENT_KEY: ${{ secrets.PROD_INNGEST_EVENT_KEY }}
           INNGEST_SIGNING_KEY: ${{ secrets.PROD_INNGEST_SIGNING_KEY }}
+          INNGEST_SERVE_ORIGIN: ${{ vars.PROD_API_PUBLIC_URL || 'https://post-anki-api-pl6jw2mdla-ew.a.run.app' }}
         run: |
+          echo "INNGEST_SERVE_ORIGIN=$INNGEST_SERVE_ORIGIN" >> "$GITHUB_ENV"
           ELECTRIC_ARGS=()
           if [ -n "${ELECTRIC_URL:-}" ]; then
             ELECTRIC_ARGS+=(--set-env-vars "ELECTRIC_SERVICE_URL=$ELECTRIC_URL")
@@ -307,7 +309,7 @@ jobs:
           INNGEST_ARGS=(
             --set-env-vars "INNGEST_EVENT_KEY=$INNGEST_EVENT_KEY"
             --set-env-vars "INNGEST_SIGNING_KEY=$INNGEST_SIGNING_KEY"
-            --set-env-vars "INNGEST_SERVE_ORIGIN=${{ vars.PROD_API_PUBLIC_URL || 'https://post-anki-api-pl6jw2mdla-ew.a.run.app' }}"
+            --set-env-vars "INNGEST_SERVE_ORIGIN=$INNGEST_SERVE_ORIGIN"
             --set-env-vars "DURABLE_EXTRACTION=1"
           )
           gcloud run deploy post-anki-api \
@@ -359,6 +361,22 @@ jobs:
             sleep 5
           done
           echo "API health check failed after 60s"
+          exit 1
+
+      - name: Sync Inngest app
+        run: |
+          for i in $(seq 1 5); do
+            STATUS=$(curl -s --max-time 30 -o /dev/null -w "%{http_code}" -X PUT "$INNGEST_SERVE_ORIGIN/api/inngest")
+            case "$STATUS" in
+              2*)
+                echo "Inngest sync answered HTTP $STATUS"
+                exit 0
+                ;;
+            esac
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s"
+            sleep 10
+          done
+          echo "::error::Inngest sync (PUT $INNGEST_SERVE_ORIGIN/api/inngest) did not answer 2xx"
           exit 1
 
   deploy-web:

@@ -24,6 +24,8 @@ const docScanTimeZone = config.get("docScanTimeZone") ?? "Europe/Warsaw";
 // independently, matching how gapResurfaceSchedule got its own key above.
 const autoDeferSweepSchedule = config.get("autoDeferSweepSchedule") ?? "0 6 * * *";
 const autoDeferSweepTimeZone = config.get("autoDeferSweepTimeZone") ?? "Europe/Warsaw";
+const triageIdleSweepSchedule = config.get("triageIdleSweepSchedule") ?? "15 * * * *";
+const triageIdleSweepTimeZone = config.get("triageIdleSweepTimeZone") ?? "Europe/Warsaw";
 // sessionIdleSweepJob (issue #27) — one of two 5-minute jobs in this repo
 // (with knowledge-pipeline-sweep). 5-minute cadence against a 30-minute threshold: up to ~5 minutes of
 // lag on the inactivity boundary, same disclosed-lag shape as #33's sweep,
@@ -318,7 +320,7 @@ const dailyPushJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "60s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${botDomain}/push`,
+      uri: pulumi.interpolate`${botService.statuses[0].url}/push`,
       headers: telegramWebhookSecret
         ? { Authorization: pulumi.interpolate`Bearer ${telegramWebhookSecret}` }
         : undefined,
@@ -343,7 +345,7 @@ const gapResurfaceJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "60s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${botDomain}/gap-resurface`,
+      uri: pulumi.interpolate`${botService.statuses[0].url}/gap-resurface`,
       headers: telegramWebhookSecret
         ? { Authorization: pulumi.interpolate`Bearer ${telegramWebhookSecret}` }
         : undefined,
@@ -368,7 +370,7 @@ const sessionIdleSweepJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "60s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${botDomain}/session-idle-sweep`,
+      uri: pulumi.interpolate`${botService.statuses[0].url}/session-idle-sweep`,
       headers: telegramWebhookSecret
         ? { Authorization: pulumi.interpolate`Bearer ${telegramWebhookSecret}` }
         : undefined,
@@ -393,7 +395,7 @@ const docScanJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "300s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${apiDomain}/doc-scans`,
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/doc-scans`,
       headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
     },
   },
@@ -403,7 +405,7 @@ const docScanJob = new gcp.cloudscheduler.Job(
 // autoDeferSweepJob (issue #33) — mirrors docScanJob's shape, not
 // gapResurfaceJob's: this sweep sends zero Telegram messages ("No
 // notification is sent about the auto-defer — it's silent"), so it targets
-// the API directly (apiDomain, apiSharedSecret bearer) rather than routing a
+// the API directly (Cloud Run service URL, apiSharedSecret bearer) rather than routing a
 // database-only housekeeping write through the bot's Telegram-delivery
 // boundary.
 const autoDeferSweepJob = new gcp.cloudscheduler.Job(
@@ -417,7 +419,26 @@ const autoDeferSweepJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "60s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${apiDomain}/gaps/auto-defer-sweep`,
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/gaps/auto-defer-sweep`,
+      headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
+    },
+  },
+  { dependsOn: [apiService, ...enabledApis] },
+);
+
+// triageIdleSweepJob — hourly; closes and distils triage sessions idle over 24h.
+const triageIdleSweepJob = new gcp.cloudscheduler.Job(
+  "triage-idle-sweep",
+  {
+    project: projectId,
+    region,
+    name: "post-anki-triage-idle-sweep",
+    schedule: triageIdleSweepSchedule,
+    timeZone: triageIdleSweepTimeZone,
+    attemptDeadline: "180s",
+    httpTarget: {
+      httpMethod: "POST",
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/triage-sessions/idle-sweep`,
       headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
     },
   },
@@ -437,7 +458,7 @@ const knowledgePipelineSweepJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "60s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${apiDomain}/knowledge-pipeline-sweeps`,
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/knowledge-pipeline-sweeps`,
       headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
     },
   },
@@ -456,7 +477,7 @@ const cardEmbeddingScanJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "300s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${apiDomain}/cards/embedding-scan`,
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/cards/embedding-scan`,
       headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
     },
   },
@@ -477,7 +498,7 @@ const bizEducationDistillJob = new gcp.cloudscheduler.Job(
     attemptDeadline: "300s",
     httpTarget: {
       httpMethod: "POST",
-      uri: pulumi.interpolate`https://${apiDomain}/biz-education-distills`,
+      uri: pulumi.interpolate`${apiService.statuses[0].url}/biz-education-distills`,
       headers: { Authorization: pulumi.interpolate`Bearer ${apiSharedSecret}` },
     },
   },
@@ -503,6 +524,7 @@ export const dailyPushJobName = dailyPushJob.name;
 export const gapResurfaceJobName = gapResurfaceJob.name;
 export const docScanJobName = docScanJob.name;
 export const autoDeferSweepJobName = autoDeferSweepJob.name;
+export const triageIdleSweepJobName = triageIdleSweepJob.name;
 export const sessionIdleSweepJobName = sessionIdleSweepJob.name;
 export const knowledgePipelineSweepJobName = knowledgePipelineSweepJob.name;
 export const cardEmbeddingScanJobName = cardEmbeddingScanJob.name;
