@@ -9,6 +9,7 @@ enum PendingReviewTriageAction: Equatable {
     case next
     case edit
     case chat
+    case comment
 }
 
 enum PendingReviewTriageKeyInput: Equatable {
@@ -52,8 +53,20 @@ enum PendingReviewTriageKeyMap {
             case "s": return .skip
             case "e": return .edit
             case "c": return .chat
+            case "n": return .comment
             default: return nil
             }
+        }
+    }
+}
+
+extension PendingReviewTriageKeyMap {
+    static func arrowDecision(for input: PendingReviewTriageKeyInput) -> PendingReviewTriageAction? {
+        switch input {
+        case .left: return .drop
+        case .right: return .keep
+        case .up: return .chat
+        default: return nil
         }
     }
 }

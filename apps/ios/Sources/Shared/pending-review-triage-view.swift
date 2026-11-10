@@ -6,7 +6,12 @@ struct PendingReviewTriageView: View {
     @Binding var editingBit: PendingReviewBit?
     var onBackToSubjects: (() -> Void)?
     @State private var chatPromptOpen = false
-    @FocusState private var isFocused: Bool
+    @State var comment = ""
+    @FocusState var isFocused: Bool
+    @FocusState var commentFocused: Bool
+    #if os(macOS)
+    @State var commentMonitor = TriageCommentKeyMonitor()
+    #endif
 
     var body: some View {
         Group {
@@ -21,7 +26,12 @@ struct PendingReviewTriageView: View {
         .focused($isFocused)
         .onKeyPress(phases: .down) { press in handle(press) }
         .onAppear { isFocused = true }
-        .onChange(of: model.current?.id) { isFocused = true }
+        .onChange(of: model.current?.id) {
+            guard !commentFocused else { return }
+
+            comment = ""
+            isFocused = true
+        }
         .onChange(of: editingBit == nil) { isFocused = true }
         .onChange(of: chatPromptOpen) { isFocused = true }
         .sheet(isPresented: $chatPromptOpen) {
@@ -166,9 +176,11 @@ struct PendingReviewTriageView: View {
             .disabled(model.isBusy)
 
             #if os(macOS)
+            commentField
+
             Text(model.selection.pickOne
-                ? "Up/Down choose, Return approves, X rejects, Z undoes, S skips, E edits, C sends to Chat"
-                : "1-9 toggle, Return approves, X rejects, Z undoes the last keep or drop, S skips, E edits, C sends to Chat")
+                ? "Up/Down choose, Return approves, X rejects, Z undoes, S skips, E edits, C sends to Chat, N comments"
+                : "Left rejects, Right approves, Up sends to Chat, N comments (then Cmd+arrow decides, Esc leaves), 1-9 toggle, Z undoes, S skips, E edits")
                 .zoomFont(.caption)
                 .foregroundStyle(.secondary)
             #endif
@@ -190,27 +202,7 @@ struct PendingReviewTriageView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func handle(_ press: KeyPress) -> KeyPress.Result {
-        guard let input = Self.input(from: press),
-              let action = PendingReviewTriageKeyMap.action(for: input, command: press.modifiers.contains(.command), returnAndXOnly: Self.returnAndXOnly)
-        else { return .ignored }
-
-        if case .moveOption = action, !model.selection.pickOne { return .ignored }
-
-        run(action)
-
-        return .handled
-    }
-
-    private static var returnAndXOnly: Bool {
-        #if os(macOS)
-        true
-        #else
-        false
-        #endif
-    }
-
-    private func run(_ action: PendingReviewTriageAction) {
+    func run(_ action: PendingReviewTriageAction) {
         if action == .edit {
             editingBit = model.current
 
@@ -218,27 +210,17 @@ struct PendingReviewTriageView: View {
         }
 
         if action == .chat {
-            chatPromptOpen = model.current != nil
+            if let prompt = FocusTriageNote.trimmed(comment) {
+                Task { await model.sendToChat(prompt: prompt) }
+            } else {
+                chatPromptOpen = model.current != nil
+            }
 
             return
         }
 
-        Task { await model.perform(action) }
-    }
+        let note = FocusTriageNote.trimmed(comment)
 
-    private static func input(from press: KeyPress) -> PendingReviewTriageKeyInput? {
-        switch press.key {
-        case .return: return .returnKey
-        case .space: return .space
-        case .delete, .deleteForward: return .delete
-        case .leftArrow: return .left
-        case .rightArrow: return .right
-        case .upArrow: return .up
-        case .downArrow: return .down
-        default:
-            if press.characters == "\u{3}" { return .returnKey }
-
-            return press.characters.first.map { .character($0) }
-        }
+        Task { await model.perform(action, note: note) }
     }
 }

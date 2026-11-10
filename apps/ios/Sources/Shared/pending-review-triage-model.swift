@@ -82,20 +82,20 @@ final class PendingReviewTriageModel {
         return list.rowMessages[id]
     }
 
-    func perform(_ action: PendingReviewTriageAction) async {
+    func perform(_ action: PendingReviewTriageAction, note: String? = nil) async {
         hint = nil
         defer { topUpIfNeeded() }
 
         switch action {
         case .toggle(let index): toggle(index)
         case .moveOption(let offset): moveOption(offset)
-        case .keep: await keep()
-        case .drop: await drop()
+        case .keep: await keep(note: note)
+        case .drop: await drop(note: note)
         case .undo: await undo()
         case .skip: step(by: 1, wrapping: true)
         case .previous: step(by: -1, wrapping: false)
         case .next: step(by: 1, wrapping: false)
-        case .edit, .chat: break
+        case .edit, .chat, .comment: break
         }
     }
 
@@ -122,16 +122,16 @@ final class PendingReviewTriageModel {
         selections[bit.id] = updated
     }
 
-    func keep() async {
+    func keep(note: String? = nil) async {
         guard let bit = current, selection.canKeep else { return }
 
-        await enqueue(bit, kind: .keep(selection.keepIds))
+        await enqueue(bit, kind: .keep(selection.keepIds), note: note)
     }
 
-    func drop() async {
+    func drop(note: String? = nil) async {
         guard let bit = current else { return }
 
-        await enqueue(bit, kind: .reject)
+        await enqueue(bit, kind: .reject, note: note)
     }
 
     func undo() async {

@@ -39,5 +39,7 @@
 	<string>$(POSTANKI_APP_GROUP)</string>
 	<key>PostAnkiKeychainGroup</key>
 	<string>$(POSTANKI_KEYCHAIN_GROUP)</string>
+	<key>PostAnkiProduction</key>
+	<string>$(POSTANKI_PRODUCTION)</string>
 </dict>
 </plist>

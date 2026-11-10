@@ -33,6 +33,8 @@
 	<string>$(POSTANKI_POWERSYNC_TOKEN)</string>
 	<key>PostAnkiPowerSyncURL</key>
 	<string>$(POSTANKI_POWERSYNC_URL)</string>
+	<key>PostAnkiProduction</key>
+	<string>$(POSTANKI_PRODUCTION)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

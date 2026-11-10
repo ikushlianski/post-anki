@@ -6,7 +6,7 @@ extension PendingReviewTriageModel {
         await drainer.settle()
     }
 
-    func enqueue(_ bit: PendingReviewBit, kind: PendingDecision.Kind) async {
+    func enqueue(_ bit: PendingReviewBit, kind: PendingDecision.Kind, note: String? = nil) async {
         guard saveFailure == nil, !isBusy, queued[bit.id] == nil else { return }
 
         let bitId = bit.id
@@ -15,7 +15,7 @@ extension PendingReviewTriageModel {
 
         queued[bitId] = ""
 
-        guard let id = await decisionQueue.enqueue(bitId: bitId, kind: kind, title: bit.body) else {
+        guard let id = await decisionQueue.enqueue(bitId: bitId, kind: kind, note: note, title: bit.body) else {
             queued[bitId] = nil
             hint = "Couldn't save that decision on this device. Try again."
 
