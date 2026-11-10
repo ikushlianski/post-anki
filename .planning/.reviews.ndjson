@@ -823,3 +823,17 @@
 {"ts":"2026-11-04T14:55:44Z","direction":"classic-anki-review","itemText":"On the Mac, Space, Return and numpad Enter all continue the review as Good.","verdict":"pass","findings":[]}
 {"ts":"2026-11-04T14:57:24Z","direction":"classic-anki-review","itemText":"Mac Review shows a collapsible subject tree with due new and repeat counts, and reviews on click.","verdict":"pass","findings":[]}
 {"ts":"2026-11-04T20:14:35Z","direction":"classic-anki-review","itemText":"A daily review limit ends the session with a done-for-today message, and review-ahead stays available.","verdict":"pass","findings":[]}
+{"item":"card-chat-enrichment","verdict":"FAIL","round":1,"findings":"2 High (source excerpt injection; behaviour change for non-opted-in callers), 3 Medium","at":"2026-11-05"}
+{"item":"card-chat-enrichment","verdict":"PASS","round":2,"at":"2026-11-05"}
+{"item":"triage-chat-and-example","verdict":"PASS","round":1,"findings":"0 Critical/High, 3 Medium (ref guard fixed; duplicate-approve idempotency and model fallback left)","at":"2026-11-06"}
+{"item":"parent-review-mix","verdict":"PASS","round":2,"findings":"R1 High (graded cards reappear) fixed; perf Medium accepted","at":"2026-11-06"}
+{"item":"long-paste-split","verdict":"PASS","round":1,"findings":"3 Medium open","at":"2026-11-06"}
+{"item":"highlights","verdict":"PASS","round":1,"findings":"0 Critical/High, 6 Medium (fixing)","at":"2026-11-06"}
+{"item":"ask-ai","verdict":"PASS","round":1,"findings":"0 Critical/High, 3 Medium (2 fixing, 1 accepted)","at":"2026-11-06"}
+{"item":"cloze-cards","verdict":"PASS","round":1,"findings":"0 Critical/High, 2 Medium (both fixed: deterministic path limited to anki: sources, local checks on the draft), 8 Low (1 fixed, runbook note added, rest accepted)","at":"2026-11-08"}
+{"item":"cloze-cards long-note and example cut","verdict":"PASS","round":1,"findings":"0 Critical/High/Medium, 4 Low (1 fixed: decimal sentence-end, 3 accepted)","at":"2026-11-08"}
+{"ts":"2026-11-10T15:07:47Z","direction":"chat-queue-card-crafting","items":["mac-triage-chat","first-prompt","finish-cancel-chat"],"reviewer":"ie-light-reviewer/sonnet","verdict":"needs-changes","blocking":1,"report":".planning/.runs/2026-11-10/chat-mac-parity/review.md"}
+{"ts":"2026-11-10T15:11:16Z","direction":"chat-queue-card-crafting","items":["mac-triage-chat","first-prompt","finish-cancel-chat"],"reviewer":"orchestrator-check-after-fix-round","verdict":"pass-after-fix","blocking":0,"report":".planning/.runs/2026-11-10/chat-mac-parity/impl-report.md"}
+{"ts":"2026-11-10T15:20:36Z","direction":"chat-queue-card-crafting","items":["research-first","subject-chat-instruction","seed-instructions","b2b-sales"],"reviewer":"ie-light-reviewer/sonnet","verdict":"pass","blocking":0,"report":".planning/.runs/2026-11-10/chat-mac-parity/subject-review.md"}
+{"ts":"2026-11-10T17:30:58Z","direction":"offline-review","items":["pack-endpoint","pack-store","offline-fallback","outbox-sync"],"reviewer":"ie-light-reviewer/sonnet","verdict":"pass","blocking":0,"report":".planning/.runs/2026-11-10/offline-review/review.md"}
+{"ts":"2026-11-10T21:10:49Z","direction":"import-facts-not-templates","items":3,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":0,"medium":4,"low":6},"fixRound":"mediums fixed"}

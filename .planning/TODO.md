@@ -7,6 +7,77 @@ updated: 2026-09-04
 ---
 # Run todo
 
+## subject-card-prompts
+
+### Scope
+- Each subject and sub-subject has an editable card-writing instruction with a sensible default.
+- Triage notes keep shaping card writing.
+- Out of scope: Native app editing screens.
+
+### Coding tasks
+- [ ] Every subject and sub-subject gets a default card-writing instruction, inherited by sub-subjects without their own.
+- [ ] Triage notes from sessions left open over a day are distilled, so they also shape new cards.
+
+### Notes
+
+
+## model-quality-tracking
+
+### Scope
+- Every card records the model that wrote it, and triage decisions and ratings are tied to it.
+- One screen shows approval rate and ratings per model.
+- Out of scope: Model comparison runs and native app screens.
+
+### Coding tasks
+- [ ] A web table shows approved, rejected and rating per model, with older unknown-model cards grouped as unknown.
+- [ ] Each new card stores the model that actually wrote it, and ratings and triage decisions use that.
+
+### Notes
+
+
+## inngest-prod-reliability
+
+### Scope
+- Every background job is known to Inngest Cloud after each deploy.
+- Imported notes get extracted without manual help, and stuck pending notes are drained.
+- Out of scope: Moving jobs off Inngest.
+
+### Coding tasks
+- [ ] Deploy re-syncs the API with Inngest Cloud and fails when the sync does not land.
+- [ ] Pending imported notes reach Inngest via the sweep, logging an error when any wait over 30 minutes.
+
+### Notes
+
+
+## import-facts-not-templates
+
+### Scope
+- Imported Anki decks and text files are read as facts, and fresh cards are written from those facts instead of copying the old card layout.
+- Card writing prefers direct questions; cloze is a rare exception for short sentences.
+- Pending, untriaged cards built the old way get rebuilt.
+- Out of scope: Cards already approved in triage stay untouched.
+
+### Coding tasks
+
+### Notes
+
+
+## offline-review
+
+### Scope
+- Cards to review for subjects active in the last 3 days are kept on the phone so review opens instantly with no signal.
+- Grades given offline sync later at their real review time.
+- Out of scope: Chat and new AI question variants offline.
+
+### Coding tasks
+- [x] Apps store the offline pack on disk, refreshed every 6 minutes while open and when possible.
+- [x] Server offers an offline pack of cards due within a day for recently studied subjects.
+- [x] Review opens the stored pack when offline and keeps grades on the device with their review time.
+- [x] Offline grades sync when back online, applied at their real review time without double counting.
+
+### Notes
+
+
 ## chat-queue-card-crafting
 
 ### Scope
@@ -17,6 +88,9 @@ updated: 2026-09-04
 - A proposed card is never saved silently: the user accepts or rejects it in the chat, and a rejection continues the discussion.
 
 ### Coding tasks
+- [x] Send to chat (iPhone, Mac) takes an optional first prompt so AI replies during triage.
+- [x] Chat shows Finish chat after an accepted card, else Cancel chat that deletes it.
+- [x] Mac triage gets Send to chat and the full iPhone chat abilities (propose, reword, approve cards).
 - [x] Let every item chat on iPhone and Mac propose cards, not only the queue chat.
 - [x] iPhone chat proposes a card on request for accept or reject, with an on-demand reword-question button.
 - [ ] Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
@@ -24,6 +98,10 @@ updated: 2026-09-04
 - [ ] When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
 - [ ] Chat answers come from a smarter model tier with web search and fetch available, with the model's own knowledge preferred and web context used to fill terse one-sentence sources.
 - [ ] The chat model gets create-card and update-card tools that take a front, a back and optional examples, so a card born in the chat is a proper card and not a copied answer.
+- [x] Item chat always searches the web and fetches pages so replies use current, sourced facts.
+- [x] Each subject gets an optional chat instruction that opens every chat; sub-subjects inherit it.
+- [x] Data migration writes a tailored chat instruction for every existing subject and sub-subject.
+- [x] Data migration adds a B2B sales sub-subject under Sales, with its own chat instruction.
 
 ### Notes
 - Worked in its own Orca worktree chat-queue-card-crafting, started 2026-11-08 from this session's brief.
@@ -620,6 +698,7 @@ updated: 2026-09-04
 - Out of scope: Changing how kept cards are scheduled
 
 ### Coding tasks
+- [ ] Mac triage arrows: left rejects, right approves, up sends to chat, with an optional typed comment.
 - [x] The focus card can be edited before approving, and approving a card approves all its variations.
 - [x] Triage shows one card at a time with Reject and Approve buttons and arrow keys.
 - [x] The approval page hides all cards until the user presses Start triage, so triage is never skipped.
@@ -874,6 +953,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
+- [x] iPhone triage screen: Resume, Triage all and subjects at top; item list collapsed.
 - [x] Mac app updates itself: CI attaches it to each GitHub release, the app checks hourly.
 - [x] Native Add knowledge: add several raw pieces at once under one subject, like the web.
 - [x] Highlight selected text with a configurable keyboard shortcut, default Command+D, on Mac and web.
