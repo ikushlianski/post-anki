@@ -81,6 +81,7 @@ export * from "./knowledge-bit-suspended";
 export * from "./knowledge-bit-rejected";
 export * from "./subject-review-due";
 export * from "./knowledge-bit-review-feedback";
+export * from "./card-quality";
 export * from "./card-triage-decision";
 export * from "./triage-decision-history";
 export * from "./card-triage-session";
