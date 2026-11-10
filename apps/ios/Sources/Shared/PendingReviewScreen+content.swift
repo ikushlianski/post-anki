@@ -9,10 +9,10 @@ extension PendingReviewScreen {
         if await session.start() { focusOpen = true }
     }
 
-    func startTriage(subjectId: String?) {
-        focus.subjectFilter = subjectId
-
-        Task { await startTriage() }
+    func startFreshTriage(subjectId: String?) {
+        Task {
+            if await session.startFresh(subjectId: subjectId) { focusOpen = true }
+        }
     }
     #endif
 
@@ -139,13 +139,16 @@ extension PendingReviewScreen {
         } else {
             List {
                 #if os(iOS)
-                if !model.sources.isEmpty && session.storedSession == nil {
-                    Section {
-                        Button(TriageSubjectsText.triageAll(subjects.totalPending)) { startTriage(subjectId: nil) }
-                            .buttonStyle(.borderedProminent)
-                            .frame(maxWidth: .infinity)
-                            .disabled(session.busy)
-                    }
+                if !model.sources.isEmpty {
+                    TriageEntrySection(
+                        stored: session.storedSession,
+                        subjects: subjects,
+                        sources: model.sources,
+                        isStarting: session.busy,
+                        startError: session.error,
+                        onResume: { Task { await startTriage() } },
+                        onPick: { startFreshTriage(subjectId: $0) }
+                    )
                 }
                 #endif
 
@@ -163,29 +166,6 @@ extension PendingReviewScreen {
                 if model.counts.inboxCount > 0 {
                     Section { TriageInboxLink(count: model.counts.inboxCount) }
                 }
-
-                if !model.sources.isEmpty {
-                    if session.storedSession == nil {
-                        TriageSubjectsSection(
-                            model: subjects,
-                            isStarting: session.busy,
-                            startError: session.error,
-                            showsTriageAll: false,
-                            onPick: { startTriage(subjectId: $0) },
-                            onTriageAll: { startTriage(subjectId: nil) }
-                        )
-                    } else {
-                        Section {
-                            PendingReviewInboxSummary(
-                                sources: model.sources,
-                                subjectId: $focus.subjectFilter,
-                                resumed: session.storedSession,
-                                isStarting: session.busy,
-                                startError: session.error
-                            )
-                        }
-                    }
-                }
                 #endif
 
                 if let message = model.errorMessage {
@@ -200,62 +180,16 @@ extension PendingReviewScreen {
                         .foregroundStyle(.secondary)
                 }
 
-                if visibleSources.isEmpty && !model.sources.isEmpty {
-                    Section {
-                        ContentUnavailableView("No cards to triage in this subject", systemImage: "tray")
-                    }
-                }
-
-                ForEach(visibleSources) { source in
-                    Section {
-                        ForEach(source.bits) { bit in
-                            PendingReviewBitRow(
-                                bit: bit,
-                                subjectName: source.subjectName,
-                                isBusy: model.inFlight.contains(bit.id),
-                                message: model.rowMessages[bit.id],
-                                onDecide: { decision in
-                                    Task { _ = await model.decide(decision, bitId: bit.id) }
-                                },
-                                onEdit: { editingBit = bit }
-                            )
-                            .onAppear { model.rowAppeared(bit.id) }
-                        }
-                        SourceRegenerationRow(sourceId: source.id, pendingCount: source.bits.count) { Task { await model.load() } }
-                    } header: {
-                        PendingReviewSourceHeader(source: source)
-                    } footer: {
-                        PendingReviewSourceFooter(
-                            readyCount: model.readyCount(in: source),
-                            isBulkBusy: model.bulkInFlight.contains(source.id),
-                            message: model.sourceMessages[source.id],
-                            onApproveAll: {
-                                confirmingCount = model.readyCount(in: source)
-                                confirmingSourceId = source.id
-                            }
-                        )
-                    }
-                }
+                #if os(iOS)
+                collapsibleItems
+                #else
+                itemSections
+                #endif
             }
             .refreshable {
                 await model.load()
                 await subjects.load()
             }
-            #if os(iOS)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !model.sources.isEmpty, session.storedSession != nil {
-                    PendingReviewInboxStartBar(
-                        sources: model.sources,
-                        subjectId: focus.subjectFilter,
-                        resumed: session.storedSession,
-                        isStarting: session.busy,
-                        hasError: session.error != nil
-                    ) {
-                        Task { await startTriage() }
-                    }
-                }
-            }
-            #endif
         }
     }
 }

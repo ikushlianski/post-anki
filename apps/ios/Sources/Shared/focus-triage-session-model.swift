@@ -66,12 +66,15 @@ final class FocusTriageSessionModel {
             return true
         }
 
-        let filter = triage.subjectFilter
-
         busy = true
         error = nil
         defer { busy = false }
 
+        return await beginSession()
+    }
+
+    private func beginSession() async -> Bool {
+        let filter = triage.subjectFilter
         let chosen = filter ?? (triage.list.isWindowComplete ? FocusTriageSubject.single(triage.list.sources) : nil)
         let key = startKey.flatMap { $0.subject == chosen ? $0.key : nil } ?? UUID().uuidString
 
@@ -97,6 +100,60 @@ final class FocusTriageSessionModel {
 
             return false
         }
+    }
+
+    @discardableResult
+    func startFresh(subjectId: String?) async -> Bool {
+        guard !busy else { return false }
+
+        guard let stored = storedSession,
+              TriageEntryChoice.needsFreshStart(stored: stored, subjectId: subjectId) else {
+            if storedSession == nil { triage.subjectFilter = subjectId }
+
+            return await start()
+        }
+
+        busy = true
+        error = nil
+        defer { busy = false }
+
+        await triage.settlePending()
+
+        guard await discardOnServer(id: stored.sessionId) else {
+            error = "Couldn't replace the session. Check your connection and try again."
+
+            return false
+        }
+
+        clearLocalSession()
+        triage.subjectFilter = subjectId
+
+        return await beginSession()
+    }
+
+    private func discardOnServer(id: String) async -> Bool {
+        do {
+            _ = try await APIClient.discardTriageSession(id: id, undecidedCount: triage.remainingCount)
+
+            return true
+        } catch {
+            if case APIError.badStatus(let status, _) = error, status == 404 || status == 409 { return true }
+
+            return false
+        }
+    }
+
+    private func clearLocalSession() {
+        store.clear()
+        sessionId = nil
+        earlier = []
+        dirty = []
+        bitTails = [:]
+        subjectId = nil
+        startKey = nil
+        resumed = false
+        syncNotice = nil
+        phase = .idle
     }
 
     func endSession() async -> Bool {

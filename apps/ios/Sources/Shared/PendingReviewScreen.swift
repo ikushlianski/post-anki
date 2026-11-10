@@ -11,6 +11,7 @@ struct PendingReviewScreen: View {
     @State var focus: FocusTriageModel
     @State var session: FocusTriageSessionModel
     @State var focusOpen = false
+    @State var showsAllItems = false
     @State var retries: AttentionRetryCoordinator
     @State var subjects = TriageSubjectsModel()
     @State var macTriageStarted = false
