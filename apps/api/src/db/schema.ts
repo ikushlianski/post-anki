@@ -1322,6 +1322,7 @@ export const knowledgeBits = pgTable(
     reviewFlag: text("review_flag"),
     // AI-suggested better version of the bit's phrase; shown beside the original, never replaces it.
     aiSuggestion: text("ai_suggestion"),
+    generatedByModelId: text("generated_by_model_id"),
     duplicateOfBitId: text("duplicate_of_bit_id"),
     duplicateSimilarity: real("duplicate_similarity"),
     duplicateCheckedAt: timestamp("duplicate_checked_at", { withTimezone: true }),
