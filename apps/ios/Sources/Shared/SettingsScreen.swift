@@ -206,19 +206,26 @@ struct SettingsScreen: View {
                 }
             }
 
-            Section("API server address") {
-                TextField("https://", text: $model.address)
-                    #if os(iOS)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                    .autocorrectionDisabled()
+            if APIClient.isProduction {
+                Section("API server address") {
+                    Text(APIClient.baseURLString)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section("API server address") {
+                    TextField("https://", text: $model.address)
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .autocorrectionDisabled()
 
-                Text(model.hasSavedAddress ? "Using the address you saved." : "Using the default address.")
-                    .foregroundStyle(.secondary)
+                    Text(model.hasSavedAddress ? "Using the address you saved." : "Using the default address.")
+                        .foregroundStyle(.secondary)
 
-                Button("Use default address") { model.useDefaultAddress() }
-                    .disabled(!model.hasSavedAddress)
+                    Button("Use default address") { model.useDefaultAddress() }
+                        .disabled(!model.hasSavedAddress)
+                }
             }
 
             Section("Sign in") {

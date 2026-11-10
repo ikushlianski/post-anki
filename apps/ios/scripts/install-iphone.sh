@@ -21,6 +21,7 @@ else
   SCHEME="PostAnkiIOS"
   BUNDLE_ID="com.ikushlianski.postankiios"
   CONFIGURATION="${CONFIGURATION:-Release}"
+  EXTRA_SETTINGS+=("POSTANKI_PRODUCTION=YES")
 fi
 
 source scripts/dev-build-dir.sh

@@ -39,12 +39,14 @@ targets:
       properties:
         CFBundleShortVersionString: "0.1.0"
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
+        PostAnkiProduction: $(POSTANKI_PRODUCTION)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
       base:
+        POSTANKI_PRODUCTION: "NO"
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -114,12 +116,14 @@ targets:
         CFBundleName: Post Anki
         PostAnkiBandLabel: $(POSTANKI_BAND_LABEL)
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
+        PostAnkiProduction: $(POSTANKI_PRODUCTION)
         PostAnkiDevAPIToken: $(POSTANKI_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac
+        POSTANKI_PRODUCTION: "NO"
         INFOPLIST_KEY_CFBundleDisplayName: Post Anki
         POSTANKI_BAND_LABEL: ""
         MARKETING_VERSION: "0.1.0"
@@ -129,6 +133,7 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
       configs:
         Release:
+          POSTANKI_PRODUCTION: "YES"
           CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMac$(POSTANKI_SHARING_SUFFIX).entitlements
         Debug:
           OTHER_LDFLAGS: "$(inherited) -Xlinker -interposable"
@@ -156,6 +161,7 @@ targets:
         CFBundleName: Post Anki
         PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
         PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
+        PostAnkiProduction: $(POSTANKI_PRODUCTION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
@@ -166,10 +172,14 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankimac.share
         PRODUCT_NAME: PostAnkiShare
+        POSTANKI_PRODUCTION: "NO"
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_ENTITLEMENTS: Config/PostAnkiMacShare$(POSTANKI_SHARING_SUFFIX).entitlements
         SKIP_INSTALL: YES
+      configs:
+        Release:
+          POSTANKI_PRODUCTION: "YES"
 
   PostAnkiMacSmokeTests:
     type: bundle.unit-test

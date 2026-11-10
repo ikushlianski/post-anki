@@ -11,6 +11,10 @@ public enum APIError: Error, Sendable {
 public enum APIClient {
     public static let productionBaseURLString = "https://post-anki-api-pl6jw2mdla-ew.a.run.app"
 
+    public static var isProduction: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "PostAnkiProduction") as? String) == "YES"
+    }
+
     private static let savedKey = "apiBaseURL"
     private static let fallback = FallbackBaseURL()
     private static let sessionBox = SessionBox()
@@ -76,7 +80,14 @@ public enum APIClient {
         publishSharedBaseURL()
     }
 
-    static func resolveBaseURL(launchArgument: String? = nil, saved: String?, fallback: String?) -> String {
+    static func resolveBaseURL(
+        launchArgument: String? = nil,
+        saved: String?,
+        fallback: String?,
+        isProduction: Bool = APIClient.isProduction
+    ) -> String {
+        if isProduction { return productionBaseURLString }
+
         for candidate in [launchArgument, saved, fallback] {
             if let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
                 return value

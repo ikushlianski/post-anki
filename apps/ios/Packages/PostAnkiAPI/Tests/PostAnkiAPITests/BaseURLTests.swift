@@ -73,3 +73,25 @@ struct BaseURLTests {
         #expect(APIClient.baseURLString == "http://127.0.0.1:9999")
     }
 }
+
+@Suite("Production server lock")
+struct ProductionBaseURLTests {
+    @Test("should always use the production server in a production build, ignoring saved localhost, launch argument and dev default")
+    func productionIgnoresOverrides() {
+        let resolved = APIClient.resolveBaseURL(
+            launchArgument: "http://127.0.0.1:9999",
+            saved: "http://127.0.0.1:5560",
+            fallback: "http://localhost:3000",
+            isProduction: true
+        )
+
+        #expect(resolved == APIClient.productionBaseURLString)
+    }
+
+    @Test("should keep the launch argument, saved, dev default order when not production")
+    func nonProductionKeepsOrder() {
+        #expect(APIClient.resolveBaseURL(launchArgument: "http://a", saved: "http://b", fallback: "http://c", isProduction: false) == "http://a")
+        #expect(APIClient.resolveBaseURL(saved: "http://b", fallback: "http://c", isProduction: false) == "http://b")
+        #expect(APIClient.resolveBaseURL(saved: nil, fallback: "http://c", isProduction: false) == "http://c")
+    }
+}
