@@ -42,7 +42,7 @@ struct DueTodayRow: View {
     @ViewBuilder
     private var subtitle: some View {
         if let counts = model.counts {
-            Text(breakdown(counts))
+            Text((model.fromPack ? "Offline: " : "") + breakdown(counts))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         } else if case .failed(let failure) = model.state {

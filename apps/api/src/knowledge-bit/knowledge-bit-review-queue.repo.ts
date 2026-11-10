@@ -79,6 +79,7 @@ export interface KnowledgeBitReviewQueueClock {
   tz: string;
   now: Date;
   aheadDays?: number;
+  pack?: { subjectIds: string[]; dueCutoff: Date };
 }
 
 // Unscoped: only due or never-reviewed bits, one card each, new cards capped per local day.
@@ -124,7 +125,7 @@ export async function getKnowledgeBitReviewQueue(
 ): Promise<KnowledgeBitReviewQueue> {
   const { now } = clock;
   const subjectScope = filter?.subjectId ? await resolveSubjectScope(filter.subjectId, db) : undefined;
-  const scope = scopeCondition(filter, db, subjectScope?.ids);
+  const scope = scopeCondition(filter, db, subjectScope?.ids ?? clock.pack?.subjectIds);
   const picked = pickedVariants(scope, now, db);
   const [resolver, planClock] = await Promise.all([
     loadStudyOptionsResolver(db),
@@ -138,13 +139,13 @@ export async function getKnowledgeBitReviewQueue(
   ]);
   const { remaining, newAvailable, capHidesNew } = summariseNewCardAllowance(allowance, freshBySubject);
   const { dayEndsAt } = allowance;
-  const aheadDays = clock.aheadDays ?? 0;
+  const aheadDays = clock.pack ? Math.max(clock.aheadDays ?? 0, 1) : (clock.aheadDays ?? 0);
   const [daily, mixNewWithDue] = await Promise.all([readDailyReviewLimit(clock, db), getMixNewWithDue(db)]);
   const dailyFields = { limitReached: daily.reached, reviewedToday: daily.reviewedToday, limit: daily.limit };
   const blockedByDailyLimit = daily.reached && aheadDays === 0;
   const subjectOnlyScope = Boolean(filter?.subjectId && !filter.tagId && !filter.topicId && !filter.knowledgeBitId);
 
-  if (scope && filter) {
+  if (scope && filter && !clock.pack) {
     const blocked = blockedByDailyLimit && subjectOnlyScope;
     const readCards = async (): Promise<KnowledgeBitReviewCardRow[]> => {
       if (blocked) {
@@ -179,9 +180,10 @@ export async function getKnowledgeBitReviewQueue(
   }
 
   const dueCutoff =
-    aheadDays > 0
+    clock.pack?.dueCutoff ??
+    (aheadDays > 0
       ? (await getLocalDayWindow(clock.tz, new Date(now.getTime() + aheadDays * 86_400_000), db)).endsAt
-      : now;
+      : now);
   const [reviewAllowance, dueForList, dueNow] = await Promise.all([
     readReviewAllowance(clock, db, resolver),
     readDueReviewsBySubject(picked, dueCutoff, db),

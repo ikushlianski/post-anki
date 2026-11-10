@@ -25,6 +25,15 @@ vi.mock("./knowledge-bit-review-queue.repo.js", () => ({
   getKnowledgeBitReviewQueue: vi.fn(async () => state.queue),
 }));
 
+vi.mock("./knowledge-bit-review-pack.service.js", () => ({
+  buildReviewPack: vi.fn(async () => ({
+    generatedAt: "2026-11-10T12:00:00.000Z",
+    dueBefore: "2026-11-11T12:00:00.000Z",
+    truncated: false,
+    cards: [],
+  })),
+}));
+
 vi.mock("../streak/streak.service.js", () => ({
   recordActivityToday: vi.fn(async () => ({ currentStreak: 1, longestStreak: 1, lastActiveDate: "2026-10-10" })),
 }));
@@ -44,6 +53,7 @@ vi.mock("./knowledge-bit-review-suspension.orchestrator.js", () => ({
 const { createApiServer } = await import("../api-server.js");
 const { getKnowledgeBitReviewQueue } = await import("./knowledge-bit-review-queue.repo.js");
 const { recordKnowledgeBitReview } = await import("./knowledge-bit-review.orchestrator.js");
+const { buildReviewPack } = await import("./knowledge-bit-review-pack.service.js");
 const { recordActivityToday } = await import("../streak/streak.service.js");
 
 const AUTH = { authorization: `Bearer ${process.env.API_SHARED_SECRET}` };
@@ -383,5 +393,32 @@ describe("PATCH /knowledge-bits/:id/schedule", () => {
 
   it("should not change a card for a caller without the shared secret", async () => {
     expect((await patch({ suspended: true }, {})).status).toBe(401);
+  });
+});
+
+describe("GET /knowledge-bits/review-packs/current", () => {
+  it("should hand the phone its offline pack for the learner's time zone", async () => {
+    const response = await fetch(`${baseUrl}/knowledge-bits/review-packs/current?tz=Europe/Lisbon`, {
+      headers: AUTH,
+    });
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body.truncated).toBe(false);
+    expect(vi.mocked(buildReviewPack)).toHaveBeenCalledWith("Europe/Lisbon", expect.any(Date));
+  });
+
+  it("should refuse an unknown time zone", async () => {
+    const response = await fetch(`${baseUrl}/knowledge-bits/review-packs/current?tz=Mars/Olympus`, {
+      headers: AUTH,
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("should not serve a pack to a caller without the shared secret", async () => {
+    const response = await fetch(`${baseUrl}/knowledge-bits/review-packs/current`);
+
+    expect(response.status).toBe(401);
   });
 });

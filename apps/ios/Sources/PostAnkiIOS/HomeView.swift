@@ -49,11 +49,18 @@ struct HomeView: View {
                 .tag(HomeTab.more)
         }
         .task {
+            ReviewPackSync.shared.appBecameActive()
             await PendingReviewCountStore.shared.refresh()
             await ChatQueueCountStore.shared.refresh()
         }
         .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                ReviewPackBackgroundTask.schedule()
+                ReviewPackSync.shared.appWentToBackground()
+            }
+
             if phase == .active {
+                ReviewPackSync.shared.appBecameActive()
                 Task { await ChatQueueCountStore.shared.refresh() }
                 Task { await PendingAnswerQueue.shared.flush() }
                 Task { await DueBadge.refresh() }

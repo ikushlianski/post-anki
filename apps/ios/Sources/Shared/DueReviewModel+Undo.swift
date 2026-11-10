@@ -25,7 +25,7 @@ extension DueReviewModel {
     func undoQueued(_ last: GradedCard) async {
         switch await gradeQueue.remove(requestId: last.requestId) {
         case .removed:
-            restore(last)
+            await restore(last)
         case .notFound:
             lastGraded = nil
             notice = "Already sent, can't undo"
@@ -43,7 +43,7 @@ extension DueReviewModel {
     func undoCancelledInFlight(_ last: GradedCard) async {
         switch await gradeQueue.cancelledSendOutcome(requestId: last.requestId) {
         case .notSent:
-            restore(last)
+            await restore(last)
         case .unconfirmed:
             notice = Self.unconfirmedNotice
         case .sent(let reviewId):
@@ -55,7 +55,7 @@ extension DueReviewModel {
         do {
             let result = try await APIClient.undoReview(reviewId: reviewId)
 
-            restore(last, legacyServer: result.unburiedVariantIds == nil)
+            await restore(last, legacyServer: result.unburiedVariantIds == nil)
         } catch is CancellationError {
             keepReviewId(last, reviewId: reviewId, keep: keepReviewIdOnFailure)
         } catch let error as URLError where error.code == .cancelled {
@@ -78,7 +78,8 @@ extension DueReviewModel {
         lastGraded = GradedCard(card: last.card, grade: last.grade, reviewId: reviewId, requestId: last.requestId)
     }
 
-    func restore(_ last: GradedCard, legacyServer: Bool = true) {
+    func restore(_ last: GradedCard, legacyServer: Bool = true) async {
+        await reviewPack.unmarkGraded(variantId: last.card.variantId)
         lastGraded = nil
         easyGradedVariantIds.remove(last.card.variantId)
         settledVariantIds.remove(last.card.variantId)

@@ -7,6 +7,7 @@ final class MacQueueFlushTrigger {
 
     private let monitor = NWPathMonitor()
     private var observer: NSObjectProtocol?
+    private var resignObserver: NSObjectProtocol?
     private var wasOnline: Bool?
     private var isStarted = false
 
@@ -20,7 +21,18 @@ final class MacQueueFlushTrigger {
             object: nil,
             queue: .main
         ) { _ in
-            Task { @MainActor in await PendingQueueFlusher.flushAll() }
+            Task { @MainActor in
+                await PendingQueueFlusher.flushAll()
+                ReviewPackSync.shared.appBecameActive()
+            }
+        }
+
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in ReviewPackSync.shared.appWentToBackground() }
         }
 
         monitor.pathUpdateHandler = { [weak self] path in
@@ -30,7 +42,10 @@ final class MacQueueFlushTrigger {
         }
         monitor.start(queue: DispatchQueue(label: "mac-queue-flush-network", qos: .utility))
 
-        Task { await PendingQueueFlusher.flushAll() }
+        Task {
+            await PendingQueueFlusher.flushAll()
+            ReviewPackSync.shared.appBecameActive()
+        }
     }
 
     private func networkChanged(isOnline: Bool) {

@@ -16,6 +16,25 @@ extension DueReviewModel {
         )
     }
 
+    func visibleCards(
+        _ cards: [ReviewCard],
+        extraBitIds: Set<String> = [],
+        extraVariantIds: Set<String> = []
+    ) async -> [ReviewCard] {
+        let pendingBits = await gradeQueue.pendingKnowledgeBitIds().union(extraBitIds)
+        let pendingVariants = await gradeQueue.pendingVariantIds().union(extraVariantIds)
+        let buries = buriesSiblings
+
+        return cards.filter {
+            !skippedVariantIds.contains($0.variantId) && !easyGradedVariantIds.contains($0.variantId) && !isSettled($0) && !Self.isHeldBack(
+                $0,
+                pendingBits: pendingBits,
+                pendingVariants: pendingVariants,
+                buriesSiblings: buries
+            )
+        }
+    }
+
     func removeFromQueue(afterGrading card: ReviewCard, buriedVariantIds: [String]?) {
         guard let buriedVariantIds else {
             queue.removeAll { $0.knowledgeBitId == card.knowledgeBitId && !$0.isRehearsal }

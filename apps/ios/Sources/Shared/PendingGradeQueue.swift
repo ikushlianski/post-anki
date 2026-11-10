@@ -309,8 +309,17 @@ actor PendingGradeQueue {
             requestId: entry.requestId,
             tz: entry.tz,
             burySiblings: entry.burySiblings,
-            rehearsal: entry.rehearsal
+            rehearsal: entry.rehearsal,
+            reviewedAt: Self.isoString(entry.createdAt),
+            sentAt: Self.isoString(Date())
         )
+    }
+
+    private nonisolated static func isoString(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        return formatter.string(from: date)
     }
 
     private func drop(_ requestId: String) {

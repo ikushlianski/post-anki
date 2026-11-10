@@ -25,7 +25,10 @@ struct DueReviewEmptyView: View {
 
     var body: some View {
         ZoomVStack(spacing: 12) {
-            if model.isOffline {
+            if model.isServingPack {
+                Text(DueReviewModel.packFinishedMessage)
+                    .multilineTextAlignment(.center)
+            } else if model.isOffline {
                 Text("Couldn't connect to the server. Your grades are saved and will send when it's reachable.")
                     .multilineTextAlignment(.center)
             } else {

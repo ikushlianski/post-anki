@@ -14,6 +14,8 @@ struct PostAnkiIOSApp: App {
             try? TokenStore.save(seed)
         }
         #endif
+
+        ReviewPackBackgroundTask.register()
     }
 
     var body: some Scene {

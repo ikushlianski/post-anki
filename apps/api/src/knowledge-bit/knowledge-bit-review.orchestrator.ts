@@ -39,6 +39,11 @@ import {
 } from "./knowledge-bit-sibling-burial.repo.js";
 import { getQuestionVariantById } from "./knowledge-bit-variant-attempt.repo.js";
 import { pickAlternateVariant } from "./knowledge-bit-review-alt-variant.repo.js";
+import {
+  isSupersededBy,
+  recordSupersededReviewInTx,
+  supersededResult,
+} from "./knowledge-bit-review-superseded.js";
 import { recordRehearsalInTx } from "./knowledge-bit-review-rehearsal.orchestrator.js";
 
 export type RecordKnowledgeBitReviewOutcome =
@@ -91,6 +96,10 @@ async function replayStoredReview(
   tx: Tx,
   stored: KnowledgeBitReviewByRequestRecord,
 ): Promise<RecordReviewResult> {
+  if (stored.undoneAt) {
+    return supersededResult(tx, stored.id, stored);
+  }
+
   const previous = stored.prevSchedule ? toGradeState(stored.prevSchedule) : null;
   const { options } = await readStepOptionsInTx(tx, stored.knowledgeBitId, stored.reviewedAt);
   const next = deriveGradeSchedule(previous, stored.grade, stored.reviewedAt, options);
@@ -156,6 +165,22 @@ export async function recordKnowledgeBitReview(
 
     const stored = await readKnowledgeBitScheduleInTx(tx, variant.knowledgeBitId, cardKey);
     const previous = stored && stored.reviewCount > 0 ? stored : null;
+
+    if (input.reviewedAt && isSupersededBy(previous, now)) {
+      return {
+        ok: true as const,
+        ...(await recordSupersededReviewInTx(tx, {
+          knowledgeBitId: variant.knowledgeBitId,
+          variantId: variant.id,
+          cardKey,
+          grade: input.grade,
+          reviewedAt: now,
+          requestId: input.requestId,
+          durationMs: input.durationMs ?? null,
+        })),
+      };
+    }
+
     const { options, clock } = await readStepOptionsInTx(tx, variant.knowledgeBitId, now);
     const next = deriveGradeSchedule(previous, input.grade, now, options);
     const leech = deriveLeechOutcome(previous?.lapses ?? 0, next.lapses);

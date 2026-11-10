@@ -6,7 +6,7 @@ extension SmokeTests {
     @MainActor
     @Suite("Sign-out removes the account's local data")
     struct SignOutCleanupSmokeTests {
-        @Test("should drop a queued grade, queued answer, cached cards, last studied and drafts")
+        @Test("should drop a queued grade, queued answer, saved offline pack, cached cards, last studied and drafts")
         func clearsEverything() async throws {
             let id = UUID().uuidString
             let gradeFile = FileManager.default.temporaryDirectory.appendingPathComponent("grades-\(id).json")
@@ -21,6 +21,15 @@ extension SmokeTests {
                 try? FileManager.default.removeItem(at: cacheDir)
             }
 
+            let packFile = FileManager.default.temporaryDirectory.appendingPathComponent("pack-\(id).json")
+            let packStore = ReviewPackStore(fileURL: packFile)
+            defer { try? FileManager.default.removeItem(at: packFile) }
+
+            await packStore.replace(
+                ReviewPackStoreSmokeTests.pack([ReviewPackCard(card: ReviewPackStoreSmokeTests.card("a"))]),
+                fetchStartedAt: Date()
+            )
+
             let grades = PendingGradeQueue(fileURL: gradeFile)
             let answers = PendingAnswerQueue(fileURL: answerFile)
 
@@ -33,10 +42,11 @@ extension SmokeTests {
 
             #expect(await grades.count() == 1)
 
-            await SignOutCleanup.run(gradeQueue: grades, answerQueue: answers, variantCacheDirectory: cacheDir, defaults: defaults)
+            await SignOutCleanup.run(gradeQueue: grades, answerQueue: answers, reviewPackStore: packStore, variantCacheDirectory: cacheDir, defaults: defaults)
 
             #expect(await grades.count() == 0)
             #expect(await answers.count() == 0)
+            #expect(await packStore.cards(scope: .all) == nil)
             #expect(LastStudied.curriculumId(defaults: defaults) == nil)
             #expect(UserDefaultsChatQueueDraftStore(defaults: defaults).load(cardId: "kb_01") == "")
             #expect(UserDefaultsAddDraftStore(defaults: defaults).load(key: "k") == "")

@@ -28,6 +28,7 @@ extension DueReviewModel {
         if card.isRehearsal {
             lastGraded = nil
         } else {
+            await reviewPack.noteGraded(variantId: card.variantId, bitId: card.knowledgeBitId)
             recordLiveGrade(card, grade: grade, requestId: requestId)
         }
 

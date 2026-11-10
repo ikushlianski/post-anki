@@ -35,6 +35,8 @@ final class DueReviewModel {
     var lastGraded: GradedCard?
     var pendingCount = 0
     var isOffline = false
+    var isServingPack = false
+    var packGeneratedAt: Date?
     var serverCounts: ReviewRemainingCounts?
     var saveFailure: SaveFailure?
     var unsentCards: [String: ReviewCard] = [:]
@@ -68,6 +70,7 @@ final class DueReviewModel {
     var settledBitIds: Set<String> = []
     var hasLoaded = false
     let gradeQueue: PendingGradeQueue
+    let reviewPack: ReviewPackStore
     let scope: DueReviewScope?
     var aheadDays: Int
     let retryDelay: Duration?
@@ -80,11 +83,13 @@ final class DueReviewModel {
 
     init(
         gradeQueue: PendingGradeQueue = .shared,
+        reviewPack: ReviewPackStore = .shared,
         scope: DueReviewScope? = nil,
         aheadDays: Int = 0,
         retryDelay: Duration? = .seconds(20)
     ) {
         self.gradeQueue = gradeQueue
+        self.reviewPack = reviewPack
         self.scope = scope
         self.aheadDays = LearnAheadOption.clamped(aheadDays)
         self.retryDelay = retryDelay
@@ -107,6 +112,13 @@ final class DueReviewModel {
     func showNext() async {
         guard !queue.isEmpty else {
             current = nil
+
+            if isServingPack, !ReviewPackSync.shared.isOnline {
+                state = .empty
+
+                return
+            }
+
             await load()
             return
         }

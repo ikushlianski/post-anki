@@ -43,6 +43,7 @@ import { handleListSubjectReviewDueCounts } from "./knowledge-bit/subject-review
 import { handleGradeKnowledgeBitVariantAnswer } from "./knowledge-bit/grade-knowledge-bit-variant-answer.controller.js";
 import { handleListNextKnowledgeBitQuestionVariants } from "./knowledge-bit/list-next-knowledge-bit-question-variants.controller.js";
 import {
+  handleGetReviewPack,
   handleListKnowledgeBitReviewCards,
   handleRecordKnowledgeBitReview,
   handleUndoKnowledgeBitReview,
@@ -748,6 +749,8 @@ async function route(
       return handleListNextKnowledgeBitQuestionVariants(res, url.search);
     case "listKnowledgeBitReviewCards":
       return handleListKnowledgeBitReviewCards(res, url.search);
+    case "getKnowledgeBitReviewPack":
+      return handleGetReviewPack(res, url.search);
     case "listSuspendedKnowledgeBits":
       return handleListSuspendedKnowledgeBits(res, url.search);
     case "listRejectedKnowledgeBits":

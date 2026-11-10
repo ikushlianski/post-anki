@@ -152,6 +152,47 @@ describe("handleRecordKnowledgeBitReview", () => {
   });
 });
 
+describe("handleRecordKnowledgeBitReview offline grades", () => {
+  it("should answer 400 review_time_out_of_range for a grade older than 14 days", async () => {
+    const res = fakeRes();
+    const old = new Date(Date.now() - 20 * 86_400_000).toISOString();
+
+    await handleRecordKnowledgeBitReview(
+      fakeReq({ variantId: "v1", grade: "good", reviewedAt: old, sentAt: new Date().toISOString() }),
+      res,
+    );
+
+    expect(sent(res)).toEqual({ status: 400, body: { error: "review_time_out_of_range" } });
+    expect(recordKnowledgeBitReview).not.toHaveBeenCalled();
+  });
+
+  it("should grade at the original review time and count that day as active", async () => {
+    recordKnowledgeBitReview.mockResolvedValue({ ok: true, reviewId: "r1" });
+    const res = fakeRes();
+    const earlier = new Date(Date.now() - 3_600_000).toISOString();
+
+    await handleRecordKnowledgeBitReview(
+      fakeReq({ variantId: "v1", grade: "good", reviewedAt: earlier, sentAt: new Date().toISOString() }),
+      res,
+    );
+
+    const gradedAt = recordKnowledgeBitReview.mock.calls[0]![1] as Date;
+
+    expect(Math.abs(gradedAt.getTime() - new Date(earlier).getTime())).toBeLessThan(2_000);
+    expect(recordActivityToday.mock.calls[0]![0]).toBe(gradedAt.toISOString());
+  });
+
+  it("should not count a superseded grade as activity", async () => {
+    recordKnowledgeBitReview.mockResolvedValue({ ok: true, reviewId: "r1", superseded: true });
+    const res = fakeRes();
+
+    await handleRecordKnowledgeBitReview(fakeReq({ variantId: "v1", grade: "good" }), res);
+
+    expect(sent(res).status).toBe(201);
+    expect(recordActivityToday).not.toHaveBeenCalled();
+  });
+});
+
 describe("handleUndoKnowledgeBitReview", () => {
   it("should answer 404 when there is no review to undo", async () => {
     undoKnowledgeBitReview.mockResolvedValue({ ok: false, error: "review_not_found" });

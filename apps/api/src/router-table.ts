@@ -89,6 +89,11 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "GET",
+    pattern: "/knowledge-bits/review-packs/current",
+    name: "getKnowledgeBitReviewPack",
+  },
+  {
+    method: "GET",
     pattern: "/knowledge-bits/suspended",
     name: "listSuspendedKnowledgeBits",
   },

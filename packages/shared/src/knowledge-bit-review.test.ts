@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   recordReviewInputSchema,
+  recordReviewResultSchema,
   reviewCardsQuerySchema,
+  reviewPackSchema,
   scheduleControlInputSchema,
 } from "./knowledge-bit-review";
 
@@ -43,5 +45,32 @@ describe("scheduleControlInputSchema", () => {
   it("should require suspended or buried", () => {
     expect(scheduleControlInputSchema.safeParse({}).success).toBe(false);
     expect(scheduleControlInputSchema.safeParse({ buried: true }).success).toBe(true);
+  });
+});
+
+describe("offline review fields", () => {
+  it("should accept the original review time and send time as ISO timestamps", () => {
+    const parsed = recordReviewInputSchema.safeParse({
+      variantId: "v1",
+      grade: "good",
+      reviewedAt: "2026-11-10T08:00:00.000Z",
+      sentAt: "2026-11-10T12:00:00.000Z",
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("should reject a review time that is not a timestamp", () => {
+    expect(recordReviewInputSchema.safeParse({ variantId: "v1", grade: "good", reviewedAt: "yesterday" }).success).toBe(false);
+  });
+
+  it("should accept an empty pack", () => {
+    const pack = { generatedAt: "2026-11-10T12:00:00.000Z", dueBefore: "2026-11-11T12:00:00.000Z", truncated: false, cards: [] };
+
+    expect(reviewPackSchema.safeParse(pack).success).toBe(true);
+  });
+
+  it("should let a result flag a superseded grade", () => {
+    expect(recordReviewResultSchema.shape.superseded.safeParse(true).success).toBe(true);
   });
 });

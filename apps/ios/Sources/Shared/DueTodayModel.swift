@@ -18,6 +18,12 @@ final class DueTodayModel {
 
     var counts: ReviewCounts?
     var state: State = .idle
+    var fromPack = false
+    private let reviewPack: ReviewPackStore
+
+    init(reviewPack: ReviewPackStore = .shared) {
+        self.reviewPack = reviewPack
+    }
 
     var total: Int? {
         counts.map { $0.review + $0.learning + $0.new }
@@ -36,6 +42,7 @@ final class DueTodayModel {
                 tz: TimeZone.current.identifier
             )
             counts = response.counts
+            fromPack = false
             await DueBadge.updater.update(due: DueBadge.dueTotal(response.counts))
             state = .idle
         } catch is CancellationError {
@@ -45,7 +52,13 @@ final class DueTodayModel {
         } catch APIError.unauthorized {
             state = .failed(.unauthorized)
         } catch is URLError {
-            state = .failed(.offline)
+            if let packed = await reviewPack.counts() {
+                counts = packed
+                fromPack = true
+                state = .idle
+            } else {
+                state = .failed(.offline)
+            }
         } catch {
             state = .failed(.other)
         }

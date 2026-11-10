@@ -78,6 +78,25 @@ export const reviewCardsResponseSchema = z.object({
 
 export type ReviewCardsResponse = z.infer<typeof reviewCardsResponseSchema>;
 
+export const reviewPackCardSchema = reviewCardSchema.extend({
+  alternates: z.array(reviewCardSchema),
+});
+
+export type ReviewPackCard = z.infer<typeof reviewPackCardSchema>;
+
+export const reviewPackSchema = z.object({
+  generatedAt: z.string(),
+  dueBefore: z.string(),
+  truncated: z.boolean(),
+  cards: z.array(reviewPackCardSchema),
+});
+
+export type ReviewPack = z.infer<typeof reviewPackSchema>;
+
+export const reviewPackQuerySchema = z.object({
+  tz: validTimeZoneSchema.default("UTC"),
+});
+
 export const recordReviewInputSchema = z.object({
   variantId: z.string().min(1),
   grade: reviewGradeSchema,
@@ -86,6 +105,8 @@ export const recordReviewInputSchema = z.object({
   tz: validTimeZoneSchema.optional(),
   burySiblings: z.boolean().default(true),
   rehearsal: z.boolean().optional(),
+  reviewedAt: z.string().datetime({ offset: true }).optional(),
+  sentAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export type RecordReviewInput = z.input<typeof recordReviewInputSchema>;
@@ -103,6 +124,7 @@ export const recordReviewResultSchema = z.object({
   cardKey: cardKeySchema,
   buriedVariantIds: z.array(z.string()),
   followUp: reviewCardSchema.nullable().optional(),
+  superseded: z.boolean().optional(),
 });
 
 export type RecordReviewResult = z.infer<typeof recordReviewResultSchema>;

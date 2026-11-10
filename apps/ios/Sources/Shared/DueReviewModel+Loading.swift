@@ -6,7 +6,7 @@ extension DueReviewModel {
         pendingCount = await gradeQueue.count()
         await syncSaveFailure()
 
-        if hasLoaded, !isGrading, isErrorState || isOffline {
+        if hasLoaded, !isGrading, isErrorState || isOffline || isPackFinished {
             await load()
         }
     }
@@ -24,7 +24,7 @@ extension DueReviewModel {
         pendingCount = await gradeQueue.count()
         await syncSaveFailure()
 
-        if hasLoaded, !isGrading, isErrorState || isOffline {
+        if hasLoaded, !isGrading, isErrorState || isOffline || isPackFinished {
             await load()
         }
     }
@@ -33,8 +33,11 @@ extension DueReviewModel {
         hasLoaded = true
         resetWindow()
         isOffline = false
+        isServingPack = false
         state = .loading
         refreshDailyGoalInBackground()
+
+        if !ReviewPackSync.shared.isOnline, await loadFromPack() { return }
 
         do {
             let response = try await APIClient.reviewCards(
@@ -46,17 +49,7 @@ extension DueReviewModel {
                 knowledgeBitId: scope?.knowledgeBitId,
                 aheadDays: aheadDays
             )
-            let pendingBits = await gradeQueue.pendingKnowledgeBitIds()
-            let pendingVariants = await gradeQueue.pendingVariantIds()
-            let buries = buriesSiblings
-            let cards = response.cards.filter {
-                !skippedVariantIds.contains($0.variantId) && !easyGradedVariantIds.contains($0.variantId) && !isSettled($0) && !Self.isHeldBack(
-                    $0,
-                    pendingBits: pendingBits,
-                    pendingVariants: pendingVariants,
-                    buriesSiblings: buries
-                )
-            }
+            let cards = await visibleCards(response.cards)
             let counts = response.counts
 
             windowExhausted = response.cards.count < ReviewCardWindow.target
@@ -96,6 +89,8 @@ extension DueReviewModel {
         } catch APIError.unauthorized {
             state = .unauthorized
         } catch {
+            if error is URLError, await loadFromPack() { return }
+
             pendingCount = await gradeQueue.count()
 
             if error is URLError, pendingCount > 0 {

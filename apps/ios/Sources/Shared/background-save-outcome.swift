@@ -40,7 +40,8 @@ enum BackgroundSaveOutcome: Sendable, Equatable {
         case .badURL:
             return .failed(message: failureMessage(error))
         case .badStatus(let status, let code):
-            if status == 404 || (status == 409 && code == "blocked") || (status == 403 && code == "not_approved") {
+            if status == 404 || (status == 409 && code == "blocked") || (status == 403 && code == "not_approved")
+                || (status == 400 && code == "review_time_out_of_range") {
                 return .stale
             }
 

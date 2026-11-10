@@ -15,6 +15,12 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
 
     var body: some View {
         ZoomVStack(alignment: .leading, spacing: 16) {
+            if let caption = model.packCaption {
+                Text(caption)
+                    .zoomFont(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             if let notice = model.notice {
                 Text(notice)
                     .zoomFont(.footnote)

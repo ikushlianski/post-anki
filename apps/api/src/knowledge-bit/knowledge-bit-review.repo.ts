@@ -25,6 +25,7 @@ export interface KnowledgeBitReviewInsertRow {
   requestId?: string;
   cardKey: string;
   buriedSiblings: KnowledgeBitBuriedSibling[] | null;
+  undoneAt?: Date;
 }
 
 // Append-only: grading only ever inserts a history row, never edits or deletes one.
@@ -146,6 +147,7 @@ export interface KnowledgeBitReviewByRequestRecord {
   grade: ReviewGrade;
   prevSchedule: KnowledgeBitScheduleSnapshot | null;
   reviewedAt: Date;
+  undoneAt: Date | null;
 }
 
 export async function readKnowledgeBitReviewByRequestIdInTx(
@@ -162,6 +164,7 @@ export async function readKnowledgeBitReviewByRequestIdInTx(
       grade: knowledgeBitReviews.grade,
       prevSchedule: knowledgeBitReviews.prevSchedule,
       reviewedAt: knowledgeBitReviews.reviewedAt,
+      undoneAt: knowledgeBitReviews.undoneAt,
     })
     .from(knowledgeBitReviews)
     .where(eq(knowledgeBitReviews.requestId, requestId))

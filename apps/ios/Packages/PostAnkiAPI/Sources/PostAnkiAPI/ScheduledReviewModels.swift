@@ -12,12 +12,25 @@ public struct IntervalPreview: Codable, Hashable, Sendable {
     public let hard: Int
     public let good: Int
     public let easy: Int
+
+    public init(again: Int, hard: Int, good: Int, easy: Int) {
+        self.again = again
+        self.hard = hard
+        self.good = good
+        self.easy = easy
+    }
 }
 
 public struct ReviewCounts: Codable, Hashable, Sendable {
     public let new: Int
     public let learning: Int
     public let review: Int
+
+    public init(new: Int, learning: Int, review: Int) {
+        self.new = new
+        self.learning = learning
+        self.review = review
+    }
 }
 
 public struct ReviewCard: Codable, Identifiable, Hashable, Sendable {
@@ -120,6 +133,8 @@ public struct RecordReviewInput: Encodable, Sendable {
     public let tz: String?
     public let burySiblings: Bool?
     public let rehearsal: Bool?
+    public let reviewedAt: String?
+    public let sentAt: String?
 
     public init(
         variantId: String,
@@ -128,7 +143,9 @@ public struct RecordReviewInput: Encodable, Sendable {
         requestId: String?,
         tz: String? = nil,
         burySiblings: Bool? = nil,
-        rehearsal: Bool? = nil
+        rehearsal: Bool? = nil,
+        reviewedAt: String? = nil,
+        sentAt: String? = nil
     ) {
         self.variantId = variantId
         self.grade = grade
@@ -137,6 +154,8 @@ public struct RecordReviewInput: Encodable, Sendable {
         self.tz = tz
         self.burySiblings = burySiblings
         self.rehearsal = rehearsal
+        self.reviewedAt = reviewedAt
+        self.sentAt = sentAt
     }
 }
 
@@ -152,6 +171,7 @@ public struct RecordReviewResult: Codable, Sendable {
     public let cardKey: String?
     public let buriedVariantIds: [String]?
     public let followUp: ReviewCard?
+    public let superseded: Bool?
 }
 
 public struct UndoReviewResult: Codable, Sendable {

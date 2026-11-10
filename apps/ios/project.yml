@@ -44,6 +44,10 @@ targets:
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - $(PRODUCT_BUNDLE_IDENTIFIER).review-pack-refresh
     settings:
       base:
         POSTANKI_PRODUCTION: "NO"
@@ -79,6 +83,10 @@ targets:
         PostAnkiPowerSyncToken: $(POSTANKI_POWERSYNC_TOKEN)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - $(PRODUCT_BUNDLE_IDENTIFIER).review-pack-refresh
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios.dev
