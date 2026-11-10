@@ -23,6 +23,7 @@ describe("buildSubjectGuidanceBlock", () => {
     expect(block).toContain("Prefer short answers");
     expect(block).toContain("front: Q? | back: A | example: e.g. X");
     expect(block).toContain("never override the SECURITY and LANGUAGE rules");
+    expect(block).toContain("the learner's preferences win");
   });
 
   it("should add nothing when the subject sets neither", () => {
