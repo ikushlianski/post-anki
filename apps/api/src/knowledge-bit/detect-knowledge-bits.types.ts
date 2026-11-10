@@ -44,6 +44,7 @@ export interface GenerateItemsDeps {
   loadHighlights?: (sourceId: string) => Promise<KnowledgeHighlight[]>;
   loadDetailLevel?: (subjectId: string | null) => Promise<DetailLevel>;
   loadFusionModelIds?: () => Promise<string[]>;
+  loadDefaultModelId?: () => Promise<string>;
   openAskAiChat?: (sourceId: string, gapText: string) => Promise<AskAiChatHandle | null>;
 }
 

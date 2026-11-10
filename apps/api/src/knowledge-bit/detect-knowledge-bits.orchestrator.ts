@@ -18,6 +18,7 @@ import { markKnowledgeSourceItemCapReached } from "./knowledge-source-item-cap.r
 import { markKnowledgeSourceNothingExtracted } from "./knowledge-source-nothing-extracted.repo.js";
 import { loadLearningIntentSafely, resolveKnowledgeBitLearningIntent } from "./knowledge-bit-learning-intent.js";
 import { resolveSubjectKind } from "../subject/subject-kind.js";
+import { getKnowledgeItemModelId } from "../admin-settings/admin-settings.repo.js";
 import { loadFusionModelIds, resolveFusionModelIds } from "./knowledge-bit-fusion-settings.js";
 import { loadHighlights, loadIsAnkiImport, loadTargetPhrases, loadKnowledgeSourceKind } from "./knowledge-source-kind.repo.js";
 import { resolveDetailLevel } from "../subject/subject-learning-settings.js";
@@ -77,6 +78,7 @@ export function defaultGenerateItemsDeps(): GenerateItemsDeps {
     loadHighlights,
     loadDetailLevel: resolveDetailLevel,
     loadFusionModelIds,
+    loadDefaultModelId: getKnowledgeItemModelId,
     openAskAiChat: async (sourceId, gapText) =>
       (await import("./ask-ai-chat.orchestrator.js")).openAskAiChat(sourceId, gapText),
   };

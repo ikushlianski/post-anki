@@ -101,7 +101,12 @@ export async function upsertKnowledgeBitGrades(
   db: DbExecutor = getDb(),
 ): Promise<{ rating: number; feedbackId: string }> {
   const [bit] = await db
-    .select({ origin: knowledgeBits.origin, knowledgeSourceId: knowledgeBits.knowledgeSourceId, body: knowledgeBits.body })
+    .select({
+      origin: knowledgeBits.origin,
+      knowledgeSourceId: knowledgeBits.knowledgeSourceId,
+      body: knowledgeBits.body,
+      generatedByModelId: knowledgeBits.generatedByModelId,
+    })
     .from(knowledgeBits)
     .where(eq(knowledgeBits.id, bitId))
     .limit(1)
@@ -137,6 +142,7 @@ export async function upsertKnowledgeBitGrades(
     id,
     knowledgeSourceId: bit.knowledgeSourceId,
     knowledgeBitId: bitId,
+    modelId: bit.generatedByModelId,
     verdict: "approved",
     statement: bit.body.slice(0, FEEDBACK_SNAPSHOT_MAX_CHARS),
     rating: input.rating,

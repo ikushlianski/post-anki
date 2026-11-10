@@ -70,6 +70,8 @@ export function parseBusinessCardsJson(raw: string): unknown {
   return JSON.parse(fenced?.[1] ?? trimmed);
 }
 
+const LANGUAGE_MARKER = "Card language:";
+
 export function buildBusinessCardsPrompt(
   chunk: string,
   options: { strictLanguage?: boolean; feedbackBlock?: string; styleNotesBlock?: string; learningIntent?: string; detailLevel?: DetailLevel; forceAtLeastOne?: boolean } = {},
@@ -85,13 +87,13 @@ export function buildBusinessCardsPrompt(
     /\{(output_language|metadata|max_cards|text)\}/g,
     (_match, key: string) => values[key] ?? "",
   );
-  const extras = [options.feedbackBlock, options.styleNotesBlock, detailLevelPromptLine(options.detailLevel)].filter((block): block is string => Boolean(block));
+  const extras = [options.feedbackBlock, detailLevelPromptLine(options.detailLevel)].filter((block): block is string => Boolean(block));
+  const styleBlock = options.styleNotesBlock?.trim() ?? "";
+  const marker = template.indexOf(LANGUAGE_MARKER);
+  const body =
+    !styleBlock ? template : marker >= 0 ? `${template.slice(0, marker)}${styleBlock}\n${template.slice(marker)}` : `${styleBlock}\n${template}`;
 
-  return [
-    ...buildLanguageHeaderLines(buildSourceLanguageLine(chunk), options.strictLanguage ?? false),
-    ...extras,
-    template,
-  ].join("\n");
+  return [...buildLanguageHeaderLines(buildSourceLanguageLine(chunk), options.strictLanguage ?? false), ...extras, body].join("\n");
 }
 
 function toMultiGapCloze(front: string, quote: string): SourceItemDraft | null {

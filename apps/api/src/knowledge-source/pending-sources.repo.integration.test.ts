@@ -31,7 +31,7 @@ await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
 
-const { listStalePendingSourceIds } = await import("./pending-sources.repo.js");
+const { listStalePendingSourceIds, summarizeStuckPendingSources, touchPendingSources } = await import("./pending-sources.repo.js");
 
 let client: pg.Client;
 
@@ -76,5 +76,63 @@ describe("listStalePendingSourceIds (real Postgres)", () => {
 
     expect(await listStalePendingSourceIds(fiveMin, 20)).toEqual([oldest, older, oldToo]);
     expect(await listStalePendingSourceIds(fiveMin, 2)).toEqual([oldest, older]);
+  });
+});
+
+describe("pending source sweep selection (real Postgres)", () => {
+  async function retireExisting(): Promise<void> {
+    await client.query("UPDATE knowledge_sources SET status = 'failed'");
+  }
+
+  it("should select an imported pending source like any other", async () => {
+    await retireExisting();
+    const id = await seed("pending", 60);
+
+    await client.query("UPDATE knowledge_sources SET import_key = 'anki:1' WHERE id = $1", [id]);
+
+    expect(await listStalePendingSourceIds(5 * 60 * 1000, 20)).toEqual([id]);
+  });
+
+  it("should bump updated_at only for pending sources", async () => {
+    await retireExisting();
+    const pending = await seed("pending", 60);
+    const processing = await seed("processing", 60);
+
+    await touchPendingSources([pending, processing]);
+
+    const { rows } = await client.query<{ id: string; age: number }>(
+      "SELECT id, extract(epoch from (now() - updated_at)) AS age FROM knowledge_sources",
+    );
+    const age = (id: string) => Number(rows.find((r) => r.id === id)?.age);
+
+    expect(age(pending)).toBeLessThan(60);
+    expect(age(processing)).toBeGreaterThan(3000);
+  });
+
+  it("should sort a bumped source after older untouched ones", async () => {
+    await retireExisting();
+    const bumped = await seed("pending", 60);
+    const untouched = await seed("pending", 30);
+
+    await touchPendingSources([bumped]);
+
+    expect(await listStalePendingSourceIds(-60_000, 20)).toEqual([untouched, bumped]);
+  });
+
+  it("should count only pending sources created before the stuck cutoff", async () => {
+    await retireExisting();
+    const old = await seed("pending", 120);
+
+    await client.query(
+      "UPDATE knowledge_sources SET created_at = now() - interval '2 hours' WHERE id = $1",
+      [old],
+    );
+    await seed("pending", 1);
+    await seed("failed", 120);
+
+    const summary = await summarizeStuckPendingSources(30 * 60 * 1000);
+
+    expect(summary.count).toBe(1);
+    expect(summary.oldestAgeMs).toBeGreaterThan(60 * 60 * 1000);
   });
 });

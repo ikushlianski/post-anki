@@ -82,6 +82,21 @@ describe("manual item feedback eligibility", () => {
   });
 });
 
+describe("feedback model credit", () => {
+  it("should credit feedback to the model that wrote the card, not the source override", async () => {
+    const { db, inserted } = fakeDb([
+      [{ body: "Fact", origin: "extracted", approvalState: "pending", knowledgeSourceId: "ks_1", generatedByModelId: "model-writer" }],
+      [{ subjectId: "sub_1", extractionModelId: "model-other", extractionRun: 2 }],
+      [{ prompt: "Q", answer: "A" }],
+      [],
+    ]);
+
+    await recordKnowledgeBitFeedback(db, { bitId: "kb_1", verdict: "rejected" });
+
+    expect(inserted[0]).toMatchObject({ modelId: "model-writer" });
+  });
+});
+
 describe("manual item feedback exclusion in readers", () => {
   it("should exclude manual items from the reviewer memory examples", async () => {
     const { db, wheres } = fakeDb([[], [], []]);

@@ -59,6 +59,7 @@ export async function recordKnowledgeBitFeedback(
         origin: knowledgeBits.origin,
         approvalState: knowledgeBits.approvalState,
         knowledgeSourceId: knowledgeBits.knowledgeSourceId,
+        generatedByModelId: knowledgeBits.generatedByModelId,
       })
       .from(knowledgeBits)
       .where(eq(knowledgeBits.id, input.bitId))
@@ -104,7 +105,7 @@ export async function recordKnowledgeBitFeedback(
     knowledgeSourceId: bit.knowledgeSourceId,
     knowledgeBitId: input.bitId,
     subjectId: source?.subjectId ?? null,
-    modelId: await resolveModelId(source?.extractionModelId ?? null),
+    modelId: bit.generatedByModelId ?? (await resolveModelId(source?.extractionModelId ?? null)),
     verdict: input.verdict,
     reasonCode: input.verdict === "rejected" ? "unspecified" : null,
     statement: bit.body.slice(0, FEEDBACK_SNAPSHOT_MAX_CHARS),

@@ -189,3 +189,66 @@ describe("writeAndValidate", () => {
     ).rejects.toThrow("model down");
   });
 });
+
+describe("writeAndValidate model stamp", () => {
+  beforeEach(() => {
+    vi.mocked(validateSourceItems).mockReset();
+  });
+
+  it("should stamp cards with the admin default model and call the writer with that same model", async () => {
+    vi.mocked(validateSourceItems).mockReturnValueOnce(validation([lesson("a")]));
+    const deps = {
+      ...depsReturning([lesson("a")]),
+      loadDefaultModelId: vi.fn().mockResolvedValue("model-default"),
+    } as unknown as GenerateItemsDeps;
+
+    const result = await writeAndValidate("chunk", {}, deps);
+
+    expect(result.valid[0]?.generatedByModelId).toBe("model-default");
+    expect(vi.mocked(deps.writeItems).mock.calls[0]?.[1].modelId).toBe("model-default");
+  });
+
+  it("should stamp cards with an explicit override instead of the admin default", async () => {
+    vi.mocked(validateSourceItems).mockReturnValueOnce(validation([lesson("a")]));
+    const deps = {
+      ...depsReturning([lesson("a")]),
+      loadDefaultModelId: vi.fn().mockResolvedValue("model-default"),
+    } as unknown as GenerateItemsDeps;
+
+    const result = await writeAndValidate("chunk", { modelId: "model-override" }, deps);
+
+    expect(result.valid[0]?.generatedByModelId).toBe("model-override");
+  });
+
+  it("should stamp flagged cards too", async () => {
+    vi.mocked(validateSourceItems).mockReturnValueOnce(validation([lesson("a")], { rejected: [flagged("b")] }));
+    const deps = {
+      ...depsReturning([lesson("a")]),
+      loadDefaultModelId: vi.fn().mockResolvedValue("model-default"),
+    } as unknown as GenerateItemsDeps;
+
+    const result = await writeAndValidate("chunk", {}, deps);
+
+    expect(result.flagged[0]?.lesson.generatedByModelId).toBe("model-default");
+  });
+
+  it("should credit a fusion card to the model whose text was kept while listing every producer", async () => {
+    vi.mocked(validateSourceItems).mockImplementation((drafts) => validation([...drafts]));
+    const writeItems = vi.fn().mockResolvedValue([lesson("same")]);
+    const deps = { writeItems } as unknown as GenerateItemsDeps;
+
+    const result = await writeAndValidate("chunk", { fusionModelIds: ["m-a", "m-b"] }, deps);
+
+    expect(result.valid).toHaveLength(1);
+    expect(result.valid[0]?.generatedByModelId).toBe("m-a");
+    expect(result.valid[0]?.modelIds).toEqual(["m-a", "m-b"]);
+  });
+
+  it("should leave cards unstamped when no model can be resolved", async () => {
+    vi.mocked(validateSourceItems).mockReturnValueOnce(validation([lesson("a")]));
+
+    const result = await writeAndValidate("chunk", {}, depsReturning([lesson("a")]));
+
+    expect(result.valid[0]?.generatedByModelId).toBeUndefined();
+  });
+});

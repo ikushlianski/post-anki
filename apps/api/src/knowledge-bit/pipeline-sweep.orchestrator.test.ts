@@ -4,6 +4,7 @@ vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
+import { log } from "../shared/log.js";
 import {
   runPipelineSweep,
   SWEEP_MAX_SOURCES,
@@ -16,7 +17,12 @@ function makeDeps(overrides: Partial<PipelineSweepDeps> = {}): PipelineSweepDeps
     isDurable: vi.fn(() => true),
     reconcile: vi.fn(async () => []),
     listStalePending: vi.fn(async () => []),
-    startExtraction: vi.fn(async (ids: string[]) => ({ started: ids, deferredIds: [] })),
+    startExtraction: vi.fn(async (ids: string[]) => ({
+      started: ids.map((id) => `${id}:1`),
+      deferredIds: [],
+    })),
+    touchPending: vi.fn(async () => undefined),
+    summarizeStuckPending: vi.fn(async () => ({ count: 0, oldestAgeMs: 0 })),
     hasPendingBitWork: vi.fn(async () => false),
     sendKick: vi.fn(async () => undefined),
     kickInProcess: vi.fn(async () => undefined),
@@ -114,5 +120,100 @@ describe("runPipelineSweep", () => {
     expect(deps.kickInProcess).toHaveBeenCalledTimes(1);
     expect(deps.startExtraction).not.toHaveBeenCalled();
     expect(deps.sendKick).not.toHaveBeenCalled();
+  });
+
+  it("should move requeued sources to the back of the queue so they get a fresh event id", async () => {
+    const deps = makeDeps({
+      listStalePending: vi.fn(async () => ["s1", "s2", "s3"]),
+      startExtraction: vi.fn(async () => ({ started: ["s1:1", "s3:1"], deferredIds: ["s2"] })),
+    });
+
+    await runPipelineSweep(deps);
+
+    expect(deps.touchPending).toHaveBeenCalledWith(["s1", "s3"]);
+  });
+
+  it("should leave deferred sources untouched so they are retried on the next tick", async () => {
+    const deps = makeDeps({
+      listStalePending: vi.fn(async () => ["s1"]),
+      startExtraction: vi.fn(async () => ({ started: [], deferredIds: ["s1"] })),
+    });
+
+    await runPipelineSweep(deps);
+
+    expect(deps.touchPending).not.toHaveBeenCalled();
+  });
+
+  it("should hand different sources to Inngest on two consecutive ticks when more than 20 are pending", async () => {
+    let queue = Array.from({ length: 45 }, (_, i) => `s${i}`);
+    const sent: string[][] = [];
+    const deps = makeDeps({
+      listStalePending: vi.fn(async (_age: number, limit: number) => queue.slice(0, limit)),
+      startExtraction: vi.fn(async (ids: string[]) => {
+        sent.push(ids);
+
+        return { started: ids.map((id) => `${id}:1`), deferredIds: [] };
+      }),
+      touchPending: vi.fn(async (ids: string[]) => {
+        queue = [...queue.filter((id) => !ids.includes(id)), ...ids];
+      }),
+    });
+
+    await runPipelineSweep(deps);
+    await runPipelineSweep(deps);
+
+    expect(sent).toHaveLength(2);
+    expect(sent[0]).toHaveLength(20);
+    expect((sent[1] ?? []).filter((id) => (sent[0] ?? []).includes(id))).toEqual([]);
+  });
+
+  it("should log one pending_sources_stuck error when sources have been pending over 30 minutes", async () => {
+    vi.mocked(log.error).mockClear();
+    const deps = makeDeps({
+      summarizeStuckPending: vi.fn(async () => ({ count: 7, oldestAgeMs: 90_000 })),
+    });
+
+    await runPipelineSweep(deps);
+
+    expect(deps.summarizeStuckPending).toHaveBeenCalledWith(30 * 60 * 1000);
+    expect(log.error).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledWith(
+      { count: 7, oldestAgeMs: 90_000 },
+      "pending_sources_stuck",
+    );
+  });
+
+  it("should not log a stuck error when nothing is overdue", async () => {
+    vi.mocked(log.error).mockClear();
+
+    await runPipelineSweep(makeDeps());
+
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it("should still finish the sweep when the stuck-source count fails", async () => {
+    const deps = makeDeps({
+      listStalePending: vi.fn(async () => ["s1"]),
+      summarizeStuckPending: vi.fn(async () => {
+        throw new Error("db down");
+      }),
+    });
+
+    await expect(runPipelineSweep(deps)).resolves.toMatchObject({ requeued: 1 });
+  });
+
+  it("should still send the pending-work kick when bumping the handed-off sources fails", async () => {
+    const deps = makeDeps({
+      listStalePending: vi.fn(async () => ["s1"]),
+      touchPending: vi.fn(async () => {
+        throw new Error("db down");
+      }),
+      hasPendingBitWork: vi.fn(async () => true),
+    });
+
+    const result = await runPipelineSweep(deps);
+
+    expect(result).toMatchObject({ requeued: 1, kickSent: true });
+    expect(deps.sendKick).toHaveBeenCalledTimes(1);
   });
 });

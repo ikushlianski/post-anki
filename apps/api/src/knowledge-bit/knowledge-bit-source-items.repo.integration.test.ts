@@ -272,6 +272,27 @@ describe("insertSourceItemsForChunk context (real Postgres)", () => {
   });
 });
 
+describe("insertSourceItemsForChunk model stamp (real Postgres)", () => {
+  it("should store the model that wrote each card, and null when none was recorded", async () => {
+    const source = await seedProcessingSource();
+    const [stamped, unstamped] = itemsForChunk("stamp", 2);
+
+    await insertSourceItemsForChunk({
+      sourceId: source.id,
+      claimedAt: source.claimedAt,
+      firstOrdinal: 0,
+      items: [{ ...stamped!, generatedByModelId: "model-writer" }, unstamped!],
+    });
+
+    const { rows } = await client.query(
+      `SELECT generated_by_model_id FROM knowledge_bits WHERE knowledge_source_id = $1 ORDER BY ordinal`,
+      [source.id],
+    );
+
+    expect(rows).toEqual([{ generated_by_model_id: "model-writer" }, { generated_by_model_id: null }]);
+  });
+});
+
 describe("getSourceInsertState (real Postgres)", () => {
   it("should start a fresh source at ordinal 0 with no statements", async () => {
     const source = await seedProcessingSource();

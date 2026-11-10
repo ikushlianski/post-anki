@@ -78,6 +78,29 @@ describe("business card writer", () => {
     expect(buildBusinessCardsPrompt(SOURCE, { detailLevel: "deep" })).toContain("Detail level: deep");
   });
 
+  it("should put the learner's notes and subject guidance after the card rules and before the source", () => {
+    const notes = "<style_notes>\n- keep fronts short\n</style_notes>";
+    const guidance = "<subject_instructions>\nask why\n</subject_instructions>";
+    const prompt = buildBusinessCardsPrompt(SOURCE, { styleNotesBlock: `${notes}\n${guidance}` });
+    const order = [
+      prompt.indexOf("never a yes/no question"),
+      prompt.indexOf("<style_notes>"),
+      prompt.indexOf("<subject_instructions>"),
+      prompt.indexOf("<source>"),
+    ];
+
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(prompt.indexOf("<style_notes>")).toBeLessThan(prompt.indexOf("Card language:"));
+  });
+
+  it("should add no notes block when the learner has none", () => {
+    const prompt = buildBusinessCardsPrompt(SOURCE, { styleNotesBlock: "" });
+
+    expect(prompt).toBe(buildBusinessCardsPrompt(SOURCE));
+    expect(prompt).not.toContain("<style_notes>");
+  });
+
   it("should use the may-be-empty prompt as the active business prompt and keep v3 and v4 for comparison", () => {
     expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS);
     expect(BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY).not.toContain("at most 200 characters");

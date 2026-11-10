@@ -126,6 +126,7 @@ export async function insertSourceItemsForChunk(
       approvalState: "pending",
       reviewFlag: flagByOrdinal.get(ordinal) ?? item.reviewFlag ?? null,
       aiSuggestion: item.aiSuggestion ?? null,
+      generatedByModelId: item.generatedByModelId ?? null,
       whQuestionGeneratedAt: stampedAt,
       fillBlankGeneratedAt: stampedAt,
       basicCardGeneratedAt: stampedAt,

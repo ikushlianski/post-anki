@@ -172,6 +172,25 @@ describe("manual knowledge items stay out of model feedback (real Postgres)", ()
     expect(graded).toMatchObject({ rating: 4, feedbackId: expect.any(String) });
   });
 
+  it("should credit approvals and bare ratings to the model that wrote the card, not the source setting", async () => {
+    const sourceId = await seedSource(null, "m/source-override");
+    const approvedId = await seedBit(sourceId, "Approved", "extracted");
+    const ratedId = await seedBit(sourceId, "Rated", "extracted");
+
+    await client.query(`UPDATE knowledge_bits SET generated_by_model_id = 'm/writer' WHERE id = ANY($1)`, [
+      [approvedId, ratedId],
+    ]);
+    await approveKnowledgeBit(approvedId);
+    await upsertKnowledgeBitGrades(ratedId, { rating: 5 });
+
+    const { rows } = await client.query(
+      `SELECT knowledge_bit_id, model_id FROM knowledge_bit_feedback WHERE knowledge_bit_id = ANY($1)`,
+      [[approvedId, ratedId]],
+    );
+
+    expect(rows.map((row) => row.model_id)).toEqual(["m/writer", "m/writer"]);
+  });
+
   it("should exclude manual feedback from by-model counts", async () => {
     const modelId = `m/by-model-${randomUUID()}`;
     const onlyManualModel = `m/manual-only-${randomUUID()}`;

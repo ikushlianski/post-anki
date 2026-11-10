@@ -113,9 +113,25 @@ async function writeAndValidateOne(
   deps: GenerateItemsDeps,
 ): Promise<ChunkCards> {
   const clarification: ClarificationHolder = {};
-  const cards = await writeAndValidateWith(chunk, options, deps, clarification);
+  const modelId = options.modelId ?? (await deps.loadDefaultModelId?.());
+  const resolved = modelId ? { ...options, modelId } : options;
+  const cards = stampModel(await writeAndValidateWith(chunk, resolved, deps, clarification), modelId);
 
   return clarification.gapText ? { ...cards, gapText: clarification.gapText } : cards;
+}
+
+function stampModel(cards: ChunkCards, modelId: string | undefined): ChunkCards {
+  if (!modelId) {
+    return cards;
+  }
+
+  const stamp = (lesson: LessonDraft): LessonDraft => ({ ...lesson, generatedByModelId: modelId });
+
+  return {
+    ...cards,
+    valid: cards.valid.map(stamp),
+    flagged: cards.flagged.map((entry) => ({ ...entry, lesson: stamp(entry.lesson) })),
+  };
 }
 
 async function writeAndValidateWith(
