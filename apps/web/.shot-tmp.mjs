@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-const routes={home:'/',login:'/login',review:'/knowledge/review',knowledge:'/knowledge',inbox:'/knowledge/inbox',subjects:'/subjects',notion:'/notion-sources',settings:'/admin-settings',today:'/today'}
+const routes={home:'/',login:'/login',review:'/knowledge/review',knowledge:'/knowledge',inbox:'/knowledge/inbox',subjects:'/subjects',settings:'/admin-settings',today:'/today'}
 const b=await chromium.launch()
 for (const [w,h] of [[1440,900],[390,844]]) {
  const p=await b.newPage({viewport:{width:w,height:h}})
