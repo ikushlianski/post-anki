@@ -51,6 +51,7 @@ describe("resolveRoute", () => {
       expect(resolveRoute("POST", "/biz-education-distills")?.name).toBe(
         "triggerBizEducationDistill",
       );
+      expect(resolveRoute("POST", "/triage-sessions/idle-sweep")?.name).toBe("sweepIdleTriageSessions");
       expect(resolveRoute("GET", "/daily-push")?.name).toBe("dailyPush");
       // decide-mode: POST /decide is a legacy RPC-shaped route being
       // replaced by the noun-based /decide-sessions resource (spec.md's

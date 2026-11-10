@@ -209,6 +209,23 @@ describe("putTriageDecision (real Postgres)", () => {
     expect(legacy.rows[0]).toEqual({ reason_code: "bad_format", note: "odd blank" });
   });
 
+  it("should credit a decision to the model that wrote the card, with or without earlier feedback", async () => {
+    const session = await openSession();
+    const withFeedback = await seedBit("rejected");
+    const withoutFeedback = await seedBit("approved");
+
+    await client.query(`UPDATE knowledge_bits SET generated_by_model_id = 'model-writer' WHERE id = ANY($1)`, [
+      [withFeedback, withoutFeedback],
+    ]);
+    await seedFeedback(withFeedback, "rejected");
+    await decisionRepo.putTriageDecision(session.id, withFeedback, { verdict: "rejected", reasonCode: "bad_format" });
+    await decisionRepo.putTriageDecision(session.id, withoutFeedback, { verdict: "approved" });
+
+    const decided = await rows(session.id);
+
+    expect(decided.map((row) => row.extraction_model_id)).toEqual(["model-writer", "model-writer"]);
+  });
+
   it("should number decisions in order and measure the time since the previous one", async () => {
     const session = await openSession();
     const bits = [await seedBit(), await seedBit(), await seedBit()];

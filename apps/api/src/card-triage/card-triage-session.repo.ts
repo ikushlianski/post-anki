@@ -1,4 +1,4 @@
-import { and, eq, isNull, isNotNull, or, sql } from "drizzle-orm";
+import { and, eq, isNull, isNotNull, lt, or, sql } from "drizzle-orm";
 import type {
   DiscardTriageSessionInput,
   FinishTriageSessionInput,
@@ -188,4 +188,20 @@ export async function discardTriageSession(
 
     return updated ? { status: "ok", session: updated } : { status: "already_finished", session };
   });
+}
+
+export async function listIdleOpenTriageSessionIds(olderThan: Date, limit: number): Promise<string[]> {
+  const rows = await getDb()
+    .select({ id: cardTriageSessions.id })
+    .from(cardTriageSessions)
+    .where(
+      and(
+        eq(cardTriageSessions.status, "open"),
+        lt(sql`coalesce(${cardTriageSessions.lastActivityAt}, ${cardTriageSessions.startedAt})`, olderThan),
+      ),
+    )
+    .orderBy(sql`coalesce(${cardTriageSessions.lastActivityAt}, ${cardTriageSessions.startedAt})`)
+    .limit(limit);
+
+  return rows.map((row) => row.id);
 }

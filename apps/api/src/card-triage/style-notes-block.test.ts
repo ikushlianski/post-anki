@@ -11,6 +11,13 @@ describe("buildStyleNotesBlock", () => {
     expect(buildStyleNotesBlock([])).toBe("");
   });
 
+  it("should tell the writer the learner's preferences win over the default card-style rules", () => {
+    const block = buildStyleNotesBlock([note("keep fronts short")]);
+
+    expect(block).toContain("the learner's preferences win");
+    expect(block).toContain("SECURITY and LANGUAGE");
+  });
+
   it("should leave out a note the learner switched off", () => {
     const block = buildStyleNotesBlock([note("keep fronts short"), note("add long examples", undefined, false)]);
 

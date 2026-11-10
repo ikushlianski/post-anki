@@ -980,6 +980,7 @@ export const ROUTES: RouteDef[] = [
     params: ["curriculumId", "reason"],
   },
   { method: "POST", pattern: "/triage-sessions", name: "startTriageSession" },
+  { method: "POST", pattern: "/triage-sessions/idle-sweep", name: "sweepIdleTriageSessions" },
   {
     method: "GET",
     pattern: /^\/triage-sessions\/([^/]+)$/,
@@ -999,6 +1000,7 @@ export const ROUTES: RouteDef[] = [
     param: "id",
   },
   { method: "GET", pattern: "/triage-decisions/recent", name: "listRecentTriageDecisions" },
+  { method: "GET", pattern: "/card-quality/models", name: "getCardQualityByModel" },
   {
     method: "PATCH",
     pattern: /^\/triage-decisions\/([^/]+)$/,

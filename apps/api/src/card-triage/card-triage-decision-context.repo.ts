@@ -38,6 +38,7 @@ export async function loadDecisionContext(db: DbExecutor, bitId: string): Promis
       approvalState: knowledgeBits.approvalState,
       knowledgeSourceId: knowledgeBits.knowledgeSourceId,
       reviewFlag: knowledgeBits.reviewFlag,
+      generatedByModelId: knowledgeBits.generatedByModelId,
     })
     .from(knowledgeBits)
     .where(eq(knowledgeBits.id, bitId))
@@ -82,7 +83,7 @@ export async function loadDecisionContext(db: DbExecutor, bitId: string): Promis
     approvalState: bit.approvalState,
     knowledgeSourceId: bit.knowledgeSourceId,
     subjectId: source?.subjectId ?? null,
-    extractionModelId: source?.extractionModelId ?? null,
+    extractionModelId: bit.generatedByModelId ?? source?.extractionModelId ?? null,
     extractionRun: source?.extractionRun ?? null,
     reviewFlag: bit.reviewFlag,
     variants: variants.map((variant) => ({ id: variant.id, kind: variant.kind, kept: variant.supersededAt === null })),

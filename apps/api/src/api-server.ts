@@ -63,6 +63,7 @@ import {
   handleListTriageDecisions,
   handlePutTriageDecision,
 } from "./card-triage/card-triage-decision.controller.js";
+import { handleIdleTriageSweep } from "./card-triage/card-triage-idle-sweep.controller.js";
 import {
   handleDiscardTriageSession,
   handleDistillTriageSession,
@@ -70,6 +71,7 @@ import {
   handleGetTriageSession,
   handleStartTriageSession,
 } from "./card-triage/card-triage-session.controller.js";
+import { handleGetCardQualityByModel } from "./card-quality/card-quality.controller.js";
 import { handleListRecentTriageDecisions, handlePatchTriageDecision } from "./card-triage/card-triage-history.controller.js";
 import { handleListCardStyleNotes, handleUpdateCardStyleNote } from "./card-triage/card-style-note.controller.js";
 import { handleListKnowledgeBitOverview } from "./knowledge-bit/knowledge-bit-overview.controller.js";
@@ -805,10 +807,14 @@ async function route(
       return handleStartTriageSession(req, res);
     case "getTriageSession":
       return handleGetTriageSession(res, id);
+    case "sweepIdleTriageSessions":
+      return handleIdleTriageSweep(res);
     case "finishTriageSession":
       return handleFinishTriageSession(req, res, id);
     case "discardTriageSession":
       return handleDiscardTriageSession(req, res, id);
+    case "getCardQualityByModel":
+      return handleGetCardQualityByModel(res, url.search);
     case "listRecentTriageDecisions":
       return handleListRecentTriageDecisions(res, url.search);
     case "patchTriageDecision":
