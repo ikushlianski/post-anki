@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { TriageHistorySearchMode } from '@post-anki/shared'
 
 import { TEXT_FIELD_CLASS } from '../knowledge-bit/knowledge-bit-review-classes'
+import { ModelQualityTable } from './model-quality-table'
 import { TriageHistoryRow } from './triage-history-item'
 import { useTriageHistory } from './use-triage-history'
 
@@ -40,6 +41,8 @@ export function TriageHistoryPage() {
           Everything you accepted or rejected in the last 7 days. Add or change a reason here.
         </p>
       </header>
+
+      <ModelQualityTable />
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input

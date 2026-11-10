@@ -12,6 +12,10 @@ vi.mock('./triage-history.api', () => ({
   patchTriageDecision: vi.fn(),
 }))
 
+vi.mock('./card-quality.api', () => ({
+  getCardQualityByModel: vi.fn().mockResolvedValue({ ok: true, data: { models: [] } }),
+}))
+
 const mockedList = vi.mocked(listRecentTriageDecisions)
 const mockedPatch = vi.mocked(patchTriageDecision)
 
