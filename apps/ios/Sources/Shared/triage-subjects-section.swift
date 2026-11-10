@@ -5,6 +5,7 @@ struct TriageSubjectsSection: View {
     let model: TriageSubjectsModel
     var isStarting = false
     var startError: String?
+    var showsTriageAll = true
     let onPick: (String) -> Void
     let onTriageAll: () -> Void
 
@@ -20,13 +21,11 @@ struct TriageSubjectsSection: View {
                 ProgressView()
             }
 
-            ForEach(model.rows) { row in
-                Button { onPick(row.subjectId) } label: {
-                    TriageSubjectRow(row: row)
-                }
-                .buttonStyle(.plain)
-                .disabled(isStarting)
-                .accessibilityLabel("\(row.path), \(TriageSubjectsText.pending(row.pendingCount))")
+            if showsTriageAll {
+                Button(TriageSubjectsText.triageAll(model.totalPending), action: onTriageAll)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .disabled(isStarting)
             }
 
             if let startError {
@@ -35,10 +34,14 @@ struct TriageSubjectsSection: View {
                     .foregroundStyle(.red)
             }
 
-            Button(TriageSubjectsText.triageAll(model.totalPending), action: onTriageAll)
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
+            ForEach(model.rows) { row in
+                Button { onPick(row.subjectId) } label: {
+                    TriageSubjectRow(row: row)
+                }
+                .buttonStyle(.plain)
                 .disabled(isStarting)
+                .accessibilityLabel("\(row.path), \(TriageSubjectsText.pending(row.pendingCount))")
+            }
         } header: {
             Text("Choose a subject to triage")
         }

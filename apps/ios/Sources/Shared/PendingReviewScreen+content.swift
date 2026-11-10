@@ -138,6 +138,17 @@ extension PendingReviewScreen {
                 )
         } else {
             List {
+                #if os(iOS)
+                if !model.sources.isEmpty && session.storedSession == nil {
+                    Section {
+                        Button(TriageSubjectsText.triageAll(subjects.totalPending)) { startTriage(subjectId: nil) }
+                            .buttonStyle(.borderedProminent)
+                            .frame(maxWidth: .infinity)
+                            .disabled(session.busy)
+                    }
+                }
+                #endif
+
                 if !model.attentionNotices.isEmpty {
                     AttentionBlock(
                         notices: model.attentionNotices,
@@ -159,6 +170,7 @@ extension PendingReviewScreen {
                             model: subjects,
                             isStarting: session.busy,
                             startError: session.error,
+                            showsTriageAll: false,
                             onPick: { startTriage(subjectId: $0) },
                             onTriageAll: { startTriage(subjectId: nil) }
                         )
