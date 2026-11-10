@@ -1,4 +1,5 @@
 import PostAnkiAPI
+import AppKit
 import SwiftUI
 import Testing
 
@@ -96,6 +97,21 @@ extension SmokeTests {
             let grade = FakeServer.writes.first { $0.path == "/knowledge-bits/a/grades" }
 
             #expect(grade?.bodyObject?["note"] as? String == "good one")
+        }
+
+        @Test("should handle keys only when the triage window is the key window and owns the event")
+        func windowGuard() {
+            let triage = NSWindow()
+            let other = NSWindow()
+            let id = ObjectIdentifier(triage)
+            let otherId = ObjectIdentifier(other)
+            typealias Monitor = TriageCommentKeyMonitor
+
+            #expect(Monitor.shouldHandle(isActive: true, eventWindow: id, triageWindow: id, triageWindowIsKey: true))
+            #expect(!Monitor.shouldHandle(isActive: true, eventWindow: otherId, triageWindow: id, triageWindowIsKey: true))
+            #expect(!Monitor.shouldHandle(isActive: true, eventWindow: id, triageWindow: id, triageWindowIsKey: false))
+            #expect(!Monitor.shouldHandle(isActive: true, eventWindow: nil, triageWindow: nil, triageWindowIsKey: true))
+            #expect(!Monitor.shouldHandle(isActive: false, eventWindow: id, triageWindow: id, triageWindowIsKey: true))
         }
     }
 }

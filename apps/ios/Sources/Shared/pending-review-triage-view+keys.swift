@@ -49,6 +49,7 @@ extension PendingReviewTriageView {
             .lineLimit(1...3)
             .focused($commentFocused)
             .accessibilityIdentifier("triage-comment")
+            .background(TriageWindowReader(monitor: commentMonitor))
             .onChange(of: comment) {
                 if comment.utf16.count > FocusTriageNote.maxUnits { comment = FocusTriageNote.clamped(comment) }
             }

@@ -4,6 +4,7 @@ import SwiftUI
 
 final class TriageCommentKeyMonitor {
     var isActive = false
+    weak var window: NSWindow?
     var onDecision: ((PendingReviewTriageAction) -> Void)?
     var onEscape: (() -> Void)?
     private var token: Any?
@@ -24,7 +25,12 @@ final class TriageCommentKeyMonitor {
     }
 
     private func consume(_ event: NSEvent) -> NSEvent? {
-        guard isActive else { return event }
+        guard Self.shouldHandle(
+            isActive: isActive,
+            eventWindow: event.window.map(ObjectIdentifier.init),
+            triageWindow: window.map(ObjectIdentifier.init),
+            triageWindowIsKey: window?.isKeyWindow ?? false
+        ) else { return event }
 
         if event.keyCode == 53 {
             onEscape?()
@@ -39,6 +45,10 @@ final class TriageCommentKeyMonitor {
         onDecision?(action)
 
         return nil
+    }
+
+    nonisolated static func shouldHandle(isActive: Bool, eventWindow: ObjectIdentifier?, triageWindow: ObjectIdentifier?, triageWindowIsKey: Bool) -> Bool {
+        isActive && triageWindowIsKey && eventWindow != nil && eventWindow == triageWindow
     }
 
     static func modifiers(of event: NSEvent) -> EventModifiers {
@@ -62,6 +72,31 @@ final class TriageCommentKeyMonitor {
         case 124: return .right
         case 126: return .up
         default: return nil
+        }
+    }
+}
+
+struct TriageWindowReader: NSViewRepresentable {
+    let monitor: TriageCommentKeyMonitor
+
+    func makeNSView(context: Context) -> NSView {
+        let view = WindowTrackingView()
+
+        view.onWindow = { [monitor] in monitor.window = $0 }
+
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        monitor.window = nsView.window
+    }
+
+    private final class WindowTrackingView: NSView {
+        var onWindow: ((NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onWindow?(window)
         }
     }
 }
