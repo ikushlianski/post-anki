@@ -2,6 +2,7 @@ import type http from "node:http";
 import {
   CHAT_QUEUE_REMINDER_AFTER_DAYS,
   chatQueueSearchQuerySchema,
+  moveToChatQueueInput,
   snoozeChatQueueInput,
   sendChatQueueMessageInput,
 } from "@post-anki/shared";
@@ -12,6 +13,7 @@ import {
   countChatQueueKnowledgeBits,
   listChatQueueKnowledgeBits,
   loadChatCardContext,
+  cancelChatQueueKnowledgeBit,
   moveKnowledgeBitToChatQueue,
   returnKnowledgeBitFromChatQueue,
   snoozeChatQueueKnowledgeBit,
@@ -28,13 +30,11 @@ import {
   sendChatQueueMessage,
   type ChatQueueFailure,
 } from "./knowledge-bit-chat-queue.service.js";
-import { createKnowledgeBitWebTools } from "./knowledge-bit-web-tools.deps.js";
+import { createChatQueueWebTools } from "./knowledge-bit-chat-queue-web-tools.js";
+import { answerFirstChatPrompt } from "./chat-first-reply.orchestrator.js";
+import { dispatchBackgroundJob } from "../background-job/background-job.starter.js";
 
 const CHAT_QUEUE_LIST_LIMIT = 200;
-export const CHAT_QUEUE_SEARCH_OP = "chat_queue.web_search";
-export const CHAT_QUEUE_MAX_SEARCHES = 2;
-export const CHAT_QUEUE_MAX_PAGE_FETCHES = 1;
-const CHAT_QUEUE_MAX_PAGE_CHARS = 6_000;
 
 const STATUS: Record<ChatQueueFailure, number> = {
   not_found: 404,
@@ -48,15 +48,46 @@ const STATUS: Record<ChatQueueFailure, number> = {
 };
 
 // POST /knowledge-bits/:id/chat-queue
-export async function handleMoveKnowledgeBitToChatQueue(res: http.ServerResponse, id: string): Promise<void> {
-  const result = await moveKnowledgeBitToChatQueue(id);
+export async function handleMoveKnowledgeBitToChatQueue(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  id: string,
+): Promise<void> {
+  const body = await readJsonBody(req, moveToChatQueueInput);
+
+  if (!body.ok) {
+    sendJson(res, 400, { error: "invalid_input", message: body.issues });
+    return;
+  }
+
+  const result = await moveKnowledgeBitToChatQueue(id, body.data.prompt);
 
   if (!result.ok) {
     sendError(res, result.reason === "blocked" ? 409 : 404, result.reason);
     return;
   }
 
-  sendJson(res, 200, { ok: true, chatCount: result.value });
+  if (result.value.promptStored) {
+    await dispatchBackgroundJob(
+      { kind: "chat-first-reply", bitId: id },
+      () => answerFirstChatPrompt(id),
+      (err) => log.error({ err, bitId: id }, "chat_first_reply_dispatch_failed"),
+    );
+  }
+
+  sendJson(res, 200, { ok: true, chatCount: result.value.chatCount });
+}
+
+// DELETE /knowledge-bits/:id/chat-messages
+export async function handleCancelChatQueueThread(res: http.ServerResponse, id: string): Promise<void> {
+  const result = await cancelChatQueueKnowledgeBit(id);
+
+  if (!result.ok) {
+    sendError(res, result.reason === "blocked" ? 409 : 404, result.reason);
+    return;
+  }
+
+  sendJson(res, 200, { ok: true });
 }
 
 // DELETE /knowledge-bits/:id/chat-queue
@@ -163,16 +194,7 @@ export async function handleSendChatQueueMessage(
   }
 
   const card = await loadChatCardContext(id);
-  const webTools = createKnowledgeBitWebTools({
-    knowledgeBitId: id,
-    seedCitedUrls: card?.sourceUrl ? [card.sourceUrl] : [],
-    searchOp: CHAT_QUEUE_SEARCH_OP,
-    searchPurpose: "Search the web for authoritative information that helps a learner judge or improve one flashcard",
-    maxSearches: CHAT_QUEUE_MAX_SEARCHES,
-    maxPageFetches: CHAT_QUEUE_MAX_PAGE_FETCHES,
-    maxPageChars: CHAT_QUEUE_MAX_PAGE_CHARS,
-    forceTier: "cheap",
-  });
+  const webTools = createChatQueueWebTools(id, card?.sourceUrl);
   const result = await sendChatQueueMessage(id, body.data, {
     webTools: webTools.deps,
     getWebUsage: webTools.getUsage,

@@ -26,6 +26,7 @@ final class ChatQueueThreadModel {
     var capReached = false
     var isLoading = false
     var isSending = false
+    var awaitsFirstReply = false
     var isResolving = false
     var budgetPaused = false
     var errorMessage: String?
@@ -45,6 +46,7 @@ final class ChatQueueThreadModel {
     @ObservationIgnored var rejectMessageIds: Set<String> = []
     @ObservationIgnored private var retryId: (text: String, id: String)?
     @ObservationIgnored var inFlightRetryDelay: Duration = .seconds(1)
+    @ObservationIgnored var firstReplyPollDelay: Duration = .seconds(3)
     @ObservationIgnored private let counts: ChatQueueCountStore
     @ObservationIgnored private let drafts: ChatQueueDraftStoring
     @ObservationIgnored private let tracksQueue: Bool
@@ -59,17 +61,27 @@ final class ChatQueueThreadModel {
         turnsLeft = item.turnsLeft
     }
 
+    var hasAcceptedCard: Bool {
+        lines.contains { $0.proposals.contains { $0.status == .accepted } }
+    }
+
     var limitReached: Bool { capReached || turnsLeft <= 0 }
 
     var canSend: Bool {
-        !limitReached && !budgetPaused && !isResolving && !isDeleting && (!isSending || !followUps.isFull)
+        !limitReached && !budgetPaused && !awaitsFirstReply && !isResolving && !isDeleting && (!isSending || !followUps.isFull)
             && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var showsStarters: Bool { lines.isEmpty && !isLoading && !limitReached && !budgetPaused }
 
     func load() async {
-        guard !isLoading else { return }
+        guard let prompt = await fetchThread() else { return }
+
+        await awaitFirstReply(prompt)
+    }
+
+    private func fetchThread() async -> String? {
+        guard !isLoading, !awaitsFirstReply else { return nil }
 
         isLoading = true
         errorMessage = nil
@@ -78,16 +90,24 @@ final class ChatQueueThreadModel {
         do {
             let thread = try await APIClient.chatQueueThread(id: item.id)
 
-            lines = thread.messages.map {
-                ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq, proposals: $0.proposals)
-            }
-            turnsLeft = thread.turnsLeft
-            capReached = thread.capReached
+            apply(thread)
+
+            return thread.messages.isEmpty ? thread.pendingPrompt : nil
         } catch is CancellationError {
-            return
+            return nil
         } catch {
             errorMessage = ChatQueueFailure.failure(for: error).message
+
+            return nil
         }
+    }
+
+    func apply(_ thread: ChatQueueThread) {
+        lines = thread.messages.map {
+            ChatQueueLine(id: "m\($0.seq)", isUser: $0.role == .user, text: $0.text, seq: $0.seq, proposals: $0.proposals)
+        }
+        turnsLeft = thread.turnsLeft
+        capReached = thread.capReached
     }
 
     static let makeCardRequest = "Make a card from this chat"
@@ -340,6 +360,13 @@ final class ChatQueueThreadModel {
         }
     }
 
+    func cancelChat() async {
+        await resolve {
+            try await APIClient.cancelChatQueueThread(id: item.id)
+            finish(removing: true)
+        }
+    }
+
     func backToTriage() async {
         await resolve {
             try await APIClient.returnFromChatQueue(id: item.id)
@@ -348,7 +375,7 @@ final class ChatQueueThreadModel {
         }
     }
 
-    private func resolve(_ action: () async throws -> Void) async {
+    func resolve(_ action: () async throws -> Void) async {
         guard !isResolving, !isSending else { return }
 
         isResolving = true
@@ -362,7 +389,7 @@ final class ChatQueueThreadModel {
         }
     }
 
-    private func finish(removing: Bool) {
+    func finish(removing: Bool) {
         if removing, tracksQueue {
             counts.adjust(by: -1)
             drafts.clear(cardId: item.id)

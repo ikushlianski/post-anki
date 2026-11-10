@@ -9,6 +9,7 @@ import {
   chatQueueProposalSchema,
   sendChatQueueMessageResultSchema,
   chatQueueSearchQuerySchema,
+  moveToChatQueueInput,
   chatQueueSearchResponseSchema,
   sendChatQueueMessageInput,
   snoozeChatQueueInput,
@@ -149,5 +150,21 @@ describe("chatQueueProposalSchema", () => {
 
     expect(sendChatQueueMessageResultSchema.safeParse(result).success).toBe(false);
     expect(sendChatQueueMessageResultSchema.safeParse({ ...result, replySeq: 4, proposals: [base] }).success).toBe(true);
+  });
+});
+
+describe("moveToChatQueueInput", () => {
+  it("should accept a plain send with no first prompt", () => {
+    expect(moveToChatQueueInput.safeParse({}).success).toBe(true);
+  });
+
+  it("should trim the first prompt before it is stored", () => {
+    expect(moveToChatQueueInput.parse({ prompt: "  why this?  " }).prompt).toBe("why this?");
+  });
+
+  it("should refuse a first prompt over the character cap so one send cannot inflate cost", () => {
+    const parsed = moveToChatQueueInput.safeParse({ prompt: "a".repeat(CHAT_QUEUE_MAX_MESSAGE_CHARS + 1) });
+
+    expect(parsed.success).toBe(false);
   });
 });

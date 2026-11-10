@@ -2,6 +2,7 @@ import { compileLecture } from "../lecture/lecture.orchestrator.js";
 import { generateStudyMaterial } from "../study-material/study-material.orchestrator.js";
 import { generateKnowledgeBitVariants } from "../knowledge-bit/knowledge-bit-generate-variants.orchestrator.js";
 import { getKnowledgeSourceRawText } from "../knowledge-bit/knowledge-bit.repo.js";
+import { answerFirstChatPrompt } from "../knowledge-bit/chat-first-reply.orchestrator.js";
 import { runArticleSummary } from "../mastra/article-summary.agent.js";
 import { updateKnowledgeSourceSummary } from "../knowledge-source/knowledge-source.repo.js";
 import { mergeSourcesIntoCurriculum } from "../curriculum/curriculum-merge.orchestrator.js";
@@ -43,6 +44,9 @@ export async function runBackgroundJob(job: BackgroundJob): Promise<void> {
       return;
     case "article-summary":
       await summarizeStoredSource(job.sourceId);
+      return;
+    case "chat-first-reply":
+      await answerFirstChatPrompt(job.bitId);
       return;
     case "probe-replenish":
       await replenishStoredSession(job.sessionId, job.progress);

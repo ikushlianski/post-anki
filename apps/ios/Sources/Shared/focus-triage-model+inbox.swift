@@ -52,9 +52,9 @@ extension FocusTriageModel {
     }
 
     @discardableResult
-    func sendToChat() async -> Bool {
+    func sendToChat(prompt: String? = nil) async -> Bool {
         await moveCurrent(.chat, doing: "send this to Chat") { id in
-            try await APIClient.moveToChatQueue(id: id)
+            try await APIClient.moveToChatQueue(id: id, prompt: prompt)
             ChatQueueCountStore.shared.adjust(by: 1)
         }
     }

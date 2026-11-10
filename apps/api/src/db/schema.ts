@@ -1314,6 +1314,7 @@ export const knowledgeBits = pgTable(
     inboxAt: timestamp("inbox_at", { withTimezone: true }),
     chatAt: timestamp("chat_at", { withTimezone: true }),
     chatSnoozedUntil: timestamp("chat_snoozed_until", { withTimezone: true }),
+    chatFirstPrompt: text("chat_first_prompt"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     exampleAiGeneratedAt: timestamp("example_ai_generated_at", { withTimezone: true }),
     exampleAiCount: integer("example_ai_count").notNull().default(0),

@@ -28,7 +28,7 @@ enum FocusTriageKeyRouting {
         case .undo: return .undo
         case .edit: return .edit
         case .moveOption(let offset): return .move(offset)
-        case .skip, .previous, .next: return nil
+        case .skip, .previous, .next, .chat: return nil
         }
     }
 }

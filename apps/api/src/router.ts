@@ -176,6 +176,7 @@ export type RouteName =
   | "unsnoozeChatQueueKnowledgeBit"
   | "getChatQueueThread"
   | "sendChatQueueMessage"
+  | "cancelChatQueueThread"
   | "deleteLastChatQueueExchange"
   | "acceptChatQueueProposal"
   | "rejectChatQueueProposal"

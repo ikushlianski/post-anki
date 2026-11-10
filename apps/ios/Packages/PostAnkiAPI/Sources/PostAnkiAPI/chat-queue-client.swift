@@ -6,13 +6,18 @@ extension APIClient {
     }
 
     @discardableResult
-    public static func moveToChatQueue(id: String) async throws -> Int {
-        let result: MoveToChatQueueResult = try await request(
-            "/knowledge-bits/\(encodedSegment(id))/chat-queue",
-            method: "POST"
-        )
+    public static func moveToChatQueue(id: String, prompt: String? = nil) async throws -> Int {
+        let path = "/knowledge-bits/\(encodedSegment(id))/chat-queue"
+        let text = prompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let result: MoveToChatQueueResult = text.isEmpty
+            ? try await request(path, method: "POST")
+            : try await request(path, method: "POST", body: MoveToChatQueueInput(prompt: text))
 
         return result.chatCount
+    }
+
+    public static func cancelChatQueueThread(id: String) async throws {
+        let _: EmptyResponse = try await request("/knowledge-bits/\(encodedSegment(id))/chat-messages", method: "DELETE")
     }
 
     public static func returnFromChatQueue(id: String) async throws {

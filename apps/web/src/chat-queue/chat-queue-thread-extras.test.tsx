@@ -10,6 +10,7 @@ vi.mock('./chat-queue.api', () => ({
   sendChatQueueMessage: vi.fn(),
   returnFromChatQueue: vi.fn(),
   approveFromChatQueue: vi.fn(),
+  cancelChatQueueThread: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
   snoozeChatQueueCard: vi.fn(),
@@ -18,7 +19,7 @@ vi.mock('./chat-queue.api', () => ({
 }))
 
 import {
-  approveFromChatQueue,
+  cancelChatQueueThread,
   getChatQueueThread,
   returnFromChatQueue,
   sendChatQueueMessage,
@@ -129,11 +130,12 @@ describe('unsent message draft', () => {
 
   it('should clear the draft when the card is resolved', async () => {
     window.localStorage.setItem(KEY, 'leftover')
-    vi.mocked(approveFromChatQueue).mockResolvedValue({ ok: true, data: {} } as never)
+    vi.mocked(cancelChatQueueThread).mockResolvedValue({ ok: true, data: {} } as never)
     renderThread()
 
     await screen.findByDisplayValue('leftover')
-    await userEvent.click(screen.getByTestId('chat-queue-accept'))
+    await userEvent.click(screen.getByTestId('chat-queue-cancel'))
+    await userEvent.click(screen.getByTestId('chat-queue-cancel-confirm'))
 
     await waitFor(() => expect(window.localStorage.getItem(KEY)).toBeNull())
   })
@@ -161,7 +163,8 @@ describe('review chat thread', () => {
 
     await screen.findByTestId('chat-queue-clear')
 
-    expect(screen.queryByTestId('chat-queue-accept')).toBeNull()
+    expect(screen.queryByTestId('chat-queue-cancel')).toBeNull()
+    expect(screen.queryByTestId('chat-queue-finish')).toBeNull()
     expect(screen.queryByTestId('chat-queue-reject')).toBeNull()
     expect(screen.queryByTestId('chat-queue-back')).toBeNull()
     expect(screen.queryByTestId('chat-queue-snooze-a')).toBeNull()
@@ -190,7 +193,7 @@ describe('review chat thread', () => {
   it('should keep the normal buttons for a triage chat', async () => {
     renderThread()
 
-    await screen.findByTestId('chat-queue-accept')
+    await screen.findByTestId('chat-queue-cancel')
 
     expect(screen.queryByTestId('chat-queue-clear')).toBeNull()
   })

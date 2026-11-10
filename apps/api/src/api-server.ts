@@ -227,6 +227,7 @@ import {
 } from "./knowledge-bit/knowledge-bit-chat-queue-proposal.controller.js";
 import { handleGenerateKnowledgeBitExample } from "./knowledge-bit/knowledge-bit-example.controller.js";
 import {
+  handleCancelChatQueueThread,
   handleDeleteLastChatQueueExchange,
   handleGetChatQueueThread,
   handleListChatQueueKnowledgeBits,
@@ -1049,13 +1050,15 @@ async function route(
     case "exportChatQueueMarkdown":
       return handleExportChatQueueMarkdown(res, url.searchParams.get("subjectId"));
     case "moveKnowledgeBitToChatQueue":
-      return handleMoveKnowledgeBitToChatQueue(res, id);
+      return handleMoveKnowledgeBitToChatQueue(req, res, id);
     case "returnKnowledgeBitFromChatQueue":
       return handleReturnKnowledgeBitFromChatQueue(res, id);
     case "snoozeChatQueueKnowledgeBit":
       return handleSnoozeChatQueueKnowledgeBit(req, res, id);
     case "unsnoozeChatQueueKnowledgeBit":
       return handleUnsnoozeChatQueueKnowledgeBit(res, id);
+    case "cancelChatQueueThread":
+      return handleCancelChatQueueThread(res, id);
     case "deleteLastChatQueueExchange":
       return handleDeleteLastChatQueueExchange(res, id);
     case "getChatQueueThread":

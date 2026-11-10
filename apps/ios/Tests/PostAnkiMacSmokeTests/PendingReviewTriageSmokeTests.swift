@@ -98,6 +98,8 @@ extension SmokeTests {
             #expect(Map.action(for: .character("z"), command: true) == .undo)
             #expect(Map.action(for: .character("S")) == .skip)
             #expect(Map.action(for: .character("e")) == .edit)
+            #expect(Map.action(for: .character("c")) == .chat)
+            #expect(Map.action(for: .character("c"), command: true) == nil)
             #expect(Map.action(for: .left) == .moveOption(-1))
             #expect(Map.action(for: .right) == .moveOption(1))
             #expect(Map.action(for: .left, command: true) == nil)

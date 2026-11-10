@@ -2,6 +2,7 @@ import { and, count, desc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { CHAT_QUEUE_MAX_USER_TURNS, rejectReasonCodesForSubjectType, type ChatQueueKnowledgeBit } from "@post-anki/shared";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitChatMessages, knowledgeBits, knowledgeSources } from "../db/schema.js";
+import { ASK_AI_BIT_ORDINAL } from "./ask-ai-chat.repo.js";
 import { loadSubjectPathLabels } from "../subject/subject-path-labels.js";
 import { loadSubjectKindRows, pickRejectSubjectType } from "../subject/reject-subject-type.js";
 import { knowledgeSourceTitleSql } from "./knowledge-source-title.sql.js";
@@ -79,8 +80,9 @@ export async function countAllChatQueueKnowledgeBits(db: DbExecutor = getDb()): 
 
 export async function moveKnowledgeBitToChatQueue(
   id: string,
+  prompt?: string,
   db: DbExecutor = getDb(),
-): Promise<ChatQueueTransitionResult<number>> {
+): Promise<ChatQueueTransitionResult<{ chatCount: number; promptStored: boolean }>> {
   return db.transaction(async (tx) => {
     const state = await lockState(tx, id);
 
@@ -92,14 +94,19 @@ export async function moveKnowledgeBitToChatQueue(
       return { ok: false as const, reason: "blocked" as const };
     }
 
-    if (state === "pending" || state === "inbox") {
+    const moved = state === "pending" || state === "inbox";
+
+    if (moved) {
       await tx
         .update(knowledgeBits)
-        .set({ approvalState: "chat", chatAt: new Date(), inboxAt: null })
+        .set({ approvalState: "chat", chatAt: new Date(), inboxAt: null, chatFirstPrompt: prompt ?? null })
         .where(eq(knowledgeBits.id, id));
     }
 
-    return { ok: true as const, value: await countChatQueueKnowledgeBits(tx) };
+    return {
+      ok: true as const,
+      value: { chatCount: await countChatQueueKnowledgeBits(tx), promptStored: moved && prompt !== undefined },
+    };
   });
 }
 
@@ -125,9 +132,46 @@ export async function returnKnowledgeBitFromChatQueue(
     if (state === "chat") {
       await tx
         .update(knowledgeBits)
-        .set({ approvalState: "pending", chatAt: null })
+        .set({ approvalState: "pending", chatAt: null, chatFirstPrompt: null })
         .where(eq(knowledgeBits.id, id));
     }
+
+    return { ok: true as const, value: undefined };
+  });
+}
+
+export async function cancelChatQueueKnowledgeBit(
+  id: string,
+  db: DbExecutor = getDb(),
+): Promise<ChatQueueTransitionResult> {
+  return db.transaction(async (tx) => {
+    const state = await lockState(tx, id);
+
+    if (state === null) {
+      return { ok: false as const, reason: "not_found" as const };
+    }
+
+    if (state !== "pending" && state !== "chat" && state !== "approved") {
+      return { ok: false as const, reason: "blocked" as const };
+    }
+
+    if (state === "chat") {
+      const [bit] = await tx.select({ ordinal: knowledgeBits.ordinal }).from(knowledgeBits).where(eq(knowledgeBits.id, id));
+      const contentless = bit?.ordinal === ASK_AI_BIT_ORDINAL;
+
+      await tx
+        .update(knowledgeBits)
+        .set({
+          approvalState: contentless ? "rejected" : "pending",
+          ...(contentless ? { decidedAt: new Date() } : {}),
+          chatAt: null,
+          chatSnoozedUntil: null,
+          chatFirstPrompt: null,
+        })
+        .where(eq(knowledgeBits.id, id));
+    }
+
+    await deleteChatQueueMessages(tx, [id]);
 
     return { ok: true as const, value: undefined };
   });
@@ -188,6 +232,7 @@ export async function listChatQueueKnowledgeBits(
 }
 
 export interface ChatCardContext {
+  chatFirstPrompt: string | null;
   body: string;
   background: string | null;
   approvalState: string;
@@ -200,6 +245,7 @@ export async function loadChatCardContext(id: string, db: DbExecutor = getDb()):
   const row = (
     await db
       .select({
+        chatFirstPrompt: knowledgeBits.chatFirstPrompt,
         body: knowledgeBits.body,
         background: knowledgeBits.background,
         approvalState: knowledgeBits.approvalState,
@@ -214,6 +260,25 @@ export async function loadChatCardContext(id: string, db: DbExecutor = getDb()):
   )[0];
 
   return row ?? null;
+}
+
+export async function lockChatFirstPrompt(tx: DbExecutor, id: string): Promise<string | null> {
+  const row = (
+    await tx.select({ prompt: knowledgeBits.chatFirstPrompt }).from(knowledgeBits).where(eq(knowledgeBits.id, id))
+  )[0];
+
+  return row?.prompt ?? null;
+}
+
+export async function clearChatFirstPromptIf(id: string, prompt: string, db: DbExecutor = getDb()): Promise<void> {
+  await db
+    .update(knowledgeBits)
+    .set({ chatFirstPrompt: null })
+    .where(and(eq(knowledgeBits.id, id), eq(knowledgeBits.chatFirstPrompt, prompt)));
+}
+
+export async function clearChatFirstPrompt(tx: DbExecutor, id: string): Promise<void> {
+  await tx.update(knowledgeBits).set({ chatFirstPrompt: null }).where(eq(knowledgeBits.id, id));
 }
 
 export async function lockChatState(tx: DbExecutor, id: string): Promise<string | null> {

@@ -498,6 +498,12 @@ export const ROUTES: RouteDef[] = [
   },
   {
     method: "DELETE",
+    pattern: /^\/knowledge-bits\/([^/]+)\/chat-messages$/,
+    name: "cancelChatQueueThread",
+    param: "id",
+  },
+  {
+    method: "DELETE",
     pattern: /^\/knowledge-bits\/([^/]+)\/chat-queue\/messages\/last$/,
     name: "deleteLastChatQueueExchange",
     param: "id",

@@ -8,6 +8,7 @@ enum PendingReviewTriageAction: Equatable {
     case previous
     case next
     case edit
+    case chat
 }
 
 enum PendingReviewTriageKeyInput: Equatable {
@@ -50,6 +51,7 @@ enum PendingReviewTriageKeyMap {
             case "x": return .drop
             case "s": return .skip
             case "e": return .edit
+            case "c": return .chat
             default: return nil
             }
         }

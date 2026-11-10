@@ -12,6 +12,7 @@ struct FocusTriageView: View {
     let onFinished: () -> Void
 
     @State var departing: DepartingCard?
+    @State var chatPromptOpen = false
     @State private var generation = 0
     @State private var hasLoaded = false
     @State private var scrollEdge = FocusTriageScrollEdge()
@@ -37,6 +38,11 @@ struct FocusTriageView: View {
 
                     actionBar
                 }
+            }
+        }
+        .sheet(isPresented: $chatPromptOpen) {
+            ChatFirstPromptSheet { prompt in
+                Task { _ = await moveCurrent(.chat, prompt: prompt) }
             }
         }
         .confirmationDialog(
@@ -173,10 +179,10 @@ struct FocusTriageView: View {
         return true
     }
 
-    func vertical(_ action: FocusTriageVerticalAction, bit: PendingReviewBit, source: PendingReviewSource?) async -> Bool {
+    func vertical(_ action: FocusTriageVerticalAction, bit: PendingReviewBit, source: PendingReviewSource?, prompt: String? = nil) async -> Bool {
         departing = DepartingCard(bit: bit, source: source)
 
-        let moved = action == .inbox ? await triage.sendToInbox() : await triage.sendToChat()
+        let moved = action == .inbox ? await triage.sendToInbox() : await triage.sendToChat(prompt: prompt)
 
         guard moved else {
             departing = nil

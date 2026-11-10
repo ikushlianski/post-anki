@@ -27,7 +27,7 @@ import {
 import { createChatQueueProposalSink, type ChatQueueProposalSink } from "./knowledge-bit-chat-queue-proposal-sink.js";
 import { buildChatQueueRunOptions } from "./knowledge-bit-chat-queue-run-options.js";
 import { buildChatQueuePrompt } from "./knowledge-bit-chat-queue.prompt.js";
-import { loadChatCardContext, lockChatState } from "./knowledge-bit-chat-queue.repo.js";
+import { clearChatFirstPrompt, loadChatCardContext, lockChatFirstPrompt, lockChatState } from "./knowledge-bit-chat-queue.repo.js";
 import { isChatThreadState } from "./knowledge-bit-chat-thread-state.js";
 import {
   deleteLastChatExchange,
@@ -49,6 +49,7 @@ export interface SendChatQueueMessageOptions {
   getWebUsage?: () => { searches: number; fetches: number };
   proposalTools?: boolean;
   lightModel?: boolean;
+  firstPrompt?: boolean;
 }
 
 export type ChatQueueFailure = ChatQueueErrorCode | "not_found" | "no_messages" | "model_failed";
@@ -57,10 +58,15 @@ export type ChatQueueResult<T> = { ok: true; value: T } | { ok: false; error: Ch
 
 const inFlight = new Set<string>();
 
-function threadOf(messages: StoredChatMessage[]): ChatQueueThread {
+function threadOf(messages: StoredChatMessage[], pendingPrompt?: string | null): ChatQueueThread {
   const turnsLeft = turnsLeftFor(messages);
 
-  return { messages: toPublicMessages(messages), turnsLeft, capReached: turnsLeft === 0 };
+  return {
+    messages: toPublicMessages(messages),
+    turnsLeft,
+    capReached: turnsLeft === 0,
+    ...(pendingPrompt && messages.length === 0 ? { pendingPrompt } : {}),
+  };
 }
 
 function replayOf(messages: StoredChatMessage[], clientMessageId: string): SendChatQueueMessageResult | null {
@@ -93,7 +99,7 @@ export async function getChatQueueThread(bitId: string): Promise<ChatQueueResult
     return { ok: false, error: "not_in_chat" };
   }
 
-  return { ok: true, value: threadOf(await listChatQueueMessages(bitId)) };
+  return { ok: true, value: threadOf(await listChatQueueMessages(bitId), card.approvalState === "chat" ? card.chatFirstPrompt : null) };
 }
 
 async function budgetGate(): Promise<ChatQueueFailure | null> {
@@ -118,12 +124,21 @@ async function persistTurn(
   reply: string,
   usage: { inputTokens: number | null; outputTokens: number | null },
   proposals: ChatQueueProposal[],
+  firstPrompt: boolean,
 ): Promise<{ error: ChatQueueFailure } | { replySeq: number }> {
   try {
     return await getDb().transaction(async (tx) => {
-      if (!isChatThreadState(await lockChatState(tx, bitId))) {
+      const state = await lockChatState(tx, bitId);
+
+      if (!isChatThreadState(state)) {
         return { error: "not_in_chat" as const };
       }
+
+      if (firstPrompt && (state !== "chat" || (await lockChatFirstPrompt(tx, bitId)) !== input.message)) {
+        return { error: "not_in_chat" as const };
+      }
+
+      await clearChatFirstPrompt(tx, bitId);
 
       const replySeq = await insertChatTurn(
         bitId,
@@ -304,7 +319,7 @@ async function generateReply(
     return { ok: false, error: "model_failed" };
   }
 
-  const persisted = await persistTurn(bitId, input, reply, usage, proposals);
+  const persisted = await persistTurn(bitId, input, reply, usage, proposals, options.firstPrompt === true);
 
   if ("error" in persisted) {
     const replay = replayOf(await listChatQueueMessages(bitId), input.clientMessageId);

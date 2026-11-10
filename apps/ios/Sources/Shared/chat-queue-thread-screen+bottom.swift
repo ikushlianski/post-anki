@@ -76,9 +76,17 @@ extension ChatQueueThreadScreen {
 
     var triageActions: some View {
         HStack {
-            Button("Accept") { Task { await model.accept() } }
+            if model.hasAcceptedCard {
+                Button("Finish chat") { Task { await model.accept() } }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("chat-queue-finish")
+            } else {
+                Button("Cancel chat") {
+                    if model.lines.isEmpty { Task { await model.cancelChat() } } else { confirmsCancelChat = true }
+                }
                 .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("chat-queue-accept")
+                .accessibilityIdentifier("chat-queue-cancel-chat")
+            }
 
             Button("Reject", role: .destructive) { Task { await model.reject() } }
                 .buttonStyle(.bordered)

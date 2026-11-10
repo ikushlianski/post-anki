@@ -5,6 +5,7 @@ struct PendingReviewTriageView: View {
     @Bindable var model: PendingReviewTriageModel
     @Binding var editingBit: PendingReviewBit?
     var onBackToSubjects: (() -> Void)?
+    @State private var chatPromptOpen = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -22,6 +23,12 @@ struct PendingReviewTriageView: View {
         .onAppear { isFocused = true }
         .onChange(of: model.current?.id) { isFocused = true }
         .onChange(of: editingBit == nil) { isFocused = true }
+        .onChange(of: chatPromptOpen) { isFocused = true }
+        .sheet(isPresented: $chatPromptOpen) {
+            ChatFirstPromptSheet { prompt in
+                Task { await model.sendToChat(prompt: prompt) }
+            }
+        }
     }
 
     private func piece(_ bit: PendingReviewBit) -> some View {
@@ -141,6 +148,8 @@ struct PendingReviewTriageView: View {
                 Button("Drop") { run(.drop) }
                     .tint(.red)
                 Button("Edit") { editingBit = bit }
+                Button("Chat") { run(.chat) }
+                    .accessibilityIdentifier("triage-chat")
                 Button("Skip") { run(.skip) }
 
                 Button { run(.keep) } label: {
@@ -158,8 +167,8 @@ struct PendingReviewTriageView: View {
 
             #if os(macOS)
             Text(model.selection.pickOne
-                ? "Up/Down choose, Return approves, X rejects, Z undoes, S skips, E edits"
-                : "1-9 toggle, Return approves, X rejects, Z undoes the last keep or drop, S skips, E edits")
+                ? "Up/Down choose, Return approves, X rejects, Z undoes, S skips, E edits, C sends to Chat"
+                : "1-9 toggle, Return approves, X rejects, Z undoes the last keep or drop, S skips, E edits, C sends to Chat")
                 .zoomFont(.caption)
                 .foregroundStyle(.secondary)
             #endif
@@ -204,6 +213,12 @@ struct PendingReviewTriageView: View {
     private func run(_ action: PendingReviewTriageAction) {
         if action == .edit {
             editingBit = model.current
+
+            return
+        }
+
+        if action == .chat {
+            chatPromptOpen = model.current != nil
 
             return
         }

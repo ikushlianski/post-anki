@@ -26,6 +26,7 @@ function defaultDeps(): BackgroundJobDeps {
 
 const NO_FALLBACK_KINDS: ReadonlySet<BackgroundJob["kind"]> = new Set([
   "article-summary",
+  "chat-first-reply",
   "knowledge-bit-variants",
 ]);
 

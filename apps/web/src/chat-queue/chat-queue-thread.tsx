@@ -55,6 +55,7 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
   const composer = useRef<HTMLTextAreaElement>(null);
   const lineCount = useRef(0);
   const [rejectedAt, setRejectedAt] = useState<number | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const { sendWithId } = thread;
   const handleProposalRejected = useCallback(
     async (rejected: RejectedProposal) => {
@@ -278,15 +279,51 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                data-testid="chat-queue-accept"
-                disabled={locked}
-                onClick={() => void thread.accept()}
-                className={PRIMARY_BUTTON_CLASS}
-              >
-                Accept
-              </button>
+              {thread.hasAcceptedCard ? (
+                <button
+                  type="button"
+                  data-testid="chat-queue-finish"
+                  disabled={locked}
+                  onClick={() => void thread.accept()}
+                  className={PRIMARY_BUTTON_CLASS}
+                >
+                  Finish chat
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  data-testid="chat-queue-cancel"
+                  disabled={locked}
+                  onClick={() =>
+                    thread.lines.length === 0 ? void thread.cancelChat() : setConfirmingCancel(true)
+                  }
+                  className={PRIMARY_BUTTON_CLASS}
+                >
+                  Cancel chat
+                </button>
+              )}
+              {confirmingCancel ? (
+                <div role="alertdialog" aria-label="Cancel this chat?" className="flex flex-wrap items-center gap-2 text-sm">
+                  <span>Delete the conversation and send the item back to triage?</span>
+                  <button
+                    type="button"
+                    data-testid="chat-queue-cancel-confirm"
+                    disabled={locked}
+                    onClick={() => void thread.cancelChat()}
+                    className={SECONDARY_BUTTON_CLASS}
+                  >
+                    Delete chat
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="chat-queue-cancel-keep"
+                    onClick={() => setConfirmingCancel(false)}
+                    className={SECONDARY_BUTTON_CLASS}
+                  >
+                    Keep chatting
+                  </button>
+                </div>
+              ) : null}
               <button
                 type="button"
                 data-testid="chat-queue-reject"

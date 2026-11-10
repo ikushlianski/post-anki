@@ -29,6 +29,12 @@ export const chatQueueMessageRoleSchema = z.enum(["user", "assistant"]);
 
 export type ChatQueueMessageRole = z.infer<typeof chatQueueMessageRoleSchema>;
 
+export const moveToChatQueueInput = z.object({
+  prompt: z.string().trim().min(1).max(CHAT_QUEUE_MAX_MESSAGE_CHARS).optional(),
+});
+
+export type MoveToChatQueueInput = z.input<typeof moveToChatQueueInput>;
+
 export const moveToChatQueueResultSchema = z.object({
   ok: z.literal(true),
   chatCount: z.number().int().min(0),
@@ -132,6 +138,7 @@ export const chatQueueThreadSchema = z.object({
   messages: z.array(chatQueueMessageSchema),
   turnsLeft: z.number().int().min(0).max(CHAT_QUEUE_MAX_USER_TURNS),
   capReached: z.boolean(),
+  pendingPrompt: z.string().optional(),
 });
 
 export type ChatQueueThread = z.infer<typeof chatQueueThreadSchema>;

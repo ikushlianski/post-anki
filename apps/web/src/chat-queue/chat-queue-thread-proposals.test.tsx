@@ -102,7 +102,7 @@ describe('thread controls next to proposals', () => {
 
     expect(within(group).getByRole('button', { name: 'Accept new card: What is X?' })).toBeTruthy()
     expect(within(group).getByRole('button', { name: 'Reject new card: What is X?' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Accept' })).toBe(screen.getByTestId('chat-queue-accept'))
+    expect(screen.getByRole('button', { name: 'Cancel chat' })).toBe(screen.getByTestId('chat-queue-cancel'))
   })
 
   it('should announce the decision and move focus to it after Accept', async () => {

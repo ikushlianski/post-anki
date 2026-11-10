@@ -95,7 +95,7 @@ final class PendingReviewTriageModel {
         case .skip: step(by: 1, wrapping: true)
         case .previous: step(by: -1, wrapping: false)
         case .next: step(by: 1, wrapping: false)
-        case .edit: break
+        case .edit, .chat: break
         }
     }
 

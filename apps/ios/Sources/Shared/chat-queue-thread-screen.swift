@@ -5,6 +5,7 @@ struct ChatQueueThreadScreen: View {
     @State var model: ChatQueueThreadModel
     @Environment(\.dismiss) private var dismiss
     @State private var confirmsDelete = false
+    @State var confirmsCancelChat = false
     @State private var isAtBottom = true
     @FocusState var composerFocused: Bool
     @Environment(\.zoomScale) private var zoomScale
@@ -32,7 +33,7 @@ struct ChatQueueThreadScreen: View {
                         if !line.isUser, line.id == model.lines.last?.id { retryRow }
                     }
 
-                    if model.isSending {
+                    if model.isSending || model.awaitsFirstReply {
                         HStack {
                             ProgressView().controlSize(.small)
                             Text("Thinking...").foregroundStyle(.secondary)
@@ -117,6 +118,12 @@ struct ChatQueueThreadScreen: View {
         .confirmationDialog("Delete the last question and reply?", isPresented: $confirmsDelete, titleVisibility: .visible) {
             Button("Delete last exchange", role: .destructive) { Task { await model.deleteLastExchange() } }
             Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Cancel this chat?", isPresented: $confirmsCancelChat, titleVisibility: .visible) {
+            Button("Cancel chat", role: .destructive) { Task { await model.cancelChat() } }
+            Button("Keep chatting", role: .cancel) {}
+        } message: {
+            Text("The conversation is deleted and the item goes back to triage.")
         }
         .onChange(of: model.isFinished) { _, finished in
             guard finished else { return }

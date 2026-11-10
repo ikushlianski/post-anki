@@ -77,6 +77,12 @@ export function returnFromChatQueue(
   )
 }
 
+export function cancelChatQueueThread(bitId: string): Promise<ChatQueueOutcome<{ ok: true }>> {
+  return attempt(() =>
+    request<{ ok: true }>(`/knowledge-bits/${bitId}/chat-messages`, { method: 'DELETE' }),
+  )
+}
+
 export function approveFromChatQueue(bitId: string): Promise<ChatQueueOutcome<{ ok: true }>> {
   return attempt(() =>
     request<{ ok: true }>(`/knowledge-bits/${bitId}/approve`, { method: 'POST' }),

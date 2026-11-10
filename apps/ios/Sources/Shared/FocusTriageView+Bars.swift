@@ -39,7 +39,7 @@ extension FocusTriageView {
                     title: FocusTriageActionLabel.chat,
                     isDisabled: triage.isBusy || departing != nil,
                     identifier: FocusTriageActionLabel.chatIdentifier,
-                    action: { Task { _ = await moveCurrent(.chat) } }
+                    action: { chatPromptOpen = true }
                 ),
                 MainActionTile(
                     title: triage.currentExampleLabel,
@@ -87,10 +87,10 @@ extension FocusTriageView {
         }
     }
 
-    func moveCurrent(_ action: FocusTriageVerticalAction) async -> Bool {
+    func moveCurrent(_ action: FocusTriageVerticalAction, prompt: String? = nil) async -> Bool {
         guard let bit = triage.current else { return false }
 
-        guard await vertical(action, bit: bit, source: triage.currentSource) else { return false }
+        guard await vertical(action, bit: bit, source: triage.currentSource, prompt: prompt) else { return false }
 
         finishDeparture()
 

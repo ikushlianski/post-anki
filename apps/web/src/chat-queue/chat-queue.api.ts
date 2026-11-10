@@ -50,6 +50,10 @@ export const returnFromChatQueue = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => bitIdInput.parse(data))
   .handler(({ data }) => api.returnFromChatQueue(data.bitId))
 
+export const cancelChatQueueThread = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) => bitIdInput.parse(data))
+  .handler(({ data }) => api.cancelChatQueueThread(data.bitId))
+
 export const approveFromChatQueue = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => bitIdInput.parse(data))
   .handler(({ data }) => api.approveFromChatQueue(data.bitId))

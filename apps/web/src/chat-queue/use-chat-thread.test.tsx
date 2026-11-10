@@ -9,12 +9,14 @@ vi.mock('./chat-queue.api', () => ({
   deleteLastChatExchange: vi.fn(),
   returnFromChatQueue: vi.fn(),
   approveFromChatQueue: vi.fn(),
+  cancelChatQueueThread: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
 }))
 
 import {
   approveFromChatQueue,
+  cancelChatQueueThread,
   getChatQueueThread,
   rejectFromChatQueue,
   saveChatQueueRejectReason,
@@ -173,6 +175,25 @@ describe('useChatThread', () => {
 
     expect(onResolved).toHaveBeenCalledWith('a')
     expect(result.current.error).toBeNull()
+  })
+
+  it('should keep the chat with an error when cancelling fails and leave once it works', async () => {
+    vi.mocked(cancelChatQueueThread).mockResolvedValueOnce({ ok: false, failure: 'other' } as never)
+
+    const { result, onResolved } = await mount()
+
+    await act(async () => {
+      await result.current.cancelChat()
+    })
+    expect(onResolved).not.toHaveBeenCalled()
+    expect(result.current.error).not.toBeNull()
+
+    vi.mocked(cancelChatQueueThread).mockResolvedValueOnce({ ok: true, data: {} } as never)
+    await act(async () => {
+      await result.current.cancelChat()
+    })
+
+    expect(onResolved).toHaveBeenCalledWith('a')
   })
 
   it('should drop the card from the list when the server says it left Chat', async () => {

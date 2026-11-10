@@ -12,6 +12,7 @@ import {
 } from './chat-queue-failure'
 import {
   approveFromChatQueue,
+  cancelChatQueueThread,
   deleteLastChatExchange,
   getChatQueueThread,
   returnFromChatQueue,
@@ -235,6 +236,15 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
     [item.id, resolve],
   )
 
+  const cancelChat = useCallback(
+    () => resolve(() => cancelChatQueueThread({ data: { bitId: item.id } })),
+    [item.id, resolve],
+  )
+
+  const hasAcceptedCard = lines.some((line) =>
+    line.proposals?.some((proposal) => proposal.status === 'accepted'),
+  )
+
   const backToTriage = useCallback(
     () => resolve(() => returnFromChatQueue({ data: { bitId: item.id } })),
     [item.id, resolve],
@@ -283,6 +293,8 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
     sendWithId,
     retryLast,
     accept,
+    cancelChat,
+    hasAcceptedCard,
     reject,
     backToTriage,
     clearChat,

@@ -53,6 +53,8 @@ vi.mock("../shared/spend-guard.js", async () => {
 vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
   loadChatCardContext: (...args: unknown[]) => loadChatCardContext(...args),
   lockChatState: (...args: unknown[]) => lockChatState(...args),
+  lockChatFirstPrompt: vi.fn(),
+  clearChatFirstPrompt: vi.fn(),
 }));
 vi.mock("./knowledge-bit-chat-queue-messages.repo.js", async () => {
   const actual = await vi.importActual<typeof import("./knowledge-bit-chat-queue-messages.repo.js")>(

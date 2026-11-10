@@ -134,6 +134,10 @@ describe("resolveRoute", () => {
         "deleteLastChatQueueExchange",
       );
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages")?.name).toBe("sendChatQueueMessage");
+      expect(resolveRoute("DELETE", "/knowledge-bits/kb_1/chat-messages")).toEqual({
+        name: "cancelChatQueueThread",
+        params: { id: "kb_1" },
+      });
       expect(resolveRoute("POST", "/knowledge-bits/kb_1/chat-messages/4/proposals/1/accept")).toMatchObject({
         name: "acceptChatQueueProposal",
         params: { id: "kb_1", seq: "4", index: "1" },

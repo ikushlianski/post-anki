@@ -7,6 +7,7 @@ const getKnowledgeSourceRawText = vi.hoisted(() => vi.fn());
 const runArticleSummary = vi.hoisted(() => vi.fn());
 const updateKnowledgeSourceSummary = vi.hoisted(() => vi.fn());
 const mergeSourcesIntoCurriculum = vi.hoisted(() => vi.fn());
+const answerFirstChatPrompt = vi.hoisted(() => vi.fn());
 const getSessionRow = vi.hoisted(() => vi.fn());
 const maybeReplenish = vi.hoisted(() => vi.fn());
 
@@ -17,6 +18,7 @@ vi.mock("../knowledge-bit/knowledge-bit.repo.js", () => ({ getKnowledgeSourceRaw
 vi.mock("../mastra/article-summary.agent.js", () => ({ runArticleSummary }));
 vi.mock("../knowledge-source/knowledge-source.repo.js", () => ({ updateKnowledgeSourceSummary }));
 vi.mock("../curriculum/curriculum-merge.orchestrator.js", () => ({ mergeSourcesIntoCurriculum }));
+vi.mock("../knowledge-bit/chat-first-reply.orchestrator.js", () => ({ answerFirstChatPrompt }));
 vi.mock("../probe-session/probe-session.repo.js", () => ({ getSessionRow }));
 vi.mock("../probe-session/probe-session.service.js", () => ({ maybeReplenish }));
 
@@ -43,6 +45,12 @@ describe("runBackgroundJob", () => {
     await runBackgroundJob({ kind: "knowledge-bit-variants", bitId: "b1" });
 
     expect(generateKnowledgeBitVariants).toHaveBeenCalledWith("b1");
+  });
+
+  it("should answer the first chat prompt of the knowledge bit named in the job", async () => {
+    await runBackgroundJob({ kind: "chat-first-reply", bitId: "b1" });
+
+    expect(answerFirstChatPrompt).toHaveBeenCalledWith("b1");
   });
 
   it("should summarize the stored source text and save the summary", async () => {

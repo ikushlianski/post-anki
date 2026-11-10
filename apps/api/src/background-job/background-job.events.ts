@@ -6,6 +6,7 @@ export type BackgroundJob =
   | { kind: "study-material"; materialId: string; topicId: string; materialKind: StudyMaterialKind }
   | { kind: "knowledge-bit-variants"; bitId: string }
   | { kind: "article-summary"; sourceId: string }
+  | { kind: "chat-first-reply"; bitId: string }
   | {
       kind: "probe-replenish";
       sessionId: string;

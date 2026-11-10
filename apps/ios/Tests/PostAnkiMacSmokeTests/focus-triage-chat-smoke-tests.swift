@@ -38,6 +38,15 @@ extension SmokeTests {
             #expect(FakeServer.writes.map(\.path) == ["/knowledge-bits/a/chat-queue"])
         }
 
+        @Test("should send the first prompt with the Chat move")
+        func chatMoveWithPrompt() async {
+            let (model, session) = await make(extra: ["POST /knowledge-bits/a/chat-queue": .json(200, moved)])
+            defer { session.end() }
+
+            #expect(await model.sendToChat(prompt: "Why this?"))
+            #expect(FakeServer.writes.first?.bodyObject?["prompt"] as? String == "Why this?")
+        }
+
         @Test("should bring the card back at its place when Undo follows a Chat move")
         func undoChatMove() async {
             let (model, session) = await make(extra: [

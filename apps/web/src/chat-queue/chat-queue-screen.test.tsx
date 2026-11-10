@@ -10,6 +10,7 @@ vi.mock('./chat-queue.api', () => ({
   sendChatQueueMessage: vi.fn(),
   returnFromChatQueue: vi.fn(),
   approveFromChatQueue: vi.fn(),
+  cancelChatQueueThread: vi.fn(),
   rejectFromChatQueue: vi.fn(),
   saveChatQueueRejectReason: vi.fn(),
   acceptChatQueueProposal: vi.fn(),
@@ -22,7 +23,7 @@ vi.mock('./chat-queue.api', () => ({
 
 import {
   acceptChatQueueProposal,
-  approveFromChatQueue,
+  cancelChatQueueThread,
   exportChatQueueMarkdown,
   getChatQueue,
   getChatQueueThread,
@@ -214,7 +215,7 @@ describe('ChatQueueScreen', () => {
     await userEvent.click(screen.getByTestId('chat-queue-send'))
 
     expect(await screen.findByTestId('chat-queue-limit')).not.toBeNull()
-    expect((screen.getByTestId('chat-queue-accept') as HTMLButtonElement).disabled).toBe(false)
+    expect((screen.getByTestId('chat-queue-cancel') as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('should pause chat for the day when the budget is used up', async () => {
@@ -227,11 +228,11 @@ describe('ChatQueueScreen', () => {
     expect(await screen.findByTestId('chat-queue-paused')).not.toBeNull()
   })
 
-  it('should remove the card from the queue when accepted', async () => {
-    vi.mocked(approveFromChatQueue).mockResolvedValue(ok({ ok: true }))
+  it('should remove the card from the queue when the chat is cancelled', async () => {
+    vi.mocked(cancelChatQueueThread).mockResolvedValue(ok({ ok: true }))
     await openThread()
 
-    await userEvent.click(screen.getByTestId('chat-queue-accept'))
+    await userEvent.click(screen.getByTestId('chat-queue-cancel'))
 
     await waitFor(() => expect(screen.queryByTestId('chat-queue-row-a')).toBeNull())
     expect(screen.getByTestId('chat-queue-row-b')).not.toBeNull()

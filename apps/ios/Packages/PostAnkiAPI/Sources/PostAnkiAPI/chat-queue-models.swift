@@ -169,11 +169,13 @@ public struct ChatQueueThread: Decodable, Sendable, Hashable {
     public let messages: [ChatQueueMessage]
     public let turnsLeft: Int
     public let capReached: Bool
+    public let pendingPrompt: String?
 
-    public init(messages: [ChatQueueMessage], turnsLeft: Int, capReached: Bool) {
+    public init(messages: [ChatQueueMessage], turnsLeft: Int, capReached: Bool, pendingPrompt: String? = nil) {
         self.messages = messages
         self.turnsLeft = turnsLeft
         self.capReached = capReached
+        self.pendingPrompt = pendingPrompt
     }
 }
 
@@ -230,6 +232,10 @@ public struct DeleteLastChatExchangeResult: Decodable, Sendable, Hashable {
 
 struct MoveToChatQueueResult: Decodable, Sendable {
     let chatCount: Int
+}
+
+struct MoveToChatQueueInput: Encodable, Sendable {
+    let prompt: String
 }
 
 struct SnoozeChatQueueInput: Encodable, Sendable {

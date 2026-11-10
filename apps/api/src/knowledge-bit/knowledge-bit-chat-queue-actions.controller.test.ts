@@ -8,7 +8,14 @@ vi.mock("./knowledge-bit-chat-card.repo.js", () => ({}));
 vi.mock("./knowledge-bit-web-tools.deps.js", () => ({
   createKnowledgeBitWebTools: vi.fn(() => ({ deps: { tag: "web-deps" }, getUsage: () => ({ searches: 0, fetches: 0 }) })),
 }));
+vi.mock("../background-job/background-job.starter.js", () => ({
+  dispatchBackgroundJob: vi.fn(async (_job: unknown, inProcess: () => Promise<unknown>) => {
+    await inProcess();
+  }),
+}));
+vi.mock("./chat-first-reply.orchestrator.js", () => ({ answerFirstChatPrompt: vi.fn() }));
 vi.mock("./knowledge-bit-chat-queue.repo.js", () => ({
+  cancelChatQueueKnowledgeBit: vi.fn(),
   loadChatCardContext: vi.fn(),
   moveKnowledgeBitToChatQueue: vi.fn(),
   snoozeChatQueueKnowledgeBit: vi.fn(),
@@ -26,6 +33,8 @@ vi.mock("./knowledge-bit-chat-thread-retention.js", () => ({ sweepDecidedChatThr
 const { loadChatCardContext, moveKnowledgeBitToChatQueue, snoozeChatQueueKnowledgeBit } = await import(
   "./knowledge-bit-chat-queue.repo.js"
 );
+const { dispatchBackgroundJob } = await import("../background-job/background-job.starter.js");
+const { answerFirstChatPrompt } = await import("./chat-first-reply.orchestrator.js");
 const { createKnowledgeBitWebTools } = await import("./knowledge-bit-web-tools.deps.js");
 const { deleteLastChatQueueExchange, sendChatQueueMessage } = await import("./knowledge-bit-chat-queue.service.js");
 const { loadChatExportData } = await import("./knowledge-bit-chat-queue-export.repo.js");
@@ -151,24 +160,24 @@ describe("handleUnsnoozeChatQueueKnowledgeBit", () => {
 
 describe("handleMoveKnowledgeBitToChatQueue", () => {
   it("should move the card and return the new chat badge count", async () => {
-    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: 5 });
+    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: { chatCount: 5, promptStored: false } });
 
     const res = fakeRes();
 
-    await handleMoveKnowledgeBitToChatQueue(res, "kb_1");
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({}), res, "kb_1");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, chatCount: 5 });
   });
 
   it("should move an inbox card into chat the same way as a pending one", async () => {
-    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: 1 });
+    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: { chatCount: 1, promptStored: false } });
 
     const res = fakeRes();
 
-    await handleMoveKnowledgeBitToChatQueue(res, "kb_inbox");
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({}), res, "kb_inbox");
 
-    expect(moveKnowledgeBitToChatQueue).toHaveBeenCalledWith("kb_inbox");
+    expect(moveKnowledgeBitToChatQueue).toHaveBeenCalledWith("kb_inbox", undefined);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true, chatCount: 1 });
   });
@@ -180,11 +189,66 @@ describe("handleMoveKnowledgeBitToChatQueue", () => {
     const missing = fakeRes();
     const blocked = fakeRes();
 
-    await handleMoveKnowledgeBitToChatQueue(missing, "kb_x");
-    await handleMoveKnowledgeBitToChatQueue(blocked, "kb_2");
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({}), missing, "kb_x");
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({}), blocked, "kb_2");
 
     expect(missing.status).toBe(404);
     expect(blocked.status).toBe(409);
+  });
+
+  it("should start one background reply when the move stored a first prompt", async () => {
+    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: { chatCount: 2, promptStored: true } });
+
+    const res = fakeRes();
+
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({ prompt: "why this?" }), res, "kb_1");
+
+    expect(moveKnowledgeBitToChatQueue).toHaveBeenCalledWith("kb_1", "why this?");
+    expect(dispatchBackgroundJob).toHaveBeenCalledTimes(1);
+    expect(dispatchBackgroundJob).toHaveBeenCalledWith(
+      { kind: "chat-first-reply", bitId: "kb_1" },
+      expect.any(Function),
+      expect.any(Function),
+    );
+    expect(answerFirstChatPrompt).toHaveBeenCalledWith("kb_1");
+    expect(res.body).toEqual({ ok: true, chatCount: 2 });
+  });
+
+  it("should not answer the request before the background job has been handed off", async () => {
+    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: { chatCount: 2, promptStored: true } });
+
+    let release: () => void = () => undefined;
+
+    vi.mocked(dispatchBackgroundJob).mockReturnValueOnce(new Promise<void>((resolve) => (release = resolve)));
+
+    const res = fakeRes();
+    const done = handleMoveKnowledgeBitToChatQueue(fakeReq({ prompt: "why?" }), res, "kb_1");
+
+    await vi.waitFor(() => expect(dispatchBackgroundJob).toHaveBeenCalled());
+    expect(res.status).toBeNull();
+
+    release();
+    await done;
+
+    expect(res.status).toBe(200);
+  });
+
+  it("should not spend a model call when the card moves without a prompt", async () => {
+    vi.mocked(moveKnowledgeBitToChatQueue).mockResolvedValue({ ok: true, value: { chatCount: 2, promptStored: false } });
+
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({}), fakeRes(), "kb_1");
+
+    expect(dispatchBackgroundJob).not.toHaveBeenCalled();
+  });
+
+  it("should refuse an oversize prompt before the card moves", async () => {
+    const res = fakeRes();
+
+    await handleMoveKnowledgeBitToChatQueue(fakeReq({ prompt: "a".repeat(1_001) }), res, "kb_1");
+
+    expect(res.status).toBe(400);
+    expect(moveKnowledgeBitToChatQueue).not.toHaveBeenCalled();
+    expect(dispatchBackgroundJob).not.toHaveBeenCalled();
   });
 });
 
