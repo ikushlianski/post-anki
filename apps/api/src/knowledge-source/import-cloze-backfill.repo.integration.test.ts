@@ -40,7 +40,7 @@ await migratePool.end();
 
 process.env.DATABASE_URL = DATABASE_URL;
 
-const { listVerbatimClozeImportCandidates, retireVerbatimClozeCards } = await import(
+const { listVerbatimClozeImportCandidates, restoreRebuiltCards, retireVerbatimClozeCards } = await import(
   "./import-cloze-backfill.repo.js"
 );
 
@@ -206,5 +206,66 @@ describe("retireVerbatimClozeCards (real Postgres)", () => {
       kb_retire_rejected: "rejected",
       kb_retire_unlisted: "pending",
     });
+  });
+});
+
+async function setSourceState(sourceId: string, status: string, updatedAt: string, nothingExtracted = false): Promise<void> {
+  await client.query(
+    `UPDATE knowledge_sources SET status = $2, updated_at = $3, nothing_extracted_at = ${nothingExtracted ? "now()" : "NULL"} WHERE id = $1`,
+    [sourceId, status, updatedAt],
+  );
+}
+
+async function bitStates(sourceId: string): Promise<Record<string, string>> {
+  const { rows } = await client.query<{ id: string; approval_state: string }>(
+    `SELECT id, approval_state FROM knowledge_bits WHERE knowledge_source_id = $1`,
+    [sourceId],
+  );
+
+  return Object.fromEntries(rows.map((row) => [row.id, row.approval_state]));
+}
+
+describe("restoreRebuiltCards (real Postgres)", () => {
+  it("should put listed retired cards back to pending and leave other states untouched", async () => {
+    const sourceId = await insertSource(NOTE, true);
+
+    await insertBits(sourceId, [
+      { id: "kb_restore_listed", body: "A deal needs budget.", state: "superseded", sentence: NOTE },
+      { id: "kb_restore_unlisted", body: "Other claim.", state: "superseded", sentence: NOTE },
+      { id: "kb_restore_approved", body: "Approved claim.", state: "approved", sentence: NOTE },
+      { id: "kb_restore_rejected", body: "Rejected claim.", state: "rejected", sentence: NOTE },
+    ]);
+
+    const restored = await restoreRebuiltCards(sourceId, ["kb_restore_listed", "kb_restore_approved", "kb_restore_rejected"]);
+
+    expect(restored).toBe(1);
+    expect(await bitStates(sourceId)).toEqual({
+      kb_restore_approved: "approved",
+      kb_restore_listed: "pending",
+      kb_restore_rejected: "rejected",
+      kb_restore_unlisted: "superseded",
+    });
+  });
+
+  it("should not bring back a retired card the user already decided on", async () => {
+    const sourceId = await insertSource(NOTE, true);
+
+    await insertBits(sourceId, [{ id: "kb_restore_decided", body: "Decided claim.", state: "superseded", sentence: NOTE }]);
+    await client.query(`UPDATE knowledge_bits SET decided_at = now() WHERE id = 'kb_restore_decided'`);
+
+    expect(await restoreRebuiltCards(sourceId, ["kb_restore_decided"])).toBe(0);
+    expect(await bitStates(sourceId)).toEqual({ kb_restore_decided: "superseded" });
+  });
+
+  it("should return the source to its extracted state rather than nothing-extracted or failed", async () => {
+    const sourceId = await insertSource(NOTE, true);
+
+    await insertBits(sourceId, [{ id: "kb_restore_status", body: "A deal needs budget.", state: "superseded", sentence: NOTE }]);
+    await setSourceState(sourceId, "bits_detected", new Date().toISOString(), true);
+    await restoreRebuiltCards(sourceId, ["kb_restore_status"]);
+
+    const { rows } = await client.query(`SELECT status, nothing_extracted_at FROM knowledge_sources WHERE id = $1`, [sourceId]);
+
+    expect(rows[0]).toEqual({ status: "bits_detected", nothing_extracted_at: null });
   });
 });

@@ -131,3 +131,38 @@ export async function retireVerbatimClozeCards(
 
   return retired.length;
 }
+
+// Puts retired undecided cards back to pending and returns the source to its extracted state.
+export async function restoreRebuiltCards(
+  sourceId: string,
+  bitIds: readonly string[],
+  db: DbExecutor = getDb(),
+): Promise<number> {
+  if (bitIds.length === 0) {
+    return 0;
+  }
+
+  return db.transaction(async (tx) => {
+    const restored = await tx
+      .update(knowledgeBits)
+      .set({ approvalState: "pending" })
+      .where(
+        and(
+          eq(knowledgeBits.knowledgeSourceId, sourceId),
+          eq(knowledgeBits.approvalState, "superseded"),
+          isNull(knowledgeBits.decidedAt),
+          inArray(knowledgeBits.id, [...bitIds]),
+        ),
+      )
+      .returning({ id: knowledgeBits.id });
+
+    if (restored.length > 0) {
+      await tx
+        .update(knowledgeSources)
+        .set({ status: "bits_detected", failureReason: null, nothingExtractedAt: null })
+        .where(eq(knowledgeSources.id, sourceId));
+    }
+
+    return restored.length;
+  });
+}

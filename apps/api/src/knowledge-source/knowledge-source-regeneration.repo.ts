@@ -5,7 +5,7 @@ import { knowledgeBits, knowledgeSources } from "../db/schema.js";
 import type { PendingKnowledgeSource } from "../knowledge-bit/knowledge-bit.repo.js";
 
 export type ClaimSourceForRegenerationResult =
-  | { ok: true; source: PendingKnowledgeSource; supersededCount: number }
+  | { ok: true; source: PendingKnowledgeSource; supersededCount: number; supersededIds: string[] }
   | { ok: false; error: "not_found" | "already_running" | "source_text_missing" | "not_nothing_extracted" };
 
 export interface ClaimSourceForRegenerationOptions {
@@ -98,6 +98,7 @@ export async function claimSourceForRegeneration(
         claimedAt,
       },
       supersededCount: superseded.length,
+      supersededIds: superseded.map((row) => row.id),
     };
   });
 }
