@@ -1480,3 +1480,9 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 ## curriculum-structure-quality
 
 - [x] Make lecture depth (awareness/working/deep) actually change what gets written.
+
+## import-facts-not-templates
+
+- 2026-11-11: Cloze imports become plain facts, then fresh web-enriched cards, never verbatim copies with the tail in Examples.
+- 2026-11-11: Card prompts default to direct what/why/how questions; cloze only for short sentences, long ones rejected.
+- 2026-11-11: Backfill job rebuilds pending untriaged verbatim-cloze import cards through the new path, retiring the old ones.
