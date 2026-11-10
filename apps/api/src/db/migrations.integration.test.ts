@@ -807,6 +807,7 @@ describe("migrations — knowledge_bits table (prose-knowledge-fisher--detect-kn
       expect.objectContaining({ column_name: "duplicate_reason", data_type: "text", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "similar_bit_ids", data_type: "jsonb", is_nullable: "YES" }),
       expect.objectContaining({ column_name: "chat_first_prompt", data_type: "text", is_nullable: "YES" }),
+      expect.objectContaining({ column_name: "generated_by_model_id", data_type: "text", is_nullable: "YES" }),
     ]);
   });
 
