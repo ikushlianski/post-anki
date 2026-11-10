@@ -50,6 +50,7 @@ describe('mapSubjectRow', () => {
       learningIntent: null,
       extractionInstructions: null,
       extractionExamples: null,
+      chatInstructions: null,
     })
   })
 
