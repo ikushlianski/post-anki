@@ -150,9 +150,10 @@ public struct PendingReviewCountResponse: Decodable, Sendable {
     public let count: Int
     public let attentionCount: Int
     public let inboxCount: Int
+    public let triageEnabled: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case count, attentionCount, inboxCount
+        case count, attentionCount, inboxCount, triageEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -161,6 +162,7 @@ public struct PendingReviewCountResponse: Decodable, Sendable {
         count = try container.decode(Int.self, forKey: .count)
         attentionCount = try container.decodeIfPresent(Int.self, forKey: .attentionCount) ?? 0
         inboxCount = try container.decodeIfPresent(Int.self, forKey: .inboxCount) ?? 0
+        triageEnabled = try container.decodeIfPresent(Bool.self, forKey: .triageEnabled) ?? false
     }
 }
 

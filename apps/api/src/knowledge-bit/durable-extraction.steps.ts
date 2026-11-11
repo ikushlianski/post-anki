@@ -8,7 +8,6 @@ import {
   MAX_ITEMS_PER_CHUNK,
   MAX_ITEMS_PER_SOURCE,
   ORDINAL_STRIDE_PER_CHUNK,
-  allChunksDeliberatelyEmpty,
   chooseModelId,
   countUnseenStatements,
   loadFeedbackBlockSafely,
@@ -221,6 +220,7 @@ export async function finishStep(
   const seen = new Set(insertState.existingStatements.map(normalizeStatement));
   let accepted = 0;
   let inserted = 0;
+  let duplicateOnlyChunks = 0;
   let capped = false;
 
   for (const [index, cards] of chunkResults.entries()) {
@@ -248,13 +248,18 @@ export async function finishStep(
     }
 
     if (items.length > 0 || flagged.length > 0) {
-      inserted += await deps.insertItems({
+      const outcome = { skippedCards: 0 };
+      const insertedCount = await deps.insertItems({
         sourceId: snapshot.id,
         claimedAt,
         firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
         items,
         flagged,
+        outcome,
       });
+
+      inserted += insertedCount;
+      duplicateOnlyChunks += insertedCount === 0 && outcome.skippedCards > 0 ? 1 : 0;
     }
   }
 
@@ -269,10 +274,12 @@ export async function finishStep(
     firstGapText(chunkResults.map((cards) => cards?.gapText)),
     deps,
   );
+  const emptyChunks =
+    duplicateOnlyChunks + chunkResults.filter((cards) => cards?.deliberateEmpty === true).length;
   const stillOwned = await markDetectedFor(
     snapshot,
     claimedAt,
-    inserted === 0 && !askAiChat && allChunksDeliberatelyEmpty(chunkResults),
+    inserted === 0 && !askAiChat && emptyChunks === chunkResults.length && chunkResults.length > 0,
     deps,
     capped,
   );

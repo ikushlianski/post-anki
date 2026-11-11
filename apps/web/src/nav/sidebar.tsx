@@ -27,6 +27,7 @@ interface TriageCounts {
   pending: number
   attention: number
   inbox: number
+  triageEnabled: boolean
 }
 
 function usePendingReviewCount(): TriageCounts | null {
@@ -44,6 +45,7 @@ function usePendingReviewCount(): TriageCounts | null {
             pending: result.count,
             attention: result.attentionCount ?? 0,
             inbox: result.inboxCount ?? 0,
+            triageEnabled: result.triageEnabled ?? false,
           })
         }
       } catch {
@@ -115,6 +117,8 @@ const navLinkClass =
 
 export function Sidebar() {
   const pendingCount = usePendingReviewCount()
+  const showTriageLink =
+    pendingCount === null || pendingCount.triageEnabled || pendingCount.pending + pendingCount.attention > 0
   const reviewCounts = useReviewCounts()
   const { count: chatCount, stale: chatCountStale } = useChatQueueCount()
 
@@ -148,25 +152,27 @@ export function Sidebar() {
         <SubjectsIcon />
         Subjects
       </Link>
-      <Link
-        to="/knowledge-bit-review"
-        className={navLinkClass}
-        data-testid="nav-knowledge-bit-review"
-      >
-        <TriageIcon />
-        {pendingCount === null
-          ? 'Knowledge triage'
-          : `Knowledge triage (${pendingCount.pending + pendingCount.attention})`}
-        {pendingCount !== null && pendingCount.attention > 0 ? (
-          <span
-            role="img"
-            aria-label="Some notes need attention"
-            title="Some notes need attention"
-            data-testid="nav-knowledge-bit-review-attention-dot"
-            className="ml-2 inline-block size-2 shrink-0 rounded-full bg-amber-500"
-          />
-        ) : null}
-      </Link>
+      {showTriageLink ? (
+        <Link
+          to="/knowledge-bit-review"
+          className={navLinkClass}
+          data-testid="nav-knowledge-bit-review"
+        >
+          <TriageIcon />
+          {pendingCount === null
+            ? 'Knowledge triage'
+            : `Knowledge triage (${pendingCount.pending + pendingCount.attention})`}
+          {pendingCount !== null && pendingCount.attention > 0 ? (
+            <span
+              role="img"
+              aria-label="Some notes need attention"
+              title="Some notes need attention"
+              data-testid="nav-knowledge-bit-review-attention-dot"
+              className="ml-2 inline-block size-2 shrink-0 rounded-full bg-amber-500"
+            />
+          ) : null}
+        </Link>
+      ) : null}
       <Link
         to="/knowledge/inbox"
         className={navLinkClass}

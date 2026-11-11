@@ -8,6 +8,7 @@ enum AdminSettingField: Hashable {
     case newCardsPerDay
     case maxReviewsPerDay
     case mixNewWithDue
+    case triageEnabled
     case fusion
 }
 
@@ -40,6 +41,7 @@ final class AdminSettingsModel {
     var newCardsPerDay: Int { settings?.newCardsPerDay ?? AdminSettingsLimits.defaultNewCardsPerDay }
     var maxReviewsPerDay: Int { settings?.maxReviewsPerDay ?? AdminSettingsLimits.defaultMaxReviewsPerDay }
     var mixNewWithDue: Bool { settings?.mixNewWithDue ?? true }
+    var triageEnabled: Bool { settings?.triageEnabled ?? false }
 
     var fusionEnabled: Bool { settings?.fusionEnabled ?? false }
     var fusionModelIds: [String] { settings?.fusionModelIds ?? [] }
@@ -95,6 +97,10 @@ final class AdminSettingsModel {
 
     func setMixNewWithDue(_ value: Bool) async {
         await save(.mixNewWithDue, AdminSettingsUpdate(mixNewWithDue: value))
+    }
+
+    func setTriageEnabled(_ value: Bool) async {
+        await save(.triageEnabled, AdminSettingsUpdate(triageEnabled: value))
     }
 
     private func save(_ field: AdminSettingField, _ update: AdminSettingsUpdate) async {

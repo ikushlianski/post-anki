@@ -35,6 +35,7 @@ type SettingField =
   | 'newCardsPerDay'
   | 'maxReviewsPerDay'
   | 'mixNewWithDue'
+  | 'triageEnabled'
   | 'learningSteps'
   | 'relearningSteps'
   | 'desiredRetention'
@@ -73,6 +74,7 @@ function AdminSettingsPage() {
   const setNewCardsPerDay = (newCardsPerDay: number) => save('newCardsPerDay', { newCardsPerDay })
   const setMaxReviewsPerDay = (maxReviewsPerDay: number) => save('maxReviewsPerDay', { maxReviewsPerDay })
   const setMixNewWithDue = (mixNewWithDue: boolean) => save('mixNewWithDue', { mixNewWithDue })
+  const setTriageEnabled = (triageEnabled: boolean) => save('triageEnabled', { triageEnabled })
   const setLearningSteps = (learningStepsMinutes: number[]) =>
     save('learningSteps', { learningStepsMinutes })
   const setRelearningSteps = (relearningStepsMinutes: number[]) =>
@@ -167,6 +169,14 @@ function AdminSettingsPage() {
           disabled={busy}
         />
         {saveError('mixNewWithDue')}
+        <AdminSettingsToggle
+          label="Triage new cards before studying"
+          description="Off: new cards go straight into their subject and can be studied at once. On: each new card waits in Knowledge triage until you approve it."
+          value={settings.triageEnabled}
+          onChange={setTriageEnabled}
+          disabled={busy}
+        />
+        {saveError('triageEnabled')}
         <StepsField
           label="Learning steps (minutes)"
           description="App default for how soon a new card repeats, for example 1, 10. Subjects can override it."

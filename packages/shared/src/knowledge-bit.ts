@@ -208,6 +208,7 @@ export const pendingKnowledgeBitReviewCountResponse = z.object({
   count: z.number().int().min(0),
   attentionCount: z.number().int().min(0).default(0),
   inboxCount: z.number().int().min(0).default(0),
+  triageEnabled: z.boolean().default(false),
 });
 
 export type PendingKnowledgeBitReviewCountResponse = z.infer<

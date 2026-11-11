@@ -7,6 +7,7 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
     public var newCardsPerDay: Int?
     public var maxReviewsPerDay: Int?
     public var mixNewWithDue: Bool?
+    public var triageEnabled: Bool?
     public var fusionEnabled: Bool?
     public var fusionModelIds: [String]?
 
@@ -17,6 +18,7 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
         newCardsPerDay: Int? = nil,
         maxReviewsPerDay: Int? = nil,
         mixNewWithDue: Bool? = nil,
+        triageEnabled: Bool? = nil,
         fusionEnabled: Bool? = nil,
         fusionModelIds: [String]? = nil
     ) {
@@ -28,6 +30,7 @@ public struct AdminSettingsUpdate: Encodable, Sendable {
         self.newCardsPerDay = newCardsPerDay
         self.maxReviewsPerDay = maxReviewsPerDay
         self.mixNewWithDue = mixNewWithDue
+        self.triageEnabled = triageEnabled
     }
 }
 

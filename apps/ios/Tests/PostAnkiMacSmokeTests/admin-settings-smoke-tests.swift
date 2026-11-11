@@ -41,6 +41,18 @@ extension SmokeTests {
             #expect(object == ["mixNewWithDue": false])
         }
 
+        @Test("should read the triage setting from the server and send a change")
+        func triageEnabled() throws {
+            let missing = try JSONDecoder().decode(AdminSettings.self, from: Data(#"{"testToggle":true,"modelTier":"cheap"}"#.utf8))
+            let on = try JSONDecoder().decode(AdminSettings.self, from: Data(#"{"testToggle":true,"modelTier":"cheap","triageEnabled":true}"#.utf8))
+            let data = try JSONEncoder().encode(AdminSettingsUpdate(triageEnabled: true))
+            let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Bool])
+
+            #expect(missing.triageEnabled == nil)
+            #expect(on.triageEnabled == true)
+            #expect(object == ["triageEnabled": true])
+        }
+
         @Test("should keep fusion off and empty when the server omits fusion settings")
         func fusionDefaultsOff() throws {
             let json = #"{"testToggle":false,"modelTier":"cheap"}"#

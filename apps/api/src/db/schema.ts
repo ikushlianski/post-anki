@@ -585,6 +585,7 @@ export const appSettings = pgTable("app_settings", {
   newCardsPerDay: integer("new_cards_per_day").notNull().default(20),
   maxReviewsPerDay: integer("max_reviews_per_day").notNull().default(200),
   mixNewWithDue: boolean("mix_new_with_due").notNull().default(true),
+  triageEnabled: boolean("triage_enabled").notNull().default(false),
   learningStepsMinutes: jsonb("learning_steps_minutes")
     .$type<number[]>()
     .notNull()
@@ -1377,6 +1378,7 @@ export const knowledgeBitQuestionVariants = pgTable(
     context: text("context"),
     // fill-in-the-blank source sentence — nullable, no default; only present for kind="fill_in_the_blank".
     sentence: text("sentence"),
+    cardKey: text("card_key"),
     embeddingVec: halfvec("embedding_vec", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingHash: text("embedding_hash"),
     embeddedAt: timestamp("embedded_at", { withTimezone: true }),
@@ -1394,6 +1396,7 @@ export const knowledgeBitQuestionVariants = pgTable(
     uniqueIndex("knowledge_bit_question_variants_bit_kind_order_unique")
       .on(table.knowledgeBitId, table.kind, table.order)
       .where(sql`${table.supersededAt} is null`),
+    index("knowledge_bit_question_variants_card_key_idx").on(table.cardKey),
   ],
 );
 

@@ -1,17 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DbExecutor } from "../db/client.js";
+import { getTriageEnabled } from "../admin-settings/admin-settings.repo.js";
+import { supersedeOtherVariantsIn } from "./knowledge-bit-triage.repo.js";
 import { insertSourceItemsForChunk } from "./knowledge-bit-source-items.repo.js";
 
+vi.mock("./knowledge-bit-duplicate-gate.js", () => ({
+  findExistingCardKeys: vi.fn(async () => new Set<string>()),
+  dropDuplicateCards: vi.fn(async (_db: unknown, lessons: unknown[]) => ({ lessons, skippedCards: 0 })),
+}));
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({ getTriageEnabled: vi.fn(async () => true) }));
+vi.mock("./knowledge-bit-triage.repo.js", () => ({ supersedeOtherVariantsIn: vi.fn(async () => []) }));
 vi.mock("../shared/id.js", () => ({ newId: vi.fn((prefix: string) => `${prefix}_1`) }));
 vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
-function fakeDb(sourceUrl: string | null) {
+function fakeDb(sourceUrl: string | null, kind = "general") {
   const bitRows: Record<string, unknown>[] = [];
-  const selectChain = { from: vi.fn(), where: vi.fn(), for: vi.fn() };
+  const selectChain = { from: vi.fn(), where: vi.fn(), for: vi.fn(), orderBy: vi.fn() };
 
   selectChain.from.mockReturnValue(selectChain);
   selectChain.where.mockReturnValue(selectChain);
-  selectChain.for.mockResolvedValue([{ id: "ks_1", sourceUrl }]);
+  selectChain.for.mockResolvedValue([{ id: "ks_1", sourceUrl, kind }]);
+  selectChain.orderBy.mockResolvedValue([{ id: "kbqv_1" }, { id: "kbqv_2" }]);
 
   const tx = {
     select: vi.fn().mockReturnValue(selectChain),
@@ -80,5 +89,57 @@ describe("insertSourceItemsForChunk source links", () => {
     await insertSourceItemsForChunk(input, db);
 
     expect(bitRows[0]).toMatchObject({ isAiGenerated: false, sourceLinks: ["https://example.com/article"] });
+  });
+});
+
+describe("insertSourceItemsForChunk triage setting", () => {
+  it("should save new cards as approved and decided when triage is off", async () => {
+    vi.mocked(getTriageEnabled).mockResolvedValueOnce(false);
+    const { db, bitRows } = fakeDb(null);
+
+    await insertSourceItemsForChunk(input, db);
+
+    expect(bitRows[0]).toMatchObject({ approvalState: "approved", decidedAt: expect.any(Date) });
+  });
+
+  it("should send new cards to triage when triage is on", async () => {
+    const { db, bitRows } = fakeDb(null);
+
+    await insertSourceItemsForChunk(input, db);
+
+    expect(bitRows[0]).toMatchObject({ approvalState: "pending" });
+    expect(bitRows[0]).not.toHaveProperty("decidedAt");
+  });
+
+  it("should keep only the first variant of an auto-approved phrase card", async () => {
+    vi.mocked(getTriageEnabled).mockResolvedValueOnce(false);
+    const { db } = fakeDb(null, "phrase");
+
+    await insertSourceItemsForChunk(input, db);
+
+    expect(supersedeOtherVariantsIn).toHaveBeenCalledWith(expect.anything(), "kb_1", ["kbqv_1"]);
+  });
+
+  it("should leave every variant of a phrase card alone when triage is on", async () => {
+    vi.mocked(supersedeOtherVariantsIn).mockClear();
+    const { db } = fakeDb(null, "phrase");
+
+    await insertSourceItemsForChunk(input, db);
+
+    expect(supersedeOtherVariantsIn).not.toHaveBeenCalled();
+  });
+
+  it("should keep a validator-flagged card pending for a human look even when triage is off", async () => {
+    vi.mocked(getTriageEnabled).mockResolvedValueOnce(false);
+    const { db, bitRows } = fakeDb(null);
+    const flaggedLesson = { ...input.items[0]!, statement: "Flagged" };
+
+    await insertSourceItemsForChunk(
+      { ...input, items: [], flagged: [{ lesson: flaggedLesson, reason: "non_native_phrase" } as never] },
+      db,
+    );
+
+    expect(bitRows[0]).toMatchObject({ approvalState: "pending", reviewFlag: "non_native_phrase" });
+    expect(bitRows[0]).not.toHaveProperty("decidedAt");
   });
 });

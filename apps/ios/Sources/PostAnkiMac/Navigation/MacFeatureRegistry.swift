@@ -21,10 +21,12 @@ enum MacFeatureRegistry {
         features.filter { $0.section == section }
     }
 
+    @MainActor
     static func sidebarFeatures(in section: MacFeatureSection) -> [MacFeature] {
-        features(in: section).filter(\.inSidebar)
+        features(in: section).filter { $0.inSidebar && ($0.isShown?() ?? true) }
     }
 
+    @MainActor
     static var sidebarSections: [MacFeatureSection] {
         MacFeatureSection.allCases.filter { !sidebarFeatures(in: $0).isEmpty }
     }

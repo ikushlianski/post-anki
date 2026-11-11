@@ -246,15 +246,21 @@ export async function processChunk(
   }
 
   try {
+    const outcome = { skippedCards: 0 };
     const insertedCount = await deps.insertItems({
       sourceId: source.id,
       claimedAt: source.claimedAt,
       firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
       items,
       flagged: flaggedItems,
+      outcome,
     });
 
     state.inserted += insertedCount;
+
+    if (insertedCount === 0 && outcome.skippedCards > 0) {
+      state.deliberateEmptyChunks += 1;
+    }
   } catch (err) {
     if (err instanceof Error && err.message === "knowledge_source_reclaimed") {
       state.reclaimed = err;

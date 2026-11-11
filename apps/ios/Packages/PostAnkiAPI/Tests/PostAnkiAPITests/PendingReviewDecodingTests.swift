@@ -94,4 +94,13 @@ struct PendingReviewAnswerChoiceTests {
     func decodesFlag() throws {
         #expect(try bit(#","answerChoice":true"#).answerChoice)
     }
+
+    @Test("should treat a count response without the triage flag as triage off")
+    func countDefaultsTriageOff() throws {
+        let off = try JSONDecoder().decode(PendingReviewCountResponse.self, from: Data(#"{"count":0}"#.utf8))
+        let on = try JSONDecoder().decode(PendingReviewCountResponse.self, from: Data(#"{"count":0,"triageEnabled":true}"#.utf8))
+
+        #expect(off.triageEnabled == false)
+        #expect(on.triageEnabled == true)
+    }
 }

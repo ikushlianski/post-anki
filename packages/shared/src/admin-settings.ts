@@ -28,6 +28,7 @@ export const newCardsPerDaySchema = z
   .max(MAX_NEW_CARDS_PER_DAY);
 
 export const DEFAULT_MIX_NEW_WITH_DUE = true;
+export const DEFAULT_TRIAGE_ENABLED = false;
 export const DEFAULT_MAX_REVIEWS_PER_DAY = 200;
 export const MAX_MAX_REVIEWS_PER_DAY = 9999;
 
@@ -52,6 +53,7 @@ export const adminSettingsSchema = z.object({
   newCardsPerDay: newCardsPerDaySchema,
   maxReviewsPerDay: maxReviewsPerDaySchema,
   mixNewWithDue: z.boolean(),
+  triageEnabled: z.boolean(),
   learningStepsMinutes: stepsMinutesSchema,
   relearningStepsMinutes: stepsMinutesSchema,
   desiredRetention: desiredRetentionSchema,
@@ -74,6 +76,7 @@ export const updateAdminSettingsInput = z.object({
   newCardsPerDay: newCardsPerDayInputSchema.optional(),
   maxReviewsPerDay: maxReviewsPerDayInputSchema.optional(),
   mixNewWithDue: z.boolean().optional(),
+  triageEnabled: z.boolean().optional(),
   learningStepsMinutes: stepsMinutesInputSchema.optional(),
   relearningStepsMinutes: stepsMinutesInputSchema.optional(),
   desiredRetention: desiredRetentionInputSchema.optional(),

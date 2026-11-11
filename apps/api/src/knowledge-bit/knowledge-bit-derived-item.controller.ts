@@ -3,7 +3,7 @@ import { createManualKnowledgeItemInput } from "@post-anki/shared";
 import { readJsonBody, sendError, sendJson } from "../shared/http.js";
 import { insertDerivedKnowledgeItem } from "./knowledge-bit-manual-item.repo.js";
 
-const ERROR_STATUS = { not_found: 404, not_approved: 409 } as const;
+const ERROR_STATUS = { not_found: 404, not_approved: 409, duplicate_card: 409 } as const;
 
 export async function handleCreateDerivedKnowledgeItem(
   req: http.IncomingMessage,

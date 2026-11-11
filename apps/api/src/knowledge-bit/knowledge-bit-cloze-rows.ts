@@ -1,4 +1,5 @@
 import { buildClozeCards, parseCloze } from "@post-anki/shared";
+import { cardTextKey } from "./knowledge-bit-card-text-key.js";
 import { newId } from "../shared/id.js";
 
 export function clozeVariantRows(knowledgeBitId: string, note: string) {
@@ -16,5 +17,6 @@ export function clozeVariantRows(knowledgeBitId: string, note: string) {
     prompt: card.prompt,
     answer: card.answer,
     sentence: note as string | null,
+    cardKey: cardTextKey(card.prompt, card.answer),
   }));
 }

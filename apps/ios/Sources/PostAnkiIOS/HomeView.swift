@@ -28,10 +28,12 @@ struct HomeView: View {
 
     private var tabs: some View {
         TabView(selection: $selectedTab) {
-            KnowledgeInboxScreen(onTriageFinished: { selectedTab = .review })
-                .tabItem { Label("Triage", systemImage: "tray.full") }
-                .badge(PendingReviewCountStore.shared.badgeCount)
-                .tag(HomeTab.triage)
+            if PendingReviewCountStore.shared.showsTriage {
+                KnowledgeInboxScreen(onTriageFinished: { selectedTab = .review })
+                    .tabItem { Label("Triage", systemImage: "tray.full") }
+                    .badge(PendingReviewCountStore.shared.badgeCount)
+                    .tag(HomeTab.triage)
+            }
 
             ReviewSubjectsScreen { DueReviewScreen(scope: $0, aheadDays: $1) }
                 .tabItem { Label("Review", systemImage: "checkmark.seal") }

@@ -23,7 +23,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('../knowledge-bit/knowledge-bit-review.api', () => ({
-  getPendingKnowledgeBitCountForNav: vi.fn(async () => ({ count: 0, attentionCount: 0 })),
+  getPendingKnowledgeBitCountForNav: vi.fn(async () => ({ count: 0, attentionCount: 0, triageEnabled: true })),
 }))
 
 vi.mock('../chat-queue/chat-queue.api', () => ({
@@ -146,6 +146,7 @@ describe('Sidebar', () => {
       count: 1,
       attentionCount: 0,
       inboxCount: 2,
+      triageEnabled: true,
     })
     render(<Sidebar />)
 
@@ -157,6 +158,7 @@ describe('Sidebar', () => {
       count: 0,
       attentionCount: 0,
       inboxCount: 3,
+      triageEnabled: true,
     })
     act(() => {
       window.dispatchEvent(new Event(PENDING_REVIEW_CHANGED_EVENT))
@@ -168,7 +170,7 @@ describe('Sidebar', () => {
   })
 
   it('should add notes that need attention to the triage count and show a dot', async () => {
-    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({ count: 2, attentionCount: 1, inboxCount: 0 })
+    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({ count: 2, attentionCount: 1, inboxCount: 0, triageEnabled: true })
 
     render(<Sidebar />)
 
@@ -179,7 +181,7 @@ describe('Sidebar', () => {
   })
 
   it('should never read zero while only a failed note is waiting', async () => {
-    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({ count: 0, attentionCount: 2, inboxCount: 0 })
+    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({ count: 0, attentionCount: 2, inboxCount: 0, triageEnabled: true })
 
     render(<Sidebar />)
 
@@ -382,5 +384,29 @@ describe('Sidebar', () => {
 
     expect(screen.queryByTestId('nav-profile')).toBeNull()
     expect(screen.queryByTestId('nav-sign-out')).toBeNull()
+  })
+  it('should hide the triage link when triage is off and nothing is waiting', async () => {
+    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({
+      count: 0,
+      attentionCount: 0,
+      inboxCount: 0,
+      triageEnabled: false,
+    })
+    render(<Sidebar />)
+
+    await waitFor(() => expect(screen.queryByTestId('nav-knowledge-bit-review')).toBeNull())
+    expect(screen.getByTestId('nav-knowledge-inbox')).toBeTruthy()
+  })
+
+  it('should keep the triage link while triage is off but cards are still waiting', async () => {
+    vi.mocked(getPendingKnowledgeBitCountForNav).mockResolvedValueOnce({
+      count: 4,
+      attentionCount: 0,
+      inboxCount: 0,
+      triageEnabled: false,
+    })
+    render(<Sidebar />)
+
+    await waitFor(() => expect(screen.getByTestId('nav-knowledge-bit-review').textContent).toBe('Knowledge triage (4)'))
   })
 })

@@ -33,6 +33,7 @@ function setLoaderData() {
       newCardsPerDay: 20,
       maxReviewsPerDay: 200,
       mixNewWithDue: true,
+      triageEnabled: false,
       learningStepsMinutes: [1, 10],
       relearningStepsMinutes: [10],
       desiredRetention: 0.9,
@@ -119,5 +120,18 @@ describe('AdminSettingsPage', () => {
     fireEvent.click(toggle)
 
     await waitFor(() => expect(mockedUpdate).toHaveBeenCalledWith({ data: { mixNewWithDue: false } }))
+  })
+  it('should save the triage setting when the learner switches triage on', async () => {
+    setLoaderData()
+    mockedUpdate.mockResolvedValue(undefined as never)
+    invalidate.mockResolvedValue(undefined)
+    render(<Page />)
+
+    const toggle = screen.getByRole('switch', { name: 'Triage new cards before studying' })
+
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(mockedUpdate).toHaveBeenCalledWith({ data: { triageEnabled: true } }))
   })
 })

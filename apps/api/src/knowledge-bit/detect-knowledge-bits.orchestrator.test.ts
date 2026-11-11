@@ -124,6 +124,7 @@ describe("generateItemsForSource", () => {
       firstOrdinal: 0,
       items: RU_EXAMPLE_ITEMS,
       flagged: [],
+      outcome: { skippedCards: 0 },
     });
     expect(deps.markDetected).toHaveBeenCalledWith("ks_1", pending.claimedAt);
     expect(result).toEqual({ status: "detected", inserted: 3, failureReason: null });

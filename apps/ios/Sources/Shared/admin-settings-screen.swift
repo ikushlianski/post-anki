@@ -101,6 +101,16 @@ struct AdminSettingsScreen: View {
                 field: .mixNewWithDue
             )
         }
+
+        Section {
+            Toggle("Triage new cards before studying", isOn: triageBinding)
+                .disabled(model.savingField != nil)
+        } footer: {
+            footer(
+                "Off: new cards go straight into their subject and can be studied at once. On: each new card waits in Triage until you approve it.",
+                field: .triageEnabled
+            )
+        }
     }
 
     private func footer(_ text: String, field: AdminSettingField) -> some View {
@@ -131,6 +141,18 @@ struct AdminSettingsScreen: View {
         Binding(
             get: { model.mixNewWithDue },
             set: { value in Task { await model.setMixNewWithDue(value) } }
+        )
+    }
+
+    private var triageBinding: Binding<Bool> {
+        Binding(
+            get: { model.triageEnabled },
+            set: { value in
+                Task {
+                    await model.setTriageEnabled(value)
+                    await PendingReviewCountStore.shared.refresh()
+                }
+            }
         )
     }
 

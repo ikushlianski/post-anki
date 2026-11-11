@@ -31,6 +31,7 @@
     "eval:nothing-extracted": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/eval-nothing-extracted.ts",
     "reextract:sources": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/reextract-knowledge-sources.ts",
     "backfill:card-models": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/backfill-card-models.ts",
+    "db:backfill-card-keys": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/backfill-card-keys.ts",
     "backfill:phrase-sentences": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/backfill-phrase-sentences.ts",
     "backfill:import-facts": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/rebuild-imported-cloze-cards.ts",
     "verify:e2e": "tsx scripts/verify-e2e.ts",

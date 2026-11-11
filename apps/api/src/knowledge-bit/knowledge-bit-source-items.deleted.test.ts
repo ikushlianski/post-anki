@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { DbExecutor } from "../db/client.js";
 import { insertSourceItemsForChunk } from "./knowledge-bit-source-items.repo.js";
 
+vi.mock("./knowledge-bit-duplicate-gate.js", () => ({
+  findExistingCardKeys: vi.fn(async () => new Set<string>()),
+  dropDuplicateCards: vi.fn(async (_db: unknown, lessons: unknown[]) => ({ lessons, skippedCards: 0 })),
+}));
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({ getTriageEnabled: vi.fn(async () => true) }));
 vi.mock("../shared/id.js", () => ({ newId: vi.fn((prefix: string) => `${prefix}_1`) }));
 vi.mock("../shared/log.js", () => ({ log: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 

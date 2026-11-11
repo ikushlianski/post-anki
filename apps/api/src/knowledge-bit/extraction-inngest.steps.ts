@@ -51,15 +51,18 @@ export async function chunkInsertStep(
     return { accepted: 0, inserted: 0, capped, ...gap };
   }
 
+  const outcome = { skippedCards: 0 };
   const inserted = await deps.insertItems({
     sourceId: snapshot.id,
     claimedAt: new Date(snapshot.claimedAt),
     firstOrdinal: firstOrdinal + index * ORDINAL_STRIDE_PER_CHUNK,
     items,
     flagged,
+    outcome,
   });
+  const allDuplicates = inserted === 0 && outcome.skippedCards > 0;
 
-  return { accepted: items.length, inserted, capped, ...gap };
+  return { accepted: items.length, inserted, capped, ...(allDuplicates ? { deliberateEmpty: true } : {}), ...gap };
 }
 
 export async function finishCountsStep(

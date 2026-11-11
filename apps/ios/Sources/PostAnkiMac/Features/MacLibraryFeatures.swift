@@ -10,6 +10,7 @@ enum MacLibraryFeatures {
             title: "Knowledge Inbox",
             systemImage: "tray",
             badge: { PendingReviewCountStore.shared.count },
+            isShown: { PendingReviewCountStore.shared.showsTriage },
             detail: { navigator in AnyView(MacKnowledgeInboxView(onTriageFinished: { navigator.select("review") })) }
         ),
         MacFeature(

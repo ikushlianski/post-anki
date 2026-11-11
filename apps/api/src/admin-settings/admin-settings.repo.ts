@@ -11,6 +11,7 @@ import {
   DEFAULT_MIX_NEW_WITH_DUE,
   DEFAULT_NEW_CARDS_PER_DAY,
   DEFAULT_RELEARNING_STEPS_MINUTES,
+  DEFAULT_TRIAGE_ENABLED,
   desiredRetentionSchema,
   fusionModelIdsSchema,
   fusionSettingsSchema,
@@ -82,6 +83,7 @@ async function toAdminSettings(row: typeof appSettings.$inferSelect): Promise<Ad
     ...toStudyDefaults(row),
     maxReviewsPerDay: clampMaxReviewsPerDay(row.maxReviewsPerDay),
     mixNewWithDue: row.mixNewWithDue,
+    triageEnabled: row.triageEnabled,
     fusionEnabled: row.fusionEnabled,
     fusionModelIds: toFusionModelIds(row.fusionModelIds),
   };
@@ -111,6 +113,7 @@ export async function getAdminSettings(): Promise<AdminSettings> {
     ...FALLBACK_STUDY_DEFAULTS,
     maxReviewsPerDay: DEFAULT_MAX_REVIEWS_PER_DAY,
     mixNewWithDue: DEFAULT_MIX_NEW_WITH_DUE,
+    triageEnabled: DEFAULT_TRIAGE_ENABLED,
     fusionEnabled: DEFAULT_FUSION_ENABLED,
     fusionModelIds: DEFAULT_FUSION_MODEL_IDS,
   };
@@ -126,6 +129,7 @@ export async function updateAdminSettings(
   const newCardsPerDay = input.newCardsPerDay ?? current.newCardsPerDay;
   const maxReviewsPerDay = input.maxReviewsPerDay ?? current.maxReviewsPerDay;
   const mixNewWithDue = input.mixNewWithDue ?? current.mixNewWithDue;
+  const triageEnabled = input.triageEnabled ?? current.triageEnabled;
   const learningStepsMinutes = input.learningStepsMinutes ?? current.learningStepsMinutes;
   const relearningStepsMinutes = input.relearningStepsMinutes ?? current.relearningStepsMinutes;
   const desiredRetention = input.desiredRetention ?? current.desiredRetention;
@@ -150,6 +154,7 @@ export async function updateAdminSettings(
       newCardsPerDay,
       maxReviewsPerDay,
       mixNewWithDue,
+      triageEnabled,
       learningStepsMinutes,
       relearningStepsMinutes,
       desiredRetention,
@@ -166,6 +171,7 @@ export async function updateAdminSettings(
         newCardsPerDay,
         maxReviewsPerDay,
         mixNewWithDue,
+        triageEnabled,
         learningStepsMinutes,
         relearningStepsMinutes,
         desiredRetention,
@@ -182,6 +188,7 @@ export async function updateAdminSettings(
     newCardsPerDay,
     maxReviewsPerDay,
     mixNewWithDue,
+    triageEnabled,
     learningStepsMinutes,
     relearningStepsMinutes,
     desiredRetention,
@@ -229,4 +236,13 @@ export async function getStudyDefaults(db: DbExecutor = getDb()): Promise<StudyO
   const [row] = await db.select().from(appSettings).where(eq(appSettings.id, SETTINGS_ID));
 
   return row ? toStudyDefaults(row) : FALLBACK_STUDY_DEFAULTS;
+}
+
+export async function getTriageEnabled(db: DbExecutor = getDb()): Promise<boolean> {
+  const [row] = await db
+    .select({ triageEnabled: appSettings.triageEnabled })
+    .from(appSettings)
+    .where(eq(appSettings.id, SETTINGS_ID));
+
+  return row ? row.triageEnabled : DEFAULT_TRIAGE_ENABLED;
 }

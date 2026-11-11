@@ -1,36 +1,15 @@
-import { and, eq, max, ne } from "drizzle-orm";
+import { and, asc, eq, max, ne } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitFusionModels, knowledgeBits, knowledgeBitQuestionVariants, knowledgeSources } from "../db/schema.js";
-import { buildOrderedListCards, parseOrderedListText } from "@post-anki/shared";
-import { clozeVariantRows } from "./knowledge-bit-cloze-rows.js";
+import { getTriageEnabled } from "../admin-settings/admin-settings.repo.js";
+import { initialBitState } from "./knowledge-bit-initial-state.js";
+import { supersedeOtherVariantsIn } from "./knowledge-bit-triage.repo.js";
+import { dropDuplicateCards } from "./knowledge-bit-duplicate-gate.js";
+import { variantRowsForCard } from "./knowledge-bit-source-item-variants.js";
 import { isSafeSourceUrl } from "@post-anki/core";
 import { newId } from "../shared/id.js";
 import { log } from "../shared/log.js";
-import type { FlaggedLesson, LessonDraft, SourceItemKind } from "./knowledge-bit-source-item-validation.js";
-
-const VARIANT_KIND_BY_ITEM_KIND = {
-  why: "wh_question",
-  fill_blank: "fill_in_the_blank",
-  basic: "basic",
-} as const satisfies Record<SourceItemKind, string>;
-
-function orderedListVariantRows(knowledgeBitId: string, listText: string) {
-  const parsed = parseOrderedListText(listText);
-
-  if (!parsed.ok) {
-    return [];
-  }
-
-  return buildOrderedListCards(parsed.list).map((card) => ({
-    id: newId("kbqv"),
-    knowledgeBitId,
-    kind: card.kind as string,
-    order: card.order,
-    prompt: card.prompt,
-    answer: card.answer,
-    sentence: listText as string | null,
-  }));
-}
+import type { FlaggedLesson, LessonDraft } from "./knowledge-bit-source-item-validation.js";
 
 export interface SourceInsertState {
   nextOrdinal: number;
@@ -58,12 +37,27 @@ export async function getSourceInsertState(
   };
 }
 
+async function keepFirstVariantOnly(tx: DbExecutor, bitIds: string[]): Promise<void> {
+  for (const bitId of bitIds) {
+    const [first] = await tx
+      .select({ id: knowledgeBitQuestionVariants.id })
+      .from(knowledgeBitQuestionVariants)
+      .where(eq(knowledgeBitQuestionVariants.knowledgeBitId, bitId))
+      .orderBy(asc(knowledgeBitQuestionVariants.order));
+
+    if (first) {
+      await supersedeOtherVariantsIn(tx, bitId, [first.id]);
+    }
+  }
+}
+
 export interface InsertSourceItemsInput {
   sourceId: string;
   claimedAt: Date;
   firstOrdinal: number;
   items: readonly LessonDraft[];
   flagged?: readonly FlaggedLesson[];
+  outcome?: { skippedCards: number };
 }
 
 // Inserts bits and their variants in one transaction while this run owns the source claim; skips if the source was deleted.
@@ -71,7 +65,7 @@ export async function insertSourceItemsForChunk(
   input: InsertSourceItemsInput,
   db: DbExecutor = getDb(),
 ): Promise<number> {
-  const { sourceId, claimedAt, firstOrdinal, items, flagged = [] } = input;
+  const { sourceId, claimedAt, firstOrdinal, items, flagged = [], outcome } = input;
 
   if (items.length === 0 && flagged.length === 0) {
     return 0;
@@ -79,7 +73,7 @@ export async function insertSourceItemsForChunk(
 
   return db.transaction(async (tx) => {
     const owned = await tx
-      .select({ id: knowledgeSources.id, sourceUrl: knowledgeSources.sourceUrl })
+      .select({ id: knowledgeSources.id, sourceUrl: knowledgeSources.sourceUrl, kind: knowledgeSources.kind })
       .from(knowledgeSources)
       .where(
         and(
@@ -109,10 +103,34 @@ export async function insertSourceItemsForChunk(
     const sourceUrl = owned[0]?.sourceUrl;
     const sourceLinks = sourceUrl && isSafeSourceUrl(sourceUrl).allowed ? [sourceUrl] : null;
     const stampedAt = new Date();
-    const entries = [
+    const triageEnabled = await getTriageEnabled(tx);
+    const state = initialBitState(triageEnabled, stampedAt);
+    const allEntries = [
       ...items.map((item) => ({ item, reviewFlag: null as string | null })),
       ...flagged.map((entry) => ({ item: entry.lesson, reviewFlag: entry.reason as string | null })),
     ];
+    const gate = await dropDuplicateCards(
+      tx,
+      allEntries.map((entry) => entry.item),
+    );
+    const entries = allEntries.flatMap((entry, index) => {
+      const lesson = gate.lessons[index];
+
+      return lesson ? [{ ...entry, item: lesson }] : [];
+    });
+
+    if (gate.skippedCards > 0) {
+      if (outcome) {
+        outcome.skippedCards += gate.skippedCards;
+      }
+
+      log.info({ knowledgeSourceId: sourceId, count: gate.skippedCards }, "cards_skipped_duplicate");
+    }
+
+    if (entries.length === 0) {
+      return 0;
+    }
+
     const itemsByOrdinal = new Map(entries.map((entry, index) => [firstOrdinal + index, entry.item]));
     const flagByOrdinal = new Map(entries.map((entry, index) => [firstOrdinal + index, entry.reviewFlag]));
     const bitRows = [...itemsByOrdinal].map(([ordinal, item]) => ({
@@ -123,7 +141,7 @@ export async function insertSourceItemsForChunk(
       background: item.example,
       sourceLinks: item.webSources?.length ? item.webSources : sourceLinks,
       isAiGenerated: Boolean(item.webSources?.length),
-      approvalState: "pending",
+      ...(flagByOrdinal.get(ordinal) ?? item.reviewFlag ? initialBitState(true) : state),
       reviewFlag: flagByOrdinal.get(ordinal) ?? item.reviewFlag ?? null,
       aiSuggestion: item.aiSuggestion ?? null,
       generatedByModelId: item.generatedByModelId ?? null,
@@ -145,28 +163,7 @@ export async function insertSourceItemsForChunk(
         return [];
       }
 
-      return item.cards.flatMap((card, order) => {
-        if (card.kind === "cloze") {
-          return clozeVariantRows(bit.id, card.question);
-        }
-
-        if (card.kind === "ordered_list") {
-          return orderedListVariantRows(bit.id, card.question);
-        }
-
-        return [
-          {
-            id: newId("kbqv"),
-            knowledgeBitId: bit.id,
-            kind: VARIANT_KIND_BY_ITEM_KIND[card.kind] as string,
-            order,
-            prompt: card.question,
-            context: (card.context ?? null) as string | null,
-            answer: card.answer,
-            sentence: null as string | null,
-          },
-        ];
-      });
+      return item.cards.flatMap((card, order) => variantRowsForCard(bit.id, card, order));
     });
 
     if (variantRows.length > 0) {
@@ -179,6 +176,14 @@ export async function insertSourceItemsForChunk(
 
     if (fusionRows.length > 0) {
       await tx.insert(knowledgeBitFusionModels).values(fusionRows);
+    }
+
+    const approvedIds = inserted
+      .filter((bit) => !(flagByOrdinal.get(bit.ordinal) ?? itemsByOrdinal.get(bit.ordinal)?.reviewFlag))
+      .map((bit) => bit.id);
+
+    if (!triageEnabled && owned[0]?.kind === "phrase") {
+      await keepFirstVariantOnly(tx, approvedIds);
     }
 
     return inserted.length;

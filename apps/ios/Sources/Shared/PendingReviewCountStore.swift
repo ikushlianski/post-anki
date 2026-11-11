@@ -14,8 +14,10 @@ final class PendingReviewCountStore {
     private(set) var count = 0
     private(set) var attentionCount = 0
     private(set) var inboxCount = 0
+    private(set) var triageEnabled = false
 
     var badgeCount: Int { count + attentionCount }
+    var showsTriage: Bool { triageEnabled || badgeCount > 0 }
 
     @ObservationIgnored private var isRefreshing = false
     @ObservationIgnored private var mutations = 0
@@ -53,6 +55,7 @@ final class PendingReviewCountStore {
                 count = max(0, value.count)
                 attentionCount = max(0, value.attentionCount)
                 inboxCount = max(0, value.inboxCount)
+                triageEnabled = value.triageEnabled
 
                 return
             }

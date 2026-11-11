@@ -1135,6 +1135,13 @@
       "when": 1794355311439,
       "tag": "0161_fresh_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794428967171,
+      "tag": "0162_steep_green_goblin",
+      "breakpoints": true
     }
   ]
 }

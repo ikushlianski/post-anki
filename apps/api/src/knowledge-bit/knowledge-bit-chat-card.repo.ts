@@ -32,10 +32,17 @@ export async function insertApprovedChatCard(
     return { id: existing.id, created: false };
   }
 
-  const item = await insertPendingManualItem(tx, sourceId, {
-    ...card,
-    aiGenerated: true,
-  });
+  const item = await insertPendingManualItem(
+    tx,
+    sourceId,
+    { ...card, aiGenerated: true },
+    { approvalState: "pending" },
+    true,
+  );
+
+  if ("ok" in item) {
+    throw new Error(item.error);
+  }
 
   await tx
     .update(knowledgeBits)

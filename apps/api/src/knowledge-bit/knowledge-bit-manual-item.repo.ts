@@ -12,7 +12,11 @@ import {
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeBitQuestionVariants, knowledgeBits, knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
+import { getTriageEnabled } from "../admin-settings/admin-settings.repo.js";
 import { clozeVariantRows } from "./knowledge-bit-cloze-rows.js";
+import { cardTextKey } from "./knowledge-bit-card-text-key.js";
+import { findExistingCardKeys } from "./knowledge-bit-duplicate-gate.js";
+import { initialBitState, type InitialBitState } from "./knowledge-bit-initial-state.js";
 
 export type InsertManualKnowledgeItemResult =
   | { ok: true; item: PendingKnowledgeBitForReview }
@@ -21,11 +25,13 @@ export type InsertManualKnowledgeItemResult =
 
 export type InsertDerivedKnowledgeItemResult =
   | { ok: true; item: PendingKnowledgeBitForReview }
-  | { ok: false; error: "not_found" | "not_approved" };
+  | { ok: false; error: "not_found" | "not_approved" | "duplicate_card" };
 
 export type Tx = Parameters<Parameters<DbExecutor["transaction"]>[0]>[0];
 
-export type InsertClozeItemError = { ok: false; error: "invalid_cloze"; reason: ClozeError };
+export type DuplicateCardError = { ok: false; error: "duplicate_card" };
+
+export type InsertClozeItemError = { ok: false; error: "invalid_cloze"; reason: ClozeError } | DuplicateCardError;
 
 async function nextOrdinal(tx: Tx, entryId: string): Promise<number> {
   const [maxRow] = await tx
@@ -44,11 +50,25 @@ async function insertPendingClozeItem(
   tx: Tx,
   entryId: string,
   input: CreateClozeKnowledgeItemInput,
+  state: InitialBitState,
+  allowDuplicate: boolean,
 ): Promise<PendingKnowledgeBitForReview | InsertClozeItemError> {
   const parsed = parseCloze(input.note);
 
   if (!parsed.ok) {
     return { ok: false, error: "invalid_cloze", reason: parsed.error };
+  }
+
+  const draftRows = clozeVariantRows("", input.note);
+  const existing = allowDuplicate
+    ? new Set<string>()
+    : await findExistingCardKeys(
+        tx,
+        draftRows.map((row) => row.cardKey),
+      );
+
+  if (!allowDuplicate && draftRows.length > 0 && draftRows.every((row) => existing.has(row.cardKey))) {
+    return { ok: false, error: "duplicate_card" as const };
   }
 
   const bitId = newId("kb");
@@ -63,7 +83,7 @@ async function insertPendingClozeItem(
     ordinal: await nextOrdinal(tx, entryId),
     body,
     background: input.example ?? null,
-    approvalState: "pending",
+    ...state,
     origin: "manual",
     isAiGenerated,
     sourceLinks: sourceLinks.length > 0 ? sourceLinks : null,
@@ -98,19 +118,31 @@ export async function insertPendingManualItem(
   tx: Tx,
   entryId: string,
   input: CreateManualKnowledgeItemInput,
-): Promise<PendingKnowledgeBitForReview>;
+  state?: InitialBitState,
+  allowDuplicate?: boolean,
+): Promise<PendingKnowledgeBitForReview | DuplicateCardError>;
 export async function insertPendingManualItem(
   tx: Tx,
   entryId: string,
   input: CreateKnowledgeItemInput,
+  state?: InitialBitState,
+  allowDuplicate?: boolean,
 ): Promise<PendingKnowledgeBitForReview | InsertClozeItemError>;
 export async function insertPendingManualItem(
   tx: Tx,
   entryId: string,
   input: CreateKnowledgeItemInput,
+  state: InitialBitState = { approvalState: "pending" },
+  allowDuplicate = false,
 ): Promise<PendingKnowledgeBitForReview | InsertClozeItemError> {
   if ("note" in input) {
-    return insertPendingClozeItem(tx, entryId, input);
+    return insertPendingClozeItem(tx, entryId, input, state, allowDuplicate);
+  }
+
+  const key = cardTextKey(input.front, input.back);
+
+  if (!allowDuplicate && (await findExistingCardKeys(tx, [key])).has(key)) {
+    return { ok: false, error: "duplicate_card" as const };
   }
 
   const ordinal = await nextOrdinal(tx, entryId);
@@ -127,7 +159,7 @@ export async function insertPendingManualItem(
     ordinal,
     body,
     background: input.example ?? null,
-    approvalState: "pending",
+    ...state,
     origin: "manual",
     isAiGenerated,
     sourceLinks: sourceLinks.length > 0 ? sourceLinks : null,
@@ -143,6 +175,7 @@ export async function insertPendingManualItem(
     order: 0,
     prompt: input.front,
     answer: input.back,
+    cardKey: key,
   });
 
   return {
@@ -185,7 +218,12 @@ export async function insertManualKnowledgeItem(
       return { ok: false as const, error: "entry_processed" as const };
     }
 
-    const created = await insertPendingManualItem(tx, entryId, input);
+    const created = await insertPendingManualItem(
+      tx,
+      entryId,
+      input,
+      initialBitState(await getTriageEnabled(tx)),
+    );
 
     if ("ok" in created) {
       return created;
@@ -223,6 +261,10 @@ export async function insertDerivedKnowledgeItem(
       .where(eq(knowledgeSources.id, bit.knowledgeSourceId))
       .for("update");
 
-    return { ok: true as const, item: await insertPendingManualItem(tx, bit.knowledgeSourceId, input) };
+    const state = initialBitState(await getTriageEnabled(tx));
+
+    const created = await insertPendingManualItem(tx, bit.knowledgeSourceId, input, state);
+
+    return "ok" in created ? created : { ok: true as const, item: created };
   });
 }

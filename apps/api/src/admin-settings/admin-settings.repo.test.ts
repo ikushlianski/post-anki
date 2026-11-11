@@ -8,6 +8,7 @@ type SettingsRow = {
   knowledgeItemModelId: string;
   fusionEnabled: boolean;
   fusionModelIds: string[];
+  triageEnabled?: boolean;
 };
 
 const state = vi.hoisted(() => ({
@@ -42,6 +43,7 @@ vi.mock("../shared/log.js", () => ({
 const { getAdminSettings, updateAdminSettings, getKnowledgeItemModelId } = await import(
   "./admin-settings.repo.js"
 );
+const { getTriageEnabled } = await import("./admin-settings.repo.js");
 const { log } = await import("../shared/log.js");
 const { dynamicKnowledgeItemModel } = await import("../mastra/model.js");
 
@@ -179,5 +181,32 @@ describe("updateAdminSettings", () => {
       knowledgeItemModelId: "openrouter/openai/gpt-4o-mini",
     });
     expect(updated.knowledgeItemModelId).toBe("openrouter/openai/gpt-4o-mini");
+  });
+});
+
+describe("triage setting", () => {
+  beforeEach(() => {
+    state.rows = [];
+    state.inserted = undefined;
+  });
+
+  it("should keep triage off for a learner who never touched the setting", async () => {
+    expect((await getAdminSettings()).triageEnabled).toBe(false);
+    expect(await getTriageEnabled()).toBe(false);
+  });
+
+  it("should report triage on once the learner switched it on", async () => {
+    state.rows = [makeRow({ triageEnabled: true })];
+
+    expect((await getAdminSettings()).triageEnabled).toBe(true);
+  });
+
+  it("should store the new triage choice without touching other settings", async () => {
+    state.rows = [makeRow({ triageEnabled: false })];
+
+    const saved = await updateAdminSettings({ triageEnabled: true });
+
+    expect(saved.triageEnabled).toBe(true);
+    expect(state.inserted).toMatchObject({ triageEnabled: true });
   });
 });

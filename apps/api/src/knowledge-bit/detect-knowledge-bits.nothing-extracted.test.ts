@@ -184,3 +184,24 @@ describe("inngest extraction when the note holds nothing worth a card", () => {
     expect(d.markNothingExtracted).not.toHaveBeenCalled();
   });
 });
+
+describe("generateItemsForSource when every card was already in the library", () => {
+  it("should finish the note as nothing extracted instead of leaving it stuck", async () => {
+    const d = deps({
+      writeItems: vi.fn().mockResolvedValue(RU_EXAMPLE_ITEMS),
+      insertItems: vi.fn(async (input) => {
+        if (input.outcome) {
+          input.outcome.skippedCards = input.items.length;
+        }
+
+        return 0;
+      }),
+    });
+
+    const result = await generateItemsForSource(pending(RU_SOURCE_TEXT), {}, d);
+
+    expect(result.inserted).toBe(0);
+    expect(d.markNothingExtracted).toHaveBeenCalledWith("ks_1", CLAIMED_AT);
+    expect(d.markDetected).not.toHaveBeenCalled();
+  });
+});

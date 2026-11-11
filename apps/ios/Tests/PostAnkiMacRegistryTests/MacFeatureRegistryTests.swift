@@ -46,12 +46,12 @@ struct MacFeatureRegistryTests {
         #expect(MacFeatureRegistry.feature(id: stored).inSidebar)
     }
 
-    @Test func shouldListTodayStudyPlanKnowledgeInboxReviewChatAddKnowledgeSubjectsSettingsAccountAndAboutInTheSidebar() {
+    @Test func shouldListTodayStudyPlanKnowledgeReviewChatAddKnowledgeSubjectsSettingsAccountAndAboutInTheSidebarWhileTriageIsOff() {
         let ids = MacFeatureRegistry.sidebarSections
             .flatMap { MacFeatureRegistry.sidebarFeatures(in: $0) }
             .map(\.id)
 
-        #expect(ids == ["home", "study-plan", "knowledge", "inbox", "review", "chat", "ingest", "subjects", "settings", "account", "about"])
+        #expect(ids == ["home", "study-plan", "knowledge", "review", "chat", "ingest", "subjects", "settings", "account", "about"])
     }
 
     @Test func shouldKeepHiddenFeaturesRegisteredForMenusAndNavigation() {

@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DbExecutor } from "../db/client.js";
+import { getTriageEnabled } from "../admin-settings/admin-settings.repo.js";
+import { cardTextKey } from "./knowledge-bit-card-text-key.js";
+import { findExistingCardKeys } from "./knowledge-bit-duplicate-gate.js";
 import { insertManualKnowledgeItem } from "./knowledge-bit-manual-item.repo.js";
 
+vi.mock("./knowledge-bit-duplicate-gate.js", () => ({
+  findExistingCardKeys: vi.fn(async () => new Set<string>()),
+  dropDuplicateCards: vi.fn(async (_db: unknown, lessons: unknown[]) => ({ lessons, skippedCards: 0 })),
+}));
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({ getTriageEnabled: vi.fn(async () => true) }));
 vi.mock("../shared/id.js", () => ({ newId: vi.fn((prefix: string) => `${prefix}_1`) }));
 
 function fakeDb() {
@@ -89,5 +97,43 @@ describe("insertManualKnowledgeItem AI label and source links", () => {
 
     expect(inserted[0]).toMatchObject({ isAiGenerated: false, sourceLinks: null });
     expect(result.ok && result.item).toMatchObject({ isAiGenerated: false, sourceLinks: [] });
+  });
+});
+
+describe("insertManualKnowledgeItem triage setting", () => {
+  it("should save a typed card as approved when triage is off", async () => {
+    vi.mocked(getTriageEnabled).mockResolvedValueOnce(false);
+    const { db, inserted } = fakeDb();
+
+    await insertManualKnowledgeItem("ksrc_1", { front: "Q", back: "A" }, db);
+
+    expect(inserted[0]).toMatchObject({ approvalState: "approved", decidedAt: expect.any(Date) });
+  });
+
+  it("should save a typed card as pending when triage is on", async () => {
+    const { db, inserted } = fakeDb();
+
+    await insertManualKnowledgeItem("ksrc_1", { front: "Q", back: "A" }, db);
+
+    expect(inserted[0]).toMatchObject({ approvalState: "pending" });
+  });
+
+  it("should refuse a typed card whose question and answer already exist", async () => {
+    vi.mocked(findExistingCardKeys).mockResolvedValueOnce(new Set([cardTextKey("Q", "A")]));
+    const { db, inserted } = fakeDb();
+
+    const result = await insertManualKnowledgeItem("ksrc_1", { front: "q?", back: "A." }, db);
+
+    expect(result).toEqual({ ok: false, error: "duplicate_card" });
+    expect(inserted).toHaveLength(0);
+  });
+
+  it("should keep a typed card that reuses an answer under a new question", async () => {
+    const { db, inserted } = fakeDb();
+
+    const result = await insertManualKnowledgeItem("ksrc_1", { front: "Other question", back: "A" }, db);
+
+    expect(result.ok).toBe(true);
+    expect(inserted.length).toBeGreaterThan(0);
   });
 });
