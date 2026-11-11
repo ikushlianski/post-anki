@@ -6,6 +6,11 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { assertLocalDbTarget } from "../db/assert-local-db-target.js";
 import { closeDb } from "../db/client.js";
 
+vi.mock("../admin-settings/admin-settings.repo.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../admin-settings/admin-settings.repo.js")>()),
+  getTriageEnabled: async () => true,
+}));
+
 vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
@@ -206,7 +211,7 @@ describe("insertManualKnowledgeItem (real Postgres)", () => {
 
   it("should return a null background and feedback when no example is given", async () => {
     const entryId = await seedEntry();
-    const result = await insertManualKnowledgeItem(entryId, { front: "Q", back: "A", example: undefined });
+    const result = await insertManualKnowledgeItem(entryId, { front: `Q ${randomUUID()}`, back: "A", example: undefined });
 
     expect(result.ok).toBe(true);
 
@@ -243,7 +248,7 @@ describe("insertManualKnowledgeItem (real Postgres)", () => {
     await seedBit(entryId, 1);
     await seedBit(entryId, 4, "superseded");
 
-    const result = await insertManualKnowledgeItem(entryId, { front: "Q", back: "A" });
+    const result = await insertManualKnowledgeItem(entryId, { front: `Q ${randomUUID()}`, back: "A" });
 
     expect(result.ok).toBe(true);
 
@@ -269,7 +274,7 @@ describe("insertManualKnowledgeItem (real Postgres)", () => {
   it("should refuse a create while the entry is processing and write no rows", async () => {
     const entryId = await seedEntry("processing");
 
-    const result = await insertManualKnowledgeItem(entryId, { front: "Q", back: "A" });
+    const result = await insertManualKnowledgeItem(entryId, { front: `Q ${randomUUID()}`, back: "A" });
 
     expect(result).toEqual({ ok: false, error: "already_running" });
     expect(await bitsOf(entryId)).toEqual([]);
@@ -278,14 +283,14 @@ describe("insertManualKnowledgeItem (real Postgres)", () => {
   it("should refuse a create on a processed entry and write no rows", async () => {
     const entryId = await seedEntry("bits_detected", true);
 
-    const result = await insertManualKnowledgeItem(entryId, { front: "Q", back: "A" });
+    const result = await insertManualKnowledgeItem(entryId, { front: `Q ${randomUUID()}`, back: "A" });
 
     expect(result).toEqual({ ok: false, error: "entry_processed" });
     expect(await bitsOf(entryId)).toEqual([]);
   });
 
   it("should return not_found for an entry that does not exist", async () => {
-    const result = await insertManualKnowledgeItem(`ksrc_missing_${randomUUID()}`, { front: "Q", back: "A" });
+    const result = await insertManualKnowledgeItem(`ksrc_missing_${randomUUID()}`, { front: `Q ${randomUUID()}`, back: "A" });
 
     expect(result).toEqual({ ok: false, error: "not_found" });
   });
@@ -293,7 +298,7 @@ describe("insertManualKnowledgeItem (real Postgres)", () => {
   it("should write no feedback rows for the new item", async () => {
     const entryId = await seedEntry();
 
-    await insertManualKnowledgeItem(entryId, { front: "Q", back: "A" });
+    await insertManualKnowledgeItem(entryId, { front: `Q ${randomUUID()}`, back: "A" });
 
     const feedback = await client.query(
       `SELECT count(*)::int AS count FROM knowledge_bit_feedback WHERE knowledge_source_id = $1`,

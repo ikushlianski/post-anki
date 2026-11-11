@@ -6,6 +6,7 @@ const approveKnowledgeBitsBulk = vi.fn();
 const countPendingKnowledgeBits = vi.fn();
 const countSourcesNeedingAttention = vi.fn();
 const countInboxKnowledgeBits = vi.fn();
+const getTriageEnabled = vi.fn();
 
 const embedApprovedKnowledgeBits = vi.fn();
 
@@ -20,6 +21,10 @@ vi.mock("./knowledge-bit-bulk-approval.repo.js", () => ({
 
 vi.mock("./knowledge-bit-inbox.repo.js", () => ({
   countInboxKnowledgeBits: (...args: unknown[]) => countInboxKnowledgeBits(...args),
+}));
+
+vi.mock("../admin-settings/admin-settings.repo.js", () => ({
+  getTriageEnabled: (...args: unknown[]) => getTriageEnabled(...args),
 }));
 
 vi.mock("./knowledge-source-attention.repo.js", () => ({
@@ -94,16 +99,17 @@ describe("handleBulkApproveKnowledgeBits", () => {
 });
 
 describe("handleCountPendingKnowledgeBits", () => {
-  it("should return the pending count with the notes needing attention and the inbox size", async () => {
+  it("should return the pending count with the notes needing attention, the inbox size and the triage setting", async () => {
     countPendingKnowledgeBits.mockResolvedValue(7);
     countSourcesNeedingAttention.mockResolvedValue(2);
     countInboxKnowledgeBits.mockResolvedValue(3);
+    getTriageEnabled.mockResolvedValue(false);
 
     const res = fakeRes();
 
     await handleCountPendingKnowledgeBits(res);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ count: 7, attentionCount: 2, inboxCount: 3 });
+    expect(res.body).toEqual({ count: 7, attentionCount: 2, inboxCount: 3, triageEnabled: false });
   });
 });

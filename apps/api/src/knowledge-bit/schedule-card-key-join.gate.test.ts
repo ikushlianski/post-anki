@@ -13,6 +13,8 @@ const NOTE_LEVEL_READERS = new Set([
   "knowledge-bit/knowledge-bit-export.repo.ts",
   "knowledge-bit/knowledge-cleanup.repo.ts",
   "knowledge-bit/knowledge-bit-delete.repo.ts",
+  "knowledge-bit/knowledge-bit-unseen-total.repo.ts",
+  "knowledge-bit/approve-waiting-cards.repo.ts",
 ]);
 
 function sourceFiles(dir: string): string[] {
