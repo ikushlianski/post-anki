@@ -13,7 +13,18 @@ struct MacKnowledgeTableRow: Identifiable, Hashable {
     var stateLabel: String { item.stateLabel }
     var lapses: Int { item.lapses }
     var dueKey: String { item.dueAt ?? "" }
+    var createdKey: String { item.createdAt ?? "" }
+    var createdText: String { item.createdAt.flatMap(MacKnowledgeTableRow.localDateTime) ?? MacKnowledgeTableRow.noDueText }
     var dueText: String { item.dueAt.flatMap { DueReviewModel.nextDueText($0) } ?? MacKnowledgeTableRow.noDueText }
+
+    static func localDateTime(_ iso: String) -> String? {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        guard let date = fractional.date(from: iso) ?? ISO8601DateFormatter().date(from: iso) else { return nil }
+
+        return date.formatted(date: .abbreviated, time: .shortened)
+    }
 }
 
 struct MacKnowledgeTable: View {
@@ -32,55 +43,66 @@ struct MacKnowledgeTable: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if headerIsCustom {
-                MacKnowledgeTableHeader(sortOrder: $sortOrder)
-            }
+        GeometryReader { proxy in
+            let widths = MacKnowledgeHeaderMetrics.columnWidths(scale: zoomScale, available: proxy.size.width)
 
-            table
+            VStack(spacing: 0) {
+                if MacKnowledgeHeaderSupport.isCustom {
+                    MacKnowledgeTableHeader(widths: widths, sortOrder: $sortOrder)
+                }
+
+                table(widths)
+                    .id(MacKnowledgeHeaderMetrics.layoutKey(width: proxy.size.width, scale: zoomScale))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }
     }
 
-    private var headerIsCustom: Bool {
-        if #available(macOS 14.4, *) { true } else { false }
-    }
+    private func table(_ widths: [MacKnowledgeColumn: CGFloat]) -> some View {
+        func width(_ column: MacKnowledgeColumn) -> CGFloat { widths[column] ?? column.width(scale: zoomScale) }
 
-    private var table: some View {
-        Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
+        return Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Question", value: \.question) { row in
                 Text(row.question)
                     .lineLimit(1)
                     .help(row.question)
                     .task { onAppearRow(row.item) }
             }
-            .width(MacKnowledgeColumn.question.width(scale: zoomScale))
+            .width(width(.question))
 
             TableColumn("Answer", value: \.answer) { row in
                 Text(row.answer).lineLimit(1).foregroundStyle(.secondary).help(row.answer)
             }
-            .width(MacKnowledgeColumn.answer.width(scale: zoomScale))
+            .width(width(.answer))
 
             TableColumn("Subject", value: \.subjectName) { row in
-                Text(row.subjectName)
+                Text(row.subjectName).lineLimit(1)
             }
-            .width(MacKnowledgeColumn.subject.width(scale: zoomScale))
+            .width(width(.subject))
 
             TableColumn("State", value: \.stateLabel) { row in
-                Text(row.stateLabel)
+                Text(row.stateLabel).lineLimit(1)
             }
-            .width(MacKnowledgeColumn.state.width(scale: zoomScale))
+            .width(width(.state))
 
             TableColumn("Due", value: \.dueKey) { row in
-                Text(row.dueText)
+                Text(row.dueText).lineLimit(1)
             }
-            .width(MacKnowledgeColumn.due.width(scale: zoomScale))
+            .width(width(.due))
+
+            TableColumn("Created", value: \.createdKey) { row in
+                Text(row.createdText).lineLimit(1)
+            }
+            .width(width(.created))
 
             TableColumn("Lapses", value: \.lapses) { row in
                 Text("\(row.lapses)")
             }
-            .width(MacKnowledgeColumn.lapses.width(scale: zoomScale))
+            .width(width(.lapses))
         }
         .macKnowledgeNativeHeaderHidden()
+        .zoomFont(.body)
         .contextMenu(forSelectionType: String.self, menu: contextMenu) { ids in
             if let id = ids.first, let row = rows.first(where: { $0.id == id }) {
                 onOpen(row.item)

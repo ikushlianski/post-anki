@@ -8,6 +8,7 @@ public struct KnowledgeOverviewItem: Decodable, Sendable, Identifiable, Hashable
     public var state: String
     public let dueAt: String?
     public let lapses: Int
+    public let createdAt: String?
 
     public var id: String { knowledgeBitId }
 
@@ -30,7 +31,8 @@ public struct KnowledgeOverviewItem: Decodable, Sendable, Identifiable, Hashable
         subjectId: String?,
         state: String,
         dueAt: String?,
-        lapses: Int
+        lapses: Int,
+        createdAt: String? = nil
     ) {
         self.knowledgeBitId = knowledgeBitId
         self.question = question
@@ -39,6 +41,7 @@ public struct KnowledgeOverviewItem: Decodable, Sendable, Identifiable, Hashable
         self.state = state
         self.dueAt = dueAt
         self.lapses = lapses
+        self.createdAt = createdAt
     }
 }
 

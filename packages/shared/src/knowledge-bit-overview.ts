@@ -35,6 +35,7 @@ export const knowledgeBitOverviewItemSchema = z.object({
   dueAt: z.string().nullable(),
   lapses: z.number().int().min(0),
   sourceLinks: z.array(z.string()).default([]),
+  createdAt: z.string(),
 });
 
 export type KnowledgeBitOverviewItem = z.infer<typeof knowledgeBitOverviewItemSchema>;

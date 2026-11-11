@@ -173,18 +173,24 @@ struct MacKnowledgeView: View {
         } else if !model.hasLoaded, model.failure != nil {
             MacLoadStateView(failure: model.failureKind ?? .other) { Task { await model.reload() } }
         } else {
-            VStack(spacing: 0) {
-                notices
-                MacKnowledgeTable(
-                    rows: model.items.map {
-                        MacKnowledgeTableRow(item: $0, subjectName: model.subjectName(for: $0.subjectId) ?? "")
-                    },
-                    selection: $model.selection,
-                    onAppearRow: { item in Task { await model.loadMoreIfNeeded(current: item) } },
-                    onOpen: { history.open(.item($0)) },
-                    contextMenu: { ids in AnyView(rowMenu(ids)) }
-                )
-                footer
+            VSplitView {
+                VStack(spacing: 0) {
+                    notices
+                    MacKnowledgeTable(
+                        rows: model.items.map {
+                            MacKnowledgeTableRow(item: $0, subjectName: model.subjectName(for: $0.subjectId) ?? "")
+                        },
+                        selection: $model.selection,
+                        onAppearRow: { item in Task { await model.loadMoreIfNeeded(current: item) } },
+                        onOpen: { history.open(.item($0)) },
+                        contextMenu: { ids in AnyView(rowMenu(ids)) }
+                    )
+                    footer
+                }
+                .frame(maxWidth: .infinity, minHeight: 160, maxHeight: .infinity)
+
+                selectedDetail
+                    .frame(maxWidth: .infinity, minHeight: 200, maxHeight: .infinity)
             }
             .onDeleteCommand { if !bulkDisabled { confirmingDelete = true } }
             .overlay {
@@ -204,6 +210,26 @@ struct MacKnowledgeView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var selectedDetail: some View {
+        if model.selection.count == 1, let item = model.items.first(where: { model.selection.contains($0.id) }) {
+            KnowledgeItemDetailScreen(
+                item: item,
+                subjectName: model.subjectName(for: item.subjectId),
+                onStateChange: { state in model.update(item.id, state: state) },
+                onDeleted: { model.remove(item.id) },
+                onMoved: { _ in Task { await model.reload() } }
+            )
+            .id(item.id)
+        } else {
+            MacEmptyStateView(
+                title: "No card selected",
+                systemImage: "rectangle.and.hand.point.up.left",
+                message: "Select one card to see its question, answer and examples."
+            )
         }
     }
 

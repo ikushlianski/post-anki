@@ -86,6 +86,7 @@ struct MacRootView: View {
                     .id(settingsVersion)
                     .accessibilityIdentifier("detail-\(storedSelection)")
             }
+            .zoomFont(.body)
             .frame(minWidth: 0, maxWidth: .infinity)
         }
         .environment(\.macOpenSettings) { MacSettingsRoute.show(openWindow: openWindow) }

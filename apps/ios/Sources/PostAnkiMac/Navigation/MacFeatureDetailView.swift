@@ -11,9 +11,11 @@ struct MacFeatureDetailView: View {
             } else {
                 NavigationStack {
                     feature.detail(navigator)
+                        .zoomFont(.body)
                 }
             }
         }
+        .zoomFont(.body)
         .id(feature.id)
     }
 }

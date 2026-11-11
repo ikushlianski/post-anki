@@ -21,6 +21,7 @@ import { moveColumn } from './column-order'
 import { BROWSER_COLUMN_LABELS, renderBrowserCell } from './knowledge-browser-columns'
 import type { BrowserColumnId, BrowserSourceCellActions } from './knowledge-browser-columns'
 import { rowClickIntent } from './knowledge-browser-open-item'
+import type { CreatedSortDirection } from './knowledge-browser-created-sort'
 import { KnowledgeBrowserSortableHeader } from './knowledge-browser-sortable-header'
 
 export interface BrowserColumnFilters {
@@ -39,6 +40,7 @@ interface KnowledgeBrowserTableProps {
   onToggleAll: () => void
   sourceActions?: BrowserSourceCellActions
   columnFilters?: BrowserColumnFilters
+  createdSort?: { direction: CreatedSortDirection | null; onToggle: () => void }
 }
 
 const COLUMN_WIDTHS_KEY = 'post-anki:column-widths:knowledge-browser'
@@ -50,7 +52,7 @@ const DEFAULT_WIDTHS: Record<string, number> = {
   source: 190,
   sourceUrl: 190,
   addedBy: 110,
-  addedAt: 110,
+  addedAt: 160,
 }
 
 function rowTone(isSelected: boolean, isOpen: boolean): string {
@@ -70,6 +72,7 @@ export function KnowledgeBrowserTable({
   onToggleAll,
   sourceActions,
   columnFilters,
+  createdSort,
 }: KnowledgeBrowserTableProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -129,6 +132,7 @@ export function KnowledgeBrowserTable({
                     label={BROWSER_COLUMN_LABELS[id]}
                     filterEditor={columnFilters?.renderEditor(id)}
                     filtered={columnFilters?.isFiltered(id)}
+                    sort={id === 'addedAt' ? createdSort : undefined}
                     width={widths[id] ?? 160}
                     onResize={(width) => setWidth(id, width)}
                   />

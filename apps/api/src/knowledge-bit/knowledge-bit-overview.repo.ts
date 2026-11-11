@@ -46,6 +46,7 @@ export async function listKnowledgeBitOverview(
       buriedUntil: knowledgeBitNoteSchedules.buriedUntil,
       lapses: knowledgeBitNoteSchedules.lapses,
       sourceLinks: knowledgeBits.sourceLinks,
+      createdAt: knowledgeBits.createdAt,
     })
     .from(knowledgeBits)
     .leftJoin(knowledgeBitNoteSchedules, eq(knowledgeBitNoteSchedules.knowledgeBitId, knowledgeBits.id))
@@ -128,6 +129,7 @@ export async function listKnowledgeBitOverview(
         dueAt: schedule?.dueAt?.toISOString() ?? null,
         lapses: schedule?.lapses ?? 0,
         sourceLinks: row.sourceLinks ?? [],
+        createdAt: row.createdAt.toISOString(),
       },
     ];
   });

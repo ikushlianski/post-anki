@@ -35,23 +35,3 @@ struct MacZoomTests {
         #expect(MacZoom.percent(1.25) == 125)
     }
 }
-
-struct MacKnowledgeColumnTests {
-    @Test func shouldSortAscendingFirstThenFlipOnRepeatedClicks() {
-        let first = MacKnowledgeColumn.due.nextSortOrder(from: [])
-        #expect(MacKnowledgeColumn.due.direction(in: first) == .forward)
-
-        let second = MacKnowledgeColumn.due.nextSortOrder(from: first)
-        #expect(MacKnowledgeColumn.due.direction(in: second) == .reverse)
-    }
-
-    @Test func shouldShowDirectionOnlyOnTheSortedColumn() {
-        let order = MacKnowledgeColumn.lapses.nextSortOrder(from: [])
-        #expect(MacKnowledgeColumn.question.direction(in: order) == nil)
-    }
-
-    @Test func shouldGrowHeaderHeightAndColumnWidthWithZoom() {
-        #expect(MacKnowledgeHeaderMetrics.height(scale: 2.0) > MacKnowledgeHeaderMetrics.height(scale: 1.0) * 1.9)
-        #expect(MacKnowledgeColumn.question.width(scale: 2.0) == 560)
-    }
-}

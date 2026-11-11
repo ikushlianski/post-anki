@@ -225,3 +225,33 @@ describe('KnowledgeBrowserTable source links', () => {
   })
 })
 
+
+describe('KnowledgeBrowserTable created column', () => {
+  it('should show the creation date and time and sort on click', () => {
+    const onToggle = vi.fn()
+
+    render(
+      <KnowledgeBrowserTable
+        rows={[item]}
+        columnOrder={defaultOrder}
+        onColumnOrderChange={vi.fn()}
+        {...selectionProps}
+        createdSort={{ direction: 'desc', onToggle }}
+      />,
+    )
+
+    const expected = new Date(item.addedAt).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+
+    expect(within(screen.getByTestId('knowledge-browser-row')).getByText(expected)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort Created' }))
+
+    expect(onToggle).toHaveBeenCalledTimes(1)
+  })
+})

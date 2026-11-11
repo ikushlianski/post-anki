@@ -13,6 +13,7 @@ import { BROWSER_ROW_SELECTOR } from './knowledge-browser-slide-over'
 import { KnowledgeBrowserToolbar } from './knowledge-browser-toolbar'
 import { NO_SUBJECT_PARAM } from './knowledge-browser-subject-list'
 import { idsFromSource, singleSelectedSource } from './knowledge-browser-source'
+import { useCreatedSort } from './knowledge-browser-created-sort'
 import { KnowledgeBrowserTable } from './knowledge-browser-table'
 import { AddKnowledgeButton } from '../knowledge-source/add-knowledge-button'
 import { useKnowledgeBrowserArrowKeys } from './use-knowledge-browser-arrow-keys'
@@ -62,7 +63,8 @@ function KnowledgeBrowserCardTable({
   const data = useKnowledgeBrowserRows(subjectId, filters)
   const matches = useKnowledgeBrowserMatches(meaningWords, subjectId, filters)
   const meaning = matches.active
-  const rows = meaning ? matches.rows : data.rows
+  const createdSort = useCreatedSort(meaning ? matches.rows : data.rows)
+  const rows = createdSort.sorted
   const selection = useKnowledgeBrowserSelectionDelete(rows.map((row) => row.knowledgeBitId))
   const rowIds = useMemo(() => rows.map((row) => row.knowledgeBitId), [rows])
 
@@ -173,6 +175,7 @@ function KnowledgeBrowserCardTable({
           onOpenRow={onOpenChange}
           onToggleRow={selection.toggleRow}
           onToggleAll={selection.toggleAll}
+          createdSort={{ direction: createdSort.direction, onToggle: createdSort.toggle }}
           sourceActions={{ countFor: sourceDelete.countFor, onDeleteSource: sourceDelete.open }}
           columnFilters={{
             isFiltered: (id) => filtered.has(id),

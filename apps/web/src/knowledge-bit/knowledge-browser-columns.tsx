@@ -22,7 +22,7 @@ export const BROWSER_COLUMN_LABELS: Record<BrowserColumnId, string> = {
   source: 'Source',
   sourceUrl: 'Source URL',
   addedBy: 'Added by',
-  addedAt: 'Date added',
+  addedAt: 'Created',
 }
 
 function addedByLabel(origin: KnowledgeBitBrowserOrigin): string {
@@ -34,6 +34,16 @@ export function formatAddedAt(iso: string): string {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+  })
+}
+
+export function formatCreatedAt(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -94,7 +104,7 @@ export function renderBrowserCell(
     case 'addedBy':
       return addedByLabel(item.origin)
     case 'addedAt':
-      return formatAddedAt(item.addedAt)
+      return formatCreatedAt(item.addedAt)
     case 'answer':
       return <span title={item.answer}>{item.answer}</span>
   }

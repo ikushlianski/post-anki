@@ -10,6 +10,7 @@ interface KnowledgeBrowserSortableHeaderProps {
   label: string
   filterEditor?: ReactNode
   filtered?: boolean
+  sort?: { direction: 'asc' | 'desc' | null; onToggle: () => void }
   width: number
   onResize: (width: number) => void
 }
@@ -19,6 +20,7 @@ export function KnowledgeBrowserSortableHeader({
   label,
   filterEditor,
   filtered = false,
+  sort,
   onResize,
   width,
 }: KnowledgeBrowserSortableHeaderProps) {
@@ -43,7 +45,20 @@ export function KnowledgeBrowserSortableHeader({
         >
           ⋮⋮
         </button>
-        {label}
+        {sort ? (
+          <button
+            type="button"
+            aria-label={`Sort ${label}`}
+            data-testid={`browser-column-sort-${id}`}
+            onClick={sort.onToggle}
+            className="rounded px-1 hover:bg-neutral-100"
+          >
+            {label}
+            {sort.direction === 'desc' ? ' ↓' : sort.direction === 'asc' ? ' ↑' : ''}
+          </button>
+        ) : (
+          label
+        )}
         {filterEditor && (
           <KnowledgeBrowserToolbarPopover
             buttonLabel={`Filter ${label}`}
