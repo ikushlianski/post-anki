@@ -19,6 +19,8 @@ function makeDeps(overrides: Partial<AnkiImportDeps> = {}): AnkiImportDeps {
       { id: "ks_1", importKey: "anki:1111111111111111", status: "pending" },
       { id: "ks_2", importKey: "anki:2222222222222222", status: "pending" },
     ]),
+    findTakenTextKeys: vi.fn().mockResolvedValue([]),
+    markDuplicates: vi.fn().mockResolvedValue(undefined),
     markImported: vi.fn().mockResolvedValue(undefined),
     kick: vi.fn().mockResolvedValue(undefined),
     ...overrides,
@@ -31,12 +33,45 @@ describe("importBatchStep", () => {
 
     const outcome = await importBatchStep("imp-1", deps);
 
-    expect(outcome).toEqual({ taken: 2, created: 2, alreadyPresent: 0, kicked: 2 });
+    expect(outcome).toEqual({ taken: 2, created: 2, alreadyPresent: 0, duplicateSentences: 0, kicked: 2 });
     expect(deps.markImported).toHaveBeenCalledWith([
       { id: "n1", sourceId: "ks_1" },
       { id: "n2", sourceId: "ks_2" },
     ]);
     expect(deps.kick).toHaveBeenCalledWith(["ks_1", "ks_2"]);
+  });
+
+  it("should import only the first of two notes that are the same sentence with a different blank", async () => {
+    const deps = makeDeps({
+      takeNext: vi.fn().mockResolvedValue([
+        { ...notes[0], rawText: "{{c1::маржа}} это прибыль" },
+        { ...notes[1], rawText: "Маржа это {{c2::прибыль}}" },
+      ]),
+      insertKeyed: vi.fn().mockResolvedValue([{ id: "ks_1" }]),
+      findSources: vi.fn().mockResolvedValue([{ id: "ks_1", importKey: "anki:1111111111111111", status: "pending" }]),
+    });
+
+    const outcome = await importBatchStep("imp-1", deps);
+
+    expect(outcome).toMatchObject({ taken: 2, created: 1, duplicateSentences: 1 });
+    expect(deps.insertKeyed).toHaveBeenCalledWith(
+      [{ importKey: "anki:1111111111111111", rawText: "{{c1::маржа}} это прибыль", textKey: "маржа это прибыль" }],
+      "sub_1",
+    );
+    expect(deps.markDuplicates).toHaveBeenCalledWith(["n2"]);
+  });
+
+  it("should skip a note whose sentence an earlier import already saved", async () => {
+    const deps = makeDeps({
+      findTakenTextKeys: vi.fn().mockResolvedValue(["one"]),
+      insertKeyed: vi.fn().mockResolvedValue([{ id: "ks_2" }]),
+      findSources: vi.fn().mockResolvedValue([{ id: "ks_2", importKey: "anki:2222222222222222", status: "pending" }]),
+    });
+
+    const outcome = await importBatchStep("imp-1", deps);
+
+    expect(outcome).toMatchObject({ created: 1, duplicateSentences: 1 });
+    expect(deps.markDuplicates).toHaveBeenCalledWith(["n1"]);
   });
 
   it("should add no duplicate sources and still mark notes imported when a batch is retried after a crash", async () => {

@@ -2,6 +2,7 @@ import { NonRetriableError } from "inngest";
 import type { DeckSubjectResolution } from "../mcp/business-deck-mapping.js";
 import type { KeyedKnowledgeSourceItem, KeyedSourceRef } from "../knowledge-source/knowledge-source-keyed-insert.repo.js";
 import type { ImportStatusCounts, StoredImportNote } from "./anki-import.repo.js";
+import { ankiNoteTextKey } from "./anki-note-text-key.js";
 import { BATCH_SIZE, MAX_IMPORT_NOTES } from "./anki-import.limits.js";
 
 export interface AnkiImportDeps {
@@ -12,6 +13,8 @@ export interface AnkiImportDeps {
   resolveDeck: (deck: string) => Promise<DeckSubjectResolution>;
   insertKeyed: (items: KeyedKnowledgeSourceItem[], subjectId: string) => Promise<unknown[]>;
   findSources: (keys: string[]) => Promise<KeyedSourceRef[]>;
+  findTakenTextKeys: (textKeys: string[], ownImportKeys: string[]) => Promise<string[]>;
+  markDuplicates: (ids: string[]) => Promise<void>;
   markImported: (entries: { id: string; sourceId: string }[]) => Promise<void>;
   kick: (sourceIds: string[]) => Promise<void>;
 }
@@ -25,6 +28,7 @@ export interface BatchOutcome {
   taken: number;
   created: number;
   alreadyPresent: number;
+  duplicateSentences: number;
   kicked: number;
 }
 
@@ -53,7 +57,28 @@ export async function planStep(importId: string, deps: AnkiImportDeps): Promise<
 }
 
 export async function importBatchStep(importId: string, deps: AnkiImportDeps): Promise<BatchOutcome> {
-  const notes = await deps.takeNext(importId, BATCH_SIZE);
+  const taken = await deps.takeNext(importId, BATCH_SIZE);
+  const keyed = taken.map((note) => ({ note, textKey: ankiNoteTextKey(note.rawText) }));
+  const takenElsewhere = new Set(
+    await deps.findTakenTextKeys(
+      keyed.map((entry) => entry.textKey),
+      taken.map((note) => note.noteKey),
+    ),
+  );
+  const seen = new Set<string>();
+  const kept = keyed.filter((entry) => {
+    if (takenElsewhere.has(entry.textKey) || seen.has(entry.textKey)) {
+      return false;
+    }
+
+    seen.add(entry.textKey);
+
+    return true;
+  });
+  const keptIds = new Set(kept.map((entry) => entry.note.id));
+  const duplicateIds = taken.filter((note) => !keptIds.has(note.id)).map((note) => note.id);
+  const notes = kept.map((entry) => entry.note);
+  const textKeyByNoteKey = new Map(kept.map((entry) => [entry.note.noteKey, entry.textKey]));
   const byDeck = new Map<string, StoredImportNote[]>();
 
   for (const note of notes) {
@@ -69,7 +94,11 @@ export async function importBatchStep(importId: string, deps: AnkiImportDeps): P
       throw new NonRetriableError(resolved.error);
     }
 
-    const items = deckNotes.map((note) => ({ importKey: note.noteKey, rawText: note.rawText }));
+    const items = deckNotes.map((note) => ({
+      importKey: note.noteKey,
+      rawText: note.rawText,
+      textKey: textKeyByNoteKey.get(note.noteKey),
+    }));
 
     created += (await deps.insertKeyed(items, resolved.subjectId)).length;
   }
@@ -93,11 +122,13 @@ export async function importBatchStep(importId: string, deps: AnkiImportDeps): P
   }
 
   await deps.markImported(entries);
+  await deps.markDuplicates(duplicateIds);
 
   return {
-    taken: notes.length,
+    taken: taken.length,
     created,
     alreadyPresent: notes.length - created,
+    duplicateSentences: duplicateIds.length,
     kicked: pendingIds.length,
   };
 }

@@ -73,6 +73,17 @@ export async function markNotesImported(
   `);
 }
 
+export async function markNotesDuplicate(ids: readonly string[], db: DbExecutor = getDb()): Promise<void> {
+  if (ids.length === 0) {
+    return;
+  }
+
+  await db
+    .update(ankiImportNotes)
+    .set({ status: "duplicate", updatedAt: new Date() })
+    .where(inArray(ankiImportNotes.id, [...ids]));
+}
+
 export async function listStagedDecks(importId: string, db: DbExecutor = getDb()): Promise<string[]> {
   const rows = await db
     .selectDistinct({ deck: ankiImportNotes.deck })

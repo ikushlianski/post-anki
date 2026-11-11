@@ -1199,6 +1199,8 @@ export const knowledgeSources = pgTable(
     notionPageId: text("notion_page_id"),
     // Set only for kind: "phrase" rows: normalized phrase key, unique so re-posting a phrase is a no-op.
     importKey: text("import_key"),
+    // Set only for Anki-imported rows: cloze-free, lowercased text used to skip same-sentence notes.
+    textKey: text("text_key"),
     // Set only when bit-detection marks this source "failed", so it's
     // explainable instead of silently stuck.
     failureReason: text("failure_reason"),
@@ -1233,6 +1235,7 @@ export const knowledgeSources = pgTable(
       table.notionPageId,
     ),
     importKeyUnique: uniqueIndex("knowledge_sources_import_key_unique").on(table.importKey),
+    textKeyIdx: index("knowledge_sources_text_key_idx").on(table.textKey),
   }),
 );
 

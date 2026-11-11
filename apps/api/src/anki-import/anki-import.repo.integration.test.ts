@@ -8,10 +8,12 @@ import * as schema from "../db/schema.js";
 import {
   countImportNotesByStatus,
   listStagedDecks,
+  markNotesDuplicate,
   markNotesImported,
   stageImportNotes,
   takeNextStagedNotes,
 } from "./anki-import.repo.js";
+import { findAnkiTextKeysTakenElsewhere } from "../knowledge-source/knowledge-source-keyed-insert.repo.js";
 
 const BASE_DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -112,5 +114,29 @@ describe("anki import staging repo", () => {
     await markNotesImported([{ id: first.id, sourceId: "ks_x" }], db);
 
     await expect(listStagedDecks("imp-decks", db)).resolves.toEqual(["Лояльность"]);
+  });
+});
+
+describe("same-sentence lookup", () => {
+  it("should report a sentence saved by another anki note but not by the note itself", async () => {
+    await pool.query(
+      `INSERT INTO knowledge_sources (id, kind, raw_text, import_key, text_key) VALUES ('ks_dup1', 'prose', 'x', 'anki:aaaaaaaaaaaaaaaa', 'same sentence')`,
+    );
+
+    await expect(findAnkiTextKeysTakenElsewhere(["same sentence"], ["anki:bbbbbbbbbbbbbbbb"], db)).resolves.toEqual([
+      "same sentence",
+    ]);
+    await expect(findAnkiTextKeysTakenElsewhere(["same sentence"], ["anki:aaaaaaaaaaaaaaaa"], db)).resolves.toEqual([]);
+  });
+
+  it("should mark notes as duplicates so they are not handed out again", async () => {
+    await stageImportNotes("imp-dupmark", rows(2), db);
+    const [first] = await takeNextStagedNotes("imp-dupmark", 1, db);
+
+    if (!first) throw new Error("expected a staged note");
+
+    await markNotesDuplicate([first.id], db);
+
+    await expect(countImportNotesByStatus("imp-dupmark", db)).resolves.toEqual({ staged: 1, imported: 0 });
   });
 });

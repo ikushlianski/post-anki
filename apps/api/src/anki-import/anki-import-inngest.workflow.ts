@@ -5,6 +5,7 @@ import { createInngestClient } from "../shared/inngest-client.js";
 import { isDurableExtractionEnabled } from "../knowledge-bit/durable-extraction.flag.js";
 import { resolveDeckSubjectId } from "../mcp/business-deck-mapping.js";
 import {
+  findAnkiTextKeysTakenElsewhere,
   findSourcesByImportKeys,
   insertKeyedKnowledgeSources,
 } from "../knowledge-source/knowledge-source-keyed-insert.repo.js";
@@ -14,6 +15,7 @@ import { ANKI_IMPORT_FINISH_TIMEOUT, ANKI_IMPORT_RETRIES } from "./anki-import.l
 import {
   countImportNotesByStatus,
   listStagedDecks,
+  markNotesDuplicate,
   markNotesImported,
   takeNextStagedNotes,
 } from "./anki-import.repo.js";
@@ -30,6 +32,8 @@ function defaultDeps(): AnkiImportDeps {
     resolveDeck: (deck) => resolveDeckSubjectId(deck),
     insertKeyed: (items, subjectId) => insertKeyedKnowledgeSources(items, subjectId, getDb()),
     findSources: (keys) => findSourcesByImportKeys(keys),
+    findTakenTextKeys: (textKeys, ownImportKeys) => findAnkiTextKeysTakenElsewhere(textKeys, ownImportKeys),
+    markDuplicates: (ids) => markNotesDuplicate(ids),
     markImported: (entries) => markNotesImported(entries),
     kick: (sourceIds) => kickSourcesAfterAdd(sourceIds),
   };

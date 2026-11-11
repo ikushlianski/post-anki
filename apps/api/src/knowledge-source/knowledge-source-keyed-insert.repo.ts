@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { and, inArray, like, notInArray } from "drizzle-orm";
 import { getDb, type DbExecutor } from "../db/client.js";
 import { knowledgeSources } from "../db/schema.js";
 import { newId } from "../shared/id.js";
@@ -7,6 +7,7 @@ import type { KnowledgeSource } from "./knowledge-source.repo.js";
 export interface KeyedKnowledgeSourceItem {
   importKey: string;
   rawText: string;
+  textKey?: string;
 }
 
 export async function insertKeyedKnowledgeSources(
@@ -25,6 +26,7 @@ export async function insertKeyedKnowledgeSources(
     status: "pending",
     subjectId,
     importKey: item.importKey,
+    textKey: item.textKey ?? null,
   }));
 
   const inserted = await db
@@ -56,4 +58,27 @@ export async function findSourcesByImportKeys(
     .where(inArray(knowledgeSources.importKey, [...keys]));
 
   return rows.flatMap((row) => (row.importKey ? [{ id: row.id, importKey: row.importKey, status: row.status }] : []));
+}
+
+export async function findAnkiTextKeysTakenElsewhere(
+  textKeys: readonly string[],
+  ownImportKeys: readonly string[],
+  db: DbExecutor = getDb(),
+): Promise<string[]> {
+  if (textKeys.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .selectDistinct({ textKey: knowledgeSources.textKey })
+    .from(knowledgeSources)
+    .where(
+      and(
+        inArray(knowledgeSources.textKey, [...textKeys]),
+        like(knowledgeSources.importKey, "anki:%"),
+        ownImportKeys.length > 0 ? notInArray(knowledgeSources.importKey, [...ownImportKeys]) : undefined,
+      ),
+    );
+
+  return rows.flatMap((row) => (row.textKey ? [row.textKey] : []));
 }
