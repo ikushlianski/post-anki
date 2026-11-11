@@ -8,6 +8,16 @@ import { closeDb } from "../db/client.js";
 
 const webSearch = vi.hoisted(() => vi.fn());
 
+vi.mock("../admin-settings/admin-settings.repo.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../admin-settings/admin-settings.repo.js")>()),
+  getTriageEnabled: async () => true,
+}));
+
+vi.mock("./knowledge-bit-duplicate-gate.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./knowledge-bit-duplicate-gate.js")>()),
+  dropDuplicateCards: async (_db: unknown, lessons: readonly unknown[]) => ({ lessons: [...lessons], skippedCards: 0 }),
+}));
+
 vi.mock("../shared/log.js", () => ({
   log: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
