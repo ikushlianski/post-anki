@@ -1486,3 +1486,25 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-11: Cloze imports become plain facts, then fresh web-enriched cards, never verbatim copies with the tail in Examples.
 - 2026-11-11: Card prompts default to direct what/why/how questions; cloze only for short sentences, long ones rejected.
 - 2026-11-11: Backfill job rebuilds pending untriaged verbatim-cloze import cards through the new path, retiring the old ones.
+
+## triage-setting
+
+- 2026-11-11: Add a triage on/off setting, off by default, stored with the other app settings and returned with the triage count.
+- 2026-11-11: With triage off, cards made from notes or typed by hand are saved as approved and studyable at once, keeping only the first variant for phrase notes.
+- 2026-11-11: Web settings get the triage toggle, and the web sidebar hides the triage link when triage is off and nothing is waiting.
+- 2026-11-11: Mac and iPhone settings get the triage toggle, and both apps hide the triage tab and badge when triage is off and nothing is waiting.
+- 2026-11-11: Every new card passes one bulk duplicate lookup before it is saved, and a card whose question and answer both match an existing card is skipped, while the same phrase asked from a different angle is kept.
+
+## subject-levels
+
+- 2026-11-11: Subjects store an Easy, Normal or Cram level that sets how far apart reviews are, with sub-subjects using the nearest parent's level and Normal as the default.
+- 2026-11-11: The subject options screen in web and the apps lets the learner pick the level and previews the next gap for Good and Easy.
+- 2026-11-11: Creating a subject or sub-subject in web and the apps lets the learner pick the level, with sub-subjects offered Inherit.
+
+## sweep-cap
+
+- 2026-11-11: With triage off, the import sweep counts approved cards that have never been studied and holds back imported notes while that count is at the cap, and with triage on it keeps counting cards waiting in triage.
+
+## approve-waiting-cards
+
+- 2026-11-11: A one-off script reports how many waiting triage cards it would add to each subject, and with its apply flag approves them so they become studyable, changing nothing on a second run.
