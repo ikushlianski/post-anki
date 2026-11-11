@@ -100,6 +100,12 @@ describe("attentionFirstWords", () => {
     expect(attentionFirstWords("  hello\n world ")).toBe("hello world");
     expect(attentionFirstWords(null)).toBe("");
   });
+
+  it("should show the hidden answer instead of the cloze marker in an inbox title", () => {
+    expect(attentionFirstWords("РСЯ - это {{c1::рекламная сеть Яндекса::что}}, где реклама")).toBe(
+      "РСЯ - это рекламная сеть Яндекса, где реклама",
+    );
+  });
 });
 
 describe("deriveAttentionKind", () => {

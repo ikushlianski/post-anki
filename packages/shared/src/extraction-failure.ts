@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { importedFactText } from "./cloze-fact-text";
 import { KNOWLEDGE_SOURCE_MAX_CHARS } from "./knowledge-source-refusal";
 
 const SOURCE_MAX_CHARS_LABEL = KNOWLEDGE_SOURCE_MAX_CHARS.toLocaleString("en-US");
@@ -99,7 +100,7 @@ export function attentionWording(kind: KnowledgeSourceAttentionKind, reason: str
 }
 
 export function attentionFirstWords(rawText: string | null | undefined): string {
-  const flat = (rawText ?? "").replace(/\s+/g, " ").trim();
+  const flat = importedFactText(rawText ?? "").replace(/\s+/g, " ").trim();
 
   if (flat.length <= ATTENTION_FIRST_WORDS_MAX_CHARS) {
     return flat;

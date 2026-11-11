@@ -1,6 +1,6 @@
 import { DURABLE_CHUNK_DEADLINE_MS } from "./durable-extraction.config.js";
 import { importEnrichBudget } from "./knowledge-bit-import-enrichment.js";
-import { importedFactText } from "./knowledge-bit-import-facts.js";
+import { hasClozeMarkup, importedFactText } from "./knowledge-bit-import-facts.js";
 import { chunkSourceText, chunkSourceTextWithOffsets } from "./knowledge-bit-source-chunking.js";
 import { planFocusedChunks } from "./knowledge-bit-focus.js";
 import {
@@ -89,7 +89,11 @@ export async function claimStep(
 async function loadSourceText(sourceId: string, deps: DurableStepDeps): Promise<string | null> {
   const rawText = await deps.loadRawText(sourceId);
 
-  return rawText && (await deps.loadIsAnkiImport?.(sourceId)) ? importedFactText(rawText) : rawText;
+  return rawText && (await isClozeShaped(sourceId, rawText, deps)) ? importedFactText(rawText) : rawText;
+}
+
+async function isClozeShaped(sourceId: string, rawText: string | null, deps: DurableStepDeps): Promise<boolean> {
+  return Boolean(await deps.loadIsAnkiImport?.(sourceId)) || (rawText !== null && hasClozeMarkup(rawText));
 }
 
 export async function planStep(snapshot: DurableSourceSnapshot, deps: DurableStepDeps): Promise<DurablePlan> {
@@ -130,7 +134,8 @@ async function writeOptionsFor(
 
   const sourceKind = await deps.loadSourceKind?.(snapshot.id);
 
-  const ankiImport = await deps.loadIsAnkiImport?.(snapshot.id);
+  const clozeShaped = await isClozeShaped(snapshot.id, await deps.loadRawText(snapshot.id), deps);
+  const ankiImport = clozeShaped || undefined;
 
   const targetPhrases = await deps.loadTargetPhrases?.(snapshot.id);
 
@@ -149,7 +154,7 @@ async function writeOptionsFor(
     ...(detailLevel ? { detailLevel } : {}),
     ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),
     ...(modelId ? { modelId } : {}),
-    ...(extras.forceAtLeastOne ? { forceAtLeastOne: true } : {}),
+    ...(extras.forceAtLeastOne || clozeShaped ? { forceAtLeastOne: true } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
     webSearchBudget: importEnrichBudget(ankiImport, index),

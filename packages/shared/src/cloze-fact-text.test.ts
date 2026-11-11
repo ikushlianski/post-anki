@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasClozeMarkup, importedFactText } from "./knowledge-bit-import-facts.js";
+import { hasClozeMarkup, importedFactText } from "./cloze-fact-text";
 
 describe("importedFactText", () => {
   it("should read a cloze note as a plain sentence with the gaps filled in", () => {

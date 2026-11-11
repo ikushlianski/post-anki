@@ -54,6 +54,7 @@ export * from "./knowledge-bit";
 export * from "./knowledge-bit-pending-subjects";
 export * from "./knowledge-bit-pending-list";
 export * from "./cloze";
+export * from "./cloze-fact-text";
 export * from "./ordered-list";
 export * from "./extraction-failure";
 export * from "./knowledge-bit-chat";

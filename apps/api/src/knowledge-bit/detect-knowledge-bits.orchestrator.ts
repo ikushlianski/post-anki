@@ -1,6 +1,6 @@
 import { KNOWLEDGE_SOURCE_MAX_CHARS, resolveUsableKnowledgeItemModelId } from "@post-anki/shared";
 import { enrichImportedItems, importEnrichBudget } from "./knowledge-bit-import-enrichment.js";
-import { importedFactText } from "./knowledge-bit-import-facts.js";
+import { hasClozeMarkup, importedFactText } from "./knowledge-bit-import-facts.js";
 import { log } from "../shared/log.js";
 import { loadRecentFeedbackForExtraction } from "./knowledge-bit-feedback.repo.js";
 import { loadStyleNotesBlock } from "../card-triage/style-notes-loader.js";
@@ -171,7 +171,8 @@ export async function generateItemsForSource(
   const learningIntent = await loadLearningIntentSafely(source.subjectId, source.id, deps.loadLearningIntent);
   const subjectKind = await (deps.loadSubjectKind ?? resolveSubjectKind)(source.subjectId);
   const sourceKind = await loadOptionalSafely(source.id, "knowledge_source_kind_load_failed", deps.loadSourceKind);
-  const ankiImport = await loadOptionalSafely(source.id, "knowledge_source_anki_import_load_failed", deps.loadIsAnkiImport);
+  const isAnkiImport = await loadOptionalSafely(source.id, "knowledge_source_anki_import_load_failed", deps.loadIsAnkiImport);
+  const ankiImport = isAnkiImport || (source.rawText !== null && hasClozeMarkup(source.rawText)) || undefined;
   const targetPhrases = await loadOptionalSafely(
     source.id,
     "knowledge_target_phrases_load_failed",
@@ -192,7 +193,7 @@ export async function generateItemsForSource(
     ...(detailLevel ? { detailLevel } : {}),
     ...(fusionModelIds.length > 0 ? { fusionModelIds } : {}),
     ...(modelId ? { modelId } : {}),
-    ...(requestedOptions.forceAtLeastOne ? { forceAtLeastOne: true } : {}),
+    ...(requestedOptions.forceAtLeastOne || ankiImport ? { forceAtLeastOne: true } : {}),
     ...(feedbackBlock ? { feedbackBlock } : {}),
     ...(styleNotesBlock ? { styleNotesBlock } : {}),
   };

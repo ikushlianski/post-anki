@@ -95,6 +95,30 @@ describe("generateItemsForSource with long cloze notes", () => {
   });
 });
 
+describe("generateItemsForSource with a pasted cloze note", () => {
+  it("should strip the markers and ask for at least one card when the note is not an Anki import", async () => {
+    const deps = buildGenerateDeps();
+
+    await generateItemsForSource(source("ks_z", "A deal needs {{c1::budget::what}}."), {}, deps);
+
+    expect(deps.writeItems).toHaveBeenCalledWith(
+      "A deal needs budget.",
+      expect.objectContaining({ forceAtLeastOne: true }),
+    );
+  });
+
+  it("should leave a plain prose note's text and options unchanged", async () => {
+    const deps = buildGenerateDeps();
+
+    await generateItemsForSource(source("ks_q", "HTTP is a stateless protocol."), {}, deps);
+
+    const [text, options] = vi.mocked(deps.writeItems).mock.calls[0] ?? [];
+
+    expect(text).toBe("HTTP is a stateless protocol.");
+    expect(options).not.toHaveProperty("forceAtLeastOne");
+  });
+});
+
 describe("generateItemsForSource", () => {
   it("should tell the writer the source is a phrase so it gets the phrase card writer", async () => {
     const loadSourceKind = vi.fn().mockResolvedValue("phrase");

@@ -131,12 +131,34 @@ describe("chunkStep", () => {
     expect(enrichItems).toHaveBeenCalledWith(expect.any(Array), 2);
   });
 
-  it("should send a cloze-looking note to the model when the source is not an Anki import", async () => {
+  it("should strip cloze markers from a pasted note that is not an Anki import", async () => {
+    const d = deps({ loadRawText: vi.fn().mockResolvedValue("A deal needs {{c1::budget::what}}.") });
+
+    await chunkStep(snapshot, 0, d);
+
+    expect(d.writeItems).toHaveBeenCalledWith("A deal needs budget.", expect.anything());
+  });
+
+  it("should ask for at least one card when a pasted note contains a blank", async () => {
     const d = deps({ loadRawText: vi.fn().mockResolvedValue("A deal needs {{c1::budget}}.") });
 
-    await chunkStep(snapshot, 0, d).catch(() => undefined);
+    await chunkStep(snapshot, 0, d);
 
-    expect(d.writeItems).toHaveBeenCalledWith("A deal needs {{c1::budget}}.", expect.anything());
+    expect(d.writeItems).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ forceAtLeastOne: true }),
+    );
+  });
+
+  it("should leave a plain prose note's text and options unchanged", async () => {
+    const d = deps({ loadRawText: vi.fn().mockResolvedValue("HTTP is a stateless protocol.") });
+
+    await chunkStep(snapshot, 0, d);
+
+    const [text, options] = vi.mocked(d.writeItems).mock.calls[0] ?? [];
+
+    expect(text).toBe("HTTP is a stateless protocol.");
+    expect(options).not.toHaveProperty("forceAtLeastOne");
   });
 
   it("should tell the writer the source is a phrase on the durable path too", async () => {
