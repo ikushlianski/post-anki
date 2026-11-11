@@ -837,3 +837,29 @@
 {"ts":"2026-11-10T15:20:36Z","direction":"chat-queue-card-crafting","items":["research-first","subject-chat-instruction","seed-instructions","b2b-sales"],"reviewer":"ie-light-reviewer/sonnet","verdict":"pass","blocking":0,"report":".planning/.runs/2026-11-10/chat-mac-parity/subject-review.md"}
 {"ts":"2026-11-10T17:30:58Z","direction":"offline-review","items":["pack-endpoint","pack-store","offline-fallback","outbox-sync"],"reviewer":"ie-light-reviewer/sonnet","verdict":"pass","blocking":0,"report":".planning/.runs/2026-11-10/offline-review/review.md"}
 {"ts":"2026-11-10T21:10:49Z","direction":"import-facts-not-templates","items":3,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":0,"medium":4,"low":6},"fixRound":"mediums fixed"}
+{"ts":"2026-11-10T22:08:26Z","direction":"inngest-prod-reliability","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":1,"high":0,"medium":1,"low":3},"fixRound":"critical+medium+lows fixed, re-check pass"}
+{"ts":"2026-11-10T22:08:26Z","direction":"subject-card-prompts","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":0,"medium":1,"low":4},"fixRound":"none; medium was the intended infra URI change"}
+{"ts":"2026-11-10T22:08:26Z","direction":"model-quality-tracking","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":0,"medium":0,"low":4},"fixRound":"none"}
+{"ts":"2026-11-10T22:33:04Z","direction":"model-quality-tracking","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":2,"medium":5,"low":5},"fixRound":"highs fixed by narrowing scope; recovery path removed; 2 lows accepted"}
+{"ts":"2026-11-10T22:33:04Z","direction":"triage-focus-mode","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":2,"medium":2,"low":2},"fixRound":"2 rounds; window scoping verified against reviewer fix"}
+{"ts":"2026-11-11T00:20:00Z","direction":"cloze-duplicates","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":2,"medium":0,"low":0},"fixRound":"1 round; regex lazy fix verified on 1680 prod notes, migration test updated"}
+{"ts":"2026-11-11T00:20:00Z","direction":"triage-queue-cap","items":1,"reviewer":"ie-light-reviewer","model":"sonnet","verdict":"pass","findings":{"critical":0,"high":0,"medium":3,"low":0},"fixRound":"none"}
+{"ts":"2026-11-11T20:39:15Z","unit":"triage-setting","reviewer":"reviewer-readonly/sonnet","verdict":"needs-changes","high":2,"medium":2,"report":".planning/.runs/2026-11-11/triage-optional/triage-setting-review.md"}
+{"ts":"2026-11-11T20:40:49Z","unit":"triage-setting","reviewer":"reviewer-readonly/sonnet","verdict":"pass","round":2,"report":".planning/.runs/2026-11-11/triage-optional/triage-setting-review.md"}
+{"ts":"2026-11-11T20:49:52Z","unit":"subject-levels","reviewer":"reviewer-readonly/sonnet","verdict":"pass","round":1}
+{"ts":"2026-11-11T20:51:49Z","unit":"sweep-cap","reviewer":"reviewer-readonly/sonnet","verdict":"pass","round":1}
+{"ts":"2026-11-11T20:51:53Z","unit":"approve-waiting-cards","reviewer":"reviewer-readonly/sonnet","verdict":"pass","round":1}
+{"ts":"2026-11-11T20:53:55Z","unit":"whole-run","reviewer":"reviewer-readonly/sonnet","verdict":"pass","round":1}
+{"ts":"2026-11-11T22:28:15Z","focus":"cloze-notes","reviewer":"personal-reviewer/sonnet","verdict":"PASS","blocking":0}
+{"ts":"2026-11-11T22:35:33Z","focus":"list-aware-card-writing","reviewer":"personal-reviewer/sonnet","verdict":"PASS","blocking":0,"followup":"fixed 2 medium prompt contradictions"}
+{"ts":"2026-11-11T23:04:01Z","direction":"subject-picker-search","verdict":"pass","report":".planning/.runs/2026-11-11/review-and-subject-polish/picker-review.md"}
+{"ts":"2026-11-11T23:04:59Z","direction":"card-maturity-colors","verdict":"pass"}
+{"ts":"2026-11-11T23:06:40Z","direction":"code-capture+code-card-writing","verdict":"needs-changes"}
+{"ts":"2026-11-11T23:08:44Z","direction":"chat-model-switch","verdict":"pass"}
+{"ts":"2026-11-11T23:08:51Z","direction":"sidebar-without-study-plan","verdict":"pass"}
+{"ts":"2026-11-11T23:10:12Z","direction":"code-capture+code-card-writing","verdict":"pass"}
+{"ts":"2026-11-11T23:11:18Z","direction":"knowledge-created-column+mac-detail-font-size","verdict":"needs-changes"}
+{"ts":"2026-11-11T23:12:35Z","direction":"code-rendering(web)","verdict":"pass"}
+{"ts":"2026-11-11T23:15:09Z","direction":"code-rendering(apple)","verdict":"pass"}
+{"ts":"2026-11-11T23:21:00Z","direction":"knowledge-created-column+mac-detail-font-size","verdict":"pass","note":"verified in dev build screenshot"}
+{"ts":"2026-11-11T23:23:14Z","direction":"final-cross-cutting","verdict":"pass"}

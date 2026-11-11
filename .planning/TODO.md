@@ -15,8 +15,8 @@ updated: 2026-09-04
 - Out of scope: Native app editing screens.
 
 ### Coding tasks
-- [ ] Every subject and sub-subject gets a default card-writing instruction, inherited by sub-subjects without their own.
-- [ ] Triage notes from sessions left open over a day are distilled, so they also shape new cards.
+- [x] Every subject and sub-subject gets a default card-writing instruction, inherited by sub-subjects without their own.
+- [x] Triage notes from sessions left open over a day are distilled, so they also shape new cards.
 
 ### Notes
 
@@ -29,8 +29,9 @@ updated: 2026-09-04
 - Out of scope: Model comparison runs and native app screens.
 
 ### Coding tasks
-- [ ] A web table shows approved, rejected and rating per model, with older unknown-model cards grouped as unknown.
-- [ ] Each new card stores the model that actually wrote it, and ratings and triage decisions use that.
+- [x] Card rebuild script must keep the old card pending when it writes no new card.
+- [x] A web table shows approved, rejected and rating per model, with older unknown-model cards grouped as unknown.
+- [x] Each new card stores the model that actually wrote it, and ratings and triage decisions use that.
 
 ### Notes
 
@@ -43,8 +44,8 @@ updated: 2026-09-04
 - Out of scope: Moving jobs off Inngest.
 
 ### Coding tasks
-- [ ] Deploy re-syncs the API with Inngest Cloud and fails when the sync does not land.
-- [ ] Pending imported notes reach Inngest via the sweep, logging an error when any wait over 30 minutes.
+- [x] Deploy re-syncs the API with Inngest Cloud and fails when the sync does not land.
+- [x] Pending imported notes reach Inngest via the sweep, logging an error when any wait over 30 minutes.
 
 ### Notes
 
@@ -698,7 +699,7 @@ updated: 2026-09-04
 - Out of scope: Changing how kept cards are scheduled
 
 ### Coding tasks
-- [ ] Mac triage arrows: left rejects, right approves, up sends to chat, with an optional typed comment.
+- [x] Mac triage arrows: left rejects, right approves, up sends to chat, with an optional typed comment.
 - [x] The focus card can be edited before approving, and approving a card approves all its variations.
 - [x] Triage shows one card at a time with Reject and Approve buttons and arrow keys.
 - [x] The approval page hides all cards until the user presses Start triage, so triage is never skipped.

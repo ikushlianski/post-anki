@@ -53,7 +53,7 @@
 
 ### Criteria
 - [x] The script by default only reports how many waiting cards it would add to each subject.
-- [ ] With its apply flag, every waiting card ends up studyable in its subject, and running it again changes nothing.
+- [x] With its apply flag, every waiting card ends up studyable in its subject, and running it again changes nothing.
 
 ### Coding tasks
 
