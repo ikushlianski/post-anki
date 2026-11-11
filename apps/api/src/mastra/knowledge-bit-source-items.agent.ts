@@ -28,7 +28,7 @@ import { runLegacyKnowledgeBitSourceItems } from "./knowledge-bit-source-items.l
 import { runBusinessKnowledgeBitCards } from "./knowledge-bit-business-cards.agent.js";
 import { runMeetingPhraseCard } from "./knowledge-bit-meeting-phrase.agent.js";
 import { FORCE_AT_LEAST_ONE_LESSON_SUFFIX } from "./force-at-least-one.js";
-import { buildLanguageHeaderLines, LANGUAGE_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
+import { buildLanguageHeaderLines, LANGUAGE_RULES, LIST_CARD_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
 
 export const CARDS_MAX_PER_LESSON = 3;
 export const LIST_CARDS_MAX_PER_LESSON = 8;
@@ -88,21 +88,8 @@ export const INSTRUCTIONS = [
   "and each of a different kind where the lesson allows (a why, a fill_blank, a basic). Write only 1 when the",
   `lesson is too thin for a second distinct card. Never more than ${CARDS_MAX_PER_LESSON} per lesson. Cover every lesson.`,
   "",
-  "LISTS AND CATEGORIES. When a lesson holds a list, enumeration, classification or several related",
-  "groups (3, 5, 7 or more items), NEVER put the whole list on the back of one card: each card tests",
-  `one small piece. A list lesson may have up to ${LIST_CARDS_MAX_PER_LESSON} cards, overriding the limit above. Use`,
-  "only the items the lesson states.",
-  "1. Mnemonic frame (required for 4 or more items): build a memorable acronym (a word from the first",
-  "   letters of the items) or an acrostic (a phrase whose words start with those letters). Make one",
-  "   card whose question names the context and shows the hint (for example \"X-Y-Z\"), and whose answer",
-  "   is the list with the mnemonic letters marked.",
-  "2. Group structure (several lists or categories): one top-level card asking only the group names and",
-  "   how many items each holds, plus membership cards \"Which group does [item X] belong to?\" with the",
-  "   group name as the answer.",
-  "3. Atomization (cloze overlap): cards with one item missing in its context, for example",
-  "   \"[Item 1] -> ____ -> [Item 3]\" with the missing item as the answer (fill_blank). For lists with",
-  "   meaning, ask one deep question about one item (for example \"Which social cause is on the list?\").",
-  "List cards must be fast: the answer is 1 to 5 words and a card can be answered in about 3 seconds.",
+  LIST_CARD_RULES,
+  `A list lesson may have up to ${LIST_CARDS_MAX_PER_LESSON} cards, overriding the limit above.`,
   "",
   "FAITHFULNESS. Keep the strength of every claim: \"not necessary\" is not \"forbidden\", \"may\" is not \"must\".",
   "Two cards never state the same fact in different words. A question is never answered by yes or no.",

@@ -74,6 +74,7 @@ A note needs attention when any of these hold (derived from the notes table, not
 
 ### Nothing extracted
 
+- List cards: list-shaped material becomes situation-to-category, one-reason, discrimination and one-item cards, never a card whose answer is the whole list (shared `LIST_CARD_RULES`); each substantive paragraph is its own card source, up to 8 lessons or business cards per chunk, and a business card with a short answer stores `question — answer` as its statement so same-answer situation cards stay distinct.
 - The lessons prompt and the business card prompt may return an empty list when the text has no practical value (greetings, filler, narrative with no takeaway); a short note that states one claim must still yield a card. The language-subject path is unchanged.
 - A deliberate empty is not retried, makes no cards-agent call, and is not an error. The runner reports it through `onNothingWorthKeeping`; `writeAndValidate` returns `deliberateEmpty`.
 - When every chunk is a deliberate empty and nothing was inserted, the note finishes as `bits_detected` with `knowledge_sources.nothing_extracted_at` set (all three paths: inline, durable, Inngest). Any later successful finish clears the marker, so Retry anyway replaces it.

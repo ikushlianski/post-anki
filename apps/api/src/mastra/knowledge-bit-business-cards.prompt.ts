@@ -1,3 +1,5 @@
+import { LIST_CARD_RULES, PARAGRAPH_SOURCE_RULE } from "./knowledge-bit-prompt-rules.js";
+
 // Change ACTIVE_BUSINESS_CARDS_PROMPT to swap the business card prompt version.
 
 export const BUSINESS_CARDS_PROMPT_V3_SELF_FILTER = `You are an expert in spaced-repetition learning and in business literature
@@ -129,4 +131,28 @@ export const BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS = BUSINESS_CARDS_PROMPT_V
   CLOZE_RULE_V7,
 );
 
-export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS;
+function replaceOnce(source: string, search: string, replacement: string): string {
+  if (!source.includes(search)) {
+    throw new Error(`business_prompt_v8_anchor_missing: ${search.slice(0, 40)}`);
+  }
+
+  return source.replace(search, () => replacement);
+}
+
+const V8_EDITS: ReadonlyArray<readonly [string, string]> = [
+  ["Keep at most {max_cards} ideas.", `${PARAGRAPH_SOURCE_RULE} Write at most {max_cards} cards in total; a list idea may use several of them.`],
+  ["  other card type.\n", '  other card type. A list of reasons, conditions, risks or categories is never an "ordered_list".\n'],
+  [
+    "  not write the card.\n",
+    "  not write the card. For a list card quote ONE item or sentence, never a span across list numbering.\n",
+  ],
+  ["## Self-check before answering", `${LIST_CARD_RULES}\n\n## Self-check before answering`],
+  ["(max 20 words) with a concrete", "(max 20 words; a situation card up to 35) with a concrete"],
+];
+
+export const BUSINESS_CARDS_PROMPT_V8_LIST_AWARE = V8_EDITS.reduce(
+  (prompt, [search, replacement]) => replaceOnce(prompt, search, replacement),
+  BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS,
+);
+
+export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V8_LIST_AWARE;

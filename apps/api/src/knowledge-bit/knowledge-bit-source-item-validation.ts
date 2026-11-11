@@ -31,7 +31,7 @@ export type {
   SourceItemValidation,
 } from "./knowledge-bit-source-item-rules.js";
 
-export const LESSONS_MAX_PER_CHUNK = 3;
+export const LESSONS_MAX_PER_CHUNK = 8;
 
 export interface LessonDraft {
   statement: string;

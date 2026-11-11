@@ -33,3 +33,24 @@ export function buildLanguageHeaderLines(languageLine: string, strictLanguage: b
     `${languageLine} Do not write in English unless the source is English.`,
   ];
 }
+
+export const LIST_CARD_RULES = [
+  "LISTS AND CATEGORIES. When the material holds a list, a set of categories or a classification, NEVER put",
+  "the whole list on the back of one card, and never ask the learner to recite a list or an acronym. Each",
+  "card tests one piece and its answer is 1 to 5 words. Use only items the material states. Card types, in",
+  "priority order:",
+  "1. Situation to category: describe a concrete situation in new words (not copied from the source) and ask",
+  "   which category fits; the answer is that one category. Each situation fits exactly one category; if a",
+  "   neighbouring category could fit, the answer says in a few words why this one. A situation front is a",
+  "   short scene plus the question, up to 35 words.",
+  "2. One reason, risk or condition per card, with a cue naming the category (\"Why is avoidance risky for",
+  "   long-term negotiation skill?\"), never \"list all risks\".",
+  "3. Discrimination: when sibling categories are named, one card asks what separates two of them.",
+  "4. Closed list: one card per item, that item hidden and the others shown in the source's order. Only a",
+  "   real step-by-step process may add item-to-next-item cards.",
+  "5. Open list (examples keep growing): example-to-category cards only, never an enumeration.",
+  "6. Fill-in-the-blank on one word only for a term, never for a list item.",
+].join("\n");
+
+export const PARAGRAPH_SOURCE_RULE =
+  "Treat each paragraph, and each standalone fact sentence, as its own source of cards. A text with several paragraphs gets at least one card for every substantive paragraph; skip only filler, greetings or ads.";

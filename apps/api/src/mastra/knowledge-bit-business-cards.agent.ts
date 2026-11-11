@@ -62,6 +62,11 @@ export const businessCardsResultSchema = z.object({
 type BusinessCard = z.infer<typeof businessCardsResultSchema>["cards"][number];
 
 export const BUSINESS_CARDS_MAX_PER_CHUNK = LESSONS_MAX_PER_CHUNK;
+const SHORT_BACK_MAX_WORDS = 5;
+
+function basicStatement(front: string, back: string): string {
+  return back.split(/\s+/).length <= SHORT_BACK_MAX_WORDS ? `${front} — ${back}` : back;
+}
 
 export function parseBusinessCardsJson(raw: string): unknown {
   const trimmed = raw.trim();
@@ -138,7 +143,7 @@ function toSourceItem(card: BusinessCard): SourceItemDraft | null {
   }
 
   if (card.type === "basic") {
-    return back ? { kind: "basic", statement: back, question: front, answer: back, quote } : null;
+    return back ? { kind: "basic", statement: basicStatement(front, back), question: front, answer: back, quote } : null;
   }
 
   const clozes = [...front.matchAll(CLOZE_PATTERN)];
