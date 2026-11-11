@@ -5,7 +5,9 @@ import {
   touchPendingSources,
   type StuckPendingSummary,
 } from "../knowledge-source/pending-sources.repo.js";
+import { getTriageEnabled } from "../admin-settings/admin-settings.repo.js";
 import { countPendingKnowledgeBitsForReview } from "../knowledge-bit/knowledge-bit-pending-total.repo.js";
+import { countUnseenApprovedKnowledgeBits } from "../knowledge-bit/knowledge-bit-unseen-total.repo.js";
 import { triageQueueCap } from "./durable-extraction.config.js";
 import { reconcileDurableSources } from "./durable-extraction.reconcile.js";
 import {
@@ -29,7 +31,9 @@ export interface PipelineSweepResult {
 export interface PipelineSweepDeps {
   isDurable: () => boolean;
   reconcile: () => Promise<string[]>;
+  isTriageEnabled: () => Promise<boolean>;
   countTriagePending: () => Promise<number>;
+  countUnseenApproved: () => Promise<number>;
   triageCap: () => number;
   listStalePending: (minAgeMs: number, limit: number) => Promise<string[]>;
   startExtraction: (ids: string[]) => Promise<{ started: string[]; deferredIds: string[] }>;
@@ -44,7 +48,9 @@ function defaultDeps(): PipelineSweepDeps {
   return {
     isDurable: () => isDurableExtractionEnabled(),
     reconcile: reconcileDurableSources,
+    isTriageEnabled: () => getTriageEnabled(),
     countTriagePending: () => countPendingKnowledgeBitsForReview(),
+    countUnseenApproved: () => countUnseenApprovedKnowledgeBits(),
     triageCap: () => triageQueueCap(),
     listStalePending: listStalePendingSourceIds,
     startExtraction: (ids) => startDurableExtraction(ids, { regeneration: false }),
@@ -99,10 +105,11 @@ async function warnIfSourcesStuck(deps: PipelineSweepDeps): Promise<void> {
 
 async function triageRoom(deps: PipelineSweepDeps): Promise<number> {
   const cap = deps.triageCap();
-  const count = await deps.countTriagePending();
+  const triageEnabled = await deps.isTriageEnabled();
+  const count = triageEnabled ? await deps.countTriagePending() : await deps.countUnseenApproved();
 
   if (count >= cap) {
-    log.info({ count, cap }, "pipeline_sweep_triage_full");
+    log.info({ count, cap, triageEnabled }, "pipeline_sweep_backlog_full");
 
     return 0;
   }

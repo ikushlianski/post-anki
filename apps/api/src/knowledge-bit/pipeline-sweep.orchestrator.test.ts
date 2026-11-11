@@ -16,7 +16,9 @@ function makeDeps(overrides: Partial<PipelineSweepDeps> = {}): PipelineSweepDeps
   return {
     isDurable: vi.fn(() => true),
     reconcile: vi.fn(async () => []),
+    isTriageEnabled: vi.fn(async () => true),
     countTriagePending: vi.fn(async () => 0),
+    countUnseenApproved: vi.fn(async () => 0),
     triageCap: vi.fn(() => 100),
     listStalePending: vi.fn(async () => []),
     startExtraction: vi.fn(async (ids: string[]) => ({
@@ -231,7 +233,9 @@ describe("runPipelineSweep", () => {
     expect(deps.listStalePending).not.toHaveBeenCalled();
     expect(deps.startExtraction).not.toHaveBeenCalled();
     expect(result.requeued).toBe(0);
-    expect(log.info).toHaveBeenCalledWith({ count: 100, cap: 100 }, "pipeline_sweep_triage_full");
+    expect(log.info).toHaveBeenCalledWith({ count: 100, cap: 100, triageEnabled: true },
+      "pipeline_sweep_backlog_full",
+    );
   });
 
   it("should select only as many sources as the triage queue has room for", async () => {
@@ -246,6 +250,55 @@ describe("runPipelineSweep", () => {
 
     expect(deps.listStalePending).toHaveBeenCalledWith(SWEEP_MIN_AGE_MS, 5);
     expect(result.requeued).toBe(5);
+  });
+
+  it("should hold imports back when triage is off and 100 approved cards were never studied", async () => {
+    vi.mocked(log.info).mockClear();
+    const deps = makeDeps({
+      isTriageEnabled: vi.fn(async () => false),
+      countTriagePending: vi.fn(async () => 0),
+      countUnseenApproved: vi.fn(async () => 100),
+      listStalePending: vi.fn(async () => ["s1"]),
+    });
+
+    const result = await runPipelineSweep(deps);
+
+    expect(deps.startExtraction).not.toHaveBeenCalled();
+    expect(result.requeued).toBe(0);
+    expect(log.info).toHaveBeenCalledWith(
+      { count: 100, cap: 100, triageEnabled: false },
+      "pipeline_sweep_backlog_full",
+    );
+  });
+
+  it("should ignore cards waiting in triage when triage is off", async () => {
+    const deps = makeDeps({
+      isTriageEnabled: vi.fn(async () => false),
+      countTriagePending: vi.fn(async () => 500),
+      countUnseenApproved: vi.fn(async () => 90),
+      listStalePending: vi.fn(async (_age: number, limit: number) =>
+        Array.from({ length: limit }, (_, i) => `s${i}`),
+      ),
+    });
+
+    const result = await runPipelineSweep(deps);
+
+    expect(deps.countTriagePending).not.toHaveBeenCalled();
+    expect(deps.listStalePending).toHaveBeenCalledWith(SWEEP_MIN_AGE_MS, 10);
+    expect(result.requeued).toBe(10);
+  });
+
+  it("should ignore unseen approved cards when triage is on", async () => {
+    const deps = makeDeps({
+      isTriageEnabled: vi.fn(async () => true),
+      countTriagePending: vi.fn(async () => 0),
+      countUnseenApproved: vi.fn(async () => 500),
+    });
+
+    await runPipelineSweep(deps);
+
+    expect(deps.countUnseenApproved).not.toHaveBeenCalled();
+    expect(deps.listStalePending).toHaveBeenCalledWith(SWEEP_MIN_AGE_MS, SWEEP_MAX_SOURCES);
   });
 
   it("should send the normal batch when the triage queue is empty", async () => {
