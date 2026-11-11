@@ -27,6 +27,10 @@ struct CardTextArea: View {
             .frame(minHeight: minHeight, alignment: .topLeading)
             .padding(6)
             .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            if FencedCodeSplitter.hasFence(text) {
+                CardRichText(text: text) { EmptyView() }
+            }
         }
         .padding(.vertical, 4)
     }

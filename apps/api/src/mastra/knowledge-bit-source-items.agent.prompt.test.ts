@@ -12,8 +12,8 @@ import {
   knowledgeBitCardsResultSchema,
   LIST_CARDS_MAX_PER_LESSON,
 } from "./knowledge-bit-source-items.agent.js";
-import { LIST_CARD_RULES } from "./knowledge-bit-prompt-rules.js";
-import { BUSINESS_CARDS_PROMPT_V8_LIST_AWARE } from "./knowledge-bit-business-cards.prompt.js";
+import { CODE_CARD_RULES, LIST_CARD_RULES } from "./knowledge-bit-prompt-rules.js";
+import { ACTIVE_BUSINESS_CARDS_PROMPT, BUSINESS_CARDS_PROMPT_V8_LIST_AWARE } from "./knowledge-bit-business-cards.prompt.js";
 import { LESSONS_MAX_PER_CHUNK } from "../knowledge-bit/knowledge-bit-source-item-validation.js";
 
 const CARD = {
@@ -76,6 +76,15 @@ describe("INSTRUCTIONS (cards)", () => {
   it("should share the same list rule block as the business card writer", () => {
     expect(INSTRUCTIONS).toContain(LIST_CARD_RULES);
     expect(BUSINESS_CARDS_PROMPT_V8_LIST_AWARE).toContain(LIST_CARD_RULES);
+  });
+
+  it("should share the same code rule block with the business card writer and keep source code verbatim and short", () => {
+    expect(INSTRUCTIONS).toContain(CODE_CARD_RULES);
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toContain(CODE_CARD_RULES);
+    expect(CODE_CARD_RULES).toContain("copied EXACTLY");
+    expect(CODE_CARD_RULES).toContain("at most about 15 lines");
+    expect(CODE_CARD_RULES).toContain("what does this output");
+    expect(CODE_CARD_RULES).toContain("when to use this API");
   });
 
   it("should list the kinds in the order why, basic, fill_blank, cloze", () => {

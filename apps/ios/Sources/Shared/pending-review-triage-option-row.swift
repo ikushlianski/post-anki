@@ -15,12 +15,14 @@ struct PendingReviewTriageOptionRow: View {
                 .zoomFont(.title3)
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
 
-            Text(TargetPhraseHighlight.attributed(variant.answer, phrase: phrase))
-                .zoomFont(.title3)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-                .copyMenu(variant.answer)
+            CardRichText(text: variant.answer, font: .title3) {
+                Text(TargetPhraseHighlight.attributed(variant.answer, phrase: phrase))
+                    .zoomFont(.title3)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .copyMenu(variant.answer)
         }
         .zoomPadding(14)
         .frame(minHeight: 44)
@@ -54,15 +56,19 @@ struct PendingReviewTriageOptions: View {
                 CardContextLine(text: variant.face.context)
 
                 QuestionAnswerRow(kind: .question) {
-                    Text(variant.face.front)
-                        .zoomFont(.title.weight(.semibold))
-                        .multilineTextAlignment(.leading)
+                    CardRichText(text: variant.face.front, font: .title.weight(.semibold)) {
+                        Text(variant.face.front)
+                            .zoomFont(.title.weight(.semibold))
+                            .multilineTextAlignment(.leading)
+                    }
                 }
 
                 QuestionAnswerRow(kind: .answer) {
-                    Text(TargetPhraseHighlight.attributed(variant.answer, phrase: phrase))
-                        .zoomFont(.title2)
-                        .multilineTextAlignment(.leading)
+                    CardRichText(text: variant.answer, font: .title2) {
+                        Text(TargetPhraseHighlight.attributed(variant.answer, phrase: phrase))
+                            .zoomFont(.title2)
+                            .multilineTextAlignment(.leading)
+                    }
                 }
 
                 TriageVariantIndicator(index: selection.selectedIndex ?? 0, count: selection.shown.count, onSelect: onSelect)

@@ -1,4 +1,5 @@
 import { buildCaptureText } from "./capture/build-capture-text.js";
+import { readSelection } from "./capture/read-selection.js";
 import { runCapture, retryPendingCapture } from "./capture/run-capture.js";
 import { describeSendResult } from "./feedback/describe-send-result.js";
 import { describeToast } from "./feedback/describe-toast.js";
@@ -124,8 +125,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     settings = await getSettings();
   }
 
+  const pageSelection = await readSelection(tab?.id);
   const built = buildCaptureText({
-    selection: info.selectionText ?? "",
+    selection: pageSelection ?? info.selectionText ?? "",
     pageUrl: tab?.url ?? info.pageUrl,
     title: tab?.title,
     subjectId: settings.subjectId,

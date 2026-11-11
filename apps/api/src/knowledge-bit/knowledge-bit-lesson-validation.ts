@@ -1,3 +1,4 @@
+import { exceedsLength } from "./knowledge-bit-code-aware-length.js";
 import { hasInjectedMarkup } from "./knowledge-bit-source-item-markup-guard.js";
 import {
   hasForeignScriptRun,
@@ -37,7 +38,7 @@ export function validateLesson(raw: LessonCore, sourceText: string): LessonValid
     return { ok: false, reason: "empty" };
   }
 
-  if (lesson.statement.length > SOURCE_ITEM_STATEMENT_MAX_CHARS) {
+  if (exceedsLength(lesson.statement, SOURCE_ITEM_STATEMENT_MAX_CHARS)) {
     return { ok: false, reason: "too_long" };
   }
 

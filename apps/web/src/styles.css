@@ -103,3 +103,21 @@ body {
   margin: 0;
 }
 
+
+.code-block .hljs-comment,
+.code-block .hljs-quote { color: #6b7280; font-style: italic; }
+.code-block .hljs-keyword,
+.code-block .hljs-selector-tag,
+.code-block .hljs-literal { color: #7c3aed; }
+.code-block .hljs-string,
+.code-block .hljs-regexp,
+.code-block .hljs-addition { color: #047857; }
+.code-block .hljs-number,
+.code-block .hljs-attr,
+.code-block .hljs-attribute { color: #b45309; }
+.code-block .hljs-title,
+.code-block .hljs-built_in,
+.code-block .hljs-type,
+.code-block .hljs-name { color: #1d4ed8; }
+.code-block .hljs-deletion { color: #b91c1c; }
+

@@ -107,3 +107,17 @@ describe("capture size limit", () => {
     expect(MAX_CAPTURE_CHARS).toBe(KNOWLEDGE_SOURCE_MAX_CHARS);
   });
 });
+
+describe("buildCaptureText truncation inside code", () => {
+  it("should close a code block cut by the size limit and stay within the limit", () => {
+    const selection = `Intro\n\n\`\`\`py\n${"x = 1\n".repeat(20_000)}\`\`\``;
+    const result = buildCaptureText({ selection });
+
+    expect(result).toMatchObject({ ok: true, truncated: true });
+
+    if (result.ok) {
+      expect(result.body.text.endsWith("\n```")).toBe(true);
+      expect(result.body.text.length).toBeLessThanOrEqual(MAX_CAPTURE_CHARS);
+    }
+  });
+});

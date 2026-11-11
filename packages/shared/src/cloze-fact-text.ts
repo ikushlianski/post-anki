@@ -1,3 +1,5 @@
+import { mapOutsideCodeFences } from "./fenced-code";
+
 const CLOZE_MARKER = /\{\{c\d+::([\s\S]+?)(?:::[^}]*)?\}\}/gi;
 const BACK_EXTRA_LABEL = /^Back Extra:[ \t]*/gim;
 const BLANK_RUN = /\n{3,}/g;
@@ -7,5 +9,7 @@ export function hasClozeMarkup(raw: string): boolean {
 }
 
 export function importedFactText(raw: string): string {
-  return raw.replace(CLOZE_MARKER, "$1").replace(BACK_EXTRA_LABEL, "").replace(BLANK_RUN, "\n\n");
+  return mapOutsideCodeFences(raw.replace(CLOZE_MARKER, "$1").replace(BACK_EXTRA_LABEL, ""), (prose) =>
+    prose.replace(BLANK_RUN, "\n\n"),
+  );
 }

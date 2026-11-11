@@ -28,7 +28,7 @@ import { runLegacyKnowledgeBitSourceItems } from "./knowledge-bit-source-items.l
 import { runBusinessKnowledgeBitCards } from "./knowledge-bit-business-cards.agent.js";
 import { runMeetingPhraseCard } from "./knowledge-bit-meeting-phrase.agent.js";
 import { FORCE_AT_LEAST_ONE_LESSON_SUFFIX } from "./force-at-least-one.js";
-import { buildLanguageHeaderLines, LANGUAGE_RULES, LIST_CARD_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
+import { buildLanguageHeaderLines, CODE_CARD_RULES, LANGUAGE_RULES, LIST_CARD_RULES, SECURITY_RULES } from "./knowledge-bit-prompt-rules.js";
 
 export const CARDS_MAX_PER_LESSON = 3;
 export const LIST_CARDS_MAX_PER_LESSON = 8;
@@ -90,6 +90,8 @@ export const INSTRUCTIONS = [
   "",
   LIST_CARD_RULES,
   `A list lesson may have up to ${LIST_CARDS_MAX_PER_LESSON} cards, overriding the limit above.`,
+  "",
+  CODE_CARD_RULES,
   "",
   "FAITHFULNESS. Keep the strength of every claim: \"not necessary\" is not \"forbidden\", \"may\" is not \"must\".",
   "Two cards never state the same fact in different words. A question is never answered by yes or no.",

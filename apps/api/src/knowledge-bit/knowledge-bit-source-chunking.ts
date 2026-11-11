@@ -1,3 +1,5 @@
+import { fencedCodeRanges } from "@post-anki/shared";
+
 export const SOURCE_CHUNK_MAX_CHARS = 3000;
 
 const PARAGRAPH_BREAK = /\n[^\S\n]*\n\s*/g;
@@ -95,6 +97,29 @@ function pack(parts: readonly SourceChunk[], separator: string, maxChars: number
   return chunks;
 }
 
+function splitParagraphsKeepingCode(text: string): Piece[] {
+  const pieces: Piece[] = [];
+  let cursor = 0;
+
+  const addProse = (from: number, to: number): void => {
+    pieces.push(
+      ...splitWithOffsets(text.slice(from, to), from, PARAGRAPH_BREAK)
+        .map(trimPiece)
+        .filter((paragraph) => paragraph.text.length > 0),
+    );
+  };
+
+  for (const range of fencedCodeRanges(text)) {
+    addProse(cursor, range.start);
+    pieces.push({ text: text.slice(range.start, range.end), start: range.start });
+    cursor = range.end;
+  }
+
+  addProse(cursor, text.length);
+
+  return pieces;
+}
+
 function splitOversizeParagraph(paragraph: Piece, maxChars: number): SourceChunk[] {
   const sentences = splitWithOffsets(paragraph.text, paragraph.start, SENTENCE_END)
     .map(trimPiece)
@@ -109,9 +134,7 @@ export function chunkSourceTextWithOffsets(
   text: string,
   maxChars: number = SOURCE_CHUNK_MAX_CHARS,
 ): SourceChunk[] {
-  const paragraphs = splitWithOffsets(text, 0, PARAGRAPH_BREAK)
-    .map(trimPiece)
-    .filter((paragraph) => paragraph.text.length > 0);
+  const paragraphs = splitParagraphsKeepingCode(text);
   const units = paragraphs.flatMap((paragraph) =>
     paragraph.text.length > maxChars ? splitOversizeParagraph(paragraph, maxChars) : [toUnit(paragraph)],
   );

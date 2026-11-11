@@ -56,3 +56,12 @@ describe("chunkSourceText", () => {
     expect(squash(chunks.join("\n\n"))).toBe(squash(text));
   });
 });
+
+describe("chunkSourceText with code", () => {
+  it("should keep a fenced block whole with its blank lines and indentation", () => {
+    const code = "```py\ndef f():\n    a = 1\n\n\n    return a\n```";
+    const chunks = chunkSourceText(`Intro\n\n${code}\n\nOutro`);
+
+    expect(chunks.join("\n\n")).toContain(code);
+  });
+});

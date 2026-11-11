@@ -8,6 +8,7 @@ import {
   type TriageDecisionResponse,
 } from '@post-anki/shared'
 
+import { CardText } from '../code-block/card-text'
 import { TEXT_FIELD_CLASS } from '../knowledge-bit/knowledge-bit-review-classes'
 import { canSendDecisionToChat, TriageDecisionChatButton } from './triage-decision-chat-button'
 
@@ -40,8 +41,8 @@ function DecisionItem({
 
   return (
     <li data-testid={`triage-decision-${bitId}`} className="space-y-2 rounded-md border border-neutral-200 p-3">
-      <p className="whitespace-pre-line text-sm font-medium">{card?.front ?? 'Card text unavailable'}</p>
-      {card?.back ? <p className="text-sm text-neutral-600">{card.back}</p> : null}
+      <CardText text={card?.front ?? 'Card text unavailable'} className="whitespace-pre-line text-sm font-medium" />
+      {card?.back ? <CardText text={card.back} className="text-sm text-neutral-600" /> : null}
       <textarea
         data-testid={`triage-decision-note-${bitId}`}
         aria-label="Note for this card"

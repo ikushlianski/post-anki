@@ -150,9 +150,11 @@ struct KnowledgeItemDetailScreen: View {
     }
 
     private func cardText(_ text: String) -> some View {
-        Text(text)
-            .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
-            .textSelection(.enabled)
+        CardRichText(text: text) {
+            Text(text)
+        }
+        .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
+        .textSelection(.enabled)
     }
 
     private func delete() async {

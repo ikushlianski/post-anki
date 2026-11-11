@@ -42,9 +42,11 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
 
                 CardContextLine(text: card.face.context)
 
-                Text(card.face.front)
-                    .zoomFont(.title3)
-                    .textSelection(.enabled)
+                CardRichText(text: card.face.front, font: .title3) {
+                    Text(card.face.front)
+                        .zoomFont(.title3)
+                        .textSelection(.enabled)
+                }
             }
 
             answerInput()
@@ -52,12 +54,10 @@ struct DueReviewCardBody<AnswerInput: View, RevealedFooter: View, Unrevealed: Vi
             if model.isRevealed {
                 Divider()
 
-                if let filled = card.filledSentence {
-                    Text(filled)
-                        .zoomFont(.title3.weight(.semibold))
-                        .textSelection(.enabled)
-                } else {
-                    Text(card.answer)
+                let answerText = card.filledSentence ?? card.answer
+
+                CardRichText(text: answerText, font: .title3.weight(.semibold)) {
+                    Text(answerText)
                         .zoomFont(.title3.weight(.semibold))
                         .textSelection(.enabled)
                 }

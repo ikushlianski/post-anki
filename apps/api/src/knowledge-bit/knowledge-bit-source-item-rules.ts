@@ -1,3 +1,5 @@
+import { hasExactCodeBlocks } from "./knowledge-bit-code-exactness.js";
+import { exceedsLength } from "./knowledge-bit-code-aware-length.js";
 import { isWellFormedFillBlankPrompt } from "./knowledge-bit-fill-blank-prompt-validation.js";
 import { BASIC_CARD_FRONT_MAX_CHARS, validateBasicCard } from "./knowledge-bit-basic-card-validation.js";
 import { isValidAiCloze } from "./knowledge-bit-cloze-validation.js";
@@ -66,7 +68,7 @@ function lettersOnly(text: string): string {
 }
 
 function validateFillBlank(item: SourceItemDraft): SourceItemRejection | null {
-  if (item.question.length > BASIC_CARD_FRONT_MAX_CHARS) {
+  if (exceedsLength(item.question, BASIC_CARD_FRONT_MAX_CHARS)) {
     return "too_long";
   }
 
@@ -150,7 +152,7 @@ export function validateSourceItem(
     return { ok: false, reason: "empty" };
   }
 
-  if (item.statement.length > SOURCE_ITEM_STATEMENT_MAX_CHARS) {
+  if (exceedsLength(item.statement, SOURCE_ITEM_STATEMENT_MAX_CHARS)) {
     return { ok: false, reason: "too_long" };
   }
 
@@ -159,6 +161,10 @@ export function validateSourceItem(
   }
 
   if (!isQuoteInSource(item.quote, sourceText)) {
+    return { ok: false, reason: "quote_not_in_source" };
+  }
+
+  if (!hasExactCodeBlocks(item.statement, sourceText) || !hasExactCodeBlocks(item.answer, sourceText)) {
     return { ok: false, reason: "quote_not_in_source" };
   }
 

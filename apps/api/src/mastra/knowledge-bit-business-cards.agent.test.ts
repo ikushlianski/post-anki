@@ -38,6 +38,7 @@ import {
   BUSINESS_CARDS_PROMPT_V6_MAY_BE_EMPTY,
   BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS,
   BUSINESS_CARDS_PROMPT_V8_LIST_AWARE,
+  BUSINESS_CARDS_PROMPT_V9_CODE_AWARE,
 } from "./knowledge-bit-business-cards.prompt.js";
 import { runKnowledgeBitSourceItems } from "./knowledge-bit-source-items.agent.js";
 import { generateWithRetry } from "./generate-with-retry.js";
@@ -102,8 +103,9 @@ describe("business card writer", () => {
     expect(prompt).not.toContain("<style_notes>");
   });
 
-  it("should use the list-aware prompt as the active business prompt and keep v7 for comparison", () => {
-    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V8_LIST_AWARE);
+  it("should use the code-aware prompt as the active business prompt and keep v7 and v8 for comparison", () => {
+    expect(ACTIVE_BUSINESS_CARDS_PROMPT).toBe(BUSINESS_CARDS_PROMPT_V9_CODE_AWARE);
+    expect(BUSINESS_CARDS_PROMPT_V8_LIST_AWARE).not.toContain("CODE. When the source holds code");
     expect(BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS).not.toContain("LISTS AND CATEGORIES");
     expect(BUSINESS_CARDS_PROMPT_V8_LIST_AWARE).toContain("Default to a \"basic\" card with a direct what, why or how question");
   });

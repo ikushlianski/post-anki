@@ -2,6 +2,8 @@ import { KNOWLEDGE_BIT_VARIANT_KIND_LABELS } from '@post-anki/shared'
 import type { KnowledgeBitBrowserItem, KnowledgeBitDetail } from '@post-anki/shared'
 import type { ReactNode } from 'react'
 
+import { CardText } from '../code-block/card-text'
+import { hasFencedCode } from '../code-block/split-fenced-code'
 import { CardContextLine } from './card-context-line'
 import { KnowledgeBrowserDetailCards } from './knowledge-browser-detail-cards'
 import { formatAddedAt } from './knowledge-browser-columns'
@@ -80,10 +82,10 @@ function FrontBack({ front, back, context }: { front: string; back: string; cont
     <>
       <Section title="Front" testId="knowledge-browser-detail-front">
         <CardContextLine context={context} testId="knowledge-browser-detail-front-context" />
-        <p className="whitespace-pre-wrap text-sm text-neutral-900">{front}</p>
+        <CardText text={front} className="whitespace-pre-wrap text-sm text-neutral-900" />
       </Section>
       <Section title="Back" testId="knowledge-browser-detail-back">
-        <p className="whitespace-pre-wrap text-sm text-neutral-900">{back}</p>
+        <CardText text={back} className="whitespace-pre-wrap text-sm text-neutral-900" />
       </Section>
     </>
   )
@@ -99,7 +101,7 @@ export function KnowledgeBrowserDetailPreview({ row }: { row: KnowledgeBitBrowse
             <li key={phrasing.id} className="rounded border border-neutral-200 p-2 text-sm">
               <p className="text-xs text-neutral-500">{KNOWLEDGE_BIT_VARIANT_KIND_LABELS[phrasing.kind]}</p>
               <CardContextLine context={phrasing.context} testId="knowledge-browser-detail-phrasing-context" />
-              <p className="whitespace-pre-wrap">{phrasing.prompt}</p>
+              <CardText text={phrasing.prompt} className="whitespace-pre-wrap" />
             </li>
           ))}
         </ul>
@@ -124,8 +126,11 @@ export function KnowledgeBrowserDetailBody({ detail }: { detail: KnowledgeBitDet
             >
               <p className="text-xs text-neutral-500">{phrasing.kindLabel}</p>
               <CardContextLine context={phrasing.context} testId="knowledge-browser-detail-phrasing-context" />
-              <p className="whitespace-pre-wrap">{phrasing.prompt}</p>
-              <p className="mt-1 whitespace-pre-wrap text-neutral-700">Answer: {phrasing.answer}</p>
+              <CardText text={phrasing.prompt} className="whitespace-pre-wrap" />
+              <CardText
+                text={hasFencedCode(phrasing.answer) ? phrasing.answer : `Answer: ${phrasing.answer}`}
+                className="mt-1 whitespace-pre-wrap text-neutral-700"
+              />
               {phrasing.sentence && (
                 <p className="mt-1 whitespace-pre-wrap text-neutral-700">Sentence: {phrasing.sentence}</p>
               )}

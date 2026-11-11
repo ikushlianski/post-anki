@@ -1,3 +1,5 @@
+import { hasExactCodeBlocks } from "./knowledge-bit-code-exactness.js";
+import { exceedsLength } from "./knowledge-bit-code-aware-length.js";
 import {
   looksLikeDifferentScript,
   looksLikeSourceMetaReference,
@@ -11,7 +13,7 @@ export type BasicCardValidation =
   | { ok: true; front: string; back: string }
   | {
       ok: false;
-      reason: "empty" | "too_long" | "same_text" | "answer_on_front" | "wrong_language" | "source_meta_reference";
+      reason: "empty" | "too_long" | "code_not_verbatim" | "same_text" | "answer_on_front" | "wrong_language" | "source_meta_reference";
     };
 
 function normalize(text: string): string {
@@ -30,8 +32,12 @@ export function validateBasicCard(
     return { ok: false, reason: "empty" };
   }
 
-  if (front.length > BASIC_CARD_FRONT_MAX_CHARS || back.length > BASIC_CARD_BACK_MAX_CHARS) {
+  if (exceedsLength(front, BASIC_CARD_FRONT_MAX_CHARS) || exceedsLength(back, BASIC_CARD_BACK_MAX_CHARS)) {
     return { ok: false, reason: "too_long" };
+  }
+
+  if (!hasExactCodeBlocks(front, sourceText) || !hasExactCodeBlocks(back, sourceText)) {
+    return { ok: false, reason: "code_not_verbatim" };
   }
 
   const normalizedFront = normalize(front);

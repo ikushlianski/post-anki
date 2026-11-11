@@ -20,15 +20,19 @@ struct PendingReviewTriageCard: View {
                 CardContextLine(text: variant.face.context)
 
                 QuestionAnswerRow(kind: .question) {
-                    Text(variant.face.front)
-                        .zoomFont(.title.weight(.semibold))
-                        .multilineTextAlignment(.leading)
+                    CardRichText(text: variant.face.front, font: .title.weight(.semibold)) {
+                        Text(variant.face.front)
+                            .zoomFont(.title.weight(.semibold))
+                            .multilineTextAlignment(.leading)
+                    }
                 }
                 QuestionAnswerRow(kind: .answer) {
-                    Text(variant.answer)
-                        .zoomFont(.title2)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
+                    CardRichText(text: variant.answer, font: .title2, foreground: .secondary) {
+                        Text(variant.answer)
+                            .zoomFont(.title2)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
                 }
 
                 CopyAllButton(parts: [variant.face.context, variant.face.front, variant.answer])

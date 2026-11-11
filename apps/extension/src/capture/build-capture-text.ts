@@ -44,10 +44,32 @@ function safeSourceUrl(raw: string | undefined): string | undefined {
   return url.length <= MAX_SOURCE_URL_CHARS ? url : undefined;
 }
 
+function closeOpenFence(text: string): string {
+  let open: string | null = null;
+
+  for (const line of text.split("\n")) {
+    const fence = /^(`{3,})/.exec(line)?.[1];
+
+    if (!fence) {
+      continue;
+    }
+
+    if (open === null) {
+      open = fence;
+    } else if (fence.length >= open.length && line.trim() === fence) {
+      open = null;
+    }
+  }
+
+  return open === null ? text : `${text}\n${open}`;
+}
+
 export function buildCaptureText(input: BuildCaptureInput): BuildCaptureResult {
   const trimmed = input.selection.trim();
   const truncated = trimmed.length > MAX_CAPTURE_CHARS;
-  const text = trimmed.slice(0, MAX_CAPTURE_CHARS).trimEnd();
+  const cut = trimmed.slice(0, MAX_CAPTURE_CHARS).trimEnd();
+  const closed = truncated ? closeOpenFence(cut) : cut;
+  const text = closed.length > MAX_CAPTURE_CHARS ? closeOpenFence(cut.slice(0, MAX_CAPTURE_CHARS - 32).trimEnd()) : closed;
 
   if (text.length === 0) {
     return { ok: false, reason: "empty_selection" };

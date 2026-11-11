@@ -102,24 +102,28 @@ struct FocusTriageCard: View {
             CardContextLine(text: parts.context)
 
             QuestionAnswerRow(kind: .question, spacing: 10) {
-                Text(parts.front ?? "")
-                    .zoomFont(.title.weight(.semibold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-                    .copyMenu(parts.front)
-                    .accessibilityLabel("Question: \(parts.front ?? "")")
+                CardRichText(text: parts.front ?? "", font: .title.weight(.semibold)) {
+                    Text(parts.front ?? "")
+                        .zoomFont(.title.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                .copyMenu(parts.front)
+                .accessibilityLabel("Question: \(parts.front ?? "")")
             }
 
             if !bit.offersSentenceChoice || FocusTriageCardParts.varies(bit) {
                 QuestionAnswerRow(kind: .answer, spacing: 10) {
-                    Text(TargetPhraseHighlight.attributed(parts.back ?? "", phrase: bit.body))
-                        .zoomFont(.title2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .textSelection(.enabled)
-                        .copyMenu(parts.back)
-                        .accessibilityLabel("Answer:\(parts.back ?? "")")
+                    CardRichText(text: parts.back ?? "", font: .title2) {
+                        Text(TargetPhraseHighlight.attributed(parts.back ?? "", phrase: bit.body))
+                            .zoomFont(.title2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                    }
+                    .copyMenu(parts.back)
+                    .accessibilityLabel("Answer:\(parts.back ?? "")")
                 }
             }
 

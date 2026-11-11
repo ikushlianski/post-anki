@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { isBlankKind, renderClozeBack, stripPromptHint, type ReviewCard } from '@post-anki/shared'
 
+import { CardText } from '../code-block/card-text'
+import { hasFencedCode } from '../code-block/split-fenced-code'
 import { AiLabelBadge } from './ai-label-badge'
 import { AiSuggestionBlock } from './ai-suggestion-block'
 import { CardSourceLink } from './card-source-link'
@@ -105,11 +107,18 @@ export function AnkiReviewCard({
           {card.context}
         </p>
       ) : null}
-      {editor ?? (
-        <p data-testid="anki-review-prompt" className="whitespace-pre-line break-words text-lg font-medium">
-          {isBlankKind(card.kind) ? renderFillBlankPrompt(prompt) : prompt}
-        </p>
-      )}
+      {editor ??
+        (!isBlankKind(card.kind) && hasFencedCode(prompt) ? (
+          <CardText
+            text={prompt}
+            testId="anki-review-prompt"
+            className="whitespace-pre-line break-words text-lg font-medium"
+          />
+        ) : (
+          <p data-testid="anki-review-prompt" className="whitespace-pre-line break-words text-lg font-medium">
+            {isBlankKind(card.kind) ? renderFillBlankPrompt(prompt) : prompt}
+          </p>
+        ))}
 
       {!revealed && (
         <button
@@ -125,11 +134,18 @@ export function AnkiReviewCard({
 
       {revealed && (
         <>
-          {!editor && (
-            <p data-testid="anki-review-answer" className="whitespace-pre-line break-words border-t border-neutral-200 pt-4">
-              {renderAnswer(card)}
-            </p>
-          )}
+          {!editor &&
+            (!isBlankKind(card.kind) && card.kind !== 'cloze' && card.kind !== 'list_next' && hasFencedCode(card.answer) ? (
+              <CardText
+                text={card.answer}
+                testId="anki-review-answer"
+                className="whitespace-pre-line break-words border-t border-neutral-200 pt-4"
+              />
+            ) : (
+              <p data-testid="anki-review-answer" className="whitespace-pre-line break-words border-t border-neutral-200 pt-4">
+                {renderAnswer(card)}
+              </p>
+            ))}
           {card.background && (
             <p data-testid="anki-review-background" className="text-sm text-neutral-500">
               {card.background}

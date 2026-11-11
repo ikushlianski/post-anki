@@ -4,6 +4,8 @@ import {
   type TriageHistoryItem,
 } from '@post-anki/shared'
 
+import { CardText } from '../code-block/card-text'
+
 const CHIP_CLASS =
   'min-h-11 rounded-full border border-neutral-300 px-3 text-xs font-medium hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-neutral-900 sm:min-h-9'
 
@@ -29,7 +31,7 @@ export function TriageHistoryRow({
   return (
     <li data-testid={`triage-history-${item.id}`} className="space-y-2 rounded-md border border-neutral-200 p-3">
       <div className="flex items-start justify-between gap-3">
-        <p className="whitespace-pre-line text-sm font-medium">{item.front ?? 'Card text unavailable'}</p>
+        <CardText text={item.front ?? 'Card text unavailable'} className="whitespace-pre-line text-sm font-medium" />
         <span
           data-testid={`triage-history-verdict-${item.id}`}
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${rejected ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}
@@ -37,7 +39,7 @@ export function TriageHistoryRow({
           {rejected ? 'Rejected' : 'Accepted'}
         </span>
       </div>
-      {item.back ? <p className="text-sm text-neutral-600">{item.back}</p> : null}
+      {item.back ? <CardText text={item.back} className="text-sm text-neutral-600" /> : null}
       <p className="text-xs text-neutral-500">
         {formatDecidedAt(item.decidedAt)}
         {item.extractionModelId ? ` · ${item.extractionModelId}` : ''}

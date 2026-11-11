@@ -18,6 +18,7 @@ const INJECTED_MARKUP = new RegExp(`<\\s*/?\\s*(?:${PROMPT_TAG_NAMES.join("|")})
 const MESSAGES = {
   empty: "The card front and back must both be non-empty. Write a short question and a concise answer.",
   too_long: `The card is too long. Keep the front at ${BASIC_CARD_FRONT_MAX_CHARS} characters or fewer and the back at ${BASIC_CARD_BACK_MAX_CHARS} or fewer, then propose it again.`,
+  code_not_verbatim: "The code in the card differs from the source. Copy each code block exactly as written in the source, with the same whitespace, then propose it again.",
   same_text: "The front and back are the same. Make the front a question or cue and the back its answer.",
   answer_on_front: "The front contains the answer. Rewrite the front as a cue that does not reveal the back, then propose it again.",
   wrong_language: "The card is not in the source language. Rewrite it in the same language as the source without translating, then propose it again.",

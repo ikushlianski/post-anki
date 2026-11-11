@@ -36,6 +36,7 @@
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "^1.132.0",
     "@xyflow/react": "^12.11.2",
+    "highlight.js": "^11.12.0",
     "lucide-react": "^0.545.0",
     "nitro": "^3.0.260603-beta",
     "react": "^19.2.0",

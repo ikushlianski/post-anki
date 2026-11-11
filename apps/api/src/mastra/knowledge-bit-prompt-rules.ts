@@ -54,3 +54,16 @@ export const LIST_CARD_RULES = [
 
 export const PARAGRAPH_SOURCE_RULE =
   "Treat each paragraph, and each standalone fact sentence, as its own source of cards. A text with several paragraphs gets at least one card for every substantive paragraph; skip only filler, greetings or ads.";
+
+export const CODE_CARD_RULES = [
+  "CODE. When the source holds code, a command or a snippet, keep it as a fenced block (three backticks,",
+  "an optional language tag, the code, three backticks) copied EXACTLY from the source: same characters,",
+  "same indentation, same line breaks, never retyped, reformatted or paraphrased into prose. This overrides",
+  "the rule against code in the output, because the source itself contains it.",
+  "- A card shows at most about 15 lines of code; pick the smallest part that carries the point.",
+  "- Card types, in priority order: what does this output or return; what does this line or block do;",
+  "  which line or token is missing (show the code with that line replaced by a comment-free gap and ask for",
+  "  it); when to use this API, flag or command (the question names the situation, the answer is the code).",
+  "- The quote is the exact code or the sentence around it, copied from the source.",
+  "- Explain in plain words around the code; never describe the code line by line as a substitute for it.",
+].join("\n");

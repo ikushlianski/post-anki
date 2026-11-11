@@ -1,6 +1,7 @@
-import { useId, useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import type { PendingKnowledgeBitQuestionVariant } from '@post-anki/shared'
 
+import { CodeBlocksPreview } from '../code-block/card-text'
 import { AUTOSAVE_STATUS_TEXT, useAutoSave } from './knowledge-bit-review-autosave'
 
 const FIELD_BASE_CLASS =
@@ -37,6 +38,8 @@ export function ReviewField({
   strong?: boolean
   size?: ReviewFieldSize
 }) {
+  const [text, setText] = useState(defaultValue)
+
   return (
     <div className="space-y-1">
       <label htmlFor={id} className="text-xs font-medium text-neutral-500">
@@ -49,8 +52,10 @@ export function ReviewField({
         defaultValue={defaultValue}
         placeholder={placeholder}
         rows={1}
+        onInput={(event) => setText(event.currentTarget.value)}
         className={`${FIELD_BASE_CLASS} ${FIELD_SIZE_CLASS[size]} ${strong ? 'font-semibold' : ''}`}
       />
+      <CodeBlocksPreview text={text} />
     </div>
   )
 }

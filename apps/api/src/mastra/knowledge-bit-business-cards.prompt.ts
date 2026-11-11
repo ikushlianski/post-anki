@@ -1,4 +1,4 @@
-import { LIST_CARD_RULES, PARAGRAPH_SOURCE_RULE } from "./knowledge-bit-prompt-rules.js";
+import { CODE_CARD_RULES, LIST_CARD_RULES, PARAGRAPH_SOURCE_RULE } from "./knowledge-bit-prompt-rules.js";
 
 // Change ACTIVE_BUSINESS_CARDS_PROMPT to swap the business card prompt version.
 
@@ -133,7 +133,7 @@ export const BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS = BUSINESS_CARDS_PROMPT_V
 
 function replaceOnce(source: string, search: string, replacement: string): string {
   if (!source.includes(search)) {
-    throw new Error(`business_prompt_v8_anchor_missing: ${search.slice(0, 40)}`);
+    throw new Error(`business_prompt_anchor_missing: ${search.slice(0, 40)}`);
   }
 
   return source.replace(search, () => replacement);
@@ -155,4 +155,13 @@ export const BUSINESS_CARDS_PROMPT_V8_LIST_AWARE = V8_EDITS.reduce(
   BUSINESS_CARDS_PROMPT_V7_DIRECT_QUESTIONS,
 );
 
-export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V8_LIST_AWARE;
+const V9_EDITS: ReadonlyArray<readonly [string, string]> = [
+  ["## Self-check before answering", `${CODE_CARD_RULES}\n\n## Self-check before answering`],
+];
+
+export const BUSINESS_CARDS_PROMPT_V9_CODE_AWARE = V9_EDITS.reduce(
+  (prompt, [search, replacement]) => replaceOnce(prompt, search, replacement),
+  BUSINESS_CARDS_PROMPT_V8_LIST_AWARE,
+);
+
+export const ACTIVE_BUSINESS_CARDS_PROMPT = BUSINESS_CARDS_PROMPT_V9_CODE_AWARE;
