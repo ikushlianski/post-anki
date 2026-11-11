@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import type { ChatMessage, GlobalCardChatMatchedCard } from '@post-anki/shared'
 
+import { ChatModelPicker } from '../chat-model/chat-model-picker'
+import { useChatModel } from '../chat-model/use-chat-model'
 import { ChatInputRow, ChatMessageList } from './chat-message-parts'
 import { OPEN_GLOBAL_CARD_CHAT_EVENT } from './global-card-chat-events'
 import { askGlobalCardChat } from './global-card-chat.api'
@@ -33,6 +35,7 @@ export function GlobalCardChatPanel() {
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
   const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
+  const [chatModelId] = useChatModel()
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -54,6 +57,7 @@ export function GlobalCardChatPanel() {
           message: vars.message,
           transcript: vars.transcript,
           allowGeneralKnowledge: vars.allowGeneralKnowledge,
+          modelId: chatModelId,
         },
       }),
   })
@@ -127,6 +131,7 @@ export function GlobalCardChatPanel() {
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           Ask my cards
         </p>
+        <ChatModelPicker disabled={mutation.isPending} />
         <button
           type="button"
           data-testid="global-card-chat-close"

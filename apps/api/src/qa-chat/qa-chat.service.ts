@@ -1,4 +1,4 @@
-import { takeRecentChatMessages, type AskQaChatInput, type AskQaChatResult } from "@post-anki/shared";
+import { CHAT_MODEL_CONTEXT_KEY, takeRecentChatMessages, type AskQaChatInput, type AskQaChatResult } from "@post-anki/shared";
 import { formatTranscript } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -122,6 +122,7 @@ export async function askQaChat(
 
   const requestContext = new RequestContext([
     ["qaChatDeps", deps],
+    ...(input.modelId ? ([[CHAT_MODEL_CONTEXT_KEY, input.modelId]] as [string, string][]) : []),
     ...(curriculumId ? ([["curriculumId", curriculumId]] as [string, string][]) : []),
   ]);
 

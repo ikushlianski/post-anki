@@ -27,6 +27,7 @@ import {
   withProposalDecision,
   type ChatLine,
 } from './chat-thread-state'
+import { useChatModel } from '../chat-model/use-chat-model'
 import { useChatDeleteLast } from './use-chat-delete-last'
 import { useChatDraftPersistence } from './use-chat-draft-persistence'
 import { useChatReject } from './use-chat-reject'
@@ -34,6 +35,7 @@ import { useChatReject } from './use-chat-reject'
 export type { ChatLine }
 
 export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: string) => void) {
+  const [chatModelId] = useChatModel()
   const [lines, setLines] = useState<ChatLine[]>([])
   const [draft, setDraft] = useState(() => loadChatDraft(item.id))
   const [turnsLeft, setTurnsLeft] = useState(item.turnsLeft)
@@ -117,7 +119,10 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
 
       const outcome = await settle(() =>
         sendChatQueueMessage({
-          data: { bitId: item.id, message: { clientMessageId: clientId, message: text } },
+          data: {
+            bitId: item.id,
+            message: { clientMessageId: clientId, message: text, modelId: chatModelId },
+          },
         }),
       )
 
@@ -147,7 +152,7 @@ export function useChatThread(item: ChatQueueKnowledgeBit, onResolved: (id: stri
       setSending(false)
       busy.current = false
     },
-    [handle, item.id],
+    [handle, item.id, chatModelId],
   )
 
   const send = useCallback(

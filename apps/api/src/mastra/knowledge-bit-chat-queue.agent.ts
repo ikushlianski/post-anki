@@ -1,4 +1,5 @@
 import { Agent, type ToolsInput } from "@mastra/core/agent";
+import { CHAT_MODEL_CONTEXT_KEY, chatModelIdSchema } from "@post-anki/shared";
 import { loadEnv } from "../shared/env.js";
 import { assertLlmBudgetAvailable } from "../shared/spend-guard.js";
 import { resolveAgentModel } from "./model.js";
@@ -71,9 +72,12 @@ export function createKnowledgeBitChatQueueAgent(): Agent {
     model: async ({ requestContext }) => {
       await assertLlmBudgetAvailable();
 
+      const chosen = chatModelIdSchema.safeParse(requestContext?.get(CHAT_MODEL_CONTEXT_KEY));
       const modelId = requestContext?.get(CHAT_QUEUE_FALLBACK_CONTEXT_KEY)
         ? tierToModelId("cheap")
-        : requestContext?.get(CHAT_QUEUE_LIGHT_MODEL_CONTEXT_KEY)
+        : chosen.success
+          ? chosen.data
+          : requestContext?.get(CHAT_QUEUE_LIGHT_MODEL_CONTEXT_KEY)
           ? CHAT_QUEUE_LIGHT_MODEL_ID
           : CHAT_QUEUE_MODEL_ID;
 

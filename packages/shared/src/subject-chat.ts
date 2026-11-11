@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chatModelIdSchema } from "./chat-model";
 import { chatTranscriptSchema } from "./study-chat";
 
 export const MAX_SUBJECT_CHAT_MESSAGE_CHARS = 2_000;
@@ -17,6 +18,7 @@ export const askSubjectChatInput = z.object({
   message: z.string().min(1).max(MAX_SUBJECT_CHAT_MESSAGE_CHARS),
   transcript: chatTranscriptSchema.optional(),
   context: subjectChatContextSchema.optional(),
+  modelId: chatModelIdSchema.optional(),
 });
 
 export type AskSubjectChatInput = z.infer<typeof askSubjectChatInput>;

@@ -1,4 +1,5 @@
 import {
+  CHAT_MODEL_CONTEXT_KEY,
   takeRecentChatMessages,
   type AskKnowledgeBitChatInput,
   type AskKnowledgeBitChatResult,
@@ -130,6 +131,7 @@ export async function askKnowledgeBitChat(
   const requestContext = new RequestContext([
     ["allowGeneralKnowledge", allowGeneralKnowledge],
     ["allowWebSearch", allowWebSearch],
+    ...(input.modelId ? ([[CHAT_MODEL_CONTEXT_KEY, input.modelId]] as [string, string][]) : []),
     ...(allowWebSearch
       ? ([["knowledgeBitChatDeps", deps]] as [string, KnowledgeBitChatToolsDeps][])
       : []),

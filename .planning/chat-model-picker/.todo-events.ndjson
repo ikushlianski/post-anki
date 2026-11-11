@@ -1,0 +1,10 @@
+{"ts":"2026-11-11T23:00:59.237Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"added","direction":"chat-model-switch","itemText":"Let chat requests carry a chosen model id, checked against the allowed models list."}
+{"ts":"2026-11-11T23:00:59.285Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"added","direction":"chat-model-switch","itemText":"Add a model picker to the web chat header that remembers the last choice."}
+{"ts":"2026-11-11T23:00:59.332Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"added","direction":"chat-model-switch","itemText":"Add the same chat model picker to the Mac and iPhone chat screens."}
+{"ts":"2026-11-11T23:00:59.381Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"added","direction":"chat-model-switch","itemText":"Owns apps/api/src chat controllers and services, apps/web/src chat folders and the apple chat screens."}
+{"ts":"2026-11-11T23:08:51.612Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"done","direction":"chat-model-switch","itemText":"Let chat requests carry a chosen model id, checked against the allowed models list."}
+{"ts":"2026-11-11T23:08:51.665Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"done","direction":"chat-model-switch","itemText":"Add a model picker to the web chat header that remembers the last choice."}
+{"ts":"2026-11-11T23:08:51.717Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"done","direction":"chat-model-switch","itemText":"Add the same chat model picker to the Mac and iPhone chat screens."}
+{"ts":"2026-11-11T23:08:51.769Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"done","direction":"chat-model-switch","itemText":"Picking another model applies to the next reply"}
+{"ts":"2026-11-11T23:08:51.822Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"done","direction":"chat-model-switch","itemText":"The choice is remembered for later chats"}
+{"ts":"2026-11-11T23:08:51.876Z","sessionId":"6f284a27-4bee-4f40-bfbd-cfa727de1afa","event":"done","direction":"chat-model-switch","itemText":"Only models allowed in admin settings are offered"}

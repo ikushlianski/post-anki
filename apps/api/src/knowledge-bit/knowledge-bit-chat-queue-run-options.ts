@@ -1,4 +1,5 @@
 import { RequestContext } from "@mastra/core/request-context";
+import { CHAT_MODEL_CONTEXT_KEY } from "@post-anki/shared";
 import {
   CHAT_QUEUE_FALLBACK_CONTEXT_KEY,
   CHAT_QUEUE_LIGHT_MODEL_CONTEXT_KEY,
@@ -17,6 +18,7 @@ export interface ChatQueueRunInput {
   fallback: boolean;
   webTools?: KnowledgeBitChatToolsDeps;
   lightModel?: boolean;
+  modelId?: string;
   sink?: ChatQueueProposalSink;
   allowUpdate: boolean;
   subjectInstructions?: string;
@@ -46,6 +48,10 @@ export function buildChatQueueRunOptions(input: ChatQueueRunInput) {
 
   if (input.lightModel) {
     context.push([CHAT_QUEUE_LIGHT_MODEL_CONTEXT_KEY, true]);
+  }
+
+  if (input.modelId && !input.fallback) {
+    context.push([CHAT_MODEL_CONTEXT_KEY, input.modelId]);
   }
 
   if (web) {

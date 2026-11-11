@@ -12,6 +12,7 @@ import {
   TEXT_BUTTON_CLASS,
   TEXT_FIELD_CLASS,
 } from "../knowledge-bit/knowledge-bit-review-classes";
+import { ChatModelPicker } from "../chat-model/chat-model-picker";
 import { ChatQueueDeleteLast } from "./chat-queue-delete-last";
 import { ChatQueueCopyButton } from "./chat-queue-copy-button";
 import { clearChatDraft } from "./chat-queue-draft-storage";
@@ -115,7 +116,10 @@ export function ChatQueueThread({ item, now, onBack, onResolved, onSnoozeChanged
         </p>
       ) : null}
 
-      <ChatQueueTurnsMeter turnsLeft={thread.turnsLeft} />
+      <div className="flex items-center justify-between gap-2">
+        <ChatQueueTurnsMeter turnsLeft={thread.turnsLeft} />
+        <ChatModelPicker disabled={thread.sending} />
+      </div>
 
       {item.reviewChat ? null : (
         <ChatQueueSnooze item={item} onChanged={handleSnoozeChanged} />

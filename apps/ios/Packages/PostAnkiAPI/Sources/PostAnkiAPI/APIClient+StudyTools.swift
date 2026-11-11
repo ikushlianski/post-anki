@@ -4,7 +4,8 @@ extension APIClient {
     public static func askAllCards(
         message: String,
         transcript: [ChatTranscriptEntry],
-        allowGeneralKnowledge: Bool
+        allowGeneralKnowledge: Bool,
+        modelId: String? = ChatModelStore.selectedId()
     ) async throws -> AskAllCardsResult {
         try await request(
             "/global-card-chat",
@@ -12,7 +13,8 @@ extension APIClient {
             body: AskAllCardsInput(
                 message: message,
                 transcript: transcript.isEmpty ? nil : transcript,
-                allowGeneralKnowledge: allowGeneralKnowledge
+                allowGeneralKnowledge: allowGeneralKnowledge,
+                modelId: modelId
             )
         )
     }
@@ -20,12 +22,17 @@ extension APIClient {
     public static func askTopicChat(
         topicId: String,
         message: String,
-        transcript: [ChatTranscriptEntry]
+        transcript: [ChatTranscriptEntry],
+        modelId: String? = ChatModelStore.selectedId()
     ) async throws -> TopicChatResult {
         try await request(
             "/topics/\(encodedSegment(topicId))/study-chat",
             method: "POST",
-            body: TopicChatInput(message: message, transcript: transcript.isEmpty ? nil : transcript)
+            body: TopicChatInput(
+                message: message,
+                transcript: transcript.isEmpty ? nil : transcript,
+                modelId: modelId
+            )
         )
     }
 

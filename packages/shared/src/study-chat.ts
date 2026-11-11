@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chatModelIdSchema } from "./chat-model";
 
 // Bounds a single turn (user or replayed assistant reply) so pasted text
 // can't blow up prompt size; generous enough for real chat use.
@@ -25,6 +26,7 @@ export function takeRecentChatMessages(transcript: ChatMessage[] | undefined): C
 
 export const askStudyChatInput = z.object({
   topicId: z.string(),
+  modelId: chatModelIdSchema.optional(),
   message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
   transcript: chatTranscriptSchema.optional(),
 });

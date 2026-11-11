@@ -1,3 +1,5 @@
+import { ChatModelPicker } from '../chat-model/chat-model-picker'
+import { useChatModel } from '../chat-model/use-chat-model'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import type { ChatMessage } from '@post-anki/shared'
@@ -36,10 +38,12 @@ export function StudyChatSidebar({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages])
 
+  const [chatModelId] = useChatModel()
+
   const mutation = useMutation({
     mutationFn: (vars: { message: string; transcript: ChatMessage[] }) =>
       askStudyChat({
-        data: { topicId, message: vars.message, transcript: vars.transcript },
+        data: { topicId, message: vars.message, transcript: vars.transcript, modelId: chatModelId },
       }),
   })
 
@@ -80,10 +84,11 @@ export function StudyChatSidebar({
       className="mt-3 flex w-full flex-col rounded-md border border-neutral-200 bg-neutral-50 sm:w-80"
       data-testid="study-chat-sidebar"
     >
-      <div className="border-b border-neutral-200 px-3 py-2">
+      <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           Ask about this topic
         </p>
+        <ChatModelPicker disabled={mutation.isPending} />
       </div>
 
       <div

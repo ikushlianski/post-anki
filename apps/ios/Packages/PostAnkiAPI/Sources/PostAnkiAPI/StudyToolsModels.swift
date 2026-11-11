@@ -4,6 +4,7 @@ public struct AskAllCardsInput: Encodable, Sendable {
     public let message: String
     public let transcript: [ChatTranscriptEntry]?
     public let allowGeneralKnowledge: Bool
+    public let modelId: String?
 }
 
 public struct MatchedCard: Decodable, Sendable, Hashable, Identifiable {
@@ -23,6 +24,7 @@ public struct AskAllCardsResult: Decodable, Sendable {
 public struct TopicChatInput: Encodable, Sendable {
     public let message: String
     public let transcript: [ChatTranscriptEntry]?
+    public let modelId: String?
 }
 
 public struct TopicChatResult: Decodable, Sendable {

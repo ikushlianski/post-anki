@@ -249,4 +249,5 @@ struct SnoozeChatQueueResult: Decodable, Sendable {
 struct SendChatQueueMessageInput: Encodable, Sendable {
     let clientMessageId: String
     let message: String
+    let modelId: String?
 }

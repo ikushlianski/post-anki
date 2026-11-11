@@ -276,6 +276,7 @@ async function generateReply(
               fallback,
               webTools: options.webTools,
               lightModel: options.lightModel,
+              modelId: input.modelId,
               sink: options.proposalTools !== false ? sink : undefined,
               allowUpdate: card.approvalState === "chat",
               subjectInstructions,

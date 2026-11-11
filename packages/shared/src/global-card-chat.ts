@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { chatModelIdSchema } from "./chat-model";
 import { chatTranscriptSchema, MAX_CHAT_MESSAGE_CHARS } from "./study-chat";
 
 export const askGlobalCardChatInput = z.object({
   message: z.string().min(1).max(MAX_CHAT_MESSAGE_CHARS),
   transcript: chatTranscriptSchema.optional(),
   allowGeneralKnowledge: z.boolean().optional(),
+  modelId: chatModelIdSchema.optional(),
 });
 
 export type AskGlobalCardChatInput = z.infer<typeof askGlobalCardChatInput>;

@@ -1,3 +1,4 @@
+import { CHAT_MODEL_CONTEXT_KEY, chatModelIdSchema } from "@post-anki/shared";
 import type { RequestContext } from "@mastra/core/request-context";
 import type { Env } from "../shared/env.js";
 import { resolveEffectiveModelTier } from "./tier-resolver.js";
@@ -40,6 +41,12 @@ export function dynamicResolvedModel(env: Env): (args: {
     const subjectId = requestContext?.get("subjectId") as string | undefined;
     const curriculumId = requestContext?.get("curriculumId") as string | undefined;
     await assertLlmBudgetAvailable();
+
+    const chosen = chatModelIdSchema.safeParse(requestContext?.get(CHAT_MODEL_CONTEXT_KEY));
+
+    if (chosen.success) {
+      return resolveAgentModel(chosen.data, env.OPENROUTER_BASE_URL);
+    }
 
     const tier = await resolveEffectiveModelTier({ subjectId, curriculumId });
 

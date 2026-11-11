@@ -1,3 +1,5 @@
+import { ChatModelPicker } from '../chat-model/chat-model-picker'
+import { useChatModel } from '../chat-model/use-chat-model'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import type { ChatMessage } from '@post-anki/shared'
@@ -54,6 +56,7 @@ export function KnowledgeBitChatPanel({
   const [allowGeneralKnowledge, setAllowGeneralKnowledge] = useState(false)
   const [webSearch, setWebSearch] = useState(true)
   const [cardWebSearch, setCardWebSearch] = useState(false)
+  const [chatModelId] = useChatModel()
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const tray = useCardTray(knowledgeBitId)
   const { selection, clearSelection } = useChatSelection(scrollRef)
@@ -73,6 +76,7 @@ export function KnowledgeBitChatPanel({
           allowGeneralKnowledge: vars.allowGeneralKnowledge,
           allowWebSearch: vars.allowWebSearch,
           clientMessageId: crypto.randomUUID(),
+          modelId: chatModelId,
         },
       }),
   })
@@ -207,6 +211,7 @@ export function KnowledgeBitChatPanel({
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           Chat about this
         </p>
+        <ChatModelPicker disabled={mutation.isPending} />
         <button
           type="button"
           data-testid="knowledge-bit-chat-close"

@@ -51,12 +51,13 @@ extension APIClient {
     public static func sendChatQueueMessage(
         id: String,
         clientMessageId: String,
-        message: String
+        message: String,
+        modelId: String? = ChatModelStore.selectedId()
     ) async throws -> ChatQueueReply {
         try await request(
             "/knowledge-bits/\(encodedSegment(id))/chat-messages",
             method: "POST",
-            body: SendChatQueueMessageInput(clientMessageId: clientMessageId, message: message)
+            body: SendChatQueueMessageInput(clientMessageId: clientMessageId, message: message, modelId: modelId)
         )
     }
 }

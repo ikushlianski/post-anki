@@ -87,6 +87,7 @@ struct AskScreen: View {
         }
         .reportsUnsentInput("ask", chat.hasInput)
         .toolbar {
+            ToolbarItem(placement: .automatic) { ChatModelPicker().disabled(chat.isSending) }
             ToolbarItem(placement: .primaryAction) {
                 Button("Clear") { chat.clear() }
                     .disabled(chat.turns.isEmpty)

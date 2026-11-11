@@ -1849,6 +1849,7 @@ export async function askStudyChat(input: {
   topicId: string
   message: string
   transcript?: be.ChatMessage[]
+  modelId?: be.AskStudyChatInput['modelId']
 }): Promise<be.AskStudyChatResult | null> {
   try {
     return await request<be.AskStudyChatResult>(
@@ -1858,6 +1859,7 @@ export async function askStudyChat(input: {
         body: {
           message: input.message,
           transcript: takeRecentChatMessages(input.transcript),
+          modelId: input.modelId,
         },
       },
     )
@@ -1876,6 +1878,7 @@ export async function askGlobalCardChat(
         message: input.message,
         transcript: takeRecentChatMessages(input.transcript),
         allowGeneralKnowledge: input.allowGeneralKnowledge,
+        modelId: input.modelId,
       },
     })
   } catch {
@@ -1894,6 +1897,7 @@ export async function askSubjectChat(
         message: input.message,
         transcript: input.transcript ? takeRecentChatMessages(input.transcript) : undefined,
         context: input.context,
+        modelId: input.modelId,
       },
     })
   } catch {
@@ -1925,6 +1929,7 @@ export async function askKnowledgeBitChat(
           transcript: takeRecentChatMessages(input.transcript),
           allowGeneralKnowledge: input.allowGeneralKnowledge,
           clientMessageId: input.clientMessageId,
+          modelId: input.modelId,
         },
       },
     )

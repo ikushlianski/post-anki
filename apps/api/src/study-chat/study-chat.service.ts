@@ -1,4 +1,4 @@
-import { takeRecentChatMessages, type AskStudyChatInput, type AskStudyChatResult } from "@post-anki/shared";
+import { CHAT_MODEL_CONTEXT_KEY, takeRecentChatMessages, type AskStudyChatInput, type AskStudyChatResult } from "@post-anki/shared";
 import { formatTranscript, summarizeLearningMap } from "@post-anki/core";
 import { RequestContext } from "@mastra/core/request-context";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
@@ -56,7 +56,10 @@ export async function askStudyChat(
     .filter(Boolean)
     .join("\n");
 
-  const requestContext = new RequestContext([["curriculumId", ctx.curriculumId]]);
+  const requestContext = new RequestContext<unknown>([
+    ["curriculumId", ctx.curriculumId],
+    ...(input.modelId ? ([[CHAT_MODEL_CONTEXT_KEY, input.modelId]] as [string, unknown][]) : []),
+  ]);
 
   try {
     if (promptContext?.subjectKind === "language-practice") {

@@ -7,6 +7,8 @@ import {
   type SubjectChatUsedBit,
 } from '@post-anki/shared'
 
+import { ChatModelPicker } from '../chat-model/chat-model-picker'
+import { useChatModel } from '../chat-model/use-chat-model'
 import { ChatInputRow, ChatMessageList } from '../global-card-chat/chat-message-parts'
 import { askSubjectChat } from './subject-chat.api'
 
@@ -69,11 +71,12 @@ export function SubjectChatPanel({
   const [messages, setMessages] = useState<PanelMessage[]>([])
   const [draft, setDraft] = useState('')
   const [useCard, setUseCard] = useState(false)
+  const [chatModelId] = useChatModel()
 
   const mutation = useMutation({
     mutationFn: (vars: { message: string; transcript: ChatMessage[]; context?: SubjectChatContext }) =>
       askSubjectChat({
-        data: { ...vars, subjectId: subjectId ?? '' },
+        data: { ...vars, subjectId: subjectId ?? '', modelId: chatModelId },
       }),
   })
 
@@ -140,9 +143,12 @@ export function SubjectChatPanel({
 
   return (
     <div data-testid="subject-chat-panel" className="flex flex-col rounded-md border border-neutral-200 bg-white">
-      <p className="border-b border-neutral-200 px-3 py-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        Ask about this subject
-      </p>
+      <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+          Ask about this subject
+        </p>
+        <ChatModelPicker disabled={mutation.isPending} />
+      </div>
 
       <label className="flex items-center gap-2 border-b border-neutral-200 px-3 py-2 text-xs text-neutral-500">
         <input

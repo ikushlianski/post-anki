@@ -109,6 +109,7 @@ struct ChatQueueThreadScreen: View {
         .onChange(of: model.composerFocusRequests) { composerFocused = true }
         .onChange(of: model.item.body) { onCardUpdated() }
         .toolbar {
+            ToolbarItem(placement: .automatic) { ChatModelPicker().disabled(model.isSending) }
             ToolbarItem(placement: .primaryAction) {
                 Button("Delete last exchange", systemImage: "trash") { confirmsDelete = true }
                     .disabled(!model.canDeleteLast)

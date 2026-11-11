@@ -1,4 +1,5 @@
 import {
+  CHAT_MODEL_CONTEXT_KEY,
   takeRecentChatMessages,
   type AskGlobalCardChatInput,
   type AskGlobalCardChatResult,
@@ -52,6 +53,7 @@ export async function askGlobalCardChat(
   const agent = getMastra().getAgent(AGENT_KEYS.globalCardChat);
   const requestContext = new RequestContext([
     ["allowGeneralKnowledge", input.allowGeneralKnowledge ?? false],
+    ...(input.modelId ? ([[CHAT_MODEL_CONTEXT_KEY, input.modelId]] as [string, string][]) : []),
   ]);
 
   let matchedCards: CardMatchResult[] = [];

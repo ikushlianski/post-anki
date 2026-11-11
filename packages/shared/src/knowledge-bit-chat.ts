@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chatModelIdSchema } from "./chat-model";
 import { KNOWLEDGE_SOURCE_MAX_CHARS } from "./knowledge-source-refusal";
 import { chatTranscriptSchema, MAX_CHAT_MESSAGE_CHARS, MAX_CHAT_TRANSCRIPT_MESSAGES } from "./study-chat";
 
@@ -11,6 +12,7 @@ export const askKnowledgeBitChatInput = z.object({
   allowGeneralKnowledge: z.boolean().optional().default(false),
   allowWebSearch: z.boolean().optional().default(false),
   clientMessageId: z.string().min(1).max(100).optional(),
+  modelId: chatModelIdSchema.optional(),
 });
 
 export type AskKnowledgeBitChatInput = z.input<typeof askKnowledgeBitChatInput>;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chatModelIdSchema } from "./chat-model";
 import { knowledgeBitRejectReasonSchema } from "./knowledge-bit-review-feedback";
 import {
   MANUAL_ITEM_BACK_MAX_CHARS,
@@ -146,6 +147,7 @@ export type ChatQueueThread = z.infer<typeof chatQueueThreadSchema>;
 export const sendChatQueueMessageInput = z.object({
   clientMessageId: z.string().min(1).max(100),
   message: z.string().trim().min(1).max(CHAT_QUEUE_MAX_MESSAGE_CHARS),
+  modelId: chatModelIdSchema.optional(),
 });
 
 export type SendChatQueueMessageInput = z.input<typeof sendChatQueueMessageInput>;

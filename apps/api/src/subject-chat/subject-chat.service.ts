@@ -1,10 +1,12 @@
 import {
+  CHAT_MODEL_CONTEXT_KEY,
   takeRecentChatMessages,
   type AskSubjectChatInput,
   type AskSubjectChatResult,
   type SubjectChatUsedBit,
 } from "@post-anki/shared";
 import { formatTranscript, MIN_MATCH_SIMILARITY } from "@post-anki/core";
+import { RequestContext } from "@mastra/core/request-context";
 import { generateWithRetry } from "../mastra/generate-with-retry.js";
 import { getMastra, AGENT_KEYS } from "../mastra/mastra.js";
 import { log } from "../shared/log.js";
@@ -121,8 +123,12 @@ export async function askSubjectChat(
 
   try {
     const agent = getMastra().getAgent(AGENT_KEYS.subjectChat);
+    const requestContext = new RequestContext<unknown>([
+      ["subjectId", input.subjectId],
+      ...(input.modelId ? ([[CHAT_MODEL_CONTEXT_KEY, input.modelId]] as [string, unknown][]) : []),
+    ]);
     const result = await generateWithRetry("subject_chat_reply", null, AGENT_KEYS.subjectChat, () =>
-      agent.generate(buildPrompt(input, bits)),
+      agent.generate(buildPrompt(input, bits), { requestContext }),
     );
     const reply = result.text?.trim();
 
