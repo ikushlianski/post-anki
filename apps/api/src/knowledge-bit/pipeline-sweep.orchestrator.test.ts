@@ -16,6 +16,8 @@ function makeDeps(overrides: Partial<PipelineSweepDeps> = {}): PipelineSweepDeps
   return {
     isDurable: vi.fn(() => true),
     reconcile: vi.fn(async () => []),
+    countTriagePending: vi.fn(async () => 0),
+    triageCap: vi.fn(() => 100),
     listStalePending: vi.fn(async () => []),
     startExtraction: vi.fn(async (ids: string[]) => ({
       started: ids.map((id) => `${id}:1`),
@@ -215,5 +217,42 @@ describe("runPipelineSweep", () => {
 
     expect(result).toMatchObject({ requeued: 1, kickSent: true });
     expect(deps.sendKick).toHaveBeenCalledTimes(1);
+  });
+
+  it("should hand nothing to Inngest and log when the triage queue is at the cap", async () => {
+    vi.mocked(log.info).mockClear();
+    const deps = makeDeps({
+      countTriagePending: vi.fn(async () => 100),
+      listStalePending: vi.fn(async () => ["s1"]),
+    });
+
+    const result = await runPipelineSweep(deps);
+
+    expect(deps.listStalePending).not.toHaveBeenCalled();
+    expect(deps.startExtraction).not.toHaveBeenCalled();
+    expect(result.requeued).toBe(0);
+    expect(log.info).toHaveBeenCalledWith({ count: 100, cap: 100 }, "pipeline_sweep_triage_full");
+  });
+
+  it("should select only as many sources as the triage queue has room for", async () => {
+    const deps = makeDeps({
+      countTriagePending: vi.fn(async () => 95),
+      listStalePending: vi.fn(async (_age: number, limit: number) =>
+        Array.from({ length: limit }, (_, i) => `s${i}`),
+      ),
+    });
+
+    const result = await runPipelineSweep(deps);
+
+    expect(deps.listStalePending).toHaveBeenCalledWith(SWEEP_MIN_AGE_MS, 5);
+    expect(result.requeued).toBe(5);
+  });
+
+  it("should send the normal batch when the triage queue is empty", async () => {
+    const deps = makeDeps();
+
+    await runPipelineSweep(deps);
+
+    expect(deps.listStalePending).toHaveBeenCalledWith(SWEEP_MIN_AGE_MS, SWEEP_MAX_SOURCES);
   });
 });

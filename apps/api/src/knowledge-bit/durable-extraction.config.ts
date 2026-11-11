@@ -32,6 +32,12 @@ export function durableStaleMs(raw: string | undefined = process.env.DURABLE_EXT
   return integerInRange(raw, DURABLE_STALE_RANGE_MS.min, DURABLE_STALE_RANGE_MS.max, DEFAULT_DURABLE_STALE_MS);
 }
 
+export const DEFAULT_TRIAGE_QUEUE_CAP = 100;
+
+export function triageQueueCap(raw: string | undefined = process.env.TRIAGE_QUEUE_CAP): number {
+  return integerInRange(raw, 1, 100_000, DEFAULT_TRIAGE_QUEUE_CAP);
+}
+
 const KNOWN_REASONS = new Set([
   "no_valid_items",
   "wrong_language",

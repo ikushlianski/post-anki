@@ -5,6 +5,8 @@ import {
   touchPendingSources,
   type StuckPendingSummary,
 } from "../knowledge-source/pending-sources.repo.js";
+import { countPendingKnowledgeBitsForReview } from "../knowledge-bit/knowledge-bit-pending-total.repo.js";
+import { triageQueueCap } from "./durable-extraction.config.js";
 import { reconcileDurableSources } from "./durable-extraction.reconcile.js";
 import {
   isDurableExtractionEnabled,
@@ -27,6 +29,8 @@ export interface PipelineSweepResult {
 export interface PipelineSweepDeps {
   isDurable: () => boolean;
   reconcile: () => Promise<string[]>;
+  countTriagePending: () => Promise<number>;
+  triageCap: () => number;
   listStalePending: (minAgeMs: number, limit: number) => Promise<string[]>;
   startExtraction: (ids: string[]) => Promise<{ started: string[]; deferredIds: string[] }>;
   touchPending: (ids: string[]) => Promise<void>;
@@ -40,6 +44,8 @@ function defaultDeps(): PipelineSweepDeps {
   return {
     isDurable: () => isDurableExtractionEnabled(),
     reconcile: reconcileDurableSources,
+    countTriagePending: () => countPendingKnowledgeBitsForReview(),
+    triageCap: () => triageQueueCap(),
     listStalePending: listStalePendingSourceIds,
     startExtraction: (ids) => startDurableExtraction(ids, { regeneration: false }),
     touchPending: touchPendingSources,
@@ -91,6 +97,19 @@ async function warnIfSourcesStuck(deps: PipelineSweepDeps): Promise<void> {
   }
 }
 
+async function triageRoom(deps: PipelineSweepDeps): Promise<number> {
+  const cap = deps.triageCap();
+  const count = await deps.countTriagePending();
+
+  if (count >= cap) {
+    log.info({ count, cap }, "pipeline_sweep_triage_full");
+
+    return 0;
+  }
+
+  return cap - count;
+}
+
 export async function runPipelineSweep(
   deps: PipelineSweepDeps = defaultDeps(),
 ): Promise<PipelineSweepResult> {
@@ -102,7 +121,9 @@ export async function runPipelineSweep(
 
   await deps.reconcile();
 
-  const ids = await deps.listStalePending(SWEEP_MIN_AGE_MS, SWEEP_MAX_SOURCES);
+  const room = await triageRoom(deps);
+  const ids =
+    room > 0 ? await deps.listStalePending(SWEEP_MIN_AGE_MS, Math.min(SWEEP_MAX_SOURCES, room)) : [];
   let requeued = 0;
   let deferred = 0;
 
