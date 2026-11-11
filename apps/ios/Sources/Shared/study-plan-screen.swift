@@ -72,6 +72,21 @@ struct StudyPlanScreen: View {
         }
 
         Section {
+            Picker("Complexity", selection: complexityLevel) {
+                Text("Inherit").tag(ComplexityLevel?.none)
+                ForEach(ComplexityLevel.allCases) { Text($0.title).tag(ComplexityLevel?.some($0)) }
+            }
+            .accessibilityIdentifier("study-plan-complexity")
+
+            if let preview = options.preview {
+                Text("Next gap if Good: ~\(preview.goodDays) days, if Easy: ~\(preview.easyDays) days")
+                    .accessibilityIdentifier("study-plan-complexity-preview")
+            }
+        } footer: {
+            Text(complexityFooter(options)).accessibilityIdentifier("study-plan-complexity-source")
+        }
+
+        Section {
             Toggle("Use inherited value", isOn: inheritsRetention)
                 .accessibilityIdentifier("study-plan-retention-inherit")
 
@@ -192,8 +207,28 @@ struct StudyPlanScreen: View {
                     ? nil
                     : model.options.map { StudyPlanDraft.percent($0.effective.desiredRetention) }
                         ?? StudyPlanDraft.defaultRetentionPercent
+
+                if !inherit { draft.wrappedValue.complexityLevel = nil }
             }
         )
+    }
+
+    private var complexityLevel: Binding<ComplexityLevel?> {
+        Binding(
+            get: { draft.wrappedValue.complexityLevel },
+            set: { level in
+                draft.wrappedValue.complexityLevel = level
+                draft.wrappedValue.retentionPercent = nil
+            }
+        )
+    }
+
+    private func complexityFooter(_ options: SubjectStudyOptions) -> String {
+        guard let complexity = options.complexity else { return "Easy spaces reviews wider, Cram keeps them tighter." }
+
+        let level = complexity.level == "custom" ? "Custom retention" : complexity.level.capitalized
+
+        return "\(level). \(source(complexity.source)) Easy spaces reviews wider, Cram keeps them tighter."
     }
 
     private var autoNewCards: Binding<Bool> {

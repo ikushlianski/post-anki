@@ -1,0 +1,1 @@
+ALTER TABLE "subjects" ADD COLUMN "complexity_level" text;

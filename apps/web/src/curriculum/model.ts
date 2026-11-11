@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import {
+  complexityLevelSchema,
   extractionExamplesSchema,
   modelTierSchema,
   type CourseRefocusSuggestion as SharedCourseRefocusSuggestion,
@@ -382,6 +383,7 @@ export const createSubjectInput = z.object({
   requireSources: z.boolean().optional(),
   kind: z.enum(['architecture-mentor', 'language-practice']).default('architecture-mentor'),
   parentId: z.string().nullable().optional(),
+  complexityLevel: complexityLevelSchema.optional(),
 })
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>

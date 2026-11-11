@@ -27,6 +27,7 @@ public struct StudyPlanDraft: Sendable, Equatable {
     public var intent: StudyIntentChoice
     public var examDate: String?
     public var retentionPercent: Int?
+    public var complexityLevel: ComplexityLevel?
     public var newCardsPerDay: Int?
     public var maxReviewsPerDay: Int?
     public var detailLevel: DetailLevel?
@@ -39,8 +40,10 @@ public struct StudyPlanDraft: Sendable, Equatable {
         newCardsPerDay: Int?,
         detailLevel: DetailLevel? = nil,
         hintingEnabled: Bool? = nil,
-        maxReviewsPerDay: Int? = nil
+        maxReviewsPerDay: Int? = nil,
+        complexityLevel: ComplexityLevel? = nil
     ) {
+        self.complexityLevel = complexityLevel
         self.maxReviewsPerDay = maxReviewsPerDay
         self.detailLevel = detailLevel
         self.hintingEnabled = hintingEnabled
@@ -61,6 +64,7 @@ public struct StudyPlanDraft: Sendable, Equatable {
 
         examDate = own.examDate
         retentionPercent = own.desiredRetention.map(Self.percent)
+        complexityLevel = own.desiredRetention == nil ? own.complexityLevel : nil
         newCardsPerDay = own.newCardsPerDay
         maxReviewsPerDay = own.maxReviewsPerDay
         detailLevel = own.detailLevel
@@ -100,6 +104,10 @@ public struct StudyPlanDraft: Sendable, Equatable {
 
         if retentionPercent != original.retentionPercent {
             update.desiredRetention = retentionPercent.map { .set(Double($0) / 100) } ?? .inherit
+        }
+
+        if complexityLevel != original.complexityLevel {
+            update.complexityLevel = complexityLevel.map { .set($0) } ?? .inherit
         }
 
         if newCardsPerDay != original.newCardsPerDay {

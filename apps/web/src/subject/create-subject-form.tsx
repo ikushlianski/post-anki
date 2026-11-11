@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useRouter } from '@tanstack/react-router'
 
 import { ActionFailedLine } from '../curriculum/action-failed-line'
+import { ComplexityLevelPicker, complexityInput, type ComplexityChoice } from './complexity-level-picker'
 import { createSubject } from './subject.api'
 
 export function CreateSubjectForm() {
@@ -13,6 +14,7 @@ export function CreateSubjectForm() {
   const [kind, setKind] = useState<'architecture-mentor' | 'language-practice'>(
     'architecture-mentor',
   )
+  const [complexity, setComplexity] = useState<ComplexityChoice>('normal')
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -33,6 +35,7 @@ export function CreateSubjectForm() {
           description: description.trim() || undefined,
           requireSources,
           kind,
+          ...complexityInput(complexity, false),
         },
       })
 
@@ -101,6 +104,13 @@ export function CreateSubjectForm() {
         <option value="architecture-mentor">Architecture mentor</option>
         <option value="language-practice">Language practice</option>
       </select>
+
+      <ComplexityLevelPicker
+        value={complexity}
+        onChange={setComplexity}
+        allowInherit={false}
+        testId="subject-complexity-select"
+      />
 
       <ActionFailedLine failed={failed} testId="subject-create-failed" />
     </form>

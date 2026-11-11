@@ -23,6 +23,7 @@ export * from "./decide";
 export * from "./admin-settings";
 export * from "./fusion-settings";
 export * from "./study-option-fields";
+export * from "./study-complexity";
 export * from "./subject-study-options";
 export * from "./subject-learning-settings";
 export * from "./study-plan";

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SUBJECT_NAME_MAX_CHARS } from "./text-limits";
 import { modelTierSchema } from "./model-tier";
+import { complexityLevelSchema } from "./study-complexity";
 import {
   CHAT_INSTRUCTIONS_MAX_CHARS,
   EXTRACTION_INSTRUCTIONS_MAX_CHARS,
@@ -31,6 +32,7 @@ export const createSubjectInput = z.object({
   requireSources: z.boolean().optional(),
   kind: z.enum(["architecture-mentor", "language-practice"]).default("architecture-mentor"),
   parentId: z.string().nullable().optional(),
+  complexityLevel: complexityLevelSchema.optional(),
 });
 
 export type CreateSubjectInput = z.infer<typeof createSubjectInput>;

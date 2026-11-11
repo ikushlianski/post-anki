@@ -14,6 +14,7 @@ const inherited: SubjectStudyOptions = {
     learningStepsMinutes: null,
     relearningStepsMinutes: null,
     desiredRetention: null,
+    complexityLevel: null,
     studyIntent: null,
     examDate: null,
     detailLevel: null,
@@ -27,6 +28,8 @@ const inherited: SubjectStudyOptions = {
     relearningStepsMinutes: [10],
     desiredRetention: 0.9,
   },
+  complexity: { level: 'normal', source: 'app' },
+  preview: { goodDays: 13, easyDays: 16 },
   sources: {
     newCardsPerDay: 'parent',
     maxReviewsPerDay: 'app',
@@ -121,7 +124,7 @@ describe('SubjectStudyOptionsForm', () => {
     fireEvent.change(screen.getByTestId('study-options-retention-input'), { target: { value: '50' } })
     fireEvent.blur(screen.getByTestId('study-options-retention-input'))
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ desiredRetention: 0.7 }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ desiredRetention: 0.7, complexityLevel: null }))
   })
 
   it('should keep the learning and relearning steps folded under More options', () => {
@@ -243,5 +246,33 @@ describe('SubjectStudyOptionsForm', () => {
     await waitFor(() =>
       expect(screen.getByTestId('study-options-maxReviewsPerDay-source').textContent).toBe('Using the app default.'),
     )
+  })
+
+  it('should show the next gap for Good and Easy', () => {
+    setup()
+
+    expect(screen.getByTestId('study-options-complexity-preview').textContent).toBe(
+      'Next gap if Good: ~13 days, if Easy: ~16 days',
+    )
+  })
+
+  it('should send the picked level with retention cleared, and show the refreshed gaps', async () => {
+    const onSave = vi.fn().mockResolvedValue({
+      ...inherited,
+      own: { ...inherited.own, complexityLevel: 'cram' },
+      complexity: { level: 'cram', source: 'child' },
+      preview: { goodDays: 8, easyDays: 10 },
+    })
+
+    setup(inherited, onSave)
+    fireEvent.click(screen.getByTestId('study-options-complexity-cram'))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ complexityLevel: 'cram', desiredRetention: null }))
+    await waitFor(() =>
+      expect(screen.getByTestId('study-options-complexity-preview').textContent).toBe(
+        'Next gap if Good: ~8 days, if Easy: ~10 days',
+      ),
+    )
+    expect(screen.getByTestId('study-options-complexity-cram').getAttribute('aria-checked')).toBe('true')
   })
 })

@@ -5,6 +5,32 @@ public enum StudyIntent: String, Codable, Sendable, CaseIterable {
     case longTerm = "long_term"
 }
 
+public enum ComplexityLevel: String, Codable, Sendable, CaseIterable, Identifiable {
+    case easy
+    case normal
+    case cram
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .easy: return "Easy"
+        case .normal: return "Normal"
+        case .cram: return "Cram"
+        }
+    }
+}
+
+public enum ComplexityChoice {
+    public static func shown(_ selection: ComplexityLevel?, hasParent: Bool) -> ComplexityLevel? {
+        hasParent ? selection : (selection ?? .normal)
+    }
+
+    public static func toSend(_ selection: ComplexityLevel?, hasParent: Bool) -> ComplexityLevel? {
+        hasParent ? selection : (selection == .normal ? nil : selection)
+    }
+}
+
 public struct SubjectStudyOptions: Decodable, Sendable, Equatable {
     public struct Own: Decodable, Sendable, Equatable {
         public let newCardsPerDay: Int?
@@ -12,6 +38,7 @@ public struct SubjectStudyOptions: Decodable, Sendable, Equatable {
         public let learningStepsMinutes: [Int]?
         public let relearningStepsMinutes: [Int]?
         public let desiredRetention: Double?
+        public var complexityLevel: ComplexityLevel?
         public let studyIntent: StudyIntent?
         public let examDate: String?
         public var detailLevel: DetailLevel?
@@ -40,10 +67,22 @@ public struct SubjectStudyOptions: Decodable, Sendable, Equatable {
         public let desiredRetention: String
     }
 
+    public struct Complexity: Decodable, Sendable, Equatable {
+        public let level: String
+        public let source: String
+    }
+
+    public struct Preview: Decodable, Sendable, Equatable {
+        public let goodDays: Int
+        public let easyDays: Int
+    }
+
     public let own: Own
     public let intent: IntentInfo
     public let effective: Effective
     public let sources: Sources
+    public var complexity: Complexity?
+    public var preview: Preview?
 }
 
 public struct StudyForecast: Decodable, Sendable, Equatable {
@@ -104,6 +143,7 @@ public struct SubjectStudyOptionsUpdate: Encodable, Sendable, Equatable {
     public var newCardsPerDay: StudyOptionChange<Int> = .unchanged
     public var maxReviewsPerDay: StudyOptionChange<Int> = .unchanged
     public var desiredRetention: StudyOptionChange<Double> = .unchanged
+    public var complexityLevel: StudyOptionChange<ComplexityLevel> = .unchanged
     public var detailLevel: StudyOptionChange<DetailLevel> = .unchanged
     public var hintingEnabled: StudyOptionChange<Bool> = .unchanged
 
@@ -112,11 +152,11 @@ public struct SubjectStudyOptionsUpdate: Encodable, Sendable, Equatable {
     public var isEmpty: Bool {
         studyIntent == .unchanged && examDate == .unchanged
             && newCardsPerDay == .unchanged && maxReviewsPerDay == .unchanged && desiredRetention == .unchanged
-            && detailLevel == .unchanged && hintingEnabled == .unchanged
+            && complexityLevel == .unchanged && detailLevel == .unchanged && hintingEnabled == .unchanged
     }
 
     enum CodingKeys: String, CodingKey {
-        case studyIntent, examDate, newCardsPerDay, maxReviewsPerDay, desiredRetention, detailLevel, hintingEnabled
+        case studyIntent, examDate, newCardsPerDay, maxReviewsPerDay, desiredRetention, complexityLevel, detailLevel, hintingEnabled
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -127,6 +167,7 @@ public struct SubjectStudyOptionsUpdate: Encodable, Sendable, Equatable {
         try Self.write(newCardsPerDay, .newCardsPerDay, to: &container)
         try Self.write(maxReviewsPerDay, .maxReviewsPerDay, to: &container)
         try Self.write(desiredRetention, .desiredRetention, to: &container)
+        try Self.write(complexityLevel, .complexityLevel, to: &container)
         try Self.write(detailLevel, .detailLevel, to: &container)
         try Self.write(hintingEnabled, .hintingEnabled, to: &container)
     }

@@ -1,3 +1,4 @@
+import PostAnkiAPI
 import SwiftUI
 
 struct NewSubjectForm: View {
@@ -5,11 +6,12 @@ struct NewSubjectForm: View {
     let message: String?
     let isBusy: Bool
     let confirmTitle: String
-    let onCreate: (String, String?) -> Void
+    let onCreate: (String, String?, ComplexityLevel?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var parentId: String?
+    @State private var level: ComplexityLevel?
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -26,6 +28,8 @@ struct NewSubjectForm: View {
                     }
                 }
 
+                ComplexityLevelPicker(selection: $level, hasParent: parentId != nil)
+
                 if let message {
                     Text(message).foregroundStyle(.red)
                 }
@@ -38,7 +42,7 @@ struct NewSubjectForm: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(confirmTitle) { onCreate(trimmed, parentId) }
+                    Button(confirmTitle) { onCreate(trimmed, parentId, ComplexityChoice.toSend(level, hasParent: parentId != nil)) }
                         .disabled(trimmed.isEmpty || isBusy)
                 }
             }

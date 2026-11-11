@@ -5,6 +5,7 @@ import type {
   SubjectStudyOptions,
   UpdateSubjectStudyOptionsInput,
 } from '@post-anki/shared'
+import { ComplexityField } from './complexity-field'
 import { NewCardsPerDayField } from '../admin-settings/new-cards-per-day-field'
 import { isExamDateMessage } from '../study-plan/exam-date-messages'
 import { ExamDateField } from './exam-date-field'
@@ -115,11 +116,18 @@ export function SubjectStudyOptionsForm({
             onCommit={(examDate) => save({ studyIntent: 'exam', examDate })}
           />
         ) : null}
+        <ComplexityField
+          options={options}
+          subjectId={subjectId}
+          subjectNames={subjectNames}
+          disabled={busy}
+          onChange={(complexityLevel) => void save({ complexityLevel, desiredRetention: null })}
+        />
         <RetentionField
           label="Desired retention (%)"
           description="Higher means shorter gaps and more reviews. 90% suits most; 80-95% is the useful range."
           value={effective.desiredRetention}
-          onChange={(desiredRetention) => save({ desiredRetention })}
+          onChange={(desiredRetention) => save({ desiredRetention, complexityLevel: null })}
           disabled={busy}
           testId="study-options-retention"
           hint={hint('desiredRetention')}

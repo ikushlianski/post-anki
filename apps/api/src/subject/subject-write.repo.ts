@@ -84,6 +84,7 @@ export async function createSubject(input: CreateSubjectInput): Promise<Subject>
     requireSources: input.requireSources ?? false,
     kind: input.kind,
     parentId: input.parentId ?? null,
+    complexityLevel: input.complexityLevel ?? null,
   };
 
   await getDb().transaction(async (tx) => {

@@ -3,11 +3,12 @@ import SwiftUI
 
 struct SubjectNewSheet: View {
     let subjects: [SubjectManageSubject]
-    let onCreate: (String, String?) async -> String?
+    let onCreate: (String, String?, ComplexityLevel?) async -> String?
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var parentId: String?
+    @State private var level: ComplexityLevel?
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -26,6 +27,8 @@ struct SubjectNewSheet: View {
                     }
                 }
 
+                ComplexityLevelPicker(selection: $level, hasParent: parentId != nil)
+
                 SheetErrorText(message: errorMessage)
             }
             .navigationTitle("New subject")
@@ -42,7 +45,7 @@ struct SubjectNewSheet: View {
                         isSaving = true
                         errorMessage = nil
 
-                        if let failure = await onCreate(trimmed, parentId) {
+                        if let failure = await onCreate(trimmed, parentId, ComplexityChoice.toSend(level, hasParent: parentId != nil)) {
                             errorMessage = failure
                         } else {
                             dismiss()

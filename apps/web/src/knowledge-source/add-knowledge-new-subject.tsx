@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import type { ComplexityLevel } from '@post-anki/shared'
+
 import type { Subject } from '../curriculum/model'
 import { NewSubjectForm } from '../subject/new-subject-form'
 import { createSubject } from '../subject/subject.api'
@@ -16,12 +18,12 @@ export function AddKnowledgeNewSubject({ options, disabled, onCreated }: AddKnow
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function create({ name, parentId }: { name: string; parentId: string | null }) {
+  async function create({ name, parentId, complexityLevel }: { name: string; parentId: string | null; complexityLevel?: ComplexityLevel }) {
     setBusy(true)
     setError(null)
 
     try {
-      const created = await createSubject({ data: { name, kind: 'architecture-mentor', parentId } })
+      const created = await createSubject({ data: { name, kind: 'architecture-mentor', parentId, complexityLevel } })
 
       onCreated(created)
       setOpen(false)

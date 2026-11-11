@@ -78,8 +78,8 @@ struct FocusTriageNewSubjectForm: View {
             message: model.message,
             isBusy: model.isBusy,
             confirmTitle: "Create and assign"
-        ) { name, parentId in
-            Task { onDone(await model.createAndAssign(name: name, parentId: parentId)) }
+        ) { name, parentId, level in
+            Task { onDone(await model.createAndAssign(name: name, parentId: parentId, complexityLevel: level)) }
         }
     }
 }

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import type { ComplexityLevel } from '@post-anki/shared'
+
 import { createSubject } from '../subject/subject.api'
 import { SearchableSelect } from '../ui/searchable-select'
 import { NewSubjectForm } from '../subject/new-subject-form'
@@ -93,10 +95,10 @@ function SubjectPickerPanel({
     void run(() => assign(subjectId, labelFor(subjectId)))
   }
 
-  function create({ name, parentId }: { name: string; parentId: string | null }) {
+  function create({ name, parentId, complexityLevel }: { name: string; parentId: string | null; complexityLevel?: ComplexityLevel }) {
     void run(async () => {
       const created = await createSubject({
-        data: { name, kind: 'architecture-mentor', parentId },
+        data: { name, kind: 'architecture-mentor', parentId, complexityLevel },
       })
       const parentLabel = parentId ? labelFor(parentId) : ''
 

@@ -39,7 +39,7 @@ final class AddKnowledgeSubjectPickerModel {
 
     var parentChoices: [(id: String, label: String)] { SubjectParentChoices.list(from: tree) }
 
-    func createAndSelect(name: String, parentId: String?) async -> Bool {
+    func createAndSelect(name: String, parentId: String?, complexityLevel: ComplexityLevel? = nil) async -> Bool {
         guard !isBusy else { return false }
 
         isBusy = true
@@ -47,7 +47,7 @@ final class AddKnowledgeSubjectPickerModel {
         defer { isBusy = false }
 
         do {
-            let created = try await APIClient.createSubject(name: name, parentId: parentId)
+            let created = try await APIClient.createSubject(name: name, parentId: parentId, complexityLevel: complexityLevel)
 
             subjects.append(created)
             selectedId = created.id
@@ -133,8 +133,8 @@ struct AddKnowledgeSubjectPicker: View {
                 message: model.message,
                 isBusy: model.isBusy,
                 confirmTitle: "Create and select"
-            ) { name, parentId in
-                Task { if await model.createAndSelect(name: name, parentId: parentId) { isCreating = false } }
+            ) { name, parentId, level in
+                Task { if await model.createAndSelect(name: name, parentId: parentId, complexityLevel: level) { isCreating = false } }
             }
         }
     }

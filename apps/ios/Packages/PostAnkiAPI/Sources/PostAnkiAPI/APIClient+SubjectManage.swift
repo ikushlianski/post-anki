@@ -9,16 +9,28 @@ extension APIClient {
         try await request("/curricula")
     }
 
-    public static func createManagedSubject(name: String, parentId: String?) async throws {
+    public static func createManagedSubject(
+        name: String,
+        parentId: String?,
+        complexityLevel: ComplexityLevel? = nil
+    ) async throws {
         let _: EmptyResponse = try await request(
             "/subjects",
             method: "POST",
-            body: SubjectManageCreateInput(name: name, parentId: parentId)
+            body: SubjectManageCreateInput(name: name, parentId: parentId, complexityLevel: complexityLevel)
         )
     }
 
-    public static func createSubject(name: String, parentId: String?) async throws -> Subject {
-        try await request("/subjects", method: "POST", body: SubjectManageCreateInput(name: name, parentId: parentId))
+    public static func createSubject(
+        name: String,
+        parentId: String?,
+        complexityLevel: ComplexityLevel? = nil
+    ) async throws -> Subject {
+        try await request(
+            "/subjects",
+            method: "POST",
+            body: SubjectManageCreateInput(name: name, parentId: parentId, complexityLevel: complexityLevel)
+        )
     }
 
     public static func renameSubject(id: String, name: String) async throws {

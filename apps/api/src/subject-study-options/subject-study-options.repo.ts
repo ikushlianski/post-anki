@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
 import {
+  complexityLevelSchema,
   desiredRetentionSchema,
   maxReviewsPerDaySchema,
   newCardsPerDaySchema,
   stepsMinutesSchema,
   detailLevelSchema,
   studyIntentSchema,
+  type ComplexityLevel,
   type DetailLevel,
   type StudyIntent,
   type StudyOptionsOverride,
@@ -18,6 +20,7 @@ export interface SubjectStudyOptionsRow {
   id: string;
   parentId: string | null;
   options: StudyOptionsOverride;
+  complexityLevel: ComplexityLevel | null;
   studyIntent: StudyIntent | null;
   examDate: string | null;
   examPlannedAt: string | null;
@@ -39,6 +42,7 @@ const optionColumns = {
   learningStepsMinutes: subjects.learningStepsMinutes,
   relearningStepsMinutes: subjects.relearningStepsMinutes,
   desiredRetention: subjects.desiredRetention,
+  complexityLevel: subjects.complexityLevel,
   studyIntent: subjects.studyIntent,
   examDate: subjects.examDate,
   examPlannedAt: subjects.examPlannedAt,
@@ -54,6 +58,7 @@ function toRow(row: {
   learningStepsMinutes: number[] | null;
   relearningStepsMinutes: number[] | null;
   desiredRetention: number | null;
+  complexityLevel: string | null;
   studyIntent: string | null;
   examDate: string | null;
   examPlannedAt: Date | null;
@@ -73,6 +78,7 @@ function toRow(row: {
         .parse(row.relearningStepsMinutes),
       desiredRetention: desiredRetentionSchema.nullable().catch(null).parse(row.desiredRetention),
     },
+    complexityLevel: complexityLevelSchema.nullable().catch(null).parse(row.complexityLevel),
     studyIntent: studyIntentSchema.nullable().catch(null).parse(row.studyIntent),
     examDate: row.examDate,
     examPlannedAt: row.examPlannedAt?.toISOString() ?? null,
@@ -103,6 +109,7 @@ export async function writeSubjectStudyOptions(
       relearningStepsMinutes: input.relearningStepsMinutes,
     }),
     ...(input.desiredRetention !== undefined && { desiredRetention: input.desiredRetention }),
+    ...(input.complexityLevel !== undefined && { complexityLevel: input.complexityLevel }),
     ...(input.detailLevel !== undefined && { detailLevel: input.detailLevel }),
     ...(input.hintingEnabled !== undefined && { hintingEnabled: input.hintingEnabled }),
     ...(intent && {

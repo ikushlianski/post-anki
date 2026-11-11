@@ -1,6 +1,9 @@
 import { useState } from 'react'
 
+import type { ComplexityLevel } from '@post-anki/shared'
+
 import { SECONDARY_BUTTON_CLASS, TEXT_FIELD_CLASS } from '../knowledge-bit/knowledge-bit-review-classes'
+import { ComplexityLevelPicker, complexityInput, type ComplexityChoice } from './complexity-level-picker'
 import { SearchableSelect } from '../ui/searchable-select'
 import type { SearchableOption } from '../ui/searchable-select'
 
@@ -9,17 +12,24 @@ interface NewSubjectFormProps {
   options: readonly SearchableOption[]
   busy: boolean
   confirmLabel: string
-  onSubmit: (input: { name: string; parentId: string | null }) => void
+  onSubmit: (input: { name: string; parentId: string | null; complexityLevel?: ComplexityLevel }) => void
   onBack: () => void
 }
 
 export function NewSubjectForm({ testIdPrefix, options, busy, confirmLabel, onSubmit, onBack }: NewSubjectFormProps) {
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState('')
+  const [complexity, setComplexity] = useState<ComplexityChoice | null>(null)
+  const picked = complexity ?? (parentId ? 'inherit' : 'normal')
+  const shownComplexity = !parentId && picked === 'inherit' ? 'normal' : picked
   const trimmed = name.trim()
 
   function submit() {
-    onSubmit({ name: trimmed, parentId: parentId || null })
+    onSubmit({
+      name: trimmed,
+      parentId: parentId || null,
+      ...complexityInput(shownComplexity, parentId !== ''),
+    })
   }
 
   return (
@@ -52,6 +62,13 @@ export function NewSubjectForm({ testIdPrefix, options, busy, confirmLabel, onSu
         onChange={setParentId}
         placeholder="Top level (no parent)"
         clearable
+      />
+      <ComplexityLevelPicker
+        value={shownComplexity}
+        onChange={setComplexity}
+        allowInherit={parentId !== ''}
+        disabled={busy}
+        testId={`${testIdPrefix}-complexity`}
       />
       <div className="flex gap-2">
         <button

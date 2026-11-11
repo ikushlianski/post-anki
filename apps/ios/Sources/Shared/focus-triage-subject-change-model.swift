@@ -55,14 +55,14 @@ final class FocusTriageSubjectChangeModel {
         }
     }
 
-    func createAndAssign(name: String, parentId: String?) async -> String? {
+    func createAndAssign(name: String, parentId: String?, complexityLevel: ComplexityLevel? = nil) async -> String? {
         guard !isBusy else { return nil }
 
         isBusy = true
         message = nil
 
         do {
-            let created = try await APIClient.createSubject(name: name, parentId: parentId)
+            let created = try await APIClient.createSubject(name: name, parentId: parentId, complexityLevel: complexityLevel)
 
             subjects.append(created)
             isBusy = false

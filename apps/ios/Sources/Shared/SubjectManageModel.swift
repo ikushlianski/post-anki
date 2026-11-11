@@ -68,8 +68,10 @@ final class SubjectManageModel {
         }
     }
 
-    func create(name: String, parentId: String?) async -> Bool {
-        await run { try await APIClient.createManagedSubject(name: name, parentId: parentId) }
+    func create(name: String, parentId: String?, complexityLevel: ComplexityLevel? = nil) async -> Bool {
+        await run {
+            try await APIClient.createManagedSubject(name: name, parentId: parentId, complexityLevel: complexityLevel)
+        }
     }
 
     func rename(_ subject: SubjectManageSubject, to name: String) async -> Bool {

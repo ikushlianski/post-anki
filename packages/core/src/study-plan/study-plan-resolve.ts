@@ -1,9 +1,10 @@
-import type { StudyIntent, StudyOptions, StudyOptionsOverride } from "@post-anki/shared";
+import type { ComplexityLevel, StudyIntent, StudyOptions, StudyOptionsOverride } from "@post-anki/shared";
 import { resolveStudyOptions, type ResolvedStudyOptions } from "../subject-study-options-resolve";
 
 export interface StudyPlanChainLink {
   subjectId: string;
   options: StudyOptionsOverride;
+  complexityLevel?: ComplexityLevel | null;
   studyIntent: StudyIntent | null;
   examDate: string | null;
   examPlannedAt: string | null;

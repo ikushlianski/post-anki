@@ -67,8 +67,11 @@ struct MacSubjectsView: View {
                 }
             }
             .sheet(isPresented: $showNew) {
-                SubjectNewSheet(subjects: model.subjects) { name, parentId in
-                    SheetFailure.message(await model.create(name: name, parentId: parentId), model.errorMessage)
+                SubjectNewSheet(subjects: model.subjects) { name, parentId, level in
+                    SheetFailure.message(
+                        await model.create(name: name, parentId: parentId, complexityLevel: level),
+                        model.errorMessage
+                    )
                 }
                 .macSheetMinSize()
             }

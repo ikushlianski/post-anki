@@ -125,3 +125,52 @@ describe("collectSubjectAncestorIds", () => {
     expect(collectSubjectAncestorIds("ghost", rows)).toEqual([]);
   });
 });
+
+describe("resolveStudyOptions complexity levels", () => {
+  it("should read Easy and Cram as their preset retention and Normal as the app default", () => {
+    const retention = (level: "easy" | "normal" | "cram") =>
+      resolveStudyOptions([{ subjectId: "s", options: {}, complexityLevel: level }], APP);
+
+    expect(retention("easy").effective.desiredRetention).toBe(0.87);
+    expect(retention("cram").effective.desiredRetention).toBe(0.935);
+    expect(retention("normal").effective.desiredRetention).toBe(0.9);
+    expect(retention("cram").complexity).toEqual({ level: "cram", source: "s" });
+  });
+
+  it("should let a sub-subject's level beat its parent's explicit retention", () => {
+    const result = resolveStudyOptions(
+      [
+        { subjectId: "child", options: {}, complexityLevel: "easy" },
+        { subjectId: "parent", options: { desiredRetention: 0.95 } },
+      ],
+      APP,
+    );
+
+    expect(result.effective.desiredRetention).toBe(0.87);
+    expect(result.sources.desiredRetention).toBe("child");
+  });
+
+  it("should let an explicit retention beat the level on the same subject and report custom", () => {
+    const result = resolveStudyOptions(
+      [{ subjectId: "s", options: { desiredRetention: 0.8 }, complexityLevel: "cram" }],
+      APP,
+    );
+
+    expect(result.effective.desiredRetention).toBe(0.8);
+    expect(result.complexity).toEqual({ level: "custom", source: "s" });
+  });
+
+  it("should inherit the nearest ancestor's level and default to Normal from the app", () => {
+    const inherited = resolveStudyOptions(
+      [
+        { subjectId: "child", options: {} },
+        { subjectId: "parent", options: {}, complexityLevel: "cram" },
+      ],
+      APP,
+    );
+    const none = resolveStudyOptions([{ subjectId: "child", options: {} }], APP);
+
+    expect(inherited.complexity).toEqual({ level: "cram", source: "parent" });
+    expect(none.complexity).toEqual({ level: "normal", source: "app" });
+  });
+});

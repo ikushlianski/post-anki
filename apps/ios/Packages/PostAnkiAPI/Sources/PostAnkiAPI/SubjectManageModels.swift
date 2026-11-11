@@ -20,6 +20,13 @@ public struct SubjectManageCourse: Decodable, Sendable, Hashable, Identifiable {
 public struct SubjectManageCreateInput: Encodable, Sendable {
     public let name: String
     public let parentId: String?
+    public let complexityLevel: ComplexityLevel?
+
+    public init(name: String, parentId: String?, complexityLevel: ComplexityLevel? = nil) {
+        self.name = name
+        self.parentId = parentId
+        self.complexityLevel = complexityLevel
+    }
 }
 
 public struct SubjectManageRenameInput: Encodable, Sendable {

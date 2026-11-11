@@ -4,6 +4,7 @@ import {
   desiredRetentionSchema,
   stepsMinutesSchema,
 } from "./study-option-fields";
+import { complexityLevelSchema, complexityPreviewSchema, complexityViewSchema } from "./study-complexity";
 import { examDateSchema, studyIntentSchema } from "./study-plan";
 import { detailLevelSchema, hintingEnabledSchema } from "./subject-learning-settings";
 
@@ -33,6 +34,7 @@ export const studyOptionsOverrideSchema = z.object({
   learningStepsMinutes: stepsMinutesSchema.nullable().optional(),
   relearningStepsMinutes: stepsMinutesSchema.nullable().optional(),
   desiredRetention: desiredRetentionSchema.nullable().optional(),
+  complexityLevel: complexityLevelSchema.nullable().optional(),
 });
 
 export type StudyOptionsOverride = z.infer<typeof studyOptionsOverrideSchema>;
@@ -64,6 +66,7 @@ export const subjectStudyOptionsSchema = z.object({
     learningStepsMinutes: stepsMinutesSchema.nullable(),
     relearningStepsMinutes: stepsMinutesSchema.nullable(),
     desiredRetention: desiredRetentionSchema.nullable(),
+    complexityLevel: complexityLevelSchema.nullable(),
     studyIntent: studyIntentSchema.nullable(),
     examDate: examDateSchema.nullable(),
     detailLevel: detailLevelSchema.nullable(),
@@ -75,6 +78,8 @@ export const subjectStudyOptionsSchema = z.object({
     source: studyOptionSourceSchema,
   }),
   effective: studyOptionsSchema,
+  complexity: complexityViewSchema,
+  preview: complexityPreviewSchema,
   sources: z.object({
     newCardsPerDay: studyOptionSourceSchema,
     maxReviewsPerDay: studyOptionSourceSchema,

@@ -1,5 +1,8 @@
 import {
   APP_STUDY_OPTION_SOURCE,
+  complexityRetention,
+  type ComplexityLevel,
+  type ComplexityView,
   STUDY_OPTION_KEYS,
   type StudyOptionKey,
   type StudyOptions,
@@ -11,6 +14,7 @@ export const MAX_STUDY_OPTIONS_CHAIN_DEPTH = 20;
 export interface StudyOptionsChainLink {
   subjectId: string;
   options: StudyOptionsOverride;
+  complexityLevel?: ComplexityLevel | null;
 }
 
 export interface StudyOptionsAncestorRow {
@@ -21,6 +25,7 @@ export interface StudyOptionsAncestorRow {
 export interface ResolvedStudyOptions {
   effective: StudyOptions;
   sources: Record<StudyOptionKey, string>;
+  complexity: ComplexityView;
 }
 
 export function collectSubjectAncestorIds(
@@ -47,6 +52,14 @@ export function collectSubjectAncestorIds(
   return chain;
 }
 
+function linkRetention(link: StudyOptionsChainLink, appDefault: number): number | null {
+  if (link.options.desiredRetention != null) {
+    return link.options.desiredRetention;
+  }
+
+  return link.complexityLevel ? complexityRetention(link.complexityLevel, appDefault) : null;
+}
+
 export function resolveStudyOptions(
   chain: StudyOptionsChainLink[],
   appDefaults: StudyOptions,
@@ -57,6 +70,10 @@ export function resolveStudyOptions(
   ) as Record<StudyOptionKey, string>;
 
   for (const key of STUDY_OPTION_KEYS) {
+    if (key === "desiredRetention") {
+      continue;
+    }
+
     const link = chain.find((candidate) => candidate.options[key] != null);
 
     if (link) {
@@ -65,5 +82,23 @@ export function resolveStudyOptions(
     }
   }
 
-  return { effective, sources };
+  let complexity: ComplexityView = { level: "normal", source: APP_STUDY_OPTION_SOURCE };
+
+  for (const link of chain) {
+    const retention = linkRetention(link, appDefaults.desiredRetention);
+
+    if (retention === null) {
+      continue;
+    }
+
+    effective.desiredRetention = retention;
+    sources.desiredRetention = link.subjectId;
+    complexity = {
+      level: link.options.desiredRetention != null ? "custom" : (link.complexityLevel ?? "normal"),
+      source: link.subjectId,
+    };
+    break;
+  }
+
+  return { effective, sources, complexity };
 }

@@ -40,7 +40,7 @@ export async function loadStudyOptionsResolver(db: DbExecutor = getDb()): Promis
       const chain = collectSubjectAncestorIds(subjectId, rows).flatMap((id) => {
         const row = byId.get(id);
 
-        return row ? [{ subjectId: id, options: row.options }] : [];
+        return row ? [{ subjectId: id, options: row.options, complexityLevel: row.complexityLevel }] : [];
       });
       const resolved = resolveStudyOptions(chain, defaults);
 
@@ -67,6 +67,7 @@ export async function loadStudyOptionsResolver(db: DbExecutor = getDb()): Promis
               {
                 subjectId: id,
                 options: row.options,
+                complexityLevel: row.complexityLevel,
                 studyIntent: row.studyIntent,
                 examDate: row.examDate,
                 examPlannedAt: row.examPlannedAt,
