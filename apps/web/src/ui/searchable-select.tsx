@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { z } from 'zod'
 
@@ -27,6 +27,7 @@ export interface SearchableSelectProps {
   className?: string
   containerClassName?: string
   maxRows?: number
+  autoFocus?: boolean
 }
 
 const FIELD_CLASS =
@@ -79,8 +80,10 @@ export function SearchableSelect({
   className,
   containerClassName,
   maxRows,
+  autoFocus,
 }: SearchableSelectProps) {
   const baseId = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState<string | null>(null)
   const [active, setActive] = useState(0)
@@ -93,6 +96,14 @@ export function SearchableSelect({
     setActive(index >= 0 ? index : nextEnabled(visible, -1, 1))
     setOpen(true)
   }
+
+  useEffect(() => {
+    if (autoFocus) {
+      inputRef.current?.focus()
+      setActive(nextEnabled(filterOptions(options, null), -1, 1))
+      setOpen(true)
+    }
+  }, [])
 
   function close() {
     setOpen(false)
@@ -152,6 +163,7 @@ export function SearchableSelect({
   return (
     <div className={`relative min-w-0 ${containerClassName ?? ''}`}>
       <input
+        ref={inputRef}
         type="text"
         role="combobox"
         aria-label={ariaLabel}

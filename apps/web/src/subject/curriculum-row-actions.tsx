@@ -229,6 +229,7 @@ function MoveCurriculumButton({
         }}
         testId={`curriculum-move-target-select-${curriculum.id}`}
         placeholder="Search subjects…"
+        autoFocus
         className="w-full min-w-48 cursor-pointer rounded-md border border-neutral-200 bg-white py-0.5 pl-1.5 pr-7 text-xs"
       />
       {targetSubjectId ? (

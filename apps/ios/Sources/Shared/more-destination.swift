@@ -31,7 +31,6 @@ enum MoreDestination: String, CaseIterable, Identifiable {
     case learningList
     case studySessions
     case triageHistory
-    case studyPlan
     case settings
     case account
     case about
@@ -41,7 +40,7 @@ enum MoreDestination: String, CaseIterable, Identifiable {
     var section: MoreSection {
         switch self {
         case .knowledge, .subjects, .notes, .search, .tags, .duplicates: .library
-        case .today, .progress, .statistics, .learningList, .studySessions, .triageHistory, .studyPlan: .study
+        case .today, .progress, .statistics, .learningList, .studySessions, .triageHistory: .study
         case .settings, .account, .about: .account
         }
     }
@@ -56,7 +55,6 @@ enum MoreDestination: String, CaseIterable, Identifiable {
         case .learningList: "Learning list"
         case .studySessions: "Study sessions"
         case .triageHistory: "Triage history"
-        case .studyPlan: "Study plan"
         case .notes: "Notes"
         case .search: "Search"
         case .tags: "Tags"
@@ -77,7 +75,6 @@ enum MoreDestination: String, CaseIterable, Identifiable {
         case .learningList: "list.bullet.clipboard"
         case .studySessions: "calendar"
         case .triageHistory: "clock.arrow.circlepath"
-        case .studyPlan: "calendar.badge.clock"
         case .notes: "note.text"
         case .search: "magnifyingglass"
         case .tags: "tag"

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 
 import { listKnowledgeBrowserSubjectCounts } from '../knowledge-bit/knowledge-browser.api'
+import { CARD_MATURITY_PALETTE } from '../knowledge-bit/card-maturity-palette'
 import { cardMaturityOf, percentOf, type CardMaturity } from './card-maturity'
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; maturity: CardMaturity }
 
 const SEGMENTS = [
-  { key: 'mature', label: 'Mature', color: 'bg-green-500' },
-  { key: 'learning', label: 'Learning', color: 'bg-orange-400' },
-  { key: 'new', label: 'New', color: 'bg-blue-500' },
+  { key: 'mature', label: 'Mature', color: CARD_MATURITY_PALETTE.mature.fill },
+  { key: 'learning', label: 'Learning', color: CARD_MATURITY_PALETTE.learning.fill },
+  { key: 'new', label: 'New', color: CARD_MATURITY_PALETTE.new.fill },
 ] as const
 
 export function StatsCardMaturity() {

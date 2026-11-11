@@ -199,4 +199,19 @@ describe('SearchableSelect', () => {
     expect(input().className).toContain('min-h-[44px]')
     expect(input().className).toContain('sm:min-h-0')
   })
+
+  it('should focus the field and show the list on open when autoFocus is set', () => {
+    render(<SearchableSelect options={OPTIONS} value="" onChange={() => {}} ariaLabel="Pick" testId="pick" autoFocus />)
+
+    expect(document.activeElement).toBe(input())
+    expect(screen.getAllByRole('option')).toHaveLength(4)
+  })
+
+  it('should pick the single remaining match when Enter is pressed after typing', () => {
+    render(<Harness />)
+    fireEvent.change(input(), { target: { value: 'gam' } })
+    fireEvent.keyDown(input(), { key: 'Enter' })
+
+    expect(chosen()).toBe('c')
+  })
 })

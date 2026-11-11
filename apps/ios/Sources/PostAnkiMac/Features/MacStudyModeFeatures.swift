@@ -4,14 +4,6 @@ import SwiftUI
 enum MacStudyModeFeatures {
     static let features: [MacFeature] = [
         MacFeature(
-            id: "study-plan",
-            section: .study,
-            order: 30,
-            title: "Study plan",
-            systemImage: "calendar",
-            detail: { _ in AnyView(StudyPlanSubjectPicker()) }
-        ),
-        MacFeature(
             id: "study-sessions",
             section: .study,
             order: 40,

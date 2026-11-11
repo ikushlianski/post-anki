@@ -45,6 +45,7 @@ export function SubjectMovePicker({
 
       {options.length > MOVE_FILTER_THRESHOLD ? (
         <input
+          autoFocus
           type="search"
           value={query}
           disabled={busy}
@@ -52,6 +53,14 @@ export function SubjectMovePicker({
           placeholder="Filter subjects"
           data-testid={testIds.filter}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            const only = visible.length === 1 ? visible[0] : undefined
+
+            if (event.key === 'Enter' && only && !only.isCurrent && !busy) {
+              event.preventDefault()
+              onMove(only.parentId)
+            }
+          }}
           className="mx-2 rounded border border-neutral-300 px-2 py-1 text-sm outline-none focus:border-neutral-500"
         />
       ) : null}

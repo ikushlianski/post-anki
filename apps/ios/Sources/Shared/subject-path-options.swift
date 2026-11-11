@@ -8,7 +8,11 @@ struct SubjectPathOption: Identifiable, Equatable {
 
 extension SubjectTreePath {
     static func options(from subjects: [Subject]) -> [SubjectPathOption] {
-        flatten(tree(from: subjects), prefix: [])
+        options(from: tree(from: subjects))
+    }
+
+    static func options(from nodes: [SubjectTreeNode]) -> [SubjectPathOption] {
+        flatten(nodes, prefix: [])
     }
 
     private static func flatten(_ nodes: [SubjectTreeNode], prefix: [String]) -> [SubjectPathOption] {

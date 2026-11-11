@@ -6,6 +6,7 @@ import type { KnowledgeBitBrowserSubjectCounts } from '@post-anki/shared'
 import type { Subject } from '../curriculum/model'
 import { subjectKindBadge } from '../subject/subject-kind-badge'
 import { useLiveSubjects } from '../subject/subject-live-data'
+import { CARD_MATURITY_PALETTE } from './card-maturity-palette'
 import { CardListLoadError } from './card-list-load-error'
 import { SubjectRowActions } from './subject-row-actions'
 import { useKnowledgeBrowserSubjectCounts } from './use-knowledge-browser-data'
@@ -66,9 +67,9 @@ export function buildBrowserSubjectEntries(
 export function DepthBar({ entry }: { entry: BrowserSubjectEntry }) {
   const shown = entry.matureCount + entry.learningCount + entry.newCount
   const parts = [
-    { key: 'mature', label: 'mature', value: entry.matureCount, color: 'bg-emerald-500' },
-    { key: 'learning', label: 'learning', value: entry.learningCount, color: 'bg-amber-400' },
-    { key: 'new', label: 'new', value: entry.newCount, color: 'bg-sky-400' },
+    { key: 'mature', label: 'mature', value: entry.matureCount, color: CARD_MATURITY_PALETTE.mature.fill },
+    { key: 'learning', label: 'learning', value: entry.learningCount, color: CARD_MATURITY_PALETTE.learning.fill },
+    { key: 'new', label: 'new', value: entry.newCount, color: CARD_MATURITY_PALETTE.new.fill },
   ]
   const title = parts.map((part) => `${part.value} ${part.label}`).join(', ')
 

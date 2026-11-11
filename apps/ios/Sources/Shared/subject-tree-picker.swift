@@ -94,8 +94,41 @@ struct SubjectTreePickerLevel: View {
     let selection: String?
     var allowsNone = true
     let onPick: (String?) -> Void
+    @State private var query = ""
+
+    private var isSearching: Bool { parent == nil && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    private var matches: [SubjectPathOption] {
+        SubjectSearch.filter(SubjectTreePath.options(from: nodes), query: query)
+    }
 
     var body: some View {
+        VStack(spacing: 0) {
+            if parent == nil {
+                SubjectSearchField(text: $query) {
+                    if let only = SubjectSearch.onlyMatch(SubjectTreePath.options(from: nodes), query: query) {
+                        onPick(only.id)
+                    }
+                }
+            }
+
+            list
+        }
+        .navigationTitle(title)
+    }
+
+    @ViewBuilder
+    private var list: some View {
+        if isSearching {
+            List(matches) { option in
+                row(SubjectSearch.displayLabel(option), isSelected: selection == option.id) { onPick(option.id) }
+            }
+        } else {
+            treeList
+        }
+    }
+
+    private var treeList: some View {
         List {
             if let parent {
                 row("Use \(parent.entry.name)", isSelected: selection == parent.id) { onPick(parent.id) }
@@ -129,7 +162,6 @@ struct SubjectTreePickerLevel: View {
                 }
             }
         }
-        .navigationTitle(title)
     }
 
     private func row(_ text: String, isSelected: Bool, action: @escaping () -> Void) -> some View {

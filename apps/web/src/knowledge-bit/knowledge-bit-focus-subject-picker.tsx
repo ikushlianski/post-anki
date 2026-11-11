@@ -126,7 +126,8 @@ function SubjectPickerPanel({
             value=""
             disabled={busy}
             onChange={pick}
-            placeholder="Choose a subject…"
+            placeholder="Search subjects…"
+            autoFocus
           />
           <button
             type="button"

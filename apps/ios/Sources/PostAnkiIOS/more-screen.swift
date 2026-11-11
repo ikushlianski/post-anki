@@ -36,7 +36,6 @@ struct MoreScreen: View {
         case .learningList: LearningListScreen()
         case .studySessions: StudySessionsScreen()
         case .triageHistory: TriageHistoryScreen()
-        case .studyPlan: StudyPlanSubjectPicker()
         case .notes: NotesSearchScreen()
         case .search: GlobalSearchScreen()
         case .tags: TagsScreen()

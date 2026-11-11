@@ -9,7 +9,7 @@ extension SmokeTests {
 
             #expect(titles == [
                 "Knowledge", "Subjects", "Notes", "Search", "Tags", "Duplicates",
-                "Today", "Progress", "Statistics", "Learning list", "Study sessions", "Triage history", "Study plan",
+                "Today", "Progress", "Statistics", "Learning list", "Study sessions", "Triage history",
                 "Settings", "Account", "About"
             ])
             #expect(!titles.contains("More"))

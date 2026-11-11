@@ -16,6 +16,7 @@ struct MacSubjectsView: View {
     @State private var showNew = false
     @State private var renaming: SubjectManageSubject?
     @State private var merging: SubjectManageSubject?
+    @State private var planning: SubjectManageSubject?
     @State private var pendingDelete: [SubjectManageSubject] = []
     @State private var history = MacHistoryCenter.shared.stack(for: "subjects", of: SubjectManageSubject.self)
 
@@ -56,6 +57,12 @@ struct MacSubjectsView: View {
                 }
 
                 ToolbarItem {
+                    Button { planning = single } label: { Label("Study plan", systemImage: "calendar.badge.clock") }
+                        .help("Open the study plan of the selected subject")
+                        .disabled(single == nil)
+                }
+
+                ToolbarItem {
                     Button { pendingDelete = selected } label: { Label("Delete", systemImage: "trash") }
                         .help("Delete the selected subjects")
                         .disabled(selected.isEmpty)
@@ -86,6 +93,9 @@ struct MacSubjectsView: View {
                     SheetFailure.message(await model.merge(source: source, into: target), model.errorMessage)
                 }
                 .macSheetMinSize()
+            }
+            .sheet(item: $planning) { subject in
+                MacSubjectStudyPlanSheet(subject: subject)
             }
             .confirmationDialog(
                 deleteTitle,
@@ -171,6 +181,7 @@ struct MacSubjectsView: View {
 
             if items.count == 1, let subject = items.first {
                 Button("Open categories") { history.open(subject) }
+                Button("Study plan") { planning = subject }
                 Button("Rename") { renaming = subject }
                 Button("Merge into…") { merging = subject }
                 Button("Move up") { move(subject, by: -1) }

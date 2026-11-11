@@ -10,9 +10,9 @@ struct CardMaturitySection: View {
                     Text("No cards yet").foregroundStyle(.secondary)
                 } else {
                     CardMaturityBar(breakdown: breakdown)
-                    row("Mature", breakdown.mature, breakdown, .green)
-                    row("Learning", breakdown.learning, breakdown, .orange)
-                    row("New", breakdown.new, breakdown, .blue)
+                    row("Mature", breakdown.mature, breakdown, CardMaturityPalette.mature)
+                    row("Learning", breakdown.learning, breakdown, CardMaturityPalette.learning)
+                    row("New", breakdown.new, breakdown, CardMaturityPalette.new)
                 }
             } else if model.failed {
                 Text("Couldn't load card maturity.").foregroundStyle(.secondary)

@@ -8,9 +8,9 @@ struct CardMaturityBar: View {
         GeometryReader { proxy in
             HStack(spacing: 0) {
                 if let fractions = breakdown.fractions {
-                    Color.accentColor.frame(width: proxy.size.width * fractions.mature)
-                    Color.accentColor.opacity(0.6).frame(width: proxy.size.width * fractions.learning)
-                    Color.accentColor.opacity(0.3).frame(width: proxy.size.width * fractions.new)
+                    CardMaturityPalette.mature.frame(width: proxy.size.width * fractions.mature)
+                    CardMaturityPalette.learning.frame(width: proxy.size.width * fractions.learning)
+                    CardMaturityPalette.new.frame(width: proxy.size.width * fractions.new)
                 }
 
                 Spacer(minLength: 0)
@@ -32,9 +32,9 @@ struct SubjectDepthBar: View {
     var body: some View {
         GeometryReader { proxy in
             HStack(spacing: 0) {
-                Color.accentColor.frame(width: proxy.size.width * fractions.mature)
-                Color.accentColor.opacity(0.6).frame(width: proxy.size.width * fractions.learning)
-                Color.accentColor.opacity(0.3).frame(width: proxy.size.width * fractions.new)
+                CardMaturityPalette.mature.frame(width: proxy.size.width * fractions.mature)
+                CardMaturityPalette.learning.frame(width: proxy.size.width * fractions.learning)
+                CardMaturityPalette.new.frame(width: proxy.size.width * fractions.new)
                 Spacer(minLength: 0)
             }
         }

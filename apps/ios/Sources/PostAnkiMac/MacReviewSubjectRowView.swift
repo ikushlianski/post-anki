@@ -5,9 +5,9 @@ struct MacReviewSubjectsHeader: View {
         HStack {
             Text("Subject")
             Spacer()
-            Text("Mature").frame(width: MacReviewCountColumns.width, alignment: .trailing)
-            Text("Learning").frame(width: MacReviewCountColumns.width, alignment: .trailing)
-            Text("New").frame(width: MacReviewCountColumns.width, alignment: .trailing)
+            Text("Mature").foregroundStyle(CardMaturityPalette.mature).frame(width: MacReviewCountColumns.width, alignment: .trailing)
+            Text("Learning").foregroundStyle(CardMaturityPalette.learning).frame(width: MacReviewCountColumns.width, alignment: .trailing)
+            Text("New").foregroundStyle(CardMaturityPalette.new).frame(width: MacReviewCountColumns.width, alignment: .trailing)
             Text("Today").fontWeight(.semibold).frame(width: MacReviewCountColumns.width, alignment: .trailing)
         }
         .accessibilityHidden(true)
@@ -24,9 +24,9 @@ struct MacReviewCountColumns: View {
 
     var body: some View {
         HStack {
-            Text("\(mature)").frame(width: Self.width, alignment: .trailing)
-            Text("\(learning)").frame(width: Self.width, alignment: .trailing)
-            Text("\(new)").frame(width: Self.width, alignment: .trailing)
+            Text("\(mature)").foregroundStyle(CardMaturityPalette.count(CardMaturityPalette.mature, mature)).frame(width: Self.width, alignment: .trailing)
+            Text("\(learning)").foregroundStyle(CardMaturityPalette.count(CardMaturityPalette.learning, learning)).frame(width: Self.width, alignment: .trailing)
+            Text("\(new)").foregroundStyle(CardMaturityPalette.count(CardMaturityPalette.new, new)).frame(width: Self.width, alignment: .trailing)
             Text("\(today)").fontWeight(.semibold).frame(width: Self.width, alignment: .trailing)
         }
         .monospacedDigit()

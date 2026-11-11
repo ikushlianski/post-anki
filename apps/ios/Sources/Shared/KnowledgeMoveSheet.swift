@@ -8,21 +8,32 @@ struct KnowledgeMoveSheet: View {
     var onRetry: (() -> Void)?
     let onPick: (Subject) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
 
     private var options: [SubjectPathOption] {
         SubjectTreePath.options(from: subjects).filter { $0.id != excludedId }
     }
 
+    private var visibleOptions: [SubjectPathOption] { SubjectSearch.filter(options, query: query) }
+
+    private func pick(_ option: SubjectPathOption) {
+        guard !option.isParent, let subject = subjects.first(where: { $0.id == option.id }) else { return }
+
+        onPick(subject)
+        dismiss()
+    }
+
     var body: some View {
         NavigationStack {
-            List(options) { option in
-                Button(option.label) {
-                    if let subject = subjects.first(where: { $0.id == option.id }) {
-                        onPick(subject)
-                        dismiss()
-                    }
+            VStack(spacing: 0) {
+                SubjectSearchField(text: $query) {
+                    if let only = SubjectSearch.onlyMatch(options, query: query) { pick(only) }
                 }
-                .disabled(option.isParent)
+
+                List(visibleOptions) { option in
+                    Button(query.isEmpty ? option.label : SubjectSearch.displayLabel(option)) { pick(option) }
+                        .disabled(option.isParent)
+                }
             }
             .navigationTitle("Move to subject")
             #if os(iOS)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
 import { useRestoreFocus } from '../shared/use-restore-focus'
@@ -27,10 +27,6 @@ export function KnowledgeOverviewMoveDialog({
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [subjectId, setSubjectId] = useState('')
   const title = `Move ${count} ${count === 1 ? 'card' : 'cards'} to a subject?`
-
-  useEffect(() => {
-    confirmRef.current?.focus()
-  }, [])
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     event.stopPropagation()
@@ -86,7 +82,8 @@ export function KnowledgeOverviewMoveDialog({
             options={subjectOptions}
             value={subjectId}
             onChange={setSubjectId}
-            placeholder="Choose a subject…"
+            placeholder="Search subjects…"
+            autoFocus
           />
         </div>
         {error ? (
