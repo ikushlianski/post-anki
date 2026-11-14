@@ -1525,3 +1525,154 @@ directly. See the handoff report delivered to the user for the full scenario-lev
 - 2026-11-14: Move cards to another subject through MCP.
 - 2026-11-14: Suspend and unsuspend cards through MCP.
 - 2026-11-14: Review due cards through MCP: list what is due and grade a card.
+- 2026-11-14: Adding a card flags exact and 80%-similar existing cards as duplicates before saving.
+- 2026-11-14: Ask questions about all my cards through MCP.
+- 2026-11-14: Get one or several cards by id through MCP, with sides, subject, tags and schedule.
+- 2026-11-14: Search cards by text, subject, tag or suspended state through MCP.
+
+## classic-anki-review
+
+- 2026-11-14: An "I already know it" review button, also on new cards, hides the card for 6-12 months.
+- 2026-11-14: Today review can skip new cards and show only repeats.
+- 2026-11-14: Suspend the card on screen with one tap during iPhone review.
+- 2026-11-14: Show the subject of the card currently being reviewed.
+- 2026-11-14: Today review goes subject by subject, announcing the next subject and cards left.
+- 2026-11-14: A daily review limit ends the session with a done-for-today message, and review-ahead stays available.
+- 2026-11-14: Mac Review shows a collapsible subject tree with due new and repeat counts, and reviews on click.
+- 2026-11-14: On the Mac, Space, Return and numpad Enter all continue the review as Good.
+- 2026-11-14: A card graded Good or Hard is not brought back by queue refills in the same session.
+- 2026-11-14: Add review statistics: due forecast for coming days, retention rate over time, and answer-button counts.
+- 2026-11-14: Pending items move from Review to Knowledge Inbox, and Inbox is renamed Knowledge Inbox everywhere.
+- 2026-11-14: Review drops typed answers: Space reveals ratings, keys 1-4 rate, Space again picks Good.
+- 2026-11-14: Select-all on All cards works on a Russian keyboard layout.
+- 2026-11-14: Today's review count and streak follow the learner's own midnight, not UTC.
+- 2026-11-14: Review shortcuts for undo, edit and suspend work on a Russian keyboard layout.
+- 2026-11-14: Show each card's source link in review and in All cards
+- 2026-11-14: Warn before adding a link or text that was already added, with an explicit add-again
+- 2026-11-14: Say why a pasted text or link was refused, next to the block that failed
+- 2026-11-14: Add controller tests for bulk move knowledge bits
+- 2026-11-14: Show human-readable relative time for next due card on done screen
+- 2026-11-14: Show today's count and streak on the done-for-today screen
+- 2026-11-14: Highlight overdue cards in amber on the knowledge overview table
+- 2026-11-14: Show study streak count on the session summary screen
+- 2026-11-14: Persist per-day review totals so streak tracking survives a page reload
+- 2026-11-14: Show fill-in-blank variant as a cloze card during study sessions
+- 2026-11-14: Decide durable workflow engine for extraction jobs; replace homegrown pipeline kicks
+- 2026-11-14: Harden knowledge extraction against prompt injection and unsafe input
+- 2026-11-14: Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20
+- 2026-11-14: Write cards from the whole source text, not sentence by sentence
+- 2026-11-14: Regenerate button on the approval page for a source
+- 2026-11-14: Phone tap targets at least 44px: menus, Add knowledge, Show answer
+- 2026-11-14: Allow the custom web domain in the API origin allow-list
+- 2026-11-14: Settings switcher to pick the extraction model from five candidates
+- 2026-11-14: Fix single-item review batch serving the same item twice
+- 2026-11-14: Show newly detected suggestions on the approval page without reload
+- 2026-11-14: Split approval review item and panel files under 300 lines
+- 2026-11-14: Explain approve, and that questions take minutes, on paste
+- 2026-11-14: Show per-row error when approve or reject fails
+- 2026-11-14: Stop checking-automatically text after polling gives up
+- 2026-11-14: Reorder nav: Add, Approve, Review
+- 2026-11-14: Rename approval page so Review means cards only
+- 2026-11-14: Fix Done for today showing when nothing was reviewed
+- 2026-11-14: Label Bury and Suspend in words; move below answer
+- 2026-11-14: Add aria-labels with interval to grade buttons
+- 2026-11-14: Stop a retried grade save from grading the card twice
+- 2026-11-14: Split the review queue repo file under 300 lines
+- 2026-11-14: Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
+- 2026-11-14: Serve only due or never-reviewed cards in the unscoped review queue
+- 2026-11-14: Hide bit text above the question in Anki review mode
+- 2026-11-14: Run bit detection and question generation right after paste
+- 2026-11-14: Link review page from sidebar and add-knowledge success, with pending count
+- 2026-11-14: Refresh review page so bits awaiting questions become approvable
+- 2026-11-14: Add bulk approve on the knowledge-bit review page
+- 2026-11-14: Add simple front/back basic-card variant for plain recall facts
+- 2026-11-14: Keyboard shortcuts: Space reveals answer, 1-4 grade the card
+- 2026-11-14: Show the next interval on each grade button, like Anki
+- 2026-11-14: Add minute-level learning steps for new and failed cards
+- 2026-11-14: Cap new cards per day and show due and new counts
+- 2026-11-14: Undo the last grade with one click or keystroke
+- 2026-11-14: Show session progress and an end-of-session summary
+- 2026-11-14: Show done-for-today screen with next due time when queue empty
+- 2026-11-14: Edit a card's question or answer during review
+- 2026-11-14: Suspend or bury a card from the review screen
+- 2026-11-14: Flag leeches after repeated failures and suspend them automatically
+- 2026-11-14: Approve or reject suggestions by keyboard; approve all from a source
+- 2026-11-14: Hide the chat panel until the answer is revealed
+- 2026-11-14: E2e: basic cards generated, preferred in review, excluded from typed mode
+- 2026-11-14: E2e: basic card retries, overlapping runs, injection and backstop job
+- 2026-11-14: E2e: session summary, mid-review edit, undo suspend or bury
+- 2026-11-14: E2e: typed queue skips suspended and buried; timer finishes interrupted runs
+- 2026-11-14: Review screen: keep grade focus, retry button, explained counts and done step
+- 2026-11-14: Paste page: plain wording, saving state, labelled inputs and mode toggles
+- 2026-11-14: Script listing cheapest structured-output OpenRouter models with prices
+- 2026-11-14: Count pasted items as due on the dashboard without a curriculum placement
+- 2026-11-14: Page to list and unsuspend suspended or leech cards
+- 2026-11-14: Approve all asks to confirm and lists why items were skipped
+- 2026-11-14: Empty approval page points to Add knowledge
+- 2026-11-14: Raise hint contrast and touch target size on approval and review
+- 2026-11-14: Phone-width checks: no horizontal overflow on key screens, with screenshots
+- 2026-11-14: Cards keep the source language and never say the bit or the text
+- 2026-11-14: Write cards in parallel and show how many are ready
+- 2026-11-14: Detected items must stand alone, with no dangling this or that
+- 2026-11-14: Compare the five models side by side on the user's Russian text
+
+## native-apple-apps
+
+- 2026-11-14: Mac detail pane text, like the subject list, is as large as the sidebar on every screen.
+- 2026-11-14: Share text from any iPhone app into Post Anki as a new card source.
+- 2026-11-14: iPhone triage screen: Resume, Triage all and subjects at top; item list collapsed.
+- 2026-11-14: Mac app updates itself: CI attaches it to each GitHub release, the app checks hourly.
+- 2026-11-14: Native Add knowledge: add several raw pieces at once under one subject, like the web.
+- 2026-11-14: Highlight selected text with a configurable keyboard shortcut, default Command+D, on Mac and web.
+- 2026-11-14: Mac and iPhone apps ingest a picked or dropped text file through the web file import.
+- 2026-11-14: Mac triage hides the statement line above the question and answer cards.
+- 2026-11-14: Add a macOS share extension to the PostAnki Mac app, so right-clicking selected text in any app (for example the Claude desktop app) shows PostAnki in the Share menu. The panel has a subject picker with an "Auto" default that leaves the subject empty so the API's triage assigns one, and it saves the text as raw knowledge using the Mac app's existing login.
+- 2026-11-14: Let the user highlight phrases in a knowledge source in the Mac and iPhone apps to tell the AI which parts to pay attention to when shaping questions, as the web app already does. The apps send the highlight start and end positions with the source, and the question-shaping code reads them as today.
+- 2026-11-14: Filter the Knowledge overview by state and origin on the server, then use it on iPhone.
+- 2026-11-14: Bring the iOS app close to web parity: cards table, subjects tree with depth bar, triage, search.
+- 2026-11-14: A kept piece in pending review can be undone, restoring its dropped variants and pending state.
+- 2026-11-14: Mac Knowledge table column titles are not clipped when zoomed to 200%.
+- 2026-11-14: API takes the chosen one or two variants of a piece, drops the rest and approves it.
+- 2026-11-14: Block regeneration scans from re-creating variants of an approved piece the reviewer already narrowed down.
+- 2026-11-14: Shared selection model preselects the best variant, caps keeps at two, with tests.
+- 2026-11-14: Mac and iOS pending review shows one piece per screen with numbered variant cards.
+- 2026-11-14: Mac pending review keys: digits toggle variants, Return keeps and advances, X drops the piece, Z undoes.
+- 2026-11-14: Web pending review uses the same keep-one-or-two choice and number keys on each piece.
+- 2026-11-14: Mac app zooms with Cmd-plus, Cmd-minus and Cmd-0, scaling text and interface, remembered between launches.
+- 2026-11-14: Mac sidebar keeps only Knowledge, Knowledge Inbox, Review (cram), Subjects and Settings.
+- 2026-11-14: The Knowledge screen is a sortable table with columns, not a plain list.
+- 2026-11-14: The iOS app has the same Debug-only sync spike window and shows subjects offline in the simulator.
+- 2026-11-14: The Mac smoke tests and a Release build pass after the address and sync token changes.
+- 2026-11-14: The spike syncs subjects and topics using only API-minted tokens, with no dev-token fallback, checked live.
+- 2026-11-14: PowerSync sync rules also cover topics, and the Mac spike window shows them offline.
+- 2026-11-14: The Mac app uses the address saved in Settings, not production, and a test covers it.
+- 2026-11-14: The Mac app fetches fresh sync tokens from the API itself and keeps syncing past five minutes.
+- 2026-11-14: PowerSync accepts a token minted by the post-anki API and syncs the Mac app with it.
+- 2026-11-14: The iOS target builds for the simulator from apps/ios.
+- 2026-11-14: The post-anki API issues short-lived sync tokens that PowerSync checks through a public key endpoint.
+- 2026-11-14: The Mac spike runs from a signed, sandboxed build and still reads the local service.
+- 2026-11-14: A script builds and launches the native app, takes a screenshot, and main screens have accessibility identifiers.
+- 2026-11-14: The Swift iOS and macOS project from the old post-anki-ios repo lives in apps/ios here and builds.
+- 2026-11-14: The native app's local secrets file and build output never get committed to git.
+- 2026-11-14: The native app's config, ports and README point at this repo's API, not the old repo.
+- 2026-11-14: A short note compares PowerSync with Electric for native sync and records the chosen path.
+- 2026-11-14: One table syncs from dev Postgres to the Swift app via PowerSync and shows offline.
+
+## add-a-post-deploy-smoke-test-that-checks
+
+- 2026-11-14: Create scripts/post-deploy-smoke.mjs reading prod domains and bot token from environment, failing fast when missing.
+- 2026-11-14: Add webhook check: getWebhookInfo url must equal the bot /telegram URL, with no last_error_message.
+- 2026-11-14: Add /push check: missing and wrong bearer must both return 401; never send the valid secret.
+
+## chat-queue-card-crafting
+
+- 2026-11-14: Send to chat (iPhone, Mac) takes an optional first prompt so AI replies during triage.
+- 2026-11-14: Chat shows Finish chat after an accepted card, else Cancel chat that deletes it.
+- 2026-11-14: Mac triage gets Send to chat and the full iPhone chat abilities (propose, reword, approve cards).
+- 2026-11-14: Let every item chat on iPhone and Mac propose cards, not only the queue chat.
+- 2026-11-14: iPhone chat proposes a card on request for accept or reject, with an on-demand reword-question button.
+- 2026-11-14: The chat model gets create-card and update-card tools that take a front, a back and optional examples, so a card born in the chat is a proper card and not a copied answer.
+- 2026-11-14: Item chat always searches the web and fetches pages so replies use current, sourced facts.
+- 2026-11-14: Each subject gets an optional chat instruction that opens every chat; sub-subjects inherit it.
+- 2026-11-14: Data migration writes a tailored chat instruction for every existing subject and sub-subject.
+- 2026-11-14: Data migration adds a B2B sales sub-subject under Sales, with its own chat instruction.

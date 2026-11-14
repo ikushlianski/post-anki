@@ -72,8 +72,10 @@ updated: 2026-09-04
 - Out of scope: Cards already approved in triage stay untouched.
 
 ### Coding tasks
+- [ ] Import the Anki English deck file as-is, keeping front, back and examples, with no AI rewrite.
 
 ### Notes
+- The English deck is the exception to rewriting: its cards are already shaped, so they import verbatim.
 
 
 ## offline-review
@@ -102,20 +104,10 @@ updated: 2026-09-04
 - A proposed card is never saved silently: the user accepts or rejects it in the chat, and a rejection continues the discussion.
 
 ### Coding tasks
-- [x] Send to chat (iPhone, Mac) takes an optional first prompt so AI replies during triage.
-- [x] Chat shows Finish chat after an accepted card, else Cancel chat that deletes it.
-- [x] Mac triage gets Send to chat and the full iPhone chat abilities (propose, reword, approve cards).
-- [x] Let every item chat on iPhone and Mac propose cards, not only the queue chat.
-- [x] iPhone chat proposes a card on request for accept or reject, with an on-demand reword-question button.
 - [ ] Cards the chat proposes are triaged in place like the triage screen: swipe right (or accept) saves the card, swipe left (or reject) keeps the thread going on what is wrong until the point is fixed and accepted or discarded.
 - [ ] The iOS and Mac apps show the improved chat with the same card tools as the web app.
 - [ ] When a card's source author is known, the chat may fetch context about that author's material to ground its explanation.
 - [ ] Chat answers come from a smarter model tier with web search and fetch available, with the model's own knowledge preferred and web context used to fill terse one-sentence sources.
-- [ ] The chat model gets create-card and update-card tools that take a front, a back and optional examples, so a card born in the chat is a proper card and not a copied answer.
-- [x] Item chat always searches the web and fetches pages so replies use current, sourced facts.
-- [x] Each subject gets an optional chat instruction that opens every chat; sub-subjects inherit it.
-- [x] Data migration writes a tailored chat instruction for every existing subject and sub-subject.
-- [x] Data migration adds a B2B sales sub-subject under Sales, with its own chat instruction.
 
 ### Notes
 - Worked in its own Orca worktree chat-queue-card-crafting, started 2026-11-08 from this session's brief.
@@ -967,44 +959,8 @@ updated: 2026-09-04
 - Out of scope: Replacing the Expo mobile app or the web app before PowerSync is proven
 
 ### Coding tasks
-- [x] iPhone triage screen: Resume, Triage all and subjects at top; item list collapsed.
-- [x] Mac app updates itself: CI attaches it to each GitHub release, the app checks hourly.
-- [x] Native Add knowledge: add several raw pieces at once under one subject, like the web.
-- [x] Highlight selected text with a configurable keyboard shortcut, default Command+D, on Mac and web.
-- [x] Mac and iPhone apps ingest a picked or dropped text file through the web file import.
-- [x] Mac triage hides the statement line above the question and answer cards.
+- [ ] [blocked: user] Provision the iPhone share extension App IDs and App Group.
 - [ ] [blocked: user] Register Apple App ID and App Group for the Mac share extension.
-- [x] Add a macOS share extension to the PostAnki Mac app, so right-clicking selected text in any app (for example the Claude desktop app) shows PostAnki in the Share menu. The panel has a subject picker with an "Auto" default that leaves the subject empty so the API's triage assigns one, and it saves the text as raw knowledge using the Mac app's existing login.
-- [x] Let the user highlight phrases in a knowledge source in the Mac and iPhone apps to tell the AI which parts to pay attention to when shaping questions, as the web app already does. The apps send the highlight start and end positions with the source, and the question-shaping code reads them as today.
-- [x] Filter the Knowledge overview by state and origin on the server, then use it on iPhone.
-- [x] Bring the iOS app close to web parity: cards table, subjects tree with depth bar, triage, search.
-- [x] A kept piece in pending review can be undone, restoring its dropped variants and pending state.
-- [x] Mac Knowledge table column titles are not clipped when zoomed to 200%.
-- [x] API takes the chosen one or two variants of a piece, drops the rest and approves it.
-- [x] Block regeneration scans from re-creating variants of an approved piece the reviewer already narrowed down.
-- [x] Shared selection model preselects the best variant, caps keeps at two, with tests.
-- [x] Mac and iOS pending review shows one piece per screen with numbered variant cards.
-- [x] Mac pending review keys: digits toggle variants, Return keeps and advances, X drops the piece, Z undoes.
-- [x] Web pending review uses the same keep-one-or-two choice and number keys on each piece.
-- [x] Mac app zooms with Cmd-plus, Cmd-minus and Cmd-0, scaling text and interface, remembered between launches.
-- [x] Mac sidebar keeps only Knowledge, Knowledge Inbox, Review (cram), Subjects and Settings.
-- [x] The Knowledge screen is a sortable table with columns, not a plain list.
-- [x] The iOS app has the same Debug-only sync spike window and shows subjects offline in the simulator.
-- [x] The Mac smoke tests and a Release build pass after the address and sync token changes.
-- [x] The spike syncs subjects and topics using only API-minted tokens, with no dev-token fallback, checked live.
-- [x] PowerSync sync rules also cover topics, and the Mac spike window shows them offline.
-- [x] The Mac app uses the address saved in Settings, not production, and a test covers it.
-- [x] The Mac app fetches fresh sync tokens from the API itself and keeps syncing past five minutes.
-- [x] PowerSync accepts a token minted by the post-anki API and syncs the Mac app with it.
-- [x] The iOS target builds for the simulator from apps/ios.
-- [x] The post-anki API issues short-lived sync tokens that PowerSync checks through a public key endpoint.
-- [x] The Mac spike runs from a signed, sandboxed build and still reads the local service.
-- [x] A script builds and launches the native app, takes a screenshot, and main screens have accessibility identifiers.
-- [x] The Swift iOS and macOS project from the old post-anki-ios repo lives in apps/ios here and builds.
-- [x] The native app's local secrets file and build output never get committed to git.
-- [x] The native app's config, ports and README point at this repo's API, not the old repo.
-- [x] A short note compares PowerSync with Electric for native sync and records the chosen path.
-- [x] One table syncs from dev Postgres to the Swift app via PowerSync and shows offline.
 
 ### Notes
 - iOS auth and API-gap items in cross-surface-practice belong here. PowerSync Open Edition is free to self-host.
@@ -1200,87 +1156,7 @@ updated: 2026-09-04
 - Out of scope: Replacing the typed-answer LLM-graded mode; it stays as a separate mode
 
 ### Coding tasks
-- [ ] Show the subject of the card currently being reviewed.
-- [ ] Today review goes subject by subject, announcing the next subject and cards left.
-- [x] A daily review limit ends the session with a done-for-today message, and review-ahead stays available.
-- [x] Mac Review shows a collapsible subject tree with due new and repeat counts, and reviews on click.
-- [x] On the Mac, Space, Return and numpad Enter all continue the review as Good.
-- [x] A card graded Good or Hard is not brought back by queue refills in the same session.
 - [ ] [blocked: user] Raise the session token cap so planned Anki-parity items can be built.
-- [x] Add review statistics: due forecast for coming days, retention rate over time, and answer-button counts.
-- [x] Pending items move from Review to Knowledge Inbox, and Inbox is renamed Knowledge Inbox everywhere.
-- [x] Review drops typed answers: Space reveals ratings, keys 1-4 rate, Space again picks Good.
-- [x] Select-all on All cards works on a Russian keyboard layout.
-- [x] Today's review count and streak follow the learner's own midnight, not UTC.
-- [x] Review shortcuts for undo, edit and suspend work on a Russian keyboard layout.
-- [x] Show each card's source link in review and in All cards
-- [x] Warn before adding a link or text that was already added, with an explicit add-again
-- [x] Say why a pasted text or link was refused, next to the block that failed
-- [x] Add controller tests for bulk move knowledge bits
-- [x] Show human-readable relative time for next due card on done screen
-- [x] Show today's count and streak on the done-for-today screen
-- [x] Highlight overdue cards in amber on the knowledge overview table
-- [x] Show study streak count on the session summary screen
-- [x] Persist per-day review totals so streak tracking survives a page reload
-- [x] Show fill-in-blank variant as a cloze card during study sessions
-- [x] Decide durable workflow engine for extraction jobs; replace homegrown pipeline kicks
-- [x] Harden knowledge extraction against prompt injection and unsafe input
-- [x] Replace gemini-2.5-flash-lite default before OpenRouter drops it on 2026-10-20
-- [x] Write cards from the whole source text, not sentence by sentence
-- [x] Regenerate button on the approval page for a source
-- [x] Phone tap targets at least 44px: menus, Add knowledge, Show answer
-- [x] Allow the custom web domain in the API origin allow-list
-- [x] Settings switcher to pick the extraction model from five candidates
-- [x] Fix single-item review batch serving the same item twice
-- [x] Show newly detected suggestions on the approval page without reload
-- [x] Split approval review item and panel files under 300 lines
-- [x] Explain approve, and that questions take minutes, on paste
-- [x] Show per-row error when approve or reject fails
-- [x] Stop checking-automatically text after polling gives up
-- [x] Reorder nav: Add, Approve, Review
-- [x] Rename approval page so Review means cards only
-- [x] Fix Done for today showing when nothing was reviewed
-- [x] Label Bury and Suspend in words; move below answer
-- [x] Add aria-labels with interval to grade buttons
-- [x] Stop a retried grade save from grading the card twice
-- [x] Split the review queue repo file under 300 lines
-- [x] Add Anki review mode: show answer, then self-grade Again/Hard/Good/Easy
-- [x] Serve only due or never-reviewed cards in the unscoped review queue
-- [x] Hide bit text above the question in Anki review mode
-- [x] Run bit detection and question generation right after paste
-- [x] Link review page from sidebar and add-knowledge success, with pending count
-- [x] Refresh review page so bits awaiting questions become approvable
-- [x] Add bulk approve on the knowledge-bit review page
-- [x] Add simple front/back basic-card variant for plain recall facts
-- [x] Keyboard shortcuts: Space reveals answer, 1-4 grade the card
-- [x] Show the next interval on each grade button, like Anki
-- [x] Add minute-level learning steps for new and failed cards
-- [x] Cap new cards per day and show due and new counts
-- [x] Undo the last grade with one click or keystroke
-- [x] Show session progress and an end-of-session summary
-- [x] Show done-for-today screen with next due time when queue empty
-- [x] Edit a card's question or answer during review
-- [x] Suspend or bury a card from the review screen
-- [x] Flag leeches after repeated failures and suspend them automatically
-- [x] Approve or reject suggestions by keyboard; approve all from a source
-- [x] Hide the chat panel until the answer is revealed
-- [x] E2e: basic cards generated, preferred in review, excluded from typed mode
-- [x] E2e: basic card retries, overlapping runs, injection and backstop job
-- [x] E2e: session summary, mid-review edit, undo suspend or bury
-- [x] E2e: typed queue skips suspended and buried; timer finishes interrupted runs
-- [x] Review screen: keep grade focus, retry button, explained counts and done step
-- [x] Paste page: plain wording, saving state, labelled inputs and mode toggles
-- [x] Script listing cheapest structured-output OpenRouter models with prices
-- [x] Count pasted items as due on the dashboard without a curriculum placement
-- [x] Page to list and unsuspend suspended or leech cards
-- [x] Approve all asks to confirm and lists why items were skipped
-- [x] Empty approval page points to Add knowledge
-- [x] Raise hint contrast and touch target size on approval and review
-- [x] Phone-width checks: no horizontal overflow on key screens, with screenshots
-- [x] Cards keep the source language and never say the bit or the text
-- [x] Write cards in parallel and show how many are ready
-- [x] Detected items must stand alone, with no dangling this or that
-- [x] Compare the five models side by side on the user's Russian text
 
 ### Notes
 - Gap analysis: .planning/anki-scenario-review/report.md
@@ -1895,7 +1771,7 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Out of scope: changes to the-me-agent itself — post-anki's side of the integration only
 
 ### Coding tasks
-- [ ] Add a Post Anki button that sends a todo to the user's Me agent.
+- [ ] [blocked: user] Add a Post Anki button that sends a todo to the user's Me agent.
 
 ### Notes
 - MCP is stdio-only; post-anki runs on Cloud Run — no prod path without a networked transport
@@ -1985,9 +1861,6 @@ Each root item below is one separate autonomous session, worked sequentially —
 - Add a post-deploy smoke test that checks the Telegram bot webhook config, the bot /push auth and the API GET /daily-push against the prod URLs, without deploying anything.
 
 ### Coding tasks
-- [ ] Create scripts/post-deploy-smoke.mjs reading prod domains and bot token from environment, failing fast when missing.
-- [ ] Add webhook check: getWebhookInfo url must equal the bot /telegram URL, with no last_error_message.
-- [ ] Add /push check: missing and wrong bearer must both return 401; never send the valid secret.
 
 ### Notes
 - goal run run-20261112t120426z
