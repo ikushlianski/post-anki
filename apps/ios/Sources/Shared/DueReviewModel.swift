@@ -28,6 +28,7 @@ final class DueReviewModel {
     var gradeError: String?
     var failedGrade: ReviewGrade?
     var notice: String?
+    var suspendedUndo: ReviewCard?
     var nextDueAt: String?
     var dailyLimit: DailyReviewLimit?
     var noCardsYet = false

@@ -13,6 +13,8 @@ extension SmokeTests {
         ],"counts":{"new":1,"learning":2,"review":1},"newRemainingToday":5,"nextDueAt":null}
         """
 
+        private static let scheduleReply = #"{"knowledgeBitId":"k1","suspended":true,"buriedUntil":null,"leech":false,"cardKey":null}"#
+
         private func makeModel(scope: DueReviewScope? = nil) -> (DueReviewModel, URL) {
             let file = FileManager.default.temporaryDirectory.appendingPathComponent("progress-\(UUID().uuidString).json")
 
@@ -88,6 +90,63 @@ extension SmokeTests {
 
             #expect(model.current?.knowledgeBitId == "k2")
             #expect(model.progressLabel == "1 of 4")
+        }
+
+        @Test("should move to the next card and offer undo after a one-tap suspend")
+        func suspendOffersUndo() async {
+            let session = FakeServerSession([
+                "/knowledge-bits/review-cards": .json(200, Self.twoCardsReply),
+                "PATCH /knowledge-bits/k1/schedule": .json(200, Self.scheduleReply)
+            ])
+            defer { session.end() }
+
+            let (model, file) = makeModel()
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            await model.load()
+            await model.suspendCurrent(offersUndo: true)
+
+            #expect(model.current?.knowledgeBitId == "k2")
+            #expect(model.suspendedUndo?.variantId == "v1")
+            #expect(model.notice == nil)
+        }
+
+        @Test("should bring the suspended card back as the current one when the suspend is undone")
+        func undoSuspendRestoresCard() async {
+            let session = FakeServerSession([
+                "/knowledge-bits/review-cards": .json(200, Self.twoCardsReply),
+                "PATCH /knowledge-bits/k1/schedule": .json(200, Self.scheduleReply)
+            ])
+            defer { session.end() }
+
+            let (model, file) = makeModel()
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            await model.load()
+            await model.suspendCurrent(offersUndo: true)
+            await model.undoSuspend()
+
+            #expect(model.current?.variantId == "v1")
+            #expect(model.queue.first?.variantId == "v2")
+            #expect(model.suspendedUndo == nil)
+        }
+
+        @Test("should keep the plain notice and no undo when suspending from the menu path without undo")
+        func suspendWithoutUndoKeepsNotice() async {
+            let session = FakeServerSession([
+                "/knowledge-bits/review-cards": .json(200, Self.twoCardsReply),
+                "PATCH /knowledge-bits/k1/schedule": .json(200, Self.scheduleReply)
+            ])
+            defer { session.end() }
+
+            let (model, file) = makeModel()
+            defer { try? FileManager.default.removeItem(at: file) }
+
+            await model.load()
+            await model.suspendCurrent()
+
+            #expect(model.notice == "Card suspended")
+            #expect(model.suspendedUndo == nil)
         }
 
         @Test("should omit the subject when the review is not limited to one subject")

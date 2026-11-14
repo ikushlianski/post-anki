@@ -12,7 +12,7 @@ struct DueReviewCardControlsMenu: View {
                 Task { await model.buryCurrent() }
             }
             Button("Suspend this card", systemImage: "pause.circle") {
-                Task { await model.suspendCurrent() }
+                Task { await model.suspendCurrent(offersUndo: true) }
             }
         } label: {
             Label("Card actions", systemImage: "ellipsis.circle")

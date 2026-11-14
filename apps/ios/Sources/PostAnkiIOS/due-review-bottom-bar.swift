@@ -5,6 +5,14 @@ struct DueReviewBottomBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if model.suspendedUndo != nil {
+                DueReviewSuspendedBanner(model: model)
+            }
+
+            if model.current != nil {
+                suspendRow
+            }
+
             if model.reviewedCount > 0 {
                 Text("\(model.reviewedCount) reviewed this session")
                     .zoomFont(.footnote)
@@ -26,6 +34,26 @@ struct DueReviewBottomBar: View {
         }
     }
 
+    private var suspendRow: some View {
+        HStack {
+            Spacer()
+
+            Button {
+                Task { await model.suspendCurrent(offersUndo: true) }
+            } label: {
+                Label("Suspend", systemImage: "pause.circle")
+                    .zoomFont(.footnote)
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.isGrading)
+            .accessibilityIdentifier("due-review-suspend")
+            .accessibilityHint("Stops this card from coming up until you unsuspend it")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
+        .background(.bar)
+    }
+
     private var gradeTiles: [MainActionTile] {
         let rehearsal = model.current?.isRehearsal == true
 
@@ -38,6 +66,38 @@ struct DueReviewBottomBar: View {
             ) {
                 Task { await model.grade(option.grade) }
             }
+        }
+    }
+}
+
+private struct DueReviewSuspendedBanner: View {
+    let model: DueReviewModel
+
+    var body: some View {
+        HStack {
+            Text("Suspended")
+                .zoomFont(.footnote)
+
+            Text("·")
+                .foregroundStyle(.secondary)
+
+            Button("Undo") {
+                Task { await model.undoSuspend() }
+            }
+            .zoomFont(.footnote.weight(.semibold))
+            .buttonStyle(.borderless)
+            .disabled(model.isGrading)
+            .accessibilityIdentifier("due-review-suspend-undo")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .task(id: model.suspendedUndo?.variantId) {
+            try? await Task.sleep(for: .seconds(5))
+
+            guard !Task.isCancelled else { return }
+
+            model.suspendedUndo = nil
         }
     }
 }
