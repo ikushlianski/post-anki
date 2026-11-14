@@ -4,8 +4,11 @@ import { serializeError } from "./log-error.js";
 
 export const LOG_REDACT_PATHS = ["token", "*.token", "req.headers.authorization"];
 
-export const log = pino({
-  level: loadEnv().LOG_LEVEL,
-  serializers: { err: serializeError },
-  redact: LOG_REDACT_PATHS,
-});
+export const log = pino(
+  {
+    level: loadEnv().LOG_LEVEL,
+    serializers: { err: serializeError },
+    redact: LOG_REDACT_PATHS,
+  },
+  pino.destination(process.env.LOG_TO_STDERR === "1" ? 2 : 1),
+);

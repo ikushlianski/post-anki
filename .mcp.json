@@ -9,20 +9,18 @@
       ],
       "env": {}
     },
-    "anki-batch": {
+    "postanki-local": {
       "type": "stdio",
-      "command": "npx",
+      "command": "npm",
       "args": [
-        "tsx",
-        "apps/anki-batch-mcp/src/anki-batch-mcp.server.ts",
-        "subjects/Business.txt"
-      ]
-    },
-    "post-anki-prod": {
-      "type": "http",
-      "url": "https://post-anki-api-pl6jw2mdla-ew.a.run.app/mcp",
-      "headers": {
-        "Authorization": "Bearer ${POST_ANKI_MCP_TOKEN}"
+        "run",
+        "-s",
+        "mcp:stdio",
+        "-w",
+        "@post-anki/api"
+      ],
+      "env": {
+        "ALLOW_REMOTE_DEV_DB": "1"
       }
     },
     "notion": {

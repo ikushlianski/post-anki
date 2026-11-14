@@ -37,7 +37,8 @@
     "backfill:import-facts": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/rebuild-imported-cloze-cards.ts",
     "verify:e2e": "tsx scripts/verify-e2e.ts",
     "notion:sync": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/notion-sync.ts",
-    "biz-education:distill": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/biz-education-distill.ts"
+    "biz-education:distill": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/biz-education-distill.ts",
+    "mcp:stdio": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --no-warnings --import tsx src/mcp/mcp.stdio.ts"
   },
   "dependencies": {
     "@mastra/core": "^1.37.1",
