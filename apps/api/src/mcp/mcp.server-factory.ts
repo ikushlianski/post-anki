@@ -5,6 +5,7 @@ import { registerCardsTools } from "./register-cards-tools.js";
 import { registerSearchTools } from "./register-search-tools.js";
 import { registerKnowledgeSourceTools } from "./register-knowledge-source-tools.js";
 import { registerCardWriteTools } from "./register-card-write-tools.js";
+import { registerAnkiReadTools, registerAnkiWriteTools } from "./register-anki-tools.js";
 import { registerWriteTools } from "./register-write-tools.js";
 
 export type McpAuthContext = RequestAuthContext;
@@ -22,8 +23,10 @@ export function createMcpServer(auth: McpAuthContext): McpServer {
   registerCardsTools(server);
   registerSearchTools(server);
   registerKnowledgeSourceTools(server);
+  registerAnkiReadTools(server);
   registerWriteTools(server, auth);
   registerCardWriteTools(server, auth);
+  registerAnkiWriteTools(server, auth);
 
   return server;
 }

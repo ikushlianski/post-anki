@@ -102,6 +102,10 @@ describe("POST /mcp tools", () => {
       "list_knowledge_sources",
       "get_source_knowledge_bits",
       "get_knowledge_bit",
+      "list_subjects",
+      "list_tags",
+      "get_tag_cards",
+      "list_due_cards",
     ];
 
     expect(tools.map((tool) => tool.name)).toEqual(expect.arrayContaining(expectedToolNames));
@@ -124,6 +128,10 @@ describe("POST /mcp tools", () => {
       "add_subject",
       "chat_about_card",
       "resolve_card_proposal",
+      "move_cards",
+      "suspend_cards",
+      "unsuspend_cards",
+      "grade_card",
     ]);
 
     await client.close();
