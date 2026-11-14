@@ -25,7 +25,6 @@ public enum TokenStore {
     }
 
     private static var sharedIdentity: [String: Any]? {
-        #if os(macOS)
         guard let group = SharedAccess.current.keychainGroup else { return nil }
 
         var query = identity
@@ -33,9 +32,6 @@ public enum TokenStore {
         query[kSecUseDataProtectionKeychain as String] = kCFBooleanTrue
 
         return query
-        #else
-        return nil
-        #endif
     }
 
     private static func readKeychain() -> String? {

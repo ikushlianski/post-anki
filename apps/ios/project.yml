@@ -34,10 +34,14 @@ targets:
     dependencies:
       - package: PostAnkiAPI
       - package: PowerSync
+      - target: PostAnkiIOSShare
+        embed: true
     info:
       path: Config/PostAnkiIOS-Info.plist
       properties:
         CFBundleShortVersionString: "0.1.0"
+        PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
+        PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
         PostAnkiProduction: $(POSTANKI_PRODUCTION)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
@@ -50,6 +54,7 @@ targets:
           - $(PRODUCT_BUNDLE_IDENTIFIER).review-pack-refresh
     settings:
       base:
+        CODE_SIGN_ENTITLEMENTS: Config/PostAnkiIOS$(POSTANKI_SHARING_SUFFIX).entitlements
         POSTANKI_PRODUCTION: "NO"
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -73,10 +78,14 @@ targets:
     dependencies:
       - package: PostAnkiAPI
       - package: PowerSync
+      - target: PostAnkiIOSShareDev
+        embed: true
     info:
       path: Config/PostAnkiIOSDev-Info.plist
       properties:
         CFBundleShortVersionString: "0.1.0"
+        PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
+        PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
         PostAnkiDevAPIURL: $(POSTANKI_DEV_API_URL)
         PostAnkiLocalDevAPIToken: $(POSTANKI_LOCAL_DEV_API_TOKEN)
         PostAnkiPowerSyncURL: $(POSTANKI_POWERSYNC_URL)
@@ -89,6 +98,7 @@ targets:
           - $(PRODUCT_BUNDLE_IDENTIFIER).review-pack-refresh
     settings:
       base:
+        CODE_SIGN_ENTITLEMENTS: Config/PostAnkiIOS$(POSTANKI_SHARING_SUFFIX).entitlements
         PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios.dev
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
@@ -101,6 +111,76 @@ targets:
         Release:
           POSTANKI_LOCAL_DEV_API_TOKEN: ""
     scheme: {}
+
+  PostAnkiIOSShare:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/PostAnkiIOSShare
+      - path: Sources/ShareShared
+    dependencies:
+      - package: PostAnkiAPI
+    info:
+      path: Config/PostAnkiIOSShare-Info.plist
+      properties:
+        CFBundleDisplayName: Post Anki
+        CFBundleName: Post Anki
+        CFBundleShortVersionString: "0.1.0"
+        PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
+        PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
+        PostAnkiProduction: $(POSTANKI_PRODUCTION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios.share
+        PRODUCT_NAME: PostAnkiShare
+        POSTANKI_PRODUCTION: "NO"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_ENTITLEMENTS: Config/PostAnkiIOS$(POSTANKI_SHARING_SUFFIX).entitlements
+        SKIP_INSTALL: YES
+
+  PostAnkiIOSShareDev:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/PostAnkiIOSShare
+      - path: Sources/ShareShared
+    dependencies:
+      - package: PostAnkiAPI
+    info:
+      path: Config/PostAnkiIOSShareDev-Info.plist
+      properties:
+        CFBundleDisplayName: Post Anki Dev
+        CFBundleName: Post Anki
+        CFBundleShortVersionString: "0.1.0"
+        PostAnkiKeychainGroup: $(POSTANKI_KEYCHAIN_GROUP)
+        PostAnkiAppGroup: $(POSTANKI_APP_GROUP)
+        PostAnkiProduction: $(POSTANKI_PRODUCTION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ikushlianski.postankiios.dev.share
+        PRODUCT_NAME: PostAnkiShare
+        POSTANKI_PRODUCTION: "NO"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_ENTITLEMENTS: Config/PostAnkiIOS$(POSTANKI_SHARING_SUFFIX).entitlements
+        SKIP_INSTALL: YES
 
   PostAnkiMac:
     type: application
@@ -160,6 +240,7 @@ targets:
     deploymentTarget: "14.0"
     sources:
       - path: Sources/PostAnkiMacShare
+      - path: Sources/ShareShared
     dependencies:
       - package: PostAnkiAPI
     info:
