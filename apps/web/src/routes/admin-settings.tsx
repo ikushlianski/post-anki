@@ -7,6 +7,8 @@ import {
   saveFusionSettings,
   updateAdminSettings,
 } from '../admin-settings/admin-settings.api'
+import { createApiToken, listApiTokens, revokeApiToken } from '../admin-settings/api-tokens.api'
+import { ApiTokensSection } from '../admin-settings/api-tokens-section'
 import { AdminSettingsToggle } from '../admin-settings/admin-settings-toggle'
 import { ChatUsagePanel } from '../chat-usage/chat-usage-panel'
 import { clearAllKnowledge } from '../admin-settings/clear-all-knowledge.api'
@@ -231,6 +233,12 @@ function AdminSettingsPage() {
         </Link>
       </section>
 
+
+      <ApiTokensSection
+        onList={() => listApiTokens()}
+        onCreate={(data) => createApiToken({ data })}
+        onRevoke={(id) => revokeApiToken({ data: { id } })}
+      />
 
       <ChatUsagePanel />
 

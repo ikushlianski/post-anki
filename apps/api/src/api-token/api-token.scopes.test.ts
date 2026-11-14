@@ -15,6 +15,12 @@ describe("hasScope", () => {
   });
 });
 
+describe("API_TOKEN_SCOPES", () => {
+  it("should offer knowledge and card write scopes", () => {
+    expect(parseScopeList("knowledge:write,cards:write")).toEqual(["knowledge:write", "cards:write"]);
+  });
+});
+
 describe("parseScopeList", () => {
   it("should accept a comma-separated list with spaces around the names", () => {
     expect(parseScopeList(" knowledge:write , ")).toEqual(["knowledge:write"]);

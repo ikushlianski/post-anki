@@ -1,12 +1,9 @@
 import { z } from "zod";
+import { API_TOKEN_SCOPES, apiTokenScopeSchema, type ApiTokenScope } from "@post-anki/shared";
 
-export const API_TOKEN_SCOPES = ["knowledge:write"] as const;
+export { API_TOKEN_SCOPES, apiTokenScopeSchema, type ApiTokenScope };
 
 export const ALL_SCOPES = "*";
-
-export const apiTokenScopeSchema = z.enum(API_TOKEN_SCOPES);
-
-export type ApiTokenScope = z.infer<typeof apiTokenScopeSchema>;
 
 export function hasScope(scopes: readonly string[], scope: ApiTokenScope): boolean {
   return scopes.includes(ALL_SCOPES) || scopes.includes(scope);

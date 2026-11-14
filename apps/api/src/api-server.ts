@@ -188,6 +188,7 @@ import {
   handleGetAdminSettings,
   handleUpdateAdminSettings,
 } from "./admin-settings/admin-settings.controller.js";
+import { handleCreateApiToken, handleListApiTokens, handleRevokeApiToken } from "./api-token/api-token.controller.js";
 import { handleGetAccount, handleUpdateAccount } from "./account/account.controller.js";
 import {
   handleGetSubjectStudyOptions,
@@ -1004,6 +1005,12 @@ async function route(
       return handleGetAdminSettings(res);
     case "updateAdminSettings":
       return handleUpdateAdminSettings(req, res);
+    case "createApiToken":
+      return handleCreateApiToken(req, res);
+    case "listApiTokens":
+      return handleListApiTokens(req, res);
+    case "revokeApiToken":
+      return handleRevokeApiToken(req, res, id);
     case "getAccount":
       return handleGetAccount(req, res);
     case "updateAccount":

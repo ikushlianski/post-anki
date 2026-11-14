@@ -278,6 +278,19 @@ describe("POST /mcp auth", () => {
     expect(state.touchedIds).toEqual([]);
   });
 
+  it("rejects an unknown pat_ key with 401 and never reaches the MCP server", async () => {
+    state.tokenRows = [];
+
+    const res = await fetch(`${baseUrl}/mcp`, {
+      method: "POST",
+      headers: mcpHeaders("pat_unknown"),
+      body: initializeBody(),
+    });
+
+    expect(res.status).toBe(401);
+    expect(state.authContexts).toEqual([]);
+  });
+
   it("returns 405 for GET /mcp", async () => {
     const res = await fetch(`${baseUrl}/mcp`, {
       method: "GET",

@@ -2,6 +2,15 @@ import { describe, it, expect } from "vitest";
 import { resolveRoute } from "./router.js";
 
 describe("resolveRoute", () => {
+  it("routes the api-token management endpoints", () => {
+    expect(resolveRoute("POST", "/api-tokens")?.name).toBe("createApiToken");
+    expect(resolveRoute("GET", "/api-tokens")?.name).toBe("listApiTokens");
+    expect(resolveRoute("DELETE", "/api-tokens/apitoken_1")).toEqual({
+      name: "revokeApiToken",
+      params: { id: "apitoken_1" },
+    });
+  });
+
   describe("exact paths", () => {
     it("matches collection routes by method", () => {
       expect(resolveRoute("GET", "/subjects")?.name).toBe("listSubjects");
